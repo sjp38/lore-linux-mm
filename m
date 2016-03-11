@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B59D66B0258
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 18:06:40 -0500 (EST)
-Received: by mail-pf0-f173.google.com with SMTP id u190so63941967pfb.3
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 15:06:40 -0800 (PST)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 46D886B0258
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 18:07:11 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id tt10so110553393pab.3
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 15:07:11 -0800 (PST)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id qc8si7506542pac.39.2016.03.11.14.59.35
+        by mx.google.com with ESMTP id ds16si1214123pac.149.2016.03.11.14.59.35
         for <linux-mm@kvack.org>;
         Fri, 11 Mar 2016 14:59:35 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 16/25] thp, mlock: do not mlock PTE-mapped file huge pages
-Date: Sat, 12 Mar 2016 01:59:08 +0300
-Message-Id: <1457737157-38573-17-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 25/25] shmem, thp: respect MADV_{NO,}HUGEPAGE for file mappings
+Date: Sat, 12 Mar 2016 01:59:17 +0300
+Message-Id: <1457737157-38573-26-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,165 +19,129 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-As with anon THP, we only mlock file huge pages if we can prove that the
-page is not mapped with PTE. This way we can avoid mlock leak into
-non-mlocked vma on split.
+Let's wire up existing madvise() hugepage hints for file mappings.
 
-We rely on PageDoubleMap() under lock_page() to check if the the page
-may be PTE mapped. PG_double_map is set by page_add_file_rmap() when the
-page mapped with PTEs.
+MADV_HUGEPAGE advise shmem to allocate huge page on page fault in the
+VMA. It only has effect if the filesystem is mounted with huge=advise or
+huge=within_size.
+
+MADV_NOHUGEPAGE prevents hugepage from being allocated on page fault in
+the VMA. It doesn't prevent a huge page from being allocated by other
+means, i.e. page fault into different mapping or write(2) into file.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/page-flags.h | 13 ++++++++++++-
- mm/huge_memory.c           | 27 ++++++++++++++++++++-------
- mm/mmap.c                  |  6 ++++++
- mm/page_alloc.c            |  2 ++
- mm/rmap.c                  | 16 ++++++++++++++--
- 5 files changed, 54 insertions(+), 10 deletions(-)
+ mm/huge_memory.c | 13 ++-----------
+ mm/shmem.c       | 20 +++++++++++++++++---
+ 2 files changed, 19 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index f4ed4f1b0c77..517707ae8cd1 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -544,6 +544,17 @@ static inline int PageDoubleMap(struct page *page)
- 	return PageHead(page) && test_bit(PG_double_map, &page[1].flags);
- }
- 
-+static inline void SetPageDoubleMap(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	set_bit(PG_double_map, &page[1].flags);
-+}
-+
-+static inline void ClearPageDoubleMap(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	clear_bit(PG_double_map, &page[1].flags);
-+}
- static inline int TestSetPageDoubleMap(struct page *page)
- {
- 	VM_BUG_ON_PAGE(!PageHead(page), page);
-@@ -560,7 +571,7 @@ static inline int TestClearPageDoubleMap(struct page *page)
- TESTPAGEFLAG_FALSE(TransHuge)
- TESTPAGEFLAG_FALSE(TransCompound)
- TESTPAGEFLAG_FALSE(TransTail)
--TESTPAGEFLAG_FALSE(DoubleMap)
-+PAGEFLAG_FALSE(DoubleMap)
- 	TESTSETFLAG_FALSE(DoubleMap)
- 	TESTCLEARFLAG_FALSE(DoubleMap)
- #endif
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index ba5fdf654f27..a2680b2112e4 100644
+index a9d642ff7aa2..8d5b552b7963 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -1427,6 +1427,8 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 		 * We don't mlock() pte-mapped THPs. This way we can avoid
- 		 * leaking mlocked pages into non-VM_LOCKED VMAs.
- 		 *
-+		 * For anon THP:
-+		 *
- 		 * In most cases the pmd is the only mapping of the page as we
- 		 * break COW for the mlock() -- see gup_flags |= FOLL_WRITE for
- 		 * writable private mappings in populate_vma_page_range().
-@@ -1434,15 +1436,26 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 		 * The only scenario when we have the page shared here is if we
- 		 * mlocking read-only mapping shared over fork(). We skip
- 		 * mlocking such pages.
-+		 *
-+		 * For file THP:
-+		 *
-+		 * We can expect PageDoubleMap() to be stable under page lock:
-+		 * for file pages we set it in page_add_file_rmap(), which
-+		 * requires page to be locked.
+@@ -1844,11 +1844,6 @@ int hugepage_madvise(struct vm_area_struct *vma,
+ 		if (mm_has_pgste(vma->vm_mm))
+ 			return 0;
+ #endif
+-		/*
+-		 * Be somewhat over-protective like KSM for now!
+-		 */
+-		if (*vm_flags & VM_NO_THP)
+-			return -EINVAL;
+ 		*vm_flags &= ~VM_NOHUGEPAGE;
+ 		*vm_flags |= VM_HUGEPAGE;
+ 		/*
+@@ -1856,15 +1851,11 @@ int hugepage_madvise(struct vm_area_struct *vma,
+ 		 * register it here without waiting a page fault that
+ 		 * may not happen any time soon.
  		 */
--		if (compound_mapcount(page) == 1 && !PageDoubleMap(page) &&
--				page->mapping && trylock_page(page)) {
--			lru_add_drain();
--			if (page->mapping)
--				mlock_vma_page(page);
--			unlock_page(page);
--		}
-+
-+		if (PageAnon(page) && compound_mapcount(page) != 1)
-+			goto skip_mlock;
-+		if (PageDoubleMap(page) || !page->mapping)
-+			goto skip_mlock;
-+		if (!trylock_page(page))
-+			goto skip_mlock;
-+		lru_add_drain();
-+		if (page->mapping && !PageDoubleMap(page))
-+			mlock_vma_page(page);
-+		unlock_page(page);
- 	}
-+skip_mlock:
- 	page += (addr & ~HPAGE_PMD_MASK) >> PAGE_SHIFT;
- 	VM_BUG_ON_PAGE(!PageCompound(page), page);
- 	if (flags & FOLL_GET)
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 94979671b42c..1786d0b0244f 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2576,6 +2576,12 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
- 		/* drop PG_Mlocked flag for over-mapped range */
- 		for (tmp = vma; tmp->vm_start >= start + size;
- 				tmp = tmp->vm_next) {
-+			/*
-+			 * Split pmd and munlock page on the border
-+			 * of the range.
-+			 */
-+			vma_adjust_trans_huge(tmp, start, start + size, 0);
-+
- 			munlock_vma_pages_range(tmp,
- 					max(tmp->vm_start, start),
- 					min(tmp->vm_end, start + size));
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d6f042673e01..bce8b320fcce 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1009,6 +1009,8 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+-		if (unlikely(khugepaged_enter_vma_merge(vma, *vm_flags)))
++		if ((*vm_flags & VM_NO_THP) &&
++				khugepaged_enter_vma_merge(vma, *vm_flags))
+ 			return -ENOMEM;
+ 		break;
+ 	case MADV_NOHUGEPAGE:
+-		/*
+-		 * Be somewhat over-protective like KSM for now!
+-		 */
+-		if (*vm_flags & VM_NO_THP)
+-			return -EINVAL;
+ 		*vm_flags &= ~VM_HUGEPAGE;
+ 		*vm_flags |= VM_NOHUGEPAGE;
+ 		/*
+diff --git a/mm/shmem.c b/mm/shmem.c
+index c31216806721..ee8a15c24123 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -101,6 +101,8 @@ struct shmem_falloc {
+ enum sgp_type {
+ 	SGP_READ,	/* don't exceed i_size, don't allocate page */
+ 	SGP_CACHE,	/* don't exceed i_size, may allocate page */
++	SGP_NOHUGE,	/* like SGP_CACHE, but no huge pages */
++	SGP_HUGE,	/* like SGP_CACHE, huge pages preferred */
+ 	SGP_DIRTY,	/* like SGP_CACHE, but set new page dirty */
+ 	SGP_WRITE,	/* may exceed i_size, may allocate !Uptodate page */
+ 	SGP_FALLOC,	/* like SGP_WRITE, but make existing page Uptodate */
+@@ -1371,6 +1373,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 	struct mem_cgroup *memcg;
+ 	struct page *page;
+ 	swp_entry_t swap;
++	enum sgp_type sgp_huge = sgp;
+ 	pgoff_t hindex = index;
+ 	int error;
+ 	int once = 0;
+@@ -1378,6 +1381,8 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
  
- 	if (PageAnon(page))
- 		page->mapping = NULL;
-+	if (compound)
-+		ClearPageDoubleMap(page);
- 	bad += free_pages_check(page);
- 	for (i = 1; i < (1 << order); i++) {
- 		if (compound)
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 359ec5cff9b0..f48258a78c8a 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1298,6 +1298,12 @@ void page_add_file_rmap(struct page *page, bool compound)
- 			goto out;
- 		__inc_zone_page_state(page, NR_FILE_THP_MAPPED);
- 	} else {
-+		if (PageTransCompound(page)) {
-+			VM_BUG_ON_PAGE(!PageLocked(page), page);
-+			SetPageDoubleMap(compound_head(page));
-+			if (PageMlocked(page))
-+				clear_page_mlock(compound_head(page));
-+		}
- 		if (!atomic_inc_and_test(&page->_mapcount))
- 			goto out;
- 	}
-@@ -1472,8 +1478,14 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	 */
- 	if (!(flags & TTU_IGNORE_MLOCK)) {
- 		if (vma->vm_flags & VM_LOCKED) {
--			/* Holding pte lock, we do *not* need mmap_sem here */
--			mlock_vma_page(page);
-+			/* PTE-mapped THP are never mlocked */
-+			if (!PageTransCompound(page)) {
-+				/*
-+				 * Holding pte lock, we do *not* need
-+				 * mmap_sem here
-+				 */
-+				mlock_vma_page(page);
-+			}
- 			ret = SWAP_MLOCK;
- 			goto out_unmap;
+ 	if (index > (MAX_LFS_FILESIZE >> PAGE_CACHE_SHIFT))
+ 		return -EFBIG;
++	if (sgp == SGP_NOHUGE || sgp == SGP_HUGE)
++		sgp = SGP_CACHE;
+ repeat:
+ 	swap.val = 0;
+ 	page = find_lock_entry(mapping, index);
+@@ -1491,7 +1496,7 @@ repeat:
+ 		/* shmem_symlink() */
+ 		if (mapping->a_ops != &shmem_aops)
+ 			goto alloc_nohuge;
+-		if (shmem_huge == SHMEM_HUGE_DENY)
++		if (shmem_huge == SHMEM_HUGE_DENY || sgp_huge == SGP_NOHUGE)
+ 			goto alloc_nohuge;
+ 		if (shmem_huge == SHMEM_HUGE_FORCE)
+ 			goto alloc_huge;
+@@ -1507,7 +1512,9 @@ repeat:
+ 				goto alloc_huge;
+ 			/* fallthrough */
+ 		case SHMEM_HUGE_ADVISE:
+-			/* TODO: wire up fadvise()/madvise() */
++			if (sgp_huge == SGP_HUGE)
++				goto alloc_huge;
++			/* TODO: implement fadvise() hints */
+ 			goto alloc_nohuge;
  		}
+ 
+@@ -1639,6 +1646,7 @@ unlock:
+ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+ 	struct inode *inode = file_inode(vma->vm_file);
++	enum sgp_type sgp;
+ 	int error;
+ 	int ret = VM_FAULT_LOCKED;
+ 
+@@ -1700,7 +1708,13 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 		spin_unlock(&inode->i_lock);
+ 	}
+ 
+-	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_CACHE, &ret);
++	sgp = SGP_CACHE;
++	if (vma->vm_flags & VM_HUGEPAGE)
++		sgp = SGP_HUGE;
++	else if (vma->vm_flags & VM_NOHUGEPAGE)
++		sgp = SGP_NOHUGE;
++
++	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, sgp, &ret);
+ 	if (error)
+ 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
+ 
 -- 
 2.7.0
 
