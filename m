@@ -1,86 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B08E06B0256
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 08:05:46 -0500 (EST)
-Received: by mail-wm0-f53.google.com with SMTP id l68so16842780wml.1
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:05:46 -0800 (PST)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id cu9si10956868wjc.53.2016.03.11.05.05.45
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id A29D06B0255
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 08:06:50 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id p65so17310160wmp.1
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:06:50 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id k188si2626861wmd.53.2016.03.11.05.06.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 05:05:45 -0800 (PST)
-Received: by mail-wm0-x22c.google.com with SMTP id p65so17272122wmp.1
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:05:45 -0800 (PST)
+        Fri, 11 Mar 2016 05:06:49 -0800 (PST)
+Received: by mail-wm0-f65.google.com with SMTP id p65so2345203wmp.1
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:06:49 -0800 (PST)
+Date: Fri, 11 Mar 2016 14:06:47 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 3/3] mm, oom: protect !costly allocations some more
+Message-ID: <20160311130647.GO27701@dhcp22.suse.cz>
+References: <20160307160838.GB5028@dhcp22.suse.cz>
+ <1457444565-10524-1-git-send-email-mhocko@kernel.org>
+ <1457444565-10524-4-git-send-email-mhocko@kernel.org>
+ <20160309111109.GG27018@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1603110354360.7920@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <CAPAsAGy3goFXhFZiAarYV3NFZHQOYQxaF324UOJrMCbaZWV7CQ@mail.gmail.com>
-References: <cover.1457519440.git.glider@google.com>
-	<14d02da417b3941fd871566e16a164ca4d4ccabc.1457519440.git.glider@google.com>
-	<CAPAsAGy3goFXhFZiAarYV3NFZHQOYQxaF324UOJrMCbaZWV7CQ@mail.gmail.com>
-Date: Fri, 11 Mar 2016 14:05:45 +0100
-Message-ID: <CAG_fn=UFB3UYg0-uw4TUJvuvu9ZkqqTKG4enMFMXyWC-q65SeA@mail.gmail.com>
-Subject: Re: [PATCH v5 2/7] mm, kasan: SLAB support
-From: Alexander Potapenko <glider@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1603110354360.7920@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Mar 11, 2016 at 12:47 PM, Andrey Ryabinin
-<ryabinin.a.a@gmail.com> wrote:
-> 2016-03-09 14:05 GMT+03:00 Alexander Potapenko <glider@google.com>:
->
->> +struct kasan_track {
->> +       u64 cpu : 6;                    /* for NR_CPUS =3D 64 */
->
-> What about NR_CPUS > 64 ?
-After a discussion with Dmitry we've decided to drop |cpu| and |when|
-at all, as they do not actually help debugging.
-This way we'll make kasan_track only 8 bytes (4 bytes for PID, 4 bytes
-for stack handle).
-Then the meta structures will be smaller and have nice alignment:
+On Fri 11-03-16 04:17:30, Hugh Dickins wrote:
+> On Wed, 9 Mar 2016, Michal Hocko wrote:
+> > Joonsoo has pointed out that this attempt is still not sufficient
+> > becasuse we might have invoked only a single compaction round which
+> > is might be not enough. I fully agree with that. Here is my take on
+> > that. It is again based on the number of retries loop.
+> > 
+> > I was also playing with an idea of doing something similar to the
+> > reclaim retry logic:
+> > 	if (order) {
+> > 		if (compaction_made_progress(compact_result)
+> > 			no_compact_progress = 0;
+> > 		else if (compaction_failed(compact_result)
+> > 			no_compact_progress++;
+> > 	}
+> > but it is compaction_failed() part which is not really
+> > straightforward to define. Is it COMPACT_NO_SUITABLE_PAGE
+> > resp. COMPACT_NOT_SUITABLE_ZONE sufficient? compact_finished and
+> > compaction_suitable however hide this from compaction users so it
+> > seems like we can never see it.
+> > 
+> > Maybe we can update the feedback mechanism from the compaction but
+> > retries count seems reasonably easy to understand and pragmatic. If
+> > we cannot form a order page after we tried for N times then it really
+> > doesn't make much sense to continue and we are oom for this order. I am
+> > holding my breath to hear from Hugh on this, though.
+> 
+> Never a wise strategy.  But I just got around to it tonight.
+> 
+> I do believe you've nailed it with this patch!  Thank you!
 
-struct kasan_track {
-        u32 pid;
-        depot_stack_handle_t stack;
-};
+That's a great news! Thanks for testing.
 
-struct kasan_alloc_meta {
-        struct kasan_track track;
-        u32 state : 2;  /* enum kasan_state */
-        u32 alloc_size : 30;
-        u32 reserved;  /* we can use it to store an additional stack
-handle, e.g. for debugging RCU */
-};
+> I've applied 1/3, 2/3 and this (ah, it became the missing 3/3 later on)
+> on top of 4.5.0-rc5-mm1 (I think there have been a couple of mmotms since,
+> but I've not got to them yet): so far it is looking good on all machines.
+> 
+> After a quick go with the simple make -j20 in tmpfs, which survived
+> a cycle on the laptop, I've switched back to my original tougher load,
+> and that's going well so far: no sign of any OOMs.  But I've interrupted
+> on the laptop to report back to you now, then I'll leave it running
+> overnight.
 
-struct kasan_free_meta {
-        /* This field is used while the object is in the quarantine.
-         * Otherwise it might be used for the allocator freelist.
-         */
-        void **quarantine_link;
-        struct kasan_track track;
-};
+OK, let's wait for the rest of the tests but I find it really optimistic
+considering how easily you could trigger the issue previously. Anyway
+I hope for your Tested-by after you are reasonably confident your loads
+are behaving well.
 
+[...]
+> > diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> > index b167801187e7..7d028ccf440a 100644
+> > --- a/include/linux/compaction.h
+> > +++ b/include/linux/compaction.h
+> > @@ -61,6 +61,12 @@ extern void compaction_defer_reset(struct zone *zone, int order,
+> >  				bool alloc_success);
+> >  extern bool compaction_restarting(struct zone *zone, int order);
+> >  
+> > +static inline bool compaction_made_progress(enum compact_result result)
+> > +{
+> > +	return (compact_result > COMPACT_SKIPPED &&
+> > +				compact_result < COMPACT_NO_SUITABLE_PAGE)
+> 
+> That line didn't build at all:
+> 
+>         return result > COMPACT_SKIPPED && result < COMPACT_NO_SUITABLE_PAGE;
 
->> +       u64 pid : 16;                   /* 65536 processes */
->> +       u64 when : 42;                  /* ~140 years */
->> +};
->> +
+those last minute changes... Sorry about that. Fixed.
 
-
-
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
