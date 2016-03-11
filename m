@@ -1,86 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 323F26B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 17:11:10 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id td3so82476465pab.2
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:11:10 -0800 (PST)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0068.outbound.protection.outlook.com. [104.47.0.68])
-        by mx.google.com with ESMTPS id a22si12076778pfj.116.2016.03.11.14.11.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 11 Mar 2016 14:11:09 -0800 (PST)
-From: Chris Metcalf <cmetcalf@mellanox.com>
-Subject: [PATCH v11 03/13] lru_add_drain_all: factor out lru_add_drain_needed
-Date: Fri, 11 Mar 2016 17:10:13 -0500
-Message-ID: <1457734223-26209-4-git-send-email-cmetcalf@mellanox.com>
-In-Reply-To: <1457734223-26209-1-git-send-email-cmetcalf@mellanox.com>
-References: <1457734223-26209-1-git-send-email-cmetcalf@mellanox.com>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id AF8C56B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 17:50:35 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id fl4so109623787pad.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:50:35 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id n3si16707175pfb.123.2016.03.11.14.50.34
+        for <linux-mm@kvack.org>;
+        Fri, 11 Mar 2016 14:50:34 -0800 (PST)
+Date: Fri, 11 Mar 2016 15:50:01 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] x86, pmem: use memcpy_mcsafe() for memcpy_from_pmem()
+Message-ID: <20160311225001.GA30106@linux.intel.com>
+References: <20160310191507.29771.46591.stgit@dwillia2-desk3.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160310191507.29771.46591.stgit@dwillia2-desk3.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben Yossef <giladb@ezchip.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van
- Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.
- McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Chris Metcalf <cmetcalf@mellanox.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Ingo Molnar <mingo@kernel.org>, Tony Luck <tony.luck@intel.com>, linux-nvdimm@lists.01.org, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
 
-This per-cpu check was being done in the loop in lru_add_drain_all(),
-but having it be callable for a particular cpu is helpful for the
-task-isolation patches.
+On Thu, Mar 10, 2016 at 11:15:53AM -0800, Dan Williams wrote:
+> Update the definition of memcpy_from_pmem() to return 0 or -EIO on
+> error.  Implement x86::arch_memcpy_from_pmem() with memcpy_mcsafe().
+> 
+> Cc: Borislav Petkov <bp@alien8.de>
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: Tony Luck <tony.luck@intel.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Andy Lutomirski <luto@amacapital.net>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+> Andrew, now that all the pre-requisites for this patch are in -next
+> (tip/core/ras, tip/x86/asm, nvdimm/libnvdimm-for-next) may I ask you to
+> carry it in -mm?
+> 
+> Alternatively I can do an octopus merge and post a branch, but that
+> seems messy/risky for me to be merging 3 branches that are still subject
+> to a merge window disposition.
+> 
+>  arch/x86/include/asm/pmem.h |    9 +++++++++
+>  drivers/nvdimm/pmem.c       |    4 ++--
+>  include/linux/pmem.h        |   14 ++++++++------
+>  3 files changed, 19 insertions(+), 8 deletions(-)
+<>
+> diff --git a/include/linux/pmem.h b/include/linux/pmem.h
+> index 3ec5309e29f3..c46c5cf6538e 100644
+> --- a/include/linux/pmem.h
+> +++ b/include/linux/pmem.h
+> @@ -66,14 +66,16 @@ static inline void arch_invalidate_pmem(void __pmem *addr, size_t size)
+>  #endif
+>  
+>  /*
+> - * Architectures that define ARCH_HAS_PMEM_API must provide
+> - * implementations for arch_memcpy_to_pmem(), arch_wmb_pmem(),
+> - * arch_copy_from_iter_pmem(), arch_clear_pmem(), arch_wb_cache_pmem()
+> - * and arch_has_wmb_pmem().
 
-Signed-off-by: Chris Metcalf <cmetcalf@mellanox.com>
----
- include/linux/swap.h |  1 +
- mm/swap.c            | 15 ++++++++++-----
- 2 files changed, 11 insertions(+), 5 deletions(-)
+Why did you delete the above comment?  I believe it adds value?  Or do you
+think the fact that another architecture will get compile errors if the arch_*
+functions aren't defined is documentation enough?
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index d18b65c53dbb..da21f5240702 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -304,6 +304,7 @@ extern void activate_page(struct page *);
- extern void mark_page_accessed(struct page *);
- extern void lru_add_drain(void);
- extern void lru_add_drain_cpu(int cpu);
-+extern bool lru_add_drain_needed(int cpu);
- extern void lru_add_drain_all(void);
- extern void rotate_reclaimable_page(struct page *page);
- extern void deactivate_file_page(struct page *page);
-diff --git a/mm/swap.c b/mm/swap.c
-index 09fe5e97714a..bdcdfa21094c 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -653,6 +653,15 @@ void deactivate_page(struct page *page)
- 	}
- }
- 
-+bool lru_add_drain_needed(int cpu)
-+{
-+	return (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
-+		pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
-+		pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
-+		pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
-+		need_activate_page_drain(cpu));
-+}
-+
- void lru_add_drain(void)
- {
- 	lru_add_drain_cpu(get_cpu());
-@@ -679,11 +688,7 @@ void lru_add_drain_all(void)
- 	for_each_online_cpu(cpu) {
- 		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
- 
--		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
--		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
--		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
--		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
--		    need_activate_page_drain(cpu)) {
-+		if (lru_add_drain_needed(cpu)) {
- 			INIT_WORK(work, lru_add_drain_per_cpu);
- 			schedule_work_on(cpu, work);
- 			cpumask_set_cpu(cpu, &has_work);
--- 
-2.7.2
+> + * memcpy_from_pmem - read from persistent memory with error handling
+> + * @dst: destination buffer
+> + * @src: source buffer
+
+Missing kerneldoc for @size?
+
+Aside from those tiny nits:
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
