@@ -1,120 +1,325 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 8662A6B0254
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 12:07:45 -0500 (EST)
-Received: by mail-wm0-f43.google.com with SMTP id n186so27389728wmn.1
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 09:07:45 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s125si3749963wmd.74.2016.03.11.09.07.43
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CB6D6B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 12:12:41 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id p65so25892881wmp.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 09:12:41 -0800 (PST)
+Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
+        by mx.google.com with ESMTPS id b77si3756428wmf.115.2016.03.11.09.12.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 11 Mar 2016 09:07:44 -0800 (PST)
-Subject: Re: Suspicious error for CMA stress test
-References: <56D6F008.1050600@huawei.com> <56D79284.3030009@redhat.com>
- <CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
- <56D832BD.5080305@huawei.com> <20160304020232.GA12036@js1304-P5Q-DELUXE>
- <20160304043232.GC12036@js1304-P5Q-DELUXE> <56D92595.60709@huawei.com>
- <20160304063807.GA13317@js1304-P5Q-DELUXE> <56D93ABE.9070406@huawei.com>
- <20160307043442.GB24602@js1304-P5Q-DELUXE> <56DD38E7.3050107@huawei.com>
- <56DDCB86.4030709@redhat.com> <56DE30CB.7020207@huawei.com>
- <56DF7B28.9060108@huawei.com>
- <CAAmzW4NDJwgq_P33Ru_X0MKXGQEnY5dr_SY1GFutPAqEUAc_rg@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56E2FB5C.1040602@suse.cz>
-Date: Fri, 11 Mar 2016 18:07:40 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Mar 2016 09:12:40 -0800 (PST)
+Received: by mail-wm0-x22e.google.com with SMTP id l68so25909326wml.1
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 09:12:40 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAAmzW4NDJwgq_P33Ru_X0MKXGQEnY5dr_SY1GFutPAqEUAc_rg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAG_fn=UkgkHw5Ed72hPkYYzhXcH5gy5ubTeS8SvggvzZDxFdJw@mail.gmail.com>
+References: <cover.1457519440.git.glider@google.com>
+	<bdd59cc00ee49b7849ad60a11c6a4704c3e4856b.1457519440.git.glider@google.com>
+	<20160309122148.1250854b862349399591dabf@linux-foundation.org>
+	<CAG_fn=UkgkHw5Ed72hPkYYzhXcH5gy5ubTeS8SvggvzZDxFdJw@mail.gmail.com>
+Date: Fri, 11 Mar 2016 18:12:39 +0100
+Message-ID: <CAG_fn=Xo3BGbik8H9mfaQhXFdseZkqyyDz4c_4Ji-TCqT0kuZg@mail.gmail.com>
+Subject: Re: [PATCH v5 7/7] mm: kasan: Initial memory quarantine implementation
+From: Alexander Potapenko <glider@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>
-Cc: Laura Abbott <labbott@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hanjun Guo <guohanjun@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On 03/11/2016 04:00 PM, Joonsoo Kim wrote:
-> 2016-03-09 10:23 GMT+09:00 Leizhen (ThunderTown) <thunder.leizhen@huawei.com>:
+On Thu, Mar 10, 2016 at 2:50 PM, Alexander Potapenko <glider@google.com> wr=
+ote:
+> On Wed, Mar 9, 2016 at 9:21 PM, Andrew Morton <akpm@linux-foundation.org>=
+ wrote:
+>> On Wed,  9 Mar 2016 12:05:48 +0100 Alexander Potapenko <glider@google.co=
+m> wrote:
 >>
->> Hi, Joonsoo:
->>         This new patch worked well. Do you plan to upstream it in the near furture?
-> 
-> Of course!
-> But, I should think more because it touches allocator's fastpatch and
-> I'd like to detour.
-> If I fail to think a better solution, I will send it as is, soon.
+>>> Quarantine isolates freed objects in a separate queue. The objects are
+>>> returned to the allocator later, which helps to detect use-after-free
+>>> errors.
+>>
+>> I'd like to see some more details on precisely *how* the parking of
+>> objects in the qlists helps "detect use-after-free"?
+> When the object is freed, its state changes from KASAN_STATE_ALLOC to
+> KASAN_STATE_QUARANTINE. The object is poisoned and put into quarantine
+> instead of being returned to the allocator, therefore every subsequent
+> access to that object triggers a KASAN error, and the error handler is
+> able to say where the object has been allocated and deallocated.
+> When it's time for the object to leave quarantine, its state becomes
+> KASAN_STATE_FREE and it's returned to the allocator. From now on the
+> allocator may reuse it for another allocation.
+> Before that happens, it's still possible to detect a use-after free on
+> that object (it retains the allocation/deallocation stacks).
+> When the allocator reuses this object, the shadow is unpoisoned and
+> old allocation/deallocation stacks are wiped. Therefore a use of this
+> object, even an incorrect one, won't trigger ASan warning.
+> Without the quarantine, it's not guaranteed that the objects aren't
+> reused immediately, that's why the probability of catching a
+> use-after-free is lower than with quarantine in place.
+>
+>>> Freed objects are first added to per-cpu quarantine queues.
+>>> When a cache is destroyed or memory shrinking is requested, the objects
+>>> are moved into the global quarantine queue. Whenever a kmalloc call
+>>> allows memory reclaiming, the oldest objects are popped out of the
+>>> global queue until the total size of objects in quarantine is less than
+>>> 3/4 of the maximum quarantine size (which is a fraction of installed
+>>> physical memory).
+>>>
+>>> Right now quarantine support is only enabled in SLAB allocator.
+>>> Unification of KASAN features in SLAB and SLUB will be done later.
+>>>
+>>> This patch is based on the "mm: kasan: quarantine" patch originally
+>>> prepared by Dmitry Chernenkov.
+>>>
+>>
+>> qlists look awfully like list_heads.  Some explanation of why a new
+>> container mechanism was needed would be good to see - wht are existing
+>> ones unsuitable?
+> Most of the code in quarantine.c is actually the code that moves the
+> queues around (merges them, frees a given portion of the quarantine,
+> filters the elements belonging to a specific cache) and calculates the
+> sizes. I don't think there're off-the-shelf solutions for this.
+> qlist is a FIFO queue that keeps pointers to the head and the tail of
+> a linked list. That's semantically different from list_head.
+> There's include/linux/kfifo.h, but that also appears to be completely dif=
+ferent.
+>
+>>
+>>>
+>>> ...
+>>>
+>>> +void kasan_cache_shrink(struct kmem_cache *cache)
+>>> +{
+>>> +#ifdef CONFIG_SLAB
+>>> +     quarantine_remove_cache(cache);
+>>> +#endif
+>>> +}
+>>> +
+>>> +void kasan_cache_destroy(struct kmem_cache *cache)
+>>> +{
+>>> +#ifdef CONFIG_SLAB
+>>> +     quarantine_remove_cache(cache);
+>>> +#endif
+>>> +}
+>>
+>> We could avoid th4ese ifdefs in the usual way: an empty version of
+>> quarantine_remove_cache() if CONFIG_SLAB=3Dn.
+After thinking a while, I don't think it's necessary to get rid of
+these ifdefs right now.
+Right now the kernel depends on mm/kasan/quarantine.c iff CONFIG_SLAB is on=
+.
+If we declare empty quarantine_remove_cache() and friends, we'll have
+to either do it in slub.c (and then remove it after we make SLUB also
+use quarantine), or add the dependency on quarantine.c and put the
+ifdefs there.
+Given that the number of ifdefs is small, and I'm planning to
+follow-up with a patch that switches SLUB to using quarantine, I
+suppose it should be fine to keep the ifdefs for the transition
+period.
+Hope you're fine with that.
+> Yes, agreed.
+> I am sorry, I don't fully understand the review process now, when
+> you've pulled the patches into mm-tree.
+> Shall I send the new patch series version, as before, or is anything
+> else needs to be done?
+> Do I need to rebase against mm- or linux-next? Thanks in advance.
+>>>
+>>> ...
+>>>
+>>> @@ -493,6 +532,11 @@ void kasan_kmalloc(struct kmem_cache *cache, const=
+ void *object, size_t size,
+>>>       unsigned long redzone_start;
+>>>       unsigned long redzone_end;
+>>>
+>>> +#ifdef CONFIG_SLAB
+>>> +     if (flags & __GFP_RECLAIM)
+>>> +             quarantine_reduce();
+>>> +#endif
+>>
+>> Here also.
+> Ack.
+>>
+>>>       if (unlikely(object =3D=3D NULL))
+>>>               return;
+>>>
+>>> --- /dev/null
+>>> +++ b/mm/kasan/quarantine.c
+>>> @@ -0,0 +1,306 @@
+>>> +/*
+>>> + * KASAN quarantine.
+>>> + *
+>>> + * Author: Alexander Potapenko <glider@google.com>
+>>> + * Copyright (C) 2016 Google, Inc.
+>>> + *
+>>> + * Based on code by Dmitry Chernenkov.
+>>> + *
+>>> + * This program is free software; you can redistribute it and/or
+>>> + * modify it under the terms of the GNU General Public License
+>>> + * version 2 as published by the Free Software Foundation.
+>>> + *
+>>> + * This program is distributed in the hope that it will be useful, but
+>>> + * WITHOUT ANY WARRANTY; without even the implied warranty of
+>>> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+>>> + * General Public License for more details.
+>>> + *
+>>> + */
+>>> +
+>>> +#include <linux/gfp.h>
+>>> +#include <linux/hash.h>
+>>> +#include <linux/kernel.h>
+>>> +#include <linux/mm.h>
+>>> +#include <linux/percpu.h>
+>>> +#include <linux/printk.h>
+>>> +#include <linux/shrinker.h>
+>>> +#include <linux/slab.h>
+>>> +#include <linux/string.h>
+>>> +#include <linux/types.h>
+>>> +
+>>> +#include "../slab.h"
+>>> +#include "kasan.h"
+>>> +
+>>> +/* Data structure and operations for quarantine queues. */
+>>> +
+>>> +/* Each queue is a signled-linked list, which also stores the total si=
+ze of
+>>
+>> tpyo
+> Ack.
+>>
+>>> + * objects inside of it.
+>>> + */
+>>> +struct qlist {
+>>> +     void **head;
+>>> +     void **tail;
+>>> +     size_t bytes;
+>>> +};
+>>> +
+>>> +#define QLIST_INIT { NULL, NULL, 0 }
+>>> +
+>>> +static inline bool empty_qlist(struct qlist *q)
+>>> +{
+>>> +     return !q->head;
+>>> +}
+>>
+>> Should be "qlist_empty()".
+> Ack.
+>>
+>>> +static inline void init_qlist(struct qlist *q)
+>>> +{
+>>> +     q->head =3D q->tail =3D NULL;
+>>> +     q->bytes =3D 0;
+>>> +}
+>>
+>> "qlist_init()"
+> Ack.
+>>
+>>> +static inline void qlist_put(struct qlist *q, void **qlink, size_t siz=
+e)
+>>> +{
+>>> +     if (unlikely(empty_qlist(q)))
+>>> +             q->head =3D qlink;
+>>> +     else
+>>> +             *q->tail =3D qlink;
+>>> +     q->tail =3D qlink;
+>>> +     *qlink =3D NULL;
+>>> +     q->bytes +=3D size;
+>>> +}
+>>> +
+>>> +static inline void **qlist_remove(struct qlist *q, void ***prev,
+>>> +                              size_t size)
+>>> +{
+>>> +     void **qlink =3D *prev;
+>>> +
+>>> +     *prev =3D *qlink;
+>>> +     if (q->tail =3D=3D qlink) {
+>>> +             if (q->head =3D=3D qlink)
+>>> +                     q->tail =3D NULL;
+>>> +             else
+>>> +                     q->tail =3D (void **)prev;
+>>> +     }
+>>> +     q->bytes -=3D size;
+>>> +
+>>> +     return qlink;
+>>> +}
+>>> +
+>>> +static inline void qlist_move_all(struct qlist *from, struct qlist *to=
+)
+>>> +{
+>>> +     if (unlikely(empty_qlist(from)))
+>>> +             return;
+>>> +
+>>> +     if (empty_qlist(to)) {
+>>> +             *to =3D *from;
+>>> +             init_qlist(from);
+>>> +             return;
+>>> +     }
+>>> +
+>>> +     *to->tail =3D from->head;
+>>> +     to->tail =3D from->tail;
+>>> +     to->bytes +=3D from->bytes;
+>>> +
+>>> +     init_qlist(from);
+>>> +}
+>>> +
+>>> +static inline void qlist_move(struct qlist *from, void **last, struct =
+qlist *to,
+>>> +                       size_t size)
+>>> +{
+>>> +     if (unlikely(last =3D=3D from->tail)) {
+>>> +             qlist_move_all(from, to);
+>>> +             return;
+>>> +     }
+>>> +     if (empty_qlist(to))
+>>> +             to->head =3D from->head;
+>>> +     else
+>>> +             *to->tail =3D from->head;
+>>> +     to->tail =3D last;
+>>> +     from->head =3D *last;
+>>> +     *last =3D NULL;
+>>> +     from->bytes -=3D size;
+>>> +     to->bytes +=3D size;
+>>> +}
+>>
+>> The above code is a candidate for hoisting out into a generic library
+>> facility, so let's impement it that way (ie: get the naming right).
+> Ack.
+>> All the inlining looks excessive, and the compiler will defeat it
+>> anyway if it thinks that is best.
+> Ack.
+>>>
+>>> ...
+>>>
+>>
+>>
+>
+>
+>
+> --
+> Alexander Potapenko
+> Software Engineer
+>
+> Google Germany GmbH
+> Erika-Mann-Stra=C3=9Fe, 33
+> 80636 M=C3=BCnchen
+>
+> Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+> Registergericht und -nummer: Hamburg, HRB 86891
+> Sitz der Gesellschaft: Hamburg
 
-How about something like this? Just and idea, probably buggy (off-by-one etc.).
-Should keep away cost from <pageblock_order iterations at the expense of the
-relatively fewer >pageblock_order iterations.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ff1e3cbc8956..b8005a07b2a1 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -685,21 +685,13 @@ static inline void __free_one_page(struct page *page,
- 	unsigned long combined_idx;
- 	unsigned long uninitialized_var(buddy_idx);
- 	struct page *buddy;
--	unsigned int max_order = MAX_ORDER;
-+	unsigned int max_order = pageblock_order + 1;
- 
- 	VM_BUG_ON(!zone_is_initialized(zone));
- 	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
- 
- 	VM_BUG_ON(migratetype == -1);
--	if (is_migrate_isolate(migratetype)) {
--		/*
--		 * We restrict max order of merging to prevent merge
--		 * between freepages on isolate pageblock and normal
--		 * pageblock. Without this, pageblock isolation
--		 * could cause incorrect freepage accounting.
--		 */
--		max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
--	} else {
-+	if (likely(!is_migrate_isolate(migratetype))) {
- 		__mod_zone_freepage_state(zone, 1 << order, migratetype);
- 	}
- 
-@@ -708,11 +700,12 @@ static inline void __free_one_page(struct page *page,
- 	VM_BUG_ON_PAGE(page_idx & ((1 << order) - 1), page);
- 	VM_BUG_ON_PAGE(bad_range(zone, page), page);
- 
-+continue_merging:
- 	while (order < max_order - 1) {
- 		buddy_idx = __find_buddy_index(page_idx, order);
- 		buddy = page + (buddy_idx - page_idx);
- 		if (!page_is_buddy(page, buddy, order))
--			break;
-+			goto done_merging;
- 		/*
- 		 * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
- 		 * merge with it and move up one order.
-@@ -729,6 +722,26 @@ static inline void __free_one_page(struct page *page,
- 		page_idx = combined_idx;
- 		order++;
- 	}
-+	if (max_order < MAX_ORDER) {
-+		if (IS_ENABLED(CONFIG_CMA) &&
-+				unlikely(has_isolate_pageblock(zone))) {
-+
-+			int buddy_mt;
-+
-+			buddy_idx = __find_buddy_index(page_idx, order);
-+			buddy = page + (buddy_idx - page_idx);
-+			buddy_mt = get_pageblock_migratetype(buddy);
-+
-+			if (migratetype != buddy_mt &&
-+					(is_migrate_isolate(migratetype) ||
-+					is_migrate_isolate(buddy_mt)))
-+				goto done_merging;
-+		}
-+		max_order++;
-+		goto continue_merging;
-+	}
-+
-+done_merging:
- 	set_page_order(page, order);
- 
- 	/*
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
