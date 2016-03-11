@@ -1,108 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 22AF66B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 09:22:30 -0500 (EST)
-Received: by mail-wm0-f48.google.com with SMTP id l68so20135154wml.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 06:22:30 -0800 (PST)
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id kd3si11295663wjb.84.2016.03.11.06.22.28
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 823FF6B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 09:24:39 -0500 (EST)
+Received: by mail-wm0-f50.google.com with SMTP id l68so19676539wml.1
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 06:24:39 -0800 (PST)
+Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
+        by mx.google.com with ESMTPS id 4si2984799wmy.42.2016.03.11.06.24.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 06:22:29 -0800 (PST)
-Received: by mail-wm0-f51.google.com with SMTP id l68so20134554wml.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 06:22:28 -0800 (PST)
-Date: Fri, 11 Mar 2016 15:22:27 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: reclaim when shrinking memory.high below
- usage
-Message-ID: <20160311142227.GR27701@dhcp22.suse.cz>
-References: <1457643015-8828-1-git-send-email-hannes@cmpxchg.org>
- <20160311083440.GI1946@esperanza>
- <20160311084238.GE27701@dhcp22.suse.cz>
- <20160311091303.GJ1946@esperanza>
- <20160311095309.GF27701@dhcp22.suse.cz>
- <20160311114934.GL1946@esperanza>
- <20160311133936.GQ27701@dhcp22.suse.cz>
- <20160311140146.GO1946@esperanza>
+        Fri, 11 Mar 2016 06:24:38 -0800 (PST)
+Received: by mail-wm0-x229.google.com with SMTP id l68so20911130wml.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 06:24:38 -0800 (PST)
+Subject: Re: [PATCH v1 03/19] fs/anon_inodes: new interface to create new
+ inode
+References: <1457681423-26664-1-git-send-email-minchan@kernel.org>
+ <1457681423-26664-4-git-send-email-minchan@kernel.org>
+ <20160311080503.GR17997@ZenIV.linux.org.uk>
+From: Gioh Kim <gi-oh.kim@profitbricks.com>
+Message-ID: <56E2D524.8070708@profitbricks.com>
+Date: Fri, 11 Mar 2016 15:24:36 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160311140146.GO1946@esperanza>
+In-Reply-To: <20160311080503.GR17997@ZenIV.linux.org.uk>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Al Viro <viro@ZenIV.linux.org.uk>, Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, rknize@motorola.com, Rik van Riel <riel@redhat.com>, Gioh Kim <gurugio@hanmail.net>
 
-On Fri 11-03-16 17:01:46, Vladimir Davydov wrote:
-> On Fri, Mar 11, 2016 at 02:39:36PM +0100, Michal Hocko wrote:
-> > On Fri 11-03-16 14:49:34, Vladimir Davydov wrote:
-> > > On Fri, Mar 11, 2016 at 10:53:09AM +0100, Michal Hocko wrote:
-> > > > > OTOH memory.low and memory.high are perfect to be changed dynamically,
-> > > > > basing on containers' memory demand/pressure. A load manager might want
-> > > > > to reconfigure these knobs say every 5 seconds. Spawning a thread per
-> > > > > each container that often would look unnecessarily overcomplicated IMO.
-> > > > 
-> > > > The question however is whether we want to hide a potentially costly
-> > > > operation and have it unaccounted and hidden in the kworker context.
-> > > 
-> > > There's already mem_cgroup->high_work doing reclaim in an unaccounted
-> > > context quite often if tcp accounting is enabled.
-> > 
-> > I suspect this is done because the charging context cannot do much
-> > better.
-> > 
-> > > And there's kswapd.
-> > > memory.high knob is for the root only so it can't be abused by an
-> > > unprivileged user. Regarding a privileged user, e.g. load manager, it
-> > > can screw things up anyway, e.g. by configuring sum of memory.low to be
-> > > greater than total RAM on the host and hence driving kswapd mad.
-> > 
-> > I am not worried about abuse. It is just weird to move something which
-> > can be perfectly sync to an async mode.
-> >  
-> > > > I mean fork() + write() doesn't sound terribly complicated to me to have
-> > > > a rather subtle behavior in the kernel.
-> > > 
-> > > It'd be just a dubious API IMHO. With memory.max everything's clear: it
-> > > tries to reclaim memory hard, may stall for several seconds, may invoke
-> > > OOM, but if it finishes successfully we have memory.current less than
-> > > memory.max. With this patch memory.high knob behaves rather strangely:
-> > > it might stall, but there's no guarantee you'll have memory.current less
-> > > than memory.high; moreover, according to the documentation it's OK to
-> > > have memory.current greater than memory.high, so what's the point in
-> > > calling synchronous reclaim blocking the caller?
-> > 
-> > Even if the reclaim is best effort it doesn't mean we should hide it
-> > into an async context. There is simply no reason to do so. We do the
-> > some for other knobs which are performing a potentially expensive
-> > operation and do not guarantee the result.
-> 
-> IMO it depends on what a knob is used for. If it's for testing or
-> debugging or recovering the system (e.g. manual oom, compact,
-> drop_caches), this must be synchronous, but memory.high is going to be
-> tweaked at runtime during normal system operation every several seconds
-> or so,
 
-Is this really going to happen in the real life? And if yes is it really
-probable that such an adjustment would cause such a large disruption?
 
-> at least in my understanding. I understand your concern, and may
-> be you're right in the end, but think about userspace that will probably
-> have to spawn thousands threads every 5 seconds or so just to write to a
-> file. It's painful IMO.
-> 
-> Are there any hidden non-obvious implications of handing over reclaim to
-> a kernel worker on adjusting memory.high? May be, I'm just missing
-> something obvious, and it can be really dangerous or sub-optimal.
+On 11.03.2016 09:05, Al Viro wrote:
+> On Fri, Mar 11, 2016 at 04:30:07PM +0900, Minchan Kim wrote:
+>> From: Gioh Kim <gurugio@hanmail.net>
+>>
+>> The anon_inodes has already complete interfaces to create manage
+>> many anonymous inodes but don't have interface to get
+>> new inode. Other sub-modules can create anonymous inode
+>> without creating and mounting it's own pseudo filesystem.
+> IMO that's a bad idea.  In case of aio "creating and mounting" takes this:
+> static struct dentry *aio_mount(struct file_system_type *fs_type,
+>                                  int flags, const char *dev_name, void *data)
+> {
+>          static const struct dentry_operations ops = {
+>                  .d_dname        = simple_dname,
+>          };
+>          return mount_pseudo(fs_type, "aio:", NULL, &ops, AIO_RING_MAGIC);
+> }
+> and
+>          static struct file_system_type aio_fs = {
+>                  .name           = "aio",
+>                  .mount          = aio_mount,
+>                  .kill_sb        = kill_anon_super,
+>          };
+>          aio_mnt = kern_mount(&aio_fs);
+>
+> All of 12 lines.  Your export is not much shorter.  To quote old mail on
+> the same topic:
+I know what aio_setup() does. It can be a solution.
+But I thought creating anon_inode_new() is simpler than several drivers 
+create its own pseudo filesystem.
+Creating a filesystem requires memory allocation and locking some lists 
+even though it is pseudo.
 
-I am just thinking about what would happen if workers just start
-stacking up because they couldn't be processed and then would race with
-each other. I mean this all would be fixable but I really fail to see
-how that makes sense from the very beginning.
+Could you inform me if there is a reason we should avoid creating 
+anonymous inode?
+
+>
+>> Note that anon_inodes.c reason to exist was "it's for situations where
+>> all context lives on struct file and we don't need separate inode for
+>> them".  Going from that to "it happens to contain a handy function for inode
+>> allocation"...
+
 
 -- 
-Michal Hocko
-SUSE Labs
+Best regards,
+Gioh Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
