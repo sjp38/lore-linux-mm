@@ -1,89 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 04D376B007E
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 12:21:02 -0500 (EST)
-Received: by mail-oi0-f48.google.com with SMTP id m82so90687351oif.1
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 09:21:02 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id my3si508597obb.87.2016.03.11.09.21.00
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D0C816B0254
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 12:21:17 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id p65so26183006wmp.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 09:21:17 -0800 (PST)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id p204si3825242wmg.49.2016.03.11.09.21.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 11 Mar 2016 09:21:00 -0800 (PST)
-Subject: Re: [PATCH 0/3] OOM detection rework v4
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160311130847.GP27701@dhcp22.suse.cz>
-	<201603112232.AEJ78150.LOHQJtMFSVOFOF@I-love.SAKURA.ne.jp>
-	<20160311152851.GU27701@dhcp22.suse.cz>
-	<201603120149.JEI86913.JVtSOOFHMFFQOL@I-love.SAKURA.ne.jp>
-	<20160311170022.GX27701@dhcp22.suse.cz>
-In-Reply-To: <20160311170022.GX27701@dhcp22.suse.cz>
-Message-Id: <201603120220.GFJ00000.QOLVOtJOMFFSHF@I-love.SAKURA.ne.jp>
-Date: Sat, 12 Mar 2016 02:20:36 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Mar 2016 09:21:16 -0800 (PST)
+Received: by mail-wm0-x22c.google.com with SMTP id p65so26182484wmp.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 09:21:16 -0800 (PST)
+From: Alexander Potapenko <glider@google.com>
+Subject: [PATCH v6 0/7] SLAB support for KASAN
+Date: Fri, 11 Mar 2016 18:20:56 +0100
+Message-Id: <cover.1457715116.git.glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com
+Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Michal Hocko wrote:
-> On Sat 12-03-16 01:49:26, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > What happens without this patch applied. In other words, it all smells
-> > > like the IO got stuck somewhere and the direct reclaim cannot perform it
-> > > so we have to wait for the flushers to make a progress for us. Are those
-> > > stuck? Is the IO making any progress at all or it is just too slow and
-> > > it would finish actually.  Wouldn't we just wait somewhere else in the
-> > > direct reclaim path instead.
-> > 
-> > As of next-20160311, CPU usage becomes 0% when this problem occurs.
-> > 
-> > If I remove
-> > 
-> >   mm-use-watermak-checks-for-__gfp_repeat-high-order-allocations-checkpatch-fixes
-> >   mm: use watermark checks for __GFP_REPEAT high order allocations
-> >   mm: throttle on IO only when there are too many dirty and writeback pages
-> >   mm-oom-rework-oom-detection-checkpatch-fixes
-> >   mm, oom: rework oom detection
-> > 
-> > then CPU usage becomes 60% and most of allocating tasks
-> > are looping at
-> > 
-> >         /*
-> >          * Acquire the oom lock.  If that fails, somebody else is
-> >          * making progress for us.
-> >          */
-> >         if (!mutex_trylock(&oom_lock)) {
-> >                 *did_some_progress = 1;
-> >                 schedule_timeout_uninterruptible(1);
-> >                 return NULL;
-> >         }
-> > 
-> > in __alloc_pages_may_oom() (i.e. OOM-livelock due to the OOM reaper disabled).
-> 
-> OK, that would suggest that the oom rework patches are not really
-> related. They just moved from the livelock to a sleep which is good in
-> general IMHO. We even know that it is most probably the IO that is the
-> problem because we know that more than half of the reclaimable memory is
-> either dirty or under writeback. That is where you should be looking.
-> Why the IO is not making progress or such a slow progress.
-> 
+This patch set implements SLAB support for KASAN
 
-Excuse me, but I can't understand why you think the oom rework patches are not
-related. This problem occurs immediately after the OOM killer is invoked, which
-means that there is little reclaimable memory.
+Unlike SLUB, SLAB doesn't store allocation/deallocation stacks for heap
+objects, therefore we reimplement this feature in mm/kasan/stackdepot.c.
+The intention is to ultimately switch SLUB to use this implementation as
+well, which will save a lot of memory (right now SLUB bloats each object
+by 256 bytes to store the allocation/deallocation stacks).
 
-  Node 0 DMA32 free:3648kB min:3780kB low:4752kB high:5724kB active_anon:783216kB inactive_anon:6376kB active_file:33388kB inactive_file:40292kB unevictable:0kB isolated(anon):0kB isolated(file):128kB present:1032064kB mana\
-ged:980816kB mlocked:0kB dirty:40232kB writeback:120kB mapped:34720kB shmem:6628kB slab_reclaimable:10528kB slab_unreclaimable:39068kB kernel_stack:20512kB pagetables:8000kB unstable:0kB bounce:0kB free_pcp:1648kB local_pcp:116kB free_c\
-ma:0kB writeback_tmp:0kB pages_scanned:964952 all_unreclaimable? yes
-  Node 0 DMA32: 860*4kB (UME) 16*8kB (UME) 1*16kB (M) 0*32kB 1*64kB (M) 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 3648kB
+Also neither SLUB nor SLAB delay the reuse of freed memory chunks, which
+is necessary for better detection of use-after-free errors. We introduce
+memory quarantine (mm/kasan/quarantine.c), which allows delayed reuse of
+deallocated memory.
 
-The OOM killer is invoked (but nothing happens due to TIF_MEMDIE) if I remove
-the oom rework patches, which means that there is little reclaimable memory.
+Alexander Potapenko (7):
+  kasan: Modify kmalloc_large_oob_right(), add
+    kmalloc_pagealloc_oob_right()
+  mm, kasan: SLAB support
+  mm, kasan: Added GFP flags to KASAN API
+  arch, ftrace: For KASAN put hard/soft IRQ entries into separate
+    sections
+  mm, kasan: Stackdepot implementation. Enable stackdepot for SLAB
+  kasan: Test fix: Warn if the UAF could not be detected in kmalloc_uaf2
+  mm: kasan: Initial memory quarantine implementation
+---
+v2: - merged two patches that touched kmalloc_large_oob_right
+    - moved stackdepot implementation to lib/
+    - moved IRQ definitions to include/linux/interrupt.h
 
-My understanding is that memory allocation requests needed for doing I/O cannot
-be satisfied because free: is below min: . And since kswapd got stuck, nobody can
-perform operations needed for making 2*(writeback + dirty) > reclaimable false.
+v3: - minor description changes
+    - store deallocation info in the "mm, kasan: SLAB support" patch
+
+v4: - fix kbuild error reports
+
+v5: - SLAB allocator, stackdepot: adopted suggestions by Andrey Ryabinin
+    - IRQ: fixed kbuild warnings
+
+v6: - stackdepot: fixed kbuild warnings, simplified kasan_track,
+use vmalloc() for depot when possible
+    - quarantine: improved patch description, removed dead code
+---
+
+ Documentation/kasan.txt              |   5 +-
+ arch/arm/include/asm/exception.h     |   2 +-
+ arch/arm/kernel/vmlinux.lds.S        |   1 +
+ arch/arm64/include/asm/exception.h   |   2 +-
+ arch/arm64/kernel/vmlinux.lds.S      |   1 +
+ arch/blackfin/kernel/vmlinux.lds.S   |   1 +
+ arch/c6x/kernel/vmlinux.lds.S        |   1 +
+ arch/metag/kernel/vmlinux.lds.S      |   1 +
+ arch/microblaze/kernel/vmlinux.lds.S |   1 +
+ arch/mips/kernel/vmlinux.lds.S       |   1 +
+ arch/nios2/kernel/vmlinux.lds.S      |   1 +
+ arch/openrisc/kernel/vmlinux.lds.S   |   1 +
+ arch/parisc/kernel/vmlinux.lds.S     |   1 +
+ arch/powerpc/kernel/vmlinux.lds.S    |   1 +
+ arch/s390/kernel/vmlinux.lds.S       |   1 +
+ arch/sh/kernel/vmlinux.lds.S         |   1 +
+ arch/sparc/kernel/vmlinux.lds.S      |   1 +
+ arch/tile/kernel/vmlinux.lds.S       |   1 +
+ arch/x86/kernel/Makefile             |   1 +
+ arch/x86/kernel/vmlinux.lds.S        |   1 +
+ include/asm-generic/vmlinux.lds.h    |  12 +-
+ include/linux/ftrace.h               |  11 --
+ include/linux/interrupt.h            |  20 +++
+ include/linux/kasan.h                |  63 ++++++--
+ include/linux/slab.h                 |  10 +-
+ include/linux/slab_def.h             |  14 ++
+ include/linux/slub_def.h             |  11 ++
+ include/linux/stackdepot.h           |  32 ++++
+ kernel/softirq.c                     |   2 +-
+ kernel/trace/trace_functions_graph.c |   1 +
+ lib/Kconfig                          |   4 +
+ lib/Kconfig.kasan                    |   5 +-
+ lib/Makefile                         |   3 +
+ lib/stackdepot.c                     | 301 +++++++++++++++++++++++++++++++++++
+ lib/test_kasan.c                     |  59 ++++++-
+ mm/Makefile                          |   1 +
+ mm/kasan/Makefile                    |   4 +
+ mm/kasan/kasan.c                     | 219 +++++++++++++++++++++++--
+ mm/kasan/kasan.h                     |  44 +++++
+ mm/kasan/quarantine.c                | 289 +++++++++++++++++++++++++++++++++
+ mm/kasan/report.c                    |  63 ++++++--
+ mm/mempool.c                         |  23 +--
+ mm/page_alloc.c                      |   2 +-
+ mm/slab.c                            |  53 +++++-
+ mm/slab.h                            |   4 +-
+ mm/slab_common.c                     |   8 +-
+ mm/slub.c                            |  19 +--
+ 47 files changed, 1211 insertions(+), 92 deletions(-)
+ create mode 100644 include/linux/stackdepot.h
+ create mode 100644 lib/stackdepot.c
+ create mode 100644 mm/kasan/quarantine.c
+
+-- 
+2.7.0.rc3.207.g0ac5344
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
