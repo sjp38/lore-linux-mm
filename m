@@ -1,63 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 38E916B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 06:49:46 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id td3so68906897pab.2
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 03:49:46 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id tl2si4451236pac.218.2016.03.11.03.49.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 03:49:45 -0800 (PST)
-Date: Fri, 11 Mar 2016 14:49:34 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] mm: memcontrol: reclaim when shrinking memory.high below
- usage
-Message-ID: <20160311114934.GL1946@esperanza>
-References: <1457643015-8828-1-git-send-email-hannes@cmpxchg.org>
- <20160311083440.GI1946@esperanza>
- <20160311084238.GE27701@dhcp22.suse.cz>
- <20160311091303.GJ1946@esperanza>
- <20160311095309.GF27701@dhcp22.suse.cz>
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 61DAE6B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 06:54:22 -0500 (EST)
+Received: by mail-wm0-f43.google.com with SMTP id l68so15001073wml.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 03:54:22 -0800 (PST)
+Subject: Re: [PATCH 11/18] coredump: make coredump_wait wait for mma_sem for
+ write killable
+References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
+ <1456752417-9626-12-git-send-email-mhocko@kernel.org>
+ <56E2ACE7.50008@suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56E2B1E9.90201@suse.cz>
+Date: Fri, 11 Mar 2016 12:54:17 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20160311095309.GF27701@dhcp22.suse.cz>
+In-Reply-To: <56E2ACE7.50008@suse.cz>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@suse.com>
 
-On Fri, Mar 11, 2016 at 10:53:09AM +0100, Michal Hocko wrote:
-> > OTOH memory.low and memory.high are perfect to be changed dynamically,
-> > basing on containers' memory demand/pressure. A load manager might want
-> > to reconfigure these knobs say every 5 seconds. Spawning a thread per
-> > each container that often would look unnecessarily overcomplicated IMO.
-> 
-> The question however is whether we want to hide a potentially costly
-> operation and have it unaccounted and hidden in the kworker context.
+On 03/11/2016 12:32 PM, Vlastimil Babka wrote:
+> On 02/29/2016 02:26 PM, Michal Hocko wrote:
+>> From: Michal Hocko <mhocko@suse.com>
+>>
+>> coredump_wait waits for mmap_sem for write currently which can
+>> prevent oom_reaper to reclaim the oom victims address space
+>> asynchronously because that requires mmap_sem for read. This might
+>> happen if the oom victim is multi threaded and some thread(s) is
+>> holding mmap_sem for read (e.g. page fault) and it is stuck in
+>> the page allocator while other thread(s) reached coredump_wait
+>> already.
+>>
+>> This patch simply uses down_write_killable and bails out with EINTR
+>> if the lock got interrupted by the fatal signal. do_coredump will
+>> return right away and do_group_exit will take care to zap the whole
+>> thread group.
+>>
+>> Cc: Oleg Nesterov <oleg@redhat.com>
+>> Signed-off-by: Michal Hocko <mhocko@suse.com>
+>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-There's already mem_cgroup->high_work doing reclaim in an unaccounted
-context quite often if tcp accounting is enabled. And there's kswapd.
-memory.high knob is for the root only so it can't be abused by an
-unprivileged user. Regarding a privileged user, e.g. load manager, it
-can screw things up anyway, e.g. by configuring sum of memory.low to be
-greater than total RAM on the host and hence driving kswapd mad.
-
-> I mean fork() + write() doesn't sound terribly complicated to me to have
-> a rather subtle behavior in the kernel.
-
-It'd be just a dubious API IMHO. With memory.max everything's clear: it
-tries to reclaim memory hard, may stall for several seconds, may invoke
-OOM, but if it finishes successfully we have memory.current less than
-memory.max. With this patch memory.high knob behaves rather strangely:
-it might stall, but there's no guarantee you'll have memory.current less
-than memory.high; moreover, according to the documentation it's OK to
-have memory.current greater than memory.high, so what's the point in
-calling synchronous reclaim blocking the caller?
-
-Thanks,
-Vladimir
+Forgot to point out typo in Subject which makes it hard to grep for mmap_sem
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
