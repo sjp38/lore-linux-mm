@@ -1,132 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A8B4B6B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 02:29:49 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id fe3so72426026pab.1
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 23:29:49 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id 7si11962915pfm.127.2016.03.10.23.29.47
+Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D0AB6B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 02:29:53 -0500 (EST)
+Received: by mail-io0-f171.google.com with SMTP id n190so135632738iof.0
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 23:29:53 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id a13si1328773igm.79.2016.03.10.23.29.48
         for <linux-mm@kvack.org>;
         Thu, 10 Mar 2016 23:29:48 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v1 00/19] Support non-lru page migration
-Date: Fri, 11 Mar 2016 16:30:04 +0900
-Message-Id: <1457681423-26664-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH v1 03/19] fs/anon_inodes: new interface to create new inode
+Date: Fri, 11 Mar 2016 16:30:07 +0900
+Message-Id: <1457681423-26664-4-git-send-email-minchan@kernel.org>
+In-Reply-To: <1457681423-26664-1-git-send-email-minchan@kernel.org>
+References: <1457681423-26664-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, rknize@motorola.com, Rik van Riel <riel@redhat.com>, Gioh Kim <gurugio@hanmail.net>, Minchan Kim <minchan@kernel.org>
 
-Recently, I got many reports about perfermance degradation
-in embedded system(Android mobile phone, webOS TV and so on)
-and failed to fork easily.
+From: Gioh Kim <gurugio@hanmail.net>
 
-The problem was fragmentation caused by zram and GPU driver
-pages. Their pages cannot be migrated so compaction cannot
-work well, either so reclaimer ends up shrinking all of working
-set pages. It made system very slow and even to fail to fork
-easily.
+The anon_inodes has already complete interfaces to create manage
+many anonymous inodes but don't have interface to get
+new inode. Other sub-modules can create anonymous inode
+without creating and mounting it's own pseudo filesystem.
 
-Other pain point is that they cannot work with CMA.
-Most of CMA memory space could be idle(ie, it could be used
-for movable pages unless driver is using) but if driver(i.e.,
-zram) cannot migrate his page, that memory space could be
-wasted. In our product which has big CMA memory, it reclaims
-zones too exccessively although there are lots of free space
-in CMA so system was very slow easily.
+Acked-by: Rafael Aquini <aquini@redhat.com>
+Signed-off-by: Gioh Kim <gurugio@hanmail.net>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ fs/anon_inodes.c            | 6 ++++++
+ include/linux/anon_inodes.h | 1 +
+ 2 files changed, 7 insertions(+)
 
-To solve these problem, this patch try to add facility to
-migrate non-lru pages via introducing new friend functions
-of migratepage in address_space_operation and new page flags.
-
-	(isolate_page, putback_page)
-	(PG_movable, PG_isolated)
-
-For details, please read description in
-"mm/compaction: support non-lru movable page migration".
-
-Originally, Gioh Kim tried to support this feature but he moved
-so I took over the work. But I took many code from his work and
-changed a little bit.
-Thanks, Gioh!
-
-And I should mention Konstantin Khlebnikov. He really heped Gioh
-at that time so he should deserve to have many credit, too.
-Thanks, Konstantin!
-
-This patchset consists of three parts
-
-1. add non-lru page migration feature
-
-  mm: use put_page to free page instead of putback_lru_page
-  fs/anon_inodes: new interface to create new inode
-  mm/compaction: support non-lru movable page migration
-
-2. rework KVM memory-ballooning
-
-  mm/balloon: use general movable page feature into balloon
-
-3. rework zsmalloc
-
-  zsmalloc: use first_page rather than page
-  zsmalloc: clean up many BUG_ON
-  zsmalloc: reordering function parameter
-  zsmalloc: remove unused pool param in obj_free
-  zsmalloc: keep max_object in size_class
-  zsmalloc: squeeze inuse into page->mapping
-  zsmalloc: squeeze freelist into page->mapping
-  zsmalloc: move struct zs_meta from mapping to freelist
-  zsmalloc: factor page chain functionality out
-  zsmalloc: separate free_zspage from putback_zspage
-  zsmalloc: zs_compact refactoring
-  zsmalloc: migrate head page of zspage
-  zsmalloc: use single linked list for page chain
-  zsmalloc: migrate tail pages in zspage
-  zram: use __GFP_MOVABLE for memory allocation
-
-Gioh Kim (1):
-  fs/anon_inodes: new interface to create new inode
-
-Minchan Kim (18):
-  mm: use put_page to free page instead of putback_lru_page
-  mm/compaction: support non-lru movable page migration
-  mm/balloon: use general movable page feature into balloon
-  zsmalloc: use first_page rather than page
-  zsmalloc: clean up many BUG_ON
-  zsmalloc: reordering function parameter
-  zsmalloc: remove unused pool param in obj_free
-  zsmalloc: keep max_object in size_class
-  zsmalloc: squeeze inuse into page->mapping
-  zsmalloc: squeeze freelist into page->mapping
-  zsmalloc: move struct zs_meta from mapping to freelist
-  zsmalloc: factor page chain functionality out
-  zsmalloc: separate free_zspage from putback_zspage
-  zsmalloc: zs_compact refactoring
-  zsmalloc: migrate head page of zspage
-  zsmalloc: use single linked list for page chain
-  zsmalloc: migrate tail pages in zspage
-  zram: use __GFP_MOVABLE for memory allocation
-
- Documentation/filesystems/Locking      |    4 +
- Documentation/filesystems/vfs.txt      |    5 +
- drivers/block/zram/zram_drv.c          |    3 +-
- drivers/virtio/virtio_balloon.c        |    4 +
- fs/anon_inodes.c                       |    6 +
- fs/proc/page.c                         |    3 +
- include/linux/anon_inodes.h            |    1 +
- include/linux/balloon_compaction.h     |   47 +-
- include/linux/compaction.h             |    8 +
- include/linux/fs.h                     |    2 +
- include/linux/migrate.h                |    2 +
- include/linux/page-flags.h             |   42 +-
- include/uapi/linux/kernel-page-flags.h |    1 +
- mm/balloon_compaction.c                |  101 +--
- mm/compaction.c                        |   15 +-
- mm/migrate.c                           |  197 +++--
- mm/vmscan.c                            |    2 +-
- mm/zsmalloc.c                          | 1295 +++++++++++++++++++++++---------
- 18 files changed, 1219 insertions(+), 519 deletions(-)
-
+diff --git a/fs/anon_inodes.c b/fs/anon_inodes.c
+index 80ef38c73e5a..1d51f96acdd9 100644
+--- a/fs/anon_inodes.c
++++ b/fs/anon_inodes.c
+@@ -162,6 +162,12 @@ int anon_inode_getfd(const char *name, const struct file_operations *fops,
+ }
+ EXPORT_SYMBOL_GPL(anon_inode_getfd);
+ 
++struct inode *anon_inode_new(void)
++{
++	return alloc_anon_inode(anon_inode_mnt->mnt_sb);
++}
++EXPORT_SYMBOL_GPL(anon_inode_new);
++
+ static int __init anon_inode_init(void)
+ {
+ 	anon_inode_mnt = kern_mount(&anon_inode_fs_type);
+diff --git a/include/linux/anon_inodes.h b/include/linux/anon_inodes.h
+index 8013a45242fe..ddbd67f8a73f 100644
+--- a/include/linux/anon_inodes.h
++++ b/include/linux/anon_inodes.h
+@@ -15,6 +15,7 @@ struct file *anon_inode_getfile(const char *name,
+ 				void *priv, int flags);
+ int anon_inode_getfd(const char *name, const struct file_operations *fops,
+ 		     void *priv, int flags);
++struct inode *anon_inode_new(void);
+ 
+ #endif /* _LINUX_ANON_INODES_H */
+ 
 -- 
 1.9.1
 
