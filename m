@@ -1,110 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 680A36B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:07:25 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id fz5so122668494obc.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 11:07:25 -0800 (PST)
-Received: from mail-ob0-x232.google.com (mail-ob0-x232.google.com. [2607:f8b0:4003:c01::232])
-        by mx.google.com with ESMTPS id u133si7694715oib.78.2016.03.11.11.07.24
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 844526B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:08:14 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id fl4so106096897pad.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 11:08:14 -0800 (PST)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id bx6si15562644pad.6.2016.03.11.11.08.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 11:07:24 -0800 (PST)
-Received: by mail-ob0-x232.google.com with SMTP id m7so122279965obh.3
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 11:07:24 -0800 (PST)
+        Fri, 11 Mar 2016 11:08:13 -0800 (PST)
+Received: by mail-pa0-x22e.google.com with SMTP id tt10so106743581pab.3
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 11:08:13 -0800 (PST)
+Date: Fri, 11 Mar 2016 11:08:05 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 3/3] mm, oom: protect !costly allocations some more
+In-Reply-To: <20160311130647.GO27701@dhcp22.suse.cz>
+Message-ID: <alpine.LSU.2.11.1603111058510.26840@eggly.anvils>
+References: <20160307160838.GB5028@dhcp22.suse.cz> <1457444565-10524-1-git-send-email-mhocko@kernel.org> <1457444565-10524-4-git-send-email-mhocko@kernel.org> <20160309111109.GG27018@dhcp22.suse.cz> <alpine.LSU.2.11.1603110354360.7920@eggly.anvils>
+ <20160311130647.GO27701@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <56E26940.8020203@kernel.org>
-References: <56C9EDCF.8010007@plexistor.com>
-	<56E26940.8020203@kernel.org>
-Date: Fri, 11 Mar 2016 11:07:24 -0800
-Message-ID: <CAPcyv4hOrVWTgcGp8RnouroSdDpoc8Bnzt6pUY2jA57hLN3QNQ@mail.gmail.com>
-Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Boaz Harrosh <boaz@plexistor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Arnd Bergmann <arnd@arndb.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Mar 10, 2016 at 10:44 PM, Andy Lutomirski <luto@kernel.org> wrote:
-> On 02/21/2016 09:03 AM, Boaz Harrosh wrote:
->>
->> Hi all
->>
->> Recent DAX code fixed the cl_flushing ie durability of mmap access
->> of direct persistent-memory from applications. It uses the radix-tree
->> per inode to track the indexes of a file that where page-faulted for
->> write. Then at m/fsync time it would cl_flush these pages and clean
->> the radix-tree, for the next round.
->>
->> Sigh, that is life, for legacy applications this is the price we must
->> pay. But for NV aware applications like nvml library, we pay extra extra
->> price, even if we do not actually call m/fsync eventually. For these
->> applications these extra resources and especially the extra radix locking
->> per page-fault, costs a lot, like x3 a lot.
->>
->> What we propose here is a way for those applications to enjoy the
->> boost and still not sacrifice any correctness of legacy applications.
->> Any concurrent access from legacy apps vs nv-aware apps even to the same
->> file / same page, will work correctly.
->>
->> We do that by defining a new MMAP flag that is set by the nv-aware
->> app. this flag is carried by the VMA. In the dax code we bypass any
->> radix handling of the page if this flag is set. Those pages accessed
->> *without*
->> this flag will be added to the radix-tree, those with will not.
->> At m/fsync time if the radix tree is then empty nothing will happen.
->>
->
-> I'm a little late to the party, but let me offer a variant that might be
-> considerably safer:
->
-> Add a flag MAP_DAX_WRITETHROUGH (name could be debated -- MAP_DAX_FASTFLUSH
-> might be more architecture-neutral, but I'm only familiar with the x86
-> semantics).
->
-> MAP_DAX_WRITETHROUGH does whatever is needed to ensure that writing through
-> the mapping and then calling fsync is both safe and fast.  On x86, it would
-> (surprise, surprise!) map the pages writethrough and skip adding them to the
-> radix tree.  fsync makes sure to do sfence before pcommit.
->
-> This is totally safe.  You *can't* abuse this to cause fsync to leave
-> non-persistent dirty cached data anywhere.
->
-> It makes sufficiently DAX-aware applications very fast.  Reads are
-> unaffected, and non-temporal writes should be the same speed as they are
-> under any other circumstances.
->
-> It makes applications that set it blindly very slow.  Applications that use
-> standard writes (i.e. plain stores that are neither fast string operations
-> nor explicit non-temporal writes) will suffer.  But they'll still work
-> correctly.
->
-> Applications that want a WB mapping with manually-managed persistence can
-> still do it, but fsync will be slow.  Adding an fmetadatasync() for their
-> benefit might be a decent idea, but it would just be icing on the cake.
->
-> Unlike with MAP_DAX_AWARE, there's no issue with malicious users who map the
-> thing with the wrong flag, write, call fsync, and snicker because now the
-> other applications might read data and be surprised that the data they just
-> read isn't persistent even if they subsequently call fsync.
->
-> There would be details to be hashed out in case a page is mapped normally
-> and with MAP_DAX_WRITETHROUGH in separate mappings.
->
+On Fri, 11 Mar 2016, Michal Hocko wrote:
+> On Fri 11-03-16 04:17:30, Hugh Dickins wrote:
+> > On Wed, 9 Mar 2016, Michal Hocko wrote:
+> > > Joonsoo has pointed out that this attempt is still not sufficient
+> > > becasuse we might have invoked only a single compaction round which
+> > > is might be not enough. I fully agree with that. Here is my take on
+> > > that. It is again based on the number of retries loop.
+> > > 
+> > > I was also playing with an idea of doing something similar to the
+> > > reclaim retry logic:
+> > > 	if (order) {
+> > > 		if (compaction_made_progress(compact_result)
+> > > 			no_compact_progress = 0;
+> > > 		else if (compaction_failed(compact_result)
+> > > 			no_compact_progress++;
+> > > 	}
+> > > but it is compaction_failed() part which is not really
+> > > straightforward to define. Is it COMPACT_NO_SUITABLE_PAGE
+> > > resp. COMPACT_NOT_SUITABLE_ZONE sufficient? compact_finished and
+> > > compaction_suitable however hide this from compaction users so it
+> > > seems like we can never see it.
+> > > 
+> > > Maybe we can update the feedback mechanism from the compaction but
+> > > retries count seems reasonably easy to understand and pragmatic. If
+> > > we cannot form a order page after we tried for N times then it really
+> > > doesn't make much sense to continue and we are oom for this order. I am
+> > > holding my breath to hear from Hugh on this, though.
+> > 
+> > Never a wise strategy.  But I just got around to it tonight.
+> > 
+> > I do believe you've nailed it with this patch!  Thank you!
+> 
+> That's a great news! Thanks for testing.
+> 
+> > I've applied 1/3, 2/3 and this (ah, it became the missing 3/3 later on)
+> > on top of 4.5.0-rc5-mm1 (I think there have been a couple of mmotms since,
+> > but I've not got to them yet): so far it is looking good on all machines.
+> > 
+> > After a quick go with the simple make -j20 in tmpfs, which survived
+> > a cycle on the laptop, I've switched back to my original tougher load,
+> > and that's going well so far: no sign of any OOMs.  But I've interrupted
+> > on the laptop to report back to you now, then I'll leave it running
+> > overnight.
+> 
+> OK, let's wait for the rest of the tests but I find it really optimistic
+> considering how easily you could trigger the issue previously. Anyway
+> I hope for your Tested-by after you are reasonably confident your loads
+> are behaving well.
 
-Interesting...
+Three have been stably running load for between 6 and 7 hours now,
+no problems, looking very good:
 
-The mixed mapping problem is made slightly more difficult by the fact
-that we add persistent memory to the direct-map when allocating struct
-page, but probably not insurmountable.  Also, this still has the
-syscall overhead that a MAP_SYNC semantic eliminates, but we need to
-collect numbers to see if that matters.
+Tested-by: Hugh Dickins <hughd@google.com>
 
-However, chatting with Andy R. about the NVML use case, the library
-alternates between streaming non-temporal writes and byte-accesses +
-clwb().  The byte accesses get slower with a write-through mapping.
-So, performance data is needed all around to see where these options
-land.
+I'll be interested to see how my huge tmpfs loads fare with the rework,
+but I'm not quite ready to try that today; and any issue there (I've no
+reason to suppose that there will be) can be a separate investigation
+for me to make at some future date.  It was this order=2 regression
+that was holding me back, and I've now no objection to your patches
+(though nobody should imagine that I've actually studied them).
+
+Thank you, Michal.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
