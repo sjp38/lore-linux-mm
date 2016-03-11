@@ -1,162 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FF816B0253
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 10:00:33 -0500 (EST)
-Received: by mail-oi0-f51.google.com with SMTP id c203so87387706oia.2
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 07:00:33 -0800 (PST)
-Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
-        by mx.google.com with ESMTPS id y206si6930387oif.70.2016.03.11.07.00.30
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 817666B0253
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 10:02:34 -0500 (EST)
+Received: by mail-ob0-f172.google.com with SMTP id fz5so115701030obc.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 07:02:34 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id q14si14361757pfi.166.2016.03.11.07.02.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 07:00:30 -0800 (PST)
-Received: by mail-oi0-x22a.google.com with SMTP id d205so87497717oia.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 07:00:30 -0800 (PST)
+        Fri, 11 Mar 2016 07:02:33 -0800 (PST)
+Date: Fri, 11 Mar 2016 18:02:24 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH] mm: memcontrol: zap
+ task_struct->memcg_oom_{gfp_mask,order}
+Message-ID: <20160311150224.GQ1946@esperanza>
+References: <1457691167-22756-1-git-send-email-vdavydov@virtuozzo.com>
+ <20160311115450.GH27701@dhcp22.suse.cz>
+ <20160311123900.GM1946@esperanza>
+ <20160311125104.GM27701@dhcp22.suse.cz>
+ <20160311134533.GN1946@esperanza>
+ <20160311143031.GS27701@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <56DF7B28.9060108@huawei.com>
-References: <56D6F008.1050600@huawei.com>
-	<56D79284.3030009@redhat.com>
-	<CAAmzW4PUwoVF+F-BpOZUHhH6YHp_Z8VkiUjdBq85vK6AWVkyPg@mail.gmail.com>
-	<56D832BD.5080305@huawei.com>
-	<20160304020232.GA12036@js1304-P5Q-DELUXE>
-	<20160304043232.GC12036@js1304-P5Q-DELUXE>
-	<56D92595.60709@huawei.com>
-	<20160304063807.GA13317@js1304-P5Q-DELUXE>
-	<56D93ABE.9070406@huawei.com>
-	<20160307043442.GB24602@js1304-P5Q-DELUXE>
-	<56DD38E7.3050107@huawei.com>
-	<56DDCB86.4030709@redhat.com>
-	<56DE30CB.7020207@huawei.com>
-	<56DF7B28.9060108@huawei.com>
-Date: Sat, 12 Mar 2016 00:00:29 +0900
-Message-ID: <CAAmzW4NDJwgq_P33Ru_X0MKXGQEnY5dr_SY1GFutPAqEUAc_rg@mail.gmail.com>
-Subject: Re: Suspicious error for CMA stress test
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20160311143031.GS27701@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>
-Cc: Laura Abbott <labbott@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hanjun Guo <guohanjun@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-2016-03-09 10:23 GMT+09:00 Leizhen (ThunderTown) <thunder.leizhen@huawei.com>:
->
->
-> On 2016/3/8 9:54, Leizhen (ThunderTown) wrote:
->>
->>
->> On 2016/3/8 2:42, Laura Abbott wrote:
->>> On 03/07/2016 12:16 AM, Leizhen (ThunderTown) wrote:
->>>>
->>>>
->>>> On 2016/3/7 12:34, Joonsoo Kim wrote:
->>>>> On Fri, Mar 04, 2016 at 03:35:26PM +0800, Hanjun Guo wrote:
->>>>>> On 2016/3/4 14:38, Joonsoo Kim wrote:
->>>>>>> On Fri, Mar 04, 2016 at 02:05:09PM +0800, Hanjun Guo wrote:
->>>>>>>> On 2016/3/4 12:32, Joonsoo Kim wrote:
->>>>>>>>> On Fri, Mar 04, 2016 at 11:02:33AM +0900, Joonsoo Kim wrote:
->>>>>>>>>> On Thu, Mar 03, 2016 at 08:49:01PM +0800, Hanjun Guo wrote:
->>>>>>>>>>> On 2016/3/3 15:42, Joonsoo Kim wrote:
->>>>>>>>>>>> 2016-03-03 10:25 GMT+09:00 Laura Abbott <labbott@redhat.com>:
->>>>>>>>>>>>> (cc -mm and Joonsoo Kim)
->>>>>>>>>>>>>
->>>>>>>>>>>>>
->>>>>>>>>>>>> On 03/02/2016 05:52 AM, Hanjun Guo wrote:
->>>>>>>>>>>>>> Hi,
->>>>>>>>>>>>>>
->>>>>>>>>>>>>> I came across a suspicious error for CMA stress test:
->>>>>>>>>>>>>>
->>>>>>>>>>>>>> Before the test, I got:
->>>>>>>>>>>>>> -bash-4.3# cat /proc/meminfo | grep Cma
->>>>>>>>>>>>>> CmaTotal:         204800 kB
->>>>>>>>>>>>>> CmaFree:          195044 kB
->>>>>>>>>>>>>>
->>>>>>>>>>>>>>
->>>>>>>>>>>>>> After running the test:
->>>>>>>>>>>>>> -bash-4.3# cat /proc/meminfo | grep Cma
->>>>>>>>>>>>>> CmaTotal:         204800 kB
->>>>>>>>>>>>>> CmaFree:         6602584 kB
->>>>>>>>>>>>>>
->>>>>>>>>>>>>> So the freed CMA memory is more than total..
->>>>>>>>>>>>>>
->>>>>>>>>>>>>> Also the the MemFree is more than mem total:
->>>>>>>>>>>>>>
->>>>>>>>>>>>>> -bash-4.3# cat /proc/meminfo
->>>>>>>>>>>>>> MemTotal:       16342016 kB
->>>>>>>>>>>>>> MemFree:        22367268 kB
->>>>>>>>>>>>>> MemAvailable:   22370528 kB
->>>>>>>>>>> [...]
->>>>>>>>>>>>> I played with this a bit and can see the same problem. The sanity
->>>>>>>>>>>>> check of CmaFree < CmaTotal generally triggers in
->>>>>>>>>>>>> __move_zone_freepage_state in unset_migratetype_isolate.
->>>>>>>>>>>>> This also seems to be present as far back as v4.0 which was the
->>>>>>>>>>>>> first version to have the updated accounting from Joonsoo.
->>>>>>>>>>>>> Were there known limitations with the new freepage accounting,
->>>>>>>>>>>>> Joonsoo?
->>>>>>>>>>>> I don't know. I also played with this and looks like there is
->>>>>>>>>>>> accounting problem, however, for my case, number of free page is slightly less
->>>>>>>>>>>> than total. I will take a look.
->>>>>>>>>>>>
->>>>>>>>>>>> Hanjun, could you tell me your malloc_size? I tested with 1 and it doesn't
->>>>>>>>>>>> look like your case.
->>>>>>>>>>> I tested with malloc_size with 2M, and it grows much bigger than 1M, also I
->>>>>>>>>>> did some other test:
->>>>>>>>>> Thanks! Now, I can re-generate erronous situation you mentioned.
->>>>>>>>>>
->>>>>>>>>>>   - run with single thread with 100000 times, everything is fine.
->>>>>>>>>>>
->>>>>>>>>>>   - I hack the cam_alloc() and free as below [1] to see if it's lock issue, with
->>>>>>>>>>>     the same test with 100 multi-thread, then I got:
->>>>>>>>>> [1] would not be sufficient to close this race.
->>>>>>>>>>
->>>>>>>>>> Try following things [A]. And, for more accurate test, I changed code a bit more
->>>>>>>>>> to prevent kernel page allocation from cma area [B]. This will prevent kernel
->>>>>>>>>> page allocation from cma area completely so we can focus cma_alloc/release race.
->>>>>>>>>>
->>>>>>>>>> Although, this is not correct fix, it could help that we can guess
->>>>>>>>>> where the problem is.
->>>>>>>>> More correct fix is something like below.
->>>>>>>>> Please test it.
->>>>>>>> Hmm, this is not working:
->>>>>>> Sad to hear that.
->>>>>>>
->>>>>>> Could you tell me your system's MAX_ORDER and pageblock_order?
->>>>>>>
->>>>>>
->>>>>> MAX_ORDER is 11, pageblock_order is 9, thanks for your help!
->>>>>
->>>>> Hmm... that's same with me.
->>>>>
->>>>> Below is similar fix that prevents buddy merging when one of buddy's
->>>>> migrate type, but, not both, is MIGRATE_ISOLATE. In fact, I have
->>>>> no idea why previous fix (more correct fix) doesn't work for you.
->>>>> (It works for me.) But, maybe there is a bug on the fix
->>>>> so I make new one which is more general form. Please test it.
->>>>
->>>> Hi,
->>>>     Hanjun Guo has gone to Tailand on business, so I help him to run this patch. The result
->>>> shows that the count of "CmaFree:" is OK now. But sometimes printed some information as below:
->>>>
->>>> alloc_contig_range: [28500, 28600) PFNs busy
->>>> alloc_contig_range: [28300, 28380) PFNs busy
->>>>
->>>
->>> Those messages aren't necessarily a problem. Those messages indicate that
->> OK.
->>
->>> those pages weren't able to be isolated. Given the test here is a
->>> concurrency test, I suspect some concurrent allocation or free prevented
->>> isolation which is to be expected some times. I'd only be concerned if
->>> seeing those messages cause allocation failure or some other notable impact.
->> I chose memory block size: 512K, 1M, 2M ran serveral times, there was no memory allocation failure.
->
-> Hi, Joonsoo:
->         This new patch worked well. Do you plan to upstream it in the near furture?
+On Fri, Mar 11, 2016 at 03:30:31PM +0100, Michal Hocko wrote:
+> On Fri 11-03-16 16:45:34, Vladimir Davydov wrote:
+> > On Fri, Mar 11, 2016 at 01:51:05PM +0100, Michal Hocko wrote:
+> > > On Fri 11-03-16 15:39:00, Vladimir Davydov wrote:
+> > > > On Fri, Mar 11, 2016 at 12:54:50PM +0100, Michal Hocko wrote:
+> > > > > On Fri 11-03-16 13:12:47, Vladimir Davydov wrote:
+> > > > > > These fields are used for dumping info about allocation that triggered
+> > > > > > OOM. For cgroup this information doesn't make much sense, because OOM
+> > > > > > killer is always invoked from page fault handler.
+> > > > > 
+> > > > > The oom killer is indeed invoked in a different context but why printing
+> > > > > the original mask and order doesn't make any sense? Doesn't it help to
+> > > > > see that the reclaim has failed because of GFP_NOFS?
+> > > > 
+> > > > I don't see how this can be helpful. How would you use it?
+> > > 
+> > > If we start seeing GFP_NOFS triggered OOMs we might be enforced to
+> > > rethink our current strategy to ignore this charge context for OOM.
+> > 
+> > IMO the fact that a lot of OOMs are triggered by GFP_NOFS allocations
+> > can't be a good enough reason to reconsider OOM strategy.
+> 
+> What I meant was that the global OOM doesn't trigger OOM got !__GFP_FS
+> while we do in the memcg charge path.
 
-Of course!
-But, I should think more because it touches allocator's fastpatch and
-I'd like to detour.
-If I fail to think a better solution, I will send it as is, soon.
+OK, missed your point, sorry.
 
-Thanks.
+> 
+> > We need to
+> > know what kind of allocation fails anyway, and the current OOM dump
+> > gives us no clue about that.
+> 
+> We do print gfp_mask now so we know what was the charging context.
+> 
+> > Besides, what if OOM was triggered by GFP_NOFS by pure chance, i.e. it
+> > would have been triggered by GFP_KERNEL if it had happened at that time?
+> 
+> Not really. GFP_KERNEL would allow to invoke some shrinkers which are
+> GFP_NOFS incopatible.
+
+Can't a GFP_NOFS allocation happen when there is no shrinkable objects
+to drop so that there's no real difference between GFP_KERNEL and
+GFP_NOFS?
+
+> 
+> > IMO it's just confusing.
+> > 
+> > >  
+> > > > Wouldn't it be better to print err msg in try_charge anyway?
+> > > 
+> > > Wouldn't that lead to excessive amount of logged messages?
+> > 
+> > We could ratelimit these messages. Slab charge failures are already
+> > reported to dmesg (see ___slab_alloc -> slab_out_of_memory) and nobody's
+> > complained so far. Are there any non-slab GFP_NOFS allocations charged
+> > to memcg?
+> 
+> I believe there might be some coming from FS via add_to_page_cache_lru.
+> Especially when their mapping gfp_mask clears __GFP_FS. I haven't
+> checked the code deeper but some of those might be called from the page
+> fault path and trigger memcg OOM. I would have to look closer.
+
+If you think this warning is really a must have, and you don't like to
+warn about every charge failure, may be we could just print info about
+allocation that triggered OOM right in mem_cgroup_oom, like the code
+below does? I think it would be more-or-less equivalent to what we have
+now except it wouldn't require storing gfp_mask on task_struct.
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index a217b1374c32..d8e130d14f5d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1604,6 +1604,8 @@ static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+ 	 */
+ 	css_get(&memcg->css);
+ 	current->memcg_in_oom = memcg;
++
++	pr_warn("Process ... triggered OOM in memcg ... gfp ...\n");
+ }
+ 
+ /**
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
