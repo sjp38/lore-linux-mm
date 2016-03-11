@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ADB9828DF
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 17:59:48 -0500 (EST)
-Received: by mail-pf0-f174.google.com with SMTP id u190so63852722pfb.3
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:59:48 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id x72si16742916pfi.196.2016.03.11.14.59.30
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FF45828DF
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 17:59:51 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id tt10so110440091pab.3
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:59:51 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id w13si6174544pas.67.2016.03.11.14.59.32
         for <linux-mm@kvack.org>;
-        Fri, 11 Mar 2016 14:59:30 -0800 (PST)
+        Fri, 11 Mar 2016 14:59:32 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 13/25] thp: prepare change_huge_pmd() for file thp
-Date: Sat, 12 Mar 2016 01:59:05 +0300
-Message-Id: <1457737157-38573-14-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 09/25] thp: handle file pages in split_huge_pmd()
+Date: Sat, 12 Mar 2016 01:59:01 +0300
+Message-Id: <1457737157-38573-10-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,29 +19,37 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-change_huge_pmd() has assert which is not relvant for file page.
-For shared mapping it's perfectly fine to have page table entry
-writable, without explicit mkwrite.
+Splitting THP PMD is simple: just unmap it as in DAX case.
+Unlike DAX, we also remove the page from rmap and drop reference.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/huge_memory.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 0ef06d47bd24..93f5b50490df 100644
+index c22144e3fe11..51c54d5a945b 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -1786,7 +1786,8 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 				entry = pmd_mkwrite(entry);
- 			ret = HPAGE_PMD_NR;
- 			set_pmd_at(mm, addr, pmd, entry);
--			BUG_ON(!preserve_write && pmd_write(entry));
-+			BUG_ON(vma_is_anonymous(vma) && !preserve_write &&
-+					pmd_write(entry));
- 		}
- 		spin_unlock(ptl);
- 	}
+@@ -2930,10 +2930,16 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 
+ 	count_vm_event(THP_SPLIT_PMD);
+ 
+-	if (vma_is_dax(vma)) {
+-		pmd_t _pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
++	if (!vma_is_anonymous(vma)) {
++		_pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
+ 		if (is_huge_zero_pmd(_pmd))
+ 			put_huge_zero_page();
++		if (vma_is_dax(vma))
++			return;
++		page = pmd_page(_pmd);
++		page_remove_rmap(page, true);
++		put_page(page);
++		add_mm_counter(mm, MM_FILEPAGES, -HPAGE_PMD_NR);
+ 		return;
+ 	} else if (is_huge_zero_pmd(*pmd)) {
+ 		return __split_huge_zero_page_pmd(vma, haddr, pmd);
 -- 
 2.7.0
 
