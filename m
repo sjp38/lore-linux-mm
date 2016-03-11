@@ -1,81 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 823FF6B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 09:24:39 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id l68so19676539wml.1
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 06:24:39 -0800 (PST)
-Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
-        by mx.google.com with ESMTPS id 4si2984799wmy.42.2016.03.11.06.24.38
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E16F6B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 09:30:34 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id p65so19908232wmp.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 06:30:34 -0800 (PST)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
+        by mx.google.com with ESMTPS id c125si2985522wmf.81.2016.03.11.06.30.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 06:24:38 -0800 (PST)
-Received: by mail-wm0-x229.google.com with SMTP id l68so20911130wml.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 06:24:38 -0800 (PST)
-Subject: Re: [PATCH v1 03/19] fs/anon_inodes: new interface to create new
- inode
-References: <1457681423-26664-1-git-send-email-minchan@kernel.org>
- <1457681423-26664-4-git-send-email-minchan@kernel.org>
- <20160311080503.GR17997@ZenIV.linux.org.uk>
-From: Gioh Kim <gi-oh.kim@profitbricks.com>
-Message-ID: <56E2D524.8070708@profitbricks.com>
-Date: Fri, 11 Mar 2016 15:24:36 +0100
+        Fri, 11 Mar 2016 06:30:33 -0800 (PST)
+Received: by mail-wm0-f46.google.com with SMTP id p65so19907718wmp.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 06:30:33 -0800 (PST)
+Date: Fri, 11 Mar 2016 15:30:31 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: memcontrol: zap
+ task_struct->memcg_oom_{gfp_mask,order}
+Message-ID: <20160311143031.GS27701@dhcp22.suse.cz>
+References: <1457691167-22756-1-git-send-email-vdavydov@virtuozzo.com>
+ <20160311115450.GH27701@dhcp22.suse.cz>
+ <20160311123900.GM1946@esperanza>
+ <20160311125104.GM27701@dhcp22.suse.cz>
+ <20160311134533.GN1946@esperanza>
 MIME-Version: 1.0
-In-Reply-To: <20160311080503.GR17997@ZenIV.linux.org.uk>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160311134533.GN1946@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>, Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, rknize@motorola.com, Rik van Riel <riel@redhat.com>, Gioh Kim <gurugio@hanmail.net>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Fri 11-03-16 16:45:34, Vladimir Davydov wrote:
+> On Fri, Mar 11, 2016 at 01:51:05PM +0100, Michal Hocko wrote:
+> > On Fri 11-03-16 15:39:00, Vladimir Davydov wrote:
+> > > On Fri, Mar 11, 2016 at 12:54:50PM +0100, Michal Hocko wrote:
+> > > > On Fri 11-03-16 13:12:47, Vladimir Davydov wrote:
+> > > > > These fields are used for dumping info about allocation that triggered
+> > > > > OOM. For cgroup this information doesn't make much sense, because OOM
+> > > > > killer is always invoked from page fault handler.
+> > > > 
+> > > > The oom killer is indeed invoked in a different context but why printing
+> > > > the original mask and order doesn't make any sense? Doesn't it help to
+> > > > see that the reclaim has failed because of GFP_NOFS?
+> > > 
+> > > I don't see how this can be helpful. How would you use it?
+> > 
+> > If we start seeing GFP_NOFS triggered OOMs we might be enforced to
+> > rethink our current strategy to ignore this charge context for OOM.
+> 
+> IMO the fact that a lot of OOMs are triggered by GFP_NOFS allocations
+> can't be a good enough reason to reconsider OOM strategy.
 
+What I meant was that the global OOM doesn't trigger OOM got !__GFP_FS
+while we do in the memcg charge path.
 
-On 11.03.2016 09:05, Al Viro wrote:
-> On Fri, Mar 11, 2016 at 04:30:07PM +0900, Minchan Kim wrote:
->> From: Gioh Kim <gurugio@hanmail.net>
->>
->> The anon_inodes has already complete interfaces to create manage
->> many anonymous inodes but don't have interface to get
->> new inode. Other sub-modules can create anonymous inode
->> without creating and mounting it's own pseudo filesystem.
-> IMO that's a bad idea.  In case of aio "creating and mounting" takes this:
-> static struct dentry *aio_mount(struct file_system_type *fs_type,
->                                  int flags, const char *dev_name, void *data)
-> {
->          static const struct dentry_operations ops = {
->                  .d_dname        = simple_dname,
->          };
->          return mount_pseudo(fs_type, "aio:", NULL, &ops, AIO_RING_MAGIC);
-> }
-> and
->          static struct file_system_type aio_fs = {
->                  .name           = "aio",
->                  .mount          = aio_mount,
->                  .kill_sb        = kill_anon_super,
->          };
->          aio_mnt = kern_mount(&aio_fs);
->
-> All of 12 lines.  Your export is not much shorter.  To quote old mail on
-> the same topic:
-I know what aio_setup() does. It can be a solution.
-But I thought creating anon_inode_new() is simpler than several drivers 
-create its own pseudo filesystem.
-Creating a filesystem requires memory allocation and locking some lists 
-even though it is pseudo.
+> We need to
+> know what kind of allocation fails anyway, and the current OOM dump
+> gives us no clue about that.
 
-Could you inform me if there is a reason we should avoid creating 
-anonymous inode?
+We do print gfp_mask now so we know what was the charging context.
 
->
->> Note that anon_inodes.c reason to exist was "it's for situations where
->> all context lives on struct file and we don't need separate inode for
->> them".  Going from that to "it happens to contain a handy function for inode
->> allocation"...
+> Besides, what if OOM was triggered by GFP_NOFS by pure chance, i.e. it
+> would have been triggered by GFP_KERNEL if it had happened at that time?
 
+Not really. GFP_KERNEL would allow to invoke some shrinkers which are
+GFP_NOFS incopatible.
 
+> IMO it's just confusing.
+> 
+> >  
+> > > Wouldn't it be better to print err msg in try_charge anyway?
+> > 
+> > Wouldn't that lead to excessive amount of logged messages?
+> 
+> We could ratelimit these messages. Slab charge failures are already
+> reported to dmesg (see ___slab_alloc -> slab_out_of_memory) and nobody's
+> complained so far. Are there any non-slab GFP_NOFS allocations charged
+> to memcg?
+
+I believe there might be some coming from FS via add_to_page_cache_lru.
+Especially when their mapping gfp_mask clears __GFP_FS. I haven't
+checked the code deeper but some of those might be called from the page
+fault path and trigger memcg OOM. I would have to look closer.
 -- 
-Best regards,
-Gioh Kim
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
