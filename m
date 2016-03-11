@@ -1,123 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id DBF11828DF
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:10:43 -0500 (EST)
-Received: by mail-ob0-f176.google.com with SMTP id m7so122367205obh.3
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 11:10:43 -0800 (PST)
-Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
-        by mx.google.com with ESMTPS id c188si7697472oif.85.2016.03.11.11.10.42
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C72016B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 15:19:25 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id td3so80730800pab.2
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 12:19:25 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id kx15si6257408pab.43.2016.03.11.12.19.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 11:10:42 -0800 (PST)
-Received: by mail-oi0-x22d.google.com with SMTP id d205so92939904oia.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 11:10:42 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAPcyv4hOrVWTgcGp8RnouroSdDpoc8Bnzt6pUY2jA57hLN3QNQ@mail.gmail.com>
-References: <56C9EDCF.8010007@plexistor.com> <56E26940.8020203@kernel.org> <CAPcyv4hOrVWTgcGp8RnouroSdDpoc8Bnzt6pUY2jA57hLN3QNQ@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 11 Mar 2016 11:10:23 -0800
-Message-ID: <CALCETrX-xkwM26Aut7HRs0Pe4iPyRQmDHrnsfGAC0NkFKxOGCA@mail.gmail.com>
-Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
-Content-Type: text/plain; charset=UTF-8
+        Fri, 11 Mar 2016 12:19:24 -0800 (PST)
+Date: Fri, 11 Mar 2016 12:19:23 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [linux-next:master 11691/11963] mm/kasan/kasan.c:429:12: error:
+ dereferencing pointer to incomplete type 'struct stack_trace'
+Message-Id: <20160311121923.656fbcc79b5490109573c65a@linux-foundation.org>
+In-Reply-To: <201603111844.8T3LiLoa%fengguang.wu@intel.com>
+References: <201603111844.8T3LiLoa%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Boaz Harrosh <boaz@plexistor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Oleg Nesterov <oleg@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Arnd Bergmann <arnd@arndb.de>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Alexander Potapenko <glider@google.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
 
-On Fri, Mar 11, 2016 at 11:07 AM, Dan Williams <dan.j.williams@intel.com> wrote:
-> On Thu, Mar 10, 2016 at 10:44 PM, Andy Lutomirski <luto@kernel.org> wrote:
->> On 02/21/2016 09:03 AM, Boaz Harrosh wrote:
->>>
->>> Hi all
->>>
->>> Recent DAX code fixed the cl_flushing ie durability of mmap access
->>> of direct persistent-memory from applications. It uses the radix-tree
->>> per inode to track the indexes of a file that where page-faulted for
->>> write. Then at m/fsync time it would cl_flush these pages and clean
->>> the radix-tree, for the next round.
->>>
->>> Sigh, that is life, for legacy applications this is the price we must
->>> pay. But for NV aware applications like nvml library, we pay extra extra
->>> price, even if we do not actually call m/fsync eventually. For these
->>> applications these extra resources and especially the extra radix locking
->>> per page-fault, costs a lot, like x3 a lot.
->>>
->>> What we propose here is a way for those applications to enjoy the
->>> boost and still not sacrifice any correctness of legacy applications.
->>> Any concurrent access from legacy apps vs nv-aware apps even to the same
->>> file / same page, will work correctly.
->>>
->>> We do that by defining a new MMAP flag that is set by the nv-aware
->>> app. this flag is carried by the VMA. In the dax code we bypass any
->>> radix handling of the page if this flag is set. Those pages accessed
->>> *without*
->>> this flag will be added to the radix-tree, those with will not.
->>> At m/fsync time if the radix tree is then empty nothing will happen.
->>>
->>
->> I'm a little late to the party, but let me offer a variant that might be
->> considerably safer:
->>
->> Add a flag MAP_DAX_WRITETHROUGH (name could be debated -- MAP_DAX_FASTFLUSH
->> might be more architecture-neutral, but I'm only familiar with the x86
->> semantics).
->>
->> MAP_DAX_WRITETHROUGH does whatever is needed to ensure that writing through
->> the mapping and then calling fsync is both safe and fast.  On x86, it would
->> (surprise, surprise!) map the pages writethrough and skip adding them to the
->> radix tree.  fsync makes sure to do sfence before pcommit.
->>
->> This is totally safe.  You *can't* abuse this to cause fsync to leave
->> non-persistent dirty cached data anywhere.
->>
->> It makes sufficiently DAX-aware applications very fast.  Reads are
->> unaffected, and non-temporal writes should be the same speed as they are
->> under any other circumstances.
->>
->> It makes applications that set it blindly very slow.  Applications that use
->> standard writes (i.e. plain stores that are neither fast string operations
->> nor explicit non-temporal writes) will suffer.  But they'll still work
->> correctly.
->>
->> Applications that want a WB mapping with manually-managed persistence can
->> still do it, but fsync will be slow.  Adding an fmetadatasync() for their
->> benefit might be a decent idea, but it would just be icing on the cake.
->>
->> Unlike with MAP_DAX_AWARE, there's no issue with malicious users who map the
->> thing with the wrong flag, write, call fsync, and snicker because now the
->> other applications might read data and be surprised that the data they just
->> read isn't persistent even if they subsequently call fsync.
->>
->> There would be details to be hashed out in case a page is mapped normally
->> and with MAP_DAX_WRITETHROUGH in separate mappings.
->>
->
-> Interesting...
->
-> The mixed mapping problem is made slightly more difficult by the fact
-> that we add persistent memory to the direct-map when allocating struct
-> page, but probably not insurmountable.  Also, this still has the
-> syscall overhead that a MAP_SYNC semantic eliminates, but we need to
-> collect numbers to see if that matters.
->
-> However, chatting with Andy R. about the NVML use case, the library
-> alternates between streaming non-temporal writes and byte-accesses +
-> clwb().  The byte accesses get slower with a write-through mapping.
-> So, performance data is needed all around to see where these options
-> land.
+On Fri, 11 Mar 2016 18:38:47 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-When you say  "byte-access + clwb()", do you mean literally write a
-byte, clwb, write a byte, clwb... or do you mean lots of byte accesses
-and then one clwb?  If the former, I suspect it could be changed to
-non-temporal store + sfence and be faster.
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   bb17bf337db5c5af7e75ec5916772c9bffcaf981
+> commit: d5e0cb037c3f7a9cc54b9427e0281c7877d62ff3 [11691/11963] mm, kasan: stackdepot implementation. Enable stackdepot for SLAB
+> config: x86_64-randconfig-v0-03111742 (attached as .config)
+> reproduce:
+>         git checkout d5e0cb037c3f7a9cc54b9427e0281c7877d62ff3
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
+> 
+> All error/warnings (new ones prefixed by >>):
+> 
+>    mm/kasan/kasan.c: In function 'filter_irq_stacks':
+> >> mm/kasan/kasan.c:429:12: error: dereferencing pointer to incomplete type 'struct stack_trace'
+>      if (!trace->nr_entries)
 
-My understanding is that non-temporal store + sfence doesn't populate
-the cache, though, which is unfortunate for some use cases.
+Yeah, that's a bit screwed up.  The code needs CONFIG_STACKTRACE but this:
 
-The real solution would be for Intel to add an efficient operation to
-force writeback on a large region of physical pages.
+--- a/lib/Kconfig.kasan~mm-kasan-stackdepot-implementation-enable-stackdepot-for-slab-fix-fix
++++ a/lib/Kconfig.kasan
+@@ -8,6 +8,7 @@ config KASAN
+ 	depends on SLUB_DEBUG || (SLAB && !DEBUG_SLAB)
+ 	select CONSTRUCTORS
+ 	select STACKDEPOT if SLAB
++	select STACKTRACE if SLAB
+ 	help
+ 	  Enables kernel address sanitizer - runtime memory debugger,
+ 	  designed to find out-of-bounds accesses and use-after-free bugs.
 
---Andy
+doesn't work because CONFIG_SLAB=n.  And I don't think we want to
+enable all this extra stuff for slub/slob/etc.
+
+Over to you, Alexander.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
