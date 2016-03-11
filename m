@@ -1,83 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D1796B0254
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 20:52:28 -0500 (EST)
-Received: by mail-oi0-f42.google.com with SMTP id d205so75589502oia.0
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 17:52:28 -0800 (PST)
-Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
-        by mx.google.com with ESMTPS id v3si4604170oie.34.2016.03.10.17.52.27
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Mar 2016 17:52:27 -0800 (PST)
-Received: by mail-oi0-x231.google.com with SMTP id m82so75542075oif.1
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 17:52:27 -0800 (PST)
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 66BAE6B0005
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 21:38:12 -0500 (EST)
+Received: by mail-pf0-f171.google.com with SMTP id 124so83653078pfg.0
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 18:38:12 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id re13si125916pab.202.2016.03.10.18.38.11
+        for <linux-mm@kvack.org>;
+        Thu, 10 Mar 2016 18:38:11 -0800 (PST)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [RFC qemu 0/4] A PV solution for live migration optimization
+Date: Fri, 11 Mar 2016 02:38:02 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E0414B118@shsmsx102.ccr.corp.intel.com>
+References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
+ <20160308111343.GM15443@grmbl.mre>
+ <F2CBF3009FA73547804AE4C663CAB28E0414A7E3@shsmsx102.ccr.corp.intel.com>
+ <20160310075728.GB4678@grmbl.mre>
+ <F2CBF3009FA73547804AE4C663CAB28E0414A860@shsmsx102.ccr.corp.intel.com>
+ <20160310111844.GB2276@work-vm>
+In-Reply-To: <20160310111844.GB2276@work-vm>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20160310095601.GA9677@gmail.com>
-References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
- <1442903021-3893-4-git-send-email-mingo@kernel.org> <CALCETrXV34q4ViE46sHN6QxucmxoBYN0xKz4p7H9Cr=7VpwQUA@mail.gmail.com>
- <CALCETrUijqLwS98M_EnW5OH=CSv_SwjKGC5FkAxFEcWiq0RM2A@mail.gmail.com> <20160310095601.GA9677@gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Thu, 10 Mar 2016 17:52:07 -0800
-Message-ID: <CALCETrUDpzHV0mZXkg4QX9zspJKZ8vngA2_ybL6E+faiTJqpkw@mail.gmail.com>
-Subject: Re: [PATCH 03/11] x86/mm/hotplug: Don't remove PGD entries in remove_pagetable()
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
+To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Cc: Amit Shah <amit.shah@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mohan_parthasarathy@hpe.com" <mohan_parthasarathy@hpe.com>, "jitendra.kolhe@hpe.com" <jitendra.kolhe@hpe.com>, "simhan@hpe.com" <simhan@hpe.com>
 
-On Thu, Mar 10, 2016 at 1:56 AM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Andy Lutomirski <luto@amacapital.net> wrote:
->
->> On Fri, Feb 12, 2016 at 11:04 AM, Andy Lutomirski <luto@amacapital.net> wrote:
->> > On Mon, Sep 21, 2015 at 11:23 PM, Ingo Molnar <mingo@kernel.org> wrote:
->> >> So when memory hotplug removes a piece of physical memory from pagetable
->> >> mappings, it also frees the underlying PGD entry.
->> >>
->> >> This complicates PGD management, so don't do this. We can keep the
->> >> PGD mapped and the PUD table all clear - it's only a single 4K page
->> >> per 512 GB of memory hotplugged.
->> >
->> > Ressurecting an ancient thread: I want this particular change to make
->> > it (much) easier to make vmapped stacks work correctly.  Could it be
->> > applied by itself?
->> >
->>
->> It's incomplete.  pageattr.c has another instance of the same thing.
->> I'll see if I can make it work, but I may end up doing something a
->> little different.
->
-> If so then mind picking up (and fixing ;-) tip:WIP.x86/mm in its entirety? It's
-> well tested so shouldn't have too many easy to hit bugs. Feel free to rebase and
-> restructure it, it's a WIP tree.
+>=20
+> Hi,
+>   I'm just catching back up on this thread; so without reference to any
+> particular previous mail in the thread.
+>=20
+>   1) How many of the free pages do we tell the host about?
+>      Your main change is telling the host about all the
+>      free pages.
 
-I'll chew on this one patch a bit and see where the whole things go.
-If I can rebase the rest on top, I'll use them.
+Yes, all the guest's free pages.
 
-BTW, how are current kernels possibly correct when this code runs?  We
-zap a pgd from the init pgd.  I can't find any code that would try to
-propagate that zapped pgd to other pgds.  Then, if we hotplug in some
-more memory or claim the slot for vmap, we'll install a new pgd entry,
-and we might access *that* through a different pgd.  There vmalloc
-fault fixup won't help because the MMU will chase a stale pointer in
-the old pgd.
+>      If we tell the host about all the free pages, then we might
+>      end up needing to allocate more pages and update the host
+>      with pages we now want to use; that would have to wait for the
+>      host to acknowledge that use of these pages, since if we don't
+>      wait for it then it might have skipped migrating a page we
+>      just started using (I don't understand how your series solves that).
+>      So the guest probably needs to keep some free pages - how many?
 
-So we might actually need this patch sooner rather than later.
+Actually, there is no need to care about whether the free pages will be use=
+d by the host.
+We only care about some of the free pages we get reused by the guest, right=
+?
 
->
-> I keep getting distracted with other things but I'd hate if this got dropped on
-> the floor.
->
-> Thanks,
->
->         Ingo
+The dirty page logging can be used to solve this, starting the dirty page l=
+ogging before getting
+the free pages informant from guest. Even some of the free pages are modifi=
+ed by the guest
+during the process of getting the free pages information, these modified pa=
+ges will be traced
+by the dirty page logging mechanism. So in the following migration_bitmap_s=
+ync() function.
+The pages in the free pages bitmap, but latter was modified, will be reset =
+to dirty. We won't
+omit any dirtied pages.
 
+So, guest doesn't need to keep any free pages.
 
+>   2) Clearing out caches
+>      Does it make sense to clean caches?  They're apparently useful data
+>      so if we clean them it's likely to slow the guest down; I guess
+>      they're also likely to be fairly static data - so at least fairly
+>      easy to migrate.
+>      The answer here partially depends on what you want from your migrati=
+on;
+>      if you're after the fastest possible migration time it might make
+>      sense to clean the caches and avoid migrating them; but that might
+>      be at the cost of more disruption to the guest - there's a trade off
+>      somewhere and it's not clear to me how you set that depending on you=
+r
+>      guest/network/reqirements.
+>=20
 
--- 
-Andy Lutomirski
-AMA Capital Management, LLC
+Yes, clean the caches is an option.  Let the users decide using it or not.
+
+>   3) Why is ballooning slow?
+>      You've got a figure of 5s to balloon on an 8GB VM - but an
+>      8GB VM isn't huge; so I worry about how long it would take
+>      on a big VM.   We need to understand why it's slow
+>        * is it due to the guest shuffling pages around?
+>        * is it due to the virtio-balloon protocol sending one page
+>          at a time?
+>          + Do balloon pages normally clump in physical memory
+>             - i.e. would a 'large balloon' message help
+>             - or do we need a bitmap because it tends not to clump?
+>=20
+
+I didn't do a comprehensive test. But I found most of the time spending
+on allocating the pages and sending the PFNs to guest, I don't know that's
+the most time consuming operation, allocating the pages or sending the PFNs=
+.
+
+>        * is it due to the madvise on the host?
+>          If we were using the normal balloon messages, then we
+>          could, during migration, just route those to the migration
+>          code rather than bothering with the madvise.
+>          If they're clumping together we could just turn that into
+>          one big madvise; if they're not then would we benefit from
+>          a call that lets us madvise lots of areas?
+>=20
+
+My test showed madvise() is not the main reason for the long time, only tak=
+en
+10% of the total  inflating balloon operation time.
+Big madvise can more or less improve the performance.
+
+>   4) Speeding up the migration of those free pages
+>     You're using the bitmap to avoid migrating those free pages; HPe's
+>     patchset is reconstructing a bitmap from the balloon data;  OK, so
+>     this all makes sense to avoid migrating them - I'd also been thinking
+>     of using pagemap to spot zero pages that would help find other zero'd
+>     pages, but perhaps ballooned is enough?
+>=20
+Could you describe your ideal with more details?
+
+>   5) Second-migrate
+>     Given a VM where you've done all those tricks on, what happens when
+>     you migrate it a second time?   I guess you're aiming for the guest
+>     to update it's bitmap;  HPe's solution is to migrate it's balloon
+>     bitmap along with the migration data.
+
+Nothing is special in the second migration, QEMU will request the guest for=
+ free pages
+Information, and the guest will traverse it's current free page list to con=
+struct a
+new free page bitmap and send it to QEMU. Just like in the first migration.
+
+Liang
+>=20
+> Dave
+>=20
+> --
+> Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
