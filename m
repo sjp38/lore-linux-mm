@@ -1,81 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F78A6B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 08:39:39 -0500 (EST)
-Received: by mail-wm0-f41.google.com with SMTP id l68so19138784wml.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:39:39 -0800 (PST)
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com. [74.125.82.48])
-        by mx.google.com with ESMTPS id y5si11118547wjx.10.2016.03.11.05.39.37
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E44B06B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 08:45:49 -0500 (EST)
+Received: by mail-ig0-f180.google.com with SMTP id z8so11170983ige.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:45:49 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id l9si13981823pfb.158.2016.03.11.05.45.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 05:39:38 -0800 (PST)
-Received: by mail-wm0-f48.google.com with SMTP id n186so19133141wmn.1
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:39:37 -0800 (PST)
-Date: Fri, 11 Mar 2016 14:39:36 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: reclaim when shrinking memory.high below
- usage
-Message-ID: <20160311133936.GQ27701@dhcp22.suse.cz>
-References: <1457643015-8828-1-git-send-email-hannes@cmpxchg.org>
- <20160311083440.GI1946@esperanza>
- <20160311084238.GE27701@dhcp22.suse.cz>
- <20160311091303.GJ1946@esperanza>
- <20160311095309.GF27701@dhcp22.suse.cz>
- <20160311114934.GL1946@esperanza>
+        Fri, 11 Mar 2016 05:45:49 -0800 (PST)
+Date: Fri, 11 Mar 2016 16:45:34 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH] mm: memcontrol: zap
+ task_struct->memcg_oom_{gfp_mask,order}
+Message-ID: <20160311134533.GN1946@esperanza>
+References: <1457691167-22756-1-git-send-email-vdavydov@virtuozzo.com>
+ <20160311115450.GH27701@dhcp22.suse.cz>
+ <20160311123900.GM1946@esperanza>
+ <20160311125104.GM27701@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20160311114934.GL1946@esperanza>
+In-Reply-To: <20160311125104.GM27701@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 11-03-16 14:49:34, Vladimir Davydov wrote:
-> On Fri, Mar 11, 2016 at 10:53:09AM +0100, Michal Hocko wrote:
-> > > OTOH memory.low and memory.high are perfect to be changed dynamically,
-> > > basing on containers' memory demand/pressure. A load manager might want
-> > > to reconfigure these knobs say every 5 seconds. Spawning a thread per
-> > > each container that often would look unnecessarily overcomplicated IMO.
+On Fri, Mar 11, 2016 at 01:51:05PM +0100, Michal Hocko wrote:
+> On Fri 11-03-16 15:39:00, Vladimir Davydov wrote:
+> > On Fri, Mar 11, 2016 at 12:54:50PM +0100, Michal Hocko wrote:
+> > > On Fri 11-03-16 13:12:47, Vladimir Davydov wrote:
+> > > > These fields are used for dumping info about allocation that triggered
+> > > > OOM. For cgroup this information doesn't make much sense, because OOM
+> > > > killer is always invoked from page fault handler.
+> > > 
+> > > The oom killer is indeed invoked in a different context but why printing
+> > > the original mask and order doesn't make any sense? Doesn't it help to
+> > > see that the reclaim has failed because of GFP_NOFS?
 > > 
-> > The question however is whether we want to hide a potentially costly
-> > operation and have it unaccounted and hidden in the kworker context.
+> > I don't see how this can be helpful. How would you use it?
 > 
-> There's already mem_cgroup->high_work doing reclaim in an unaccounted
-> context quite often if tcp accounting is enabled.
+> If we start seeing GFP_NOFS triggered OOMs we might be enforced to
+> rethink our current strategy to ignore this charge context for OOM.
 
-I suspect this is done because the charging context cannot do much
-better.
+IMO the fact that a lot of OOMs are triggered by GFP_NOFS allocations
+can't be a good enough reason to reconsider OOM strategy. We need to
+know what kind of allocation fails anyway, and the current OOM dump
+gives us no clue about that.
 
-> And there's kswapd.
-> memory.high knob is for the root only so it can't be abused by an
-> unprivileged user. Regarding a privileged user, e.g. load manager, it
-> can screw things up anyway, e.g. by configuring sum of memory.low to be
-> greater than total RAM on the host and hence driving kswapd mad.
+Besides, what if OOM was triggered by GFP_NOFS by pure chance, i.e. it
+would have been triggered by GFP_KERNEL if it had happened at that time?
+IMO it's just confusing.
 
-I am not worried about abuse. It is just weird to move something which
-can be perfectly sync to an async mode.
- 
-> > I mean fork() + write() doesn't sound terribly complicated to me to have
-> > a rather subtle behavior in the kernel.
+>  
+> > Wouldn't it be better to print err msg in try_charge anyway?
 > 
-> It'd be just a dubious API IMHO. With memory.max everything's clear: it
-> tries to reclaim memory hard, may stall for several seconds, may invoke
-> OOM, but if it finishes successfully we have memory.current less than
-> memory.max. With this patch memory.high knob behaves rather strangely:
-> it might stall, but there's no guarantee you'll have memory.current less
-> than memory.high; moreover, according to the documentation it's OK to
-> have memory.current greater than memory.high, so what's the point in
-> calling synchronous reclaim blocking the caller?
+> Wouldn't that lead to excessive amount of logged messages?
 
-Even if the reclaim is best effort it doesn't mean we should hide it
-into an async context. There is simply no reason to do so. We do the
-some for other knobs which are performing a potentially expensive
-operation and do not guarantee the result.
+We could ratelimit these messages. Slab charge failures are already
+reported to dmesg (see ___slab_alloc -> slab_out_of_memory) and nobody's
+complained so far. Are there any non-slab GFP_NOFS allocations charged
+to memcg?
 
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
