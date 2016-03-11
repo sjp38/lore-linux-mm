@@ -1,111 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id ECB08828DF
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 03:36:14 -0500 (EST)
-Received: by mail-io0-f171.google.com with SMTP id n190so137149567iof.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 00:36:14 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id p143si10056140ioe.43.2016.03.11.00.36.13
-        for <linux-mm@kvack.org>;
-        Fri, 11 Mar 2016 00:36:14 -0800 (PST)
-Date: Fri, 11 Mar 2016 17:35:20 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v1 02/19] mm/compaction: support non-lru movable page
- migration
-Message-ID: <20160311083520.GA27206@bbox>
-References: <1457681423-26664-3-git-send-email-minchan@kernel.org>
- <201603111650.Suc95X5j%fengguang.wu@intel.com>
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AC22828DF
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 03:42:41 -0500 (EST)
+Received: by mail-wm0-f52.google.com with SMTP id n186so8343154wmn.1
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 00:42:41 -0800 (PST)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
+        by mx.google.com with ESMTPS id di9si9847865wjc.18.2016.03.11.00.42.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Mar 2016 00:42:40 -0800 (PST)
+Received: by mail-wm0-f53.google.com with SMTP id l68so8535275wml.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 00:42:40 -0800 (PST)
+Date: Fri, 11 Mar 2016 09:42:39 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: memcontrol: reclaim when shrinking memory.high below
+ usage
+Message-ID: <20160311084238.GE27701@dhcp22.suse.cz>
+References: <1457643015-8828-1-git-send-email-hannes@cmpxchg.org>
+ <20160311083440.GI1946@esperanza>
 MIME-Version: 1.0
-In-Reply-To: <201603111650.Suc95X5j%fengguang.wu@intel.com>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20160311083440.GI1946@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, rknize@motorola.com, Rik van Riel <riel@redhat.com>, Gioh Kim <gurugio@hanmail.net>, dri-devel@lists.freedesktop.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Hi kbuild,
+On Fri 11-03-16 11:34:40, Vladimir Davydov wrote:
+> On Thu, Mar 10, 2016 at 03:50:13PM -0500, Johannes Weiner wrote:
+> > When setting memory.high below usage, nothing happens until the next
+> > charge comes along, and then it will only reclaim its own charge and
+> > not the now potentially huge excess of the new memory.high. This can
+> > cause groups to stay in excess of their memory.high indefinitely.
+> > 
+> > To fix that, when shrinking memory.high, kick off a reclaim cycle that
+> > goes after the delta.
+> 
+> I agree that we should reclaim the high excess, but I don't think it's a
+> good idea to do it synchronously. Currently, memory.low and memory.high
+> knobs can be easily used by a single-threaded load manager implemented
+> in userspace, because it doesn't need to care about potential stalls
+> caused by writes to these files. After this change it might happen that
+> a write to memory.high would take long, seconds perhaps, so in order to
+> react quickly to changes in other cgroups, a load manager would have to
+> spawn a thread per each write to memory.high, which would complicate its
+> implementation significantly.
 
-On Fri, Mar 11, 2016 at 04:11:19PM +0800, kbuild test robot wrote:
-> Hi Minchan,
-> 
-> [auto build test ERROR on v4.5-rc7]
-> [cannot apply to next-20160310]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improving the system]
-> 
-> url:    https://github.com/0day-ci/linux/commits/Minchan-Kim/Support-non-lru-page-migration/20160311-153649
-> config: x86_64-nfsroot (attached as .config)
-> reproduce:
->         # save the attached .config to linux build tree
->         make ARCH=x86_64 
-> 
-> All errors (new ones prefixed by >>):
-> 
->    In file included from mm/compaction.c:12:0:
-> >> include/linux/compaction.h:87:20: error: static declaration of 'isolate_movable_page' follows non-static declaration
->     static inline bool isolate_movable_page(struct page *page, isolate_mode_t mode)
->                        ^
->    In file included from mm/compaction.c:11:0:
->    include/linux/migrate.h:36:13: note: previous declaration of 'isolate_movable_page' was here
->     extern bool isolate_movable_page(struct page *page, isolate_mode_t mode);
->                 ^
->    In file included from mm/compaction.c:12:0:
-> >> include/linux/compaction.h:92:20: error: static declaration of 'putback_movable_page' follows non-static declaration
->     static inline void putback_movable_page(struct page *page)
->                        ^
->    In file included from mm/compaction.c:11:0:
->    include/linux/migrate.h:37:13: note: previous declaration of 'putback_movable_page' was here
->     extern void putback_movable_page(struct page *page);
->                 ^
-> 
-> vim +/isolate_movable_page +87 include/linux/compaction.h
-> 
->     81	
->     82	static inline bool compaction_deferred(struct zone *zone, int order)
->     83	{
->     84		return true;
->     85	}
->     86	
->   > 87	static inline bool isolate_movable_page(struct page *page, isolate_mode_t mode)
->     88	{
->     89		return false;
->     90	}
->     91	
->   > 92	static inline void putback_movable_page(struct page *page)
->     93	{
->     94	}
->     95	#endif /* CONFIG_COMPACTION */
-> 
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+Is the complication on the managing part really an issue though. Such a
+manager would have to spawn a process/thread to change the .max already.
 
-Actually, I made patchset based on v4.5-rc6 but the problem you found is
-still problem in v4.5-rc6, too. Thanks for catching it fast.
-
-I should apply following patch to fix the problem.
-
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 6f040ad379ce..4cd4ddf64cc7 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -84,14 +84,6 @@ static inline bool compaction_deferred(struct zone *zone, int order)
- 	return true;
- }
- 
--static inline bool isolate_movable_page(struct page *page, isolate_mode_t mode)
--{
--	return false;
--}
--
--static inline void putback_movable_page(struct page *page)
--{
--}
- #endif /* CONFIG_COMPACTION */
- 
- #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-
-Thanks.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
