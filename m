@@ -1,98 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id DEA8A828DF
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 16:13:13 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id 129so92022676pfw.1
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 13:13:13 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id y67si16150753pfi.213.2016.03.11.13.13.07
-        for <linux-mm@kvack.org>;
-        Fri, 11 Mar 2016 13:13:07 -0800 (PST)
-From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH 2/3] pfn_t: Support for huge PFNs
-Date: Fri, 11 Mar 2016 16:13:03 -0500
-Message-Id: <1457730784-9890-3-git-send-email-matthew.r.wilcox@intel.com>
-In-Reply-To: <1457730784-9890-1-git-send-email-matthew.r.wilcox@intel.com>
+Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DCFA6B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 16:40:21 -0500 (EST)
+Received: by mail-ob0-f177.google.com with SMTP id m7so125932913obh.3
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 13:40:21 -0800 (PST)
+Received: from mail-ob0-x229.google.com (mail-ob0-x229.google.com. [2607:f8b0:4003:c01::229])
+        by mx.google.com with ESMTPS id b2si7956910oem.44.2016.03.11.13.40.20
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Mar 2016 13:40:20 -0800 (PST)
+Received: by mail-ob0-x229.google.com with SMTP id fz5so126359950obc.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 13:40:20 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1457730784-9890-2-git-send-email-matthew.r.wilcox@intel.com>
 References: <1457730784-9890-1-git-send-email-matthew.r.wilcox@intel.com>
+	<1457730784-9890-2-git-send-email-matthew.r.wilcox@intel.com>
+Date: Fri, 11 Mar 2016 13:40:20 -0800
+Message-ID: <CAPcyv4g82US298_mCd75toj9kEeyDhw0cP_Ott0R8fOydWNsSg@mail.gmail.com>
+Subject: Re: [PATCH 1/3] pfn_t: Change the encoding
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@linux.intel.com
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Matthew Wilcox <willy@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-We need to put entries in the radix tree that represent PMDs and PUDs.
-Use another bit to determine if this PFN entry represents a huge page
-or not.  If it does, we know the bottom few bits of the PFN are zero,
-so we can reuse them to distinguish between PMDs and PUDs.  Thanks to
-Neil Brown for suggesting this more compact encoding.
+On Fri, Mar 11, 2016 at 1:13 PM, Matthew Wilcox
+<matthew.r.wilcox@intel.com> wrote:
+> By moving the flag bits to the bottom, we encourage commonality
+> between SGs with pages and those using pfn_t.  We can also then insert
+> a pfn_t into a radix tree, as it uses the same two bits for indirect &
+> exceptional indicators.
 
-Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
----
- include/linux/pfn_t.h | 19 +++++++++++++++++--
- 1 file changed, 17 insertions(+), 2 deletions(-)
+It's not immediately clear to me what we gain with SG entry
+commonality.  The down side is that we lose the property that
+pfn_to_pfn_t() is a nop.  This was Dave's suggestion so that the
+nominal case did not change the binary layout of a typical pfn.
 
-diff --git a/include/linux/pfn_t.h b/include/linux/pfn_t.h
-index 37c596c..0ff4c4e 100644
---- a/include/linux/pfn_t.h
-+++ b/include/linux/pfn_t.h
-@@ -8,14 +8,21 @@
-  * PFN_SG_LAST - pfn references a page and is the last scatterlist entry
-  * PFN_DEV - pfn is not covered by system memmap by default
-  * PFN_MAP - pfn has a dynamic page mapping established by a device driver
-+ * PFN_HUGE - pfn represents a huge page
-  *
-  * Note that the bottom two bits in the pfn_t match the bottom two bits in the
-  * scatterlist so sg_is_chain() and sg_is_last() work.  These bits are also
-  * used by the radix tree for its own purposes, but a PFN cannot be in both a
-  * radix tree and a scatterlist simultaneously.  If a PFN is moved between the
-  * two usages, care should be taken to clear/set these bits appropriately.
-+ *
-+ * If PFN_HUGE is set, the bottom PMD_SHIFT-PAGE_SHIFT bits are known to be
-+ * zero.  We reuse them to indicate whether the PFN represents a PMD or a PUD.
-+ *
-+ * This scheme supports 27 bits on a 32-bit system (512GB of physical address
-+ * space) and 59 bits on a 64-bit system (2048EB of physical address space).
-  */
--#define PFN_FLAG_BITS	4
-+#define PFN_FLAG_BITS	5
- #define PFN_FLAGS_MASK	((1 << PFN_FLAG_BITS) - 1)
- #define __PFN_MAX	((1 << (BITS_PER_LONG - PFN_FLAG_BITS)) - 1)
- #define PFN_SG_CHAIN	0x01UL
-@@ -23,6 +30,11 @@
- #define PFN_SG_MASK	(PFN_SG_CHAIN | PFN_SG_LAST)
- #define PFN_DEV		0x04UL
- #define PFN_MAP		0x08UL
-+#define PFN_HUGE	0x10UL
-+#define PFN_SIZE_MASK	0x30UL
-+#define PFN_SIZE_PTE	0x00UL
-+#define PFN_SIZE_PMD	0x10UL
-+#define PFN_SIZE_PUD	0x30UL
- 
- #if 0
- #define PFN_T_BUG_ON(x)	BUG_ON(x)
-@@ -35,7 +47,7 @@ static inline pfn_t __pfn_to_pfn_t(unsigned long pfn, u64 flags)
- 	pfn_t pfn_t = { .val = (pfn << PFN_FLAG_BITS) | flags };
- 
- 	PFN_T_BUG_ON(pfn & ~__PFN_MAX);
--	PFN_T_BUG_ON(flags & ~PFN_FLAGS_MASK);
-+	PFN_T_BUG_ON(flags & ~(PFN_FLAGS_MASK | PFN_SIZE_MASK));
- 
- 	return pfn_t;
- }
-@@ -46,9 +58,12 @@ static inline pfn_t pfn_to_pfn_t(unsigned long pfn)
- 	return __pfn_to_pfn_t(pfn, 0);
- }
- 
-+/* The bottom bits of the PFN may be set if PFN_HUGE is set */
- static inline unsigned long pfn_t_to_pfn(pfn_t pfn)
- {
- 	unsigned long v = pfn.val;
-+	if (v & PFN_HUGE)
-+		v &= ~PFN_SIZE_MASK;
- 	return v >> PFN_FLAG_BITS;
- }
- 
--- 
-2.7.0
+Can we just bit swizzle a pfn_t on insertion/retrieval from the radix?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
