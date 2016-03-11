@@ -1,146 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 66BAE6B0005
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 21:38:12 -0500 (EST)
-Received: by mail-pf0-f171.google.com with SMTP id 124so83653078pfg.0
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 18:38:12 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id re13si125916pab.202.2016.03.10.18.38.11
-        for <linux-mm@kvack.org>;
-        Thu, 10 Mar 2016 18:38:11 -0800 (PST)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [RFC qemu 0/4] A PV solution for live migration optimization
-Date: Fri, 11 Mar 2016 02:38:02 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E0414B118@shsmsx102.ccr.corp.intel.com>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <20160308111343.GM15443@grmbl.mre>
- <F2CBF3009FA73547804AE4C663CAB28E0414A7E3@shsmsx102.ccr.corp.intel.com>
- <20160310075728.GB4678@grmbl.mre>
- <F2CBF3009FA73547804AE4C663CAB28E0414A860@shsmsx102.ccr.corp.intel.com>
- <20160310111844.GB2276@work-vm>
-In-Reply-To: <20160310111844.GB2276@work-vm>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 749386B0005
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 22:02:59 -0500 (EST)
+Received: by mail-ig0-f173.google.com with SMTP id av4so1153218igc.1
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 19:02:59 -0800 (PST)
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com. [202.81.31.146])
+        by mx.google.com with ESMTPS id i123si8499550ioi.135.2016.03.10.19.02.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 10 Mar 2016 19:02:58 -0800 (PST)
+Received: from localhost
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 11 Mar 2016 13:02:53 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 4CD072BB0054
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:02:47 +1100 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2B32c2m66519132
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:02:47 +1100
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2B32EJF018510
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:02:14 +1100
+Message-ID: <56E23523.4020201@linux.vnet.ibm.com>
+Date: Fri, 11 Mar 2016 08:31:55 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
+Subject: Re: [RFC 1/9] mm/hugetlb: Make GENERAL_HUGETLB functions PGD implementation
+ aware
+References: <1457525450-4262-1-git-send-email-khandual@linux.vnet.ibm.com>
+In-Reply-To: <1457525450-4262-1-git-send-email-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Cc: Amit Shah <amit.shah@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mohan_parthasarathy@hpe.com" <mohan_parthasarathy@hpe.com>, "jitendra.kolhe@hpe.com" <jitendra.kolhe@hpe.com>, "simhan@hpe.com" <simhan@hpe.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+Cc: hughd@google.com, aneesh.kumar@linux.vnet.ibm.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
->=20
-> Hi,
->   I'm just catching back up on this thread; so without reference to any
-> particular previous mail in the thread.
->=20
->   1) How many of the free pages do we tell the host about?
->      Your main change is telling the host about all the
->      free pages.
+On 03/09/2016 05:40 PM, Anshuman Khandual wrote:
+> Currently both the ARCH_WANT_GENERAL_HUGETLB functions 'huge_pte_alloc'
+> and 'huge_pte_offset' dont take into account huge page implementation
+> at the PGD level. With addition of PGD awareness into these functions,
+> more architectures like POWER which also implements huge pages at PGD
+> level (along with PMD level), can use ARCH_WANT_GENERAL_HUGETLB option.
 
-Yes, all the guest's free pages.
+Hugh/Mel/Naoya/Andrew,
 
->      If we tell the host about all the free pages, then we might
->      end up needing to allocate more pages and update the host
->      with pages we now want to use; that would have to wait for the
->      host to acknowledge that use of these pages, since if we don't
->      wait for it then it might have skipped migrating a page we
->      just started using (I don't understand how your series solves that).
->      So the guest probably needs to keep some free pages - how many?
-
-Actually, there is no need to care about whether the free pages will be use=
-d by the host.
-We only care about some of the free pages we get reused by the guest, right=
-?
-
-The dirty page logging can be used to solve this, starting the dirty page l=
-ogging before getting
-the free pages informant from guest. Even some of the free pages are modifi=
-ed by the guest
-during the process of getting the free pages information, these modified pa=
-ges will be traced
-by the dirty page logging mechanism. So in the following migration_bitmap_s=
-ync() function.
-The pages in the free pages bitmap, but latter was modified, will be reset =
-to dirty. We won't
-omit any dirtied pages.
-
-So, guest doesn't need to keep any free pages.
-
->   2) Clearing out caches
->      Does it make sense to clean caches?  They're apparently useful data
->      so if we clean them it's likely to slow the guest down; I guess
->      they're also likely to be fairly static data - so at least fairly
->      easy to migrate.
->      The answer here partially depends on what you want from your migrati=
-on;
->      if you're after the fastest possible migration time it might make
->      sense to clean the caches and avoid migrating them; but that might
->      be at the cost of more disruption to the guest - there's a trade off
->      somewhere and it's not clear to me how you set that depending on you=
-r
->      guest/network/reqirements.
->=20
-
-Yes, clean the caches is an option.  Let the users decide using it or not.
-
->   3) Why is ballooning slow?
->      You've got a figure of 5s to balloon on an 8GB VM - but an
->      8GB VM isn't huge; so I worry about how long it would take
->      on a big VM.   We need to understand why it's slow
->        * is it due to the guest shuffling pages around?
->        * is it due to the virtio-balloon protocol sending one page
->          at a time?
->          + Do balloon pages normally clump in physical memory
->             - i.e. would a 'large balloon' message help
->             - or do we need a bitmap because it tends not to clump?
->=20
-
-I didn't do a comprehensive test. But I found most of the time spending
-on allocating the pages and sending the PFNs to guest, I don't know that's
-the most time consuming operation, allocating the pages or sending the PFNs=
-.
-
->        * is it due to the madvise on the host?
->          If we were using the normal balloon messages, then we
->          could, during migration, just route those to the migration
->          code rather than bothering with the madvise.
->          If they're clumping together we could just turn that into
->          one big madvise; if they're not then would we benefit from
->          a call that lets us madvise lots of areas?
->=20
-
-My test showed madvise() is not the main reason for the long time, only tak=
-en
-10% of the total  inflating balloon operation time.
-Big madvise can more or less improve the performance.
-
->   4) Speeding up the migration of those free pages
->     You're using the bitmap to avoid migrating those free pages; HPe's
->     patchset is reconstructing a bitmap from the balloon data;  OK, so
->     this all makes sense to avoid migrating them - I'd also been thinking
->     of using pagemap to spot zero pages that would help find other zero'd
->     pages, but perhaps ballooned is enough?
->=20
-Could you describe your ideal with more details?
-
->   5) Second-migrate
->     Given a VM where you've done all those tricks on, what happens when
->     you migrate it a second time?   I guess you're aiming for the guest
->     to update it's bitmap;  HPe's solution is to migrate it's balloon
->     bitmap along with the migration data.
-
-Nothing is special in the second migration, QEMU will request the guest for=
- free pages
-Information, and the guest will traverse it's current free page list to con=
-struct a
-new free page bitmap and send it to QEMU. Just like in the first migration.
-
-Liang
->=20
-> Dave
->=20
-> --
-> Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+	Thoughts/inputs/suggestions ? Does this change looks okay ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
