@@ -1,55 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id B05876B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 07:39:09 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id tt10so97222768pab.3
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 04:39:09 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id fm6si6768723pab.122.2016.03.11.04.39.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 04:39:08 -0800 (PST)
-Date: Fri, 11 Mar 2016 15:39:00 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] mm: memcontrol: zap
- task_struct->memcg_oom_{gfp_mask,order}
-Message-ID: <20160311123900.GM1946@esperanza>
-References: <1457691167-22756-1-git-send-email-vdavydov@virtuozzo.com>
- <20160311115450.GH27701@dhcp22.suse.cz>
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DCE96B0254
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 07:42:04 -0500 (EST)
+Received: by mail-wm0-f49.google.com with SMTP id p65so16047487wmp.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 04:42:04 -0800 (PST)
+Date: Fri, 11 Mar 2016 13:42:01 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 04/18] mm, aout: handle vm_brk failures
+Message-ID: <20160311124201.GK27701@dhcp22.suse.cz>
+References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
+ <1456752417-9626-5-git-send-email-mhocko@kernel.org>
+ <56E29ECA.5050809@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160311115450.GH27701@dhcp22.suse.cz>
+In-Reply-To: <56E29ECA.5050809@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-On Fri, Mar 11, 2016 at 12:54:50PM +0100, Michal Hocko wrote:
-> On Fri 11-03-16 13:12:47, Vladimir Davydov wrote:
-> > These fields are used for dumping info about allocation that triggered
-> > OOM. For cgroup this information doesn't make much sense, because OOM
-> > killer is always invoked from page fault handler.
+On Fri 11-03-16 11:32:42, Vlastimil Babka wrote:
+> On 02/29/2016 02:26 PM, Michal Hocko wrote:
+> >From: Michal Hocko <mhocko@suse.com>
+> >
+> >vm_brk is allowed to fail but load_aout_binary simply ignores the error
+> >and happily continues. I haven't noticed any problem from that in real
+> >life but later patches will make the failure more likely because
+> >vm_brk will become killable (resp. mmap_sem for write waiting will become
+> >killable) so we should be more careful now.
+> >
+> >The error handling should be quite straightforward because there are
+> >calls to vm_mmap which check the error properly already. The only
+> >notable exception is set_brk which is called after beyond_if label.
+> >But nothing indicates that we cannot move it above set_binfmt as the two
+> >do not depend on each other and fail before we do set_binfmt and alter
+> >reference counting.
+> >
+> >Cc: Thomas Gleixner <tglx@linutronix.de>
+> >Cc: Ingo Molnar <mingo@redhat.com>
+> >Cc: "H. Peter Anvin" <hpa@zytor.com>
+> >Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> >Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> The oom killer is indeed invoked in a different context but why printing
-> the original mask and order doesn't make any sense? Doesn't it help to
-> see that the reclaim has failed because of GFP_NOFS?
+> Acked--by: Vlastimil Babka <vbabka@suse.cz>
 
-I don't see how this can be helpful. How would you use it?
+thanks!
+> 
+> [...]
+> 
+> >@@ -378,7 +381,9 @@ static int load_aout_library(struct file *file)
+> >  			       "N_TXTOFF is not page aligned. Please convert library: %pD\n",
+> >  			       file);
+> >  		}
+> >-		vm_brk(start_addr, ex.a_text + ex.a_data + ex.a_bss);
+> >+		retval = vm_brk(start_addr, ex.a_text + ex.a_data + ex.a_bss);
+> >+		if (IS_ERR_VALUE(retval))
+> >+			goto out;
+> >  		
+> 
+> You could have removed the extra whitespace on the line above, which my vim
+> so prominently highlights :)
 
-Wouldn't it be better to print err msg in try_charge anyway?
+Fixed
 
-...
-> So it doesn't even seem to save any space in the config I am using. Does
-> it shrink the size of the structure for you?
+> 
+> >  		read_code(file, start_addr, N_TXTOFF(ex),
+> >  			  ex.a_text + ex.a_data);
+> >
 
-There are several hundred bytes left in task_struct for its size to
-exceed 2 pages threshold and hence increase slab order, but it doesn't
-mean we don't need to be conservative and do our best to spare some
-space for future users that can't live w/o adding new fields.
-
-Thanks,
-Vladimir
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
