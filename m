@@ -1,81 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CA846B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 04:53:12 -0500 (EST)
-Received: by mail-wm0-f45.google.com with SMTP id l68so10303409wml.1
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 01:53:12 -0800 (PST)
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
-        by mx.google.com with ESMTPS id 5si1782203wmw.30.2016.03.11.01.53.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 01:53:11 -0800 (PST)
-Received: by mail-wm0-f45.google.com with SMTP id l68so10842762wml.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 01:53:10 -0800 (PST)
-Date: Fri, 11 Mar 2016 10:53:09 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: reclaim when shrinking memory.high below
- usage
-Message-ID: <20160311095309.GF27701@dhcp22.suse.cz>
-References: <1457643015-8828-1-git-send-email-hannes@cmpxchg.org>
- <20160311083440.GI1946@esperanza>
- <20160311084238.GE27701@dhcp22.suse.cz>
- <20160311091303.GJ1946@esperanza>
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EFC36B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 04:59:35 -0500 (EST)
+Received: by mail-wm0-f41.google.com with SMTP id p65so10949692wmp.1
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 01:59:35 -0800 (PST)
+Subject: Re: [PATCH 02/18] mm: make vm_mmap killable
+References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
+ <1456752417-9626-3-git-send-email-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56E29702.5030100@suse.cz>
+Date: Fri, 11 Mar 2016 10:59:30 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160311091303.GJ1946@esperanza>
+In-Reply-To: <1456752417-9626-3-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Fri 11-03-16 12:13:04, Vladimir Davydov wrote:
-> On Fri, Mar 11, 2016 at 09:42:39AM +0100, Michal Hocko wrote:
-> > On Fri 11-03-16 11:34:40, Vladimir Davydov wrote:
-> > > On Thu, Mar 10, 2016 at 03:50:13PM -0500, Johannes Weiner wrote:
-> > > > When setting memory.high below usage, nothing happens until the next
-> > > > charge comes along, and then it will only reclaim its own charge and
-> > > > not the now potentially huge excess of the new memory.high. This can
-> > > > cause groups to stay in excess of their memory.high indefinitely.
-> > > > 
-> > > > To fix that, when shrinking memory.high, kick off a reclaim cycle that
-> > > > goes after the delta.
-> > > 
-> > > I agree that we should reclaim the high excess, but I don't think it's a
-> > > good idea to do it synchronously. Currently, memory.low and memory.high
-> > > knobs can be easily used by a single-threaded load manager implemented
-> > > in userspace, because it doesn't need to care about potential stalls
-> > > caused by writes to these files. After this change it might happen that
-> > > a write to memory.high would take long, seconds perhaps, so in order to
-> > > react quickly to changes in other cgroups, a load manager would have to
-> > > spawn a thread per each write to memory.high, which would complicate its
-> > > implementation significantly.
-> > 
-> > Is the complication on the managing part really an issue though. Such a
-> > manager would have to spawn a process/thread to change the .max already.
-> 
-> IMO memory.max is not something that has to be changed often. In most
-> cases it will be set on container start and stay put throughout
-> container lifetime. I can also imagine a case when memory.max will be
-> changed for all containers when a container starts or stops, so as to
-> guarantee that if <= N containers of M go mad, the system will survive.
-> In any case, memory.max is reconfigured rarely, it rather belongs to the
-> static configuration.
+On 02/29/2016 02:26 PM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>
+> All the callers of vm_mmap seem to check for the failure already
+> and bail out in one way or another on the error which means that
 
-I see
- 
-> OTOH memory.low and memory.high are perfect to be changed dynamically,
-> basing on containers' memory demand/pressure. A load manager might want
-> to reconfigure these knobs say every 5 seconds. Spawning a thread per
-> each container that often would look unnecessarily overcomplicated IMO.
+Hmm I'm not that sure about this one:
+   17   1071  fs/binfmt_elf.c <<load_elf_binary>>
 
-The question however is whether we want to hide a potentially costly
-operation and have it unaccounted and hidden in the kworker context.
-I mean fork() + write() doesn't sound terribly complicated to me to have
-a rather subtle behavior in the kernel.
--- 
-Michal Hocko
-SUSE Labs
+Assigns result of vm_mmap() to "error" variable which is never checked. 
+Shouldn't __must_check trigger here?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
