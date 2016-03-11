@@ -1,297 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id F38B9828DF
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 18:00:18 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id fe3so93998422pab.1
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 15:00:18 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id k68si3429306pfb.102.2016.03.11.14.59.57
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id F06E26B0253
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 18:02:14 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id td3so83227862pab.2
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 15:02:14 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id rz3si16757906pab.115.2016.03.11.15.02.13
         for <linux-mm@kvack.org>;
-        Fri, 11 Mar 2016 14:59:57 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 23/25] shmem: get_unmapped_area align huge page
-Date: Sat, 12 Mar 2016 01:59:15 +0300
-Message-Id: <1457737157-38573-24-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com>
+        Fri, 11 Mar 2016 15:02:14 -0800 (PST)
+From: "Rudoff, Andy" <andy.rudoff@intel.com>
+Subject: Re: [RFC 0/2] New MAP_PMEM_AWARE mmap flag
+Date: Fri, 11 Mar 2016 23:02:12 +0000
+Message-ID: <48BBDA71-0AD3-41A1-ACB0-DDB5E35F3FF0@intel.com>
+References: <56C9EDCF.8010007@plexistor.com> <56E26940.8020203@kernel.org>
+ <CAPcyv4hOrVWTgcGp8RnouroSdDpoc8Bnzt6pUY2jA57hLN3QNQ@mail.gmail.com>
+ <CALCETrX-xkwM26Aut7HRs0Pe4iPyRQmDHrnsfGAC0NkFKxOGCA@mail.gmail.com>
+In-Reply-To: <CALCETrX-xkwM26Aut7HRs0Pe4iPyRQmDHrnsfGAC0NkFKxOGCA@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <3872C4C84633DA4FB541340275574734@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andy Lutomirski <luto@amacapital.net>, "Williams, Dan J" <dan.j.williams@intel.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Dave Chinner <david@fromorbit.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Hugh Dickins <hughd@google.com>
-
-Provide a shmem_get_unmapped_area method in file_operations, called
-at mmap time to decide the mapping address.  It could be conditional
-on CONFIG_TRANSPARENT_HUGEPAGE, but save #ifdefs in other places by
-making it unconditional.
-
-shmem_get_unmapped_area() first calls the usual mm->get_unmapped_area
-(which we treat as a black box, highly dependent on architecture and
-config and executable layout).  Lots of conditions, and in most cases
-it just goes with the address that chose; but when our huge stars are
-rightly aligned, yet that did not provide a suitable address, go back
-to ask for a larger arena, within which to align the mapping suitably.
-
-There have to be some direct calls to shmem_get_unmapped_area(),
-not via the file_operations: because of the way shmem_zero_setup()
-is called to create a shmem object late in the mmap sequence, when
-MAP_SHARED is requested with MAP_ANONYMOUS or /dev/zero.  Though
-this only matters when /proc/sys/vm/shmem_huge has been set.
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- drivers/char/mem.c       | 24 ++++++++++++
- include/linux/shmem_fs.h |  2 +
- ipc/shm.c                |  6 ++-
- mm/mmap.c                | 16 +++++++-
- mm/shmem.c               | 98 ++++++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 142 insertions(+), 4 deletions(-)
-
-diff --git a/drivers/char/mem.c b/drivers/char/mem.c
-index 6b1721f978c2..a4c3ce0c9ece 100644
---- a/drivers/char/mem.c
-+++ b/drivers/char/mem.c
-@@ -22,6 +22,7 @@
- #include <linux/device.h>
- #include <linux/highmem.h>
- #include <linux/backing-dev.h>
-+#include <linux/shmem_fs.h>
- #include <linux/splice.h>
- #include <linux/pfn.h>
- #include <linux/export.h>
-@@ -661,6 +662,28 @@ static int mmap_zero(struct file *file, struct vm_area_struct *vma)
- 	return 0;
- }
- 
-+static unsigned long get_unmapped_area_zero(struct file *file,
-+				unsigned long addr, unsigned long len,
-+				unsigned long pgoff, unsigned long flags)
-+{
-+#ifdef CONFIG_MMU
-+	if (flags & MAP_SHARED) {
-+		/*
-+		 * mmap_zero() will call shmem_zero_setup() to create a file,
-+		 * so use shmem's get_unmapped_area in case it can be huge;
-+		 * and pass NULL for file as in mmap.c's get_unmapped_area(),
-+		 * so as not to confuse shmem with our handle on "/dev/zero".
-+		 */
-+		return shmem_get_unmapped_area(NULL, addr, len, pgoff, flags);
-+	}
-+
-+	/* Otherwise flags & MAP_PRIVATE: with no shmem object beneath it */
-+	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
-+#else
-+	return -ENOSYS;
-+#endif
-+}
-+
- static ssize_t write_full(struct file *file, const char __user *buf,
- 			  size_t count, loff_t *ppos)
- {
-@@ -768,6 +791,7 @@ static const struct file_operations zero_fops = {
- 	.read_iter	= read_iter_zero,
- 	.write_iter	= write_iter_zero,
- 	.mmap		= mmap_zero,
-+	.get_unmapped_area = get_unmapped_area_zero,
- #ifndef CONFIG_MMU
- 	.mmap_capabilities = zero_mmap_capabilities,
- #endif
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 03490d1554ba..25ac75b424d3 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -53,6 +53,8 @@ extern struct file *shmem_file_setup(const char *name,
- extern struct file *shmem_kernel_file_setup(const char *name, loff_t size,
- 					    unsigned long flags);
- extern int shmem_zero_setup(struct vm_area_struct *);
-+extern unsigned long shmem_get_unmapped_area(struct file *, unsigned long addr,
-+		unsigned long len, unsigned long pgoff, unsigned long flags);
- extern int shmem_lock(struct file *file, int lock, struct user_struct *user);
- extern bool shmem_mapping(struct address_space *mapping);
- extern void shmem_unlock_mapping(struct address_space *mapping);
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 3174634ca4e5..b797a6e49d78 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -476,13 +476,15 @@ static const struct file_operations shm_file_operations = {
- 	.mmap		= shm_mmap,
- 	.fsync		= shm_fsync,
- 	.release	= shm_release,
--#ifndef CONFIG_MMU
- 	.get_unmapped_area	= shm_get_unmapped_area,
--#endif
- 	.llseek		= noop_llseek,
- 	.fallocate	= shm_fallocate,
- };
- 
-+/*
-+ * shm_file_operations_huge is now identical to shm_file_operations,
-+ * but we keep it distinct for the sake of is_file_shm_hugepages().
-+ */
- static const struct file_operations shm_file_operations_huge = {
- 	.mmap		= shm_mmap,
- 	.fsync		= shm_fsync,
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 1786d0b0244f..f6c825d828b5 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -25,6 +25,7 @@
- #include <linux/personality.h>
- #include <linux/security.h>
- #include <linux/hugetlb.h>
-+#include <linux/shmem_fs.h>
- #include <linux/profile.h>
- #include <linux/export.h>
- #include <linux/mount.h>
-@@ -1892,8 +1893,19 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
- 		return -ENOMEM;
- 
- 	get_area = current->mm->get_unmapped_area;
--	if (file && file->f_op->get_unmapped_area)
--		get_area = file->f_op->get_unmapped_area;
-+	if (file) {
-+		if (file->f_op->get_unmapped_area)
-+			get_area = file->f_op->get_unmapped_area;
-+	} else if (flags & MAP_SHARED) {
-+		/*
-+		 * mmap_region() will call shmem_zero_setup() to create a file,
-+		 * so use shmem's get_unmapped_area in case it can be huge.
-+		 * do_mmap_pgoff() will clear pgoff, so match alignment.
-+		 */
-+		pgoff = 0;
-+		get_area = shmem_get_unmapped_area;
-+	}
-+
- 	addr = get_area(file, addr, len, pgoff, flags);
- 	if (IS_ERR_VALUE(addr))
- 		return addr;
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 41faccc3347d..e7c2a69ff410 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1531,6 +1531,94 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	return ret;
- }
- 
-+unsigned long shmem_get_unmapped_area(struct file *file,
-+				      unsigned long uaddr, unsigned long len,
-+				      unsigned long pgoff, unsigned long flags)
-+{
-+	unsigned long (*get_area)(struct file *,
-+		unsigned long, unsigned long, unsigned long, unsigned long);
-+	unsigned long addr;
-+	unsigned long offset;
-+	unsigned long inflated_len;
-+	unsigned long inflated_addr;
-+	unsigned long inflated_offset;
-+
-+	if (len > TASK_SIZE)
-+		return -ENOMEM;
-+
-+	get_area = current->mm->get_unmapped_area;
-+	addr = get_area(file, uaddr, len, pgoff, flags);
-+
-+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-+		return addr;
-+	if (IS_ERR_VALUE(addr))
-+		return addr;
-+	if (addr & ~PAGE_MASK)
-+		return addr;
-+	if (addr > TASK_SIZE - len)
-+		return addr;
-+
-+	if (shmem_huge == SHMEM_HUGE_DENY)
-+		return addr;
-+	if (len < HPAGE_PMD_SIZE)
-+		return addr;
-+	if (flags & MAP_FIXED)
-+		return addr;
-+	/*
-+	 * Our priority is to support MAP_SHARED mapped hugely;
-+	 * and support MAP_PRIVATE mapped hugely too, until it is COWed.
-+	 * But if caller specified an address hint, respect that as before.
-+	 */
-+	if (uaddr)
-+		return addr;
-+
-+	if (shmem_huge != SHMEM_HUGE_FORCE) {
-+		struct super_block *sb;
-+
-+		if (file) {
-+			VM_BUG_ON(file->f_op != &shmem_file_operations);
-+			sb = file_inode(file)->i_sb;
-+		} else {
-+			/*
-+			 * Called directly from mm/mmap.c, or drivers/char/mem.c
-+			 * for "/dev/zero", to create a shared anonymous object.
-+			 */
-+			if (IS_ERR(shm_mnt))
-+				return addr;
-+			sb = shm_mnt->mnt_sb;
-+		}
-+		if (SHMEM_SB(sb)->huge != SHMEM_HUGE_NEVER)
-+			return addr;
-+	}
-+
-+	offset = (pgoff << PAGE_SHIFT) & (HPAGE_PMD_SIZE-1);
-+	if (offset && offset + len < 2 * HPAGE_PMD_SIZE)
-+		return addr;
-+	if ((addr & (HPAGE_PMD_SIZE-1)) == offset)
-+		return addr;
-+
-+	inflated_len = len + HPAGE_PMD_SIZE - PAGE_SIZE;
-+	if (inflated_len > TASK_SIZE)
-+		return addr;
-+	if (inflated_len < len)
-+		return addr;
-+
-+	inflated_addr = get_area(NULL, 0, inflated_len, 0, flags);
-+	if (IS_ERR_VALUE(inflated_addr))
-+		return addr;
-+	if (inflated_addr & ~PAGE_MASK)
-+		return addr;
-+
-+	inflated_offset = inflated_addr & (HPAGE_PMD_SIZE-1);
-+	inflated_addr += offset - inflated_offset;
-+	if (inflated_offset > offset)
-+		inflated_addr += HPAGE_PMD_SIZE;
-+
-+	if (inflated_addr > TASK_SIZE - len)
-+		return addr;
-+	return inflated_addr;
-+}
-+
- #ifdef CONFIG_NUMA
- static int shmem_set_policy(struct vm_area_struct *vma, struct mempolicy *mpol)
- {
-@@ -3313,6 +3401,7 @@ static const struct address_space_operations shmem_aops = {
- 
- static const struct file_operations shmem_file_operations = {
- 	.mmap		= shmem_mmap,
-+	.get_unmapped_area = shmem_get_unmapped_area,
- #ifdef CONFIG_TMPFS
- 	.llseek		= shmem_file_llseek,
- 	.read_iter	= shmem_file_read_iter,
-@@ -3539,6 +3628,15 @@ void shmem_unlock_mapping(struct address_space *mapping)
- {
- }
- 
-+#ifdef CONFIG_MMU
-+unsigned long shmem_get_unmapped_area(struct file *file,
-+				      unsigned long addr, unsigned long len,
-+				      unsigned long pgoff, unsigned long flags)
-+{
-+	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
-+}
-+#endif
-+
- void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
- {
- 	truncate_inode_pages_range(inode->i_mapping, lstart, lend);
--- 
-2.7.0
+DQo+Pg0KPj4gVGhlIG1peGVkIG1hcHBpbmcgcHJvYmxlbSBpcyBtYWRlIHNsaWdodGx5IG1vcmUg
+ZGlmZmljdWx0IGJ5IHRoZSBmYWN0DQo+PiB0aGF0IHdlIGFkZCBwZXJzaXN0ZW50IG1lbW9yeSB0
+byB0aGUgZGlyZWN0LW1hcCB3aGVuIGFsbG9jYXRpbmcgc3RydWN0DQo+PiBwYWdlLCBidXQgcHJv
+YmFibHkgbm90IGluc3VybW91bnRhYmxlLiAgQWxzbywgdGhpcyBzdGlsbCBoYXMgdGhlDQo+PiBz
+eXNjYWxsIG92ZXJoZWFkIHRoYXQgYSBNQVBfU1lOQyBzZW1hbnRpYyBlbGltaW5hdGVzLCBidXQg
+d2UgbmVlZCB0bw0KPj4gY29sbGVjdCBudW1iZXJzIHRvIHNlZSBpZiB0aGF0IG1hdHRlcnMuDQo+
+Pg0KPj4gSG93ZXZlciwgY2hhdHRpbmcgd2l0aCBBbmR5IFIuIGFib3V0IHRoZSBOVk1MIHVzZSBj
+YXNlLCB0aGUgbGlicmFyeQ0KPj4gYWx0ZXJuYXRlcyBiZXR3ZWVuIHN0cmVhbWluZyBub24tdGVt
+cG9yYWwgd3JpdGVzIGFuZCBieXRlLWFjY2Vzc2VzICsNCj4+IGNsd2IoKS4gIFRoZSBieXRlIGFj
+Y2Vzc2VzIGdldCBzbG93ZXIgd2l0aCBhIHdyaXRlLXRocm91Z2ggbWFwcGluZy4NCj4+IFNvLCBw
+ZXJmb3JtYW5jZSBkYXRhIGlzIG5lZWRlZCBhbGwgYXJvdW5kIHRvIHNlZSB3aGVyZSB0aGVzZSBv
+cHRpb25zDQo+PiBsYW5kLg0KPg0KPldoZW4geW91IHNheSAgImJ5dGUtYWNjZXNzICsgY2x3Yigp
+IiwgZG8geW91IG1lYW4gbGl0ZXJhbGx5IHdyaXRlIGENCj5ieXRlLCBjbHdiLCB3cml0ZSBhIGJ5
+dGUsIGNsd2IuLi4gb3IgZG8geW91IG1lYW4gbG90cyBvZiBieXRlIGFjY2Vzc2VzDQo+YW5kIHRo
+ZW4gb25lIGNsd2I/ICBJZiB0aGUgZm9ybWVyLCBJIHN1c3BlY3QgaXQgY291bGQgYmUgY2hhbmdl
+ZCB0bw0KPm5vbi10ZW1wb3JhbCBzdG9yZSArIHNmZW5jZSBhbmQgYmUgZmFzdGVyLg0KDQpUeXBp
+Y2FsbHkgYSBtaXh0dXJlLiAgVGhhdCBpcywgdGhlcmUgYXJlIHRpbWVzIHdoZXJlIHdlIHN0b3Jl
+IGEgcG9pbnRlcg0KYW5kIGZvbGxvdyBpdCBpbW1lZGlhdGVseSB3aXRoIENMV0IsIGFuZCB0aGVy
+ZSBhcmUgdGltZXMgd2hlcmUgd2UgZG8NCmxvdHMgb2Ygd29yayBhbmQgdGhlbiBkZWNpZGUgdG8g
+Y29tbWl0IHdoYXQgd2UndmUgZG9uZSBieSBydW5uaW5nIG92ZXINCmEgcmFuZ2UgZG9pbmcgQ0xX
+Qi4gIEluIG91ciBsaWJyYXJpZXMsIE5UIHN0b3JlcyBhcmUgZWFzeSB0byB1c2UgYmVjYXVzZQ0K
+d2UgY29udHJvbCB0aGUgY29kZS4gIEJ1dCBvbmUgb2YgdGhlIGJlbmVmaXRzIG9mIHBtZW0gaXMg
+dGhhdCBhcHBsaWNhdGlvbnMNCmNhbiBhY2Nlc3MgZGF0YSBzdHJ1Y3R1cmVzIGluLXBsYWNlLCB3
+aXRob3V0IGNhbGxpbmcgdGhyb3VnaCBBUElzIGZvcg0KZXZlcnkgcG9pbnRlciBkZS1yZWZlcmVu
+Y2UsIHNvIGl0IGdldHMgc29ydCBvZiBpbXByYWN0aWNhbCB0byByZXF1aXJlDQpOVCBzdG9yZXMu
+ICBJbWFnaW5lLCBmb3IgZXhhbXBsZSwgYXMgcGFydCBvZiBhbiB1cGRhdGUgdG8gcG1lbSB5b3Ug
+d2FudA0KdG8gc3RyY3B5KCkgb3Igc3ByaW50ZigpIG9yIHNvbWUgb3RoZXIgZnVuY3Rpb24geW91
+IGRpZG4ndCB3cml0ZS4gIEZvbGxvd2luZw0KdGhhdCB3aXRoIGEgY2FsbCB0byBhIGNvbW1pdCBB
+UEkgdGhhdCBmbHVzaGVzIHRoaW5ncyBpcyBlYXNpZXIgb24gdGhlDQphcHAgZGV2ZWxvcGVyIHRo
+YW4gcmVxdWlyaW5nIHRoZW0gdG8gaGF2ZSBOVCBzdG9yZSB2ZXJzaW9ucyBvZiBhbGwgdGhvc2UN
+CnJvdXRpbmVzLg0KDQo+TXkgdW5kZXJzdGFuZGluZyBpcyB0aGF0IG5vbi10ZW1wb3JhbCBzdG9y
+ZSArIHNmZW5jZSBkb2Vzbid0IHBvcHVsYXRlDQo+dGhlIGNhY2hlLCB0aG91Z2gsIHdoaWNoIGlz
+IHVuZm9ydHVuYXRlIGZvciBzb21lIHVzZSBjYXNlcy4NCg0KVGhhdCBtYXRjaGVzIG15IHVuZGVy
+c3RhbmRpbmcuDQoNCj5UaGUgcmVhbCBzb2x1dGlvbiB3b3VsZCBiZSBmb3IgSW50ZWwgdG8gYWRk
+IGFuIGVmZmljaWVudCBvcGVyYXRpb24gdG8NCj5mb3JjZSB3cml0ZWJhY2sgb24gYSBsYXJnZSBy
+ZWdpb24gb2YgcGh5c2ljYWwgcGFnZXMuDQoNClRoaXMgaXMgdW5kZXIgaW52ZXN0aWdhdGlvbiwg
+YnV0IHVuZm9ydHVuYXRlbHkgbm90IGF2YWlsYWJsZSBqdXN0IHlldC4uLg0KDQotYW5keQ0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
