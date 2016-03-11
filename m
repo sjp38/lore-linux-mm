@@ -1,61 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id F046B6B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 10:27:22 -0500 (EST)
-Received: by mail-wm0-f42.google.com with SMTP id p65so22096312wmp.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 07:27:22 -0800 (PST)
-Subject: Re: [PATCH 17/18] drm/radeon: make radeon_mn_get wait for mmap_sem
- killable
-References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
- <1456752417-9626-18-git-send-email-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56E2E3D7.2060404@suse.cz>
-Date: Fri, 11 Mar 2016 16:27:19 +0100
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D4E0B6B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 10:28:53 -0500 (EST)
+Received: by mail-wm0-f54.google.com with SMTP id n186so23558132wmn.1
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 07:28:53 -0800 (PST)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id lp7si11611181wjb.73.2016.03.11.07.28.52
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Mar 2016 07:28:52 -0800 (PST)
+Received: by mail-wm0-f65.google.com with SMTP id n205so3080381wmf.2
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 07:28:52 -0800 (PST)
+Date: Fri, 11 Mar 2016 16:28:51 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/3] OOM detection rework v4
+Message-ID: <20160311152851.GU27701@dhcp22.suse.cz>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+ <201603111945.FHI64215.JVOFLHQFOMOSFt@I-love.SAKURA.ne.jp>
+ <20160311130847.GP27701@dhcp22.suse.cz>
+ <201603112232.AEJ78150.LOHQJtMFSVOFOF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <1456752417-9626-18-git-send-email-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201603112232.AEJ78150.LOHQJtMFSVOFOF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@suse.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 02/29/2016 02:26 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
->
-> radeon_mn_get which is called during ioct path relies on mmap_sem for
-> write. If the waiting task gets killed by the oom killer it would block
-> oom_reaper from asynchronous address space reclaim and reduce the
-> chances of timely OOM resolving. Wait for the lock in the killable mode
-> and return with EINTR if the task got killed while waiting.
->
-> Cc: Alex Deucher <alexander.deucher@amd.com>
-> Cc: "Christian KA?nig" <christian.koenig@amd.com>
-> Cc: David Airlie <airlied@linux.ie>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Fri 11-03-16 22:32:02, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Fri 11-03-16 19:45:29, Tetsuo Handa wrote:
+> > > (Posting as a reply to this thread.)
+> > 
+> > I really do not see how this is related to this thread.
+> 
+> All allocating tasks are looping at
+> 
+>                         /*
+>                          * If we didn't make any progress and have a lot of
+>                          * dirty + writeback pages then we should wait for
+>                          * an IO to complete to slow down the reclaim and
+>                          * prevent from pre mature OOM
+>                          */
+>                         if (!did_some_progress && 2*(writeback + dirty) > reclaimable) {
+>                                 congestion_wait(BLK_RW_ASYNC, HZ/10);
+>                                 return true;
+>                         }
+> 
+> in should_reclaim_retry().
+> 
+> should_reclaim_retry() was added by OOM detection rework, wan't it?
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+What happens without this patch applied. In other words, it all smells
+like the IO got stuck somewhere and the direct reclaim cannot perform it
+so we have to wait for the flushers to make a progress for us. Are those
+stuck? Is the IO making any progress at all or it is just too slow and
+it would finish actually.  Wouldn't we just wait somewhere else in the
+direct reclaim path instead.
 
-> ---
->   drivers/gpu/drm/radeon/radeon_mn.c | 4 +++-
->   1 file changed, 3 insertions(+), 1 deletion(-)
->
-> diff --git a/drivers/gpu/drm/radeon/radeon_mn.c b/drivers/gpu/drm/radeon/radeon_mn.c
-> index eef006c48584..896f2cf51e4e 100644
-> --- a/drivers/gpu/drm/radeon/radeon_mn.c
-> +++ b/drivers/gpu/drm/radeon/radeon_mn.c
-> @@ -186,7 +186,9 @@ static struct radeon_mn *radeon_mn_get(struct radeon_device *rdev)
->   	struct radeon_mn *rmn;
->   	int r;
->
-> -	down_write(&mm->mmap_sem);
-> +	if (down_write_killable(&mm->mmap_sem))
-> +		return ERR_PTR(-EINTR);
-> +
->   	mutex_lock(&rdev->mn_lock);
->
->   	hash_for_each_possible(rdev->mn_hash, rmn, node, (unsigned long)mm)
->
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
