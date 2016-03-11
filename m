@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 0961C828DF
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 18:00:00 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id n5so55142676pfn.2
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 15:00:00 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id x72si16742916pfi.196.2016.03.11.14.59.33
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id BAB92828DF
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 18:00:03 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id fl4so109758206pad.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 15:00:03 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id u25si16759072pfa.228.2016.03.11.14.59.34
         for <linux-mm@kvack.org>;
-        Fri, 11 Mar 2016 14:59:33 -0800 (PST)
+        Fri, 11 Mar 2016 14:59:34 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 19/25] radix-tree: implement radix_tree_maybe_preload_order()
-Date: Sat, 12 Mar 2016 01:59:11 +0300
-Message-Id: <1457737157-38573-20-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 22/25] shmem: prepare huge= mount option and sysfs knob
+Date: Sat, 12 Mar 2016 01:59:14 +0300
+Message-Id: <1457737157-38573-23-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,167 +19,300 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The new helper is similar to radix_tree_maybe_preload(), but tries to
-preload number of nodes required to insert (1 << order) continuous
-naturally-aligned elements.
+This patch adds new mount option "huge=". It can have following values:
 
-This is required to push huge pages into pagecache.
+  - "always":
+	Attempt to allocate huge pages every time we need a new page;
+
+  - "never":
+	Do not allocate huge pages;
+
+  - "within_size":
+	Only allocate huge page if it will be fully within i_size.
+	Also respect fadvise()/madvise() hints;
+
+  - "advise:
+	Only allocate huge pages if requested with fadvise()/madvise();
+
+Default is "never" for now.
+
+"mount -o remount,huge= /mountpoint" works fine after mount: remounting
+huge=never will not attempt to break up huge pages at all, just stop
+more from being allocated.
+
+No new config option: put this under CONFIG_TRANSPARENT_HUGEPAGE,
+which is the appropriate option to protect those who don't want
+the new bloat, and with which we shall share some pmd code.
+
+Prohibit the option when !CONFIG_TRANSPARENT_HUGEPAGE, just as mpol is
+invalid without CONFIG_NUMA (was hidden in mpol_parse_str(): make it
+explicit).
+
+Allow enabling THP only if the machine has_transparent_hugepage().
+
+But what about Shmem with no user-visible mount?  SysV SHM, memfds,
+shared anonymous mmaps (of /dev/zero or MAP_ANONYMOUS), GPU drivers'
+DRM objects, Ashmem.  Though unlikely to suit all usages, provide
+sysfs knob /sys/kernel/mm/transparent_hugepage/shmem_enabled to
+experiment with huge on those.
+
+And allow shmem_enabled two further values:
+
+  - "deny":
+	For use in emergencies, to force the huge option off from
+	all mounts;
+  - "force":
+	Force the huge option on for all - very useful for testing;
+
+Based on patch by Hugh Dickins.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/radix-tree.h |  1 +
- lib/radix-tree.c           | 68 ++++++++++++++++++++++++++++++++++++++++------
- 2 files changed, 61 insertions(+), 8 deletions(-)
+ include/linux/huge_mm.h  |   2 +
+ include/linux/shmem_fs.h |   3 +-
+ mm/huge_memory.c         |   3 +
+ mm/shmem.c               | 152 +++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 159 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 32623d26b62a..20b626160430 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -288,6 +288,7 @@ unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
- 			unsigned long first_index, unsigned int max_items);
- int radix_tree_preload(gfp_t gfp_mask);
- int radix_tree_maybe_preload(gfp_t gfp_mask);
-+int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order);
- void radix_tree_init(void);
- void *radix_tree_tag_set(struct radix_tree_root *root,
- 			unsigned long index, unsigned int tag);
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 224b369f5a5e..84d417665ddc 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -42,6 +42,9 @@
-  */
- static unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH + 1] __read_mostly;
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 193fccdc275d..d40eab8c9d00 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -43,6 +43,8 @@ enum transparent_hugepage_flag {
+ #endif
+ };
  
-+/* Number of nodes in fully populated tree of given height */
-+static unsigned long height_to_maxnodes[RADIX_TREE_MAX_PATH + 1] __read_mostly;
++extern struct kobj_attribute shmem_enabled_attr;
 +
- /*
-  * Radix tree node cache.
-  */
-@@ -261,7 +264,7 @@ radix_tree_node_free(struct radix_tree_node *node)
-  * To make use of this facility, the radix tree must be initialised without
-  * __GFP_DIRECT_RECLAIM being passed to INIT_RADIX_TREE().
-  */
--static int __radix_tree_preload(gfp_t gfp_mask)
-+static int __radix_tree_preload(gfp_t gfp_mask, int nr)
- {
- 	struct radix_tree_preload *rtp;
- 	struct radix_tree_node *node;
-@@ -269,14 +272,14 @@ static int __radix_tree_preload(gfp_t gfp_mask)
+ #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
+ #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
  
- 	preempt_disable();
- 	rtp = this_cpu_ptr(&radix_tree_preloads);
--	while (rtp->nr < RADIX_TREE_PRELOAD_SIZE) {
-+	while (rtp->nr < nr) {
- 		preempt_enable();
- 		node = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
- 		if (node == NULL)
- 			goto out;
- 		preempt_disable();
- 		rtp = this_cpu_ptr(&radix_tree_preloads);
--		if (rtp->nr < RADIX_TREE_PRELOAD_SIZE) {
-+		if (rtp->nr < nr) {
- 			node->private_data = rtp->nodes;
- 			rtp->nodes = node;
- 			rtp->nr++;
-@@ -302,7 +305,7 @@ int radix_tree_preload(gfp_t gfp_mask)
- {
- 	/* Warn on non-sensical use... */
- 	WARN_ON_ONCE(!gfpflags_allow_blocking(gfp_mask));
--	return __radix_tree_preload(gfp_mask);
-+	return __radix_tree_preload(gfp_mask, RADIX_TREE_PRELOAD_SIZE);
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index a43f41cb3c43..03490d1554ba 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -31,9 +31,10 @@ struct shmem_sb_info {
+ 	unsigned long max_inodes;   /* How many inodes are allowed */
+ 	unsigned long free_inodes;  /* How many are left for allocation */
+ 	spinlock_t stat_lock;	    /* Serialize shmem_sb_info changes */
++	umode_t mode;		    /* Mount mode for root directory */
++	unsigned char huge;	    /* Whether to try for hugepages */
+ 	kuid_t uid;		    /* Mount uid for root directory */
+ 	kgid_t gid;		    /* Mount gid for root directory */
+-	umode_t mode;		    /* Mount mode for root directory */
+ 	struct mempolicy *mpol;     /* default memory policy for mappings */
+ };
+ 
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a2680b2112e4..a9d642ff7aa2 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -441,6 +441,9 @@ static struct attribute *hugepage_attr[] = {
+ 	&enabled_attr.attr,
+ 	&defrag_attr.attr,
+ 	&use_zero_page_attr.attr,
++#ifdef CONFIG_SHMEM
++	&shmem_enabled_attr.attr,
++#endif
+ #ifdef CONFIG_DEBUG_VM
+ 	&debug_cow_attr.attr,
+ #endif
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 09d7201dba3c..41faccc3347d 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -289,6 +289,87 @@ static bool shmem_confirm_swap(struct address_space *mapping,
  }
- EXPORT_SYMBOL(radix_tree_preload);
- 
-@@ -314,7 +317,7 @@ EXPORT_SYMBOL(radix_tree_preload);
- int radix_tree_maybe_preload(gfp_t gfp_mask)
- {
- 	if (gfpflags_allow_blocking(gfp_mask))
--		return __radix_tree_preload(gfp_mask);
-+		return __radix_tree_preload(gfp_mask, RADIX_TREE_PRELOAD_SIZE);
- 	/* Preloading doesn't help anything with this gfp mask, skip it */
- 	preempt_disable();
- 	return 0;
-@@ -322,6 +325,51 @@ int radix_tree_maybe_preload(gfp_t gfp_mask)
- EXPORT_SYMBOL(radix_tree_maybe_preload);
  
  /*
-+ * The same as function above, but preload number of nodes required to insert
-+ * (1 << order) continuous naturally-aligned elements.
++ * Definitions for "huge tmpfs": tmpfs mounted with the huge= option
++ *
++ * SHMEM_HUGE_NEVER:
++ *	disables huge pages for the mount;
++ * SHMEM_HUGE_ALWAYS:
++ *	enables huge pages for the mount;
++ * SHMEM_HUGE_WITHIN_SIZE:
++ *	only allocate huge pages if the page will be fully within i_size,
++ *	also respect fadvise()/madvise() hints;
++ * SHMEM_HUGE_ADVISE:
++ *	only allocate huge pages if requested with fadvise()/madvise();
 + */
-+int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
-+{
-+	unsigned long nr_subtrees;
-+	int nr_nodes, subtree_height;
 +
-+	/* Preloading doesn't help anything with this gfp mask, skip it */
-+	if (!gfpflags_allow_blocking(gfp_mask)) {
-+		preempt_disable();
-+		return 0;
-+	}
-+
-+	/*
-+	 * Calculate number and height of fully populated subtrees it takes to
-+	 * store (1 << order) elements.
-+	 */
-+	nr_subtrees = 1 << order;
-+	for (subtree_height = 0; nr_subtrees > RADIX_TREE_MAP_SIZE;
-+			subtree_height++)
-+		nr_subtrees >>= RADIX_TREE_MAP_SHIFT;
-+
-+	/*
-+	 * The worst case is zero height tree with a single item at index 0 and
-+	 * then inserting items starting at ULONG_MAX - (1 << order).
-+	 *
-+	 * This requires RADIX_TREE_MAX_PATH nodes to build branch from root to
-+	 * 0-index item.
-+	 */
-+	nr_nodes = RADIX_TREE_MAX_PATH;
-+
-+	/* Plus branch to fully populated subtrees. */
-+	nr_nodes += RADIX_TREE_MAX_PATH - subtree_height;
-+
-+	/* Root node is shared. */
-+	nr_nodes--;
-+
-+	/* Plus nodes required to build subtrees. */
-+	nr_nodes += nr_subtrees * height_to_maxnodes[subtree_height];
-+
-+	return __radix_tree_preload(gfp_mask, nr_nodes);
-+}
++#define SHMEM_HUGE_NEVER	0
++#define SHMEM_HUGE_ALWAYS	1
++#define SHMEM_HUGE_WITHIN_SIZE	2
++#define SHMEM_HUGE_ADVISE	3
 +
 +/*
-  *	Return the maximum key which can be store into a
-  *	radix tree with height HEIGHT.
-  */
-@@ -1472,12 +1520,16 @@ static __init unsigned long __maxindex(unsigned int height)
- 	return ~0UL >> shift;
- }
- 
--static __init void radix_tree_init_maxindex(void)
-+static __init void radix_tree_init_arrays(void)
- {
--	unsigned int i;
-+	unsigned int i, j;
- 
- 	for (i = 0; i < ARRAY_SIZE(height_to_maxindex); i++)
- 		height_to_maxindex[i] = __maxindex(i);
-+	for (i = 0; i < ARRAY_SIZE(height_to_maxnodes); i++) {
-+		for (j = i; j > 0; j--)
-+			height_to_maxnodes[i] += height_to_maxindex[j - 1] + 1;
++ * Special values.
++ * Only can be set via /sys/kernel/mm/transparent_hugepage/shmem_enabled:
++ *
++ * SHMEM_HUGE_DENY:
++ *	disables huge on shm_mnt and all mounts, for emergency use;
++ * SHMEM_HUGE_FORCE:
++ *	enables huge on shm_mnt and all mounts, w/o needing option, for testing;
++ *
++ */
++#define SHMEM_HUGE_DENY		(-1)
++#define SHMEM_HUGE_FORCE	(-2)
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++/* ifdef here to avoid bloating shmem.o when not necessary */
++
++int shmem_huge __read_mostly;
++
++static int shmem_parse_huge(const char *str)
++{
++	if (!strcmp(str, "never"))
++		return SHMEM_HUGE_NEVER;
++	if (!strcmp(str, "always"))
++		return SHMEM_HUGE_ALWAYS;
++	if (!strcmp(str, "within_size"))
++		return SHMEM_HUGE_WITHIN_SIZE;
++	if (!strcmp(str, "advise"))
++		return SHMEM_HUGE_ADVISE;
++	if (!strcmp(str, "deny"))
++		return SHMEM_HUGE_DENY;
++	if (!strcmp(str, "force"))
++		return SHMEM_HUGE_FORCE;
++	return -EINVAL;
++}
++
++static const char *shmem_format_huge(int huge)
++{
++	switch (huge) {
++	case SHMEM_HUGE_NEVER:
++		return "never";
++	case SHMEM_HUGE_ALWAYS:
++		return "always";
++	case SHMEM_HUGE_WITHIN_SIZE:
++		return "within_size";
++	case SHMEM_HUGE_ADVISE:
++		return "advise";
++	case SHMEM_HUGE_DENY:
++		return "deny";
++	case SHMEM_HUGE_FORCE:
++		return "force";
++	default:
++		VM_BUG_ON(1);
++		return "bad_val";
 +	}
++}
++
++#else /* !CONFIG_TRANSPARENT_HUGEPAGE */
++
++#define shmem_huge SHMEM_HUGE_DENY
++
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
++
++/*
+  * Like add_to_page_cache_locked, but error if expected item has gone.
+  */
+ static int shmem_add_to_page_cache(struct page *page,
+@@ -2914,11 +2995,24 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
+ 			sbinfo->gid = make_kgid(current_user_ns(), gid);
+ 			if (!gid_valid(sbinfo->gid))
+ 				goto bad_val;
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++		} else if (!strcmp(this_char, "huge")) {
++			int huge;
++			huge = shmem_parse_huge(value);
++			if (huge < 0)
++				goto bad_val;
++			if (!has_transparent_hugepage() &&
++					huge != SHMEM_HUGE_NEVER)
++				goto bad_val;
++			sbinfo->huge = huge;
++#endif
++#ifdef CONFIG_NUMA
+ 		} else if (!strcmp(this_char,"mpol")) {
+ 			mpol_put(mpol);
+ 			mpol = NULL;
+ 			if (mpol_parse_str(value, &mpol))
+ 				goto bad_val;
++#endif
+ 		} else {
+ 			pr_err("tmpfs: Bad mount option %s\n", this_char);
+ 			goto error;
+@@ -2964,6 +3058,7 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
+ 		goto out;
+ 
+ 	error = 0;
++	sbinfo->huge = config.huge;
+ 	sbinfo->max_blocks  = config.max_blocks;
+ 	sbinfo->max_inodes  = config.max_inodes;
+ 	sbinfo->free_inodes = config.max_inodes - inodes;
+@@ -2997,6 +3092,11 @@ static int shmem_show_options(struct seq_file *seq, struct dentry *root)
+ 	if (!gid_eq(sbinfo->gid, GLOBAL_ROOT_GID))
+ 		seq_printf(seq, ",gid=%u",
+ 				from_kgid_munged(&init_user_ns, sbinfo->gid));
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	/* Rightly or wrongly, show huge mount option unmasked by shmem_huge */
++	if (sbinfo->huge)
++		seq_printf(seq, ",huge=%s", shmem_format_huge(sbinfo->huge));
++#endif
+ 	shmem_show_mpol(seq, sbinfo->mpol);
+ 	return 0;
+ }
+@@ -3345,6 +3445,58 @@ out3:
+ 	return error;
  }
  
- static int radix_tree_callback(struct notifier_block *nfb,
-@@ -1507,6 +1559,6 @@ void __init radix_tree_init(void)
- 			sizeof(struct radix_tree_node), 0,
- 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
- 			radix_tree_node_ctor);
--	radix_tree_init_maxindex();
-+	radix_tree_init_arrays();
- 	hotcpu_notifier(radix_tree_callback, 0);
- }
++#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && defined(CONFIG_SYSFS)
++static ssize_t shmem_enabled_show(struct kobject *kobj,
++		struct kobj_attribute *attr, char *buf)
++{
++	int values[] = {
++		SHMEM_HUGE_ALWAYS,
++		SHMEM_HUGE_WITHIN_SIZE,
++		SHMEM_HUGE_ADVISE,
++		SHMEM_HUGE_NEVER,
++		SHMEM_HUGE_DENY,
++		SHMEM_HUGE_FORCE,
++	};
++	int i, count;
++
++	for (i = 0, count = 0; i < ARRAY_SIZE(values); i++) {
++		const char *fmt = shmem_huge == values[i] ? "[%s] " : "%s ";
++
++		count += sprintf(buf + count, fmt,
++				shmem_format_huge(values[i]));
++	}
++	buf[count - 1] = '\n';
++	return count;
++}
++
++static ssize_t shmem_enabled_store(struct kobject *kobj,
++		struct kobj_attribute *attr, const char *buf, size_t count)
++{
++	char tmp[16];
++	int huge;
++
++	if (count + 1 > sizeof(tmp))
++		return -EINVAL;
++	memcpy(tmp, buf, count);
++	tmp[count] = '\0';
++	if (count && tmp[count - 1] == '\n')
++		tmp[count - 1] = '\0';
++
++	huge = shmem_parse_huge(tmp);
++	if (huge == -EINVAL)
++		return -EINVAL;
++	if (!has_transparent_hugepage() &&
++			huge != SHMEM_HUGE_NEVER && huge != SHMEM_HUGE_DENY)
++		return -EINVAL;
++
++	shmem_huge = huge;
++	return count;
++}
++
++struct kobj_attribute shmem_enabled_attr =
++	__ATTR(shmem_enabled, 0644, shmem_enabled_show, shmem_enabled_store);
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE && CONFIG_SYSFS */
++
+ #else /* !CONFIG_SHMEM */
+ 
+ /*
 -- 
 2.7.0
 
