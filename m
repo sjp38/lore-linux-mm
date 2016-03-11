@@ -1,62 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 733136B0254
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 07:55:36 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id l68so17028228wml.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 04:55:36 -0800 (PST)
-Date: Fri, 11 Mar 2016 13:55:33 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 02/18] mm: make vm_mmap killable
-Message-ID: <20160311125533.GN27701@dhcp22.suse.cz>
-References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
- <1456752417-9626-3-git-send-email-mhocko@kernel.org>
- <56E29702.5030100@suse.cz>
- <20160311121235.GI27701@dhcp22.suse.cz>
- <56E2BD7D.10701@suse.cz>
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B08E06B0256
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 08:05:46 -0500 (EST)
+Received: by mail-wm0-f53.google.com with SMTP id l68so16842780wml.1
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:05:46 -0800 (PST)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id cu9si10956868wjc.53.2016.03.11.05.05.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Mar 2016 05:05:45 -0800 (PST)
+Received: by mail-wm0-x22c.google.com with SMTP id p65so17272122wmp.1
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:05:45 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56E2BD7D.10701@suse.cz>
+In-Reply-To: <CAPAsAGy3goFXhFZiAarYV3NFZHQOYQxaF324UOJrMCbaZWV7CQ@mail.gmail.com>
+References: <cover.1457519440.git.glider@google.com>
+	<14d02da417b3941fd871566e16a164ca4d4ccabc.1457519440.git.glider@google.com>
+	<CAPAsAGy3goFXhFZiAarYV3NFZHQOYQxaF324UOJrMCbaZWV7CQ@mail.gmail.com>
+Date: Fri, 11 Mar 2016 14:05:45 +0100
+Message-ID: <CAG_fn=UFB3UYg0-uw4TUJvuvu9ZkqqTKG4enMFMXyWC-q65SeA@mail.gmail.com>
+Subject: Re: [PATCH v5 2/7] mm, kasan: SLAB support
+From: Alexander Potapenko <glider@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>, Al Viro <viro@zeniv.linux.org.uk>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri 11-03-16 13:43:41, Vlastimil Babka wrote:
-> On 03/11/2016 01:12 PM, Michal Hocko wrote:
-> >On Fri 11-03-16 10:59:30, Vlastimil Babka wrote:
-> >>On 02/29/2016 02:26 PM, Michal Hocko wrote:
-> >>>From: Michal Hocko <mhocko@suse.com>
-> >>>
-> >>>All the callers of vm_mmap seem to check for the failure already
-> >>>and bail out in one way or another on the error which means that
-> >>
-> >>Hmm I'm not that sure about this one:
-> >>  17   1071  fs/binfmt_elf.c <<load_elf_binary>>
-> >>
-> >>Assigns result of vm_mmap() to "error" variable which is never checked.
-> >
-> >Yes it is not checked but not used either. If the current got killed
-> >then it wouldn't return to the userspace so my understanding is that not
-> >checking this value is not a problem. At least that is my understanding.
-> 
-> Hmm, that's true. So,
+On Fri, Mar 11, 2016 at 12:47 PM, Andrey Ryabinin
+<ryabinin.a.a@gmail.com> wrote:
+> 2016-03-09 14:05 GMT+03:00 Alexander Potapenko <glider@google.com>:
+>
+>> +struct kasan_track {
+>> +       u64 cpu : 6;                    /* for NR_CPUS =3D 64 */
+>
+> What about NR_CPUS > 64 ?
+After a discussion with Dmitry we've decided to drop |cpu| and |when|
+at all, as they do not actually help debugging.
+This way we'll make kasan_track only 8 bytes (4 bytes for PID, 4 bytes
+for stack handle).
+Then the meta structures will be smaller and have nice alignment:
 
-I have updated the changelog and added the following note:
-"
-Please note that load_elf_binary is ignoring vm_mmap error for 
-current->personality & MMAP_PAGE_ZERO case but that shouldn't be a
-problem because the address is not used anywhere and we never return to
-the userspace if we got killed.
-"
- 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+struct kasan_track {
+        u32 pid;
+        depot_stack_handle_t stack;
+};
 
-Thanks!
+struct kasan_alloc_meta {
+        struct kasan_track track;
+        u32 state : 2;  /* enum kasan_state */
+        u32 alloc_size : 30;
+        u32 reserved;  /* we can use it to store an additional stack
+handle, e.g. for debugging RCU */
+};
 
--- 
-Michal Hocko
-SUSE Labs
+struct kasan_free_meta {
+        /* This field is used while the object is in the quarantine.
+         * Otherwise it might be used for the allocator freelist.
+         */
+        void **quarantine_link;
+        struct kasan_track track;
+};
+
+
+>> +       u64 pid : 16;                   /* 65536 processes */
+>> +       u64 when : 42;                  /* ~140 years */
+>> +};
+>> +
+
+
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
