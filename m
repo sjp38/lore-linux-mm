@@ -1,36 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 492476B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:06:46 -0500 (EST)
-Received: by mail-wm0-f47.google.com with SMTP id l68so11332917wml.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 02:06:46 -0800 (PST)
-Subject: Re: [PATCH 03/18] mm: make vm_munmap killable
-References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
- <1456752417-9626-4-git-send-email-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56E298B1.6010802@suse.cz>
-Date: Fri, 11 Mar 2016 11:06:41 +0100
+Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 36F846B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:11:51 -0500 (EST)
+Received: by mail-io0-f174.google.com with SMTP id z76so139475080iof.3
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 02:11:51 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id o64si589841pfj.112.2016.03.11.02.11.33
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Mar 2016 02:11:33 -0800 (PST)
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: [PATCH] mm: memcontrol: zap oom_info_lock
+Date: Fri, 11 Mar 2016 13:11:23 +0300
+Message-ID: <1457691083-22655-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <1456752417-9626-4-git-send-email-mhocko@kernel.org>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher <alexander.deucher@amd.com>, Alex Thorlton <athorlton@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Benjamin LaHaise <bcrl@kvack.org>, =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Airlie <airlied@linux.ie>, Davidlohr Bueso <dave@stgolabs.net>, David Rientjes <rientjes@google.com>, "H . Peter Anvin" <hpa@zytor.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Petr Cermak <petrcermak@chromium.org>, Thomas Gleixner <tglx@linutronix.de>, Michal Hocko <mhocko@suse.com>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 02/29/2016 02:26 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
->
-> Almost all current users of vm_munmap are ignoring the return value
-> and so they do not handle potential error. This means that some VMAs
+mem_cgroup_print_oom_info is always called under oom_lock, so
+oom_info_lock is redundant.
 
-    1   7834  arch/x86/kvm/x86.c <<__x86_set_memory_region>>
+Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+---
+ mm/memcontrol.c | 4 ----
+ 1 file changed, 4 deletions(-)
 
-              r = vm_munmap(old.userspace_addr, old.npages * PAGE_SIZE);
-              WARN_ON(r < 0);
-
-This warning will potentially add noise to OOM output?
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index fa7bf354ae32..36db05fa8acb 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1150,12 +1150,9 @@ static bool mem_cgroup_wait_acct_move(struct mem_cgroup *memcg)
+  */
+ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ {
+-	/* oom_info_lock ensures that parallel ooms do not interleave */
+-	static DEFINE_MUTEX(oom_info_lock);
+ 	struct mem_cgroup *iter;
+ 	unsigned int i;
+ 
+-	mutex_lock(&oom_info_lock);
+ 	rcu_read_lock();
+ 
+ 	if (p) {
+@@ -1199,7 +1196,6 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ 
+ 		pr_cont("\n");
+ 	}
+-	mutex_unlock(&oom_info_lock);
+ }
+ 
+ /*
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
