@@ -1,133 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id A4ABB828E1
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 19:03:29 -0500 (EST)
-Received: by mail-pf0-f175.google.com with SMTP id u190so51088064pfb.3
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 16:03:29 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id bz6si9301421pad.30.2016.03.10.15.55.40
-        for <linux-mm@kvack.org>;
-        Thu, 10 Mar 2016 15:55:41 -0800 (PST)
-From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v5 14/14] dax: Use vmf->pgoff in fault handlers
-Date: Thu, 10 Mar 2016 18:55:31 -0500
-Message-Id: <1457654131-4562-15-git-send-email-matthew.r.wilcox@intel.com>
-In-Reply-To: <1457654131-4562-1-git-send-email-matthew.r.wilcox@intel.com>
-References: <1457654131-4562-1-git-send-email-matthew.r.wilcox@intel.com>
+Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D1796B0254
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2016 20:52:28 -0500 (EST)
+Received: by mail-oi0-f42.google.com with SMTP id d205so75589502oia.0
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 17:52:28 -0800 (PST)
+Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
+        by mx.google.com with ESMTPS id v3si4604170oie.34.2016.03.10.17.52.27
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Mar 2016 17:52:27 -0800 (PST)
+Received: by mail-oi0-x231.google.com with SMTP id m82so75542075oif.1
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 17:52:27 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20160310095601.GA9677@gmail.com>
+References: <1442903021-3893-1-git-send-email-mingo@kernel.org>
+ <1442903021-3893-4-git-send-email-mingo@kernel.org> <CALCETrXV34q4ViE46sHN6QxucmxoBYN0xKz4p7H9Cr=7VpwQUA@mail.gmail.com>
+ <CALCETrUijqLwS98M_EnW5OH=CSv_SwjKGC5FkAxFEcWiq0RM2A@mail.gmail.com> <20160310095601.GA9677@gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Thu, 10 Mar 2016 17:52:07 -0800
+Message-ID: <CALCETrUDpzHV0mZXkg4QX9zspJKZ8vngA2_ybL6E+faiTJqpkw@mail.gmail.com>
+Subject: Re: [PATCH 03/11] x86/mm/hotplug: Don't remove PGD entries in remove_pagetable()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org, willy@linux.intel.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Brian Gerst <brgerst@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Waiman Long <waiman.long@hp.com>, Thomas Gleixner <tglx@linutronix.de>
 
-Now that the PMD and PUD fault handlers are passed pgoff, there's no
-need to calculate it themselves.
+On Thu, Mar 10, 2016 at 1:56 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> * Andy Lutomirski <luto@amacapital.net> wrote:
+>
+>> On Fri, Feb 12, 2016 at 11:04 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+>> > On Mon, Sep 21, 2015 at 11:23 PM, Ingo Molnar <mingo@kernel.org> wrote:
+>> >> So when memory hotplug removes a piece of physical memory from pagetable
+>> >> mappings, it also frees the underlying PGD entry.
+>> >>
+>> >> This complicates PGD management, so don't do this. We can keep the
+>> >> PGD mapped and the PUD table all clear - it's only a single 4K page
+>> >> per 512 GB of memory hotplugged.
+>> >
+>> > Ressurecting an ancient thread: I want this particular change to make
+>> > it (much) easier to make vmapped stacks work correctly.  Could it be
+>> > applied by itself?
+>> >
+>>
+>> It's incomplete.  pageattr.c has another instance of the same thing.
+>> I'll see if I can make it work, but I may end up doing something a
+>> little different.
+>
+> If so then mind picking up (and fixing ;-) tip:WIP.x86/mm in its entirety? It's
+> well tested so shouldn't have too many easy to hit bugs. Feel free to rebase and
+> restructure it, it's a WIP tree.
 
-Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
----
- fs/dax.c | 26 ++++++++++++--------------
- 1 file changed, 12 insertions(+), 14 deletions(-)
+I'll chew on this one patch a bit and see where the whole things go.
+If I can rebase the rest on top, I'll use them.
 
-diff --git a/fs/dax.c b/fs/dax.c
-index c5d87be..5db3841 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -736,7 +736,7 @@ static int dax_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	unsigned long pmd_addr = address & PMD_MASK;
- 	bool write = vmf->flags & FAULT_FLAG_WRITE;
- 	struct block_device *bdev;
--	pgoff_t size, pgoff;
-+	pgoff_t size;
- 	sector_t block;
- 	int error, result = 0;
- 	bool alloc = false;
-@@ -761,12 +761,11 @@ static int dax_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 		return VM_FAULT_FALLBACK;
- 	}
- 
--	pgoff = linear_page_index(vma, pmd_addr);
- 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
--	if (pgoff >= size)
-+	if (vmf->pgoff >= size)
- 		return VM_FAULT_SIGBUS;
- 	/* If the PMD would cover blocks out of the file */
--	if ((pgoff | PG_PMD_COLOUR) >= size) {
-+	if ((vmf->pgoff | PG_PMD_COLOUR) >= size) {
- 		dax_pmd_dbg(NULL, address,
- 				"offset + huge page size > file size");
- 		return VM_FAULT_FALLBACK;
-@@ -774,7 +773,7 @@ static int dax_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 
- 	memset(&bh, 0, sizeof(bh));
- 	bh.b_bdev = inode->i_sb->s_bdev;
--	block = (sector_t)pgoff << (PAGE_SHIFT - blkbits);
-+	block = (sector_t)vmf->pgoff << (PAGE_SHIFT - blkbits);
- 
- 	bh.b_size = PMD_SIZE;
- 
-@@ -804,7 +803,7 @@ static int dax_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	 * zero pages covering this hole
- 	 */
- 	if (alloc) {
--		loff_t lstart = pgoff << PAGE_SHIFT;
-+		loff_t lstart = vmf->pgoff << PAGE_SHIFT;
- 		loff_t lend = lstart + PMD_SIZE - 1; /* inclusive */
- 
- 		truncate_pagecache_range(inode, lstart, lend);
-@@ -890,8 +889,8 @@ static int dax_pmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 		 * the write to insert a dirty entry.
- 		 */
- 		if (write) {
--			error = dax_radix_entry(mapping, pgoff, dax.sector,
--					true, true);
-+			error = dax_radix_entry(mapping, vmf->pgoff,
-+						dax.sector, true, true);
- 			if (error) {
- 				dax_pmd_dbg(&bh, address,
- 						"PMD radix insertion failed");
-@@ -942,7 +941,7 @@ static int dax_pud_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	unsigned long pud_addr = address & PUD_MASK;
- 	bool write = vmf->flags & FAULT_FLAG_WRITE;
- 	struct block_device *bdev;
--	pgoff_t size, pgoff;
-+	pgoff_t size;
- 	sector_t block;
- 	int result = 0;
- 	bool alloc = false;
-@@ -967,12 +966,11 @@ static int dax_pud_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 		return VM_FAULT_FALLBACK;
- 	}
- 
--	pgoff = linear_page_index(vma, pud_addr);
- 	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
--	if (pgoff >= size)
-+	if (vmf->pgoff >= size)
- 		return VM_FAULT_SIGBUS;
- 	/* If the PUD would cover blocks out of the file */
--	if ((pgoff | PG_PUD_COLOUR) >= size) {
-+	if ((vmf->pgoff | PG_PUD_COLOUR) >= size) {
- 		dax_pud_dbg(NULL, address,
- 				"offset + huge page size > file size");
- 		return VM_FAULT_FALLBACK;
-@@ -980,7 +978,7 @@ static int dax_pud_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 
- 	memset(&bh, 0, sizeof(bh));
- 	bh.b_bdev = inode->i_sb->s_bdev;
--	block = (sector_t)pgoff << (PAGE_SHIFT - blkbits);
-+	block = (sector_t)vmf->pgoff << (PAGE_SHIFT - blkbits);
- 
- 	bh.b_size = PUD_SIZE;
- 
-@@ -1010,7 +1008,7 @@ static int dax_pud_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	 * zero pages covering this hole
- 	 */
- 	if (alloc) {
--		loff_t lstart = pgoff << PAGE_SHIFT;
-+		loff_t lstart = vmf->pgoff << PAGE_SHIFT;
- 		loff_t lend = lstart + PUD_SIZE - 1; /* inclusive */
- 
- 		truncate_pagecache_range(inode, lstart, lend);
+BTW, how are current kernels possibly correct when this code runs?  We
+zap a pgd from the init pgd.  I can't find any code that would try to
+propagate that zapped pgd to other pgds.  Then, if we hotplug in some
+more memory or claim the slot for vmap, we'll install a new pgd entry,
+and we might access *that* through a different pgd.  There vmalloc
+fault fixup won't help because the MMU will chase a stale pointer in
+the old pgd.
+
+So we might actually need this patch sooner rather than later.
+
+>
+> I keep getting distracted with other things but I'd hate if this got dropped on
+> the floor.
+>
+> Thanks,
+>
+>         Ingo
+
+
+
 -- 
-2.7.0
+Andy Lutomirski
+AMA Capital Management, LLC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
