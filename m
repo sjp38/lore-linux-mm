@@ -1,454 +1,488 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 0457B828E1
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 02:29:56 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id tt10so88595573pab.3
-        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 23:29:55 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id ta4si11913485pac.193.2016.03.10.23.29.48
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id E1070828E1
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 02:29:57 -0500 (EST)
+Received: by mail-ig0-f172.google.com with SMTP id ig19so4219604igb.1
+        for <linux-mm@kvack.org>; Thu, 10 Mar 2016 23:29:57 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id h14si1339539igt.51.2016.03.10.23.29.48
         for <linux-mm@kvack.org>;
-        Thu, 10 Mar 2016 23:29:48 -0800 (PST)
+        Thu, 10 Mar 2016 23:29:49 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v1 02/19] mm/compaction: support non-lru movable page migration
-Date: Fri, 11 Mar 2016 16:30:06 +0900
-Message-Id: <1457681423-26664-3-git-send-email-minchan@kernel.org>
+Subject: [PATCH v1 04/19] mm/balloon: use general movable page feature into balloon
+Date: Fri, 11 Mar 2016 16:30:08 +0900
+Message-Id: <1457681423-26664-5-git-send-email-minchan@kernel.org>
 In-Reply-To: <1457681423-26664-1-git-send-email-minchan@kernel.org>
 References: <1457681423-26664-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, rknize@motorola.com, Rik van Riel <riel@redhat.com>, Gioh Kim <gurugio@hanmail.net>, Minchan Kim <minchan@kernel.org>, dri-devel@lists.freedesktop.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, rknize@motorola.com, Rik van Riel <riel@redhat.com>, Gioh Kim <gurugio@hanmail.net>, Minchan Kim <minchan@kernel.org>
 
-We have allowed migration for only LRU pages until now and it was
-enough to make high-order pages. But recently, embedded system(e.g.,
-webOS, android) uses lots of non-movable pages(e.g., zram, GPU memory)
-so we have seen several reports about troubles of small high-order
-allocation. For fixing the problem, there were several efforts
-(e,g,. enhance compaction algorithm, SLUB fallback to 0-order page,
-reserved memory, vmalloc and so on) but if there are lots of
-non-movable pages in system, their solutions are void in the long run.
+Now, VM has a feature to migrate non-lru movable pages so
+balloon doesn't need custom migration hooks in migrate.c
+and compact.c. Instead, this patch implements page->mapping
+->{isolate|migrate|putback} functions.
 
-So, this patch is to support facility to change non-movable pages
-with movable. For the feature, this patch introduces functions related
-to migration to address_space_operations as well as some page flags.
+With that, we could remove hooks for ballooning in general
+migration functions and make balloon compaction simple.
 
-Basically, this patch supports two page-flags and two functions related
-to page migration. The flag and page->mapping stability are protected
-by PG_lock.
-
-	PG_movable
-	PG_isolated
-
-	bool (*isolate_page) (struct page *, isolate_mode_t);
-	void (*putback_page) (struct page *);
-
-Duty of subsystem want to make their pages as migratable are
-as follows:
-
-1. It should register address_space to page->mapping then mark
-the page as PG_movable via __SetPageMovable.
-
-2. It should mark the page as PG_isolated via SetPageIsolated
-if isolation is sucessful and return true.
-
-3. If migration is successful, it should clear PG_isolated and
-PG_movable of the page for free preparation then release the
-reference of the page to free.
-
-4. If migration fails, putback function of subsystem should
-clear PG_isolated via ClearPageIsolated.
-
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: dri-devel@lists.freedesktop.org
 Cc: virtualization@lists.linux-foundation.org
+Cc: Rafael Aquini <aquini@redhat.com>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>
 Signed-off-by: Gioh Kim <gurugio@hanmail.net>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- Documentation/filesystems/Locking      |   4 +
- Documentation/filesystems/vfs.txt      |   5 ++
- fs/proc/page.c                         |   3 +
- include/linux/compaction.h             |   8 ++
- include/linux/fs.h                     |   2 +
- include/linux/migrate.h                |   2 +
- include/linux/page-flags.h             |  29 ++++++++
- include/uapi/linux/kernel-page-flags.h |   1 +
- mm/compaction.c                        |  14 +++-
- mm/migrate.c                           | 132 +++++++++++++++++++++++++++++----
- 10 files changed, 185 insertions(+), 15 deletions(-)
+ drivers/virtio/virtio_balloon.c    |   4 ++
+ include/linux/balloon_compaction.h |  47 ++++-------------
+ include/linux/page-flags.h         |  53 +++++++++++--------
+ mm/balloon_compaction.c            | 101 ++++++++-----------------------------
+ mm/compaction.c                    |   7 ---
+ mm/migrate.c                       |  22 ++------
+ mm/vmscan.c                        |   2 +-
+ 7 files changed, 73 insertions(+), 163 deletions(-)
 
-diff --git a/Documentation/filesystems/Locking b/Documentation/filesystems/Locking
-index 619af9bfdcb3..0bb79560abb3 100644
---- a/Documentation/filesystems/Locking
-+++ b/Documentation/filesystems/Locking
-@@ -195,7 +195,9 @@ unlocks and drops the reference.
- 	int (*releasepage) (struct page *, int);
- 	void (*freepage)(struct page *);
- 	int (*direct_IO)(struct kiocb *, struct iov_iter *iter, loff_t offset);
-+	bool (*isolate_page) (struct page *, isolate_mode_t);
- 	int (*migratepage)(struct address_space *, struct page *, struct page *);
-+	void (*putback_page) (struct page *);
- 	int (*launder_page)(struct page *);
- 	int (*is_partially_uptodate)(struct page *, unsigned long, unsigned long);
- 	int (*error_remove_page)(struct address_space *, struct page *);
-@@ -219,7 +221,9 @@ invalidatepage:		yes
- releasepage:		yes
- freepage:		yes
- direct_IO:
-+isolate_page:		yes
- migratepage:		yes (both)
-+putback_page:		yes
- launder_page:		yes
- is_partially_uptodate:	yes
- error_remove_page:	yes
-diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
-index b02a7d598258..4c1b6c3b4bc8 100644
---- a/Documentation/filesystems/vfs.txt
-+++ b/Documentation/filesystems/vfs.txt
-@@ -592,9 +592,14 @@ struct address_space_operations {
- 	int (*releasepage) (struct page *, int);
- 	void (*freepage)(struct page *);
- 	ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter, loff_t offset);
-+	/* isolate a page for migration */
-+	bool (*isolate_page) (struct page *, isolate_mode_t);
- 	/* migrate the contents of a page to the specified target */
- 	int (*migratepage) (struct page *, struct page *);
-+	/* put the page back to right list */
-+	void (*putback_page) (struct page *);
- 	int (*launder_page) (struct page *);
-+
- 	int (*is_partially_uptodate) (struct page *, unsigned long,
- 					unsigned long);
- 	void (*is_dirty_writeback) (struct page *, bool *, bool *);
-diff --git a/fs/proc/page.c b/fs/proc/page.c
-index b2855eea5405..b2bab774adea 100644
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -155,6 +155,9 @@ u64 stable_page_flags(struct page *page)
- 	if (page_is_idle(page))
- 		u |= 1 << KPF_IDLE;
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 0c3691f46575..30a1ea31bef4 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -30,6 +30,7 @@
+ #include <linux/balloon_compaction.h>
+ #include <linux/oom.h>
+ #include <linux/wait.h>
++#include <linux/anon_inodes.h>
  
-+	if (PageMovable(page))
-+		u |= 1 << KPF_MOVABLE;
-+
- 	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
+ /*
+  * Balloon device works in 4K page units.  So each page is pointed to by
+@@ -476,6 +477,7 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
  
- 	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 4cd4ddf64cc7..6f040ad379ce 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -84,6 +84,14 @@ static inline bool compaction_deferred(struct zone *zone, int order)
- 	return true;
- }
+ 	mutex_unlock(&vb->balloon_lock);
  
-+static inline bool isolate_movable_page(struct page *page, isolate_mode_t mode)
-+{
-+	return false;
-+}
-+
-+static inline void putback_movable_page(struct page *page)
-+{
-+}
- #endif /* CONFIG_COMPACTION */
++	ClearPageIsolated(page);
+ 	put_page(page); /* balloon reference */
  
- #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index ae681002100a..6cd3810a6a27 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -398,6 +398,8 @@ struct address_space_operations {
- 	 */
- 	int (*migratepage) (struct address_space *,
- 			struct page *, struct page *, enum migrate_mode);
-+	bool (*isolate_page)(struct page *, isolate_mode_t);
-+	void (*putback_page)(struct page *);
- 	int (*launder_page) (struct page *);
- 	int (*is_partially_uptodate) (struct page *, unsigned long,
- 					unsigned long);
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index cac1c0904d5f..f10fd92860ac 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -33,6 +33,8 @@ extern int migrate_page(struct address_space *,
- 			struct page *, struct page *, enum migrate_mode);
- extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
- 		unsigned long private, enum migrate_mode mode, int reason);
-+extern bool isolate_movable_page(struct page *page, isolate_mode_t mode);
-+extern void putback_movable_page(struct page *page);
+ 	return MIGRATEPAGE_SUCCESS;
+@@ -509,6 +511,8 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 	balloon_devinfo_init(&vb->vb_dev_info);
+ #ifdef CONFIG_BALLOON_COMPACTION
+ 	vb->vb_dev_info.migratepage = virtballoon_migratepage;
++	vb->vb_dev_info.inode = anon_inode_new();
++	vb->vb_dev_info.inode->i_mapping->a_ops = &balloon_aops;
+ #endif
  
- extern int migrate_prep(void);
- extern int migrate_prep_local(void);
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 19724e6ebd26..cdf07c3f3a6f 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -129,6 +129,10 @@ enum pageflags {
+ 	err = init_vqs(vb);
+diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+index 9b0a15d06a4f..43a858545844 100644
+--- a/include/linux/balloon_compaction.h
++++ b/include/linux/balloon_compaction.h
+@@ -48,6 +48,7 @@
+ #include <linux/migrate.h>
+ #include <linux/gfp.h>
+ #include <linux/err.h>
++#include <linux/fs.h>
  
- 	/* Compound pages. Stored in first tail page's flags */
- 	PG_double_map = PG_private_2,
-+
-+	/* non-lru movable pages */
-+	PG_movable = PG_reclaim,
-+	PG_isolated = PG_owner_priv_1,
+ /*
+  * Balloon device information descriptor.
+@@ -62,6 +63,7 @@ struct balloon_dev_info {
+ 	struct list_head pages;		/* Pages enqueued & handled to Host */
+ 	int (*migratepage)(struct balloon_dev_info *, struct page *newpage,
+ 			struct page *page, enum migrate_mode mode);
++	struct inode *inode;
  };
  
- #ifndef __GENERATING_BOUNDS_H
-@@ -612,6 +616,31 @@ static inline void __ClearPageBalloon(struct page *page)
+ extern struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info);
+@@ -73,45 +75,19 @@ static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
+ 	spin_lock_init(&balloon->pages_lock);
+ 	INIT_LIST_HEAD(&balloon->pages);
+ 	balloon->migratepage = NULL;
++	balloon->inode = NULL;
+ }
+ 
+ #ifdef CONFIG_BALLOON_COMPACTION
+-extern bool balloon_page_isolate(struct page *page);
++extern const struct address_space_operations balloon_aops;
++extern bool balloon_page_isolate(struct page *page,
++				isolate_mode_t mode);
+ extern void balloon_page_putback(struct page *page);
+-extern int balloon_page_migrate(struct page *newpage,
++extern int balloon_page_migrate(struct address_space *mapping,
++				struct page *newpage,
+ 				struct page *page, enum migrate_mode mode);
+ 
+ /*
+- * __is_movable_balloon_page - helper to perform @page PageBalloon tests
+- */
+-static inline bool __is_movable_balloon_page(struct page *page)
+-{
+-	return PageBalloon(page);
+-}
+-
+-/*
+- * balloon_page_movable - test PageBalloon to identify balloon pages
+- *			  and PagePrivate to check that the page is not
+- *			  isolated and can be moved by compaction/migration.
+- *
+- * As we might return false positives in the case of a balloon page being just
+- * released under us, this need to be re-tested later, under the page lock.
+- */
+-static inline bool balloon_page_movable(struct page *page)
+-{
+-	return PageBalloon(page) && PagePrivate(page);
+-}
+-
+-/*
+- * isolated_balloon_page - identify an isolated balloon page on private
+- *			   compaction/migration page lists.
+- */
+-static inline bool isolated_balloon_page(struct page *page)
+-{
+-	return PageBalloon(page);
+-}
+-
+-/*
+  * balloon_page_insert - insert a page into the balloon's page list and make
+  *			 the page->private assignment accordingly.
+  * @balloon : pointer to balloon device
+@@ -123,8 +99,8 @@ static inline bool isolated_balloon_page(struct page *page)
+ static inline void balloon_page_insert(struct balloon_dev_info *balloon,
+ 				       struct page *page)
+ {
++	page->mapping = balloon->inode->i_mapping;
+ 	__SetPageBalloon(page);
+-	SetPagePrivate(page);
+ 	set_page_private(page, (unsigned long)balloon);
+ 	list_add(&page->lru, &balloon->pages);
+ }
+@@ -140,11 +116,10 @@ static inline void balloon_page_insert(struct balloon_dev_info *balloon,
+ static inline void balloon_page_delete(struct page *page)
+ {
+ 	__ClearPageBalloon(page);
++	page->mapping = NULL;
+ 	set_page_private(page, 0);
+-	if (PagePrivate(page)) {
+-		ClearPagePrivate(page);
++	if (!PageIsolated(page))
+ 		list_del(&page->lru);
+-	}
+ }
+ 
+ /*
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index cdf07c3f3a6f..94d46d947490 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -597,50 +597,59 @@ static inline void __ClearPageBuddy(struct page *page)
  	atomic_set(&page->_mapcount, -1);
  }
  
-+#define PAGE_MOVABLE_MAPCOUNT_VALUE (-255)
-+
+-#define PAGE_BALLOON_MAPCOUNT_VALUE (-256)
++#define PAGE_MOVABLE_MAPCOUNT_VALUE (-256)
++#define PAGE_BALLOON_MAPCOUNT_VALUE PAGE_MOVABLE_MAPCOUNT_VALUE
+ 
+-static inline int PageBalloon(struct page *page)
 +static inline int PageMovable(struct page *page)
-+{
-+	return ((test_bit(PG_movable, &(page)->flags) &&
-+		atomic_read(&page->_mapcount) == PAGE_MOVABLE_MAPCOUNT_VALUE)
-+		|| PageBalloon(page));
-+}
-+
+ {
+-	return atomic_read(&page->_mapcount) == PAGE_BALLOON_MAPCOUNT_VALUE;
++	return (test_bit(PG_movable, &(page)->flags) &&
++		atomic_read(&page->_mapcount) == PAGE_MOVABLE_MAPCOUNT_VALUE);
+ }
+ 
+-static inline void __SetPageBalloon(struct page *page)
 +static inline void __SetPageMovable(struct page *page)
-+{
+ {
+-	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
+-	atomic_set(&page->_mapcount, PAGE_BALLOON_MAPCOUNT_VALUE);
 +	WARN_ON(!page->mapping);
 +
 +	__set_bit(PG_movable, &page->flags);
 +	atomic_set(&page->_mapcount, PAGE_MOVABLE_MAPCOUNT_VALUE);
-+}
-+
+ }
+ 
+-static inline void __ClearPageBalloon(struct page *page)
 +static inline void __ClearPageMovable(struct page *page)
-+{
-+	atomic_set(&page->_mapcount, -1);
+ {
+-	VM_BUG_ON_PAGE(!PageBalloon(page), page);
+ 	atomic_set(&page->_mapcount, -1);
 +	__clear_bit(PG_movable, &(page)->flags);
-+}
-+
+ }
+ 
+-#define PAGE_MOVABLE_MAPCOUNT_VALUE (-255)
 +PAGEFLAG(Isolated, isolated, PF_ANY);
-+
+ 
+-static inline int PageMovable(struct page *page)
++static inline int PageBalloon(struct page *page)
+ {
+-	return ((test_bit(PG_movable, &(page)->flags) &&
+-		atomic_read(&page->_mapcount) == PAGE_MOVABLE_MAPCOUNT_VALUE)
+-		|| PageBalloon(page));
++	return atomic_read(&page->_mapcount) == PAGE_BALLOON_MAPCOUNT_VALUE
++		&& PagePrivate2(page);
+ }
+ 
+-static inline void __SetPageMovable(struct page *page)
++static inline void __SetPageBalloon(struct page *page)
+ {
+-	WARN_ON(!page->mapping);
+-
+-	__set_bit(PG_movable, &page->flags);
+-	atomic_set(&page->_mapcount, PAGE_MOVABLE_MAPCOUNT_VALUE);
++	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
++#ifdef CONFIG_BALLOON_COMPACTION
++	__SetPageMovable(page);
++#else
++	atomic_set(&page->_mapcount, PAGE_BALLOON_MAPCOUNT_VALUE);
++#endif
++	SetPagePrivate2(page);
+ }
+ 
+-static inline void __ClearPageMovable(struct page *page)
++static inline void __ClearPageBalloon(struct page *page)
+ {
++	VM_BUG_ON_PAGE(!PageBalloon(page), page);
++#ifdef CONFIG_BALLOON_COMPACTION
++	__ClearPageMovable(page);
++#else
+ 	atomic_set(&page->_mapcount, -1);
+-	__clear_bit(PG_movable, &(page)->flags);
++#endif
++	ClearPagePrivate2(page);
+ }
+ 
+-PAGEFLAG(Isolated, isolated, PF_ANY);
+-
  /*
   * If network-based swap is enabled, sl*b must keep track of whether pages
   * were allocated from pfmemalloc reserves.
-diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
-index 5da5f8751ce7..a184fd2434fa 100644
---- a/include/uapi/linux/kernel-page-flags.h
-+++ b/include/uapi/linux/kernel-page-flags.h
-@@ -34,6 +34,7 @@
- #define KPF_BALLOON		23
- #define KPF_ZERO_PAGE		24
- #define KPF_IDLE		25
-+#define KPF_MOVABLE		26
- 
- 
- #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 585de54dbe8c..99f791bf2ba6 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -736,7 +736,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 
- 		/*
- 		 * Check may be lockless but that's ok as we recheck later.
--		 * It's possible to migrate LRU pages and balloon pages
-+		 * It's possible to migrate LRU and movable kernel pages.
- 		 * Skip any other type of page
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index 300117f1a08f..2c091bf5e22b 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -70,7 +70,7 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
  		 */
- 		is_lru = PageLRU(page);
-@@ -747,6 +747,18 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 					goto isolate_success;
- 				}
- 			}
-+
-+			if (unlikely(PageMovable(page)) &&
-+					!PageIsolated(page)) {
-+				if (locked) {
-+					spin_unlock_irqrestore(&zone->lru_lock,
-+									flags);
-+					locked = false;
-+				}
-+
-+				if (isolate_movable_page(page, isolate_mode))
-+					goto isolate_success;
-+			}
- 		}
+ 		if (trylock_page(page)) {
+ #ifdef CONFIG_BALLOON_COMPACTION
+-			if (!PagePrivate(page)) {
++			if (PageIsolated(page)) {
+ 				/* raced with isolation */
+ 				unlock_page(page);
+ 				continue;
+@@ -106,110 +106,53 @@ EXPORT_SYMBOL_GPL(balloon_page_dequeue);
  
- 		/*
-diff --git a/mm/migrate.c b/mm/migrate.c
-index bf31ea9ffaf8..b7b2a60f57c4 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -72,6 +72,75 @@ int migrate_prep_local(void)
- 	return 0;
+ #ifdef CONFIG_BALLOON_COMPACTION
+ 
+-static inline void __isolate_balloon_page(struct page *page)
++/* __isolate_lru_page() counterpart for a ballooned page */
++bool balloon_page_isolate(struct page *page, isolate_mode_t mode)
+ {
+ 	struct balloon_dev_info *b_dev_info = balloon_page_device(page);
+ 	unsigned long flags;
+ 
+ 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+-	ClearPagePrivate(page);
+ 	list_del(&page->lru);
+ 	b_dev_info->isolated_pages++;
+ 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
++	SetPageIsolated(page);
++
++	return true;
  }
  
-+bool isolate_movable_page(struct page *page, isolate_mode_t mode)
-+{
-+	bool ret = false;
-+
-+	/*
-+	 * Avoid burning cycles with pages that are yet under __free_pages(),
-+	 * or just got freed under us.
-+	 *
-+	 * In case we 'win' a race for a movable page being freed under us and
-+	 * raise its refcount preventing __free_pages() from doing its job
-+	 * the put_page() at the end of this block will take care of
-+	 * release this page, thus avoiding a nasty leakage.
-+	 */
-+	if (unlikely(!get_page_unless_zero(page)))
-+		goto out;
-+
-+	/*
-+	 * As movable pages are not isolated from LRU lists, concurrent
-+	 * compaction threads can race against page migration functions
-+	 * as well as race against the releasing a page.
-+	 *
-+	 * In order to avoid having an already isolated movable page
-+	 * being (wrongly) re-isolated while it is under migration,
-+	 * or to avoid attempting to isolate pages being released,
-+	 * lets be sure we have the page lock
-+	 * before proceeding with the movable page isolation steps.
-+	 */
-+	if (unlikely(!trylock_page(page)))
-+		goto out_putpage;
-+
-+	if (!PageMovable(page) || PageIsolated(page))
-+		goto out_no_isolated;
-+
-+	ret = page->mapping->a_ops->isolate_page(page, mode);
-+	if (!ret)
-+		goto out_no_isolated;
-+
-+	WARN_ON_ONCE(!PageIsolated(page));
-+	unlock_page(page);
-+	return ret;
-+
-+out_no_isolated:
-+	unlock_page(page);
-+out_putpage:
-+	put_page(page);
-+out:
-+	return ret;
-+}
-+
-+void putback_movable_page(struct page *page)
-+{
-+	struct address_space *mapping;
-+
-+	/*
-+	 * 'lock_page()' stabilizes the page and prevents races against
-+	 * concurrent isolation threads attempting to re-isolate it.
-+	 */
-+	lock_page(page);
-+	mapping = page_mapping(page);
-+	if (mapping) {
-+		mapping->a_ops->putback_page(page);
-+		WARN_ON_ONCE(PageIsolated(page));
-+	}
-+	unlock_page(page);
-+	/* drop the extra ref count taken for movable page isolation */
-+	put_page(page);
-+}
-+
-+
- /*
-  * Put previously isolated pages back onto the appropriate lists
-  * from where they were once taken off for compaction/migration.
-@@ -95,6 +164,8 @@ void putback_movable_pages(struct list_head *l)
- 				page_is_file_cache(page));
- 		if (unlikely(isolated_balloon_page(page)))
- 			balloon_page_putback(page);
-+		else if (unlikely(PageIsolated(page)))
-+			putback_movable_page(page);
- 		else
- 			putback_lru_page(page);
- 	}
-@@ -585,7 +656,7 @@ void migrate_page_copy(struct page *newpage, struct page *page)
-  ***********************************************************/
- 
- /*
-- * Common logic to directly migrate a single page suitable for
-+ * Common logic to directly migrate a single LRU page suitable for
-  * pages that do not use PagePrivate/PagePrivate2.
-  *
-  * Pages are locked upon entry and exit.
-@@ -748,24 +819,53 @@ static int move_to_new_page(struct page *newpage, struct page *page,
- 				enum migrate_mode mode)
+-static inline void __putback_balloon_page(struct page *page)
++/* putback_lru_page() counterpart for a ballooned page */
++void balloon_page_putback(struct page *page)
  {
- 	struct address_space *mapping;
--	int rc;
-+	int rc = -EAGAIN;
-+	bool isolated_lru_page;
+ 	struct balloon_dev_info *b_dev_info = balloon_page_device(page);
+ 	unsigned long flags;
+ 
++	ClearPageIsolated(page);
+ 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+-	SetPagePrivate(page);
+ 	list_add(&page->lru, &b_dev_info->pages);
+ 	b_dev_info->isolated_pages--;
+ 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+ }
+ 
+-/* __isolate_lru_page() counterpart for a ballooned page */
+-bool balloon_page_isolate(struct page *page)
+-{
+-	/*
+-	 * Avoid burning cycles with pages that are yet under __free_pages(),
+-	 * or just got freed under us.
+-	 *
+-	 * In case we 'win' a race for a balloon page being freed under us and
+-	 * raise its refcount preventing __free_pages() from doing its job
+-	 * the put_page() at the end of this block will take care of
+-	 * release this page, thus avoiding a nasty leakage.
+-	 */
+-	if (likely(get_page_unless_zero(page))) {
+-		/*
+-		 * As balloon pages are not isolated from LRU lists, concurrent
+-		 * compaction threads can race against page migration functions
+-		 * as well as race against the balloon driver releasing a page.
+-		 *
+-		 * In order to avoid having an already isolated balloon page
+-		 * being (wrongly) re-isolated while it is under migration,
+-		 * or to avoid attempting to isolate pages being released by
+-		 * the balloon driver, lets be sure we have the page lock
+-		 * before proceeding with the balloon page isolation steps.
+-		 */
+-		if (likely(trylock_page(page))) {
+-			/*
+-			 * A ballooned page, by default, has PagePrivate set.
+-			 * Prevent concurrent compaction threads from isolating
+-			 * an already isolated balloon page by clearing it.
+-			 */
+-			if (balloon_page_movable(page)) {
+-				__isolate_balloon_page(page);
+-				unlock_page(page);
+-				return true;
+-			}
+-			unlock_page(page);
+-		}
+-		put_page(page);
+-	}
+-	return false;
+-}
+-
+-/* putback_lru_page() counterpart for a ballooned page */
+-void balloon_page_putback(struct page *page)
+-{
+-	/*
+-	 * 'lock_page()' stabilizes the page and prevents races against
+-	 * concurrent isolation threads attempting to re-isolate it.
+-	 */
+-	lock_page(page);
+-
+-	if (__is_movable_balloon_page(page)) {
+-		__putback_balloon_page(page);
+-		/* drop the extra ref count taken for page isolation */
+-		put_page(page);
+-	} else {
+-		WARN_ON(1);
+-		dump_page(page, "not movable balloon page");
+-	}
+-	unlock_page(page);
+-}
+-
+ /* move_to_new_page() counterpart for a ballooned page */
+-int balloon_page_migrate(struct page *newpage,
+-			 struct page *page, enum migrate_mode mode)
++int balloon_page_migrate(struct address_space *mapping,
++		struct page *newpage, struct page *page,
++		enum migrate_mode mode)
+ {
+ 	struct balloon_dev_info *balloon = balloon_page_device(page);
+-	int rc = -EAGAIN;
  
  	VM_BUG_ON_PAGE(!PageLocked(page), page);
  	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
++	VM_BUG_ON_PAGE(!PageMovable(page), page);
++	VM_BUG_ON_PAGE(!PageIsolated(page), page);
  
- 	mapping = page_mapping(page);
--	if (!mapping)
--		rc = migrate_page(mapping, newpage, page, mode);
--	else if (mapping->a_ops->migratepage)
-+	/*
-+	 * In case of non-lru page, it could be released after
-+	 * isolation step. In that case, we shouldn't try
-+	 * fallback migration which was designed for LRU pages.
-+	 *
-+	 * To identify such pages, we cannot use PageMovable
-+	 * because owner of the page can reset it. So intead,
-+	 * use PG_isolated bit.
-+	 */
-+	isolated_lru_page = !PageIsolated(page);
+-	if (WARN_ON(!__is_movable_balloon_page(page))) {
+-		dump_page(page, "not movable balloon page");
+-		return rc;
+-	}
+-
+-	if (balloon && balloon->migratepage)
+-		rc = balloon->migratepage(balloon, newpage, page, mode);
+-
+-	return rc;
++	return balloon->migratepage(balloon, newpage, page, mode);
+ }
 +
-+	if (likely(isolated_lru_page)) {
-+		if (!mapping)
-+			rc = migrate_page(mapping, newpage, page, mode);
-+		else if (mapping->a_ops->migratepage)
-+			/*
-+			 * Most pages have a mapping and most filesystems
-+			 * provide a migratepage callback. Anonymous pages
-+			 * are part of swap space which also has its own
-+			 * migratepage callback. This is the most common path
-+			 * for page migration.
-+			 */
-+			rc = mapping->a_ops->migratepage(mapping, newpage,
-+							page, mode);
-+		else
-+			rc = fallback_migrate_page(mapping, newpage,
-+							page, mode);
-+	} else {
- 		/*
--		 * Most pages have a mapping and most filesystems provide a
--		 * migratepage callback. Anonymous pages are part of swap
--		 * space which also has its own migratepage callback. This
--		 * is the most common path for page migration.
-+		 * If mapping is NULL, it returns -EAGAIN so retrial
-+		 * of migration will see refcount as 1 and free it,
-+		 * finally.
++const struct address_space_operations balloon_aops = {
++	.migratepage = balloon_page_migrate,
++	.isolate_page = balloon_page_isolate,
++	.putback_page = balloon_page_putback,
++};
++EXPORT_SYMBOL_GPL(balloon_aops);
+ #endif /* CONFIG_BALLOON_COMPACTION */
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 99f791bf2ba6..e322307ac8de 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -741,13 +741,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
  		 */
--		rc = mapping->a_ops->migratepage(mapping, newpage, page, mode);
--	else
--		rc = fallback_migrate_page(mapping, newpage, page, mode);
-+		if (mapping) {
-+			rc = mapping->a_ops->migratepage(mapping, newpage,
-+							page, mode);
-+			WARN_ON_ONCE(rc == MIGRATEPAGE_SUCCESS &&
-+				PageIsolated(page));
-+		}
-+	}
- 
- 	/*
- 	 * When successful, old pagecache page->mapping must be cleared before
-@@ -991,8 +1091,12 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 				num_poisoned_pages_inc();
- 		}
- 	} else {
--		if (rc != -EAGAIN)
--			putback_lru_page(page);
-+		if (rc != -EAGAIN) {
-+			if (likely(!PageIsolated(page)))
-+				putback_lru_page(page);
-+			else
-+				putback_movable_page(page);
-+		}
- 		if (put_new_page)
- 			put_new_page(newpage, private);
+ 		is_lru = PageLRU(page);
+ 		if (!is_lru) {
+-			if (unlikely(balloon_page_movable(page))) {
+-				if (balloon_page_isolate(page)) {
+-					/* Successfully isolated */
+-					goto isolate_success;
+-				}
+-			}
+-
+ 			if (unlikely(PageMovable(page)) &&
+ 					!PageIsolated(page)) {
+ 				if (locked) {
+diff --git a/mm/migrate.c b/mm/migrate.c
+index b7b2a60f57c4..98b5e7f07548 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -146,8 +146,8 @@ void putback_movable_page(struct page *page)
+  * from where they were once taken off for compaction/migration.
+  *
+  * This function shall be used whenever the isolated pageset has been
+- * built from lru, balloon, hugetlbfs page. See isolate_migratepages_range()
+- * and isolate_huge_page().
++ * built from lru, movable, hugetlbfs page.
++ * See isolate_migratepages_range() and isolate_huge_page().
+  */
+ void putback_movable_pages(struct list_head *l)
+ {
+@@ -162,9 +162,7 @@ void putback_movable_pages(struct list_head *l)
+ 		list_del(&page->lru);
+ 		dec_zone_page_state(page, NR_ISOLATED_ANON +
+ 				page_is_file_cache(page));
+-		if (unlikely(isolated_balloon_page(page)))
+-			balloon_page_putback(page);
+-		else if (unlikely(PageIsolated(page)))
++		if (unlikely(PageIsolated(page)))
+ 			putback_movable_page(page);
  		else
+ 			putback_lru_page(page);
+@@ -953,18 +951,6 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 	if (unlikely(!trylock_page(newpage)))
+ 		goto out_unlock;
+ 
+-	if (unlikely(isolated_balloon_page(page))) {
+-		/*
+-		 * A ballooned page does not need any special attention from
+-		 * physical to virtual reverse mapping procedures.
+-		 * Skip any attempt to unmap PTEs or to remap swap cache,
+-		 * in order to avoid burning cycles at rmap level, and perform
+-		 * the page migration right away (proteced by page lock).
+-		 */
+-		rc = balloon_page_migrate(newpage, page, mode);
+-		goto out_unlock_both;
+-	}
+-
+ 	/*
+ 	 * Corner case handling:
+ 	 * 1. When a new swap-cache page is read into, it is added to the LRU
+@@ -1009,7 +995,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ out:
+ 	/* If migration is scucessful, move newpage to right list */
+ 	if (rc == MIGRATEPAGE_SUCCESS) {
+-		if (unlikely(__is_movable_balloon_page(newpage)))
++		if (unlikely(PageMovable(newpage)))
+ 			put_page(newpage);
+ 		else
+ 			putback_lru_page(newpage);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 71b1c29948db..ca49b4f53c81 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1262,7 +1262,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ 
+ 	list_for_each_entry_safe(page, next, page_list, lru) {
+ 		if (page_is_file_cache(page) && !PageDirty(page) &&
+-		    !isolated_balloon_page(page)) {
++		    !PageIsolated(page)) {
+ 			ClearPageActive(page);
+ 			list_move(&page->lru, &clean_pages);
+ 		}
 -- 
 1.9.1
 
