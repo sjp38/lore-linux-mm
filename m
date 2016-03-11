@@ -1,70 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E44B06B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 08:45:49 -0500 (EST)
-Received: by mail-ig0-f180.google.com with SMTP id z8so11170983ige.0
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:45:49 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id l9si13981823pfb.158.2016.03.11.05.45.49
+Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 354796B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 08:58:00 -0500 (EST)
+Received: by mail-lb0-f180.google.com with SMTP id x1so156625152lbj.3
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:58:00 -0800 (PST)
+Received: from mail-lb0-x22e.google.com (mail-lb0-x22e.google.com. [2a00:1450:4010:c04::22e])
+        by mx.google.com with ESMTPS id qv8si4318000lbb.163.2016.03.11.05.57.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 05:45:49 -0800 (PST)
-Date: Fri, 11 Mar 2016 16:45:34 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] mm: memcontrol: zap
- task_struct->memcg_oom_{gfp_mask,order}
-Message-ID: <20160311134533.GN1946@esperanza>
-References: <1457691167-22756-1-git-send-email-vdavydov@virtuozzo.com>
- <20160311115450.GH27701@dhcp22.suse.cz>
- <20160311123900.GM1946@esperanza>
- <20160311125104.GM27701@dhcp22.suse.cz>
+        Fri, 11 Mar 2016 05:57:58 -0800 (PST)
+Received: by mail-lb0-x22e.google.com with SMTP id xr8so151682406lbb.1
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 05:57:58 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20160311125104.GM27701@dhcp22.suse.cz>
+In-Reply-To: <CAG_fn=UFB3UYg0-uw4TUJvuvu9ZkqqTKG4enMFMXyWC-q65SeA@mail.gmail.com>
+References: <cover.1457519440.git.glider@google.com>
+	<14d02da417b3941fd871566e16a164ca4d4ccabc.1457519440.git.glider@google.com>
+	<CAPAsAGy3goFXhFZiAarYV3NFZHQOYQxaF324UOJrMCbaZWV7CQ@mail.gmail.com>
+	<CAG_fn=UFB3UYg0-uw4TUJvuvu9ZkqqTKG4enMFMXyWC-q65SeA@mail.gmail.com>
+Date: Fri, 11 Mar 2016 16:57:58 +0300
+Message-ID: <CAPAsAGxM+D9c_VCoL77D9DwZa5gzeO3nRW3tNpwKnuo7fzgJVg@mail.gmail.com>
+Subject: Re: [PATCH v5 2/7] mm, kasan: SLAB support
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alexander Potapenko <glider@google.com>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Mar 11, 2016 at 01:51:05PM +0100, Michal Hocko wrote:
-> On Fri 11-03-16 15:39:00, Vladimir Davydov wrote:
-> > On Fri, Mar 11, 2016 at 12:54:50PM +0100, Michal Hocko wrote:
-> > > On Fri 11-03-16 13:12:47, Vladimir Davydov wrote:
-> > > > These fields are used for dumping info about allocation that triggered
-> > > > OOM. For cgroup this information doesn't make much sense, because OOM
-> > > > killer is always invoked from page fault handler.
-> > > 
-> > > The oom killer is indeed invoked in a different context but why printing
-> > > the original mask and order doesn't make any sense? Doesn't it help to
-> > > see that the reclaim has failed because of GFP_NOFS?
-> > 
-> > I don't see how this can be helpful. How would you use it?
-> 
-> If we start seeing GFP_NOFS triggered OOMs we might be enforced to
-> rethink our current strategy to ignore this charge context for OOM.
+2016-03-11 16:05 GMT+03:00 Alexander Potapenko <glider@google.com>:
+> On Fri, Mar 11, 2016 at 12:47 PM, Andrey Ryabinin
+> <ryabinin.a.a@gmail.com> wrote:
+>> 2016-03-09 14:05 GMT+03:00 Alexander Potapenko <glider@google.com>:
+>>
+>>> +struct kasan_track {
+>>> +       u64 cpu : 6;                    /* for NR_CPUS =3D 64 */
+>>
+>> What about NR_CPUS > 64 ?
+> After a discussion with Dmitry we've decided to drop |cpu| and |when|
+> at all, as they do not actually help debugging.
+> This way we'll make kasan_track only 8 bytes (4 bytes for PID, 4 bytes
+> for stack handle).
+> Then the meta structures will be smaller and have nice alignment:
+>
 
-IMO the fact that a lot of OOMs are triggered by GFP_NOFS allocations
-can't be a good enough reason to reconsider OOM strategy. We need to
-know what kind of allocation fails anyway, and the current OOM dump
-gives us no clue about that.
+Sounds good.
 
-Besides, what if OOM was triggered by GFP_NOFS by pure chance, i.e. it
-would have been triggered by GFP_KERNEL if it had happened at that time?
-IMO it's just confusing.
-
->  
-> > Wouldn't it be better to print err msg in try_charge anyway?
-> 
-> Wouldn't that lead to excessive amount of logged messages?
-
-We could ratelimit these messages. Slab charge failures are already
-reported to dmesg (see ___slab_alloc -> slab_out_of_memory) and nobody's
-complained so far. Are there any non-slab GFP_NOFS allocations charged
-to memcg?
-
-Thanks,
-Vladimir
+> struct kasan_track {
+>         u32 pid;
+>         depot_stack_handle_t stack;
+> };
+>
+> struct kasan_alloc_meta {
+>         struct kasan_track track;
+>         u32 state : 2;  /* enum kasan_state */
+>         u32 alloc_size : 30;
+>         u32 reserved;  /* we can use it to store an additional stack
+> handle, e.g. for debugging RCU */
+> };
+>
+> struct kasan_free_meta {
+>         /* This field is used while the object is in the quarantine.
+>          * Otherwise it might be used for the allocator freelist.
+>          */
+>         void **quarantine_link;
+>         struct kasan_track track;
+> };
+>
+>
+>>> +       u64 pid : 16;                   /* 65536 processes */
+>>> +       u64 when : 42;                  /* ~140 years */
+>>> +};
+>>> +
+>
+>
+>
+> --
+> Alexander Potapenko
+> Software Engineer
+>
+> Google Germany GmbH
+> Erika-Mann-Stra=C3=9Fe, 33
+> 80636 M=C3=BCnchen
+>
+> Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+> Registergericht und -nummer: Hamburg, HRB 86891
+> Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
