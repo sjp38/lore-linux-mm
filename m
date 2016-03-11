@@ -1,76 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 891ED6B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 17:01:11 -0500 (EST)
-Received: by mail-pf0-f172.google.com with SMTP id u190so63113908pfb.3
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:01:11 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b14si1913289pat.152.2016.03.11.14.01.10
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 323F26B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 17:11:10 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id td3so82476465pab.2
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:11:10 -0800 (PST)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0068.outbound.protection.outlook.com. [104.47.0.68])
+        by mx.google.com with ESMTPS id a22si12076778pfj.116.2016.03.11.14.11.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Mar 2016 14:01:10 -0800 (PST)
-Date: Fri, 11 Mar 2016 14:01:09 -0800
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] android,lowmemorykiller: Don't abuse TIF_MEMDIE.
-Message-ID: <20160311220109.GD11274@kroah.com>
-References: <1457434892-12642-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160308141858.GJ13542@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 11 Mar 2016 14:11:09 -0800 (PST)
+From: Chris Metcalf <cmetcalf@mellanox.com>
+Subject: [PATCH v11 03/13] lru_add_drain_all: factor out lru_add_drain_needed
+Date: Fri, 11 Mar 2016 17:10:13 -0500
+Message-ID: <1457734223-26209-4-git-send-email-cmetcalf@mellanox.com>
+In-Reply-To: <1457734223-26209-1-git-send-email-cmetcalf@mellanox.com>
+References: <1457734223-26209-1-git-send-email-cmetcalf@mellanox.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160308141858.GJ13542@dhcp22.suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, devel@driverdev.osuosl.org, linux-mm@kvack.org, Arve Hjonnevag <arve@android.com>, Riley Andrews <riandrews@android.com>
+To: Gilad Ben Yossef <giladb@ezchip.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van
+ Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.
+ McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Chris Metcalf <cmetcalf@mellanox.com>
 
-On Tue, Mar 08, 2016 at 03:18:59PM +0100, Michal Hocko wrote:
-> On Tue 08-03-16 20:01:32, Tetsuo Handa wrote:
-> > Currently, lowmemorykiller (LMK) is using TIF_MEMDIE for two purposes.
-> > One is to remember processes killed by LMK, and the other is to
-> > accelerate termination of processes killed by LMK.
-> > 
-> > But since LMK is invoked as a memory shrinker function, there still
-> > should be some memory available. It is very likely that memory
-> > allocations by processes killed by LMK will succeed without using
-> > ALLOC_NO_WATERMARKS via TIF_MEMDIE. Even if their allocations cannot
-> > escape from memory allocation loop unless they use ALLOC_NO_WATERMARKS,
-> > lowmem_deathpending_timeout can guarantee forward progress by choosing
-> > next victim process.
-> > 
-> > On the other hand, mark_oom_victim() assumes that it must be called with
-> > oom_lock held and it must not be called after oom_killer_disable() was
-> > called. But LMK is calling it without holding oom_lock and checking
-> > oom_killer_disabled. It is possible that LMK calls mark_oom_victim()
-> > due to allocation requests by kernel threads after current thread
-> > returned from oom_killer_disabled(). This will break synchronization
-> > for PM/suspend.
-> > 
-> > This patch introduces per a task_struct flag for remembering processes
-> > killed by LMK, and replaces TIF_MEMDIE with that flag. By applying this
-> > patch, assumption by mark_oom_victim() becomes true.
-> 
-> Thanks for looking into this. A separate flag sounds like a better way
-> to go (assuming that the flags are not scarce which doesn't seem to be
-> the case here).
->  
-> The LMK cannot kill the frozen tasks now but this shouldn't be a big deal
-> because this is not strictly necessary for the system to move on. We are
-> not OOM.
-> 
-> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > Cc: Michal Hocko <mhocko@suse.cz>
-> > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> > Cc: Arve Hjonnevag <arve@android.com>
-> > Cc: Riley Andrews <riandrews@android.com>
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
+This per-cpu check was being done in the loop in lru_add_drain_all(),
+but having it be callable for a particular cpu is helpful for the
+task-isolation patches.
 
-So, any objection for me taking this through the staging tree?
+Signed-off-by: Chris Metcalf <cmetcalf@mellanox.com>
+---
+ include/linux/swap.h |  1 +
+ mm/swap.c            | 15 ++++++++++-----
+ 2 files changed, 11 insertions(+), 5 deletions(-)
 
-thanks,
-
-greg k-h
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index d18b65c53dbb..da21f5240702 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -304,6 +304,7 @@ extern void activate_page(struct page *);
+ extern void mark_page_accessed(struct page *);
+ extern void lru_add_drain(void);
+ extern void lru_add_drain_cpu(int cpu);
++extern bool lru_add_drain_needed(int cpu);
+ extern void lru_add_drain_all(void);
+ extern void rotate_reclaimable_page(struct page *page);
+ extern void deactivate_file_page(struct page *page);
+diff --git a/mm/swap.c b/mm/swap.c
+index 09fe5e97714a..bdcdfa21094c 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -653,6 +653,15 @@ void deactivate_page(struct page *page)
+ 	}
+ }
+ 
++bool lru_add_drain_needed(int cpu)
++{
++	return (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
++		pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
++		pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
++		pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
++		need_activate_page_drain(cpu));
++}
++
+ void lru_add_drain(void)
+ {
+ 	lru_add_drain_cpu(get_cpu());
+@@ -679,11 +688,7 @@ void lru_add_drain_all(void)
+ 	for_each_online_cpu(cpu) {
+ 		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
+ 
+-		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
+-		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
+-		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
+-		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
+-		    need_activate_page_drain(cpu)) {
++		if (lru_add_drain_needed(cpu)) {
+ 			INIT_WORK(work, lru_add_drain_per_cpu);
+ 			schedule_work_on(cpu, work);
+ 			cpumask_set_cpu(cpu, &has_work);
+-- 
+2.7.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
