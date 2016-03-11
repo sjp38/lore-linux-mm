@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E7876828DF
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 17:59:36 -0500 (EST)
-Received: by mail-pf0-f182.google.com with SMTP id n5so55138008pfn.2
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:59:36 -0800 (PST)
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 62C9A828DF
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 17:59:39 -0500 (EST)
+Received: by mail-pf0-f176.google.com with SMTP id u190so63850890pfb.3
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 14:59:39 -0800 (PST)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id xw5si16725674pab.189.2016.03.11.14.59.28
+        by mx.google.com with ESMTP id xw5si16725674pab.189.2016.03.11.14.59.29
         for <linux-mm@kvack.org>;
-        Fri, 11 Mar 2016 14:59:28 -0800 (PST)
+        Fri, 11 Mar 2016 14:59:29 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 06/25] mm, rmap: account file thp pages
-Date: Sat, 12 Mar 2016 01:58:58 +0300
-Message-Id: <1457737157-38573-7-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 05/25] mm: introduce do_set_pmd()
+Date: Sat, 12 Mar 2016 01:58:57 +0300
+Message-Id: <1457737157-38573-6-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,162 +19,159 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Let's add FileHugeMapped field into meminfo. It indicates how many time
-we map file THP
+With postponed page table allocation we have chance to setup huge pages.
+do_set_pte() calls do_set_pmd() if following criteria met:
 
-NR_ANON_TRANSPARENT_HUGEPAGES is renamed to NR_ANON_THPS.
+ - page is compound;
+ - pmd entry in pmd_none();
+ - vma has suitable size and alignment;
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- drivers/base/node.c    | 10 ++++++----
- fs/proc/meminfo.c      |  5 +++--
- include/linux/mmzone.h |  3 ++-
- mm/huge_memory.c       |  2 +-
- mm/rmap.c              | 12 ++++++------
- mm/vmstat.c            |  1 +
- 6 files changed, 19 insertions(+), 14 deletions(-)
+ include/linux/huge_mm.h |  2 ++
+ mm/huge_memory.c        |  8 ------
+ mm/memory.c             | 72 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ mm/migrate.c            |  3 +--
+ 4 files changed, 74 insertions(+), 11 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 560751bad294..9cc4e9dad47e 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -113,6 +113,7 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       "Node %d SUnreclaim:     %8lu kB\n"
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 		       "Node %d AnonHugePages:  %8lu kB\n"
-+		       "Node %d FileHugeMapped: %8lu kB\n"
- #endif
- 			,
- 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
-@@ -131,10 +132,11 @@ static ssize_t node_read_meminfo(struct device *dev,
- 				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
- 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
--			, nid,
--			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
--			HPAGE_PMD_NR));
-+		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
-+		       nid, K(node_page_state(nid, NR_ANON_THPS) *
-+				       HPAGE_PMD_NR),
-+		       nid, K(node_page_state(nid, NR_FILE_THP_MAPPED) *
-+				       HPAGE_PMD_NR));
- #else
- 		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
- #endif
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 83720460c5bc..50666e987fbd 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -105,6 +105,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- #endif
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 		"AnonHugePages:  %8lu kB\n"
-+		"FileHugeMapped:  %8lu kB\n"
- #endif
- #ifdef CONFIG_CMA
- 		"CmaTotal:       %8lu kB\n"
-@@ -162,8 +163,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		, atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
- #endif
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--		, K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
--		   HPAGE_PMD_NR)
-+		, K(global_page_state(NR_ANON_THPS) * HPAGE_PMD_NR)
-+		, K(global_page_state(NR_FILE_THP_MAPPED) * HPAGE_PMD_NR)
- #endif
- #ifdef CONFIG_CMA
- 		, K(totalcma_pages)
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index c60df9257cc7..85fd4aac53a1 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -158,7 +158,8 @@ enum zone_stat_item {
- 	WORKINGSET_REFAULT,
- 	WORKINGSET_ACTIVATE,
- 	WORKINGSET_NODERECLAIM,
--	NR_ANON_TRANSPARENT_HUGEPAGES,
-+	NR_ANON_THPS,
-+	NR_FILE_THP_MAPPED,
- 	NR_FREE_CMA_PAGES,
- 	NR_VM_ZONE_STAT_ITEMS };
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 24918897f073..193fccdc275d 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -147,6 +147,8 @@ static inline bool is_huge_zero_pmd(pmd_t pmd)
  
+ struct page *get_huge_zero_page(void);
+ 
++#define mk_huge_pmd(page, prot) pmd_mkhuge(mk_pmd(page, prot))
++
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
+ #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 2e9e6f4afe40..44468fb7cdbf 100644
+index 1b111d5c0312..2e9e6f4afe40 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -2982,7 +2982,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+@@ -780,14 +780,6 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+ 	return pmd;
+ }
  
- 	if (atomic_add_negative(-1, compound_mapcount_ptr(page))) {
- 		/* Last compound_mapcount is gone. */
--		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+		__dec_zone_page_state(page, NR_ANON_THPS);
- 		if (TestClearPageDoubleMap(page)) {
- 			/* No need in mapcount reference anymore */
- 			for (i = 0; i < HPAGE_PMD_NR; i++)
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 66808955a5e0..359ec5cff9b0 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1227,10 +1227,8 @@ void do_page_add_anon_rmap(struct page *page,
- 		 * pte lock(a spinlock) is held, which implies preemption
- 		 * disabled.
- 		 */
--		if (compound) {
--			__inc_zone_page_state(page,
--					      NR_ANON_TRANSPARENT_HUGEPAGES);
--		}
-+		if (compound)
-+			__inc_zone_page_state(page, NR_ANON_THPS);
- 		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
+-static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
+-{
+-	pmd_t entry;
+-	entry = mk_pmd(page, prot);
+-	entry = pmd_mkhuge(entry);
+-	return entry;
+-}
+-
+ static inline struct list_head *page_deferred_list(struct page *page)
+ {
+ 	/*
+diff --git a/mm/memory.c b/mm/memory.c
+index a6c1c4955560..0109db96fdff 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2837,6 +2837,66 @@ map_pte:
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++
++#define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
++static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
++		unsigned long haddr)
++{
++	if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
++			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
++		return false;
++	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
++		return false;
++	return true;
++}
++
++static int do_set_pmd(struct fault_env *fe, struct page *page)
++{
++	struct vm_area_struct *vma = fe->vma;
++	bool write = fe->flags & FAULT_FLAG_WRITE;
++	unsigned long haddr = fe->address & HPAGE_PMD_MASK;
++	pmd_t entry;
++	int i, ret;
++
++	if (!transhuge_vma_suitable(vma, haddr))
++		return VM_FAULT_FALLBACK;
++
++	ret = VM_FAULT_FALLBACK;
++	page = compound_head(page);
++
++	fe->ptl = pmd_lock(vma->vm_mm, fe->pmd);
++	if (unlikely(!pmd_none(*fe->pmd)))
++		goto out;
++
++	for (i = 0; i < HPAGE_PMD_NR; i++)
++		flush_icache_page(vma, page + i);
++
++	entry = mk_huge_pmd(page, vma->vm_page_prot);
++	if (write)
++		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
++
++	add_mm_counter(vma->vm_mm, MM_FILEPAGES, HPAGE_PMD_NR);
++	page_add_file_rmap(page, true);
++
++	set_pmd_at(vma->vm_mm, haddr, fe->pmd, entry);
++
++	update_mmu_cache_pmd(vma, haddr, fe->pmd);
++
++	/* fault is handled */
++	ret = 0;
++out:
++	spin_unlock(fe->ptl);
++	return ret;
++}
++#else
++static int do_set_pmd(struct fault_env *fe, struct page *page)
++{
++	BUILD_BUG();
++	return 0;
++}
++#endif
++
+ /**
+  * alloc_set_pte - setup new PTE entry for given page and add reverse page
+  * mapping. If needed, the fucntion allocates page table or use pre-allocated.
+@@ -2856,9 +2916,19 @@ int alloc_set_pte(struct fault_env *fe, struct mem_cgroup *memcg,
+ 	struct vm_area_struct *vma = fe->vma;
+ 	bool write = fe->flags & FAULT_FLAG_WRITE;
+ 	pte_t entry;
++	int ret;
++
++	if (pmd_none(*fe->pmd) && PageTransCompound(page)) {
++		/* THP on COW? */
++		VM_BUG_ON_PAGE(memcg, page);
++
++		ret = do_set_pmd(fe, page);
++		if (ret != VM_FAULT_FALLBACK)
++			return ret;
++	}
+ 
+ 	if (!fe->pte) {
+-		int ret = pte_alloc_one_map(fe);
++		ret = pte_alloc_one_map(fe);
+ 		if (ret)
+ 			return ret;
  	}
- 	if (unlikely(PageKsm(page)))
-@@ -1268,7 +1266,7 @@ void page_add_new_anon_rmap(struct page *page,
- 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
- 		/* increment count (starts at -1) */
- 		atomic_set(compound_mapcount_ptr(page), 0);
--		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+		__inc_zone_page_state(page, NR_ANON_THPS);
- 	} else {
- 		/* Anon THP always mapped first with PMD */
- 		VM_BUG_ON_PAGE(PageTransCompound(page), page);
-@@ -1298,6 +1296,7 @@ void page_add_file_rmap(struct page *page, bool compound)
- 		}
- 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
- 			goto out;
-+		__inc_zone_page_state(page, NR_FILE_THP_MAPPED);
- 	} else {
- 		if (!atomic_inc_and_test(&page->_mapcount))
- 			goto out;
-@@ -1330,6 +1329,7 @@ static void page_remove_file_rmap(struct page *page, bool compound)
- 		}
- 		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
- 			goto out;
-+		__dec_zone_page_state(page, NR_FILE_THP_MAPPED);
- 	} else {
- 		if (!atomic_add_negative(-1, &page->_mapcount))
- 			goto out;
-@@ -1363,7 +1363,7 @@ static void page_remove_anon_compound_rmap(struct page *page)
- 	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
- 		return;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index d20276fffce7..5c9cd90334ea 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1820,8 +1820,7 @@ fail_putback:
+ 	}
  
--	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-+	__dec_zone_page_state(page, NR_ANON_THPS);
+ 	orig_entry = *pmd;
+-	entry = mk_pmd(new_page, vma->vm_page_prot);
+-	entry = pmd_mkhuge(entry);
++	entry = mk_huge_pmd(new_page, vma->vm_page_prot);
+ 	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
  
- 	if (TestClearPageDoubleMap(page)) {
- 		/*
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 74f8c918ac4b..943b37f17007 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -762,6 +762,7 @@ const char * const vmstat_text[] = {
- 	"workingset_activate",
- 	"workingset_nodereclaim",
- 	"nr_anon_transparent_hugepages",
-+	"nr_file_transparent_hugepages_mapped",
- 	"nr_free_cma",
- 
- 	/* enum writeback_stat_item counters */
+ 	/*
 -- 
 2.7.0
 
