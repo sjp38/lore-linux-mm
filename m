@@ -1,68 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f171.google.com (mail-io0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D0AB6B0005
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C2DA96B0253
 	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 02:29:53 -0500 (EST)
-Received: by mail-io0-f171.google.com with SMTP id n190so135632738iof.0
+Received: by mail-pa0-f45.google.com with SMTP id td3so61683782pab.2
         for <linux-mm@kvack.org>; Thu, 10 Mar 2016 23:29:53 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id a13si1328773igm.79.2016.03.10.23.29.48
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id x80si11965377pfi.97.2016.03.10.23.29.48
         for <linux-mm@kvack.org>;
         Thu, 10 Mar 2016 23:29:48 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v1 03/19] fs/anon_inodes: new interface to create new inode
-Date: Fri, 11 Mar 2016 16:30:07 +0900
-Message-Id: <1457681423-26664-4-git-send-email-minchan@kernel.org>
+Subject: [PATCH v1 01/19] mm: use put_page to free page instead of putback_lru_page
+Date: Fri, 11 Mar 2016 16:30:05 +0900
+Message-Id: <1457681423-26664-2-git-send-email-minchan@kernel.org>
 In-Reply-To: <1457681423-26664-1-git-send-email-minchan@kernel.org>
 References: <1457681423-26664-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, rknize@motorola.com, Rik van Riel <riel@redhat.com>, Gioh Kim <gurugio@hanmail.net>, Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, rknize@motorola.com, Rik van Riel <riel@redhat.com>, Gioh Kim <gurugio@hanmail.net>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-From: Gioh Kim <gurugio@hanmail.net>
+Procedure of page migration is as follows:
 
-The anon_inodes has already complete interfaces to create manage
-many anonymous inodes but don't have interface to get
-new inode. Other sub-modules can create anonymous inode
-without creating and mounting it's own pseudo filesystem.
+First of all, it should isolate a page from LRU and try to
+migrate the page. If it is successful, it releases the page
+for freeing. Otherwise, it should put the page back to LRU
+list.
 
-Acked-by: Rafael Aquini <aquini@redhat.com>
-Signed-off-by: Gioh Kim <gurugio@hanmail.net>
+For LRU pages, we have used putback_lru_page for both freeing
+and putback to LRU list. It's okay because put_page is aware of
+LRU list so if it releases last refcount of the page, it removes
+the page from LRU list. However, It makes unnecessary operations
+(e.g., lru_cache_add, pagevec and flags operations. It would be
+not significant but no worth to do) and harder to support new
+non-lru page migration because put_page isn't aware of non-lru
+page's data structure.
+
+To solve the problem, we can add new hook in put_page with
+PageMovable flags check but it can increase overhead in
+hot path and needs new locking scheme to stabilize the flag check
+with put_page.
+
+So, this patch cleans it up to divide two semantic(ie, put and putback).
+If migration is successful, use put_page instead of putback_lru_page and
+use putback_lru_page only on failure. That makes code more readable
+and doesn't add overhead in put_page.
+
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- fs/anon_inodes.c            | 6 ++++++
- include/linux/anon_inodes.h | 1 +
- 2 files changed, 7 insertions(+)
+ mm/migrate.c | 49 ++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 30 insertions(+), 19 deletions(-)
 
-diff --git a/fs/anon_inodes.c b/fs/anon_inodes.c
-index 80ef38c73e5a..1d51f96acdd9 100644
---- a/fs/anon_inodes.c
-+++ b/fs/anon_inodes.c
-@@ -162,6 +162,12 @@ int anon_inode_getfd(const char *name, const struct file_operations *fops,
- }
- EXPORT_SYMBOL_GPL(anon_inode_getfd);
- 
-+struct inode *anon_inode_new(void)
-+{
-+	return alloc_anon_inode(anon_inode_mnt->mnt_sb);
-+}
-+EXPORT_SYMBOL_GPL(anon_inode_new);
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 3ad0fea5c438..bf31ea9ffaf8 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -907,6 +907,14 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 		put_anon_vma(anon_vma);
+ 	unlock_page(page);
+ out:
++	/* If migration is scucessful, move newpage to right list */
++	if (rc == MIGRATEPAGE_SUCCESS) {
++		if (unlikely(__is_movable_balloon_page(newpage)))
++			put_page(newpage);
++		else
++			putback_lru_page(newpage);
++	}
 +
- static int __init anon_inode_init(void)
- {
- 	anon_inode_mnt = kern_mount(&anon_inode_fs_type);
-diff --git a/include/linux/anon_inodes.h b/include/linux/anon_inodes.h
-index 8013a45242fe..ddbd67f8a73f 100644
---- a/include/linux/anon_inodes.h
-+++ b/include/linux/anon_inodes.h
-@@ -15,6 +15,7 @@ struct file *anon_inode_getfile(const char *name,
- 				void *priv, int flags);
- int anon_inode_getfd(const char *name, const struct file_operations *fops,
- 		     void *priv, int flags);
-+struct inode *anon_inode_new(void);
+ 	return rc;
+ }
  
- #endif /* _LINUX_ANON_INODES_H */
+@@ -940,6 +948,12 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
  
+ 	if (page_count(page) == 1) {
+ 		/* page was freed from under us. So we are done. */
++		ClearPageActive(page);
++		ClearPageUnevictable(page);
++		if (put_new_page)
++			put_new_page(newpage, private);
++		else
++			put_page(newpage);
+ 		goto out;
+ 	}
+ 
+@@ -952,9 +966,6 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+ 	}
+ 
+ 	rc = __unmap_and_move(page, newpage, force, mode);
+-	if (rc == MIGRATEPAGE_SUCCESS)
+-		put_new_page = NULL;
+-
+ out:
+ 	if (rc != -EAGAIN) {
+ 		/*
+@@ -966,28 +977,28 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+ 		list_del(&page->lru);
+ 		dec_zone_page_state(page, NR_ISOLATED_ANON +
+ 				page_is_file_cache(page));
+-		/* Soft-offlined page shouldn't go through lru cache list */
++	}
++
++	/*
++	 * If migration is successful, drop the reference grabbed during
++	 * isolation. Otherwise, restore the page to LRU list unless we
++	 * want to retry.
++	 */
++	if (rc == MIGRATEPAGE_SUCCESS) {
++		put_page(page);
+ 		if (reason == MR_MEMORY_FAILURE) {
+-			put_page(page);
+ 			if (!test_set_page_hwpoison(page))
+ 				num_poisoned_pages_inc();
+-		} else
++		}
++	} else {
++		if (rc != -EAGAIN)
+ 			putback_lru_page(page);
++		if (put_new_page)
++			put_new_page(newpage, private);
++		else
++			put_page(newpage);
+ 	}
+ 
+-	/*
+-	 * If migration was not successful and there's a freeing callback, use
+-	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
+-	 * during isolation.
+-	 */
+-	if (put_new_page)
+-		put_new_page(newpage, private);
+-	else if (unlikely(__is_movable_balloon_page(newpage))) {
+-		/* drop our reference, page already in the balloon */
+-		put_page(newpage);
+-	} else
+-		putback_lru_page(newpage);
+-
+ 	if (result) {
+ 		if (rc)
+ 			*result = rc;
 -- 
 1.9.1
 
