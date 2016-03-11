@@ -1,76 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 33B106B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 06:12:15 -0500 (EST)
-Received: by mail-wm0-f50.google.com with SMTP id n186so13818994wmn.1
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 03:12:15 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dm2si10404561wjb.153.2016.03.11.03.12.13
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D67586B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 06:18:20 -0500 (EST)
+Received: by mail-wm0-f46.google.com with SMTP id p65so13284142wmp.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 03:18:20 -0800 (PST)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id s125si2137476wmd.74.2016.03.11.03.18.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 11 Mar 2016 03:12:14 -0800 (PST)
-Subject: Re: [PATCH] mm, fork: make dup_mmap wait for mmap_sem for write
- killable
-References: <1456752417-9626-9-git-send-email-mhocko@kernel.org>
- <1456769232-27592-1-git-send-email-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56E2A80C.6040401@suse.cz>
-Date: Fri, 11 Mar 2016 12:12:12 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Mar 2016 03:18:19 -0800 (PST)
+Received: by mail-wm0-x231.google.com with SMTP id l68so13266350wml.1
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 03:18:19 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1456769232-27592-1-git-send-email-mhocko@kernel.org>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAPAsAGzmFWCMEHhw=+15B1RO_7r3vUOMG0cZEPzQ=YcM5YP5MQ@mail.gmail.com>
+References: <cover.1456504662.git.glider@google.com>
+	<00e9fa7d4adeac2d37a42cf613837e74850d929a.1456504662.git.glider@google.com>
+	<56D471F5.3010202@gmail.com>
+	<CACT4Y+YPFEyuFdnM3_=2p1qANC7A1CKB0o1ySx2zexgE4kgVVw@mail.gmail.com>
+	<56D58398.2010708@gmail.com>
+	<CAG_fn=Xby+PJtMQtZ68gPkSPCyxbF=RsOCVavYew7ZVDx25yow@mail.gmail.com>
+	<CAPAsAGzmFWCMEHhw=+15B1RO_7r3vUOMG0cZEPzQ=YcM5YP5MQ@mail.gmail.com>
+Date: Fri, 11 Mar 2016 12:18:19 +0100
+Message-ID: <CAG_fn=UhykNnE7L1dHA3LFbLb9tp-x0nZ4Z7joUk_-vvHDtX5g@mail.gmail.com>
+Subject: Re: [PATCH v4 5/7] mm, kasan: Stackdepot implementation. Enable
+ stackdepot for SLAB
+From: Alexander Potapenko <glider@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Steven Rostedt <rostedt@goodmis.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 02/29/2016 07:07 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Thu, Mar 10, 2016 at 5:58 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> w=
+rote:
+> 2016-03-08 14:42 GMT+03:00 Alexander Potapenko <glider@google.com>:
+>> On Tue, Mar 1, 2016 at 12:57 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com=
+> wrote:
+>>>>>
+>>>>>> +                     page =3D alloc_pages(alloc_flags, STACK_ALLOC_=
+ORDER);
+>>>>>
+>>>>> STACK_ALLOC_ORDER =3D 4 - that's a lot. Do you really need that much?
+>>>>
+>>>> Part of the issue the atomic context above. When we can't allocate
+>>>> memory we still want to save the stack trace. When we have less than
+>>>> STACK_ALLOC_ORDER memory, we try to preallocate another
+>>>> STACK_ALLOC_ORDER in advance. So in the worst case, we have
+>>>> STACK_ALLOC_ORDER memory and that should be enough to handle all
+>>>> kmalloc/kfree in the atomic context. 1 page does not look enough. I
+>>>> think Alex did some measuring of the failure race (when we are out of
+>>>> memory and can't allocate more).
+>>>>
+>>>
+>>> A lot of 4-order pages will lead to high fragmentation. You don't need =
+physically contiguous memory here,
+>>> so try to use vmalloc(). It is slower, but fragmentation won't be probl=
+em.
+>> I've tried using vmalloc(), but turned out it's calling KASAN hooks
+>> again. Dealing with reentrancy in this case sounds like an overkill.
 >
-> dup_mmap needs to lock current's mm mmap_sem for write. If the waiting
-> task gets killed by the oom killer it would block oom_reaper from
-> asynchronous address space reclaim and reduce the chances of timely OOM
-> resolving. Wait for the lock in the killable mode and return with EINTR
-> if the task got killed while waiting.
+> We'll have to deal with recursion eventually. Using stackdepot for
+> page owner will cause recursion.
 >
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: Konstantin Khlebnikov <koct9i@gmail.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+>> Given that we only require 9 Mb most of the time, is allocating
+>> physical pages still a problem?
+>>
+>
+> This is not about size, this about fragmentation. vmalloc allows to
+> utilize available low-order pages,
+> hence reduce the fragmentation.
+I've attempted to add __vmalloc(STACK_ALLOC_SIZE, alloc_flags,
+PAGE_KERNEL) (also tried vmalloc(STACK_ALLOC_SIZE)) instead of
+page_alloc() and am now getting a crash in
+kmem_cache_alloc_node_trace() in mm/slab.c, because it doesn't allow
+the kmem_cache pointer to be NULL (it's dereferenced when calling
+trace_kmalloc_node()).
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Steven, do you know if this because of my code violating some contract
+(e.g. I'm calling vmalloc() too early, when kmalloc_caches[] haven't
+been initialized), or is this a bug in kmem_cache_alloc_node_trace()
+itself?
 
-> ---
->   kernel/fork.c | 6 +++++-
->   1 file changed, 5 insertions(+), 1 deletion(-)
+>>> And one more thing. Take a look at mempool, because it's generally used=
+ to solve the problem you have here
+>>> (guaranteed allocation in atomic context).
+>> As far as I understood the docs, mempools have a drawback of
+>> allocating too much memory which won't be available for any other use.
 >
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index d277e83ed3e0..139968026b76 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -413,7 +413,10 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
->   	unsigned long charge;
+> As far as I understood your code, it has a drawback of
+> allocating too much memory which won't be available for any other use ;)
 >
->   	uprobe_start_dup_mmap();
-> -	down_write(&oldmm->mmap_sem);
-> +	if (down_write_killable(&oldmm->mmap_sem)) {
-> +		retval = -EINTR;
-> +		goto fail_uprobe_end;
-> +	}
->   	flush_cache_dup_mm(oldmm);
->   	uprobe_dup_mmap(oldmm, mm);
->   	/*
-> @@ -525,6 +528,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
->   	up_write(&mm->mmap_sem);
->   	flush_tlb_mm(oldmm);
->   	up_write(&oldmm->mmap_sem);
-> +fail_uprobe_end:
->   	uprobe_end_dup_mmap();
->   	return retval;
->   fail_nomem_anon_vma_fork:
+> However, now I think that mempool doesn't fit here. We never free
+> memory =3D> never return it to pool.
+> And this will cause 5sec delays between allocation retries in mempool_all=
+oc().
 >
+>
+>> O'Reily's "Linux Device Drivers" even suggests not using mempools in
+>> any case when it's easier to deal with allocation failures (that
+>> advice is for device drivers, not sure if that stands for other
+>> subsystems though).
+>>
+>>
+>> --
+>> Alexander Potapenko
+>> Software Engineer
+>>
+>> Google Germany GmbH
+>> Erika-Mann-Stra=C3=9Fe, 33
+>> 80636 M=C3=BCnchen
+>>
+>> Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+>> Registergericht und -nummer: Hamburg, HRB 86891
+>> Sitz der Gesellschaft: Hamburg
+
+
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
