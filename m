@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C2B26B0005
-	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 10:23:16 -0500 (EST)
-Received: by mail-wm0-f49.google.com with SMTP id n186so23339049wmn.1
-        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 07:23:16 -0800 (PST)
-Subject: Re: [PATCH 16/18] drm/i915: make i915_gem_mmap_ioctl wait for
- mmap_sem killable
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id F046B6B0005
+	for <linux-mm@kvack.org>; Fri, 11 Mar 2016 10:27:22 -0500 (EST)
+Received: by mail-wm0-f42.google.com with SMTP id p65so22096312wmp.0
+        for <linux-mm@kvack.org>; Fri, 11 Mar 2016 07:27:22 -0800 (PST)
+Subject: Re: [PATCH 17/18] drm/radeon: make radeon_mn_get wait for mmap_sem
+ killable
 References: <1456752417-9626-1-git-send-email-mhocko@kernel.org>
- <1456752417-9626-17-git-send-email-mhocko@kernel.org>
+ <1456752417-9626-18-git-send-email-mhocko@kernel.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56E2E2DC.9010806@suse.cz>
-Date: Fri, 11 Mar 2016 16:23:08 +0100
+Message-ID: <56E2E3D7.2060404@suse.cz>
+Date: Fri, 11 Mar 2016 16:27:19 +0100
 MIME-Version: 1.0
-In-Reply-To: <1456752417-9626-17-git-send-email-mhocko@kernel.org>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1456752417-9626-18-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
@@ -23,38 +23,38 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Alex Deucher 
 On 02/29/2016 02:26 PM, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 >
-> i915_gem_mmap_ioctl relies on mmap_sem for write. If the waiting
-> task gets killed by the oom killer it would block oom_reaper from
-> asynchronous address space reclaim and reduce the chances of timely OOM
-> resolving. Wait for the lock in the killable mode and return with EINTR
-> if the task got killed while waiting.
+> radeon_mn_get which is called during ioct path relies on mmap_sem for
+> write. If the waiting task gets killed by the oom killer it would block
+> oom_reaper from asynchronous address space reclaim and reduce the
+> chances of timely OOM resolving. Wait for the lock in the killable mode
+> and return with EINTR if the task got killed while waiting.
 >
-> Cc: Daniel Vetter <daniel.vetter@intel.com>
+> Cc: Alex Deucher <alexander.deucher@amd.com>
+> Cc: "Christian KA?nig" <christian.koenig@amd.com>
 > Cc: David Airlie <airlied@linux.ie>
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 > ---
->   drivers/gpu/drm/i915/i915_gem.c | 5 ++++-
->   1 file changed, 4 insertions(+), 1 deletion(-)
+>   drivers/gpu/drm/radeon/radeon_mn.c | 4 +++-
+>   1 file changed, 3 insertions(+), 1 deletion(-)
 >
-> diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-> index f68f34606f2f..a50136cbd332 100644
-> --- a/drivers/gpu/drm/i915/i915_gem.c
-> +++ b/drivers/gpu/drm/i915/i915_gem.c
-> @@ -1754,7 +1754,10 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
->   		struct mm_struct *mm = current->mm;
->   		struct vm_area_struct *vma;
+> diff --git a/drivers/gpu/drm/radeon/radeon_mn.c b/drivers/gpu/drm/radeon/radeon_mn.c
+> index eef006c48584..896f2cf51e4e 100644
+> --- a/drivers/gpu/drm/radeon/radeon_mn.c
+> +++ b/drivers/gpu/drm/radeon/radeon_mn.c
+> @@ -186,7 +186,9 @@ static struct radeon_mn *radeon_mn_get(struct radeon_device *rdev)
+>   	struct radeon_mn *rmn;
+>   	int r;
 >
-> -		down_write(&mm->mmap_sem);
-> +		if (down_write_killable(&mm->mmap_sem)) {
-> +			drm_gem_object_unreference_unlocked(obj);
-> +			return -EINTR;
-> +		}
->   		vma = find_vma(mm, addr);
->   		if (vma)
->   			vma->vm_page_prot =
+> -	down_write(&mm->mmap_sem);
+> +	if (down_write_killable(&mm->mmap_sem))
+> +		return ERR_PTR(-EINTR);
+> +
+>   	mutex_lock(&rdev->mn_lock);
+>
+>   	hash_for_each_possible(rdev->mn_hash, rmn, node, (unsigned long)mm)
 >
 
 --
