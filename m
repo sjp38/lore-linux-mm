@@ -1,71 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id ABEE76B0005
-	for <linux-mm@kvack.org>; Sun, 13 Mar 2016 19:09:39 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id ts10so160210889obc.1
-        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 16:09:39 -0700 (PDT)
-Received: from mail-ob0-x22c.google.com (mail-ob0-x22c.google.com. [2607:f8b0:4003:c01::22c])
-        by mx.google.com with ESMTPS id il10si13661709obc.52.2016.03.13.16.09.38
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id A8ADB6B0005
+	for <linux-mm@kvack.org>; Sun, 13 Mar 2016 19:33:04 -0400 (EDT)
+Received: by mail-wm0-f43.google.com with SMTP id l68so81768235wml.1
+        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 16:33:04 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id t62si15389090wmf.12.2016.03.13.16.33.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Mar 2016 16:09:38 -0700 (PDT)
-Received: by mail-ob0-x22c.google.com with SMTP id m7so159898316obh.3
-        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 16:09:38 -0700 (PDT)
+        Sun, 13 Mar 2016 16:33:03 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id n186so12444061wmn.0
+        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 16:33:03 -0700 (PDT)
+Date: Mon, 14 Mar 2016 02:33:01 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v2 2/2] mm, thp: avoid unnecessary swapin in khugepaged
+Message-ID: <20160313233301.GB10438@node.shutemov.name>
+References: <1457861335-23297-1-git-send-email-ebru.akagunduz@gmail.com>
+ <1457861335-23297-3-git-send-email-ebru.akagunduz@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20160312183005.GA2525@linux.intel.com>
-References: <1457730784-9890-1-git-send-email-matthew.r.wilcox@intel.com>
-	<1457730784-9890-2-git-send-email-matthew.r.wilcox@intel.com>
-	<CAPcyv4g82US298_mCd75toj9kEeyDhw0cP_Ott0R8fOydWNsSg@mail.gmail.com>
-	<20160312183005.GA2525@linux.intel.com>
-Date: Sun, 13 Mar 2016 16:09:38 -0700
-Message-ID: <CAPcyv4jSp7ThDO2eVWpsArRVa8TJBeuJdDZfPFSceHXthG1aww@mail.gmail.com>
-Subject: Re: [PATCH 1/3] pfn_t: Change the encoding
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1457861335-23297-3-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com
 
-On Sat, Mar 12, 2016 at 10:30 AM, Matthew Wilcox <willy@linux.intel.com> wrote:
-> On Fri, Mar 11, 2016 at 01:40:20PM -0800, Dan Williams wrote:
->> On Fri, Mar 11, 2016 at 1:13 PM, Matthew Wilcox
->> <matthew.r.wilcox@intel.com> wrote:
->> > By moving the flag bits to the bottom, we encourage commonality
->> > between SGs with pages and those using pfn_t.  We can also then insert
->> > a pfn_t into a radix tree, as it uses the same two bits for indirect &
->> > exceptional indicators.
->>
->> It's not immediately clear to me what we gain with SG entry
->> commonality.  The down side is that we lose the property that
->> pfn_to_pfn_t() is a nop.  This was Dave's suggestion so that the
->> nominal case did not change the binary layout of a typical pfn.
->
-> I understand that motivation!
->
->> Can we just bit swizzle a pfn_t on insertion/retrieval from the radix?
->
-> Of course we *can*, but we end up doing more swizzling that way than we
-> do this way.  In the Brave New Future where we're storing pfn_t in the
-> radix tree, on a page fault we find the pfn_t in the radix tree then
-> we want to insert it into the page tables.  So DAX would first have to
-> convert the radix tree entry to a pfn_t, then the page table code has to
-> convert the pfn_t into a pte/pmd/pud (which we currently do by converting
-> a pfn_t to a pfn, then converting the pfn to a pte/pmd/pud, but I assume
-> that either the compiler optimises that into a single conversion, or we'll
-> add pfn_t_pte to each architecture in future if it's actually a problem).
->
-> Much easier to look up a pfn_t in the radix tree and pass it directly
-> to vm_insert_mixed().
->
-> If there's any part of the kernel that is doing a *lot* of conversion
-> between pfn_t and pfn, that surely indicates a place in the kernel where
-> we need to convert an interface from pfn to pfn_t.
+On Sun, Mar 13, 2016 at 11:28:55AM +0200, Ebru Akagunduz wrote:
+> Currently khugepaged makes swapin readahead to improve
+> THP collapse rate. This patch checks vm statistics
+> to avoid workload of swapin, if unnecessary. So that
+> when system under pressure, khugepaged won't consume
+> resources to swapin.
+> 
+> The patch was tested with a test program that allocates
+> 800MB of memory, writes to it, and then sleeps. The system
+> was forced to swap out all. Afterwards, the test program
+> touches the area by writing, it skips a page in each
+> 20 pages of the area. When waiting to swapin readahead
+> left part of the test, the memory forced to be busy
+> doing page reclaim. There was enough free memory during
+> test, khugepaged did not swapin readahead due to business.
+> 
+> Test results:
+> 
+>                         After swapped out
+> -------------------------------------------------------------------
+>               | Anonymous | AnonHugePages | Swap      | Fraction  |
+> -------------------------------------------------------------------
+> With patch    | 325784 kB |  325632 kB    | 474216 kB |    %99    |
+> -------------------------------------------------------------------
+> Without patch | 351308 kB | 350208 kB     | 448692 kB |    %99    |
+> -------------------------------------------------------------------
+> 
+>                         After swapped in (waiting 10 minutes)
+> -------------------------------------------------------------------
+>               | Anonymous | AnonHugePages | Swap      | Fraction  |
+> -------------------------------------------------------------------
+> With patch    | 714164 kB | 489472 kB      | 85836 kB |    %68    |
+> -------------------------------------------------------------------
+> Without patch | 586816 kB | 464896 kB     | 213184 kB |    %79    |
+> -------------------------------------------------------------------
+> 
+> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> Fixes: 363cd76e5b11c ("mm: make swapin readahead to improve thp collapse rate")
+> ---
+> Changes in v2:
+>  - Add reference to specify which patch fixed (Ebru Akagunduz)
+>  - Fix commit subject line (Ebru Akagunduz)
+> 
+>  mm/huge_memory.c | 13 +++++++++++--
+>  1 file changed, 11 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 86e9666..4a60035 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -102,6 +102,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
+>   */
+>  static unsigned int khugepaged_max_ptes_none __read_mostly;
+>  static unsigned int khugepaged_max_ptes_swap __read_mostly;
+> +static unsigned long int allocstall = 0;
 
-So this is dependent on where pfn_t gets pushed in the future.  For
-example, if we revive using a pfn_t in a bio then I think the
-pfn_to_pfn_t() conversions will be more prevalent than the fs/dax.c
-radix usages.
+No need to zero it out. The variable is in .bss.
+
+
+>  static int khugepaged(void *none);
+>  static int khugepaged_slab_init(void);
+> @@ -2438,7 +2439,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+>  	struct page *new_page;
+>  	spinlock_t *pmd_ptl, *pte_ptl;
+>  	int isolated = 0, result = 0;
+> -	unsigned long hstart, hend;
+> +	unsigned long hstart, hend, swap = 0, curr_allocstall = 0;
+
+No need to zero out too, because you always will initialize it anyway.
+
+>  	struct mem_cgroup *memcg;
+>  	unsigned long mmun_start;	/* For mmu_notifiers */
+>  	unsigned long mmun_end;		/* For mmu_notifiers */
+> @@ -2493,7 +2494,14 @@ static void collapse_huge_page(struct mm_struct *mm,
+>  		goto out;
+>  	}
+>  
+> -	__collapse_huge_page_swapin(mm, vma, address, pmd);
+> +	swap = get_mm_counter(mm, MM_SWAPENTS);
+> +	curr_allocstall = sum_vm_event(ALLOCSTALL);
+> +	/*
+> +	 * When system under pressure, don't swapin readahead.
+> +	 * So that avoid unnecessary resource consuming.
+> +	 */
+> +	if (allocstall == curr_allocstall && swap != 0)
+> +		__collapse_huge_page_swapin(mm, vma, address, pmd);
+
+So, between these too points, where new ALLOCSTALL events comes from?
+
+I would guess that in most cases they would come from allocation of huge
+page itself (if khugepaged defrag is enabled). So we are willing to pay
+for allocation new huge page, but not for swapping in.
+
+I wounder, if it was wise to allocate the huge page in first place?
+
+Or shouldn't we at least have consistent behaviour on swap-in vs.
+allocation wrt khugepaged defragmentation option?
+
+Or am I wrong and ALLOCSTALLs aren't caused by khugepagd?
+
+>  	anon_vma_lock_write(vma->anon_vma);
+>  
+> @@ -2790,6 +2798,7 @@ skip:
+>  			VM_BUG_ON(khugepaged_scan.address < hstart ||
+>  				  khugepaged_scan.address + HPAGE_PMD_SIZE >
+>  				  hend);
+> +			allocstall = sum_vm_event(ALLOCSTALL);
+>  			ret = khugepaged_scan_pmd(mm, vma,
+>  						  khugepaged_scan.address,
+>  						  hpage);
+> -- 
+> 1.9.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
