@@ -1,103 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 1817D6B0005
-	for <linux-mm@kvack.org>; Sun, 13 Mar 2016 19:08:10 -0400 (EDT)
-Received: by mail-wm0-f42.google.com with SMTP id p65so80991690wmp.1
-        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 16:08:10 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id iz6si23561402wjb.183.2016.03.13.16.08.08
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id ABEE76B0005
+	for <linux-mm@kvack.org>; Sun, 13 Mar 2016 19:09:39 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id ts10so160210889obc.1
+        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 16:09:39 -0700 (PDT)
+Received: from mail-ob0-x22c.google.com (mail-ob0-x22c.google.com. [2607:f8b0:4003:c01::22c])
+        by mx.google.com with ESMTPS id il10si13661709obc.52.2016.03.13.16.09.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 13 Mar 2016 16:08:08 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id n186so12369687wmn.0
-        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 16:08:08 -0700 (PDT)
-Date: Mon, 14 Mar 2016 02:08:06 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v2 1/2] mm, vmstat: calculate particular vm event
-Message-ID: <20160313230806.GA10438@node.shutemov.name>
-References: <1457861335-23297-1-git-send-email-ebru.akagunduz@gmail.com>
- <1457861335-23297-2-git-send-email-ebru.akagunduz@gmail.com>
+        Sun, 13 Mar 2016 16:09:38 -0700 (PDT)
+Received: by mail-ob0-x22c.google.com with SMTP id m7so159898316obh.3
+        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 16:09:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1457861335-23297-2-git-send-email-ebru.akagunduz@gmail.com>
+In-Reply-To: <20160312183005.GA2525@linux.intel.com>
+References: <1457730784-9890-1-git-send-email-matthew.r.wilcox@intel.com>
+	<1457730784-9890-2-git-send-email-matthew.r.wilcox@intel.com>
+	<CAPcyv4g82US298_mCd75toj9kEeyDhw0cP_Ott0R8fOydWNsSg@mail.gmail.com>
+	<20160312183005.GA2525@linux.intel.com>
+Date: Sun, 13 Mar 2016 16:09:38 -0700
+Message-ID: <CAPcyv4jSp7ThDO2eVWpsArRVa8TJBeuJdDZfPFSceHXthG1aww@mail.gmail.com>
+Subject: Re: [PATCH 1/3] pfn_t: Change the encoding
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Sun, Mar 13, 2016 at 11:28:54AM +0200, Ebru Akagunduz wrote:
-> Currently, vmstat can calculate specific vm event with all_vm_events()
-> however it allocates all vm events to stack. This patch introduces
-> a helper to sum value of a specific vm event over all cpu, without
-> loading all the events.
-> 
-> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-> ---
-> Changes in v2:
->  - this patch newly created in this version
->  - create sum event function to
->    calculate particular vm event (Kirill A. Shutemov)
-> 
->  include/linux/vmstat.h |  2 ++
->  mm/vmstat.c            | 12 ++++++++++++
->  2 files changed, 14 insertions(+)
-> 
-> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> index 73fae8c..add0cc1 100644
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -53,6 +53,8 @@ static inline void count_vm_events(enum vm_event_item item, long delta)
->  
->  extern void all_vm_events(unsigned long *);
->  
-> +extern unsigned long sum_vm_event(enum vm_event_item item);
-> +
->  extern void vm_events_fold_cpu(int cpu);
->  
->  #else
+On Sat, Mar 12, 2016 at 10:30 AM, Matthew Wilcox <willy@linux.intel.com> wrote:
+> On Fri, Mar 11, 2016 at 01:40:20PM -0800, Dan Williams wrote:
+>> On Fri, Mar 11, 2016 at 1:13 PM, Matthew Wilcox
+>> <matthew.r.wilcox@intel.com> wrote:
+>> > By moving the flag bits to the bottom, we encourage commonality
+>> > between SGs with pages and those using pfn_t.  We can also then insert
+>> > a pfn_t into a radix tree, as it uses the same two bits for indirect &
+>> > exceptional indicators.
+>>
+>> It's not immediately clear to me what we gain with SG entry
+>> commonality.  The down side is that we lose the property that
+>> pfn_to_pfn_t() is a nop.  This was Dave's suggestion so that the
+>> nominal case did not change the binary layout of a typical pfn.
+>
+> I understand that motivation!
+>
+>> Can we just bit swizzle a pfn_t on insertion/retrieval from the radix?
+>
+> Of course we *can*, but we end up doing more swizzling that way than we
+> do this way.  In the Brave New Future where we're storing pfn_t in the
+> radix tree, on a page fault we find the pfn_t in the radix tree then
+> we want to insert it into the page tables.  So DAX would first have to
+> convert the radix tree entry to a pfn_t, then the page table code has to
+> convert the pfn_t into a pte/pmd/pud (which we currently do by converting
+> a pfn_t to a pfn, then converting the pfn to a pte/pmd/pud, but I assume
+> that either the compiler optimises that into a single conversion, or we'll
+> add pfn_t_pte to each architecture in future if it's actually a problem).
+>
+> Much easier to look up a pfn_t in the radix tree and pass it directly
+> to vm_insert_mixed().
+>
+> If there's any part of the kernel that is doing a *lot* of conversion
+> between pfn_t and pfn, that surely indicates a place in the kernel where
+> we need to convert an interface from pfn to pfn_t.
 
-You need dumy definition of the function for !CONFIG_VM_EVENT_COUNTERS
-case here. Otherwise build will fail. See 0-day report.
-
-Otherwise looks good to me:
-
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 5e43004..b76d664 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -34,6 +34,18 @@
->  DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
->  EXPORT_PER_CPU_SYMBOL(vm_event_states);
->  
-> +unsigned long sum_vm_event(enum vm_event_item item)
-> +{
-> +	int cpu;
-> +	unsigned long ret = 0;
-> +
-> +	get_online_cpus();
-> +	for_each_online_cpu(cpu)
-> +		ret += per_cpu(vm_event_states, cpu).event[item];
-> +	put_online_cpus();
-> +	return ret;
-> +}
-> +
->  static void sum_vm_events(unsigned long *ret)
->  {
->  	int cpu;
-> -- 
-> 1.9.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
- Kirill A. Shutemov
+So this is dependent on where pfn_t gets pushed in the future.  For
+example, if we revive using a pfn_t in a bio then I think the
+pfn_to_pfn_t() conversions will be more prevalent than the fs/dax.c
+radix usages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
