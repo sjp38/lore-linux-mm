@@ -1,116 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 345FB6B0005
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 00:57:20 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id td3so121287857pab.2
-        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 21:57:20 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id k74si3852250pfb.30.2016.03.13.21.57.18
+Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 48A4C6B0005
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 02:17:32 -0400 (EDT)
+Received: by mail-io0-f179.google.com with SMTP id n190so211326719iof.0
+        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 23:17:32 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id o7si15759508igy.30.2016.03.13.23.17.30
         for <linux-mm@kvack.org>;
-        Sun, 13 Mar 2016 21:57:19 -0700 (PDT)
-Date: Mon, 14 Mar 2016 13:58:05 +0900
+        Sun, 13 Mar 2016 23:17:31 -0700 (PDT)
+Date: Mon, 14 Mar 2016 15:17:59 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v1 13/19] zsmalloc: factor page chain functionality out
-Message-ID: <20160314045805.GB6159@bbox>
-References: <1457681423-26664-1-git-send-email-minchan@kernel.org>
- <1457681423-26664-14-git-send-email-minchan@kernel.org>
- <56E38870.5090408@hisilicon.com>
+Subject: Re: [RFC][PATCH v3 1/5] mm/zsmalloc: introduce class auto-compaction
+Message-ID: <20160314061759.GC10675@bbox>
+References: <1457016363-11339-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1457016363-11339-2-git-send-email-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <56E38870.5090408@hisilicon.com>
+In-Reply-To: <1457016363-11339-2-git-send-email-sergey.senozhatsky@gmail.com>
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: xuyiping <xuyiping@hisilicon.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, rknize@motorola.com, Rik van Riel <riel@redhat.com>, Gioh Kim <gurugio@hanmail.net>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Sat, Mar 12, 2016 at 11:09:36AM +0800, xuyiping wrote:
-> 
-> 
-> On 2016/3/11 15:30, Minchan Kim wrote:
-> >For migration, we need to create sub-page chain of zspage
-> >dynamically so this patch factors it out from alloc_zspage.
-> >
-> >As a minor refactoring, it makes OBJ_ALLOCATED_TAG assign
-> >more clear in obj_malloc(it could be another patch but it's
-> >trivial so I want to put together in this patch).
-> >
-> >Signed-off-by: Minchan Kim <minchan@kernel.org>
-> >---
-> >  mm/zsmalloc.c | 78 ++++++++++++++++++++++++++++++++++-------------------------
-> >  1 file changed, 45 insertions(+), 33 deletions(-)
-> >
-> >diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> >index bfc6a048afac..f86f8aaeb902 100644
-> >--- a/mm/zsmalloc.c
-> >+++ b/mm/zsmalloc.c
-> >@@ -977,7 +977,9 @@ static void init_zspage(struct size_class *class, struct page *first_page)
-> >  	unsigned long off = 0;
-> >  	struct page *page = first_page;
-> >
-> >-	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
-> >+	first_page->freelist = NULL;
-> >+	INIT_LIST_HEAD(&first_page->lru);
-> >+	set_zspage_inuse(first_page, 0);
-> >
-> >  	while (page) {
-> >  		struct page *next_page;
-> >@@ -1022,13 +1024,44 @@ static void init_zspage(struct size_class *class, struct page *first_page)
-> >  	set_freeobj(first_page, 0);
-> >  }
-> >
-> >+static void create_page_chain(struct page *pages[], int nr_pages)
-> >+{
-> >+	int i;
-> >+	struct page *page;
-> >+	struct page *prev_page = NULL;
-> >+	struct page *first_page = NULL;
-> >+
-> >+	for (i = 0; i < nr_pages; i++) {
-> >+		page = pages[i];
-> >+
-> >+		INIT_LIST_HEAD(&page->lru);
-> >+		if (i == 0) {
-> >+			SetPagePrivate(page);
-> >+			set_page_private(page, 0);
-> >+			first_page = page;
-> >+		}
-> >+
-> >+		if (i == 1)
-> >+			set_page_private(first_page, (unsigned long)page);
-> >+		if (i >= 1)
-> >+			set_page_private(page, (unsigned long)first_page);
-> >+		if (i >= 2)
-> >+			list_add(&page->lru, &prev_page->lru);
-> >+		if (i == nr_pages - 1)
-> >+			SetPagePrivate2(page);
-> >+
-> >+		prev_page = page;
-> >+	}
-> >+}
-> >+
-> >  /*
-> >   * Allocate a zspage for the given size class
-> >   */
-> >  static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
-> >  {
-> >-	int i, error;
-> >+	int i;
-> >  	struct page *first_page = NULL, *uninitialized_var(prev_page);
-> >+	struct page *pages[ZS_MAX_PAGES_PER_ZSPAGE];
-> >
-> >  	/*
-> >  	 * Allocate individual pages and link them together as:
-> >@@ -1041,43 +1074,23 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
-> 
-> 	*uninitialized_var(prev_page) in alloc_zspage is not in use more.
+Hey Sergey,
 
-True.
-It says why we should avoid uninitialized_var if possible.
-If we didn't use uninitialized_var, compiler could warn about it
-when I did build test.
+Sorry for late review.
 
-Thanks.
+On Thu, Mar 03, 2016 at 11:45:59PM +0900, Sergey Senozhatsky wrote:
+> zsmalloc classes are known to be affected by internal fragmentation.
+> 
+> For example, /sys/kernel/debug/zsmalloc/zramX/classes
+>  class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage freeable
+>     54   896           1           12           117         57         26                2       12
+> ...
+>    107  1744           1           23           196         76         84                3       51
+>    111  1808           0            0            63         63         28                4        0
+>    126  2048           0          160           568        408        284                1       80
+>    144  2336          52          620          8631       5747       4932                4     1648
+>    151  2448         123          406         10090       8736       6054                3      810
+>    168  2720           0          512         15738      14926      10492                2      540
+>    190  3072           0            2           136        130        102                3        3
+> ...
+> 
+> demonstrates that class-896 has 12/26=46% of unused pages, class-2336 has
+> 1648/4932=33% of unused pages, etc. And the more classes we will have as
+> 'normal' classes (more than one object per-zspage) the bigger this problem
+> will grow. The existing compaction relies on a user space (user can trigger
+> compaction via `compact' zram's sysfs attr) or a shrinker; it does not
+> happen automatically.
+> 
+> This patch introduces a 'watermark' value of unused pages and schedules a
+> compaction work on a per-class basis once class's fragmentation becomes
+> too big. So compaction is not performed in current I/O operation context,
+> but in workqueue workers later.
+> 
+> The current watermark is set to 40% -- if class has 40+% of `freeable'
+> pages then compaction work will be scheduled.
+
+Could you explain why you select per-class watermark?
+Because my plan was we kick background work based on total fragmented memory
+(i.e., considering used_pages/allocated_pages < some threshold).
+
+IOW, if used_pages/allocated_pages is less than some ratio,
+we kick background job with marking index of size class just freed
+and then the job scans size_class from the index circulary.
+As well, we should put a upper bound to scan zspages to make it
+deterministic.
+
+What do you think about it?
+
+> 
+> TEST
+> ====
+> 
+>   2G zram, ext4, lz0
+> 
+>   iozone -t 1 -R -r 64K -s 1200M -I +Z
+> 
+>                         BASE       PATCHED
+> "  Initial write "   959670.94    966724.62
+> "        Rewrite "  1276167.62   1237632.88
+> "           Read "  3334708.25   3345357.50
+> "        Re-read "  3405310.75   3337137.25
+> "   Reverse Read "  3284499.75   3241283.50
+> "    Stride read "  3293417.75   3268364.00
+> "    Random read "  3255253.50   3241685.00
+> " Mixed workload "  3274398.00   3231498.00
+> "   Random write "  1253207.50   1216247.00
+> "         Pwrite "   873682.25    877045.81
+> "          Pread "  3173266.00   3318471.75
+> "         Fwrite "   881278.38    897622.81
+> "          Fread "  4397147.00   4501131.50
+> 
+>   iozone -t 3 -R -r 64K -s 60M -I +Z
+> 
+>                         BASE       PATCHED
+> "  Initial write "  1855931.62   1869576.31
+> "        Rewrite "  2223531.06   2221543.62
+> "           Read "  7958435.75   8023044.75
+> "        Re-read "  7912776.75   8068961.00
+> "   Reverse Read "  7832227.50   7788237.50
+> "    Stride read "  7952113.50   7919778.00
+> "    Random read "  7908816.00   7881792.50
+> " Mixed workload "  6364520.38   6332493.94
+> "   Random write "  2230115.69   2176777.19
+> "         Pwrite "  1915939.31   1929464.75
+> "          Pread "  3857052.91   3840517.91
+> "         Fwrite "  2271730.44   2272800.31
+> "          Fread "  9053867.00   8880966.25
+> 
+> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+
+> ---
+>  mm/zsmalloc.c | 37 +++++++++++++++++++++++++++++++++++++
+>  1 file changed, 37 insertions(+)
+> 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index e72efb1..a4ef7e7 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -219,6 +219,10 @@ struct size_class {
+>  	int pages_per_zspage;
+>  	/* huge object: pages_per_zspage == 1 && maxobj_per_zspage == 1 */
+>  	bool huge;
+> +
+> +	bool compact_scheduled;
+> +	struct zs_pool *pool;
+> +	struct work_struct compact_work;
+>  };
+>  
+>  /*
+> @@ -1467,6 +1471,8 @@ static void obj_free(struct zs_pool *pool, struct size_class *class,
+>  	zs_stat_dec(class, OBJ_USED, 1);
+>  }
+>  
+> +static bool class_watermark_ok(struct size_class *class);
+> +
+>  void zs_free(struct zs_pool *pool, unsigned long handle)
+>  {
+>  	struct page *first_page, *f_page;
+> @@ -1495,6 +1501,11 @@ void zs_free(struct zs_pool *pool, unsigned long handle)
+>  		atomic_long_sub(class->pages_per_zspage,
+>  				&pool->pages_allocated);
+>  		free_zspage(first_page);
+> +	} else {
+> +		if (!class_watermark_ok(class) && !class->compact_scheduled) {
+> +			queue_work(system_long_wq, &class->compact_work);
+> +			class->compact_scheduled = true;
+> +		}
+>  	}
+>  	spin_unlock(&class->lock);
+>  	unpin_tag(handle);
+> @@ -1745,6 +1756,19 @@ static unsigned long zs_can_compact(struct size_class *class)
+>  	return obj_wasted * class->pages_per_zspage;
+>  }
+>  
+> +static bool class_watermark_ok(struct size_class *class)
+> +{
+> +	unsigned long pages_used = zs_stat_get(class, OBJ_ALLOCATED);
+> +
+> +	pages_used /= get_maxobj_per_zspage(class->size,
+> +			class->pages_per_zspage) * class->pages_per_zspage;
+> +
+> +	if (!pages_used)
+> +		return true;
+> +
+> +	return (100 * zs_can_compact(class) / pages_used) < 40;
+> +}
+> +
+>  static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+>  {
+>  	struct zs_compact_control cc;
+> @@ -1789,9 +1813,17 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+>  	if (src_page)
+>  		putback_zspage(pool, class, src_page);
+>  
+> +	class->compact_scheduled = false;
+>  	spin_unlock(&class->lock);
+>  }
+>  
+> +static void class_compaction_work(struct work_struct *work)
+> +{
+> +	struct size_class *class = container_of(work, struct size_class, compact_work);
+> +
+> +	__zs_compact(class->pool, class);
+> +}
+> +
+>  unsigned long zs_compact(struct zs_pool *pool)
+>  {
+>  	int i;
+> @@ -1948,6 +1980,9 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
+>  		if (pages_per_zspage == 1 &&
+>  			get_maxobj_per_zspage(size, pages_per_zspage) == 1)
+>  			class->huge = true;
+> +
+> +		INIT_WORK(&class->compact_work, class_compaction_work);
+> +		class->pool = pool;
+>  		spin_lock_init(&class->lock);
+>  		pool->size_class[i] = class;
+>  
+> @@ -1990,6 +2025,8 @@ void zs_destroy_pool(struct zs_pool *pool)
+>  		if (class->index != i)
+>  			continue;
+>  
+> +		cancel_work_sync(&class->compact_work);
+> +
+>  		for (fg = 0; fg < _ZS_NR_FULLNESS_GROUPS; fg++) {
+>  			if (class->fullness_list[fg]) {
+>  				pr_info("Freeing non-empty class with size %db, fullness group %d\n",
+> -- 
+> 2.8.0.rc0
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
