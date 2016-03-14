@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 48A4C6B0005
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 02:17:32 -0400 (EDT)
-Received: by mail-io0-f179.google.com with SMTP id n190so211326719iof.0
-        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 23:17:32 -0700 (PDT)
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 10E496B0005
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 02:31:23 -0400 (EDT)
+Received: by mail-ig0-f171.google.com with SMTP id mh10so7082773igb.0
+        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 23:31:23 -0700 (PDT)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id o7si15759508igy.30.2016.03.13.23.17.30
+        by mx.google.com with ESMTP id qc5si15773523igb.48.2016.03.13.23.31.21
         for <linux-mm@kvack.org>;
-        Sun, 13 Mar 2016 23:17:31 -0700 (PDT)
-Date: Mon, 14 Mar 2016 15:17:59 +0900
+        Sun, 13 Mar 2016 23:31:22 -0700 (PDT)
+Date: Mon, 14 Mar 2016 15:32:07 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC][PATCH v3 1/5] mm/zsmalloc: introduce class auto-compaction
-Message-ID: <20160314061759.GC10675@bbox>
+Subject: Re: [RFC][PATCH v3 2/5] mm/zsmalloc: remove shrinker compaction
+ callbacks
+Message-ID: <20160314063207.GD10675@bbox>
 References: <1457016363-11339-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1457016363-11339-2-git-send-email-sergey.senozhatsky@gmail.com>
+ <1457016363-11339-3-git-send-email-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1457016363-11339-2-git-send-email-sergey.senozhatsky@gmail.com>
+In-Reply-To: <1457016363-11339-3-git-send-email-sergey.senozhatsky@gmail.com>
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
@@ -23,192 +24,130 @@ List-ID: <linux-mm.kvack.org>
 To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-Hey Sergey,
+On Thu, Mar 03, 2016 at 11:46:00PM +0900, Sergey Senozhatsky wrote:
+> Do not register shrinker compaction callbacks anymore, since
+> now we shedule class compaction work each time its fragmentation
+> value goes above the watermark.
 
-Sorry for late review.
+I suggested to remove shrinker compaction but while I review your
+first patch in this thread, I thought we need upper-bound to
+compact zspage so background work can bail out for latency easily.
+IOW, the work could give up the job. In such case, we might need
+fall-back scheme to continue the job. And I think that could be
+a shrinker.
 
-On Thu, Mar 03, 2016 at 11:45:59PM +0900, Sergey Senozhatsky wrote:
-> zsmalloc classes are known to be affected by internal fragmentation.
-> 
-> For example, /sys/kernel/debug/zsmalloc/zramX/classes
->  class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage freeable
->     54   896           1           12           117         57         26                2       12
-> ...
->    107  1744           1           23           196         76         84                3       51
->    111  1808           0            0            63         63         28                4        0
->    126  2048           0          160           568        408        284                1       80
->    144  2336          52          620          8631       5747       4932                4     1648
->    151  2448         123          406         10090       8736       6054                3      810
->    168  2720           0          512         15738      14926      10492                2      540
->    190  3072           0            2           136        130        102                3        3
-> ...
-> 
-> demonstrates that class-896 has 12/26=46% of unused pages, class-2336 has
-> 1648/4932=33% of unused pages, etc. And the more classes we will have as
-> 'normal' classes (more than one object per-zspage) the bigger this problem
-> will grow. The existing compaction relies on a user space (user can trigger
-> compaction via `compact' zram's sysfs attr) or a shrinker; it does not
-> happen automatically.
-> 
-> This patch introduces a 'watermark' value of unused pages and schedules a
-> compaction work on a per-class basis once class's fragmentation becomes
-> too big. So compaction is not performed in current I/O operation context,
-> but in workqueue workers later.
-> 
-> The current watermark is set to 40% -- if class has 40+% of `freeable'
-> pages then compaction work will be scheduled.
+What do you think?
 
-Could you explain why you select per-class watermark?
-Because my plan was we kick background work based on total fragmented memory
-(i.e., considering used_pages/allocated_pages < some threshold).
-
-IOW, if used_pages/allocated_pages is less than some ratio,
-we kick background job with marking index of size class just freed
-and then the job scans size_class from the index circulary.
-As well, we should put a upper bound to scan zspages to make it
-deterministic.
-
-What do you think about it?
-
-> 
-> TEST
-> ====
-> 
->   2G zram, ext4, lz0
-> 
->   iozone -t 1 -R -r 64K -s 1200M -I +Z
-> 
->                         BASE       PATCHED
-> "  Initial write "   959670.94    966724.62
-> "        Rewrite "  1276167.62   1237632.88
-> "           Read "  3334708.25   3345357.50
-> "        Re-read "  3405310.75   3337137.25
-> "   Reverse Read "  3284499.75   3241283.50
-> "    Stride read "  3293417.75   3268364.00
-> "    Random read "  3255253.50   3241685.00
-> " Mixed workload "  3274398.00   3231498.00
-> "   Random write "  1253207.50   1216247.00
-> "         Pwrite "   873682.25    877045.81
-> "          Pread "  3173266.00   3318471.75
-> "         Fwrite "   881278.38    897622.81
-> "          Fread "  4397147.00   4501131.50
-> 
->   iozone -t 3 -R -r 64K -s 60M -I +Z
-> 
->                         BASE       PATCHED
-> "  Initial write "  1855931.62   1869576.31
-> "        Rewrite "  2223531.06   2221543.62
-> "           Read "  7958435.75   8023044.75
-> "        Re-read "  7912776.75   8068961.00
-> "   Reverse Read "  7832227.50   7788237.50
-> "    Stride read "  7952113.50   7919778.00
-> "    Random read "  7908816.00   7881792.50
-> " Mixed workload "  6364520.38   6332493.94
-> "   Random write "  2230115.69   2176777.19
-> "         Pwrite "  1915939.31   1929464.75
-> "          Pread "  3857052.91   3840517.91
-> "         Fwrite "  2271730.44   2272800.31
-> "          Fread "  9053867.00   8880966.25
 > 
 > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-
 > ---
->  mm/zsmalloc.c | 37 +++++++++++++++++++++++++++++++++++++
->  1 file changed, 37 insertions(+)
+>  mm/zsmalloc.c | 72 -----------------------------------------------------------
+>  1 file changed, 72 deletions(-)
 > 
 > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index e72efb1..a4ef7e7 100644
+> index a4ef7e7..0bb060f 100644
 > --- a/mm/zsmalloc.c
 > +++ b/mm/zsmalloc.c
-> @@ -219,6 +219,10 @@ struct size_class {
->  	int pages_per_zspage;
->  	/* huge object: pages_per_zspage == 1 && maxobj_per_zspage == 1 */
->  	bool huge;
-> +
-> +	bool compact_scheduled;
-> +	struct zs_pool *pool;
-> +	struct work_struct compact_work;
->  };
+> @@ -256,13 +256,6 @@ struct zs_pool {
 >  
->  /*
-> @@ -1467,6 +1471,8 @@ static void obj_free(struct zs_pool *pool, struct size_class *class,
->  	zs_stat_dec(class, OBJ_USED, 1);
+>  	struct zs_pool_stats stats;
+>  
+> -	/* Compact classes */
+> -	struct shrinker shrinker;
+> -	/*
+> -	 * To signify that register_shrinker() was successful
+> -	 * and unregister_shrinker() will not Oops.
+> -	 */
+> -	bool shrinker_enabled;
+>  #ifdef CONFIG_ZSMALLOC_STAT
+>  	struct dentry *stat_dentry;
+>  #endif
+> @@ -1848,64 +1841,6 @@ void zs_pool_stats(struct zs_pool *pool, struct zs_pool_stats *stats)
 >  }
+>  EXPORT_SYMBOL_GPL(zs_pool_stats);
 >  
-> +static bool class_watermark_ok(struct size_class *class);
-> +
->  void zs_free(struct zs_pool *pool, unsigned long handle)
->  {
->  	struct page *first_page, *f_page;
-> @@ -1495,6 +1501,11 @@ void zs_free(struct zs_pool *pool, unsigned long handle)
->  		atomic_long_sub(class->pages_per_zspage,
->  				&pool->pages_allocated);
->  		free_zspage(first_page);
-> +	} else {
-> +		if (!class_watermark_ok(class) && !class->compact_scheduled) {
-> +			queue_work(system_long_wq, &class->compact_work);
-> +			class->compact_scheduled = true;
-> +		}
->  	}
->  	spin_unlock(&class->lock);
->  	unpin_tag(handle);
-> @@ -1745,6 +1756,19 @@ static unsigned long zs_can_compact(struct size_class *class)
->  	return obj_wasted * class->pages_per_zspage;
->  }
+> -static unsigned long zs_shrinker_scan(struct shrinker *shrinker,
+> -		struct shrink_control *sc)
+> -{
+> -	unsigned long pages_freed;
+> -	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
+> -			shrinker);
+> -
+> -	pages_freed = pool->stats.pages_compacted;
+> -	/*
+> -	 * Compact classes and calculate compaction delta.
+> -	 * Can run concurrently with a manually triggered
+> -	 * (by user) compaction.
+> -	 */
+> -	pages_freed = zs_compact(pool) - pages_freed;
+> -
+> -	return pages_freed ? pages_freed : SHRINK_STOP;
+> -}
+> -
+> -static unsigned long zs_shrinker_count(struct shrinker *shrinker,
+> -		struct shrink_control *sc)
+> -{
+> -	int i;
+> -	struct size_class *class;
+> -	unsigned long pages_to_free = 0;
+> -	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
+> -			shrinker);
+> -
+> -	for (i = zs_size_classes - 1; i >= 0; i--) {
+> -		class = pool->size_class[i];
+> -		if (!class)
+> -			continue;
+> -		if (class->index != i)
+> -			continue;
+> -
+> -		pages_to_free += zs_can_compact(class);
+> -	}
+> -
+> -	return pages_to_free;
+> -}
+> -
+> -static void zs_unregister_shrinker(struct zs_pool *pool)
+> -{
+> -	if (pool->shrinker_enabled) {
+> -		unregister_shrinker(&pool->shrinker);
+> -		pool->shrinker_enabled = false;
+> -	}
+> -}
+> -
+> -static int zs_register_shrinker(struct zs_pool *pool)
+> -{
+> -	pool->shrinker.scan_objects = zs_shrinker_scan;
+> -	pool->shrinker.count_objects = zs_shrinker_count;
+> -	pool->shrinker.batch = 0;
+> -	pool->shrinker.seeks = DEFAULT_SEEKS;
+> -
+> -	return register_shrinker(&pool->shrinker);
+> -}
+> -
+>  /**
+>   * zs_create_pool - Creates an allocation pool to work from.
+>   * @flags: allocation flags used to allocate pool metadata
+> @@ -1994,12 +1929,6 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
+>  	if (zs_pool_stat_create(name, pool))
+>  		goto err;
 >  
-> +static bool class_watermark_ok(struct size_class *class)
-> +{
-> +	unsigned long pages_used = zs_stat_get(class, OBJ_ALLOCATED);
-> +
-> +	pages_used /= get_maxobj_per_zspage(class->size,
-> +			class->pages_per_zspage) * class->pages_per_zspage;
-> +
-> +	if (!pages_used)
-> +		return true;
-> +
-> +	return (100 * zs_can_compact(class) / pages_used) < 40;
-> +}
-> +
->  static void __zs_compact(struct zs_pool *pool, struct size_class *class)
->  {
->  	struct zs_compact_control cc;
-> @@ -1789,9 +1813,17 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
->  	if (src_page)
->  		putback_zspage(pool, class, src_page);
+> -	/*
+> -	 * Not critical, we still can use the pool
+> -	 * and user can trigger compaction manually.
+> -	 */
+> -	if (zs_register_shrinker(pool) == 0)
+> -		pool->shrinker_enabled = true;
+>  	return pool;
 >  
-> +	class->compact_scheduled = false;
->  	spin_unlock(&class->lock);
->  }
->  
-> +static void class_compaction_work(struct work_struct *work)
-> +{
-> +	struct size_class *class = container_of(work, struct size_class, compact_work);
-> +
-> +	__zs_compact(class->pool, class);
-> +}
-> +
->  unsigned long zs_compact(struct zs_pool *pool)
+>  err:
+> @@ -2012,7 +1941,6 @@ void zs_destroy_pool(struct zs_pool *pool)
 >  {
 >  	int i;
-> @@ -1948,6 +1980,9 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
->  		if (pages_per_zspage == 1 &&
->  			get_maxobj_per_zspage(size, pages_per_zspage) == 1)
->  			class->huge = true;
-> +
-> +		INIT_WORK(&class->compact_work, class_compaction_work);
-> +		class->pool = pool;
->  		spin_lock_init(&class->lock);
->  		pool->size_class[i] = class;
 >  
-> @@ -1990,6 +2025,8 @@ void zs_destroy_pool(struct zs_pool *pool)
->  		if (class->index != i)
->  			continue;
+> -	zs_unregister_shrinker(pool);
+>  	zs_pool_stat_destroy(pool);
 >  
-> +		cancel_work_sync(&class->compact_work);
-> +
->  		for (fg = 0; fg < _ZS_NR_FULLNESS_GROUPS; fg++) {
->  			if (class->fullness_list[fg]) {
->  				pr_info("Freeing non-empty class with size %db, fullness group %d\n",
+>  	for (i = 0; i < zs_size_classes; i++) {
 > -- 
 > 2.8.0.rc0
 > 
