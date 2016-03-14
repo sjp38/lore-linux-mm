@@ -1,112 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E74BB6B0005
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 12:21:56 -0400 (EDT)
-Received: by mail-wm0-f47.google.com with SMTP id l68so109426913wml.0
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 09:21:56 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id 82si19344544wmu.80.2016.03.14.09.21.55
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id BFC596B0005
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 12:39:45 -0400 (EDT)
+Received: by mail-wm0-f44.google.com with SMTP id p65so110568478wmp.0
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 09:39:45 -0700 (PDT)
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
+        by mx.google.com with ESMTPS id y75si19450684wmd.54.2016.03.14.09.39.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Mar 2016 09:21:55 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id l68so16189415wml.3
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 09:21:55 -0700 (PDT)
-Date: Mon, 14 Mar 2016 17:21:53 +0100
+        Mon, 14 Mar 2016 09:39:44 -0700 (PDT)
+Received: by mail-wm0-f49.google.com with SMTP id n186so116489529wmn.1
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 09:39:44 -0700 (PDT)
+Date: Mon, 14 Mar 2016 17:39:43 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/3] mm, oom: protect !costly allocations some more
-Message-ID: <20160314162153.GD11400@dhcp22.suse.cz>
-References: <20160307160838.GB5028@dhcp22.suse.cz>
- <1457444565-10524-1-git-send-email-mhocko@kernel.org>
- <1457444565-10524-4-git-send-email-mhocko@kernel.org>
- <20160309111109.GG27018@dhcp22.suse.cz>
- <alpine.LSU.2.11.1603110354360.7920@eggly.anvils>
- <20160311130647.GO27701@dhcp22.suse.cz>
- <alpine.LSU.2.11.1603111058510.26840@eggly.anvils>
+Subject: Re: [PATCH] exit: clear TIF_MEMDIE after exit_task_work
+Message-ID: <20160314163943.GE11400@dhcp22.suse.cz>
+References: <1456765329-14890-1-git-send-email-vdavydov@virtuozzo.com>
+ <20160301155212.GJ9461@dhcp22.suse.cz>
+ <20160301175431-mutt-send-email-mst@redhat.com>
+ <20160301160813.GM9461@dhcp22.suse.cz>
+ <20160301182027-mutt-send-email-mst@redhat.com>
+ <20160301163537.GO9461@dhcp22.suse.cz>
+ <20160301184046-mutt-send-email-mst@redhat.com>
+ <20160301171758.GP9461@dhcp22.suse.cz>
+ <20160301191906-mutt-send-email-mst@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1603111058510.26840@eggly.anvils>
+In-Reply-To: <20160301191906-mutt-send-email-mst@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 11-03-16 11:08:05, Hugh Dickins wrote:
-> On Fri, 11 Mar 2016, Michal Hocko wrote:
-> > On Fri 11-03-16 04:17:30, Hugh Dickins wrote:
-> > > On Wed, 9 Mar 2016, Michal Hocko wrote:
-> > > > Joonsoo has pointed out that this attempt is still not sufficient
-> > > > becasuse we might have invoked only a single compaction round which
-> > > > is might be not enough. I fully agree with that. Here is my take on
-> > > > that. It is again based on the number of retries loop.
-> > > > 
-> > > > I was also playing with an idea of doing something similar to the
-> > > > reclaim retry logic:
-> > > > 	if (order) {
-> > > > 		if (compaction_made_progress(compact_result)
-> > > > 			no_compact_progress = 0;
-> > > > 		else if (compaction_failed(compact_result)
-> > > > 			no_compact_progress++;
-> > > > 	}
-> > > > but it is compaction_failed() part which is not really
-> > > > straightforward to define. Is it COMPACT_NO_SUITABLE_PAGE
-> > > > resp. COMPACT_NOT_SUITABLE_ZONE sufficient? compact_finished and
-> > > > compaction_suitable however hide this from compaction users so it
-> > > > seems like we can never see it.
-> > > > 
-> > > > Maybe we can update the feedback mechanism from the compaction but
-> > > > retries count seems reasonably easy to understand and pragmatic. If
-> > > > we cannot form a order page after we tried for N times then it really
-> > > > doesn't make much sense to continue and we are oom for this order. I am
-> > > > holding my breath to hear from Hugh on this, though.
-> > > 
-> > > Never a wise strategy.  But I just got around to it tonight.
-> > > 
-> > > I do believe you've nailed it with this patch!  Thank you!
+On Tue 01-03-16 19:20:24, Michael S. Tsirkin wrote:
+> On Tue, Mar 01, 2016 at 06:17:58PM +0100, Michal Hocko wrote:
+[...]
+> > Sorry, I could have been more verbose... The code would have to make sure
+> > that the mm is still alive before calling g-u-p by
+> > atomic_inc_not_zero(&mm->mm_users) and fail if the user count dropped to
+> > 0 in the mean time. See how fs/proc/task_mmu.c does that (proc_mem_open
+> > + m_start + m_stop.
 > > 
-> > That's a great news! Thanks for testing.
-> > 
-> > > I've applied 1/3, 2/3 and this (ah, it became the missing 3/3 later on)
-> > > on top of 4.5.0-rc5-mm1 (I think there have been a couple of mmotms since,
-> > > but I've not got to them yet): so far it is looking good on all machines.
-> > > 
-> > > After a quick go with the simple make -j20 in tmpfs, which survived
-> > > a cycle on the laptop, I've switched back to my original tougher load,
-> > > and that's going well so far: no sign of any OOMs.  But I've interrupted
-> > > on the laptop to report back to you now, then I'll leave it running
-> > > overnight.
-> > 
-> > OK, let's wait for the rest of the tests but I find it really optimistic
-> > considering how easily you could trigger the issue previously. Anyway
-> > I hope for your Tested-by after you are reasonably confident your loads
-> > are behaving well.
+> > The biggest advanatage would be that the mm address space pin would be
+> > only for the particular operation. Not sure whether that is possible in
+> > the driver though. Anyway pinning the mm for a potentially unbounded
+> > amount of time doesn't sound too nice.
 > 
-> Three have been stably running load for between 6 and 7 hours now,
-> no problems, looking very good:
-> 
-> Tested-by: Hugh Dickins <hughd@google.com>
+> Hmm that would be another atomic on data path ...
+> I'd have to explore that.
 
-Thanks!
-
-> I'll be interested to see how my huge tmpfs loads fare with the rework,
-> but I'm not quite ready to try that today; and any issue there (I've no
-> reason to suppose that there will be) can be a separate investigation
-> for me to make at some future date.  It was this order=2 regression
-> that was holding me back, and I've now no objection to your patches
-> (though nobody should imagine that I've actually studied them).
-
-I still have some work on top pending and I do not want to rush these
-changes and target this for 4.7. 4.6 is just too close and I would hate
-to push some last minute changes. I think oom_reaper would be large
-enough for 4.6 in this area. 
-
-I will post the full series after rc1. Andrew feel free to drop it from
-the mmotm tree for now. I would prefer they got all reviewed together
-rather than a larger number of fixups.
-
-Thanks Hugh for your testing. I wish I could depend on it less but I've
-not been able to reproduce not matter how much I tried.
-
+Did you have any chance to look into this?
 -- 
 Michal Hocko
 SUSE Labs
