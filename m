@@ -1,159 +1,323 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F7516B0005
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 13:03:42 -0400 (EDT)
-Received: by mail-qg0-f50.google.com with SMTP id u110so159117257qge.3
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 10:03:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b19si22317030qge.77.2016.03.14.10.03.41
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Mar 2016 10:03:41 -0700 (PDT)
-Date: Mon, 14 Mar 2016 17:03:34 +0000
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [RFC qemu 0/4] A PV solution for live migration optimization
-Message-ID: <20160314170334.GK2234@work-vm>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <20160308111343.GM15443@grmbl.mre>
- <F2CBF3009FA73547804AE4C663CAB28E0414A7E3@shsmsx102.ccr.corp.intel.com>
- <20160310075728.GB4678@grmbl.mre>
- <F2CBF3009FA73547804AE4C663CAB28E0414A860@shsmsx102.ccr.corp.intel.com>
- <20160310111844.GB2276@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E0414B118@shsmsx102.ccr.corp.intel.com>
-MIME-Version: 1.0
+Date: Mon, 14 Mar 2016 13:17:37 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: aio openat Re: [PATCH 07/13] aio: enabled thread based async fsync
+Message-ID: <20160314171737.GK17923@kvack.org>
+References: <CA+55aFyLb8scNSYb19rK4iT_Vx5=hKxqPwRHVnETzAhEev0aHw@mail.gmail.com> <CA+55aFxCM-xWVR4jC=q2wSk+-WC1Xuf+nZLoud8JwKZopnR_dQ@mail.gmail.com> <20160115202131.GH6330@kvack.org> <CA+55aFzRo3yztEBBvJ4CMCvVHAo6qEDhTHTc_LGyqmxbcFyNYw@mail.gmail.com> <20160120195957.GV6033@dastard> <CA+55aFx4PzugV+wOKRqMEwo8XJ1QxP8r+s-mvn6H064FROnKdQ@mail.gmail.com> <20160120204449.GC12249@kvack.org> <20160120214546.GX6033@dastard> <CA+55aFzA8cdvYyswW6QddM60EQ8yocVfT4+mYJSoKW9HHf3rHQ@mail.gmail.com> <20160123043922.GF6033@dastard>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E0414B118@shsmsx102.ccr.corp.intel.com>
+In-Reply-To: <20160123043922.GF6033@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li, Liang Z" <liang.z.li@intel.com>
-Cc: Amit Shah <amit.shah@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mst@redhat.com" <mst@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mohan_parthasarathy@hpe.com" <mohan_parthasarathy@hpe.com>, "jitendra.kolhe@hpe.com" <jitendra.kolhe@hpe.com>, "simhan@hpe.com" <simhan@hpe.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-aio@kvack.org, linux-mm <linux-mm@kvack.org>
 
-* Li, Liang Z (liang.z.li@intel.com) wrote:
-> > 
-> > Hi,
-> >   I'm just catching back up on this thread; so without reference to any
-> > particular previous mail in the thread.
-> > 
-> >   1) How many of the free pages do we tell the host about?
-> >      Your main change is telling the host about all the
-> >      free pages.
+On Sat, Jan 23, 2016 at 03:39:22PM +1100, Dave Chinner wrote:
+> On Wed, Jan 20, 2016 at 03:07:26PM -0800, Linus Torvalds wrote:
+...
+> > We could do things like that for the name loopkup for openat() too, where
+> > we could handle the successful RCU loopkup synchronously, but then if we
+> > fall out of RCU mode we'd do the thread.
 > 
-> Yes, all the guest's free pages.
-> 
-> >      If we tell the host about all the free pages, then we might
-> >      end up needing to allocate more pages and update the host
-> >      with pages we now want to use; that would have to wait for the
-> >      host to acknowledge that use of these pages, since if we don't
-> >      wait for it then it might have skipped migrating a page we
-> >      just started using (I don't understand how your series solves that).
-> >      So the guest probably needs to keep some free pages - how many?
-> 
-> Actually, there is no need to care about whether the free pages will be used by the host.
-> We only care about some of the free pages we get reused by the guest, right?
-> 
-> The dirty page logging can be used to solve this, starting the dirty page logging before getting
-> the free pages informant from guest. Even some of the free pages are modified by the guest
-> during the process of getting the free pages information, these modified pages will be traced
-> by the dirty page logging mechanism. So in the following migration_bitmap_sync() function.
-> The pages in the free pages bitmap, but latter was modified, will be reset to dirty. We won't
-> omit any dirtied pages.
-> 
-> So, guest doesn't need to keep any free pages.
+> We'd have to do quite a bit of work to unwind back out to the AIO
+> layer before we can dispatch the open operation again in a thread,
+> wouldn't we?
 
-OK, yes, that works; so we do:
-  * enable dirty logging
-  * ask guest for free pages
-  * initialise the migration bitmap as everything-free
-  * then later we do the normal sync-dirty bitmap stuff and it all just works.
+I had some time last week to make an aio openat do what it can in 
+submit context.  The results are an improvement: when openat is handled 
+in submit context it completes in about half the time it takes compared 
+to the round trip via the work queue, and it's not terribly much code 
+either.
 
-That's nice and simple.
+		-ben
+-- 
+"Thought is the essence of where you are now."
 
-> >   2) Clearing out caches
-> >      Does it make sense to clean caches?  They're apparently useful data
-> >      so if we clean them it's likely to slow the guest down; I guess
-> >      they're also likely to be fairly static data - so at least fairly
-> >      easy to migrate.
-> >      The answer here partially depends on what you want from your migration;
-> >      if you're after the fastest possible migration time it might make
-> >      sense to clean the caches and avoid migrating them; but that might
-> >      be at the cost of more disruption to the guest - there's a trade off
-> >      somewhere and it's not clear to me how you set that depending on your
-> >      guest/network/reqirements.
-> > 
-> 
-> Yes, clean the caches is an option.  Let the users decide using it or not.
-> 
-> >   3) Why is ballooning slow?
-> >      You've got a figure of 5s to balloon on an 8GB VM - but an
-> >      8GB VM isn't huge; so I worry about how long it would take
-> >      on a big VM.   We need to understand why it's slow
-> >        * is it due to the guest shuffling pages around?
-> >        * is it due to the virtio-balloon protocol sending one page
-> >          at a time?
-> >          + Do balloon pages normally clump in physical memory
-> >             - i.e. would a 'large balloon' message help
-> >             - or do we need a bitmap because it tends not to clump?
-> > 
-> 
-> I didn't do a comprehensive test. But I found most of the time spending
-> on allocating the pages and sending the PFNs to guest, I don't know that's
-> the most time consuming operation, allocating the pages or sending the PFNs.
+ fs/aio.c              |  122 +++++++++++++++++++++++++++++++++++++++++---------
+ fs/internal.h         |    1 
+ fs/namei.c            |   16 ++++--
+ fs/open.c             |    2 
+ include/linux/namei.h |    1 
+ 5 files changed, 117 insertions(+), 25 deletions(-)
 
-It might be a good idea to analyse it a bit more to convince people where
-the problem is.
+commit 5d3d80fcf99287decc4774af01967cebbb0242fd
+Author: Benjamin LaHaise <bcrl@kvack.org>
+Date:   Thu Mar 10 17:15:07 2016 -0500
 
-> >        * is it due to the madvise on the host?
-> >          If we were using the normal balloon messages, then we
-> >          could, during migration, just route those to the migration
-> >          code rather than bothering with the madvise.
-> >          If they're clumping together we could just turn that into
-> >          one big madvise; if they're not then would we benefit from
-> >          a call that lets us madvise lots of areas?
-> > 
-> 
-> My test showed madvise() is not the main reason for the long time, only taken
-> 10% of the total  inflating balloon operation time.
-> Big madvise can more or less improve the performance.
+    aio: add support for in-submit openat
+    
+    Using the LOOKUP_RCU infrastructure added for open(), implement such
+    functionality to enable in io_submit() openat() that does a non-blocking
+    file open operation.  This avoids the overhead of punting to another
+    kernel thread to complete the open operation when the files and data are
+    already in the dcache.  This helps cut simple aio openat() from ~60-90K
+    cycles to ~24-45K cycles on my test system.
+    
+    Signed-off-by: Benjamin LaHaise <bcrl@kvack.org>
 
-OK; 10% of the total is still pretty big even for your 8GB VM.
-
-> >   4) Speeding up the migration of those free pages
-> >     You're using the bitmap to avoid migrating those free pages; HPe's
-> >     patchset is reconstructing a bitmap from the balloon data;  OK, so
-> >     this all makes sense to avoid migrating them - I'd also been thinking
-> >     of using pagemap to spot zero pages that would help find other zero'd
-> >     pages, but perhaps ballooned is enough?
-> > 
-> Could you describe your ideal with more details?
-
-At the moment the migration code spends a fair amount of time checking if a page
-is zero; I was thinking perhaps the qemu could just open /proc/self/pagemap
-and check if the page was mapped; that would seem cheap if we're checking big
-ranges; and that would find all the balloon pages.
-
-> >   5) Second-migrate
-> >     Given a VM where you've done all those tricks on, what happens when
-> >     you migrate it a second time?   I guess you're aiming for the guest
-> >     to update it's bitmap;  HPe's solution is to migrate it's balloon
-> >     bitmap along with the migration data.
-> 
-> Nothing is special in the second migration, QEMU will request the guest for free pages
-> Information, and the guest will traverse it's current free page list to construct a
-> new free page bitmap and send it to QEMU. Just like in the first migration.
-
-Right.
-
-Dave
-
-> Liang
-> > 
-> > Dave
-> > 
-> > --
-> > Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+diff --git a/fs/aio.c b/fs/aio.c
+index 0a9309e..67c58b6 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -42,6 +42,8 @@
+ #include <linux/mount.h>
+ #include <linux/fdtable.h>
+ #include <linux/fs_struct.h>
++#include <linux/fsnotify.h>
++#include <linux/namei.h>
+ #include <../mm/internal.h>
+ 
+ #include <asm/kmap_types.h>
+@@ -163,6 +165,7 @@ struct kioctx {
+ 
+ struct aio_kiocb;
+ typedef long (*aio_thread_work_fn_t)(struct aio_kiocb *iocb);
++typedef void (*aio_destruct_fn_t)(struct aio_kiocb *iocb);
+ 
+ /*
+  * We use ki_cancel == KIOCB_CANCELLED to indicate that a kiocb has been either
+@@ -210,6 +213,7 @@ struct aio_kiocb {
+ #if IS_ENABLED(CONFIG_AIO_THREAD)
+ 	struct task_struct	*ki_cancel_task;
+ 	unsigned long		ki_data;
++	unsigned long		ki_data2;
+ 	unsigned long		ki_rlimit_fsize;
+ 	unsigned		ki_thread_flags;	/* AIO_THREAD_NEED... */
+ 	aio_thread_work_fn_t	ki_work_fn;
+@@ -217,6 +221,7 @@ struct aio_kiocb {
+ 	struct fs_struct	*ki_fs;
+ 	struct files_struct	*ki_files;
+ 	const struct cred	*ki_cred;
++	aio_destruct_fn_t	ki_destruct_fn;
+ #endif
+ };
+ 
+@@ -1093,6 +1098,8 @@ out_put:
+ 
+ static void kiocb_free(struct aio_kiocb *req)
+ {
++	if (req->ki_destruct_fn)
++		req->ki_destruct_fn(req);
+ 	if (req->common.ki_filp)
+ 		fput(req->common.ki_filp);
+ 	if (req->ki_eventfd != NULL)
+@@ -1546,6 +1553,18 @@ static void aio_thread_fn(struct work_struct *work)
+ 		     ret == -ERESTARTNOHAND || ret == -ERESTART_RESTARTBLOCK))
+ 		ret = -EINTR;
+ 
++	/* Completion serializes cancellation by taking ctx_lock, so
++	 * aio_complete() will not return until after force_sig() in
++	 * aio_thread_queue_iocb_cancel().  This should ensure that
++	 * the signal is pending before being flushed in this thread.
++	 */
++	aio_complete(&iocb->common, ret, 0);
++	if (fatal_signal_pending(current))
++		flush_signals(current);
++
++	/* Clean up state after aio_complete() since ki_destruct may still
++	 * need to access them.
++	 */
+ 	if (iocb->ki_cred) {
+ 		current->cred = old_cred;
+ 		put_cred(iocb->ki_cred);
+@@ -1558,15 +1577,6 @@ static void aio_thread_fn(struct work_struct *work)
+ 		exit_fs(current);
+ 		current->fs = old_fs;
+ 	}
+-
+-	/* Completion serializes cancellation by taking ctx_lock, so
+-	 * aio_complete() will not return until after force_sig() in
+-	 * aio_thread_queue_iocb_cancel().  This should ensure that
+-	 * the signal is pending before being flushed in this thread.
+-	 */
+-	aio_complete(&iocb->common, ret, 0);
+-	if (fatal_signal_pending(current))
+-		flush_signals(current);
+ }
+ 
+ /* aio_thread_queue_iocb
+@@ -1758,11 +1768,6 @@ static long aio_poll(struct aio_kiocb *req, struct iocb *user_iocb, bool compat)
+ 	return aio_thread_queue_iocb(req, aio_thread_op_poll, 0);
+ }
+ 
+-static long aio_do_openat(int fd, const char *filename, int flags, int mode)
+-{
+-	return do_sys_open(fd, filename, flags, mode);
+-}
+-
+ static long aio_do_unlinkat(int fd, const char *filename, int flags, int mode)
+ {
+ 	if (flags || mode)
+@@ -1793,14 +1798,91 @@ static long aio_thread_op_foo_at(struct aio_kiocb *req)
+ 	return ret;
+ }
+ 
++static void openat_destruct(struct aio_kiocb *req)
++{
++	struct filename *filename = req->common.private;
++	int fd;
++
++	putname(filename);
++	fd = req->ki_data;
++	if (fd >= 0)
++		put_unused_fd(fd);
++}
++
++static long aio_thread_op_openat(struct aio_kiocb *req)
++{
++	struct filename *filename = req->common.private;
++	int mode = req->common.ki_pos >> 32;
++	int flags = req->common.ki_pos;
++	struct open_flags op;
++	struct file *f;
++	int dfd = req->ki_data2;
++
++	build_open_flags(flags, mode, &op);
++	f = do_filp_open(dfd, filename, &op);
++	if (!IS_ERR(f)) {
++		int fd = req->ki_data;
++		/* Prevent openat_destruct from doing put_unused_fd() */
++		req->ki_data = -1;
++		fsnotify_open(f);
++		fd_install(fd, f);
++		return fd;
++	}
++	return PTR_ERR(f);
++}
++
+ static long aio_openat(struct aio_kiocb *req, struct iocb *uiocb, bool compat)
+ {
+-	req->ki_data = (unsigned long)(void *)aio_do_openat;
+-	return aio_thread_queue_iocb(req, aio_thread_op_foo_at,
+-				     AIO_THREAD_NEED_TASK |
+-				     AIO_THREAD_NEED_MM |
+-				     AIO_THREAD_NEED_FILES |
+-				     AIO_THREAD_NEED_CRED);
++	int mode = req->common.ki_pos >> 32;
++	struct filename *filename;
++	struct open_flags op;
++	int flags;
++	int fd;
++
++	if (force_o_largefile())
++		req->common.ki_pos |= O_LARGEFILE;
++	flags = req->common.ki_pos;
++	fd = build_open_flags(flags, mode, &op);
++	if (fd)
++		goto out_err;
++
++	filename = getname((const char __user *)(long)uiocb->aio_buf);
++	if (IS_ERR(filename)) {
++		fd = PTR_ERR(filename);
++		goto out_err;
++	}
++	req->common.private = filename;
++	req->ki_destruct_fn = openat_destruct;
++	req->ki_data = fd = get_unused_fd_flags(flags);
++	if (fd >= 0) {
++		struct file *f;
++		op.lookup_flags |= LOOKUP_RCU | LOOKUP_NONBLOCK;
++		req->ki_data = fd;
++		req->ki_data2 = uiocb->aio_fildes;
++		f = do_filp_open(uiocb->aio_fildes, filename, &op);
++		if (IS_ERR(f) && ((PTR_ERR(f) == -ECHILD) ||
++				  (PTR_ERR(f) == -ESTALE) ||
++				  (PTR_ERR(f) == -EAGAIN))) {
++			int ret;
++			ret = aio_thread_queue_iocb(req, aio_thread_op_openat,
++						   AIO_THREAD_NEED_TASK |
++						   AIO_THREAD_NEED_FILES |
++						   AIO_THREAD_NEED_CRED);
++			if (ret == -EIOCBQUEUED)
++				return ret;
++			put_unused_fd(fd);
++			fd = ret;
++		} else if (IS_ERR(f)) {
++			put_unused_fd(fd);
++			fd = PTR_ERR(f);
++		} else {
++			fsnotify_open(f);
++			fd_install(fd, f);
++		}
++	}
++out_err:
++	aio_complete(&req->common, fd, 0);
++	return -EIOCBQUEUED;
+ }
+ 
+ static long aio_unlink(struct aio_kiocb *req, struct iocb *uiocb, bool compt)
+diff --git a/fs/internal.h b/fs/internal.h
+index 57b6010..c421572 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -102,6 +102,7 @@ struct open_flags {
+ 	int intent;
+ 	int lookup_flags;
+ };
++extern int build_open_flags(int flags, umode_t mode, struct open_flags *op);
+ extern struct file *do_filp_open(int dfd, struct filename *pathname,
+ 		const struct open_flags *op);
+ extern struct file *do_file_open_root(struct dentry *, struct vfsmount *,
+diff --git a/fs/namei.c b/fs/namei.c
+index 84ecc7e..260782f 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -3079,6 +3079,12 @@ retry_lookup:
+ 		 * dropping this one anyway.
+ 		 */
+ 	}
++
++	if (nd->flags & LOOKUP_NONBLOCK) {
++		error = -EAGAIN;
++		goto out;
++	}
++		
+ 	mutex_lock(&dir->d_inode->i_mutex);
+ 	error = lookup_open(nd, &path, file, op, got_write, opened);
+ 	mutex_unlock(&dir->d_inode->i_mutex);
+@@ -3356,10 +3362,12 @@ struct file *do_filp_open(int dfd, struct filename *pathname,
+ 
+ 	set_nameidata(&nd, dfd, pathname);
+ 	filp = path_openat(&nd, op, flags | LOOKUP_RCU);
+-	if (unlikely(filp == ERR_PTR(-ECHILD)))
+-		filp = path_openat(&nd, op, flags);
+-	if (unlikely(filp == ERR_PTR(-ESTALE)))
+-		filp = path_openat(&nd, op, flags | LOOKUP_REVAL);
++	if (!(op->lookup_flags & LOOKUP_RCU)) {
++		if (unlikely(filp == ERR_PTR(-ECHILD)))
++			filp = path_openat(&nd, op, flags);
++		if (unlikely(filp == ERR_PTR(-ESTALE)))
++			filp = path_openat(&nd, op, flags | LOOKUP_REVAL);
++	}
+ 	restore_nameidata();
+ 	return filp;
+ }
+diff --git a/fs/open.c b/fs/open.c
+index b6f1e96..f6a45cb 100644
+--- a/fs/open.c
++++ b/fs/open.c
+@@ -884,7 +884,7 @@ struct file *dentry_open(const struct path *path, int flags,
+ }
+ EXPORT_SYMBOL(dentry_open);
+ 
+-static inline int build_open_flags(int flags, umode_t mode, struct open_flags *op)
++inline int build_open_flags(int flags, umode_t mode, struct open_flags *op)
+ {
+ 	int lookup_flags = 0;
+ 	int acc_mode;
+diff --git a/include/linux/namei.h b/include/linux/namei.h
+index d8c6334..1e76579 100644
+--- a/include/linux/namei.h
++++ b/include/linux/namei.h
+@@ -43,6 +43,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
+ #define LOOKUP_JUMPED		0x1000
+ #define LOOKUP_ROOT		0x2000
+ #define LOOKUP_EMPTY		0x4000
++#define LOOKUP_NONBLOCK		0x8000
+ 
+ extern int user_path_at_empty(int, const char __user *, unsigned, struct path *, int *empty);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
