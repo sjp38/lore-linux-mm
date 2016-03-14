@@ -1,137 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 2286D6B0253
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 02:48:26 -0400 (EDT)
-Received: by mail-pf0-f174.google.com with SMTP id u190so100241699pfb.3
-        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 23:48:26 -0700 (PDT)
+Received: from mail-io0-f169.google.com (mail-io0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 914306B0253
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 02:52:47 -0400 (EDT)
+Received: by mail-io0-f169.google.com with SMTP id z76so211825305iof.3
+        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 23:52:47 -0700 (PDT)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id sk6si1220239pab.138.2016.03.13.23.48.24
+        by mx.google.com with ESMTP id j10si7449346igx.27.2016.03.13.23.52.46
         for <linux-mm@kvack.org>;
-        Sun, 13 Mar 2016 23:48:25 -0700 (PDT)
-Date: Mon, 14 Mar 2016 15:49:26 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: Suspicious error for CMA stress test
-Message-ID: <20160314064925.GA27587@js1304-P5Q-DELUXE>
-References: <56D92595.60709@huawei.com>
- <20160304063807.GA13317@js1304-P5Q-DELUXE>
- <56D93ABE.9070406@huawei.com>
- <20160307043442.GB24602@js1304-P5Q-DELUXE>
- <56DD38E7.3050107@huawei.com>
- <56DDCB86.4030709@redhat.com>
- <56DE30CB.7020207@huawei.com>
- <56DF7B28.9060108@huawei.com>
- <CAAmzW4NDJwgq_P33Ru_X0MKXGQEnY5dr_SY1GFutPAqEUAc_rg@mail.gmail.com>
- <56E2FB5C.1040602@suse.cz>
+        Sun, 13 Mar 2016 23:52:46 -0700 (PDT)
+Date: Mon, 14 Mar 2016 15:53:31 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC][PATCH v3 3/5] mm/zsmalloc: introduce zs_huge_object()
+Message-ID: <20160314065331.GA12337@bbox>
+References: <1457016363-11339-1-git-send-email-sergey.senozhatsky@gmail.com>
+ <1457016363-11339-4-git-send-email-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56E2FB5C.1040602@suse.cz>
+In-Reply-To: <1457016363-11339-4-git-send-email-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>, Laura Abbott <labbott@redhat.com>, Hanjun Guo <guohanjun@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Fri, Mar 11, 2016 at 06:07:40PM +0100, Vlastimil Babka wrote:
-> On 03/11/2016 04:00 PM, Joonsoo Kim wrote:
-> > 2016-03-09 10:23 GMT+09:00 Leizhen (ThunderTown) <thunder.leizhen@huawei.com>:
-> >>
-> >> Hi, Joonsoo:
-> >>         This new patch worked well. Do you plan to upstream it in the near furture?
-> > 
-> > Of course!
-> > But, I should think more because it touches allocator's fastpatch and
-> > I'd like to detour.
-> > If I fail to think a better solution, I will send it as is, soon.
+On Thu, Mar 03, 2016 at 11:46:01PM +0900, Sergey Senozhatsky wrote:
+> zsmalloc knows the watermark after which classes are considered
+> to be ->huge -- every object stored consumes the entire zspage (which
+> consist of a single order-0 page). On x86_64, PAGE_SHIFT 12 box, the
+> first non-huge class size is 3264, so starting down from size 3264,
+> objects share page(-s) and thus minimize memory wastage.
 > 
-> How about something like this? Just and idea, probably buggy (off-by-one etc.).
-> Should keep away cost from <pageblock_order iterations at the expense of the
-> relatively fewer >pageblock_order iterations.
+> zram, however, has its own statically defined watermark for `bad'
+> compression "3 * PAGE_SIZE / 4 = 3072", and stores every object
+> larger than this watermark (3072) as a PAGE_SIZE, object, IOW,
+> to a ->huge class, this results in increased memory consumption and
+> memory wastage. (With a small exception: 3264 bytes class. zs_malloc()
+> adds ZS_HANDLE_SIZE to the object's size, so some objects can pass
+> 3072 bytes and get_size_class_index(size) will return 3264 bytes size
+> class).
+> 
+> Introduce zs_huge_object() function which tells whether the supplied
+> object's size belongs to a huge class; so zram now can store objects
+> to ->huge clases only when those objects have sizes greater than
+> huge_class_size_watermark.
 
-Hmm... I tested this and found that it's code size is a little bit
-larger than mine. I'm not sure why this happens exactly but I guess it would be
-related to compiler optimization. In this case, I'm in favor of my
-implementation because it looks like well abstraction. It adds one
-unlikely branch to the merge loop but compiler would optimize it to
-check it once.
+I understand the problem you pointed out but I don't like this way.
+
+Huge class is internal thing in zsmalloc so zram shouldn't be coupled
+with it. Zram uses just zsmalloc to minimize meory wastage which is
+all zram should know about zsmalloc.
+
+Instead, how about changing max_zpage_size?
+
+        static const size_t max_zpage_size = 4096;
+
+So, if compression doesn't help memory efficiency, we don't
+need to have decompress overhead. Only that case, we store
+decompressed page.
+
+For other huge size class(e.g., PAGE_SIZE / 4 * 3 ~ PAGE_SIZE),
+you sent a patch to reduce waste memory as 5/5 so I think it's
+a good justification between memory efficiency VS.
+decompress overhead.
 
 Thanks.
 
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index ff1e3cbc8956..b8005a07b2a1 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -685,21 +685,13 @@ static inline void __free_one_page(struct page *page,
->  	unsigned long combined_idx;
->  	unsigned long uninitialized_var(buddy_idx);
->  	struct page *buddy;
-> -	unsigned int max_order = MAX_ORDER;
-> +	unsigned int max_order = pageblock_order + 1;
->  
->  	VM_BUG_ON(!zone_is_initialized(zone));
->  	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
->  
->  	VM_BUG_ON(migratetype == -1);
-> -	if (is_migrate_isolate(migratetype)) {
-> -		/*
-> -		 * We restrict max order of merging to prevent merge
-> -		 * between freepages on isolate pageblock and normal
-> -		 * pageblock. Without this, pageblock isolation
-> -		 * could cause incorrect freepage accounting.
-> -		 */
-> -		max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
-> -	} else {
-> +	if (likely(!is_migrate_isolate(migratetype))) {
->  		__mod_zone_freepage_state(zone, 1 << order, migratetype);
->  	}
->  
-> @@ -708,11 +700,12 @@ static inline void __free_one_page(struct page *page,
->  	VM_BUG_ON_PAGE(page_idx & ((1 << order) - 1), page);
->  	VM_BUG_ON_PAGE(bad_range(zone, page), page);
->  
-> +continue_merging:
->  	while (order < max_order - 1) {
->  		buddy_idx = __find_buddy_index(page_idx, order);
->  		buddy = page + (buddy_idx - page_idx);
->  		if (!page_is_buddy(page, buddy, order))
-> -			break;
-> +			goto done_merging;
->  		/*
->  		 * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
->  		 * merge with it and move up one order.
-> @@ -729,6 +722,26 @@ static inline void __free_one_page(struct page *page,
->  		page_idx = combined_idx;
->  		order++;
->  	}
-> +	if (max_order < MAX_ORDER) {
-> +		if (IS_ENABLED(CONFIG_CMA) &&
-> +				unlikely(has_isolate_pageblock(zone))) {
-> +
-> +			int buddy_mt;
-> +
-> +			buddy_idx = __find_buddy_index(page_idx, order);
-> +			buddy = page + (buddy_idx - page_idx);
-> +			buddy_mt = get_pageblock_migratetype(buddy);
-> +
-> +			if (migratetype != buddy_mt &&
-> +					(is_migrate_isolate(migratetype) ||
-> +					is_migrate_isolate(buddy_mt)))
-> +				goto done_merging;
-> +		}
-> +		max_order++;
-> +		goto continue_merging;
-> +	}
-> +
-> +done_merging:
->  	set_page_order(page, order);
->  
->  	/*
+> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> ---
+>  include/linux/zsmalloc.h |  2 ++
+>  mm/zsmalloc.c            | 13 +++++++++++++
+>  2 files changed, 15 insertions(+)
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
+> index 34eb160..7184ee1 100644
+> --- a/include/linux/zsmalloc.h
+> +++ b/include/linux/zsmalloc.h
+> @@ -55,4 +55,6 @@ unsigned long zs_get_total_pages(struct zs_pool *pool);
+>  unsigned long zs_compact(struct zs_pool *pool);
+>  
+>  void zs_pool_stats(struct zs_pool *pool, struct zs_pool_stats *stats);
+> +
+> +bool zs_huge_object(size_t sz);
+>  #endif
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index 0bb060f..06a7d87 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -188,6 +188,11 @@ static struct dentry *zs_stat_root;
+>  static int zs_size_classes;
+>  
+>  /*
+> + * All classes above this class_size are huge classes
+> + */
+> +static size_t huge_class_size_watermark;
+> +
+> +/*
+>   * We assign a page to ZS_ALMOST_EMPTY fullness group when:
+>   *	n <= N / f, where
+>   * n = number of allocated objects
+> @@ -1244,6 +1249,12 @@ unsigned long zs_get_total_pages(struct zs_pool *pool)
+>  }
+>  EXPORT_SYMBOL_GPL(zs_get_total_pages);
+>  
+> +bool zs_huge_object(size_t sz)
+> +{
+> +	return sz > huge_class_size_watermark;
+> +}
+> +EXPORT_SYMBOL_GPL(zs_huge_object);
+> +
+>  /**
+>   * zs_map_object - get address of allocated object from handle.
+>   * @pool: pool from which the object was allocated
+> @@ -1922,6 +1933,8 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
+>  		pool->size_class[i] = class;
+>  
+>  		prev_class = class;
+> +		if (!class->huge && !huge_class_size_watermark)
+> +			huge_class_size_watermark = size - ZS_HANDLE_SIZE;
+>  	}
+>  
+>  	pool->flags = flags;
+> -- 
+> 2.8.0.rc0
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
