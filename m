@@ -1,46 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 36D796B007E
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 17:23:10 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id tt10so165809871pab.3
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 14:23:10 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id yp3si15156621pac.120.2016.03.14.14.23.09
-        for <linux-mm@kvack.org>;
-        Mon, 14 Mar 2016 14:23:09 -0700 (PDT)
-Date: Mon, 14 Mar 2016 17:23:44 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH RFC 1/1] Add support for ZONE_DEVICE IO memory with
- struct pages.
-Message-ID: <20160314212344.GC23727@linux.intel.com>
-References: <1457979277-26791-1-git-send-email-stephen.bates@pmcs.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1457979277-26791-1-git-send-email-stephen.bates@pmcs.com>
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id C5F296B0005
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 17:40:26 -0400 (EDT)
+Received: by mail-wm0-f54.google.com with SMTP id p65so119678056wmp.1
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 14:40:26 -0700 (PDT)
+Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
+        by mx.google.com with ESMTPS id jo9si29221426wjb.100.2016.03.14.14.40.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Mar 2016 14:40:25 -0700 (PDT)
+Received: by mail-wm0-x234.google.com with SMTP id n186so127098441wmn.1
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 14:40:25 -0700 (PDT)
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: [PATCH v3 0/2] mm, thp: Fix unnecessarry resource consuming in swapin
+Date: Mon, 14 Mar 2016 23:40:09 +0200
+Message-Id: <1457991611-6211-1-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Bates <stephen.bates@pmcs.com>
-Cc: linux-mm@kvack.org, linux-rdma@vger.kernel.org, linux-nvdimm@lists.01.org, haggaie@mellanox.com, javier@cnexlabs.com, sagig@mellanox.com, jgunthorpe@obsidianresearch.com, leonro@mellanox.com, artemyko@mellanox.com, hch@infradead.org
+To: linux-mm@kvack.org
+Cc: hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
-On Mon, Mar 14, 2016 at 12:14:37PM -0600, Stephen Bates wrote:
-> 3. Coherency Issues. When IOMEM is written from both the CPU and a PCIe
-> peer there is potential for coherency issues and for writes to occur out
-> of order. This is something that users of this feature need to be
-> cognizant of and may necessitate the use of CONFIG_EXPERT. Though really,
-> this isn't much different than the existing situation with RDMA: if
-> userspace sets up an MR for remote use, they need to be careful about
-> using that memory region themselves.
+This patch series fixes unnecessarry resource consuming
+in khugepaged swapin and introduces a new function to
+calculate value of specific vm event.
 
-There's more to the coherency problem than this.  As I understand it, on
-x86, memory in a PCI BAR does not participate in the coherency protocol.
-So you can get a situation where CPU A stores 4 bytes to offset 8 in a
-cacheline, then CPU B stores 4 bytes to offset 16 in the same cacheline,
-and CPU A's write mysteriously goes missing.
+Ebru Akagunduz (2):
+  mm, vmstat: calculate particular vm event
+  mm, thp: avoid unnecessary swapin in khugepaged
 
-I may have misunderstood the exact details when this was explained to me a
-few years ago, but the details were horrible enough to run away screaming.
-Pretending PCI BARs are real memory?  Just Say No.
+ include/linux/vmstat.h |  6 ++++++
+ mm/huge_memory.c       | 13 +++++++++++--
+ mm/vmstat.c            | 12 ++++++++++++
+ 3 files changed, 29 insertions(+), 2 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
