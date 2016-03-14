@@ -1,75 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 49B576B0005
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 04:48:39 -0400 (EDT)
-Received: by mail-wm0-f41.google.com with SMTP id n186so96589818wmn.1
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 01:48:39 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y4si17287379wme.87.2016.03.14.01.48.37
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 30C366B0005
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 06:43:51 -0400 (EDT)
+Received: by mail-wm0-f42.google.com with SMTP id p65so95757205wmp.1
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 03:43:51 -0700 (PDT)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id u129si17773454wmd.50.2016.03.14.03.43.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 14 Mar 2016 01:48:38 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: Re: [PATCH v1 01/19] mm: use put_page to free page instead of
- putback_lru_page
-References: <1457681423-26664-1-git-send-email-minchan@kernel.org>
- <1457681423-26664-2-git-send-email-minchan@kernel.org>
-Message-ID: <56E67AE1.60700@suse.cz>
-Date: Mon, 14 Mar 2016 09:48:33 +0100
-MIME-Version: 1.0
-In-Reply-To: <1457681423-26664-2-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Mar 2016 03:43:49 -0700 (PDT)
+Received: by mail-wm0-x22c.google.com with SMTP id p65so96366464wmp.0
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 03:43:49 -0700 (PDT)
+From: Alexander Potapenko <glider@google.com>
+Subject: [PATCH v7 0/7] SLAB support for KASAN
+Date: Mon, 14 Mar 2016 11:43:38 +0100
+Message-Id: <cover.1457949315.git.glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jlayton@poochiereds.net, bfields@fieldses.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, rknize@motorola.com, Rik van Riel <riel@redhat.com>, Gioh Kim <gurugio@hanmail.net>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com
+Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/11/2016 08:30 AM, Minchan Kim wrote:
-> Procedure of page migration is as follows:
->
-> First of all, it should isolate a page from LRU and try to
-> migrate the page. If it is successful, it releases the page
-> for freeing. Otherwise, it should put the page back to LRU
-> list.
->
-> For LRU pages, we have used putback_lru_page for both freeing
-> and putback to LRU list. It's okay because put_page is aware of
-> LRU list so if it releases last refcount of the page, it removes
-> the page from LRU list. However, It makes unnecessary operations
-> (e.g., lru_cache_add, pagevec and flags operations.
+This patch set implements SLAB support for KASAN
 
-Yeah, and compaction (perhaps also other migration users) has to drain 
-the lru pvec... Getting rid of this stuff is worth even by itself.
+Unlike SLUB, SLAB doesn't store allocation/deallocation stacks for heap
+objects, therefore we reimplement this feature in mm/kasan/stackdepot.c.
+The intention is to ultimately switch SLUB to use this implementation as
+well, which will save a lot of memory (right now SLUB bloats each object
+by 256 bytes to store the allocation/deallocation stacks).
 
-> It would be
-> not significant but no worth to do) and harder to support new
-> non-lru page migration because put_page isn't aware of non-lru
-> page's data structure.
->
-> To solve the problem, we can add new hook in put_page with
-> PageMovable flags check but it can increase overhead in
-> hot path and needs new locking scheme to stabilize the flag check
-> with put_page.
->
-> So, this patch cleans it up to divide two semantic(ie, put and putback).
-> If migration is successful, use put_page instead of putback_lru_page and
-> use putback_lru_page only on failure. That makes code more readable
-> and doesn't add overhead in put_page.
+Also neither SLUB nor SLAB delay the reuse of freed memory chunks, which
+is necessary for better detection of use-after-free errors. We introduce
+memory quarantine (mm/kasan/quarantine.c), which allows delayed reuse of
+deallocated memory.
 
-I had an idea of checking for count==1 in putback_lru_page() which would 
-take the put_page() shortcut from there. But maybe it can't be done 
-nicely without races.
+Alexander Potapenko (7):
+  kasan: Modify kmalloc_large_oob_right(), add
+    kmalloc_pagealloc_oob_right()
+  mm, kasan: SLAB support
+  mm, kasan: Added GFP flags to KASAN API
+  arch, ftrace: For KASAN put hard/soft IRQ entries into separate
+    sections
+  mm, kasan: Stackdepot implementation. Enable stackdepot for SLAB
+  kasan: Test fix: Warn if the UAF could not be detected in kmalloc_uaf2
+  mm: kasan: Initial memory quarantine implementation
+---
+v2: - merged two patches that touched kmalloc_large_oob_right
+    - moved stackdepot implementation to lib/
+    - moved IRQ definitions to include/linux/interrupt.h
 
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+v3: - minor description changes
+    - store deallocation info in the "mm, kasan: SLAB support" patch
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+v4: - fix kbuild error reports
 
-Note in -next/after 4.6-rc1 this will need some rebasing though.
+v5: - SLAB allocator, stackdepot: adopted suggestions by Andrey Ryabinin
+    - IRQ: fixed kbuild warnings
+
+v6: - stackdepot: fixed kbuild warnings, simplified kasan_track,
+use vmalloc() for depot when possible
+    - quarantine: improved patch description, removed dead code
+
+v7: - fix kbuild error reports
+---
+
+ Documentation/kasan.txt              |   5 +-
+ arch/arm/include/asm/exception.h     |   2 +-
+ arch/arm/kernel/vmlinux.lds.S        |   1 +
+ arch/arm64/include/asm/exception.h   |   2 +-
+ arch/arm64/kernel/vmlinux.lds.S      |   1 +
+ arch/blackfin/kernel/vmlinux.lds.S   |   1 +
+ arch/c6x/kernel/vmlinux.lds.S        |   1 +
+ arch/metag/kernel/vmlinux.lds.S      |   1 +
+ arch/microblaze/kernel/vmlinux.lds.S |   1 +
+ arch/mips/kernel/vmlinux.lds.S       |   1 +
+ arch/nios2/kernel/vmlinux.lds.S      |   1 +
+ arch/openrisc/kernel/vmlinux.lds.S   |   1 +
+ arch/parisc/kernel/vmlinux.lds.S     |   1 +
+ arch/powerpc/kernel/vmlinux.lds.S    |   1 +
+ arch/s390/kernel/vmlinux.lds.S       |   1 +
+ arch/sh/kernel/vmlinux.lds.S         |   1 +
+ arch/sparc/kernel/vmlinux.lds.S      |   1 +
+ arch/tile/kernel/vmlinux.lds.S       |   1 +
+ arch/x86/kernel/Makefile             |   1 +
+ arch/x86/kernel/vmlinux.lds.S        |   1 +
+ include/asm-generic/vmlinux.lds.h    |  12 +-
+ include/linux/ftrace.h               |  11 --
+ include/linux/interrupt.h            |  20 +++
+ include/linux/kasan.h                |  63 ++++++--
+ include/linux/slab.h                 |  10 +-
+ include/linux/slab_def.h             |  14 ++
+ include/linux/slub_def.h             |  11 ++
+ include/linux/stackdepot.h           |  32 ++++
+ kernel/softirq.c                     |   2 +-
+ kernel/trace/trace_functions_graph.c |   1 +
+ lib/Kconfig                          |   4 +
+ lib/Kconfig.kasan                    |   5 +-
+ lib/Makefile                         |   3 +
+ lib/stackdepot.c                     | 301 +++++++++++++++++++++++++++++++++++
+ lib/test_kasan.c                     |  59 ++++++-
+ mm/Makefile                          |   1 +
+ mm/kasan/Makefile                    |   4 +
+ mm/kasan/kasan.c                     | 219 +++++++++++++++++++++++--
+ mm/kasan/kasan.h                     |  44 +++++
+ mm/kasan/quarantine.c                | 289 +++++++++++++++++++++++++++++++++
+ mm/kasan/report.c                    |  63 ++++++--
+ mm/mempool.c                         |  23 +--
+ mm/page_alloc.c                      |   2 +-
+ mm/slab.c                            |  53 +++++-
+ mm/slab.h                            |   4 +-
+ mm/slab_common.c                     |   8 +-
+ mm/slub.c                            |  19 +--
+ 47 files changed, 1211 insertions(+), 92 deletions(-)
+ create mode 100644 include/linux/stackdepot.h
+ create mode 100644 lib/stackdepot.c
+ create mode 100644 mm/kasan/quarantine.c
+
+-- 
+2.7.0.rc3.207.g0ac5344
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
