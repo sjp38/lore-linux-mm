@@ -1,75 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id DE4046B0005
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 17:57:16 -0400 (EDT)
-Received: by mail-io0-f179.google.com with SMTP id m184so1868805iof.1
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 14:57:16 -0700 (PDT)
-Received: from quartz.orcorp.ca (quartz.orcorp.ca. [184.70.90.242])
-        by mx.google.com with ESMTPS id d191si11295158ioe.15.2016.03.14.14.57.15
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B5896B0005
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 18:15:19 -0400 (EDT)
+Received: by mail-qg0-f48.google.com with SMTP id w104so166934111qge.1
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 15:15:19 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d2si23662195qkb.17.2016.03.14.15.15.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Mar 2016 14:57:15 -0700 (PDT)
-Date: Mon, 14 Mar 2016 15:57:08 -0600
-From: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Subject: Re: [PATCH RFC 1/1] Add support for ZONE_DEVICE IO memory with
- struct pages.
-Message-ID: <20160314215708.GA7282@obsidianresearch.com>
-References: <1457979277-26791-1-git-send-email-stephen.bates@pmcs.com>
- <20160314212344.GC23727@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160314212344.GC23727@linux.intel.com>
+        Mon, 14 Mar 2016 15:15:02 -0700 (PDT)
+Message-ID: <1457993696.8898.16.camel@redhat.com>
+Subject: Re: [PATCH v3 1/2] mm, vmstat: calculate particular vm event
+From: Rik van Riel <riel@redhat.com>
+Date: Mon, 14 Mar 2016 18:14:56 -0400
+In-Reply-To: <1457991611-6211-2-git-send-email-ebru.akagunduz@gmail.com>
+References: <1457991611-6211-1-git-send-email-ebru.akagunduz@gmail.com>
+	 <1457991611-6211-2-git-send-email-ebru.akagunduz@gmail.com>
+Content-Type: multipart/signed; micalg="pgp-sha1"; protocol="application/pgp-signature";
+	boundary="=-/Ds/25WZbDU9XYL1B/XG"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Stephen Bates <stephen.bates@pmcs.com>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, linux-nvdimm@ml01.01.org, haggaie@mellanox.com, javier@cnexlabs.com, sagig@mellanox.com, leonro@mellanox.com, artemyko@mellanox.com, hch@infradead.org
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org
+Cc: hughd@google.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com
 
-On Mon, Mar 14, 2016 at 05:23:44PM -0400, Matthew Wilcox wrote:
-> On Mon, Mar 14, 2016 at 12:14:37PM -0600, Stephen Bates wrote:
-> > 3. Coherency Issues. When IOMEM is written from both the CPU and a PCIe
-> > peer there is potential for coherency issues and for writes to occur out
-> > of order. This is something that users of this feature need to be
-> > cognizant of and may necessitate the use of CONFIG_EXPERT. Though really,
-> > this isn't much different than the existing situation with RDMA: if
-> > userspace sets up an MR for remote use, they need to be careful about
-> > using that memory region themselves.
-> 
-> There's more to the coherency problem than this.  As I understand it, on
-> x86, memory in a PCI BAR does not participate in the coherency protocol.
-> So you can get a situation where CPU A stores 4 bytes to offset 8 in a
-> cacheline, then CPU B stores 4 bytes to offset 16 in the same cacheline,
-> and CPU A's write mysteriously goes missing.
 
-No, this cannot happen with writing combining. You need full caching turned
-on to get that kind of problem.
+--=-/Ds/25WZbDU9XYL1B/XG
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-write combining can only combine writes, it cannot make up writes that
-never existed.
+On Mon, 2016-03-14 at 23:40 +0200, Ebru Akagunduz wrote:
+> Currently, vmstat can calculate specific vm event with
+> all_vm_events()
+> however it allocates all vm events to stack. This patch introduces
+> a helper to sum value of a specific vm event over all cpu, without
+> loading all the events.
+>=20
+> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-That said, I question I don't know the answer to, is how does write
-locking/memory barries interact with the write combining CPU buffers,
-and are all the fencing semantics guarenteed.. There is some
-interaction there (some drivers use write combining a lot).. but that
-sure is a rarely used corner area...
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-The other issue is that the fencing mechanism RDMA uses to create
-ordering with system memory is not good enough to fence peer-peer
-transactions in the general case. It is only possibly good enough if
-all the transactions run through the root complex.
+--=20
+All Rights Reversed.
 
-> I may have misunderstood the exact details when this was explained to me a
-> few years ago, but the details were horrible enough to run away screaming.
-> Pretending PCI BARs are real memory?  Just Say No.
 
-Someone should probably explain in more detail what this is even good
-for, DAX on PCI-E bar memory seems goofy in the general case. I was
-under the impression the main use case involved the CPU never touching
-these memories and just using them to route-through to another IO
-device (eg network). So all these discussions about CPU coherency seem
-a bit strange.
+--=-/Ds/25WZbDU9XYL1B/XG
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
 
-Jason
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAABAgAGBQJW5zfgAAoJEM553pKExN6DLikH/RYqlBhA8+BxAd9Wb7nAPud2
+NnN/7AiCFtWgQQi/h6aZbG4X6T0mqshxowZRhOeJgM6WQqxvR8E+NoYW+YdFsTLd
+8MNX3i+gsQWSqDBKjHGBEJxw9efwy8mQqxahec3gVKn8kTxZ9uX1LaXUDB61YR87
+drXHw+B8Q7BvPHrhSfUHFzOkTXlWP867jp13WhX6M6JJxunkxfH6yLSP3zYl608f
+hGh0KUV8rZ1w5gaF0X7ozDgrSVfwzAnwW+prwEeHsW9/EB1PXFQkuB8gtLSCt7pp
+MFfCV3o2RXVkY5OF89S8ph1Z4WpM0+QBdsiaZL1g2MjzfNdIO0VFIVksMJyS+ro=
+=S6HP
+-----END PGP SIGNATURE-----
+
+--=-/Ds/25WZbDU9XYL1B/XG--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
