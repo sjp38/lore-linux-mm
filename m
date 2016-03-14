@@ -1,45 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id CFC976B007E
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 16:29:24 -0400 (EDT)
-Received: by mail-pf0-f176.google.com with SMTP id n5so105060041pfn.2
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 13:29:24 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ui8si9132597pab.38.2016.03.14.13.29.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Mar 2016 13:29:23 -0700 (PDT)
-Date: Mon, 14 Mar 2016 13:29:22 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC 1/9] mm/hugetlb: Make GENERAL_HUGETLB functions PGD
- implementation aware
-Message-Id: <20160314132922.b2297b2b486416e4980741ee@linux-foundation.org>
-In-Reply-To: <56E23523.4020201@linux.vnet.ibm.com>
-References: <1457525450-4262-1-git-send-email-khandual@linux.vnet.ibm.com>
-	<56E23523.4020201@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 36D796B007E
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 17:23:10 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id tt10so165809871pab.3
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 14:23:10 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id yp3si15156621pac.120.2016.03.14.14.23.09
+        for <linux-mm@kvack.org>;
+        Mon, 14 Mar 2016 14:23:09 -0700 (PDT)
+Date: Mon, 14 Mar 2016 17:23:44 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH RFC 1/1] Add support for ZONE_DEVICE IO memory with
+ struct pages.
+Message-ID: <20160314212344.GC23727@linux.intel.com>
+References: <1457979277-26791-1-git-send-email-stephen.bates@pmcs.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1457979277-26791-1-git-send-email-stephen.bates@pmcs.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, hughd@google.com, aneesh.kumar@linux.vnet.ibm.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net
+To: Stephen Bates <stephen.bates@pmcs.com>
+Cc: linux-mm@kvack.org, linux-rdma@vger.kernel.org, linux-nvdimm@lists.01.org, haggaie@mellanox.com, javier@cnexlabs.com, sagig@mellanox.com, jgunthorpe@obsidianresearch.com, leonro@mellanox.com, artemyko@mellanox.com, hch@infradead.org
 
-On Fri, 11 Mar 2016 08:31:55 +0530 Anshuman Khandual <khandual@linux.vnet.ibm.com> wrote:
+On Mon, Mar 14, 2016 at 12:14:37PM -0600, Stephen Bates wrote:
+> 3. Coherency Issues. When IOMEM is written from both the CPU and a PCIe
+> peer there is potential for coherency issues and for writes to occur out
+> of order. This is something that users of this feature need to be
+> cognizant of and may necessitate the use of CONFIG_EXPERT. Though really,
+> this isn't much different than the existing situation with RDMA: if
+> userspace sets up an MR for remote use, they need to be careful about
+> using that memory region themselves.
 
-> On 03/09/2016 05:40 PM, Anshuman Khandual wrote:
-> > Currently both the ARCH_WANT_GENERAL_HUGETLB functions 'huge_pte_alloc'
-> > and 'huge_pte_offset' dont take into account huge page implementation
-> > at the PGD level. With addition of PGD awareness into these functions,
-> > more architectures like POWER which also implements huge pages at PGD
-> > level (along with PMD level), can use ARCH_WANT_GENERAL_HUGETLB option.
-> 
-> Hugh/Mel/Naoya/Andrew,
-> 
-> 	Thoughts/inputs/suggestions ? Does this change looks okay ?
+There's more to the coherency problem than this.  As I understand it, on
+x86, memory in a PCI BAR does not participate in the coherency protocol.
+So you can get a situation where CPU A stores 4 bytes to offset 8 in a
+cacheline, then CPU B stores 4 bytes to offset 16 in the same cacheline,
+and CPU A's write mysteriously goes missing.
 
-Patches 1, 2 and 3 look OK to me.  Please include them in the powerpc
-merge when the patchset is considered ready.
+I may have misunderstood the exact details when this was explained to me a
+few years ago, but the details were horrible enough to run away screaming.
+Pretending PCI BARs are real memory?  Just Say No.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
