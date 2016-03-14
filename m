@@ -1,120 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 30C366B0005
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 06:43:51 -0400 (EDT)
-Received: by mail-wm0-f42.google.com with SMTP id p65so95757205wmp.1
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 03:43:51 -0700 (PDT)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id u129si17773454wmd.50.2016.03.14.03.43.49
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 086916B0253
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 06:43:59 -0400 (EDT)
+Received: by mail-wm0-f50.google.com with SMTP id p65so96371907wmp.0
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 03:43:58 -0700 (PDT)
+Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
+        by mx.google.com with ESMTPS id o15si17756203wmg.67.2016.03.14.03.43.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Mar 2016 03:43:49 -0700 (PDT)
-Received: by mail-wm0-x22c.google.com with SMTP id p65so96366464wmp.0
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 03:43:49 -0700 (PDT)
+        Mon, 14 Mar 2016 03:43:57 -0700 (PDT)
+Received: by mail-wm0-x229.google.com with SMTP id l68so96422506wml.1
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 03:43:57 -0700 (PDT)
 From: Alexander Potapenko <glider@google.com>
-Subject: [PATCH v7 0/7] SLAB support for KASAN
-Date: Mon, 14 Mar 2016 11:43:38 +0100
-Message-Id: <cover.1457949315.git.glider@google.com>
+Subject: [PATCH v7 1/7] kasan: Modify kmalloc_large_oob_right(), add kmalloc_pagealloc_oob_right()
+Date: Mon, 14 Mar 2016 11:43:39 +0100
+Message-Id: <362ae501742f5230109d625f02d5f962e685f567.1457949315.git.glider@google.com>
+In-Reply-To: <cover.1457949315.git.glider@google.com>
+References: <cover.1457949315.git.glider@google.com>
+In-Reply-To: <cover.1457949315.git.glider@google.com>
+References: <cover.1457949315.git.glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com
 Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This patch set implements SLAB support for KASAN
+Rename kmalloc_large_oob_right() to kmalloc_pagealloc_oob_right(), as the
+test only checks the page allocator functionality.
+Also reimplement kmalloc_large_oob_right() so that the test allocates a
+large enough chunk of memory that still does not trigger the page
+allocator fallback.
 
-Unlike SLUB, SLAB doesn't store allocation/deallocation stacks for heap
-objects, therefore we reimplement this feature in mm/kasan/stackdepot.c.
-The intention is to ultimately switch SLUB to use this implementation as
-well, which will save a lot of memory (right now SLUB bloats each object
-by 256 bytes to store the allocation/deallocation stacks).
-
-Also neither SLUB nor SLAB delay the reuse of freed memory chunks, which
-is necessary for better detection of use-after-free errors. We introduce
-memory quarantine (mm/kasan/quarantine.c), which allows delayed reuse of
-deallocated memory.
-
-Alexander Potapenko (7):
-  kasan: Modify kmalloc_large_oob_right(), add
-    kmalloc_pagealloc_oob_right()
-  mm, kasan: SLAB support
-  mm, kasan: Added GFP flags to KASAN API
-  arch, ftrace: For KASAN put hard/soft IRQ entries into separate
-    sections
-  mm, kasan: Stackdepot implementation. Enable stackdepot for SLAB
-  kasan: Test fix: Warn if the UAF could not be detected in kmalloc_uaf2
-  mm: kasan: Initial memory quarantine implementation
+Signed-off-by: Alexander Potapenko <glider@google.com>
 ---
-v2: - merged two patches that touched kmalloc_large_oob_right
-    - moved stackdepot implementation to lib/
-    - moved IRQ definitions to include/linux/interrupt.h
+v2: - Merged "kasan: Change the behavior of kmalloc_large_oob_right" and
+  "kasan: Changed kmalloc_large_oob_right, added kmalloc_pagealloc_oob_right"
+  from v1
 
-v3: - minor description changes
-    - store deallocation info in the "mm, kasan: SLAB support" patch
-
-v4: - fix kbuild error reports
-
-v5: - SLAB allocator, stackdepot: adopted suggestions by Andrey Ryabinin
-    - IRQ: fixed kbuild warnings
-
-v6: - stackdepot: fixed kbuild warnings, simplified kasan_track,
-use vmalloc() for depot when possible
-    - quarantine: improved patch description, removed dead code
-
-v7: - fix kbuild error reports
+v3: - Minor description changes
 ---
+ lib/test_kasan.c | 28 +++++++++++++++++++++++++++-
+ 1 file changed, 27 insertions(+), 1 deletion(-)
 
- Documentation/kasan.txt              |   5 +-
- arch/arm/include/asm/exception.h     |   2 +-
- arch/arm/kernel/vmlinux.lds.S        |   1 +
- arch/arm64/include/asm/exception.h   |   2 +-
- arch/arm64/kernel/vmlinux.lds.S      |   1 +
- arch/blackfin/kernel/vmlinux.lds.S   |   1 +
- arch/c6x/kernel/vmlinux.lds.S        |   1 +
- arch/metag/kernel/vmlinux.lds.S      |   1 +
- arch/microblaze/kernel/vmlinux.lds.S |   1 +
- arch/mips/kernel/vmlinux.lds.S       |   1 +
- arch/nios2/kernel/vmlinux.lds.S      |   1 +
- arch/openrisc/kernel/vmlinux.lds.S   |   1 +
- arch/parisc/kernel/vmlinux.lds.S     |   1 +
- arch/powerpc/kernel/vmlinux.lds.S    |   1 +
- arch/s390/kernel/vmlinux.lds.S       |   1 +
- arch/sh/kernel/vmlinux.lds.S         |   1 +
- arch/sparc/kernel/vmlinux.lds.S      |   1 +
- arch/tile/kernel/vmlinux.lds.S       |   1 +
- arch/x86/kernel/Makefile             |   1 +
- arch/x86/kernel/vmlinux.lds.S        |   1 +
- include/asm-generic/vmlinux.lds.h    |  12 +-
- include/linux/ftrace.h               |  11 --
- include/linux/interrupt.h            |  20 +++
- include/linux/kasan.h                |  63 ++++++--
- include/linux/slab.h                 |  10 +-
- include/linux/slab_def.h             |  14 ++
- include/linux/slub_def.h             |  11 ++
- include/linux/stackdepot.h           |  32 ++++
- kernel/softirq.c                     |   2 +-
- kernel/trace/trace_functions_graph.c |   1 +
- lib/Kconfig                          |   4 +
- lib/Kconfig.kasan                    |   5 +-
- lib/Makefile                         |   3 +
- lib/stackdepot.c                     | 301 +++++++++++++++++++++++++++++++++++
- lib/test_kasan.c                     |  59 ++++++-
- mm/Makefile                          |   1 +
- mm/kasan/Makefile                    |   4 +
- mm/kasan/kasan.c                     | 219 +++++++++++++++++++++++--
- mm/kasan/kasan.h                     |  44 +++++
- mm/kasan/quarantine.c                | 289 +++++++++++++++++++++++++++++++++
- mm/kasan/report.c                    |  63 ++++++--
- mm/mempool.c                         |  23 +--
- mm/page_alloc.c                      |   2 +-
- mm/slab.c                            |  53 +++++-
- mm/slab.h                            |   4 +-
- mm/slab_common.c                     |   8 +-
- mm/slub.c                            |  19 +--
- 47 files changed, 1211 insertions(+), 92 deletions(-)
- create mode 100644 include/linux/stackdepot.h
- create mode 100644 lib/stackdepot.c
- create mode 100644 mm/kasan/quarantine.c
-
+diff --git a/lib/test_kasan.c b/lib/test_kasan.c
+index c32f3b0..90ad74f 100644
+--- a/lib/test_kasan.c
++++ b/lib/test_kasan.c
+@@ -65,11 +65,34 @@ static noinline void __init kmalloc_node_oob_right(void)
+ 	kfree(ptr);
+ }
+ 
+-static noinline void __init kmalloc_large_oob_right(void)
++#ifdef CONFIG_SLUB
++static noinline void __init kmalloc_pagealloc_oob_right(void)
+ {
+ 	char *ptr;
+ 	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
+ 
++	/* Allocate a chunk that does not fit into a SLUB cache to trigger
++	 * the page allocator fallback.
++	 */
++	pr_info("kmalloc pagealloc allocation: out-of-bounds to right\n");
++	ptr = kmalloc(size, GFP_KERNEL);
++	if (!ptr) {
++		pr_err("Allocation failed\n");
++		return;
++	}
++
++	ptr[size] = 0;
++	kfree(ptr);
++}
++#endif
++
++static noinline void __init kmalloc_large_oob_right(void)
++{
++	char *ptr;
++	size_t size = KMALLOC_MAX_CACHE_SIZE - 256;
++	/* Allocate a chunk that is large enough, but still fits into a slab
++	 * and does not trigger the page allocator fallback in SLUB.
++	 */
+ 	pr_info("kmalloc large allocation: out-of-bounds to right\n");
+ 	ptr = kmalloc(size, GFP_KERNEL);
+ 	if (!ptr) {
+@@ -324,6 +347,9 @@ static int __init kmalloc_tests_init(void)
+ 	kmalloc_oob_right();
+ 	kmalloc_oob_left();
+ 	kmalloc_node_oob_right();
++#ifdef CONFIG_SLUB
++	kmalloc_pagealloc_oob_right();
++#endif
+ 	kmalloc_large_oob_right();
+ 	kmalloc_oob_krealloc_more();
+ 	kmalloc_oob_krealloc_less();
 -- 
 2.7.0.rc3.207.g0ac5344
 
