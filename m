@@ -1,156 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 10E496B0005
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 02:31:23 -0400 (EDT)
-Received: by mail-ig0-f171.google.com with SMTP id mh10so7082773igb.0
-        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 23:31:23 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id qc5si15773523igb.48.2016.03.13.23.31.21
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 2286D6B0253
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 02:48:26 -0400 (EDT)
+Received: by mail-pf0-f174.google.com with SMTP id u190so100241699pfb.3
+        for <linux-mm@kvack.org>; Sun, 13 Mar 2016 23:48:26 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id sk6si1220239pab.138.2016.03.13.23.48.24
         for <linux-mm@kvack.org>;
-        Sun, 13 Mar 2016 23:31:22 -0700 (PDT)
-Date: Mon, 14 Mar 2016 15:32:07 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC][PATCH v3 2/5] mm/zsmalloc: remove shrinker compaction
- callbacks
-Message-ID: <20160314063207.GD10675@bbox>
-References: <1457016363-11339-1-git-send-email-sergey.senozhatsky@gmail.com>
- <1457016363-11339-3-git-send-email-sergey.senozhatsky@gmail.com>
+        Sun, 13 Mar 2016 23:48:25 -0700 (PDT)
+Date: Mon, 14 Mar 2016 15:49:26 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: Suspicious error for CMA stress test
+Message-ID: <20160314064925.GA27587@js1304-P5Q-DELUXE>
+References: <56D92595.60709@huawei.com>
+ <20160304063807.GA13317@js1304-P5Q-DELUXE>
+ <56D93ABE.9070406@huawei.com>
+ <20160307043442.GB24602@js1304-P5Q-DELUXE>
+ <56DD38E7.3050107@huawei.com>
+ <56DDCB86.4030709@redhat.com>
+ <56DE30CB.7020207@huawei.com>
+ <56DF7B28.9060108@huawei.com>
+ <CAAmzW4NDJwgq_P33Ru_X0MKXGQEnY5dr_SY1GFutPAqEUAc_rg@mail.gmail.com>
+ <56E2FB5C.1040602@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1457016363-11339-3-git-send-email-sergey.senozhatsky@gmail.com>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <56E2FB5C.1040602@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>, Laura Abbott <labbott@redhat.com>, Hanjun Guo <guohanjun@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Mar 03, 2016 at 11:46:00PM +0900, Sergey Senozhatsky wrote:
-> Do not register shrinker compaction callbacks anymore, since
-> now we shedule class compaction work each time its fragmentation
-> value goes above the watermark.
+On Fri, Mar 11, 2016 at 06:07:40PM +0100, Vlastimil Babka wrote:
+> On 03/11/2016 04:00 PM, Joonsoo Kim wrote:
+> > 2016-03-09 10:23 GMT+09:00 Leizhen (ThunderTown) <thunder.leizhen@huawei.com>:
+> >>
+> >> Hi, Joonsoo:
+> >>         This new patch worked well. Do you plan to upstream it in the near furture?
+> > 
+> > Of course!
+> > But, I should think more because it touches allocator's fastpatch and
+> > I'd like to detour.
+> > If I fail to think a better solution, I will send it as is, soon.
+> 
+> How about something like this? Just and idea, probably buggy (off-by-one etc.).
+> Should keep away cost from <pageblock_order iterations at the expense of the
+> relatively fewer >pageblock_order iterations.
 
-I suggested to remove shrinker compaction but while I review your
-first patch in this thread, I thought we need upper-bound to
-compact zspage so background work can bail out for latency easily.
-IOW, the work could give up the job. In such case, we might need
-fall-back scheme to continue the job. And I think that could be
-a shrinker.
+Hmm... I tested this and found that it's code size is a little bit
+larger than mine. I'm not sure why this happens exactly but I guess it would be
+related to compiler optimization. In this case, I'm in favor of my
+implementation because it looks like well abstraction. It adds one
+unlikely branch to the merge loop but compiler would optimize it to
+check it once.
 
-What do you think?
+Thanks.
 
 > 
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> ---
->  mm/zsmalloc.c | 72 -----------------------------------------------------------
->  1 file changed, 72 deletions(-)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index ff1e3cbc8956..b8005a07b2a1 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -685,21 +685,13 @@ static inline void __free_one_page(struct page *page,
+>  	unsigned long combined_idx;
+>  	unsigned long uninitialized_var(buddy_idx);
+>  	struct page *buddy;
+> -	unsigned int max_order = MAX_ORDER;
+> +	unsigned int max_order = pageblock_order + 1;
+>  
+>  	VM_BUG_ON(!zone_is_initialized(zone));
+>  	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
+>  
+>  	VM_BUG_ON(migratetype == -1);
+> -	if (is_migrate_isolate(migratetype)) {
+> -		/*
+> -		 * We restrict max order of merging to prevent merge
+> -		 * between freepages on isolate pageblock and normal
+> -		 * pageblock. Without this, pageblock isolation
+> -		 * could cause incorrect freepage accounting.
+> -		 */
+> -		max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
+> -	} else {
+> +	if (likely(!is_migrate_isolate(migratetype))) {
+>  		__mod_zone_freepage_state(zone, 1 << order, migratetype);
+>  	}
+>  
+> @@ -708,11 +700,12 @@ static inline void __free_one_page(struct page *page,
+>  	VM_BUG_ON_PAGE(page_idx & ((1 << order) - 1), page);
+>  	VM_BUG_ON_PAGE(bad_range(zone, page), page);
+>  
+> +continue_merging:
+>  	while (order < max_order - 1) {
+>  		buddy_idx = __find_buddy_index(page_idx, order);
+>  		buddy = page + (buddy_idx - page_idx);
+>  		if (!page_is_buddy(page, buddy, order))
+> -			break;
+> +			goto done_merging;
+>  		/*
+>  		 * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
+>  		 * merge with it and move up one order.
+> @@ -729,6 +722,26 @@ static inline void __free_one_page(struct page *page,
+>  		page_idx = combined_idx;
+>  		order++;
+>  	}
+> +	if (max_order < MAX_ORDER) {
+> +		if (IS_ENABLED(CONFIG_CMA) &&
+> +				unlikely(has_isolate_pageblock(zone))) {
+> +
+> +			int buddy_mt;
+> +
+> +			buddy_idx = __find_buddy_index(page_idx, order);
+> +			buddy = page + (buddy_idx - page_idx);
+> +			buddy_mt = get_pageblock_migratetype(buddy);
+> +
+> +			if (migratetype != buddy_mt &&
+> +					(is_migrate_isolate(migratetype) ||
+> +					is_migrate_isolate(buddy_mt)))
+> +				goto done_merging;
+> +		}
+> +		max_order++;
+> +		goto continue_merging;
+> +	}
+> +
+> +done_merging:
+>  	set_page_order(page, order);
+>  
+>  	/*
 > 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index a4ef7e7..0bb060f 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -256,13 +256,6 @@ struct zs_pool {
->  
->  	struct zs_pool_stats stats;
->  
-> -	/* Compact classes */
-> -	struct shrinker shrinker;
-> -	/*
-> -	 * To signify that register_shrinker() was successful
-> -	 * and unregister_shrinker() will not Oops.
-> -	 */
-> -	bool shrinker_enabled;
->  #ifdef CONFIG_ZSMALLOC_STAT
->  	struct dentry *stat_dentry;
->  #endif
-> @@ -1848,64 +1841,6 @@ void zs_pool_stats(struct zs_pool *pool, struct zs_pool_stats *stats)
->  }
->  EXPORT_SYMBOL_GPL(zs_pool_stats);
->  
-> -static unsigned long zs_shrinker_scan(struct shrinker *shrinker,
-> -		struct shrink_control *sc)
-> -{
-> -	unsigned long pages_freed;
-> -	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
-> -			shrinker);
-> -
-> -	pages_freed = pool->stats.pages_compacted;
-> -	/*
-> -	 * Compact classes and calculate compaction delta.
-> -	 * Can run concurrently with a manually triggered
-> -	 * (by user) compaction.
-> -	 */
-> -	pages_freed = zs_compact(pool) - pages_freed;
-> -
-> -	return pages_freed ? pages_freed : SHRINK_STOP;
-> -}
-> -
-> -static unsigned long zs_shrinker_count(struct shrinker *shrinker,
-> -		struct shrink_control *sc)
-> -{
-> -	int i;
-> -	struct size_class *class;
-> -	unsigned long pages_to_free = 0;
-> -	struct zs_pool *pool = container_of(shrinker, struct zs_pool,
-> -			shrinker);
-> -
-> -	for (i = zs_size_classes - 1; i >= 0; i--) {
-> -		class = pool->size_class[i];
-> -		if (!class)
-> -			continue;
-> -		if (class->index != i)
-> -			continue;
-> -
-> -		pages_to_free += zs_can_compact(class);
-> -	}
-> -
-> -	return pages_to_free;
-> -}
-> -
-> -static void zs_unregister_shrinker(struct zs_pool *pool)
-> -{
-> -	if (pool->shrinker_enabled) {
-> -		unregister_shrinker(&pool->shrinker);
-> -		pool->shrinker_enabled = false;
-> -	}
-> -}
-> -
-> -static int zs_register_shrinker(struct zs_pool *pool)
-> -{
-> -	pool->shrinker.scan_objects = zs_shrinker_scan;
-> -	pool->shrinker.count_objects = zs_shrinker_count;
-> -	pool->shrinker.batch = 0;
-> -	pool->shrinker.seeks = DEFAULT_SEEKS;
-> -
-> -	return register_shrinker(&pool->shrinker);
-> -}
-> -
->  /**
->   * zs_create_pool - Creates an allocation pool to work from.
->   * @flags: allocation flags used to allocate pool metadata
-> @@ -1994,12 +1929,6 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
->  	if (zs_pool_stat_create(name, pool))
->  		goto err;
->  
-> -	/*
-> -	 * Not critical, we still can use the pool
-> -	 * and user can trigger compaction manually.
-> -	 */
-> -	if (zs_register_shrinker(pool) == 0)
-> -		pool->shrinker_enabled = true;
->  	return pool;
->  
->  err:
-> @@ -2012,7 +1941,6 @@ void zs_destroy_pool(struct zs_pool *pool)
->  {
->  	int i;
->  
-> -	zs_unregister_shrinker(pool);
->  	zs_pool_stat_destroy(pool);
->  
->  	for (i = 0; i < zs_size_classes; i++) {
-> -- 
-> 2.8.0.rc0
-> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
