@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id AECE3828DF
-	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 06:44:05 -0400 (EDT)
-Received: by mail-wm0-f50.google.com with SMTP id p65so95765918wmp.1
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 03:44:05 -0700 (PDT)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id fo20si26127733wjc.21.2016.03.14.03.44.02
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EDB2828DF
+	for <linux-mm@kvack.org>; Mon, 14 Mar 2016 06:44:08 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id l68so95944986wml.0
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 03:44:08 -0700 (PDT)
+Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
+        by mx.google.com with ESMTPS id lh1si26119321wjc.78.2016.03.14.03.44.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Mar 2016 03:44:02 -0700 (PDT)
-Received: by mail-wm0-x22e.google.com with SMTP id p65so95764387wmp.1
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 03:44:02 -0700 (PDT)
+        Mon, 14 Mar 2016 03:44:04 -0700 (PDT)
+Received: by mail-wm0-x229.google.com with SMTP id p65so95765211wmp.1
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 03:44:04 -0700 (PDT)
 From: Alexander Potapenko <glider@google.com>
-Subject: [PATCH v7 4/7] arch, ftrace: For KASAN put hard/soft IRQ entries into separate sections
-Date: Mon, 14 Mar 2016 11:43:42 +0100
-Message-Id: <17e33d0789ac5b7799acd71778f7e25766767c28.1457949315.git.glider@google.com>
+Subject: [PATCH v7 5/7] mm, kasan: Stackdepot implementation. Enable stackdepot for SLAB
+Date: Mon, 14 Mar 2016 11:43:43 +0100
+Message-Id: <4f6880ee0c1545b3ae9c25cfe86a879d724c4e7b.1457949315.git.glider@google.com>
 In-Reply-To: <cover.1457949315.git.glider@google.com>
 References: <cover.1457949315.git.glider@google.com>
 In-Reply-To: <cover.1457949315.git.glider@google.com>
@@ -24,381 +24,619 @@ List-ID: <linux-mm.kvack.org>
 To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com
 Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-KASAN needs to know whether the allocation happens in an IRQ handler.
-This lets us strip everything below the IRQ entry point to reduce the
-number of unique stack traces needed to be stored.
+Implement the stack depot and provide CONFIG_STACKDEPOT.
+Stack depot will allow KASAN store allocation/deallocation stack traces
+for memory chunks. The stack traces are stored in a hash table and
+referenced by handles which reside in the kasan_alloc_meta and
+kasan_free_meta structures in the allocated memory chunks.
 
-Move the definition of __irq_entry to <linux/interrupt.h> so that the
-users don't need to pull in <linux/ftrace.h>. Also introduce the
-__softirq_entry macro which is similar to __irq_entry, but puts the
-corresponding functions to the .softirqentry.text section.
+IRQ stack traces are cut below the IRQ entry point to avoid unnecessary
+duplication.
+
+Right now stackdepot support is only enabled in SLAB allocator.
+Once KASAN features in SLAB are on par with those in SLUB we can switch
+SLUB to stackdepot as well, thus removing the dependency on SLUB stack
+bookkeeping, which wastes a lot of memory.
+
+This patch is based on the "mm: kasan: stack depots" patch originally
+prepared by Dmitry Chernenkov.
 
 Signed-off-by: Alexander Potapenko <glider@google.com>
-Acked-by: Steven Rostedt <rostedt@goodmis.org>
 ---
-v2: - per request from Steven Rostedt, moved the declarations of __softirq_entry
-and __irq_entry to <linux/interrupt.h>
+v2: - per request from Joonsoo Kim, moved the stackdepot implementation to
+lib/, as there's a plan to use it for page owner
+    - added copyright comments
+    - added comments about smp_load_acquire()/smp_store_release()
 
 v3: - minor description changes
 
-v5: - fixed kbuild warnings in files that define __exception_irq_entry
----
- arch/arm/include/asm/exception.h     |  2 +-
- arch/arm/kernel/vmlinux.lds.S        |  1 +
- arch/arm64/include/asm/exception.h   |  2 +-
- arch/arm64/kernel/vmlinux.lds.S      |  1 +
- arch/blackfin/kernel/vmlinux.lds.S   |  1 +
- arch/c6x/kernel/vmlinux.lds.S        |  1 +
- arch/metag/kernel/vmlinux.lds.S      |  1 +
- arch/microblaze/kernel/vmlinux.lds.S |  1 +
- arch/mips/kernel/vmlinux.lds.S       |  1 +
- arch/nios2/kernel/vmlinux.lds.S      |  1 +
- arch/openrisc/kernel/vmlinux.lds.S   |  1 +
- arch/parisc/kernel/vmlinux.lds.S     |  1 +
- arch/powerpc/kernel/vmlinux.lds.S    |  1 +
- arch/s390/kernel/vmlinux.lds.S       |  1 +
- arch/sh/kernel/vmlinux.lds.S         |  1 +
- arch/sparc/kernel/vmlinux.lds.S      |  1 +
- arch/tile/kernel/vmlinux.lds.S       |  1 +
- arch/x86/kernel/vmlinux.lds.S        |  1 +
- include/asm-generic/vmlinux.lds.h    | 12 +++++++++++-
- include/linux/ftrace.h               | 11 -----------
- include/linux/interrupt.h            | 20 ++++++++++++++++++++
- kernel/softirq.c                     |  2 +-
- kernel/trace/trace_functions_graph.c |  1 +
- 23 files changed, 51 insertions(+), 15 deletions(-)
+v5: - decreased STACK_ALLOC_ORDER to reduce fragmentation
+    - declared CONFIG_STACKDEPOT
+    - replaced __memcpy() with memcpy()
+    - simplified GFP flags
 
-diff --git a/arch/arm/include/asm/exception.h b/arch/arm/include/asm/exception.h
-index 5abaf5b..bf19912 100644
---- a/arch/arm/include/asm/exception.h
-+++ b/arch/arm/include/asm/exception.h
-@@ -7,7 +7,7 @@
- #ifndef __ASM_ARM_EXCEPTION_H
- #define __ASM_ARM_EXCEPTION_H
+v6: - renamed depot_stack_handle to depot_stack_handle_t
+    - made CONFIG_STACKDEPOT depend on CONFIG_STACKTRACE (fix kbuild errors)
+    - made depot_save_stack() allocate memory via vmalloc() when possible
+    - added a reentrancy flag to avoid saving stacks from recursive
+depot_save_stack() calls
+    - simplified kasan_track (dropped CPU number and allocation time)
+
+v7: - fixed kbuild errors (made several functions SLAB-only)
+---
+ arch/x86/kernel/Makefile   |   1 +
+ include/linux/stackdepot.h |  32 +++++
+ lib/Kconfig                |   4 +
+ lib/Kconfig.kasan          |   1 +
+ lib/Makefile               |   3 +
+ lib/stackdepot.c           | 301 +++++++++++++++++++++++++++++++++++++++++++++
+ mm/kasan/kasan.c           |  55 ++++++++-
+ mm/kasan/kasan.h           |  11 +-
+ mm/kasan/report.c          |  12 +-
+ 9 files changed, 408 insertions(+), 12 deletions(-)
+
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index edfa3ec..f656d6e 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -19,6 +19,7 @@ endif
+ KASAN_SANITIZE_head$(BITS).o				:= n
+ KASAN_SANITIZE_dumpstack.o				:= n
+ KASAN_SANITIZE_dumpstack_$(BITS).o			:= n
++KASAN_SANITIZE_stacktrace.o := n
  
--#include <linux/ftrace.h>
-+#include <linux/interrupt.h>
- 
- #define __exception	__attribute__((section(".exception.text")))
- #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-diff --git a/arch/arm/kernel/vmlinux.lds.S b/arch/arm/kernel/vmlinux.lds.S
-index 1fab979..e2c6da0 100644
---- a/arch/arm/kernel/vmlinux.lds.S
-+++ b/arch/arm/kernel/vmlinux.lds.S
-@@ -108,6 +108,7 @@ SECTIONS
- 			*(.exception.text)
- 			__exception_text_end = .;
- 			IRQENTRY_TEXT
-+			SOFTIRQENTRY_TEXT
- 			TEXT_TEXT
- 			SCHED_TEXT
- 			LOCK_TEXT
-diff --git a/arch/arm64/include/asm/exception.h b/arch/arm64/include/asm/exception.h
-index 6cb7e1a..0c2eec4 100644
---- a/arch/arm64/include/asm/exception.h
-+++ b/arch/arm64/include/asm/exception.h
-@@ -18,7 +18,7 @@
- #ifndef __ASM_EXCEPTION_H
- #define __ASM_EXCEPTION_H
- 
--#include <linux/ftrace.h>
-+#include <linux/interrupt.h>
- 
- #define __exception	__attribute__((section(".exception.text")))
- #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-diff --git a/arch/arm64/kernel/vmlinux.lds.S b/arch/arm64/kernel/vmlinux.lds.S
-index 37f624df..5a1939a 100644
---- a/arch/arm64/kernel/vmlinux.lds.S
-+++ b/arch/arm64/kernel/vmlinux.lds.S
-@@ -103,6 +103,7 @@ SECTIONS
- 			*(.exception.text)
- 			__exception_text_end = .;
- 			IRQENTRY_TEXT
-+			SOFTIRQENTRY_TEXT
- 			TEXT_TEXT
- 			SCHED_TEXT
- 			LOCK_TEXT
-diff --git a/arch/blackfin/kernel/vmlinux.lds.S b/arch/blackfin/kernel/vmlinux.lds.S
-index c9eec84..d920b95 100644
---- a/arch/blackfin/kernel/vmlinux.lds.S
-+++ b/arch/blackfin/kernel/vmlinux.lds.S
-@@ -35,6 +35,7 @@ SECTIONS
- #endif
- 		LOCK_TEXT
- 		IRQENTRY_TEXT
-+		SOFTIRQENTRY_TEXT
- 		KPROBES_TEXT
- #ifdef CONFIG_ROMKERNEL
- 		__sinittext = .;
-diff --git a/arch/c6x/kernel/vmlinux.lds.S b/arch/c6x/kernel/vmlinux.lds.S
-index 5a6e141..50bc10f 100644
---- a/arch/c6x/kernel/vmlinux.lds.S
-+++ b/arch/c6x/kernel/vmlinux.lds.S
-@@ -72,6 +72,7 @@ SECTIONS
- 		SCHED_TEXT
- 		LOCK_TEXT
- 		IRQENTRY_TEXT
-+		SOFTIRQENTRY_TEXT
- 		KPROBES_TEXT
- 		*(.fixup)
- 		*(.gnu.warning)
-diff --git a/arch/metag/kernel/vmlinux.lds.S b/arch/metag/kernel/vmlinux.lds.S
-index e12055e..150ace9 100644
---- a/arch/metag/kernel/vmlinux.lds.S
-+++ b/arch/metag/kernel/vmlinux.lds.S
-@@ -24,6 +24,7 @@ SECTIONS
- 	LOCK_TEXT
- 	KPROBES_TEXT
- 	IRQENTRY_TEXT
-+	SOFTIRQENTRY_TEXT
- 	*(.text.*)
- 	*(.gnu.warning)
- 	}
-diff --git a/arch/microblaze/kernel/vmlinux.lds.S b/arch/microblaze/kernel/vmlinux.lds.S
-index be9488d..0a47f04 100644
---- a/arch/microblaze/kernel/vmlinux.lds.S
-+++ b/arch/microblaze/kernel/vmlinux.lds.S
-@@ -36,6 +36,7 @@ SECTIONS {
- 		LOCK_TEXT
- 		KPROBES_TEXT
- 		IRQENTRY_TEXT
-+		SOFTIRQENTRY_TEXT
- 		. = ALIGN (4) ;
- 		_etext = . ;
- 	}
-diff --git a/arch/mips/kernel/vmlinux.lds.S b/arch/mips/kernel/vmlinux.lds.S
-index 0a93e83..54d653e 100644
---- a/arch/mips/kernel/vmlinux.lds.S
-+++ b/arch/mips/kernel/vmlinux.lds.S
-@@ -58,6 +58,7 @@ SECTIONS
- 		LOCK_TEXT
- 		KPROBES_TEXT
- 		IRQENTRY_TEXT
-+		SOFTIRQENTRY_TEXT
- 		*(.text.*)
- 		*(.fixup)
- 		*(.gnu.warning)
-diff --git a/arch/nios2/kernel/vmlinux.lds.S b/arch/nios2/kernel/vmlinux.lds.S
-index 326fab4..e23e895 100644
---- a/arch/nios2/kernel/vmlinux.lds.S
-+++ b/arch/nios2/kernel/vmlinux.lds.S
-@@ -39,6 +39,7 @@ SECTIONS
- 		SCHED_TEXT
- 		LOCK_TEXT
- 		IRQENTRY_TEXT
-+		SOFTIRQENTRY_TEXT
- 		KPROBES_TEXT
- 	} =0
- 	_etext = .;
-diff --git a/arch/openrisc/kernel/vmlinux.lds.S b/arch/openrisc/kernel/vmlinux.lds.S
-index 2d69a85..d936de4 100644
---- a/arch/openrisc/kernel/vmlinux.lds.S
-+++ b/arch/openrisc/kernel/vmlinux.lds.S
-@@ -50,6 +50,7 @@ SECTIONS
- 	  LOCK_TEXT
- 	  KPROBES_TEXT
- 	  IRQENTRY_TEXT
-+	  SOFTIRQENTRY_TEXT
- 	  *(.fixup)
- 	  *(.text.__*)
- 	  _etext = .;
-diff --git a/arch/parisc/kernel/vmlinux.lds.S b/arch/parisc/kernel/vmlinux.lds.S
-index 308f290..f3ead0b 100644
---- a/arch/parisc/kernel/vmlinux.lds.S
-+++ b/arch/parisc/kernel/vmlinux.lds.S
-@@ -72,6 +72,7 @@ SECTIONS
- 		LOCK_TEXT
- 		KPROBES_TEXT
- 		IRQENTRY_TEXT
-+		SOFTIRQENTRY_TEXT
- 		*(.text.do_softirq)
- 		*(.text.sys_exit)
- 		*(.text.do_sigaltstack)
-diff --git a/arch/powerpc/kernel/vmlinux.lds.S b/arch/powerpc/kernel/vmlinux.lds.S
-index d41fd0a..2dd91f7 100644
---- a/arch/powerpc/kernel/vmlinux.lds.S
-+++ b/arch/powerpc/kernel/vmlinux.lds.S
-@@ -55,6 +55,7 @@ SECTIONS
- 		LOCK_TEXT
- 		KPROBES_TEXT
- 		IRQENTRY_TEXT
-+		SOFTIRQENTRY_TEXT
- 
- #ifdef CONFIG_PPC32
- 		*(.got1)
-diff --git a/arch/s390/kernel/vmlinux.lds.S b/arch/s390/kernel/vmlinux.lds.S
-index 445657f..0f41a82 100644
---- a/arch/s390/kernel/vmlinux.lds.S
-+++ b/arch/s390/kernel/vmlinux.lds.S
-@@ -28,6 +28,7 @@ SECTIONS
- 		LOCK_TEXT
- 		KPROBES_TEXT
- 		IRQENTRY_TEXT
-+		SOFTIRQENTRY_TEXT
- 		*(.fixup)
- 		*(.gnu.warning)
- 	} :text = 0x0700
-diff --git a/arch/sh/kernel/vmlinux.lds.S b/arch/sh/kernel/vmlinux.lds.S
-index db88cbf..235a410 100644
---- a/arch/sh/kernel/vmlinux.lds.S
-+++ b/arch/sh/kernel/vmlinux.lds.S
-@@ -39,6 +39,7 @@ SECTIONS
- 		LOCK_TEXT
- 		KPROBES_TEXT
- 		IRQENTRY_TEXT
-+		SOFTIRQENTRY_TEXT
- 		*(.fixup)
- 		*(.gnu.warning)
- 		_etext = .;		/* End of text section */
-diff --git a/arch/sparc/kernel/vmlinux.lds.S b/arch/sparc/kernel/vmlinux.lds.S
-index f1a2f68..aadd321 100644
---- a/arch/sparc/kernel/vmlinux.lds.S
-+++ b/arch/sparc/kernel/vmlinux.lds.S
-@@ -48,6 +48,7 @@ SECTIONS
- 		LOCK_TEXT
- 		KPROBES_TEXT
- 		IRQENTRY_TEXT
-+		SOFTIRQENTRY_TEXT
- 		*(.gnu.warning)
- 	} = 0
- 	_etext = .;
-diff --git a/arch/tile/kernel/vmlinux.lds.S b/arch/tile/kernel/vmlinux.lds.S
-index 0e059a0..378f5d8 100644
---- a/arch/tile/kernel/vmlinux.lds.S
-+++ b/arch/tile/kernel/vmlinux.lds.S
-@@ -45,6 +45,7 @@ SECTIONS
-     LOCK_TEXT
-     KPROBES_TEXT
-     IRQENTRY_TEXT
-+    SOFTIRQENTRY_TEXT
-     __fix_text_end = .;   /* tile-cpack won't rearrange before this */
-     ALIGN_FUNCTION();
-     *(.hottext*)
-diff --git a/arch/x86/kernel/vmlinux.lds.S b/arch/x86/kernel/vmlinux.lds.S
-index 74adf67..02f14cf 100644
---- a/arch/x86/kernel/vmlinux.lds.S
-+++ b/arch/x86/kernel/vmlinux.lds.S
-@@ -101,6 +101,7 @@ SECTIONS
- 		KPROBES_TEXT
- 		ENTRY_TEXT
- 		IRQENTRY_TEXT
-+		SOFTIRQENTRY_TEXT
- 		*(.fixup)
- 		*(.gnu.warning)
- 		/* End of text section */
-diff --git a/include/asm-generic/vmlinux.lds.h b/include/asm-generic/vmlinux.lds.h
-index 8f5a12a..339125b 100644
---- a/include/asm-generic/vmlinux.lds.h
-+++ b/include/asm-generic/vmlinux.lds.h
-@@ -456,7 +456,7 @@
- 		*(.entry.text)						\
- 		VMLINUX_SYMBOL(__entry_text_end) = .;
- 
--#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-+#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
- #define IRQENTRY_TEXT							\
- 		ALIGN_FUNCTION();					\
- 		VMLINUX_SYMBOL(__irqentry_text_start) = .;		\
-@@ -466,6 +466,16 @@
- #define IRQENTRY_TEXT
- #endif
- 
-+#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
-+#define SOFTIRQENTRY_TEXT						\
-+		ALIGN_FUNCTION();					\
-+		VMLINUX_SYMBOL(__softirqentry_text_start) = .;		\
-+		*(.softirqentry.text)					\
-+		VMLINUX_SYMBOL(__softirqentry_text_end) = .;
-+#else
-+#define SOFTIRQENTRY_TEXT
-+#endif
-+
- /* Section used for early init (in .S files) */
- #define HEAD_TEXT  *(.head.text)
- 
-diff --git a/include/linux/ftrace.h b/include/linux/ftrace.h
-index 6d9df3f..dea12a6 100644
---- a/include/linux/ftrace.h
-+++ b/include/linux/ftrace.h
-@@ -811,16 +811,6 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
-  */
- #define __notrace_funcgraph		notrace
- 
--/*
-- * We want to which function is an entrypoint of a hardirq.
-- * That will help us to put a signal on output.
-- */
--#define __irq_entry		 __attribute__((__section__(".irqentry.text")))
--
--/* Limits of hardirq entrypoints */
--extern char __irqentry_text_start[];
--extern char __irqentry_text_end[];
--
- #define FTRACE_NOTRACE_DEPTH 65536
- #define FTRACE_RETFUNC_DEPTH 50
- #define FTRACE_RETSTACK_ALLOC_SIZE 32
-@@ -857,7 +847,6 @@ static inline void unpause_graph_tracing(void)
- #else /* !CONFIG_FUNCTION_GRAPH_TRACER */
- 
- #define __notrace_funcgraph
--#define __irq_entry
- #define INIT_FTRACE_GRAPH
- 
- static inline void ftrace_graph_init_task(struct task_struct *t) { }
-diff --git a/include/linux/interrupt.h b/include/linux/interrupt.h
-index 0e95fcc..1dcecaf 100644
---- a/include/linux/interrupt.h
-+++ b/include/linux/interrupt.h
-@@ -673,4 +673,24 @@ extern int early_irq_init(void);
- extern int arch_probe_nr_irqs(void);
- extern int arch_early_irq_init(void);
- 
-+#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
+ OBJECT_FILES_NON_STANDARD_head_$(BITS).o		:= y
+ OBJECT_FILES_NON_STANDARD_relocate_kernel_$(BITS).o	:= y
+diff --git a/include/linux/stackdepot.h b/include/linux/stackdepot.h
+new file mode 100644
+index 0000000..7978b3e
+--- /dev/null
++++ b/include/linux/stackdepot.h
+@@ -0,0 +1,32 @@
 +/*
-+ * We want to know which function is an entrypoint of a hardirq or a softirq.
++ * A generic stack depot implementation
++ *
++ * Author: Alexander Potapenko <glider@google.com>
++ * Copyright (C) 2016 Google, Inc.
++ *
++ * Based on code by Dmitry Chernenkov.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
 + */
-+#define __irq_entry		 __attribute__((__section__(".irqentry.text")))
-+#define __softirq_entry  \
-+	__attribute__((__section__(".softirqentry.text")))
 +
-+/* Limits of hardirq entrypoints */
-+extern char __irqentry_text_start[];
-+extern char __irqentry_text_end[];
-+/* Limits of softirq entrypoints */
-+extern char __softirqentry_text_start[];
-+extern char __softirqentry_text_end[];
++#ifndef _LINUX_STACKDEPOT_H
++#define _LINUX_STACKDEPOT_H
 +
-+#else
-+#define __irq_entry
-+#define __softirq_entry
++typedef u32 depot_stack_handle_t;
++
++struct stack_trace;
++
++depot_stack_handle_t depot_save_stack(struct stack_trace *trace, gfp_t flags);
++
++void depot_fetch_stack(depot_stack_handle_t handle, struct stack_trace *trace);
++
 +#endif
+diff --git a/lib/Kconfig b/lib/Kconfig
+index ee38a3f..9d1cd1c 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -543,4 +543,8 @@ config ARCH_HAS_PMEM_API
+ config ARCH_HAS_MMIO_FLUSH
+ 	bool
+ 
++config STACKDEPOT
++	bool
++	select STACKTRACE
 +
- #endif
-diff --git a/kernel/softirq.c b/kernel/softirq.c
-index 8aae49d..17caf4b 100644
---- a/kernel/softirq.c
-+++ b/kernel/softirq.c
-@@ -227,7 +227,7 @@ static inline bool lockdep_softirq_start(void) { return false; }
- static inline void lockdep_softirq_end(bool in_hardirq) { }
- #endif
+ endmenu
+diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+index 0e4d2b3..67d8c68 100644
+--- a/lib/Kconfig.kasan
++++ b/lib/Kconfig.kasan
+@@ -7,6 +7,7 @@ config KASAN
+ 	bool "KASan: runtime memory debugger"
+ 	depends on SLUB_DEBUG || (SLAB && !DEBUG_SLAB)
+ 	select CONSTRUCTORS
++	select STACKDEPOT if SLAB
+ 	help
+ 	  Enables kernel address sanitizer - runtime memory debugger,
+ 	  designed to find out-of-bounds accesses and use-after-free bugs.
+diff --git a/lib/Makefile b/lib/Makefile
+index 50b31e2..0123abc 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -182,6 +182,9 @@ obj-$(CONFIG_SG_SPLIT) += sg_split.o
+ obj-$(CONFIG_STMP_DEVICE) += stmp_device.o
+ obj-$(CONFIG_IRQ_POLL) += irq_poll.o
  
--asmlinkage __visible void __do_softirq(void)
-+asmlinkage __visible void __softirq_entry __do_softirq(void)
- {
- 	unsigned long end = jiffies + MAX_SOFTIRQ_TIME;
- 	unsigned long old_flags = current->flags;
-diff --git a/kernel/trace/trace_functions_graph.c b/kernel/trace/trace_functions_graph.c
-index a663cbb..3e6f7d4 100644
---- a/kernel/trace/trace_functions_graph.c
-+++ b/kernel/trace/trace_functions_graph.c
-@@ -8,6 +8,7 @@
-  */
- #include <linux/uaccess.h>
- #include <linux/ftrace.h>
++obj-$(CONFIG_STACKDEPOT) += stackdepot.o
++KASAN_SANITIZE_stackdepot.o := n
++
+ libfdt_files = fdt.o fdt_ro.o fdt_wip.o fdt_rw.o fdt_sw.o fdt_strerror.o \
+ 	       fdt_empty_tree.o
+ $(foreach file, $(libfdt_files), \
+diff --git a/lib/stackdepot.c b/lib/stackdepot.c
+new file mode 100644
+index 0000000..b0eb6db
+--- /dev/null
++++ b/lib/stackdepot.c
+@@ -0,0 +1,301 @@
++/*
++ * Generic stack depot for storing stack traces.
++ *
++ * Some debugging tools need to save stack traces of certain events which can
++ * be later presented to the user. For example, KASAN needs to safe alloc and
++ * free stacks for each object, but storing two stack traces per object
++ * requires too much memory (e.g. SLUB_DEBUG needs 256 bytes per object for
++ * that).
++ *
++ * Instead, stack depot maintains a hashtable of unique stacktraces. Since alloc
++ * and free stacks repeat a lot, we save about 100x space.
++ * Stacks are never removed from depot, so we store them contiguously one after
++ * another in a contiguos memory allocation.
++ *
++ * Author: Alexander Potapenko <glider@google.com>
++ * Copyright (C) 2016 Google, Inc.
++ *
++ * Based on code by Dmitry Chernenkov.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ */
++
++#include <linux/gfp.h>
++#include <linux/jhash.h>
++#include <linux/kernel.h>
++#include <linux/mm.h>
++#include <linux/percpu.h>
++#include <linux/printk.h>
++#include <linux/slab.h>
++#include <linux/stacktrace.h>
++#include <linux/stackdepot.h>
++#include <linux/string.h>
++#include <linux/types.h>
++#include <linux/vmalloc.h>
++
++#define DEPOT_STACK_BITS (sizeof(depot_stack_handle_t) * 8)
++
++#define STACK_ALLOC_ORDER 2 /* 'Slab' size order for stack depot, 4 pages */
++#define STACK_ALLOC_SIZE (1LL << (PAGE_SHIFT + STACK_ALLOC_ORDER))
++#define STACK_ALLOC_ALIGN 4
++#define STACK_ALLOC_OFFSET_BITS (STACK_ALLOC_ORDER + PAGE_SHIFT - \
++					STACK_ALLOC_ALIGN)
++#define STACK_ALLOC_INDEX_BITS (DEPOT_STACK_BITS - STACK_ALLOC_OFFSET_BITS)
++#define STACK_ALLOC_SLABS_CAP 1024
++#define STACK_ALLOC_MAX_SLABS \
++	(((1LL << (STACK_ALLOC_INDEX_BITS)) < STACK_ALLOC_SLABS_CAP) ? \
++	 (1LL << (STACK_ALLOC_INDEX_BITS)) : STACK_ALLOC_SLABS_CAP)
++
++/* The compact structure to store the reference to stacks. */
++union handle_parts {
++	depot_stack_handle_t handle;
++	struct {
++		u32 slabindex : STACK_ALLOC_INDEX_BITS;
++		u32 offset : STACK_ALLOC_OFFSET_BITS;
++	};
++};
++
++struct stack_record {
++	struct stack_record *next;	/* Link in the hashtable */
++	u32 hash;			/* Hash in the hastable */
++	u32 size;			/* Number of frames in the stack */
++	union handle_parts handle;
++	unsigned long entries[1];	/* Variable-sized array of entries. */
++};
++
++static void *stack_slabs[STACK_ALLOC_MAX_SLABS];
++
++static int depot_index;
++static int next_slab_inited;
++static size_t depot_offset;
++static DEFINE_SPINLOCK(depot_lock);
++
++static bool init_stack_slab(void **prealloc)
++{
++	if (!*prealloc)
++		return false;
++	/* This smp_load_acquire() pairs with smp_store_release() to
++	 * |next_slab_inited| below and in depot_alloc_stack().
++	 */
++	if (smp_load_acquire(&next_slab_inited))
++		return true;
++	if (stack_slabs[depot_index] == NULL) {
++		stack_slabs[depot_index] = *prealloc;
++	} else {
++		stack_slabs[depot_index + 1] = *prealloc;
++		/* This smp_store_release pairs with smp_load_acquire() from
++		 * |next_slab_inited| above and in depot_save_stack().
++		 */
++		smp_store_release(&next_slab_inited, 1);
++	}
++	*prealloc = NULL;
++	return true;
++}
++
++/* Allocation of a new stack in raw storage */
++static struct stack_record *depot_alloc_stack(unsigned long *entries, int size,
++		u32 hash, void **prealloc, gfp_t alloc_flags)
++{
++	int required_size = offsetof(struct stack_record, entries) +
++		sizeof(unsigned long) * size;
++	struct stack_record *stack;
++
++	required_size = ALIGN(required_size, 1 << STACK_ALLOC_ALIGN);
++
++	if (unlikely(depot_offset + required_size > STACK_ALLOC_SIZE)) {
++		if (unlikely(depot_index + 1 >= STACK_ALLOC_MAX_SLABS)) {
++			WARN_ONCE(1, "Stack depot reached limit capacity");
++			return NULL;
++		}
++		depot_index++;
++		depot_offset = 0;
++		/* smp_store_release() here pairs with smp_load_acquire() from
++		 * |next_slab_inited| in depot_save_stack() and
++		 * init_stack_slab().
++		 */
++		if (depot_index + 1 < STACK_ALLOC_MAX_SLABS)
++			smp_store_release(&next_slab_inited, 0);
++	}
++	init_stack_slab(prealloc);
++	if (stack_slabs[depot_index] == NULL)
++		return NULL;
++
++	stack = stack_slabs[depot_index] + depot_offset;
++
++	stack->hash = hash;
++	stack->size = size;
++	stack->handle.slabindex = depot_index;
++	stack->handle.offset = depot_offset >> STACK_ALLOC_ALIGN;
++	memcpy(stack->entries, entries, size * sizeof(unsigned long));
++	depot_offset += required_size;
++
++	return stack;
++}
++
++#define STACK_HASH_ORDER 20
++#define STACK_HASH_SIZE (1L << STACK_HASH_ORDER)
++#define STACK_HASH_MASK (STACK_HASH_SIZE - 1)
++#define STACK_HASH_SEED 0x9747b28c
++
++static struct stack_record *stack_table[STACK_HASH_SIZE] = {
++	[0 ...	STACK_HASH_SIZE - 1] = NULL
++};
++
++/* Calculate hash for a stack */
++static inline u32 hash_stack(unsigned long *entries, unsigned int size)
++{
++	return jhash2((u32 *)entries,
++			       size * sizeof(unsigned long) / sizeof(u32),
++			       STACK_HASH_SEED);
++}
++
++/* Find a stack that is equal to the one stored in entries in the hash */
++static inline struct stack_record *find_stack(struct stack_record *bucket,
++					     unsigned long *entries, int size,
++					     u32 hash)
++{
++	struct stack_record *found;
++
++	for (found = bucket; found; found = found->next) {
++		if (found->hash == hash &&
++		    found->size == size &&
++		    !memcmp(entries, found->entries,
++			    size * sizeof(unsigned long))) {
++			return found;
++		}
++	}
++	return NULL;
++}
++
++void depot_fetch_stack(depot_stack_handle_t handle, struct stack_trace *trace)
++{
++	union handle_parts parts = { .handle = handle };
++	void *slab = stack_slabs[parts.slabindex];
++	size_t offset = parts.offset << STACK_ALLOC_ALIGN;
++	struct stack_record *stack = slab + offset;
++
++	trace->nr_entries = trace->max_entries = stack->size;
++	trace->entries = stack->entries;
++	trace->skip = 0;
++}
++
++static DEFINE_PER_CPU(bool, depot_recursion);
++/*
++ * depot_save_stack - save stack in a stack depot.
++ * @trace - the stacktrace to save.
++ * @alloc_flags - flags for allocating additional memory if required.
++ *
++ * Returns the handle of the stack struct stored in depot.
++ */
++depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
++				    gfp_t alloc_flags)
++{
++	u32 hash;
++	depot_stack_handle_t retval = 0;
++	struct stack_record *found = NULL, **bucket;
++	unsigned long flags;
++	struct page *page = NULL;
++	void *prealloc = NULL;
++	bool *rec;
++
++	if (unlikely(trace->nr_entries == 0))
++		goto fast_exit;
++
++	rec = this_cpu_ptr(&depot_recursion);
++	/* Don't store the stack if we've been called recursively. */
++	if (unlikely(*rec))
++		goto fast_exit;
++	*rec = true;
++
++	hash = hash_stack(trace->entries, trace->nr_entries);
++	/* Bad luck, we won't store this stack. */
++	if (hash == 0)
++		goto exit;
++
++	bucket = &stack_table[hash & STACK_HASH_MASK];
++
++	/* Fast path: look the stack trace up without locking.
++	 *
++	 * The smp_load_acquire() here pairs with smp_store_release() to
++	 * |bucket| below.
++	 */
++	found = find_stack(smp_load_acquire(bucket), trace->entries,
++			   trace->nr_entries, hash);
++	if (found)
++		goto exit;
++
++	/* Check if the current or the next stack slab need to be initialized.
++	 * If so, allocate the memory - we won't be able to do that under the
++	 * lock.
++	 *
++	 * The smp_load_acquire() here pairs with smp_store_release() to
++	 * |next_slab_inited| in depot_alloc_stack() and init_stack_slab().
++	 */
++	if (unlikely(!smp_load_acquire(&next_slab_inited))) {
++		/* Zero out zone modifiers, as we don't have specific zone
++		 * requirements. Keep the flags related to allocation in atomic
++		 * contexts and I/O.
++		 */
++		alloc_flags &= ~GFP_ZONEMASK;
++		alloc_flags &= (GFP_ATOMIC | GFP_KERNEL);
++		/* When possible, allocate using vmalloc() to reduce physical
++		 * address space fragmentation. vmalloc() doesn't work if
++		 * kmalloc caches haven't been initialized or if it's being
++		 * called from an interrupt handler.
++		 */
++		if (kmalloc_caches[KMALLOC_SHIFT_HIGH] && !in_interrupt()) {
++			prealloc = __vmalloc(
++				STACK_ALLOC_SIZE, alloc_flags, PAGE_KERNEL);
++		} else {
++			page = alloc_pages(alloc_flags, STACK_ALLOC_ORDER);
++			if (page)
++				prealloc = page_address(page);
++		}
++	}
++
++	spin_lock_irqsave(&depot_lock, flags);
++
++	found = find_stack(*bucket, trace->entries, trace->nr_entries, hash);
++	if (!found) {
++		struct stack_record *new =
++			depot_alloc_stack(trace->entries, trace->nr_entries,
++					  hash, &prealloc, alloc_flags);
++		if (new) {
++			new->next = *bucket;
++			/* This smp_store_release() pairs with
++			 * smp_load_acquire() from |bucket| above.
++			 */
++			smp_store_release(bucket, new);
++			found = new;
++		}
++	} else if (prealloc) {
++		/*
++		 * We didn't need to store this stack trace, but let's keep
++		 * the preallocated memory for the future.
++		 */
++		WARN_ON(!init_stack_slab(&prealloc));
++	}
++
++	spin_unlock_irqrestore(&depot_lock, flags);
++exit:
++	if (prealloc) {
++		/* Nobody used this memory, ok to free it. */
++		if (page)
++			free_pages((unsigned long)prealloc, STACK_ALLOC_ORDER);
++		else
++			vfree(prealloc);
++	}
++	if (found)
++		retval = found->handle.handle;
++	*rec = false;
++fast_exit:
++	return retval;
++}
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 95b2267..6c0de02 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -17,7 +17,9 @@
+ #define DISABLE_BRANCH_PROFILING
+ 
+ #include <linux/export.h>
 +#include <linux/interrupt.h>
- #include <linux/slab.h>
- #include <linux/fs.h>
+ #include <linux/init.h>
++#include <linux/kasan.h>
+ #include <linux/kernel.h>
+ #include <linux/kmemleak.h>
+ #include <linux/memblock.h>
+@@ -31,7 +33,6 @@
+ #include <linux/string.h>
+ #include <linux/types.h>
+ #include <linux/vmalloc.h>
+-#include <linux/kasan.h>
  
+ #include "kasan.h"
+ #include "../slab.h"
+@@ -393,23 +394,65 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
+ #endif
+ }
+ 
+-static inline void set_track(struct kasan_track *track)
++#ifdef CONFIG_SLAB
++static inline int in_irqentry_text(unsigned long ptr)
++{
++	return (ptr >= (unsigned long)&__irqentry_text_start &&
++		ptr < (unsigned long)&__irqentry_text_end) ||
++		(ptr >= (unsigned long)&__softirqentry_text_start &&
++		 ptr < (unsigned long)&__softirqentry_text_end);
++}
++
++static inline void filter_irq_stacks(struct stack_trace *trace)
++{
++	int i;
++
++	if (!trace->nr_entries)
++		return;
++	for (i = 0; i < trace->nr_entries; i++)
++		if (in_irqentry_text(trace->entries[i])) {
++			/* Include the irqentry function into the stack. */
++			trace->nr_entries = i + 1;
++			break;
++		}
++}
++
++static inline depot_stack_handle_t save_stack(gfp_t flags)
++{
++	unsigned long entries[KASAN_STACK_DEPTH];
++	struct stack_trace trace = {
++		.nr_entries = 0,
++		.entries = entries,
++		.max_entries = KASAN_STACK_DEPTH,
++		.skip = 0
++	};
++
++	save_stack_trace(&trace);
++	filter_irq_stacks(&trace);
++	if (trace.nr_entries != 0 &&
++	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
++		trace.nr_entries--;
++
++	return depot_save_stack(&trace, flags);
++}
++
++static inline void set_track(struct kasan_track *track, gfp_t flags)
+ {
+-	track->cpu = raw_smp_processor_id();
+ 	track->pid = current->pid;
+-	track->when = jiffies;
++	track->stack = save_stack(flags);
+ }
+ 
+-#ifdef CONFIG_SLAB
+ struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
+ 					const void *object)
+ {
++	BUILD_BUG_ON(sizeof(struct kasan_alloc_meta) > 32);
+ 	return (void *)object + cache->kasan_info.alloc_meta_offset;
+ }
+ 
+ struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
+ 				      const void *object)
+ {
++	BUILD_BUG_ON(sizeof(struct kasan_free_meta) > 32);
+ 	return (void *)object + cache->kasan_info.free_meta_offset;
+ }
+ #endif
+@@ -466,7 +509,7 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
+ 
+ 		alloc_info->state = KASAN_STATE_ALLOC;
+ 		alloc_info->alloc_size = size;
+-		set_track(&alloc_info->track);
++		set_track(&alloc_info->track, flags);
+ 	}
+ #endif
+ }
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index 7b9e4ab9..30a2f0b 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -2,6 +2,7 @@
+ #define __MM_KASAN_KASAN_H
+ 
+ #include <linux/kasan.h>
++#include <linux/stackdepot.h>
+ 
+ #define KASAN_SHADOW_SCALE_SIZE (1UL << KASAN_SHADOW_SCALE_SHIFT)
+ #define KASAN_SHADOW_MASK       (KASAN_SHADOW_SCALE_SIZE - 1)
+@@ -64,16 +65,18 @@ enum kasan_state {
+ 	KASAN_STATE_FREE
+ };
+ 
++#define KASAN_STACK_DEPTH 64
++
+ struct kasan_track {
+-	u64 cpu : 6;			/* for NR_CPUS = 64 */
+-	u64 pid : 16;			/* 65536 processes */
+-	u64 when : 42;			/* ~140 years */
++	u32 pid;
++	depot_stack_handle_t stack;
+ };
+ 
+ struct kasan_alloc_meta {
++	struct kasan_track track;
+ 	u32 state : 2;	/* enum kasan_state */
+ 	u32 alloc_size : 30;
+-	struct kasan_track track;
++	u32 reserved;
+ };
+ 
+ struct kasan_free_meta {
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index 0a4fde9..8e58be0f 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -18,6 +18,7 @@
+ #include <linux/printk.h>
+ #include <linux/sched.h>
+ #include <linux/slab.h>
++#include <linux/stackdepot.h>
+ #include <linux/stacktrace.h>
+ #include <linux/string.h>
+ #include <linux/types.h>
+@@ -118,8 +119,15 @@ static inline bool init_task_stack_addr(const void *addr)
+ #ifdef CONFIG_SLAB
+ static void print_track(struct kasan_track *track)
+ {
+-	pr_err("PID = %u, CPU = %u, timestamp = %lu\n", track->pid,
+-	       track->cpu, (unsigned long)track->when);
++	pr_err("PID = %u\n", track->pid);
++	if (track->stack) {
++		struct stack_trace trace;
++
++		depot_fetch_stack(track->stack, &trace);
++		print_stack_trace(&trace, 0);
++	} else {
++		pr_err("(stack is not available)\n");
++	}
+ }
+ 
+ static void object_err(struct kmem_cache *cache, struct page *page,
 -- 
 2.7.0.rc3.207.g0ac5344
 
