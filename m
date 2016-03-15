@@ -1,37 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id E0760828DF
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 02:20:29 -0400 (EDT)
-Received: by mail-pf0-f170.google.com with SMTP id u190so14619652pfb.3
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 23:20:29 -0700 (PDT)
-Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
-        by mx.google.com with ESMTPS id m65si17317607pfi.168.2016.03.14.23.20.29
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id DFA5C828DF
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 02:27:02 -0400 (EDT)
+Received: by mail-pf0-f174.google.com with SMTP id x3so14937720pfb.1
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 23:27:02 -0700 (PDT)
+Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
+        by mx.google.com with ESMTPS id 13si1347981pft.59.2016.03.14.23.27.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Mar 2016 23:20:29 -0700 (PDT)
-Received: by mail-pf0-x233.google.com with SMTP id n5so14654580pfn.2
-        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 23:20:29 -0700 (PDT)
-Date: Tue, 15 Mar 2016 15:21:52 +0900
+        Mon, 14 Mar 2016 23:27:02 -0700 (PDT)
+Received: by mail-pf0-x235.google.com with SMTP id n5so14884849pfn.2
+        for <linux-mm@kvack.org>; Mon, 14 Mar 2016 23:27:02 -0700 (PDT)
+Date: Tue, 15 Mar 2016 15:28:24 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v1 08/19] zsmalloc: remove unused pool param in obj_free
-Message-ID: <20160315062152.GD1464@swordfish>
+Subject: Re: [PATCH v1 09/19] zsmalloc: keep max_object in size_class
+Message-ID: <20160315062824.GE1464@swordfish>
 References: <1457681423-26664-1-git-send-email-minchan@kernel.org>
- <1457681423-26664-9-git-send-email-minchan@kernel.org>
+ <1457681423-26664-10-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1457681423-26664-9-git-send-email-minchan@kernel.org>
+In-Reply-To: <1457681423-26664-10-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, rknize@motorola.com, Rik van Riel <riel@redhat.com>, Gioh Kim <gurugio@hanmail.net>
 
 On (03/11/16 16:30), Minchan Kim wrote:
-> Let's remove unused pool param in obj_free
+> Every zspage in a size_class has same number of max objects so
+> we could move it to a size_class.
 > 
 > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/zsmalloc.c | 29 ++++++++++++++---------------
+>  1 file changed, 14 insertions(+), 15 deletions(-)
+> 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index b4fb11831acb..ca663c82c1fc 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -32,8 +32,6 @@
+>   *	page->freelist: points to the first free object in zspage.
+>   *		Free objects are linked together using in-place
+>   *		metadata.
+> - *	page->objects: maximum number of objects we can store in this
+> - *		zspage (class->zspage_order * PAGE_SIZE / class->size)
+>   *	page->lru: links together first pages of various zspages.
+>   *		Basically forming list of zspages in a fullness group.
+>   *	page->mapping: class index and fullness group of the zspage
+> @@ -211,6 +209,7 @@ struct size_class {
+>  	 * of ZS_ALIGN.
+>  	 */
+>  	int size;
+> +	int objs_per_zspage;
+>  	unsigned int index;
 
-Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+struct page ->objects "comes for free". now we don't use it, instead
+every size_class grows by 4 bytes? is there any reason for this?
 
 	-ss
 
