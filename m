@@ -1,125 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 114816B0005
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 05:28:00 -0400 (EDT)
-Received: by mail-wm0-f46.google.com with SMTP id l68so135510824wml.0
-        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 02:28:00 -0700 (PDT)
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A49936B0005
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 06:10:42 -0400 (EDT)
+Received: by mail-wm0-f54.google.com with SMTP id l68so144117521wml.0
+        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 03:10:42 -0700 (PDT)
 Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id ju3si31815300wjb.228.2016.03.15.02.27.58
+        by mx.google.com with ESMTPS id 184si13488237wmj.92.2016.03.15.03.10.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Mar 2016 02:27:58 -0700 (PDT)
-Received: by mail-wm0-x22c.google.com with SMTP id l124so2786729wmf.1
-        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 02:27:58 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAPAsAGx58NuvRB7=qeXr27VFE8PoabLxvNGVGP66MV1WkhDA+g@mail.gmail.com>
-References: <cover.1457949315.git.glider@google.com>
-	<4f6880ee0c1545b3ae9c25cfe86a879d724c4e7b.1457949315.git.glider@google.com>
-	<CAPAsAGx58NuvRB7=qeXr27VFE8PoabLxvNGVGP66MV1WkhDA+g@mail.gmail.com>
-Date: Tue, 15 Mar 2016 10:27:58 +0100
-Message-ID: <CAG_fn=WNy=wyA5LFJO8Kg7kK9m7LC9AkNHkYxwjdrQjzyK4uoQ@mail.gmail.com>
-Subject: Re: [PATCH v7 5/7] mm, kasan: Stackdepot implementation. Enable
- stackdepot for SLAB
+        Tue, 15 Mar 2016 03:10:41 -0700 (PDT)
+Received: by mail-wm0-x22c.google.com with SMTP id p65so18829891wmp.0
+        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 03:10:41 -0700 (PDT)
 From: Alexander Potapenko <glider@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: [PATCH v8 0/7] SLAB support for KASAN
+Date: Tue, 15 Mar 2016 11:10:29 +0100
+Message-Id: <cover.1458036040.git.glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com
+Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Mar 14, 2016 at 5:56 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> w=
-rote:
-> 2016-03-14 13:43 GMT+03:00 Alexander Potapenko <glider@google.com>:
->
->> +
->> +       rec =3D this_cpu_ptr(&depot_recursion);
->> +       /* Don't store the stack if we've been called recursively. */
->> +       if (unlikely(*rec))
->> +               goto fast_exit;
->> +       *rec =3D true;
->
->
-> This just can't work. As long as preemption enabled, task could
-> migrate on another cpu anytime.
-Ah, you're right.
-Do you think disabling preemption around memory allocation is an option her=
-e?
-> You could use per-task flag, although it's possible to miss some
-> in-irq stacktraces:
->
-> depot_save_stack()
->     if (current->stackdeport_recursion)
->           goto fast_exit;
->     current->stackdepot_recursion++
->     <IRQ>
->            ....
->            depot_save_stack()
->                  if (current->stackdeport_recursion)
->                       goto fast_exit;
->
->
->
->> +       if (unlikely(!smp_load_acquire(&next_slab_inited))) {
->> +               /* Zero out zone modifiers, as we don't have specific zo=
-ne
->> +                * requirements. Keep the flags related to allocation in=
- atomic
->> +                * contexts and I/O.
->> +                */
->> +               alloc_flags &=3D ~GFP_ZONEMASK;
->> +               alloc_flags &=3D (GFP_ATOMIC | GFP_KERNEL);
->> +               /* When possible, allocate using vmalloc() to reduce phy=
-sical
->> +                * address space fragmentation. vmalloc() doesn't work i=
-f
->> +                * kmalloc caches haven't been initialized or if it's be=
-ing
->> +                * called from an interrupt handler.
->> +                */
->> +               if (kmalloc_caches[KMALLOC_SHIFT_HIGH] && !in_interrupt(=
-)) {
->
-> This is clearly a wrong way to check whether is slab available or not.
-Well, I don't think either vmalloc() or kmalloc() provide any
-interface to check if they are available.
+This patch set implements SLAB support for KASAN
 
-> Besides you need to check
-> vmalloc() for availability, not slab.
-The problem was in kmalloc caches being unavailable, although I can
-imagine other problems could have arose.
-Perhaps we can drill a hole to get the value of vmap_initialized?
-> Given that STAC_ALLOC_ORDER is 2 now, I think it should be fine to use
-> alloc_pages() all the time.
-> Or fix condition, up to you.
-Ok, I'm going to drop vmalloc() for now, we can always implement this later=
-.
-Note that this also removes the necessity to check for recursion.
->> +                       prealloc =3D __vmalloc(
->> +                               STACK_ALLOC_SIZE, alloc_flags, PAGE_KERN=
-EL);
->> +               } else {
->> +                       page =3D alloc_pages(alloc_flags, STACK_ALLOC_OR=
-DER);
->> +                       if (page)
->> +                               prealloc =3D page_address(page);
->> +               }
->> +       }
->> +
+Unlike SLUB, SLAB doesn't store allocation/deallocation stacks for heap
+objects, therefore we reimplement this feature in mm/kasan/stackdepot.c.
+The intention is to ultimately switch SLUB to use this implementation as
+well, which will save a lot of memory (right now SLUB bloats each object
+by 256 bytes to store the allocation/deallocation stacks).
 
+Also neither SLUB nor SLAB delay the reuse of freed memory chunks, which
+is necessary for better detection of use-after-free errors. We introduce
+memory quarantine (mm/kasan/quarantine.c), which allows delayed reuse of
+deallocated memory.
 
+Alexander Potapenko (7):
+  kasan: Modify kmalloc_large_oob_right(), add
+    kmalloc_pagealloc_oob_right()
+  mm, kasan: SLAB support
+  mm, kasan: Added GFP flags to KASAN API
+  arch, ftrace: For KASAN put hard/soft IRQ entries into separate
+    sections
+  mm, kasan: Stackdepot implementation. Enable stackdepot for SLAB
+  kasan: Test fix: Warn if the UAF could not be detected in kmalloc_uaf2
+  mm: kasan: Initial memory quarantine implementation
+---
+v2: - merged two patches that touched kmalloc_large_oob_right
+    - moved stackdepot implementation to lib/
+    - moved IRQ definitions to include/linux/interrupt.h
 
---=20
-Alexander Potapenko
-Software Engineer
+v3: - minor description changes
+    - store deallocation info in the "mm, kasan: SLAB support" patch
 
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
+v4: - fix kbuild error reports
 
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+v5: - SLAB allocator, stackdepot: adopted suggestions by Andrey Ryabinin
+    - IRQ: fixed kbuild warnings
+
+v6: - stackdepot: fixed kbuild warnings, simplified kasan_track,
+use vmalloc() for depot when possible
+    - quarantine: improved patch description, removed dead code
+
+v7: - fix kbuild error reports
+
+v8: - removed vmalloc() and recursion flags from stackdepot
+---
+
+ Documentation/kasan.txt              |   5 +-
+ arch/arm/include/asm/exception.h     |   2 +-
+ arch/arm/kernel/vmlinux.lds.S        |   1 +
+ arch/arm64/include/asm/exception.h   |   2 +-
+ arch/arm64/kernel/vmlinux.lds.S      |   1 +
+ arch/blackfin/kernel/vmlinux.lds.S   |   1 +
+ arch/c6x/kernel/vmlinux.lds.S        |   1 +
+ arch/metag/kernel/vmlinux.lds.S      |   1 +
+ arch/microblaze/kernel/vmlinux.lds.S |   1 +
+ arch/mips/kernel/vmlinux.lds.S       |   1 +
+ arch/nios2/kernel/vmlinux.lds.S      |   1 +
+ arch/openrisc/kernel/vmlinux.lds.S   |   1 +
+ arch/parisc/kernel/vmlinux.lds.S     |   1 +
+ arch/powerpc/kernel/vmlinux.lds.S    |   1 +
+ arch/s390/kernel/vmlinux.lds.S       |   1 +
+ arch/sh/kernel/vmlinux.lds.S         |   1 +
+ arch/sparc/kernel/vmlinux.lds.S      |   1 +
+ arch/tile/kernel/vmlinux.lds.S       |   1 +
+ arch/x86/kernel/Makefile             |   1 +
+ arch/x86/kernel/vmlinux.lds.S        |   1 +
+ include/asm-generic/vmlinux.lds.h    |  12 +-
+ include/linux/ftrace.h               |  11 --
+ include/linux/interrupt.h            |  20 +++
+ include/linux/kasan.h                |  63 +++++---
+ include/linux/slab.h                 |  10 +-
+ include/linux/slab_def.h             |  14 ++
+ include/linux/slub_def.h             |  11 ++
+ include/linux/stackdepot.h           |  32 ++++
+ kernel/softirq.c                     |   2 +-
+ kernel/trace/trace_functions_graph.c |   1 +
+ lib/Kconfig                          |   4 +
+ lib/Kconfig.kasan                    |   5 +-
+ lib/Makefile                         |   3 +
+ lib/stackdepot.c                     | 278 +++++++++++++++++++++++++++++++++
+ lib/test_kasan.c                     |  59 ++++++-
+ mm/Makefile                          |   1 +
+ mm/kasan/Makefile                    |   4 +
+ mm/kasan/kasan.c                     | 219 ++++++++++++++++++++++++--
+ mm/kasan/kasan.h                     |  44 ++++++
+ mm/kasan/quarantine.c                | 289 +++++++++++++++++++++++++++++++++++
+ mm/kasan/report.c                    |  63 ++++++--
+ mm/mempool.c                         |  23 +--
+ mm/page_alloc.c                      |   2 +-
+ mm/slab.c                            |  53 ++++++-
+ mm/slab.h                            |   4 +-
+ mm/slab_common.c                     |   8 +-
+ mm/slub.c                            |  19 +--
+ 47 files changed, 1188 insertions(+), 92 deletions(-)
+ create mode 100644 include/linux/stackdepot.h
+ create mode 100644 lib/stackdepot.c
+ create mode 100644 mm/kasan/quarantine.c
+
+-- 
+2.7.0.rc3.207.g0ac5344
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
