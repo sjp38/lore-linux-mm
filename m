@@ -1,60 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id C70C96B0264
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 11:25:54 -0400 (EDT)
-Received: by mail-wm0-f53.google.com with SMTP id l68so155347913wml.0
-        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 08:25:54 -0700 (PDT)
-Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
-        by mx.google.com with ESMTPS id n66si25139879wmb.52.2016.03.15.08.25.53
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 15 Mar 2016 08:25:53 -0700 (PDT)
-Subject: Re: Page migration issue with UBIFS
-References: <56E8192B.5030008@nod.at>
- <20160315151727.GA16462@node.shutemov.name>
-From: Richard Weinberger <richard@nod.at>
-Message-ID: <56E8297E.80708@nod.at>
-Date: Tue, 15 Mar 2016 16:25:50 +0100
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A71F6B0264
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 11:31:05 -0400 (EDT)
+Received: by mail-pf0-f174.google.com with SMTP id n5so33186221pfn.2
+        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 08:31:05 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id n2si5705999pap.201.2016.03.15.08.31.03
+        for <linux-mm@kvack.org>;
+        Tue, 15 Mar 2016 08:31:03 -0700 (PDT)
+Subject: Re: [PATCH] thp, mlock: update unevictable-lru.txt
+References: <1458053744-40664-1-git-send-email-kirill.shutemov@linux.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <56E82AAE.8090003@intel.com>
+Date: Tue, 15 Mar 2016 08:30:54 -0700
 MIME-Version: 1.0
-In-Reply-To: <20160315151727.GA16462@node.shutemov.name>
+In-Reply-To: <1458053744-40664-1-git-send-email-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Boris Brezillon <boris.brezillon@free-electrons.com>, Maxime Ripard <maxime.ripard@free-electrons.com>, David Gstir <david@sigma-star.at>, Dave Chinner <david@fromorbit.com>, Artem Bityutskiy <dedekind1@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alexander Kaplan <alex@nextthing.co>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-Kirill,
+On 03/15/2016 07:55 AM, Kirill A. Shutemov wrote:
+> +Transparent huge page is represented by single entry on a lru list and
+> +therefore we can only make unevictable entire compound page, not
+> +individual subpages.
 
-Am 15.03.2016 um 16:17 schrieb Kirill A. Shutemov:
-> On Tue, Mar 15, 2016 at 03:16:11PM +0100, Richard Weinberger wrote:
->> Hi!
->>
->> We're facing this issue from 2014 on UBIFS:
->> http://www.spinics.net/lists/linux-fsdevel/msg79941.html
->>
->> So sum up:
->> UBIFS does not allow pages directly marked as dirty. It want's everyone to do it via UBIFS's
->> ->wirte_end() and ->page_mkwirte() functions.
->> This assumption *seems* to be violated by CMA which migrates pages.
-> 
-> I don't thing the CMA/migration is the root cause.
-> 
-> How did we end up with writable and dirty pte, but not having
-> ->page_mkwrite() called for the page?
-> 
-> Or if ->page_mkwrite() was called, why the page is not dirty?
+A few grammar nits:
 
-Thanks for your quick response!
+A transparent huge page is represented by a single entry on an lru list.
+Therefore, we can only make unevictable an entire compound page, not
+individual subpages.
 
-I also don't think that the root cause is CMA or migration but it seems
-to be the messenger.
+...
+> +We handle this by forbidding mlocking PTE-mapped huge pages. This way we
+> +keep the huge page accessible for vmscan. Under memory pressure the page
+> +will be split, subpages from VM_LOCKED VMAs moved to unevictable lru and
+> +the rest can be evicted.
 
-Can you confirm that UBIFS's assumptions are valid?
-I'm trying to rule out possible issues and hunt down the root cause...
+What do you mean by "mlocking" in this context?  Do you mean that we
+actually return -ESOMETHING from mlock() on PTE-mapped huge pages?  Or,
+do you just mean that we defer treating PTE-mapped huge pages as
+PageUnevictable() inside the kernel?
 
-Thanks,
-//richard
+I think we should probably avoid saying "mlocking" when we really mean
+"kernel-internal mlocked page handling" aka. the unevictable list.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
