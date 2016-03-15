@@ -1,47 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 773626B0005
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 15:06:23 -0400 (EDT)
-Received: by mail-wm0-f46.google.com with SMTP id l68so40698763wml.1
-        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 12:06:23 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lm2si34404212wjc.202.2016.03.15.12.06.21
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A0936B0005
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 15:55:24 -0400 (EDT)
+Received: by mail-qg0-f43.google.com with SMTP id w104so24544342qge.1
+        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 12:55:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w127si355181qhw.1.2016.03.15.12.55.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 15 Mar 2016 12:06:22 -0700 (PDT)
-Subject: Re: [PATCH v1 01/19] mm: use put_page to free page instead of
- putback_lru_page
-References: <1457681423-26664-1-git-send-email-minchan@kernel.org>
- <1457681423-26664-2-git-send-email-minchan@kernel.org>
- <56E67AE1.60700@suse.cz> <20160315011656.GD19514@bbox>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56E85D2D.6050808@suse.cz>
-Date: Tue, 15 Mar 2016 20:06:21 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Mar 2016 12:55:23 -0700 (PDT)
+Date: Tue, 15 Mar 2016 19:55:16 +0000
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [RFC qemu 0/4] A PV solution for live migration optimization
+Message-ID: <20160315195515.GL11728@work-vm>
+References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
+ <20160308111343.GM15443@grmbl.mre>
+ <F2CBF3009FA73547804AE4C663CAB28E0414A7E3@shsmsx102.ccr.corp.intel.com>
+ <20160310075728.GB4678@grmbl.mre>
+ <F2CBF3009FA73547804AE4C663CAB28E0414A860@shsmsx102.ccr.corp.intel.com>
+ <20160310111844.GB2276@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E0414B118@shsmsx102.ccr.corp.intel.com>
+ <20160314170334.GK2234@work-vm>
+ <20160315121613-mutt-send-email-mst@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E0414E385@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20160315011656.GD19514@bbox>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E0414E385@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jlayton@poochiereds.net, bfields@fieldses.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, rknize@motorola.com, Rik van Riel <riel@redhat.com>, Gioh Kim <gurugio@hanmail.net>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: "Li, Liang Z" <liang.z.li@intel.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, Amit Shah <amit.shah@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mohan_parthasarathy@hpe.com" <mohan_parthasarathy@hpe.com>, "jitendra.kolhe@hpe.com" <jitendra.kolhe@hpe.com>, "simhan@hpe.com" <simhan@hpe.com>
 
-On 15.3.2016 2:16, Minchan Kim wrote:
-> On Mon, Mar 14, 2016 at 09:48:33AM +0100, Vlastimil Babka wrote:
->> On 03/11/2016 08:30 AM, Minchan Kim wrote:
->>
->> Yeah, and compaction (perhaps also other migration users) has to
->> drain the lru pvec... Getting rid of this stuff is worth even by
->> itself.
+* Li, Liang Z (liang.z.li@intel.com) wrote:
+> > On Mon, Mar 14, 2016 at 05:03:34PM +0000, Dr. David Alan Gilbert wrote:
+> > > * Li, Liang Z (liang.z.li@intel.com) wrote:
+> > > > >
+> > > > > Hi,
+> > > > >   I'm just catching back up on this thread; so without reference
+> > > > > to any particular previous mail in the thread.
+> > > > >
+> > > > >   1) How many of the free pages do we tell the host about?
+> > > > >      Your main change is telling the host about all the
+> > > > >      free pages.
+> > > >
+> > > > Yes, all the guest's free pages.
+> > > >
+> > > > >      If we tell the host about all the free pages, then we might
+> > > > >      end up needing to allocate more pages and update the host
+> > > > >      with pages we now want to use; that would have to wait for the
+> > > > >      host to acknowledge that use of these pages, since if we don't
+> > > > >      wait for it then it might have skipped migrating a page we
+> > > > >      just started using (I don't understand how your series solves that).
+> > > > >      So the guest probably needs to keep some free pages - how many?
+> > > >
+> > > > Actually, there is no need to care about whether the free pages will be
+> > used by the host.
+> > > > We only care about some of the free pages we get reused by the guest,
+> > right?
+> > > >
+> > > > The dirty page logging can be used to solve this, starting the dirty
+> > > > page logging before getting the free pages informant from guest.
+> > > > Even some of the free pages are modified by the guest during the
+> > > > process of getting the free pages information, these modified pages will
+> > be traced by the dirty page logging mechanism. So in the following
+> > migration_bitmap_sync() function.
+> > > > The pages in the free pages bitmap, but latter was modified, will be
+> > > > reset to dirty. We won't omit any dirtied pages.
+> > > >
+> > > > So, guest doesn't need to keep any free pages.
+> > >
+> > > OK, yes, that works; so we do:
+> > >   * enable dirty logging
+> > >   * ask guest for free pages
+> > >   * initialise the migration bitmap as everything-free
+> > >   * then later we do the normal sync-dirty bitmap stuff and it all just works.
+> > >
+> > > That's nice and simple.
+> > 
+> > This works once, sure. But there's an issue is that you have to defer migration
+> > until you get the free page list, and this only works once. So you end up with
+> > heuristics about how long to wait.
+> > 
+> > Instead I propose:
+> > 
+> > - mark all pages dirty as we do now.
+> > 
+> > - at start of migration, start tracking dirty
+> >   pages in kvm, and tell guest to start tracking free pages
+> > 
+> > we can now introduce any kind of delay, for example wait for ack from guest,
+> > or do whatever else, or even just start migrating pages
+> > 
+> > - repeatedly:
+> > 	- get list of free pages from guest
+> > 	- clear them in migration bitmap
+> > 	- get dirty list from kvm
+> > 
+> > - at end of migration, stop tracking writes in kvm,
+> >   and tell guest to stop tracking free pages
 > 
-> Good note. Although we cannot remove lru pvec draining completely,
-> at least, this patch removes a case which should drain pvec for
-> returning freed page to buddy.
+> I had thought of filtering out the free pages in each migration bitmap synchronization. 
+> The advantage is we can skip process as many free pages as possible. Not just once.
+> The disadvantage is that we should change the current memory management code to track the free pages,
+> instead of traversing the free page list to construct the free pages bitmap, to reduce the overhead to get the free pages bitmap.
+> I am not sure the if the Kernel people would like it.
+> 
+> If keeping the traversing mechanism, because of the overhead, maybe it's not worth to filter out the free pages repeatedly.
 
-And this is in fact the only interesting case, right. The migrated page (at its
-new target) doesn't concern compaction that much, that can go to lru pvec just
-fine. But we do want the freed buddy pages to merge ASAP. I guess that's the
-same for CMA, page isolation...
+Well, Michael's idea of not waiting for the dirty
+bitmap to be filled does make that idea of constnatly
+using the free-bitmap better.
+
+In that case, is it easier if something (guest/host?)
+allocates some memory in the guests physical RAM space
+and just points the host to it, rather than having an 
+explicit 'send'.
+
+Dave
+
+> Liang
+> 
+> 
+> 
+> 
+--
+Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
