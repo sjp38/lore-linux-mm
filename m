@@ -1,51 +1,227 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A71F6B0264
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 11:31:05 -0400 (EDT)
-Received: by mail-pf0-f174.google.com with SMTP id n5so33186221pfn.2
-        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 08:31:05 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id n2si5705999pap.201.2016.03.15.08.31.03
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AFD26B0265
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 11:31:55 -0400 (EDT)
+Received: by mail-pf0-f176.google.com with SMTP id n5so33215191pfn.2
+        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 08:31:55 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id iv8si10289682pac.104.2016.03.15.08.31.53
         for <linux-mm@kvack.org>;
-        Tue, 15 Mar 2016 08:31:03 -0700 (PDT)
-Subject: Re: [PATCH] thp, mlock: update unevictable-lru.txt
-References: <1458053744-40664-1-git-send-email-kirill.shutemov@linux.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <56E82AAE.8090003@intel.com>
-Date: Tue, 15 Mar 2016 08:30:54 -0700
-MIME-Version: 1.0
-In-Reply-To: <1458053744-40664-1-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Tue, 15 Mar 2016 08:31:53 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 06/25] mm, rmap: account file thp pages
+Date: Tue, 15 Mar 2016 18:30:29 +0300
+Message-Id: <1458055829-62845-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1457737157-38573-7-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1457737157-38573-7-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 03/15/2016 07:55 AM, Kirill A. Shutemov wrote:
-> +Transparent huge page is represented by single entry on a lru list and
-> +therefore we can only make unevictable entire compound page, not
-> +individual subpages.
+Let's add FileHugeMapped field into meminfo and smaps. It indicates how
+many times we map file THP
 
-A few grammar nits:
+NR_ANON_TRANSPARENT_HUGEPAGES is renamed to NR_ANON_THPS.
 
-A transparent huge page is represented by a single entry on an lru list.
-Therefore, we can only make unevictable an entire compound page, not
-individual subpages.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+v5:
+  - add FileHugeMapped to /proc/PID/smaps;
+  - make FileHugeMapped in meminfo aligned with other fields;
+---
+ drivers/base/node.c    | 10 ++++++----
+ fs/proc/meminfo.c      |  5 +++--
+ fs/proc/task_mmu.c     |  8 +++++++-
+ include/linux/mmzone.h |  3 ++-
+ mm/huge_memory.c       |  2 +-
+ mm/rmap.c              | 12 ++++++------
+ mm/vmstat.c            |  1 +
+ 7 files changed, 26 insertions(+), 15 deletions(-)
 
-...
-> +We handle this by forbidding mlocking PTE-mapped huge pages. This way we
-> +keep the huge page accessible for vmscan. Under memory pressure the page
-> +will be split, subpages from VM_LOCKED VMAs moved to unevictable lru and
-> +the rest can be evicted.
-
-What do you mean by "mlocking" in this context?  Do you mean that we
-actually return -ESOMETHING from mlock() on PTE-mapped huge pages?  Or,
-do you just mean that we defer treating PTE-mapped huge pages as
-PageUnevictable() inside the kernel?
-
-I think we should probably avoid saying "mlocking" when we really mean
-"kernel-internal mlocked page handling" aka. the unevictable list.
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 560751bad294..9cc4e9dad47e 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -113,6 +113,7 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       "Node %d SUnreclaim:     %8lu kB\n"
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		       "Node %d AnonHugePages:  %8lu kB\n"
++		       "Node %d FileHugeMapped: %8lu kB\n"
+ #endif
+ 			,
+ 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
+@@ -131,10 +132,11 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
+ 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
+-			, nid,
+-			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
+-			HPAGE_PMD_NR));
++		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
++		       nid, K(node_page_state(nid, NR_ANON_THPS) *
++				       HPAGE_PMD_NR),
++		       nid, K(node_page_state(nid, NR_FILE_THP_MAPPED) *
++				       HPAGE_PMD_NR));
+ #else
+ 		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
+ #endif
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 83720460c5bc..359e713d5fca 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -105,6 +105,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ #endif
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		"AnonHugePages:  %8lu kB\n"
++		"FileHugeMapped: %8lu kB\n"
+ #endif
+ #ifdef CONFIG_CMA
+ 		"CmaTotal:       %8lu kB\n"
+@@ -162,8 +163,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		, atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
+ #endif
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-		, K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+-		   HPAGE_PMD_NR)
++		, K(global_page_state(NR_ANON_THPS) * HPAGE_PMD_NR)
++		, K(global_page_state(NR_FILE_THP_MAPPED) * HPAGE_PMD_NR)
+ #endif
+ #ifdef CONFIG_CMA
+ 		, K(totalcma_pages)
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index e6ee7329cfab..1e71fee77c1d 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -448,6 +448,7 @@ struct mem_size_stats {
+ 	unsigned long referenced;
+ 	unsigned long anonymous;
+ 	unsigned long anonymous_thp;
++	unsigned long file_thp;
+ 	unsigned long swap;
+ 	unsigned long shared_hugetlb;
+ 	unsigned long private_hugetlb;
+@@ -576,7 +577,10 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
+ 	page = follow_trans_huge_pmd(vma, addr, pmd, FOLL_DUMP);
+ 	if (IS_ERR_OR_NULL(page))
+ 		return;
+-	mss->anonymous_thp += HPAGE_PMD_SIZE;
++	if (PageAnon(page))
++		mss->anonymous_thp += HPAGE_PMD_SIZE;
++	else
++		mss->file_thp += HPAGE_PMD_SIZE;
+ 	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd));
+ }
+ #else
+@@ -757,6 +761,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ 		   "Referenced:     %8lu kB\n"
+ 		   "Anonymous:      %8lu kB\n"
+ 		   "AnonHugePages:  %8lu kB\n"
++		   "FileHugeMapped: %8lu kB\n"
+ 		   "Shared_Hugetlb: %8lu kB\n"
+ 		   "Private_Hugetlb: %7lu kB\n"
+ 		   "Swap:           %8lu kB\n"
+@@ -774,6 +779,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ 		   mss.referenced >> 10,
+ 		   mss.anonymous >> 10,
+ 		   mss.anonymous_thp >> 10,
++		   mss.file_thp >> 10,
+ 		   mss.shared_hugetlb >> 10,
+ 		   mss.private_hugetlb >> 10,
+ 		   mss.swap >> 10,
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index c60df9257cc7..85fd4aac53a1 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -158,7 +158,8 @@ enum zone_stat_item {
+ 	WORKINGSET_REFAULT,
+ 	WORKINGSET_ACTIVATE,
+ 	WORKINGSET_NODERECLAIM,
+-	NR_ANON_TRANSPARENT_HUGEPAGES,
++	NR_ANON_THPS,
++	NR_FILE_THP_MAPPED,
+ 	NR_FREE_CMA_PAGES,
+ 	NR_VM_ZONE_STAT_ITEMS };
+ 
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 2e9e6f4afe40..44468fb7cdbf 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2982,7 +2982,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 
+ 	if (atomic_add_negative(-1, compound_mapcount_ptr(page))) {
+ 		/* Last compound_mapcount is gone. */
+-		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++		__dec_zone_page_state(page, NR_ANON_THPS);
+ 		if (TestClearPageDoubleMap(page)) {
+ 			/* No need in mapcount reference anymore */
+ 			for (i = 0; i < HPAGE_PMD_NR; i++)
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 66808955a5e0..359ec5cff9b0 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1227,10 +1227,8 @@ void do_page_add_anon_rmap(struct page *page,
+ 		 * pte lock(a spinlock) is held, which implies preemption
+ 		 * disabled.
+ 		 */
+-		if (compound) {
+-			__inc_zone_page_state(page,
+-					      NR_ANON_TRANSPARENT_HUGEPAGES);
+-		}
++		if (compound)
++			__inc_zone_page_state(page, NR_ANON_THPS);
+ 		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
+ 	}
+ 	if (unlikely(PageKsm(page)))
+@@ -1268,7 +1266,7 @@ void page_add_new_anon_rmap(struct page *page,
+ 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+ 		/* increment count (starts at -1) */
+ 		atomic_set(compound_mapcount_ptr(page), 0);
+-		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++		__inc_zone_page_state(page, NR_ANON_THPS);
+ 	} else {
+ 		/* Anon THP always mapped first with PMD */
+ 		VM_BUG_ON_PAGE(PageTransCompound(page), page);
+@@ -1298,6 +1296,7 @@ void page_add_file_rmap(struct page *page, bool compound)
+ 		}
+ 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
+ 			goto out;
++		__inc_zone_page_state(page, NR_FILE_THP_MAPPED);
+ 	} else {
+ 		if (!atomic_inc_and_test(&page->_mapcount))
+ 			goto out;
+@@ -1330,6 +1329,7 @@ static void page_remove_file_rmap(struct page *page, bool compound)
+ 		}
+ 		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
+ 			goto out;
++		__dec_zone_page_state(page, NR_FILE_THP_MAPPED);
+ 	} else {
+ 		if (!atomic_add_negative(-1, &page->_mapcount))
+ 			goto out;
+@@ -1363,7 +1363,7 @@ static void page_remove_anon_compound_rmap(struct page *page)
+ 	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+ 		return;
+ 
+-	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++	__dec_zone_page_state(page, NR_ANON_THPS);
+ 
+ 	if (TestClearPageDoubleMap(page)) {
+ 		/*
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 5e4300482897..ca9268e4c69b 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -762,6 +762,7 @@ const char * const vmstat_text[] = {
+ 	"workingset_activate",
+ 	"workingset_nodereclaim",
+ 	"nr_anon_transparent_hugepages",
++	"nr_file_transparent_hugepages_mapped",
+ 	"nr_free_cma",
+ 
+ 	/* enum writeback_stat_item counters */
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
