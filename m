@@ -1,75 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 29F6E6B0005
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 07:50:04 -0400 (EDT)
-Received: by mail-wm0-f54.google.com with SMTP id p65so22664768wmp.0
-        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 04:50:04 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id x5si32443723wjr.166.2016.03.15.04.50.02
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 83EB16B0005
+	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 08:22:28 -0400 (EDT)
+Received: by mail-lb0-f174.google.com with SMTP id x1so20103923lbj.3
+        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 05:22:28 -0700 (PDT)
+Received: from mail-lb0-x22a.google.com (mail-lb0-x22a.google.com. [2a00:1450:4010:c04::22a])
+        by mx.google.com with ESMTPS id qk4si12845412lbb.210.2016.03.15.05.22.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Mar 2016 04:50:03 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id n205so3132589wmf.2
-        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 04:50:02 -0700 (PDT)
-Date: Tue, 15 Mar 2016 12:50:01 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 6/5] oom, oom_reaper: disable oom_reaper for
- oom_kill_allocating_task
-Message-ID: <20160315115001.GE6108@dhcp22.suse.cz>
-References: <1454505240-23446-6-git-send-email-mhocko@kernel.org>
- <20160217094855.GC29196@dhcp22.suse.cz>
- <20160219183419.GA30059@dhcp22.suse.cz>
- <201602201132.EFG90182.FOVtSOJHFOLFQM@I-love.SAKURA.ne.jp>
- <20160222094105.GD17938@dhcp22.suse.cz>
- <201603152015.JAE86937.VFOLtQFOFJOSHM@I-love.SAKURA.ne.jp>
- <20160315114300.GC6108@dhcp22.suse.cz>
+        Tue, 15 Mar 2016 05:22:26 -0700 (PDT)
+Received: by mail-lb0-x22a.google.com with SMTP id x1so20103227lbj.3
+        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 05:22:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160315114300.GC6108@dhcp22.suse.cz>
+In-Reply-To: <CAG_fn=WNy=wyA5LFJO8Kg7kK9m7LC9AkNHkYxwjdrQjzyK4uoQ@mail.gmail.com>
+References: <cover.1457949315.git.glider@google.com>
+	<4f6880ee0c1545b3ae9c25cfe86a879d724c4e7b.1457949315.git.glider@google.com>
+	<CAPAsAGx58NuvRB7=qeXr27VFE8PoabLxvNGVGP66MV1WkhDA+g@mail.gmail.com>
+	<CAG_fn=WNy=wyA5LFJO8Kg7kK9m7LC9AkNHkYxwjdrQjzyK4uoQ@mail.gmail.com>
+Date: Tue, 15 Mar 2016 15:22:26 +0300
+Message-ID: <CAPAsAGzo5VTmi1-bMdmCQmG06rjdfk+vt1i0Fv6eFXd7s+a2LQ@mail.gmail.com>
+Subject: Re: [PATCH v7 5/7] mm, kasan: Stackdepot implementation. Enable
+ stackdepot for SLAB
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org
+To: Alexander Potapenko <glider@google.com>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, JoonSoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue 15-03-16 12:43:00, Michal Hocko wrote:
-> On Tue 15-03-16 20:15:24, Tetsuo Handa wrote:
-[...]
-> > Two thread groups sharing the same mm can disable the OOM reaper
-> > when all threads in the former thread group (which will be chosen
-> > as an OOM victim by the OOM killer) can immediately call exit_mm()
-> > via do_exit() (e.g. simply sleeping in killable state when the OOM
-> > killer chooses that thread group) and some thread in the latter thread
-> > group is contended on unkillable locks (e.g. inode mutex), due to
-> > 
-> > 	p = find_lock_task_mm(tsk);
-> > 	if (!p)
-> > 		return true;
-> > 
-> > in __oom_reap_task() and
-> > 
-> > 	can_oom_reap = !test_and_set_bit(MMF_OOM_KILLED, &mm->flags);
-> > 
-> > in oom_kill_process(). The OOM reaper is woken up in order to reap
-> > the former thread group's memory, but it does nothing on the latter
-> > thread group's memory because the former thread group can clear its mm
-> > before the OOM reaper locks its mm. Even if subsequent out_of_memory()
-> > call chose the latter thread group, the OOM reaper will not be woken up.
-> > No memory is reaped. We need to queue all thread groups sharing that
-> > memory if that memory should be reaped.
-> 
-> Why it wouldn't be enough to wake the oom reaper only for the oom
-> victims? If the oom reaper races with the victims exit path then
-> the next round of the out_of_memory will select a different thread
-> sharing the same mm.
+2016-03-15 12:27 GMT+03:00 Alexander Potapenko <glider@google.com>:
+> On Mon, Mar 14, 2016 at 5:56 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com>=
+ wrote:
+>> 2016-03-14 13:43 GMT+03:00 Alexander Potapenko <glider@google.com>:
+>>
+>>> +
+>>> +       rec =3D this_cpu_ptr(&depot_recursion);
+>>> +       /* Don't store the stack if we've been called recursively. */
+>>> +       if (unlikely(*rec))
+>>> +               goto fast_exit;
+>>> +       *rec =3D true;
+>>
+>>
+>> This just can't work. As long as preemption enabled, task could
+>> migrate on another cpu anytime.
+> Ah, you're right.
+> Do you think disabling preemption around memory allocation is an option h=
+ere?
 
-And just to prevent from a confusion. I mean waking up also when
-fatal_signal_pending and we do not really go down to selecting an oom
-victim. Which would be worth a separate patch on top of course.
+It's definitely not an option. Flag on current doesn't have any
+disadvantage over per-cpu approach
+and it doesn't require preemption safe context.
+However, making the allocation in a separate context would be a better
+way to eliminate recursion.
+i.e. instead of allocating memory depot_save_stack() kicks a work
+which allocates memory.
 
--- 
-Michal Hocko
-SUSE Labs
+
+>> You could use per-task flag, although it's possible to miss some
+>> in-irq stacktraces:
+>>
+>> depot_save_stack()
+>>     if (current->stackdeport_recursion)
+>>           goto fast_exit;
+>>     current->stackdepot_recursion++
+>>     <IRQ>
+>>            ....
+>>            depot_save_stack()
+>>                  if (current->stackdeport_recursion)
+>>                       goto fast_exit;
+>>
+>>
+>>
+>>> +       if (unlikely(!smp_load_acquire(&next_slab_inited))) {
+>>> +               /* Zero out zone modifiers, as we don't have specific z=
+one
+>>> +                * requirements. Keep the flags related to allocation i=
+n atomic
+>>> +                * contexts and I/O.
+>>> +                */
+>>> +               alloc_flags &=3D ~GFP_ZONEMASK;
+>>> +               alloc_flags &=3D (GFP_ATOMIC | GFP_KERNEL);
+>>> +               /* When possible, allocate using vmalloc() to reduce ph=
+ysical
+>>> +                * address space fragmentation. vmalloc() doesn't work =
+if
+>>> +                * kmalloc caches haven't been initialized or if it's b=
+eing
+>>> +                * called from an interrupt handler.
+>>> +                */
+>>> +               if (kmalloc_caches[KMALLOC_SHIFT_HIGH] && !in_interrupt=
+()) {
+>>
+>> This is clearly a wrong way to check whether is slab available or not.
+> Well, I don't think either vmalloc() or kmalloc() provide any
+> interface to check if they are available.
+>
+>> Besides you need to check
+>> vmalloc() for availability, not slab.
+> The problem was in kmalloc caches being unavailable, although I can
+> imagine other problems could have arose.
+> Perhaps we can drill a hole to get the value of vmap_initialized?
+>> Given that STAC_ALLOC_ORDER is 2 now, I think it should be fine to use
+>> alloc_pages() all the time.
+>> Or fix condition, up to you.
+> Ok, I'm going to drop vmalloc() for now, we can always implement this lat=
+er.
+> Note that this also removes the necessity to check for recursion.
+>>> +                       prealloc =3D __vmalloc(
+>>> +                               STACK_ALLOC_SIZE, alloc_flags, PAGE_KER=
+NEL);
+>>> +               } else {
+>>> +                       page =3D alloc_pages(alloc_flags, STACK_ALLOC_O=
+RDER);
+>>> +                       if (page)
+>>> +                               prealloc =3D page_address(page);
+>>> +               }
+>>> +       }
+>>> +
+>
+>
+>
+> --
+> Alexander Potapenko
+> Software Engineer
+>
+> Google Germany GmbH
+> Erika-Mann-Stra=C3=9Fe, 33
+> 80636 M=C3=BCnchen
+>
+> Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+> Registergericht und -nummer: Hamburg, HRB 86891
+> Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
