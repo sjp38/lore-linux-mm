@@ -1,166 +1,67 @@
-From: Willy Tarreau <w@1wt.eu>
-Subject: [PATCH 2.6.32 07/55] x86/mm: Add barriers and document switch_mm()-vs-flush
- synchronization
-Date: Fri, 04 Mar 2016 16:30:07 +0100
-Message-ID: <20160304153001.014867528@1wt.eu>
-References: <148ee355b419e9976ca727513a1405c8@local>
+From: Richard Weinberger <richard@nod.at>
+Subject: Page migration issue with UBIFS
+Date: Tue, 15 Mar 2016 15:16:11 +0100
+Message-ID: <56E8192B.5030008@nod.at>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-15
-Return-path: <stable-owner@vger.kernel.org>
-In-Reply-To: <148ee355b419e9976ca727513a1405c8@local>
-Sender: stable-owner@vger.kernel.org
-To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
-Cc: Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Ben Hutchings <ben@decadent.org.uk>, Willy Tarreau <w@1wt.eu>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Return-path: <linux-fsdevel-owner@vger.kernel.org>
+Sender: linux-fsdevel-owner@vger.kernel.org
+To: linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Cc: "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Boris Brezillon <boris.brezillon@free-electrons.com>, Maxime Ripard <maxime.ripard@free-electrons.com>, David Gstir <david@sigma-star.at>, Dave Chinner <david@fromorbit.com>, Artem Bityutskiy <dedekind1@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>Artem Bityutskiy <dedekind1@gmail.com>, Alexander Kaplan <alex@nextthing.co>
 List-Id: linux-mm.kvack.org
 
-2.6.32-longterm review patch.  If anyone has any objections, please let me know.
+Hi!
 
-------------------
+We're facing this issue from 2014 on UBIFS:
+http://www.spinics.net/lists/linux-fsdevel/msg79941.html
 
-From: Andy Lutomirski <luto@kernel.org>
+So sum up:
+UBIFS does not allow pages directly marked as dirty. It want's everyone to do it via UBIFS's
+->wirte_end() and ->page_mkwirte() functions.
+This assumption *seems* to be violated by CMA which migrates pages.
+UBIFS enforces this because it has to account free space on the flash,
+in UBIFS speak "budget", for details please see fs/ubifs/file.c.
 
-commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+As in the report from 2014 the page is writable but not dirty.
+The kernel has this debug patch applied:
+http://www.spinics.net/lists/linux-fsdevel/msg80471.html
+But our kernel is based on v4.4 and does *not* use proprietary modules.
 
-When switch_mm() activates a new PGD, it also sets a bit that
-tells other CPUs that the PGD is in use so that TLB flush IPIs
-will be sent.  In order for that to work correctly, the bit
-needs to be visible prior to loading the PGD and therefore
-starting to fill the local TLB.
+[  213.450000] page:debe03c0 count:3 mapcount:1 mapping:dce4b5fc index:0x2f
+[  213.460000] flags: 0x9(locked|uptodate)
+[  213.460000] page dumped because: try_to_unmap_one
+[  213.470000] pte_write: 1
+[  213.480000] UBIFS assert failed in ubifs_set_page_dirty at 1451 (pid 436)
+[  213.490000] CPU: 0 PID: 436 Comm: drm-stress-test Not tainted 4.4.4-00176-geaa802524636-dirty #1008
+[  213.490000] Hardware name: Allwinner sun4i/sun5i Families
+[  213.490000] [<c0015e70>] (unwind_backtrace) from [<c0012cdc>] (show_stack+0x10/0x14)
+[  213.490000] [<c0012cdc>] (show_stack) from [<c02ad834>] (dump_stack+0x8c/0xa0)
+[  213.490000] [<c02ad834>] (dump_stack) from [<c0236ee8>] (ubifs_set_page_dirty+0x44/0x50)
+[  213.490000] [<c0236ee8>] (ubifs_set_page_dirty) from [<c00fa0bc>] (try_to_unmap_one+0x10c/0x3a8)
+[  213.490000] [<c00fa0bc>] (try_to_unmap_one) from [<c00fadb4>] (rmap_walk+0xb4/0x290)
+[  213.490000] [<c00fadb4>] (rmap_walk) from [<c00fb1bc>] (try_to_unmap+0x64/0x80)
+[  213.490000] [<c00fb1bc>] (try_to_unmap) from [<c010dc28>] (migrate_pages+0x328/0x7a0)
+[  213.490000] [<c010dc28>] (migrate_pages) from [<c00d0cb0>] (alloc_contig_range+0x168/0x2f4)
+[  213.490000] [<c00d0cb0>] (alloc_contig_range) from [<c010ec00>] (cma_alloc+0x170/0x2c0)
+[  213.490000] [<c010ec00>] (cma_alloc) from [<c001a958>] (__alloc_from_contiguous+0x38/0xd8)
+[  213.490000] [<c001a958>] (__alloc_from_contiguous) from [<c001ad44>] (__dma_alloc+0x23c/0x274)
+[  213.490000] [<c001ad44>] (__dma_alloc) from [<c001ae08>] (arm_dma_alloc+0x54/0x5c)
+[  213.490000] [<c001ae08>] (arm_dma_alloc) from [<c035cecc>] (drm_gem_cma_create+0xb8/0xf0)
+[  213.490000] [<c035cecc>] (drm_gem_cma_create) from [<c035cf20>] (drm_gem_cma_create_with_handle+0x1c/0xe8)
+[  213.490000] [<c035cf20>] (drm_gem_cma_create_with_handle) from [<c035d088>] (drm_gem_cma_dumb_create+0x3c/0x48)
+[  213.490000] [<c035d088>] (drm_gem_cma_dumb_create) from [<c0341ed8>] (drm_ioctl+0x12c/0x444)
+[  213.490000] [<c0341ed8>] (drm_ioctl) from [<c0121adc>] (do_vfs_ioctl+0x3f4/0x614)
+[  213.490000] [<c0121adc>] (do_vfs_ioctl) from [<c0121d30>] (SyS_ioctl+0x34/0x5c)
+[  213.490000] [<c0121d30>] (SyS_ioctl) from [<c000f2c0>] (ret_fast_syscall+0x0/0x34)
 
-Document all the barriers that make this work correctly and add
-a couple that were missing.
+The full kernellog can be found here:
+http://code.bulix.org/ysuo9x-93716?raw
 
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-[bwh: Backported to 2.6.32:
- - There's no flush_tlb_mm_range(), only flush_tlb_mm() which does not use
-   INVLPG
- - Adjust context]
-Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
-Signed-off-by: Willy Tarreau <w@1wt.eu>
----
- arch/x86/include/asm/mmu_context.h | 31 ++++++++++++++++++++++++++++++-
- arch/x86/mm/tlb.c                  | 28 ++++++++++++++++++++++++----
- 2 files changed, 54 insertions(+), 5 deletions(-)
+So, let me repeat Artem's question from 2014:
+> Now the question is: is it UBIFS which has incorrect assumptions, or this is the
+> Linux MM which is not doing the right thing? I do not know the answer, let's see
+> if the MM list may give us a clue.
 
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 8b5393e..b2c847a 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -42,7 +42,32 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- #endif
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
- 
--		/* Re-load page tables */
-+		/*
-+		 * Re-load page tables.
-+		 *
-+		 * This logic has an ordering constraint:
-+		 *
-+		 *  CPU 0: Write to a PTE for 'next'
-+		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
-+		 *  CPU 1: set bit 1 in next's mm_cpumask
-+		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
-+		 *
-+		 * We need to prevent an outcome in which CPU 1 observes
-+		 * the new PTE value and CPU 0 observes bit 1 clear in
-+		 * mm_cpumask.  (If that occurs, then the IPI will never
-+		 * be sent, and CPU 0's TLB will contain a stale entry.)
-+		 *
-+		 * The bad outcome can occur if either CPU's load is
-+		 * reordered before that CPU's store, so both CPUs much
-+		 * execute full barriers to prevent this from happening.
-+		 *
-+		 * Thus, switch_mm needs a full barrier between the
-+		 * store to mm_cpumask and any operation that could load
-+		 * from next->pgd.  This barrier synchronizes with
-+		 * remote TLB flushers.  Fortunately, load_cr3 is
-+		 * serializing and thus acts as a full barrier.
-+		 *
-+		 */
- 		load_cr3(next->pgd);
- 
- 		/* stop flush ipis for the previous mm */
-@@ -63,6 +88,10 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 			/* We were in lazy tlb mode and leave_mm disabled
- 			 * tlb flush IPI delivery. We must reload CR3
- 			 * to make sure to use no freed page tables.
-+			 *
-+			 * As above, this is a barrier that forces
-+			 * TLB repopulation to be ordered after the
-+			 * store to mm_cpumask.
- 			 */
- 			load_cr3(next->pgd);
- 			load_LDT_nolock(&next->context);
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 36fe08e..2a655b2 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -234,7 +234,9 @@ void flush_tlb_current_task(void)
- 
- 	preempt_disable();
- 
-+	/* This is an implicit full barrier that synchronizes with switch_mm. */
- 	local_flush_tlb();
-+
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, TLB_FLUSH_ALL);
- 	preempt_enable();
-@@ -245,10 +247,20 @@ void flush_tlb_mm(struct mm_struct *mm)
- 	preempt_disable();
- 
- 	if (current->active_mm == mm) {
--		if (current->mm)
-+		if (current->mm) {
-+			/*
-+			 * This is an implicit full barrier (MOV to CR) that
-+			 * synchronizes with switch_mm.
-+			 */
- 			local_flush_tlb();
--		else
-+		} else {
- 			leave_mm(smp_processor_id());
-+			/* Synchronize with switch_mm. */
-+			smp_mb();
-+		}
-+	} else {
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
- 	}
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, TLB_FLUSH_ALL);
-@@ -263,10 +275,18 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
- 	preempt_disable();
- 
- 	if (current->active_mm == mm) {
--		if (current->mm)
-+		if (current->mm) {
-+			/*
-+			 * Implicit full barrier (INVLPG) that synchronizes
-+			 * with switch_mm.
-+			 */
- 			__flush_tlb_one(va);
--		else
-+		} else {
- 			leave_mm(smp_processor_id());
-+
-+			/* Synchronize with switch_mm. */
-+			smp_mb();
-+		}
- 	}
- 
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
--- 
-1.7.12.2.21.g234cd45.dirty
+Thanks,
+//richard
