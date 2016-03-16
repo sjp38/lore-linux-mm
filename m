@@ -1,150 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id D92436B0260
-	for <linux-mm@kvack.org>; Tue, 15 Mar 2016 21:20:43 -0400 (EDT)
-Received: by mail-pf0-f171.google.com with SMTP id x3so51765199pfb.1
-        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 18:20:43 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id 79si1371242pfm.61.2016.03.15.18.20.42
-        for <linux-mm@kvack.org>;
-        Tue, 15 Mar 2016 18:20:42 -0700 (PDT)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [RFC qemu 0/4] A PV solution for live migration optimization
-Date: Wed, 16 Mar 2016 01:20:39 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E0414F1BC@shsmsx102.ccr.corp.intel.com>
-References: <1457001868-15949-1-git-send-email-liang.z.li@intel.com>
- <20160308111343.GM15443@grmbl.mre>
- <F2CBF3009FA73547804AE4C663CAB28E0414A7E3@shsmsx102.ccr.corp.intel.com>
- <20160310075728.GB4678@grmbl.mre>
- <F2CBF3009FA73547804AE4C663CAB28E0414A860@shsmsx102.ccr.corp.intel.com>
- <20160310111844.GB2276@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E0414B118@shsmsx102.ccr.corp.intel.com>
- <20160314170334.GK2234@work-vm>
- <20160315121613-mutt-send-email-mst@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E0414E385@shsmsx102.ccr.corp.intel.com>
- <20160315195515.GL11728@work-vm>
-In-Reply-To: <20160315195515.GL11728@work-vm>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id B663D6B0261
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2016 01:19:12 -0400 (EDT)
+Received: by mail-wm0-f47.google.com with SMTP id l124so34551763wmf.1
+        for <linux-mm@kvack.org>; Tue, 15 Mar 2016 22:19:12 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id g16si1910308wjn.102.2016.03.15.22.19.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Mar 2016 22:19:11 -0700 (PDT)
+Date: Tue, 15 Mar 2016 22:18:48 -0700
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: memcontrol: reclaim and OOM kill when shrinking
+ memory.max below usage
+Message-ID: <20160316051848.GA11006@cmpxchg.org>
+References: <1457643015-8828-2-git-send-email-hannes@cmpxchg.org>
+ <20160311081825.GC27701@dhcp22.suse.cz>
+ <20160311091931.GK1946@esperanza>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160311091931.GK1946@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, Amit Shah <amit.shah@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "rth@twiddle.net" <rth@twiddle.net>, "ehabkost@redhat.com" <ehabkost@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mohan_parthasarathy@hpe.com" <mohan_parthasarathy@hpe.com>, "jitendra.kolhe@hpe.com" <jitendra.kolhe@hpe.com>, "simhan@hpe.com" <simhan@hpe.com>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-> > > > > >   I'm just catching back up on this thread; so without
-> > > > > > reference to any particular previous mail in the thread.
-> > > > > >
-> > > > > >   1) How many of the free pages do we tell the host about?
-> > > > > >      Your main change is telling the host about all the
-> > > > > >      free pages.
-> > > > >
-> > > > > Yes, all the guest's free pages.
-> > > > >
-> > > > > >      If we tell the host about all the free pages, then we migh=
-t
-> > > > > >      end up needing to allocate more pages and update the host
-> > > > > >      with pages we now want to use; that would have to wait for=
- the
-> > > > > >      host to acknowledge that use of these pages, since if we d=
-on't
-> > > > > >      wait for it then it might have skipped migrating a page we
-> > > > > >      just started using (I don't understand how your series sol=
-ves that).
-> > > > > >      So the guest probably needs to keep some free pages - how
-> many?
-> > > > >
-> > > > > Actually, there is no need to care about whether the free pages
-> > > > > will be
-> > > used by the host.
-> > > > > We only care about some of the free pages we get reused by the
-> > > > > guest,
-> > > right?
-> > > > >
-> > > > > The dirty page logging can be used to solve this, starting the
-> > > > > dirty page logging before getting the free pages informant from g=
-uest.
-> > > > > Even some of the free pages are modified by the guest during the
-> > > > > process of getting the free pages information, these modified
-> > > > > pages will
-> > > be traced by the dirty page logging mechanism. So in the following
-> > > migration_bitmap_sync() function.
-> > > > > The pages in the free pages bitmap, but latter was modified,
-> > > > > will be reset to dirty. We won't omit any dirtied pages.
-> > > > >
-> > > > > So, guest doesn't need to keep any free pages.
-> > > >
-> > > > OK, yes, that works; so we do:
-> > > >   * enable dirty logging
-> > > >   * ask guest for free pages
-> > > >   * initialise the migration bitmap as everything-free
-> > > >   * then later we do the normal sync-dirty bitmap stuff and it all =
-just
-> works.
-> > > >
-> > > > That's nice and simple.
-> > >
-> > > This works once, sure. But there's an issue is that you have to
-> > > defer migration until you get the free page list, and this only
-> > > works once. So you end up with heuristics about how long to wait.
-> > >
-> > > Instead I propose:
-> > >
-> > > - mark all pages dirty as we do now.
-> > >
-> > > - at start of migration, start tracking dirty
-> > >   pages in kvm, and tell guest to start tracking free pages
-> > >
-> > > we can now introduce any kind of delay, for example wait for ack
-> > > from guest, or do whatever else, or even just start migrating pages
-> > >
-> > > - repeatedly:
-> > > 	- get list of free pages from guest
-> > > 	- clear them in migration bitmap
-> > > 	- get dirty list from kvm
-> > >
-> > > - at end of migration, stop tracking writes in kvm,
-> > >   and tell guest to stop tracking free pages
-> >
-> > I had thought of filtering out the free pages in each migration bitmap
-> synchronization.
-> > The advantage is we can skip process as many free pages as possible. No=
-t
-> just once.
-> > The disadvantage is that we should change the current memory
-> > management code to track the free pages, instead of traversing the free
-> page list to construct the free pages bitmap, to reduce the overhead to g=
-et
-> the free pages bitmap.
-> > I am not sure the if the Kernel people would like it.
-> >
-> > If keeping the traversing mechanism, because of the overhead, maybe it'=
-s
-> not worth to filter out the free pages repeatedly.
->=20
-> Well, Michael's idea of not waiting for the dirty bitmap to be filled doe=
-s make
-> that idea of constnatly using the free-bitmap better.
->=20
+On Fri, Mar 11, 2016 at 12:19:31PM +0300, Vladimir Davydov wrote:
+> On Fri, Mar 11, 2016 at 09:18:25AM +0100, Michal Hocko wrote:
+> > On Thu 10-03-16 15:50:14, Johannes Weiner wrote:
+> ...
+> > > @@ -5037,9 +5040,36 @@ static ssize_t memory_max_write(struct kernfs_open_file *of,
+> > >  	if (err)
+> > >  		return err;
+> > >  
+> > > -	err = mem_cgroup_resize_limit(memcg, max);
+> > > -	if (err)
+> > > -		return err;
+> > > +	xchg(&memcg->memory.limit, max);
+> > > +
+> > > +	for (;;) {
+> > > +		unsigned long nr_pages = page_counter_read(&memcg->memory);
+> > > +
+> > > +		if (nr_pages <= max)
+> > > +			break;
+> > > +
+> > > +		if (signal_pending(current)) {
+> > 
+> > Didn't you want fatal_signal_pending here? At least the changelog
+> > suggests that.
+> 
+> I suppose the user might want to interrupt the write by hitting CTRL-C.
 
-No wait is a good idea.
-Actually, we could shorten the waiting time by pre allocating the free page=
-s bit map
-and update it when guest allocating/freeing pages. it requires to modify th=
-e mm=20
-related code. I don't know whether the kernel people like this.
+Yeah. This is the same thing we do for the current limit setting loop.
 
-> In that case, is it easier if something (guest/host?) allocates some memo=
-ry in
-> the guests physical RAM space and just points the host to it, rather than
-> having an explicit 'send'.
->=20
+> Come to think of it, shouldn't we restore the old limit and return EBUSY
+> if we failed to reclaim enough memory?
 
-Good idea too.
-
-Liang
-> Dave
+I suspect it's very rare that it would fail. But even in that case
+it's probably better to at least not allow new charges past what the
+user requested, even if we can't push the level back far enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
