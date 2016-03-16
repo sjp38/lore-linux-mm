@@ -1,103 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id EBCB66B0005
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2016 10:27:35 -0400 (EDT)
-Received: by mail-pf0-f171.google.com with SMTP id u190so77252332pfb.3
-        for <linux-mm@kvack.org>; Wed, 16 Mar 2016 07:27:35 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id f11si5475654pat.133.2016.03.16.07.27.34
-        for <linux-mm@kvack.org>;
-        Wed, 16 Mar 2016 07:27:35 -0700 (PDT)
-Date: Wed, 16 Mar 2016 17:27:29 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: Page migration issue with UBIFS
-Message-ID: <20160316142729.GA125481@black.fi.intel.com>
-References: <56E8192B.5030008@nod.at>
- <20160315151727.GA16462@node.shutemov.name>
- <56E82B18.9040807@nod.at>
- <20160315153744.GB28522@infradead.org>
- <56E8985A.1020509@nod.at>
- <20160316142156.GA23595@node.shutemov.name>
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 622606B0005
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2016 10:47:25 -0400 (EDT)
+Received: by mail-pf0-f175.google.com with SMTP id u190so77880847pfb.3
+        for <linux-mm@kvack.org>; Wed, 16 Mar 2016 07:47:25 -0700 (PDT)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0115.outbound.protection.outlook.com. [157.55.234.115])
+        by mx.google.com with ESMTPS id u27si5570080pfi.159.2016.03.16.07.47.23
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 16 Mar 2016 07:47:24 -0700 (PDT)
+Date: Wed, 16 Mar 2016 17:47:14 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH] mm: memcontrol: reclaim when shrinking memory.high below
+ usage
+Message-ID: <20160316144713.GB18142@esperanza>
+References: <1457643015-8828-1-git-send-email-hannes@cmpxchg.org>
+ <20160311083440.GI1946@esperanza>
+ <20160316054157.GB11006@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20160316142156.GA23595@node.shutemov.name>
+In-Reply-To: <20160316054157.GB11006@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Richard Weinberger <richard@nod.at>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Boris Brezillon <boris.brezillon@free-electrons.com>, Maxime Ripard <maxime.ripard@free-electrons.com>, David Gstir <david@sigma-star.at>, Dave Chinner <david@fromorbit.com>, Artem Bityutskiy <dedekind1@gmail.com>, Alexander Kaplan <alex@nextthing.co>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Wed, Mar 16, 2016 at 05:21:56PM +0300, Kirill A. Shutemov wrote:
-> On Wed, Mar 16, 2016 at 12:18:50AM +0100, Richard Weinberger wrote:
-> > Am 15.03.2016 um 16:37 schrieb Christoph Hellwig:
-> > > On Tue, Mar 15, 2016 at 04:32:40PM +0100, Richard Weinberger wrote:
-> > >>> Or if ->page_mkwrite() was called, why the page is not dirty?
-> > >>
-> > >> BTW: UBIFS does not implement ->migratepage(), could this be a problem?
+On Tue, Mar 15, 2016 at 10:41:57PM -0700, Johannes Weiner wrote:
+> On Fri, Mar 11, 2016 at 11:34:40AM +0300, Vladimir Davydov wrote:
+> > On Thu, Mar 10, 2016 at 03:50:13PM -0500, Johannes Weiner wrote:
+> > > When setting memory.high below usage, nothing happens until the next
+> > > charge comes along, and then it will only reclaim its own charge and
+> > > not the now potentially huge excess of the new memory.high. This can
+> > > cause groups to stay in excess of their memory.high indefinitely.
 > > > 
-> > > This might be the reason.  I can't reall make sense of
-> > > buffer_migrate_page, but it seems to migrate buffer_head state to
-> > > the new page.
-> > > 
-> > > I'd love to know why CMA even tries to migrate pages that don't have a
-> > > ->migratepage method, this seems incredibly dangerous to me.
+> > > To fix that, when shrinking memory.high, kick off a reclaim cycle that
+> > > goes after the delta.
 > > 
-> > FYI, with a dummy ->migratepage() which returns only -EINVAL UBIFS does no
-> > longer explode upon page migration.
-> > Tomorrow I'll do more tests to make sure.
+> > I agree that we should reclaim the high excess, but I don't think it's a
+> > good idea to do it synchronously. Currently, memory.low and memory.high
+> > knobs can be easily used by a single-threaded load manager implemented
+> > in userspace, because it doesn't need to care about potential stalls
+> > caused by writes to these files. After this change it might happen that
+> > a write to memory.high would take long, seconds perhaps, so in order to
+> > react quickly to changes in other cgroups, a load manager would have to
+> > spawn a thread per each write to memory.high, which would complicate its
+> > implementation significantly.
 > 
-> Could you check if something like this would fix the issue.
-> Completely untested.
+> While I do expect memory.high to be adjusted every once in a while, I
+> can't see anybody doing it by a significant fraction of the cgroup
+> every couple of seconds - or tighter than the workingset; and dropping
+> use-once cache is cheap. What kind of usecase would that be?
+
+I agree that a load manager won't need to adjust memory.high by a
+significant amount often, but there can be a lot of containers running,
+so even if it takes 10 ms to adjust memory.high for one container, it
+will take up to a second for 100 containers. I expect that a load
+manager implementation will just blindly spawn a thread per each
+memory.high update to be sure it won't be stalled for too long.
+
 > 
-> diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
-> index 065c88f8e4b8..9da34120dc5e 100644
-> --- a/fs/ubifs/file.c
-> +++ b/fs/ubifs/file.c
-> @@ -52,6 +52,7 @@
->  #include "ubifs.h"
->  #include <linux/mount.h>
->  #include <linux/slab.h>
-> +#include <linux/migrate.h>
->  
->  static int read_block(struct inode *inode, void *addr, unsigned int block,
->  		      struct ubifs_data_node *dn)
-> @@ -1452,6 +1453,20 @@ static int ubifs_set_page_dirty(struct page *page)
->  	return ret;
->  }
->  
-> +static int ubifs_migrate_page(struct address_space *mapping,
-> +		struct page *newpage, struct page *page, enum migrate_mode mode)
-> +{
-> +	if (PagePrivate(page)) {
-> +		SetPagePrivate(newpage);
-> +		__set_page_dirty_nobuffers(newpage);
-> +	}
-> +
-> +	if (PageChecked(page))
-> +		SetPageChecked(newpage);
+> But even if we're wrong about it and this becomes a scalability issue,
+> the knob - even when reclaiming synchroneously - makes no guarantees
+> about the target being met once the write finishes. It's a best effort
+> mechanism. What would break if we made it async later on?
 
-These two lines are redundant, migrate_page_copy() would do this for us.
+You're right of course - we wouldn't be able to change async to sync,
+but not the other way round. However, I'm afraid that by making it sync
+from the very beginning we effectively enforce userspace applications
+that need to update memory.{low,high} often to use multi-threading. Not
+sure if it's that bad though.
 
-> +
-> +	return migrate_page(mapping, newpage, page, mode);
-> +}
-> +
->  static int ubifs_releasepage(struct page *page, gfp_t unused_gfp_flags)
->  {
->  	/*
-> @@ -1591,6 +1606,7 @@ const struct address_space_operations ubifs_file_address_operations = {
->  	.write_end      = ubifs_write_end,
->  	.invalidatepage = ubifs_invalidatepage,
->  	.set_page_dirty = ubifs_set_page_dirty,
-> +	.migratepage	= ubifs_migrate_page,
->  	.releasepage    = ubifs_releasepage,
->  };
->  
-> -- 
->  Kirill A. Shutemov
-
--- 
- Kirill A. Shutemov
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
