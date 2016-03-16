@@ -1,80 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f177.google.com (mail-yw0-f177.google.com [209.85.161.177])
-	by kanga.kvack.org (Postfix) with ESMTP id CCFD16B0005
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2016 17:00:48 -0400 (EDT)
-Received: by mail-yw0-f177.google.com with SMTP id g3so77312793ywa.3
-        for <linux-mm@kvack.org>; Wed, 16 Mar 2016 14:00:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d194si1354468ybh.20.2016.03.16.14.00.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Mar 2016 14:00:48 -0700 (PDT)
-Message-ID: <1458162041.14723.32.camel@redhat.com>
-Subject: Re: [PATCH] mm: Export symbols unmapped_area() &
- unmapped_area_topdown()
-From: Rik van Riel <riel@redhat.com>
-Date: Wed, 16 Mar 2016 17:00:41 -0400
-In-Reply-To: <20160316203657.GA29061@infradead.org>
-References: <1458148234-4456-1-git-send-email-Olu.Ogunbowale@imgtec.com>
-	 <1458148234-4456-2-git-send-email-Olu.Ogunbowale@imgtec.com>
-	 <20160316203657.GA29061@infradead.org>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-sGUCPP3aiXCKRFqnoKmT"
-Mime-Version: 1.0
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 2353B6B0005
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2016 18:55:36 -0400 (EDT)
+Received: by mail-wm0-f49.google.com with SMTP id l124so65551466wmf.1
+        for <linux-mm@kvack.org>; Wed, 16 Mar 2016 15:55:36 -0700 (PDT)
+Received: from mail.sigma-star.at (mail.sigma-star.at. [95.130.255.111])
+        by mx.google.com with ESMTP id bm5si6707155wjb.92.2016.03.16.15.55.34
+        for <linux-mm@kvack.org>;
+        Wed, 16 Mar 2016 15:55:34 -0700 (PDT)
+From: Richard Weinberger <richard@nod.at>
+Subject: [PATCH] UBIFS: Implement ->migratepage()
+Date: Wed, 16 Mar 2016 23:55:19 +0100
+Message-Id: <1458168919-11597-1-git-send-email-richard@nod.at>
+In-Reply-To: <56E9C658.1020903@nod.at>
+References: <56E9C658.1020903@nod.at>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Olu Ogunbowale <Olu.Ogunbowale@imgtec.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+To: linux-mtd@lists.infradead.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, boris.brezillon@free-electrons.com, maxime.ripard@free-electrons.com, david@sigma-star.at, david@fromorbit.com, dedekind1@gmail.com, alex@nextthing.co, akpm@linux-foundation.org, sasha.levin@oracle.com, iamjoonsoo.kim@lge.com, rvaswani@codeaurora.org, tony.luck@intel.com, shailendra.capricorn@gmail.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Richard Weinberger <richard@nod.at>
 
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
---=-sGUCPP3aiXCKRFqnoKmT
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+When using CMA during page migrations UBIFS might get confused
+and the following assert triggers:
+UBIFS assert failed in ubifs_set_page_dirty at 1451 (pid 436)
 
-On Wed, 2016-03-16 at 13:36 -0700, Christoph Hellwig wrote:
-> On Wed, Mar 16, 2016 at 05:10:34PM +0000, Olu Ogunbowale wrote:
-> >=20
-> > From: Olujide Ogunbowale <Olu.Ogunbowale@imgtec.com>
-> >=20
-> > Export the memory management functions, unmapped_area() &
-> > unmapped_area_topdown(), as GPL symbols; this allows the kernel to
-> > better support process address space mirroring on both CPU and
-> > device
-> > for out-of-tree drivers by allowing the use of vm_unmapped_area()
-> > in a
-> > driver's file operation get_unmapped_area().
-> No new exports without in-tree drivers.=C2=A0=C2=A0How about you get star=
-ted
-> to get your drives into the tree first?
+UBIFS is using PagePrivate() which can have different meanings across
+filesystems. Therefore the generic page migration code cannot handle this
+case correctly.
+We have to implement our own migration function which basically does a
+plain copy but also duplicates the page private flag.
 
-The drivers appear to require the HMM framework though,
-which people are also reluctant to merge without the
-drivers.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+[rw: Massaged changelog]
+Signed-off-by: Richard Weinberger <richard@nod.at>
+---
+ fs/ubifs/file.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
 
-How do we get past this chicken & egg situation?
-
---=20
-All Rights Reversed.
-
-
---=-sGUCPP3aiXCKRFqnoKmT
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJW6cl5AAoJEM553pKExN6DWIwH/01/Tm7vf4acX1zL3fGx7/qY
-DM2gojo0pe6Ars5vDkIEtYVAW1X9stO1Xn/z1mFBY5BOsOn3xaZ/GyV+ls9E7mNe
-cEPt05P9wrlMXfk9S378qlAZKe3S9YaxHe0mHOsHwIdbhCKSRc1wv2OaftWYvYXs
-F7jGIvSA/jWsQAjLlmfVAkMPeP186367rZpmEurh9iioJZ+4kvVsKIWmcnB5UZEw
-dOnbFarl9xrda76Kr6pIVwDxWc20cgP30jQSGWX5OzZQ89lBpSmih1Y8S/PzXoNo
-a+0RiY/tJk8cWdX8gNrCaDAai+WE+UJpUcSgeS2q3ev9120bbdpGHmhM6Zo/jOM=
-=jEtT
------END PGP SIGNATURE-----
-
---=-sGUCPP3aiXCKRFqnoKmT--
+diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
+index 0edc128..48b2944 100644
+--- a/fs/ubifs/file.c
++++ b/fs/ubifs/file.c
+@@ -52,6 +52,7 @@
+ #include "ubifs.h"
+ #include <linux/mount.h>
+ #include <linux/slab.h>
++#include <linux/migrate.h>
+ 
+ static int read_block(struct inode *inode, void *addr, unsigned int block,
+ 		      struct ubifs_data_node *dn)
+@@ -1452,6 +1453,24 @@ static int ubifs_set_page_dirty(struct page *page)
+ 	return ret;
+ }
+ 
++static int ubifs_migrate_page(struct address_space *mapping,
++		struct page *newpage, struct page *page, enum migrate_mode mode)
++{
++	int rc;
++
++	rc = migrate_page_move_mapping(mapping, newpage, page, NULL, mode, 0);
++	if (rc != MIGRATEPAGE_SUCCESS)
++		return rc;
++
++	if (PagePrivate(page)) {
++		ClearPagePrivate(page);
++		SetPagePrivate(newpage);
++	}
++
++	migrate_page_copy(newpage, page);
++	return MIGRATEPAGE_SUCCESS;
++}
++
+ static int ubifs_releasepage(struct page *page, gfp_t unused_gfp_flags)
+ {
+ 	/*
+@@ -1591,6 +1610,7 @@ const struct address_space_operations ubifs_file_address_operations = {
+ 	.write_end      = ubifs_write_end,
+ 	.invalidatepage = ubifs_invalidatepage,
+ 	.set_page_dirty = ubifs_set_page_dirty,
++	.migratepage	= ubifs_migrate_page,
+ 	.releasepage    = ubifs_releasepage,
+ };
+ 
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
