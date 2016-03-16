@@ -1,62 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f43.google.com (mail-lf0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id D58CB6B0005
-	for <linux-mm@kvack.org>; Wed, 16 Mar 2016 05:49:02 -0400 (EDT)
-Received: by mail-lf0-f43.google.com with SMTP id l83so14982932lfd.3
-        for <linux-mm@kvack.org>; Wed, 16 Mar 2016 02:49:02 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id l16si1201024lfl.202.2016.03.16.02.48.52
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 929A66B0005
+	for <linux-mm@kvack.org>; Wed, 16 Mar 2016 06:36:23 -0400 (EDT)
+Received: by mail-pf0-f175.google.com with SMTP id u190so70198222pfb.3
+        for <linux-mm@kvack.org>; Wed, 16 Mar 2016 03:36:23 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id yi4si4433042pac.177.2016.03.16.03.36.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 16 Mar 2016 02:49:01 -0700 (PDT)
-Subject: Re: Suspicious error for CMA stress test
-References: <56D93ABE.9070406@huawei.com>
- <20160307043442.GB24602@js1304-P5Q-DELUXE> <56DD38E7.3050107@huawei.com>
- <56DDCB86.4030709@redhat.com> <56DE30CB.7020207@huawei.com>
- <56DF7B28.9060108@huawei.com>
- <CAAmzW4NDJwgq_P33Ru_X0MKXGQEnY5dr_SY1GFutPAqEUAc_rg@mail.gmail.com>
- <56E2FB5C.1040602@suse.cz> <20160314064925.GA27587@js1304-P5Q-DELUXE>
- <56E662E8.700@suse.cz> <20160314071803.GA28094@js1304-P5Q-DELUXE>
-From: Hanjun Guo <guohanjun@huawei.com>
-Message-ID: <56E92AFC.9050208@huawei.com>
-Date: Wed, 16 Mar 2016 17:44:28 +0800
-MIME-Version: 1.0
-In-Reply-To: <20160314071803.GA28094@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+        Wed, 16 Mar 2016 03:36:22 -0700 (PDT)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH] oom, oom_reaper: protect oom_reaper_list using simpler way
+Date: Wed, 16 Mar 2016 19:35:27 +0900
+Message-Id: <1458124527-5441-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>
-Cc: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: akpm@linux-foundation.org, mhocko@kernel.org
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>
 
-On 2016/3/14 15:18, Joonsoo Kim wrote:
-> On Mon, Mar 14, 2016 at 08:06:16AM +0100, Vlastimil Babka wrote:
->> On 03/14/2016 07:49 AM, Joonsoo Kim wrote:
->>> On Fri, Mar 11, 2016 at 06:07:40PM +0100, Vlastimil Babka wrote:
->>>> On 03/11/2016 04:00 PM, Joonsoo Kim wrote:
->>>>
->>>> How about something like this? Just and idea, probably buggy (off-by-one etc.).
->>>> Should keep away cost from <pageblock_order iterations at the expense of the
->>>> relatively fewer >pageblock_order iterations.
->>> Hmm... I tested this and found that it's code size is a little bit
->>> larger than mine. I'm not sure why this happens exactly but I guess it would be
->>> related to compiler optimization. In this case, I'm in favor of my
->>> implementation because it looks like well abstraction. It adds one
->>> unlikely branch to the merge loop but compiler would optimize it to
->>> check it once.
->> I would be surprised if compiler optimized that to check it once, as
->> order increases with each loop iteration. But maybe it's smart
->> enough to do something like I did by hand? Guess I'll check the
->> disassembly.
-> Okay. I used following slightly optimized version and I need to
-> add 'max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1)'
-> to yours. Please consider it, too.
+"oom, oom_reaper: disable oom_reaper for oom_kill_allocating_task" tried
+to protect oom_reaper_list using MMF_OOM_KILLED flag. But we can do it
+by simply checking tsk->oom_reaper_list != NULL.
 
-Hmm, this one is not work, I still can see the bug is there after applying
-this patch, did I miss something?
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Rik van Riel <riel@redhat.com>
+---
+ include/linux/sched.h | 2 --
+ mm/oom_kill.c         | 8 ++------
+ 2 files changed, 2 insertions(+), 8 deletions(-)
 
-Thanks
-Hanjun
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 888bc15..e4dc0c9 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -512,8 +512,6 @@ static inline int get_dumpable(struct mm_struct *mm)
+ #define MMF_HAS_UPROBES		19	/* has uprobes */
+ #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
+ 
+-#define MMF_OOM_KILLED		21	/* OOM killer has chosen this mm */
+-
+ #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
+ 
+ struct sighand_struct {
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 23b8b06..31bbdc6 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -543,7 +543,7 @@ static int oom_reaper(void *unused)
+ 
+ static void wake_oom_reaper(struct task_struct *tsk)
+ {
+-	if (!oom_reaper_th)
++	if (!oom_reaper_th || tsk->oom_reaper_list)
+ 		return;
+ 
+ 	get_task_struct(tsk);
+@@ -677,7 +677,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	unsigned int victim_points = 0;
+ 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 					      DEFAULT_RATELIMIT_BURST);
+-	bool can_oom_reap;
++	bool can_oom_reap = true;
+ 
+ 	/*
+ 	 * If the task is already exiting, don't alarm the sysadmin or kill
+@@ -739,10 +739,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	/* Get a reference to safely compare mm after task_unlock(victim) */
+ 	mm = victim->mm;
+ 	atomic_inc(&mm->mm_count);
+-
+-	/* Make sure we do not try to oom reap the mm multiple times */
+-	can_oom_reap = !test_and_set_bit(MMF_OOM_KILLED, &mm->flags);
+-
+ 	/*
+ 	 * We should send SIGKILL before setting TIF_MEMDIE in order to prevent
+ 	 * the OOM victim from depleting the memory reserves from the user
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
