@@ -1,99 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 73CE26B0005
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 11:26:00 -0400 (EDT)
-Received: by mail-wm0-f45.google.com with SMTP id l68so122217351wml.1
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 08:26:00 -0700 (PDT)
-Received: from mail.free-electrons.com (down.free-electrons.com. [37.187.137.238])
-        by mx.google.com with ESMTP id ha10si10803665wjc.117.2016.03.17.08.25.59
-        for <linux-mm@kvack.org>;
-        Thu, 17 Mar 2016 08:25:59 -0700 (PDT)
-Date: Thu, 17 Mar 2016 16:25:57 +0100
-From: Boris Brezillon <boris.brezillon@free-electrons.com>
-Subject: Re: Page migration issue with UBIFS
-Message-ID: <20160317162557.55662d23@bbrezillon>
-In-Reply-To: <56E8192B.5030008@nod.at>
-References: <56E8192B.5030008@nod.at>
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C928E6B0005
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 11:31:15 -0400 (EDT)
+Received: by mail-ob0-f172.google.com with SMTP id ts10so87522074obc.1
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 08:31:15 -0700 (PDT)
+Received: from mail-ob0-x230.google.com (mail-ob0-x230.google.com. [2607:f8b0:4003:c01::230])
+        by mx.google.com with ESMTPS id l63si4375047oib.16.2016.03.17.08.31.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Mar 2016 08:31:14 -0700 (PDT)
+Received: by mail-ob0-x230.google.com with SMTP id fz5so88071307obc.0
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 08:31:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <56EA77BC.2090702@huawei.com>
+References: <56DD38E7.3050107@huawei.com>
+	<56DDCB86.4030709@redhat.com>
+	<56DE30CB.7020207@huawei.com>
+	<56DF7B28.9060108@huawei.com>
+	<CAAmzW4NDJwgq_P33Ru_X0MKXGQEnY5dr_SY1GFutPAqEUAc_rg@mail.gmail.com>
+	<56E2FB5C.1040602@suse.cz>
+	<20160314064925.GA27587@js1304-P5Q-DELUXE>
+	<56E662E8.700@suse.cz>
+	<20160314071803.GA28094@js1304-P5Q-DELUXE>
+	<56E92AFC.9050208@huawei.com>
+	<20160317065426.GA10315@js1304-P5Q-DELUXE>
+	<56EA77BC.2090702@huawei.com>
+Date: Fri, 18 Mar 2016 00:31:14 +0900
+Message-ID: <CAAmzW4PVc+v9NVyqrHZqh6qWaJD8hrwNUVSb6G=vZ3eA76J3yQ@mail.gmail.com>
+Subject: Re: Suspicious error for CMA stress test
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Weinberger <richard@nod.at>
-Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Maxime Ripard <maxime.ripard@free-electrons.com>, David Gstir <david@sigma-star.at>, Dave Chinner <david@fromorbit.com>, Artem Bityutskiy <dedekind1@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alexander Kaplan <alex@nextthing.co>, Nicolas Ferre <nicolas.ferre@atmel.com>, Alexandre Belloni <alexandre.belloni@free-electrons.com>
+To: Hanjun Guo <guohanjun@huawei.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi,
+2016-03-17 18:24 GMT+09:00 Hanjun Guo <guohanjun@huawei.com>:
+> On 2016/3/17 14:54, Joonsoo Kim wrote:
+>> On Wed, Mar 16, 2016 at 05:44:28PM +0800, Hanjun Guo wrote:
+>>> On 2016/3/14 15:18, Joonsoo Kim wrote:
+>>>> On Mon, Mar 14, 2016 at 08:06:16AM +0100, Vlastimil Babka wrote:
+>>>>> On 03/14/2016 07:49 AM, Joonsoo Kim wrote:
+>>>>>> On Fri, Mar 11, 2016 at 06:07:40PM +0100, Vlastimil Babka wrote:
+>>>>>>> On 03/11/2016 04:00 PM, Joonsoo Kim wrote:
+>>>>>>>
+>>>>>>> How about something like this? Just and idea, probably buggy (off-by-one etc.).
+>>>>>>> Should keep away cost from <pageblock_order iterations at the expense of the
+>>>>>>> relatively fewer >pageblock_order iterations.
+>>>>>> Hmm... I tested this and found that it's code size is a little bit
+>>>>>> larger than mine. I'm not sure why this happens exactly but I guess it would be
+>>>>>> related to compiler optimization. In this case, I'm in favor of my
+>>>>>> implementation because it looks like well abstraction. It adds one
+>>>>>> unlikely branch to the merge loop but compiler would optimize it to
+>>>>>> check it once.
+>>>>> I would be surprised if compiler optimized that to check it once, as
+>>>>> order increases with each loop iteration. But maybe it's smart
+>>>>> enough to do something like I did by hand? Guess I'll check the
+>>>>> disassembly.
+>>>> Okay. I used following slightly optimized version and I need to
+>>>> add 'max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1)'
+>>>> to yours. Please consider it, too.
+>>> Hmm, this one is not work, I still can see the bug is there after applying
+>>> this patch, did I miss something?
+>> I may find that there is a bug which was introduced by me some time
+>> ago. Could you test following change in __free_one_page() on top of
+>> Vlastimil's patch?
+>>
+>> -page_idx = pfn & ((1 << max_order) - 1);
+>> +page_idx = pfn & ((1 << MAX_ORDER) - 1);
+>
+> I tested Vlastimil's patch + your change with stress for more than half hour, the bug
+> I reported is gone :)
 
-On Tue, 15 Mar 2016 15:16:11 +0100
-Richard Weinberger <richard@nod.at> wrote:
+Good to hear!
 
-> Hi!
-> 
-> We're facing this issue from 2014 on UBIFS:
-> http://www.spinics.net/lists/linux-fsdevel/msg79941.html
+> I have some questions, Joonsoo, you provided a patch as following:
+>
+> diff --git a/mm/cma.c b/mm/cma.c
+> index 3a7a67b..952a8a3 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -448,7 +448,10 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
+>
+>         VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
+>
+> + mutex_lock(&cma_mutex);
+>         free_contig_range(pfn, count);
+> + mutex_unlock(&cma_mutex);
+> +
+>         cma_clear_bitmap(cma, pfn, count);
+>         trace_cma_release(pfn, pages, count);
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 7f32950..68ed5ae 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1559,7 +1559,8 @@ void free_hot_cold_page(struct page *page, bool cold)
+>          * excessively into the page allocator
+>          */
+>         if (migratetype >= MIGRATE_PCPTYPES) {
+> -           if (unlikely(is_migrate_isolate(migratetype))) {
+> +         if (is_migrate_cma(migratetype) ||
+> +             unlikely(is_migrate_isolate(migratetype))) {
+>                         free_one_page(zone, page, pfn, 0, migratetype);
+>                         goto out;
+>                 }
+>
+> This patch also works to fix the bug, why not just use this one? is there
+> any side effects for this patch? maybe there is performance issue as the
+> mutex lock is used, any other issues?
 
-Just to let you know I was able to reproduce the exact same bug on a
-sama5d3 with UBIFS + CMA enabled (CMA allocation through the
-generic DRM/CMA code), so I think we can exclude a platform specific
-bug.
+The changes in free_hot_cold_page() would cause unacceptable performance
+problem in a big machine, because, with above change,  it takes zone->lock
+whenever freeing one page on CMA region.
 
-> 
-> So sum up:
-> UBIFS does not allow pages directly marked as dirty. It want's everyone to do it via UBIFS's
-> ->wirte_end() and ->page_mkwirte() functions.
-> This assumption *seems* to be violated by CMA which migrates pages.
-> UBIFS enforces this because it has to account free space on the flash,
-> in UBIFS speak "budget", for details please see fs/ubifs/file.c.
-> 
-> As in the report from 2014 the page is writable but not dirty.
-> The kernel has this debug patch applied:
-> http://www.spinics.net/lists/linux-fsdevel/msg80471.html
-> But our kernel is based on v4.4 and does *not* use proprietary modules.
-> 
-> [  213.450000] page:debe03c0 count:3 mapcount:1 mapping:dce4b5fc index:0x2f
-> [  213.460000] flags: 0x9(locked|uptodate)
-> [  213.460000] page dumped because: try_to_unmap_one
-> [  213.470000] pte_write: 1
-> [  213.480000] UBIFS assert failed in ubifs_set_page_dirty at 1451 (pid 436)
-> [  213.490000] CPU: 0 PID: 436 Comm: drm-stress-test Not tainted 4.4.4-00176-geaa802524636-dirty #1008
-> [  213.490000] Hardware name: Allwinner sun4i/sun5i Families
-> [  213.490000] [<c0015e70>] (unwind_backtrace) from [<c0012cdc>] (show_stack+0x10/0x14)
-> [  213.490000] [<c0012cdc>] (show_stack) from [<c02ad834>] (dump_stack+0x8c/0xa0)
-> [  213.490000] [<c02ad834>] (dump_stack) from [<c0236ee8>] (ubifs_set_page_dirty+0x44/0x50)
-> [  213.490000] [<c0236ee8>] (ubifs_set_page_dirty) from [<c00fa0bc>] (try_to_unmap_one+0x10c/0x3a8)
-> [  213.490000] [<c00fa0bc>] (try_to_unmap_one) from [<c00fadb4>] (rmap_walk+0xb4/0x290)
-> [  213.490000] [<c00fadb4>] (rmap_walk) from [<c00fb1bc>] (try_to_unmap+0x64/0x80)
-> [  213.490000] [<c00fb1bc>] (try_to_unmap) from [<c010dc28>] (migrate_pages+0x328/0x7a0)
-> [  213.490000] [<c010dc28>] (migrate_pages) from [<c00d0cb0>] (alloc_contig_range+0x168/0x2f4)
-> [  213.490000] [<c00d0cb0>] (alloc_contig_range) from [<c010ec00>] (cma_alloc+0x170/0x2c0)
-> [  213.490000] [<c010ec00>] (cma_alloc) from [<c001a958>] (__alloc_from_contiguous+0x38/0xd8)
-> [  213.490000] [<c001a958>] (__alloc_from_contiguous) from [<c001ad44>] (__dma_alloc+0x23c/0x274)
-> [  213.490000] [<c001ad44>] (__dma_alloc) from [<c001ae08>] (arm_dma_alloc+0x54/0x5c)
-> [  213.490000] [<c001ae08>] (arm_dma_alloc) from [<c035cecc>] (drm_gem_cma_create+0xb8/0xf0)
-> [  213.490000] [<c035cecc>] (drm_gem_cma_create) from [<c035cf20>] (drm_gem_cma_create_with_handle+0x1c/0xe8)
-> [  213.490000] [<c035cf20>] (drm_gem_cma_create_with_handle) from [<c035d088>] (drm_gem_cma_dumb_create+0x3c/0x48)
-> [  213.490000] [<c035d088>] (drm_gem_cma_dumb_create) from [<c0341ed8>] (drm_ioctl+0x12c/0x444)
-> [  213.490000] [<c0341ed8>] (drm_ioctl) from [<c0121adc>] (do_vfs_ioctl+0x3f4/0x614)
-> [  213.490000] [<c0121adc>] (do_vfs_ioctl) from [<c0121d30>] (SyS_ioctl+0x34/0x5c)
-> [  213.490000] [<c0121d30>] (SyS_ioctl) from [<c000f2c0>] (ret_fast_syscall+0x0/0x34)
-> 
-> The full kernellog can be found here:
-> http://code.bulix.org/ysuo9x-93716?raw
-> 
-> So, let me repeat Artem's question from 2014:
-> > Now the question is: is it UBIFS which has incorrect assumptions, or this is the
-> > Linux MM which is not doing the right thing? I do not know the answer, let's see
-> > if the MM list may give us a clue.
-> 
-> Thanks,
-> //richard
-
-
-
--- 
-Boris Brezillon, Free Electrons
-Embedded Linux and Kernel engineering
-http://free-electrons.com
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
