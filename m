@@ -1,61 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D8D3D6B0005
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 04:13:33 -0400 (EDT)
-Received: by mail-wm0-f41.google.com with SMTP id l124so75051315wmf.1
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 01:13:33 -0700 (PDT)
-Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
-        by mx.google.com with ESMTPS id l125si9535442wmg.18.2016.03.17.01.13.32
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E2AA6B0005
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 04:23:56 -0400 (EDT)
+Received: by mail-pf0-f178.google.com with SMTP id n5so110872817pfn.2
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 01:23:56 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0110.outbound.protection.outlook.com. [104.47.0.110])
+        by mx.google.com with ESMTPS id l9si491186pfb.158.2016.03.17.01.23.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 17 Mar 2016 01:13:32 -0700 (PDT)
-Subject: Re: Page migration issue with UBIFS
-References: <56E8192B.5030008@nod.at>
- <20160315151727.GA16462@node.shutemov.name> <56E82B18.9040807@nod.at>
- <20160315153744.GB28522@infradead.org> <56E8985A.1020509@nod.at>
- <20160316142156.GA23595@node.shutemov.name>
- <20160316142729.GA125481@black.fi.intel.com> <56E9C658.1020903@nod.at>
- <20160317071155.GB10315@js1304-P5Q-DELUXE>
-From: Richard Weinberger <richard@nod.at>
-Message-ID: <56EA672A.7070007@nod.at>
-Date: Thu, 17 Mar 2016 09:13:30 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 17 Mar 2016 01:23:55 -0700 (PDT)
+Date: Thu, 17 Mar 2016 11:23:45 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH] mm: memcontrol: reclaim and OOM kill when shrinking
+ memory.max below usage
+Message-ID: <20160317082345.GF18142@esperanza>
+References: <1457643015-8828-2-git-send-email-hannes@cmpxchg.org>
+ <20160311081825.GC27701@dhcp22.suse.cz>
+ <20160311091931.GK1946@esperanza>
+ <20160316051848.GA11006@cmpxchg.org>
+ <20160316151509.GC18142@esperanza>
+ <20160316201329.GA15498@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20160317071155.GB10315@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20160316201329.GA15498@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Boris Brezillon <boris.brezillon@free-electrons.com>, Maxime Ripard <maxime.ripard@free-electrons.com>, David Gstir <david@sigma-star.at>, Dave Chinner <david@fromorbit.com>, Artem Bityutskiy <dedekind1@gmail.com>, Alexander Kaplan <alex@nextthing.co>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, rvaswani@codeaurora.org, "Luck, Tony" <tony.luck@intel.com>, Shailendra Verma <shailendra.capricorn@gmail.com>, s.strogin@partner.samsung.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Am 17.03.2016 um 08:11 schrieb Joonsoo Kim:
->> It is still not clear why UBIFS has to provide a >migratepage() and what the expected semantics
->> are.
->> What we know so far is that the fall back migration function is broken. I'm sure not only on UBIFS.
->>
->> Can CMA folks please clarify? :-)
+On Wed, Mar 16, 2016 at 01:13:29PM -0700, Johannes Weiner wrote:
+> On Wed, Mar 16, 2016 at 06:15:09PM +0300, Vladimir Davydov wrote:
+> > On Tue, Mar 15, 2016 at 10:18:48PM -0700, Johannes Weiner wrote:
+> > > On Fri, Mar 11, 2016 at 12:19:31PM +0300, Vladimir Davydov wrote:
+> > ...
+> > > > Come to think of it, shouldn't we restore the old limit and return EBUSY
+> > > > if we failed to reclaim enough memory?
+> > > 
+> > > I suspect it's very rare that it would fail. But even in that case
+> > > it's probably better to at least not allow new charges past what the
+> > > user requested, even if we can't push the level back far enough.
+> > 
+> > It's of course good to set the limit before trying to reclaim memory,
+> > but isn't it strange that even if the cgroup's memory can't be reclaimed
+> > to meet the new limit (tmpfs files or tasks protected from oom), the
+> > write will still succeed? It's a rare use case, but still.
 > 
-> Hello,
+> It's not optimal, but there is nothing we can do about it, is there? I
+> don't want to go back to the racy semantics that allow the application
+> to balloon up again after the limit restriction fails.
 > 
-> As you mentioned earlier, this issue would not be directly related
-> to CMA. It looks like it is more general issue related to interaction
-> between MM and FS. Your first error log shows that error happens when
-> ubifs_set_page_dirty() is called in try_to_unmap_one() which also
-> can be called by reclaimer (kswapd or direct reclaim). Quick search shows
-> that problem also happens on reclaim. Is that fixed?
+> > I've one more concern regarding this patch. It's about calling OOM while
+> > reclaiming cgroup memory. AFAIU OOM killer can be quite disruptive for a
+> > workload, so is it really good to call it when normal reclaim fails?
+> > 
+> > W/o OOM killer you can optimistically try to adjust memory.max and if it
+> > fails you can manually kill some processes in the container or restart
+> > it or cancel the limit update. With your patch adjusting memory.max
+> > never fails, but OOM might kill vital processes rendering the whole
+> > container useless. Wouldn't it be better to let the user decide if
+> > processes should be killed or not rather than calling OOM forcefully?
 > 
-> http://www.spinics.net/lists/linux-fsdevel/msg79531.html
+> Those are the memory.max semantics, though. Why should there be a
+> difference between the container growing beyond the limit and the
+> limit cutting into the container?
+> 
+> If you don't want OOM kills, set memory.high instead. This way you get
+> the memory pressure *and* the chance to do your own killing.
 
-Well, this problem happened only on a tainted kernel and never popped up again.
-So, I really don't know. :-)
-
-> I think that you need to CC other people who understand interaction
-> between MM and FS perfectly.
-
-Who is missing on the CC list?
+Fair enough.
 
 Thanks,
-//richard
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
