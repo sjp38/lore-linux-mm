@@ -1,50 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B6CB6B0005
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 09:23:38 -0400 (EDT)
-Received: by mail-wm0-f52.google.com with SMTP id l68so117039213wml.1
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 06:23:38 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id br5si10227072wjb.69.2016.03.17.06.23.37
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Mar 2016 06:23:37 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id x188so6740742wmg.0
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 06:23:37 -0700 (PDT)
-Date: Thu, 17 Mar 2016 14:23:35 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 6/5] oom, oom_reaper: disable oom_reaper for
- oom_kill_allocating_task
-Message-ID: <20160317132335.GF26017@dhcp22.suse.cz>
-References: <20160315114300.GC6108@dhcp22.suse.cz>
- <20160315115001.GE6108@dhcp22.suse.cz>
- <201603162016.EBJ05275.VHMFSOLJOFQtOF@I-love.SAKURA.ne.jp>
- <201603171949.FHE57319.SMFFtJOHOVOFLQ@I-love.SAKURA.ne.jp>
- <20160317121751.GE26017@dhcp22.suse.cz>
- <201603172200.CIE52148.QOVSOHJFMLOFtF@I-love.SAKURA.ne.jp>
+	by kanga.kvack.org (Postfix) with ESMTP id 824296B0005
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 09:30:33 -0400 (EDT)
+Received: by mail-wm0-f52.google.com with SMTP id l68so26340278wml.0
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 06:30:33 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
+        by mx.google.com with ESMTP id 191si36909449wmn.116.2016.03.17.06.30.32
+        for <linux-mm@kvack.org>;
+        Thu, 17 Mar 2016 06:30:32 -0700 (PDT)
+Date: Thu, 17 Mar 2016 13:30:22 +0000
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [PATCH 1/2] mm/vmap: Add a notifier for when we run out of vmap
+ address space
+Message-ID: <20160317133022.GW14143@nuc-i3427.alporthouse.com>
+References: <1458215982-13405-1-git-send-email-chris@chris-wilson.co.uk>
+ <CACZ9PQX+E2LscOGyVQ4xZNK3qdYYotq4HiyGc8o+YwoNi-w1Hg@mail.gmail.com>
+ <20160317125736.GT14143@nuc-i3427.alporthouse.com>
+ <CACZ9PQWMr4bU3ao46MF6dab2fhTDwL7g59iR0AcpbSPm91qD4g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201603172200.CIE52148.QOVSOHJFMLOFtF@I-love.SAKURA.ne.jp>
+In-Reply-To: <CACZ9PQWMr4bU3ao46MF6dab2fhTDwL7g59iR0AcpbSPm91qD4g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org
+To: Roman Peniaev <r.peniaev@gmail.com>
+Cc: intel-gfx@lists.freedesktop.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu 17-03-16 22:00:34, Tetsuo Handa wrote:
-[...]
-> If you worry about too much work for a single RCU, you can do like
-> what kmallocwd does. kmallocwd adds a marker to task_struct so that
-> kmallocwd can reliably resume reporting.
+On Thu, Mar 17, 2016 at 02:21:40PM +0100, Roman Peniaev wrote:
+> On Thu, Mar 17, 2016 at 1:57 PM, Chris Wilson <chris@chris-wilson.co.uk> wrote:
+> > On Thu, Mar 17, 2016 at 01:37:06PM +0100, Roman Peniaev wrote:
+> >> > +       freed = 0;
+> >> > +       blocking_notifier_call_chain(&vmap_notify_list, 0, &freed);
+> >>
+> >> It seems to me that alloc_vmap_area() was designed not to sleep,
+> >> at least on GFP_NOWAIT path (__GFP_DIRECT_RECLAIM is not set).
+> >>
+> >> But blocking_notifier_call_chain() might sleep.
+> >
+> > Indeed, I had not anticipated anybody using GFP_ATOMIC or equivalently
+> > restrictive gfp_t for vmap and yes there are such callers.
+> >
+> > Would guarding the notifier with gfp & __GFP_DIRECT_RECLAIM and
+> > !(gfp & __GFP_NORETRY) == be sufficient? Is that enough for GFP_NOFS?
+> 
+> I would use gfpflags_allow_blocking() for that purpose.
 
-It is you who is trying to add a different debugging output so you
-should better make sure you won't swamp the user by something that might
-be not helpful after all by _default_. I would care much less if this
-was hidden by the debugging option like the current
-debug_show_all_locks.
+Thanks,
+-Chris
+
 -- 
-Michal Hocko
-SUSE Labs
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
