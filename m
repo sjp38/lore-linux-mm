@@ -1,46 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E68506B0005
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 11:23:43 -0400 (EDT)
-Received: by mail-pf0-f182.google.com with SMTP id n5so125034029pfn.2
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 08:23:43 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0068.outbound.protection.outlook.com. [157.56.112.68])
-        by mx.google.com with ESMTPS id ua9si2530958pab.25.2016.03.17.08.18.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 17 Mar 2016 08:18:20 -0700 (PDT)
-Subject: Re: [PATCH RFC 1/1] Add support for ZONE_DEVICE IO memory with struct
- pages.
-References: <1457979277-26791-1-git-send-email-stephen.bates@pmcs.com>
- <20160314212344.GC23727@linux.intel.com>
- <20160314215708.GA7282@obsidianresearch.com>
-From: Haggai Eran <haggaie@mellanox.com>
-Message-ID: <56EACAB3.5070301@mellanox.com>
-Date: Thu, 17 Mar 2016 17:18:11 +0200
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 73CE26B0005
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 11:26:00 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id l68so122217351wml.1
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 08:26:00 -0700 (PDT)
+Received: from mail.free-electrons.com (down.free-electrons.com. [37.187.137.238])
+        by mx.google.com with ESMTP id ha10si10803665wjc.117.2016.03.17.08.25.59
+        for <linux-mm@kvack.org>;
+        Thu, 17 Mar 2016 08:25:59 -0700 (PDT)
+Date: Thu, 17 Mar 2016 16:25:57 +0100
+From: Boris Brezillon <boris.brezillon@free-electrons.com>
+Subject: Re: Page migration issue with UBIFS
+Message-ID: <20160317162557.55662d23@bbrezillon>
+In-Reply-To: <56E8192B.5030008@nod.at>
+References: <56E8192B.5030008@nod.at>
 MIME-Version: 1.0
-In-Reply-To: <20160314215708.GA7282@obsidianresearch.com>
-Content-Type: text/plain; charset="windows-1252"
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Matthew Wilcox <willy@linux.intel.com>
-Cc: Stephen Bates <stephen.bates@pmcs.com>, linux-mm@kvack.org, linux-rdma@vger.kernel.org, linux-nvdimm@ml01.01.org, javier@cnexlabs.com, sagig@mellanox.com, leonro@mellanox.com, artemyko@mellanox.com, hch@infradead.org
+To: Richard Weinberger <richard@nod.at>
+Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Maxime Ripard <maxime.ripard@free-electrons.com>, David Gstir <david@sigma-star.at>, Dave Chinner <david@fromorbit.com>, Artem Bityutskiy <dedekind1@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alexander Kaplan <alex@nextthing.co>, Nicolas Ferre <nicolas.ferre@atmel.com>, Alexandre Belloni <alexandre.belloni@free-electrons.com>
 
-On 3/14/2016 11:57 PM, Jason Gunthorpe wrote:
-> The other issue is that the fencing mechanism RDMA uses to create
-> ordering with system memory is not good enough to fence peer-peer
-> transactions in the general case. It is only possibly good enough if
-> all the transactions run through the root complex.
+Hi,
 
-Are you sure this is a problem? I'm not sure it is clear in the PCIe 
-specs, but I thought that for transactions that are not relaxed-ordered 
-and don't use ID-based ordering, a PCIe switch must prevent reads and 
-writes from passing writes. I assume this is true even when the requestor
-ID is different because IDO relaxes these constraints specifically
-for transactions coming from different requestor IDs.
+On Tue, 15 Mar 2016 15:16:11 +0100
+Richard Weinberger <richard@nod.at> wrote:
 
-Regards,
-Haggai
+> Hi!
+> 
+> We're facing this issue from 2014 on UBIFS:
+> http://www.spinics.net/lists/linux-fsdevel/msg79941.html
+
+Just to let you know I was able to reproduce the exact same bug on a
+sama5d3 with UBIFS + CMA enabled (CMA allocation through the
+generic DRM/CMA code), so I think we can exclude a platform specific
+bug.
+
+> 
+> So sum up:
+> UBIFS does not allow pages directly marked as dirty. It want's everyone to do it via UBIFS's
+> ->wirte_end() and ->page_mkwirte() functions.
+> This assumption *seems* to be violated by CMA which migrates pages.
+> UBIFS enforces this because it has to account free space on the flash,
+> in UBIFS speak "budget", for details please see fs/ubifs/file.c.
+> 
+> As in the report from 2014 the page is writable but not dirty.
+> The kernel has this debug patch applied:
+> http://www.spinics.net/lists/linux-fsdevel/msg80471.html
+> But our kernel is based on v4.4 and does *not* use proprietary modules.
+> 
+> [  213.450000] page:debe03c0 count:3 mapcount:1 mapping:dce4b5fc index:0x2f
+> [  213.460000] flags: 0x9(locked|uptodate)
+> [  213.460000] page dumped because: try_to_unmap_one
+> [  213.470000] pte_write: 1
+> [  213.480000] UBIFS assert failed in ubifs_set_page_dirty at 1451 (pid 436)
+> [  213.490000] CPU: 0 PID: 436 Comm: drm-stress-test Not tainted 4.4.4-00176-geaa802524636-dirty #1008
+> [  213.490000] Hardware name: Allwinner sun4i/sun5i Families
+> [  213.490000] [<c0015e70>] (unwind_backtrace) from [<c0012cdc>] (show_stack+0x10/0x14)
+> [  213.490000] [<c0012cdc>] (show_stack) from [<c02ad834>] (dump_stack+0x8c/0xa0)
+> [  213.490000] [<c02ad834>] (dump_stack) from [<c0236ee8>] (ubifs_set_page_dirty+0x44/0x50)
+> [  213.490000] [<c0236ee8>] (ubifs_set_page_dirty) from [<c00fa0bc>] (try_to_unmap_one+0x10c/0x3a8)
+> [  213.490000] [<c00fa0bc>] (try_to_unmap_one) from [<c00fadb4>] (rmap_walk+0xb4/0x290)
+> [  213.490000] [<c00fadb4>] (rmap_walk) from [<c00fb1bc>] (try_to_unmap+0x64/0x80)
+> [  213.490000] [<c00fb1bc>] (try_to_unmap) from [<c010dc28>] (migrate_pages+0x328/0x7a0)
+> [  213.490000] [<c010dc28>] (migrate_pages) from [<c00d0cb0>] (alloc_contig_range+0x168/0x2f4)
+> [  213.490000] [<c00d0cb0>] (alloc_contig_range) from [<c010ec00>] (cma_alloc+0x170/0x2c0)
+> [  213.490000] [<c010ec00>] (cma_alloc) from [<c001a958>] (__alloc_from_contiguous+0x38/0xd8)
+> [  213.490000] [<c001a958>] (__alloc_from_contiguous) from [<c001ad44>] (__dma_alloc+0x23c/0x274)
+> [  213.490000] [<c001ad44>] (__dma_alloc) from [<c001ae08>] (arm_dma_alloc+0x54/0x5c)
+> [  213.490000] [<c001ae08>] (arm_dma_alloc) from [<c035cecc>] (drm_gem_cma_create+0xb8/0xf0)
+> [  213.490000] [<c035cecc>] (drm_gem_cma_create) from [<c035cf20>] (drm_gem_cma_create_with_handle+0x1c/0xe8)
+> [  213.490000] [<c035cf20>] (drm_gem_cma_create_with_handle) from [<c035d088>] (drm_gem_cma_dumb_create+0x3c/0x48)
+> [  213.490000] [<c035d088>] (drm_gem_cma_dumb_create) from [<c0341ed8>] (drm_ioctl+0x12c/0x444)
+> [  213.490000] [<c0341ed8>] (drm_ioctl) from [<c0121adc>] (do_vfs_ioctl+0x3f4/0x614)
+> [  213.490000] [<c0121adc>] (do_vfs_ioctl) from [<c0121d30>] (SyS_ioctl+0x34/0x5c)
+> [  213.490000] [<c0121d30>] (SyS_ioctl) from [<c000f2c0>] (ret_fast_syscall+0x0/0x34)
+> 
+> The full kernellog can be found here:
+> http://code.bulix.org/ysuo9x-93716?raw
+> 
+> So, let me repeat Artem's question from 2014:
+> > Now the question is: is it UBIFS which has incorrect assumptions, or this is the
+> > Linux MM which is not doing the right thing? I do not know the answer, let's see
+> > if the MM list may give us a clue.
+> 
+> Thanks,
+> //richard
+
+
+
+-- 
+Boris Brezillon, Free Electrons
+Embedded Linux and Kernel engineering
+http://free-electrons.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
