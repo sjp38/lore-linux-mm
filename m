@@ -1,105 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F3BA96B0005
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 08:01:32 -0400 (EDT)
-Received: by mail-wm0-f51.google.com with SMTP id l68so22746664wml.0
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 05:01:32 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id z2si2199939wjz.132.2016.03.17.05.01.30
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id CC85E6B025E
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 08:14:49 -0400 (EDT)
+Received: by mail-wm0-f49.google.com with SMTP id l68so223705878wml.0
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 05:14:49 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id kh8si9851918wjb.218.2016.03.17.05.14.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Mar 2016 05:01:31 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id x188so6284550wmg.0
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 05:01:30 -0700 (PDT)
-Date: Thu, 17 Mar 2016 13:01:27 +0100
+        Thu, 17 Mar 2016 05:14:25 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id l124so8590345wmf.2
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 05:14:25 -0700 (PDT)
+Date: Thu, 17 Mar 2016 13:14:23 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/3] mm: throttle on IO only when there are too many
- dirty and writeback pages
-Message-ID: <20160317120127.GC26017@dhcp22.suse.cz>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <1450203586-10959-3-git-send-email-mhocko@kernel.org>
- <201603172035.CJH95337.SOJOFFFHMLOQVt@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH 6/5] oom, oom_reaper: disable oom_reaper for
+ oom_kill_allocating_task
+Message-ID: <20160317121422.GD26017@dhcp22.suse.cz>
+References: <201602201132.EFG90182.FOVtSOJHFOLFQM@I-love.SAKURA.ne.jp>
+ <20160222094105.GD17938@dhcp22.suse.cz>
+ <201603152015.JAE86937.VFOLtQFOFJOSHM@I-love.SAKURA.ne.jp>
+ <20160315114300.GC6108@dhcp22.suse.cz>
+ <20160315115001.GE6108@dhcp22.suse.cz>
+ <201603162016.EBJ05275.VHMFSOLJOFQtOF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201603172035.CJH95337.SOJOFFFHMLOQVt@I-love.SAKURA.ne.jp>
+In-Reply-To: <201603162016.EBJ05275.VHMFSOLJOFQtOF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 
-On Thu 17-03-16 20:35:23, Tetsuo Handa wrote:
-[...]
-> But what I felt strange is what should_reclaim_retry() is doing.
-> 
+On Wed 16-03-16 20:16:47, Tetsuo Handa wrote:
 > Michal Hocko wrote:
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index f77e283fb8c6..b2de8c8761ad 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -3044,8 +3045,37 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
-> >  		 */
-> >  		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
-> >  				ac->high_zoneidx, alloc_flags, available)) {
-> > -			/* Wait for some write requests to complete then retry */
-> > -			wait_iff_congested(zone, BLK_RW_ASYNC, HZ/50);
-> > +			unsigned long writeback;
-> > +			unsigned long dirty;
-> > +
-> > +			writeback = zone_page_state_snapshot(zone, NR_WRITEBACK);
-> > +			dirty = zone_page_state_snapshot(zone, NR_FILE_DIRTY);
-> > +
-> > +			/*
-> > +			 * If we didn't make any progress and have a lot of
-> > +			 * dirty + writeback pages then we should wait for
-> > +			 * an IO to complete to slow down the reclaim and
-> > +			 * prevent from pre mature OOM
-> > +			 */
-> > +			if (!did_some_progress && 2*(writeback + dirty) > reclaimable) {
-> > +				congestion_wait(BLK_RW_ASYNC, HZ/10);
-> > +				return true;
-> > +			}
+[...]
+> > And just to prevent from a confusion. I mean waking up also when
+> > fatal_signal_pending and we do not really go down to selecting an oom
+> > victim. Which would be worth a separate patch on top of course.
 > 
-> writeback and dirty are used only when did_some_progress == 0. Thus, we don't
-> need to calculate writeback and dirty using zone_page_state_snapshot() unless
-> did_some_progress == 0.
-
-OK, I will move this into if !did_some_progress.
-
-> But, does it make sense to take writeback and dirty into account when
-> disk_events_workfn (trace shown above) is doing GFP_NOIO allocation and
-> wb_workfn (trace shown above) is doing (presumably) GFP_NOFS allocation?
-> Shouldn't we use different threshold for GFP_NOIO / GFP_NOFS / GFP_KERNEL?
-
-I have considered skiping the throttling part for GFP_NOFS/GFP_NOIO
-previously but I couldn't have convinced myself it would make any
-difference. We know there was no progress in the reclaim and even if the
-current context is doing FS/IO allocation potentially then it obviously
-cannot get its memory so it cannot proceed. So now we are in the state
-where we either busy loop or sleep for a while. So I ended up not
-complicating the code even more. If you have a use case where busy
-waiting makes a difference then I would vote for a separate patch with a
-clear description.
-
-> > +
-> > +			/*
-> > +			 * Memory allocation/reclaim might be called from a WQ
-> > +			 * context and the current implementation of the WQ
-> > +			 * concurrency control doesn't recognize that
-> > +			 * a particular WQ is congested if the worker thread is
-> > +			 * looping without ever sleeping. Therefore we have to
-> > +			 * do a short sleep here rather than calling
-> > +			 * cond_resched().
-> > +			 */
-> > +			if (current->flags & PF_WQ_WORKER)
-> > +				schedule_timeout(1);
+> I couldn't understand this part. The shortcut
 > 
-> This schedule_timeout(1) does not sleep. You lost the fix as of next-20160317.
-> Please update.
+>         if (current->mm &&
+>             (fatal_signal_pending(current) || task_will_free_mem(current))) {
+>                 mark_oom_victim(current);
+>                 return true;
+>         }
+> 
+> is not used for !__GFP_FS && !__GFP_NOFAIL allocation requests. I think
+> we might go down to selecting an oom victim by out_of_memory() calls by
+> not-yet-killed processes.
 
-Yeah, I have that updated in my local patch already.
+I meant something like the following. It would need some more tweaks
+of course but here is the idea at least.
 
-Thanks!
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 23b8b06152be..09e54bc0976c 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -686,6 +686,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	task_lock(p);
+ 	if (p->mm && task_will_free_mem(p)) {
+ 		mark_oom_victim(p);
++		wake_oom_reaper(p);
+ 		task_unlock(p);
+ 		put_task_struct(p);
+ 		return;
+@@ -869,10 +870,22 @@ bool out_of_memory(struct oom_control *oc)
+ 	if (current->mm &&
+ 	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
+ 		mark_oom_victim(current);
++		wake_oom_reaper(current);
+ 		return true;
+ 	}
+ 
+ 	/*
++	 * XXX: This is a weak reclaim context when FS metadata couldn't be
++	 * reclaimed and so triggering the OOM killer could be really pre
++	 * mature at this point. Traditionally have been looping in the page
++	 * allocator and hoping for somebody else to make a forward progress
++	 * for us. It would be better to simply fail those requests but we
++	 * are not yet there so keep the tradition
++	 */
++	if (!(gfp_mask & __GFP_FS))
++		return true;
++
++	/*
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA) that may require different handling.
+ 	 */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d4d574dd0408..01121a89eb52 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2854,20 +2854,11 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 		/* The OOM killer does not needlessly kill tasks for lowmem */
+ 		if (ac->high_zoneidx < ZONE_NORMAL)
+ 			goto out;
+-		/* The OOM killer does not compensate for IO-less reclaim */
+-		if (!(gfp_mask & __GFP_FS)) {
+-			/*
+-			 * XXX: Page reclaim didn't yield anything,
+-			 * and the OOM killer can't be invoked, but
+-			 * keep looping as per tradition.
+-			 *
+-			 * But do not keep looping if oom_killer_disable()
+-			 * was already called, for the system is trying to
+-			 * enter a quiescent state during suspend.
+-			 */
+-			*did_some_progress = !oom_killer_disabled;
+-			goto out;
+-		}
++		/*
++		 * TODO once we are able to cope with GFP_NOFS allocation
++		 * failures more gracefully just return and fail the allocation
++		 * rather than trigger OOM
++		 */
+ 		if (pm_suspended_storage())
+ 			goto out;
+ 		/* The OOM killer may not free memory on a specific node */
+
 -- 
 Michal Hocko
 SUSE Labs
