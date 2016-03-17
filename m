@@ -1,86 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 502A26B0005
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 11:39:23 -0400 (EDT)
-Received: by mail-wm0-f43.google.com with SMTP id l68so122814749wml.1
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 08:39:23 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id ku4si10479585wjc.49.2016.03.17.08.39.22
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 5298E6B0005
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 11:43:54 -0400 (EDT)
+Received: by mail-wm0-f41.google.com with SMTP id l68so31945653wml.0
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 08:43:54 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dd9si10841245wjc.207.2016.03.17.08.43.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Mar 2016 08:39:22 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id p65so15831410wmp.1
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 08:39:22 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 17 Mar 2016 08:43:53 -0700 (PDT)
+Subject: Re: Suspicious error for CMA stress test
+References: <56DD38E7.3050107@huawei.com> <56DDCB86.4030709@redhat.com>
+ <56DE30CB.7020207@huawei.com> <56DF7B28.9060108@huawei.com>
+ <CAAmzW4NDJwgq_P33Ru_X0MKXGQEnY5dr_SY1GFutPAqEUAc_rg@mail.gmail.com>
+ <56E2FB5C.1040602@suse.cz> <20160314064925.GA27587@js1304-P5Q-DELUXE>
+ <56E662E8.700@suse.cz> <20160314071803.GA28094@js1304-P5Q-DELUXE>
+ <56E92AFC.9050208@huawei.com> <20160317065426.GA10315@js1304-P5Q-DELUXE>
+ <56EA77BC.2090702@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56EAD0B4.2060807@suse.cz>
+Date: Thu, 17 Mar 2016 16:43:48 +0100
 MIME-Version: 1.0
-In-Reply-To: <20160317143714.GA16297@gmail.com>
-References: <1458148234-4456-1-git-send-email-Olu.Ogunbowale@imgtec.com>
- <1458148234-4456-2-git-send-email-Olu.Ogunbowale@imgtec.com> <20160317143714.GA16297@gmail.com>
-From: Oded Gabbay <oded.gabbay@gmail.com>
-Date: Thu, 17 Mar 2016 17:38:52 +0200
-Message-ID: <CAFCwf11pk_umjO7TirPPJCf6gpMvGg3bXHsDj707Dfr07xkgZg@mail.gmail.com>
-Subject: Re: [PATCH] mm: Export symbols unmapped_area() & unmapped_area_topdown()
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <56EA77BC.2090702@huawei.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Olu Ogunbowale <Olu.Ogunbowale@imgtec.com>, linux-mm <linux-mm@kvack.org>, "Linux-Kernel@Vger. Kernel. Org" <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+To: Hanjun Guo <guohanjun@huawei.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Mar 17, 2016 at 4:37 PM, Jerome Glisse <j.glisse@gmail.com> wrote:
-> On Wed, Mar 16, 2016 at 05:10:34PM +0000, Olu Ogunbowale wrote:
->> From: Olujide Ogunbowale <Olu.Ogunbowale@imgtec.com>
+On 03/17/2016 10:24 AM, Hanjun Guo wrote:
+> On 2016/3/17 14:54, Joonsoo Kim wrote:
+>> On Wed, Mar 16, 2016 at 05:44:28PM +0800, Hanjun Guo wrote:
+>>> On 2016/3/14 15:18, Joonsoo Kim wrote:
+>>>> On Mon, Mar 14, 2016 at 08:06:16AM +0100, Vlastimil Babka wrote:
+>>>>> On 03/14/2016 07:49 AM, Joonsoo Kim wrote:
+>>>>>> On Fri, Mar 11, 2016 at 06:07:40PM +0100, Vlastimil Babka wrote:
+>>>>>>> On 03/11/2016 04:00 PM, Joonsoo Kim wrote:
+>>>>>>>
+>>>>>>> How about something like this? Just and idea, probably buggy (off-by-one etc.).
+>>>>>>> Should keep away cost from <pageblock_order iterations at the expense of the
+>>>>>>> relatively fewer >pageblock_order iterations.
+>>>>>> Hmm... I tested this and found that it's code size is a little bit
+>>>>>> larger than mine. I'm not sure why this happens exactly but I guess it would be
+>>>>>> related to compiler optimization. In this case, I'm in favor of my
+>>>>>> implementation because it looks like well abstraction. It adds one
+>>>>>> unlikely branch to the merge loop but compiler would optimize it to
+>>>>>> check it once.
+>>>>> I would be surprised if compiler optimized that to check it once, as
+>>>>> order increases with each loop iteration. But maybe it's smart
+>>>>> enough to do something like I did by hand? Guess I'll check the
+>>>>> disassembly.
+>>>> Okay. I used following slightly optimized version and I need to
+>>>> add 'max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1)'
+>>>> to yours. Please consider it, too.
+>>> Hmm, this one is not work, I still can see the bug is there after applying
+>>> this patch, did I miss something?
+>> I may find that there is a bug which was introduced by me some time
+>> ago. Could you test following change in __free_one_page() on top of
+>> Vlastimil's patch?
 >>
->> Export the memory management functions, unmapped_area() &
->> unmapped_area_topdown(), as GPL symbols; this allows the kernel to
->> better support process address space mirroring on both CPU and device
->> for out-of-tree drivers by allowing the use of vm_unmapped_area() in a
->> driver's file operation get_unmapped_area().
->>
->> This is required by drivers that want to control or limit a process VMA
->> range into which shared-virtual-memory (SVM) buffers are mapped during
->> an mmap() call in order to ensure that said SVM VMA does not collide
->> with any pre-existing VMAs used by non-buffer regions on the device
->> because SVM buffers must have identical VMAs on both CPU and device.
->>
->> Exporting these functions is particularly useful for graphics devices as
->> SVM support is required by the OpenCL & HSA specifications and also SVM
->> support for 64-bit CPUs where the useable device SVM address range
->> is/maybe a subset of the full 64-bit range of the CPU. Exporting also
->> avoids the need to duplicate the VMA search code in such drivers.
+>> -page_idx = pfn & ((1 << max_order) - 1);
+>> +page_idx = pfn & ((1 << MAX_ORDER) - 1);
 >
-> What other driver do for non-buffer region is have the userspace side
-> of the device driver mmap the device driver file and use vma range you
-> get from that for those non-buffer region. On cpu access you can either
-> chose to fault or to return a dummy page. With that trick no need to
-> change kernel.
->
-> Note that i do not see how you can solve the issue of your GPU having
-> less bits then the cpu. For instance, lets assume that you have 46bits
-> for the GPU while the CPU have 48bits. Now an application start and do
-> bunch of allocation that end up above (1 << 46), then same application
-> load your driver and start using some API that allow to transparently
-> use previously allocated memory -> fails.
->
-> Unless you are in scheme were all allocation must go through some
-> special allocator but i thought this was not the case for HSA. I know
-> lower level of OpenCL allows that.
->
-> Cheers,
-> J=C3=A9r=C3=B4me
+> I tested Vlastimil's patch + your change with stress for more than half hour, the bug
+> I reported is gone :)
 
-In amdkfd (AMD HSA kernel driver), for APU's where the CPU and GPU sit
-on the same die, we don't need this as the GPU cores use the AMD IOMMU
-(v2) to access the system memory. i.e. we don't need to use vram (gpu
-memory) at all and we don't need to mirror address spaces.
-
-For dGPU, it's a different story. On GPUs where there is only 40-bit
-memory space, for example, GCN 1.0 and 1.1, I would assume a pass
-through a special allocator is a must, while memory addresses below
-the 40-bit limit will need to be reserved for HSA. Note that amdkfd
-doesn't support dGPU at this time.
-
-Thanks,
-    Oded
+Oh, ok, will try to send proper patch, once I figure out what to write 
+in the changelog :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
