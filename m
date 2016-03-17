@@ -1,49 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id CC52D6B0005
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 04:10:02 -0400 (EDT)
-Received: by mail-wm0-f41.google.com with SMTP id l68so14155887wml.0
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 01:10:02 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D8D3D6B0005
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 04:13:33 -0400 (EDT)
+Received: by mail-wm0-f41.google.com with SMTP id l124so75051315wmf.1
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 01:13:33 -0700 (PDT)
 Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
-        by mx.google.com with ESMTPS id qo6si8837889wjc.79.2016.03.17.01.10.01
+        by mx.google.com with ESMTPS id l125si9535442wmg.18.2016.03.17.01.13.32
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 17 Mar 2016 01:10:01 -0700 (PDT)
-Subject: Re: [PATCH] UBIFS: Implement ->migratepage()
-References: <201603171228.iwNVzwZx%fengguang.wu@intel.com>
+        Thu, 17 Mar 2016 01:13:32 -0700 (PDT)
+Subject: Re: Page migration issue with UBIFS
+References: <56E8192B.5030008@nod.at>
+ <20160315151727.GA16462@node.shutemov.name> <56E82B18.9040807@nod.at>
+ <20160315153744.GB28522@infradead.org> <56E8985A.1020509@nod.at>
+ <20160316142156.GA23595@node.shutemov.name>
+ <20160316142729.GA125481@black.fi.intel.com> <56E9C658.1020903@nod.at>
+ <20160317071155.GB10315@js1304-P5Q-DELUXE>
 From: Richard Weinberger <richard@nod.at>
-Message-ID: <56EA6653.6050504@nod.at>
-Date: Thu, 17 Mar 2016 09:09:55 +0100
+Message-ID: <56EA672A.7070007@nod.at>
+Date: Thu, 17 Mar 2016 09:13:30 +0100
 MIME-Version: 1.0
-In-Reply-To: <201603171228.iwNVzwZx%fengguang.wu@intel.com>
+In-Reply-To: <20160317071155.GB10315@js1304-P5Q-DELUXE>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, linux-mtd@lists.infradead.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, boris.brezillon@free-electrons.com, maxime.ripard@free-electrons.com, david@sigma-star.at, david@fromorbit.com, dedekind1@gmail.com, alex@nextthing.co, akpm@linux-foundation.org, sasha.levin@oracle.com, iamjoonsoo.kim@lge.com, rvaswani@codeaurora.org, tony.luck@intel.com, shailendra.capricorn@gmail.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Boris Brezillon <boris.brezillon@free-electrons.com>, Maxime Ripard <maxime.ripard@free-electrons.com>, David Gstir <david@sigma-star.at>, Dave Chinner <david@fromorbit.com>, Artem Bityutskiy <dedekind1@gmail.com>, Alexander Kaplan <alex@nextthing.co>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, rvaswani@codeaurora.org, "Luck, Tony" <tony.luck@intel.com>, Shailendra Verma <shailendra.capricorn@gmail.com>, s.strogin@partner.samsung.com
 
-Am 17.03.2016 um 05:39 schrieb kbuild test robot:
-> Hi Kirill,
+Am 17.03.2016 um 08:11 schrieb Joonsoo Kim:
+>> It is still not clear why UBIFS has to provide a >migratepage() and what the expected semantics
+>> are.
+>> What we know so far is that the fall back migration function is broken. I'm sure not only on UBIFS.
+>>
+>> Can CMA folks please clarify? :-)
 > 
-> [auto build test ERROR on v4.5-rc7]
-> [also build test ERROR on next-20160316]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improving the system]
+> Hello,
 > 
-> url:    https://github.com/0day-ci/linux/commits/Richard-Weinberger/UBIFS-Implement-migratepage/20160317-065742
-> config: x86_64-allmodconfig (attached as .config)
-> reproduce:
->         # save the attached .config to linux build tree
->         make ARCH=x86_64 
+> As you mentioned earlier, this issue would not be directly related
+> to CMA. It looks like it is more general issue related to interaction
+> between MM and FS. Your first error log shows that error happens when
+> ubifs_set_page_dirty() is called in try_to_unmap_one() which also
+> can be called by reclaimer (kswapd or direct reclaim). Quick search shows
+> that problem also happens on reclaim. Is that fixed?
 > 
-> All errors (new ones prefixed by >>):
-> 
->>> ERROR: "migrate_page_move_mapping" [fs/ubifs/ubifs.ko] undefined!
->>> ERROR: "migrate_page_copy" [fs/ubifs/ubifs.ko] undefined!
+> http://www.spinics.net/lists/linux-fsdevel/msg79531.html
 
-Meh. Just noticted that these functions are not exported and therefore not
-usable in modules.
-So, this patch is not really the solution although it makes the problem go away.
+Well, this problem happened only on a tainted kernel and never popped up again.
+So, I really don't know. :-)
+
+> I think that you need to CC other people who understand interaction
+> between MM and FS perfectly.
+
+Who is missing on the CC list?
 
 Thanks,
 //richard
