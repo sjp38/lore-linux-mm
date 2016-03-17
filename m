@@ -1,129 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B0EA6B0253
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 07:59:51 -0400 (EDT)
-Received: by mail-wm0-f41.google.com with SMTP id l68so223192088wml.0
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 04:59:51 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id w130si9402695wmb.63.2016.03.17.04.59.50
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id F3BA96B0005
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 08:01:32 -0400 (EDT)
+Received: by mail-wm0-f51.google.com with SMTP id l68so22746664wml.0
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 05:01:32 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id z2si2199939wjz.132.2016.03.17.05.01.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Mar 2016 04:59:50 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id l68so13871821wml.3
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 04:59:50 -0700 (PDT)
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: [PATCH 2/2] drm/i915/shrinker: Hook up vmap allocation failure notifier
-Date: Thu, 17 Mar 2016 11:59:42 +0000
-Message-Id: <1458215982-13405-2-git-send-email-chris@chris-wilson.co.uk>
-In-Reply-To: <1458215982-13405-1-git-send-email-chris@chris-wilson.co.uk>
-References: <1458215982-13405-1-git-send-email-chris@chris-wilson.co.uk>
+        Thu, 17 Mar 2016 05:01:31 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id x188so6284550wmg.0
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 05:01:30 -0700 (PDT)
+Date: Thu, 17 Mar 2016 13:01:27 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/3] mm: throttle on IO only when there are too many
+ dirty and writeback pages
+Message-ID: <20160317120127.GC26017@dhcp22.suse.cz>
+References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
+ <1450203586-10959-3-git-send-email-mhocko@kernel.org>
+ <201603172035.CJH95337.SOJOFFFHMLOQVt@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201603172035.CJH95337.SOJOFFFHMLOQVt@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: intel-gfx@lists.freedesktop.org
-Cc: Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Roman Pen <r.peniaev@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, rientjes@google.com, hillf.zj@alibaba-inc.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-If the core runs out of vmap address space, it will call a notifier in
-case any driver can reap some of its vmaps. As i915.ko is possibily
-holding onto vmap address space that could be recovered, hook into the
-notifier chain and try and reap objects holding onto vmaps.
+On Thu 17-03-16 20:35:23, Tetsuo Handa wrote:
+[...]
+> But what I felt strange is what should_reclaim_retry() is doing.
+> 
+> Michal Hocko wrote:
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index f77e283fb8c6..b2de8c8761ad 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -3044,8 +3045,37 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+> >  		 */
+> >  		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
+> >  				ac->high_zoneidx, alloc_flags, available)) {
+> > -			/* Wait for some write requests to complete then retry */
+> > -			wait_iff_congested(zone, BLK_RW_ASYNC, HZ/50);
+> > +			unsigned long writeback;
+> > +			unsigned long dirty;
+> > +
+> > +			writeback = zone_page_state_snapshot(zone, NR_WRITEBACK);
+> > +			dirty = zone_page_state_snapshot(zone, NR_FILE_DIRTY);
+> > +
+> > +			/*
+> > +			 * If we didn't make any progress and have a lot of
+> > +			 * dirty + writeback pages then we should wait for
+> > +			 * an IO to complete to slow down the reclaim and
+> > +			 * prevent from pre mature OOM
+> > +			 */
+> > +			if (!did_some_progress && 2*(writeback + dirty) > reclaimable) {
+> > +				congestion_wait(BLK_RW_ASYNC, HZ/10);
+> > +				return true;
+> > +			}
+> 
+> writeback and dirty are used only when did_some_progress == 0. Thus, we don't
+> need to calculate writeback and dirty using zone_page_state_snapshot() unless
+> did_some_progress == 0.
 
-Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Roman Pen <r.peniaev@gmail.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- drivers/gpu/drm/i915/i915_drv.h          |  1 +
- drivers/gpu/drm/i915/i915_gem_shrinker.c | 39 ++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+)
+OK, I will move this into if !did_some_progress.
 
-diff --git a/drivers/gpu/drm/i915/i915_drv.h b/drivers/gpu/drm/i915/i915_drv.h
-index b9989d05f82a..4646b8504b84 100644
---- a/drivers/gpu/drm/i915/i915_drv.h
-+++ b/drivers/gpu/drm/i915/i915_drv.h
-@@ -1257,6 +1257,7 @@ struct i915_gem_mm {
- 	struct i915_hw_ppgtt *aliasing_ppgtt;
- 
- 	struct notifier_block oom_notifier;
-+	struct notifier_block vmap_notifier;
- 	struct shrinker shrinker;
- 	bool shrinker_no_lock_stealing;
- 
-diff --git a/drivers/gpu/drm/i915/i915_gem_shrinker.c b/drivers/gpu/drm/i915/i915_gem_shrinker.c
-index d3c473ffb90a..54943f983dc4 100644
---- a/drivers/gpu/drm/i915/i915_gem_shrinker.c
-+++ b/drivers/gpu/drm/i915/i915_gem_shrinker.c
-@@ -28,6 +28,7 @@
- #include <linux/swap.h>
- #include <linux/pci.h>
- #include <linux/dma-buf.h>
-+#include <linux/vmalloc.h>
- #include <drm/drmP.h>
- #include <drm/i915_drm.h>
- 
-@@ -356,6 +357,40 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
- 	return NOTIFY_DONE;
- }
- 
-+static int
-+i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr)
-+{
-+	struct drm_i915_private *dev_priv =
-+		container_of(nb, struct drm_i915_private, mm.vmap_notifier);
-+	struct drm_device *dev = dev_priv->dev;
-+	unsigned long timeout = msecs_to_jiffies(5000) + 1;
-+	unsigned long freed_pages;
-+	bool was_interruptible;
-+	bool unlock;
-+
-+	while (!i915_gem_shrinker_lock(dev, &unlock) && --timeout) {
-+		schedule_timeout_killable(1);
-+		if (fatal_signal_pending(current))
-+			return NOTIFY_DONE;
-+	}
-+	if (timeout == 0) {
-+		pr_err("Unable to purge GPU vmaps due to lock contention.\n");
-+		return NOTIFY_DONE;
-+	}
-+
-+	was_interruptible = dev_priv->mm.interruptible;
-+	dev_priv->mm.interruptible = false;
-+
-+	freed_pages = i915_gem_shrink_all(dev_priv);
-+
-+	dev_priv->mm.interruptible = was_interruptible;
-+	if (unlock)
-+		mutex_unlock(&dev->struct_mutex);
-+
-+	*(unsigned long *)ptr += freed_pages;
-+	return NOTIFY_DONE;
-+}
-+
- /**
-  * i915_gem_shrinker_init - Initialize i915 shrinker
-  * @dev_priv: i915 device
-@@ -371,6 +406,9 @@ void i915_gem_shrinker_init(struct drm_i915_private *dev_priv)
- 
- 	dev_priv->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;
- 	WARN_ON(register_oom_notifier(&dev_priv->mm.oom_notifier));
-+
-+	dev_priv->mm.vmap_notifier.notifier_call = i915_gem_shrinker_vmap;
-+	WARN_ON(register_vmap_purge_notifier(&dev_priv->mm.vmap_notifier));
- }
- 
- /**
-@@ -381,6 +419,7 @@ void i915_gem_shrinker_init(struct drm_i915_private *dev_priv)
-  */
- void i915_gem_shrinker_cleanup(struct drm_i915_private *dev_priv)
- {
-+	WARN_ON(unregister_vmap_purge_notifier(&dev_priv->mm.vmap_notifier));
- 	WARN_ON(unregister_oom_notifier(&dev_priv->mm.oom_notifier));
- 	unregister_shrinker(&dev_priv->mm.shrinker);
- }
+> But, does it make sense to take writeback and dirty into account when
+> disk_events_workfn (trace shown above) is doing GFP_NOIO allocation and
+> wb_workfn (trace shown above) is doing (presumably) GFP_NOFS allocation?
+> Shouldn't we use different threshold for GFP_NOIO / GFP_NOFS / GFP_KERNEL?
+
+I have considered skiping the throttling part for GFP_NOFS/GFP_NOIO
+previously but I couldn't have convinced myself it would make any
+difference. We know there was no progress in the reclaim and even if the
+current context is doing FS/IO allocation potentially then it obviously
+cannot get its memory so it cannot proceed. So now we are in the state
+where we either busy loop or sleep for a while. So I ended up not
+complicating the code even more. If you have a use case where busy
+waiting makes a difference then I would vote for a separate patch with a
+clear description.
+
+> > +
+> > +			/*
+> > +			 * Memory allocation/reclaim might be called from a WQ
+> > +			 * context and the current implementation of the WQ
+> > +			 * concurrency control doesn't recognize that
+> > +			 * a particular WQ is congested if the worker thread is
+> > +			 * looping without ever sleeping. Therefore we have to
+> > +			 * do a short sleep here rather than calling
+> > +			 * cond_resched().
+> > +			 */
+> > +			if (current->flags & PF_WQ_WORKER)
+> > +				schedule_timeout(1);
+> 
+> This schedule_timeout(1) does not sleep. You lost the fix as of next-20160317.
+> Please update.
+
+Yeah, I have that updated in my local patch already.
+
+Thanks!
 -- 
-2.8.0.rc3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
