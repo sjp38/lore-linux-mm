@@ -1,75 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 88AF76B025E
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 09:00:43 -0400 (EDT)
-Received: by mail-pf0-f169.google.com with SMTP id n5so120378527pfn.2
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 06:00:43 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id x2si6324623pfa.33.2016.03.17.06.00.39
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id B48FA6B0005
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 09:21:41 -0400 (EDT)
+Received: by mail-wm0-f47.google.com with SMTP id l68so25984655wml.0
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 06:21:41 -0700 (PDT)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id p3si10183921wjp.160.2016.03.17.06.21.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 17 Mar 2016 06:00:40 -0700 (PDT)
-Subject: Re: [PATCH 6/5] oom, oom_reaper: disable oom_reaper for oom_kill_allocating_task
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160315114300.GC6108@dhcp22.suse.cz>
-	<20160315115001.GE6108@dhcp22.suse.cz>
-	<201603162016.EBJ05275.VHMFSOLJOFQtOF@I-love.SAKURA.ne.jp>
-	<201603171949.FHE57319.SMFFtJOHOVOFLQ@I-love.SAKURA.ne.jp>
-	<20160317121751.GE26017@dhcp22.suse.cz>
-In-Reply-To: <20160317121751.GE26017@dhcp22.suse.cz>
-Message-Id: <201603172200.CIE52148.QOVSOHJFMLOFtF@I-love.SAKURA.ne.jp>
-Date: Thu, 17 Mar 2016 22:00:34 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Mar 2016 06:21:40 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id l124so8969699wmf.2
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 06:21:40 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20160317125736.GT14143@nuc-i3427.alporthouse.com>
+References: <1458215982-13405-1-git-send-email-chris@chris-wilson.co.uk>
+	<CACZ9PQX+E2LscOGyVQ4xZNK3qdYYotq4HiyGc8o+YwoNi-w1Hg@mail.gmail.com>
+	<20160317125736.GT14143@nuc-i3427.alporthouse.com>
+Date: Thu, 17 Mar 2016 14:21:40 +0100
+Message-ID: <CACZ9PQWMr4bU3ao46MF6dab2fhTDwL7g59iR0AcpbSPm91qD4g@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm/vmap: Add a notifier for when we run out of vmap
+ address space
+From: Roman Peniaev <r.peniaev@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org
+To: Chris Wilson <chris@chris-wilson.co.uk>, Roman Peniaev <r.peniaev@gmail.com>, intel-gfx@lists.freedesktop.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Michal Hocko wrote:
-> On Thu 17-03-16 19:49:01, Tetsuo Handa wrote:
-> [...]
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index 2199c71..affbb79 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -502,8 +502,26 @@ static void oom_reap_vmas(struct mm_struct *mm)
-> >  		schedule_timeout_idle(HZ/10);
-> >  
-> >  	if (attempts > MAX_OOM_REAP_RETRIES) {
-> > +		struct task_struct *p;
-> > +		struct task_struct *t;
-> > +
-> >  		pr_info("oom_reaper: unable to reap memory\n");
-> > -		debug_show_all_locks();
-> > +		rcu_read_lock();
-> > +		for_each_process_thread(p, t) {
-> > +			if (likely(t->mm != mm))
-> > +				continue;
-> > +			pr_info("oom_reaper: %s(%u) flags=0x%x%s%s%s%s\n",
-> > +				t->comm, t->pid, t->flags,
-> > +				(t->state & TASK_UNINTERRUPTIBLE) ?
-> > +				" uninterruptible" : "",
-> > +				(t->flags & PF_EXITING) ? " exiting" : "",
-> > +				fatal_signal_pending(t) ? " dying" : "",
-> > +				test_tsk_thread_flag(t, TIF_MEMDIE) ?
-> > +				" victim" : "");
-> > +			sched_show_task(t);
-> > +			debug_show_held_locks(t);
-> > +		}
-> > +		rcu_read_unlock();
-> 
-> Isn't this way too much work for a single RCU lock? Also wouldn't it
-> generate way too much output in the pathological situations a so hide
-> other potentially more important log messages?
-> 
-I don't think we can compare it. It is possible that 50 out of 10000
-threads' traces and locks are reported with this change, but it is also
-possible that 10000 threads' locks are reported without this change.
+On Thu, Mar 17, 2016 at 1:57 PM, Chris Wilson <chris@chris-wilson.co.uk> wrote:
+> On Thu, Mar 17, 2016 at 01:37:06PM +0100, Roman Peniaev wrote:
+>> > +       freed = 0;
+>> > +       blocking_notifier_call_chain(&vmap_notify_list, 0, &freed);
+>>
+>> It seems to me that alloc_vmap_area() was designed not to sleep,
+>> at least on GFP_NOWAIT path (__GFP_DIRECT_RECLAIM is not set).
+>>
+>> But blocking_notifier_call_chain() might sleep.
+>
+> Indeed, I had not anticipated anybody using GFP_ATOMIC or equivalently
+> restrictive gfp_t for vmap and yes there are such callers.
+>
+> Would guarding the notifier with gfp & __GFP_DIRECT_RECLAIM and
+> !(gfp & __GFP_NORETRY) == be sufficient? Is that enough for GFP_NOFS?
 
-If you worry about too much work for a single RCU, you can do like
-what kmallocwd does. kmallocwd adds a marker to task_struct so that
-kmallocwd can reliably resume reporting.
+I would use gfpflags_allow_blocking() for that purpose.
+
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
