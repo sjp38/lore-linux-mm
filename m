@@ -1,47 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DAF16B025E
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 13:40:58 -0400 (EDT)
-Received: by mail-wm0-f53.google.com with SMTP id l68so36634668wml.0
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 10:40:58 -0700 (PDT)
-Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:67c:670:201:290:27ff:fe1d:cc33])
-        by mx.google.com with ESMTPS id 193si3970115wmf.95.2016.03.17.10.40.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 17 Mar 2016 10:40:57 -0700 (PDT)
-From: Lucas Stach <l.stach@pengutronix.de>
-Subject: [PATCH] mm/page_isolation: fix tracepoint to mirror check function behavior
-Date: Thu, 17 Mar 2016 18:40:56 +0100
-Message-Id: <1458236456-465-1-git-send-email-l.stach@pengutronix.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 0FDB26B025E
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 13:42:32 -0400 (EDT)
+Received: by mail-wm0-f53.google.com with SMTP id l68so3767059wml.0
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 10:42:32 -0700 (PDT)
+Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
+        by mx.google.com with ESMTP id kt2si11466070wjb.42.2016.03.17.10.42.30
+        for <linux-mm@kvack.org>;
+        Thu, 17 Mar 2016 10:42:31 -0700 (PDT)
+Date: Thu, 17 Mar 2016 17:42:26 +0000
+From: Olu Ogunbowale <olu.ogunbowale@imgtec.com>
+Subject: Re: [PATCH] mm: Export symbols unmapped_area() &
+ unmapped_area_topdown()
+Message-ID: <20160317174226.GC31608@imgtec.com>
+References: <1458148234-4456-1-git-send-email-Olu.Ogunbowale@imgtec.com>
+ <1458148234-4456-2-git-send-email-Olu.Ogunbowale@imgtec.com>
+ <20160317143714.GA16297@gmail.com>
+ <20160317154635.GA31608@imgtec.com>
+ <20160317170348.GB16297@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Disposition: inline
+In-Reply-To: <20160317170348.GB16297@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, kernel@pengutronix.de, patchwork-lst@pengutronix.de
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Paul Mundt <lethal@linux-sh.org>, "David S.
+ Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter
+ Anvin" <hpa@zytor.com>, Jackson DSouza <Jackson.DSouza@imgtec.com>
 
-Page isolation has not failed if the fin pfn extends beyond the end pfn
-and test_pages_isolated checks this correctly. Fix the tracepoint to
-report the same result as the actual check function.
+On Thu, Mar 17, 2016 at 06:03:50PM +0100, Jerome Glisse wrote:
+> Well trick still works, if driver is loaded early during userspace program
+> initialization then you force mmap to specific range inside the driver
+> userspace code. If driver is loaded after and program is already using those
+> range then you can register a notifier to track when those range. If they
+> get release by the program you can have the userspace driver force creation
+> of new reserve vma again.
 
-Signed-off-by: Lucas Stach <l.stach@pengutronix.de>
----
- include/trace/events/page_isolation.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I should have been more clearer in my response, this applies only because
+we are in a scheme were all allocations must go through a special allocator 
+because VMA base/range is reserved for SVM.
 
-diff --git a/include/trace/events/page_isolation.h b/include/trace/events/page_isolation.h
-index 6fb644029c80..8738a78e6bf4 100644
---- a/include/trace/events/page_isolation.h
-+++ b/include/trace/events/page_isolation.h
-@@ -29,7 +29,7 @@ TRACE_EVENT(test_pages_isolated,
- 
- 	TP_printk("start_pfn=0x%lx end_pfn=0x%lx fin_pfn=0x%lx ret=%s",
- 		__entry->start_pfn, __entry->end_pfn, __entry->fin_pfn,
--		__entry->end_pfn == __entry->fin_pfn ? "success" : "fail")
-+		__entry->end_pfn <= __entry->fin_pfn ? "success" : "fail")
- );
- 
- #endif /* _TRACE_PAGE_ISOLATION_H */
--- 
-2.7.0
+> Well controling range into which VMA can be allocated is not something that
+> you should do lightly (thing like address space randomization would be
+> impacted). And no the SVM range is not upper bound by the amount of memory
+> but by the physical bus size if it is 48bits nothing forbid to put all the
+> program memory above 8GB and nothing below. We are talking virtual address
+> here. By the way i think most 64 bit ARM are 40 bits and it seems a shame
+> for GPU to not go as high as the CPU.
+
+Same as above. By the way, we support minimum 40-bits but can be paired with
+CPU(s) of higher bits; no problem if bits are equal or greater than CPU.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
