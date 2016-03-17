@@ -1,66 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id DF45F6B0005
-	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 13:33:43 -0400 (EDT)
-Received: by mail-wm0-f44.google.com with SMTP id l68so36352313wml.0
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 10:33:43 -0700 (PDT)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DAF16B025E
+	for <linux-mm@kvack.org>; Thu, 17 Mar 2016 13:40:58 -0400 (EDT)
+Received: by mail-wm0-f53.google.com with SMTP id l68so36634668wml.0
+        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 10:40:58 -0700 (PDT)
 Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:67c:670:201:290:27ff:fe1d:cc33])
-        by mx.google.com with ESMTPS id ui6si11367461wjc.193.2016.03.17.10.33.42
+        by mx.google.com with ESMTPS id 193si3970115wmf.95.2016.03.17.10.40.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 17 Mar 2016 10:33:42 -0700 (PDT)
-Message-ID: <1458236020.18134.17.camel@pengutronix.de>
-Subject: Re: [PATCH] mm/page_isolation: let caller take the zone lock for
- test_pages_isolated
+        Thu, 17 Mar 2016 10:40:57 -0700 (PDT)
 From: Lucas Stach <l.stach@pengutronix.de>
-Date: Thu, 17 Mar 2016 18:33:40 +0100
-In-Reply-To: <CAAmzW4PnnDSDGdMHY98GgkL7LuXvk=6=_MQGnWy6HJr_qax8RA@mail.gmail.com>
-References: <1458146962-15401-1-git-send-email-l.stach@pengutronix.de>
-	 <CAAmzW4PnnDSDGdMHY98GgkL7LuXvk=6=_MQGnWy6HJr_qax8RA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH] mm/page_isolation: fix tracepoint to mirror check function behavior
+Date: Thu, 17 Mar 2016 18:40:56 +0100
+Message-Id: <1458236456-465-1-git-send-email-l.stach@pengutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, kernel@pengutronix.de, patchwork-lst@pengutronix.de
+To: Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, kernel@pengutronix.de, patchwork-lst@pengutronix.de
 
-Am Freitag, den 18.03.2016, 02:18 +0900 schrieb Joonsoo Kim:
-> 2016-03-17 1:49 GMT+09:00 Lucas Stach <l.stach@pengutronix.de>:
-> > This fixes an annoying race in the CMA code leading to lots of "PFNs busy"
-> > messages when CMA is used concurrently. This is harmless normally as CMA
-> > will just retry the allocation at a different place, but it might lead to
-> > increased fragmentation of the CMA area as well as failing allocations
-> > when CMA is under memory pressure.
-> >
-> > The issue is that test_pages_isolated checks if the range is free by
-> > checking that all pages in the range are buddy pages. For this to work
-> > the start pfn needs to be aligned to the higher order buddy page
-> > including the start pfn if there is any.
-> >
-> > This is not a problem for the memory hotplug code, as it always offlines
-> > whole pageblocks, but CMA may want to isolate a smaller range. So for
-> > the check to work correctly it down-aligns the start pfn to the higher
-> > order buddy page. As the zone is not yet locked at that point a
-> > concurrent page free might coalesce the pages to be checked into an
-> > even bigger buddy page, causing the check to fail, while all pages are
-> > in fact buddy pages.
-> >
-> > By moving the zone locking to the caller of the test function, it's
-> > possible to do it before CMA tries to find the proper start page and stop
-> > any concurrent page coalescing to happen until the check is finished.
-> 
-> I think that this patch cannot prevent the same race on
-> isolate_freepages_range(). If buddy merging happens after we
-> passed test_pages_isolated(), isolate_freepages_range() cannot see
-> buddy page and will fail.
-> 
-Your analysis seems correct. I'll fix this patch to hold the zone lock
-across isolate_freepages_range.
+Page isolation has not failed if the fin pfn extends beyond the end pfn
+and test_pages_isolated checks this correctly. Fix the tracepoint to
+report the same result as the actual check function.
 
-Thanks,
-Lucas
+Signed-off-by: Lucas Stach <l.stach@pengutronix.de>
+---
+ include/trace/events/page_isolation.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/include/trace/events/page_isolation.h b/include/trace/events/page_isolation.h
+index 6fb644029c80..8738a78e6bf4 100644
+--- a/include/trace/events/page_isolation.h
++++ b/include/trace/events/page_isolation.h
+@@ -29,7 +29,7 @@ TRACE_EVENT(test_pages_isolated,
+ 
+ 	TP_printk("start_pfn=0x%lx end_pfn=0x%lx fin_pfn=0x%lx ret=%s",
+ 		__entry->start_pfn, __entry->end_pfn, __entry->fin_pfn,
+-		__entry->end_pfn == __entry->fin_pfn ? "success" : "fail")
++		__entry->end_pfn <= __entry->fin_pfn ? "success" : "fail")
+ );
+ 
+ #endif /* _TRACE_PAGE_ISOLATION_H */
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
