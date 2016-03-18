@@ -1,81 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 37481828DF
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 16:58:40 -0400 (EDT)
-Received: by mail-wm0-f46.google.com with SMTP id p65so84627307wmp.1
-        for <linux-mm@kvack.org>; Fri, 18 Mar 2016 13:58:40 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n62si1152393wmg.8.2016.03.18.13.58.38
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A1459828DF
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 17:26:17 -0400 (EDT)
+Received: by mail-wm0-f54.google.com with SMTP id l68so85289345wml.0
+        for <linux-mm@kvack.org>; Fri, 18 Mar 2016 14:26:17 -0700 (PDT)
+Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id y3si18127923wjy.136.2016.03.18.14.26.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 18 Mar 2016 13:58:39 -0700 (PDT)
-Subject: Re: Suspicious error for CMA stress test
-References: <56DD38E7.3050107@huawei.com> <56DDCB86.4030709@redhat.com>
- <56DE30CB.7020207@huawei.com> <56DF7B28.9060108@huawei.com>
- <CAAmzW4NDJwgq_P33Ru_X0MKXGQEnY5dr_SY1GFutPAqEUAc_rg@mail.gmail.com>
- <56E2FB5C.1040602@suse.cz> <20160314064925.GA27587@js1304-P5Q-DELUXE>
- <56E662E8.700@suse.cz> <20160314071803.GA28094@js1304-P5Q-DELUXE>
- <56E92AFC.9050208@huawei.com> <20160317065426.GA10315@js1304-P5Q-DELUXE>
- <56EA77BC.2090702@huawei.com> <56EAD0B4.2060807@suse.cz>
- <CAAmzW4MNdFHSSTpCfWqy7oDtkR_Hfu2dZa_LW97W8J5vr5m4tg@mail.gmail.com>
- <56EC0C41.70503@suse.cz> <1458312126.18134.45.camel@pengutronix.de>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56EC6BFB.2020107@suse.cz>
-Date: Fri, 18 Mar 2016 21:58:35 +0100
-MIME-Version: 1.0
-In-Reply-To: <1458312126.18134.45.camel@pengutronix.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 18 Mar 2016 14:26:16 -0700 (PDT)
+From: Richard Cochran <rcochran@linutronix.de>
+Subject: [PATCH 1/5] mm: memcontrol: Remove redundant hot plug notifier test.
+Date: Fri, 18 Mar 2016 22:26:07 +0100
+Message-Id: <1458336371-17748-1-git-send-email-rcochran@linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lucas Stach <l.stach@pengutronix.de>
-Cc: Joonsoo Kim <js1304@gmail.com>, Hanjun Guo <guohanjun@huawei.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: rt@linutronix.de, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On 03/18/2016 03:42 PM, Lucas Stach wrote:
-> Am Freitag, den 18.03.2016, 15:10 +0100 schrieb Vlastimil Babka:
->> On 03/17/2016 04:52 PM, Joonsoo Kim wrote:
->> > 2016-03-18 0:43 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
->>
->> OK, here it is. Hanjun can you please retest this, as I'm not sure if you had
->> the same code due to the followup one-liner patches in the thread. Lucas, see if
->> it helps with your issue as well. Laura and Joonsoo, please also test and review
->> and check changelog if my perception of the problem is accurate :)
->>
->
-> This doesn't help for my case, as it is still trying to merge pages in
-> isolated ranges. It even tries extra hard at doing so.
->
-> With concurrent isolation and frees going on this may lead to the start
-> page of the range to be isolated merging into an higher order buddy page
-> if it isn't already pageblock aligned, leading both test_pages_isolated
-> and isolate_freepages to fail on an otherwise perfectly fine range.
->
-> What I am arguing is that if a page is freed into an isolated range we
-> should not try merge it with it's buddies at all, by setting max_order =
-> order. If the range is isolated because want to isolate freepages from
-> it, the work to do the merging is wasted, as isolate_freepages will
-> split higher order pages into order-0 pages again.
->
-> If we already finished isolating freepages and are in the process of
-> undoing the isolation, we don't strictly need to do the merging in
-> __free_one_page, but can defer it to unset_migratetype_isolate, allowing
-> to simplify those code paths by disallowing any merging of isolated
-> pages at all.
+The test for ONLINE is redundant because the following test for !DEAD
+already includes the online case.  This patch removes the superfluous
+code.
 
-Oh, I think understand now. Yeah, skipping merging for pages in isolated 
-pageblocks might be a rather elegant solution. But still, we would have to check 
-buddy's migratetype at order >= pageblock_order like my patch does, which is 
-annoying. Because even without isolated merging, the buddy might have already 
-had order>=pageblock_order when it was isolated.
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org
+Signed-off-by: Richard Cochran <rcochran@linutronix.de>
+---
+ mm/memcontrol.c | 3 ---
+ 1 file changed, 3 deletions(-)
 
-So what if isolation also split existing buddies in the pageblock immediately 
-when it sets the MIGRATETYPE_ISOLATE on the pageblock? Then we would have it 
-guaranteed that there's no isolated buddy - a buddy candidate at order >= 
-pageblock_order either has a smaller order (so it's not a buddy) or is not 
-MIGRATE_ISOLATE so it's safe to merge with.
-
-Does that make sense?
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index d06cae2..993a261 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1916,9 +1916,6 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
+ 	int cpu = (unsigned long)hcpu;
+ 	struct memcg_stock_pcp *stock;
+ 
+-	if (action == CPU_ONLINE)
+-		return NOTIFY_OK;
+-
+ 	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
+ 		return NOTIFY_OK;
+ 
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
