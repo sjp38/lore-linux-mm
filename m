@@ -1,82 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id AD9C56B0253
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 00:09:22 -0400 (EDT)
-Received: by mail-pf0-f170.google.com with SMTP id n5so149336892pfn.2
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 21:09:22 -0700 (PDT)
-Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
-        by mx.google.com with ESMTPS id c90si17007903pfd.233.2016.03.17.21.09.22
+Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 078D4828DF
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 05:40:21 -0400 (EDT)
+Received: by mail-qk0-f178.google.com with SMTP id x1so46493705qkc.1
+        for <linux-mm@kvack.org>; Fri, 18 Mar 2016 02:40:21 -0700 (PDT)
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
+        by mx.google.com with ESMTPS id 96si11541763qkw.52.2016.03.18.02.40.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Mar 2016 21:09:22 -0700 (PDT)
-Received: by mail-pf0-x229.google.com with SMTP id n5so149336624pfn.2
-        for <linux-mm@kvack.org>; Thu, 17 Mar 2016 21:09:22 -0700 (PDT)
-Date: Fri, 18 Mar 2016 13:10:42 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [RFC][PATCH v3 1/5] mm/zsmalloc: introduce class auto-compaction
-Message-ID: <20160318041042.GD572@swordfish>
-References: <1457016363-11339-2-git-send-email-sergey.senozhatsky@gmail.com>
- <20160314061759.GC10675@bbox>
- <20160314074159.GA542@swordfish>
- <20160315004611.GA19514@bbox>
- <20160315013303.GC2126@swordfish>
- <20160315061723.GB25154@bbox>
- <20160317012929.GA489@swordfish>
- <20160318011741.GD2154@bbox>
- <20160318020029.GC572@swordfish>
- <20160318040349.GA13476@bbox>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 18 Mar 2016 02:40:20 -0700 (PDT)
+Received: from localhost
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 18 Mar 2016 03:40:19 -0600
+Received: from b01cxnp23032.gho.pok.ibm.com (b01cxnp23032.gho.pok.ibm.com [9.57.198.27])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id F0CB23E40048
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 03:40:14 -0600 (MDT)
+Received: from d01av05.pok.ibm.com (d01av05.pok.ibm.com [9.56.224.195])
+	by b01cxnp23032.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2I9eEFu36372690
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 09:40:14 GMT
+Received: from d01av05.pok.ibm.com (localhost [127.0.0.1])
+	by d01av05.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2I9ZKbX002389
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 05:35:21 -0400
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCHv4 04/25] rmap: support file thp
+In-Reply-To: <1457737157-38573-5-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com> <1457737157-38573-5-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Fri, 18 Mar 2016 15:10:06 +0530
+Message-ID: <87d1qs9lah.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160318040349.GA13476@bbox>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On (03/18/16 13:03), Minchan Kim wrote:
-[..]
-> > I have some concerns here. WQ_MEM_RECLAIM implies that there is a kthread
-> > attached to wq, a rescuer thread, which will be idle until wq declares mayday.
-> > But the kthread will be allocated anyway. And we can queue only one global
-> > compaction work at a time; so wq does not buy us a lot here and a simple
-> > wake_up_process() looks much better. it make sense to use wq if we can have
-> > N compaction jobs queued, like I did in my initial patch, but otherwise
-> > it's sort of overkill, isn't it?
-[..]
-> If we can use normal wq rather than WQ_MEM_RECLAIM, wq doesn't need
-> own kthread attached the work. Right? If so, we can blow away that
-> resource reservation problem.
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
 
-right. if shrinker callbacks will be around (and it seems
-they will), then we don't have to guarantee any forward
-progress in background compaction. so yes, we can use normal
-wq and there is no need in WQ_MEM_RECLAIM.
+> [ text/plain ]
+> Naive approach: on mapping/unmapping the page as compound we update
+> ->_mapcount on each 4k page. That's not efficient, but it's not obvious
+> how we can optimize this. We can look into optimization later.
+>
+> PG_double_map optimization doesn't work for file pages since lifecycle
+> of file pages is different comparing to anon pages: file page can be
+> mapped again at any time.
+>
 
-[..]
-> > so you want to have
-> > 
-> > 	zs_free()
-> > 		check pool watermark
-> > 			queue class compaction
-> 
-> No queue class compaction.
-> 
-> > 			queue pool compaction
-> 
-> Yes. queue pool compaction.
-> 
-> > 
-> > ?
-> > 
-> > I think a simpler one will be to just queue global compaction, if pool
-> > is fragmented -- compact everything, like we do in shrinker callback.
-> 
-> That's what I said. :)
+Can you explain this more ?. We added PG_double_map so that we can keep
+page_remove_rmap simpler. So if it isn't a compound page we still can do
 
-ah, ok.
+	if (!atomic_add_negative(-1, &page->_mapcount))
 
-	-ss
+I am trying to understand why we can't use that with file pages ?
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
