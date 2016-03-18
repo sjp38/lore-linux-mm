@@ -1,47 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F101828DF
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 06:36:21 -0400 (EDT)
-Received: by mail-wm0-f45.google.com with SMTP id p65so62357089wmp.1
-        for <linux-mm@kvack.org>; Fri, 18 Mar 2016 03:36:21 -0700 (PDT)
-Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id c19si15362390wjr.29.2016.03.18.03.36.17
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 672B8828DF
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 08:29:32 -0400 (EDT)
+Received: by mail-wm0-f50.google.com with SMTP id p65so66613608wmp.1
+        for <linux-mm@kvack.org>; Fri, 18 Mar 2016 05:29:32 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ju3si15832227wjb.228.2016.03.18.05.29.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 18 Mar 2016 03:36:17 -0700 (PDT)
-Date: Fri, 18 Mar 2016 11:34:03 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v6 0/5] Make cpuid <-> nodeid mapping persistent
-In-Reply-To: <CAJZ5v0jFpQ75sKv6LS2z6h0h0YotgmtTbhjByuBgJL_JPtX=NQ@mail.gmail.com>
-Message-ID: <alpine.DEB.2.11.1603181133310.3978@nanos>
-References: <cover.1458177577.git.zhugh.fnst@cn.fujitsu.com> <CAJZ5v0jFpQ75sKv6LS2z6h0h0YotgmtTbhjByuBgJL_JPtX=NQ@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 18 Mar 2016 05:29:31 -0700 (PDT)
+Subject: Re: Suspicious error for CMA stress test
+References: <56DD38E7.3050107@huawei.com> <56DDCB86.4030709@redhat.com>
+ <56DE30CB.7020207@huawei.com> <56DF7B28.9060108@huawei.com>
+ <CAAmzW4NDJwgq_P33Ru_X0MKXGQEnY5dr_SY1GFutPAqEUAc_rg@mail.gmail.com>
+ <56E2FB5C.1040602@suse.cz> <20160314064925.GA27587@js1304-P5Q-DELUXE>
+ <56E662E8.700@suse.cz> <20160314071803.GA28094@js1304-P5Q-DELUXE>
+ <56E92AFC.9050208@huawei.com> <20160317065426.GA10315@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56EBF4A6.5010308@suse.cz>
+Date: Fri, 18 Mar 2016 13:29:26 +0100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20160317065426.GA10315@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>, cl@linux.com, Tejun Heo <tj@kernel.org>, mika.j.penttila@gmail.com, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "H. Peter Anvin" <hpa@zytor.com>, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, Len Brown <len.brown@intel.com>, Len Brown <lenb@kernel.org>, chen.tang@easystack.cn, x86@kernel.org, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hanjun Guo <guohanjun@huawei.com>
+Cc: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, 17 Mar 2016, Rafael J. Wysocki wrote:
-> >  arch/ia64/kernel/acpi.c       |   2 +-
-> >  arch/x86/include/asm/mpspec.h |   1 +
-> >  arch/x86/kernel/acpi/boot.c   |   8 ++-
-> >  arch/x86/kernel/apic/apic.c   |  85 +++++++++++++++++++++++++----
-> >  arch/x86/mm/numa.c            |  27 +++++-----
-> >  drivers/acpi/acpi_processor.c |   5 +-
-> >  drivers/acpi/bus.c            |   3 ++
-> >  drivers/acpi/processor_core.c | 122 ++++++++++++++++++++++++++++++++++--------
-> >  include/linux/acpi.h          |   6 +++
-> >  9 files changed, 208 insertions(+), 51 deletions(-)
-> >
-> 
-> OK
-> 
-> Since I know that there is demand for these changes, I'll queue them
-> up early for 4.7 if there are no comments from the x86 maintainers
-> till then.
+On 03/17/2016 07:54 AM, Joonsoo Kim wrote:
+> On Wed, Mar 16, 2016 at 05:44:28PM +0800, Hanjun Guo wrote:
+>> On 2016/3/14 15:18, Joonsoo Kim wrote:
+>>
+>> Hmm, this one is not work, I still can see the bug is there after applying
+>> this patch, did I miss something?
+>
+> I may find that there is a bug which was introduced by me some time
+> ago. Could you test following change in __free_one_page() on top of
+> Vlastimil's patch?
+>
+> -page_idx = pfn & ((1 << max_order) - 1);
+> +page_idx = pfn & ((1 << MAX_ORDER) - 1);
 
-Acked-by: Thomas Gleixner <tglx@linutronix.de>
+I think it wasn't a bug in the context of 3c605096d31, but it certainly Does 
+become a bug with my patch, so thanks for catching that.
+
+Actually I've earlier concluded that this line is not needed at all, and can 
+lead to smaller code, and enable even more savings. But I'll leave that after 
+the fix that needs to go to stable.
+
+> Thanks.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
