@@ -1,60 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f178.google.com (mail-qk0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 078D4828DF
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 05:40:21 -0400 (EDT)
-Received: by mail-qk0-f178.google.com with SMTP id x1so46493705qkc.1
-        for <linux-mm@kvack.org>; Fri, 18 Mar 2016 02:40:21 -0700 (PDT)
-Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
-        by mx.google.com with ESMTPS id 96si11541763qkw.52.2016.03.18.02.40.20
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F101828DF
+	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 06:36:21 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id p65so62357089wmp.1
+        for <linux-mm@kvack.org>; Fri, 18 Mar 2016 03:36:21 -0700 (PDT)
+Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id c19si15362390wjr.29.2016.03.18.03.36.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 18 Mar 2016 02:40:20 -0700 (PDT)
-Received: from localhost
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 18 Mar 2016 03:40:19 -0600
-Received: from b01cxnp23032.gho.pok.ibm.com (b01cxnp23032.gho.pok.ibm.com [9.57.198.27])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id F0CB23E40048
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 03:40:14 -0600 (MDT)
-Received: from d01av05.pok.ibm.com (d01av05.pok.ibm.com [9.56.224.195])
-	by b01cxnp23032.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2I9eEFu36372690
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 09:40:14 GMT
-Received: from d01av05.pok.ibm.com (localhost [127.0.0.1])
-	by d01av05.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2I9ZKbX002389
-	for <linux-mm@kvack.org>; Fri, 18 Mar 2016 05:35:21 -0400
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCHv4 04/25] rmap: support file thp
-In-Reply-To: <1457737157-38573-5-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com> <1457737157-38573-5-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Fri, 18 Mar 2016 15:10:06 +0530
-Message-ID: <87d1qs9lah.fsf@linux.vnet.ibm.com>
+        Fri, 18 Mar 2016 03:36:17 -0700 (PDT)
+Date: Fri, 18 Mar 2016 11:34:03 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v6 0/5] Make cpuid <-> nodeid mapping persistent
+In-Reply-To: <CAJZ5v0jFpQ75sKv6LS2z6h0h0YotgmtTbhjByuBgJL_JPtX=NQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.11.1603181133310.3978@nanos>
+References: <cover.1458177577.git.zhugh.fnst@cn.fujitsu.com> <CAJZ5v0jFpQ75sKv6LS2z6h0h0YotgmtTbhjByuBgJL_JPtX=NQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>, cl@linux.com, Tejun Heo <tj@kernel.org>, mika.j.penttila@gmail.com, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "H. Peter Anvin" <hpa@zytor.com>, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, Len Brown <len.brown@intel.com>, Len Brown <lenb@kernel.org>, chen.tang@easystack.cn, x86@kernel.org, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+On Thu, 17 Mar 2016, Rafael J. Wysocki wrote:
+> >  arch/ia64/kernel/acpi.c       |   2 +-
+> >  arch/x86/include/asm/mpspec.h |   1 +
+> >  arch/x86/kernel/acpi/boot.c   |   8 ++-
+> >  arch/x86/kernel/apic/apic.c   |  85 +++++++++++++++++++++++++----
+> >  arch/x86/mm/numa.c            |  27 +++++-----
+> >  drivers/acpi/acpi_processor.c |   5 +-
+> >  drivers/acpi/bus.c            |   3 ++
+> >  drivers/acpi/processor_core.c | 122 ++++++++++++++++++++++++++++++++++--------
+> >  include/linux/acpi.h          |   6 +++
+> >  9 files changed, 208 insertions(+), 51 deletions(-)
+> >
+> 
+> OK
+> 
+> Since I know that there is demand for these changes, I'll queue them
+> up early for 4.7 if there are no comments from the x86 maintainers
+> till then.
 
-> [ text/plain ]
-> Naive approach: on mapping/unmapping the page as compound we update
-> ->_mapcount on each 4k page. That's not efficient, but it's not obvious
-> how we can optimize this. We can look into optimization later.
->
-> PG_double_map optimization doesn't work for file pages since lifecycle
-> of file pages is different comparing to anon pages: file page can be
-> mapped again at any time.
->
-
-Can you explain this more ?. We added PG_double_map so that we can keep
-page_remove_rmap simpler. So if it isn't a compound page we still can do
-
-	if (!atomic_add_negative(-1, &page->_mapcount))
-
-I am trying to understand why we can't use that with file pages ?
-
--aneesh
+Acked-by: Thomas Gleixner <tglx@linutronix.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
