@@ -1,95 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 01C31828DF
-	for <linux-mm@kvack.org>; Sat, 19 Mar 2016 03:29:21 -0400 (EDT)
-Received: by mail-pf0-f179.google.com with SMTP id x3so197552916pfb.1
-        for <linux-mm@kvack.org>; Sat, 19 Mar 2016 00:29:20 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id x14si2504218par.197.2016.03.19.00.29.18
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id DEC936B0005
+	for <linux-mm@kvack.org>; Sat, 19 Mar 2016 08:14:01 -0400 (EDT)
+Received: by mail-wm0-f46.google.com with SMTP id l68so69753514wml.1
+        for <linux-mm@kvack.org>; Sat, 19 Mar 2016 05:14:01 -0700 (PDT)
+Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
+        by mx.google.com with ESMTPS id iw2si21291650wjb.101.2016.03.19.05.14.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 19 Mar 2016 00:29:20 -0700 (PDT)
-Subject: Re: Suspicious error for CMA stress test
-References: <56DD38E7.3050107@huawei.com> <56DDCB86.4030709@redhat.com>
- <56DE30CB.7020207@huawei.com> <56DF7B28.9060108@huawei.com>
- <CAAmzW4NDJwgq_P33Ru_X0MKXGQEnY5dr_SY1GFutPAqEUAc_rg@mail.gmail.com>
- <56E2FB5C.1040602@suse.cz> <20160314064925.GA27587@js1304-P5Q-DELUXE>
- <56E662E8.700@suse.cz> <20160314071803.GA28094@js1304-P5Q-DELUXE>
- <56E92AFC.9050208@huawei.com> <20160317065426.GA10315@js1304-P5Q-DELUXE>
- <56EA77BC.2090702@huawei.com> <56EAD0B4.2060807@suse.cz>
- <CAAmzW4MNdFHSSTpCfWqy7oDtkR_Hfu2dZa_LW97W8J5vr5m4tg@mail.gmail.com>
- <56EC0C41.70503@suse.cz>
-From: Hanjun Guo <guohanjun@huawei.com>
-Message-ID: <56ECFEAC.3010606@huawei.com>
-Date: Sat, 19 Mar 2016 15:24:28 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 19 Mar 2016 05:14:00 -0700 (PDT)
+Received: by mail-wm0-x236.google.com with SMTP id l68so69753236wml.1
+        for <linux-mm@kvack.org>; Sat, 19 Mar 2016 05:14:00 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <56EC0C41.70503@suse.cz>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <7300.1458333684@turing-police.cc.vt.edu>
+References: <7300.1458333684@turing-police.cc.vt.edu>
+Date: Sat, 19 Mar 2016 13:13:59 +0100
+Message-ID: <CAG_fn=WKjdcUSi5JoiAPrmRCLEL-SWyGHCOYOZiZQ_fnFDvydQ@mail.gmail.com>
+Subject: Re: KASAN overhead?
+From: Alexander Potapenko <glider@google.com>
+Content-Type: multipart/alternative; boundary=001a1144046e6ff7f4052e65cc53
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, Lucas Stach <l.stach@pengutronix.de>
+To: Valdis Kletnieks <Valdis.Kletnieks@vt.edu>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On 2016/3/18 22:10, Vlastimil Babka wrote:
-> On 03/17/2016 04:52 PM, Joonsoo Kim wrote:
->> 2016-03-18 0:43 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
->>>>>>> Okay. I used following slightly optimized version and I need to
->>>>>>> add 'max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1)'
->>>>>>> to yours. Please consider it, too.
->>>>>> Hmm, this one is not work, I still can see the bug is there after
->>>>>> applying
->>>>>> this patch, did I miss something?
->>>>> I may find that there is a bug which was introduced by me some time
->>>>> ago. Could you test following change in __free_one_page() on top of
->>>>> Vlastimil's patch?
->>>>>
->>>>> -page_idx = pfn & ((1 << max_order) - 1);
->>>>> +page_idx = pfn & ((1 << MAX_ORDER) - 1);
->>>>
->>>> I tested Vlastimil's patch + your change with stress for more than half
->>>> hour, the bug
->>>> I reported is gone :)
->>>
->>> Oh, ok, will try to send proper patch, once I figure out what to write in
->>> the changelog :)
->> Thanks in advance!
->>
-> OK, here it is. Hanjun can you please retest this, as I'm not sure if you had
+--001a1144046e6ff7f4052e65cc53
+Content-Type: text/plain; charset=UTF-8
 
-I tested this new patch with stress for more than one hour, and it works!
-Since Lucas has comments on it, I'm willing to test further versions if needed.
-
-One minor comments below,
-
-> the same code due to the followup one-liner patches in the thread. Lucas, see if
-> it helps with your issue as well. Laura and Joonsoo, please also test and review
-> and check changelog if my perception of the problem is accurate :)
+On Mar 18, 2016 9:41 PM, "Valdis Kletnieks" <Valdis.Kletnieks@vt.edu> wrote:
 >
-> Thanks
+> So I built linux-next next-20160417 with KASAN enabled:
+Is that next-20160317?
+
+> CONFIG_KASAN_SHADOW_OFFSET=0xdffffc0000000000
+> CONFIG_HAVE_ARCH_KASAN=y
+> CONFIG_KASAN=y
+> # CONFIG_KASAN_OUTLINE is not set
+> CONFIG_KASAN_INLINE=y
+> CONFIG_TEST_KASAN=m
+Which GCC version were you using? Are you sure it didn't accidentally
+enable the outline instrumentation (e.g. if the compiler is too old)?
+
+> and saw an *amazing* slowdown.
+Have you tried earlier KASAN versions? Is this a recent regression?
+
+> For comparison, here is the time taken
+> to reach various points in the dmesg:
 >
-[...]
-> +	if (max_order < MAX_ORDER) {
-> +		/* If we are here, it means order is >= pageblock_order.
-> +		 * We want to prevent merge between freepages on isolate
-> +		 * pageblock and normal pageblock. Without this, pageblock
-> +		 * isolation could cause incorrect freepage or CMA accounting.
-> +		 *
-> +		 * We don't want to hit this code for the more frequent
-> +		 * low-order merging.
-> +		 */
-> +		if (unlikely(has_isolate_pageblock(zone))) {
+> % grep -i free dmesg.0317*
+> dmesg.0317:[    1.560907] Freeing SMP alternatives memory: 28K
+(ffffffff93d3e000 - ffffffff93d45000)
+> dmesg.0317:[   12.041550] Freeing initrd memory: 10432K (ffff88003f5cb000
+- ffff88003fffb000)
+> dmesg.0317:[   16.458451] ata1.00: ACPI cmd f5/00:00:00:00:00:00
+(SECURITY FREEZE LOCK) filtered out
+> dmesg.0317:[   16.545603] ata1.00: ACPI cmd f5/00:00:00:00:00:00
+(SECURITY FREEZE LOCK) filtered out
+> dmesg.0317:[   17.818934] Freeing unused kernel memory: 1628K
+(ffffffff93ba7000 - ffffffff93d3e000)
+> dmesg.0317:[   17.820234] Freeing unused kernel memory: 1584K
+(ffff880012c74000 - ffff880012e00000)
+> dmesg.0317:[   17.828426] Freeing unused kernel memory: 1524K
+(ffff880013483000 - ffff880013600000)
+> dmesg.0317-nokasan:[    0.028821] Freeing SMP alternatives memory: 28K
+(ffffffffaf104000 - ffffffffaf10b000)
+> dmesg.0317-nokasan:[    1.587232] Freeing initrd memory: 10432K
+(ffff88003f5cb000 - ffff88003fffb000)
+> dmesg.0317-nokasan:[    2.433557] ata1.00: ACPI cmd f5/00:00:00:00:00:00
+(SECURITY FREEZE LOCK) filtered out
+> dmesg.0317-nokasan:[    2.439411] ata1.00: ACPI cmd f5/00:00:00:00:00:00
+(SECURITY FREEZE LOCK) filtered out
+> dmesg.0317-nokasan:[    2.488113] Freeing unused kernel memory: 1324K
+(ffffffffaefb9000 - ffffffffaf104000)
+> dmesg.0317-nokasan:[    2.488518] Freeing unused kernel memory: 88K
+(ffff88002e9ea000 - ffff88002ea00000)
+> dmesg.0317-nokasan:[    2.489490] Freeing unused kernel memory: 388K
+(ffff88002ed9f000 - ffff88002ee00000)
 
-In the first version of your patch, it's
+Was KASAN reporting anything between these lines? Sometimes a recurring
+warning slows everything down.
 
-+		if (IS_ENABLED(CONFIG_CMA) &&
-+				unlikely(has_isolate_pageblock(zone))) {
+> Only config difference was changing to CONFIG_KASAN=n.
+>
+> Is this level of slowdown expected? Or is my kernel unexpectedly off in
+the weeds?
+How did it behave after the startup? Was it still slow?
+Which machine were you using? Was it a real device or a VM?
 
-Why remove the IS_ENABLED(CONFIG_CMA) in the new version?
+--001a1144046e6ff7f4052e65cc53
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-Thanks
-Hanjun
+<p dir=3D"ltr">On Mar 18, 2016 9:41 PM, &quot;Valdis Kletnieks&quot; &lt;<a=
+ href=3D"mailto:Valdis.Kletnieks@vt.edu">Valdis.Kletnieks@vt.edu</a>&gt; wr=
+ote:<br>
+&gt;<br>
+&gt; So I built linux-next next-20160417 with KASAN enabled:<br>
+Is that next-20160317?</p>
+<p dir=3D"ltr">&gt; CONFIG_KASAN_SHADOW_OFFSET=3D0xdffffc0000000000<br>
+&gt; CONFIG_HAVE_ARCH_KASAN=3Dy<br>
+&gt; CONFIG_KASAN=3Dy<br>
+&gt; # CONFIG_KASAN_OUTLINE is not set<br>
+&gt; CONFIG_KASAN_INLINE=3Dy<br>
+&gt; CONFIG_TEST_KASAN=3Dm<br>
+Which GCC version were you using? Are you sure it didn&#39;t accidentally e=
+nable the outline instrumentation (e.g. if the compiler is too old)?</p>
+<p dir=3D"ltr">&gt; and saw an *amazing* slowdown.=C2=A0 <br>
+Have you tried earlier KASAN versions? Is this a recent regression?</p>
+<p dir=3D"ltr">&gt; For comparison, here is the time taken<br>
+&gt; to reach various points in the dmesg:<br>
+&gt;<br>
+&gt; % grep -i free dmesg.0317*<br>
+&gt; dmesg.0317:[=C2=A0 =C2=A0 1.560907] Freeing SMP alternatives memory: 2=
+8K (ffffffff93d3e000 - ffffffff93d45000)<br>
+&gt; dmesg.0317:[=C2=A0 =C2=A012.041550] Freeing initrd memory: 10432K (fff=
+f88003f5cb000 - ffff88003fffb000)<br>
+&gt; dmesg.0317:[=C2=A0 =C2=A016.458451] ata1.00: ACPI cmd f5/00:00:00:00:0=
+0:00 (SECURITY FREEZE LOCK) filtered out<br>
+&gt; dmesg.0317:[=C2=A0 =C2=A016.545603] ata1.00: ACPI cmd f5/00:00:00:00:0=
+0:00 (SECURITY FREEZE LOCK) filtered out<br>
+&gt; dmesg.0317:[=C2=A0 =C2=A017.818934] Freeing unused kernel memory: 1628=
+K (ffffffff93ba7000 - ffffffff93d3e000)<br>
+&gt; dmesg.0317:[=C2=A0 =C2=A017.820234] Freeing unused kernel memory: 1584=
+K (ffff880012c74000 - ffff880012e00000)<br>
+&gt; dmesg.0317:[=C2=A0 =C2=A017.828426] Freeing unused kernel memory: 1524=
+K (ffff880013483000 - ffff880013600000)<br>
+&gt; dmesg.0317-nokasan:[=C2=A0 =C2=A0 0.028821] Freeing SMP alternatives m=
+emory: 28K (ffffffffaf104000 - ffffffffaf10b000)<br>
+&gt; dmesg.0317-nokasan:[=C2=A0 =C2=A0 1.587232] Freeing initrd memory: 104=
+32K (ffff88003f5cb000 - ffff88003fffb000)<br>
+&gt; dmesg.0317-nokasan:[=C2=A0 =C2=A0 2.433557] ata1.00: ACPI cmd f5/00:00=
+:00:00:00:00 (SECURITY FREEZE LOCK) filtered out<br>
+&gt; dmesg.0317-nokasan:[=C2=A0 =C2=A0 2.439411] ata1.00: ACPI cmd f5/00:00=
+:00:00:00:00 (SECURITY FREEZE LOCK) filtered out<br>
+&gt; dmesg.0317-nokasan:[=C2=A0 =C2=A0 2.488113] Freeing unused kernel memo=
+ry: 1324K (ffffffffaefb9000 - ffffffffaf104000)<br>
+&gt; dmesg.0317-nokasan:[=C2=A0 =C2=A0 2.488518] Freeing unused kernel memo=
+ry: 88K (ffff88002e9ea000 - ffff88002ea00000)<br>
+&gt; dmesg.0317-nokasan:[=C2=A0 =C2=A0 2.489490] Freeing unused kernel memo=
+ry: 388K (ffff88002ed9f000 - ffff88002ee00000)</p>
+<p dir=3D"ltr">Was KASAN reporting anything between these lines? Sometimes =
+a recurring warning slows everything down.</p>
+<p dir=3D"ltr">&gt; Only config difference was changing to CONFIG_KASAN=3Dn=
+.<br>
+&gt;<br>
+&gt; Is this level of slowdown expected? Or is my kernel unexpectedly off i=
+n the weeds?<br>
+How did it behave after the startup? Was it still slow?<br>
+Which machine were you using? Was it a real device or a VM?</p>
 
+--001a1144046e6ff7f4052e65cc53--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
