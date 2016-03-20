@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 712A9828F4
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:47:05 -0400 (EDT)
-Received: by mail-pf0-f177.google.com with SMTP id u190so238305920pfb.3
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 020EB82F60
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:47:06 -0400 (EDT)
+Received: by mail-pf0-f182.google.com with SMTP id n5so237533087pfn.2
         for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:47:05 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id qx12si13425508pab.169.2016.03.20.11.41.47
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id hc1si9272707pac.16.2016.03.20.11.41.46
         for <linux-mm@kvack.org>;
         Sun, 20 Mar 2016 11:41:47 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 31/71] exofs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:38 +0300
-Message-Id: <1458499278-1516-32-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 30/71] efivarfs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:40:37 +0300
+Message-Id: <1458499278-1516-31-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Boaz Harrosh <ooo@electrozaur.com>, Benny Halevy <bhalevy@primarydata.com>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Garrett <matthew.garrett@nebula.com>, Jeremy Kerr <jk@ozlabs.org>, Matt Fleming <matt@codeblueprint.co.uk>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,256 +46,28 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Boaz Harrosh <ooo@electrozaur.com>
-Cc: Benny Halevy <bhalevy@primarydata.com>
+Cc: Matthew Garrett <matthew.garrett@nebula.com>
+Cc: Jeremy Kerr <jk@ozlabs.org>
+Cc: Matt Fleming <matt@codeblueprint.co.uk>
 ---
- fs/exofs/dir.c   | 30 +++++++++++++++---------------
- fs/exofs/inode.c | 34 +++++++++++++++++-----------------
- fs/exofs/namei.c |  4 ++--
- 3 files changed, 34 insertions(+), 34 deletions(-)
+ fs/efivarfs/super.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/fs/exofs/dir.c b/fs/exofs/dir.c
-index e5bb2abf77f9..547b93cbea63 100644
---- a/fs/exofs/dir.c
-+++ b/fs/exofs/dir.c
-@@ -41,16 +41,16 @@ static inline unsigned exofs_chunk_size(struct inode *inode)
- static inline void exofs_put_page(struct page *page)
- {
- 	kunmap(page);
--	page_cache_release(page);
-+	put_page(page);
- }
+diff --git a/fs/efivarfs/super.c b/fs/efivarfs/super.c
+index dd029d13ea61..553c5d2db4a4 100644
+--- a/fs/efivarfs/super.c
++++ b/fs/efivarfs/super.c
+@@ -197,8 +197,8 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
+ 	efivarfs_sb = sb;
  
- static unsigned exofs_last_byte(struct inode *inode, unsigned long page_nr)
- {
- 	loff_t last_byte = inode->i_size;
- 
--	last_byte -= page_nr << PAGE_CACHE_SHIFT;
--	if (last_byte > PAGE_CACHE_SIZE)
--		last_byte = PAGE_CACHE_SIZE;
-+	last_byte -= page_nr << PAGE_SHIFT;
-+	if (last_byte > PAGE_SIZE)
-+		last_byte = PAGE_SIZE;
- 	return last_byte;
- }
- 
-@@ -85,13 +85,13 @@ static void exofs_check_page(struct page *page)
- 	unsigned chunk_size = exofs_chunk_size(dir);
- 	char *kaddr = page_address(page);
- 	unsigned offs, rec_len;
--	unsigned limit = PAGE_CACHE_SIZE;
-+	unsigned limit = PAGE_SIZE;
- 	struct exofs_dir_entry *p;
- 	char *error;
- 
- 	/* if the page is the last one in the directory */
--	if ((dir->i_size >> PAGE_CACHE_SHIFT) == page->index) {
--		limit = dir->i_size & ~PAGE_CACHE_MASK;
-+	if ((dir->i_size >> PAGE_SHIFT) == page->index) {
-+		limit = dir->i_size & ~PAGE_MASK;
- 		if (limit & (chunk_size - 1))
- 			goto Ebadsize;
- 		if (!limit)
-@@ -138,7 +138,7 @@ bad_entry:
- 	EXOFS_ERR(
- 		"ERROR [exofs_check_page]: bad entry in directory(0x%lx): %s - "
- 		"offset=%lu, inode=0x%llu, rec_len=%d, name_len=%d\n",
--		dir->i_ino, error, (page->index<<PAGE_CACHE_SHIFT)+offs,
-+		dir->i_ino, error, (page->index<<PAGE_SHIFT)+offs,
- 		_LLU(le64_to_cpu(p->inode_no)),
- 		rec_len, p->name_len);
- 	goto fail;
-@@ -147,7 +147,7 @@ Eend:
- 	EXOFS_ERR("ERROR [exofs_check_page]: "
- 		"entry in directory(0x%lx) spans the page boundary"
- 		"offset=%lu, inode=0x%llx\n",
--		dir->i_ino, (page->index<<PAGE_CACHE_SHIFT)+offs,
-+		dir->i_ino, (page->index<<PAGE_SHIFT)+offs,
- 		_LLU(le64_to_cpu(p->inode_no)));
- fail:
- 	SetPageChecked(page);
-@@ -237,8 +237,8 @@ exofs_readdir(struct file *file, struct dir_context *ctx)
- {
- 	loff_t pos = ctx->pos;
- 	struct inode *inode = file_inode(file);
--	unsigned int offset = pos & ~PAGE_CACHE_MASK;
--	unsigned long n = pos >> PAGE_CACHE_SHIFT;
-+	unsigned int offset = pos & ~PAGE_MASK;
-+	unsigned long n = pos >> PAGE_SHIFT;
- 	unsigned long npages = dir_pages(inode);
- 	unsigned chunk_mask = ~(exofs_chunk_size(inode)-1);
- 	int need_revalidate = (file->f_version != inode->i_version);
-@@ -254,7 +254,7 @@ exofs_readdir(struct file *file, struct dir_context *ctx)
- 		if (IS_ERR(page)) {
- 			EXOFS_ERR("ERROR: bad page in directory(0x%lx)\n",
- 				  inode->i_ino);
--			ctx->pos += PAGE_CACHE_SIZE - offset;
-+			ctx->pos += PAGE_SIZE - offset;
- 			return PTR_ERR(page);
- 		}
- 		kaddr = page_address(page);
-@@ -262,7 +262,7 @@ exofs_readdir(struct file *file, struct dir_context *ctx)
- 			if (offset) {
- 				offset = exofs_validate_entry(kaddr, offset,
- 								chunk_mask);
--				ctx->pos = (n<<PAGE_CACHE_SHIFT) + offset;
-+				ctx->pos = (n<<PAGE_SHIFT) + offset;
- 			}
- 			file->f_version = inode->i_version;
- 			need_revalidate = 0;
-@@ -449,7 +449,7 @@ int exofs_add_link(struct dentry *dentry, struct inode *inode)
- 		kaddr = page_address(page);
- 		dir_end = kaddr + exofs_last_byte(dir, n);
- 		de = (struct exofs_dir_entry *)kaddr;
--		kaddr += PAGE_CACHE_SIZE - reclen;
-+		kaddr += PAGE_SIZE - reclen;
- 		while ((char *)de <= kaddr) {
- 			if ((char *)de == dir_end) {
- 				name_len = 0;
-@@ -602,7 +602,7 @@ int exofs_make_empty(struct inode *inode, struct inode *parent)
- 	kunmap_atomic(kaddr);
- 	err = exofs_commit_chunk(page, 0, chunk_size);
- fail:
--	page_cache_release(page);
-+	put_page(page);
- 	return err;
- }
- 
-diff --git a/fs/exofs/inode.c b/fs/exofs/inode.c
-index 9eaf595aeaf8..49e1bd00b4ec 100644
---- a/fs/exofs/inode.c
-+++ b/fs/exofs/inode.c
-@@ -317,7 +317,7 @@ static int read_exec(struct page_collect *pcol)
- 
- 	if (!pcol->ios) {
- 		int ret = ore_get_rw_state(&pcol->sbi->layout, &oi->oc, true,
--					     pcol->pg_first << PAGE_CACHE_SHIFT,
-+					     pcol->pg_first << PAGE_SHIFT,
- 					     pcol->length, &pcol->ios);
- 
- 		if (ret)
-@@ -383,7 +383,7 @@ static int readpage_strip(void *data, struct page *page)
- 	struct inode *inode = pcol->inode;
- 	struct exofs_i_info *oi = exofs_i(inode);
- 	loff_t i_size = i_size_read(inode);
--	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
-+	pgoff_t end_index = i_size >> PAGE_SHIFT;
- 	size_t len;
- 	int ret;
- 
-@@ -397,9 +397,9 @@ static int readpage_strip(void *data, struct page *page)
- 	pcol->that_locked_page = page;
- 
- 	if (page->index < end_index)
--		len = PAGE_CACHE_SIZE;
-+		len = PAGE_SIZE;
- 	else if (page->index == end_index)
--		len = i_size & ~PAGE_CACHE_MASK;
-+		len = i_size & ~PAGE_MASK;
- 	else
- 		len = 0;
- 
-@@ -442,8 +442,8 @@ try_again:
- 			goto fail;
- 	}
- 
--	if (len != PAGE_CACHE_SIZE)
--		zero_user(page, len, PAGE_CACHE_SIZE - len);
-+	if (len != PAGE_SIZE)
-+		zero_user(page, len, PAGE_SIZE - len);
- 
- 	EXOFS_DBGMSG2("    readpage_strip(0x%lx, 0x%lx) len=0x%zx\n",
- 		     inode->i_ino, page->index, len);
-@@ -609,7 +609,7 @@ static void __r4w_put_page(void *priv, struct page *page)
- 
- 	if ((pcol->that_locked_page != page) && (ZERO_PAGE(0) != page)) {
- 		EXOFS_DBGMSG2("index=0x%lx\n", page->index);
--		page_cache_release(page);
-+		put_page(page);
- 		return;
- 	}
- 	EXOFS_DBGMSG2("that_locked_page index=0x%lx\n",
-@@ -633,7 +633,7 @@ static int write_exec(struct page_collect *pcol)
- 
- 	BUG_ON(pcol->ios);
- 	ret = ore_get_rw_state(&pcol->sbi->layout, &oi->oc, false,
--				 pcol->pg_first << PAGE_CACHE_SHIFT,
-+				 pcol->pg_first << PAGE_SHIFT,
- 				 pcol->length, &pcol->ios);
- 	if (unlikely(ret))
- 		goto err;
-@@ -696,7 +696,7 @@ static int writepage_strip(struct page *page,
- 	struct inode *inode = pcol->inode;
- 	struct exofs_i_info *oi = exofs_i(inode);
- 	loff_t i_size = i_size_read(inode);
--	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
-+	pgoff_t end_index = i_size >> PAGE_SHIFT;
- 	size_t len;
- 	int ret;
- 
-@@ -708,9 +708,9 @@ static int writepage_strip(struct page *page,
- 
- 	if (page->index < end_index)
- 		/* in this case, the page is within the limits of the file */
--		len = PAGE_CACHE_SIZE;
-+		len = PAGE_SIZE;
- 	else {
--		len = i_size & ~PAGE_CACHE_MASK;
-+		len = i_size & ~PAGE_MASK;
- 
- 		if (page->index > end_index || !len) {
- 			/* in this case, the page is outside the limits
-@@ -790,10 +790,10 @@ static int exofs_writepages(struct address_space *mapping,
- 	long start, end, expected_pages;
- 	int ret;
- 
--	start = wbc->range_start >> PAGE_CACHE_SHIFT;
-+	start = wbc->range_start >> PAGE_SHIFT;
- 	end = (wbc->range_end == LLONG_MAX) ?
- 			start + mapping->nrpages :
--			wbc->range_end >> PAGE_CACHE_SHIFT;
-+			wbc->range_end >> PAGE_SHIFT;
- 
- 	if (start || end)
- 		expected_pages = end - start + 1;
-@@ -881,15 +881,15 @@ int exofs_write_begin(struct file *file, struct address_space *mapping,
- 	}
- 
- 	 /* read modify write */
--	if (!PageUptodate(page) && (len != PAGE_CACHE_SIZE)) {
-+	if (!PageUptodate(page) && (len != PAGE_SIZE)) {
- 		loff_t i_size = i_size_read(mapping->host);
--		pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
-+		pgoff_t end_index = i_size >> PAGE_SHIFT;
- 		size_t rlen;
- 
- 		if (page->index < end_index)
--			rlen = PAGE_CACHE_SIZE;
-+			rlen = PAGE_SIZE;
- 		else if (page->index == end_index)
--			rlen = i_size & ~PAGE_CACHE_MASK;
-+			rlen = i_size & ~PAGE_MASK;
- 		else
- 			rlen = 0;
- 
-diff --git a/fs/exofs/namei.c b/fs/exofs/namei.c
-index c20d77df2679..622a686bb08b 100644
---- a/fs/exofs/namei.c
-+++ b/fs/exofs/namei.c
-@@ -292,11 +292,11 @@ static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
- out_dir:
- 	if (dir_de) {
- 		kunmap(dir_page);
--		page_cache_release(dir_page);
-+		put_page(dir_page);
- 	}
- out_old:
- 	kunmap(old_page);
--	page_cache_release(old_page);
-+	put_page(old_page);
- out:
- 	return err;
- }
+ 	sb->s_maxbytes          = MAX_LFS_FILESIZE;
+-	sb->s_blocksize         = PAGE_CACHE_SIZE;
+-	sb->s_blocksize_bits    = PAGE_CACHE_SHIFT;
++	sb->s_blocksize         = PAGE_SIZE;
++	sb->s_blocksize_bits    = PAGE_SHIFT;
+ 	sb->s_magic             = EFIVARFS_MAGIC;
+ 	sb->s_op                = &efivarfs_ops;
+ 	sb->s_d_op		= &efivarfs_d_ops;
 -- 
 2.7.0
 
