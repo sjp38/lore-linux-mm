@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A821A82F60
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:48:37 -0400 (EDT)
-Received: by mail-pf0-f174.google.com with SMTP id u190so238332074pfb.3
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:48:37 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id i62si14046921pfi.222.2016.03.20.11.41.46
+	by kanga.kvack.org (Postfix) with ESMTP id AC78B82F60
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:48:38 -0400 (EDT)
+Received: by mail-pf0-f174.google.com with SMTP id x3so237566398pfb.1
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:48:38 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id hc1si9272707pac.16.2016.03.20.11.41.46
         for <linux-mm@kvack.org>;
         Sun, 20 Mar 2016 11:41:46 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 19/71] 9p: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:26 +0300
-Message-Id: <1458499278-1516-20-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 28/71] dlm: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:40:35 +0300
+Message-Id: <1458499278-1516-29-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christine Caulfield <ccaulfie@redhat.com>, David Teigland <teigland@redhat.com>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,111 +46,52 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Eric Van Hensbergen <ericvh@gmail.com>
-Cc: Ron Minnich <rminnich@sandia.gov>
-Cc: Latchesar Ionkov <lucho@ionkov.net>
+Cc: Christine Caulfield <ccaulfie@redhat.com>
+Cc: David Teigland <teigland@redhat.com>
 ---
- fs/9p/vfs_addr.c  | 18 +++++++++---------
- fs/9p/vfs_file.c  |  4 ++--
- fs/9p/vfs_super.c |  2 +-
- 3 files changed, 12 insertions(+), 12 deletions(-)
+ fs/dlm/lowcomms.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/fs/9p/vfs_addr.c b/fs/9p/vfs_addr.c
-index e9e04376c52c..ac9225e86bf3 100644
---- a/fs/9p/vfs_addr.c
-+++ b/fs/9p/vfs_addr.c
-@@ -153,7 +153,7 @@ static void v9fs_invalidate_page(struct page *page, unsigned int offset,
- 	 * If called with zero offset, we should release
- 	 * the private state assocated with the page
- 	 */
--	if (offset == 0 && length == PAGE_CACHE_SIZE)
-+	if (offset == 0 && length == PAGE_SIZE)
- 		v9fs_fscache_invalidate_page(page);
- }
- 
-@@ -166,10 +166,10 @@ static int v9fs_vfs_writepage_locked(struct page *page)
- 	struct bio_vec bvec;
- 	int err, len;
- 
--	if (page->index == size >> PAGE_CACHE_SHIFT)
--		len = size & ~PAGE_CACHE_MASK;
-+	if (page->index == size >> PAGE_SHIFT)
-+		len = size & ~PAGE_MASK;
- 	else
--		len = PAGE_CACHE_SIZE;
-+		len = PAGE_SIZE;
- 
- 	bvec.bv_page = page;
- 	bvec.bv_offset = 0;
-@@ -271,7 +271,7 @@ static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
- 	int retval = 0;
- 	struct page *page;
- 	struct v9fs_inode *v9inode;
--	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-+	pgoff_t index = pos >> PAGE_SHIFT;
- 	struct inode *inode = mapping->host;
- 
- 
-@@ -288,11 +288,11 @@ start:
- 	if (PageUptodate(page))
- 		goto out;
- 
--	if (len == PAGE_CACHE_SIZE)
-+	if (len == PAGE_SIZE)
- 		goto out;
- 
- 	retval = v9fs_fid_readpage(v9inode->writeback_fid, page);
--	page_cache_release(page);
-+	put_page(page);
- 	if (!retval)
- 		goto start;
- out:
-@@ -313,7 +313,7 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
- 		/*
- 		 * zero out the rest of the area
- 		 */
--		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
-+		unsigned from = pos & (PAGE_SIZE - 1);
- 
- 		zero_user(page, from + copied, len - copied);
- 		flush_dcache_page(page);
-@@ -331,7 +331,7 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
+diff --git a/fs/dlm/lowcomms.c b/fs/dlm/lowcomms.c
+index 00640e70ed7a..1ab012a27d9f 100644
+--- a/fs/dlm/lowcomms.c
++++ b/fs/dlm/lowcomms.c
+@@ -640,7 +640,7 @@ static int receive_from_sock(struct connection *con)
+ 		con->rx_page = alloc_page(GFP_ATOMIC);
+ 		if (con->rx_page == NULL)
+ 			goto out_resched;
+-		cbuf_init(&con->cb, PAGE_CACHE_SIZE);
++		cbuf_init(&con->cb, PAGE_SIZE);
  	}
- 	set_page_dirty(page);
- 	unlock_page(page);
--	page_cache_release(page);
-+	put_page(page);
  
- 	return copied;
- }
-diff --git a/fs/9p/vfs_file.c b/fs/9p/vfs_file.c
-index eadc894faea2..b84c291ba1eb 100644
---- a/fs/9p/vfs_file.c
-+++ b/fs/9p/vfs_file.c
-@@ -421,8 +421,8 @@ v9fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
- 		struct inode *inode = file_inode(file);
- 		loff_t i_size;
- 		unsigned long pg_start, pg_end;
--		pg_start = origin >> PAGE_CACHE_SHIFT;
--		pg_end = (origin + retval - 1) >> PAGE_CACHE_SHIFT;
-+		pg_start = origin >> PAGE_SHIFT;
-+		pg_end = (origin + retval - 1) >> PAGE_SHIFT;
- 		if (inode->i_mapping && inode->i_mapping->nrpages)
- 			invalidate_inode_pages2_range(inode->i_mapping,
- 						      pg_start, pg_end);
-diff --git a/fs/9p/vfs_super.c b/fs/9p/vfs_super.c
-index bf495cedec26..de3ed8629196 100644
---- a/fs/9p/vfs_super.c
-+++ b/fs/9p/vfs_super.c
-@@ -87,7 +87,7 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
- 		sb->s_op = &v9fs_super_ops;
- 	sb->s_bdi = &v9ses->bdi;
- 	if (v9ses->cache)
--		sb->s_bdi->ra_pages = (VM_MAX_READAHEAD * 1024)/PAGE_CACHE_SIZE;
-+		sb->s_bdi->ra_pages = (VM_MAX_READAHEAD * 1024)/PAGE_SIZE;
- 
- 	sb->s_flags |= MS_ACTIVE | MS_DIRSYNC | MS_NOATIME;
- 	if (!v9ses->cache)
+ 	/*
+@@ -657,7 +657,7 @@ static int receive_from_sock(struct connection *con)
+ 	 * buffer and the start of the currently used section (cb.base)
+ 	 */
+ 	if (cbuf_data(&con->cb) >= con->cb.base) {
+-		iov[0].iov_len = PAGE_CACHE_SIZE - cbuf_data(&con->cb);
++		iov[0].iov_len = PAGE_SIZE - cbuf_data(&con->cb);
+ 		iov[1].iov_len = con->cb.base;
+ 		iov[1].iov_base = page_address(con->rx_page);
+ 		nvec = 2;
+@@ -675,7 +675,7 @@ static int receive_from_sock(struct connection *con)
+ 	ret = dlm_process_incoming_buffer(con->nodeid,
+ 					  page_address(con->rx_page),
+ 					  con->cb.base, con->cb.len,
+-					  PAGE_CACHE_SIZE);
++					  PAGE_SIZE);
+ 	if (ret == -EBADMSG) {
+ 		log_print("lowcomms: addr=%p, base=%u, len=%u, read=%d",
+ 			  page_address(con->rx_page), con->cb.base,
+@@ -1416,7 +1416,7 @@ void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc)
+ 	spin_lock(&con->writequeue_lock);
+ 	e = list_entry(con->writequeue.prev, struct writequeue_entry, list);
+ 	if ((&e->list == &con->writequeue) ||
+-	    (PAGE_CACHE_SIZE - e->end < len)) {
++	    (PAGE_SIZE - e->end < len)) {
+ 		e = NULL;
+ 	} else {
+ 		offset = e->end;
 -- 
 2.7.0
 
