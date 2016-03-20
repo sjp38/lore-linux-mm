@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id A494B82F60
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:47:16 -0400 (EDT)
-Received: by mail-pf0-f178.google.com with SMTP id 4so106632054pfd.0
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:47:16 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id qx12si13425508pab.169.2016.03.20.11.41.48
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id A538C82F60
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:47:17 -0400 (EDT)
+Received: by mail-pf0-f175.google.com with SMTP id x3so237543610pfb.1
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:47:17 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id fd9si7103985pad.134.2016.03.20.11.41.50
         for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 11:41:48 -0700 (PDT)
+        Sun, 20 Mar 2016 11:41:50 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 36/71] fscache: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:43 +0300
-Message-Id: <1458499278-1516-37-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 43/71] jbd2: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:40:50 +0300
+Message-Id: <1458499278-1516-44-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Howells <dhowells@redhat.com>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,60 +46,67 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: David Howells <dhowells@redhat.com>
+Cc: "Theodore Ts'o" <tytso@mit.edu>
+Cc: Jan Kara <jack@suse.com>
 ---
- fs/fscache/page.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ fs/jbd2/commit.c      | 4 ++--
+ fs/jbd2/journal.c     | 2 +-
+ fs/jbd2/transaction.c | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/fs/fscache/page.c b/fs/fscache/page.c
-index 6b35fc4860a0..3078b679fcd1 100644
---- a/fs/fscache/page.c
-+++ b/fs/fscache/page.c
-@@ -113,7 +113,7 @@ try_again:
+diff --git a/fs/jbd2/commit.c b/fs/jbd2/commit.c
+index 517f2de784cf..2ad98d6e19f4 100644
+--- a/fs/jbd2/commit.c
++++ b/fs/jbd2/commit.c
+@@ -81,11 +81,11 @@ static void release_buffer_page(struct buffer_head *bh)
+ 	if (!trylock_page(page))
+ 		goto nope;
  
- 	wake_up_bit(&cookie->flags, 0);
- 	if (xpage)
--		page_cache_release(xpage);
-+		put_page(xpage);
- 	__fscache_uncache_page(cookie, page);
- 	return true;
+-	page_cache_get(page);
++	get_page(page);
+ 	__brelse(bh);
+ 	try_to_free_buffers(page);
+ 	unlock_page(page);
+-	page_cache_release(page);
++	put_page(page);
+ 	return;
  
-@@ -164,7 +164,7 @@ static void fscache_end_page_write(struct fscache_object *object,
- 	}
- 	spin_unlock(&object->lock);
- 	if (xpage)
--		page_cache_release(xpage);
-+		put_page(xpage);
+ nope:
+diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
+index de73a9516a54..435f0b26ac20 100644
+--- a/fs/jbd2/journal.c
++++ b/fs/jbd2/journal.c
+@@ -2221,7 +2221,7 @@ void jbd2_journal_ack_err(journal_t *journal)
+ 
+ int jbd2_journal_blocks_per_page(struct inode *inode)
+ {
+-	return 1 << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
++	return 1 << (PAGE_SHIFT - inode->i_sb->s_blocksize_bits);
  }
  
  /*
-@@ -884,7 +884,7 @@ void fscache_invalidate_writes(struct fscache_cookie *cookie)
- 		spin_unlock(&cookie->stores_lock);
+diff --git a/fs/jbd2/transaction.c b/fs/jbd2/transaction.c
+index 01e4652d88f6..67c103867bf8 100644
+--- a/fs/jbd2/transaction.c
++++ b/fs/jbd2/transaction.c
+@@ -2263,7 +2263,7 @@ int jbd2_journal_invalidatepage(journal_t *journal,
+ 	struct buffer_head *head, *bh, *next;
+ 	unsigned int stop = offset + length;
+ 	unsigned int curr_off = 0;
+-	int partial_page = (offset || length < PAGE_CACHE_SIZE);
++	int partial_page = (offset || length < PAGE_SIZE);
+ 	int may_free = 1;
+ 	int ret = 0;
  
- 		for (i = n - 1; i >= 0; i--)
--			page_cache_release(results[i]);
-+			put_page(results[i]);
- 	}
+@@ -2272,7 +2272,7 @@ int jbd2_journal_invalidatepage(journal_t *journal,
+ 	if (!page_has_buffers(page))
+ 		return 0;
  
- 	_leave("");
-@@ -982,7 +982,7 @@ int __fscache_write_page(struct fscache_cookie *cookie,
+-	BUG_ON(stop > PAGE_CACHE_SIZE || stop < length);
++	BUG_ON(stop > PAGE_SIZE || stop < length);
  
- 	radix_tree_tag_set(&cookie->stores, page->index,
- 			   FSCACHE_COOKIE_PENDING_TAG);
--	page_cache_get(page);
-+	get_page(page);
- 
- 	/* we only want one writer at a time, but we do need to queue new
- 	 * writers after exclusive ops */
-@@ -1026,7 +1026,7 @@ submit_failed:
- 	radix_tree_delete(&cookie->stores, page->index);
- 	spin_unlock(&cookie->stores_lock);
- 	wake_cookie = __fscache_unuse_cookie(cookie);
--	page_cache_release(page);
-+	put_page(page);
- 	ret = -ENOBUFS;
- 	goto nobufs;
- 
+ 	/* We will potentially be playing with lists other than just the
+ 	 * data lists (especially for journaled data mode), so be
 -- 
 2.7.0
 
