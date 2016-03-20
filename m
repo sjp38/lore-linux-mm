@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B02BA82F60
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:49:17 -0400 (EDT)
-Received: by mail-pf0-f177.google.com with SMTP id x3so237577459pfb.1
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:49:17 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id h5si5314225pat.227.2016.03.20.11.41.46
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A1B8382F60
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:49:22 -0400 (EDT)
+Received: by mail-pf0-f180.google.com with SMTP id x3so237578795pfb.1
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:49:22 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id c90si10337078pfd.233.2016.03.20.11.41.52
         for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 11:41:46 -0700 (PDT)
+        Sun, 20 Mar 2016 11:41:53 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 26/71] configfs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:33 +0300
-Message-Id: <1458499278-1516-27-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 67/71] mqueue: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:41:14 +0300
+Message-Id: <1458499278-1516-68-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Joel Becker <jlbec@evilplan.org>, Christoph Hellwig <hch@lst.de>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,27 +46,25 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Joel Becker <jlbec@evilplan.org
-Cc: Christoph Hellwig <hch@lst.de>
 ---
- fs/configfs/mount.c | 4 ++--
+ ipc/mqueue.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/fs/configfs/mount.c b/fs/configfs/mount.c
-index a8f3b589a2df..cfd91320e869 100644
---- a/fs/configfs/mount.c
-+++ b/fs/configfs/mount.c
-@@ -71,8 +71,8 @@ static int configfs_fill_super(struct super_block *sb, void *data, int silent)
+diff --git a/ipc/mqueue.c b/ipc/mqueue.c
+index 781c1399c6a3..ade739f67f1d 100644
+--- a/ipc/mqueue.c
++++ b/ipc/mqueue.c
+@@ -307,8 +307,8 @@ static int mqueue_fill_super(struct super_block *sb, void *data, int silent)
  	struct inode *inode;
- 	struct dentry *root;
+ 	struct ipc_namespace *ns = data;
  
 -	sb->s_blocksize = PAGE_CACHE_SIZE;
 -	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 +	sb->s_blocksize = PAGE_SIZE;
 +	sb->s_blocksize_bits = PAGE_SHIFT;
- 	sb->s_magic = CONFIGFS_MAGIC;
- 	sb->s_op = &configfs_ops;
- 	sb->s_time_gran = 1;
+ 	sb->s_magic = MQUEUE_MAGIC;
+ 	sb->s_op = &mqueue_super_ops;
+ 
 -- 
 2.7.0
 
