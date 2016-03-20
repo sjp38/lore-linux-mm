@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id BB4D36B0270
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:41:50 -0400 (EDT)
-Received: by mail-pf0-f171.google.com with SMTP id x3so237450460pfb.1
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:41:50 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id f77si8534225pfd.64.2016.03.20.11.41.42
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id B5D6D828DF
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:41:52 -0400 (EDT)
+Received: by mail-pf0-f177.google.com with SMTP id n5so237444111pfn.2
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:41:52 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id 24si2318154pfq.155.2016.03.20.11.41.42
         for <linux-mm@kvack.org>;
         Sun, 20 Mar 2016 11:41:42 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 05/71] s390: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:12 +0300
-Message-Id: <1458499278-1516-6-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 09/71] v4l: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:40:16 +0300
+Message-Id: <1458499278-1516-10-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,27 +46,24 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Mauro Carvalho Chehab <mchehab@osg.samsung.com>
 ---
- arch/s390/hypfs/inode.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ drivers/media/v4l2-core/videobuf-dma-sg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/s390/hypfs/inode.c b/arch/s390/hypfs/inode.c
-index 0f3da2cb2bd6..255c7eec4481 100644
---- a/arch/s390/hypfs/inode.c
-+++ b/arch/s390/hypfs/inode.c
-@@ -278,8 +278,8 @@ static int hypfs_fill_super(struct super_block *sb, void *data, int silent)
- 	sbi->uid = current_uid();
- 	sbi->gid = current_gid();
- 	sb->s_fs_info = sbi;
--	sb->s_blocksize = PAGE_CACHE_SIZE;
--	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
-+	sb->s_blocksize = PAGE_SIZE;
-+	sb->s_blocksize_bits = PAGE_SHIFT;
- 	sb->s_magic = HYPFS_MAGIC;
- 	sb->s_op = &hypfs_s_ops;
- 	if (hypfs_parse_options(data, sb))
+diff --git a/drivers/media/v4l2-core/videobuf-dma-sg.c b/drivers/media/v4l2-core/videobuf-dma-sg.c
+index f669cedca8bd..f4c212911b44 100644
+--- a/drivers/media/v4l2-core/videobuf-dma-sg.c
++++ b/drivers/media/v4l2-core/videobuf-dma-sg.c
+@@ -350,7 +350,7 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
+ 
+ 	if (dma->pages) {
+ 		for (i = 0; i < dma->nr_pages; i++)
+-			page_cache_release(dma->pages[i]);
++			put_page(dma->pages[i]);
+ 		kfree(dma->pages);
+ 		dma->pages = NULL;
+ 	}
 -- 
 2.7.0
 
