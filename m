@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 1769482F60
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:48:29 -0400 (EDT)
-Received: by mail-pf0-f179.google.com with SMTP id n5so237556531pfn.2
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:48:29 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id wb2si13830644pab.213.2016.03.20.11.41.49
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D41182F60
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:48:32 -0400 (EDT)
+Received: by mail-pf0-f173.google.com with SMTP id u190so238330477pfb.3
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:48:32 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id oi7si1467849pab.183.2016.03.20.11.41.52
         for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 11:41:49 -0700 (PDT)
+        Sun, 20 Mar 2016 11:41:52 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 41/71] hostfs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:48 +0300
-Message-Id: <1458499278-1516-42-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 60/71] sysv: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:41:07 +0300
+Message-Id: <1458499278-1516-61-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Hellwig <hch@infradead.org>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,83 +46,106 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Jeff Dike <jdike@addtoit.com>
-Cc: Richard Weinberger <richard@nod.at>
+Cc: Christoph Hellwig <hch@infradead.org>
 ---
- fs/hostfs/hostfs_kern.c | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
+ fs/sysv/dir.c   | 18 +++++++++---------
+ fs/sysv/namei.c |  4 ++--
+ 2 files changed, 11 insertions(+), 11 deletions(-)
 
-diff --git a/fs/hostfs/hostfs_kern.c b/fs/hostfs/hostfs_kern.c
-index d1abbee281d1..7016653f3e41 100644
---- a/fs/hostfs/hostfs_kern.c
-+++ b/fs/hostfs/hostfs_kern.c
-@@ -410,12 +410,12 @@ static int hostfs_writepage(struct page *page, struct writeback_control *wbc)
- 	struct inode *inode = mapping->host;
- 	char *buffer;
- 	loff_t base = page_offset(page);
--	int count = PAGE_CACHE_SIZE;
--	int end_index = inode->i_size >> PAGE_CACHE_SHIFT;
-+	int count = PAGE_SIZE;
-+	int end_index = inode->i_size >> PAGE_SHIFT;
- 	int err;
- 
- 	if (page->index >= end_index)
--		count = inode->i_size & (PAGE_CACHE_SIZE-1);
-+		count = inode->i_size & (PAGE_SIZE-1);
- 
- 	buffer = kmap(page);
- 
-@@ -447,7 +447,7 @@ static int hostfs_readpage(struct file *file, struct page *page)
- 
- 	buffer = kmap(page);
- 	bytes_read = read_file(FILE_HOSTFS_I(file)->fd, &start, buffer,
--			PAGE_CACHE_SIZE);
-+			PAGE_SIZE);
- 	if (bytes_read < 0) {
- 		ClearPageUptodate(page);
- 		SetPageError(page);
-@@ -455,7 +455,7 @@ static int hostfs_readpage(struct file *file, struct page *page)
- 		goto out;
- 	}
- 
--	memset(buffer + bytes_read, 0, PAGE_CACHE_SIZE - bytes_read);
-+	memset(buffer + bytes_read, 0, PAGE_SIZE - bytes_read);
- 
- 	ClearPageError(page);
- 	SetPageUptodate(page);
-@@ -471,7 +471,7 @@ static int hostfs_write_begin(struct file *file, struct address_space *mapping,
- 			      loff_t pos, unsigned len, unsigned flags,
- 			      struct page **pagep, void **fsdata)
+diff --git a/fs/sysv/dir.c b/fs/sysv/dir.c
+index 63c1bcb224ee..c0f0a3e643eb 100644
+--- a/fs/sysv/dir.c
++++ b/fs/sysv/dir.c
+@@ -30,7 +30,7 @@ const struct file_operations sysv_dir_operations = {
+ static inline void dir_put_page(struct page *page)
  {
--	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-+	pgoff_t index = pos >> PAGE_SHIFT;
- 
- 	*pagep = grab_cache_page_write_begin(mapping, index, flags);
- 	if (!*pagep)
-@@ -485,14 +485,14 @@ static int hostfs_write_end(struct file *file, struct address_space *mapping,
- {
- 	struct inode *inode = mapping->host;
- 	void *buffer;
--	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
-+	unsigned from = pos & (PAGE_SIZE - 1);
- 	int err;
- 
- 	buffer = kmap(page);
- 	err = write_file(FILE_HOSTFS_I(file)->fd, &pos, buffer + from, copied);
  	kunmap(page);
- 
--	if (!PageUptodate(page) && err == PAGE_CACHE_SIZE)
-+	if (!PageUptodate(page) && err == PAGE_SIZE)
- 		SetPageUptodate(page);
- 
- 	/*
-@@ -502,7 +502,7 @@ static int hostfs_write_end(struct file *file, struct address_space *mapping,
- 	if (err > 0 && (pos > inode->i_size))
- 		inode->i_size = pos;
- 	unlock_page(page);
 -	page_cache_release(page);
 +	put_page(page);
+ }
  
+ static int dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
+@@ -73,8 +73,8 @@ static int sysv_readdir(struct file *file, struct dir_context *ctx)
+ 	if (pos >= inode->i_size)
+ 		return 0;
+ 
+-	offset = pos & ~PAGE_CACHE_MASK;
+-	n = pos >> PAGE_CACHE_SHIFT;
++	offset = pos & ~PAGE_MASK;
++	n = pos >> PAGE_SHIFT;
+ 
+ 	for ( ; n < npages; n++, offset = 0) {
+ 		char *kaddr, *limit;
+@@ -85,7 +85,7 @@ static int sysv_readdir(struct file *file, struct dir_context *ctx)
+ 			continue;
+ 		kaddr = (char *)page_address(page);
+ 		de = (struct sysv_dir_entry *)(kaddr+offset);
+-		limit = kaddr + PAGE_CACHE_SIZE - SYSV_DIRSIZE;
++		limit = kaddr + PAGE_SIZE - SYSV_DIRSIZE;
+ 		for ( ;(char*)de <= limit; de++, ctx->pos += sizeof(*de)) {
+ 			char *name = de->name;
+ 
+@@ -146,7 +146,7 @@ struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_
+ 		if (!IS_ERR(page)) {
+ 			kaddr = (char*)page_address(page);
+ 			de = (struct sysv_dir_entry *) kaddr;
+-			kaddr += PAGE_CACHE_SIZE - SYSV_DIRSIZE;
++			kaddr += PAGE_SIZE - SYSV_DIRSIZE;
+ 			for ( ; (char *) de <= kaddr ; de++) {
+ 				if (!de->inode)
+ 					continue;
+@@ -190,7 +190,7 @@ int sysv_add_link(struct dentry *dentry, struct inode *inode)
+ 			goto out;
+ 		kaddr = (char*)page_address(page);
+ 		de = (struct sysv_dir_entry *)kaddr;
+-		kaddr += PAGE_CACHE_SIZE - SYSV_DIRSIZE;
++		kaddr += PAGE_SIZE - SYSV_DIRSIZE;
+ 		while ((char *)de <= kaddr) {
+ 			if (!de->inode)
+ 				goto got_it;
+@@ -261,7 +261,7 @@ int sysv_make_empty(struct inode *inode, struct inode *dir)
+ 	kmap(page);
+ 
+ 	base = (char*)page_address(page);
+-	memset(base, 0, PAGE_CACHE_SIZE);
++	memset(base, 0, PAGE_SIZE);
+ 
+ 	de = (struct sysv_dir_entry *) base;
+ 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
+@@ -273,7 +273,7 @@ int sysv_make_empty(struct inode *inode, struct inode *dir)
+ 	kunmap(page);
+ 	err = dir_commit_chunk(page, 0, 2 * SYSV_DIRSIZE);
+ fail:
+-	page_cache_release(page);
++	put_page(page);
+ 	return err;
+ }
+ 
+@@ -296,7 +296,7 @@ int sysv_empty_dir(struct inode * inode)
+ 
+ 		kaddr = (char *)page_address(page);
+ 		de = (struct sysv_dir_entry *)kaddr;
+-		kaddr += PAGE_CACHE_SIZE-SYSV_DIRSIZE;
++		kaddr += PAGE_SIZE-SYSV_DIRSIZE;
+ 
+ 		for ( ;(char *)de <= kaddr; de++) {
+ 			if (!de->inode)
+diff --git a/fs/sysv/namei.c b/fs/sysv/namei.c
+index 11e83ed0b4bf..90b60c03b588 100644
+--- a/fs/sysv/namei.c
++++ b/fs/sysv/namei.c
+@@ -264,11 +264,11 @@ static int sysv_rename(struct inode * old_dir, struct dentry * old_dentry,
+ out_dir:
+ 	if (dir_de) {
+ 		kunmap(dir_page);
+-		page_cache_release(dir_page);
++		put_page(dir_page);
+ 	}
+ out_old:
+ 	kunmap(old_page);
+-	page_cache_release(old_page);
++	put_page(old_page);
+ out:
  	return err;
  }
 -- 
