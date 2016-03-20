@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B4FFC6B026E
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:41:48 -0400 (EDT)
-Received: by mail-pf0-f178.google.com with SMTP id u190so238215456pfb.3
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:41:48 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id 24si2318154pfq.155.2016.03.20.11.41.42
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id BB4D36B0270
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:41:50 -0400 (EDT)
+Received: by mail-pf0-f171.google.com with SMTP id x3so237450460pfb.1
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:41:50 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id f77si8534225pfd.64.2016.03.20.11.41.42
         for <linux-mm@kvack.org>;
         Sun, 20 Mar 2016 11:41:42 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 08/71] md: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:15 +0300
-Message-Id: <1458499278-1516-9-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 05/71] s390: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:40:12 +0300
+Message-Id: <1458499278-1516-6-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Shaohua Li <shli@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,24 +46,27 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Shaohua Li <shli@kernel.org>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
 ---
- drivers/md/bitmap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/s390/hypfs/inode.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/md/bitmap.c b/drivers/md/bitmap.c
-index d80cce499a56..df77ddc96467 100644
---- a/drivers/md/bitmap.c
-+++ b/drivers/md/bitmap.c
-@@ -323,7 +323,7 @@ __clear_page_buffers(struct page *page)
- {
- 	ClearPagePrivate(page);
- 	set_page_private(page, 0);
--	page_cache_release(page);
-+	put_page(page);
- }
- static void free_buffers(struct page *page)
- {
+diff --git a/arch/s390/hypfs/inode.c b/arch/s390/hypfs/inode.c
+index 0f3da2cb2bd6..255c7eec4481 100644
+--- a/arch/s390/hypfs/inode.c
++++ b/arch/s390/hypfs/inode.c
+@@ -278,8 +278,8 @@ static int hypfs_fill_super(struct super_block *sb, void *data, int silent)
+ 	sbi->uid = current_uid();
+ 	sbi->gid = current_gid();
+ 	sb->s_fs_info = sbi;
+-	sb->s_blocksize = PAGE_CACHE_SIZE;
+-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
++	sb->s_blocksize = PAGE_SIZE;
++	sb->s_blocksize_bits = PAGE_SHIFT;
+ 	sb->s_magic = HYPFS_MAGIC;
+ 	sb->s_op = &hypfs_s_ops;
+ 	if (hypfs_parse_options(data, sb))
 -- 
 2.7.0
 
