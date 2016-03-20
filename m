@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id DD75982F60
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:49:11 -0400 (EDT)
-Received: by mail-pf0-f180.google.com with SMTP id 4so106664409pfd.0
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:49:11 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id q194si13991762pfq.17.2016.03.20.11.41.43
+	by kanga.kvack.org (Postfix) with ESMTP id 3BD1182F60
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:49:14 -0400 (EDT)
+Received: by mail-pf0-f180.google.com with SMTP id n5so237569147pfn.2
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:49:14 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id h5si5314225pat.227.2016.03.20.11.41.46
         for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 11:41:43 -0700 (PDT)
+        Sun, 20 Mar 2016 11:41:46 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 12/71] mtd: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:19 +0300
-Message-Id: <1458499278-1516-13-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 17/71] usb: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:40:24 +0300
+Message-Id: <1458499278-1516-18-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Boris Brezillon <boris.brezillon@free-electrons.com>, Richard Weinberger <richard@nod.at>, Joern Engel <joern@lazybastard.org>, David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Felipe Balbi <balbi@kernel.org>, Matthew Dharm <mdharm-usb@one-eyed-alien.net>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,71 +46,58 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Boris Brezillon <boris.brezillon@free-electrons.com>
-Cc: Richard Weinberger <richard@nod.at>
-Cc: Joern Engel <joern@lazybastard.org>
-Cc: David Woodhouse <dwmw2@infradead.org>
-Cc: Brian Norris <computersforpeace@gmail.com>
+Cc: Felipe Balbi <balbi@kernel.org>
+Cc: Matthew Dharm <mdharm-usb@one-eyed-alien.net>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- drivers/mtd/devices/block2mtd.c | 6 +++---
- drivers/mtd/nand/nandsim.c      | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ drivers/usb/gadget/function/f_fs.c | 4 ++--
+ drivers/usb/gadget/legacy/inode.c  | 4 ++--
+ drivers/usb/storage/scsiglue.c     | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/mtd/devices/block2mtd.c b/drivers/mtd/devices/block2mtd.c
-index e2c0057737e6..7c887f111a7d 100644
---- a/drivers/mtd/devices/block2mtd.c
-+++ b/drivers/mtd/devices/block2mtd.c
-@@ -75,7 +75,7 @@ static int _block2mtd_erase(struct block2mtd_dev *dev, loff_t to, size_t len)
- 				break;
- 			}
+diff --git a/drivers/usb/gadget/function/f_fs.c b/drivers/usb/gadget/function/f_fs.c
+index 8cfce105c7ee..e21ca2bd6839 100644
+--- a/drivers/usb/gadget/function/f_fs.c
++++ b/drivers/usb/gadget/function/f_fs.c
+@@ -1147,8 +1147,8 @@ static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
+ 	ffs->sb              = sb;
+ 	data->ffs_data       = NULL;
+ 	sb->s_fs_info        = ffs;
+-	sb->s_blocksize      = PAGE_CACHE_SIZE;
+-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
++	sb->s_blocksize      = PAGE_SIZE;
++	sb->s_blocksize_bits = PAGE_SHIFT;
+ 	sb->s_magic          = FUNCTIONFS_MAGIC;
+ 	sb->s_op             = &ffs_sb_operations;
+ 	sb->s_time_gran      = 1;
+diff --git a/drivers/usb/gadget/legacy/inode.c b/drivers/usb/gadget/legacy/inode.c
+index 5cdaf0150a4e..e64479f882a5 100644
+--- a/drivers/usb/gadget/legacy/inode.c
++++ b/drivers/usb/gadget/legacy/inode.c
+@@ -1954,8 +1954,8 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
+ 		return -ENODEV;
  
--		page_cache_release(page);
-+		put_page(page);
- 		pages--;
- 		index++;
- 	}
-@@ -124,7 +124,7 @@ static int block2mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
- 			return PTR_ERR(page);
+ 	/* superblock */
+-	sb->s_blocksize = PAGE_CACHE_SIZE;
+-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
++	sb->s_blocksize = PAGE_SIZE;
++	sb->s_blocksize_bits = PAGE_SHIFT;
+ 	sb->s_magic = GADGETFS_MAGIC;
+ 	sb->s_op = &gadget_fs_operations;
+ 	sb->s_time_gran = 1;
+diff --git a/drivers/usb/storage/scsiglue.c b/drivers/usb/storage/scsiglue.c
+index dba51362d2e2..90901861bfc0 100644
+--- a/drivers/usb/storage/scsiglue.c
++++ b/drivers/usb/storage/scsiglue.c
+@@ -123,7 +123,7 @@ static int slave_configure(struct scsi_device *sdev)
+ 		unsigned int max_sectors = 64;
  
- 		memcpy(buf, page_address(page) + offset, cpylen);
--		page_cache_release(page);
-+		put_page(page);
- 
- 		if (retlen)
- 			*retlen += cpylen;
-@@ -164,7 +164,7 @@ static int _block2mtd_write(struct block2mtd_dev *dev, const u_char *buf,
- 			unlock_page(page);
- 			balance_dirty_pages_ratelimited(mapping);
- 		}
--		page_cache_release(page);
-+		put_page(page);
- 
- 		if (retlen)
- 			*retlen += cpylen;
-diff --git a/drivers/mtd/nand/nandsim.c b/drivers/mtd/nand/nandsim.c
-index 1fd519503bb1..a58169a28741 100644
---- a/drivers/mtd/nand/nandsim.c
-+++ b/drivers/mtd/nand/nandsim.c
-@@ -1339,7 +1339,7 @@ static void put_pages(struct nandsim *ns)
- 	int i;
- 
- 	for (i = 0; i < ns->held_cnt; i++)
--		page_cache_release(ns->held_pages[i]);
-+		put_page(ns->held_pages[i]);
- }
- 
- /* Get page cache pages in advance to provide NOFS memory allocation */
-@@ -1349,8 +1349,8 @@ static int get_pages(struct nandsim *ns, struct file *file, size_t count, loff_t
- 	struct page *page;
- 	struct address_space *mapping = file->f_mapping;
- 
--	start_index = pos >> PAGE_CACHE_SHIFT;
--	end_index = (pos + count - 1) >> PAGE_CACHE_SHIFT;
-+	start_index = pos >> PAGE_SHIFT;
-+	end_index = (pos + count - 1) >> PAGE_SHIFT;
- 	if (end_index - start_index + 1 > NS_MAX_HELD_PAGES)
- 		return -EINVAL;
- 	ns->held_cnt = 0;
+ 		if (us->fflags & US_FL_MAX_SECTORS_MIN)
+-			max_sectors = PAGE_CACHE_SIZE >> 9;
++			max_sectors = PAGE_SIZE >> 9;
+ 		if (queue_max_hw_sectors(sdev->request_queue) > max_sectors)
+ 			blk_queue_max_hw_sectors(sdev->request_queue,
+ 					      max_sectors);
 -- 
 2.7.0
 
