@@ -1,143 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 0363C6B007E
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 13:51:18 -0400 (EDT)
-Received: by mail-pf0-f170.google.com with SMTP id u190so237312054pfb.3
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 10:51:17 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id j3si3805050pap.58.2016.03.20.10.51.17
-        for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 10:51:17 -0700 (PDT)
-Date: Mon, 21 Mar 2016 01:49:53 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: core.c:undefined reference to `fpu_save'
-Message-ID: <201603210150.Q8EdsBvI%fengguang.wu@intel.com>
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B6B356B025F
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:06:17 -0400 (EDT)
+Received: by mail-wm0-f53.google.com with SMTP id p65so97495190wmp.0
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:06:17 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id t185si4611999wme.111.2016.03.20.11.06.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 20 Mar 2016 11:06:16 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id l68so17144691wml.3
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:06:16 -0700 (PDT)
+Date: Sun, 20 Mar 2016 20:06:11 +0200
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: Re: [PATCH v3 2/2] mm, thp: avoid unnecessary swapin in khugepaged
+Message-ID: <20160320180611.GA8687@debian>
+References: <1457991611-6211-1-git-send-email-ebru.akagunduz@gmail.com>
+ <1457991611-6211-3-git-send-email-ebru.akagunduz@gmail.com>
+ <56EA9000.1070108@suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="EVF5PPMfhYS0aIcm"
-Content-Disposition: inline
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
-
-
---EVF5PPMfhYS0aIcm
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <56EA9000.1070108@suse.cz>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: vbabka@suse.cz, linux-mm@kvack.org
+Cc: hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com
 
-Hi Andrew,
-
-It's probably a bug fix that unveils the link errors.
-
-tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-head:   1e75a9f34a5ed5902707fb74b468356c55142b71
-commit: c60f169202c7643991a8b4bfeea60e06843d5b5a arch/mn10300/kernel/fpu-nofpu.c: needs asm/elf.h
-date:   3 days ago
-config: mn10300-allnoconfig (attached as .config)
-reproduce:
-        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        git checkout c60f169202c7643991a8b4bfeea60e06843d5b5a
-        # save the attached .config to linux build tree
-        make.cross ARCH=mn10300 
-
-All errors (new ones prefixed by >>):
-
-   kernel/built-in.o: In function `.L412':
->> core.c:(.sched.text+0x257): undefined reference to `fpu_save'
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
---EVF5PPMfhYS0aIcm
-Content-Type: application/octet-stream
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-
---EVF5PPMfhYS0aIcm--
+On Thu, Mar 17, 2016 at 12:07:44PM +0100, Vlastimil Babka wrote:
+> On 03/14/2016 10:40 PM, Ebru Akagunduz wrote:
+> >Currently khugepaged makes swapin readahead to improve
+> >THP collapse rate. This patch checks vm statistics
+> >to avoid workload of swapin, if unnecessary. So that
+> >when system under pressure, khugepaged won't consume
+> >resources to swapin.
+> >
+> >The patch was tested with a test program that allocates
+> >800MB of memory, writes to it, and then sleeps. The system
+> >was forced to swap out all. Afterwards, the test program
+> >touches the area by writing, it skips a page in each
+> >20 pages of the area. When waiting to swapin readahead
+> >left part of the test, the memory forced to be busy
+> >doing page reclaim. There was enough free memory during
+> >test, khugepaged did not swapin readahead due to business.
+> >
+> >Test results:
+> >
+> >                         After swapped out
+> >-------------------------------------------------------------------
+> >               | Anonymous | AnonHugePages | Swap      | Fraction  |
+> >-------------------------------------------------------------------
+> >With patch    | 206608 kB |  204800 kB    | 593392 kB |    %99    |
+> >-------------------------------------------------------------------
+> >Without patch | 351308 kB | 350208 kB     | 448692 kB |    %99    |
+> >-------------------------------------------------------------------
+> >
+> >                         After swapped in (waiting 10 minutes)
+> >-------------------------------------------------------------------
+> >               | Anonymous | AnonHugePages | Swap      | Fraction  |
+> >-------------------------------------------------------------------
+> >With patch    | 551992 kB | 368640 kB     | 248008 kB |    %66    |
+> >-------------------------------------------------------------------
+> >Without patch | 586816 kB | 464896 kB     | 213184 kB |    %79    |
+> >-------------------------------------------------------------------
+> >
+> >Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> 
+> Looks like a step in a good direction. Still might be worthwile to
+> also wait for the swapin to complete, and actually collapse
+> immediately, no?
+> 
+I'll send a patch to solve mmap_sem issues after getting this
+patch series accepted.
+> >---
+> >Changes in v2:
+> >  - Add reference to specify which patch fixed (Ebru Akagunduz)
+> 
+> The reference is again missing in v3.
+> 
+> >  - Fix commit subject line (Ebru Akagunduz)
+> >
+> >Changes in v3:
+> >  - Remove default values of allocstall (Kirill A. Shutemov)
+> >
+> >  mm/huge_memory.c | 13 +++++++++++--
+> >  1 file changed, 11 insertions(+), 2 deletions(-)
+> >
+> >diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> >index 86e9666..67a398c 100644
+> >--- a/mm/huge_memory.c
+> >+++ b/mm/huge_memory.c
+> >@@ -102,6 +102,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
+> >   */
+> >  static unsigned int khugepaged_max_ptes_none __read_mostly;
+> >  static unsigned int khugepaged_max_ptes_swap __read_mostly;
+> >+static unsigned long int allocstall;
+> 
+> "int" here is unnecessary
+> 
+> >
+> >  static int khugepaged(void *none);
+> >  static int khugepaged_slab_init(void);
+> >@@ -2438,7 +2439,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+> >  	struct page *new_page;
+> >  	spinlock_t *pmd_ptl, *pte_ptl;
+> >  	int isolated = 0, result = 0;
+> >-	unsigned long hstart, hend;
+> >+	unsigned long hstart, hend, swap, curr_allocstall;
+> >  	struct mem_cgroup *memcg;
+> >  	unsigned long mmun_start;	/* For mmu_notifiers */
+> >  	unsigned long mmun_end;		/* For mmu_notifiers */
+> >@@ -2493,7 +2494,14 @@ static void collapse_huge_page(struct mm_struct *mm,
+> >  		goto out;
+> >  	}
+> >
+> >-	__collapse_huge_page_swapin(mm, vma, address, pmd);
+> >+	swap = get_mm_counter(mm, MM_SWAPENTS);
+> >+	curr_allocstall = sum_vm_event(ALLOCSTALL);
+> >+	/*
+> >+	 * When system under pressure, don't swapin readahead.
+> >+	 * So that avoid unnecessary resource consuming.
+> >+	 */
+> >+	if (allocstall == curr_allocstall && swap != 0)
+> >+		__collapse_huge_page_swapin(mm, vma, address, pmd);
+> >
+> >  	anon_vma_lock_write(vma->anon_vma);
+> >
+> >@@ -2790,6 +2798,7 @@ skip:
+> >  			VM_BUG_ON(khugepaged_scan.address < hstart ||
+> >  				  khugepaged_scan.address + HPAGE_PMD_SIZE >
+> >  				  hend);
+> >+			allocstall = sum_vm_event(ALLOCSTALL);
+> 
+> Why here? Rik said in v2:
+> 
+> >Khugepaged stores the allocstall value when it goes to sleep,
+> >and checks it before calling (or not) __collapse_huge_page_swapin.
+> 
+> But that's not true, this is not "when it goes to sleep".
+> So AFAICS it only observes the allocstalls between starting to scan
+> a single pmd, and trying to collapse the pmd. So the window is quite
+> tiny especially compared to I/O speeds, and this will IMHO catch
+> only really frequent stalls. Placing it really at "when it goes to
+> sleep" sounds better.
+> 
+> >  			ret = khugepaged_scan_pmd(mm, vma,
+> >  						  khugepaged_scan.address,
+> >  						  hpage);
+> >
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
