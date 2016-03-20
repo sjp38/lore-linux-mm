@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B5D6D828DF
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:41:52 -0400 (EDT)
-Received: by mail-pf0-f177.google.com with SMTP id n5so237444111pfn.2
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:41:52 -0700 (PDT)
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B29E0828DF
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:41:54 -0400 (EDT)
+Received: by mail-pf0-f181.google.com with SMTP id u190so238217054pfb.3
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:41:54 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id 24si2318154pfq.155.2016.03.20.11.41.42
+        by mx.google.com with ESMTP id yk10si11846756pac.24.2016.03.20.11.41.42
         for <linux-mm@kvack.org>;
         Sun, 20 Mar 2016 11:41:42 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 09/71] v4l: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:16 +0300
-Message-Id: <1458499278-1516-10-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 14/71] oprofile: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:40:21 +0300
+Message-Id: <1458499278-1516-15-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Robert Richter <rric@kernel.org>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,24 +46,26 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Mauro Carvalho Chehab <mchehab@osg.samsung.com>
+Cc: Robert Richter <rric@kernel.org>
 ---
- drivers/media/v4l2-core/videobuf-dma-sg.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/oprofile/oprofilefs.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/media/v4l2-core/videobuf-dma-sg.c b/drivers/media/v4l2-core/videobuf-dma-sg.c
-index f669cedca8bd..f4c212911b44 100644
---- a/drivers/media/v4l2-core/videobuf-dma-sg.c
-+++ b/drivers/media/v4l2-core/videobuf-dma-sg.c
-@@ -350,7 +350,7 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
+diff --git a/drivers/oprofile/oprofilefs.c b/drivers/oprofile/oprofilefs.c
+index b48ac6300c79..a0e5260bd006 100644
+--- a/drivers/oprofile/oprofilefs.c
++++ b/drivers/oprofile/oprofilefs.c
+@@ -239,8 +239,8 @@ static int oprofilefs_fill_super(struct super_block *sb, void *data, int silent)
+ {
+ 	struct inode *root_inode;
  
- 	if (dma->pages) {
- 		for (i = 0; i < dma->nr_pages; i++)
--			page_cache_release(dma->pages[i]);
-+			put_page(dma->pages[i]);
- 		kfree(dma->pages);
- 		dma->pages = NULL;
- 	}
+-	sb->s_blocksize = PAGE_CACHE_SIZE;
+-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
++	sb->s_blocksize = PAGE_SIZE;
++	sb->s_blocksize_bits = PAGE_SHIFT;
+ 	sb->s_magic = OPROFILEFS_MAGIC;
+ 	sb->s_op = &s_ops;
+ 	sb->s_time_gran = 1;
 -- 
 2.7.0
 
