@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CBFE82F60
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:50:03 -0400 (EDT)
-Received: by mail-pf0-f174.google.com with SMTP id 4so106679038pfd.0
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:50:03 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id qx12si13425508pab.169.2016.03.20.11.41.49
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E1E082F60
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:50:06 -0400 (EDT)
+Received: by mail-pf0-f171.google.com with SMTP id n5so237583810pfn.2
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:50:06 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id oi7si1467849pab.183.2016.03.20.11.41.50
         for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 11:41:49 -0700 (PDT)
+        Sun, 20 Mar 2016 11:41:50 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 40/71] hfsplus: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:47 +0300
-Message-Id: <1458499278-1516-41-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 51/71] nilfs2: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:40:58 +0300
+Message-Id: <1458499278-1516-52-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,409 +46,453 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
 ---
- fs/hfsplus/bitmap.c |  2 +-
- fs/hfsplus/bnode.c  | 90 ++++++++++++++++++++++++++---------------------------
- fs/hfsplus/btree.c  | 22 ++++++-------
- fs/hfsplus/inode.c  |  8 ++---
- fs/hfsplus/super.c  |  2 +-
- fs/hfsplus/xattr.c  |  6 ++--
- 6 files changed, 65 insertions(+), 65 deletions(-)
+ fs/nilfs2/bmap.c          |  2 +-
+ fs/nilfs2/btnode.c        | 10 +++++-----
+ fs/nilfs2/dir.c           | 32 ++++++++++++++++----------------
+ fs/nilfs2/gcinode.c       |  2 +-
+ fs/nilfs2/inode.c         |  4 ++--
+ fs/nilfs2/mdt.c           | 14 +++++++-------
+ fs/nilfs2/namei.c         |  4 ++--
+ fs/nilfs2/page.c          | 18 +++++++++---------
+ fs/nilfs2/recovery.c      |  4 ++--
+ fs/nilfs2/segment.c       |  2 +-
+ include/linux/nilfs2_fs.h |  4 ++--
+ 11 files changed, 48 insertions(+), 48 deletions(-)
 
-diff --git a/fs/hfsplus/bitmap.c b/fs/hfsplus/bitmap.c
-index d2954451519e..c0ae274c0a22 100644
---- a/fs/hfsplus/bitmap.c
-+++ b/fs/hfsplus/bitmap.c
-@@ -13,7 +13,7 @@
- #include "hfsplus_fs.h"
- #include "hfsplus_raw.h"
+diff --git a/fs/nilfs2/bmap.c b/fs/nilfs2/bmap.c
+index 27f75bcbeb30..a9fb3636c142 100644
+--- a/fs/nilfs2/bmap.c
++++ b/fs/nilfs2/bmap.c
+@@ -458,7 +458,7 @@ __u64 nilfs_bmap_data_get_key(const struct nilfs_bmap *bmap,
+ 	struct buffer_head *pbh;
+ 	__u64 key;
  
--#define PAGE_CACHE_BITS	(PAGE_CACHE_SIZE * 8)
-+#define PAGE_CACHE_BITS	(PAGE_SIZE * 8)
+-	key = page_index(bh->b_page) << (PAGE_CACHE_SHIFT -
++	key = page_index(bh->b_page) << (PAGE_SHIFT -
+ 					 bmap->b_inode->i_blkbits);
+ 	for (pbh = page_buffers(bh->b_page); pbh != bh; pbh = pbh->b_this_page)
+ 		key++;
+diff --git a/fs/nilfs2/btnode.c b/fs/nilfs2/btnode.c
+index a35ae35e6932..e0c9daf9aa22 100644
+--- a/fs/nilfs2/btnode.c
++++ b/fs/nilfs2/btnode.c
+@@ -62,7 +62,7 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
+ 	set_buffer_uptodate(bh);
  
- int hfsplus_block_allocate(struct super_block *sb, u32 size,
- 		u32 offset, u32 *max)
-diff --git a/fs/hfsplus/bnode.c b/fs/hfsplus/bnode.c
-index 63924662aaf3..ce014ceb89ef 100644
---- a/fs/hfsplus/bnode.c
-+++ b/fs/hfsplus/bnode.c
-@@ -24,16 +24,16 @@ void hfs_bnode_read(struct hfs_bnode *node, void *buf, int off, int len)
- 	int l;
- 
- 	off += node->page_offset;
--	pagep = node->page + (off >> PAGE_CACHE_SHIFT);
--	off &= ~PAGE_CACHE_MASK;
-+	pagep = node->page + (off >> PAGE_SHIFT);
-+	off &= ~PAGE_MASK;
- 
--	l = min_t(int, len, PAGE_CACHE_SIZE - off);
-+	l = min_t(int, len, PAGE_SIZE - off);
- 	memcpy(buf, kmap(*pagep) + off, l);
- 	kunmap(*pagep);
- 
- 	while ((len -= l) != 0) {
- 		buf += l;
--		l = min_t(int, len, PAGE_CACHE_SIZE);
-+		l = min_t(int, len, PAGE_SIZE);
- 		memcpy(buf, kmap(*++pagep), l);
- 		kunmap(*pagep);
- 	}
-@@ -77,17 +77,17 @@ void hfs_bnode_write(struct hfs_bnode *node, void *buf, int off, int len)
- 	int l;
- 
- 	off += node->page_offset;
--	pagep = node->page + (off >> PAGE_CACHE_SHIFT);
--	off &= ~PAGE_CACHE_MASK;
-+	pagep = node->page + (off >> PAGE_SHIFT);
-+	off &= ~PAGE_MASK;
- 
--	l = min_t(int, len, PAGE_CACHE_SIZE - off);
-+	l = min_t(int, len, PAGE_SIZE - off);
- 	memcpy(kmap(*pagep) + off, buf, l);
- 	set_page_dirty(*pagep);
- 	kunmap(*pagep);
- 
- 	while ((len -= l) != 0) {
- 		buf += l;
--		l = min_t(int, len, PAGE_CACHE_SIZE);
-+		l = min_t(int, len, PAGE_SIZE);
- 		memcpy(kmap(*++pagep), buf, l);
- 		set_page_dirty(*pagep);
- 		kunmap(*pagep);
-@@ -107,16 +107,16 @@ void hfs_bnode_clear(struct hfs_bnode *node, int off, int len)
- 	int l;
- 
- 	off += node->page_offset;
--	pagep = node->page + (off >> PAGE_CACHE_SHIFT);
--	off &= ~PAGE_CACHE_MASK;
-+	pagep = node->page + (off >> PAGE_SHIFT);
-+	off &= ~PAGE_MASK;
- 
--	l = min_t(int, len, PAGE_CACHE_SIZE - off);
-+	l = min_t(int, len, PAGE_SIZE - off);
- 	memset(kmap(*pagep) + off, 0, l);
- 	set_page_dirty(*pagep);
- 	kunmap(*pagep);
- 
- 	while ((len -= l) != 0) {
--		l = min_t(int, len, PAGE_CACHE_SIZE);
-+		l = min_t(int, len, PAGE_SIZE);
- 		memset(kmap(*++pagep), 0, l);
- 		set_page_dirty(*pagep);
- 		kunmap(*pagep);
-@@ -136,20 +136,20 @@ void hfs_bnode_copy(struct hfs_bnode *dst_node, int dst,
- 	tree = src_node->tree;
- 	src += src_node->page_offset;
- 	dst += dst_node->page_offset;
--	src_page = src_node->page + (src >> PAGE_CACHE_SHIFT);
--	src &= ~PAGE_CACHE_MASK;
--	dst_page = dst_node->page + (dst >> PAGE_CACHE_SHIFT);
--	dst &= ~PAGE_CACHE_MASK;
-+	src_page = src_node->page + (src >> PAGE_SHIFT);
-+	src &= ~PAGE_MASK;
-+	dst_page = dst_node->page + (dst >> PAGE_SHIFT);
-+	dst &= ~PAGE_MASK;
- 
- 	if (src == dst) {
--		l = min_t(int, len, PAGE_CACHE_SIZE - src);
-+		l = min_t(int, len, PAGE_SIZE - src);
- 		memcpy(kmap(*dst_page) + src, kmap(*src_page) + src, l);
- 		kunmap(*src_page);
- 		set_page_dirty(*dst_page);
- 		kunmap(*dst_page);
- 
- 		while ((len -= l) != 0) {
--			l = min_t(int, len, PAGE_CACHE_SIZE);
-+			l = min_t(int, len, PAGE_SIZE);
- 			memcpy(kmap(*++dst_page), kmap(*++src_page), l);
- 			kunmap(*src_page);
- 			set_page_dirty(*dst_page);
-@@ -161,12 +161,12 @@ void hfs_bnode_copy(struct hfs_bnode *dst_node, int dst,
- 		do {
- 			src_ptr = kmap(*src_page) + src;
- 			dst_ptr = kmap(*dst_page) + dst;
--			if (PAGE_CACHE_SIZE - src < PAGE_CACHE_SIZE - dst) {
--				l = PAGE_CACHE_SIZE - src;
-+			if (PAGE_SIZE - src < PAGE_SIZE - dst) {
-+				l = PAGE_SIZE - src;
- 				src = 0;
- 				dst += l;
- 			} else {
--				l = PAGE_CACHE_SIZE - dst;
-+				l = PAGE_SIZE - dst;
- 				src += l;
- 				dst = 0;
- 			}
-@@ -195,11 +195,11 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
- 	dst += node->page_offset;
- 	if (dst > src) {
- 		src += len - 1;
--		src_page = node->page + (src >> PAGE_CACHE_SHIFT);
--		src = (src & ~PAGE_CACHE_MASK) + 1;
-+		src_page = node->page + (src >> PAGE_SHIFT);
-+		src = (src & ~PAGE_MASK) + 1;
- 		dst += len - 1;
--		dst_page = node->page + (dst >> PAGE_CACHE_SHIFT);
--		dst = (dst & ~PAGE_CACHE_MASK) + 1;
-+		dst_page = node->page + (dst >> PAGE_SHIFT);
-+		dst = (dst & ~PAGE_MASK) + 1;
- 
- 		if (src == dst) {
- 			while (src < len) {
-@@ -208,7 +208,7 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
- 				set_page_dirty(*dst_page);
- 				kunmap(*dst_page);
- 				len -= src;
--				src = PAGE_CACHE_SIZE;
-+				src = PAGE_SIZE;
- 				src_page--;
- 				dst_page--;
- 			}
-@@ -226,32 +226,32 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
- 				dst_ptr = kmap(*dst_page) + dst;
- 				if (src < dst) {
- 					l = src;
--					src = PAGE_CACHE_SIZE;
-+					src = PAGE_SIZE;
- 					dst -= l;
- 				} else {
- 					l = dst;
- 					src -= l;
--					dst = PAGE_CACHE_SIZE;
-+					dst = PAGE_SIZE;
- 				}
- 				l = min(len, l);
- 				memmove(dst_ptr - l, src_ptr - l, l);
- 				kunmap(*src_page);
- 				set_page_dirty(*dst_page);
- 				kunmap(*dst_page);
--				if (dst == PAGE_CACHE_SIZE)
-+				if (dst == PAGE_SIZE)
- 					dst_page--;
- 				else
- 					src_page--;
- 			} while ((len -= l));
- 		}
- 	} else {
--		src_page = node->page + (src >> PAGE_CACHE_SHIFT);
--		src &= ~PAGE_CACHE_MASK;
--		dst_page = node->page + (dst >> PAGE_CACHE_SHIFT);
--		dst &= ~PAGE_CACHE_MASK;
-+		src_page = node->page + (src >> PAGE_SHIFT);
-+		src &= ~PAGE_MASK;
-+		dst_page = node->page + (dst >> PAGE_SHIFT);
-+		dst &= ~PAGE_MASK;
- 
- 		if (src == dst) {
--			l = min_t(int, len, PAGE_CACHE_SIZE - src);
-+			l = min_t(int, len, PAGE_SIZE - src);
- 			memmove(kmap(*dst_page) + src,
- 				kmap(*src_page) + src, l);
- 			kunmap(*src_page);
-@@ -259,7 +259,7 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
- 			kunmap(*dst_page);
- 
- 			while ((len -= l) != 0) {
--				l = min_t(int, len, PAGE_CACHE_SIZE);
-+				l = min_t(int, len, PAGE_SIZE);
- 				memmove(kmap(*++dst_page),
- 					kmap(*++src_page), l);
- 				kunmap(*src_page);
-@@ -272,13 +272,13 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
- 			do {
- 				src_ptr = kmap(*src_page) + src;
- 				dst_ptr = kmap(*dst_page) + dst;
--				if (PAGE_CACHE_SIZE - src <
--						PAGE_CACHE_SIZE - dst) {
--					l = PAGE_CACHE_SIZE - src;
-+				if (PAGE_SIZE - src <
-+						PAGE_SIZE - dst) {
-+					l = PAGE_SIZE - src;
- 					src = 0;
- 					dst += l;
- 				} else {
--					l = PAGE_CACHE_SIZE - dst;
-+					l = PAGE_SIZE - dst;
- 					src += l;
- 					dst = 0;
- 				}
-@@ -444,14 +444,14 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
- 
- 	mapping = tree->inode->i_mapping;
- 	off = (loff_t)cnid << tree->node_size_shift;
--	block = off >> PAGE_CACHE_SHIFT;
--	node->page_offset = off & ~PAGE_CACHE_MASK;
-+	block = off >> PAGE_SHIFT;
-+	node->page_offset = off & ~PAGE_MASK;
- 	for (i = 0; i < tree->pages_per_bnode; block++, i++) {
- 		page = read_mapping_page(mapping, block, NULL);
- 		if (IS_ERR(page))
- 			goto fail;
- 		if (PageError(page)) {
--			page_cache_release(page);
-+			put_page(page);
- 			goto fail;
- 		}
- 		node->page[i] = page;
-@@ -569,7 +569,7 @@ void hfs_bnode_free(struct hfs_bnode *node)
- 
- 	for (i = 0; i < node->tree->pages_per_bnode; i++)
- 		if (node->page[i])
--			page_cache_release(node->page[i]);
-+			put_page(node->page[i]);
- 	kfree(node);
+ 	unlock_page(bh->b_page);
+-	page_cache_release(bh->b_page);
++	put_page(bh->b_page);
+ 	return bh;
  }
  
-@@ -597,11 +597,11 @@ struct hfs_bnode *hfs_bnode_create(struct hfs_btree *tree, u32 num)
+@@ -128,7 +128,7 @@ found:
  
- 	pagep = node->page;
- 	memset(kmap(*pagep) + node->page_offset, 0,
--	       min_t(int, PAGE_CACHE_SIZE, tree->node_size));
-+	       min_t(int, PAGE_SIZE, tree->node_size));
- 	set_page_dirty(*pagep);
- 	kunmap(*pagep);
- 	for (i = 1; i < tree->pages_per_bnode; i++) {
--		memset(kmap(*++pagep), 0, PAGE_CACHE_SIZE);
-+		memset(kmap(*++pagep), 0, PAGE_SIZE);
- 		set_page_dirty(*pagep);
- 		kunmap(*pagep);
- 	}
-diff --git a/fs/hfsplus/btree.c b/fs/hfsplus/btree.c
-index 3345c7553edc..d9d1a36ba826 100644
---- a/fs/hfsplus/btree.c
-+++ b/fs/hfsplus/btree.c
-@@ -236,15 +236,15 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
- 	tree->node_size_shift = ffs(size) - 1;
+ out_locked:
+ 	unlock_page(page);
+-	page_cache_release(page);
++	put_page(page);
+ 	return err;
+ }
  
- 	tree->pages_per_bnode =
--		(tree->node_size + PAGE_CACHE_SIZE - 1) >>
--		PAGE_CACHE_SHIFT;
-+		(tree->node_size + PAGE_SIZE - 1) >>
-+		PAGE_SHIFT;
+@@ -146,7 +146,7 @@ void nilfs_btnode_delete(struct buffer_head *bh)
+ 	pgoff_t index = page_index(page);
+ 	int still_dirty;
  
+-	page_cache_get(page);
++	get_page(page);
+ 	lock_page(page);
+ 	wait_on_page_writeback(page);
+ 
+@@ -154,7 +154,7 @@ void nilfs_btnode_delete(struct buffer_head *bh)
+ 	still_dirty = PageDirty(page);
+ 	mapping = page->mapping;
+ 	unlock_page(page);
+-	page_cache_release(page);
++	put_page(page);
+ 
+ 	if (!still_dirty && mapping)
+ 		invalidate_inode_pages2_range(mapping, index, index);
+@@ -181,7 +181,7 @@ int nilfs_btnode_prepare_change_key(struct address_space *btnc,
+ 	obh = ctxt->bh;
+ 	ctxt->newbh = NULL;
+ 
+-	if (inode->i_blkbits == PAGE_CACHE_SHIFT) {
++	if (inode->i_blkbits == PAGE_SHIFT) {
+ 		lock_page(obh->b_page);
+ 		/*
+ 		 * We cannot call radix_tree_preload for the kernels older
+diff --git a/fs/nilfs2/dir.c b/fs/nilfs2/dir.c
+index 6b8b92b19cec..e08f064e4bd7 100644
+--- a/fs/nilfs2/dir.c
++++ b/fs/nilfs2/dir.c
+@@ -58,7 +58,7 @@ static inline unsigned nilfs_chunk_size(struct inode *inode)
+ static inline void nilfs_put_page(struct page *page)
+ {
  	kunmap(page);
 -	page_cache_release(page);
 +	put_page(page);
- 	return tree;
- 
-  fail_page:
--	page_cache_release(page);
-+	put_page(page);
-  free_inode:
- 	tree->inode->i_mapping->a_ops = &hfsplus_aops;
- 	iput(tree->inode);
-@@ -380,9 +380,9 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
- 	off = off16;
- 
- 	off += node->page_offset;
--	pagep = node->page + (off >> PAGE_CACHE_SHIFT);
-+	pagep = node->page + (off >> PAGE_SHIFT);
- 	data = kmap(*pagep);
--	off &= ~PAGE_CACHE_MASK;
-+	off &= ~PAGE_MASK;
- 	idx = 0;
- 
- 	for (;;) {
-@@ -403,7 +403,7 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
- 					}
- 				}
- 			}
--			if (++off >= PAGE_CACHE_SIZE) {
-+			if (++off >= PAGE_SIZE) {
- 				kunmap(*pagep);
- 				data = kmap(*++pagep);
- 				off = 0;
-@@ -426,9 +426,9 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
- 		len = hfs_brec_lenoff(node, 0, &off16);
- 		off = off16;
- 		off += node->page_offset;
--		pagep = node->page + (off >> PAGE_CACHE_SHIFT);
-+		pagep = node->page + (off >> PAGE_SHIFT);
- 		data = kmap(*pagep);
--		off &= ~PAGE_CACHE_MASK;
-+		off &= ~PAGE_MASK;
- 	}
  }
  
-@@ -475,9 +475,9 @@ void hfs_bmap_free(struct hfs_bnode *node)
- 		len = hfs_brec_lenoff(node, 0, &off);
- 	}
- 	off += node->page_offset + nidx / 8;
--	page = node->page[off >> PAGE_CACHE_SHIFT];
-+	page = node->page[off >> PAGE_SHIFT];
- 	data = kmap(page);
--	off &= ~PAGE_CACHE_MASK;
-+	off &= ~PAGE_MASK;
- 	m = 1 << (~nidx & 7);
- 	byte = data[off];
- 	if (!(byte & m)) {
-diff --git a/fs/hfsplus/inode.c b/fs/hfsplus/inode.c
-index 1a6394cdb54e..b28f39865c3a 100644
---- a/fs/hfsplus/inode.c
-+++ b/fs/hfsplus/inode.c
-@@ -87,9 +87,9 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
- 	}
- 	if (!tree)
- 		return 0;
--	if (tree->node_size >= PAGE_CACHE_SIZE) {
-+	if (tree->node_size >= PAGE_SIZE) {
- 		nidx = page->index >>
--			(tree->node_size_shift - PAGE_CACHE_SHIFT);
-+			(tree->node_size_shift - PAGE_SHIFT);
- 		spin_lock(&tree->hash_lock);
- 		node = hfs_bnode_findhash(tree, nidx);
- 		if (!node)
-@@ -103,8 +103,8 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
- 		spin_unlock(&tree->hash_lock);
- 	} else {
- 		nidx = page->index <<
--			(PAGE_CACHE_SHIFT - tree->node_size_shift);
--		i = 1 << (PAGE_CACHE_SHIFT - tree->node_size_shift);
-+			(PAGE_SHIFT - tree->node_size_shift);
-+		i = 1 << (PAGE_SHIFT - tree->node_size_shift);
- 		spin_lock(&tree->hash_lock);
- 		do {
- 			node = hfs_bnode_findhash(tree, nidx++);
-diff --git a/fs/hfsplus/super.c b/fs/hfsplus/super.c
-index 5d54490a136d..c35911362ff9 100644
---- a/fs/hfsplus/super.c
-+++ b/fs/hfsplus/super.c
-@@ -438,7 +438,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
- 	err = -EFBIG;
- 	last_fs_block = sbi->total_blocks - 1;
- 	last_fs_page = (last_fs_block << sbi->alloc_blksz_shift) >>
--			PAGE_CACHE_SHIFT;
-+			PAGE_SHIFT;
+ /*
+@@ -69,9 +69,9 @@ static unsigned nilfs_last_byte(struct inode *inode, unsigned long page_nr)
+ {
+ 	unsigned last_byte = inode->i_size;
  
- 	if ((last_fs_block > (sector_t)(~0ULL) >> (sbi->alloc_blksz_shift - 9)) ||
- 	    (last_fs_page > (pgoff_t)(~0ULL))) {
-diff --git a/fs/hfsplus/xattr.c b/fs/hfsplus/xattr.c
-index ab01530b4930..70e445ff0cff 100644
---- a/fs/hfsplus/xattr.c
-+++ b/fs/hfsplus/xattr.c
-@@ -220,7 +220,7 @@ check_attr_tree_state_again:
+-	last_byte -= page_nr << PAGE_CACHE_SHIFT;
+-	if (last_byte > PAGE_CACHE_SIZE)
+-		last_byte = PAGE_CACHE_SIZE;
++	last_byte -= page_nr << PAGE_SHIFT;
++	if (last_byte > PAGE_SIZE)
++		last_byte = PAGE_SIZE;
+ 	return last_byte;
+ }
  
- 	index = 0;
- 	written = 0;
--	for (; written < node_size; index++, written += PAGE_CACHE_SIZE) {
-+	for (; written < node_size; index++, written += PAGE_SIZE) {
- 		void *kaddr;
+@@ -109,12 +109,12 @@ static void nilfs_check_page(struct page *page)
+ 	unsigned chunk_size = nilfs_chunk_size(dir);
+ 	char *kaddr = page_address(page);
+ 	unsigned offs, rec_len;
+-	unsigned limit = PAGE_CACHE_SIZE;
++	unsigned limit = PAGE_SIZE;
+ 	struct nilfs_dir_entry *p;
+ 	char *error;
  
- 		page = read_mapping_page(mapping, index, NULL);
-@@ -231,11 +231,11 @@ check_attr_tree_state_again:
+-	if ((dir->i_size >> PAGE_CACHE_SHIFT) == page->index) {
+-		limit = dir->i_size & ~PAGE_CACHE_MASK;
++	if ((dir->i_size >> PAGE_SHIFT) == page->index) {
++		limit = dir->i_size & ~PAGE_MASK;
+ 		if (limit & (chunk_size - 1))
+ 			goto Ebadsize;
+ 		if (!limit)
+@@ -161,7 +161,7 @@ Espan:
+ bad_entry:
+ 	nilfs_error(sb, "nilfs_check_page", "bad entry in directory #%lu: %s - "
+ 		    "offset=%lu, inode=%lu, rec_len=%d, name_len=%d",
+-		    dir->i_ino, error, (page->index<<PAGE_CACHE_SHIFT)+offs,
++		    dir->i_ino, error, (page->index<<PAGE_SHIFT)+offs,
+ 		    (unsigned long) le64_to_cpu(p->inode),
+ 		    rec_len, p->name_len);
+ 	goto fail;
+@@ -170,7 +170,7 @@ Eend:
+ 	nilfs_error(sb, "nilfs_check_page",
+ 		    "entry in directory #%lu spans the page boundary"
+ 		    "offset=%lu, inode=%lu",
+-		    dir->i_ino, (page->index<<PAGE_CACHE_SHIFT)+offs,
++		    dir->i_ino, (page->index<<PAGE_SHIFT)+offs,
+ 		    (unsigned long) le64_to_cpu(p->inode));
+ fail:
+ 	SetPageChecked(page);
+@@ -256,8 +256,8 @@ static int nilfs_readdir(struct file *file, struct dir_context *ctx)
+ 	loff_t pos = ctx->pos;
+ 	struct inode *inode = file_inode(file);
+ 	struct super_block *sb = inode->i_sb;
+-	unsigned int offset = pos & ~PAGE_CACHE_MASK;
+-	unsigned long n = pos >> PAGE_CACHE_SHIFT;
++	unsigned int offset = pos & ~PAGE_MASK;
++	unsigned long n = pos >> PAGE_SHIFT;
+ 	unsigned long npages = dir_pages(inode);
+ /*	unsigned chunk_mask = ~(nilfs_chunk_size(inode)-1); */
  
- 		kaddr = kmap_atomic(page);
- 		memcpy(kaddr, buf + written,
--			min_t(size_t, PAGE_CACHE_SIZE, node_size - written));
-+			min_t(size_t, PAGE_SIZE, node_size - written));
- 		kunmap_atomic(kaddr);
- 
- 		set_page_dirty(page);
+@@ -272,7 +272,7 @@ static int nilfs_readdir(struct file *file, struct dir_context *ctx)
+ 		if (IS_ERR(page)) {
+ 			nilfs_error(sb, __func__, "bad page in #%lu",
+ 				    inode->i_ino);
+-			ctx->pos += PAGE_CACHE_SIZE - offset;
++			ctx->pos += PAGE_SIZE - offset;
+ 			return -EIO;
+ 		}
+ 		kaddr = page_address(page);
+@@ -361,7 +361,7 @@ nilfs_find_entry(struct inode *dir, const struct qstr *qstr,
+ 		if (++n >= npages)
+ 			n = 0;
+ 		/* next page is past the blocks we've got */
+-		if (unlikely(n > (dir->i_blocks >> (PAGE_CACHE_SHIFT - 9)))) {
++		if (unlikely(n > (dir->i_blocks >> (PAGE_SHIFT - 9)))) {
+ 			nilfs_error(dir->i_sb, __func__,
+ 			       "dir %lu size %lld exceeds block count %llu",
+ 			       dir->i_ino, dir->i_size,
+@@ -401,7 +401,7 @@ ino_t nilfs_inode_by_name(struct inode *dir, const struct qstr *qstr)
+ 	if (de) {
+ 		res = le64_to_cpu(de->inode);
+ 		kunmap(page);
 -		page_cache_release(page);
 +		put_page(page);
  	}
+ 	return res;
+ }
+@@ -460,7 +460,7 @@ int nilfs_add_link(struct dentry *dentry, struct inode *inode)
+ 		kaddr = page_address(page);
+ 		dir_end = kaddr + nilfs_last_byte(dir, n);
+ 		de = (struct nilfs_dir_entry *)kaddr;
+-		kaddr += PAGE_CACHE_SIZE - reclen;
++		kaddr += PAGE_SIZE - reclen;
+ 		while ((char *)de <= kaddr) {
+ 			if ((char *)de == dir_end) {
+ 				/* We hit i_size */
+@@ -603,7 +603,7 @@ int nilfs_make_empty(struct inode *inode, struct inode *parent)
+ 	kunmap_atomic(kaddr);
+ 	nilfs_commit_chunk(page, mapping, 0, chunk_size);
+ fail:
+-	page_cache_release(page);
++	put_page(page);
+ 	return err;
+ }
  
- 	hfsplus_mark_inode_dirty(attr_file, HFSPLUS_I_ATTR_DIRTY);
+diff --git a/fs/nilfs2/gcinode.c b/fs/nilfs2/gcinode.c
+index 748ca238915a..0224b7826ace 100644
+--- a/fs/nilfs2/gcinode.c
++++ b/fs/nilfs2/gcinode.c
+@@ -115,7 +115,7 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
+ 
+  failed:
+ 	unlock_page(bh->b_page);
+-	page_cache_release(bh->b_page);
++	put_page(bh->b_page);
+ 	return err;
+ }
+ 
+diff --git a/fs/nilfs2/inode.c b/fs/nilfs2/inode.c
+index 21a1e2e0d92f..534631358b13 100644
+--- a/fs/nilfs2/inode.c
++++ b/fs/nilfs2/inode.c
+@@ -249,7 +249,7 @@ static int nilfs_set_page_dirty(struct page *page)
+ 		if (nr_dirty)
+ 			nilfs_set_file_dirty(inode, nr_dirty);
+ 	} else if (ret) {
+-		unsigned nr_dirty = 1 << (PAGE_CACHE_SHIFT - inode->i_blkbits);
++		unsigned nr_dirty = 1 << (PAGE_SHIFT - inode->i_blkbits);
+ 
+ 		nilfs_set_file_dirty(inode, nr_dirty);
+ 	}
+@@ -291,7 +291,7 @@ static int nilfs_write_end(struct file *file, struct address_space *mapping,
+ 			   struct page *page, void *fsdata)
+ {
+ 	struct inode *inode = mapping->host;
+-	unsigned start = pos & (PAGE_CACHE_SIZE - 1);
++	unsigned start = pos & (PAGE_SIZE - 1);
+ 	unsigned nr_dirty;
+ 	int err;
+ 
+diff --git a/fs/nilfs2/mdt.c b/fs/nilfs2/mdt.c
+index 1125f40233ff..f6982b9153d5 100644
+--- a/fs/nilfs2/mdt.c
++++ b/fs/nilfs2/mdt.c
+@@ -110,7 +110,7 @@ static int nilfs_mdt_create_block(struct inode *inode, unsigned long block,
+ 
+  failed_bh:
+ 	unlock_page(bh->b_page);
+-	page_cache_release(bh->b_page);
++	put_page(bh->b_page);
+ 	brelse(bh);
+ 
+  failed_unlock:
+@@ -170,7 +170,7 @@ nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
+ 
+  failed_bh:
+ 	unlock_page(bh->b_page);
+-	page_cache_release(bh->b_page);
++	put_page(bh->b_page);
+ 	brelse(bh);
+  failed:
+ 	return ret;
+@@ -363,7 +363,7 @@ int nilfs_mdt_delete_block(struct inode *inode, unsigned long block)
+ int nilfs_mdt_forget_block(struct inode *inode, unsigned long block)
+ {
+ 	pgoff_t index = (pgoff_t)block >>
+-		(PAGE_CACHE_SHIFT - inode->i_blkbits);
++		(PAGE_SHIFT - inode->i_blkbits);
+ 	struct page *page;
+ 	unsigned long first_block;
+ 	int ret = 0;
+@@ -376,7 +376,7 @@ int nilfs_mdt_forget_block(struct inode *inode, unsigned long block)
+ 	wait_on_page_writeback(page);
+ 
+ 	first_block = (unsigned long)index <<
+-		(PAGE_CACHE_SHIFT - inode->i_blkbits);
++		(PAGE_SHIFT - inode->i_blkbits);
+ 	if (page_has_buffers(page)) {
+ 		struct buffer_head *bh;
+ 
+@@ -385,7 +385,7 @@ int nilfs_mdt_forget_block(struct inode *inode, unsigned long block)
+ 	}
+ 	still_dirty = PageDirty(page);
+ 	unlock_page(page);
+-	page_cache_release(page);
++	put_page(page);
+ 
+ 	if (still_dirty ||
+ 	    invalidate_inode_pages2_range(inode->i_mapping, index, index) != 0)
+@@ -578,7 +578,7 @@ int nilfs_mdt_freeze_buffer(struct inode *inode, struct buffer_head *bh)
+ 	}
+ 
+ 	unlock_page(page);
+-	page_cache_release(page);
++	put_page(page);
+ 	return 0;
+ }
+ 
+@@ -597,7 +597,7 @@ nilfs_mdt_get_frozen_buffer(struct inode *inode, struct buffer_head *bh)
+ 			bh_frozen = nilfs_page_get_nth_block(page, n);
+ 		}
+ 		unlock_page(page);
+-		page_cache_release(page);
++		put_page(page);
+ 	}
+ 	return bh_frozen;
+ }
+diff --git a/fs/nilfs2/namei.c b/fs/nilfs2/namei.c
+index 7ccdb961eea9..151bc19d47c0 100644
+--- a/fs/nilfs2/namei.c
++++ b/fs/nilfs2/namei.c
+@@ -431,11 +431,11 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
+ out_dir:
+ 	if (dir_de) {
+ 		kunmap(dir_page);
+-		page_cache_release(dir_page);
++		put_page(dir_page);
+ 	}
+ out_old:
+ 	kunmap(old_page);
+-	page_cache_release(old_page);
++	put_page(old_page);
+ out:
+ 	nilfs_transaction_abort(old_dir->i_sb);
+ 	return err;
+diff --git a/fs/nilfs2/page.c b/fs/nilfs2/page.c
+index c20df77eff99..489391561cda 100644
+--- a/fs/nilfs2/page.c
++++ b/fs/nilfs2/page.c
+@@ -50,7 +50,7 @@ __nilfs_get_page_block(struct page *page, unsigned long block, pgoff_t index,
+ 	if (!page_has_buffers(page))
+ 		create_empty_buffers(page, 1 << blkbits, b_state);
+ 
+-	first_block = (unsigned long)index << (PAGE_CACHE_SHIFT - blkbits);
++	first_block = (unsigned long)index << (PAGE_SHIFT - blkbits);
+ 	bh = nilfs_page_get_nth_block(page, block - first_block);
+ 
+ 	touch_buffer(bh);
+@@ -64,7 +64,7 @@ struct buffer_head *nilfs_grab_buffer(struct inode *inode,
+ 				      unsigned long b_state)
+ {
+ 	int blkbits = inode->i_blkbits;
+-	pgoff_t index = blkoff >> (PAGE_CACHE_SHIFT - blkbits);
++	pgoff_t index = blkoff >> (PAGE_SHIFT - blkbits);
+ 	struct page *page;
+ 	struct buffer_head *bh;
+ 
+@@ -75,7 +75,7 @@ struct buffer_head *nilfs_grab_buffer(struct inode *inode,
+ 	bh = __nilfs_get_page_block(page, blkoff, index, blkbits, b_state);
+ 	if (unlikely(!bh)) {
+ 		unlock_page(page);
+-		page_cache_release(page);
++		put_page(page);
+ 		return NULL;
+ 	}
+ 	return bh;
+@@ -288,7 +288,7 @@ repeat:
+ 		__set_page_dirty_nobuffers(dpage);
+ 
+ 		unlock_page(dpage);
+-		page_cache_release(dpage);
++		put_page(dpage);
+ 		unlock_page(page);
+ 	}
+ 	pagevec_release(&pvec);
+@@ -333,7 +333,7 @@ repeat:
+ 			WARN_ON(PageDirty(dpage));
+ 			nilfs_copy_page(dpage, page, 0);
+ 			unlock_page(dpage);
+-			page_cache_release(dpage);
++			put_page(dpage);
+ 		} else {
+ 			struct page *page2;
+ 
+@@ -350,7 +350,7 @@ repeat:
+ 			if (unlikely(err < 0)) {
+ 				WARN_ON(err == -EEXIST);
+ 				page->mapping = NULL;
+-				page_cache_release(page); /* for cache */
++				put_page(page); /* for cache */
+ 			} else {
+ 				page->mapping = dmap;
+ 				dmap->nrpages++;
+@@ -523,8 +523,8 @@ unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
+ 	if (inode->i_mapping->nrpages == 0)
+ 		return 0;
+ 
+-	index = start_blk >> (PAGE_CACHE_SHIFT - inode->i_blkbits);
+-	nblocks_in_page = 1U << (PAGE_CACHE_SHIFT - inode->i_blkbits);
++	index = start_blk >> (PAGE_SHIFT - inode->i_blkbits);
++	nblocks_in_page = 1U << (PAGE_SHIFT - inode->i_blkbits);
+ 
+ 	pagevec_init(&pvec, 0);
+ 
+@@ -537,7 +537,7 @@ repeat:
+ 	if (length > 0 && pvec.pages[0]->index > index)
+ 		goto out;
+ 
+-	b = pvec.pages[0]->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
++	b = pvec.pages[0]->index << (PAGE_SHIFT - inode->i_blkbits);
+ 	i = 0;
+ 	do {
+ 		page = pvec.pages[i];
+diff --git a/fs/nilfs2/recovery.c b/fs/nilfs2/recovery.c
+index 9b4f205d1173..5afa77fadc11 100644
+--- a/fs/nilfs2/recovery.c
++++ b/fs/nilfs2/recovery.c
+@@ -544,14 +544,14 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
+ 				blocksize, page, NULL);
+ 
+ 		unlock_page(page);
+-		page_cache_release(page);
++		put_page(page);
+ 
+ 		(*nr_salvaged_blocks)++;
+ 		goto next;
+ 
+  failed_page:
+ 		unlock_page(page);
+-		page_cache_release(page);
++		put_page(page);
+ 
+  failed_inode:
+ 		printk(KERN_WARNING
+diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
+index 3b65adaae7e4..4317f72568e6 100644
+--- a/fs/nilfs2/segment.c
++++ b/fs/nilfs2/segment.c
+@@ -2070,7 +2070,7 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
+ 			goto failed_to_write;
+ 
+ 		if (nilfs_sc_cstage_get(sci) == NILFS_ST_DONE ||
+-		    nilfs->ns_blocksize_bits != PAGE_CACHE_SHIFT) {
++		    nilfs->ns_blocksize_bits != PAGE_SHIFT) {
+ 			/*
+ 			 * At this point, we avoid double buffering
+ 			 * for blocksize < pagesize because page dirty
+diff --git a/include/linux/nilfs2_fs.h b/include/linux/nilfs2_fs.h
+index 9abb763e4b86..e9fcf90b270d 100644
+--- a/include/linux/nilfs2_fs.h
++++ b/include/linux/nilfs2_fs.h
+@@ -331,7 +331,7 @@ static inline unsigned nilfs_rec_len_from_disk(__le16 dlen)
+ {
+ 	unsigned len = le16_to_cpu(dlen);
+ 
+-#if !defined(__KERNEL__) || (PAGE_CACHE_SIZE >= 65536)
++#if !defined(__KERNEL__) || (PAGE_SIZE >= 65536)
+ 	if (len == NILFS_MAX_REC_LEN)
+ 		return 1 << 16;
+ #endif
+@@ -340,7 +340,7 @@ static inline unsigned nilfs_rec_len_from_disk(__le16 dlen)
+ 
+ static inline __le16 nilfs_rec_len_to_disk(unsigned len)
+ {
+-#if !defined(__KERNEL__) || (PAGE_CACHE_SIZE >= 65536)
++#if !defined(__KERNEL__) || (PAGE_SIZE >= 65536)
+ 	if (len == (1 << 16))
+ 		return cpu_to_le16(NILFS_MAX_REC_LEN);
+ 	else if (len > (1 << 16))
 -- 
 2.7.0
 
