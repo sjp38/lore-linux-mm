@@ -1,63 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A9166B007E
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 08:42:34 -0400 (EDT)
-Received: by mail-wm0-f42.google.com with SMTP id l68so121856250wml.0
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 05:42:34 -0700 (PDT)
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
-        by mx.google.com with ESMTPS id x13si26178579wjw.168.2016.03.20.05.42.32
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A78DA6B0253
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 08:42:37 -0400 (EDT)
+Received: by mail-wm0-f53.google.com with SMTP id r129so19698180wmr.1
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 05:42:37 -0700 (PDT)
+Received: from e06smtp16.uk.ibm.com (e06smtp16.uk.ibm.com. [195.75.94.112])
+        by mx.google.com with ESMTPS id 17si2491602wjv.159.2016.03.20.05.42.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sun, 20 Mar 2016 05:42:33 -0700 (PDT)
+        Sun, 20 Mar 2016 05:42:36 -0700 (PDT)
 Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rapoport@il.ibm.com>;
-	Sun, 20 Mar 2016 12:42:32 -0000
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id DEC582190046
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 12:42:10 +0000 (GMT)
+	Sun, 20 Mar 2016 12:42:36 -0000
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 9333F1B0804B
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 12:43:04 +0000 (GMT)
 Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2KCgTsI1704328
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 12:42:29 GMT
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2KCgXlU56688700
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 12:42:33 GMT
 Received: from d06av06.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2KCgS2L016883
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 08:42:28 -0400
+	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2KCgX7L017034
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 08:42:33 -0400
 From: Mike Rapoport <rapoport@il.ibm.com>
-Subject: [PATCH 0/5] userfaultfd: extension for non cooperative uffd usage
-Date: Sun, 20 Mar 2016 14:42:16 +0200
-Message-Id: <1458477741-6942-1-git-send-email-rapoport@il.ibm.com>
+Subject: [PATCH 1/5] uffd: Split the find_userfault() routine
+Date: Sun, 20 Mar 2016 14:42:17 +0200
+Message-Id: <1458477741-6942-2-git-send-email-rapoport@il.ibm.com>
+In-Reply-To: <1458477741-6942-1-git-send-email-rapoport@il.ibm.com>
+References: <1458477741-6942-1-git-send-email-rapoport@il.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Pavel Emelyanov <xemul@parallels.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mike Rapoport <mike.rapoport@gmail.com>, Mike Rapoport <rapoport@il.ibm.com>
 
-Hi,
+From: Pavel Emelyanov <xemul@parallels.com>
 
-This set is to address the issues that appear in userfaultfd usage
-scenarios when the task monitoring the uffd and the mm-owner do not 
-cooperate to each other on VM changes such as remaps, madvises and 
-fork()-s.
+I will need one to lookup for userfaultfd_wait_queue-s in different
+wait queue
 
-The pacthes are essentially the same as in the prevoious respin (1),
-they've just been rebased on the current tree.
+Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
+Signed-off-by: Mike Rapoport <rapoport@il.ibm.com>
+---
+ fs/userfaultfd.c | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)
 
-[1] http://thread.gmane.org/gmane.linux.kernel.mm/132662
-
-Pavel Emelyanov (5):
-  uffd: Split the find_userfault() routine
-  uffd: Add ability to report non-PF events from uffd descriptor
-  uffd: Add fork() event
-  uffd: Add mremap() event
-  uffd: Add madvise() event for MADV_DONTNEED request
-
- fs/userfaultfd.c                 | 319 ++++++++++++++++++++++++++++++++++++++-
- include/linux/userfaultfd_k.h    |  41 +++++
- include/uapi/linux/userfaultfd.h |  28 +++-
- kernel/fork.c                    |  10 +-
- mm/madvise.c                     |   2 +
- mm/mremap.c                      |  17 ++-
- 6 files changed, 395 insertions(+), 22 deletions(-)
-
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 66cdb44..4f0b53d 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -483,25 +483,30 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+ }
+ 
+ /* fault_pending_wqh.lock must be hold by the caller */
+-static inline struct userfaultfd_wait_queue *find_userfault(
+-	struct userfaultfd_ctx *ctx)
++static inline struct userfaultfd_wait_queue *find_userfault_in(
++		wait_queue_head_t *wqh)
+ {
+ 	wait_queue_t *wq;
+ 	struct userfaultfd_wait_queue *uwq;
+ 
+-	VM_BUG_ON(!spin_is_locked(&ctx->fault_pending_wqh.lock));
++	VM_BUG_ON(!spin_is_locked(&wqh->lock));
+ 
+ 	uwq = NULL;
+-	if (!waitqueue_active(&ctx->fault_pending_wqh))
++	if (!waitqueue_active(wqh))
+ 		goto out;
+ 	/* walk in reverse to provide FIFO behavior to read userfaults */
+-	wq = list_last_entry(&ctx->fault_pending_wqh.task_list,
+-			     typeof(*wq), task_list);
++	wq = list_last_entry(&wqh->task_list, typeof(*wq), task_list);
+ 	uwq = container_of(wq, struct userfaultfd_wait_queue, wq);
+ out:
+ 	return uwq;
+ }
+ 
++static inline struct userfaultfd_wait_queue *find_userfault(
++		struct userfaultfd_ctx *ctx)
++{
++	return find_userfault_in(&ctx->fault_pending_wqh);
++}
++
+ static unsigned int userfaultfd_poll(struct file *file, poll_table *wait)
+ {
+ 	struct userfaultfd_ctx *ctx = file->private_data;
 -- 
 1.9.1
 
