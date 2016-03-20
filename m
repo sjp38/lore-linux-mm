@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id B29E0828DF
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:41:54 -0400 (EDT)
-Received: by mail-pf0-f181.google.com with SMTP id u190so238217054pfb.3
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:41:54 -0700 (PDT)
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B5BA0828DF
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:41:56 -0400 (EDT)
+Received: by mail-pf0-f171.google.com with SMTP id u190so238217626pfb.3
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:41:56 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id yk10si11846756pac.24.2016.03.20.11.41.42
+        by mx.google.com with ESMTP id 24si2318154pfq.155.2016.03.20.11.41.42
         for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 11:41:42 -0700 (PDT)
+        Sun, 20 Mar 2016 11:41:43 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 14/71] oprofile: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:21 +0300
-Message-Id: <1458499278-1516-15-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 10/71] drivers/misc: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:40:17 +0300
+Message-Id: <1458499278-1516-11-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Robert Richter <rric@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,26 +46,41 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Robert Richter <rric@kernel.org>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- drivers/oprofile/oprofilefs.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ drivers/misc/ibmasm/ibmasmfs.c          | 4 ++--
+ drivers/misc/vmw_vmci/vmci_queue_pair.c | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/oprofile/oprofilefs.c b/drivers/oprofile/oprofilefs.c
-index b48ac6300c79..a0e5260bd006 100644
---- a/drivers/oprofile/oprofilefs.c
-+++ b/drivers/oprofile/oprofilefs.c
-@@ -239,8 +239,8 @@ static int oprofilefs_fill_super(struct super_block *sb, void *data, int silent)
+diff --git a/drivers/misc/ibmasm/ibmasmfs.c b/drivers/misc/ibmasm/ibmasmfs.c
+index e8b933111e0d..9c677f3f3c26 100644
+--- a/drivers/misc/ibmasm/ibmasmfs.c
++++ b/drivers/misc/ibmasm/ibmasmfs.c
+@@ -116,8 +116,8 @@ static int ibmasmfs_fill_super (struct super_block *sb, void *data, int silent)
  {
- 	struct inode *root_inode;
+ 	struct inode *root;
  
 -	sb->s_blocksize = PAGE_CACHE_SIZE;
 -	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 +	sb->s_blocksize = PAGE_SIZE;
 +	sb->s_blocksize_bits = PAGE_SHIFT;
- 	sb->s_magic = OPROFILEFS_MAGIC;
- 	sb->s_op = &s_ops;
+ 	sb->s_magic = IBMASMFS_MAGIC;
+ 	sb->s_op = &ibmasmfs_s_ops;
  	sb->s_time_gran = 1;
+diff --git a/drivers/misc/vmw_vmci/vmci_queue_pair.c b/drivers/misc/vmw_vmci/vmci_queue_pair.c
+index f42d9c4e4561..f84a4275ca29 100644
+--- a/drivers/misc/vmw_vmci/vmci_queue_pair.c
++++ b/drivers/misc/vmw_vmci/vmci_queue_pair.c
+@@ -728,7 +728,7 @@ static void qp_release_pages(struct page **pages,
+ 		if (dirty)
+ 			set_page_dirty(pages[i]);
+ 
+-		page_cache_release(pages[i]);
++		put_page(pages[i]);
+ 		pages[i] = NULL;
+ 	}
+ }
 -- 
 2.7.0
 
