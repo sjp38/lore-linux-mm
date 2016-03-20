@@ -1,72 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id BD747830AE
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:50:14 -0400 (EDT)
-Received: by mail-pf0-f180.google.com with SMTP id x3so237593593pfb.1
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:50:14 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id oi7si1467849pab.183.2016.03.20.11.41.51
-        for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 11:41:51 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 57/71] ramfs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:41:04 +0300
-Message-Id: <1458499278-1516-58-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 74D35830AE
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:54:57 -0400 (EDT)
+Received: by mail-ig0-f170.google.com with SMTP id ig19so72011027igb.0
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:54:57 -0700 (PDT)
+Received: from mail-ig0-x241.google.com (mail-ig0-x241.google.com. [2607:f8b0:4001:c05::241])
+        by mx.google.com with ESMTPS id ga4si5992435igd.34.2016.03.20.11.54.56
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 20 Mar 2016 11:54:56 -0700 (PDT)
+Received: by mail-ig0-x241.google.com with SMTP id nt3so8186244igb.0
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:54:56 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1458499278-1516-2-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1458499278-1516-2-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Sun, 20 Mar 2016 11:54:56 -0700
+Message-ID: <CA+55aFzSqbT+wQFmpaF+g8snk4AZ7oW7dheOUeqJq2qA5tytrw@mail.gmail.com>
+Subject: Re: [PATCH 01/71] arc: get rid of PAGE_CACHE_* and
+ page_cache_{get,release} macros
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: multipart/alternative; boundary=001a1134b8202a3f78052e7f84e4
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Christoph Lameter <cl@linux.com>, Al Viro <viro@zeniv.linux.org.uk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Matthew Wilcox <willy@linux.intel.com>, Vineet Gupta <vgupta@synopsys.com>, linux-mm <linux-mm@kvack.org>
 
-PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
-with promise that one day it will be possible to implement page cache with
-bigger chunks than PAGE_SIZE.
+--001a1134b8202a3f78052e7f84e4
+Content-Type: text/plain; charset=UTF-8
 
-This promise never materialized. And unlikely will.
+I'm OK with this, but let's not do this as a hundred small patches, OK?
 
-We have many places where PAGE_CACHE_SIZE assumed to be equal to
-PAGE_SIZE. And it's constant source of confusion on whether PAGE_CACHE_*
-or PAGE_* constant should be used in a particular case, especially on the
-border between fs and mm.
+It doesn't help legibility or testing, so let's just do it in one big go.
 
-Global switching to PAGE_CACHE_SIZE != PAGE_SIZE would cause to much
-breakage to be doable.
+    Linus
 
-Let's stop pretending that pages in page cache are special. They are not.
+On Mar 20, 2016 11:41 AM, "Kirill A. Shutemov" <
+kirill.shutemov@linux.intel.com> wrote:
+>
+> PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
+> with promise that one day it will be possible to implement page cache with
+> bigger chunks than PAGE_SIZE.
+>
+> This promise never materialized. And unlikely will.
 
-The changes are pretty straight-forward:
+--001a1134b8202a3f78052e7f84e4
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
- - <foo> << (PAGE_CACHE_SHIFT - PAGE_SHIFT) -> <foo>;
+<p dir=3D"ltr">I&#39;m OK with this, but let&#39;s not do this as a hundred=
+ small patches, OK? </p>
+<p dir=3D"ltr">It doesn&#39;t help legibility or testing, so let&#39;s just=
+ do it in one big go.</p>
+<p dir=3D"ltr">=C2=A0=C2=A0=C2=A0 Linus</p>
+<p dir=3D"ltr">On Mar 20, 2016 11:41 AM, &quot;Kirill A. Shutemov&quot; &lt=
+;<a href=3D"mailto:kirill.shutemov@linux.intel.com">kirill.shutemov@linux.i=
+ntel.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt; PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time =
+ago<br>
+&gt; with promise that one day it will be possible to implement page cache =
+with<br>
+&gt; bigger chunks than PAGE_SIZE.<br>
+&gt;<br>
+&gt; This promise never materialized. And unlikely will.<br>
+</p>
 
- - PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} -> PAGE_{SIZE,SHIFT,MASK,ALIGN};
-
- - page_cache_get() -> get_page();
-
- - page_cache_release() -> put_page();
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- fs/ramfs/inode.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/fs/ramfs/inode.c b/fs/ramfs/inode.c
-index 38981b037524..1ab6e6c2e60e 100644
---- a/fs/ramfs/inode.c
-+++ b/fs/ramfs/inode.c
-@@ -223,8 +223,8 @@ int ramfs_fill_super(struct super_block *sb, void *data, int silent)
- 		return err;
- 
- 	sb->s_maxbytes		= MAX_LFS_FILESIZE;
--	sb->s_blocksize		= PAGE_CACHE_SIZE;
--	sb->s_blocksize_bits	= PAGE_CACHE_SHIFT;
-+	sb->s_blocksize		= PAGE_SIZE;
-+	sb->s_blocksize_bits	= PAGE_SHIFT;
- 	sb->s_magic		= RAMFS_MAGIC;
- 	sb->s_op		= &ramfs_ops;
- 	sb->s_time_gran		= 1;
--- 
-2.7.0
+--001a1134b8202a3f78052e7f84e4--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
