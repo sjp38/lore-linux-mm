@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D70582F60
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:47:29 -0400 (EDT)
-Received: by mail-pf0-f179.google.com with SMTP id x3so237546980pfb.1
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:47:29 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ds16si10308712pac.149.2016.03.20.11.41.50
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 5899182F60
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:47:30 -0400 (EDT)
+Received: by mail-pf0-f180.google.com with SMTP id u190so238313121pfb.3
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:47:30 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id tr4si13932449pac.222.2016.03.20.11.41.46
         for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 11:41:50 -0700 (PDT)
+        Sun, 20 Mar 2016 11:41:46 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 47/71] logfs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:54 +0300
-Message-Id: <1458499278-1516-48-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 29/71] ecryptfs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:40:36 +0300
+Message-Id: <1458499278-1516-30-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Joern Engel <joern@logfs.org>, Prasad Joshi <prasadjoshi.linux@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tyler Hicks <tyhicks@canonical.com>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,464 +46,403 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Joern Engel <joern@logfs.org>
-Cc: Prasad Joshi <prasadjoshi.linux@gmail.com>
+Cc: Tyler Hicks <tyhicks@canonical.com>
 ---
- fs/logfs/dev_bdev.c  |  2 +-
- fs/logfs/dev_mtd.c   | 10 +++++-----
- fs/logfs/dir.c       | 12 ++++++------
- fs/logfs/file.c      | 26 +++++++++++++-------------
- fs/logfs/readwrite.c | 20 ++++++++++----------
- fs/logfs/segment.c   | 28 ++++++++++++++--------------
- fs/logfs/super.c     | 16 ++++++++--------
- 7 files changed, 57 insertions(+), 57 deletions(-)
+ fs/ecryptfs/crypto.c     | 22 +++++++++++-----------
+ fs/ecryptfs/inode.c      |  8 ++++----
+ fs/ecryptfs/keystore.c   |  2 +-
+ fs/ecryptfs/main.c       |  8 ++++----
+ fs/ecryptfs/mmap.c       | 44 ++++++++++++++++++++++----------------------
+ fs/ecryptfs/read_write.c | 14 +++++++-------
+ 6 files changed, 49 insertions(+), 49 deletions(-)
 
-diff --git a/fs/logfs/dev_bdev.c b/fs/logfs/dev_bdev.c
-index a709d80c8ebc..cc26f8f215f5 100644
---- a/fs/logfs/dev_bdev.c
-+++ b/fs/logfs/dev_bdev.c
-@@ -64,7 +64,7 @@ static void writeseg_end_io(struct bio *bio)
- 
- 	bio_for_each_segment_all(bvec, bio, i) {
- 		end_page_writeback(bvec->bv_page);
--		page_cache_release(bvec->bv_page);
-+		put_page(bvec->bv_page);
- 	}
- 	bio_put(bio);
- 	if (atomic_dec_and_test(&super->s_pending_writes))
-diff --git a/fs/logfs/dev_mtd.c b/fs/logfs/dev_mtd.c
-index 9c501449450d..b76a62b1978f 100644
---- a/fs/logfs/dev_mtd.c
-+++ b/fs/logfs/dev_mtd.c
-@@ -46,9 +46,9 @@ static int loffs_mtd_write(struct super_block *sb, loff_t ofs, size_t len,
- 
- 	BUG_ON((ofs >= mtd->size) || (len > mtd->size - ofs));
- 	BUG_ON(ofs != (ofs >> super->s_writeshift) << super->s_writeshift);
--	BUG_ON(len > PAGE_CACHE_SIZE);
--	page_start = ofs & PAGE_CACHE_MASK;
--	page_end = PAGE_CACHE_ALIGN(ofs + len) - 1;
-+	BUG_ON(len > PAGE_SIZE);
-+	page_start = ofs & PAGE_MASK;
-+	page_end = PAGE_ALIGN(ofs + len) - 1;
- 	ret = mtd_write(mtd, ofs, len, &retlen, buf);
- 	if (ret || (retlen != len))
- 		return -EIO;
-@@ -82,7 +82,7 @@ static int logfs_mtd_erase_mapping(struct super_block *sb, loff_t ofs,
- 		if (!page)
- 			continue;
- 		memset(page_address(page), 0xFF, PAGE_SIZE);
--		page_cache_release(page);
-+		put_page(page);
- 	}
- 	return 0;
- }
-@@ -195,7 +195,7 @@ static int __logfs_mtd_writeseg(struct super_block *sb, u64 ofs, pgoff_t index,
- 		err = loffs_mtd_write(sb, page->index << PAGE_SHIFT, PAGE_SIZE,
- 					page_address(page));
- 		unlock_page(page);
--		page_cache_release(page);
-+		put_page(page);
- 		if (err)
- 			return err;
- 	}
-diff --git a/fs/logfs/dir.c b/fs/logfs/dir.c
-index 542468e9bfb4..ddbed2be5366 100644
---- a/fs/logfs/dir.c
-+++ b/fs/logfs/dir.c
-@@ -183,7 +183,7 @@ static struct page *logfs_get_dd_page(struct inode *dir, struct dentry *dentry)
- 		if (name->len != be16_to_cpu(dd->namelen) ||
- 				memcmp(name->name, dd->name, name->len)) {
- 			kunmap_atomic(dd);
--			page_cache_release(page);
-+			put_page(page);
- 			continue;
- 		}
- 
-@@ -238,7 +238,7 @@ static int logfs_unlink(struct inode *dir, struct dentry *dentry)
- 		return PTR_ERR(page);
- 	}
- 	index = page->index;
--	page_cache_release(page);
-+	put_page(page);
- 
- 	mutex_lock(&super->s_dirop_mutex);
- 	logfs_add_transaction(dir, ta);
-@@ -316,7 +316,7 @@ static int logfs_readdir(struct file *file, struct dir_context *ctx)
- 				be16_to_cpu(dd->namelen),
- 				be64_to_cpu(dd->ino), dd->type);
- 		kunmap(page);
--		page_cache_release(page);
-+		put_page(page);
- 		if (full)
- 			break;
- 	}
-@@ -349,7 +349,7 @@ static struct dentry *logfs_lookup(struct inode *dir, struct dentry *dentry,
- 	dd = kmap_atomic(page);
- 	ino = be64_to_cpu(dd->ino);
- 	kunmap_atomic(dd);
--	page_cache_release(page);
-+	put_page(page);
- 
- 	inode = logfs_iget(dir->i_sb, ino);
- 	if (IS_ERR(inode))
-@@ -392,7 +392,7 @@ static int logfs_write_dir(struct inode *dir, struct dentry *dentry,
- 
- 		err = logfs_write_buf(dir, page, WF_LOCK);
- 		unlock_page(page);
--		page_cache_release(page);
-+		put_page(page);
- 		if (!err)
- 			grow_dir(dir, index);
- 		return err;
-@@ -561,7 +561,7 @@ static int logfs_get_dd(struct inode *dir, struct dentry *dentry,
- 	map = kmap_atomic(page);
- 	memcpy(dd, map, sizeof(*dd));
- 	kunmap_atomic(map);
--	page_cache_release(page);
-+	put_page(page);
- 	return 0;
- }
- 
-diff --git a/fs/logfs/file.c b/fs/logfs/file.c
-index 61eaeb1b6cac..f01ddfb1a03b 100644
---- a/fs/logfs/file.c
-+++ b/fs/logfs/file.c
-@@ -15,21 +15,21 @@ static int logfs_write_begin(struct file *file, struct address_space *mapping,
+diff --git a/fs/ecryptfs/crypto.c b/fs/ecryptfs/crypto.c
+index 64026e53722a..d09cb4cdd09f 100644
+--- a/fs/ecryptfs/crypto.c
++++ b/fs/ecryptfs/crypto.c
+@@ -286,7 +286,7 @@ int virt_to_scatterlist(const void *addr, int size, struct scatterlist *sg,
+ 		pg = virt_to_page(addr);
+ 		offset = offset_in_page(addr);
+ 		sg_set_page(&sg[i], pg, 0, offset);
+-		remainder_of_page = PAGE_CACHE_SIZE - offset;
++		remainder_of_page = PAGE_SIZE - offset;
+ 		if (size >= remainder_of_page) {
+ 			sg[i].length = remainder_of_page;
+ 			addr += remainder_of_page;
+@@ -400,7 +400,7 @@ static loff_t lower_offset_for_page(struct ecryptfs_crypt_stat *crypt_stat,
+ 				    struct page *page)
  {
- 	struct inode *inode = mapping->host;
- 	struct page *page;
+ 	return ecryptfs_lower_header_size(crypt_stat) +
+-	       ((loff_t)page->index << PAGE_CACHE_SHIFT);
++	       ((loff_t)page->index << PAGE_SHIFT);
+ }
+ 
+ /**
+@@ -428,7 +428,7 @@ static int crypt_extent(struct ecryptfs_crypt_stat *crypt_stat,
+ 	size_t extent_size = crypt_stat->extent_size;
+ 	int rc;
+ 
+-	extent_base = (((loff_t)page_index) * (PAGE_CACHE_SIZE / extent_size));
++	extent_base = (((loff_t)page_index) * (PAGE_SIZE / extent_size));
+ 	rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
+ 				(extent_base + extent_offset));
+ 	if (rc) {
+@@ -498,7 +498,7 @@ int ecryptfs_encrypt_page(struct page *page)
+ 	}
+ 
+ 	for (extent_offset = 0;
+-	     extent_offset < (PAGE_CACHE_SIZE / crypt_stat->extent_size);
++	     extent_offset < (PAGE_SIZE / crypt_stat->extent_size);
+ 	     extent_offset++) {
+ 		rc = crypt_extent(crypt_stat, enc_extent_page, page,
+ 				  extent_offset, ENCRYPT);
+@@ -512,7 +512,7 @@ int ecryptfs_encrypt_page(struct page *page)
+ 	lower_offset = lower_offset_for_page(crypt_stat, page);
+ 	enc_extent_virt = kmap(enc_extent_page);
+ 	rc = ecryptfs_write_lower(ecryptfs_inode, enc_extent_virt, lower_offset,
+-				  PAGE_CACHE_SIZE);
++				  PAGE_SIZE);
+ 	kunmap(enc_extent_page);
+ 	if (rc < 0) {
+ 		ecryptfs_printk(KERN_ERR,
+@@ -560,7 +560,7 @@ int ecryptfs_decrypt_page(struct page *page)
+ 
+ 	lower_offset = lower_offset_for_page(crypt_stat, page);
+ 	page_virt = kmap(page);
+-	rc = ecryptfs_read_lower(page_virt, lower_offset, PAGE_CACHE_SIZE,
++	rc = ecryptfs_read_lower(page_virt, lower_offset, PAGE_SIZE,
+ 				 ecryptfs_inode);
+ 	kunmap(page);
+ 	if (rc < 0) {
+@@ -571,7 +571,7 @@ int ecryptfs_decrypt_page(struct page *page)
+ 	}
+ 
+ 	for (extent_offset = 0;
+-	     extent_offset < (PAGE_CACHE_SIZE / crypt_stat->extent_size);
++	     extent_offset < (PAGE_SIZE / crypt_stat->extent_size);
+ 	     extent_offset++) {
+ 		rc = crypt_extent(crypt_stat, page, page,
+ 				  extent_offset, DECRYPT);
+@@ -659,11 +659,11 @@ void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat)
+ 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
+ 		crypt_stat->metadata_size = ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
+ 	else {
+-		if (PAGE_CACHE_SIZE <= ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE)
++		if (PAGE_SIZE <= ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE)
+ 			crypt_stat->metadata_size =
+ 				ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
+ 		else
+-			crypt_stat->metadata_size = PAGE_CACHE_SIZE;
++			crypt_stat->metadata_size = PAGE_SIZE;
+ 	}
+ }
+ 
+@@ -1442,7 +1442,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
+ 						ECRYPTFS_VALIDATE_HEADER_SIZE);
+ 	if (rc) {
+ 		/* metadata is not in the file header, so try xattrs */
+-		memset(page_virt, 0, PAGE_CACHE_SIZE);
++		memset(page_virt, 0, PAGE_SIZE);
+ 		rc = ecryptfs_read_xattr_region(page_virt, ecryptfs_inode);
+ 		if (rc) {
+ 			printk(KERN_DEBUG "Valid eCryptfs headers not found in "
+@@ -1475,7 +1475,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
+ 	}
+ out:
+ 	if (page_virt) {
+-		memset(page_virt, 0, PAGE_CACHE_SIZE);
++		memset(page_virt, 0, PAGE_SIZE);
+ 		kmem_cache_free(ecryptfs_header_cache, page_virt);
+ 	}
+ 	return rc;
+diff --git a/fs/ecryptfs/inode.c b/fs/ecryptfs/inode.c
+index 121114e9a464..224b49e71aa4 100644
+--- a/fs/ecryptfs/inode.c
++++ b/fs/ecryptfs/inode.c
+@@ -763,10 +763,10 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
+ 	} else { /* ia->ia_size < i_size_read(inode) */
+ 		/* We're chopping off all the pages down to the page
+ 		 * in which ia->ia_size is located. Fill in the end of
+-		 * that page from (ia->ia_size & ~PAGE_CACHE_MASK) to
+-		 * PAGE_CACHE_SIZE with zeros. */
+-		size_t num_zeros = (PAGE_CACHE_SIZE
+-				    - (ia->ia_size & ~PAGE_CACHE_MASK));
++		 * that page from (ia->ia_size & ~PAGE_MASK) to
++		 * PAGE_SIZE with zeros. */
++		size_t num_zeros = (PAGE_SIZE
++				    - (ia->ia_size & ~PAGE_MASK));
+ 
+ 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
+ 			truncate_setsize(inode, ia->ia_size);
+diff --git a/fs/ecryptfs/keystore.c b/fs/ecryptfs/keystore.c
+index c5c84dfb5b3e..3274c469b42f 100644
+--- a/fs/ecryptfs/keystore.c
++++ b/fs/ecryptfs/keystore.c
+@@ -1800,7 +1800,7 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
+ 	 * added the our &auth_tok_list */
+ 	next_packet_is_auth_tok_packet = 1;
+ 	while (next_packet_is_auth_tok_packet) {
+-		size_t max_packet_size = ((PAGE_CACHE_SIZE - 8) - i);
++		size_t max_packet_size = ((PAGE_SIZE - 8) - i);
+ 
+ 		switch (src[i]) {
+ 		case ECRYPTFS_TAG_3_PACKET_TYPE:
+diff --git a/fs/ecryptfs/main.c b/fs/ecryptfs/main.c
+index 8b0b4a73116d..1698132d0e57 100644
+--- a/fs/ecryptfs/main.c
++++ b/fs/ecryptfs/main.c
+@@ -695,12 +695,12 @@ static struct ecryptfs_cache_info {
+ 	{
+ 		.cache = &ecryptfs_header_cache,
+ 		.name = "ecryptfs_headers",
+-		.size = PAGE_CACHE_SIZE,
++		.size = PAGE_SIZE,
+ 	},
+ 	{
+ 		.cache = &ecryptfs_xattr_cache,
+ 		.name = "ecryptfs_xattr_cache",
+-		.size = PAGE_CACHE_SIZE,
++		.size = PAGE_SIZE,
+ 	},
+ 	{
+ 		.cache = &ecryptfs_key_record_cache,
+@@ -818,7 +818,7 @@ static int __init ecryptfs_init(void)
+ {
+ 	int rc;
+ 
+-	if (ECRYPTFS_DEFAULT_EXTENT_SIZE > PAGE_CACHE_SIZE) {
++	if (ECRYPTFS_DEFAULT_EXTENT_SIZE > PAGE_SIZE) {
+ 		rc = -EINVAL;
+ 		ecryptfs_printk(KERN_ERR, "The eCryptfs extent size is "
+ 				"larger than the host's page size, and so "
+@@ -826,7 +826,7 @@ static int __init ecryptfs_init(void)
+ 				"default eCryptfs extent size is [%u] bytes; "
+ 				"the page size is [%lu] bytes.\n",
+ 				ECRYPTFS_DEFAULT_EXTENT_SIZE,
+-				(unsigned long)PAGE_CACHE_SIZE);
++				(unsigned long)PAGE_SIZE);
+ 		goto out;
+ 	}
+ 	rc = ecryptfs_init_kmem_caches();
+diff --git a/fs/ecryptfs/mmap.c b/fs/ecryptfs/mmap.c
+index 1f5865263b3e..e6b1d80952b9 100644
+--- a/fs/ecryptfs/mmap.c
++++ b/fs/ecryptfs/mmap.c
+@@ -122,7 +122,7 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
+ 				       struct ecryptfs_crypt_stat *crypt_stat)
+ {
+ 	loff_t extent_num_in_page = 0;
+-	loff_t num_extents_per_page = (PAGE_CACHE_SIZE
++	loff_t num_extents_per_page = (PAGE_SIZE
+ 				       / crypt_stat->extent_size);
+ 	int rc = 0;
+ 
+@@ -138,7 +138,7 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
+ 			char *page_virt;
+ 
+ 			page_virt = kmap_atomic(page);
+-			memset(page_virt, 0, PAGE_CACHE_SIZE);
++			memset(page_virt, 0, PAGE_SIZE);
+ 			/* TODO: Support more than one header extent */
+ 			if (view_extent_num == 0) {
+ 				size_t written;
+@@ -164,8 +164,8 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
+ 				 - crypt_stat->metadata_size);
+ 
+ 			rc = ecryptfs_read_lower_page_segment(
+-				page, (lower_offset >> PAGE_CACHE_SHIFT),
+-				(lower_offset & ~PAGE_CACHE_MASK),
++				page, (lower_offset >> PAGE_SHIFT),
++				(lower_offset & ~PAGE_MASK),
+ 				crypt_stat->extent_size, page->mapping->host);
+ 			if (rc) {
+ 				printk(KERN_ERR "%s: Error attempting to read "
+@@ -198,7 +198,7 @@ static int ecryptfs_readpage(struct file *file, struct page *page)
+ 
+ 	if (!crypt_stat || !(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
+ 		rc = ecryptfs_read_lower_page_segment(page, page->index, 0,
+-						      PAGE_CACHE_SIZE,
++						      PAGE_SIZE,
+ 						      page->mapping->host);
+ 	} else if (crypt_stat->flags & ECRYPTFS_VIEW_AS_ENCRYPTED) {
+ 		if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR) {
+@@ -215,7 +215,7 @@ static int ecryptfs_readpage(struct file *file, struct page *page)
+ 
+ 		} else {
+ 			rc = ecryptfs_read_lower_page_segment(
+-				page, page->index, 0, PAGE_CACHE_SIZE,
++				page, page->index, 0, PAGE_SIZE,
+ 				page->mapping->host);
+ 			if (rc) {
+ 				printk(KERN_ERR "Error reading page; rc = "
+@@ -250,12 +250,12 @@ static int fill_zeros_to_end_of_page(struct page *page, unsigned int to)
+ 	struct inode *inode = page->mapping->host;
+ 	int end_byte_in_page;
+ 
+-	if ((i_size_read(inode) / PAGE_CACHE_SIZE) != page->index)
++	if ((i_size_read(inode) / PAGE_SIZE) != page->index)
+ 		goto out;
+-	end_byte_in_page = i_size_read(inode) % PAGE_CACHE_SIZE;
++	end_byte_in_page = i_size_read(inode) % PAGE_SIZE;
+ 	if (to > end_byte_in_page)
+ 		end_byte_in_page = to;
+-	zero_user_segment(page, end_byte_in_page, PAGE_CACHE_SIZE);
++	zero_user_segment(page, end_byte_in_page, PAGE_SIZE);
+ out:
+ 	return 0;
+ }
+@@ -279,7 +279,7 @@ static int ecryptfs_write_begin(struct file *file,
+ 			loff_t pos, unsigned len, unsigned flags,
+ 			struct page **pagep, void **fsdata)
+ {
 -	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 +	pgoff_t index = pos >> PAGE_SHIFT;
- 
- 	page = grab_cache_page_write_begin(mapping, index, flags);
- 	if (!page)
+ 	struct page *page;
+ 	loff_t prev_page_end_size;
+ 	int rc = 0;
+@@ -289,14 +289,14 @@ static int ecryptfs_write_begin(struct file *file,
  		return -ENOMEM;
  	*pagep = page;
  
--	if ((len == PAGE_CACHE_SIZE) || PageUptodate(page))
-+	if ((len == PAGE_SIZE) || PageUptodate(page))
- 		return 0;
--	if ((pos & PAGE_CACHE_MASK) >= i_size_read(inode)) {
--		unsigned start = pos & (PAGE_CACHE_SIZE - 1);
-+	if ((pos & PAGE_MASK) >= i_size_read(inode)) {
-+		unsigned start = pos & (PAGE_SIZE - 1);
- 		unsigned end = start + len;
+-	prev_page_end_size = ((loff_t)index << PAGE_CACHE_SHIFT);
++	prev_page_end_size = ((loff_t)index << PAGE_SHIFT);
+ 	if (!PageUptodate(page)) {
+ 		struct ecryptfs_crypt_stat *crypt_stat =
+ 			&ecryptfs_inode_to_private(mapping->host)->crypt_stat;
  
- 		/* Reading beyond i_size is simple: memset to zero */
--		zero_user_segments(page, 0, start, end, PAGE_CACHE_SIZE);
-+		zero_user_segments(page, 0, start, end, PAGE_SIZE);
- 		return 0;
+ 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
+ 			rc = ecryptfs_read_lower_page_segment(
+-				page, index, 0, PAGE_CACHE_SIZE, mapping->host);
++				page, index, 0, PAGE_SIZE, mapping->host);
+ 			if (rc) {
+ 				printk(KERN_ERR "%s: Error attempting to read "
+ 				       "lower page segment; rc = [%d]\n",
+@@ -322,7 +322,7 @@ static int ecryptfs_write_begin(struct file *file,
+ 				SetPageUptodate(page);
+ 			} else {
+ 				rc = ecryptfs_read_lower_page_segment(
+-					page, index, 0, PAGE_CACHE_SIZE,
++					page, index, 0, PAGE_SIZE,
+ 					mapping->host);
+ 				if (rc) {
+ 					printk(KERN_ERR "%s: Error reading "
+@@ -336,9 +336,9 @@ static int ecryptfs_write_begin(struct file *file,
+ 		} else {
+ 			if (prev_page_end_size
+ 			    >= i_size_read(page->mapping->host)) {
+-				zero_user(page, 0, PAGE_CACHE_SIZE);
++				zero_user(page, 0, PAGE_SIZE);
+ 				SetPageUptodate(page);
+-			} else if (len < PAGE_CACHE_SIZE) {
++			} else if (len < PAGE_SIZE) {
+ 				rc = ecryptfs_decrypt_page(page);
+ 				if (rc) {
+ 					printk(KERN_ERR "%s: Error decrypting "
+@@ -371,11 +371,11 @@ static int ecryptfs_write_begin(struct file *file,
+ 	 * of page?  Zero it out. */
+ 	if ((i_size_read(mapping->host) == prev_page_end_size)
+ 	    && (pos != 0))
+-		zero_user(page, 0, PAGE_CACHE_SIZE);
++		zero_user(page, 0, PAGE_SIZE);
+ out:
+ 	if (unlikely(rc)) {
+ 		unlock_page(page);
+-		page_cache_release(page);
++		put_page(page);
+ 		*pagep = NULL;
  	}
- 	return logfs_readpage_nolock(page);
-@@ -41,11 +41,11 @@ static int logfs_write_end(struct file *file, struct address_space *mapping,
+ 	return rc;
+@@ -437,7 +437,7 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
+ 	}
+ 	inode_lock(lower_inode);
+ 	size = lower_inode->i_op->getxattr(lower_dentry, ECRYPTFS_XATTR_NAME,
+-					   xattr_virt, PAGE_CACHE_SIZE);
++					   xattr_virt, PAGE_SIZE);
+ 	if (size < 0)
+ 		size = 8;
+ 	put_unaligned_be64(i_size_read(ecryptfs_inode), xattr_virt);
+@@ -479,8 +479,8 @@ static int ecryptfs_write_end(struct file *file,
+ 			loff_t pos, unsigned len, unsigned copied,
+ 			struct page *page, void *fsdata)
  {
- 	struct inode *inode = mapping->host;
- 	pgoff_t index = page->index;
--	unsigned start = pos & (PAGE_CACHE_SIZE - 1);
-+	unsigned start = pos & (PAGE_SIZE - 1);
- 	unsigned end = start + copied;
- 	int ret = 0;
- 
--	BUG_ON(PAGE_CACHE_SIZE != inode->i_sb->s_blocksize);
-+	BUG_ON(PAGE_SIZE != inode->i_sb->s_blocksize);
- 	BUG_ON(page->index > I3_BLOCKS);
- 
- 	if (copied < len) {
-@@ -61,8 +61,8 @@ static int logfs_write_end(struct file *file, struct address_space *mapping,
- 	if (copied == 0)
- 		goto out; /* FIXME: do we need to update inode? */
- 
--	if (i_size_read(inode) < (index << PAGE_CACHE_SHIFT) + end) {
--		i_size_write(inode, (index << PAGE_CACHE_SHIFT) + end);
-+	if (i_size_read(inode) < (index << PAGE_SHIFT) + end) {
-+		i_size_write(inode, (index << PAGE_SHIFT) + end);
- 		mark_inode_dirty_sync(inode);
+-	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+-	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
++	pgoff_t index = pos >> PAGE_SHIFT;
++	unsigned from = pos & (PAGE_SIZE - 1);
+ 	unsigned to = from + copied;
+ 	struct inode *ecryptfs_inode = mapping->host;
+ 	struct ecryptfs_crypt_stat *crypt_stat =
+@@ -500,7 +500,7 @@ static int ecryptfs_write_end(struct file *file,
+ 		goto out;
  	}
- 
-@@ -75,7 +75,7 @@ static int logfs_write_end(struct file *file, struct address_space *mapping,
- 	}
+ 	if (!PageUptodate(page)) {
+-		if (copied < PAGE_CACHE_SIZE) {
++		if (copied < PAGE_SIZE) {
+ 			rc = 0;
+ 			goto out;
+ 		}
+@@ -533,7 +533,7 @@ static int ecryptfs_write_end(struct file *file,
+ 		rc = copied;
  out:
  	unlock_page(page);
 -	page_cache_release(page);
 +	put_page(page);
- 	return ret ? ret : copied;
+ 	return rc;
  }
  
-@@ -118,7 +118,7 @@ static int logfs_writepage(struct page *page, struct writeback_control *wbc)
- {
- 	struct inode *inode = page->mapping->host;
- 	loff_t i_size = i_size_read(inode);
--	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
-+	pgoff_t end_index = i_size >> PAGE_SHIFT;
- 	unsigned offset;
- 	u64 bix;
- 	level_t level;
-@@ -142,7 +142,7 @@ static int logfs_writepage(struct page *page, struct writeback_control *wbc)
- 		return __logfs_writepage(page);
+diff --git a/fs/ecryptfs/read_write.c b/fs/ecryptfs/read_write.c
+index 09fe622274e4..158a3a39f82d 100644
+--- a/fs/ecryptfs/read_write.c
++++ b/fs/ecryptfs/read_write.c
+@@ -74,7 +74,7 @@ int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
+ 	loff_t offset;
+ 	int rc;
  
- 	 /* Is the page fully outside i_size? (truncate in progress) */
--	offset = i_size & (PAGE_CACHE_SIZE-1);
-+	offset = i_size & (PAGE_SIZE-1);
- 	if (bix > end_index || offset == 0) {
- 		unlock_page(page);
- 		return 0; /* don't care */
-@@ -155,7 +155,7 @@ static int logfs_writepage(struct page *page, struct writeback_control *wbc)
- 	 * the  page size, the remaining memory is zeroed when mapped, and
- 	 * writes to that region are not written out to the file."
- 	 */
--	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
-+	zero_user_segment(page, offset, PAGE_SIZE);
- 	return __logfs_writepage(page);
- }
- 
-diff --git a/fs/logfs/readwrite.c b/fs/logfs/readwrite.c
-index 20973c9e52f8..3fb8c6d67303 100644
---- a/fs/logfs/readwrite.c
-+++ b/fs/logfs/readwrite.c
-@@ -281,7 +281,7 @@ static struct page *logfs_get_read_page(struct inode *inode, u64 bix,
- static void logfs_put_read_page(struct page *page)
- {
- 	unlock_page(page);
--	page_cache_release(page);
-+	put_page(page);
- }
- 
- static void logfs_lock_write_page(struct page *page)
-@@ -323,7 +323,7 @@ repeat:
- 			return NULL;
- 		err = add_to_page_cache_lru(page, mapping, index, GFP_NOFS);
- 		if (unlikely(err)) {
--			page_cache_release(page);
-+			put_page(page);
- 			if (err == -EEXIST)
- 				goto repeat;
- 			return NULL;
-@@ -342,7 +342,7 @@ static void logfs_unlock_write_page(struct page *page)
- static void logfs_put_write_page(struct page *page)
- {
- 	logfs_unlock_write_page(page);
--	page_cache_release(page);
-+	put_page(page);
- }
- 
- static struct page *logfs_get_page(struct inode *inode, u64 bix, level_t level,
-@@ -562,7 +562,7 @@ static void indirect_free_block(struct super_block *sb,
- 
- 	if (PagePrivate(page)) {
- 		ClearPagePrivate(page);
--		page_cache_release(page);
-+		put_page(page);
- 		set_page_private(page, 0);
- 	}
- 	__free_block(sb, block);
-@@ -655,7 +655,7 @@ static void alloc_data_block(struct inode *inode, struct page *page)
- 	block->page = page;
- 
- 	SetPagePrivate(page);
--	page_cache_get(page);
-+	get_page(page);
- 	set_page_private(page, (unsigned long) block);
- 
- 	block->ops = &indirect_block_ops;
-@@ -709,7 +709,7 @@ static u64 block_get_pointer(struct page *page, int index)
- 
- static int logfs_read_empty(struct page *page)
- {
--	zero_user_segment(page, 0, PAGE_CACHE_SIZE);
-+	zero_user_segment(page, 0, PAGE_SIZE);
- 	return 0;
- }
- 
-@@ -1660,7 +1660,7 @@ static int truncate_data_block(struct inode *inode, struct page *page,
- 	if (err)
- 		return err;
- 
--	zero_user_segment(page, size - pageofs, PAGE_CACHE_SIZE);
-+	zero_user_segment(page, size - pageofs, PAGE_SIZE);
- 	return logfs_segment_write(inode, page, shadow);
- }
- 
-@@ -1919,7 +1919,7 @@ static void move_page_to_inode(struct inode *inode, struct page *page)
- 	block->page = NULL;
- 	if (PagePrivate(page)) {
- 		ClearPagePrivate(page);
--		page_cache_release(page);
-+		put_page(page);
- 		set_page_private(page, 0);
- 	}
- }
-@@ -1940,7 +1940,7 @@ static void move_inode_to_page(struct page *page, struct inode *inode)
- 
- 	if (!PagePrivate(page)) {
- 		SetPagePrivate(page);
--		page_cache_get(page);
-+		get_page(page);
- 		set_page_private(page, (unsigned long) block);
- 	}
- 
-@@ -1971,7 +1971,7 @@ int logfs_read_inode(struct inode *inode)
- 	logfs_disk_to_inode(di, inode);
- 	kunmap_atomic(di);
- 	move_page_to_inode(inode, page);
--	page_cache_release(page);
-+	put_page(page);
- 	return 0;
- }
- 
-diff --git a/fs/logfs/segment.c b/fs/logfs/segment.c
-index d270e4b2ab6b..1efd6055f4b0 100644
---- a/fs/logfs/segment.c
-+++ b/fs/logfs/segment.c
-@@ -90,9 +90,9 @@ int __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
- 
- 		if (!PagePrivate(page)) {
- 			SetPagePrivate(page);
--			page_cache_get(page);
-+			get_page(page);
- 		}
--		page_cache_release(page);
-+		put_page(page);
- 
- 		buf += copylen;
- 		len -= copylen;
-@@ -117,9 +117,9 @@ static void pad_partial_page(struct logfs_area *area)
- 		memset(page_address(page) + offset, 0xff, len);
- 		if (!PagePrivate(page)) {
- 			SetPagePrivate(page);
--			page_cache_get(page);
-+			get_page(page);
- 		}
--		page_cache_release(page);
-+		put_page(page);
- 	}
- }
- 
-@@ -129,20 +129,20 @@ static void pad_full_pages(struct logfs_area *area)
- 	struct logfs_super *super = logfs_super(sb);
- 	u64 ofs = dev_ofs(sb, area->a_segno, area->a_used_bytes);
- 	u32 len = super->s_segsize - area->a_used_bytes;
--	pgoff_t index = PAGE_CACHE_ALIGN(ofs) >> PAGE_CACHE_SHIFT;
--	pgoff_t no_indizes = len >> PAGE_CACHE_SHIFT;
-+	pgoff_t index = PAGE_ALIGN(ofs) >> PAGE_SHIFT;
-+	pgoff_t no_indizes = len >> PAGE_SHIFT;
- 	struct page *page;
- 
- 	while (no_indizes) {
- 		page = get_mapping_page(sb, index, 0);
- 		BUG_ON(!page); /* FIXME: reserve a pool */
- 		SetPageUptodate(page);
--		memset(page_address(page), 0xff, PAGE_CACHE_SIZE);
-+		memset(page_address(page), 0xff, PAGE_SIZE);
- 		if (!PagePrivate(page)) {
- 			SetPagePrivate(page);
--			page_cache_get(page);
-+			get_page(page);
- 		}
--		page_cache_release(page);
-+		put_page(page);
- 		index++;
- 		no_indizes--;
- 	}
-@@ -411,7 +411,7 @@ int wbuf_read(struct super_block *sb, u64 ofs, size_t len, void *buf)
- 		if (IS_ERR(page))
- 			return PTR_ERR(page);
- 		memcpy(buf, page_address(page) + offset, copylen);
--		page_cache_release(page);
-+		put_page(page);
- 
- 		buf += copylen;
- 		len -= copylen;
-@@ -499,7 +499,7 @@ static void move_btree_to_page(struct inode *inode, struct page *page,
- 
- 	if (!PagePrivate(page)) {
- 		SetPagePrivate(page);
--		page_cache_get(page);
-+		get_page(page);
- 		set_page_private(page, (unsigned long) block);
- 	}
- 	block->ops = &indirect_block_ops;
-@@ -554,7 +554,7 @@ void move_page_to_btree(struct page *page)
- 
- 	if (PagePrivate(page)) {
- 		ClearPagePrivate(page);
--		page_cache_release(page);
-+		put_page(page);
- 		set_page_private(page, 0);
- 	}
- 	block->ops = &btree_block_ops;
-@@ -723,9 +723,9 @@ void freeseg(struct super_block *sb, u32 segno)
- 			continue;
- 		if (PagePrivate(page)) {
- 			ClearPagePrivate(page);
--			page_cache_release(page);
-+			put_page(page);
- 		}
--		page_cache_release(page);
-+		put_page(page);
- 	}
- }
- 
-diff --git a/fs/logfs/super.c b/fs/logfs/super.c
-index 54360293bcb5..5751082dba52 100644
---- a/fs/logfs/super.c
-+++ b/fs/logfs/super.c
-@@ -48,7 +48,7 @@ void emergency_read_end(struct page *page)
- 	if (page == emergency_page)
- 		mutex_unlock(&emergency_mutex);
+-	offset = ((((loff_t)page_for_lower->index) << PAGE_CACHE_SHIFT)
++	offset = ((((loff_t)page_for_lower->index) << PAGE_SHIFT)
+ 		  + offset_in_page);
+ 	virt = kmap(page_for_lower);
+ 	rc = ecryptfs_write_lower(ecryptfs_inode, virt, offset, size);
+@@ -123,9 +123,9 @@ int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
  	else
--		page_cache_release(page);
-+		put_page(page);
- }
+ 		pos = offset;
+ 	while (pos < (offset + size)) {
+-		pgoff_t ecryptfs_page_idx = (pos >> PAGE_CACHE_SHIFT);
+-		size_t start_offset_in_page = (pos & ~PAGE_CACHE_MASK);
+-		size_t num_bytes = (PAGE_CACHE_SIZE - start_offset_in_page);
++		pgoff_t ecryptfs_page_idx = (pos >> PAGE_SHIFT);
++		size_t start_offset_in_page = (pos & ~PAGE_MASK);
++		size_t num_bytes = (PAGE_SIZE - start_offset_in_page);
+ 		loff_t total_remaining_bytes = ((offset + size) - pos);
  
- static void dump_segfile(struct super_block *sb)
-@@ -206,7 +206,7 @@ static int write_one_sb(struct super_block *sb,
- 	logfs_set_segment_erased(sb, segno, ec, 0);
- 	logfs_write_ds(sb, ds, segno, ec);
- 	err = super->s_devops->write_sb(sb, page);
--	page_cache_release(page);
-+	put_page(page);
- 	return err;
- }
+ 		if (fatal_signal_pending(current)) {
+@@ -165,7 +165,7 @@ int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
+ 			 * Fill in zero values to the end of the page */
+ 			memset(((char *)ecryptfs_page_virt
+ 				+ start_offset_in_page), 0,
+-				PAGE_CACHE_SIZE - start_offset_in_page);
++				PAGE_SIZE - start_offset_in_page);
+ 		}
  
-@@ -366,24 +366,24 @@ static struct page *find_super_block(struct super_block *sb)
- 		return NULL;
- 	last = super->s_devops->find_last_sb(sb, &super->s_sb_ofs[1]);
- 	if (!last || IS_ERR(last)) {
--		page_cache_release(first);
-+		put_page(first);
- 		return NULL;
- 	}
+ 		/* pos >= offset, we are now writing the data request */
+@@ -186,7 +186,7 @@ int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
+ 						ecryptfs_page,
+ 						start_offset_in_page,
+ 						data_offset);
+-		page_cache_release(ecryptfs_page);
++		put_page(ecryptfs_page);
+ 		if (rc) {
+ 			printk(KERN_ERR "%s: Error encrypting "
+ 			       "page; rc = [%d]\n", __func__, rc);
+@@ -262,7 +262,7 @@ int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
+ 	loff_t offset;
+ 	int rc;
  
- 	if (!logfs_check_ds(page_address(first))) {
--		page_cache_release(last);
-+		put_page(last);
- 		return first;
- 	}
- 
- 	/* First one didn't work, try the second superblock */
- 	if (!logfs_check_ds(page_address(last))) {
--		page_cache_release(first);
-+		put_page(first);
- 		return last;
- 	}
- 
- 	/* Neither worked, sorry folks */
--	page_cache_release(first);
--	page_cache_release(last);
-+	put_page(first);
-+	put_page(last);
- 	return NULL;
- }
- 
-@@ -425,7 +425,7 @@ static int __logfs_read_sb(struct super_block *sb)
- 	super->s_data_levels = ds->ds_data_levels;
- 	super->s_total_levels = super->s_ifile_levels + super->s_iblock_levels
- 		+ super->s_data_levels;
--	page_cache_release(page);
-+	put_page(page);
- 	return 0;
- }
- 
+-	offset = ((((loff_t)page_index) << PAGE_CACHE_SHIFT) + offset_in_page);
++	offset = ((((loff_t)page_index) << PAGE_SHIFT) + offset_in_page);
+ 	virt = kmap(page_for_ecryptfs);
+ 	rc = ecryptfs_read_lower(virt, offset, size, ecryptfs_inode);
+ 	if (rc > 0)
 -- 
 2.7.0
 
