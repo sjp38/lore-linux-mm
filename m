@@ -1,57 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E5F186B025E
-	for <linux-mm@kvack.org>; Sat, 19 Mar 2016 22:03:25 -0400 (EDT)
-Received: by mail-io0-f180.google.com with SMTP id 124so24928124iov.3
-        for <linux-mm@kvack.org>; Sat, 19 Mar 2016 19:03:25 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160320015511.GZ17997@ZenIV.linux.org.uk>
-References: <20160120195957.GV6033@dastard>
-	<CA+55aFx4PzugV+wOKRqMEwo8XJ1QxP8r+s-mvn6H064FROnKdQ@mail.gmail.com>
-	<20160120204449.GC12249@kvack.org>
-	<20160120214546.GX6033@dastard>
-	<CA+55aFzA8cdvYyswW6QddM60EQ8yocVfT4+mYJSoKW9HHf3rHQ@mail.gmail.com>
-	<20160123043922.GF6033@dastard>
-	<20160314171737.GK17923@kvack.org>
-	<CA+55aFx7JJdYNWRSs6Nbm_xyQjgUVoBQh=RuNDeavKS1Jr+-ow@mail.gmail.com>
-	<20160320012610.GX17997@ZenIV.linux.org.uk>
-	<CA+55aFxW9iWji3hd2PVWoMGeG1O3L5eYPgABEFtU3Cs7vpqXXg@mail.gmail.com>
-	<20160320015511.GZ17997@ZenIV.linux.org.uk>
-Date: Sat, 19 Mar 2016 19:03:25 -0700
-Message-ID: <CA+55aFzabMmLzkOJ8+Jm2F43cubwbfMQdrm_YjG8HeP06ppUtg@mail.gmail.com>
-Subject: Re: aio openat Re: [PATCH 07/13] aio: enabled thread based async fsync
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A9166B007E
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 08:42:34 -0400 (EDT)
+Received: by mail-wm0-f42.google.com with SMTP id l68so121856250wml.0
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 05:42:34 -0700 (PDT)
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
+        by mx.google.com with ESMTPS id x13si26178579wjw.168.2016.03.20.05.42.32
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Sun, 20 Mar 2016 05:42:33 -0700 (PDT)
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rapoport@il.ibm.com>;
+	Sun, 20 Mar 2016 12:42:32 -0000
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id DEC582190046
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 12:42:10 +0000 (GMT)
+Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2KCgTsI1704328
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 12:42:29 GMT
+Received: from d06av06.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2KCgS2L016883
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 08:42:28 -0400
+From: Mike Rapoport <rapoport@il.ibm.com>
+Subject: [PATCH 0/5] userfaultfd: extension for non cooperative uffd usage
+Date: Sun, 20 Mar 2016 14:42:16 +0200
+Message-Id: <1458477741-6942-1-git-send-email-rapoport@il.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Benjamin LaHaise <bcrl@kvack.org>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-aio@kvack.org, linux-mm <linux-mm@kvack.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Pavel Emelyanov <xemul@parallels.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Mike Rapoport <mike.rapoport@gmail.com>, Mike Rapoport <rapoport@il.ibm.com>
 
-On Sat, Mar 19, 2016 at 6:55 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
->
-> What would make unlazy_walk() fail?  And if it succeeds, you are not
-> in RCU mode anymore *without* restarting from scratch...
+Hi,
 
-I don't see your point.
+This set is to address the issues that appear in userfaultfd usage
+scenarios when the task monitoring the uffd and the mm-owner do not 
+cooperate to each other on VM changes such as remaps, madvises and 
+fork()-s.
 
-You don't want to be in RCU mode any more. You want to either succeed
-or fail with ECHILD/ESTALE. Then, in the failure case, you go to the
-thread.
+The pacthes are essentially the same as in the prevoious respin (1),
+they've just been rebased on the current tree.
 
-What I meant by restarting was the restart that do_filp_open() does,
-and there it just restarts with "op->lookup_flags", which has
-RCU_LOOKUP still set, so it would just try to do the RCU lookup again.
+[1] http://thread.gmane.org/gmane.linux.kernel.mm/132662
 
-But I actually notice now that Ben actually disabled that restart if
-LOOKUP_RCU was set, so that ends up not even happening.
+Pavel Emelyanov (5):
+  uffd: Split the find_userfault() routine
+  uffd: Add ability to report non-PF events from uffd descriptor
+  uffd: Add fork() event
+  uffd: Add mremap() event
+  uffd: Add madvise() event for MADV_DONTNEED request
 
-Anyway, I'm not saying it's polished and pretty. I think the changes
-to do_filp_open() are a bit silly, and the code should just use
-path_openat() directly. Possibly using a new helper (ie perhaps just
-introduce a "rcu_filp_openat()" thing). But from a design perspective,
-I think this all looks fine.
+ fs/userfaultfd.c                 | 319 ++++++++++++++++++++++++++++++++++++++-
+ include/linux/userfaultfd_k.h    |  41 +++++
+ include/uapi/linux/userfaultfd.h |  28 +++-
+ kernel/fork.c                    |  10 +-
+ mm/madvise.c                     |   2 +
+ mm/mremap.c                      |  17 ++-
+ 6 files changed, 395 insertions(+), 22 deletions(-)
 
-              Linus
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
