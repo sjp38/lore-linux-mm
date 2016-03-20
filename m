@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D41182F60
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:48:32 -0400 (EDT)
-Received: by mail-pf0-f173.google.com with SMTP id u190so238330477pfb.3
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:48:32 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id oi7si1467849pab.183.2016.03.20.11.41.52
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id AEF8F82F60
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:48:34 -0400 (EDT)
+Received: by mail-pf0-f182.google.com with SMTP id n5so237558132pfn.2
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:48:34 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id i62si14046921pfi.222.2016.03.20.11.41.45
         for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 11:41:52 -0700 (PDT)
+        Sun, 20 Mar 2016 11:41:46 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 60/71] sysv: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:41:07 +0300
-Message-Id: <1458499278-1516-61-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 23/71] cachefiles: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:40:30 +0300
+Message-Id: <1458499278-1516-24-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Hellwig <hch@infradead.org>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Howells <dhowells@redhat.com>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -46,108 +46,151 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Christoph Hellwig <hch@infradead.org>
+Cc: David Howells <dhowells@redhat.com>
 ---
- fs/sysv/dir.c   | 18 +++++++++---------
- fs/sysv/namei.c |  4 ++--
- 2 files changed, 11 insertions(+), 11 deletions(-)
+ fs/cachefiles/rdwr.c | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)
 
-diff --git a/fs/sysv/dir.c b/fs/sysv/dir.c
-index 63c1bcb224ee..c0f0a3e643eb 100644
---- a/fs/sysv/dir.c
-+++ b/fs/sysv/dir.c
-@@ -30,7 +30,7 @@ const struct file_operations sysv_dir_operations = {
- static inline void dir_put_page(struct page *page)
- {
- 	kunmap(page);
--	page_cache_release(page);
-+	put_page(page);
- }
+diff --git a/fs/cachefiles/rdwr.c b/fs/cachefiles/rdwr.c
+index c0f3da3926a0..afbdc418966d 100644
+--- a/fs/cachefiles/rdwr.c
++++ b/fs/cachefiles/rdwr.c
+@@ -194,10 +194,10 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
+ 			error = -EIO;
+ 		}
  
- static int dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
-@@ -73,8 +73,8 @@ static int sysv_readdir(struct file *file, struct dir_context *ctx)
- 	if (pos >= inode->i_size)
- 		return 0;
+-		page_cache_release(monitor->back_page);
++		put_page(monitor->back_page);
  
--	offset = pos & ~PAGE_CACHE_MASK;
--	n = pos >> PAGE_CACHE_SHIFT;
-+	offset = pos & ~PAGE_MASK;
-+	n = pos >> PAGE_SHIFT;
+ 		fscache_end_io(op, monitor->netfs_page, error);
+-		page_cache_release(monitor->netfs_page);
++		put_page(monitor->netfs_page);
+ 		fscache_retrieval_complete(op, 1);
+ 		fscache_put_retrieval(op);
+ 		kfree(monitor);
+@@ -288,8 +288,8 @@ monitor_backing_page:
+ 	_debug("- monitor add");
  
- 	for ( ; n < npages; n++, offset = 0) {
- 		char *kaddr, *limit;
-@@ -85,7 +85,7 @@ static int sysv_readdir(struct file *file, struct dir_context *ctx)
- 			continue;
- 		kaddr = (char *)page_address(page);
- 		de = (struct sysv_dir_entry *)(kaddr+offset);
--		limit = kaddr + PAGE_CACHE_SIZE - SYSV_DIRSIZE;
-+		limit = kaddr + PAGE_SIZE - SYSV_DIRSIZE;
- 		for ( ;(char*)de <= limit; de++, ctx->pos += sizeof(*de)) {
- 			char *name = de->name;
+ 	/* install the monitor */
+-	page_cache_get(monitor->netfs_page);
+-	page_cache_get(backpage);
++	get_page(monitor->netfs_page);
++	get_page(backpage);
+ 	monitor->back_page = backpage;
+ 	monitor->monitor.private = backpage;
+ 	add_page_wait_queue(backpage, &monitor->monitor);
+@@ -310,7 +310,7 @@ backing_page_already_present:
+ 	_debug("- present");
  
-@@ -146,7 +146,7 @@ struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_
- 		if (!IS_ERR(page)) {
- 			kaddr = (char*)page_address(page);
- 			de = (struct sysv_dir_entry *) kaddr;
--			kaddr += PAGE_CACHE_SIZE - SYSV_DIRSIZE;
-+			kaddr += PAGE_SIZE - SYSV_DIRSIZE;
- 			for ( ; (char *) de <= kaddr ; de++) {
- 				if (!de->inode)
- 					continue;
-@@ -190,7 +190,7 @@ int sysv_add_link(struct dentry *dentry, struct inode *inode)
- 			goto out;
- 		kaddr = (char*)page_address(page);
- 		de = (struct sysv_dir_entry *)kaddr;
--		kaddr += PAGE_CACHE_SIZE - SYSV_DIRSIZE;
-+		kaddr += PAGE_SIZE - SYSV_DIRSIZE;
- 		while ((char *)de <= kaddr) {
- 			if (!de->inode)
- 				goto got_it;
-@@ -261,7 +261,7 @@ int sysv_make_empty(struct inode *inode, struct inode *dir)
- 	kmap(page);
- 
- 	base = (char*)page_address(page);
--	memset(base, 0, PAGE_CACHE_SIZE);
-+	memset(base, 0, PAGE_SIZE);
- 
- 	de = (struct sysv_dir_entry *) base;
- 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
-@@ -273,7 +273,7 @@ int sysv_make_empty(struct inode *inode, struct inode *dir)
- 	kunmap(page);
- 	err = dir_commit_chunk(page, 0, 2 * SYSV_DIRSIZE);
- fail:
--	page_cache_release(page);
-+	put_page(page);
- 	return err;
- }
- 
-@@ -296,7 +296,7 @@ int sysv_empty_dir(struct inode * inode)
- 
- 		kaddr = (char *)page_address(page);
- 		de = (struct sysv_dir_entry *)kaddr;
--		kaddr += PAGE_CACHE_SIZE-SYSV_DIRSIZE;
-+		kaddr += PAGE_SIZE-SYSV_DIRSIZE;
- 
- 		for ( ;(char *)de <= kaddr; de++) {
- 			if (!de->inode)
-diff --git a/fs/sysv/namei.c b/fs/sysv/namei.c
-index 11e83ed0b4bf..90b60c03b588 100644
---- a/fs/sysv/namei.c
-+++ b/fs/sysv/namei.c
-@@ -264,11 +264,11 @@ static int sysv_rename(struct inode * old_dir, struct dentry * old_dentry,
- out_dir:
- 	if (dir_de) {
- 		kunmap(dir_page);
--		page_cache_release(dir_page);
-+		put_page(dir_page);
+ 	if (newpage) {
+-		page_cache_release(newpage);
++		put_page(newpage);
+ 		newpage = NULL;
  	}
- out_old:
- 	kunmap(old_page);
--	page_cache_release(old_page);
-+	put_page(old_page);
+ 
+@@ -342,7 +342,7 @@ success:
+ 
  out:
- 	return err;
- }
+ 	if (backpage)
+-		page_cache_release(backpage);
++		put_page(backpage);
+ 	if (monitor) {
+ 		fscache_put_retrieval(monitor->op);
+ 		kfree(monitor);
+@@ -363,7 +363,7 @@ io_error:
+ 	goto out;
+ 
+ nomem_page:
+-	page_cache_release(newpage);
++	put_page(newpage);
+ nomem_monitor:
+ 	fscache_put_retrieval(monitor->op);
+ 	kfree(monitor);
+@@ -530,7 +530,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 					    netpage->index, cachefiles_gfp);
+ 		if (ret < 0) {
+ 			if (ret == -EEXIST) {
+-				page_cache_release(netpage);
++				put_page(netpage);
+ 				fscache_retrieval_complete(op, 1);
+ 				continue;
+ 			}
+@@ -538,10 +538,10 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 		}
+ 
+ 		/* install a monitor */
+-		page_cache_get(netpage);
++		get_page(netpage);
+ 		monitor->netfs_page = netpage;
+ 
+-		page_cache_get(backpage);
++		get_page(backpage);
+ 		monitor->back_page = backpage;
+ 		monitor->monitor.private = backpage;
+ 		add_page_wait_queue(backpage, &monitor->monitor);
+@@ -555,10 +555,10 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 			unlock_page(backpage);
+ 		}
+ 
+-		page_cache_release(backpage);
++		put_page(backpage);
+ 		backpage = NULL;
+ 
+-		page_cache_release(netpage);
++		put_page(netpage);
+ 		netpage = NULL;
+ 		continue;
+ 
+@@ -603,7 +603,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 					    netpage->index, cachefiles_gfp);
+ 		if (ret < 0) {
+ 			if (ret == -EEXIST) {
+-				page_cache_release(netpage);
++				put_page(netpage);
+ 				fscache_retrieval_complete(op, 1);
+ 				continue;
+ 			}
+@@ -612,14 +612,14 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 
+ 		copy_highpage(netpage, backpage);
+ 
+-		page_cache_release(backpage);
++		put_page(backpage);
+ 		backpage = NULL;
+ 
+ 		fscache_mark_page_cached(op, netpage);
+ 
+ 		/* the netpage is unlocked and marked up to date here */
+ 		fscache_end_io(op, netpage, 0);
+-		page_cache_release(netpage);
++		put_page(netpage);
+ 		netpage = NULL;
+ 		fscache_retrieval_complete(op, 1);
+ 		continue;
+@@ -632,11 +632,11 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ out:
+ 	/* tidy up */
+ 	if (newpage)
+-		page_cache_release(newpage);
++		put_page(newpage);
+ 	if (netpage)
+-		page_cache_release(netpage);
++		put_page(netpage);
+ 	if (backpage)
+-		page_cache_release(backpage);
++		put_page(backpage);
+ 	if (monitor) {
+ 		fscache_put_retrieval(op);
+ 		kfree(monitor);
+@@ -644,7 +644,7 @@ out:
+ 
+ 	list_for_each_entry_safe(netpage, _n, list, lru) {
+ 		list_del(&netpage->lru);
+-		page_cache_release(netpage);
++		put_page(netpage);
+ 		fscache_retrieval_complete(op, 1);
+ 	}
+ 
 -- 
 2.7.0
 
