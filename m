@@ -1,26 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id DCA47830AE
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:50:06 -0400 (EDT)
-Received: by mail-pf0-f177.google.com with SMTP id x3so237591045pfb.1
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:50:06 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id i62si14046921pfi.222.2016.03.20.11.41.45
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F8D0830AE
+	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 14:50:09 -0400 (EDT)
+Received: by mail-pf0-f171.google.com with SMTP id n5so237584577pfn.2
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 11:50:09 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ds16si10308712pac.149.2016.03.20.11.41.50
         for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 11:41:45 -0700 (PDT)
+        Sun, 20 Mar 2016 11:41:50 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 15/71] scsi: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
-Date: Sun, 20 Mar 2016 21:40:22 +0300
-Message-Id: <1458499278-1516-16-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 46/71] kernfs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros
+Date: Sun, 20 Mar 2016 21:40:53 +0300
+Message-Id: <1458499278-1516-47-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "James E.J. Bottomley" <jejb@linux.vnet.ibm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, =?UTF-8?q?Kai=20M=C3=A4kisara?= <Kai.Makisara@kolumbus.fi>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
 with promise that one day it will be possible to implement page cache with
@@ -49,49 +46,26 @@ The changes are pretty straight-forward:
  - page_cache_release() -> put_page();
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: "James E.J. Bottomley" <jejb@linux.vnet.ibm.com>
-Cc: "Martin K. Petersen" <martin.petersen@oracle.com>
-Cc: Kai MA?kisara <Kai.Makisara@kolumbus.fi>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- drivers/scsi/sd.c | 2 +-
- drivers/scsi/st.c | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ fs/kernfs/mount.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
-index 5a5457ac9cdb..1bd0753f678a 100644
---- a/drivers/scsi/sd.c
-+++ b/drivers/scsi/sd.c
-@@ -2891,7 +2891,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
- 	if (sdkp->opt_xfer_blocks &&
- 	    sdkp->opt_xfer_blocks <= dev_max &&
- 	    sdkp->opt_xfer_blocks <= SD_DEF_XFER_BLOCKS &&
--	    sdkp->opt_xfer_blocks * sdp->sector_size >= PAGE_CACHE_SIZE)
-+	    sdkp->opt_xfer_blocks * sdp->sector_size >= PAGE_SIZE)
- 		rw_max = q->limits.io_opt =
- 			sdkp->opt_xfer_blocks * sdp->sector_size;
- 	else
-diff --git a/drivers/scsi/st.c b/drivers/scsi/st.c
-index 607b0a505844..0177a9a4849f 100644
---- a/drivers/scsi/st.c
-+++ b/drivers/scsi/st.c
-@@ -4943,7 +4943,7 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
-  out_unmap:
- 	if (res > 0) {
- 		for (j=0; j < res; j++)
--			page_cache_release(pages[j]);
-+			put_page(pages[j]);
- 		res = 0;
- 	}
- 	kfree(pages);
-@@ -4965,7 +4965,7 @@ static int sgl_unmap_user_pages(struct st_buffer *STbp,
- 		/* FIXME: cache flush missing for rw==READ
- 		 * FIXME: call the correct reference counting function
- 		 */
--		page_cache_release(page);
-+		put_page(page);
- 	}
- 	kfree(STbp->mapped_pages);
- 	STbp->mapped_pages = NULL;
+diff --git a/fs/kernfs/mount.c b/fs/kernfs/mount.c
+index 8eaf417187f1..43393e1008d1 100644
+--- a/fs/kernfs/mount.c
++++ b/fs/kernfs/mount.c
+@@ -69,8 +69,8 @@ static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
+ 	struct dentry *root;
+ 
+ 	info->sb = sb;
+-	sb->s_blocksize = PAGE_CACHE_SIZE;
+-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
++	sb->s_blocksize = PAGE_SIZE;
++	sb->s_blocksize_bits = PAGE_SHIFT;
+ 	sb->s_magic = magic;
+ 	sb->s_op = &kernfs_sops;
+ 	sb->s_time_gran = 1;
 -- 
 2.7.0
 
