@@ -1,75 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f173.google.com (mail-qk0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 95C7C6B0005
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 00:34:01 -0400 (EDT)
-Received: by mail-qk0-f173.google.com with SMTP id s68so74519949qkh.3
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 21:34:01 -0700 (PDT)
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
-        by mx.google.com with ESMTPS id v3si10191032qka.22.2016.03.20.21.34.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sun, 20 Mar 2016 21:34:00 -0700 (PDT)
-Received: from localhost
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sun, 20 Mar 2016 22:33:59 -0600
-Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com [9.57.198.24])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id D07203E4004F
-	for <linux-mm@kvack.org>; Sun, 20 Mar 2016 22:33:56 -0600 (MDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by b01cxnp22034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2L4XuTc19136654
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 04:33:56 GMT
-Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2L4Xtsb001699
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 00:33:56 -0400
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCHv4 08/25] thp: support file pages in zap_huge_pmd()
-In-Reply-To: <20160319010239.GB29883@node.shutemov.name>
-References: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com> <1457737157-38573-9-git-send-email-kirill.shutemov@linux.intel.com> <87a8lvao4a.fsf@linux.vnet.ibm.com> <20160319010239.GB29883@node.shutemov.name>
-Date: Mon, 21 Mar 2016 10:03:29 +0530
-Message-ID: <87a8lsv49y.fsf@linux.vnet.ibm.com>
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id EA5746B0005
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 00:40:56 -0400 (EDT)
+Received: by mail-pf0-f172.google.com with SMTP id u190so251024960pfb.3
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 21:40:56 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id 75si2020594pfs.118.2016.03.20.21.40.54
+        for <linux-mm@kvack.org>;
+        Sun, 20 Mar 2016 21:40:55 -0700 (PDT)
+Date: Mon, 21 Mar 2016 13:42:20 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: Suspicious error for CMA stress test
+Message-ID: <20160321044220.GA21578@js1304-P5Q-DELUXE>
+References: <56E2FB5C.1040602@suse.cz>
+ <20160314064925.GA27587@js1304-P5Q-DELUXE>
+ <56E662E8.700@suse.cz>
+ <20160314071803.GA28094@js1304-P5Q-DELUXE>
+ <56E92AFC.9050208@huawei.com>
+ <20160317065426.GA10315@js1304-P5Q-DELUXE>
+ <56EA77BC.2090702@huawei.com>
+ <56EAD0B4.2060807@suse.cz>
+ <CAAmzW4MNdFHSSTpCfWqy7oDtkR_Hfu2dZa_LW97W8J5vr5m4tg@mail.gmail.com>
+ <1458307955.18134.31.camel@pengutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1458307955.18134.31.camel@pengutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Lucas Stach <l.stach@pengutronix.de>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Laura Abbott <lauraa@codeaurora.org>, Arnd Bergmann <arnd@arndb.de>, Catalin Marinas <Catalin.Marinas@arm.com>, Hanjun Guo <guohanjun@huawei.com>, Will Deacon <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, qiuxishi <qiuxishi@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, dingtinahong <dingtianhong@huawei.com>, "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <labbott@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, chenjie6@huawei.com
 
-"Kirill A. Shutemov" <kirill@shutemov.name> writes:
+On Fri, Mar 18, 2016 at 02:32:35PM +0100, Lucas Stach wrote:
+> Hi Vlastimil, Joonsoo,
+> 
+> Am Freitag, den 18.03.2016, 00:52 +0900 schrieb Joonsoo Kim:
+> > 2016-03-18 0:43 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
+> > > On 03/17/2016 10:24 AM, Hanjun Guo wrote:
+> > >>
+> > >> On 2016/3/17 14:54, Joonsoo Kim wrote:
+> > >>>
+> > >>> On Wed, Mar 16, 2016 at 05:44:28PM +0800, Hanjun Guo wrote:
+> > >>>>
+> > >>>> On 2016/3/14 15:18, Joonsoo Kim wrote:
+> > >>>>>
+> > >>>>> On Mon, Mar 14, 2016 at 08:06:16AM +0100, Vlastimil Babka wrote:
+> > >>>>>>
+> > >>>>>> On 03/14/2016 07:49 AM, Joonsoo Kim wrote:
+> > >>>>>>>
+> > >>>>>>> On Fri, Mar 11, 2016 at 06:07:40PM +0100, Vlastimil Babka wrote:
+> > >>>>>>>>
+> > >>>>>>>> On 03/11/2016 04:00 PM, Joonsoo Kim wrote:
+> > >>>>>>>>
+> > >>>>>>>> How about something like this? Just and idea, probably buggy
+> > >>>>>>>> (off-by-one etc.).
+> > >>>>>>>> Should keep away cost from <pageblock_order iterations at the
+> > >>>>>>>> expense of the
+> > >>>>>>>> relatively fewer >pageblock_order iterations.
+> > >>>>>>>
+> > >>>>>>> Hmm... I tested this and found that it's code size is a little bit
+> > >>>>>>> larger than mine. I'm not sure why this happens exactly but I guess
+> > >>>>>>> it would be
+> > >>>>>>> related to compiler optimization. In this case, I'm in favor of my
+> > >>>>>>> implementation because it looks like well abstraction. It adds one
+> > >>>>>>> unlikely branch to the merge loop but compiler would optimize it to
+> > >>>>>>> check it once.
+> > >>>>>>
+> > >>>>>> I would be surprised if compiler optimized that to check it once, as
+> > >>>>>> order increases with each loop iteration. But maybe it's smart
+> > >>>>>> enough to do something like I did by hand? Guess I'll check the
+> > >>>>>> disassembly.
+> > >>>>>
+> > >>>>> Okay. I used following slightly optimized version and I need to
+> > >>>>> add 'max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1)'
+> > >>>>> to yours. Please consider it, too.
+> > >>>>
+> > >>>> Hmm, this one is not work, I still can see the bug is there after
+> > >>>> applying
+> > >>>> this patch, did I miss something?
+> > >>>
+> > >>> I may find that there is a bug which was introduced by me some time
+> > >>> ago. Could you test following change in __free_one_page() on top of
+> > >>> Vlastimil's patch?
+> > >>>
+> > >>> -page_idx = pfn & ((1 << max_order) - 1);
+> > >>> +page_idx = pfn & ((1 << MAX_ORDER) - 1);
+> > >>
+> > >>
+> > >> I tested Vlastimil's patch + your change with stress for more than half
+> > >> hour, the bug
+> > >> I reported is gone :)
+> > >
+> > >
+> > > Oh, ok, will try to send proper patch, once I figure out what to write in
+> > > the changelog :)
+> > 
+> > Thanks in advance!
+> 
+> After digging into the "PFN busy" race in CMA (see [1]), I believe we
+> should just prevent any buddy merging in isolated ranges. This fixes the
+> race I'm seeing without the need to hold the zone lock for extend
+> periods of time.
 
-> [ text/plain ]
-> On Fri, Mar 18, 2016 at 07:23:41PM +0530, Aneesh Kumar K.V wrote:
->> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
->> 
->> > [ text/plain ]
->> > split_huge_pmd() for file mappings (and DAX too) is implemented by just
->> > clearing pmd entry as we can re-fill this area from page cache on pte
->> > level later.
->> >
->> > This means we don't need deposit page tables when file THP is mapped.
->> > Therefore we shouldn't try to withdraw a page table on zap_huge_pmd()
->> > file THP PMD.
->> 
->> Archs like ppc64 use deposited page table to track the hardware page
->> table slot information. We probably may want to add hooks which arch can
->> use to achieve the same even with file THP 
->
-> Could you describe more on what kind of information you're talking about?
->
+"PFNs busy" can be caused by other type of race, too. I guess that
+other cases happens more than buddy merging. Do you have any test case for
+your problem?
 
-Hardware page table in ppc64 requires us to map each subpage of the huge
-page. This is needed because at low level we use segment base page size
-to find the hash slot and on TLB miss, we use the faulting address and
-base page size (which is 64k even with THP) to find whether we have
-the page mapped in hash page table. Since we use base page size of 64K,
-we need to make sure that subpages are mapped (on demand) in hash page
-table. If we have then mapped we also need to track their hash table
-slot information so that we can clear it on invalidate of hugepage.
+If it is indeed a problem, you can avoid it with simple retry
+MAX_ORDER times on alloc_contig_range(). This is a rather dirty but
+the reason I suggest it is that there are other type of race in
+__alloc_contig_range() and retry could help them, too. For example,
+if some of pages in the requested range isn't attached to the LRU yet
+or detached from the LRU but not freed to buddy,
+test_pages_isolated() can be failed.
 
-With THP we used the deposited page table to store the hash slot
-information.
-
--aneesh
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
