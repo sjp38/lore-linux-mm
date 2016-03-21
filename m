@@ -1,102 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 219576B0253
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 06:08:39 -0400 (EDT)
-Received: by mail-pf0-f182.google.com with SMTP id n5so259392653pfn.2
-        for <linux-mm@kvack.org>; Mon, 21 Mar 2016 03:08:39 -0700 (PDT)
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 15C776B0005
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 06:37:49 -0400 (EDT)
+Received: by mail-pf0-f171.google.com with SMTP id x3so260215922pfb.1
+        for <linux-mm@kvack.org>; Mon, 21 Mar 2016 03:37:49 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s16si19855890pfi.193.2016.03.21.03.08.37
+        by mx.google.com with ESMTP id d27si18964009pfj.14.2016.03.21.03.37.47
         for <linux-mm@kvack.org>;
-        Mon, 21 Mar 2016 03:08:37 -0700 (PDT)
-Date: Mon, 21 Mar 2016 10:08:18 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: Delete flush cache all in arm64 platform.
-Message-ID: <20160321100818.GA17326@leverpostej>
-References: <56EFABD3.7060700@hisilicon.com>
+        Mon, 21 Mar 2016 03:37:48 -0700 (PDT)
+Date: Mon, 21 Mar 2016 10:38:07 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: arch/ia64/kernel/entry.S:621: Error: Operand 2 of `adds' should
+ be a 14-bit integer (-8192-8191)
+Message-ID: <20160321103807.GB23397@arm.com>
+References: <201603210433.xQKD3eNU%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56EFABD3.7060700@hisilicon.com>
+In-Reply-To: <201603210433.xQKD3eNU%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Feng <puck.chen@hisilicon.com>
-Cc: catalin.marinas@arm.com, akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, labbott@redhat.com, xuyiping@hisilicon.com, suzhuangluan@hisilicon.com, saberlily.xia@hisilicon.com, dan.zhao@hisilicon.com, linux-arm-kernel@lists.infradead.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-[adding LAKML]
-
-On Mon, Mar 21, 2016 at 04:07:47PM +0800, Chen Feng wrote:
-> Hi Mark,
-
-Hi,
-
-> With 68234df4ea7939f98431aa81113fbdce10c4a84b
-> arm64: kill flush_cache_all()
-> The documented semantics of flush_cache_all are not possible to provide
-> for arm64 (short of flushing the entire physical address space by VA),
-> and there are currently no users; KVM uses VA maintenance exclusively,
-> cpu_reset is never called, and the only two users outside of arch code
-> cannot be built for arm64.
+On Mon, Mar 21, 2016 at 04:03:50AM +0800, kbuild test robot wrote:
+> Hi Will,
 > 
-> While cpu_soft_reset and related functions (which call flush_cache_all)
-> were thought to be useful for kexec, their current implementations only
-> serve to mask bugs. For correctness kexec will need to perform
-> maintenance by VA anyway to account for system caches, line migration,
-> and other subtleties of the cache architecture. As the extent of this
-> cache maintenance will be kexec-specific, it should probably live in the
-> kexec code.
+> FYI, the error/warning still remains.
+
+... as does my patch to fix it [1]
+
+Will
+
+[1] http://lkml.kernel.org/r/1457541344-16961-1-git-send-email-will.deacon@arm.com
+
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+> head:   1e75a9f34a5ed5902707fb74b468356c55142b71
+> commit: da48d094ce5d7c7dcdad9011648a81c42fd1c2ef Kconfig: remove HAVE_LATENCYTOP_SUPPORT
+> date:   9 weeks ago
+> config: ia64-allmodconfig (attached as .config)
+> reproduce:
+>         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         git checkout da48d094ce5d7c7dcdad9011648a81c42fd1c2ef
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=ia64 
 > 
-> This patch removes flush_cache_all, and related unused components,
-> preventing further abuse.
+> All errors (new ones prefixed by >>):
 > 
+>    arch/ia64/kernel/entry.S: Assembler messages:
+> >> arch/ia64/kernel/entry.S:621: Error: Operand 2 of `adds' should be a 14-bit integer (-8192-8191)
+>    arch/ia64/kernel/entry.S:728: Error: Operand 2 of `adds' should be a 14-bit integer (-8192-8191)
+>    arch/ia64/kernel/entry.S:859: Error: Operand 2 of `adds' should be a 14-bit integer (-8192-8191)
+> --
+>    arch/ia64/kernel/fsys.S: Assembler messages:
+> >> arch/ia64/kernel/fsys.S:67: Error: Operand 3 of `add' should be a general register r0-r3
+>    arch/ia64/kernel/fsys.S:97: Error: Operand 3 of `add' should be a general register r0-r3
+>    arch/ia64/kernel/fsys.S:193: Error: Operand 3 of `add' should be a general register r0-r3
+>    arch/ia64/kernel/fsys.S:336: Error: Operand 3 of `add' should be a general register r0-r3
+>    arch/ia64/kernel/fsys.S:338: Error: Operand 3 of `add' should be a general register r0-r3
+> --
+>    arch/ia64/kernel/ivt.S: Assembler messages:
+> >> arch/ia64/kernel/ivt.S:759: Error: Operand 3 of `add' should be a general register r0-r3
 > 
-> This patch delete the flush_cache_all interface.
-
-As the patch states, it does so because the documented semantics are
-impossible to provide, as there is no portable mechanism to "flush" all
-caches in the system.
-
-Set/Way operations cannot guarantee that data has been cleaned to the
-PoC (i.e. memory), or invalidated from all levels of cache. Reasons
-include:
-
-* They may race against background behaviour of the CPU (e.g.
-  speculation), which may allocate/evict/migrate lines. Depending on the
-  cache topology, this may "hide" lines from subsequent Set/Way
-  operations.
-
-* They are not broadcast, and do not affect other CPUs. Depending on the
-  implemented cache coherency protocols, other CPUs may be able to
-  acquire dirty lines, or retain lines in shared states, and hence these
-  may not be operated on.
-
-* They do not affect system caches (which respect cache maintenance by
-  VA in ARMv8-A).
-
-The only portable mechanism to perform cache maintenance to all relevant
-caches is by VA.
-
-> But if we use VA to flush cache to do cache-coherency with other
-> master(eg:gpu)
+> vim +621 arch/ia64/kernel/entry.S
 > 
-> We must iterate over the sg-list to flush by va to pa.
+> ^1da177e Linus Torvalds 2005-04-16  605  	PT_REGS_UNWIND_INFO(0)
+> ^1da177e Linus Torvalds 2005-04-16  606  {	/*
+> ^1da177e Linus Torvalds 2005-04-16  607  	 * Some versions of gas generate bad unwind info if the first instruction of a
+> ^1da177e Linus Torvalds 2005-04-16  608  	 * procedure doesn't go into the first slot of a bundle.  This is a workaround.
+> ^1da177e Linus Torvalds 2005-04-16  609  	 */
+> ^1da177e Linus Torvalds 2005-04-16  610  	nop.m 0
+> ^1da177e Linus Torvalds 2005-04-16  611  	nop.i 0
+> ^1da177e Linus Torvalds 2005-04-16  612  	/*
+> ^1da177e Linus Torvalds 2005-04-16  613  	 * We need to call schedule_tail() to complete the scheduling process.
+> ^1da177e Linus Torvalds 2005-04-16  614  	 * Called by ia64_switch_to() after do_fork()->copy_thread().  r8 contains the
+> ^1da177e Linus Torvalds 2005-04-16  615  	 * address of the previously executing task.
+> ^1da177e Linus Torvalds 2005-04-16  616  	 */
+> ^1da177e Linus Torvalds 2005-04-16  617  	br.call.sptk.many rp=ia64_invoke_schedule_tail
+> ^1da177e Linus Torvalds 2005-04-16  618  }
+> ^1da177e Linus Torvalds 2005-04-16  619  .ret8:
+> 54d496c3 Al Viro        2012-10-14  620  (pKStk)	br.call.sptk.many rp=call_payload
+> ^1da177e Linus Torvalds 2005-04-16 @621  	adds r2=TI_FLAGS+IA64_TASK_SIZE,r13
+> ^1da177e Linus Torvalds 2005-04-16  622  	;;
+> ^1da177e Linus Torvalds 2005-04-16  623  	ld4 r2=[r2]
+> ^1da177e Linus Torvalds 2005-04-16  624  	;;
+> ^1da177e Linus Torvalds 2005-04-16  625  	mov r8=0
+> ^1da177e Linus Torvalds 2005-04-16  626  	and r2=_TIF_SYSCALL_TRACEAUDIT,r2
+> ^1da177e Linus Torvalds 2005-04-16  627  	;;
+> ^1da177e Linus Torvalds 2005-04-16  628  	cmp.ne p6,p0=r2,r0
+> ^1da177e Linus Torvalds 2005-04-16  629  (p6)	br.cond.spnt .strace_check_retval
 > 
-> In this way, the iterate of sg-list may cost too much time(sg-table to
-> sg-list) if the sglist is too long. Take a look at the
-> ion_pages_sync_for_device in ion.
+> :::::: The code at line 621 was first introduced by commit
+> :::::: 1da177e4c3f41524e886b7f1b8a0c1fc7321cac2 Linux-2.6.12-rc2
 > 
-> The driver(eg: ION) need to use this interface(flush cache all) to
-> *improve the efficiency*.
+> :::::: TO: Linus Torvalds <torvalds@ppc970.osdl.org>
+> :::::: CC: Linus Torvalds <torvalds@ppc970.osdl.org>
+> 
+> ---
+> 0-DAY kernel test infrastructure                Open Source Technology Center
+> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
-As above, we cannot use Set/Way operations for this, and cannot provide
-a flush_cache_all interface.
-
-I'm not sure what to suggest regarding improving efficiency.
-
-Is walking the sglist the expensive portion, or is the problem the cost
-of multiple page-size operations (each with their own barriers)?
-
-Thanks,
-Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
