@@ -1,58 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C1336B0005
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 04:08:32 -0400 (EDT)
-Received: by mail-pf0-f178.google.com with SMTP id n5so256027070pfn.2
-        for <linux-mm@kvack.org>; Mon, 21 Mar 2016 01:08:32 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id v25si6214519pfa.203.2016.03.21.01.08.30
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F6F46B0005
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 04:17:20 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id p65so141420701wmp.1
+        for <linux-mm@kvack.org>; Mon, 21 Mar 2016 01:17:20 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id w9si6525119wja.96.2016.03.21.01.17.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 21 Mar 2016 01:08:31 -0700 (PDT)
-From: Chen Feng <puck.chen@hisilicon.com>
-Subject: Delete flush cache all in arm64 platform.
-Message-ID: <56EFABD3.7060700@hisilicon.com>
-Date: Mon, 21 Mar 2016 16:07:47 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Mar 2016 01:17:18 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id x188so20101461wmg.0
+        for <linux-mm@kvack.org>; Mon, 21 Mar 2016 01:17:18 -0700 (PDT)
+Date: Mon, 21 Mar 2016 09:17:17 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/5] mm: memcontrol: Remove redundant hot plug notifier
+ test.
+Message-ID: <20160321081717.GA21248@dhcp22.suse.cz>
+References: <1458336371-17748-1-git-send-email-rcochran@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1458336371-17748-1-git-send-email-rcochran@linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mark.rutland@arm.com, catalin.marinas@arm.com
-Cc: akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, labbott@redhat.com, xuyiping@hisilicon.com, suzhuangluan@hisilicon.com, saberlily.xia@hisilicon.com, dan.zhao@hisilicon.com
+To: Richard Cochran <rcochran@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, rt@linutronix.de, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-Hi Mark,
+On Fri 18-03-16 22:26:07, Richard Cochran wrote:
+> The test for ONLINE is redundant because the following test for !DEAD
+> already includes the online case.  This patch removes the superfluous
+> code.
 
-With 68234df4ea7939f98431aa81113fbdce10c4a84b
-arm64: kill flush_cache_all()
-The documented semantics of flush_cache_all are not possible to provide
-for arm64 (short of flushing the entire physical address space by VA),
-and there are currently no users; KVM uses VA maintenance exclusively,
-cpu_reset is never called, and the only two users outside of arch code
-cannot be built for arm64.
+The code used to do something specific to CPU_ONLINE in the past but now
+it really seems to be pointless and maybe even confusing. All we really
+care here is when the cpu goes down and we need to drain per-cpu cached
+charges.
 
-While cpu_soft_reset and related functions (which call flush_cache_all)
-were thought to be useful for kexec, their current implementations only
-serve to mask bugs. For correctness kexec will need to perform
-maintenance by VA anyway to account for system caches, line migration,
-and other subtleties of the cache architecture. As the extent of this
-cache maintenance will be kexec-specific, it should probably live in the
-kexec code.
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+> Cc: cgroups@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Signed-off-by: Richard Cochran <rcochran@linutronix.de>
 
-This patch removes flush_cache_all, and related unused components,
-preventing further abuse.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
+Thanks
 
-This patch delete the flush_cache_all interface.
+> ---
+>  mm/memcontrol.c | 3 ---
+>  1 file changed, 3 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index d06cae2..993a261 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1916,9 +1916,6 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
+>  	int cpu = (unsigned long)hcpu;
+>  	struct memcg_stock_pcp *stock;
+>  
+> -	if (action == CPU_ONLINE)
+> -		return NOTIFY_OK;
+> -
+>  	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN)
+>  		return NOTIFY_OK;
+>  
+> -- 
+> 2.1.4
 
-But if we use VA to flush cache to do cache-coherency with other master(eg:gpu)
-
-We must iterate over the sg-list to flush by va to pa.
-
-In this way, the iterate of sg-list may cost too much time(sg-table to sg-list) if
-the sglist is too long. Take a look at the ion_pages_sync_for_device in ion.
-
-The driver(eg: ION) need to use this interface(flush cache all) to *improve the efficiency*.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
