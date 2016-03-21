@@ -1,106 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 15C776B0005
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 06:37:49 -0400 (EDT)
-Received: by mail-pf0-f171.google.com with SMTP id x3so260215922pfb.1
-        for <linux-mm@kvack.org>; Mon, 21 Mar 2016 03:37:49 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d27si18964009pfj.14.2016.03.21.03.37.47
-        for <linux-mm@kvack.org>;
-        Mon, 21 Mar 2016 03:37:48 -0700 (PDT)
-Date: Mon, 21 Mar 2016 10:38:07 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: arch/ia64/kernel/entry.S:621: Error: Operand 2 of `adds' should
- be a 14-bit integer (-8192-8191)
-Message-ID: <20160321103807.GB23397@arm.com>
-References: <201603210433.xQKD3eNU%fengguang.wu@intel.com>
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 165926B0253
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 06:52:26 -0400 (EDT)
+Received: by mail-wm0-f49.google.com with SMTP id p65so146316798wmp.1
+        for <linux-mm@kvack.org>; Mon, 21 Mar 2016 03:52:26 -0700 (PDT)
+Received: from mail-ph.de-nserver.de (mail-ph.de-nserver.de. [85.158.179.214])
+        by mx.google.com with ESMTPS id t15si4749291wme.35.2016.03.21.03.52.24
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Mar 2016 03:52:24 -0700 (PDT)
+Subject: Re: divide error: 0000 [#1] SMP in task_numa_migrate -
+ handle_mm_fault vanilla 4.4.6
+References: <56EAF98B.50605@profihost.ag> <20160317184514.GA6141@kroah.com>
+ <56EDD206.3070202@suse.cz> <56EF15BB.3080509@profihost.ag>
+ <20160320214130.GB23920@kroah.com>
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Message-ID: <56EFD267.9070609@profihost.ag>
+Date: Mon, 21 Mar 2016 11:52:23 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201603210433.xQKD3eNU%fengguang.wu@intel.com>
+In-Reply-To: <20160320214130.GB23920@kroah.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Greg KH <greg@kroah.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-mm@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On Mon, Mar 21, 2016 at 04:03:50AM +0800, kbuild test robot wrote:
-> Hi Will,
-> 
-> FYI, the error/warning still remains.
 
-... as does my patch to fix it [1]
+Am 20.03.2016 um 22:41 schrieb Greg KH:
+> On Sun, Mar 20, 2016 at 10:27:23PM +0100, Stefan Priebe wrote:
+>>
+>> Am 19.03.2016 um 23:26 schrieb Vlastimil Babka:
+>>> On 03/17/2016 07:45 PM, Greg KH wrote:
+>>>> On Thu, Mar 17, 2016 at 07:38:03PM +0100, Stefan Priebe wrote:
+>>>>> Hi,
+>>>>>
+>>>>> while running qemu 2.5 on a host running 4.4.6 the host system has
+>>>>> crashed
+>>>>> (load > 200) 3 times in the last 3 days.
+>>>>>
+>>>>> Always with this stack trace: (copy left here:
+>>>>> http://pastebin.com/raw/bCWTLKyt)
+>>>>>
+>>>>> [69068.874268] divide error: 0000 [#1] SMP
+>>>>> [69068.875242] Modules linked in: ebtable_filter ebtables ip6t_REJECT
+>>>>> nf_reject_ipv6 nf_conntrack_ipv6 nf_defrag_ipv6 ip6table_filter
+>>>>> ip6_tables
+>>>>> ipt_REJECT nf_reject_ipv4 xt_physdev xt_comment nf_conntrack_ipv4
+>>>>> nf_defrag_ipv4 xt_tcpudp xt_mark xt_set xt_addrtype xt_conntrack
+>>>>> nf_conntrack ip_set_hash_net ip_set vhost_net tun vhost macvtap macvlan
+>>>>> kvm_intel nfnetlink_log kvm nfnetlink irqbypass netconsole dlm
+>>>>> xt_multiport
+>>>>> iptable_filter ip_tables x_tables iscsi_tcp libiscsi_tcp libiscsi
+>>>>> scsi_transport_iscsi nfsd auth_rpcgss oid_registry bonding coretemp
+>>>>> 8021q
+>>>>> garp fuse i2c_i801 i7core_edac edac_core i5500_temp button btrfs xor
+>>>>> raid6_pq dm_mod raid1 md_mod usb_storage ohci_hcd bcache sg usbhid
+>>>>> sd_mod
+>>>>> ata_generic uhci_hcd ehci_pci ehci_hcd usbcore ata_piix usb_common igb
+>>>>> i2c_algo_bit mpt3sas raid_class ixgbe scsi_transport_sas i2c_core
+>>>>> mdio ptp
+>>>>> pps_core
+>>>>> [69068.895604] CPU: 14 PID: 6673 Comm: ceph-osd Not tainted
+>>>>> 4.4.6+7-ph #1
+>>>>> [69068.897052] Hardware name: Supermicro X8DT3/X8DT3, BIOS 2.1
+>>>>> 03/17/2012
+>>>>> [69068.898578] task: ffff880fc7f28000 ti: ffff880fda2c4000 task.ti:
+>>>>> ffff880fda2c4000
+>>>>> [69068.900377] RIP: 0010:[<ffffffff860b372c>]  [<ffffffff860b372c>]
+>>>>> task_h_load+0xcc/0x100
+>>>
+>>> decodecode says:
+>>>
+>>>   27:   48 83 c1 01             add    $0x1,%rcx
+>>>   2b:*  48 f7 f1                div    %rcx             <-- trapping
+>>> instruction
+>>>
+>>> This suggests the CONFIG_FAIR_GROUP_SCHED version of task_h_load:
+>>>
+>>>         update_cfs_rq_h_load(cfs_rq);
+>>>         return div64_ul(p->se.avg.load_avg * cfs_rq->h_load,
+>>>                         cfs_rq_load_avg(cfs_rq) + 1);
+>>>
+>>> So the load avg is -1, thus after adding 1 we get division by 0, huh?
+>>
+>> Yes CONFIG_FAIR_GROUP_SCHED is set. I cherry picked now all those commits up
+>> to 4.5 for fair.c:
+>> https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/log/kernel/sched/fair.c?h=v4.5
+>>
+>> It didn't happen again with v4.4.6 + 4.5 patches for fair.c
+> 
+> Ok, that's a lot of patches, how about figuring out which single patch,
+> or shortest number of patches, makes things work again?
 
-Will
+will do so but it seems most out of those 9 patches are based on each
+other. So it wouldn't be easy.
 
-[1] http://lkml.kernel.org/r/1457541344-16961-1-git-send-email-will.deacon@arm.com
+Stefan
 
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-> head:   1e75a9f34a5ed5902707fb74b468356c55142b71
-> commit: da48d094ce5d7c7dcdad9011648a81c42fd1c2ef Kconfig: remove HAVE_LATENCYTOP_SUPPORT
-> date:   9 weeks ago
-> config: ia64-allmodconfig (attached as .config)
-> reproduce:
->         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout da48d094ce5d7c7dcdad9011648a81c42fd1c2ef
->         # save the attached .config to linux build tree
->         make.cross ARCH=ia64 
 > 
-> All errors (new ones prefixed by >>):
+> thanks,
 > 
->    arch/ia64/kernel/entry.S: Assembler messages:
-> >> arch/ia64/kernel/entry.S:621: Error: Operand 2 of `adds' should be a 14-bit integer (-8192-8191)
->    arch/ia64/kernel/entry.S:728: Error: Operand 2 of `adds' should be a 14-bit integer (-8192-8191)
->    arch/ia64/kernel/entry.S:859: Error: Operand 2 of `adds' should be a 14-bit integer (-8192-8191)
-> --
->    arch/ia64/kernel/fsys.S: Assembler messages:
-> >> arch/ia64/kernel/fsys.S:67: Error: Operand 3 of `add' should be a general register r0-r3
->    arch/ia64/kernel/fsys.S:97: Error: Operand 3 of `add' should be a general register r0-r3
->    arch/ia64/kernel/fsys.S:193: Error: Operand 3 of `add' should be a general register r0-r3
->    arch/ia64/kernel/fsys.S:336: Error: Operand 3 of `add' should be a general register r0-r3
->    arch/ia64/kernel/fsys.S:338: Error: Operand 3 of `add' should be a general register r0-r3
-> --
->    arch/ia64/kernel/ivt.S: Assembler messages:
-> >> arch/ia64/kernel/ivt.S:759: Error: Operand 3 of `add' should be a general register r0-r3
+> greg k-h
 > 
-> vim +621 arch/ia64/kernel/entry.S
-> 
-> ^1da177e Linus Torvalds 2005-04-16  605  	PT_REGS_UNWIND_INFO(0)
-> ^1da177e Linus Torvalds 2005-04-16  606  {	/*
-> ^1da177e Linus Torvalds 2005-04-16  607  	 * Some versions of gas generate bad unwind info if the first instruction of a
-> ^1da177e Linus Torvalds 2005-04-16  608  	 * procedure doesn't go into the first slot of a bundle.  This is a workaround.
-> ^1da177e Linus Torvalds 2005-04-16  609  	 */
-> ^1da177e Linus Torvalds 2005-04-16  610  	nop.m 0
-> ^1da177e Linus Torvalds 2005-04-16  611  	nop.i 0
-> ^1da177e Linus Torvalds 2005-04-16  612  	/*
-> ^1da177e Linus Torvalds 2005-04-16  613  	 * We need to call schedule_tail() to complete the scheduling process.
-> ^1da177e Linus Torvalds 2005-04-16  614  	 * Called by ia64_switch_to() after do_fork()->copy_thread().  r8 contains the
-> ^1da177e Linus Torvalds 2005-04-16  615  	 * address of the previously executing task.
-> ^1da177e Linus Torvalds 2005-04-16  616  	 */
-> ^1da177e Linus Torvalds 2005-04-16  617  	br.call.sptk.many rp=ia64_invoke_schedule_tail
-> ^1da177e Linus Torvalds 2005-04-16  618  }
-> ^1da177e Linus Torvalds 2005-04-16  619  .ret8:
-> 54d496c3 Al Viro        2012-10-14  620  (pKStk)	br.call.sptk.many rp=call_payload
-> ^1da177e Linus Torvalds 2005-04-16 @621  	adds r2=TI_FLAGS+IA64_TASK_SIZE,r13
-> ^1da177e Linus Torvalds 2005-04-16  622  	;;
-> ^1da177e Linus Torvalds 2005-04-16  623  	ld4 r2=[r2]
-> ^1da177e Linus Torvalds 2005-04-16  624  	;;
-> ^1da177e Linus Torvalds 2005-04-16  625  	mov r8=0
-> ^1da177e Linus Torvalds 2005-04-16  626  	and r2=_TIF_SYSCALL_TRACEAUDIT,r2
-> ^1da177e Linus Torvalds 2005-04-16  627  	;;
-> ^1da177e Linus Torvalds 2005-04-16  628  	cmp.ne p6,p0=r2,r0
-> ^1da177e Linus Torvalds 2005-04-16  629  (p6)	br.cond.spnt .strace_check_retval
-> 
-> :::::: The code at line 621 was first introduced by commit
-> :::::: 1da177e4c3f41524e886b7f1b8a0c1fc7321cac2 Linux-2.6.12-rc2
-> 
-> :::::: TO: Linus Torvalds <torvalds@ppc970.osdl.org>
-> :::::: CC: Linus Torvalds <torvalds@ppc970.osdl.org>
-> 
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
