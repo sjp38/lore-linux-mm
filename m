@@ -1,570 +1,594 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 20DF86B026A
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 02:30:35 -0400 (EDT)
-Received: by mail-pf0-f179.google.com with SMTP id 4so122346313pfd.0
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 23:30:35 -0700 (PDT)
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BABC6B026B
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 02:30:37 -0400 (EDT)
+Received: by mail-pf0-f174.google.com with SMTP id x3so253258788pfb.1
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 23:30:37 -0700 (PDT)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id h86si20725720pfj.5.2016.03.20.23.30.14
+        by mx.google.com with ESMTP id rw10si13256825pac.147.2016.03.20.23.30.15
         for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 23:30:15 -0700 (PDT)
+        Sun, 20 Mar 2016 23:30:16 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 14/18] mm/balloon: use general movable page feature into balloon
-Date: Mon, 21 Mar 2016 15:31:03 +0900
-Message-Id: <1458541867-27380-15-git-send-email-minchan@kernel.org>
+Subject: [PATCH v2 15/18] zsmalloc: migrate head page of zspage
+Date: Mon, 21 Mar 2016 15:31:04 +0900
+Message-Id: <1458541867-27380-16-git-send-email-minchan@kernel.org>
 In-Reply-To: <1458541867-27380-1-git-send-email-minchan@kernel.org>
 References: <1458541867-27380-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, Minchan Kim <minchan@kernel.org>, Gioh Kim <gurugio@hanmail.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, Minchan Kim <minchan@kernel.org>
 
-Now, VM has a feature to migrate non-lru movable pages so
-balloon doesn't need custom migration hooks in migrate.c
-and compact.c. Instead, this patch implements page->mapping
-->{isolate|migrate|putback} functions.
+This patch introduces run-time migration feature for zspage.
+To begin with, it supports only head page migration for
+easy review(later patches will support tail page migration).
 
-With that, we could remove hooks for ballooning in general
-migration functions and make balloon compaction simple.
+For migration, it supports three functions
 
-Cc: virtualization@lists.linux-foundation.org
-Cc: Rafael Aquini <aquini@redhat.com>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>
-Signed-off-by: Gioh Kim <gurugio@hanmail.net>
+* zs_page_isolate
+
+It isolates a zspage which includes a subpage VM want to migrate
+from class so anyone cannot allocate new object from the zspage.
+IOW, allocation freeze
+
+* zs_page_migrate
+
+First of all, it freezes zspage to prevent zspage destrunction
+so anyone cannot free object. Then, It copies content from oldpage
+to newpage and create new page-chain with new page.
+If it was successful, drop the refcount of old page to free
+and putback new zspage to right data structure of zsmalloc.
+Lastly, unfreeze zspages so we allows object allocation/free
+from now on.
+
+* zs_page_putback
+
+It returns isolated zspage to right fullness_group list
+if it fails to migrate a page.
+
+NOTE: A hurdle to support migration is that destroying zspage
+while migration is going on. Once a zspage is isolated,
+anyone cannot allocate object from the zspage but can deallocate
+object freely so a zspage could be destroyed until all of objects
+in zspage are freezed to prevent deallocation. The problem is
+large window betwwen zs_page_isolate and freeze_zspage
+in zs_page_migrate so the zspage could be destroyed.
+
+A easy approach to solve the problem is that object freezing
+in zs_page_isolate but it has a drawback that any object cannot
+be deallocated until migration fails after isolation. However,
+There is large time gab between isolation and migration so
+any object freeing in other CPU should spin by pin_tag which
+would cause big latency. So, this patch introduces lock_zspage
+which holds PG_lock of all pages in a zspage right before
+freeing the zspage. VM migration locks the page, too right
+before calling ->migratepage so such race doesn't exist any more.
+
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- drivers/virtio/virtio_balloon.c    |  45 ++++++++++++++++-
- include/linux/balloon_compaction.h |  47 ++++-------------
- include/linux/page-flags.h         |  52 +++++++++++--------
- include/uapi/linux/magic.h         |   1 +
- mm/balloon_compaction.c            | 101 ++++++++-----------------------------
- mm/compaction.c                    |   7 ---
- mm/migrate.c                       |  22 ++------
- mm/vmscan.c                        |   2 +-
- 8 files changed, 113 insertions(+), 164 deletions(-)
+ include/uapi/linux/magic.h |   1 +
+ mm/zsmalloc.c              | 329 +++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 317 insertions(+), 13 deletions(-)
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 7b6d74f0c72f..46a69b6a0c4f 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -30,6 +30,7 @@
- #include <linux/oom.h>
- #include <linux/wait.h>
- #include <linux/mm.h>
+diff --git a/include/uapi/linux/magic.h b/include/uapi/linux/magic.h
+index e1fbe72c39c0..93b1affe4801 100644
+--- a/include/uapi/linux/magic.h
++++ b/include/uapi/linux/magic.h
+@@ -79,5 +79,6 @@
+ #define NSFS_MAGIC		0x6e736673
+ #define BPF_FS_MAGIC		0xcafe4a11
+ #define BALLOON_KVM_MAGIC	0x13661366
++#define ZSMALLOC_MAGIC		0x58295829
+ 
+ #endif /* __LINUX_MAGIC_H__ */
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 990d752fb65b..b3b31fdfea0f 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -56,6 +56,8 @@
+ #include <linux/debugfs.h>
+ #include <linux/zsmalloc.h>
+ #include <linux/zpool.h>
 +#include <linux/mount.h>
++#include <linux/migrate.h>
  
  /*
-  * Balloon device works in 4K page units.  So each page is pointed to by
-@@ -45,6 +46,10 @@ static int oom_pages = OOM_VBALLOON_DEFAULT_PAGES;
- module_param(oom_pages, int, S_IRUSR | S_IWUSR);
- MODULE_PARM_DESC(oom_pages, "pages to free on OOM");
+  * This must be power of 2 and greater than of equal to sizeof(link_free).
+@@ -182,6 +184,8 @@ struct zs_size_stat {
+ static struct dentry *zs_stat_root;
+ #endif
  
-+#ifdef CONFIG_BALLOON_COMPACTION
-+static struct vfsmount *balloon_mnt;
-+#endif
++static struct vfsmount *zsmalloc_mnt;
 +
- struct virtio_balloon {
- 	struct virtio_device *vdev;
- 	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq;
-@@ -482,10 +487,29 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
+ /*
+  * number of size_classes
+  */
+@@ -263,6 +267,7 @@ struct zs_pool {
+ #ifdef CONFIG_ZSMALLOC_STAT
+ 	struct dentry *stat_dentry;
+ #endif
++	struct inode *inode;
+ };
  
- 	mutex_unlock(&vb->balloon_lock);
- 
-+	ClearPageIsolated(page);
- 	put_page(page); /* balloon reference */
- 
- 	return MIGRATEPAGE_SUCCESS;
+ struct zs_meta {
+@@ -412,6 +417,29 @@ static int is_last_page(struct page *page)
+ 	return PagePrivate2(page);
  }
+ 
++/*
++ * Indicate that whether zspage is isolated for page migration.
++ * Protected by size_class lock
++ */
++static void SetZsPageIsolate(struct page *first_page)
++{
++	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
++	SetPageUptodate(first_page);
++}
 +
-+static struct dentry *balloon_mount(struct file_system_type *fs_type,
-+		int flags, const char *dev_name, void *data)
++static int ZsPageIsolate(struct page *first_page)
++{
++	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
++
++	return PageUptodate(first_page);
++}
++
++static void ClearZsPageIsolate(struct page *first_page)
++{
++	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
++	ClearPageUptodate(first_page);
++}
++
+ static int get_zspage_inuse(struct page *first_page)
+ {
+ 	struct zs_meta *m;
+@@ -783,8 +811,11 @@ static enum fullness_group fix_fullness_group(struct size_class *class,
+ 	if (newfg == currfg)
+ 		goto out;
+ 
+-	remove_zspage(class, currfg, first_page);
+-	insert_zspage(class, newfg, first_page);
++	/* Later, putback will insert page to right list */
++	if (!ZsPageIsolate(first_page)) {
++		remove_zspage(class, currfg, first_page);
++		insert_zspage(class, newfg, first_page);
++	}
+ 	set_zspage_mapping(first_page, class_idx, newfg);
+ 
+ out:
+@@ -950,13 +981,31 @@ static void unpin_tag(unsigned long handle)
+ 
+ static void reset_page(struct page *page)
+ {
++	__ClearPageMovable(page);
+ 	clear_bit(PG_private, &page->flags);
+ 	clear_bit(PG_private_2, &page->flags);
+ 	set_page_private(page, 0);
+ 	page->freelist = NULL;
++	page->mapping = NULL;
+ 	page_mapcount_reset(page);
+ }
+ 
++/**
++ * lock_zspage - lock all pages in the zspage
++ * @first_page: head page of the zspage
++ *
++ * To prevent destroy during migration, zspage freeing should
++ * hold locks of all pages in a zspage
++ */
++void lock_zspage(struct page *first_page)
++{
++	struct page *cursor = first_page;
++
++	do {
++		while (!trylock_page(cursor));
++	} while ((cursor = get_next_page(cursor)) != NULL);
++}
++
+ static void free_zspage(struct zs_pool *pool, struct page *first_page)
+ {
+ 	struct page *nextp, *tmp, *head_extra;
+@@ -964,26 +1013,31 @@ static void free_zspage(struct zs_pool *pool, struct page *first_page)
+ 	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
+ 	VM_BUG_ON_PAGE(get_zspage_inuse(first_page), first_page);
+ 
++	lock_zspage(first_page);
+ 	head_extra = (struct page *)page_private(first_page);
+ 
+-	reset_page(first_page);
+-	__free_page(first_page);
+-
+ 	/* zspage with only 1 system page */
+ 	if (!head_extra)
+-		return;
++		goto out;
+ 
+ 	list_for_each_entry_safe(nextp, tmp, &head_extra->lru, lru) {
+ 		list_del(&nextp->lru);
+ 		reset_page(nextp);
++		unlock_page(nextp);
+ 		__free_page(nextp);
+ 	}
+ 	reset_page(head_extra);
++	unlock_page(head_extra);
+ 	__free_page(head_extra);
++out:
++	reset_page(first_page);
++	unlock_page(first_page);
++	__free_page(first_page);
+ }
+ 
+ /* Initialize a newly allocated zspage */
+-static void init_zspage(struct size_class *class, struct page *first_page)
++static void init_zspage(struct size_class *class, struct page *first_page,
++			struct address_space *mapping)
+ {
+ 	int freeobj = 1;
+ 	unsigned long off = 0;
+@@ -992,6 +1046,10 @@ static void init_zspage(struct size_class *class, struct page *first_page)
+ 	first_page->freelist = NULL;
+ 	INIT_LIST_HEAD(&first_page->lru);
+ 	set_zspage_inuse(first_page, 0);
++	BUG_ON(!trylock_page(first_page));
++	first_page->mapping = mapping;
++	__SetPageMovable(first_page);
++	unlock_page(first_page);
+ 
+ 	while (page) {
+ 		struct page *next_page;
+@@ -1066,10 +1124,46 @@ static void create_page_chain(struct page *pages[], int nr_pages)
+ 	}
+ }
+ 
++static void replace_sub_page(struct size_class *class, struct page *first_page,
++		struct page *newpage, struct page *oldpage)
++{
++	struct page *page;
++	struct page *pages[ZS_MAX_PAGES_PER_ZSPAGE] = {NULL,};
++	int idx = 0;
++
++	page = first_page;
++	do {
++		if (page == oldpage)
++			pages[idx] = newpage;
++		else
++			pages[idx] = page;
++		idx++;
++	} while ((page = get_next_page(page)) != NULL);
++
++	create_page_chain(pages, class->pages_per_zspage);
++
++	if (is_first_page(oldpage)) {
++		enum fullness_group fg;
++		int class_idx;
++
++		SetZsPageIsolate(newpage);
++		get_zspage_mapping(oldpage, &class_idx, &fg);
++		set_zspage_mapping(newpage, class_idx, fg);
++		set_freeobj(newpage, get_freeobj(oldpage));
++		set_zspage_inuse(newpage, get_zspage_inuse(oldpage));
++		if (class->huge)
++			set_page_private(newpage,  page_private(oldpage));
++	}
++
++	newpage->mapping = oldpage->mapping;
++	__SetPageMovable(newpage);
++}
++
+ /*
+  * Allocate a zspage for the given size class
+  */
+-static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
++static struct page *alloc_zspage(struct zs_pool *pool,
++				struct size_class *class)
+ {
+ 	int i;
+ 	struct page *first_page = NULL;
+@@ -1089,7 +1183,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+ 	for (i = 0; i < class->pages_per_zspage; i++) {
+ 		struct page *page;
+ 
+-		page = alloc_page(flags);
++		page = alloc_page(pool->flags);
+ 		if (!page) {
+ 			while (--i >= 0)
+ 				__free_page(pages[i]);
+@@ -1101,7 +1195,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+ 
+ 	create_page_chain(pages, class->pages_per_zspage);
+ 	first_page = pages[0];
+-	init_zspage(class, first_page);
++	init_zspage(class, first_page, pool->inode->i_mapping);
+ 
+ 	return first_page;
+ }
+@@ -1500,7 +1594,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ 
+ 	if (!first_page) {
+ 		spin_unlock(&class->lock);
+-		first_page = alloc_zspage(class, pool->flags);
++		first_page = alloc_zspage(pool, class);
+ 		if (unlikely(!first_page)) {
+ 			free_handle(pool, handle);
+ 			return 0;
+@@ -1560,6 +1654,7 @@ void zs_free(struct zs_pool *pool, unsigned long handle)
+ 	if (unlikely(!handle))
+ 		return;
+ 
++	/* Once handle is pinned, page|object migration cannot work */
+ 	pin_tag(handle);
+ 	obj = handle_to_obj(handle);
+ 	obj_to_location(obj, &f_page, &f_objidx);
+@@ -1715,6 +1810,9 @@ static enum fullness_group putback_zspage(struct size_class *class,
+ {
+ 	enum fullness_group fullness;
+ 
++	VM_BUG_ON_PAGE(!list_empty(&first_page->lru), first_page);
++	VM_BUG_ON_PAGE(ZsPageIsolate(first_page), first_page);
++
+ 	fullness = get_fullness_group(class, first_page);
+ 	insert_zspage(class, fullness, first_page);
+ 	set_zspage_mapping(first_page, class->index, fullness);
+@@ -2060,6 +2158,173 @@ static int zs_register_shrinker(struct zs_pool *pool)
+ 	return register_shrinker(&pool->shrinker);
+ }
+ 
++bool zs_page_isolate(struct page *page, isolate_mode_t mode)
++{
++	struct zs_pool *pool;
++	struct size_class *class;
++	int class_idx;
++	enum fullness_group fullness;
++	struct page *first_page;
++
++	/*
++	 * The page is locked so it couldn't be destroyed.
++	 * For detail, look at lock_zspage in free_zspage.
++	 */
++	VM_BUG_ON_PAGE(!PageLocked(page), page);
++	VM_BUG_ON_PAGE(PageIsolated(page), page);
++	/*
++	 * In this implementation, it allows only first page migration.
++	 */
++	VM_BUG_ON_PAGE(!is_first_page(page), page);
++	first_page = page;
++
++	/*
++	 * Without class lock, fullness is meaningless while constant
++	 * class_idx is okay. We will get it under class lock at below,
++	 * again.
++	 */
++	get_zspage_mapping(first_page, &class_idx, &fullness);
++	pool = page->mapping->private_data;
++	class = pool->size_class[class_idx];
++
++	if (!spin_trylock(&class->lock))
++		return false;
++
++	get_zspage_mapping(first_page, &class_idx, &fullness);
++	remove_zspage(class, fullness, first_page);
++	SetZsPageIsolate(first_page);
++	SetPageIsolated(page);
++	spin_unlock(&class->lock);
++
++	return true;
++}
++
++int zs_page_migrate(struct address_space *mapping, struct page *newpage,
++		struct page *page, enum migrate_mode mode)
++{
++	struct zs_pool *pool;
++	struct size_class *class;
++	int class_idx;
++	enum fullness_group fullness;
++	struct page *first_page;
++	void *s_addr, *d_addr, *addr;
++	int ret = -EBUSY;
++	int offset = 0;
++	int freezed = 0;
++
++	VM_BUG_ON_PAGE(!PageMovable(page), page);
++	VM_BUG_ON_PAGE(!PageIsolated(page), page);
++
++	first_page = page;
++	get_zspage_mapping(first_page, &class_idx, &fullness);
++	pool = page->mapping->private_data;
++	class = pool->size_class[class_idx];
++
++	/*
++	 * Get stable fullness under class->lock
++	 */
++	if (!spin_trylock(&class->lock))
++		return ret;
++
++	get_zspage_mapping(first_page, &class_idx, &fullness);
++	if (get_zspage_inuse(first_page) == 0)
++		goto out_class_unlock;
++
++	freezed = freeze_zspage(class, first_page);
++	if (freezed != get_zspage_inuse(first_page))
++		goto out_unfreeze;
++
++	/* copy contents from page to newpage */
++	s_addr = kmap_atomic(page);
++	d_addr = kmap_atomic(newpage);
++	memcpy(d_addr, s_addr, PAGE_SIZE);
++	kunmap_atomic(d_addr);
++	kunmap_atomic(s_addr);
++
++	if (!is_first_page(page))
++		offset = page->index;
++
++	addr = kmap_atomic(page);
++	do {
++		unsigned long handle;
++		unsigned long head;
++		unsigned long new_obj, old_obj;
++		unsigned long obj_idx;
++		struct page *dummy;
++
++		head = obj_to_head(class, page, addr + offset);
++		if (head & OBJ_ALLOCATED_TAG) {
++			handle = head & ~OBJ_ALLOCATED_TAG;
++			if (!testpin_tag(handle))
++				BUG();
++
++			old_obj = handle_to_obj(handle);
++			obj_to_location(old_obj, &dummy, &obj_idx);
++			new_obj = location_to_obj(newpage, obj_idx);
++			new_obj |= BIT(HANDLE_PIN_BIT);
++			record_obj(handle, new_obj);
++		}
++		offset += class->size;
++	} while (offset < PAGE_SIZE);
++	kunmap_atomic(addr);
++
++	replace_sub_page(class, first_page, newpage, page);
++	first_page = newpage;
++	get_page(newpage);
++	VM_BUG_ON_PAGE(get_fullness_group(class, first_page) ==
++			ZS_EMPTY, first_page);
++	ClearZsPageIsolate(first_page);
++	putback_zspage(class, first_page);
++
++	/* Migration complete. Free old page */
++	reset_page(page);
++	ClearPageIsolated(page);
++	put_page(page);
++	ret = MIGRATEPAGE_SUCCESS;
++
++out_unfreeze:
++	unfreeze_zspage(class, first_page, freezed);
++out_class_unlock:
++	spin_unlock(&class->lock);
++
++	return ret;
++}
++
++void zs_page_putback(struct page *page)
++{
++	struct zs_pool *pool;
++	struct size_class *class;
++	int class_idx;
++	enum fullness_group fullness;
++	struct page *first_page;
++
++	VM_BUG_ON_PAGE(!PageMovable(page), page);
++	VM_BUG_ON_PAGE(!PageIsolated(page), page);
++
++	first_page = page;
++	get_zspage_mapping(first_page, &class_idx, &fullness);
++	pool = page->mapping->private_data;
++	class = pool->size_class[class_idx];
++
++	/*
++	 * If there is race betwwen zs_free and here, free_zspage
++	 * in zs_free will wait the page lock of @page without
++	 * destroying of zspage.
++	 */
++	INIT_LIST_HEAD(&first_page->lru);
++	spin_lock(&class->lock);
++	ClearPageIsolated(page);
++	ClearZsPageIsolate(first_page);
++	putback_zspage(class, first_page);
++	spin_unlock(&class->lock);
++}
++
++const struct address_space_operations zsmalloc_aops = {
++	.isolate_page = zs_page_isolate,
++	.migratepage = zs_page_migrate,
++	.putback_page = zs_page_putback,
++};
++
+ /**
+  * zs_create_pool - Creates an allocation pool to work from.
+  * @flags: allocation flags used to allocate pool metadata
+@@ -2146,6 +2411,15 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
+ 	if (zs_pool_stat_create(pool, name))
+ 		goto err;
+ 
++	pool->inode = alloc_anon_inode(zsmalloc_mnt->mnt_sb);
++	if (IS_ERR(pool->inode)) {
++		pool->inode = NULL;
++		goto err;
++	}
++
++	pool->inode->i_mapping->a_ops = &zsmalloc_aops;
++	pool->inode->i_mapping->private_data = pool;
++
+ 	/*
+ 	 * Not critical, we still can use the pool
+ 	 * and user can trigger compaction manually.
+@@ -2165,6 +2439,8 @@ void zs_destroy_pool(struct zs_pool *pool)
+ 	int i;
+ 
+ 	zs_unregister_shrinker(pool);
++	if (pool->inode)
++		iput(pool->inode);
+ 	zs_pool_stat_destroy(pool);
+ 
+ 	for (i = 0; i < zs_size_classes; i++) {
+@@ -2193,10 +2469,33 @@ void zs_destroy_pool(struct zs_pool *pool)
+ }
+ EXPORT_SYMBOL_GPL(zs_destroy_pool);
+ 
++static struct dentry *zs_mount(struct file_system_type *fs_type,
++				int flags, const char *dev_name, void *data)
 +{
 +	static const struct dentry_operations ops = {
 +		.d_dname = simple_dname,
 +	};
 +
-+	return mount_pseudo(fs_type, "balloon-kvm:", NULL, &ops,
-+				BALLOON_KVM_MAGIC);
++	return mount_pseudo(fs_type, "zsmalloc:", NULL, &ops, ZSMALLOC_MAGIC);
 +}
 +
-+static struct file_system_type balloon_fs = {
-+	.name           = "balloon-kvm",
-+	.mount          = balloon_mount,
-+	.kill_sb        = kill_anon_super,
++static struct file_system_type zsmalloc_fs = {
++	.name		= "zsmalloc",
++	.mount		= zs_mount,
++	.kill_sb	= kill_anon_super,
 +};
 +
- #endif /* CONFIG_BALLOON_COMPACTION */
- 
- static int virtballoon_probe(struct virtio_device *vdev)
-@@ -516,12 +540,25 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 
- 	balloon_devinfo_init(&vb->vb_dev_info);
- #ifdef CONFIG_BALLOON_COMPACTION
-+	balloon_mnt = kern_mount(&balloon_fs);
-+	if (IS_ERR(balloon_mnt)) {
-+		err = PTR_ERR(balloon_mnt);
-+		goto out_free_vb;
-+	}
+ static int __init zs_init(void)
+ {
+-	int ret = zs_register_cpu_notifier();
++	int ret;
 +
- 	vb->vb_dev_info.migratepage = virtballoon_migratepage;
-+	vb->vb_dev_info.inode = alloc_anon_inode(balloon_mnt->mnt_sb);
-+	if (IS_ERR(vb->vb_dev_info.inode)) {
-+		err = PTR_ERR(vb->vb_dev_info.inode);
-+		vb->vb_dev_info.inode = NULL;
-+		goto out_unmount;
++	zsmalloc_mnt = kern_mount(&zsmalloc_fs);
++	if (IS_ERR(zsmalloc_mnt)) {
++		ret = PTR_ERR(zsmalloc_mnt);
++		goto out;
 +	}
-+	vb->vb_dev_info.inode->i_mapping->a_ops = &balloon_aops;
+ 
++	ret = zs_register_cpu_notifier();
+ 	if (ret)
+ 		goto notifier_fail;
+ 
+@@ -2219,6 +2518,7 @@ static int __init zs_init(void)
+ 		pr_err("zs stat initialization failed\n");
+ 		goto stat_fail;
+ 	}
++
+ 	return 0;
+ 
+ stat_fail:
+@@ -2227,7 +2527,8 @@ static int __init zs_init(void)
  #endif
- 
- 	err = init_vqs(vb);
- 	if (err)
--		goto out_free_vb;
-+		goto out_unmount;
- 
- 	vb->nb.notifier_call = virtballoon_oom_notify;
- 	vb->nb.priority = VIRTBALLOON_OOM_NOTIFY_PRIORITY;
-@@ -535,6 +572,10 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 
- out_oom_notify:
- 	vdev->config->del_vqs(vdev);
-+out_unmount:
-+	if (vb->vb_dev_info.inode)
-+		iput(vb->vb_dev_info.inode);
-+	kern_unmount(balloon_mnt);
- out_free_vb:
- 	kfree(vb);
- out:
-@@ -567,6 +608,8 @@ static void virtballoon_remove(struct virtio_device *vdev)
- 	cancel_work_sync(&vb->update_balloon_stats_work);
- 
- 	remove_common(vb);
-+	if (vb->vb_dev_info.inode)
-+		iput(vb->vb_dev_info.inode);
- 	kfree(vb);
- }
- 
-diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
-index 9b0a15d06a4f..43a858545844 100644
---- a/include/linux/balloon_compaction.h
-+++ b/include/linux/balloon_compaction.h
-@@ -48,6 +48,7 @@
- #include <linux/migrate.h>
- #include <linux/gfp.h>
- #include <linux/err.h>
-+#include <linux/fs.h>
- 
- /*
-  * Balloon device information descriptor.
-@@ -62,6 +63,7 @@ struct balloon_dev_info {
- 	struct list_head pages;		/* Pages enqueued & handled to Host */
- 	int (*migratepage)(struct balloon_dev_info *, struct page *newpage,
- 			struct page *page, enum migrate_mode mode);
-+	struct inode *inode;
- };
- 
- extern struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info);
-@@ -73,45 +75,19 @@ static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
- 	spin_lock_init(&balloon->pages_lock);
- 	INIT_LIST_HEAD(&balloon->pages);
- 	balloon->migratepage = NULL;
-+	balloon->inode = NULL;
- }
- 
- #ifdef CONFIG_BALLOON_COMPACTION
--extern bool balloon_page_isolate(struct page *page);
-+extern const struct address_space_operations balloon_aops;
-+extern bool balloon_page_isolate(struct page *page,
-+				isolate_mode_t mode);
- extern void balloon_page_putback(struct page *page);
--extern int balloon_page_migrate(struct page *newpage,
-+extern int balloon_page_migrate(struct address_space *mapping,
-+				struct page *newpage,
- 				struct page *page, enum migrate_mode mode);
- 
- /*
-- * __is_movable_balloon_page - helper to perform @page PageBalloon tests
-- */
--static inline bool __is_movable_balloon_page(struct page *page)
--{
--	return PageBalloon(page);
--}
+ notifier_fail:
+ 	zs_unregister_cpu_notifier();
 -
--/*
-- * balloon_page_movable - test PageBalloon to identify balloon pages
-- *			  and PagePrivate to check that the page is not
-- *			  isolated and can be moved by compaction/migration.
-- *
-- * As we might return false positives in the case of a balloon page being just
-- * released under us, this need to be re-tested later, under the page lock.
-- */
--static inline bool balloon_page_movable(struct page *page)
--{
--	return PageBalloon(page) && PagePrivate(page);
--}
--
--/*
-- * isolated_balloon_page - identify an isolated balloon page on private
-- *			   compaction/migration page lists.
-- */
--static inline bool isolated_balloon_page(struct page *page)
--{
--	return PageBalloon(page);
--}
--
--/*
-  * balloon_page_insert - insert a page into the balloon's page list and make
-  *			 the page->private assignment accordingly.
-  * @balloon : pointer to balloon device
-@@ -123,8 +99,8 @@ static inline bool isolated_balloon_page(struct page *page)
- static inline void balloon_page_insert(struct balloon_dev_info *balloon,
- 				       struct page *page)
- {
-+	page->mapping = balloon->inode->i_mapping;
- 	__SetPageBalloon(page);
--	SetPagePrivate(page);
- 	set_page_private(page, (unsigned long)balloon);
- 	list_add(&page->lru, &balloon->pages);
- }
-@@ -140,11 +116,10 @@ static inline void balloon_page_insert(struct balloon_dev_info *balloon,
- static inline void balloon_page_delete(struct page *page)
- {
- 	__ClearPageBalloon(page);
-+	page->mapping = NULL;
- 	set_page_private(page, 0);
--	if (PagePrivate(page)) {
--		ClearPagePrivate(page);
-+	if (!PageIsolated(page))
- 		list_del(&page->lru);
--	}
++	kern_unmount(zsmalloc_mnt);
++out:
+ 	return ret;
  }
  
- /*
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 3885064641c4..4853e0487175 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -599,50 +599,58 @@ static inline void __ClearPageBuddy(struct page *page)
+@@ -2238,6 +2539,8 @@ static void __exit zs_exit(void)
+ #endif
+ 	zs_unregister_cpu_notifier();
  
- extern bool is_free_buddy_page(struct page *page);
- 
--#define PAGE_BALLOON_MAPCOUNT_VALUE (-256)
-+#define PAGE_MOVABLE_MAPCOUNT_VALUE (-256)
-+#define PAGE_BALLOON_MAPCOUNT_VALUE PAGE_MOVABLE_MAPCOUNT_VALUE
- 
--static inline int PageBalloon(struct page *page)
-+static inline int PageMovable(struct page *page)
- {
--	return atomic_read(&page->_mapcount) == PAGE_BALLOON_MAPCOUNT_VALUE;
-+	return (test_bit(PG_movable, &(page)->flags) &&
-+		atomic_read(&page->_mapcount) == PAGE_MOVABLE_MAPCOUNT_VALUE);
- }
- 
--static inline void __SetPageBalloon(struct page *page)
-+/* Caller should hold a PG_lock */
-+static inline void __SetPageMovable(struct page *page)
- {
--	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
--	atomic_set(&page->_mapcount, PAGE_BALLOON_MAPCOUNT_VALUE);
-+	__set_bit(PG_movable, &page->flags);
-+	atomic_set(&page->_mapcount, PAGE_MOVABLE_MAPCOUNT_VALUE);
- }
- 
--static inline void __ClearPageBalloon(struct page *page)
-+static inline void __ClearPageMovable(struct page *page)
- {
--	VM_BUG_ON_PAGE(!PageBalloon(page), page);
- 	atomic_set(&page->_mapcount, -1);
-+	__clear_bit(PG_movable, &(page)->flags);
- }
- 
--#define PAGE_MOVABLE_MAPCOUNT_VALUE (-255)
-+PAGEFLAG(Isolated, isolated, PF_ANY);
- 
--static inline int PageMovable(struct page *page)
-+static inline int PageBalloon(struct page *page)
- {
--	return ((test_bit(PG_movable, &(page)->flags) &&
--		atomic_read(&page->_mapcount) == PAGE_MOVABLE_MAPCOUNT_VALUE)
--		|| PageBalloon(page));
-+	return atomic_read(&page->_mapcount) == PAGE_BALLOON_MAPCOUNT_VALUE
-+		&& PagePrivate2(page);
- }
- 
--/*
-- * Caller should hold a PG_lock */
--static inline void __SetPageMovable(struct page *page)
-+static inline void __SetPageBalloon(struct page *page)
- {
--	__set_bit(PG_movable, &page->flags);
--	atomic_set(&page->_mapcount, PAGE_MOVABLE_MAPCOUNT_VALUE);
-+	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
-+#ifdef CONFIG_BALLOON_COMPACTION
-+	__SetPageMovable(page);
-+#else
-+	atomic_set(&page->_mapcount, PAGE_BALLOON_MAPCOUNT_VALUE);
-+#endif
-+	SetPagePrivate2(page);
- }
- 
--static inline void __ClearPageMovable(struct page *page)
-+static inline void __ClearPageBalloon(struct page *page)
- {
-+	VM_BUG_ON_PAGE(!PageBalloon(page), page);
-+#ifdef CONFIG_BALLOON_COMPACTION
-+	__ClearPageMovable(page);
-+#else
- 	atomic_set(&page->_mapcount, -1);
--	__clear_bit(PG_movable, &(page)->flags);
-+#endif
-+	ClearPagePrivate2(page);
- }
- 
--PAGEFLAG(Isolated, isolated, PF_ANY);
--
- /*
-  * If network-based swap is enabled, sl*b must keep track of whether pages
-  * were allocated from pfmemalloc reserves.
-diff --git a/include/uapi/linux/magic.h b/include/uapi/linux/magic.h
-index 0de181ad73d5..e1fbe72c39c0 100644
---- a/include/uapi/linux/magic.h
-+++ b/include/uapi/linux/magic.h
-@@ -78,5 +78,6 @@
- #define BTRFS_TEST_MAGIC	0x73727279
- #define NSFS_MAGIC		0x6e736673
- #define BPF_FS_MAGIC		0xcafe4a11
-+#define BALLOON_KVM_MAGIC	0x13661366
- 
- #endif /* __LINUX_MAGIC_H__ */
-diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-index 57b3e9bd6bc5..1fbc7fb387bb 100644
---- a/mm/balloon_compaction.c
-+++ b/mm/balloon_compaction.c
-@@ -70,7 +70,7 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
- 		 */
- 		if (trylock_page(page)) {
- #ifdef CONFIG_BALLOON_COMPACTION
--			if (!PagePrivate(page)) {
-+			if (PageIsolated(page)) {
- 				/* raced with isolation */
- 				unlock_page(page);
- 				continue;
-@@ -106,110 +106,53 @@ EXPORT_SYMBOL_GPL(balloon_page_dequeue);
- 
- #ifdef CONFIG_BALLOON_COMPACTION
- 
--static inline void __isolate_balloon_page(struct page *page)
-+/* __isolate_lru_page() counterpart for a ballooned page */
-+bool balloon_page_isolate(struct page *page, isolate_mode_t mode)
- {
- 	struct balloon_dev_info *b_dev_info = balloon_page_device(page);
- 	unsigned long flags;
- 
- 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
--	ClearPagePrivate(page);
- 	list_del(&page->lru);
- 	b_dev_info->isolated_pages++;
- 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
-+	SetPageIsolated(page);
++	kern_unmount(zsmalloc_mnt);
 +
-+	return true;
+ 	zs_stat_exit();
  }
  
--static inline void __putback_balloon_page(struct page *page)
-+/* putback_lru_page() counterpart for a ballooned page */
-+void balloon_page_putback(struct page *page)
- {
- 	struct balloon_dev_info *b_dev_info = balloon_page_device(page);
- 	unsigned long flags;
- 
-+	ClearPageIsolated(page);
- 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
--	SetPagePrivate(page);
- 	list_add(&page->lru, &b_dev_info->pages);
- 	b_dev_info->isolated_pages--;
- 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
- }
- 
--/* __isolate_lru_page() counterpart for a ballooned page */
--bool balloon_page_isolate(struct page *page)
--{
--	/*
--	 * Avoid burning cycles with pages that are yet under __free_pages(),
--	 * or just got freed under us.
--	 *
--	 * In case we 'win' a race for a balloon page being freed under us and
--	 * raise its refcount preventing __free_pages() from doing its job
--	 * the put_page() at the end of this block will take care of
--	 * release this page, thus avoiding a nasty leakage.
--	 */
--	if (likely(get_page_unless_zero(page))) {
--		/*
--		 * As balloon pages are not isolated from LRU lists, concurrent
--		 * compaction threads can race against page migration functions
--		 * as well as race against the balloon driver releasing a page.
--		 *
--		 * In order to avoid having an already isolated balloon page
--		 * being (wrongly) re-isolated while it is under migration,
--		 * or to avoid attempting to isolate pages being released by
--		 * the balloon driver, lets be sure we have the page lock
--		 * before proceeding with the balloon page isolation steps.
--		 */
--		if (likely(trylock_page(page))) {
--			/*
--			 * A ballooned page, by default, has PagePrivate set.
--			 * Prevent concurrent compaction threads from isolating
--			 * an already isolated balloon page by clearing it.
--			 */
--			if (balloon_page_movable(page)) {
--				__isolate_balloon_page(page);
--				unlock_page(page);
--				return true;
--			}
--			unlock_page(page);
--		}
--		put_page(page);
--	}
--	return false;
--}
--
--/* putback_lru_page() counterpart for a ballooned page */
--void balloon_page_putback(struct page *page)
--{
--	/*
--	 * 'lock_page()' stabilizes the page and prevents races against
--	 * concurrent isolation threads attempting to re-isolate it.
--	 */
--	lock_page(page);
--
--	if (__is_movable_balloon_page(page)) {
--		__putback_balloon_page(page);
--		/* drop the extra ref count taken for page isolation */
--		put_page(page);
--	} else {
--		WARN_ON(1);
--		dump_page(page, "not movable balloon page");
--	}
--	unlock_page(page);
--}
--
- /* move_to_new_page() counterpart for a ballooned page */
--int balloon_page_migrate(struct page *newpage,
--			 struct page *page, enum migrate_mode mode)
-+int balloon_page_migrate(struct address_space *mapping,
-+		struct page *newpage, struct page *page,
-+		enum migrate_mode mode)
- {
- 	struct balloon_dev_info *balloon = balloon_page_device(page);
--	int rc = -EAGAIN;
- 
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
-+	VM_BUG_ON_PAGE(!PageMovable(page), page);
-+	VM_BUG_ON_PAGE(!PageIsolated(page), page);
- 
--	if (WARN_ON(!__is_movable_balloon_page(page))) {
--		dump_page(page, "not movable balloon page");
--		return rc;
--	}
--
--	if (balloon && balloon->migratepage)
--		rc = balloon->migratepage(balloon, newpage, page, mode);
--
--	return rc;
-+	return balloon->migratepage(balloon, newpage, page, mode);
- }
-+
-+const struct address_space_operations balloon_aops = {
-+	.migratepage = balloon_page_migrate,
-+	.isolate_page = balloon_page_isolate,
-+	.putback_page = balloon_page_putback,
-+};
-+EXPORT_SYMBOL_GPL(balloon_aops);
- #endif /* CONFIG_BALLOON_COMPACTION */
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 7557aedddaee..e336c620fd7b 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -708,13 +708,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 		 */
- 		is_lru = PageLRU(page);
- 		if (!is_lru) {
--			if (unlikely(balloon_page_movable(page))) {
--				if (balloon_page_isolate(page)) {
--					/* Successfully isolated */
--					goto isolate_success;
--				}
--			}
--
- 			if (unlikely(PageMovable(page)) &&
- 					!PageIsolated(page)) {
- 				if (locked) {
-diff --git a/mm/migrate.c b/mm/migrate.c
-index fc2842a15807..631c20754ee8 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -147,8 +147,8 @@ void putback_movable_page(struct page *page)
-  * from where they were once taken off for compaction/migration.
-  *
-  * This function shall be used whenever the isolated pageset has been
-- * built from lru, balloon, hugetlbfs page. See isolate_migratepages_range()
-- * and isolate_huge_page().
-+ * built from lru, movable, hugetlbfs page.
-+ * See isolate_migratepages_range() and isolate_huge_page().
-  */
- void putback_movable_pages(struct list_head *l)
- {
-@@ -163,9 +163,7 @@ void putback_movable_pages(struct list_head *l)
- 		list_del(&page->lru);
- 		dec_zone_page_state(page, NR_ISOLATED_ANON +
- 				page_is_file_cache(page));
--		if (unlikely(isolated_balloon_page(page)))
--			balloon_page_putback(page);
--		else if (unlikely(PageIsolated(page)))
-+		if (unlikely(PageIsolated(page)))
- 			putback_movable_page(page);
- 		else
- 			putback_lru_page(page);
-@@ -959,18 +957,6 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
- 	if (unlikely(!trylock_page(newpage)))
- 		goto out_unlock;
- 
--	if (unlikely(isolated_balloon_page(page))) {
--		/*
--		 * A ballooned page does not need any special attention from
--		 * physical to virtual reverse mapping procedures.
--		 * Skip any attempt to unmap PTEs or to remap swap cache,
--		 * in order to avoid burning cycles at rmap level, and perform
--		 * the page migration right away (proteced by page lock).
--		 */
--		rc = balloon_page_migrate(newpage, page, mode);
--		goto out_unlock_both;
--	}
--
- 	/*
- 	 * Corner case handling:
- 	 * 1. When a new swap-cache page is read into, it is added to the LRU
-@@ -1015,7 +1001,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
- out:
- 	/* If migration is scucessful, move newpage to right list */
- 	if (rc == MIGRATEPAGE_SUCCESS) {
--		if (unlikely(__is_movable_balloon_page(newpage)))
-+		if (unlikely(PageMovable(newpage)))
- 			put_page(newpage);
- 		else
- 			putback_lru_page(newpage);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c72032dbe8db..e5dfa0cf6fdc 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1254,7 +1254,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
- 
- 	list_for_each_entry_safe(page, next, page_list, lru) {
- 		if (page_is_file_cache(page) && !PageDirty(page) &&
--		    !isolated_balloon_page(page)) {
-+		    !PageIsolated(page)) {
- 			ClearPageActive(page);
- 			list_move(&page->lru, &clean_pages);
- 		}
 -- 
 1.9.1
 
