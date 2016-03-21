@@ -1,146 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CE5926B0266
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 03:00:08 -0400 (EDT)
-Received: by mail-pf0-f173.google.com with SMTP id 4so123199020pfd.0
-        for <linux-mm@kvack.org>; Mon, 21 Mar 2016 00:00:08 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id p28si21639356pfi.167.2016.03.21.00.00.07
-        for <linux-mm@kvack.org>;
-        Mon, 21 Mar 2016 00:00:07 -0700 (PDT)
-Date: Mon, 21 Mar 2016 14:57:37 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: undefined reference to `early_panic'
-Message-ID: <201603211436.wqp74LLP%fengguang.wu@intel.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="ew6BAiZeqk4r7MaW"
-Content-Disposition: inline
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 96D096B0005
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 03:13:08 -0400 (EDT)
+Received: by mail-pf0-f175.google.com with SMTP id n5so254466568pfn.2
+        for <linux-mm@kvack.org>; Mon, 21 Mar 2016 00:13:08 -0700 (PDT)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id fk7si19991304pac.50.2016.03.21.00.13.07
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 21 Mar 2016 00:13:07 -0700 (PDT)
+MIME-version: 1.0
+Content-type: text/plain; charset=UTF-8; format=flowed
+Received: from epcpsbgr1.samsung.com
+ (u141.gpu120.samsung.co.kr [203.254.230.141])
+ by mailout4.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ 64bit (built May  5 2014))
+ with ESMTP id <0O4D02P9GO1TORE0@mailout4.samsung.com> for linux-mm@kvack.org;
+ Mon, 21 Mar 2016 16:13:05 +0900 (KST)
+Content-transfer-encoding: 8BIT
+Message-id: <56EF9F27.9060400@samsung.com>
+Date: Mon, 21 Mar 2016 16:13:43 +0900
+From: Chulmin Kim <cmlaika.kim@samsung.com>
+Subject: Re: [PATCH v2 01/18] mm: use put_page to free page instead of
+ putback_lru_page
+References: <1458541867-27380-1-git-send-email-minchan@kernel.org>
+ <1458541867-27380-2-git-send-email-minchan@kernel.org>
+In-reply-to: <1458541867-27380-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org
+
+On 2016e?? 03i?? 21i? 1/4  15:30, Minchan Kim wrote:
+> Procedure of page migration is as follows:
+>
+> First of all, it should isolate a page from LRU and try to
+> migrate the page. If it is successful, it releases the page
+> for freeing. Otherwise, it should put the page back to LRU
+> list.
+>
+> For LRU pages, we have used putback_lru_page for both freeing
+> and putback to LRU list. It's okay because put_page is aware of
+> LRU list so if it releases last refcount of the page, it removes
+> the page from LRU list. However, It makes unnecessary operations
+> (e.g., lru_cache_add, pagevec and flags operations. It would be
+> not significant but no worth to do) and harder to support new
+> non-lru page migration because put_page isn't aware of non-lru
+> page's data structure.
+>
+> To solve the problem, we can add new hook in put_page with
+> PageMovable flags check but it can increase overhead in
+> hot path and needs new locking scheme to stabilize the flag check
+> with put_page.
+>
+> So, this patch cleans it up to divide two semantic(ie, put and putback).
+> If migration is successful, use put_page instead of putback_lru_page and
+> use putback_lru_page only on failure. That makes code more readable
+> and doesn't add overhead in put_page.
+>
+> Comment from Vlastimil
+> "Yeah, and compaction (perhaps also other migration users) has to drain
+> the lru pvec... Getting rid of this stuff is worth even by itself."
+>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>   mm/migrate.c | 50 +++++++++++++++++++++++++++++++-------------------
+>   1 file changed, 31 insertions(+), 19 deletions(-)
+>
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 6c822a7b27e0..b65c84267ce0 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -913,6 +913,14 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+>   		put_anon_vma(anon_vma);
+>   	unlock_page(page);
+>   out:
+> +	/* If migration is scucessful, move newpage to right list */
+
+A minor comment fix :)
+  +	/* If migration is successful, move newpage to right list */
 
 
---ew6BAiZeqk4r7MaW
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-Hi Dan,
-
-It's probably a bug fix that unveils the link errors.
-
-tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-head:   643ad15d47410d37d43daf3ef1c8ac52c281efa5
-commit: 888cdbc2c9a76a0e450f533b1957cdbfe7d483d5 hugetlb: fix compile error on tile
-date:   9 weeks ago
-config: tile-allnoconfig (attached as .config)
-reproduce:
-        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        git checkout 888cdbc2c9a76a0e450f533b1957cdbfe7d483d5
-        # save the attached .config to linux build tree
-        make.cross ARCH=tile 
-
-All errors (new ones prefixed by >>):
-
-   arch/tile/built-in.o: In function `setup_arch':
->> (.init.text+0x15d8): undefined reference to `early_panic'
-   arch/tile/built-in.o: In function `setup_arch':
-   (.init.text+0x1610): undefined reference to `early_panic'
-   arch/tile/built-in.o: In function `setup_arch':
-   (.init.text+0x1800): undefined reference to `early_panic'
-   arch/tile/built-in.o: In function `setup_arch':
-   (.init.text+0x1828): undefined reference to `early_panic'
-   arch/tile/built-in.o: In function `setup_arch':
-   (.init.text+0x1bd8): undefined reference to `early_panic'
-   arch/tile/built-in.o:(.init.text+0x1c18): more undefined references to `early_panic' follow
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
---ew6BAiZeqk4r7MaW
-Content-Type: application/octet-stream
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-mePiBtvGmaT9NT4pVCyTj4PGoP8H/zSV5SI2AAA=
-
---ew6BAiZeqk4r7MaW--
+> +	if (rc == MIGRATEPAGE_SUCCESS) {
+> +		if (unlikely(__is_movable_balloon_page(newpage)))
+> +			put_page(newpage);
+> +		else
+> +			putback_lru_page(newpage);
+> +	}
+> +
+>   	return rc;
+>   }
+>
+> @@ -946,6 +954,12 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+>
+>   	if (page_count(page) == 1) {
+>   		/* page was freed from under us. So we are done. */
+> +		ClearPageActive(page);
+> +		ClearPageUnevictable(page);
+> +		if (put_new_page)
+> +			put_new_page(newpage, private);
+> +		else
+> +			put_page(newpage);
+>   		goto out;
+>   	}
+>
+> @@ -958,10 +972,8 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+>   	}
+>
+>   	rc = __unmap_and_move(page, newpage, force, mode);
+> -	if (rc == MIGRATEPAGE_SUCCESS) {
+> -		put_new_page = NULL;
+> +	if (rc == MIGRATEPAGE_SUCCESS)
+>   		set_page_owner_migrate_reason(newpage, reason);
+> -	}
+>
+>   out:
+>   	if (rc != -EAGAIN) {
+> @@ -974,28 +986,28 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+>   		list_del(&page->lru);
+>   		dec_zone_page_state(page, NR_ISOLATED_ANON +
+>   				page_is_file_cache(page));
+> -		/* Soft-offlined page shouldn't go through lru cache list */
+> +	}
+> +
+> +	/*
+> +	 * If migration is successful, drop the reference grabbed during
+> +	 * isolation. Otherwise, restore the page to LRU list unless we
+> +	 * want to retry.
+> +	 */
+> +	if (rc == MIGRATEPAGE_SUCCESS) {
+> +		put_page(page);
+>   		if (reason == MR_MEMORY_FAILURE) {
+> -			put_page(page);
+>   			if (!test_set_page_hwpoison(page))
+>   				num_poisoned_pages_inc();
+> -		} else
+> +		}
+> +	} else {
+> +		if (rc != -EAGAIN)
+>   			putback_lru_page(page);
+> +		if (put_new_page)
+> +			put_new_page(newpage, private);
+> +		else
+> +			put_page(newpage);
+>   	}
+>
+> -	/*
+> -	 * If migration was not successful and there's a freeing callback, use
+> -	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
+> -	 * during isolation.
+> -	 */
+> -	if (put_new_page)
+> -		put_new_page(newpage, private);
+> -	else if (unlikely(__is_movable_balloon_page(newpage))) {
+> -		/* drop our reference, page already in the balloon */
+> -		put_page(newpage);
+> -	} else
+> -		putback_lru_page(newpage);
+> -
+>   	if (result) {
+>   		if (rc)
+>   			*result = rc;
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
