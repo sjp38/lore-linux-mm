@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 181F76B0261
-	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 02:30:18 -0400 (EDT)
-Received: by mail-pf0-f177.google.com with SMTP id 4so122337762pfd.0
-        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 23:30:18 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id xt3si11039602pab.145.2016.03.20.23.30.09
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DBAF6B0262
+	for <linux-mm@kvack.org>; Mon, 21 Mar 2016 02:30:20 -0400 (EDT)
+Received: by mail-pf0-f175.google.com with SMTP id u190so254111170pfb.3
+        for <linux-mm@kvack.org>; Sun, 20 Mar 2016 23:30:20 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id f11si14035433pat.133.2016.03.20.23.30.10
         for <linux-mm@kvack.org>;
-        Sun, 20 Mar 2016 23:30:10 -0700 (PDT)
+        Sun, 20 Mar 2016 23:30:11 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 06/18] zsmalloc: keep max_object in size_class
-Date: Mon, 21 Mar 2016 15:30:55 +0900
-Message-Id: <1458541867-27380-7-git-send-email-minchan@kernel.org>
+Subject: [PATCH v2 07/18] zsmalloc: squeeze inuse into page->mapping
+Date: Mon, 21 Mar 2016 15:30:56 +0900
+Message-Id: <1458541867-27380-8-git-send-email-minchan@kernel.org>
 In-Reply-To: <1458541867-27380-1-git-send-email-minchan@kernel.org>
 References: <1458541867-27380-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,126 +19,247 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, Minchan Kim <minchan@kernel.org>
 
-Every zspage in a size_class has same number of max objects so
-we could move it to a size_class.
+Currently, we store class:fullness into page->mapping.
+The number of class we can support is 255 and fullness is 4 so
+(8 + 2 = 10bit) is enough to represent them.
+Meanwhile, the bits we need to store in-use objects in zspage
+is that 11bit is enough.
+
+For example, If we assume that 64K PAGE_SIZE, class_size 32
+which is worst case, class->pages_per_zspage become 1 so
+the number of objects in zspage is 2048 so 11bit is enough.
+The next class is 32 + 256(i.e., ZS_SIZE_CLASS_DELTA).
+With worst case that ZS_MAX_PAGES_PER_ZSPAGE, 64K * 4 /
+(32 + 256) = 910 so 11bit is still enough.
+
+So, we could squeeze inuse object count to page->mapping.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/zsmalloc.c | 32 +++++++++++++++-----------------
- 1 file changed, 15 insertions(+), 17 deletions(-)
+ mm/zsmalloc.c | 103 ++++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 71 insertions(+), 32 deletions(-)
 
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index a0890e9003e2..8649d0243e6c 100644
+index 8649d0243e6c..4dd72a803568 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
-@@ -32,8 +32,6 @@
-  *	page->freelist: points to the first free object in zspage.
-  *		Free objects are linked together using in-place
+@@ -34,8 +34,7 @@
   *		metadata.
-- *	page->objects: maximum number of objects we can store in this
-- *		zspage (class->zspage_order * PAGE_SIZE / class->size)
   *	page->lru: links together first pages of various zspages.
   *		Basically forming list of zspages in a fullness group.
-  *	page->mapping: class index and fullness group of the zspage
-@@ -211,6 +209,7 @@ struct size_class {
- 	 * of ZS_ALIGN.
- 	 */
- 	int size;
-+	int objs_per_zspage;
- 	unsigned int index;
+- *	page->mapping: class index and fullness group of the zspage
+- *	page->inuse: the number of objects that are used in this zspage
++ *	page->mapping: override by struct zs_meta
+  *
+  * Usage of struct page flags:
+  *	PG_private: identifies the first component page
+@@ -132,6 +131,13 @@
+ /* each chunk includes extra space to keep handle */
+ #define ZS_MAX_ALLOC_SIZE	PAGE_SIZE
  
- 	struct zs_size_stat stats;
-@@ -627,21 +626,22 @@ static inline void zs_pool_stat_destroy(struct zs_pool *pool)
-  * the pool (not yet implemented). This function returns fullness
-  * status of the given page.
++#define CLASS_BITS	8
++#define CLASS_MASK	((1 << CLASS_BITS) - 1)
++#define FULLNESS_BITS	2
++#define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
++#define INUSE_BITS	11
++#define INUSE_MASK	((1 << INUSE_BITS) - 1)
++
+ /*
+  * On systems with 4K page size, this gives 255 size classes! There is a
+  * trader-off here:
+@@ -145,7 +151,7 @@
+  *  ZS_MIN_ALLOC_SIZE and ZS_SIZE_CLASS_DELTA must be multiple of ZS_ALIGN
+  *  (reason above)
   */
--static enum fullness_group get_fullness_group(struct page *first_page)
-+static enum fullness_group get_fullness_group(struct size_class *class,
-+						struct page *first_page)
- {
--	int inuse, max_objects;
-+	int inuse, objs_per_zspage;
- 	enum fullness_group fg;
+-#define ZS_SIZE_CLASS_DELTA	(PAGE_SIZE >> 8)
++#define ZS_SIZE_CLASS_DELTA	(PAGE_SIZE >> CLASS_BITS)
  
- 	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
+ /*
+  * We do not maintain any list for completely empty or full pages
+@@ -155,7 +161,7 @@ enum fullness_group {
+ 	ZS_ALMOST_EMPTY,
+ 	_ZS_NR_FULLNESS_GROUPS,
  
- 	inuse = first_page->inuse;
--	max_objects = first_page->objects;
-+	objs_per_zspage = class->objs_per_zspage;
+-	ZS_EMPTY,
++	ZS_EMPTY = _ZS_NR_FULLNESS_GROUPS,
+ 	ZS_FULL
+ };
  
- 	if (inuse == 0)
- 		fg = ZS_EMPTY;
--	else if (inuse == max_objects)
-+	else if (inuse == objs_per_zspage)
- 		fg = ZS_FULL;
--	else if (inuse <= 3 * max_objects / fullness_threshold_frac)
-+	else if (inuse <= 3 * objs_per_zspage / fullness_threshold_frac)
- 		fg = ZS_ALMOST_EMPTY;
- 	else
- 		fg = ZS_ALMOST_FULL;
-@@ -728,7 +728,7 @@ static enum fullness_group fix_fullness_group(struct size_class *class,
- 	enum fullness_group currfg, newfg;
+@@ -263,14 +269,11 @@ struct zs_pool {
+ #endif
+ };
  
- 	get_zspage_mapping(first_page, &class_idx, &currfg);
--	newfg = get_fullness_group(first_page);
-+	newfg = get_fullness_group(class, first_page);
- 	if (newfg == currfg)
- 		goto out;
+-/*
+- * A zspage's class index and fullness group
+- * are encoded in its (first)page->mapping
+- */
+-#define CLASS_IDX_BITS	28
+-#define FULLNESS_BITS	4
+-#define CLASS_IDX_MASK	((1 << CLASS_IDX_BITS) - 1)
+-#define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
++struct zs_meta {
++	unsigned long class:CLASS_BITS;
++	unsigned long fullness:FULLNESS_BITS;
++	unsigned long inuse:INUSE_BITS;
++};
  
-@@ -1008,9 +1008,6 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
- 	init_zspage(class, first_page);
- 
- 	first_page->freelist = location_to_obj(first_page, 0);
--	/* Maximum number of objects we can store in this zspage */
--	first_page->objects = class->pages_per_zspage * PAGE_SIZE / class->size;
--
- 	error = 0; /* Success */
- 
- cleanup:
-@@ -1238,11 +1235,11 @@ static bool can_merge(struct size_class *prev, int size, int pages_per_zspage)
- 	return true;
+ struct mapping_area {
+ #ifdef CONFIG_PGTABLE_MAPPING
+@@ -412,28 +415,61 @@ static int is_last_page(struct page *page)
+ 	return PagePrivate2(page);
  }
  
--static bool zspage_full(struct page *first_page)
-+static bool zspage_full(struct size_class *class, struct page *first_page)
++static int get_zspage_inuse(struct page *first_page)
++{
++	struct zs_meta *m;
++
++	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
++
++	m = (struct zs_meta *)&first_page->mapping;
++
++	return m->inuse;
++}
++
++static void set_zspage_inuse(struct page *first_page, int val)
++{
++	struct zs_meta *m;
++
++	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
++
++	m = (struct zs_meta *)&first_page->mapping;
++	m->inuse = val;
++}
++
++static void mod_zspage_inuse(struct page *first_page, int val)
++{
++	struct zs_meta *m;
++
++	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
++
++	m = (struct zs_meta *)&first_page->mapping;
++	m->inuse += val;
++}
++
+ static void get_zspage_mapping(struct page *first_page,
+ 				unsigned int *class_idx,
+ 				enum fullness_group *fullness)
  {
+-	unsigned long m;
++	struct zs_meta *m;
++
  	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
  
--	return first_page->inuse == first_page->objects;
-+	return first_page->inuse == class->objs_per_zspage;
+-	m = (unsigned long)first_page->mapping;
+-	*fullness = m & FULLNESS_MASK;
+-	*class_idx = (m >> FULLNESS_BITS) & CLASS_IDX_MASK;
++	m = (struct zs_meta *)&first_page->mapping;
++	*fullness = m->fullness;
++	*class_idx = m->class;
+ }
+ 
+ static void set_zspage_mapping(struct page *first_page,
+ 				unsigned int class_idx,
+ 				enum fullness_group fullness)
+ {
+-	unsigned long m;
++	struct zs_meta *m;
++
+ 	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
+ 
+-	m = ((class_idx & CLASS_IDX_MASK) << FULLNESS_BITS) |
+-			(fullness & FULLNESS_MASK);
+-	first_page->mapping = (struct address_space *)m;
++	m = (struct zs_meta *)&first_page->mapping;
++	m->fullness = fullness;
++	m->class = class_idx;
+ }
+ 
+ /*
+@@ -632,9 +668,7 @@ static enum fullness_group get_fullness_group(struct size_class *class,
+ 	int inuse, objs_per_zspage;
+ 	enum fullness_group fg;
+ 
+-	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
+-
+-	inuse = first_page->inuse;
++	inuse = get_zspage_inuse(first_page);
+ 	objs_per_zspage = class->objs_per_zspage;
+ 
+ 	if (inuse == 0)
+@@ -677,10 +711,10 @@ static void insert_zspage(struct size_class *class,
+ 
+ 	/*
+ 	 * We want to see more ZS_FULL pages and less almost
+-	 * empty/full. Put pages with higher ->inuse first.
++	 * empty/full. Put pages with higher inuse first.
+ 	 */
+ 	list_add_tail(&first_page->lru, &(*head)->lru);
+-	if (first_page->inuse >= (*head)->inuse)
++	if (get_zspage_inuse(first_page) >= get_zspage_inuse(*head))
+ 		*head = first_page;
+ }
+ 
+@@ -896,7 +930,7 @@ static void free_zspage(struct page *first_page)
+ 	struct page *nextp, *tmp, *head_extra;
+ 
+ 	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
+-	VM_BUG_ON_PAGE(first_page->inuse, first_page);
++	VM_BUG_ON_PAGE(get_zspage_inuse(first_page), first_page);
+ 
+ 	head_extra = (struct page *)page_private(first_page);
+ 
+@@ -992,7 +1026,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+ 			SetPagePrivate(page);
+ 			set_page_private(page, 0);
+ 			first_page = page;
+-			first_page->inuse = 0;
++			set_zspage_inuse(page, 0);
+ 		}
+ 		if (i == 1)
+ 			set_page_private(first_page, (unsigned long)page);
+@@ -1237,9 +1271,7 @@ static bool can_merge(struct size_class *prev, int size, int pages_per_zspage)
+ 
+ static bool zspage_full(struct size_class *class, struct page *first_page)
+ {
+-	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
+-
+-	return first_page->inuse == class->objs_per_zspage;
++	return get_zspage_inuse(first_page) == class->objs_per_zspage;
  }
  
  unsigned long zs_get_total_pages(struct zs_pool *pool)
-@@ -1628,7 +1625,7 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
- 		}
+@@ -1372,7 +1404,7 @@ static unsigned long obj_malloc(struct size_class *class,
+ 		/* record handle in first_page->private */
+ 		set_page_private(first_page, handle);
+ 	kunmap_atomic(vaddr);
+-	first_page->inuse++;
++	mod_zspage_inuse(first_page, 1);
+ 	zs_stat_inc(class, OBJ_USED, 1);
  
- 		/* Stop if there is no more space */
--		if (zspage_full(d_page)) {
-+		if (zspage_full(class, d_page)) {
- 			unpin_tag(handle);
- 			ret = -ENOMEM;
- 			break;
-@@ -1687,7 +1684,7 @@ static enum fullness_group putback_zspage(struct zs_pool *pool,
- {
- 	enum fullness_group fullness;
+ 	return obj;
+@@ -1457,7 +1489,7 @@ static void obj_free(struct size_class *class, unsigned long obj)
+ 		set_page_private(first_page, 0);
+ 	kunmap_atomic(vaddr);
+ 	first_page->freelist = (void *)obj;
+-	first_page->inuse--;
++	mod_zspage_inuse(first_page, -1);
+ 	zs_stat_dec(class, OBJ_USED, 1);
+ }
  
--	fullness = get_fullness_group(first_page);
-+	fullness = get_fullness_group(class, first_page);
- 	insert_zspage(class, fullness, first_page);
- 	set_zspage_mapping(first_page, class->index, fullness);
+@@ -2002,6 +2034,13 @@ static int __init zs_init(void)
+ 	if (ret)
+ 		goto notifier_fail;
  
-@@ -1936,8 +1933,9 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
- 		class->size = size;
- 		class->index = i;
- 		class->pages_per_zspage = pages_per_zspage;
--		if (pages_per_zspage == 1 &&
--			get_maxobj_per_zspage(size, pages_per_zspage) == 1)
-+		class->objs_per_zspage = class->pages_per_zspage *
-+						PAGE_SIZE / class->size;
-+		if (pages_per_zspage == 1 && class->objs_per_zspage == 1)
- 			class->huge = true;
- 		spin_lock_init(&class->lock);
- 		pool->size_class[i] = class;
++	/*
++	 * A zspage's class index, fullness group, inuse object count are
++	 * encoded in its (first)page->mapping so sizeof(struct zs_meta)
++	 * should be less than sizeof(page->mapping(i.e., unsigned long)).
++	 */
++	BUILD_BUG_ON(sizeof(struct zs_meta) > sizeof(unsigned long));
++
+ 	init_zs_size_classes();
+ 
+ #ifdef CONFIG_ZPOOL
 -- 
 1.9.1
 
