@@ -1,99 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id CFBBA6B007E
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 16:16:47 -0400 (EDT)
-Received: by mail-pf0-f170.google.com with SMTP id u190so326096162pfb.3
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 13:16:47 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id d82si4372965pfj.52.2016.03.22.13.16.46
-        for <linux-mm@kvack.org>;
-        Tue, 22 Mar 2016 13:16:47 -0700 (PDT)
-Date: Tue, 22 Mar 2016 14:16:10 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 13/71] nvdimm: get rid of PAGE_CACHE_* and
- page_cache_{get,release} macros
-Message-ID: <20160322201610.GB11164@linux.intel.com>
-References: <1458499278-1516-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1458499278-1516-14-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 07BDE6B007E
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 17:24:05 -0400 (EDT)
+Received: by mail-pf0-f179.google.com with SMTP id x3so326760846pfb.1
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 14:24:04 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id 76si4693014pfb.3.2016.03.22.14.24.04
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Mar 2016 14:24:04 -0700 (PDT)
+Date: Tue, 22 Mar 2016 22:23:52 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 1/9] sched: add schedule_timeout_idle()
+Message-ID: <20160322212352.GF6356@twins.programming.kicks-ass.net>
+References: <1458644426-22973-1-git-send-email-mhocko@kernel.org>
+ <1458644426-22973-2-git-send-email-mhocko@kernel.org>
+ <20160322122345.GN6344@twins.programming.kicks-ass.net>
+ <20160322123314.GD10381@dhcp22.suse.cz>
+ <20160322125113.GO6344@twins.programming.kicks-ass.net>
+ <20160322130822.GF10381@dhcp22.suse.cz>
+ <20160322132249.GP6344@twins.programming.kicks-ass.net>
+ <20160322175626.GA13302@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1458499278-1516-14-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20160322175626.GA13302@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, Vishal Verma <vishal.l.verma@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>
 
-On Sun, Mar 20, 2016 at 09:40:20PM +0300, Kirill A. Shutemov wrote:
-> PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} macros were introduced *long* time ago
-> with promise that one day it will be possible to implement page cache with
-> bigger chunks than PAGE_SIZE.
+On Tue, Mar 22, 2016 at 01:56:26PM -0400, Johannes Weiner wrote:
+> On Tue, Mar 22, 2016 at 02:22:49PM +0100, Peter Zijlstra wrote:
+> > On Tue, Mar 22, 2016 at 02:08:23PM +0100, Michal Hocko wrote:
+> > > On Tue 22-03-16 13:51:13, Peter Zijlstra wrote:
+> > > If that sounds like a more appropriate plan I won't object. I can simply
+> > > change my patch to do __set_current_state and schedule_timeout.
+> > 
+> > I dunno, I just think these wrappers are silly.
 > 
-> This promise never materialized. And unlikely will.
+> Adding out-of-line, exported wrappers for every single task state is
+> kind of silly. But it's still a common operation to wait in a certain
+> state, so having a single function for that makes sense. Kind of like
+> spin_lock_irqsave and friends.
 > 
-> We have many places where PAGE_CACHE_SIZE assumed to be equal to
-> PAGE_SIZE. And it's constant source of confusion on whether PAGE_CACHE_*
-> or PAGE_* constant should be used in a particular case, especially on the
-> border between fs and mm.
+> Maybe this would be better?:
 > 
-> Global switching to PAGE_CACHE_SIZE != PAGE_SIZE would cause to much
-> breakage to be doable.
-> 
-> Let's stop pretending that pages in page cache are special. They are not.
-> 
-> The changes are pretty straight-forward:
-> 
->  - <foo> << (PAGE_CACHE_SHIFT - PAGE_SHIFT) -> <foo>;
-> 
->  - PAGE_CACHE_{SIZE,SHIFT,MASK,ALIGN} -> PAGE_{SIZE,SHIFT,MASK,ALIGN};
-> 
->  - page_cache_get() -> get_page();
-> 
->  - page_cache_release() -> put_page();
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Vishal Verma <vishal.l.verma@intel.com>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> static inline long schedule_timeout_state(long timeout, long state)
+> {
+> 	__set_current_state(state);
+> 	return schedule_timeout(timeout);
+> }
 
-Sure, this seems right.  Thanks for making this simpler.
+Probably. However, with such semantics the schedule*() name is wrong
+too, you cannot use these functions to build actual wait loops etc.
 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+So maybe:
 
-> ---
->  drivers/nvdimm/btt.c  | 2 +-
->  drivers/nvdimm/pmem.c | 2 +-
->  2 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
-> index c32cbb593600..f068b6513cd2 100644
-> --- a/drivers/nvdimm/btt.c
-> +++ b/drivers/nvdimm/btt.c
-> @@ -1204,7 +1204,7 @@ static int btt_rw_page(struct block_device *bdev, sector_t sector,
->  {
->  	struct btt *btt = bdev->bd_disk->private_data;
->  
-> -	btt_do_bvec(btt, NULL, page, PAGE_CACHE_SIZE, 0, rw, sector);
-> +	btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, rw, sector);
->  	page_endio(page, rw & WRITE, 0);
->  	return 0;
->  }
-> diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-> index ca5721c306bb..a1a29c711532 100644
-> --- a/drivers/nvdimm/pmem.c
-> +++ b/drivers/nvdimm/pmem.c
-> @@ -151,7 +151,7 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
->  	struct pmem_device *pmem = bdev->bd_disk->private_data;
->  	int rc;
->  
-> -	rc = pmem_do_bvec(pmem, page, PAGE_CACHE_SIZE, 0, rw, sector);
-> +	rc = pmem_do_bvec(pmem, page, PAGE_SIZE, 0, rw, sector);
->  	if (rw & WRITE)
->  		wmb_pmem();
->  
-> -- 
-> 2.7.0
-> 
+static inline long sleep_in_state(long timeout, long state)
+{
+	__set_current_state(state);
+	return schedule_timeout(timeout);
+}
+
+might be an even better name; but at that point we look very like the
+msleep*() class of function, so maybe we should do:
+
+long sleep_in_state(long state, long timeout)
+{
+	while (timeout && !signal_pending_state(state, current)) {
+		__set_current_state(state);
+		timeout = schedule_timeout(timeout);
+	}
+	return timeout;
+}
+
+Hmm ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
