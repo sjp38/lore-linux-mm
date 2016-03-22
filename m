@@ -1,134 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C9DFD6B025E
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 06:11:59 -0400 (EDT)
-Received: by mail-oi0-f48.google.com with SMTP id w20so112038392oia.2
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 03:11:59 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id np8si12319030obc.72.2016.03.22.03.11.59
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Mar 2016 03:11:59 -0700 (PDT)
-From: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-Subject: [PATCH 2/2] arch:mm: Use hugetlb_bad_size
-Date: Tue, 22 Mar 2016 15:35:59 +0530
-Message-Id: <1458641159-13643-1-git-send-email-vaishali.thakkar@oracle.com>
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 071D86B007E
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 06:41:25 -0400 (EDT)
+Received: by mail-pf0-f170.google.com with SMTP id 4so174020720pfd.0
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 03:41:24 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id p13si15044840pfj.175.2016.03.22.03.41.17
+        for <linux-mm@kvack.org>;
+        Tue, 22 Mar 2016 03:41:17 -0700 (PDT)
+Date: Tue, 22 Mar 2016 13:41:13 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH 0/3] fs, mm: get rid of PAGE_CACHE_* and
+ page_cache_{get,release} macros
+Message-ID: <20160322104113.GA143214@black.fi.intel.com>
+References: <1458561998-126622-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.20.1603211121210.26353@east.gentwo.org>
+ <20160321163404.GA141069@black.fi.intel.com>
+ <alpine.DEB.2.20.1603211155280.26653@east.gentwo.org>
+ <20160321170655.GA141158@black.fi.intel.com>
+ <alpine.DEB.2.20.1603211229060.26653@east.gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1603211229060.26653@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vaishali Thakkar <vaishali.thakkar@oracle.com>, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Update the setup_hugepagesz function to call the routine
-hugetlb_bad_size when unsupported hugepage size is found.
+On Mon, Mar 21, 2016 at 12:29:34PM -0500, Christoph Lameter wrote:
+> On Mon, 21 Mar 2016, Kirill A. Shutemov wrote:
+> 
+> > We do have two page sizes in the page cache. It's the only option to get
+> > transparent huge pages transparent.
+> 
+> Should then not PAGE_CACHE_SIZE take a page parameter and return the
+> correct page size?
 
-Misc:
-  - Silent 80 characters warning
+Why? What would you achieve by this?
 
-Signed-off-by: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-Cc: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Paul Gortmaker <paul.gortmaker@windriver.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
----
-- Please note that the patch is tested for x86 only. But as this
-  is one line change I just changed them. So, it would be good if
-  the patch can be tested for other architectures before adding
-  this in to mainline.
-- Not sure if printk related checkpatch.pl warning should be resolved
-  with this patch as code is not consistent in architectures. May be
-  one separate patch for changing all printk's to pr_<level> kind of
-  debugging functions would be good.
----
- arch/arm64/mm/hugetlbpage.c   | 1 +
- arch/metag/mm/hugetlbpage.c   | 1 +
- arch/powerpc/mm/hugetlbpage.c | 7 +++++--
- arch/tile/mm/hugetlbpage.c    | 7 ++++++-
- arch/x86/mm/hugetlbpage.c     | 1 +
- 5 files changed, 14 insertions(+), 3 deletions(-)
+We already have a way to find out size of page: compoun_order() or
+hpage_nr_pages().
 
-diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
-index 589fd28..aa8aee7 100644
---- a/arch/arm64/mm/hugetlbpage.c
-+++ b/arch/arm64/mm/hugetlbpage.c
-@@ -307,6 +307,7 @@ static __init int setup_hugepagesz(char *opt)
- 	} else if (ps == PUD_SIZE) {
- 		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
- 	} else {
-+		hugetlb_bad_size();
- 		pr_err("hugepagesz: Unsupported page size %lu K\n", ps >> 10);
- 		return 0;
- 	}
-diff --git a/arch/metag/mm/hugetlbpage.c b/arch/metag/mm/hugetlbpage.c
-index b38700a..db1b7da 100644
---- a/arch/metag/mm/hugetlbpage.c
-+++ b/arch/metag/mm/hugetlbpage.c
-@@ -239,6 +239,7 @@ static __init int setup_hugepagesz(char *opt)
- 	if (ps == (1 << HPAGE_SHIFT)) {
- 		hugetlb_add_hstate(HPAGE_SHIFT - PAGE_SHIFT);
- 	} else {
-+		hugetlb_bad_size();
- 		pr_err("hugepagesz: Unsupported page size %lu M\n",
- 		       ps >> 20);
- 		return 0;
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index 6dd272b..a437ff7 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -772,8 +772,11 @@ static int __init hugepage_setup_sz(char *str)
- 
- 	size = memparse(str, &str);
- 
--	if (add_huge_page_size(size) != 0)
--		printk(KERN_WARNING "Invalid huge page size specified(%llu)\n", size);
-+	if (add_huge_page_size(size) != 0) {
-+		hugetlb_bad_size();
-+		printk(KERN_WARNING "Invalid huge page size specified(%llu)\n",
-+		       size);
-+	}
- 
- 	return 1;
- }
-diff --git a/arch/tile/mm/hugetlbpage.c b/arch/tile/mm/hugetlbpage.c
-index e212c64..77ceaa3 100644
---- a/arch/tile/mm/hugetlbpage.c
-+++ b/arch/tile/mm/hugetlbpage.c
-@@ -308,11 +308,16 @@ static bool saw_hugepagesz;
- 
- static __init int setup_hugepagesz(char *opt)
- {
-+	int rc;
-+
- 	if (!saw_hugepagesz) {
- 		saw_hugepagesz = true;
- 		memset(huge_shift, 0, sizeof(huge_shift));
- 	}
--	return __setup_hugepagesz(memparse(opt, NULL));
-+	rc = __setup_hugepagesz(memparse(opt, NULL));
-+	if (rc)
-+		hugetlb_bad_size();
-+	return rc;
- }
- __setup("hugepagesz=", setup_hugepagesz);
- 
-diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-index 740d7ac..3ec44f8 100644
---- a/arch/x86/mm/hugetlbpage.c
-+++ b/arch/x86/mm/hugetlbpage.c
-@@ -165,6 +165,7 @@ static __init int setup_hugepagesz(char *opt)
- 	} else if (ps == PUD_SIZE && cpu_has_gbpages) {
- 		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
- 	} else {
-+		hugetlb_bad_size();
- 		printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
- 			ps >> 20);
- 		return 0;
+And not in every place where PAGE_CACHE_SIZE is used we have corresponding
+struct page.
+
 -- 
-2.1.4
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
