@@ -1,60 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E8B186B0260
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:42:11 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id j8so35601183lfd.0
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 05:42:11 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 379A96B025E
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:44:16 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id s63so37795944wme.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 05:44:16 -0700 (PDT)
 Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTP id u123si4756732wmu.54.2016.04.27.05.42.10
+        by mx.google.com with ESMTP id u64si8911464wmd.74.2016.04.27.05.44.15
         for <linux-mm@kvack.org>;
-        Wed, 27 Apr 2016 05:42:10 -0700 (PDT)
-Date: Tue, 22 Mar 2016 14:01:50 +0100
+        Wed, 27 Apr 2016 05:44:15 -0700 (PDT)
+Date: Tue, 22 Mar 2016 14:03:54 +0100
 From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC PATCH v1 02/18] x86: Secure Memory Encryption (SME) build
- enablement
-Message-ID: <20160322130150.GB16528@xo-6d-61-c0.localdomain>
+Subject: Re: [RFC PATCH v1 03/18] x86: Secure Memory Encryption (SME) support
+Message-ID: <20160322130354.GC16528@xo-6d-61-c0.localdomain>
 References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225614.13567.47487.stgit@tlendack-t1.amdoffice.net>
+ <20160426225626.13567.72425.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160426225614.13567.47487.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <20160426225626.13567.72425.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tom Lendacky <thomas.lendacky@amd.com>
 Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Tue 2016-04-26 17:56:14, Tom Lendacky wrote:
-> Provide the Kconfig support to build the SME support in the kernel.
-
-
-Probably should go last in the series?
-
+On Tue 2016-04-26 17:56:26, Tom Lendacky wrote:
+> Provide support for Secure Memory Encryption (SME). This initial support
+> defines the memory encryption mask as a variable for quick access and an
+> accessor for retrieving the number of physical addressing bits lost if
+> SME is enabled.
+> 
 > Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 > ---
->  arch/x86/Kconfig |    9 +++++++++
->  1 file changed, 9 insertions(+)
+>  arch/x86/include/asm/mem_encrypt.h |   37 ++++++++++++++++++++++++++++++++++++
+>  arch/x86/kernel/Makefile           |    2 ++
+>  arch/x86/kernel/mem_encrypt.S      |   29 ++++++++++++++++++++++++++++
+>  arch/x86/kernel/x8664_ksyms_64.c   |    6 ++++++
+>  4 files changed, 74 insertions(+)
+>  create mode 100644 arch/x86/include/asm/mem_encrypt.h
+>  create mode 100644 arch/x86/kernel/mem_encrypt.S
 > 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 7bb1574..13249b5 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -1356,6 +1356,15 @@ config X86_DIRECT_GBPAGES
->  	  supports them), so don't confuse the user by printing
->  	  that we have them enabled.
->  
-> +config AMD_MEM_ENCRYPT
-> +	bool "Secure Memory Encryption support for AMD"
-> +	depends on X86_64 && CPU_SUP_AMD
-> +	---help---
-> +	  Say yes to enable the encryption of system memory. This requires
-> +	  an AMD processor that supports Secure Memory Encryption (SME).
-> +	  The encryption of system memory is disabled by default but can be
-> +	  enabled with the mem_encrypt=on command line option.
+> index 0000000..ef7f325
+> --- /dev/null
+> +++ b/arch/x86/kernel/mem_encrypt.S
+> @@ -0,0 +1,29 @@
+> +/*
+> + * AMD Memory Encryption Support
+> + *
+> + * Copyright (C) 2016 Advanced Micro Devices, Inc.
+> + *
+> + * Author: Tom Lendacky <thomas.lendacky@amd.com>
+> + *
+> + * This program is free software; you can redistribute it and/or modify
+> + * it under the terms of the GNU General Public License version 2 as
+> + * published by the Free Software Foundation.
+> + */
 > +
->  # Common NUMA Features
->  config NUMA
->  	bool "Numa Memory Allocation and Scheduler Support"
+> +#include <linux/linkage.h>
+> +
+> +	.text
+> +	.code64
+> +ENTRY(sme_get_me_loss)
+> +	xor	%rax, %rax
+> +	mov	sme_me_loss(%rip), %al
+> +	ret
+> +ENDPROC(sme_get_me_loss)
+
+Does this really need to be implemented in assembly?
+
 
 -- 
 (english) http://www.livejournal.com/~pavelmachek
