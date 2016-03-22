@@ -1,81 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id CE49E6B0264
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 07:01:17 -0400 (EDT)
-Received: by mail-wm0-f50.google.com with SMTP id l68so186703898wml.0
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 04:01:17 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id b77si19721335wmf.115.2016.03.22.04.01.10
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C5A96B0265
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 07:01:20 -0400 (EDT)
+Received: by mail-wm0-f43.google.com with SMTP id l68so186705589wml.0
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 04:01:20 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id a27si19781593wmi.46.2016.03.22.04.01.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Mar 2016 04:01:10 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id p65so29046822wmp.1
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 04:01:10 -0700 (PDT)
+        Tue, 22 Mar 2016 04:01:12 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id u125so2597686wmg.0
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 04:01:12 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 8/9] oom: make oom_reaper freezable
-Date: Tue, 22 Mar 2016 12:00:25 +0100
-Message-Id: <1458644426-22973-9-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 9/9] oom, oom_reaper: protect oom_reaper_list using simpler way
+Date: Tue, 22 Mar 2016 12:00:26 +0100
+Message-Id: <1458644426-22973-10-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1458644426-22973-1-git-send-email-mhocko@kernel.org>
 References: <1458644426-22973-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>
 
-From: Michal Hocko <mhocko@suse.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-After "oom: clear TIF_MEMDIE after oom_reaper managed to unmap the
-address space" oom_reaper will call exit_oom_victim on the target
-task after it is done. This might however race with the PM freezer:
+"oom, oom_reaper: disable oom_reaper for oom_kill_allocating_task" tried
+to protect oom_reaper_list using MMF_OOM_KILLED flag. But we can do it
+by simply checking tsk->oom_reaper_list != NULL.
 
-CPU0				CPU1				CPU2
-freeze_processes
-  try_to_freeze_tasks
-  				# Allocation request
-				out_of_memory
-  oom_killer_disable
-				  wake_oom_reaper(P1)
-				  				__oom_reap_task
-								  exit_oom_victim(P1)
-    wait_event(oom_victims==0)
-[...]
-    				do_exit(P1)
-				  perform IO/interfere with the freezer
-
-which breaks the oom_killer_disable semantic. We no longer have a
-guarantee that the oom victim won't interfere with the freezer because
-it might be anywhere on the way to do_exit while the freezer thinks the
-task has already terminated. It might trigger IO or touch devices which
-are frozen already.
-
-In order to close this race, make the oom_reaper thread freezable. This
-will work because
-	a) already running oom_reaper will block freezer to enter the
-	   quiescent state
-	b) wake_oom_reaper will not wake up the reaper after it has been
-	   frozen
-	c) the only way to call exit_oom_victim after try_to_freeze_tasks
-	   is from the oom victim's context when we know the further
-	   interference shouldn't be possible
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/oom_kill.c | 2 ++
- 1 file changed, 2 insertions(+)
+ include/linux/sched.h | 2 --
+ mm/oom_kill.c         | 8 ++------
+ 2 files changed, 2 insertions(+), 8 deletions(-)
 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index d118445a332e..78434d4f85f2 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -511,8 +511,6 @@ static inline int get_dumpable(struct mm_struct *mm)
+ #define MMF_HAS_UPROBES		19	/* has uprobes */
+ #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
+ 
+-#define MMF_OOM_KILLED		21	/* OOM killer has chosen this mm */
+-
+ #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
+ 
+ struct sighand_struct {
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index af75260f32c3..bed2885d10b0 100644
+index bed2885d10b0..cfafb91ebcd9 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -524,6 +524,8 @@ static void oom_reap_task(struct task_struct *tsk)
+@@ -546,7 +546,7 @@ static int oom_reaper(void *unused)
  
- static int oom_reaper(void *unused)
+ static void wake_oom_reaper(struct task_struct *tsk)
  {
-+	set_freezable();
-+
- 	while (true) {
- 		struct task_struct *tsk = NULL;
+-	if (!oom_reaper_th)
++	if (!oom_reaper_th || tsk->oom_reaper_list)
+ 		return;
  
+ 	get_task_struct(tsk);
+@@ -680,7 +680,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	unsigned int victim_points = 0;
+ 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 					      DEFAULT_RATELIMIT_BURST);
+-	bool can_oom_reap;
++	bool can_oom_reap = true;
+ 
+ 	/*
+ 	 * If the task is already exiting, don't alarm the sysadmin or kill
+@@ -742,10 +742,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	/* Get a reference to safely compare mm after task_unlock(victim) */
+ 	mm = victim->mm;
+ 	atomic_inc(&mm->mm_count);
+-
+-	/* Make sure we do not try to oom reap the mm multiple times */
+-	can_oom_reap = !test_and_set_bit(MMF_OOM_KILLED, &mm->flags);
+-
+ 	/*
+ 	 * We should send SIGKILL before setting TIF_MEMDIE in order to prevent
+ 	 * the OOM victim from depleting the memory reserves from the user
 -- 
 2.7.0
 
