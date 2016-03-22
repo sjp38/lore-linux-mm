@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id C5B546B007E
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 19:38:37 -0400 (EDT)
-Received: by mail-ob0-f177.google.com with SMTP id m7so212365624obh.3
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 16:38:37 -0700 (PDT)
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A5826B007E
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 19:40:23 -0400 (EDT)
+Received: by mail-oi0-f49.google.com with SMTP id i17so28259405oib.1
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 16:40:23 -0700 (PDT)
 Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id i130si581344oih.53.2016.03.22.16.38.36
+        by mx.google.com with ESMTPS id f5si660776otb.223.2016.03.22.16.40.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 22 Mar 2016 16:38:36 -0700 (PDT)
+        Tue, 22 Mar 2016 16:40:22 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 1/2] mm/hugetlb: Introduce hugetlb_bad_size
-Date: Tue, 22 Mar 2016 23:36:52 +0000
-Message-ID: <20160322233651.GA24819@hori1.linux.bs1.fc.nec.co.jp>
-References: <1458640843-13483-1-git-send-email-vaishali.thakkar@oracle.com>
-In-Reply-To: <1458640843-13483-1-git-send-email-vaishali.thakkar@oracle.com>
+Subject: Re: [PATCH 2/2] arch:mm: Use hugetlb_bad_size
+Date: Tue, 22 Mar 2016 23:38:10 +0000
+Message-ID: <20160322233809.GB24819@hori1.linux.bs1.fc.nec.co.jp>
+References: <1458641159-13643-1-git-send-email-vaishali.thakkar@oracle.com>
+In-Reply-To: <1458641159-13643-1-git-send-email-vaishali.thakkar@oracle.com>
 Content-Language: ja-JP
 Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <75FBB824EB65A54C85D7594532551B8C@gisp.nec.co.jp>
+Content-ID: <FFF1ABDB1F1E474E9B72297C37B82DAF@gisp.nec.co.jp>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
@@ -25,32 +25,13 @@ List-ID: <linux-mm.kvack.org>
 To: Vaishali Thakkar <vaishali.thakkar@oracle.com>
 Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mike Kravetz <mike.kravetz@oracle.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Tue, Mar 22, 2016 at 03:30:43PM +0530, Vaishali Thakkar wrote:
-> When any unsupported hugepage size is specified, 'hugepagesz=3D' and
-> 'hugepages=3D' should be ignored during command line parsing until any
-> supported hugepage size is found. But currently incorrect number of
-> hugepages are allocated when unsupported size is specified as it fails
-> to ignore the 'hugepages=3D' command.
+On Tue, Mar 22, 2016 at 03:35:59PM +0530, Vaishali Thakkar wrote:
+> Update the setup_hugepagesz function to call the routine
+> hugetlb_bad_size when unsupported hugepage size is found.
 >=20
-> Test case:
+> Misc:
+>   - Silent 80 characters warning
 >=20
-> Note that this is specific to x86 architecture.
->=20
-> Boot the kernel with command line option 'hugepagesz=3D256M hugepages=3DX=
-'.
-> After boot, dmesg output shows that X number of hugepages of the size 2M
-> is pre-allocated instead of 0.
->=20
-> So, to handle such command line options, introduce new routine
-> hugetlb_bad_size. The routine hugetlb_bad_size sets the global variable
-> parsed_valid_hugepagesz. We are using parsed_valid_hugepagesz to save the
-> state when unsupported hugepagesize is found so that we can ignore the
-> 'hugepages=3D' parameters after that and then reset the variable when
-> supported hugepage size is found.
->=20
-> The routine hugetlb_bad_size can be called while setting 'hugepagesz=3D'
-> parameter in an architecture specific code.
-
 > Signed-off-by: Vaishali Thakkar <vaishali.thakkar@oracle.com>
 > Cc: Mike Kravetz <mike.kravetz@oracle.com>
 > Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
@@ -62,79 +43,102 @@ On Tue, Mar 22, 2016 at 03:30:43PM +0530, Vaishali Thakkar wrote:
 > Cc: Paul Gortmaker <paul.gortmaker@windriver.com>
 > Cc: Dave Hansen <dave.hansen@linux.intel.com>
 
-Maybe parsed_hstate can do what parsed_valid_hugepagesz does, but both
-are __initdata so it's not a big deal.
-
 Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
 > ---
-> The patch is having 2 checkpatch.pl warnings. I have just followed
-> the current code to maintain consistency. If we decide to silent
-> these warnings then may be we should silent those warnings as well.
-> I am fine with any option whichever works best for everyone else.=20
+> - Please note that the patch is tested for x86 only. But as this
+>   is one line change I just changed them. So, it would be good if
+>   the patch can be tested for other architectures before adding
+>   this in to mainline.
+> - Not sure if printk related checkpatch.pl warning should be resolved
+>   with this patch as code is not consistent in architectures. May be
+>   one separate patch for changing all printk's to pr_<level> kind of
+>   debugging functions would be good.
 > ---
->  include/linux/hugetlb.h |  1 +
->  mm/hugetlb.c            | 14 +++++++++++++-
->  2 files changed, 14 insertions(+), 1 deletion(-)
+>  arch/arm64/mm/hugetlbpage.c   | 1 +
+>  arch/metag/mm/hugetlbpage.c   | 1 +
+>  arch/powerpc/mm/hugetlbpage.c | 7 +++++--
+>  arch/tile/mm/hugetlbpage.c    | 7 ++++++-
+>  arch/x86/mm/hugetlbpage.c     | 1 +
+>  5 files changed, 14 insertions(+), 3 deletions(-)
 >=20
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 7d953c2..e44c578 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -338,6 +338,7 @@ int huge_add_to_page_cache(struct page *page, struct =
-address_space *mapping,
->  /* arch callback */
->  int __init alloc_bootmem_huge_page(struct hstate *h);
+> diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
+> index 589fd28..aa8aee7 100644
+> --- a/arch/arm64/mm/hugetlbpage.c
+> +++ b/arch/arm64/mm/hugetlbpage.c
+> @@ -307,6 +307,7 @@ static __init int setup_hugepagesz(char *opt)
+>  	} else if (ps =3D=3D PUD_SIZE) {
+>  		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+>  	} else {
+> +		hugetlb_bad_size();
+>  		pr_err("hugepagesz: Unsupported page size %lu K\n", ps >> 10);
+>  		return 0;
+>  	}
+> diff --git a/arch/metag/mm/hugetlbpage.c b/arch/metag/mm/hugetlbpage.c
+> index b38700a..db1b7da 100644
+> --- a/arch/metag/mm/hugetlbpage.c
+> +++ b/arch/metag/mm/hugetlbpage.c
+> @@ -239,6 +239,7 @@ static __init int setup_hugepagesz(char *opt)
+>  	if (ps =3D=3D (1 << HPAGE_SHIFT)) {
+>  		hugetlb_add_hstate(HPAGE_SHIFT - PAGE_SHIFT);
+>  	} else {
+> +		hugetlb_bad_size();
+>  		pr_err("hugepagesz: Unsupported page size %lu M\n",
+>  		       ps >> 20);
+>  		return 0;
+> diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.=
+c
+> index 6dd272b..a437ff7 100644
+> --- a/arch/powerpc/mm/hugetlbpage.c
+> +++ b/arch/powerpc/mm/hugetlbpage.c
+> @@ -772,8 +772,11 @@ static int __init hugepage_setup_sz(char *str)
 > =20
-> +void __init hugetlb_bad_size(void);
->  void __init hugetlb_add_hstate(unsigned order);
->  struct hstate *size_to_hstate(unsigned long size);
+>  	size =3D memparse(str, &str);
 > =20
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 06058ea..44fae6a 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -51,6 +51,7 @@ __initdata LIST_HEAD(huge_boot_pages);
->  static struct hstate * __initdata parsed_hstate;
->  static unsigned long __initdata default_hstate_max_huge_pages;
->  static unsigned long __initdata default_hstate_size;
-> +static bool __initdata parsed_valid_hugepagesz =3D true;
-> =20
->  /*
->   * Protects updates to hugepage_freelists, hugepage_activelist, nr_huge_=
-pages,
-> @@ -2659,6 +2660,11 @@ static int __init hugetlb_init(void)
->  subsys_initcall(hugetlb_init);
-> =20
->  /* Should be called on processing a hugepagesz=3D... option */
-> +void __init hugetlb_bad_size(void)
-> +{
-> +	parsed_valid_hugepagesz =3D false;
-> +}
-> +
->  void __init hugetlb_add_hstate(unsigned int order)
->  {
->  	struct hstate *h;
-> @@ -2691,11 +2697,17 @@ static int __init hugetlb_nrpages_setup(char *s)
->  	unsigned long *mhp;
->  	static unsigned long *last_mhp;
-> =20
-> +	if (!parsed_valid_hugepagesz) {
-> +		pr_warn("hugepages =3D %s preceded by "
-> +			"an unsupported hugepagesz, ignoring\n", s);
-> +		parsed_valid_hugepagesz =3D true;
-> +		return 1;
+> -	if (add_huge_page_size(size) !=3D 0)
+> -		printk(KERN_WARNING "Invalid huge page size specified(%llu)\n", size);
+> +	if (add_huge_page_size(size) !=3D 0) {
+> +		hugetlb_bad_size();
+> +		printk(KERN_WARNING "Invalid huge page size specified(%llu)\n",
+> +		       size);
 > +	}
->  	/*
->  	 * !hugetlb_max_hstate means we haven't parsed a hugepagesz=3D paramete=
-r yet,
->  	 * so this hugepages=3D parameter goes to the "default hstate".
->  	 */
-> -	if (!hugetlb_max_hstate)
-> +	else if (!hugetlb_max_hstate)
->  		mhp =3D &default_hstate_max_huge_pages;
->  	else
->  		mhp =3D &parsed_hstate->max_huge_pages;
+> =20
+>  	return 1;
+>  }
+> diff --git a/arch/tile/mm/hugetlbpage.c b/arch/tile/mm/hugetlbpage.c
+> index e212c64..77ceaa3 100644
+> --- a/arch/tile/mm/hugetlbpage.c
+> +++ b/arch/tile/mm/hugetlbpage.c
+> @@ -308,11 +308,16 @@ static bool saw_hugepagesz;
+> =20
+>  static __init int setup_hugepagesz(char *opt)
+>  {
+> +	int rc;
+> +
+>  	if (!saw_hugepagesz) {
+>  		saw_hugepagesz =3D true;
+>  		memset(huge_shift, 0, sizeof(huge_shift));
+>  	}
+> -	return __setup_hugepagesz(memparse(opt, NULL));
+> +	rc =3D __setup_hugepagesz(memparse(opt, NULL));
+> +	if (rc)
+> +		hugetlb_bad_size();
+> +	return rc;
+>  }
+>  __setup("hugepagesz=3D", setup_hugepagesz);
+> =20
+> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+> index 740d7ac..3ec44f8 100644
+> --- a/arch/x86/mm/hugetlbpage.c
+> +++ b/arch/x86/mm/hugetlbpage.c
+> @@ -165,6 +165,7 @@ static __init int setup_hugepagesz(char *opt)
+>  	} else if (ps =3D=3D PUD_SIZE && cpu_has_gbpages) {
+>  		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+>  	} else {
+> +		hugetlb_bad_size();
+>  		printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
+>  			ps >> 20);
+>  		return 0;
 > --=20
 > 2.1.4
 > =
