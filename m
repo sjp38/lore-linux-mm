@@ -1,54 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B321B6B007E
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 13:57:53 -0400 (EDT)
-Received: by mail-wm0-f47.google.com with SMTP id p65so203423072wmp.1
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 10:57:53 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id kj7si21664145wjb.87.2016.03.22.10.57.52
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id B081E6B0005
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 15:07:57 -0400 (EDT)
+Received: by mail-qg0-f49.google.com with SMTP id w104so186568134qge.1
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 12:07:57 -0700 (PDT)
+Received: from DUB004-OMC3S19.hotmail.com (dub004-omc3s19.hotmail.com. [157.55.2.28])
+        by mx.google.com with ESMTPS id 92si11466500qgz.58.2016.03.22.12.07.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Mar 2016 10:57:52 -0700 (PDT)
-Date: Tue, 22 Mar 2016 13:56:26 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/9] sched: add schedule_timeout_idle()
-Message-ID: <20160322175626.GA13302@cmpxchg.org>
-References: <1458644426-22973-1-git-send-email-mhocko@kernel.org>
- <1458644426-22973-2-git-send-email-mhocko@kernel.org>
- <20160322122345.GN6344@twins.programming.kicks-ass.net>
- <20160322123314.GD10381@dhcp22.suse.cz>
- <20160322125113.GO6344@twins.programming.kicks-ass.net>
- <20160322130822.GF10381@dhcp22.suse.cz>
- <20160322132249.GP6344@twins.programming.kicks-ass.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 22 Mar 2016 12:07:56 -0700 (PDT)
+Message-ID: <DUB128-W107FCE75365A03B067D06B9C800@phx.gbl>
+From: David Binderman <dcb314@hotmail.com>
+Subject: mm/memblock.c:843: pointless test ?
+Date: Tue, 22 Mar 2016 19:07:55 +0000
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160322132249.GP6344@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Mar 22, 2016 at 02:22:49PM +0100, Peter Zijlstra wrote:
-> On Tue, Mar 22, 2016 at 02:08:23PM +0100, Michal Hocko wrote:
-> > On Tue 22-03-16 13:51:13, Peter Zijlstra wrote:
-> > If that sounds like a more appropriate plan I won't object. I can simply
-> > change my patch to do __set_current_state and schedule_timeout.
-> 
-> I dunno, I just think these wrappers are silly.
-
-Adding out-of-line, exported wrappers for every single task state is
-kind of silly. But it's still a common operation to wait in a certain
-state, so having a single function for that makes sense. Kind of like
-spin_lock_irqsave and friends.
-
-Maybe this would be better?:
-
-static inline long schedule_timeout_state(long timeout, long state)
-{
-	__set_current_state(state);
-	return schedule_timeout(timeout);
-}
+Hello there=2C=0A=
+=0A=
+mm/memblock.c:843:11: warning: comparison of unsigned expression>=3D 0 is a=
+lways true [-Wtype-limits]=0A=
+=0A=
+Source code is=0A=
+=0A=
+=A0=A0=A0 if (*idx>=3D 0 && *idx < type->cnt) {=0A=
+=0A=
+but=0A=
+=0A=
+void __init_memblock __next_reserved_mem_region(u64 *idx=2C=0A=
+=0A=
+Suggest avoid pointless test.=0A=
+=0A=
+=0A=
+Regards=0A=
+=0A=
+David Binderman=0A=
+ 		 	   		  =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
