@@ -1,59 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id E49056B007E
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 07:00:41 -0400 (EDT)
-Received: by mail-wm0-f53.google.com with SMTP id l68so157740204wml.1
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 04:00:41 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id c12si13952904wmd.117.2016.03.22.04.00.40
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 533CD6B0253
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 07:00:58 -0400 (EDT)
+Received: by mail-wm0-f44.google.com with SMTP id p65so157747927wmp.0
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 04:00:58 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id y67si19731880wmg.88.2016.03.22.04.00.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Mar 2016 04:00:40 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id u125so2593430wmg.0
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 04:00:40 -0700 (PDT)
+        Tue, 22 Mar 2016 04:00:57 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id r129so16728461wmr.2
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 04:00:57 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 0/9] oom reaper v6
-Date: Tue, 22 Mar 2016 12:00:17 +0100
-Message-Id: <1458644426-22973-1-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 1/9] sched: add schedule_timeout_idle()
+Date: Tue, 22 Mar 2016 12:00:18 +0100
+Message-Id: <1458644426-22973-2-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1458644426-22973-1-git-send-email-mhocko@kernel.org>
+References: <1458644426-22973-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Hi,
-I am reposting the whole patchset on top of the current Linus tree which should
-already contain big pile of Andrew's mm patches. This should serve an easier
-reviewability and I also hope that this core part of the work can go to 4.6.
+From: Andrew Morton <akpm@linux-foundation.org>
 
-The previous version was posted here [1] Hugh and David have suggested to
-drop [2] because the munlock path currently depends on the page lock and
-it is better if the initial version was conservative and prevent from
-any potential lockups even though it is not clear whether they are real
-- nobody has seen oom_reaper stuck on the page lock AFAICK. Me or Hugh
-will have a look and try to make the munlock path not depend on the page
-lock as a follow up work.
+This will be needed in the patch "mm, oom: introduce oom reaper".
 
-Apart from that the feedback revealed one bug for a very unusual
-configuration (sysctl_oom_kill_allocating_task) and that has been fixed
-by patch 8 and one potential mis interaction with the pm freezer fixed by
-patch 7.
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Ingo Molnar <mingo@elte.hu>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+ include/linux/sched.h |  1 +
+ kernel/time/timer.c   | 11 +++++++++++
+ 2 files changed, 12 insertions(+)
 
-I think the current code base is already very useful for many situations.
-The rest of the feedback was mostly about potential enhancements of the
-current code which I would really prefer to build on top of the current
-series. I plan to finish my mmap_sem killable for write in the upcoming
-release cycle and hopefully have it merged in the next merge window.
-I believe more extensions will follow.
-
-This code has been sitting in the mmotm (thus linux-next) for a while.
-Are there any fundamental objections to have this part merged in this
-merge window?
-
-Thanks!
-
-[1] http://lkml.kernel.org/r/1454505240-23446-1-git-send-email-mhocko@kernel.org
-[2] http://lkml.kernel.org/r/1454505240-23446-3-git-send-email-mhocko@kernel.org
-
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 084ed9fba620..9cf5731472fe 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -425,6 +425,7 @@ extern signed long schedule_timeout(signed long timeout);
+ extern signed long schedule_timeout_interruptible(signed long timeout);
+ extern signed long schedule_timeout_killable(signed long timeout);
+ extern signed long schedule_timeout_uninterruptible(signed long timeout);
++extern signed long schedule_timeout_idle(signed long timeout);
+ asmlinkage void schedule(void);
+ extern void schedule_preempt_disabled(void);
+ 
+diff --git a/kernel/time/timer.c b/kernel/time/timer.c
+index d1798fa0c743..73164c3aa56b 100644
+--- a/kernel/time/timer.c
++++ b/kernel/time/timer.c
+@@ -1566,6 +1566,17 @@ signed long __sched schedule_timeout_uninterruptible(signed long timeout)
+ }
+ EXPORT_SYMBOL(schedule_timeout_uninterruptible);
+ 
++/*
++ * Like schedule_timeout_uninterruptible(), except this task will not contribute
++ * to load average.
++ */
++signed long __sched schedule_timeout_idle(signed long timeout)
++{
++	__set_current_state(TASK_IDLE);
++	return schedule_timeout(timeout);
++}
++EXPORT_SYMBOL(schedule_timeout_idle);
++
+ #ifdef CONFIG_HOTPLUG_CPU
+ static void migrate_timer_list(struct tvec_base *new_base, struct hlist_head *head)
+ {
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
