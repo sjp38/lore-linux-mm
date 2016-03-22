@@ -1,81 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 07BDE6B007E
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 17:24:05 -0400 (EDT)
-Received: by mail-pf0-f179.google.com with SMTP id x3so326760846pfb.1
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 14:24:04 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id 76si4693014pfb.3.2016.03.22.14.24.04
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id DB7A36B007E
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 18:08:23 -0400 (EDT)
+Received: by mail-pf0-f180.google.com with SMTP id x3so328024550pfb.1
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 15:08:23 -0700 (PDT)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id ry2si20147062pab.159.2016.03.22.15.08.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Mar 2016 14:24:04 -0700 (PDT)
-Date: Tue, 22 Mar 2016 22:23:52 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 1/9] sched: add schedule_timeout_idle()
-Message-ID: <20160322212352.GF6356@twins.programming.kicks-ass.net>
+        Tue, 22 Mar 2016 15:08:23 -0700 (PDT)
+Received: by mail-pf0-x22b.google.com with SMTP id 4so197034408pfd.0
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 15:08:23 -0700 (PDT)
+Date: Tue, 22 Mar 2016 15:08:21 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 0/9] oom reaper v6
+In-Reply-To: <1458644426-22973-1-git-send-email-mhocko@kernel.org>
+Message-ID: <alpine.DEB.2.10.1603221507150.22638@chino.kir.corp.google.com>
 References: <1458644426-22973-1-git-send-email-mhocko@kernel.org>
- <1458644426-22973-2-git-send-email-mhocko@kernel.org>
- <20160322122345.GN6344@twins.programming.kicks-ass.net>
- <20160322123314.GD10381@dhcp22.suse.cz>
- <20160322125113.GO6344@twins.programming.kicks-ass.net>
- <20160322130822.GF10381@dhcp22.suse.cz>
- <20160322132249.GP6344@twins.programming.kicks-ass.net>
- <20160322175626.GA13302@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160322175626.GA13302@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>
+To: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Vladimir Davydov <vdavydov@virtuozzo.com>
 
-On Tue, Mar 22, 2016 at 01:56:26PM -0400, Johannes Weiner wrote:
-> On Tue, Mar 22, 2016 at 02:22:49PM +0100, Peter Zijlstra wrote:
-> > On Tue, Mar 22, 2016 at 02:08:23PM +0100, Michal Hocko wrote:
-> > > On Tue 22-03-16 13:51:13, Peter Zijlstra wrote:
-> > > If that sounds like a more appropriate plan I won't object. I can simply
-> > > change my patch to do __set_current_state and schedule_timeout.
-> > 
-> > I dunno, I just think these wrappers are silly.
+On Tue, 22 Mar 2016, Michal Hocko wrote:
+
+> Hi,
+> I am reposting the whole patchset on top of the current Linus tree which should
+> already contain big pile of Andrew's mm patches. This should serve an easier
+> reviewability and I also hope that this core part of the work can go to 4.6.
 > 
-> Adding out-of-line, exported wrappers for every single task state is
-> kind of silly. But it's still a common operation to wait in a certain
-> state, so having a single function for that makes sense. Kind of like
-> spin_lock_irqsave and friends.
+> The previous version was posted here [1] Hugh and David have suggested to
+> drop [2] because the munlock path currently depends on the page lock and
+> it is better if the initial version was conservative and prevent from
+> any potential lockups even though it is not clear whether they are real
+> - nobody has seen oom_reaper stuck on the page lock AFAICK. Me or Hugh
+> will have a look and try to make the munlock path not depend on the page
+> lock as a follow up work.
 > 
-> Maybe this would be better?:
+> Apart from that the feedback revealed one bug for a very unusual
+> configuration (sysctl_oom_kill_allocating_task) and that has been fixed
+> by patch 8 and one potential mis interaction with the pm freezer fixed by
+> patch 7.
 > 
-> static inline long schedule_timeout_state(long timeout, long state)
-> {
-> 	__set_current_state(state);
-> 	return schedule_timeout(timeout);
-> }
+> I think the current code base is already very useful for many situations.
+> The rest of the feedback was mostly about potential enhancements of the
+> current code which I would really prefer to build on top of the current
+> series. I plan to finish my mmap_sem killable for write in the upcoming
+> release cycle and hopefully have it merged in the next merge window.
+> I believe more extensions will follow.
+> 
+> This code has been sitting in the mmotm (thus linux-next) for a while.
+> Are there any fundamental objections to have this part merged in this
+> merge window?
+> 
 
-Probably. However, with such semantics the schedule*() name is wrong
-too, you cannot use these functions to build actual wait loops etc.
-
-So maybe:
-
-static inline long sleep_in_state(long timeout, long state)
-{
-	__set_current_state(state);
-	return schedule_timeout(timeout);
-}
-
-might be an even better name; but at that point we look very like the
-msleep*() class of function, so maybe we should do:
-
-long sleep_in_state(long state, long timeout)
-{
-	while (timeout && !signal_pending_state(state, current)) {
-		__set_current_state(state);
-		timeout = schedule_timeout(timeout);
-	}
-	return timeout;
-}
-
-Hmm ?
+Tetsuo, have you been able to run your previous test cases on top of this 
+version and do you have any concerns about it or possible extensions that 
+could be made?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
