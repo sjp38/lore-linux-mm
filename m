@@ -1,72 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 72C536B007E
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 06:43:47 -0400 (EDT)
-Received: by mail-wm0-f51.google.com with SMTP id p65so18010398wmp.0
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 03:43:47 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id v71si26031896wmd.18.2016.03.23.03.43.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Mar 2016 03:43:46 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id u125so3183786wmg.0
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 03:43:45 -0700 (PDT)
-Date: Wed, 23 Mar 2016 11:43:44 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/9] sched: add schedule_timeout_idle()
-Message-ID: <20160323104344.GC7059@dhcp22.suse.cz>
-References: <1458644426-22973-1-git-send-email-mhocko@kernel.org>
- <1458644426-22973-2-git-send-email-mhocko@kernel.org>
- <20160322122345.GN6344@twins.programming.kicks-ass.net>
- <20160322123314.GD10381@dhcp22.suse.cz>
- <20160322125113.GO6344@twins.programming.kicks-ass.net>
- <20160322130822.GF10381@dhcp22.suse.cz>
- <20160322132249.GP6344@twins.programming.kicks-ass.net>
- <20160322175626.GA13302@cmpxchg.org>
- <20160322212352.GF6356@twins.programming.kicks-ass.net>
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D60B46B007E
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 07:12:11 -0400 (EDT)
+Received: by mail-pf0-f172.google.com with SMTP id 4so23133653pfd.0
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 04:12:11 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id ut6si3671859pac.241.2016.03.23.04.12.10
+        for <linux-mm@kvack.org>;
+        Wed, 23 Mar 2016 04:12:10 -0700 (PDT)
+Date: Wed, 23 Mar 2016 11:11:55 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: Delete flush cache all in arm64 platform.
+Message-ID: <20160323111155.GB2057@leverpostej>
+References: <56EFABD3.7060700@hisilicon.com>
+ <20160321100818.GA17326@leverpostej>
+ <56F01A0A.3030208@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160322212352.GF6356@twins.programming.kicks-ass.net>
+In-Reply-To: <56F01A0A.3030208@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Chen Feng <puck.chen@hisilicon.com>, catalin.marinas@arm.com, akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xuyiping@hisilicon.com, suzhuangluan@hisilicon.com, saberlily.xia@hisilicon.com, dan.zhao@hisilicon.com, linux-arm-kernel@lists.infradead.org
 
-On Tue 22-03-16 22:23:52, Peter Zijlstra wrote:
-[...]
-> Probably. However, with such semantics the schedule*() name is wrong
-> too, you cannot use these functions to build actual wait loops etc.
-> 
-> So maybe:
-> 
-> static inline long sleep_in_state(long timeout, long state)
-> {
-> 	__set_current_state(state);
-> 	return schedule_timeout(timeout);
-> }
-> 
-> might be an even better name; but at that point we look very like the
-> msleep*() class of function, so maybe we should do:
-> 
-> long sleep_in_state(long state, long timeout)
-> {
-> 	while (timeout && !signal_pending_state(state, current)) {
-> 		__set_current_state(state);
-> 		timeout = schedule_timeout(timeout);
-> 	}
-> 	return timeout;
-> }
-> 
-> Hmm ?
+On Mon, Mar 21, 2016 at 08:58:02AM -0700, Laura Abbott wrote:
+> On 03/21/2016 03:08 AM, Mark Rutland wrote:
+> >On Mon, Mar 21, 2016 at 04:07:47PM +0800, Chen Feng wrote:
+> >>But if we use VA to flush cache to do cache-coherency with other
+> >>master(eg:gpu)
+> >>
+> >>We must iterate over the sg-list to flush by va to pa.
+> >>
+> >>In this way, the iterate of sg-list may cost too much time(sg-table to
+> >>sg-list) if the sglist is too long. Take a look at the
+> >>ion_pages_sync_for_device in ion.
+> >>
+> >>The driver(eg: ION) need to use this interface(flush cache all) to
+> >>*improve the efficiency*.
 
-I am not sure how many callers do care about premature wake-ups (e.g
-I could find a use for it) but this indeed has a better and cleaner
-semantic.
+> >I'm not sure what to suggest regarding improving efficiency.
+> >
+> >Is walking the sglist the expensive portion, or is the problem the cost
+> >of multiple page-size operations (each with their own barriers)?
+> 
+> Last time I looked at this, it was mostly the multiple page-size operations.
 
--- 
-Michal Hocko
-SUSE Labs
+We may be able to amortize some of that cost if we had non-synchronised
+cache maintenance operations for each page, then followed that up with a
+single final DSB SY.
+
+There are several places in arch/arm64/mm/dma-mapping.c (practically
+every use of for_each_sg) that could potentially benefit. I'm not sure
+how much that's likely to gain as it will depend heavily on the
+microarchitecture.
+
+Regardless, it looks like that would require ion_pages_sync_for_device
+and friends to be reworked, as it seems to only hand single pages down
+to the architecture backend rather than a more complete sglist.
+
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
