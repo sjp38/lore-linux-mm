@@ -1,56 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id A6E6C6B007E
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 09:30:32 -0400 (EDT)
-Received: by mail-wm0-f44.google.com with SMTP id l68so234064753wml.0
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 06:30:32 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id l65si3784152wmb.26.2016.03.23.06.30.12
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F5546B007E
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 10:38:21 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id l68so27276318wml.1
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 07:38:21 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id wl9si3480792wjb.220.2016.03.23.07.38.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Mar 2016 06:30:12 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id r129so4417919wmr.2
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 06:30:12 -0700 (PDT)
-Date: Wed, 23 Mar 2016 14:30:11 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/6] mm/hugetlb: Fix commandline parsing behavior for
- invalid hugepagesize
-Message-ID: <20160323133011.GG7059@dhcp22.suse.cz>
-References: <1458734844-14833-1-git-send-email-vaishali.thakkar@oracle.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 23 Mar 2016 07:38:20 -0700 (PDT)
+Subject: Re: [PATCH 2/6] mm/hugetlb: add same zone check in
+ pfn_range_valid_gigantic()
+References: <1457940697-2278-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1457940697-2278-3-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56F2AA59.9060208@suse.cz>
+Date: Wed, 23 Mar 2016 15:38:17 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1458734844-14833-1-git-send-email-vaishali.thakkar@oracle.com>
+In-Reply-To: <1457940697-2278-3-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, baiyaowei@cmss.chinamobile.com, dingel@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, paul.gortmaker@windriver.com, catalin.marinas@arm.com, will.deacon@arm.com, cmetcalf@ezchip.com, linux-arm-kernel@lists.infradead.org, james.hogan@imgtec.com, linux-metag@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed 23-03-16 17:37:18, Vaishali Thakkar wrote:
-> Current code fails to ignore the 'hugepages=' parameters when unsupported
-> hugepagesize is specified. With this patchset, introduce new architecture
-> independent routine hugetlb_bad_size to handle such command line options.
-> And then call it in architecture specific code.
-> 
-> Changes since v1:
-> 	- Separated different architecture specific changes in different
-> 	  patches
-> 	- CC'ed all arch maintainers
+On 03/14/2016 08:31 AM, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> alloc_gigantic_page() uses alloc_contig_range() and this
+> requires that requested range is in a single zone. To satisfy
+> that requirement, add this check to pfn_range_valid_gigantic().
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-The hugetlb parameters parsing is a bit mess but this at least makes it
-behave more consistently. Feel free to add to all patches
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-On a side note. I have received patches with broken threading - the
-follow up patches are not in the single thread under this cover email.
-I thought this was the default behavior of git send-email but maybe your
-(older) version doesn't do that. --thread option would enforce that
-(with --no-chain-reply-to) or you can set it up in the git config. IMHO
-it is always better to have the patchset in the single email thread.
-
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
