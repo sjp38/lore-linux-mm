@@ -1,61 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 11E886B007E
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 12:02:50 -0400 (EDT)
-Received: by mail-ob0-f179.google.com with SMTP id fp4so16976087obb.2
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 09:02:50 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id e52si1760082otc.84.2016.03.23.09.02.48
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EEB96B0253
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 12:03:45 -0400 (EDT)
+Received: by mail-pf0-f179.google.com with SMTP id n5so33644233pfn.2
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 09:03:45 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0089.outbound.protection.outlook.com. [157.56.112.89])
+        by mx.google.com with ESMTPS id t13si5116739pas.225.2016.03.23.09.03.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Mar 2016 09:02:49 -0700 (PDT)
-Subject: Re: [PATCH v2 0/6] mm/hugetlb: Fix commandline parsing behavior for
- invalid hugepagesize
-References: <1458734844-14833-1-git-send-email-vaishali.thakkar@oracle.com>
- <20160323133011.GG7059@dhcp22.suse.cz>
-From: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-Message-ID: <56F2BDE3.40309@oracle.com>
-Date: Wed, 23 Mar 2016 21:31:39 +0530
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 23 Mar 2016 09:03:44 -0700 (PDT)
+Subject: Re: [PATCH v2 5/6] tile: mm: Use hugetlb_bad_size
+References: <1458736627-16155-1-git-send-email-vaishali.thakkar@oracle.com>
+From: Chris Metcalf <cmetcalf@mellanox.com>
+Message-ID: <56F2BE4C.1010607@mellanox.com>
+Date: Wed, 23 Mar 2016 12:03:24 -0400
 MIME-Version: 1.0
-In-Reply-To: <20160323133011.GG7059@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <1458736627-16155-1-git-send-email-vaishali.thakkar@oracle.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, baiyaowei@cmss.chinamobile.com, dingel@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, paul.gortmaker@windriver.com, catalin.marinas@arm.com, will.deacon@arm.com, cmetcalf@ezchip.com, linux-arm-kernel@lists.infradead.org, james.hogan@imgtec.com, linux-metag@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org
+To: Vaishali Thakkar <vaishali.thakkar@oracle.com>, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-
-
-On Wednesday 23 March 2016 07:00 PM, Michal Hocko wrote:
-> On Wed 23-03-16 17:37:18, Vaishali Thakkar wrote:
->> Current code fails to ignore the 'hugepages=' parameters when unsupported
->> hugepagesize is specified. With this patchset, introduce new architecture
->> independent routine hugetlb_bad_size to handle such command line options.
->> And then call it in architecture specific code.
->>
->> Changes since v1:
->> 	- Separated different architecture specific changes in different
->> 	  patches
->> 	- CC'ed all arch maintainers
-> The hugetlb parameters parsing is a bit mess but this at least makes it
-> behave more consistently. Feel free to add to all patches
-> Acked-by: Michal Hocko <mhocko@suse.com>
+On 3/23/2016 8:37 AM, Vaishali Thakkar wrote:
+> Update the setup_hugepagesz function to call the routine
+> hugetlb_bad_size when unsupported hugepage size is found.
 >
-> On a side note. I have received patches with broken threading - the
-> follow up patches are not in the single thread under this cover email.
-> I thought this was the default behavior of git send-email but maybe your
-> (older) version doesn't do that. --thread option would enforce that
-> (with --no-chain-reply-to) or you can set it up in the git config. IMHO
-> it is always better to have the patchset in the single email thread.
->
-Yes, now I have set up my git config for that. Hopefully, things will
-work properly - patchset in a single thread from the next time.
+> Signed-off-by: Vaishali Thakkar<vaishali.thakkar@oracle.com>
+> Reviewed-by: Mike Kravetz<mike.kravetz@oracle.com>
+> Reviewed-by: Naoya Horiguchi<n-horiguchi@ah.jp.nec.com>
+> Cc: Hillf Danton<hillf.zj@alibaba-inc.com>
+> Cc: Michal Hocko<mhocko@suse.com>
+> Cc: Yaowei Bai<baiyaowei@cmss.chinamobile.com>
+> Cc: Dominik Dingel<dingel@linux.vnet.ibm.com>
+> Cc: Kirill A. Shutemov<kirill.shutemov@linux.intel.com>
+> Cc: Paul Gortmaker<paul.gortmaker@windriver.com>
+> Cc: Dave Hansen<dave.hansen@linux.intel.com>
 
-Thanks.
+Acked-by: Chris Metcalf <cmetcalf@mellanox.com>
 
 -- 
-Vaishali
+Chris Metcalf, Mellanox Technologies
+http://www.mellanox.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
