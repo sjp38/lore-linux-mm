@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6286D6B0253
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 08:49:51 -0400 (EDT)
-Received: by mail-pf0-f174.google.com with SMTP id n5so26357514pfn.2
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 05:49:51 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id yi4si4186346pac.177.2016.03.23.05.49.50
+Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C3276B007E
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 08:50:33 -0400 (EDT)
+Received: by mail-io0-f175.google.com with SMTP id v187so9251086ioe.2
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 05:50:33 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id gb2si3924977igd.4.2016.03.23.05.50.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Mar 2016 05:49:50 -0700 (PDT)
+        Wed, 23 Mar 2016 05:50:04 -0700 (PDT)
 From: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-Subject: [PATCH v2 5/6] tile: mm: Use hugetlb_bad_size
-Date: Wed, 23 Mar 2016 18:07:07 +0530
-Message-Id: <1458736627-16155-1-git-send-email-vaishali.thakkar@oracle.com>
+Subject: [PATCH v2 6/6] x86: mm: Use hugetlb_bad_size
+Date: Wed, 23 Mar 2016 18:09:36 +0530
+Message-Id: <1458736776-16201-1-git-send-email-vaishali.thakkar@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: cmetcalf@ezchip.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vaishali Thakkar <vaishali.thakkar@oracle.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vaishali Thakkar <vaishali.thakkar@oracle.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
 Update the setup_hugepagesz function to call the routine
 hugetlb_bad_size when unsupported hugepage size is found.
 
 Signed-off-by: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
 Cc: Michal Hocko <mhocko@suse.com>
 Cc: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
@@ -32,39 +32,25 @@ Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Cc: Paul Gortmaker <paul.gortmaker@windriver.com>
 Cc: Dave Hansen <dave.hansen@linux.intel.com>
 ---
-- Please note that the patch is tested for x86 only. But as this
-  is one line change I just changed them. So, it would be good if
-  the patch can be tested for other architectures before adding
-  this in to mainline.
 Changes since v1:
         - Separate different arch specific changes in different
           patches instead of one
 ---
- arch/tile/mm/hugetlbpage.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ arch/x86/mm/hugetlbpage.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/arch/tile/mm/hugetlbpage.c b/arch/tile/mm/hugetlbpage.c
-index e212c64..77ceaa3 100644
---- a/arch/tile/mm/hugetlbpage.c
-+++ b/arch/tile/mm/hugetlbpage.c
-@@ -308,11 +308,16 @@ static bool saw_hugepagesz;
- 
- static __init int setup_hugepagesz(char *opt)
- {
-+	int rc;
-+
- 	if (!saw_hugepagesz) {
- 		saw_hugepagesz = true;
- 		memset(huge_shift, 0, sizeof(huge_shift));
- 	}
--	return __setup_hugepagesz(memparse(opt, NULL));
-+	rc = __setup_hugepagesz(memparse(opt, NULL));
-+	if (rc)
+diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+index 740d7ac..3ec44f8 100644
+--- a/arch/x86/mm/hugetlbpage.c
++++ b/arch/x86/mm/hugetlbpage.c
+@@ -165,6 +165,7 @@ static __init int setup_hugepagesz(char *opt)
+ 	} else if (ps == PUD_SIZE && cpu_has_gbpages) {
+ 		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+ 	} else {
 +		hugetlb_bad_size();
-+	return rc;
- }
- __setup("hugepagesz=", setup_hugepagesz);
- 
+ 		printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
+ 			ps >> 20);
+ 		return 0;
 -- 
 2.1.4
 
