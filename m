@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D0D986B007E
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 09:00:02 -0400 (EDT)
-Received: by mail-ob0-f179.google.com with SMTP id xj3so11227093obb.0
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 06:00:02 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id fn9si4261926pab.163.2016.03.23.05.59.39
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A6E6C6B007E
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 09:30:32 -0400 (EDT)
+Received: by mail-wm0-f44.google.com with SMTP id l68so234064753wml.0
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 06:30:32 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id l65si3784152wmb.26.2016.03.23.06.30.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Mar 2016 05:59:40 -0700 (PDT)
-From: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-Subject: [PATCH v2 4/6] powerpc: mm: Use hugetlb_bad_size
-Date: Wed, 23 Mar 2016 18:04:27 +0530
-Message-Id: <1458736467-15995-1-git-send-email-vaishali.thakkar@oracle.com>
+        Wed, 23 Mar 2016 06:30:12 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id r129so4417919wmr.2
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 06:30:12 -0700 (PDT)
+Date: Wed, 23 Mar 2016 14:30:11 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 0/6] mm/hugetlb: Fix commandline parsing behavior for
+ invalid hugepagesize
+Message-ID: <20160323133011.GG7059@dhcp22.suse.cz>
+References: <1458734844-14833-1-git-send-email-vaishali.thakkar@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1458734844-14833-1-git-send-email-vaishali.thakkar@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, linuxppc-dev@lists.ozlabs.org, Vaishali Thakkar <vaishali.thakkar@oracle.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Vaishali Thakkar <vaishali.thakkar@oracle.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, baiyaowei@cmss.chinamobile.com, dingel@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, paul.gortmaker@windriver.com, catalin.marinas@arm.com, will.deacon@arm.com, cmetcalf@ezchip.com, linux-arm-kernel@lists.infradead.org, james.hogan@imgtec.com, linux-metag@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org
 
-Update the setup_hugepagesz function to call the routine
-hugetlb_bad_size when unsupported hugepage size is found.
+On Wed 23-03-16 17:37:18, Vaishali Thakkar wrote:
+> Current code fails to ignore the 'hugepages=' parameters when unsupported
+> hugepagesize is specified. With this patchset, introduce new architecture
+> independent routine hugetlb_bad_size to handle such command line options.
+> And then call it in architecture specific code.
+> 
+> Changes since v1:
+> 	- Separated different architecture specific changes in different
+> 	  patches
+> 	- CC'ed all arch maintainers
 
-Misc:
-   - Silent checkpatch.pl's 80 characters and printk warning
+The hugetlb parameters parsing is a bit mess but this at least makes it
+behave more consistently. Feel free to add to all patches
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-Signed-off-by: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-Cc: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Paul Gortmaker <paul.gortmaker@windriver.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
----
-Please note that the patch is tested for x86 only. But as this
-is one line change I just changed them. So, it would be good if
-the patch can be tested for other architectures before adding
-this in to mainline.
-Changes since v1:
-        - Separate different arch specific changes in different
-          patches instead of one
----
- arch/powerpc/mm/hugetlbpage.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+On a side note. I have received patches with broken threading - the
+follow up patches are not in the single thread under this cover email.
+I thought this was the default behavior of git send-email but maybe your
+(older) version doesn't do that. --thread option would enforce that
+(with --no-chain-reply-to) or you can set it up in the git config. IMHO
+it is always better to have the patchset in the single email thread.
 
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index 6dd272b..3e5e128 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -772,8 +772,10 @@ static int __init hugepage_setup_sz(char *str)
- 
- 	size = memparse(str, &str);
- 
--	if (add_huge_page_size(size) != 0)
--		printk(KERN_WARNING "Invalid huge page size specified(%llu)\n", size);
-+	if (add_huge_page_size(size) != 0) {
-+		hugetlb_bad_size();
-+		pr_err("Invalid huge page size specified(%llu)\n", size);
-+	}
- 
- 	return 1;
- }
 -- 
-2.1.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
