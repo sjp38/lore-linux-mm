@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F5546B007E
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 10:38:21 -0400 (EDT)
-Received: by mail-wm0-f45.google.com with SMTP id l68so27276318wml.1
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 07:38:21 -0700 (PDT)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id B3C316B0253
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 10:38:46 -0400 (EDT)
+Received: by mail-wm0-f46.google.com with SMTP id r129so139516248wmr.1
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 07:38:46 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wl9si3480792wjb.220.2016.03.23.07.38.20
+        by mx.google.com with ESMTPS id 78si4123120wmw.56.2016.03.23.07.38.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 Mar 2016 07:38:20 -0700 (PDT)
-Subject: Re: [PATCH 2/6] mm/hugetlb: add same zone check in
- pfn_range_valid_gigantic()
+        Wed, 23 Mar 2016 07:38:45 -0700 (PDT)
+Subject: Re: [PATCH 3/6] mm/memory_hotplug: add comment to some functions
+ related to memory hotplug
 References: <1457940697-2278-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1457940697-2278-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <1457940697-2278-4-git-send-email-iamjoonsoo.kim@lge.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56F2AA59.9060208@suse.cz>
-Date: Wed, 23 Mar 2016 15:38:17 +0100
+Message-ID: <56F2AA74.6070808@suse.cz>
+Date: Wed, 23 Mar 2016 15:38:44 +0100
 MIME-Version: 1.0
-In-Reply-To: <1457940697-2278-3-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1457940697-2278-4-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,9 +28,11 @@ Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Go
 On 03/14/2016 08:31 AM, js1304@gmail.com wrote:
 > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 >
-> alloc_gigantic_page() uses alloc_contig_range() and this
-> requires that requested range is in a single zone. To satisfy
-> that requirement, add this check to pfn_range_valid_gigantic().
+> __offline_isolated_pages() and test_pages_isolated() are used by memory
+> hotplug. These functions require that range is in a single zone but
+> there is no code about it because memory hotplug checks it before calling
+> these functions. Not to confuse future user of these functions,
+> this patch adds comment on them.
 >
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
