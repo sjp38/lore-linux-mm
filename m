@@ -1,48 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EEB96B0253
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 12:03:45 -0400 (EDT)
-Received: by mail-pf0-f179.google.com with SMTP id n5so33644233pfn.2
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 09:03:45 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0089.outbound.protection.outlook.com. [157.56.112.89])
-        by mx.google.com with ESMTPS id t13si5116739pas.225.2016.03.23.09.03.44
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 377DB6B0005
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 15:04:41 -0400 (EDT)
+Received: by mail-qk0-f171.google.com with SMTP id s68so10894069qkh.3
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 12:04:41 -0700 (PDT)
+Received: from smtp-fw-6001.amazon.com (smtp-fw-6001.amazon.com. [52.95.48.154])
+        by mx.google.com with ESMTPS id c52si3310844qgc.5.2016.03.23.12.04.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 23 Mar 2016 09:03:44 -0700 (PDT)
-Subject: Re: [PATCH v2 5/6] tile: mm: Use hugetlb_bad_size
-References: <1458736627-16155-1-git-send-email-vaishali.thakkar@oracle.com>
-From: Chris Metcalf <cmetcalf@mellanox.com>
-Message-ID: <56F2BE4C.1010607@mellanox.com>
-Date: Wed, 23 Mar 2016 12:03:24 -0400
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 23 Mar 2016 12:04:40 -0700 (PDT)
+Subject: Re: [RFC] high preempt off latency in vfree path
+References: <56F1F4A6.2060400@lab126.com>
+ <20160323024402.GA27856@tassilo.jf.intel.com>
+From: Joel Fernandes <joelaf@lab126.com>
+Message-ID: <56F2E895.7080003@lab126.com>
+Date: Wed, 23 Mar 2016 12:03:49 -0700
 MIME-Version: 1.0
-In-Reply-To: <1458736627-16155-1-git-send-email-vaishali.thakkar@oracle.com>
+In-Reply-To: <20160323024402.GA27856@tassilo.jf.intel.com>
 Content-Type: text/plain; charset="windows-1252"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vaishali Thakkar <vaishali.thakkar@oracle.com>, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tj@kernel.org, linux-rt-users@vger.kernel.org, Nick Piggin <npiggin@suse.de>
 
-On 3/23/2016 8:37 AM, Vaishali Thakkar wrote:
-> Update the setup_hugepagesz function to call the routine
-> hugetlb_bad_size when unsupported hugepage size is found.
+On 03/22/16 19:44, Andi Kleen wrote:
+>> (1)
+>> One is we reduce the number of lazy_max_pages (right now its around 32MB per core worth of pages).
+>>
+>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>> index aa3891e..2720f4f 100644
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -564,7 +564,7 @@ static unsigned long lazy_max_pages(void)
+>>
+>>          log = fls(num_online_cpus());
+>>
+>> -       return log * (32UL * 1024 * 1024 / PAGE_SIZE);
+>> +       return log * (8UL * 1024 * 1024 / PAGE_SIZE);
+>>   }
 >
-> Signed-off-by: Vaishali Thakkar<vaishali.thakkar@oracle.com>
-> Reviewed-by: Mike Kravetz<mike.kravetz@oracle.com>
-> Reviewed-by: Naoya Horiguchi<n-horiguchi@ah.jp.nec.com>
-> Cc: Hillf Danton<hillf.zj@alibaba-inc.com>
-> Cc: Michal Hocko<mhocko@suse.com>
-> Cc: Yaowei Bai<baiyaowei@cmss.chinamobile.com>
-> Cc: Dominik Dingel<dingel@linux.vnet.ibm.com>
-> Cc: Kirill A. Shutemov<kirill.shutemov@linux.intel.com>
-> Cc: Paul Gortmaker<paul.gortmaker@windriver.com>
-> Cc: Dave Hansen<dave.hansen@linux.intel.com>
+> This seems like the right fix to me.  Perhaps even make it somewhat smaller.
+>
+> Even on larger systems it's probably fine because they have a lot more
+> cores/threads these days, so it will be still sufficiently large.
+>
 
-Acked-by: Chris Metcalf <cmetcalf@mellanox.com>
+Thanks Andi. I'll post a patch then.
 
--- 
-Chris Metcalf, Mellanox Technologies
-http://www.mellanox.com
+Regards,
+Joel
+
+> -Andi
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
