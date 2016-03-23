@@ -1,71 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id C768D6B007E
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 04:32:44 -0400 (EDT)
-Received: by mail-ob0-f174.google.com with SMTP id ts10so5930083obc.1
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 01:32:44 -0700 (PDT)
-Received: from mail-oi0-x234.google.com (mail-oi0-x234.google.com. [2607:f8b0:4003:c06::234])
-        by mx.google.com with ESMTPS id c22si667491otd.226.2016.03.23.01.32.44
+Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 163286B007E
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 04:53:57 -0400 (EDT)
+Received: by mail-oi0-f47.google.com with SMTP id d205so10595556oia.0
+        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 01:53:57 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id ct2si701767oec.4.2016.03.23.01.53.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Mar 2016 01:32:44 -0700 (PDT)
-Received: by mail-oi0-x234.google.com with SMTP id r187so9976012oih.3
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 01:32:44 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 23 Mar 2016 01:53:56 -0700 (PDT)
+Subject: Re: Delete flush cache all in arm64 platform.
+References: <56EFABD3.7060700@hisilicon.com>
+ <20160321100818.GA17326@leverpostej> <56F01A0A.3030208@redhat.com>
+From: Chen Feng <puck.chen@hisilicon.com>
+Message-ID: <56F2597F.4050708@hisilicon.com>
+Date: Wed, 23 Mar 2016 16:53:19 +0800
 MIME-Version: 1.0
-In-Reply-To: <56F25343.8010100@suse.cz>
-References: <56E2FB5C.1040602@suse.cz>
-	<20160314064925.GA27587@js1304-P5Q-DELUXE>
-	<56E662E8.700@suse.cz>
-	<20160314071803.GA28094@js1304-P5Q-DELUXE>
-	<56E92AFC.9050208@huawei.com>
-	<20160317065426.GA10315@js1304-P5Q-DELUXE>
-	<56EA77BC.2090702@huawei.com>
-	<56EAD0B4.2060807@suse.cz>
-	<CAAmzW4MNdFHSSTpCfWqy7oDtkR_Hfu2dZa_LW97W8J5vr5m4tg@mail.gmail.com>
-	<56EC0C41.70503@suse.cz>
-	<20160323044407.GB4624@js1304-P5Q-DELUXE>
-	<56F25343.8010100@suse.cz>
-Date: Wed, 23 Mar 2016 17:32:43 +0900
-Message-ID: <CAAmzW4Mipu0O6ooqc4Px1oxkpNPh_9RmWkBCj9QrWb+H7+q+xA@mail.gmail.com>
-Subject: Re: Suspicious error for CMA stress test
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <56F01A0A.3030208@redhat.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hanjun Guo <guohanjun@huawei.com>, "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>, Laura Abbott <labbott@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Laura Abbott <lauraa@codeaurora.org>, qiuxishi <qiuxishi@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd@arndb.de>, dingtinahong <dingtianhong@huawei.com>, chenjie6@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, Lucas Stach <l.stach@pengutronix.de>
+To: Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>
+Cc: catalin.marinas@arm.com, akpm@linux-foundation.org, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xuyiping@hisilicon.com, suzhuangluan@hisilicon.com, saberlily.xia@hisilicon.com, dan.zhao@hisilicon.com, linux-arm-kernel@lists.infradead.org
 
-2016-03-23 17:26 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
-> On 03/23/2016 05:44 AM, Joonsoo Kim wrote:
+Hi Mark & Laura
+
+On 2016/3/21 23:58, Laura Abbott wrote:
+> On 03/21/2016 03:08 AM, Mark Rutland wrote:
+>> [adding LAKML]
+>>
+>> On Mon, Mar 21, 2016 at 04:07:47PM +0800, Chen Feng wrote:
+>>> Hi Mark,
+>>
+>> Hi,
+>>
+>>> With 68234df4ea7939f98431aa81113fbdce10c4a84b
+>>> arm64: kill flush_cache_all()
+>>> The documented semantics of flush_cache_all are not possible to provide
+>>> for arm64 (short of flushing the entire physical address space by VA),
+>>> and there are currently no users; KVM uses VA maintenance exclusively,
+>>> cpu_reset is never called, and the only two users outside of arch code
+>>> cannot be built for arm64.
+>>>
+>>> While cpu_soft_reset and related functions (which call flush_cache_all)
+>>> were thought to be useful for kexec, their current implementations only
+>>> serve to mask bugs. For correctness kexec will need to perform
+>>> maintenance by VA anyway to account for system caches, line migration,
+>>> and other subtleties of the cache architecture. As the extent of this
+>>> cache maintenance will be kexec-specific, it should probably live in the
+>>> kexec code.
+>>>
+>>> This patch removes flush_cache_all, and related unused components,
+>>> preventing further abuse.
 >>>
 >>>
->>> Fixes: 3c605096d315 ("mm/page_alloc: restrict max order of merging on
->>> isolated pageblock")
->>> Link: https://lkml.org/lkml/2016/3/2/280
->>> Reported-by: Hanjun Guo <guohanjun@huawei.com>
->>> Debugged-by: Laura Abbott <labbott@redhat.com>
->>> Debugged-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->>> Cc: <stable@vger.kernel.org> # 3.18+
->>> ---
->>>   mm/page_alloc.c | 46 +++++++++++++++++++++++++++++++++-------------
->>>   1 file changed, 33 insertions(+), 13 deletions(-)
+>>> This patch delete the flush_cache_all interface.
 >>
+>> As the patch states, it does so because the documented semantics are
+>> impossible to provide, as there is no portable mechanism to "flush" all
+>> caches in the system.
 >>
->> Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> Set/Way operations cannot guarantee that data has been cleaned to the
+>> PoC (i.e. memory), or invalidated from all levels of cache. Reasons
+>> include:
 >>
->> Thanks for taking care of this issue!.
->
->
-> Thanks for the review. But I'm now not sure whether we push this to
-> mainline+stable now, and later replace with Lucas' approach, or whether that
-> approach would be also suitable and non-disruptive enough for stable?
+>> * They may race against background behaviour of the CPU (e.g.
+>>    speculation), which may allocate/evict/migrate lines. Depending on the
+>>    cache topology, this may "hide" lines from subsequent Set/Way
+>>    operations.
+>>
+>> * They are not broadcast, and do not affect other CPUs. Depending on the
+>>    implemented cache coherency protocols, other CPUs may be able to
+>>    acquire dirty lines, or retain lines in shared states, and hence these
+>>    may not be operated on.
+>>
+>> * They do not affect system caches (which respect cache maintenance by
+>>    VA in ARMv8-A).
+>>
+>> The only portable mechanism to perform cache maintenance to all relevant
+>> caches is by VA.
+>>
+>>> But if we use VA to flush cache to do cache-coherency with other
+>>> master(eg:gpu)
+>>>
+>>> We must iterate over the sg-list to flush by va to pa.
+>>>
+>>> In this way, the iterate of sg-list may cost too much time(sg-table to
+>>> sg-list) if the sglist is too long. Take a look at the
+>>> ion_pages_sync_for_device in ion.
+>>>
+>>> The driver(eg: ION) need to use this interface(flush cache all) to
+>>> *improve the efficiency*.
+>>
+>> As above, we cannot use Set/Way operations for this, and cannot provide
+>> a flush_cache_all interface.
+>>
+>> I'm not sure what to suggest regarding improving efficiency.
+>>
+>> Is walking the sglist the expensive portion, or is the problem the cost
+>> of multiple page-size operations (each with their own barriers)?
+>>
+> 
+> Last time I looked at this, it was mostly the multiple page-size operations.
+> Ion buffers can be big and easily bigger than the cache as well so flushing
+> 8MB of buffer for a 2MB cache is really a performance killer. The Set/Way
+> operations are an improvement on systems where they can be used.
+> 
+> The way Ion does cache maintenance is full of sadness and despair in general.
+> Until everything gets a significant rework, the best option may be
+> minimization of code paths where cache operations are called.
+> 
+Thanks for your share.
 
-Lucas' approach is for improvement and would be complex rather than
-this. I don't think it would be appropriate for stable. IMO, it's better to push
-this to mainline + stable now.
+Think about the low-mem scene, there are only 4k pages in system.
+If the ION buffer is 8MB or bigger, the sglist is very long.
+for_each_sg(sgl, sg, ret, i) be took too much time.
 
-Thanks.
+
+Laura,
+>the best option may be
+> minimization of code paths where cache operations are called.
+
+I am confused with the above comments. The buffer size is used by camera,
+the frame size may be just so bigger. Do you have any method for improve this?
+
+Thanks very much.
+
+
+
+>> Thanks,
+>> Mark.
+>>
+> 
+> Thanks,
+> Laura
+> 
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
