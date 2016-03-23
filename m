@@ -1,147 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A5826B007E
-	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 19:40:23 -0400 (EDT)
-Received: by mail-oi0-f49.google.com with SMTP id i17so28259405oib.1
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 16:40:23 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id f5si660776otb.223.2016.03.22.16.40.22
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 121CB6B007E
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2016 21:44:01 -0400 (EDT)
+Received: by mail-pf0-f180.google.com with SMTP id 4so2881894pfd.0
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 18:44:01 -0700 (PDT)
+Received: from smtp-fw-33001.amazon.com (smtp-fw-33001.amazon.com. [207.171.189.228])
+        by mx.google.com with ESMTPS id m27si318649pfj.88.2016.03.22.18.43.59
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 22 Mar 2016 16:40:22 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 2/2] arch:mm: Use hugetlb_bad_size
-Date: Tue, 22 Mar 2016 23:38:10 +0000
-Message-ID: <20160322233809.GB24819@hori1.linux.bs1.fc.nec.co.jp>
-References: <1458641159-13643-1-git-send-email-vaishali.thakkar@oracle.com>
-In-Reply-To: <1458641159-13643-1-git-send-email-vaishali.thakkar@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <FFF1ABDB1F1E474E9B72297C37B82DAF@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Tue, 22 Mar 2016 18:44:00 -0700 (PDT)
+From: Joel Fernandes <joelaf@lab126.com>
+Subject: [RFC] high preempt off latency in vfree path
+Message-ID: <56F1F4A6.2060400@lab126.com>
+Date: Tue, 22 Mar 2016 18:43:02 -0700
 MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mike Kravetz <mike.kravetz@oracle.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tj@kernel.org, linux-rt-users@vger.kernel.org, Nick Piggin <npiggin@suse.de>, Andi Kleen <ak@linux.intel.com>
 
-On Tue, Mar 22, 2016 at 03:35:59PM +0530, Vaishali Thakkar wrote:
-> Update the setup_hugepagesz function to call the routine
-> hugetlb_bad_size when unsupported hugepage size is found.
->=20
-> Misc:
->   - Silent 80 characters warning
->=20
-> Signed-off-by: Vaishali Thakkar <vaishali.thakkar@oracle.com>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
-> Cc: Dominik Dingel <dingel@linux.vnet.ibm.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Paul Gortmaker <paul.gortmaker@windriver.com>
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Hi,
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+I'm seeing on my system with some real time audio requirements, I'm seeing the preemptirqsoff 
+tracer complaining that preempt was off for 17ms in the vfree path. Since we have requirements 
+of 8ms scheduling this seems awfully bad.
 
-> ---
-> - Please note that the patch is tested for x86 only. But as this
->   is one line change I just changed them. So, it would be good if
->   the patch can be tested for other architectures before adding
->   this in to mainline.
-> - Not sure if printk related checkpatch.pl warning should be resolved
->   with this patch as code is not consistent in architectures. May be
->   one separate patch for changing all printk's to pr_<level> kind of
->   debugging functions would be good.
-> ---
->  arch/arm64/mm/hugetlbpage.c   | 1 +
->  arch/metag/mm/hugetlbpage.c   | 1 +
->  arch/powerpc/mm/hugetlbpage.c | 7 +++++--
->  arch/tile/mm/hugetlbpage.c    | 7 ++++++-
->  arch/x86/mm/hugetlbpage.c     | 1 +
->  5 files changed, 14 insertions(+), 3 deletions(-)
->=20
-> diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
-> index 589fd28..aa8aee7 100644
-> --- a/arch/arm64/mm/hugetlbpage.c
-> +++ b/arch/arm64/mm/hugetlbpage.c
-> @@ -307,6 +307,7 @@ static __init int setup_hugepagesz(char *opt)
->  	} else if (ps =3D=3D PUD_SIZE) {
->  		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
->  	} else {
-> +		hugetlb_bad_size();
->  		pr_err("hugepagesz: Unsupported page size %lu K\n", ps >> 10);
->  		return 0;
->  	}
-> diff --git a/arch/metag/mm/hugetlbpage.c b/arch/metag/mm/hugetlbpage.c
-> index b38700a..db1b7da 100644
-> --- a/arch/metag/mm/hugetlbpage.c
-> +++ b/arch/metag/mm/hugetlbpage.c
-> @@ -239,6 +239,7 @@ static __init int setup_hugepagesz(char *opt)
->  	if (ps =3D=3D (1 << HPAGE_SHIFT)) {
->  		hugetlb_add_hstate(HPAGE_SHIFT - PAGE_SHIFT);
->  	} else {
-> +		hugetlb_bad_size();
->  		pr_err("hugepagesz: Unsupported page size %lu M\n",
->  		       ps >> 20);
->  		return 0;
-> diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.=
-c
-> index 6dd272b..a437ff7 100644
-> --- a/arch/powerpc/mm/hugetlbpage.c
-> +++ b/arch/powerpc/mm/hugetlbpage.c
-> @@ -772,8 +772,11 @@ static int __init hugepage_setup_sz(char *str)
-> =20
->  	size =3D memparse(str, &str);
-> =20
-> -	if (add_huge_page_size(size) !=3D 0)
-> -		printk(KERN_WARNING "Invalid huge page size specified(%llu)\n", size);
-> +	if (add_huge_page_size(size) !=3D 0) {
-> +		hugetlb_bad_size();
-> +		printk(KERN_WARNING "Invalid huge page size specified(%llu)\n",
-> +		       size);
-> +	}
-> =20
->  	return 1;
->  }
-> diff --git a/arch/tile/mm/hugetlbpage.c b/arch/tile/mm/hugetlbpage.c
-> index e212c64..77ceaa3 100644
-> --- a/arch/tile/mm/hugetlbpage.c
-> +++ b/arch/tile/mm/hugetlbpage.c
-> @@ -308,11 +308,16 @@ static bool saw_hugepagesz;
-> =20
->  static __init int setup_hugepagesz(char *opt)
->  {
-> +	int rc;
-> +
->  	if (!saw_hugepagesz) {
->  		saw_hugepagesz =3D true;
->  		memset(huge_shift, 0, sizeof(huge_shift));
->  	}
-> -	return __setup_hugepagesz(memparse(opt, NULL));
-> +	rc =3D __setup_hugepagesz(memparse(opt, NULL));
-> +	if (rc)
-> +		hugetlb_bad_size();
-> +	return rc;
->  }
->  __setup("hugepagesz=3D", setup_hugepagesz);
-> =20
-> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> index 740d7ac..3ec44f8 100644
-> --- a/arch/x86/mm/hugetlbpage.c
-> +++ b/arch/x86/mm/hugetlbpage.c
-> @@ -165,6 +165,7 @@ static __init int setup_hugepagesz(char *opt)
->  	} else if (ps =3D=3D PUD_SIZE && cpu_has_gbpages) {
->  		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
->  	} else {
-> +		hugetlb_bad_size();
->  		printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
->  			ps >> 20);
->  		return 0;
-> --=20
-> 2.1.4
-> =
+The tracer output showed __free_vmap_area was about 7300 times. Can we do better here? I have 
+proposed 2 potential fixes here, any thoughts on which one's better?
+
+Here's the path that blocks preempt (full latency ftrace output uploaded to 
+http://raw.codepile.net/pile/OWNpvKkB.js)
+
+  => preempt_count_sub
+  => _raw_spin_unlock
+  => __purge_vmap_area_lazy
+  => free_vmap_area_noflush
+  => remove_vm_area
+  => __vunmap
+  => vfree
+  => n_tty_close
+  => tty_ldisc_close.isra.1
+  => tty_ldisc_kill
+  => tty_ldisc_release
+  => tty_release
+
+Here are the approaches:
+(1)
+One is we reduce the number of lazy_max_pages (right now its around 32MB per core worth of pages).
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index aa3891e..2720f4f 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -564,7 +564,7 @@ static unsigned long lazy_max_pages(void)
+
+         log = fls(num_online_cpus());
+
+-       return log * (32UL * 1024 * 1024 / PAGE_SIZE);
++       return log * (8UL * 1024 * 1024 / PAGE_SIZE);
+  }
+
+
+(2) Second alternative approach I am thinking is to change purge_lock into a mutex and then 
+move the vmap_area spinlock around the free_vmap_area call. Thus giving the scheduler a chance 
+to put something else on the CPU in between free_vmap_area calls. That would look like:
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index aa3891e..9565d72 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -594,7 +594,7 @@ void set_iounmap_nonlazy(void)
+  static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+                                         int sync, int force_flush)
+  {
+-       static DEFINE_SPINLOCK(purge_lock);
++       static DEFINE_MUTEX(purge_lock);
+         LIST_HEAD(valist);
+         struct vmap_area *va;
+         struct vmap_area *n_va;
+@@ -606,10 +606,10 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+          * the case that isn't actually used at the moment anyway.
+          */
+         if (!sync && !force_flush) {
+-               if (!spin_trylock(&purge_lock))
++               if (!mutex_trylock(&purge_lock))
+                         return;
+         } else
+-               spin_lock(&purge_lock);
++               mutex_lock(&purge_lock);
+
+         if (sync)
+                 purge_fragmented_blocks_allcpus();
+@@ -636,12 +636,13 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+                 flush_tlb_kernel_range(*start, *end);
+
+         if (nr) {
+-               spin_lock(&vmap_area_lock);
+-               list_for_each_entry_safe(va, n_va, &valist, purge_list)
++               list_for_each_entry_safe(va, n_va, &valist, purge_list) {
++                       spin_lock(&vmap_area_lock);
+                         __free_vmap_area(va);
++                       spin_unlock(&vmap_area_lock);
++               }
+-               spin_unlock(&vmap_area_lock);
+
+         }
+-       spin_unlock(&purge_lock);
++       mutex_unlock(&purge_lock);
+  }
+
+  /*
+
+Thanks!
+Joel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
