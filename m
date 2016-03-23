@@ -1,273 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id BD3596B0253
-	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 01:57:03 -0400 (EDT)
-Received: by mail-pf0-f173.google.com with SMTP id u190so10917457pfb.3
-        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 22:57:03 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id gc5si1850193pac.224.2016.03.22.22.57.02
-        for <linux-mm@kvack.org>;
-        Tue, 22 Mar 2016 22:57:02 -0700 (PDT)
-From: akash.goel@intel.com
-Subject: [PATCH 2/2] drm/i915: Make pages of GFX allocations movable
-Date: Wed, 23 Mar 2016 11:39:44 +0530
-Message-Id: <1458713384-25688-2-git-send-email-akash.goel@intel.com>
-In-Reply-To: <1458713384-25688-1-git-send-email-akash.goel@intel.com>
-References: <1458713384-25688-1-git-send-email-akash.goel@intel.com>
+Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id B44236B007E
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 02:52:41 -0400 (EDT)
+Received: by mail-io0-f175.google.com with SMTP id c63so20931664iof.0
+        for <linux-mm@kvack.org>; Tue, 22 Mar 2016 23:52:41 -0700 (PDT)
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com. [32.97.110.153])
+        by mx.google.com with ESMTPS id s102si2162103ioi.21.2016.03.22.23.52.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 22 Mar 2016 23:52:41 -0700 (PDT)
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 23 Mar 2016 00:52:39 -0600
+Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 1A9221FF001F
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 00:40:45 -0600 (MDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp23033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2N6qZeG29229160
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 06:52:35 GMT
+Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2N6qZcI009507
+	for <linux-mm@kvack.org>; Wed, 23 Mar 2016 02:52:35 -0400
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v12 08/29] HMM: add device page fault support v6.
+In-Reply-To: <1457469802-11850-9-git-send-email-jglisse@redhat.com>
+References: <1457469802-11850-1-git-send-email-jglisse@redhat.com> <1457469802-11850-9-git-send-email-jglisse@redhat.com>
+Date: Wed, 23 Mar 2016 12:22:23 +0530
+Message-ID: <87h9fxu1nc.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: intel-gfx@lists.freedesktop.org
-Cc: Chris Wilson <chris@chris-wilson.co.uk>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Sourab Gupta <sourab.gupta@intel.com>, Akash Goel <akash.goel@intel.com>
+To: =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Christophe Harle <charle@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Leonid Shamis <Leonid.Shamis@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Jatin Kumar <jakumar@nvidia.com>
 
-From: Chris Wilson <chris@chris-wilson.co.uk>
+J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com> writes:
 
-On a long run of more than 2-3 days, physical memory tends to get fragmented
-severely, which considerably slows down the system. In such a scenario,
-Shrinker is also unable to help as lack of memory is not the actual problem,
-since it has been observed that there are enough free pages of 0 order.
+> [ text/plain ]
+> This patch add helper for device page fault. Thus helpers will fill
+> the mirror page table using the CPU page table and synchronizing
+> with any update to CPU page table.
+>
+> Changed since v1:
+>   - Add comment about directory lock.
+>
+> Changed since v2:
+>   - Check for mirror->hmm in hmm_mirror_fault()
+>
+> Changed since v3:
+>   - Adapt to HMM page table changes.
+>
+> Changed since v4:
+>   - Fix PROT_NONE, ie do not populate from protnone pte.
+>   - Fix huge pmd handling (start address may !=3D pmd start address)
+>   - Fix missing entry case.
+>
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
+> Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
+> Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> Signed-off-by: Jatin Kumar <jakumar@nvidia.com>
+> ---
 
-To address the issue of external fragementation, kernel does a compaction
-(which involves migration of pages) but it's efficacy depends upon how many
-pages are marked as MOVABLE, as only those pages can be migrated.
 
-Currently the backing pages for GFX buffers are allocated from shmemfs
-with GFP_RECLAIMABLE flag, in units of 4KB pages.
-In the case of limited Swap space, it may not be possible always to reclaim
-or swap-out pages of all the inactive objects, to make way for free space
-allowing formation of higher order groups of physically-contiguous pages
-on compaction.
+....
+....
 
-Just marking the GFX pages as MOVABLE will not suffice, as i915 Driver
-has to pin the pages if they are in use by GPU, which will prevent their
-migration. So the migratepage callback in shmem is also hooked up to get a
-notification when kernel initiates the page migration. On the notification,
-i915 Driver appropriately unpin the pages.
-With this Driver can effectively mark the GFX pages as MOVABLE and hence
-mitigate the fragmentation problem.
+ +static int hmm_mirror_fault_hpmd(struct hmm_mirror *mirror,
+> +				 struct hmm_event *event,
+> +				 struct vm_area_struct *vma,
+> +				 struct hmm_pt_iter *iter,
+> +				 pmd_t *pmdp,
+> +				 struct hmm_mirror_fault *mirror_fault,
+> +				 unsigned long start,
+> +				 unsigned long end)
+> +{
+> +	struct page *page;
+> +	unsigned long addr, pfn;
+> +	unsigned flags =3D FOLL_TOUCH;
+> +	spinlock_t *ptl;
+> +	int ret;
+> +
+> +	ptl =3D pmd_lock(mirror->hmm->mm, pmdp);
+> +	if (unlikely(!pmd_trans_huge(*pmdp))) {
+> +		spin_unlock(ptl);
+> +		return -EAGAIN;
+> +	}
+> +	flags |=3D event->etype =3D=3D HMM_DEVICE_WFAULT ? FOLL_WRITE : 0;
+> +	page =3D follow_trans_huge_pmd(vma, start, pmdp, flags);
+> +	pfn =3D page_to_pfn(page);
+> +	spin_unlock(ptl);
+> +
+> +	/* Just fault in the whole PMD. */
+> +	start &=3D PMD_MASK;
+> +	end =3D start + PMD_SIZE - 1;
+> +
+> +	if (!pmd_write(*pmdp) && event->etype =3D=3D HMM_DEVICE_WFAULT)
+> +			return -ENOENT;
+> +
+> +	for (ret =3D 0, addr =3D start; !ret && addr < end;) {
+> +		unsigned long i, next =3D end;
+> +		dma_addr_t *hmm_pte;
+> +
+> +		hmm_pte =3D hmm_pt_iter_populate(iter, addr, &next);
+> +		if (!hmm_pte)
+> +			return -ENOMEM;
+> +
+> +		i =3D hmm_pt_index(&mirror->pt, addr, mirror->pt.llevel);
+> +
+> +		/*
+> +		 * The directory lock protect against concurrent clearing of
+> +		 * page table bit flags. Exceptions being the dirty bit and
+> +		 * the device driver private flags.
+> +		 */
+> +		hmm_pt_iter_directory_lock(iter);
+> +		do {
+> +			if (!hmm_pte_test_valid_pfn(&hmm_pte[i])) {
+> +				hmm_pte[i] =3D hmm_pte_from_pfn(pfn);
+> +				hmm_pt_iter_directory_ref(iter);
 
-Cc: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org
-Signed-off-by: Sourab Gupta <sourab.gupta@intel.com>
-Signed-off-by: Akash Goel <akash.goel@intel.com>
----
- drivers/gpu/drm/i915/i915_drv.h |   3 +
- drivers/gpu/drm/i915/i915_gem.c | 128 +++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 128 insertions(+), 3 deletions(-)
+I looked at that and it is actually=20
+static inline void hmm_pt_iter_directory_ref(struct hmm_pt_iter *iter)
+{
+	BUG_ON(!iter->ptd[iter->pt->llevel - 1]);
+	hmm_pt_directory_ref(iter->pt, iter->ptd[iter->pt->llevel - 1]);
+}
 
-diff --git a/drivers/gpu/drm/i915/i915_drv.h b/drivers/gpu/drm/i915/i915_drv.h
-index f330a53..28e50c7 100644
---- a/drivers/gpu/drm/i915/i915_drv.h
-+++ b/drivers/gpu/drm/i915/i915_drv.h
-@@ -52,6 +52,7 @@
- #include <linux/intel-iommu.h>
- #include <linux/kref.h>
- #include <linux/pm_qos.h>
-+#include <linux/shmem_fs.h>
- #include "intel_guc.h"
- #include "intel_dpll_mgr.h"
- 
-@@ -1966,6 +1967,8 @@ struct drm_i915_private {
- 
- 	struct intel_encoder *dig_port_map[I915_MAX_PORTS];
- 
-+	struct shmem_dev_info  migrate_info;
-+
- 	/*
- 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
- 	 * will be rejected. Instead look for a better place.
-diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-index 8588c83..a4af5b6 100644
---- a/drivers/gpu/drm/i915/i915_gem.c
-+++ b/drivers/gpu/drm/i915/i915_gem.c
-@@ -33,6 +33,7 @@
- #include "i915_trace.h"
- #include "intel_drv.h"
- #include <linux/shmem_fs.h>
-+#include <linux/migrate.h>
- #include <linux/slab.h>
- #include <linux/swap.h>
- #include <linux/pci.h>
-@@ -2204,6 +2205,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
- 		if (obj->madv == I915_MADV_WILLNEED)
- 			mark_page_accessed(page);
- 
-+		set_page_private(page, 0);
- 		page_cache_release(page);
- 	}
- 	obj->dirty = 0;
-@@ -2318,6 +2320,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
- 			sg->length += PAGE_SIZE;
- 		}
- 		last_pfn = page_to_pfn(page);
-+		set_page_private(page, (unsigned long)obj);
- 
- 		/* Check that the i965g/gm workaround works. */
- 		WARN_ON((gfp & __GFP_DMA32) && (last_pfn >= 0x00100000UL));
-@@ -2343,8 +2346,11 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
- 
- err_pages:
- 	sg_mark_end(sg);
--	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0)
--		page_cache_release(sg_page_iter_page(&sg_iter));
-+	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
-+		page = sg_page_iter_page(&sg_iter);
-+		set_page_private(page, 0);
-+		page_cache_release(page);
-+	}
- 	sg_free_table(st);
- 	kfree(st);
- 
-@@ -4465,9 +4471,116 @@ static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
- 	.put_pages = i915_gem_object_put_pages_gtt,
- };
- 
-+#ifdef CONFIG_MIGRATION
-+static int i915_migratepage(struct address_space *mapping,
-+			    struct page *newpage, struct page *page,
-+			    enum migrate_mode mode, void *dev_priv_data)
-+{
-+	struct drm_i915_private *dev_priv = dev_priv_data;
-+	struct drm_device *dev = dev_priv->dev;
-+	struct drm_i915_gem_object *obj;
-+	unsigned long timeout = msecs_to_jiffies(10) + 1;
-+	int ret = 0;
-+
-+	WARN((page_count(newpage) != 1), "Unexpected ref count for newpage\n");
-+
-+	/*
-+	 * Clear the private field of the new target page as it could have a
-+	 * stale value in the private field. Otherwise later on if this page
-+	 * itself gets migrated, without getting referred by the Driver
-+	 * in between, the stale value would cause the i915_migratepage
-+	 * function to go for a toss as object pointer is derived from it.
-+	 * This should be safe since at the time of migration, private field
-+	 * of the new page (which is actually an independent free 4KB page now)
-+	 * should be like a don't care for the kernel.
-+	 */
-+	set_page_private(newpage, 0);
-+
-+	/*
-+	 * Check the page count, if Driver also has a reference then it should
-+	 * be more than 2, as shmem will have one reference and one reference
-+	 * would have been taken by the migration path itself. So if reference
-+	 * is <=2, we can directly invoke the migration function.
-+	 */
-+	if (page_count(page) <= 2)
-+		goto migrate;
-+
-+	/*
-+	 * Use trylock here, with a timeout, for struct_mutex as
-+	 * otherwise there is a possibility of deadlock due to lock
-+	 * inversion. This path, which tries to migrate a particular
-+	 * page after locking that page, can race with a path which
-+	 * truncate/purge pages of the corresponding object (after
-+	 * acquiring struct_mutex). Since page truncation will also
-+	 * try to lock the page, a scenario of deadlock can arise.
-+	 */
-+	while (!mutex_trylock(&dev->struct_mutex) && --timeout)
-+		schedule_timeout_killable(1);
-+	if (timeout == 0) {
-+		DRM_DEBUG_DRIVER("Unable to acquire device mutex.\n");
-+		return -EBUSY;
-+	}
-+
-+	obj = (struct drm_i915_gem_object *)page_private(page);
-+
-+	if (!PageSwapCache(page) && obj) {
-+		/*
-+		 * Avoid the migration of pages if they are being actively used
-+		 * by GPU or pinned for Display.
-+		 * Also skip the migration for purgeable objects otherwise there
-+		 * will be a deadlock when shmem will try to lock the page for
-+		 * truncation, which is already locked by the caller before
-+		 * migration.
-+		 * Also HW access would be required for a bound object for which
-+		 * device has to be kept runtime active. But a deadlock scenario
-+		 * can arise if the attempt is made to resume the device, when
-+		 * either a suspend or a resume operation is already happening
-+		 * concurrently from some other path and that only actually
-+		 * triggered the compaction. So only unbind if the device is
-+		 * currently runtime active.
-+		 */
-+		if (obj->active || obj->pin_display ||
-+		    obj->madv == I915_MADV_DONTNEED ||
-+		    !intel_runtime_pm_get_if_in_use(dev_priv)) {
-+			ret = -EBUSY;
-+		} else {
-+			ret = drop_pages(obj);
-+			intel_runtime_pm_put(dev_priv);
-+		}
-+
-+		BUG_ON(!ret && page_private(page));
-+	}
-+
-+	mutex_unlock(&dev->struct_mutex);
-+	if (ret)
-+		return ret;
-+
-+	/*
-+	 * Ideally here we don't expect the page count to be > 2, as driver
-+	 * would have dropped its reference, but occasionally it has been seen
-+	 * coming as 3 & 4. This leads to a situation of unexpected page count,
-+	 * causing migration failure, with -EGAIN error. This then leads to
-+	 * multiple attempts by the kernel to migrate the same set of pages.
-+	 * And sometimes the repeated attempts proves detrimental for stability.
-+	 * Also since we don't know who is the other owner, and for how long its
-+	 * gonna keep the reference, its better to return -EBUSY.
-+	 */
-+	if (page_count(page) > 2)
-+		return -EBUSY;
-+
-+migrate:
-+	ret = migrate_page(mapping, newpage, page, mode);
-+	if (ret)
-+		DRM_DEBUG_DRIVER("page=%p migration returned %d\n", page, ret);
-+
-+	return ret;
-+}
-+#endif
-+
- struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
- 						  size_t size)
- {
-+	struct drm_i915_private *dev_priv = dev->dev_private;
- 	struct drm_i915_gem_object *obj;
- 	struct address_space *mapping;
- 	gfp_t mask;
-@@ -4481,7 +4594,7 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
- 		return NULL;
- 	}
- 
--	mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
-+	mask = GFP_HIGHUSER_MOVABLE;
- 	if (IS_CRESTLINE(dev) || IS_BROADWATER(dev)) {
- 		/* 965gm cannot relocate objects above 4GiB. */
- 		mask &= ~__GFP_HIGHMEM;
-@@ -4491,6 +4604,10 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
- 	mapping = file_inode(obj->base.filp)->i_mapping;
- 	mapping_set_gfp_mask(mapping, mask);
- 
-+#ifdef CONFIG_MIGRATION
-+	shmem_set_device_ops(mapping, &dev_priv->migrate_info);
-+#endif
-+
- 	i915_gem_object_init(obj, &i915_gem_object_ops);
- 
- 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-@@ -4993,6 +5110,11 @@ int i915_gem_init(struct drm_device *dev)
- 		ret = 0;
- 	}
- 
-+#ifdef CONFIG_MIGRATION
-+	dev_priv->migrate_info.dev_private_data = dev_priv;
-+	dev_priv->migrate_info.dev_migratepage = i915_migratepage;
-+#endif
-+
- out_unlock:
- 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
- 	mutex_unlock(&dev->struct_mutex);
--- 
-1.9.2
+static inline void hmm_pt_directory_ref(struct hmm_pt *pt,
+					struct page *ptd)
+{
+	if (!atomic_inc_not_zero(&ptd->_mapcount))
+		/* Illegal this should not happen. */
+		BUG();
+}
+
+what is the mapcount update about ?
+
+> +			}
+> +			BUG_ON(hmm_pte_pfn(hmm_pte[i]) !=3D pfn);
+> +			if (pmd_write(*pmdp))
+> +				hmm_pte_set_write(&hmm_pte[i]);
+> +		} while (addr +=3D PAGE_SIZE, pfn++, i++, addr !=3D next);
+> +		hmm_pt_iter_directory_unlock(iter);
+> +		mirror_fault->addr =3D addr;
+> +	}
+> +
+
+So we don't have huge page mapping in hmm page table ?=20
+
+
+> +	return 0;
+> +}
+> +
+> +static int hmm_pte_hole(unsigned long addr,
+> +			unsigned long next,
+> +			struct mm_walk *walk)
+> +{
+> +	return -ENOENT;
+> +}
+> +
+
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
