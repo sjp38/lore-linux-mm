@@ -1,101 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D78D6B0005
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2016 01:10:16 -0400 (EDT)
-Received: by mail-pf0-f177.google.com with SMTP id n5so48122849pfn.2
-        for <linux-mm@kvack.org>; Wed, 23 Mar 2016 22:10:16 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id o68si9445940pfj.173.2016.03.23.22.10.15
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id B98746B0005
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2016 04:13:19 -0400 (EDT)
+Received: by mail-wm0-f49.google.com with SMTP id p65so263319144wmp.1
+        for <linux-mm@kvack.org>; Thu, 24 Mar 2016 01:13:19 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
+        by mx.google.com with ESMTP id ck9si7735103wjc.88.2016.03.24.01.13.18
         for <linux-mm@kvack.org>;
-        Wed, 23 Mar 2016 22:10:15 -0700 (PDT)
-Date: Thu, 24 Mar 2016 14:11:38 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: Re: [PATCH v2 13/18] mm/compaction: support non-lru movable
- pagemigration
-Message-ID: <20160324051138.GA14101@bbox>
-References: <20160324052650.HM.e0000000006t8Yn@gurugio.wwl1662.hanmail.net>
+        Thu, 24 Mar 2016 01:13:18 -0700 (PDT)
+Date: Thu, 24 Mar 2016 08:13:08 +0000
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [PATCH 2/2] drm/i915: Make pages of GFX allocations movable
+Message-ID: <20160324081308.GA26929@nuc-i3427.alporthouse.com>
+References: <1458713384-25688-1-git-send-email-akash.goel@intel.com>
+ <1458713384-25688-2-git-send-email-akash.goel@intel.com>
+ <20160323075809.GA21952@nuc-i3427.alporthouse.com>
+ <56F252EA.1020600@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160324052650.HM.e0000000006t8Yn@gurugio.wwl1662.hanmail.net>
+In-Reply-To: <56F252EA.1020600@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gurugio@hanmail.net>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, dri-devel@lists.freedesktop.org
+To: "Goel, Akash" <akash.goel@intel.com>
+Cc: intel-gfx@lists.freedesktop.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Sourab Gupta <sourab.gupta@intel.com>
 
-On Thu, Mar 24, 2016 at 05:26:50AM +0900, Gioh Kim wrote:
->    Hmmm... But, in failure case, is it safe to call putback_lru_page() for
->    them?
->    And, PageIsolated() would be left. Is it okay? It's not symmetric that
->    isolated page can be freed by decreasing ref count without calling
->    putback function. This should be clarified and documented.
+On Wed, Mar 23, 2016 at 01:55:14PM +0530, Goel, Akash wrote:
 > 
->    I agree Joonsoo's idea.
 > 
->    Freeing isolated page out of putback() could be confused.
+> On 3/23/2016 1:28 PM, Chris Wilson wrote:
+> >On Wed, Mar 23, 2016 at 11:39:44AM +0530, akash.goel@intel.com wrote:
+> >>+#ifdef CONFIG_MIGRATION
+> >>+static int i915_migratepage(struct address_space *mapping,
+> >>+			    struct page *newpage, struct page *page,
+> >>+			    enum migrate_mode mode, void *dev_priv_data)
+> >
+> >If we move this to i915_gem_shrink_migratepage (i.e. i915_gem_shrink),
+> >we can
+> >
+> >>+	/*
+> >>+	 * Use trylock here, with a timeout, for struct_mutex as
+> >>+	 * otherwise there is a possibility of deadlock due to lock
+> >>+	 * inversion. This path, which tries to migrate a particular
+> >>+	 * page after locking that page, can race with a path which
+> >>+	 * truncate/purge pages of the corresponding object (after
+> >>+	 * acquiring struct_mutex). Since page truncation will also
+> >>+	 * try to lock the page, a scenario of deadlock can arise.
+> >>+	 */
+> >>+	while (!mutex_trylock(&dev->struct_mutex) && --timeout)
+> >>+		schedule_timeout_killable(1);
+> >
+> >replace this with i915_gem_shrinker_lock() and like constructs with the
+> >other shrinkers.
+> 
+> fine, will rename the function to gem_shrink_migratepage, move it
+> inside the gem_shrinker.c file, and use the existing constructs.
+> 
+> > Any reason for dropping the early
+> > if (!page_private(obj)) skip?
+> >
+> 
+> Would this sequence be fine ?
+> 
+> 	if (!page_private(page))
+> 		goto migrate; /*skip */
+> 
+> 	Loop for locking mutex
+> 
+> 	obj = (struct drm_i915_gem_object *)page_private(page);
+> 
+> 	if (!PageSwapCache(page) && obj) {
 
-If we makes such rule, subsystem cannot free the isolated pages until VM calls
-putback. I don't think it's a good idea. With it, every users should make own
-deferred page freeing logic which might be more error-prone and obstacle for
-using this interface.
+Yes.
 
-I want to make client free his pages whenever he want if possible.
+> >Similarly there are other patterns here that would benefit from
+> >integration with existing shrinker logic. However, things like tidying
+> >up the pin_display, unbinding, rpm lock inversion are still only on
+> >list.
+> 
+> Tidying, like split that one single if condition into multiple if,
+> else if blocks ?
 
-> 
->    Every detail cannot be documented. And more documents mean less elegant
->    code.
-> 
->    Is it possible to free isolated page in putback()?
-> 
->    In move_to_new_page(), can we call a_ops->migratepage like following?
-> 
->    move_to_new_page()
-> 
->    {
-> 
->    mapping = page_mapping(page)
-> 
->    if (!mapping)
-> 
->        rc = migrate_page
-> 
->    else if (mapping->a_ops->migratepage && IsolatePage(page))
-> 
->       rc = mapping->a_ops->migratepage
-> 
+Just outstanding patches that simplify the condition and work we have to
+do here.
+-Chris
 
-It's not a problem. The problem is that a page failed migration
-so VM will putback the page. But, between fail of migration and
-putback of isolated page, user can free the page. In this case,
-putback operation would be not called and pass the page in
-putback_lru_page.
-
-
->    else
-> 
->        rc = fallback_migrate_page
-> 
->    ...
-> 
->       return rc
-> 
->    }
-> 
->    I'm sorry that I couldn't review in detail because I forgot many
->    details.
-
-You're a human being, not Alphago. :)
-
-Thanks for the review, Gioh!
-
-> 
->    [1][Kk8NwEH1.I.q95.FfPs-qw00]
->    [@from=gurugio&rcpt=minchan%40kernel%2Eorg&msgid=%3C20160324052650%2EHM
->    %2Ee0000000006t8Yn%40gurugio%2Ewwl1662%2Ehanmail%2Enet%3E]
-> 
-> References
-> 
->    1. mailto:gurugio@hanmail.net
+-- 
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
