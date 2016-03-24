@@ -1,92 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B98746B0005
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2016 04:13:19 -0400 (EDT)
-Received: by mail-wm0-f49.google.com with SMTP id p65so263319144wmp.1
-        for <linux-mm@kvack.org>; Thu, 24 Mar 2016 01:13:19 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
-        by mx.google.com with ESMTP id ck9si7735103wjc.88.2016.03.24.01.13.18
-        for <linux-mm@kvack.org>;
-        Thu, 24 Mar 2016 01:13:18 -0700 (PDT)
-Date: Thu, 24 Mar 2016 08:13:08 +0000
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: Re: [PATCH 2/2] drm/i915: Make pages of GFX allocations movable
-Message-ID: <20160324081308.GA26929@nuc-i3427.alporthouse.com>
-References: <1458713384-25688-1-git-send-email-akash.goel@intel.com>
- <1458713384-25688-2-git-send-email-akash.goel@intel.com>
- <20160323075809.GA21952@nuc-i3427.alporthouse.com>
- <56F252EA.1020600@intel.com>
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 52E5E6B0005
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2016 05:17:41 -0400 (EDT)
+Received: by mail-wm0-f50.google.com with SMTP id l68so228403048wml.0
+        for <linux-mm@kvack.org>; Thu, 24 Mar 2016 02:17:41 -0700 (PDT)
+Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
+        by mx.google.com with ESMTPS id jo9si7994029wjb.100.2016.03.24.02.17.39
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Mar 2016 02:17:39 -0700 (PDT)
+Received: by mail-wm0-x229.google.com with SMTP id u125so4462817wmg.1
+        for <linux-mm@kvack.org>; Thu, 24 Mar 2016 02:17:39 -0700 (PDT)
+Date: Thu, 24 Mar 2016 12:17:28 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv4 00/25] THP-enabled tmpfs/shmem
+Message-ID: <20160324091727.GA26796@node.shutemov.name>
+References: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.LSU.2.11.1603231305560.4946@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56F252EA.1020600@intel.com>
+In-Reply-To: <alpine.LSU.2.11.1603231305560.4946@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Goel, Akash" <akash.goel@intel.com>
-Cc: intel-gfx@lists.freedesktop.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Sourab Gupta <sourab.gupta@intel.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Wed, Mar 23, 2016 at 01:55:14PM +0530, Goel, Akash wrote:
+On Wed, Mar 23, 2016 at 01:09:05PM -0700, Hugh Dickins wrote:
+> The small files thing formed my first impression.  My second
+> impression was similar, when I tried mmap(NULL, size_of_RAM,
+> PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_SHARED, -1, 0) and
+> cycled around the arena touching all the pages (which of
+> course has to push a little into swap): that soon OOMed.
 > 
-> 
-> On 3/23/2016 1:28 PM, Chris Wilson wrote:
-> >On Wed, Mar 23, 2016 at 11:39:44AM +0530, akash.goel@intel.com wrote:
-> >>+#ifdef CONFIG_MIGRATION
-> >>+static int i915_migratepage(struct address_space *mapping,
-> >>+			    struct page *newpage, struct page *page,
-> >>+			    enum migrate_mode mode, void *dev_priv_data)
-> >
-> >If we move this to i915_gem_shrink_migratepage (i.e. i915_gem_shrink),
-> >we can
-> >
-> >>+	/*
-> >>+	 * Use trylock here, with a timeout, for struct_mutex as
-> >>+	 * otherwise there is a possibility of deadlock due to lock
-> >>+	 * inversion. This path, which tries to migrate a particular
-> >>+	 * page after locking that page, can race with a path which
-> >>+	 * truncate/purge pages of the corresponding object (after
-> >>+	 * acquiring struct_mutex). Since page truncation will also
-> >>+	 * try to lock the page, a scenario of deadlock can arise.
-> >>+	 */
-> >>+	while (!mutex_trylock(&dev->struct_mutex) && --timeout)
-> >>+		schedule_timeout_killable(1);
-> >
-> >replace this with i915_gem_shrinker_lock() and like constructs with the
-> >other shrinkers.
-> 
-> fine, will rename the function to gem_shrink_migratepage, move it
-> inside the gem_shrinker.c file, and use the existing constructs.
-> 
-> > Any reason for dropping the early
-> > if (!page_private(obj)) skip?
-> >
-> 
-> Would this sequence be fine ?
-> 
-> 	if (!page_private(page))
-> 		goto migrate; /*skip */
-> 
-> 	Loop for locking mutex
-> 
-> 	obj = (struct drm_i915_gem_object *)page_private(page);
-> 
-> 	if (!PageSwapCache(page) && obj) {
+> But there I think you probably just have some minor bug to be fixed:
+> I spent a little while trying to debug it, but then decided I'd
+> better get back to writing to you.  I didn't really understand what
+> I was seeing, but when I hacked some stats into shrink_page_list(),
+> converting !is_page_cache_freeable(page) to page_cache_references(page)
+> to return the difference instead of the bool, a large proportion of
+> huge tmpfs pages seemed to have count 1 too high to be freeable at
+> that point (and one huge tmpfs page had a count of 3477).
 
-Yes.
+I'll reply to your other points later, but first I wanted to address this
+obvious bug.
 
-> >Similarly there are other patterns here that would benefit from
-> >integration with existing shrinker logic. However, things like tidying
-> >up the pin_display, unbinding, rpm lock inversion are still only on
-> >list.
-> 
-> Tidying, like split that one single if condition into multiple if,
-> else if blocks ?
+I cannot really explain page_count() == 3477, but otherwise:
 
-Just outstanding patches that simplify the condition and work we have to
-do here.
--Chris
+The root cause is that try_to_unmap() doesn't handle PMD-mapped huge
+pages, so we hit 'case SWAP_AGAIN' all the time.
 
+The patch below effectively rewrites 17/25: now we split the huge page
+before trying to unmap it.
+
+split_huge_page() has its own check similar to is_page_cache_freeable(),
+so we woundn't split pages we cannot free later on.
+
+And split_huge_page() for file pages would unmap the page, so we wouldn't
+need to go to try_to_unmap() after that.
+
+The patch look rather simple, but I haven't done full validation cycle for
+it. Regressions are unlikely, but possible.
+
+At some point we would need to teach try_to_unmap() to handle huge pages.
+It would be required for filesystems with backing storage. But I don't see
+need for it to get huge tmpfs/shmem work.
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9fa9e15594e9..86008f8f1f9b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -473,14 +473,12 @@ void drop_slab(void)
+ 
+ static inline int is_page_cache_freeable(struct page *page)
+ {
+-	int radix_tree_pins = PageTransHuge(page) ? HPAGE_PMD_NR : 1;
+-
+ 	/*
+ 	 * A freeable page cache page is referenced only by the caller
+ 	 * that isolated the page, the page cache radix tree and
+ 	 * optional buffer heads at page->private.
+ 	 */
+-	return page_count(page) - page_has_private(page) == 1 + radix_tree_pins;
++	return page_count(page) - page_has_private(page) == 2;
+ }
+ 
+ static int may_write_to_inode(struct inode *inode, struct scan_control *sc)
+@@ -550,6 +548,8 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
+ 	 * swap_backing_dev_info is bust: it doesn't reflect the
+ 	 * congestion state of the swapdevs.  Easy to fix, if needed.
+ 	 */
++	if (!is_page_cache_freeable(page))
++		return PAGE_KEEP;
+ 	if (!mapping) {
+ 		/*
+ 		 * Some data journaling orphaned pages can have
+@@ -1055,8 +1055,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 
+ 			/* Adding to swap updated mapping */
+ 			mapping = page_mapping(page);
++		} else if (unlikely(PageTransHuge(page))) {
++			/* Split file THP */
++			if (split_huge_page_to_list(page, page_list))
++				goto keep_locked;
+ 		}
+ 
++		VM_BUG_ON_PAGE(PageTransHuge(page), page);
++
+ 		/*
+ 		 * The page is mapped into the page tables of one or more
+ 		 * processes. Try to unmap it here.
+@@ -1112,15 +1118,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			 * starts and then write it out here.
+ 			 */
+ 			try_to_unmap_flush_dirty();
+-
+-			if (!is_page_cache_freeable(page))
+-				goto keep_locked;
+-
+-			if (unlikely(PageTransHuge(page))) {
+-				if (split_huge_page_to_list(page, page_list))
+-					goto keep_locked;
+-			}
+-
+ 			switch (pageout(page, mapping, sc)) {
+ 			case PAGE_KEEP:
+ 				goto keep_locked;
 -- 
-Chris Wilson, Intel Open Source Technology Centre
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
