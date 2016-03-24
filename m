@@ -1,61 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id E0A216B0005
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2016 18:36:40 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id td3so32419337pab.2
-        for <linux-mm@kvack.org>; Thu, 24 Mar 2016 15:36:40 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id r72si1388310pfb.235.2016.03.24.15.36.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Mar 2016 15:36:40 -0700 (PDT)
-Date: Thu, 24 Mar 2016 15:36:39 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] include/linux: apply __malloc attribute
-Message-Id: <20160324153639.bb996d7bf5a585dfb46740b7@linux-foundation.org>
-In-Reply-To: <1458776553-9033-2-git-send-email-linux@rasmusvillemoes.dk>
-References: <1458776553-9033-1-git-send-email-linux@rasmusvillemoes.dk>
-	<1458776553-9033-2-git-send-email-linux@rasmusvillemoes.dk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 7411F6B0005
+	for <linux-mm@kvack.org>; Thu, 24 Mar 2016 19:17:50 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id td3so33061411pab.2
+        for <linux-mm@kvack.org>; Thu, 24 Mar 2016 16:17:50 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id tb4si295141pab.121.2016.03.24.16.17.49
+        for <linux-mm@kvack.org>;
+        Thu, 24 Mar 2016 16:17:49 -0700 (PDT)
+From: Vishal Verma <vishal.l.verma@intel.com>
+Subject: [PATCH 0/5] dax: handling of media errors
+Date: Thu, 24 Mar 2016 17:17:25 -0600
+Message-Id: <1458861450-17705-1-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-nvdimm@lists.01.org
+Cc: Vishal Verma <vishal.l.verma@intel.com>, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, 24 Mar 2016 00:42:32 +0100 Rasmus Villemoes <linux@rasmusvillemoes.dk> wrote:
+Until now, dax has been disabled if media errors were found on
+any device. This series attempts to address that.
 
-> Attach the malloc attribute to a few allocation functions. This helps
-> gcc generate better code by telling it that the return value doesn't
-> alias any existing pointers (which is even more valuable given the
-> pessimizations implied by -fno-strict-aliasing).
-> 
-> A simple example of what this allows gcc to do can be seen by looking
-> at the last part of drm_atomic_helper_plane_reset:
-> 
-> 	plane->state = kzalloc(sizeof(*plane->state), GFP_KERNEL);
-> 
-> 	if (plane->state) {
-> 		plane->state->plane = plane;
-> 		plane->state->rotation = BIT(DRM_ROTATE_0);
-> 	}
-> 
-> which compiles to
-> 
->     e8 99 bf d6 ff          callq  ffffffff8116d540 <kmem_cache_alloc_trace>
->     48 85 c0                test   %rax,%rax
->     48 89 83 40 02 00 00    mov    %rax,0x240(%rbx)
->     74 11                   je     ffffffff814015c4 <drm_atomic_helper_plane_reset+0x64>
->     48 89 18                mov    %rbx,(%rax)
->     48 8b 83 40 02 00 00    mov    0x240(%rbx),%rax [*]
->     c7 40 40 01 00 00 00    movl   $0x1,0x40(%rax)
-> 
-> With this patch applied, the instruction at [*] is elided, since the
-> store to plane->state->plane is known to not alter the value of
-> plane->state.
+The first three patches from Dan re-enable dax even when media
+errors are present.
 
-Shaves 6 bytes off my 1MB i386 defconfig vmlinux.  Winner!
+The fourth patch from Matthew removes the
+zeroout path from dax entirely, making zeroout operations always
+go through the driver (The motivation is that if a backing device
+has media errors, and we create a sparse file on it, we don't
+want the initial zeroing to happen via dax, we want to give the
+block driver a chance to clear the errors).
+
+The fifth patch changes the behaviour of dax_do_io by adding a
+wrapper around it that is passed all the arguments also needed by
+__blockdev_do_direct_IO. If (the new) __dax_do_io fails with -EIO
+due to a bad block, we simply retry with the direct_IO path which
+forces the IO to go through the block driver, and can attempt to
+clear the error.
+
+Dan Williams (3):
+  block, dax: pass blk_dax_ctl through to drivers
+  dax: fallback from pmd to pte on error
+  dax: enable dax in the presence of known media errors (badblocks)
+
+Vishal Verma (2):
+  dax: use sb_issue_zerout instead of calling dax_clear_sectors
+  dax: handle media errors in dax_do_io
+
+ arch/powerpc/sysdev/axonram.c | 10 +++----
+ block/ioctl.c                 |  9 ------
+ drivers/block/brd.c           |  9 +++---
+ drivers/nvdimm/pmem.c         | 17 ++++++++---
+ drivers/s390/block/dcssblk.c  | 12 ++++----
+ fs/block_dev.c                |  7 +++--
+ fs/dax.c                      | 70 +++++++++++++++++++++----------------------
+ fs/ext2/inode.c               | 12 ++++----
+ fs/ext4/indirect.c            | 11 ++++---
+ fs/ext4/inode.c               |  5 ++--
+ fs/xfs/xfs_aops.c             |  7 +++--
+ fs/xfs/xfs_bmap_util.c        |  9 ------
+ include/linux/blkdev.h        |  3 +-
+ include/linux/dax.h           |  7 +++--
+ 14 files changed, 93 insertions(+), 95 deletions(-)
+
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
