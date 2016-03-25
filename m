@@ -1,124 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 47CBE6B0253
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2016 03:50:15 -0400 (EDT)
-Received: by mail-wm0-f46.google.com with SMTP id l68so17051656wml.0
-        for <linux-mm@kvack.org>; Fri, 25 Mar 2016 00:50:15 -0700 (PDT)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id v68si2354112wmd.71.2016.03.25.00.50.13
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Mar 2016 00:50:14 -0700 (PDT)
-Received: by mail-wm0-x22c.google.com with SMTP id l68so11794930wml.0
-        for <linux-mm@kvack.org>; Fri, 25 Mar 2016 00:50:13 -0700 (PDT)
-From: Nicolai Stange <nicstange@gmail.com>
-Subject: Re: [PATCH] mm/filemap: generic_file_read_iter(): check for zero reads unconditionally
-References: <1458817738-2753-1-git-send-email-nicstange@gmail.com>
-	<20160324114529.GC4025@quack.suse.cz>
-Date: Fri, 25 Mar 2016 08:50:10 +0100
-In-Reply-To: <20160324114529.GC4025@quack.suse.cz> (Jan Kara's message of
-	"Thu, 24 Mar 2016 12:45:29 +0100")
-Message-ID: <87mvpngfnx.fsf@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 402066B0005
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2016 06:05:31 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id tt10so43756168pab.3
+        for <linux-mm@kvack.org>; Fri, 25 Mar 2016 03:05:31 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id q64si18500971pfi.190.2016.03.25.03.05.29
+        for <linux-mm@kvack.org>;
+        Fri, 25 Mar 2016 03:05:29 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm: fix regression in remap_file_pages() emulation
+Date: Fri, 25 Mar 2016 13:05:23 +0300
+Message-Id: <1458900325-77007-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Nicolai Stange <nicstange@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Junichi Nomura <j-nomura@ce.jp.nec.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Jan Kara <jack@suse.cz> writes:
+Grazvydas Ignotas has reported a regression in remap_file_pages()
+emulation.
 
-> On Thu 24-03-16 12:08:58, Nicolai Stange wrote:
->> If
->> - generic_file_read_iter() gets called with a zero read length,
->> - the read offset is at a page boundary,
->> - IOCB_DIRECT is not set
->> - and the page in question hasn't made it into the page cache yet,
->> then do_generic_file_read() will trigger a readahead with a req_size hint
->> of zero.
->> 
->> Since roundup_pow_of_two(0) is undefined, UBSAN reports
->> 
->>   UBSAN: Undefined behaviour in include/linux/log2.h:63:13
->>   shift exponent 64 is too large for 64-bit type 'long unsigned int'
->>   CPU: 3 PID: 1017 Comm: sa1 Tainted: G L 4.5.0-next-20160318+ #14
->>   [...]
->>   Call Trace:
->>    [...]
->>    [<ffffffff813ef61a>] ondemand_readahead+0x3aa/0x3d0
->>    [<ffffffff813ef61a>] ? ondemand_readahead+0x3aa/0x3d0
->>    [<ffffffff813c73bd>] ? find_get_entry+0x2d/0x210
->>    [<ffffffff813ef9c3>] page_cache_sync_readahead+0x63/0xa0
->>    [<ffffffff813cc04d>] do_generic_file_read+0x80d/0xf90
->>    [<ffffffff813cc955>] generic_file_read_iter+0x185/0x420
->>    [...]
->>    [<ffffffff81510b06>] __vfs_read+0x256/0x3d0
->>    [...]
->> 
->> when get_init_ra_size() gets called from ondemand_readahead().
->> 
->> The net effect is that the initial readahead size is arch dependent for
->> requested read lengths of zero: for example, since
->> 
->>   1UL << (sizeof(unsigned long) * 8)
->> 
->> evaluates to 1 on x86 while its result is 0 on ARMv7, the initial readahead
->> size becomes 4 on the former and 0 on the latter.
->> 
->> What's more, whether or not the file access timestamp is updated for zero
->> length reads is decided differently for the two cases of IOCB_DIRECT
->> being set or cleared: in the first case, generic_file_read_iter()
->> explicitly skips updating that timestamp while in the latter case, it is
->> always updated through the call to do_generic_file_read().
->> 
->> According to POSIX, zero length reads "do not modify the last data access
->> timestamp" and thus, the IOCB_DIRECT behaviour is POSIXly correct.
->> 
->> Let generic_file_read_iter() unconditionally check the requested read
->> length at its entry and return immediately with success if it is zero.
->> 
->> Signed-off-by: Nicolai Stange <nicstange@gmail.com>
->
-> Makes sense to me. You can add:
->
-> Reviewed-by: Jan Kara <jack@suse.cz>
+Testcase:
+	#define _GNU_SOURCE
+	#include <assert.h>
+	#include <stdlib.h>
+	#include <stdio.h>
+	#include <sys/mman.h>
 
-Thank you very much for reviewing this!
+	#define SIZE    (4096 * 3)
 
-Nicolai
+	int main(int argc, char **argv)
+	{
+		unsigned long *p;
+		long i;
 
+		p = mmap(NULL, SIZE, PROT_READ | PROT_WRITE,
+				MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+		if (p == MAP_FAILED) {
+			perror("mmap");
+			return -1;
+		}
 
->
-> 								Honza
->
->> diff --git a/mm/filemap.c b/mm/filemap.c
->> index 7c00f10..a8c69c8 100644
->> --- a/mm/filemap.c
->> +++ b/mm/filemap.c
->> @@ -1840,15 +1840,16 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
->>  	ssize_t retval = 0;
->>  	loff_t *ppos = &iocb->ki_pos;
->>  	loff_t pos = *ppos;
->> +	size_t count = iov_iter_count(iter);
->> +
->> +	if (!count)
->> +		goto out; /* skip atime */
->>  
->>  	if (iocb->ki_flags & IOCB_DIRECT) {
->>  		struct address_space *mapping = file->f_mapping;
->>  		struct inode *inode = mapping->host;
->> -		size_t count = iov_iter_count(iter);
->>  		loff_t size;
->>  
->> -		if (!count)
->> -			goto out; /* skip atime */
->>  		size = i_size_read(inode);
->>  		retval = filemap_write_and_wait_range(mapping, pos,
->>  					pos + count - 1);
->> -- 
->> 2.7.4
->> 
->> 
+		for (i = 0; i < SIZE / 4096; i++)
+			p[i * 4096 / sizeof(*p)] = i;
+
+		if (remap_file_pages(p, 4096, 0, 1, 0)) {
+			perror("remap_file_pages");
+			return -1;
+		}
+
+		if (remap_file_pages(p, 4096 * 2, 0, 1, 0)) {
+			perror("remap_file_pages");
+			return -1;
+		}
+
+		assert(p[0] == 1);
+
+		munmap(p, SIZE);
+
+		return 0;
+	}
+
+The second remap_file_pages() fails with -EINVAL.
+
+The reason is that remap_file_pages() emulation assumes that the target
+vma covers whole area we want to over map. That assumption is broken by
+first remap_file_pages() call: it split the area into two vma.
+
+The solution is to check next adjacent vmas, if they map the same file
+with the same flags.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Grazvydas Ignotas <notasas@gmail.com>
+---
+ mm/mmap.c | 34 +++++++++++++++++++++++++++++-----
+ 1 file changed, 29 insertions(+), 5 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 2f2415a7a688..76d1ec29149b 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2664,12 +2664,29 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 	if (!vma || !(vma->vm_flags & VM_SHARED))
+ 		goto out;
+ 
+-	if (start < vma->vm_start || start + size > vma->vm_end)
++	if (start < vma->vm_start)
+ 		goto out;
+ 
+-	if (pgoff == linear_page_index(vma, start)) {
+-		ret = 0;
+-		goto out;
++	if (start + size > vma->vm_end) {
++		struct vm_area_struct *next;
++
++		for (next = vma->vm_next; next; next = next->vm_next) {
++			/* hole between vmas ? */
++			if (next->vm_start != next->vm_prev->vm_end)
++				goto out;
++
++			if (next->vm_file != vma->vm_file)
++				goto out;
++
++			if (next->vm_flags != vma->vm_flags)
++				goto out;
++
++			if (start + size <= next->vm_end)
++				break;
++		}
++
++		if (!next)
++			goto out;
+ 	}
+ 
+ 	prot |= vma->vm_flags & VM_READ ? PROT_READ : 0;
+@@ -2679,9 +2696,16 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 	flags &= MAP_NONBLOCK;
+ 	flags |= MAP_SHARED | MAP_FIXED | MAP_POPULATE;
+ 	if (vma->vm_flags & VM_LOCKED) {
++		struct vm_area_struct *tmp;
+ 		flags |= MAP_LOCKED;
++
+ 		/* drop PG_Mlocked flag for over-mapped range */
+-		munlock_vma_pages_range(vma, start, start + size);
++		for (tmp = vma; tmp->vm_start >= start + size;
++				tmp = tmp->vm_next) {
++			munlock_vma_pages_range(tmp,
++					max(tmp->vm_start, start),
++					min(tmp->vm_end, start + size));
++		}
+ 	}
+ 
+ 	file = get_file(vma->vm_file);
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
