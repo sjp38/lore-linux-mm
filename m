@@ -1,60 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id D5B666B007E
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2016 18:36:50 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id fe3so54372994pab.1
-        for <linux-mm@kvack.org>; Fri, 25 Mar 2016 15:36:50 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id k80si22355240pfb.171.2016.03.25.15.36.49
-        for <linux-mm@kvack.org>;
-        Fri, 25 Mar 2016 15:36:49 -0700 (PDT)
-From: "Verma, Vishal L" <vishal.l.verma@intel.com>
-Subject: Re: [PATCH 5/5] dax: handle media errors in dax_do_io
-Date: Fri, 25 Mar 2016 22:36:17 +0000
-Message-ID: <1458945374.5501.9.camel@intel.com>
-References: <1458861450-17705-1-git-send-email-vishal.l.verma@intel.com>
-	 <1458861450-17705-6-git-send-email-vishal.l.verma@intel.com>
-	 <20160325104549.GB10525@infradead.org> <1458939566.5501.5.camel@intel.com>
-	 <CAPcyv4jFPYYP=eL72V6MmW2fcXFP3PfQfcO+zYV4NN7rdu1ksg@mail.gmail.com>
-In-Reply-To: <CAPcyv4jFPYYP=eL72V6MmW2fcXFP3PfQfcO+zYV4NN7rdu1ksg@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <D29E0545A3E9D4499429DC06CF52E08B@intel.com>
-Content-Transfer-Encoding: base64
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id DC52E6B007E
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2016 18:53:54 -0400 (EDT)
+Received: by mail-wm0-f52.google.com with SMTP id l68so30100313wml.0
+        for <linux-mm@kvack.org>; Fri, 25 Mar 2016 15:53:54 -0700 (PDT)
+Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
+        by mx.google.com with ESMTPS id om5si16642471wjc.58.2016.03.25.15.53.53
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 25 Mar 2016 15:53:53 -0700 (PDT)
+Subject: Re: [PATCH] UBIFS: Implement ->migratepage()
+References: <56E9C658.1020903@nod.at>
+ <1458168919-11597-1-git-send-email-richard@nod.at> <56EA7F95.4090703@suse.cz>
+From: Richard Weinberger <richard@nod.at>
+Message-ID: <56F5C17A.2080707@nod.at>
+Date: Fri, 25 Mar 2016 23:53:46 +0100
 MIME-Version: 1.0
+In-Reply-To: <56EA7F95.4090703@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Williams, Dan J" <dan.j.williams@intel.com>
-Cc: "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mtd@lists.infradead.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, boris.brezillon@free-electrons.com, maxime.ripard@free-electrons.com, david@sigma-star.at, david@fromorbit.com, dedekind1@gmail.com, alex@nextthing.co, akpm@linux-foundation.org, sasha.levin@oracle.com, iamjoonsoo.kim@lge.com, rvaswani@codeaurora.org, tony.luck@intel.com, shailendra.capricorn@gmail.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>
 
-T24gRnJpLCAyMDE2LTAzLTI1IGF0IDE0OjQyIC0wNzAwLCBEYW4gV2lsbGlhbXMgd3JvdGU6DQo+
-IE9uIEZyaSwgTWFyIDI1LCAyMDE2IGF0IDE6NTkgUE0sIFZlcm1hLCBWaXNoYWwgTA0KPiA8dmlz
-aGFsLmwudmVybWFAaW50ZWwuY29tPiB3cm90ZToNCj4gPiANCj4gPiBPbiBGcmksIDIwMTYtMDMt
-MjUgYXQgMDM6NDUgLTA3MDAsIENocmlzdG9waCBIZWxsd2lnIHdyb3RlOg0KPiA+ID4gDQo+ID4g
-PiBPbiBUaHUsIE1hciAyNCwgMjAxNiBhdCAwNToxNzozMFBNIC0wNjAwLCBWaXNoYWwgVmVybWEg
-d3JvdGU6DQo+ID4gPiA+IA0KPiA+ID4gPiANCj4gPiA+ID4gZGF4X2RvX2lvIChjYWxsZWQgZm9y
-IHJlYWQoKSBvciB3cml0ZSgpIGZvciBhIGRheCBmaWxlIHN5c3RlbSkNCj4gPiA+ID4gbWF5DQo+
-ID4gPiA+IGZhaWwNCj4gPiA+ID4gaW4gdGhlIHByZXNlbmNlIG9mIGJhZCBibG9ja3Mgb3IgbWVk
-aWEgZXJyb3JzLiBTaW5jZSB3ZSBleHBlY3QNCj4gPiA+ID4gdGhhdA0KPiA+ID4gPiBhDQo+ID4g
-PiA+IHdyaXRlIHNob3VsZCBjbGVhciBtZWRpYSBlcnJvcnMgb24gbnZkaW1tcywgbWFrZSBkYXhf
-ZG9faW8gZmFsbA0KPiA+ID4gPiBiYWNrIHRvDQo+ID4gPiA+IHRoZSBkaXJlY3RfSU8gcGF0aCwg
-d2hpY2ggd2lsbCBzZW5kIGRvd24gYSBiaW8gdG8gdGhlIGRyaXZlciwNCj4gPiA+ID4gd2hpY2gN
-Cj4gPiA+ID4gY2FuDQo+ID4gPiA+IHRoZW4gYXR0ZW1wdCB0byBjbGVhciB0aGUgZXJyb3IuDQo+
-ID4gPiBMZWF2ZSB0aGUgZmFsbGJhY2sgb24gLUVJTyB0byB0aGUgY2FsbGVycyBwbGVhc2UuwqDC
-oFRoZXkgZ2VuZXJhbGx5DQo+ID4gPiBjYWxsDQo+ID4gPiBfX2Jsb2NrZGV2X2RpcmVjdF9JTyBh
-bnl3YXksIHNvIGl0IHNob3VsZCBhY3R1YWxseSBiZWNvbWUgc2ltcGxlcg0KPiA+ID4gdGhhdA0K
-PiA+ID4gd2F5Lg0KPiA+IEkgdGhvdWdodCBvZiB0aGlzLCBidXQgbWFkZSB0aGUgcmV0cnlpbmcg
-aGFwcGVuIGluIHRoZSB3cmFwcGVyIHNvDQo+ID4gdGhhdA0KPiA+IGl0IGNhbiBiZSBjZW50cmFs
-aXplZC4gSWYgdGhlIGNhbGxlcnMgd2VyZSB0byBiZWNvbWUgcmVzcG9uc2libGUNCj4gPiBmb3IN
-Cj4gPiB0aGUgcmV0cnksIHRoZW4gYW55IG5ldyBjYWxsZXJzIG9mIGRheF9kb19pbyBtaWdodCBu
-b3QgcmVhbGl6ZSB0aGV5DQo+ID4gYXJlDQo+ID4gcmVzcG9uc2libGUgZm9yIHJldHJ5aW5nLCBh
-bmQgaGl0IHByb2JsZW1zLg0KPiBUaGF0J3MgdGhlaXIgcHJlcm9nYXRpdmUgb3RoZXJ3aXNlIHlv
-dSBhcmUgcHJlY2x1ZGluZyBhbiBhbHRlcm5hdGUNCj4gaGFuZGxpbmcgb2YgYSBkYXhfZG9faW8o
-KSBmYWlsdXJlLsKgwqBNYXliZSBhIGZzIG9yIHVwcGVyIGxheWVyIGNhbg0KPiByZWNvdmVyIGlu
-IGEgZGlmZmVyZW50IG1hbm5lciB0aGFuIHJlLXN1Ym1pdCB0aGUgSS9PIHRvIHRoZQ0KPiBfX2Js
-b2NrZGV2X2RpcmVjdF9JTyBwYXRoLg0KDQpJJ20gaGFwcHkgdG8gbWFrZSB0aGUgY2hhbmdlLCBi
-dXQgd2UgZG9uJ3QgcHJlY2x1ZGUgdGhhdCAtLSBfX2RheF9kb19pbw0KaXMgc3RpbGwgZXhwb3J0
-ZWQgYW5kIGF2YWlsYWJsZS4u
+Am 17.03.2016 um 10:57 schrieb Vlastimil Babka:
+> +CC Hugh, Mel
+> 
+> On 03/16/2016 11:55 PM, Richard Weinberger wrote:
+>> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>>
+>> When using CMA during page migrations UBIFS might get confused
+> 
+> It shouldn't be CMA specific, the same code runs from compaction, autonuma balancing...
+> 
+>> and the following assert triggers:
+>> UBIFS assert failed in ubifs_set_page_dirty at 1451 (pid 436)
+>>
+>> UBIFS is using PagePrivate() which can have different meanings across
+>> filesystems. Therefore the generic page migration code cannot handle this
+>> case correctly.
+>> We have to implement our own migration function which basically does a
+>> plain copy but also duplicates the page private flag.
+> 
+> Lack of PagePrivate() migration is surely a bug, but at a glance of how UBIFS uses the flag, it's more about accounting, it shouldn't prevent a page from being marked PageDirty()?
+> I suspect your initial bug (which is IIUC the fact that there's a dirty pte, but PageDirty(page) is false) comes from the generic fallback_migrate_page() which does:
+> 
+>         if (PageDirty(page)) {
+>                 /* Only writeback pages in full synchronous migration */
+>                 if (mode != MIGRATE_SYNC)
+>                         return -EBUSY;
+>                 return writeout(mapping, page);
+>         }
+> 
+> And writeout() seems to Clear PageDirty() through clear_page_dirty_for_io() but I'm not so sure about the pte (or pte's in all rmaps). But this comment in the latter function:
+> 
+>                  * Yes, Virginia, this is indeed insane.
+> 
+> scared me enough to not investigate further. Hopefully the people I CC'd understand more about page migration than me. I'm just an user :)
+> 
+> In any case, this patch would solve both lack of PageDirty() transfer, and avoid the path leading from fallback_migrate_page() to writeout(). But I'm not confident enough here to
+> ack it.
+
+Hugh? Mel? Anyone? :-)
+
+It is still not clear to me whether this needs fixing in MM or UBIFS.
+
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
