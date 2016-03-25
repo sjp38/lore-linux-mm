@@ -1,35 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id A96CD6B0005
-	for <linux-mm@kvack.org>; Thu, 24 Mar 2016 19:23:30 -0400 (EDT)
-Received: by mail-pf0-f170.google.com with SMTP id 4so69408143pfd.0
-        for <linux-mm@kvack.org>; Thu, 24 Mar 2016 16:23:30 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id m17si15053309pfj.147.2016.03.24.16.23.28
-        for <linux-mm@kvack.org>;
-        Thu, 24 Mar 2016 16:23:28 -0700 (PDT)
-From: "Verma, Vishal L" <vishal.l.verma@intel.com>
-Subject: Re: [PATCH 3/5] dax: enable dax in the presence of known media
- errors (badblocks)
-Date: Thu, 24 Mar 2016 23:23:26 +0000
-Message-ID: <1458861805.7619.1.camel@intel.com>
-References: <1458861450-17705-1-git-send-email-vishal.l.verma@intel.com>
-	 <1458861450-17705-4-git-send-email-vishal.l.verma@intel.com>
-In-Reply-To: <1458861450-17705-4-git-send-email-vishal.l.verma@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <A001440F8D6C3C4CB24CFB5EC465E195@intel.com>
-Content-Transfer-Encoding: base64
+Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D1806B0005
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2016 03:03:49 -0400 (EDT)
+Received: by mail-oi0-f50.google.com with SMTP id r187so90154441oih.3
+        for <linux-mm@kvack.org>; Fri, 25 Mar 2016 00:03:49 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id n2si4794426oei.24.2016.03.25.00.03.45
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 25 Mar 2016 00:03:48 -0700 (PDT)
+Message-ID: <56F4E104.9090505@huawei.com>
+Date: Fri, 25 Mar 2016 14:56:04 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
+Subject: [PATCH] mm: fix invalid node in alloc_migrate_target()
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
-Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Laura
+ Abbott <lauraa@codeaurora.org>, zhuhui@xiaomi.com, wangxq10@lzu.edu.cn
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-T24gVGh1LCAyMDE2LTAzLTI0IGF0IDE3OjE3IC0wNjAwLCBWaXNoYWwgVmVybWEgd3JvdGU6DQo+
-IEZyb206IERhbiBXaWxsaWFtcyA8ZGFuLmoud2lsbGlhbXNAaW50ZWwuY29tPg0KPiANCj4gRnJv
-bTogRGFuIFdpbGxpYW1zIDxkYW4uai53aWxsaWFtc0BpbnRlbC5jb20+DQoNCkVlcCwgbm90IHN1
-cmUgaG93IHRoaXMgaGFwcGVuZWQsIGxvb2tlZCBhbHJpZ2h0IGluIHRoZSBwYXRjaGVzIQ==
+It is incorrect to use next_node to find a target node, it will
+return MAX_NUMNODES or invalid node. This will lead to crash in
+buddy system allocation.
+
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/page_isolation.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 92c4c36..31555b6 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -289,11 +289,11 @@ struct page *alloc_migrate_target(struct page *page, unsigned long private,
+ 	 * now as a simple work-around, we use the next node for destination.
+ 	 */
+ 	if (PageHuge(page)) {
+-		nodemask_t src = nodemask_of_node(page_to_nid(page));
+-		nodemask_t dst;
+-		nodes_complement(dst, src);
++		int node = next_online_node(page_to_nid(page));
++		if (node == MAX_NUMNODES)
++			node = first_online_node;
+ 		return alloc_huge_page_node(page_hstate(compound_head(page)),
+-					    next_node(page_to_nid(page), dst));
++					    node);
+ 	}
+ 
+ 	if (PageHighMem(page))
+-- 
+1.8.3.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
