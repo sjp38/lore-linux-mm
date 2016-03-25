@@ -1,80 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 54D6A6B0005
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2016 07:54:46 -0400 (EDT)
-Received: by mail-oi0-f46.google.com with SMTP id r187so96079391oih.3
-        for <linux-mm@kvack.org>; Fri, 25 Mar 2016 04:54:46 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id fk3si5147217obb.101.2016.03.25.04.54.44
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 113A06B007E
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2016 11:04:21 -0400 (EDT)
+Received: by mail-wm0-f47.google.com with SMTP id l68so28371241wml.0
+        for <linux-mm@kvack.org>; Fri, 25 Mar 2016 08:04:21 -0700 (PDT)
+Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
+        by mx.google.com with ESMTPS id vu8si14792272wjc.28.2016.03.25.08.04.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 25 Mar 2016 04:54:45 -0700 (PDT)
-Subject: Re: [PATCH] mm,writeback: Don't use memory reserves for wb_start_writeback
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201603242303.CEJ65666.VOOFJLFQOMtFSH@I-love.SAKURA.ne.jp>
-	<20160324141714.aa9ccff6d5df5d2974eb86f8@linux-foundation.org>
-In-Reply-To: <20160324141714.aa9ccff6d5df5d2974eb86f8@linux-foundation.org>
-Message-Id: <201603252054.ADH30264.OJQFFLMOHFSOVt@I-love.SAKURA.ne.jp>
-Date: Fri, 25 Mar 2016 20:54:35 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 Mar 2016 08:04:19 -0700 (PDT)
+Received: by mail-wm0-x233.google.com with SMTP id l68so21358386wml.0
+        for <linux-mm@kvack.org>; Fri, 25 Mar 2016 08:04:19 -0700 (PDT)
+Date: Fri, 25 Mar 2016 18:04:17 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv4 00/25] THP-enabled tmpfs/shmem
+Message-ID: <20160325150417.GA1851@node.shutemov.name>
+References: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.LSU.2.11.1603231305560.4946@eggly.anvils>
+ <20160324091727.GA26796@node.shutemov.name>
+ <alpine.LSU.2.11.1603241153120.1593@eggly.anvils>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1603241153120.1593@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, tj@kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Andrew Morton wrote:
-> > --- a/fs/fs-writeback.c
-> > +++ b/fs/fs-writeback.c
-> > @@ -929,7 +929,8 @@ void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
-> >  	 * This is WB_SYNC_NONE writeback, so if allocation fails just
-> >  	 * wakeup the thread for old dirty data writeback
-> >  	 */
-> > -	work = kzalloc(sizeof(*work), GFP_ATOMIC);
-> > +	work = kzalloc(sizeof(*work),
-> > +		       GFP_NOWAIT | __GFP_NOMEMALLOC | __GFP_NOWARN);
-> >  	if (!work) {
-> >  		trace_writeback_nowork(wb);
-> >  		wb_wakeup(wb);
+On Thu, Mar 24, 2016 at 12:08:55PM -0700, Hugh Dickins wrote:
+> On Thu, 24 Mar 2016, Kirill A. Shutemov wrote:
+> > On Wed, Mar 23, 2016 at 01:09:05PM -0700, Hugh Dickins wrote:
+> > > The small files thing formed my first impression.  My second
+> > > impression was similar, when I tried mmap(NULL, size_of_RAM,
+> > > PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_SHARED, -1, 0) and
+> > > cycled around the arena touching all the pages (which of
+> > > course has to push a little into swap): that soon OOMed.
+> > > 
+> > > But there I think you probably just have some minor bug to be fixed:
+> > > I spent a little while trying to debug it, but then decided I'd
+> > > better get back to writing to you.  I didn't really understand what
+> > > I was seeing, but when I hacked some stats into shrink_page_list(),
+> > > converting !is_page_cache_freeable(page) to page_cache_references(page)
+> > > to return the difference instead of the bool, a large proportion of
+> > > huge tmpfs pages seemed to have count 1 too high to be freeable at
+> > > that point (and one huge tmpfs page had a count of 3477).
+> > 
+> > I'll reply to your other points later, but first I wanted to address this
+> > obvious bug.
 > 
-> Oh geeze.  fs/fs-writeback.c has grown waaay too many GFP_ATOMICs :(
+> Thanks.  That works better, but is not yet right: memory isn't freed
+> as it should be, so when I exit then try to run a second time, the
+> mmap() just gets ENOMEM (with /proc/sys/vm/overcommit_memory 0):
+> MemFree is low.  No rush to fix, I've other stuff to do.
 > 
-> How does this actually all work?  afaict if we fail this
-> wb_writeback_work allocation, wb_workfn->wb_do_writeback will later say
-> "hey, there are no work items!" and will do nothing at all.  Or does
-> wb_workfn() fall into write-1024-pages-anyway mode and if so, how did
-> it know how to do that?
-> 
-> If we had (say) a mempool of wb_writeback_work's (at least for for
-> wb_start_writeback), would that help anything?  Or would writeback
-> simply fail shortly afterwards for other reasons?
-> 
+> I don't get as far as that on the laptop, since the first run is OOM
+> killed while swapping; but I can't vouch for the OOM-kill-correctness
+> of the base tree I'm using, and this laptop has a history of OOMing
+> rather too easily if all's not right.
 
-I tried http://lkml.kernel.org/r/20160318133417.GB30225@dhcp22.suse.cz which would
-reduce number of wb_writeback_work allocations compared to this patch, and I got
-http://lkml.kernel.org/r/201603172035.CJH95337.SOJOFFFHMLOQVt@I-love.SAKURA.ne.jp
-where wb_workfn() got stuck after all when we started using memory reserves.
+Hm. I don't see the issue.
 
-Having a mempool for wb_writeback_work is not sufficient. There are allocations
-after wb_workfn() is called. All allocations (GFP_NOFS or GFP_NOIO) needed for
-doing writeback operation are expected to be satisfied. If we let GFP_NOFS and
-GFP_NOIO allocations to fail rather than selecting next OOM victim by calling
-the OOM killer when the page allocator declared OOM, we will loose data which was
-supposed to be flushed asynchronously. Who is happy with buffered writes which
-discard data (and causes filesystem errors such as remounting read-only,
-followed by killing almost all processes like SysRq-i due to userspace programs
-being unable to write data to filesystem) simply because the system was OOM at
-that moment? Basically, any allocation (GFP_NOFS or GFP_NOIO) needed for doing
-writeback operation is __GFP_NOFAIL because failing to flush data should not occur
-unless one of power failure, kernel panic, kernel oops or hardware troubles
-occurs. I hate failing to flush data simply because the system was OOM at that
-moment, without selecting next OOM victim which would kill fewer processes
-compared to consequences caused by filesystem errors.
+I tried to reproduce it in my VM with following script:
 
-I expect this patch to merely serve for stop bleeding after we started using
-memory reserves. Nothing more. We will need to solve OOM-livelock situation
-when we started using memory reserves by killing more processes by calling
-the OOM killer.
+#!/bin/sh -efu
+
+swapon -a
+
+ram="$(grep MemTotal /proc/meminfo | sed 's,[^0-9\]\+,,; s, kB,k,')"
+
+usemem -w -f /dev/zero "$ram"
+
+swapoff -a
+swapon -a
+
+usemem -w -f /dev/zero "$ram"
+
+cat /proc/meminfo
+grep thp /proc/vmstat
+
+-----
+
+usemem is a tool from this archive:
+
+http://www.spinics.net/lists/linux-mm/attachments/gtarazbJaHPaAT.gtar
+
+It works fine even if would double size of mapping.
+
+Do you have a reproducer?
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
