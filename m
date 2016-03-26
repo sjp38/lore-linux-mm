@@ -1,47 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id D67996B007E
-	for <linux-mm@kvack.org>; Sat, 26 Mar 2016 12:54:08 -0400 (EDT)
-Received: by mail-pf0-f174.google.com with SMTP id 4so104253469pfd.0
-        for <linux-mm@kvack.org>; Sat, 26 Mar 2016 09:54:08 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id 12si4782503pfm.92.2016.03.26.09.54.07
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 597016B007E
+	for <linux-mm@kvack.org>; Sat, 26 Mar 2016 14:50:52 -0400 (EDT)
+Received: by mail-ig0-f173.google.com with SMTP id av4so30200332igc.1
+        for <linux-mm@kvack.org>; Sat, 26 Mar 2016 11:50:52 -0700 (PDT)
+Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
+        by mx.google.com with ESMTPS id qt10si2208399igb.47.2016.03.26.11.50.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 26 Mar 2016 09:54:07 -0700 (PDT)
-Date: Sat, 26 Mar 2016 09:53:59 -0700
-From: "hch@infradead.org" <hch@infradead.org>
-Subject: Re: [PATCH 5/5] dax: handle media errors in dax_do_io
-Message-ID: <20160326165359.GA11387@infradead.org>
-References: <1458861450-17705-1-git-send-email-vishal.l.verma@intel.com>
- <1458861450-17705-6-git-send-email-vishal.l.verma@intel.com>
- <20160325104549.GB10525@infradead.org>
- <1458939566.5501.5.camel@intel.com>
- <CAPcyv4jFPYYP=eL72V6MmW2fcXFP3PfQfcO+zYV4NN7rdu1ksg@mail.gmail.com>
+        Sat, 26 Mar 2016 11:50:51 -0700 (PDT)
+Received: by mail-ig0-x22e.google.com with SMTP id l20so32022401igf.0
+        for <linux-mm@kvack.org>; Sat, 26 Mar 2016 11:50:51 -0700 (PDT)
+Date: Sat, 26 Mar 2016 13:50:49 -0500
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: Bloat caused by unnecessary calls to compound_head()?
+Message-ID: <20160326185049.GA4257@zzz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4jFPYYP=eL72V6MmW2fcXFP3PfQfcO+zYV4NN7rdu1ksg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: "Verma, Vishal L" <vishal.l.verma@intel.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "jack@suse.cz" <jack@suse.cz>, "axboe@fb.com" <axboe@fb.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "hch@infradead.org" <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com
 
-On Fri, Mar 25, 2016 at 02:42:37PM -0700, Dan Williams wrote:
-> That's their prerogative otherwise you are precluding an alternate
-> handling of a dax_do_io() failure.  Maybe a fs or upper layer can
-> recover in a different manner than re-submit the I/O to the
-> __blockdev_direct_IO path.
+Hi,
 
-Let's keep the interface separate because they are, well separate.
-There is a reason direct I/O falls back to buffered I/O by returning
-and error if it can't handle it instead of handling all the magic.
+I noticed that after the recent "page-flags" patchset, there are an excessive
+number of calls to compound_head() in certain places.
 
-I also really want to get rid of get_block as soon as possible for
-DAX and direct I/O.  For DAX that should actually be possible
-really quickly, while direct I/O might take some time and will
-be have to be gradual.  So tighter integration of the two interface is
-not just bad design, but actively harmful at this point in time.
+For example, the frequently executed mark_page_accessed() function already
+starts out by calling compound_head(), but then each time it tests a page flag
+afterwards, there is an extra, seemingly unnecessary, call to compound_head().
+This causes a series of instructions like the following to appear no fewer than
+10 times throughout the function:
+
+ffffffff81119db4:       48 8b 53 20             mov    0x20(%rbx),%rdx
+ffffffff81119db8:       48 8d 42 ff             lea    -0x1(%rdx),%rax
+ffffffff81119dbc:       83 e2 01                and    $0x1,%edx
+ffffffff81119dbf:       48 0f 44 c3             cmove  %rbx,%rax
+ffffffff81119dc3:       48 8b 00                mov    (%rax),%rax
+
+Part of the problem, I suppose, is that the compiler doesn't know that the pages
+can't be linked more than one level deep.
+
+Is this a known tradeoff, and have any possible solutions been considered?
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
