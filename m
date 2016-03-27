@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 255C66B025E
-	for <linux-mm@kvack.org>; Sun, 27 Mar 2016 15:47:50 -0400 (EDT)
-Received: by mail-pf0-f172.google.com with SMTP id 4so121253641pfd.0
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 12:47:50 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id 16si18201993pfo.244.2016.03.27.12.47.48
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B7266B025F
+	for <linux-mm@kvack.org>; Sun, 27 Mar 2016 15:47:52 -0400 (EDT)
+Received: by mail-pf0-f180.google.com with SMTP id n5so120862600pfn.2
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 12:47:52 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id tr1si20158132pab.135.2016.03.27.12.47.48
         for <linux-mm@kvack.org>;
         Sun, 27 Mar 2016 12:47:48 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 2/4] mm: introduce struct head_page and compound_head_t
-Date: Sun, 27 Mar 2016 22:47:38 +0300
-Message-Id: <1459108060-69891-2-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 4/4] mm: convert make_page_accessed to use compount_page_t()
+Date: Sun, 27 Mar 2016 22:47:40 +0300
+Message-Id: <1459108060-69891-4-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1459108060-69891-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <20160327194649.GA9638@node.shutemov.name>
  <1459108060-69891-1-git-send-email-kirill.shutemov@linux.intel.com>
@@ -20,60 +20,56 @@ List-ID: <linux-mm.kvack.org>
 To: Eric Biggers <ebiggers3@gmail.com>
 Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This patch creates new type that is compatible with struct page on
-memory layout, but distinct from C point of view.
+Just for example, convert one function to just created interface.
 
-compound_head_t() has the same functionality as compound_head(), but
-returns pointer on struct head_page.
+This way we cut size of the function by third:
+
+function                                     old     new   delta
+mark_page_accessed                           310     203    -107
 
 Not-yet-signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/mm_types.h   | 4 ++++
- include/linux/page-flags.h | 9 ++++++++-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ mm/swap.c | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 944b2b37313b..247e86adaa1c 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -225,6 +225,10 @@ struct page {
- #endif
- ;
- 
-+struct head_page {
-+	struct page page;
-+};
-+
- struct page_frag {
- 	struct page *page;
- #if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index d111caad2a22..54801253b85c 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -133,7 +133,9 @@ enum pageflags {
- 
- #ifndef __GENERATING_BOUNDS_H
- 
--struct page;	/* forward declaration */
-+/* forward declaration */
-+struct page;
-+struct head_page;
- 
- static inline struct page *compound_head(struct page *page)
+diff --git a/mm/swap.c b/mm/swap.c
+index 09fe5e97714a..1fe072ae6ee1 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -360,9 +360,10 @@ static void __lru_cache_activate_page(struct page *page)
+  */
+ void mark_page_accessed(struct page *page)
  {
-@@ -144,6 +146,11 @@ static inline struct page *compound_head(struct page *page)
- 	return page;
- }
+-	page = compound_head(page);
+-	if (!PageActive(page) && !PageUnevictable(page) &&
+-			PageReferenced(page)) {
++	struct head_page *head = compound_head_t(page);
++	page = &head->page;
++	if (!PageActive(head) && !PageUnevictable(head) &&
++			PageReferenced(head)) {
  
-+static inline struct head_page *compound_head_t(struct page *page)
-+{
-+	return (struct head_page *)compound_head(page);
-+}
-+
- static __always_inline int PageTail(struct page *page)
- {
- 	return READ_ONCE(page->compound_head) & 1;
+ 		/*
+ 		 * If the page is on the LRU, queue it for activation via
+@@ -370,15 +371,15 @@ void mark_page_accessed(struct page *page)
+ 		 * pagevec, mark it active and it'll be moved to the active
+ 		 * LRU on the next drain.
+ 		 */
+-		if (PageLRU(page))
++		if (PageLRU(head))
+ 			activate_page(page);
+ 		else
+ 			__lru_cache_activate_page(page);
+-		ClearPageReferenced(page);
++		ClearPageReferenced(head);
+ 		if (page_is_file_cache(page))
+ 			workingset_activation(page);
+-	} else if (!PageReferenced(page)) {
+-		SetPageReferenced(page);
++	} else if (!PageReferenced(head)) {
++		SetPageReferenced(head);
+ 	}
+ 	if (page_is_idle(page))
+ 		clear_page_idle(page);
 -- 
 2.8.0.rc3
 
