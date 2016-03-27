@@ -1,80 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 5906B6B007E
-	for <linux-mm@kvack.org>; Sun, 27 Mar 2016 15:46:53 -0400 (EDT)
-Received: by mail-wm0-f43.google.com with SMTP id l68so78759770wml.0
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 12:46:53 -0700 (PDT)
-Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
-        by mx.google.com with ESMTPS id hd9si25067147wjc.110.2016.03.27.12.46.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Mar 2016 12:46:51 -0700 (PDT)
-Received: by mail-wm0-x229.google.com with SMTP id l68so62458140wml.0
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 12:46:51 -0700 (PDT)
-Date: Sun, 27 Mar 2016 22:46:49 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: Bloat caused by unnecessary calls to compound_head()?
-Message-ID: <20160327194649.GA9638@node.shutemov.name>
-References: <20160326185049.GA4257@zzz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160326185049.GA4257@zzz>
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 97E286B0253
+	for <linux-mm@kvack.org>; Sun, 27 Mar 2016 15:47:49 -0400 (EDT)
+Received: by mail-pf0-f178.google.com with SMTP id x3so121119167pfb.1
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 12:47:49 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id 16si18201993pfo.244.2016.03.27.12.47.48
+        for <linux-mm@kvack.org>;
+        Sun, 27 Mar 2016 12:47:48 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 3/4] page-flags: make page flag helpers accept struct head_page
+Date: Sun, 27 Mar 2016 22:47:39 +0300
+Message-Id: <1459108060-69891-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1459108060-69891-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <20160327194649.GA9638@node.shutemov.name>
+ <1459108060-69891-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Eric Biggers <ebiggers3@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, Hugh Dickins <hughd@google.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Sat, Mar 26, 2016 at 01:50:49PM -0500, Eric Biggers wrote:
-> Hi,
-> 
-> I noticed that after the recent "page-flags" patchset, there are an excessive
-> number of calls to compound_head() in certain places.
-> 
-> For example, the frequently executed mark_page_accessed() function already
-> starts out by calling compound_head(), but then each time it tests a page flag
-> afterwards, there is an extra, seemingly unnecessary, call to compound_head().
-> This causes a series of instructions like the following to appear no fewer than
-> 10 times throughout the function:
-> 
-> ffffffff81119db4:       48 8b 53 20             mov    0x20(%rbx),%rdx
-> ffffffff81119db8:       48 8d 42 ff             lea    -0x1(%rdx),%rax
-> ffffffff81119dbc:       83 e2 01                and    $0x1,%edx
-> ffffffff81119dbf:       48 0f 44 c3             cmove  %rbx,%rax
-> ffffffff81119dc3:       48 8b 00                mov    (%rax),%rax
-> 
-> Part of the problem, I suppose, is that the compiler doesn't know that the pages
-> can't be linked more than one level deep.
-> 
-> Is this a known tradeoff, and have any possible solutions been considered?
+This patch makes all generated page flag helpers to accept pointer to
+struct head_page as well as struct page.
 
-<I'm sick, so my judgment may be off>
+In case if pointer to struct head_page is passed, we assume that it's
+head page and bypass policy constrain checks.
 
-Yes, it's known problem. And I've tried to approach it few times without
-satisfying results.
+Note, to get get inteface consistent we would need to make non-generated
+page flag helper to accept struct head_page as well.
 
-Your mail made me try again.
+Not-yet-signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ scripts/mkpageflags.sh | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
 
-The idea is to introduce new type to indicate head page --
-'struct head_page' -- it's compatible with struct page on memory layout,
-but distinct from C point of view. compound_head() should return pointer
-of that type. For the proof-of-concept I've introduced new helper --
-compound_head_t().
-
-Then we can make page-flag helpers to accept both types, by converting
-them to macros and use __builtin_types_compatible_p().
-
-When a page-flag helper sees pointer to 'struct head_page' as an argument,
-it can safely assume that it deals with head or non-compound page and therefore
-can bypass all policy restrictions and get rid of compound_head() calls.
-
-I'll send proof-of-concept patches in reply to this message. The code is
-not pretty. I myself consider the idea rather ugly.
-
-Any comments are welcome.
-
+diff --git a/scripts/mkpageflags.sh b/scripts/mkpageflags.sh
+index 29d46bccaea4..272aab4ad1a3 100755
+--- a/scripts/mkpageflags.sh
++++ b/scripts/mkpageflags.sh
+@@ -6,23 +6,23 @@ fatal() {
+ }
+ 
+ any() {
+-	echo "(__p)"
++	echo "((struct page *)(__p))"
+ }
+ 
+ head() {
+-	echo "compound_head(__p)"
++	echo "compound_head((struct page *)(__p))"
+ }
+ 
+ no_tail() {
+ 	local enforce="${1:+VM_BUG_ON_PGFLAGS(PageTail(__p), __p);}"
+ 
+-	echo "({$enforce compound_head(__p);})"
++	echo "({$enforce compound_head((struct page *)(__p));})"
+ }
+ 
+ no_compound() {
+ 	local enforce="${1:+VM_BUG_ON_PGFLAGS(PageCompound(__p), __p);}"
+ 
+-	echo "({$enforce __p;})"
++	echo "({$enforce ((struct page *)(__p));})"
+ }
+ 
+ generate_test() {
+@@ -34,7 +34,9 @@ generate_test() {
+ 	cat <<EOF
+ #define $uname(__p) ({								\\
+ 	int ret;								\\
+-	if (__builtin_types_compatible_p(typeof(*(__p)), struct page))		\\
++	if (__builtin_types_compatible_p(typeof(*(__p)), struct head_page))	\\
++		ret = $op(PG_$lname, &((struct head_page *)(__p))->page.flags);	\\
++	else if (__builtin_types_compatible_p(typeof(*(__p)), struct page))	\\
+ 		ret = $op(PG_$lname, &$page->flags);				\\
+ 	else									\\
+ 		BUILD_BUG();							\\
+@@ -52,7 +54,9 @@ generate_mod() {
+ 
+ 	cat <<EOF
+ #define $uname(__p) do {							\\
+-	if (__builtin_types_compatible_p(typeof(*(__p)), struct page))		\\
++	if (__builtin_types_compatible_p(typeof(*(__p)), struct head_page))	\\
++		$op(PG_$lname, &((struct head_page *)(__p))->page.flags);	\\
++	else if (__builtin_types_compatible_p(typeof(*(__p)), struct page))	\\
+ 		$op(PG_$lname, &$page->flags);					\\
+ 	else									\\
+ 		BUILD_BUG();							\\
 -- 
- Kirill A. Shutemov
+2.8.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
