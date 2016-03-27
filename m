@@ -1,90 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id CE4646B007E
-	for <linux-mm@kvack.org>; Sat, 26 Mar 2016 15:39:58 -0400 (EDT)
-Received: by mail-lb0-f169.google.com with SMTP id qe11so62733537lbc.3
-        for <linux-mm@kvack.org>; Sat, 26 Mar 2016 12:39:58 -0700 (PDT)
-Received: from mail-lf0-x22d.google.com (mail-lf0-x22d.google.com. [2a00:1450:4010:c07::22d])
-        by mx.google.com with ESMTPS id p9si10685964lfe.196.2016.03.26.12.39.57
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5906B6B007E
+	for <linux-mm@kvack.org>; Sun, 27 Mar 2016 15:46:53 -0400 (EDT)
+Received: by mail-wm0-f43.google.com with SMTP id l68so78759770wml.0
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 12:46:53 -0700 (PDT)
+Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
+        by mx.google.com with ESMTPS id hd9si25067147wjc.110.2016.03.27.12.46.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 26 Mar 2016 12:39:57 -0700 (PDT)
-Received: by mail-lf0-x22d.google.com with SMTP id q73so69260200lfe.2
-        for <linux-mm@kvack.org>; Sat, 26 Mar 2016 12:39:57 -0700 (PDT)
+        Sun, 27 Mar 2016 12:46:51 -0700 (PDT)
+Received: by mail-wm0-x229.google.com with SMTP id l68so62458140wml.0
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 12:46:51 -0700 (PDT)
+Date: Sun, 27 Mar 2016 22:46:49 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: Bloat caused by unnecessary calls to compound_head()?
+Message-ID: <20160327194649.GA9638@node.shutemov.name>
+References: <20160326185049.GA4257@zzz>
 MIME-Version: 1.0
-Date: Sun, 27 Mar 2016 00:09:56 +0430
-Message-ID: <CA+5nn1gfsuY50ZuqnM_O5na4c0P4pAw2wikez2k_a9xA+08i1Q@mail.gmail.com>
-Subject: Tracing Accesses to the Page Cache
-From: Mujtaba Tarihi <mujtaba.tarihi@gmail.com>
-Content-Type: multipart/alternative; boundary=001a113eaf3225ef7a052ef8d854
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160326185049.GA4257@zzz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Eric Biggers <ebiggers3@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, Hugh Dickins <hughd@google.com>
 
---001a113eaf3225ef7a052ef8d854
-Content-Type: text/plain; charset=UTF-8
+On Sat, Mar 26, 2016 at 01:50:49PM -0500, Eric Biggers wrote:
+> Hi,
+> 
+> I noticed that after the recent "page-flags" patchset, there are an excessive
+> number of calls to compound_head() in certain places.
+> 
+> For example, the frequently executed mark_page_accessed() function already
+> starts out by calling compound_head(), but then each time it tests a page flag
+> afterwards, there is an extra, seemingly unnecessary, call to compound_head().
+> This causes a series of instructions like the following to appear no fewer than
+> 10 times throughout the function:
+> 
+> ffffffff81119db4:       48 8b 53 20             mov    0x20(%rbx),%rdx
+> ffffffff81119db8:       48 8d 42 ff             lea    -0x1(%rdx),%rax
+> ffffffff81119dbc:       83 e2 01                and    $0x1,%edx
+> ffffffff81119dbf:       48 0f 44 c3             cmove  %rbx,%rax
+> ffffffff81119dc3:       48 8b 00                mov    (%rax),%rax
+> 
+> Part of the problem, I suppose, is that the compiler doesn't know that the pages
+> can't be linked more than one level deep.
+> 
+> Is this a known tradeoff, and have any possible solutions been considered?
 
-Dear All,
+<I'm sick, so my judgment may be off>
 
-I have been trying to devise a method to trace *all* accesses to the page
-cache. This includes reads and writes to pages that are already present in
-the page cache (which will not be observed if the dirty/referenced bit have
-not been reset yet by the shrink_list functionality). What I have thought
-of is implementing a driver similar to the kmmiotrace but for page cache.
+Yes, it's known problem. And I've tried to approach it few times without
+satisfying results.
 
-What kmmiotrace does is resetting the present bit on PDEs related to a
-device driver. When the device in question is hit, kmmiotrace has a code
-path for page fault where is checks if the device being traced is the one
-we are interested in.
-It then records the information of the location addressing the memory, puts
-the system in single-stepping mode, waits for the next trap and resets the
-present bit for the remaining accesses. It also terminates the
-single-stepping mode.
+Your mail made me try again.
 
-What I am thinking of is implementing a similar, but wholesale scheme for
-all pages within the page cache. In other words, when a page resides in the
-page cache, one of the bits (I am thinking of the resetting all access
-permission bits so a read/write would trigger a GPF), then I would proceed
-as the kmmiotrace.
-I am aware of the massive performance penalty that this methodology
-probably entails but I am interested in observing each and every access
-within the page cache.
+The idea is to introduce new type to indicate head page --
+'struct head_page' -- it's compatible with struct page on memory layout,
+but distinct from C point of view. compound_head() should return pointer
+of that type. For the proof-of-concept I've introduced new helper --
+compound_head_t().
 
-I wanted to ask the people who obviously know more than me about Linux
-memory management about how logical such an attempt would be and whether
-there is a better way that I have missed.
+Then we can make page-flag helpers to accept both types, by converting
+them to macros and use __builtin_types_compatible_p().
 
-Thanks very much in advance!
+When a page-flag helper sees pointer to 'struct head_page' as an argument,
+it can safely assume that it deals with head or non-compound page and therefore
+can bypass all policy restrictions and get rid of compound_head() calls.
 
---001a113eaf3225ef7a052ef8d854
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+I'll send proof-of-concept patches in reply to this message. The code is
+not pretty. I myself consider the idea rather ugly.
 
-<div dir=3D"ltr">Dear All,<div><br></div><div>I have been trying to devise =
-a method to trace *all* accesses to the page cache. This includes reads and=
- writes to pages that are already present in the page cache (which will not=
- be observed if the dirty/referenced bit have not been reset yet by the shr=
-ink_list functionality). What I have thought of is implementing a driver si=
-milar to the kmmiotrace but for page cache.</div><div><br></div><div>What k=
-mmiotrace does is resetting the present bit on PDEs related to a device dri=
-ver. When the device in question is hit, kmmiotrace has a code path for pag=
-e fault where is checks if the device being traced is the one we are intere=
-sted in.<br></div><div>It then records the information of the location addr=
-essing the memory, puts the system in single-stepping mode, waits for the n=
-ext trap and resets the present bit for the remaining accesses. It also ter=
-minates the single-stepping mode.</div><div><br></div><div>What I am thinki=
-ng of is implementing a similar, but wholesale scheme for all pages within =
-the page cache. In other words, when a page resides in the page cache, one =
-of the bits (I am thinking of the resetting all access permission bits so a=
- read/write would trigger a GPF), then I would proceed as the kmmiotrace.</=
-div><div>I am aware of the massive performance penalty that this methodolog=
-y probably entails but I am interested in observing each and every access w=
-ithin the page cache.</div><div><br></div><div>I wanted to ask the people w=
-ho obviously know more than me about Linux memory management about how logi=
-cal such an attempt would be and whether there is a better way that I have =
-missed.</div><div><br></div><div>Thanks very much in advance!</div></div>
+Any comments are welcome.
 
---001a113eaf3225ef7a052ef8d854--
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
