@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F6C56B0265
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:27:31 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id fe3so90066997pab.1
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:31 -0700 (PDT)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id oq6si157194pab.84.2016.03.27.22.27.30
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 921A96B0268
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:27:34 -0400 (EDT)
+Received: by mail-pf0-f171.google.com with SMTP id x3so128949218pfb.1
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:34 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id z23si17846386pfi.42.2016.03.27.22.27.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Mar 2016 22:27:30 -0700 (PDT)
-Received: by mail-pf0-x22d.google.com with SMTP id u190so129232592pfb.3
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:30 -0700 (PDT)
+        Sun, 27 Mar 2016 22:27:33 -0700 (PDT)
+Received: by mail-pa0-x22f.google.com with SMTP id td3so89743958pab.2
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:33 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH 06/11] mm/slab: don't keep free slabs if free_objects exceeds free_limit
-Date: Mon, 28 Mar 2016 14:26:56 +0900
-Message-Id: <1459142821-20303-7-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 07/11] mm/slab: racy access/modify the slab color
+Date: Mon, 28 Mar 2016 14:26:57 +0900
+Message-Id: <1459142821-20303-8-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,70 +24,90 @@ Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David R
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Currently, determination to free a slab is done whenever free object is
-put into the slab. This has a problem that free slabs are not freed
-even if we have free slabs and have more free_objects than free_limit
-when processed slab isn't a free slab. This would cause to keep
-too much memory in the slab subsystem. This patch try to fix it
-by checking number of free object after all free work is done. If there
-is free slab at that time, we can free it so we keep free slab as minimal
-as possible.
+Slab color isn't needed to be changed strictly. Because locking
+for changing slab color could cause more lock contention so this patch
+implements racy access/modify the slab color. This is a preparation step
+to implement lockless allocation path when there is no free objects in
+the kmem_cache.
+
+Below is the result of concurrent allocation/free in slab allocation
+benchmark made by Christoph a long time ago. I make the output simpler.
+The number shows cycle count during alloc/free respectively so less
+is better.
+
+* Before
+Kmalloc N*alloc N*free(32): Average=365/806
+Kmalloc N*alloc N*free(64): Average=452/690
+Kmalloc N*alloc N*free(128): Average=736/886
+Kmalloc N*alloc N*free(256): Average=1167/985
+Kmalloc N*alloc N*free(512): Average=2088/1125
+Kmalloc N*alloc N*free(1024): Average=4115/1184
+Kmalloc N*alloc N*free(2048): Average=8451/1748
+Kmalloc N*alloc N*free(4096): Average=16024/2048
+
+* After
+Kmalloc N*alloc N*free(32): Average=355/750
+Kmalloc N*alloc N*free(64): Average=452/812
+Kmalloc N*alloc N*free(128): Average=559/1070
+Kmalloc N*alloc N*free(256): Average=1176/980
+Kmalloc N*alloc N*free(512): Average=1939/1189
+Kmalloc N*alloc N*free(1024): Average=3521/1278
+Kmalloc N*alloc N*free(2048): Average=7152/1838
+Kmalloc N*alloc N*free(4096): Average=13438/2013
+
+It shows that contention is reduced for object size >= 1024
+and performance increases by roughly 15%.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/slab.c | 23 ++++++++++++++---------
- 1 file changed, 14 insertions(+), 9 deletions(-)
+ mm/slab.c | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)
 
 diff --git a/mm/slab.c b/mm/slab.c
-index b96f381..df11757 100644
+index df11757..52fc5e3 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -3258,6 +3258,9 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
- {
- 	int i;
- 	struct kmem_cache_node *n = get_node(cachep, node);
-+	struct page *page;
-+
-+	n->free_objects += nr_objects;
- 
- 	for (i = 0; i < nr_objects; i++) {
- 		void *objp;
-@@ -3270,17 +3273,11 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
- 		check_spinlock_acquired_node(cachep, node);
- 		slab_put_obj(cachep, page, objp);
- 		STATS_DEC_ACTIVE(cachep);
--		n->free_objects++;
- 
- 		/* fixup slab chains */
--		if (page->active == 0) {
--			if (n->free_objects > n->free_limit) {
--				n->free_objects -= cachep->num;
--				list_add_tail(&page->lru, list);
--			} else {
--				list_add(&page->lru, &n->slabs_free);
--			}
--		} else {
-+		if (page->active == 0)
-+			list_add(&page->lru, &n->slabs_free);
-+		else {
- 			/* Unconditionally move a slab to the end of the
- 			 * partial list on free - maximum time for the
- 			 * other objects to be freed, too.
-@@ -3288,6 +3285,14 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
- 			list_add_tail(&page->lru, &n->slabs_partial);
- 		}
+@@ -2536,20 +2536,7 @@ static int cache_grow(struct kmem_cache *cachep,
  	}
-+
-+	while (n->free_objects > n->free_limit && !list_empty(&n->slabs_free)) {
-+		n->free_objects -= cachep->num;
-+
-+		page = list_last_entry(&n->slabs_free, struct page, lru);
-+		list_del(&page->lru);
-+		list_add(&page->lru, list);
-+	}
- }
+ 	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
  
- static void cache_flusharray(struct kmem_cache *cachep, struct array_cache *ac)
+-	/* Take the node list lock to change the colour_next on this node */
+ 	check_irq_off();
+-	n = get_node(cachep, nodeid);
+-	spin_lock(&n->list_lock);
+-
+-	/* Get colour for the slab, and cal the next value. */
+-	offset = n->colour_next;
+-	n->colour_next++;
+-	if (n->colour_next >= cachep->colour)
+-		n->colour_next = 0;
+-	spin_unlock(&n->list_lock);
+-
+-	offset *= cachep->colour_off;
+-
+ 	if (gfpflags_allow_blocking(local_flags))
+ 		local_irq_enable();
+ 
+@@ -2570,6 +2557,19 @@ static int cache_grow(struct kmem_cache *cachep,
+ 	if (!page)
+ 		goto failed;
+ 
++	n = get_node(cachep, nodeid);
++
++	/* Get colour for the slab, and cal the next value. */
++	n->colour_next++;
++	if (n->colour_next >= cachep->colour)
++		n->colour_next = 0;
++
++	offset = n->colour_next;
++	if (offset >= cachep->colour)
++		offset = 0;
++
++	offset *= cachep->colour_off;
++
+ 	/* Get slab management. */
+ 	freelist = alloc_slabmgmt(cachep, page, offset,
+ 			local_flags & ~GFP_CONSTRAINT_MASK, nodeid);
 -- 
 1.9.1
 
