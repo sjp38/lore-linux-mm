@@ -1,73 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id B84506B007E
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 16:38:27 -0400 (EDT)
-Received: by mail-pf0-f170.google.com with SMTP id n5so145496393pfn.2
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 13:38:27 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id xw2si749220pac.192.2016.03.28.13.38.26
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 9041B6B007E
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 16:44:10 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id zm5so20597270pac.0
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 13:44:10 -0700 (PDT)
+Received: from smtp-outbound-2.vmware.com (smtp-outbound-2.vmware.com. [208.91.2.13])
+        by mx.google.com with ESMTPS id v18si1369566pfi.211.2016.03.28.13.44.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Mar 2016 13:38:26 -0700 (PDT)
-Date: Mon, 28 Mar 2016 13:38:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 Mar 2016 13:44:09 -0700 (PDT)
+From: Nadav Amit <namit@vmware.com>
 Subject: Re: [PATCH v2 1/2] x86/mm: TLB_REMOTE_SEND_IPI should count pages
-Message-Id: <20160328133825.210d00fd4af7c7b7039a44c7@linux-foundation.org>
-In-Reply-To: <1458980705-121507-2-git-send-email-namit@vmware.com>
+Date: Mon, 28 Mar 2016 20:44:07 +0000
+Message-ID: <64432900-43CA-4D72-A041-44B0F40DBE88@vmware.com>
 References: <1458980705-121507-1-git-send-email-namit@vmware.com>
-	<1458980705-121507-2-git-send-email-namit@vmware.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <1458980705-121507-2-git-send-email-namit@vmware.com>
+ <20160328133825.210d00fd4af7c7b7039a44c7@linux-foundation.org>
+In-Reply-To: <20160328133825.210d00fd4af7c7b7039a44c7@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <AC3392959FB12846BD22380634CC4C0D@vmware.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <namit@vmware.com>
-Cc: linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, mgorman@suse.de, sasha.levin@oracle.com, riel@redhat.com, dave.hansen@linux.intel.com, luto@kernel.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, jmarchan@redhat.com, hughd@google.com, vdavydov@virtuozzo.com, minchan@kernel.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "riel@redhat.com" <riel@redhat.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "luto@kernel.org" <luto@kernel.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "jmarchan@redhat.com" <jmarchan@redhat.com>, "hughd@google.com" <hughd@google.com>, "vdavydov@virtuozzo.com" <vdavydov@virtuozzo.com>, "minchan@kernel.org" <minchan@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On Sat, 26 Mar 2016 01:25:04 -0700 Nadav Amit <namit@vmware.com> wrote:
-
-> TLB_REMOTE_SEND_IPI was recently introduced, but it counts bytes instead
-> of pages. In addition, it does not report correctly the case in which
-> flush_tlb_page flushes a page. Fix it to be consistent with other TLB
-> counters.
-> 
-> Fixes: 4595f9620cda8a1e973588e743cf5f8436dd20c6
-
-I think you mean 5b74283ab251b9 ("x86, mm: trace when an IPI is about
-to be sent")?
-
-> --- a/arch/x86/mm/tlb.c
-> +++ b/arch/x86/mm/tlb.c
-> @@ -106,8 +106,6 @@ static void flush_tlb_func(void *info)
->  
->  	if (f->flush_mm != this_cpu_read(cpu_tlbstate.active_mm))
->  		return;
-> -	if (!f->flush_end)
-> -		f->flush_end = f->flush_start + PAGE_SIZE;
->  
->  	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
->  	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
-> @@ -135,12 +133,20 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
->  				 unsigned long end)
->  {
->  	struct flush_tlb_info info;
-> +
-> +	if (end == 0)
-> +		end = start + PAGE_SIZE;
->  	info.flush_mm = mm;
->  	info.flush_start = start;
->  	info.flush_end = end;
->  
->  	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
-> -	trace_tlb_flush(TLB_REMOTE_SEND_IPI, end - start);
-> +	if (end == TLB_FLUSH_ALL)
-> +		trace_tlb_flush(TLB_REMOTE_SEND_IPI, TLB_FLUSH_ALL);
-> +	else
-> +		trace_tlb_flush(TLB_REMOTE_SEND_IPI,
-> +				(end - start) >> PAGE_SHIFT);
-> +
->  	if (is_uv_system()) {
->  		unsigned int cpu;
+T24gMy8yOC8xNiwgMTozOCBQTSwgIkFuZHJldyBNb3J0b24iIDxha3BtQGxpbnV4LWZvdW5kYXRp
+b24ub3JnPiB3cm90ZToNCg0KDQo+T24gU2F0LCAyNiBNYXIgMjAxNiAwMToyNTowNCAtMDcwMCBO
+YWRhdiBBbWl0IDxuYW1pdEB2bXdhcmUuY29tPiB3cm90ZToNCj4NCj4+IFRMQl9SRU1PVEVfU0VO
+RF9JUEkgd2FzIHJlY2VudGx5IGludHJvZHVjZWQsIGJ1dCBpdCBjb3VudHMgYnl0ZXMgaW5zdGVh
+ZA0KPj4gb2YgcGFnZXMuIEluIGFkZGl0aW9uLCBpdCBkb2VzIG5vdCByZXBvcnQgY29ycmVjdGx5
+IHRoZSBjYXNlIGluIHdoaWNoDQo+PiBmbHVzaF90bGJfcGFnZSBmbHVzaGVzIGEgcGFnZS4gRml4
+IGl0IHRvIGJlIGNvbnNpc3RlbnQgd2l0aCBvdGhlciBUTEINCj4+IGNvdW50ZXJzLg0KPj4gDQo+
+PiBGaXhlczogNDU5NWY5NjIwY2RhOGExZTk3MzU4OGU3NDNjZjVmODQzNmRkMjBjNg0KPg0KPkkg
+dGhpbmsgeW91IG1lYW4gNWI3NDI4M2FiMjUxYjkgKCJ4ODYsIG1tOiB0cmFjZSB3aGVuIGFuIElQ
+SSBpcyBhYm91dA0KPnRvIGJlIHNlbnQiKT8NCg0KSW5kZWVkLg0KDQoNCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
