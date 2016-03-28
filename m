@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 07E586B0260
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:27:19 -0400 (EDT)
-Received: by mail-pf0-f175.google.com with SMTP id x3so128944894pfb.1
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:19 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id n62si12756293pfi.139.2016.03.27.22.27.18
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 22AA86B0261
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:27:22 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id td3so89740987pab.2
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:22 -0700 (PDT)
+Received: from mail-pf0-x22e.google.com (mail-pf0-x22e.google.com. [2607:f8b0:400e:c00::22e])
+        by mx.google.com with ESMTPS id zo2si17526599pac.221.2016.03.27.22.27.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Mar 2016 22:27:18 -0700 (PDT)
-Received: by mail-pa0-x229.google.com with SMTP id td3so89740101pab.2
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:18 -0700 (PDT)
+        Sun, 27 Mar 2016 22:27:21 -0700 (PDT)
+Received: by mail-pf0-x22e.google.com with SMTP id 4so129069542pfd.0
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:21 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH 02/11] mm/slab: remove BAD_ALIEN_MAGIC again
-Date: Mon, 28 Mar 2016 14:26:52 +0900
-Message-Id: <1459142821-20303-3-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 03/11] mm/slab: drain the free slab as much as possible
+Date: Mon, 28 Mar 2016 14:26:53 +0900
+Message-Id: <1459142821-20303-4-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,51 +24,58 @@ Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David R
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Initial attemp to remove BAD_ALIEN_MAGIC is once reverted by
-'commit edcad2509550 ("Revert "slab: remove BAD_ALIEN_MAGIC"")'
-because it causes a problem on m68k which has many node
-but !CONFIG_NUMA. In this case, although alien cache isn't used
-at all but to cope with some initialization path, garbage value
-is used and that is BAD_ALIEN_MAGIC. Now, this patch set
-use_alien_caches to 0 when !CONFIG_NUMA, there is no initialization
-path problem so we don't need BAD_ALIEN_MAGIC at all. So remove it.
+slabs_tofree() implies freeing all free slab. We can do it with
+just providing INT_MAX.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/slab.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ mm/slab.c | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)
 
 diff --git a/mm/slab.c b/mm/slab.c
-index 043606a..a5a205b 100644
+index a5a205b..ba2eacf 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -421,8 +421,6 @@ static struct kmem_cache kmem_cache_boot = {
- 	.name = "kmem_cache",
- };
- 
--#define BAD_ALIEN_MAGIC 0x01020304ul
--
- static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
- 
- static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
-@@ -637,7 +635,7 @@ static int transfer_objects(struct array_cache *to,
- static inline struct alien_cache **alloc_alien_cache(int node,
- 						int limit, gfp_t gfp)
- {
--	return (struct alien_cache **)BAD_ALIEN_MAGIC;
-+	return NULL;
+@@ -888,12 +888,6 @@ static int init_cache_node_node(int node)
+ 	return 0;
  }
  
- static inline void free_alien_cache(struct alien_cache **ac_ptr)
-@@ -1205,7 +1203,7 @@ void __init kmem_cache_init(void)
- 					sizeof(struct rcu_head));
- 	kmem_cache = &kmem_cache_boot;
+-static inline int slabs_tofree(struct kmem_cache *cachep,
+-						struct kmem_cache_node *n)
+-{
+-	return (n->free_objects + cachep->num - 1) / cachep->num;
+-}
+-
+ static void cpuup_canceled(long cpu)
+ {
+ 	struct kmem_cache *cachep;
+@@ -958,7 +952,7 @@ free_slab:
+ 		n = get_node(cachep, node);
+ 		if (!n)
+ 			continue;
+-		drain_freelist(cachep, n, slabs_tofree(cachep, n));
++		drain_freelist(cachep, n, INT_MAX);
+ 	}
+ }
  
--	if (num_possible_nodes() == 1)
-+	if (!IS_ENABLED(CONFIG_NUMA) || num_possible_nodes() == 1)
- 		use_alien_caches = 0;
+@@ -1110,7 +1104,7 @@ static int __meminit drain_cache_node_node(int node)
+ 		if (!n)
+ 			continue;
  
- 	for (i = 0; i < NUM_INIT_LISTS; i++)
+-		drain_freelist(cachep, n, slabs_tofree(cachep, n));
++		drain_freelist(cachep, n, INT_MAX);
+ 
+ 		if (!list_empty(&n->slabs_full) ||
+ 		    !list_empty(&n->slabs_partial)) {
+@@ -2280,7 +2274,7 @@ int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
+ 
+ 	check_irq_on();
+ 	for_each_kmem_cache_node(cachep, node, n) {
+-		drain_freelist(cachep, n, slabs_tofree(cachep, n));
++		drain_freelist(cachep, n, INT_MAX);
+ 
+ 		ret += !list_empty(&n->slabs_full) ||
+ 			!list_empty(&n->slabs_partial);
 -- 
 1.9.1
 
