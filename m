@@ -1,42 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 9041B6B007E
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 16:44:10 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id zm5so20597270pac.0
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 13:44:10 -0700 (PDT)
-Received: from smtp-outbound-2.vmware.com (smtp-outbound-2.vmware.com. [208.91.2.13])
-        by mx.google.com with ESMTPS id v18si1369566pfi.211.2016.03.28.13.44.09
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C08E46B007E
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 16:46:22 -0400 (EDT)
+Received: by mail-pf0-f172.google.com with SMTP id u190so146204545pfb.3
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 13:46:22 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id c89si30988873pfj.79.2016.03.28.13.46.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Mar 2016 13:44:09 -0700 (PDT)
-From: Nadav Amit <namit@vmware.com>
-Subject: Re: [PATCH v2 1/2] x86/mm: TLB_REMOTE_SEND_IPI should count pages
-Date: Mon, 28 Mar 2016 20:44:07 +0000
-Message-ID: <64432900-43CA-4D72-A041-44B0F40DBE88@vmware.com>
-References: <1458980705-121507-1-git-send-email-namit@vmware.com>
- <1458980705-121507-2-git-send-email-namit@vmware.com>
- <20160328133825.210d00fd4af7c7b7039a44c7@linux-foundation.org>
-In-Reply-To: <20160328133825.210d00fd4af7c7b7039a44c7@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <AC3392959FB12846BD22380634CC4C0D@vmware.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Mar 2016 13:46:21 -0700 (PDT)
+Received: by mail-pa0-x236.google.com with SMTP id zm5so20632487pac.0
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 13:46:21 -0700 (PDT)
+Date: Mon, 28 Mar 2016 13:46:08 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: 4.5 shmem lockdep/out-of-bound/list corruption disaster
+In-Reply-To: <20160328171757.GA21665@codemonkey.org.uk>
+Message-ID: <alpine.LSU.2.11.1603281327230.1874@eggly.anvils>
+References: <20160328171757.GA21665@codemonkey.org.uk>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "riel@redhat.com" <riel@redhat.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "luto@kernel.org" <luto@kernel.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "jmarchan@redhat.com" <jmarchan@redhat.com>, "hughd@google.com" <hughd@google.com>, "vdavydov@virtuozzo.com" <vdavydov@virtuozzo.com>, "minchan@kernel.org" <minchan@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Dave Jones <davej@codemonkey.org.uk>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-T24gMy8yOC8xNiwgMTozOCBQTSwgIkFuZHJldyBNb3J0b24iIDxha3BtQGxpbnV4LWZvdW5kYXRp
-b24ub3JnPiB3cm90ZToNCg0KDQo+T24gU2F0LCAyNiBNYXIgMjAxNiAwMToyNTowNCAtMDcwMCBO
-YWRhdiBBbWl0IDxuYW1pdEB2bXdhcmUuY29tPiB3cm90ZToNCj4NCj4+IFRMQl9SRU1PVEVfU0VO
-RF9JUEkgd2FzIHJlY2VudGx5IGludHJvZHVjZWQsIGJ1dCBpdCBjb3VudHMgYnl0ZXMgaW5zdGVh
-ZA0KPj4gb2YgcGFnZXMuIEluIGFkZGl0aW9uLCBpdCBkb2VzIG5vdCByZXBvcnQgY29ycmVjdGx5
-IHRoZSBjYXNlIGluIHdoaWNoDQo+PiBmbHVzaF90bGJfcGFnZSBmbHVzaGVzIGEgcGFnZS4gRml4
-IGl0IHRvIGJlIGNvbnNpc3RlbnQgd2l0aCBvdGhlciBUTEINCj4+IGNvdW50ZXJzLg0KPj4gDQo+
-PiBGaXhlczogNDU5NWY5NjIwY2RhOGExZTk3MzU4OGU3NDNjZjVmODQzNmRkMjBjNg0KPg0KPkkg
-dGhpbmsgeW91IG1lYW4gNWI3NDI4M2FiMjUxYjkgKCJ4ODYsIG1tOiB0cmFjZSB3aGVuIGFuIElQ
-SSBpcyBhYm91dA0KPnRvIGJlIHNlbnQiKT8NCg0KSW5kZWVkLg0KDQoNCg0K
+On Mon, 28 Mar 2016, Dave Jones wrote:
+
+> I hit this a few days ago.  I'm not 100% what kernel it was running,
+> but I'm pretty sure it was a post 4.5 kernel from this merge window.
+
+Thanks for the report.  All consistent with shmem_fallocate() somehow
+getting through its wake_up_all() without removing shmem_fault_wait
+from the shmem_falloc_waitq: things get interesting once finish_wait()
+thinks it's still on the queue, but the spinlock is now on stale stack.
+
+(And if you think that code is strange, yes, and it's really only
+there for trinity itself, while minimizing the cost to other users.)
+
+I don't see that anything relevant has changed here recently (neither
+at the shmem.c end nor at the wait.c end), and I don't see how it would
+come about.  Sorry, I can't suggest better than waiting to see if it
+happens again.
+
+Hugh
+
+> 
+> WARNING: CPU: 2 PID: 28919 at kernel/locking/lockdep.c:3198 __lock_acquire+0x74d/0x1c60
+> DEBUG_LOCKS_WARN_ON(class_idx > MAX_LOCKDEP_KEYS)
+> CPU: 2 PID: 28919 Comm: trinity-c30 Not tainted 4.5.0-think+ #6 
+>  ffffffffba141ccd 000000001ded0b05 ffff8803e4b67480 ffffffffba575c0b
+>  ffff8803e4b674f8 0000000000000000 ffff8803e4b674c8 ffffffffba0b3eb1
+>  ffff88045fbe37c0 00000c7ee4b674e0 ffffed007c96ce9b 0000000000000000
+> Call Trace:
+>  [<ffffffffba141ccd>] ? __lock_acquire+0x74d/0x1c60
+>  [<ffffffffba575c0b>] dump_stack+0x68/0x9d
+>  [<ffffffffba0b3eb1>] __warn+0x111/0x130
+>  [<ffffffffba0b3f84>] warn_slowpath_fmt+0xb4/0xf0
+>  [<ffffffffba0b3ed0>] ? __warn+0x130/0x130
+>  [<ffffffffba1409cb>] ? mark_lock+0x45b/0x800
+>  [<ffffffffba141ccd>] __lock_acquire+0x74d/0x1c60
+>  [<ffffffffba1611aa>] ? debug_lockdep_rcu_enabled.part.18+0x1a/0x30
+>  [<ffffffffba1611f5>] ? debug_lockdep_rcu_enabled+0x35/0x40
+>  [<ffffffffba141580>] ? debug_check_no_locks_freed+0x1b0/0x1b0
+>  [<ffffffffba141580>] ? debug_check_no_locks_freed+0x1b0/0x1b0
+>  [<ffffffffbad456b2>] ? _raw_spin_unlock_irq+0x32/0x50
+>  [<ffffffffba0f77aa>] ? preempt_count_sub+0x1a/0x130
+>  [<ffffffffba143dcf>] lock_acquire+0xcf/0x2a0
+>  [<ffffffffba12eba8>] ? finish_wait+0x68/0xc0
+>  [<ffffffffbad4541c>] _raw_spin_lock_irqsave+0x4c/0x90
+>  [<ffffffffba12eba8>] ? finish_wait+0x68/0xc0
+>  [<ffffffffba12eba8>] finish_wait+0x68/0xc0
+>  [<ffffffffba2a6453>] shmem_fault+0x323/0x390
+>  [<ffffffffba2a6130>] ? shmem_file_splice_read+0x720/0x720
+>  [<ffffffffba12f180>] ? prepare_to_wait_event+0x200/0x200
+>  [<ffffffffba1611f5>] ? debug_lockdep_rcu_enabled+0x35/0x40
+>  [<ffffffffba14063f>] ? mark_lock+0xcf/0x800
+>  [<ffffffffba2c3eb8>] __do_fault+0x138/0x2e0
+>  [<ffffffffba2c3d80>] ? wp_page_copy.isra.79+0x850/0x850
+>  [<ffffffffba2c9a5b>] handle_mm_fault+0x42b/0x2400
+>  [<ffffffffba141e38>] ? __lock_acquire+0x8b8/0x1c60
+>  [<ffffffffba14063f>] ? mark_lock+0xcf/0x800
+>  [<ffffffffba1611aa>] ? debug_lockdep_rcu_enabled.part.18+0x1a/0x30
+>  [<ffffffffba035e36>] ? native_sched_clock+0x66/0x160
+>  [<ffffffffba2c9630>] ? copy_page_range+0xec0/0xec0
+>  [<ffffffffba0f7a9e>] ? ___might_sleep.part.86+0x1de/0x2c0
+>  [<ffffffffba2bd8ad>] ? vmacache_find+0xed/0x140
+>  [<ffffffffba0722d2>] __do_page_fault+0x1d2/0x5a0
+>  [<ffffffffba4dd0d0>] ? SyS_shmget+0x100/0x100
+>  [<ffffffffba0726c0>] do_page_fault+0x20/0x70
+>  [<ffffffffbad469d7>] ? native_iret+0x7/0x7
+>  [<ffffffffbad47cdf>] page_fault+0x1f/0x30
+>  [<ffffffffba4dd0d0>] ? SyS_shmget+0x100/0x100
+>  [<ffffffffba58c112>] ? copy_user_enhanced_fast_string+0x2/0x10
+>  [<ffffffffba4dcb7f>] ? shmctl_nolock.constprop.24+0x5ff/0x690
+>  [<ffffffffba4dc847>] ? shmctl_nolock.constprop.24+0x2c7/0x690
+>  [<ffffffffba141580>] ? debug_check_no_locks_freed+0x1b0/0x1b0
+>  [<ffffffffba4dc580>] ? newseg+0x5e0/0x5e0
+>  [<ffffffffba5a7247>] ? debug_smp_processor_id+0x17/0x20
+>  [<ffffffffba0f7849>] ? preempt_count_sub+0xb9/0x130
+>  [<ffffffffba4dd0d0>] ? SyS_shmget+0x100/0x100
+>  [<ffffffffba4dd412>] SyS_shmctl+0x342/0x490
+>  [<ffffffffba003aa4>] do_syscall_64+0xf4/0x240
+>  [<ffffffffbad4605a>] entry_SYSCALL64_slow_path+0x25/0x25
+> ---[ end trace 638c142c3cb9ddb1 ]---
+> ==================================================================
+> BUG: KASAN: stack-out-of-bounds in do_raw_spin_trylock+0x14/0x70 at addr ffff8803ee067ba0
+> Read of size 4 by task trinity-c30/28919
+> page:ffffea000fb819c0 count:0 mapcount:0 mapping:          (null) index:0x0
+> flags: 0x8000000000000000()
+> page dumped because: kasan: bad access detected
+> CPU: 2 PID: 28919 Comm: trinity-c30 Tainted: G        W       4.5.0-think+ #6
+>  ffff8803e4b678b0 000000001ded0b05 ffff8803e4b676a0 ffffffffba575c0b
+>  ffff8803e4b67738 ffff8803ee067ba0 ffff8803e4b67728 ffffffffba308cb3
+>  0000000000000003 dffffc0000000000 0000000000000082 0000000000000001
+> Call Trace:
+>  [<ffffffffba575c0b>] dump_stack+0x68/0x9d
+>  [<ffffffffba308cb3>] kasan_report_error+0x503/0x530
+>  [<ffffffffbad456b2>] ? _raw_spin_unlock_irq+0x32/0x50
+>  [<ffffffffba0f77aa>] ? preempt_count_sub+0x1a/0x130
+>  [<ffffffffba309278>] kasan_report+0x58/0x60
+>  [<ffffffffba149ca4>] ? do_raw_spin_trylock+0x14/0x70
+>  [<ffffffffba307a8a>] __asan_load4+0x6a/0x70
+>  [<ffffffffba149ca4>] do_raw_spin_trylock+0x14/0x70
+>  [<ffffffffbad45424>] _raw_spin_lock_irqsave+0x54/0x90
+>  [<ffffffffba12eba8>] ? finish_wait+0x68/0xc0
+>  [<ffffffffba12eba8>] finish_wait+0x68/0xc0
+>  [<ffffffffba2a6453>] shmem_fault+0x323/0x390
+>  [<ffffffffba2a6130>] ? shmem_file_splice_read+0x720/0x720
+>  [<ffffffffba12f180>] ? prepare_to_wait_event+0x200/0x200
+>  [<ffffffffba1611f5>] ? debug_lockdep_rcu_enabled+0x35/0x40
+>  [<ffffffffba14063f>] ? mark_lock+0xcf/0x800
+>  [<ffffffffba2c3eb8>] __do_fault+0x138/0x2e0
+>  [<ffffffffba2c3d80>] ? wp_page_copy.isra.79+0x850/0x850
+>  [<ffffffffba2c9a5b>] handle_mm_fault+0x42b/0x2400
+>  [<ffffffffba141e38>] ? __lock_acquire+0x8b8/0x1c60
+>  [<ffffffffba14063f>] ? mark_lock+0xcf/0x800
+>  [<ffffffffba1611aa>] ? debug_lockdep_rcu_enabled.part.18+0x1a/0x30
+>  [<ffffffffba035e36>] ? native_sched_clock+0x66/0x160
+>  [<ffffffffba2c9630>] ? copy_page_range+0xec0/0xec0
+>  [<ffffffffba0f7a9e>] ? ___might_sleep.part.86+0x1de/0x2c0
+>  [<ffffffffba2bd8ad>] ? vmacache_find+0xed/0x140
+>  [<ffffffffba0722d2>] __do_page_fault+0x1d2/0x5a0
+>  [<ffffffffba4dd0d0>] ? SyS_shmget+0x100/0x100
+>  [<ffffffffba0726c0>] do_page_fault+0x20/0x70
+>  [<ffffffffbad469d7>] ? native_iret+0x7/0x7
+>  [<ffffffffbad47cdf>] page_fault+0x1f/0x30
+>  [<ffffffffba4dd0d0>] ? SyS_shmget+0x100/0x100
+>  [<ffffffffba58c112>] ? copy_user_enhanced_fast_string+0x2/0x10
+>  [<ffffffffba4dcb7f>] ? shmctl_nolock.constprop.24+0x5ff/0x690
+>  [<ffffffffba4dc847>] ? shmctl_nolock.constprop.24+0x2c7/0x690
+>  [<ffffffffba141580>] ? debug_check_no_locks_freed+0x1b0/0x1b0
+>  [<ffffffffba4dc580>] ? newseg+0x5e0/0x5e0
+>  [<ffffffffba5a7247>] ? debug_smp_processor_id+0x17/0x20
+>  [<ffffffffba0f7849>] ? preempt_count_sub+0xb9/0x130
+>  [<ffffffffba4dd0d0>] ? SyS_shmget+0x100/0x100
+>  [<ffffffffba4dd412>] SyS_shmctl+0x342/0x490
+>  [<ffffffffba003aa4>] do_syscall_64+0xf4/0x240
+>  [<ffffffffbad4605a>] entry_SYSCALL64_slow_path+0x25/0x25
+> Memory state around the buggy address:
+>  ffff8803ee067a80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>  ffff8803ee067b00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> >ffff8803ee067b80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>                                ^
+>  ffff8803ee067c00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>  ffff8803ee067c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> ==================================================================
+> ------------[ cut here ]------------
+> WARNING: CPU: 2 PID: 28919 at lib/list_debug.c:59 __list_del_entry+0xdc/0x100
+> list_del corruption. prev->next should be ffff8803e4b678a8, but was 0000000041b58ab3
+> CPU: 2 PID: 28919 Comm: trinity-c30 Tainted: G    B   W       4.5.0-think+ #6
+>  ffffffffba5a743c 000000001ded0b05 ffff8803e4b67690 ffffffffba575c0b
+>  ffff8803e4b67708 0000000000000000 ffff8803e4b676d8 ffffffffba0b3eb1
+>  ffff88045fbe37c0 0000003bba308c0c ffffed007c96cedd ffff8803ee067be8
+> Call Trace:
+>  [<ffffffffba5a743c>] ? __list_del_entry+0xdc/0x100
+>  [<ffffffffba575c0b>] dump_stack+0x68/0x9d
+>  [<ffffffffba0b3eb1>] __warn+0x111/0x130
+>  [<ffffffffba0b3f84>] warn_slowpath_fmt+0xb4/0xf0
+>  [<ffffffffba0b3ed0>] ? __warn+0x130/0x130
+>  [<ffffffffba58c6a4>] ? delay_tsc+0x94/0xc0
+>  [<ffffffffba12eba8>] ? finish_wait+0x68/0xc0
+>  [<ffffffffba5a743c>] __list_del_entry+0xdc/0x100
+>  [<ffffffffba12ebb3>] finish_wait+0x73/0xc0
+>  [<ffffffffba2a6453>] shmem_fault+0x323/0x390
+>  [<ffffffffba2a6130>] ? shmem_file_splice_read+0x720/0x720
+>  [<ffffffffba12f180>] ? prepare_to_wait_event+0x200/0x200
+>  [<ffffffffba1611f5>] ? debug_lockdep_rcu_enabled+0x35/0x40
+>  [<ffffffffba14063f>] ? mark_lock+0xcf/0x800
+>  [<ffffffffba2c3eb8>] __do_fault+0x138/0x2e0
+>  [<ffffffffba2c3d80>] ? wp_page_copy.isra.79+0x850/0x850
+>  [<ffffffffba2c9a5b>] handle_mm_fault+0x42b/0x2400
+>  [<ffffffffba141e38>] ? __lock_acquire+0x8b8/0x1c60
+>  [<ffffffffba14063f>] ? mark_lock+0xcf/0x800
+>  [<ffffffffba1611aa>] ? debug_lockdep_rcu_enabled.part.18+0x1a/0x30
+>  [<ffffffffba035e36>] ? native_sched_clock+0x66/0x160
+>  [<ffffffffba2c9630>] ? copy_page_range+0xec0/0xec0
+>  [<ffffffffba0f7a9e>] ? ___might_sleep.part.86+0x1de/0x2c0
+>  [<ffffffffba2bd8ad>] ? vmacache_find+0xed/0x140
+>  [<ffffffffba0722d2>] __do_page_fault+0x1d2/0x5a0
+>  [<ffffffffba4dd0d0>] ? SyS_shmget+0x100/0x100
+>  [<ffffffffba0726c0>] do_page_fault+0x20/0x70
+>  [<ffffffffbad469d7>] ? native_iret+0x7/0x7
+>  [<ffffffffbad47cdf>] page_fault+0x1f/0x30
+>  [<ffffffffba4dd0d0>] ? SyS_shmget+0x100/0x100
+>  [<ffffffffba58c112>] ? copy_user_enhanced_fast_string+0x2/0x10
+>  [<ffffffffba4dcb7f>] ? shmctl_nolock.constprop.24+0x5ff/0x690
+>  [<ffffffffba4dc847>] ? shmctl_nolock.constprop.24+0x2c7/0x690
+>  [<ffffffffba141580>] ? debug_check_no_locks_freed+0x1b0/0x1b0
+>  [<ffffffffba4dc580>] ? newseg+0x5e0/0x5e0
+>  [<ffffffffba5a7247>] ? debug_smp_processor_id+0x17/0x20
+>  [<ffffffffba0f7849>] ? preempt_count_sub+0xb9/0x130
+>  [<ffffffffba4dd0d0>] ? SyS_shmget+0x100/0x100
+>  [<ffffffffba4dd412>] SyS_shmctl+0x342/0x490
+>  [<ffffffffba003aa4>] do_syscall_64+0xf4/0x240
+>  [<ffffffffbad4605a>] entry_SYSCALL64_slow_path+0x25/0x25
+> ---[ end trace 638c142c3cb9ddb2 ]---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
