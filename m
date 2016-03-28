@@ -1,78 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CC6C6B007E
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 19:15:51 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id td3so108144914pab.2
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 16:15:51 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 73si18473206pfq.164.2016.03.28.16.15.50
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id EC8D56B007E
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 19:34:16 -0400 (EDT)
+Received: by mail-ob0-f172.google.com with SMTP id m7so110888159obh.3
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 16:34:16 -0700 (PDT)
+Received: from mail-ob0-x230.google.com (mail-ob0-x230.google.com. [2607:f8b0:4003:c01::230])
+        by mx.google.com with ESMTPS id v34si11051650otv.154.2016.03.28.16.34.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Mar 2016 16:15:50 -0700 (PDT)
-Date: Mon, 28 Mar 2016 16:15:49 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm/vmap: Add a notifier for when we run out of vmap
- address space
-Message-Id: <20160328161549.c77046847a8ae791cb436aff@linux-foundation.org>
-In-Reply-To: <20160317134156.GX14143@nuc-i3427.alporthouse.com>
-References: <1458215982-13405-1-git-send-email-chris@chris-wilson.co.uk>
-	<1458221699-13734-1-git-send-email-chris@chris-wilson.co.uk>
-	<20160317134156.GX14143@nuc-i3427.alporthouse.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 28 Mar 2016 16:34:16 -0700 (PDT)
+Received: by mail-ob0-x230.google.com with SMTP id m7so110888031obh.3
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 16:34:16 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1459195288.15523.3.camel@intel.com>
+References: <1458861450-17705-1-git-send-email-vishal.l.verma@intel.com>
+	<1458861450-17705-5-git-send-email-vishal.l.verma@intel.com>
+	<CAPcyv4iKK=1Nhz4QqEkhc4gum+UvUS4a=+Sza2zSa1Kyrth41w@mail.gmail.com>
+	<1458939796.5501.8.camel@intel.com>
+	<CAPcyv4jWqVcav7dQPh7WHpqB6QDrCezO5jbd9QW9xH3zsU4C1w@mail.gmail.com>
+	<1459195288.15523.3.camel@intel.com>
+Date: Mon, 28 Mar 2016 16:34:16 -0700
+Message-ID: <CAPcyv4jFwh679arTNoUzLZpJCSoR+KhMdEmwqddCU1RWOrjD=Q@mail.gmail.com>
+Subject: Re: [PATCH 4/5] dax: use sb_issue_zerout instead of calling dax_clear_sectors
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: intel-gfx@lists.freedesktop.org, David Rientjes <rientjes@google.com>, Roman Peniaev <r.peniaev@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Verma, Vishal L" <vishal.l.verma@intel.com>
+Cc: "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "axboe@fb.com" <axboe@fb.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>
 
-On Thu, 17 Mar 2016 13:41:56 +0000 Chris Wilson <chris@chris-wilson.co.uk> wrote:
+On Mon, Mar 28, 2016 at 1:01 PM, Verma, Vishal L
+<vishal.l.verma@intel.com> wrote:
+> On Fri, 2016-03-25 at 14:20 -0700, Dan Williams wrote:
+>> On Fri, Mar 25, 2016 at 2:03 PM, Verma, Vishal L
+>> <vishal.l.verma@intel.com> wrote:
+>> >
+>> > On Fri, 2016-03-25 at 11:47 -0700, Dan Williams wrote:
+>> > >
+>> > > On Thu, Mar 24, 2016 at 4:17 PM, Vishal Verma <vishal.l.verma@int
+>> > > el.c
+>> > > om> wrote:
+>> > > >
+>> > > >
+>> > > > From: Matthew Wilcox <matthew.r.wilcox@intel.com>
+>> > > >
+>> > > > dax_clear_sectors() cannot handle poisoned blocks.  These must
+>> > > > be
+>> > > > zeroed using the BIO interface instead.  Convert ext2 and XFS
+>> > > > to
+>> > > > use
+>> > > > only sb_issue_zerout().
+>> > > >
+>> > > > Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+>> > > > [vishal: Also remove the dax_clear_sectors function entirely]
+>> > > > Signed-off-by: Vishal Verma <vishal.l.verma@intel.com>
+>> > > > ---
+>> > > >  fs/dax.c               | 32 --------------------------------
+>> > > >  fs/ext2/inode.c        |  7 +++----
+>> > > >  fs/xfs/xfs_bmap_util.c |  9 ---------
+>> > > >  include/linux/dax.h    |  1 -
+>> > > >  4 files changed, 3 insertions(+), 46 deletions(-)
+>> > > >
+>> > > > diff --git a/fs/dax.c b/fs/dax.c
+>> > > > index bb7e9f8..a30481e 100644
+>> > > > --- a/fs/dax.c
+>> > > > +++ b/fs/dax.c
+>> > > > @@ -78,38 +78,6 @@ struct page *read_dax_sector(struct
+>> > > > block_device
+>> > > > *bdev, sector_t n)
+>> > > >         return page;
+>> > > >  }
+>> > > >
+>> > > > -/*
+>> > > > - * dax_clear_sectors() is called from within transaction
+>> > > > context
+>> > > > from XFS,
+>> > > > - * and hence this means the stack from this point must follow
+>> > > > GFP_NOFS
+>> > > > - * semantics for all operations.
+>> > > > - */
+>> > > > -int dax_clear_sectors(struct block_device *bdev, sector_t
+>> > > > _sector,
+>> > > > long _size)
+>> > > > -{
+>> > > > -       struct blk_dax_ctl dax = {
+>> > > > -               .sector = _sector,
+>> > > > -               .size = _size,
+>> > > > -       };
+>> > > > -
+>> > > > -       might_sleep();
+>> > > > -       do {
+>> > > > -               long count, sz;
+>> > > > -
+>> > > > -               count = dax_map_atomic(bdev, &dax);
+>> > > > -               if (count < 0)
+>> > > > -                       return count;
+>> > > > -               sz = min_t(long, count, SZ_128K);
+>> > > > -               clear_pmem(dax.addr, sz);
+>> > > > -               dax.size -= sz;
+>> > > > -               dax.sector += sz / 512;
+>> > > > -               dax_unmap_atomic(bdev, &dax);
+>> > > > -               cond_resched();
+>> > > > -       } while (dax.size);
+>> > > > -
+>> > > > -       wmb_pmem();
+>> > > > -       return 0;
+>> > > > -}
+>> > > > -EXPORT_SYMBOL_GPL(dax_clear_sectors);
+>> > > What about the other unwritten extent conversions in the dax
+>> > > path?
+>> > > Shouldn't those be converted to block-layer zero-outs as well?
+>> > Could you point me to where these might be? I thought once we've
+>> > converted all the zeroout type callers (by removing
+>> > dax_clear_sectors),
+>> > and fixed up dax_do_io to try a driver fallback, we've handled all
+>> > the
+>> > media error cases in dax..
+>> grep for usages of clear_pmem()... which I was hoping to eliminate
+>> after this change to push zeroing down to the driver.
+>
+> Ok, so I looked at these, and it looks like the majority of callers of
+> clear_pmem are from the fault path (either pmd or regular), and in
+> those cases we should be 'protected', as we would have failed at a
+> prior step (dax_map_atomic).
 
-> On Thu, Mar 17, 2016 at 01:34:59PM +0000, Chris Wilson wrote:
-> > vmaps are temporary kernel mappings that may be of long duration.
-> > Reusing a vmap on an object is preferrable for a driver as the cost of
-> > setting up the vmap can otherwise dominate the operation on the object.
-> > However, the vmap address space is rather limited on 32bit systems and
-> > so we add a notification for vmap pressure in order for the driver to
-> > release any cached vmappings.
-> > 
-> > The interface is styled after the oom-notifier where the callees are
-> > passed a pointer to an unsigned long counter for them to indicate if they
-> > have freed any space.
-> > 
-> > v2: Guard the blocking notifier call with gfpflags_allow_blocking()
-> > 
-> > Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: David Rientjes <rientjes@google.com>
-> > Cc: Roman Peniaev <r.peniaev@gmail.com>
-> > Cc: Mel Gorman <mgorman@techsingularity.net>
-> > Cc: linux-mm@kvack.org
-> > Cc: linux-kernel@vger.kernel.org
-> > ---
-> >  include/linux/vmalloc.h |  4 ++++
-> >  mm/vmalloc.c            | 27 +++++++++++++++++++++++++++
-> >  2 files changed, 31 insertions(+)
-> > 
-> > diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-> > index d1f1d338af20..edd676b8e112 100644
-> > --- a/include/linux/vmalloc.h
-> > +++ b/include/linux/vmalloc.h
-> > @@ -187,4 +187,8 @@ pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
-> >  #define VMALLOC_TOTAL 0UL
-> >  #endif
-> >  
-> > +struct notitifer_block;
-> Omg. /o\
-
-Hah.
-
-Please move the forward declaration to top-of-file.  This prevents
-people from later adding the same thing at line 100 - this has happened
-before.
-
-Apart from that, all looks OK to me - please merge it via the DRM tree
-if that is more convenient.
+Seems kind of sad to fail the fault due to a bad block when we were
+going to zero it anyway, right?  I'm not seeing a compelling reason to
+keep any zeroing in fs/dax.c.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
