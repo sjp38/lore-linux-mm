@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A505D6B0260
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 02:30:12 -0400 (EDT)
-Received: by mail-pf0-f172.google.com with SMTP id x3so130019830pfb.1
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 23:30:12 -0700 (PDT)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id e3si2667712pap.82.2016.03.27.23.30.11
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D8DC6B0264
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 02:30:16 -0400 (EDT)
+Received: by mail-pf0-f179.google.com with SMTP id x3so130021175pfb.1
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 23:30:16 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id c90si11065318pfd.233.2016.03.27.23.30.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Mar 2016 23:30:11 -0700 (PDT)
-Received: by mail-pf0-x22d.google.com with SMTP id x3so130019630pfb.1
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 23:30:11 -0700 (PDT)
+        Sun, 27 Mar 2016 23:30:15 -0700 (PDT)
+Received: by mail-pa0-x236.google.com with SMTP id td3so90771563pab.2
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 23:30:15 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH v2 1/2] mm/page_ref: use page_ref helper instead of direct modification of _count
-Date: Mon, 28 Mar 2016 15:30:00 +0900
-Message-Id: <1459146601-11448-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 2/2] mm: rename _count, field of the struct page, to _refcount
+Date: Mon, 28 Mar 2016 15:30:01 +0900
+Message-Id: <1459146601-11448-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1459146601-11448-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1459146601-11448-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -22,70 +24,187 @@ Cc: Hugh Dickins <hughd@google.com>, Johannes Berg <johannes@sipsolutions.net>, 
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-page_reference manipulation functions are introduced to track down
-reference count change of the page. Use it instead of direct modification
-of _count.
+Many developer already know that field for reference count of
+the struct page is _count and atomic type. They would try to handle it
+directly and this could break the purpose of page reference count
+tracepoint. To prevent direct _count modification, this patch rename it
+to _refcount and add warning message on the code. After that, developer
+who need to handle reference count will find that field should not be
+accessed directly.
+
+v2: change more _count usages to _refcount
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- drivers/net/ethernet/cavium/thunder/nicvf_queues.c | 2 +-
- drivers/net/ethernet/qlogic/qede/qede_main.c       | 2 +-
- mm/filemap.c                                       | 2 +-
- net/wireless/util.c                                | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ arch/tile/mm/init.c      |  2 +-
+ include/linux/mm_types.h |  8 ++++++--
+ include/linux/page_ref.h | 26 +++++++++++++-------------
+ kernel/kexec_core.c      |  2 +-
+ 4 files changed, 21 insertions(+), 17 deletions(-)
 
-diff --git a/drivers/net/ethernet/cavium/thunder/nicvf_queues.c b/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
-index fa05e34..8acd7c0 100644
---- a/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
-+++ b/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
-@@ -23,7 +23,7 @@ static void nicvf_get_page(struct nicvf *nic)
- 	if (!nic->rb_pageref || !nic->rb_page)
- 		return;
- 
--	atomic_add(nic->rb_pageref, &nic->rb_page->_count);
-+	page_ref_add(nic->rb_page, nic->rb_pageref);
- 	nic->rb_pageref = 0;
- }
- 
-diff --git a/drivers/net/ethernet/qlogic/qede/qede_main.c b/drivers/net/ethernet/qlogic/qede/qede_main.c
-index 518af32..394c97ff 100644
---- a/drivers/net/ethernet/qlogic/qede/qede_main.c
-+++ b/drivers/net/ethernet/qlogic/qede/qede_main.c
-@@ -791,7 +791,7 @@ static inline int qede_realloc_rx_buffer(struct qede_dev *edev,
- 		 * network stack to take the ownership of the page
- 		 * which can be recycled multiple times by the driver.
- 		 */
--		atomic_inc(&curr_cons->data->_count);
-+		page_ref_inc(curr_cons->data);
- 		qede_reuse_page(edev, rxq, curr_cons);
- 	}
- 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index a8c69c8..0ebd326 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -213,7 +213,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 			 * some other bad page check should catch it later.
+diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
+index a0582b7..adce254 100644
+--- a/arch/tile/mm/init.c
++++ b/arch/tile/mm/init.c
+@@ -679,7 +679,7 @@ static void __init init_free_pfn_range(unsigned long start, unsigned long end)
+ 			 * Hacky direct set to avoid unnecessary
+ 			 * lock take/release for EVERY page here.
  			 */
- 			page_mapcount_reset(page);
--			atomic_sub(mapcount, &page->_count);
-+			page_ref_sub(page, mapcount);
+-			p->_count.counter = 0;
++			p->_refcount.counter = 0;
+ 			p->_mapcount.counter = -1;
  		}
- 	}
+ 		init_page_count(page);
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 944b2b3..9e8eb5a 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -97,7 +97,11 @@ struct page {
+ 					};
+ 					int units;	/* SLOB */
+ 				};
+-				atomic_t _count;		/* Usage count, see below. */
++				/*
++				 * Usage count, *USE WRAPPER FUNCTION*
++				 * when manual accounting. See page_ref.h
++				 */
++				atomic_t _refcount;
+ 			};
+ 			unsigned int active;	/* SLAB */
+ 		};
+@@ -248,7 +252,7 @@ struct page_frag_cache {
+ 	__u32 offset;
+ #endif
+ 	/* we maintain a pagecount bias, so that we dont dirty cache line
+-	 * containing page->_count every time we allocate a fragment.
++	 * containing page->_refcount every time we allocate a fragment.
+ 	 */
+ 	unsigned int		pagecnt_bias;
+ 	bool pfmemalloc;
+diff --git a/include/linux/page_ref.h b/include/linux/page_ref.h
+index e596d5d9..8b5e0a9 100644
+--- a/include/linux/page_ref.h
++++ b/include/linux/page_ref.h
+@@ -63,17 +63,17 @@ static inline void __page_ref_unfreeze(struct page *page, int v)
  
-diff --git a/net/wireless/util.c b/net/wireless/util.c
-index 9f440a9..e22432a 100644
---- a/net/wireless/util.c
-+++ b/net/wireless/util.c
-@@ -651,7 +651,7 @@ __frame_add_frag(struct sk_buff *skb, struct page *page,
- 	struct skb_shared_info *sh = skb_shinfo(skb);
- 	int page_offset;
- 
--	atomic_inc(&page->_count);
-+	page_ref_inc(page);
- 	page_offset = ptr - page_address(page);
- 	skb_add_rx_frag(skb, sh->nr_frags, page, page_offset, len, size);
+ static inline int page_ref_count(struct page *page)
+ {
+-	return atomic_read(&page->_count);
++	return atomic_read(&page->_refcount);
  }
+ 
+ static inline int page_count(struct page *page)
+ {
+-	return atomic_read(&compound_head(page)->_count);
++	return atomic_read(&compound_head(page)->_refcount);
+ }
+ 
+ static inline void set_page_count(struct page *page, int v)
+ {
+-	atomic_set(&page->_count, v);
++	atomic_set(&page->_refcount, v);
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_set))
+ 		__page_ref_set(page, v);
+ }
+@@ -89,35 +89,35 @@ static inline void init_page_count(struct page *page)
+ 
+ static inline void page_ref_add(struct page *page, int nr)
+ {
+-	atomic_add(nr, &page->_count);
++	atomic_add(nr, &page->_refcount);
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod))
+ 		__page_ref_mod(page, nr);
+ }
+ 
+ static inline void page_ref_sub(struct page *page, int nr)
+ {
+-	atomic_sub(nr, &page->_count);
++	atomic_sub(nr, &page->_refcount);
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod))
+ 		__page_ref_mod(page, -nr);
+ }
+ 
+ static inline void page_ref_inc(struct page *page)
+ {
+-	atomic_inc(&page->_count);
++	atomic_inc(&page->_refcount);
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod))
+ 		__page_ref_mod(page, 1);
+ }
+ 
+ static inline void page_ref_dec(struct page *page)
+ {
+-	atomic_dec(&page->_count);
++	atomic_dec(&page->_refcount);
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod))
+ 		__page_ref_mod(page, -1);
+ }
+ 
+ static inline int page_ref_sub_and_test(struct page *page, int nr)
+ {
+-	int ret = atomic_sub_and_test(nr, &page->_count);
++	int ret = atomic_sub_and_test(nr, &page->_refcount);
+ 
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod_and_test))
+ 		__page_ref_mod_and_test(page, -nr, ret);
+@@ -126,7 +126,7 @@ static inline int page_ref_sub_and_test(struct page *page, int nr)
+ 
+ static inline int page_ref_dec_and_test(struct page *page)
+ {
+-	int ret = atomic_dec_and_test(&page->_count);
++	int ret = atomic_dec_and_test(&page->_refcount);
+ 
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod_and_test))
+ 		__page_ref_mod_and_test(page, -1, ret);
+@@ -135,7 +135,7 @@ static inline int page_ref_dec_and_test(struct page *page)
+ 
+ static inline int page_ref_dec_return(struct page *page)
+ {
+-	int ret = atomic_dec_return(&page->_count);
++	int ret = atomic_dec_return(&page->_refcount);
+ 
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod_and_return))
+ 		__page_ref_mod_and_return(page, -1, ret);
+@@ -144,7 +144,7 @@ static inline int page_ref_dec_return(struct page *page)
+ 
+ static inline int page_ref_add_unless(struct page *page, int nr, int u)
+ {
+-	int ret = atomic_add_unless(&page->_count, nr, u);
++	int ret = atomic_add_unless(&page->_refcount, nr, u);
+ 
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_mod_unless))
+ 		__page_ref_mod_unless(page, nr, ret);
+@@ -153,7 +153,7 @@ static inline int page_ref_add_unless(struct page *page, int nr, int u)
+ 
+ static inline int page_ref_freeze(struct page *page, int count)
+ {
+-	int ret = likely(atomic_cmpxchg(&page->_count, count, 0) == count);
++	int ret = likely(atomic_cmpxchg(&page->_refcount, count, 0) == count);
+ 
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_freeze))
+ 		__page_ref_freeze(page, count, ret);
+@@ -165,7 +165,7 @@ static inline void page_ref_unfreeze(struct page *page, int count)
+ 	VM_BUG_ON_PAGE(page_count(page) != 0, page);
+ 	VM_BUG_ON(count == 0);
+ 
+-	atomic_set(&page->_count, count);
++	atomic_set(&page->_refcount, count);
+ 	if (page_ref_tracepoint_active(__tracepoint_page_ref_unfreeze))
+ 		__page_ref_unfreeze(page, count);
+ }
+diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+index f826e11..e0e95b0 100644
+--- a/kernel/kexec_core.c
++++ b/kernel/kexec_core.c
+@@ -1410,7 +1410,7 @@ static int __init crash_save_vmcoreinfo_init(void)
+ 	VMCOREINFO_STRUCT_SIZE(list_head);
+ 	VMCOREINFO_SIZE(nodemask_t);
+ 	VMCOREINFO_OFFSET(page, flags);
+-	VMCOREINFO_OFFSET(page, _count);
++	VMCOREINFO_OFFSET(page, _refcount);
+ 	VMCOREINFO_OFFSET(page, mapping);
+ 	VMCOREINFO_OFFSET(page, lru);
+ 	VMCOREINFO_OFFSET(page, _mapcount);
 -- 
 1.9.1
 
