@@ -1,72 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id AEAB26B007E
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 14:42:16 -0400 (EDT)
-Received: by mail-pf0-f177.google.com with SMTP id 4so143850427pfd.0
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 11:42:16 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id d27si16877641pfj.14.2016.03.28.11.42.16
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id BB1166B007E
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 15:30:02 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id zm5so19380092pac.0
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 12:30:02 -0700 (PDT)
+Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com. [209.85.192.181])
+        by mx.google.com with ESMTPS id p28si4713165pfi.167.2016.03.28.12.30.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Mar 2016 11:42:16 -0700 (PDT)
-Received: by mail-pa0-x22a.google.com with SMTP id zm5so18569073pac.0
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 11:42:16 -0700 (PDT)
-Date: Mon, 28 Mar 2016 11:42:05 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCHv4 00/25] THP-enabled tmpfs/shmem
-In-Reply-To: <20160328180029.GB25200@node.shutemov.name>
-Message-ID: <alpine.LSU.2.11.1603281140010.1086@eggly.anvils>
-References: <1457737157-38573-1-git-send-email-kirill.shutemov@linux.intel.com> <alpine.LSU.2.11.1603231305560.4946@eggly.anvils> <20160324091727.GA26796@node.shutemov.name> <alpine.LSU.2.11.1603241153120.1593@eggly.anvils> <20160325150417.GA1851@node.shutemov.name>
- <alpine.LSU.2.11.1603251635490.1115@eggly.anvils> <20160328180029.GB25200@node.shutemov.name>
+        Mon, 28 Mar 2016 12:30:01 -0700 (PDT)
+Received: by mail-pf0-f181.google.com with SMTP id x3so144571857pfb.1
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 12:30:01 -0700 (PDT)
+Subject: Re: [RFC PATCH] Add support for eXclusive Page Frame Ownership (XPFO)
+References: <1456496467-14247-1-git-send-email-juerg.haefliger@hpe.com>
+ <56D4F0D6.2060308@redhat.com> <56EFB2DB.3090602@hpe.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <56F98637.4070705@redhat.com>
+Date: Mon, 28 Mar 2016 12:29:59 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <56EFB2DB.3090602@hpe.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Juerg Haefliger <juerg.haefliger@hpe.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: vpk@cs.brown.edu, Kees Cook <keescook@chromium.org>
 
-On Mon, 28 Mar 2016, Kirill A. Shutemov wrote:
-> 
-> I think I found it. I have refcounting screwed up in faultaround.
-> 
-> This should fix the problem:
+On 03/21/2016 01:37 AM, Juerg Haefliger wrote:
+...
+>>> +void xpfo_free_page(struct page *page, int order)
+>>> +{
+>>> +    int i;
+>>> +    unsigned long kaddr;
+>>> +
+>>> +    for (i = 0; i < (1 << order); i++) {
+>>> +
+>>> +        /* The page frame was previously allocated to user space */
+>>> +        if (TEST_AND_CLEAR_XPFO_FLAG(user, page + i)) {
+>>> +            kaddr = (unsigned long)page_address(page + i);
+>>> +
+>>> +            /* Clear the page and mark it accordingly */
+>>> +            clear_page((void *)kaddr);
+>>
+>> Clearing the page isn't related to XPFO. There's other work ongoing to
+>> do clearing of the page on free.
+>
+> It's not strictly related to XPFO but adds another layer of security. Do you
+> happen to have a pointer to the ongoing work that you mentioned?
+>
+>
 
-Yes, this fixes it for me - thanks.
+The work was merged for the 4.6 merge window
+https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=8823b1dbc05fab1a8bec275eeae4709257c2661d
 
-Hugh
+This is a separate option to clear the page.
 
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 94c097ec08e7..1325bb4568d1 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2292,19 +2292,18 @@ repeat:
->  		if (fe->pte)
->  			fe->pte += iter.index - last_pgoff;
->  		last_pgoff = iter.index;
-> -		alloc_set_pte(fe, NULL, page);
-> +		if (alloc_set_pte(fe, NULL, page))
-> +			goto unlock;
->  		unlock_page(page);
-> -		/* Huge page is mapped? No need to proceed. */
-> -		if (pmd_trans_huge(*fe->pmd))
-> -			break;
-> -		/* Failed to setup page table? */
-> -		VM_BUG_ON(!fe->pte);
->  		goto next;
->  unlock:
->  		unlock_page(page);
->  skip:
->  		page_cache_release(page);
->  next:
-> +		/* Huge page is mapped? No need to proceed. */
-> +		if (pmd_trans_huge(*fe->pmd))
-> +			break;
->  		if (iter.index == end_pgoff)
->  			break;
->  	}
-> -- 
->  Kirill A. Shutemov
+...
+
+>>> @@ -2072,10 +2076,11 @@ void free_hot_cold_page(struct page *page, bool cold)
+>>>        }
+>>>
+>>>        pcp = &this_cpu_ptr(zone->pageset)->pcp;
+>>> -    if (!cold)
+>>> +    if (!cold && !xpfo_test_kernel(page))
+>>>            list_add(&page->lru, &pcp->lists[migratetype]);
+>>>        else
+>>>            list_add_tail(&page->lru, &pcp->lists[migratetype]);
+>>> +
+>>
+>> What's the advantage of this?
+>
+> Allocating a page to userspace that was previously allocated to kernel space
+> requires an expensive TLB shootdown. The above will put previously
+> kernel-allocated pages in the cold page cache to postpone their allocation as
+> long as possible to minimize TLB shootdowns.
+>
+>
+
+That makes sense. You probably want to make this a separate commmit with
+this explanation as the commit text.
+
+
+>>>        pcp->count++;
+>>>        if (pcp->count >= pcp->high) {
+>>>            unsigned long batch = READ_ONCE(pcp->batch);
+>>>
+>
+> Thanks for the review and comments! It's highly appreciated.
+>
+> ...Juerg
+>
+>
+>> Thanks,
+>> Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
