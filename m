@@ -1,96 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 35D8A6B007E
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:07:06 -0400 (EDT)
-Received: by mail-pf0-f175.google.com with SMTP id 4so128730890pfd.0
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:07:06 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id m21si17779220pfi.12.2016.03.27.22.07.04
-        for <linux-mm@kvack.org>;
-        Sun, 27 Mar 2016 22:07:05 -0700 (PDT)
-Date: Mon, 28 Mar 2016 14:08:41 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2 00/18] Support non-lru page migration
-Message-ID: <20160328050841.GC31023@bbox>
-References: <1458541867-27380-1-git-send-email-minchan@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1458541867-27380-1-git-send-email-minchan@kernel.org>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 794586B025E
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:27:13 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id td3so89738747pab.2
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:13 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id 18si23915042pfr.205.2016.03.27.22.27.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 27 Mar 2016 22:27:12 -0700 (PDT)
+Received: by mail-pa0-x232.google.com with SMTP id td3so89738569pab.2
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:12 -0700 (PDT)
+From: js1304@gmail.com
+Subject: mm/slab: reduce lock contention in alloc path
+Date: Mon, 28 Mar 2016 14:26:50 +0900
+Message-Id: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hello Andrew,
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon, Mar 21, 2016 at 03:30:49PM +0900, Minchan Kim wrote:
-> Recently, I got many reports about perfermance degradation
-> in embedded system(Android mobile phone, webOS TV and so on)
-> and failed to fork easily.
-> 
-> The problem was fragmentation caused by zram and GPU driver
-> pages. Their pages cannot be migrated so compaction cannot
-> work well, either so reclaimer ends up shrinking all of working
-> set pages. It made system very slow and even to fail to fork
-> easily.
-> 
-> Other pain point is that they cannot work with CMA.
-> Most of CMA memory space could be idle(ie, it could be used
-> for movable pages unless driver is using) but if driver(i.e.,
-> zram) cannot migrate his page, that memory space could be
-> wasted. In our product which has big CMA memory, it reclaims
-> zones too exccessively although there are lots of free space
-> in CMA so system was very slow easily.
-> 
-> To solve these problem, this patch try to add facility to
-> migrate non-lru pages via introducing new friend functions
-> of migratepage in address_space_operation and new page flags.
-> 
-> 	(isolate_page, putback_page)
-> 	(PG_movable, PG_isolated)
-> 
-> For details, please read description in
-> "mm/compaction: support non-lru movable page migration".
-> 
-> Originally, Gioh Kim tried to support this feature but he moved
-> so I took over the work. But I took many code from his work and
-> changed a little bit.
-> Thanks, Gioh!
-> 
-> And I should mention Konstantin Khlebnikov. He really heped Gioh
-> at that time so he should deserve to have many credit, too.
-> Thanks, Konstantin!
-> 
-> This patchset consists of five parts
-> 
-> 1. clean up migration
->   mm: use put_page to free page instead of putback_lru_page
-> 
-> 2. zsmalloc clean-up for preparing page migration
->   zsmalloc: use first_page rather than page
->   zsmalloc: clean up many BUG_ON
->   zsmalloc: reordering function parameter
->   zsmalloc: remove unused pool param in obj_free
->   zsmalloc: keep max_object in size_class
->   zsmalloc: squeeze inuse into page->mapping
->   zsmalloc: squeeze freelist into page->mapping
->   zsmalloc: move struct zs_meta from mapping to freelist
->   zsmalloc: factor page chain functionality out
->   zsmalloc: separate free_zspage from putback_zspage
->   zsmalloc: zs_compact refactoring
+While processing concurrent allocation, SLAB could be contended
+a lot because it did a lots of work with holding a lock. This
+patchset try to reduce the number of critical section to reduce
+lock contention. Major changes are lockless decision to allocate
+more slab and lockless cpu cache refill from the newly allocated slab.
 
-In this series, [2-5] are clean up regardless of goal of the patchset
-so it could be merged independently.
-I want to reduce patchset size in next post.
-If anyone are not against, could you merge cleanup patchset?
+Below is the result of concurrent allocation/free in slab allocation
+benchmark made by Christoph a long time ago. I make the output simpler.
+The number shows cycle count during alloc/free respectively so less
+is better.
 
-   zsmalloc: use first_page rather than page
-   zsmalloc: clean up many BUG_ON
-   zsmalloc: reordering function parameter
-   zsmalloc: remove unused pool param in obj_free
+* Before
+Kmalloc N*alloc N*free(32): Average=365/806
+Kmalloc N*alloc N*free(64): Average=452/690
+Kmalloc N*alloc N*free(128): Average=736/886
+Kmalloc N*alloc N*free(256): Average=1167/985
+Kmalloc N*alloc N*free(512): Average=2088/1125
+Kmalloc N*alloc N*free(1024): Average=4115/1184
+Kmalloc N*alloc N*free(2048): Average=8451/1748
+Kmalloc N*alloc N*free(4096): Average=16024/2048
+
+* After
+Kmalloc N*alloc N*free(32): Average=344/792
+Kmalloc N*alloc N*free(64): Average=347/882
+Kmalloc N*alloc N*free(128): Average=390/959
+Kmalloc N*alloc N*free(256): Average=393/1067
+Kmalloc N*alloc N*free(512): Average=683/1229
+Kmalloc N*alloc N*free(1024): Average=1295/1325
+Kmalloc N*alloc N*free(2048): Average=2513/1664
+Kmalloc N*alloc N*free(4096): Average=4742/2172
+
+It shows that performance improves greatly (roughly more than 50%)
+for the object class whose size is more than 128 bytes.
 
 Thanks.
+
+Joonsoo Kim (11):
+  mm/slab: hold a slab_mutex when calling __kmem_cache_shrink()
+  mm/slab: remove BAD_ALIEN_MAGIC again
+  mm/slab: drain the free slab as much as possible
+  mm/slab: factor out kmem_cache_node initialization code
+  mm/slab: clean-up kmem_cache_node setup
+  mm/slab: don't keep free slabs if free_objects exceeds free_limit
+  mm/slab: racy access/modify the slab color
+  mm/slab: make cache_grow() handle the page allocated on arbitrary node
+  mm/slab: separate cache_grow() to two parts
+  mm/slab: refill cpu cache through a new slab without holding a node
+    lock
+  mm/slab: lockless decision to grow cache
+
+ mm/slab.c        | 495 ++++++++++++++++++++++++++++---------------------------
+ mm/slab_common.c |   4 +
+ 2 files changed, 255 insertions(+), 244 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
