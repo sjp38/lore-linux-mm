@@ -1,42 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 07F3C6B026B
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 02:19:50 -0400 (EDT)
-Received: by mail-ob0-f177.google.com with SMTP id m7so92764497obh.3
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 23:19:50 -0700 (PDT)
-Received: from mail-oi0-x234.google.com (mail-oi0-x234.google.com. [2607:f8b0:4003:c06::234])
-        by mx.google.com with ESMTPS id f8si5621945obv.59.2016.03.27.23.19.49
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A505D6B0260
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 02:30:12 -0400 (EDT)
+Received: by mail-pf0-f172.google.com with SMTP id x3so130019830pfb.1
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 23:30:12 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id e3si2667712pap.82.2016.03.27.23.30.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Mar 2016 23:19:49 -0700 (PDT)
-Received: by mail-oi0-x234.google.com with SMTP id r187so160784891oih.3
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 23:19:49 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <201603281456.e4kLKip8%fengguang.wu@intel.com>
-References: <1459144748-13664-2-git-send-email-iamjoonsoo.kim@lge.com>
-	<201603281456.e4kLKip8%fengguang.wu@intel.com>
-Date: Mon, 28 Mar 2016 15:19:49 +0900
-Message-ID: <CAAmzW4OW7c94fN8A=bja8z4xGiWaCupGDixeDGjnau9sDknbZA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: rename _count, field of the struct page, to _refcount
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        Sun, 27 Mar 2016 23:30:11 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id x3so130019630pfb.1
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 23:30:11 -0700 (PDT)
+From: js1304@gmail.com
+Subject: [PATCH v2 1/2] mm/page_ref: use page_ref helper instead of direct modification of _count
+Date: Mon, 28 Mar 2016 15:30:00 +0900
+Message-Id: <1459146601-11448-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Berg <johannes@sipsolutions.net>, "David S. Miller" <davem@davemloft.net>, Sunil Goutham <sgoutham@cavium.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Johannes Berg <johannes@sipsolutions.net>, "David S. Miller" <davem@davemloft.net>, Sunil Goutham <sgoutham@cavium.com>, Chris Metcalf <cmetcalf@mellanox.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-2016-03-28 15:07 GMT+09:00 kbuild test robot <lkp@intel.com>:
-> Hi Joonsoo,
->
-> [auto build test ERROR on net/master]
-> [also build test ERROR on v4.6-rc1 next-20160327]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improving the system]
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hello, bot.
+page_reference manipulation functions are introduced to track down
+reference count change of the page. Use it instead of direct modification
+of _count.
 
-Is there any way to stop further warning if I recognize that there is a mistake?
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ drivers/net/ethernet/cavium/thunder/nicvf_queues.c | 2 +-
+ drivers/net/ethernet/qlogic/qede/qede_main.c       | 2 +-
+ mm/filemap.c                                       | 2 +-
+ net/wireless/util.c                                | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)
 
-Thanks.
+diff --git a/drivers/net/ethernet/cavium/thunder/nicvf_queues.c b/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
+index fa05e34..8acd7c0 100644
+--- a/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
++++ b/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
+@@ -23,7 +23,7 @@ static void nicvf_get_page(struct nicvf *nic)
+ 	if (!nic->rb_pageref || !nic->rb_page)
+ 		return;
+ 
+-	atomic_add(nic->rb_pageref, &nic->rb_page->_count);
++	page_ref_add(nic->rb_page, nic->rb_pageref);
+ 	nic->rb_pageref = 0;
+ }
+ 
+diff --git a/drivers/net/ethernet/qlogic/qede/qede_main.c b/drivers/net/ethernet/qlogic/qede/qede_main.c
+index 518af32..394c97ff 100644
+--- a/drivers/net/ethernet/qlogic/qede/qede_main.c
++++ b/drivers/net/ethernet/qlogic/qede/qede_main.c
+@@ -791,7 +791,7 @@ static inline int qede_realloc_rx_buffer(struct qede_dev *edev,
+ 		 * network stack to take the ownership of the page
+ 		 * which can be recycled multiple times by the driver.
+ 		 */
+-		atomic_inc(&curr_cons->data->_count);
++		page_ref_inc(curr_cons->data);
+ 		qede_reuse_page(edev, rxq, curr_cons);
+ 	}
+ 
+diff --git a/mm/filemap.c b/mm/filemap.c
+index a8c69c8..0ebd326 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -213,7 +213,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
+ 			 * some other bad page check should catch it later.
+ 			 */
+ 			page_mapcount_reset(page);
+-			atomic_sub(mapcount, &page->_count);
++			page_ref_sub(page, mapcount);
+ 		}
+ 	}
+ 
+diff --git a/net/wireless/util.c b/net/wireless/util.c
+index 9f440a9..e22432a 100644
+--- a/net/wireless/util.c
++++ b/net/wireless/util.c
+@@ -651,7 +651,7 @@ __frame_add_frag(struct sk_buff *skb, struct page *page,
+ 	struct skb_shared_info *sh = skb_shinfo(skb);
+ 	int page_offset;
+ 
+-	atomic_inc(&page->_count);
++	page_ref_inc(page);
+ 	page_offset = ptr - page_address(page);
+ 	skb_add_rx_frag(skb, sh->nr_frags, page, page_offset, len, size);
+ }
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
