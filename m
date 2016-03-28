@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id CEB516B0263
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:59:20 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id zm5so4974591pac.0
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:59:20 -0700 (PDT)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id i64si12912256pfi.132.2016.03.27.22.59.19
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id AED076B0266
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:59:23 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id zm5so4975323pac.0
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:59:23 -0700 (PDT)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id zi6si21114674pac.32.2016.03.27.22.59.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Mar 2016 22:59:20 -0700 (PDT)
-Received: by mail-pf0-x22d.google.com with SMTP id x3so129483683pfb.1
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:59:19 -0700 (PDT)
+        Sun, 27 Mar 2016 22:59:22 -0700 (PDT)
+Received: by mail-pa0-x234.google.com with SMTP id td3so90258327pab.2
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:59:22 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH 1/2] mm/page_ref: use page_ref helper instead of direct modification of _count
-Date: Mon, 28 Mar 2016 14:59:07 +0900
-Message-Id: <1459144748-13664-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 2/2] mm: rename _count, field of the struct page, to _refcount
+Date: Mon, 28 Mar 2016 14:59:08 +0900
+Message-Id: <1459144748-13664-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1459144748-13664-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1459144748-13664-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -22,70 +24,45 @@ Cc: Hugh Dickins <hughd@google.com>, Johannes Berg <johannes@sipsolutions.net>, 
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-page_reference manipulation functions are introduced to track down
-reference count change of the page. Use it instead of direct modification
-of _count.
+Many developer already know that field for reference count of
+the struct page is _count and atomic type. They would try to handle it
+directly and this could break the purpose of page reference count
+tracepoint. To prevent direct _count modification, this patch rename it
+to _refcount and add warning message on the code. After that, developer
+who need to handle reference count will find that field should not be
+accessed directly.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- drivers/net/ethernet/cavium/thunder/nicvf_queues.c | 2 +-
- drivers/net/ethernet/qlogic/qede/qede_main.c       | 2 +-
- mm/filemap.c                                       | 2 +-
- net/wireless/util.c                                | 2 +-
- 4 files changed, 4 insertions(+), 4 deletions(-)
+ include/linux/mm_types.h | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/net/ethernet/cavium/thunder/nicvf_queues.c b/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
-index fa05e34..8acd7c0 100644
---- a/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
-+++ b/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
-@@ -23,7 +23,7 @@ static void nicvf_get_page(struct nicvf *nic)
- 	if (!nic->rb_pageref || !nic->rb_page)
- 		return;
- 
--	atomic_add(nic->rb_pageref, &nic->rb_page->_count);
-+	page_ref_add(nic->rb_page, nic->rb_pageref);
- 	nic->rb_pageref = 0;
- }
- 
-diff --git a/drivers/net/ethernet/qlogic/qede/qede_main.c b/drivers/net/ethernet/qlogic/qede/qede_main.c
-index 518af32..394c97ff 100644
---- a/drivers/net/ethernet/qlogic/qede/qede_main.c
-+++ b/drivers/net/ethernet/qlogic/qede/qede_main.c
-@@ -791,7 +791,7 @@ static inline int qede_realloc_rx_buffer(struct qede_dev *edev,
- 		 * network stack to take the ownership of the page
- 		 * which can be recycled multiple times by the driver.
- 		 */
--		atomic_inc(&curr_cons->data->_count);
-+		page_ref_inc(curr_cons->data);
- 		qede_reuse_page(edev, rxq, curr_cons);
- 	}
- 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index a8c69c8..0ebd326 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -213,7 +213,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 			 * some other bad page check should catch it later.
- 			 */
- 			page_mapcount_reset(page);
--			atomic_sub(mapcount, &page->_count);
-+			page_ref_sub(page, mapcount);
- 		}
- 	}
- 
-diff --git a/net/wireless/util.c b/net/wireless/util.c
-index 9f440a9..e22432a 100644
---- a/net/wireless/util.c
-+++ b/net/wireless/util.c
-@@ -651,7 +651,7 @@ __frame_add_frag(struct sk_buff *skb, struct page *page,
- 	struct skb_shared_info *sh = skb_shinfo(skb);
- 	int page_offset;
- 
--	atomic_inc(&page->_count);
-+	page_ref_inc(page);
- 	page_offset = ptr - page_address(page);
- 	skb_add_rx_frag(skb, sh->nr_frags, page, page_offset, len, size);
- }
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 944b2b3..9e8eb5a 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -97,7 +97,11 @@ struct page {
+ 					};
+ 					int units;	/* SLOB */
+ 				};
+-				atomic_t _count;		/* Usage count, see below. */
++				/*
++				 * Usage count, *USE WRAPPER FUNCTION*
++				 * when manual accounting. See page_ref.h
++				 */
++				atomic_t _refcount;
+ 			};
+ 			unsigned int active;	/* SLAB */
+ 		};
+@@ -248,7 +252,7 @@ struct page_frag_cache {
+ 	__u32 offset;
+ #endif
+ 	/* we maintain a pagecount bias, so that we dont dirty cache line
+-	 * containing page->_count every time we allocate a fragment.
++	 * containing page->_refcount every time we allocate a fragment.
+ 	 */
+ 	unsigned int		pagecnt_bias;
+ 	bool pfmemalloc;
 -- 
 1.9.1
 
