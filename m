@@ -1,132 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id CFAA8828DF
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:27:47 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fe3so90071167pab.1
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:47 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id n79si18823565pfi.149.2016.03.27.22.27.47
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id CEB516B0263
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:59:20 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id zm5so4974591pac.0
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:59:20 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id i64si12912256pfi.132.2016.03.27.22.59.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Mar 2016 22:27:47 -0700 (PDT)
-Received: by mail-pa0-x233.google.com with SMTP id tt10so90309766pab.3
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:47 -0700 (PDT)
+        Sun, 27 Mar 2016 22:59:20 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id x3so129483683pfb.1
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:59:19 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH 11/11] mm/slab: lockless decision to grow cache
-Date: Mon, 28 Mar 2016 14:27:01 +0900
-Message-Id: <1459142821-20303-12-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 1/2] mm/page_ref: use page_ref helper instead of direct modification of _count
+Date: Mon, 28 Mar 2016 14:59:07 +0900
+Message-Id: <1459144748-13664-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Hugh Dickins <hughd@google.com>, Johannes Berg <johannes@sipsolutions.net>, "David S. Miller" <davem@davemloft.net>, Sunil Goutham <sgoutham@cavium.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-To check whther free objects exist or not precisely, we need to grab
-a lock. But, accuracy isn't that important because race window would
-be even small and if there is too much free object, cache reaper would
-reap it. So, this patch makes the check for free object exisistence
-not to hold a lock. This will reduce lock contention in heavily
-allocation case.
-
-Note that until now, n->shared can be freed during the processing by
-writing slabinfo, but, with some trick in this patch, we can access it
-freely within interrupt disabled period.
-
-Below is the result of concurrent allocation/free in slab allocation
-benchmark made by Christoph a long time ago. I make the output simpler.
-The number shows cycle count during alloc/free respectively so less
-is better.
-
-* Before
-Kmalloc N*alloc N*free(32): Average=248/966
-Kmalloc N*alloc N*free(64): Average=261/949
-Kmalloc N*alloc N*free(128): Average=314/1016
-Kmalloc N*alloc N*free(256): Average=741/1061
-Kmalloc N*alloc N*free(512): Average=1246/1152
-Kmalloc N*alloc N*free(1024): Average=2437/1259
-Kmalloc N*alloc N*free(2048): Average=4980/1800
-Kmalloc N*alloc N*free(4096): Average=9000/2078
-
-* After
-Kmalloc N*alloc N*free(32): Average=344/792
-Kmalloc N*alloc N*free(64): Average=347/882
-Kmalloc N*alloc N*free(128): Average=390/959
-Kmalloc N*alloc N*free(256): Average=393/1067
-Kmalloc N*alloc N*free(512): Average=683/1229
-Kmalloc N*alloc N*free(1024): Average=1295/1325
-Kmalloc N*alloc N*free(2048): Average=2513/1664
-Kmalloc N*alloc N*free(4096): Average=4742/2172
-
-It shows that allocation performance decreases for the object size
-up to 128 and it may be due to extra checks in cache_alloc_refill().
-But, with considering improvement of free performance, net result looks
-the same. Result for other size class looks very promising, roughly,
-50% performance improvement.
+page_reference manipulation functions are introduced to track down
+reference count change of the page. Use it instead of direct modification
+of _count.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/slab.c | 21 ++++++++++++++++++---
- 1 file changed, 18 insertions(+), 3 deletions(-)
+ drivers/net/ethernet/cavium/thunder/nicvf_queues.c | 2 +-
+ drivers/net/ethernet/qlogic/qede/qede_main.c       | 2 +-
+ mm/filemap.c                                       | 2 +-
+ net/wireless/util.c                                | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 029d6b3..b70aabf 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -951,6 +951,15 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
- 	spin_unlock_irq(&n->list_lock);
- 	slabs_destroy(cachep, &list);
+diff --git a/drivers/net/ethernet/cavium/thunder/nicvf_queues.c b/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
+index fa05e34..8acd7c0 100644
+--- a/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
++++ b/drivers/net/ethernet/cavium/thunder/nicvf_queues.c
+@@ -23,7 +23,7 @@ static void nicvf_get_page(struct nicvf *nic)
+ 	if (!nic->rb_pageref || !nic->rb_page)
+ 		return;
  
-+	/*
-+	 * To protect lockless access to n->shared during irq disabled context.
-+	 * If n->shared isn't NULL in irq disabled context, accessing to it is
-+	 * guaranteed to be valid until irq is re-enabled, because it will be
-+	 * freed after kick_all_cpus_sync().
-+	 */
-+	if (force_change)
-+		kick_all_cpus_sync();
-+
- fail:
- 	kfree(old_shared);
- 	kfree(new_shared);
-@@ -2855,7 +2864,7 @@ static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
- {
- 	int batchcount;
- 	struct kmem_cache_node *n;
--	struct array_cache *ac;
-+	struct array_cache *ac, *shared;
- 	int node;
- 	void *list = NULL;
- 	struct page *page;
-@@ -2876,11 +2885,16 @@ static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
- 	n = get_node(cachep, node);
+-	atomic_add(nic->rb_pageref, &nic->rb_page->_count);
++	page_ref_add(nic->rb_page, nic->rb_pageref);
+ 	nic->rb_pageref = 0;
+ }
  
- 	BUG_ON(ac->avail > 0 || !n);
-+	shared = READ_ONCE(n->shared);
-+	if (!n->free_objects && (!shared || !shared->avail))
-+		goto direct_grow;
-+
- 	spin_lock(&n->list_lock);
-+	shared = READ_ONCE(n->shared);
- 
- 	/* See if we can refill from the shared array */
--	if (n->shared && transfer_objects(ac, n->shared, batchcount)) {
--		n->shared->touched = 1;
-+	if (shared && transfer_objects(ac, shared, batchcount)) {
-+		shared->touched = 1;
- 		goto alloc_done;
+diff --git a/drivers/net/ethernet/qlogic/qede/qede_main.c b/drivers/net/ethernet/qlogic/qede/qede_main.c
+index 518af32..394c97ff 100644
+--- a/drivers/net/ethernet/qlogic/qede/qede_main.c
++++ b/drivers/net/ethernet/qlogic/qede/qede_main.c
+@@ -791,7 +791,7 @@ static inline int qede_realloc_rx_buffer(struct qede_dev *edev,
+ 		 * network stack to take the ownership of the page
+ 		 * which can be recycled multiple times by the driver.
+ 		 */
+-		atomic_inc(&curr_cons->data->_count);
++		page_ref_inc(curr_cons->data);
+ 		qede_reuse_page(edev, rxq, curr_cons);
  	}
  
-@@ -2902,6 +2916,7 @@ alloc_done:
- 	spin_unlock(&n->list_lock);
- 	fixup_objfreelist_debug(cachep, &list);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index a8c69c8..0ebd326 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -213,7 +213,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
+ 			 * some other bad page check should catch it later.
+ 			 */
+ 			page_mapcount_reset(page);
+-			atomic_sub(mapcount, &page->_count);
++			page_ref_sub(page, mapcount);
+ 		}
+ 	}
  
-+direct_grow:
- 	if (unlikely(!ac->avail)) {
- 		/* Check if we can use obj in pfmemalloc slab */
- 		if (sk_memalloc_socks()) {
+diff --git a/net/wireless/util.c b/net/wireless/util.c
+index 9f440a9..e22432a 100644
+--- a/net/wireless/util.c
++++ b/net/wireless/util.c
+@@ -651,7 +651,7 @@ __frame_add_frag(struct sk_buff *skb, struct page *page,
+ 	struct skb_shared_info *sh = skb_shinfo(skb);
+ 	int page_offset;
+ 
+-	atomic_inc(&page->_count);
++	page_ref_inc(page);
+ 	page_offset = ptr - page_address(page);
+ 	skb_add_rx_frag(skb, sh->nr_frags, page, page_offset, len, size);
+ }
 -- 
 1.9.1
 
