@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 117996B025F
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:27:16 -0400 (EDT)
-Received: by mail-pf0-f182.google.com with SMTP id n5so128680584pfn.2
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:16 -0700 (PDT)
-Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
-        by mx.google.com with ESMTPS id by10si6171648pab.168.2016.03.27.22.27.15
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 07E586B0260
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:27:19 -0400 (EDT)
+Received: by mail-pf0-f175.google.com with SMTP id x3so128944894pfb.1
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:19 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id n62si12756293pfi.139.2016.03.27.22.27.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Mar 2016 22:27:15 -0700 (PDT)
-Received: by mail-pf0-x232.google.com with SMTP id n5so128680433pfn.2
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:15 -0700 (PDT)
+        Sun, 27 Mar 2016 22:27:18 -0700 (PDT)
+Received: by mail-pa0-x229.google.com with SMTP id td3so89740101pab.2
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:18 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH 01/11] mm/slab: hold a slab_mutex when calling __kmem_cache_shrink()
-Date: Mon, 28 Mar 2016 14:26:51 +0900
-Message-Id: <1459142821-20303-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 02/11] mm/slab: remove BAD_ALIEN_MAGIC again
+Date: Mon, 28 Mar 2016 14:26:52 +0900
+Message-Id: <1459142821-20303-3-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,61 +24,51 @@ Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David R
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Major kmem_cache metadata in slab subsystem is synchronized with
-the slab_mutex. In SLAB, if some of them is changed, node's shared
-array cache would be freed and re-populated. If __kmem_cache_shrink()
-is called at the same time, it will call drain_array() with n->shared
-without holding node lock so problem can happen.
-
-We can fix this small theoretical race condition by holding node lock
-in drain_array(), but, holding a slab_mutex in kmem_cache_shrink()
-looks more appropriate solution because stable state would make things
-less error-prone and this is not performance critical path.
-
-In addtion, annotate on SLAB functions.
+Initial attemp to remove BAD_ALIEN_MAGIC is once reverted by
+'commit edcad2509550 ("Revert "slab: remove BAD_ALIEN_MAGIC"")'
+because it causes a problem on m68k which has many node
+but !CONFIG_NUMA. In this case, although alien cache isn't used
+at all but to cope with some initialization path, garbage value
+is used and that is BAD_ALIEN_MAGIC. Now, this patch set
+use_alien_caches to 0 when !CONFIG_NUMA, there is no initialization
+path problem so we don't need BAD_ALIEN_MAGIC at all. So remove it.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/slab.c        | 2 ++
- mm/slab_common.c | 4 ++++
- 2 files changed, 6 insertions(+)
+ mm/slab.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
 diff --git a/mm/slab.c b/mm/slab.c
-index a53a0f6..043606a 100644
+index 043606a..a5a205b 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -2218,6 +2218,7 @@ static void do_drain(void *arg)
- 	ac->avail = 0;
+@@ -421,8 +421,6 @@ static struct kmem_cache kmem_cache_boot = {
+ 	.name = "kmem_cache",
+ };
+ 
+-#define BAD_ALIEN_MAGIC 0x01020304ul
+-
+ static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
+ 
+ static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
+@@ -637,7 +635,7 @@ static int transfer_objects(struct array_cache *to,
+ static inline struct alien_cache **alloc_alien_cache(int node,
+ 						int limit, gfp_t gfp)
+ {
+-	return (struct alien_cache **)BAD_ALIEN_MAGIC;
++	return NULL;
  }
  
-+/* Should be called with slab_mutex to prevent from freeing shared array */
- static void drain_cpu_caches(struct kmem_cache *cachep)
- {
- 	struct kmem_cache_node *n;
-@@ -3871,6 +3872,7 @@ skip_setup:
-  * Drain an array if it contains any elements taking the node lock only if
-  * necessary. Note that the node listlock also protects the array_cache
-  * if drain_array() is used on the shared array.
-+ * Should be called with slab_mutex to prevent from freeing shared array.
-  */
- static void drain_array(struct kmem_cache *cachep, struct kmem_cache_node *n,
- 			 struct array_cache *ac, int force, int node)
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index a65dad7..5bed565 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -755,7 +755,11 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
- 	get_online_cpus();
- 	get_online_mems();
- 	kasan_cache_shrink(cachep);
-+
-+	mutex_lock(&slab_mutex);
- 	ret = __kmem_cache_shrink(cachep, false);
-+	mutex_unlock(&slab_mutex);
-+
- 	put_online_mems();
- 	put_online_cpus();
- 	return ret;
+ static inline void free_alien_cache(struct alien_cache **ac_ptr)
+@@ -1205,7 +1203,7 @@ void __init kmem_cache_init(void)
+ 					sizeof(struct rcu_head));
+ 	kmem_cache = &kmem_cache_boot;
+ 
+-	if (num_possible_nodes() == 1)
++	if (!IS_ENABLED(CONFIG_NUMA) || num_possible_nodes() == 1)
+ 		use_alien_caches = 0;
+ 
+ 	for (i = 0; i < NUM_INIT_LISTS; i++)
 -- 
 1.9.1
 
