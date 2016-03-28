@@ -1,74 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 97E436B025E
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 12:42:59 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id td3so101692073pab.2
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 09:42:59 -0700 (PDT)
-Received: from smtp-outbound-2.vmware.com (smtp-outbound-2.vmware.com. [208.91.2.13])
-        by mx.google.com with ESMTPS id lq6si24623814pab.140.2016.03.28.09.42.55
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Mar 2016 09:42:56 -0700 (PDT)
-From: Nadav Amit <namit@vmware.com>
-Subject: [PATCH v2 1/2] x86/mm: TLB_REMOTE_SEND_IPI should count pages
-Date: Sat, 26 Mar 2016 01:25:04 -0700
-Message-Id: <1458980705-121507-2-git-send-email-namit@vmware.com>
-In-Reply-To: <1458980705-121507-1-git-send-email-namit@vmware.com>
-References: <1458980705-121507-1-git-send-email-namit@vmware.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C75B6B007E
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 13:14:00 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id fe3so102631644pab.1
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 10:14:00 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id mk10si4269128pab.219.2016.03.28.10.13.59
+        for <linux-mm@kvack.org>;
+        Mon, 28 Mar 2016 10:13:59 -0700 (PDT)
+Date: Tue, 29 Mar 2016 01:12:38 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: fs/ocfs2/aops.c:1881:2-7: WARNING: NULL check before freeing
+ functions like kfree, debugfs_remove, debugfs_remove_recursive or
+ usb_free_urb is not needed. Maybe consider reorganizing relevant code to
+ avoid passing NULL values.
+Message-ID: <201603290135.boGSGJFw%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, mgorman@suse.de, sasha.levin@oracle.com, akpm@linux-foundation.org, namit@vmware.com, riel@redhat.com, dave.hansen@linux.intel.com, luto@kernel.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, jmarchan@redhat.com, hughd@google.com, vdavydov@virtuozzo.com, minchan@kernel.org, linux-kernel@vger.kernel.org
+To: Ryan Ding <ryan.ding@oracle.com>
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Junxiao Bi <junxiao.bi@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-TLB_REMOTE_SEND_IPI was recently introduced, but it counts bytes instead
-of pages. In addition, it does not report correctly the case in which
-flush_tlb_page flushes a page. Fix it to be consistent with other TLB
-counters.
+tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+head:   f55532a0c0b8bb6148f4e07853b876ef73bc69ca
+commit: 4506cfb6f8cad594ac73e0df2b2961ca10dbd25e ocfs2: record UNWRITTEN extents when populate write desc
+date:   3 days ago
 
-Fixes: 4595f9620cda8a1e973588e743cf5f8436dd20c6
 
-Signed-off-by: Nadav Amit <namit@vmware.com>
+coccinelle warnings: (new ones prefixed by >>)
+
+>> fs/ocfs2/aops.c:1881:2-7: WARNING: NULL check before freeing functions like kfree, debugfs_remove, debugfs_remove_recursive or usb_free_urb is not needed. Maybe consider reorganizing relevant code to avoid passing NULL values.
+
+vim +1881 fs/ocfs2/aops.c
+
+  1865				ret = -ENOMEM;
+  1866				goto out;
+  1867			}
+  1868			goto retry;
+  1869		}
+  1870		/* This direct write will doing zero. */
+  1871		new->ue_cpos = desc->c_cpos;
+  1872		new->ue_phys = desc->c_phys;
+  1873		desc->c_clear_unwritten = 0;
+  1874		list_add_tail(&new->ue_ip_node, &oi->ip_unwritten_list);
+  1875		list_add_tail(&new->ue_node, &wc->w_unwritten_list);
+  1876		new = NULL;
+  1877	unlock:
+  1878		spin_unlock(&oi->ip_lock);
+  1879	out:
+  1880		if (new)
+> 1881			kfree(new);
+  1882		return ret;
+  1883	}
+  1884	
+  1885	/*
+  1886	 * Populate each single-cluster write descriptor in the write context
+  1887	 * with information about the i/o to be done.
+  1888	 *
+  1889	 * Returns the number of clusters that will have to be allocated, as
+
 ---
- arch/x86/mm/tlb.c | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
-
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 8f4cc3d..5fb6ada 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -106,8 +106,6 @@ static void flush_tlb_func(void *info)
- 
- 	if (f->flush_mm != this_cpu_read(cpu_tlbstate.active_mm))
- 		return;
--	if (!f->flush_end)
--		f->flush_end = f->flush_start + PAGE_SIZE;
- 
- 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
- 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
-@@ -135,12 +133,20 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
- 				 unsigned long end)
- {
- 	struct flush_tlb_info info;
-+
-+	if (end == 0)
-+		end = start + PAGE_SIZE;
- 	info.flush_mm = mm;
- 	info.flush_start = start;
- 	info.flush_end = end;
- 
- 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
--	trace_tlb_flush(TLB_REMOTE_SEND_IPI, end - start);
-+	if (end == TLB_FLUSH_ALL)
-+		trace_tlb_flush(TLB_REMOTE_SEND_IPI, TLB_FLUSH_ALL);
-+	else
-+		trace_tlb_flush(TLB_REMOTE_SEND_IPI,
-+				(end - start) >> PAGE_SHIFT);
-+
- 	if (is_uv_system()) {
- 		unsigned int cpu;
- 
--- 
-2.5.0
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
