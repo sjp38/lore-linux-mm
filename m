@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id AB039828DF
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:27:44 -0400 (EDT)
-Received: by mail-pf0-f180.google.com with SMTP id x3so128952048pfb.1
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:44 -0700 (PDT)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id 10si12743000pfk.172.2016.03.27.22.27.43
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id CFAA8828DF
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 01:27:47 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fe3so90071167pab.1
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:47 -0700 (PDT)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id n79si18823565pfi.149.2016.03.27.22.27.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Mar 2016 22:27:43 -0700 (PDT)
-Received: by mail-pf0-x22d.google.com with SMTP id u190so129236393pfb.3
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:43 -0700 (PDT)
+        Sun, 27 Mar 2016 22:27:47 -0700 (PDT)
+Received: by mail-pa0-x233.google.com with SMTP id tt10so90309766pab.3
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2016 22:27:47 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH 10/11] mm/slab: refill cpu cache through a new slab without holding a node lock
-Date: Mon, 28 Mar 2016 14:27:00 +0900
-Message-Id: <1459142821-20303-11-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 11/11] mm/slab: lockless decision to grow cache
+Date: Mon, 28 Mar 2016 14:27:01 +0900
+Message-Id: <1459142821-20303-12-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,12 +24,16 @@ Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David R
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Until now, cache growing makes a free slab on node's slab list and then
-we can allocate free objects from it. This necessarily requires
-to hold a node lock which is very contended. If we refill cpu cache
-before attaching it to node's slab list, we can avoid holding a node lock
-as much as possible because this newly allocated slab is only visible
-to the current task. This will reduce lock contention.
+To check whther free objects exist or not precisely, we need to grab
+a lock. But, accuracy isn't that important because race window would
+be even small and if there is too much free object, cache reaper would
+reap it. So, this patch makes the check for free object exisistence
+not to hold a lock. This will reduce lock contention in heavily
+allocation case.
+
+Note that until now, n->shared can be freed during the processing by
+writing slabinfo, but, with some trick in this patch, we can access it
+freely within interrupt disabled period.
 
 Below is the result of concurrent allocation/free in slab allocation
 benchmark made by Christoph a long time ago. I make the output simpler.
@@ -37,16 +41,6 @@ The number shows cycle count during alloc/free respectively so less
 is better.
 
 * Before
-Kmalloc N*alloc N*free(32): Average=355/750
-Kmalloc N*alloc N*free(64): Average=452/812
-Kmalloc N*alloc N*free(128): Average=559/1070
-Kmalloc N*alloc N*free(256): Average=1176/980
-Kmalloc N*alloc N*free(512): Average=1939/1189
-Kmalloc N*alloc N*free(1024): Average=3521/1278
-Kmalloc N*alloc N*free(2048): Average=7152/1838
-Kmalloc N*alloc N*free(4096): Average=13438/2013
-
-* After
 Kmalloc N*alloc N*free(32): Average=248/966
 Kmalloc N*alloc N*free(64): Average=261/949
 Kmalloc N*alloc N*free(128): Average=314/1016
@@ -56,148 +50,83 @@ Kmalloc N*alloc N*free(1024): Average=2437/1259
 Kmalloc N*alloc N*free(2048): Average=4980/1800
 Kmalloc N*alloc N*free(4096): Average=9000/2078
 
-It shows that contention is reduced for all the object sizes
-and performance increases by 30 ~ 40%.
+* After
+Kmalloc N*alloc N*free(32): Average=344/792
+Kmalloc N*alloc N*free(64): Average=347/882
+Kmalloc N*alloc N*free(128): Average=390/959
+Kmalloc N*alloc N*free(256): Average=393/1067
+Kmalloc N*alloc N*free(512): Average=683/1229
+Kmalloc N*alloc N*free(1024): Average=1295/1325
+Kmalloc N*alloc N*free(2048): Average=2513/1664
+Kmalloc N*alloc N*free(4096): Average=4742/2172
+
+It shows that allocation performance decreases for the object size
+up to 128 and it may be due to extra checks in cache_alloc_refill().
+But, with considering improvement of free performance, net result looks
+the same. Result for other size class looks very promising, roughly,
+50% performance improvement.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/slab.c | 68 +++++++++++++++++++++++++++++++++------------------------------
- 1 file changed, 36 insertions(+), 32 deletions(-)
+ mm/slab.c | 21 ++++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)
 
 diff --git a/mm/slab.c b/mm/slab.c
-index 401e60c..029d6b3 100644
+index 029d6b3..b70aabf 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -2827,6 +2827,30 @@ static noinline void *cache_alloc_pfmemalloc(struct kmem_cache *cachep,
- 	return obj;
- }
+@@ -951,6 +951,15 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
+ 	spin_unlock_irq(&n->list_lock);
+ 	slabs_destroy(cachep, &list);
  
-+/*
-+ * Slab list should be fixed up by fixup_slab_list() for existing slab
-+ * or cache_grow_end() for new slab
-+ */
-+static __always_inline int alloc_block(struct kmem_cache *cachep,
-+		struct array_cache *ac, struct page *page, int batchcount)
-+{
 +	/*
-+	 * There must be at least one object available for
-+	 * allocation.
++	 * To protect lockless access to n->shared during irq disabled context.
++	 * If n->shared isn't NULL in irq disabled context, accessing to it is
++	 * guaranteed to be valid until irq is re-enabled, because it will be
++	 * freed after kick_all_cpus_sync().
 +	 */
-+	BUG_ON(page->active >= cachep->num);
++	if (force_change)
++		kick_all_cpus_sync();
 +
-+	while (page->active < cachep->num && batchcount--) {
-+		STATS_INC_ALLOCED(cachep);
-+		STATS_INC_ACTIVE(cachep);
-+		STATS_SET_HIGH(cachep);
-+
-+		ac->entry[ac->avail++] = slab_get_obj(cachep, page);
-+	}
-+
-+	return batchcount;
-+}
-+
- static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
+ fail:
+ 	kfree(old_shared);
+ 	kfree(new_shared);
+@@ -2855,7 +2864,7 @@ static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
  {
  	int batchcount;
-@@ -2839,7 +2863,6 @@ static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
- 	check_irq_off();
- 	node = numa_mem_id();
- 
--retry:
- 	ac = cpu_cache_get(cachep);
- 	batchcount = ac->batchcount;
- 	if (!ac->touched && batchcount > BATCHREFILL_LIMIT) {
-@@ -2869,21 +2892,7 @@ retry:
- 
- 		check_spinlock_acquired(cachep);
- 
--		/*
--		 * The slab was either on partial or free list so
--		 * there must be at least one object available for
--		 * allocation.
--		 */
--		BUG_ON(page->active >= cachep->num);
--
--		while (page->active < cachep->num && batchcount--) {
--			STATS_INC_ALLOCED(cachep);
--			STATS_INC_ACTIVE(cachep);
--			STATS_SET_HIGH(cachep);
--
--			ac->entry[ac->avail++] = slab_get_obj(cachep, page);
--		}
--
-+		batchcount = alloc_block(cachep, ac, page, batchcount);
- 		fixup_slab_list(cachep, n, page, &list);
- 	}
- 
-@@ -2903,21 +2912,18 @@ alloc_done:
- 		}
- 
- 		page = cache_grow_begin(cachep, gfp_exact_node(flags), node);
--		cache_grow_end(cachep, page);
- 
- 		/*
- 		 * cache_grow_begin() can reenable interrupts,
- 		 * then ac could change.
- 		 */
- 		ac = cpu_cache_get(cachep);
--		node = numa_mem_id();
-+		if (!ac->avail && page)
-+			alloc_block(cachep, ac, page, batchcount);
-+		cache_grow_end(cachep, page);
- 
--		/* no objects in sight? abort */
--		if (!page && ac->avail == 0)
-+		if (!ac->avail)
- 			return NULL;
--
--		if (!ac->avail)		/* objects refilled by interrupt? */
--			goto retry;
- 	}
- 	ac->touched = 1;
- 
-@@ -3111,14 +3117,13 @@ static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
- {
- 	struct page *page;
  	struct kmem_cache_node *n;
--	void *obj;
-+	void *obj = NULL;
+-	struct array_cache *ac;
++	struct array_cache *ac, *shared;
+ 	int node;
  	void *list = NULL;
+ 	struct page *page;
+@@ -2876,11 +2885,16 @@ static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
+ 	n = get_node(cachep, node);
  
- 	VM_BUG_ON(nodeid < 0 || nodeid >= MAX_NUMNODES);
- 	n = get_node(cachep, nodeid);
- 	BUG_ON(!n);
- 
--retry:
- 	check_irq_off();
+ 	BUG_ON(ac->avail > 0 || !n);
++	shared = READ_ONCE(n->shared);
++	if (!n->free_objects && (!shared || !shared->avail))
++		goto direct_grow;
++
  	spin_lock(&n->list_lock);
- 	page = get_first_slab(n, false);
-@@ -3140,19 +3145,18 @@ retry:
++	shared = READ_ONCE(n->shared);
  
+ 	/* See if we can refill from the shared array */
+-	if (n->shared && transfer_objects(ac, n->shared, batchcount)) {
+-		n->shared->touched = 1;
++	if (shared && transfer_objects(ac, shared, batchcount)) {
++		shared->touched = 1;
+ 		goto alloc_done;
+ 	}
+ 
+@@ -2902,6 +2916,7 @@ alloc_done:
  	spin_unlock(&n->list_lock);
  	fixup_objfreelist_debug(cachep, &list);
--	goto done;
-+	return obj;
  
- must_grow:
- 	spin_unlock(&n->list_lock);
- 	page = cache_grow_begin(cachep, gfp_exact_node(flags), nodeid);
-+	if (page) {
-+		/* This slab isn't counted yet so don't update free_objects */
-+		obj = slab_get_obj(cachep, page);
-+	}
- 	cache_grow_end(cachep, page);
--	if (page)
--		goto retry;
- 
--	return fallback_alloc(cachep, flags);
--
--done:
--	return obj;
-+	return obj ? obj : fallback_alloc(cachep, flags);
- }
- 
- static __always_inline void *
++direct_grow:
+ 	if (unlikely(!ac->avail)) {
+ 		/* Check if we can use obj in pfmemalloc slab */
+ 		if (sk_memalloc_socks()) {
 -- 
 1.9.1
 
