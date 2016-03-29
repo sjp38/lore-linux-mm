@@ -1,49 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 429C56B007E
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 05:44:20 -0400 (EDT)
-Received: by mail-io0-f178.google.com with SMTP id g185so15211864ioa.2
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 02:44:20 -0700 (PDT)
-Received: from BLU004-OMC1S26.hotmail.com (blu004-omc1s26.hotmail.com. [65.55.116.37])
-        by mx.google.com with ESMTPS id i123si27520424ioe.133.2016.03.29.02.44.19
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id E9BDE6B025E
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 05:52:40 -0400 (EDT)
+Received: by mail-wm0-f50.google.com with SMTP id p65so18172335wmp.0
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 02:52:40 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z193si15633963wme.98.2016.03.29.02.52.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 29 Mar 2016 02:44:19 -0700 (PDT)
-Message-ID: <BLU437-SMTP663CF466BDC7F9124425CDBA870@phx.gbl>
-From: Neil Zhang <neilzhang1123@hotmail.com>
-Subject: [PATCH] mm/page_isolation.c: fix the function comments
-Date: Tue, 29 Mar 2016 17:43:53 +0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 29 Mar 2016 02:52:39 -0700 (PDT)
+Subject: Re: [PATCH] mm: fix invalid node in alloc_migrate_target()
+References: <56F4E104.9090505@huawei.com>
+ <20160325122237.4ca4e0dbca215ccbf4f49922@linux-foundation.org>
+ <56F61EC8.7080508@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56FA5062.2020103@suse.cz>
+Date: Tue, 29 Mar 2016 11:52:34 +0200
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <56F61EC8.7080508@huawei.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, js1304@gmail.com, Neil Zhang <neilzhang1123@hotmail.com>
+To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Laura Abbott <lauraa@codeaurora.org>, zhuhui@xiaomi.com, wangxq10@lzu.edu.cn, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>
 
-commit fea85cff11de ("mm/page_isolation.c: return last tested pfn rather
-than failure indicator") changed the meaning of the return value.
-Let's change the function comments as well.
+On 03/26/2016 06:31 AM, Xishi Qiu wrote:
+> On 2016/3/26 3:22, Andrew Morton wrote:
+>
+>> On Fri, 25 Mar 2016 14:56:04 +0800 Xishi Qiu <qiuxishi@huawei.com> wrote:
+>>
+>>> It is incorrect to use next_node to find a target node, it will
+>>> return MAX_NUMNODES or invalid node. This will lead to crash in
+>>> buddy system allocation.
+>>>
+>>> ...
+>>>
+>>> --- a/mm/page_isolation.c
+>>> +++ b/mm/page_isolation.c
+>>> @@ -289,11 +289,11 @@ struct page *alloc_migrate_target(struct page *page, unsigned long private,
+>>>   	 * now as a simple work-around, we use the next node for destination.
+>>>   	 */
+>>>   	if (PageHuge(page)) {
+>>> -		nodemask_t src = nodemask_of_node(page_to_nid(page));
+>>> -		nodemask_t dst;
+>>> -		nodes_complement(dst, src);
+>>> +		int node = next_online_node(page_to_nid(page));
+>>> +		if (node == MAX_NUMNODES)
+>>> +			node = first_online_node;
+>>>   		return alloc_huge_page_node(page_hstate(compound_head(page)),
+>>> -					    next_node(page_to_nid(page), dst));
+>>> +					    node);
+>>>   	}
+>>>
+>>>   	if (PageHighMem(page))
+>>
+>> Indeed.  Can you tell us more about this circumstances under which the
+>> kernel will crash?  I need to decide which kernel version(s) need the
+>> patch, but the changelog doesn't contain the info needed to make this
+>> decision (it should).
+>>
+>
+> Hi Andrew,
+>
+> I read the code v4.4, and find the following path maybe trigger the bug.
+>
+> alloc_migrate_target()
+> 	alloc_huge_page_node()  // the node may be offline or MAX_NUMNODES
+> 		__alloc_buddy_huge_page_no_mpol()
+> 			__alloc_buddy_huge_page()
+> 				__hugetlb_alloc_buddy_huge_page()
 
-Signed-off-by: Neil Zhang <neilzhang1123@hotmail.com>
----
- mm/page_isolation.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+The code in this functions seems to come from 099730d67417d ("mm, 
+hugetlb: use memory policy when available") by Dave Hansen (adding to 
+CC), which was indeed merged in 4.4-rc1.
 
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 92c4c36..9f9b394 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -215,7 +215,7 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-  * all pages in [start_pfn...end_pfn) must be in the same zone.
-  * zone->lock must be held before call this.
-  *
-- * Returns 1 if all pages in the range are isolated.
-+ * Returns the last tested pfn.
-  */
- static unsigned long
- __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
--- 
-1.7.9.5
+However, alloc_pages_node() is only called in the block guarded by:
+
+if (!IS_ENABLED(CONFIG_NUMA) || !vma) {
+
+The rather weird "!IS_ENABLED(CONFIG_NUMA)" part comes from immediate 
+followup commit e0ec90ee7e6f ("mm, hugetlbfs: optimize when NUMA=n")
+
+So I doubt the code path here can actually happen. But it's fragile and 
+confusing nevertheless.
+
+> 					alloc_pages_node()
+> 						__alloc_pages_node()
+> 							VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
+> 							VM_WARN_ON(!node_online(nid));
+>
+> Thanks,
+> Xishi Qiu
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
