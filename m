@@ -1,137 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D66206B007E
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 09:06:22 -0400 (EDT)
-Received: by mail-wm0-f51.google.com with SMTP id p65so138382043wmp.1
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 06:06:22 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b12si34151071wjs.103.2016.03.29.06.06.21
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id DE3266B007E
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 09:27:42 -0400 (EDT)
+Received: by mail-wm0-f54.google.com with SMTP id 20so26291861wmh.1
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 06:27:42 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id t189si16590074wmf.102.2016.03.29.06.27.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Mar 2016 06:06:21 -0700 (PDT)
-Subject: Re: [PATCH] mm: fix invalid node in alloc_migrate_target()
-References: <56F4E104.9090505@huawei.com>
- <20160325122237.4ca4e0dbca215ccbf4f49922@linux-foundation.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56FA7DC8.4000902@suse.cz>
-Date: Tue, 29 Mar 2016 15:06:16 +0200
-MIME-Version: 1.0
-In-Reply-To: <20160325122237.4ca4e0dbca215ccbf4f49922@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Mar 2016 06:27:41 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id i204so3665341wmd.0
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 06:27:41 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [RFC PATCH] mm, oom: move GFP_NOFS check to out_of_memory
+Date: Tue, 29 Mar 2016 15:27:35 +0200
+Message-Id: <1459258055-1173-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Xishi Qiu <qiuxishi@huawei.com>
-Cc: Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Laura Abbott <lauraa@codeaurora.org>, zhuhui@xiaomi.com, wangxq10@lzu.edu.cn, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 03/25/2016 08:22 PM, Andrew Morton wrote:
-> On Fri, 25 Mar 2016 14:56:04 +0800 Xishi Qiu <qiuxishi@huawei.com> wrote:
->
->> It is incorrect to use next_node to find a target node, it will
->> return MAX_NUMNODES or invalid node. This will lead to crash in
->> buddy system allocation.
->>
->> ...
->>
->> --- a/mm/page_isolation.c
->> +++ b/mm/page_isolation.c
->> @@ -289,11 +289,11 @@ struct page *alloc_migrate_target(struct page *page, unsigned long private,
->>   	 * now as a simple work-around, we use the next node for destination.
->>   	 */
->>   	if (PageHuge(page)) {
->> -		nodemask_t src = nodemask_of_node(page_to_nid(page));
->> -		nodemask_t dst;
->> -		nodes_complement(dst, src);
->> +		int node = next_online_node(page_to_nid(page));
->> +		if (node == MAX_NUMNODES)
->> +			node = first_online_node;
->>   		return alloc_huge_page_node(page_hstate(compound_head(page)),
->> -					    next_node(page_to_nid(page), dst));
->> +					    node);
->>   	}
->>
->>   	if (PageHighMem(page))
->
-> Indeed.  Can you tell us more about this circumstances under which the
-> kernel will crash?  I need to decide which kernel version(s) need the
-> patch, but the changelog doesn't contain the info needed to make this
-> decision (it should).
->
->
->
-> next_node() isn't a very useful interface, really.  Just about every
-> caller does this:
->
->
-> 	node = next_node(node, XXX);
-> 	if (node == MAX_NUMNODES)
-> 		node = first_node(XXX);
->
-> so how about we write a function which does that, and stop open-coding
-> the same thing everywhere?
+From: Michal Hocko <mhocko@suse.com>
 
-Good idea.
+__alloc_pages_may_oom is the central place to decide when the
+out_of_memory should be invoked. This is a good approach for most checks
+there because they are page allocator specific and the allocation fails
+right after.
 
-> And I think your fix could then use such a function:
->
-> 	int node = that_new_function(page_to_nid(page), node_online_map);
->
->
->
-> Also, mm/mempolicy.c:offset_il_node() worries me:
->
-> 	do {
-> 		nid = next_node(nid, pol->v.nodes);
-> 		c++;
-> 	} while (c <= target);
->
-> Can't `nid' hit MAX_NUMNODES?
+The notable exception is GFP_NOFS context which is faking
+did_some_progress and keep the page allocator looping even though there
+couldn't have been any progress from the OOM killer. This patch doesn't
+change this behavior because we are not ready to allow those allocation
+requests to fail yet. Instead __GFP_FS check is moved down to
+out_of_memory and prevent from OOM victim selection there. There are
+two reasons for that
+	- OOM notifiers might release some memory even from this context
+	  as none of the registered notifier seems to be FS related
+	- this might help a dying thread to get an access to memory
+          reserves and move on which will make the behavior more
+          consistent with the case when the task gets killed from a
+          different context.
 
-AFAICS it can. interleave_nid() uses this and the nid is then used e.g. 
-in node_zonelist() where it's used for NODE_DATA(nid). That's quite 
-scary. It also predates git. Why don't we see crashes or KASAN finding this?
+Keep a comment in __alloc_pages_may_oom to make sure we do not forget
+how GFP_NOFS is special and that we really want to do something about
+it.
 
->
-> And can someone please explain mem_cgroup_select_victim_node() to me?
-> How can we hit the "node = numa_node_id()" path?  Only if
-> memcg->scan_nodes is empty?  is that even valid?  The comment seems to
-> have not much to do with the code?
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
 
-I understand the comment that it's valid to be empty and the comment 
-lists reasons why that can happen (with somewhat broken language). Note 
-that I didn't verify these reasons:
-- we call this when hitting memcg limit, not when adding pages to LRU, 
-as adding to LRU means it would contain the given LRU's node
-- adding to unevictable LRU means it's not added to scan_nodes (probably 
-because scanning unevictable lru would be useless)
-- for other reasons (which?) it might have pages not on LRU and it's so 
-small there are no other pages that would be on LRU
+Hi,
+I am sending this as an RFC now even though I think this makes more
+sense than what we have right now. Maybe there are some side effects
+I do not see, though. A more tricky part is the OOM notifier part
+becasue future notifiers might decide to depend on the FS and we can
+lockup. Is this something to worry about, though? Would such a notifier
+be correct at all? I would call it broken as it would put OOM killer out
+of the way on the contended system which is a plain bug IMHO.
 
-> mpol_rebind_nodemask() is similar.
->
->
->
-> Something like this?
->
->
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: include/linux/nodemask.h: create next_node_in() helper
->
-> Lots of code does
->
-> 	node = next_node(node, XXX);
-> 	if (node == MAX_NUMNODES)
-> 		node = first_node(XXX);
->
-> so create next_node_in() to do this and use it in various places.
->
-> Cc: Xishi Qiu <qiuxishi@huawei.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
+If this looks like a reasonable approach I would go on think about how
+we can extend this for the oom_reaper and queue the current thread for
+the reaper to free some of the memory.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Any thoughts
 
-Patch doesn't address offset_il_node() which is good, because if it's 
-indeed buggy, it's serious and needs a non-cleanup patch.
+ mm/oom_kill.c   |  4 ++++
+ mm/page_alloc.c | 24 ++++++++++--------------
+ 2 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 86349586eacb..1c2b7a82f0c4 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -876,6 +876,10 @@ bool out_of_memory(struct oom_control *oc)
+ 		return true;
+ 	}
+ 
++	/* The OOM killer does not compensate for IO-less reclaim. */
++	if (!(oc->gfp_mask & __GFP_FS))
++		return true;
++
+ 	/*
+ 	 * Check if there were limitations on the allocation (only relevant for
+ 	 * NUMA) that may require different handling.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1b889dba7bd4..736ea28abfcf 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2872,22 +2872,18 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 		/* The OOM killer does not needlessly kill tasks for lowmem */
+ 		if (ac->high_zoneidx < ZONE_NORMAL)
+ 			goto out;
+-		/* The OOM killer does not compensate for IO-less reclaim */
+-		if (!(gfp_mask & __GFP_FS)) {
+-			/*
+-			 * XXX: Page reclaim didn't yield anything,
+-			 * and the OOM killer can't be invoked, but
+-			 * keep looping as per tradition.
+-			 *
+-			 * But do not keep looping if oom_killer_disable()
+-			 * was already called, for the system is trying to
+-			 * enter a quiescent state during suspend.
+-			 */
+-			*did_some_progress = !oom_killer_disabled;
+-			goto out;
+-		}
+ 		if (pm_suspended_storage())
+ 			goto out;
++		/*
++		 * XXX: GFP_NOFS allocations should rather fail than rely on
++		 * other request to make a forward progress.
++		 * We are in an unfortunate situation where out_of_memory cannot
++		 * do much for this context but let's try it to at least get
++		 * access to memory reserved if the current task is killed (see
++		 * out_of_memory). Once filesystems are ready to handle allocation
++		 * failures more gracefully we should just bail out here.
++		 */
++
+ 		/* The OOM killer may not free memory on a specific node */
+ 		if (gfp_mask & __GFP_THISNODE)
+ 			goto out;
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
