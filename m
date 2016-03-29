@@ -1,86 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id BBC216B025E
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 10:20:10 -0400 (EDT)
-Received: by mail-wm0-f53.google.com with SMTP id 191so52736954wmq.0
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 07:20:10 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y184si13558669wmd.74.2016.03.29.07.20.09
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id CD9446B025E
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 10:22:18 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id 127so60724019wmu.1
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 07:22:18 -0700 (PDT)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
+        by mx.google.com with ESMTPS id p134si16851130wmb.103.2016.03.29.07.22.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Mar 2016 07:20:09 -0700 (PDT)
-Subject: Re: memory fragmentation issues on 4.4
-References: <56F8F5DA.6040206@kyup.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56FA8F18.60306@suse.cz>
-Date: Tue, 29 Mar 2016 16:20:08 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Mar 2016 07:22:17 -0700 (PDT)
+Received: by mail-wm0-f46.google.com with SMTP id p65so141505677wmp.1
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 07:22:17 -0700 (PDT)
+Date: Tue, 29 Mar 2016 16:22:16 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, oom: move GFP_NOFS check to out_of_memory
+Message-ID: <20160329142216.GE4466@dhcp22.suse.cz>
+References: <1459258055-1173-1-git-send-email-mhocko@kernel.org>
+ <201603292245.AAC12437.JFLMQVtSOHFFOO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <56F8F5DA.6040206@kyup.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201603292245.AAC12437.JFLMQVtSOHFFOO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikolay Borisov <kernel@kyup.com>, Linux MM <linux-mm@kvack.org>
-Cc: mgorman@techsingularity.net
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On 03/28/2016 11:14 AM, Nikolay Borisov wrote:
-> Hello,
->
-> On kernel 4.4 I observe that the memory gets really fragmented fairly
-> quickly. E.g. there are no order  > 4 pages even after 2 days of uptime.
-> This leads to certain data structures on XFS (in my case order 4/order 5
-> allocations)  not being allocated and causes the server to stall. When
-> this happens either someone has to log on the server and manually invoke
-> the memory compaction or plain reboot the server. Before that the server
-> was running with the exact same workload but with 3.12.52 kernel and no
-> such issue were observed. That is - memory was fragmented but allocation
-> didn't fail, maybe alloc_pages_direct_compact was doing a better job?
->
-> FYI the allocation is performed with GFP_KERNEL | GFP_NOFS
+On Tue 29-03-16 22:45:40, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > __alloc_pages_may_oom is the central place to decide when the
+> > out_of_memory should be invoked. This is a good approach for most checks
+> > there because they are page allocator specific and the allocation fails
+> > right after.
+> > 
+> > The notable exception is GFP_NOFS context which is faking
+> > did_some_progress and keep the page allocator looping even though there
+> > couldn't have been any progress from the OOM killer. This patch doesn't
+> > change this behavior because we are not ready to allow those allocation
+> > requests to fail yet. Instead __GFP_FS check is moved down to
+> > out_of_memory and prevent from OOM victim selection there. There are
+> > two reasons for that
+> > 	- OOM notifiers might release some memory even from this context
+> > 	  as none of the registered notifier seems to be FS related
+> > 	- this might help a dying thread to get an access to memory
+> >           reserves and move on which will make the behavior more
+> >           consistent with the case when the task gets killed from a
+> >           different context.
+> 
+> Allowing !__GFP_FS allocations to get TIF_MEMDIE by calling the shortcuts in
+> out_of_memory() would be fine. But I don't like the direction you want to go.
+> 
+> I don't like failing !__GFP_FS allocations without selecting OOM victim
+> ( http://lkml.kernel.org/r/201603252054.ADH30264.OJQFFLMOHFSOVt@I-love.SAKURA.ne.jp ).
 
-GFP_NOFS is indeed excluded from memory compaction in the allocation 
-context (i.e. direct compaction).
+I didn't get to read and digest that email yet but from a quick glance
+it doesn't seem to be directly related to this patch. Even if we decide
+that __GFP_FS vs. OOM killer logic is flawed for some reason then would
+build on top as granting the access to memory reserves is not against
+it.
 
-> Manual compaction usually does the job, however I'm wondering why isn't
-> invoking __alloc_pages_direct_compact from within __alloc_pages_nodemask
-> satisfying the request if manual compaction would do the job. Is there a
-> difference in the efficiency of manually invoking memory compaction and
-> the one invoked from the page allocator path?
+> Also, I suggested removing all shortcuts by setting TIF_MEMDIE from oom_kill_process()
+> ( http://lkml.kernel.org/r/1458529634-5951-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp ).
 
-Manual compaction via /proc is known to be safe in not holding any locks 
-that XFS might be holding. Compaction relies on page migration and IIRC 
-some filesystems cannot migrate dirty pages unless there's writeback, 
-and if that writeback called back to xfs, it would be a deadlock. 
-However, we could investigate if the async compaction would be safe.
-
-In any case, such high-order allocations should always have an order-0 
-fallback. You're suggesting there's an infinite loop around the 
-allocation attempt instead? Do you have the full backtrace?
-
-Even an infinite loop should eventually proceed by having kswapd do the 
-compaction work with unrestricted context. But it turns out kswapd 
-compaction was broken. Hopefully good news is that 4.6-rc1 has kcompactd 
-for that, which should work better. If you're able to test such 
-experimental kernel, I would be interested to hear if it helped.
-
-> Another question for my own satisfaction - I created a kernel module
-> which allocate pages of very high order - 8/9) then later when those
-> pages are returned I see the number of unmovable pages increase by the
-> amount of pages returned. So should freed pages go to the unmovable
-> category?
-
-Your kernel was likely doing unmovable allocations (e.g. GFP_KERNEL), so 
-freed pages are returned to unmovable freelists. But once they merge to 
-order-9 or higher, it doesn't really matter, as it's trivial to 
-transform them to movable lists in response to movable allocation 
-demand, without causing permanent fragmentation.
-
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+I personally do not like this much. I believe we have already tried to
+explain why we have (some of) those shortcuts. They might be too
+optimistic and there is a room for improvements for sure but I am not
+convinced we can get rid of them that easily.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
