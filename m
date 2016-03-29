@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id ED0056B025E
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 21:13:13 -0400 (EDT)
-Received: by mail-qg0-f45.google.com with SMTP id u110so687529qge.3
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 18:13:13 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id h81si3038083qhc.41.2016.03.28.18.13.13
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id CFFD96B025F
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 21:13:14 -0400 (EDT)
+Received: by mail-pf0-f176.google.com with SMTP id u190so1077201pfb.3
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 18:13:14 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id o63si19116086pfi.141.2016.03.28.18.13.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 28 Mar 2016 18:13:13 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC PATCH 1/2] mm/hugetlbfs: Attempt PUD_SIZE mapping alignment if PMD sharing enabled
-Date: Mon, 28 Mar 2016 18:12:49 -0700
-Message-Id: <1459213970-17957-2-git-send-email-mike.kravetz@oracle.com>
+Subject: [RFC PATCH 2/2] x86/hugetlb: Attempt PUD_SIZE mapping alignment if PMD sharing enabled
+Date: Mon, 28 Mar 2016 18:12:50 -0700
+Message-Id: <1459213970-17957-3-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1459213970-17957-1-git-send-email-mike.kravetz@oracle.com>
 References: <1459213970-17957-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -30,15 +30,15 @@ huge page size mapping.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- fs/hugetlbfs/inode.c | 29 +++++++++++++++++++++++++++--
- 1 file changed, 27 insertions(+), 2 deletions(-)
+ arch/x86/mm/hugetlbpage.c | 64 ++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 61 insertions(+), 3 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 540ddc9..22b2e38 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -175,6 +175,17 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 	struct vm_area_struct *vma;
+diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+index 42982b2..4f53af5 100644
+--- a/arch/x86/mm/hugetlbpage.c
++++ b/arch/x86/mm/hugetlbpage.c
+@@ -78,14 +78,39 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
+ {
  	struct hstate *h = hstate_file(file);
  	struct vm_unmapped_area_info info;
 +	bool pud_size_align = false;
@@ -53,11 +53,9 @@ index 540ddc9..22b2e38 100644
 +	    !addr && flags & MAP_SHARED && len >= PUD_SIZE)
 +		pud_size_align = true;
  
- 	if (len & ~huge_page_mask(h))
- 		return -EINVAL;
-@@ -199,9 +210,23 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+ 	info.flags = 0;
  	info.length = len;
- 	info.low_limit = TASK_UNMAPPED_BASE;
+ 	info.low_limit = current->mm->mmap_legacy_base;
  	info.high_limit = TASK_SIZE;
 -	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
 +	if (pud_size_align)
@@ -79,8 +77,67 @@ index 540ddc9..22b2e38 100644
 +
 +	return ret_addr;
  }
- #endif
  
+ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
+@@ -95,16 +120,38 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
+ 	struct hstate *h = hstate_file(file);
+ 	struct vm_unmapped_area_info info;
+ 	unsigned long addr;
++	bool pud_size_align = false;
++
++	/*
++	 * If PMD sharing is enabled, align to PUD_SIZE to facilitate
++	 * sharing.  Only attempt alignment if no address was passed in,
++	 * flags indicate sharing and size is big enough.
++	 */
++	if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
++	    !addr0 && flags & MAP_SHARED && len >= PUD_SIZE)
++		pud_size_align = true;
+ 
+ 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
+ 	info.length = len;
+ 	info.low_limit = PAGE_SIZE;
+ 	info.high_limit = current->mm->mmap_base;
+-	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
++	if (pud_size_align)
++		info.align_mask = PAGE_MASK & (PUD_SIZE - 1);
++	else
++		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
+ 	info.align_offset = 0;
+ 	addr = vm_unmapped_area(&info);
+ 
+ 	/*
++	 * If failed with PUD_SIZE alignment, try again with huge page
++	 * size alignment.
++	 */
++	if ((addr & ~PAGE_MASK) && pud_size_align) {
++		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
++		addr = vm_unmapped_area(&info);
++	}
++
++	/*
+ 	 * A failed mmap() very likely causes application failure,
+ 	 * so fall back to the bottom-up function here. This scenario
+ 	 * can happen with large stack limits and large mmap()
+@@ -115,7 +162,18 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
+ 		info.flags = 0;
+ 		info.low_limit = TASK_UNMAPPED_BASE;
+ 		info.high_limit = TASK_SIZE;
++		if (pud_size_align)
++			info.align_mask = PAGE_MASK & (PUD_SIZE - 1);
+ 		addr = vm_unmapped_area(&info);
++
++		/*
++		 * If failed again with PUD_SIZE alignment, finally try with
++		 * huge page size alignment.
++		 */
++		if (addr & ~PAGE_MASK) {
++			info.align_mask = PAGE_MASK & ~huge_page_mask(h);
++			addr = vm_unmapped_area(&info);
++		}
+ 	}
+ 
+ 	return addr;
 -- 
 2.4.3
 
