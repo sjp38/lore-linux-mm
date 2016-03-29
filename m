@@ -1,121 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id F26ED6B025E
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 21:05:48 -0400 (EDT)
-Received: by mail-ig0-f170.google.com with SMTP id m10so2298729igt.1
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 18:05:48 -0700 (PDT)
-Received: from resqmta-po-10v.sys.comcast.net (resqmta-po-10v.sys.comcast.net. [2001:558:fe16:19:96:114:154:169])
-        by mx.google.com with ESMTPS id 26si8177007ioi.61.2016.03.28.18.05.43
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id ED0056B025E
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 21:13:13 -0400 (EDT)
+Received: by mail-qg0-f45.google.com with SMTP id u110so687529qge.3
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 18:13:13 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id h81si3038083qhc.41.2016.03.28.18.13.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Mar 2016 18:05:43 -0700 (PDT)
-Date: Mon, 28 Mar 2016 20:05:41 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 07/11] mm/slab: racy access/modify the slab color
-In-Reply-To: <1459142821-20303-8-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.20.1603282004280.31323@east.gentwo.org>
-References: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com> <1459142821-20303-8-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=US-ASCII
+        Mon, 28 Mar 2016 18:13:13 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [RFC PATCH 1/2] mm/hugetlbfs: Attempt PUD_SIZE mapping alignment if PMD sharing enabled
+Date: Mon, 28 Mar 2016 18:12:49 -0700
+Message-Id: <1459213970-17957-2-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1459213970-17957-1-git-send-email-mike.kravetz@oracle.com>
+References: <1459213970-17957-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org
+Cc: Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steve Capper <steve.capper@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Mon, 28 Mar 2016, js1304@gmail.com wrote:
+When creating a hugetlb mapping, attempt PUD_SIZE alignment if the
+following conditions are met:
+- Address passed to mmap or shmat is NULL
+- The mapping is flaged as shared
+- The mapping is at least PUD_SIZE in length
+If a PUD_SIZE aligned mapping can not be created, then fall back to a
+huge page size mapping.
 
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> Slab color isn't needed to be changed strictly. Because locking
-> for changing slab color could cause more lock contention so this patch
-> implements racy access/modify the slab color. This is a preparation step
-> to implement lockless allocation path when there is no free objects in
-> the kmem_cache.
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+ fs/hugetlbfs/inode.c | 29 +++++++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)
 
-Acked-by: Christoph Lameter <cl@linux.com>
-
-The rest of the description does not relate to this patch and does not
-actually reflect the improvement of applying this patch. Remove the rest?
-
-
-> Below is the result of concurrent allocation/free in slab allocation
-> benchmark made by Christoph a long time ago. I make the output simpler.
-> The number shows cycle count during alloc/free respectively so less
-> is better.
->
-> * Before
-> Kmalloc N*alloc N*free(32): Average=365/806
-> Kmalloc N*alloc N*free(64): Average=452/690
-> Kmalloc N*alloc N*free(128): Average=736/886
-> Kmalloc N*alloc N*free(256): Average=1167/985
-> Kmalloc N*alloc N*free(512): Average=2088/1125
-> Kmalloc N*alloc N*free(1024): Average=4115/1184
-> Kmalloc N*alloc N*free(2048): Average=8451/1748
-> Kmalloc N*alloc N*free(4096): Average=16024/2048
->
-> * After
-> Kmalloc N*alloc N*free(32): Average=355/750
-> Kmalloc N*alloc N*free(64): Average=452/812
-> Kmalloc N*alloc N*free(128): Average=559/1070
-> Kmalloc N*alloc N*free(256): Average=1176/980
-> Kmalloc N*alloc N*free(512): Average=1939/1189
-> Kmalloc N*alloc N*free(1024): Average=3521/1278
-> Kmalloc N*alloc N*free(2048): Average=7152/1838
-> Kmalloc N*alloc N*free(4096): Average=13438/2013
->
-> It shows that contention is reduced for object size >= 1024
-> and performance increases by roughly 15%.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  mm/slab.c | 26 +++++++++++++-------------
->  1 file changed, 13 insertions(+), 13 deletions(-)
->
-> diff --git a/mm/slab.c b/mm/slab.c
-> index df11757..52fc5e3 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -2536,20 +2536,7 @@ static int cache_grow(struct kmem_cache *cachep,
->  	}
->  	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
->
-> -	/* Take the node list lock to change the colour_next on this node */
->  	check_irq_off();
-> -	n = get_node(cachep, nodeid);
-> -	spin_lock(&n->list_lock);
-> -
-> -	/* Get colour for the slab, and cal the next value. */
-> -	offset = n->colour_next;
-> -	n->colour_next++;
-> -	if (n->colour_next >= cachep->colour)
-> -		n->colour_next = 0;
-> -	spin_unlock(&n->list_lock);
-> -
-> -	offset *= cachep->colour_off;
-> -
->  	if (gfpflags_allow_blocking(local_flags))
->  		local_irq_enable();
->
-> @@ -2570,6 +2557,19 @@ static int cache_grow(struct kmem_cache *cachep,
->  	if (!page)
->  		goto failed;
->
-> +	n = get_node(cachep, nodeid);
-> +
-> +	/* Get colour for the slab, and cal the next value. */
-> +	n->colour_next++;
-> +	if (n->colour_next >= cachep->colour)
-> +		n->colour_next = 0;
-> +
-> +	offset = n->colour_next;
-> +	if (offset >= cachep->colour)
-> +		offset = 0;
-> +
-> +	offset *= cachep->colour_off;
-> +
->  	/* Get slab management. */
->  	freelist = alloc_slabmgmt(cachep, page, offset,
->  			local_flags & ~GFP_CONSTRAINT_MASK, nodeid);
->
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 540ddc9..22b2e38 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -175,6 +175,17 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+ 	struct vm_area_struct *vma;
+ 	struct hstate *h = hstate_file(file);
+ 	struct vm_unmapped_area_info info;
++	bool pud_size_align = false;
++	unsigned long ret_addr;
++
++	/*
++	 * If PMD sharing is enabled, align to PUD_SIZE to facilitate
++	 * sharing.  Only attempt alignment if no address was passed in,
++	 * flags indicate sharing and size is big enough.
++	 */
++	if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
++	    !addr && flags & MAP_SHARED && len >= PUD_SIZE)
++		pud_size_align = true;
+ 
+ 	if (len & ~huge_page_mask(h))
+ 		return -EINVAL;
+@@ -199,9 +210,23 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+ 	info.length = len;
+ 	info.low_limit = TASK_UNMAPPED_BASE;
+ 	info.high_limit = TASK_SIZE;
+-	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
++	if (pud_size_align)
++		info.align_mask = PAGE_MASK & (PUD_SIZE - 1);
++	else
++		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
+ 	info.align_offset = 0;
+-	return vm_unmapped_area(&info);
++	ret_addr = vm_unmapped_area(&info);
++
++	/*
++	 * If failed with PUD_SIZE alignment, try again with huge page
++	 * size alignment.
++	 */
++	if ((ret_addr & ~PAGE_MASK) && pud_size_align) {
++		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
++		ret_addr = vm_unmapped_area(&info);
++	}
++
++	return ret_addr;
+ }
+ #endif
+ 
+-- 
+2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
