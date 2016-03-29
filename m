@@ -1,58 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id A3AF16B0005
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 18:13:57 -0400 (EDT)
-Received: by mail-pf0-f170.google.com with SMTP id e128so3992313pfe.3
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 15:13:57 -0700 (PDT)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id qx12si1184893pab.169.2016.03.29.15.13.56
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id EBF716B0005
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 18:17:12 -0400 (EDT)
+Received: by mail-pf0-f174.google.com with SMTP id x3so25411410pfb.1
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 15:17:12 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d82si1247573pfj.52.2016.03.29.15.17.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Mar 2016 15:13:56 -0700 (PDT)
-Received: by mail-pa0-x232.google.com with SMTP id td3so23899293pab.2
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 15:13:56 -0700 (PDT)
-Date: Tue, 29 Mar 2016 15:13:54 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH] mm, oom: move GFP_NOFS check to out_of_memory
-In-Reply-To: <1459258055-1173-1-git-send-email-mhocko@kernel.org>
-Message-ID: <alpine.DEB.2.10.1603291510560.11705@chino.kir.corp.google.com>
-References: <1459258055-1173-1-git-send-email-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Tue, 29 Mar 2016 15:17:12 -0700 (PDT)
+Date: Tue, 29 Mar 2016 15:17:10 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4 3/8] mm: Add support for PUD-sized transparent
+ hugepages
+Message-Id: <20160329151710.6a256611fd28637d5c40ac3c@linux-foundation.org>
+In-Reply-To: <1454242175-16870-4-git-send-email-matthew.r.wilcox@intel.com>
+References: <1454242175-16870-1-git-send-email-matthew.r.wilcox@intel.com>
+	<1454242175-16870-4-git-send-email-matthew.r.wilcox@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, x86@kernel.org
 
-On Tue, 29 Mar 2016, Michal Hocko wrote:
+On Sun, 31 Jan 2016 23:09:30 +1100 Matthew Wilcox <matthew.r.wilcox@intel.com> wrote:
 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 86349586eacb..1c2b7a82f0c4 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -876,6 +876,10 @@ bool out_of_memory(struct oom_control *oc)
->  		return true;
->  	}
->  
-> +	/* The OOM killer does not compensate for IO-less reclaim. */
-> +	if (!(oc->gfp_mask & __GFP_FS))
-> +		return true;
+> From: Matthew Wilcox <willy@linux.intel.com>
+> 
+> The current transparent hugepage code only supports PMDs.  This patch
+> adds support for transparent use of PUDs with DAX.  It does not include
+> support for anonymous pages.
+> 
+> Most of this patch simply parallels the work that was done for huge PMDs.
+> The only major difference is how the new ->pud_entry method in mm_walk
+> works.  The ->pmd_entry method replaces the ->pte_entry method, whereas
+> the ->pud_entry method works along with either ->pmd_entry or ->pte_entry.
+> The pagewalk code takes care of locking the PUD before calling ->pud_walk,
+> so handlers do not need to worry whether the PUD is stable.
+
+Why is this patchset always so hard to compile :(
+
+> ...
+>
+> --- a/include/linux/pfn_t.h
+> +++ b/include/linux/pfn_t.h
+> @@ -82,6 +82,13 @@ static inline pmd_t pfn_t_pmd(pfn_t pfn, pgprot_t pgprot)
+>  {
+>  	return pfn_pmd(pfn_t_to_pfn(pfn), pgprot);
+>  }
 > +
->  	/*
->  	 * Check if there were limitations on the allocation (only relevant for
->  	 * NUMA) that may require different handling.
+> +#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
+> +static inline pud_t pfn_t_pud(pfn_t pfn, pgprot_t pgprot)
+> +{
+> +	return pfn_pud(pfn_t_to_pfn(pfn), pgprot);
+> +}
+> +#endif
+>  #endif
+>  
+>  #ifdef __HAVE_ARCH_PTE_DEVMAP
+> @@ -98,5 +105,6 @@ static inline bool pfn_t_devmap(pfn_t pfn)
+>  }
+>  pte_t pte_mkdevmap(pte_t pte);
+>  pmd_t pmd_mkdevmap(pmd_t pmd);
+> +pud_t pud_mkdevmap(pud_t pud);
 
-I don't object to this necessarily, but I think we need input from those 
-that have taken the time to implement their own oom notifier to see if 
-they agree.  In the past, they would only be called if reclaim has 
-completely failed; now, they can be called in low memory situations when 
-reclaim has had very little chance to be successful.  Getting an ack from 
-them would be helpful.
+arm allnoconfig:
 
-I also think we have discussed this before, but I think the oom notifier 
-handling should be in done in the page allocator proper, i.e. in 
-__alloc_pages_may_oom().  We can leave out_of_memory() for a clear defined 
-purpose: to kill a process when all reclaim has failed.
+In file included from kernel/memremap.c:17:
+include/linux/pfn_t.h:107: error: 'pud_mkdevmap' declared as function returning an array
+because it expands to
+
+pgd_t pud_mkdevmap(pgd_t pud);
+
+and
+
+typedef unsigned long pgd_t[2];                                                 
+
+
+Also the patch provides no implementation of pud_mkdevmap() so it's
+obviously going to break bisection.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
