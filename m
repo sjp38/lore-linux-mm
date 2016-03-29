@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id C664E6B025E
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 20:58:31 -0400 (EDT)
-Received: by mail-io0-f178.google.com with SMTP id a129so4367132ioe.0
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 17:58:31 -0700 (PDT)
-Received: from resqmta-po-12v.sys.comcast.net (resqmta-po-12v.sys.comcast.net. [2001:558:fe16:19:96:114:154:171])
-        by mx.google.com with ESMTPS id 25si4717822ioj.47.2016.03.28.17.58.31
+Received: from mail-io0-f170.google.com (mail-io0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 2353D6B025F
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 21:03:24 -0400 (EDT)
+Received: by mail-io0-f170.google.com with SMTP id q128so4325574iof.3
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 18:03:24 -0700 (PDT)
+Received: from resqmta-po-02v.sys.comcast.net (resqmta-po-02v.sys.comcast.net. [2001:558:fe16:19:96:114:154:161])
+        by mx.google.com with ESMTPS id o36si25669548ioi.7.2016.03.28.18.03.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Mar 2016 17:58:31 -0700 (PDT)
-Date: Mon, 28 Mar 2016 19:58:29 -0500 (CDT)
+        Mon, 28 Mar 2016 18:03:18 -0700 (PDT)
+Date: Mon, 28 Mar 2016 20:03:16 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 05/11] mm/slab: clean-up kmem_cache_node setup
-In-Reply-To: <1459142821-20303-6-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.20.1603281957100.31323@east.gentwo.org>
-References: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com> <1459142821-20303-6-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 06/11] mm/slab: don't keep free slabs if free_objects
+ exceeds free_limit
+In-Reply-To: <1459142821-20303-7-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <alpine.DEB.2.20.1603282000270.31323@east.gentwo.org>
+References: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com> <1459142821-20303-7-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -23,12 +24,24 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
 On Mon, 28 Mar 2016, js1304@gmail.com wrote:
 
->   * This initializes kmem_cache_node or resizes various caches for all nodes.
->   */
-> -static int alloc_kmem_cache_node(struct kmem_cache *cachep, gfp_t gfp)
-> +static int setup_kmem_cache_node_node(struct kmem_cache *cachep, gfp_t gfp)
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> Currently, determination to free a slab is done whenever free object is
+> put into the slab. This has a problem that free slabs are not freed
+> even if we have free slabs and have more free_objects than free_limit
 
-... _node_node? Isnt there a better name for it?
+There needs to be a better explanation here since I do not get why there
+is an issue with checking after free if a slab is actually free.
+
+> when processed slab isn't a free slab. This would cause to keep
+> too much memory in the slab subsystem. This patch try to fix it
+> by checking number of free object after all free work is done. If there
+> is free slab at that time, we can free it so we keep free slab as minimal
+> as possible.
+
+Ok if we check after free work is done then the number of free slabs may
+be higher than the limit set and then we free the additional slabs to get
+down to the limit that was set?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
