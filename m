@@ -1,129 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 69A5F6B007E
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 04:35:15 -0400 (EDT)
-Received: by mail-wm0-f41.google.com with SMTP id p65so15281959wmp.0
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 01:35:15 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id f70si15321246wmd.99.2016.03.29.01.35.14
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 24FC76B007E
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 04:46:23 -0400 (EDT)
+Received: by mail-wm0-f50.google.com with SMTP id r72so46947995wmg.0
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 01:46:23 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id la7si32985013wjc.203.2016.03.29.01.46.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Mar 2016 01:35:14 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id p65so3062075wmp.1
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 01:35:14 -0700 (PDT)
-Date: Tue, 29 Mar 2016 10:35:10 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC PATCH 2/2] x86/hugetlb: Attempt PUD_SIZE mapping alignment
- if PMD sharing enabled
-Message-ID: <20160329083510.GA27941@gmail.com>
-References: <1459213970-17957-1-git-send-email-mike.kravetz@oracle.com>
- <1459213970-17957-3-git-send-email-mike.kravetz@oracle.com>
+        Tue, 29 Mar 2016 01:46:22 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 589771C129A
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 09:46:21 +0100 (IST)
+Date: Tue, 29 Mar 2016 09:46:19 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm/filemap: generic_file_read_iter(): check for zero
+ reads unconditionally
+Message-ID: <20160329084619.GK31585@techsingularity.net>
+References: <1458817738-2753-1-git-send-email-nicstange@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1459213970-17957-3-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1458817738-2753-1-git-send-email-nicstange@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steve Capper <steve.capper@linaro.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Nicolai Stange <nicstange@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Junichi Nomura <j-nomura@ce.jp.nec.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
-* Mike Kravetz <mike.kravetz@oracle.com> wrote:
-
-> When creating a hugetlb mapping, attempt PUD_SIZE alignment if the
-> following conditions are met:
-> - Address passed to mmap or shmat is NULL
-> - The mapping is flaged as shared
-> - The mapping is at least PUD_SIZE in length
-> If a PUD_SIZE aligned mapping can not be created, then fall back to a
-> huge page size mapping.
+On Thu, Mar 24, 2016 at 12:08:58PM +0100, Nicolai Stange wrote:
+> If
+> - generic_file_read_iter() gets called with a zero read length,
+> - the read offset is at a page boundary,
+> - IOCB_DIRECT is not set
+> - and the page in question hasn't made it into the page cache yet,
+> then do_generic_file_read() will trigger a readahead with a req_size hint
+> of zero.
 > 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
->  arch/x86/mm/hugetlbpage.c | 64 ++++++++++++++++++++++++++++++++++++++++++++---
->  1 file changed, 61 insertions(+), 3 deletions(-)
+> Since roundup_pow_of_two(0) is undefined, UBSAN reports
 > 
-> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> index 42982b2..4f53af5 100644
-> --- a/arch/x86/mm/hugetlbpage.c
-> +++ b/arch/x86/mm/hugetlbpage.c
-> @@ -78,14 +78,39 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
->  {
->  	struct hstate *h = hstate_file(file);
->  	struct vm_unmapped_area_info info;
-> +	bool pud_size_align = false;
-> +	unsigned long ret_addr;
-> +
-> +	/*
-> +	 * If PMD sharing is enabled, align to PUD_SIZE to facilitate
-> +	 * sharing.  Only attempt alignment if no address was passed in,
-> +	 * flags indicate sharing and size is big enough.
-> +	 */
-> +	if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
-> +	    !addr && flags & MAP_SHARED && len >= PUD_SIZE)
-> +		pud_size_align = true;
->  
->  	info.flags = 0;
->  	info.length = len;
->  	info.low_limit = current->mm->mmap_legacy_base;
->  	info.high_limit = TASK_SIZE;
-> -	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
-> +	if (pud_size_align)
-> +		info.align_mask = PAGE_MASK & (PUD_SIZE - 1);
-> +	else
-> +		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->  	info.align_offset = 0;
-> -	return vm_unmapped_area(&info);
-> +	ret_addr = vm_unmapped_area(&info);
-> +
-> +	/*
-> +	 * If failed with PUD_SIZE alignment, try again with huge page
-> +	 * size alignment.
-> +	 */
-> +	if ((ret_addr & ~PAGE_MASK) && pud_size_align) {
-> +		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
-> +		ret_addr = vm_unmapped_area(&info);
-> +	}
+>   UBSAN: Undefined behaviour in include/linux/log2.h:63:13
+>   shift exponent 64 is too large for 64-bit type 'long unsigned int'
+>   CPU: 3 PID: 1017 Comm: sa1 Tainted: G L 4.5.0-next-20160318+ #14
+>   [...]
+>   Call Trace:
+>    [...]
+>    [<ffffffff813ef61a>] ondemand_readahead+0x3aa/0x3d0
+>    [<ffffffff813ef61a>] ? ondemand_readahead+0x3aa/0x3d0
+>    [<ffffffff813c73bd>] ? find_get_entry+0x2d/0x210
+>    [<ffffffff813ef9c3>] page_cache_sync_readahead+0x63/0xa0
+>    [<ffffffff813cc04d>] do_generic_file_read+0x80d/0xf90
+>    [<ffffffff813cc955>] generic_file_read_iter+0x185/0x420
+>    [...]
+>    [<ffffffff81510b06>] __vfs_read+0x256/0x3d0
+>    [...]
+> 
+> when get_init_ra_size() gets called from ondemand_readahead().
+> 
+> The net effect is that the initial readahead size is arch dependent for
+> requested read lengths of zero: for example, since
+> 
+>   1UL << (sizeof(unsigned long) * 8)
+> 
+> evaluates to 1 on x86 while its result is 0 on ARMv7, the initial readahead
+> size becomes 4 on the former and 0 on the latter.
+> 
+> What's more, whether or not the file access timestamp is updated for zero
+> length reads is decided differently for the two cases of IOCB_DIRECT
+> being set or cleared: in the first case, generic_file_read_iter()
+> explicitly skips updating that timestamp while in the latter case, it is
+> always updated through the call to do_generic_file_read().
+> 
+> According to POSIX, zero length reads "do not modify the last data access
+> timestamp" and thus, the IOCB_DIRECT behaviour is POSIXly correct.
+> 
+> Let generic_file_read_iter() unconditionally check the requested read
+> length at its entry and return immediately with success if it is zero.
+> 
+> Signed-off-by: Nicolai Stange <nicstange@gmail.com>
 
-So AFAICS 'ret_addr' is either page aligned, or is an error code. Wouldn't it be a 
-lot easier to read to say:
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
-	if ((long)ret_addr > 0 && pud_size_align) {
-		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
-		ret_addr = vm_unmapped_area(&info);
-	}
-
-	return ret_addr;
-
-to make it clear that it's about error handling, not some alignment 
-requirement/restriction?
-
->  	/*
-> +	 * If failed with PUD_SIZE alignment, try again with huge page
-> +	 * size alignment.
-> +	 */
-> +	if ((addr & ~PAGE_MASK) && pud_size_align) {
-> +		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
-> +		addr = vm_unmapped_area(&info);
-> +	}
-
-Ditto.
-
->  		addr = vm_unmapped_area(&info);
-> +
-> +		/*
-> +		 * If failed again with PUD_SIZE alignment, finally try with
-> +		 * huge page size alignment.
-> +		 */
-> +		if (addr & ~PAGE_MASK) {
-> +			info.align_mask = PAGE_MASK & ~huge_page_mask(h);
-> +			addr = vm_unmapped_area(&info);
-
-Ditto.
-
-Thanks,
-
-	Ingo
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
