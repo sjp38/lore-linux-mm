@@ -1,118 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f175.google.com (mail-qk0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 16F066B025E
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 12:30:02 -0400 (EDT)
-Received: by mail-qk0-f175.google.com with SMTP id i4so8196059qkc.3
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 09:30:02 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id 102si4522871qgo.126.2016.03.29.09.29.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Mar 2016 09:29:58 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/2] mm/hugetlbfs: Attempt PUD_SIZE mapping alignment
- if PMD sharing enabled
-References: <1459213970-17957-1-git-send-email-mike.kravetz@oracle.com>
- <1459213970-17957-2-git-send-email-mike.kravetz@oracle.com>
- <024b01d1896e$2e600e70$8b202b50$@alibaba-inc.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <56FAAD70.1020806@oracle.com>
-Date: Tue, 29 Mar 2016 09:29:36 -0700
-MIME-Version: 1.0
-In-Reply-To: <024b01d1896e$2e600e70$8b202b50$@alibaba-inc.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 86A716B0260
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 12:39:48 -0400 (EDT)
+Received: by mail-pf0-f180.google.com with SMTP id n5so18533967pfn.2
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 09:39:48 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id ol15si5363853pab.45.2016.03.29.09.39.47
+        for <linux-mm@kvack.org>;
+        Tue, 29 Mar 2016 09:39:47 -0700 (PDT)
+From: Steve Capper <steve.capper@arm.com>
+Subject: [PATCH] mm: Exclude HugeTLB pages from THP page_mapped logic
+Date: Tue, 29 Mar 2016 17:39:41 +0100
+Message-Id: <1459269581-21190-1-git-send-email-steve.capper@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org
-Cc: 'Hugh Dickins' <hughd@google.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'David Rientjes' <rientjes@google.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Thomas Gleixner' <tglx@linutronix.de>, 'Ingo Molnar' <mingo@redhat.com>, "'H. Peter Anvin'" <hpa@zytor.com>, 'Catalin Marinas' <catalin.marinas@arm.com>, 'Will Deacon' <will.deacon@arm.com>, 'Steve Capper' <steve.capper@linaro.org>, 'Andrew Morton' <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, will.deacon@arm.com, dwoods@mellanox.com, mhocko@suse.com, mingo@kernel.org, Steve Capper <steve.capper@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 03/28/2016 08:50 PM, Hillf Danton wrote:
->>
->> When creating a hugetlb mapping, attempt PUD_SIZE alignment if the
->> following conditions are met:
->> - Address passed to mmap or shmat is NULL
->> - The mapping is flaged as shared
->> - The mapping is at least PUD_SIZE in length
->> If a PUD_SIZE aligned mapping can not be created, then fall back to a
->> huge page size mapping.
->>
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->> ---
->>  fs/hugetlbfs/inode.c | 29 +++++++++++++++++++++++++++--
->>  1 file changed, 27 insertions(+), 2 deletions(-)
->>
->> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
->> index 540ddc9..22b2e38 100644
->> --- a/fs/hugetlbfs/inode.c
->> +++ b/fs/hugetlbfs/inode.c
->> @@ -175,6 +175,17 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
->>  	struct vm_area_struct *vma;
->>  	struct hstate *h = hstate_file(file);
->>  	struct vm_unmapped_area_info info;
->> +	bool pud_size_align = false;
->> +	unsigned long ret_addr;
->> +
->> +	/*
->> +	 * If PMD sharing is enabled, align to PUD_SIZE to facilitate
->> +	 * sharing.  Only attempt alignment if no address was passed in,
->> +	 * flags indicate sharing and size is big enough.
->> +	 */
->> +	if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
->> +	    !addr && flags & MAP_SHARED && len >= PUD_SIZE)
->> +		pud_size_align = true;
->>
->>  	if (len & ~huge_page_mask(h))
->>  		return -EINVAL;
->> @@ -199,9 +210,23 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
->>  	info.length = len;
->>  	info.low_limit = TASK_UNMAPPED_BASE;
->>  	info.high_limit = TASK_SIZE;
->> -	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->> +	if (pud_size_align)
->> +		info.align_mask = PAGE_MASK & (PUD_SIZE - 1);
->> +	else
->> +		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->>  	info.align_offset = 0;
->> -	return vm_unmapped_area(&info);
->> +	ret_addr = vm_unmapped_area(&info);
->> +
->> +	/*
->> +	 * If failed with PUD_SIZE alignment, try again with huge page
->> +	 * size alignment.
->> +	 */
-> 
-> Can we avoid going another round as long as it is a file with
-> the PUD page size?
+HugeTLB pages cannot be split, thus use the compound_mapcount to
+track rmaps.
 
-Yes, that brings up a good point.
+Currently the page_mapped function will check the compound_mapcount, but
+will also go through the constituent pages of a THP compound page and
+query the individual _mapcount's too.
 
-Since we only do PMD sharing with PMD_SIZE huge pages, that should be
-part of the check as to whether we try PUD_SIZE alignment.  The initial
-check should be expanded as follows:
+Unfortunately, the page_mapped function does not distinguish between
+HugeTLB and THP compound pages and assumes that a compound page always
+needs to have HPAGE_PMD_NR pages querying.
 
-if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) && !addr &&
-    flags & MAP_SHARED && huge_page_size(h) == PMD_SIZE && len >= PUD_SIZE)
-	pud_size_align = true;
+For most cases when dealing with HugeTLB this is just inefficient, but
+for scenarios where the HugeTLB page size is less than the pmd block
+size (e.g. when using contiguous bit on ARM) this can lead to crashes.
 
-In that case, pud_size_align remains false and we do not retry.
+This patch adjusts the page_mapped function such that we skip the
+unnecessary THP reference checks for HugeTLB pages.
 
+Fixes: e1534ae95004 ("mm: differentiate page_mapped() from page_mapcount() for compound pages")
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Steve Capper <steve.capper@arm.com>
+---
+
+Hi,
+
+This patch is my approach to fixing a problem that unearthed with
+HugeTLB pages on arm64. We ran with PAGE_SIZE=64KB and placed down 32
+contiguous ptes to create 2MB HugeTLB pages. (We can provide hints to
+the MMU that page table entries are contiguous thus larger TLB entries
+can be used to represent them).
+
+The PMD_SIZE was 512MB thus the old version of page_mapped would read
+through too many struct pages and lead to BUGs.
+
+Original problem reported here:
+http://lists.infradead.org/pipermail/linux-arm-kernel/2016-March/414657.html
+
+Having examined the HugeTLB code, I understand that only the
+compound_mapcount_ptr is used to track rmap presence so going through
+the individual _mapcounts for HugeTLB pages is superfluous? Or should I
+instead post a patch that changes hpage_nr_pages to use the compound
+order?
+
+Also, for the sake of readability, would it be worth changing the
+definition of PageTransHuge to refer to only THPs (not both HugeTLB
+and THP)?
+
+(I misinterpreted PageTransHuge in hpage_nr_pages initially which is one
+reason this problem took me longer than normal to pin down this issue).
+
+Cheers,
 -- 
-Mike Kravetz
+Steve
 
-> 
-> Hillf
->> +	if ((ret_addr & ~PAGE_MASK) && pud_size_align) {
->> +		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->> +		ret_addr = vm_unmapped_area(&info);
->> +	}
->> +
->> +	return ret_addr;
->>  }
->>  #endif
->>
->> --
->> 2.4.3
-> 
+---
+ include/linux/mm.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ed6407d..4b223dc 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1031,6 +1031,8 @@ static inline bool page_mapped(struct page *page)
+ 	page = compound_head(page);
+ 	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
+ 		return true;
++	if (PageHuge(page))
++		return false;
+ 	for (i = 0; i < hpage_nr_pages(page); i++) {
+ 		if (atomic_read(&page[i]._mapcount) >= 0)
+ 			return true;
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
