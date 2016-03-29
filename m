@@ -1,173 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 893606B007E
-	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 21:52:07 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id fe3so1767997pab.1
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 18:52:07 -0700 (PDT)
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com. [209.85.192.169])
-        by mx.google.com with ESMTPS id ez9si10766642pad.150.2016.03.28.18.52.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Mar 2016 18:52:06 -0700 (PDT)
-Received: by mail-pf0-f169.google.com with SMTP id 4so1847887pfd.0
-        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 18:52:06 -0700 (PDT)
-Subject: Re: [RFC][PATCH] mm/slub: Skip CPU slab activation when debugging
-References: <1459205581-4605-1-git-send-email-labbott@fedoraproject.org>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <56F9DFC3.501@redhat.com>
-Date: Mon, 28 Mar 2016 18:52:03 -0700
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EF6B6B007E
+	for <linux-mm@kvack.org>; Mon, 28 Mar 2016 23:51:37 -0400 (EDT)
+Received: by mail-ob0-f182.google.com with SMTP id x3so3010937obt.0
+        for <linux-mm@kvack.org>; Mon, 28 Mar 2016 20:51:37 -0700 (PDT)
+Received: from out4133-82.mail.aliyun.com (out4133-82.mail.aliyun.com. [42.120.133.82])
+        by mx.google.com with ESMTP id et3si11363691obb.86.2016.03.28.20.51.35
+        for <linux-mm@kvack.org>;
+        Mon, 28 Mar 2016 20:51:36 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1459213970-17957-1-git-send-email-mike.kravetz@oracle.com> <1459213970-17957-2-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1459213970-17957-2-git-send-email-mike.kravetz@oracle.com>
+Subject: Re: [RFC PATCH 1/2] mm/hugetlbfs: Attempt PUD_SIZE mapping alignment if PMD sharing enabled
+Date: Tue, 29 Mar 2016 11:50:47 +0800
+Message-ID: <024b01d1896e$2e600e70$8b202b50$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <1459205581-4605-1-git-send-email-labbott@fedoraproject.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>
+To: 'Mike Kravetz' <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org
+Cc: 'Hugh Dickins' <hughd@google.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'David Rientjes' <rientjes@google.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Thomas Gleixner' <tglx@linutronix.de>, 'Ingo Molnar' <mingo@redhat.com>, "'H. Peter Anvin'" <hpa@zytor.com>, 'Catalin Marinas' <catalin.marinas@arm.com>, 'Will Deacon' <will.deacon@arm.com>, 'Steve Capper' <steve.capper@linaro.org>, 'Andrew Morton' <akpm@linux-foundation.org>
 
-On 03/28/2016 03:53 PM, Laura Abbott wrote:
-> The per-cpu slab is designed to be the primary path for allocation in SLUB
-> since it assumed allocations will go through the fast path if possible.
-> When debugging is enabled, the fast path is disabled and per-cpu
-> allocations are not used. The current debugging code path still activates
-> the cpu slab for allocations and then immediately deactivates it. This
-> is useless work. When a slab is enabled for debugging, skip cpu
-> activation.
->
-> Signed-off-by: Laura Abbott <labbott@fedoraproject.org>
+> 
+> When creating a hugetlb mapping, attempt PUD_SIZE alignment if the
+> following conditions are met:
+> - Address passed to mmap or shmat is NULL
+> - The mapping is flaged as shared
+> - The mapping is at least PUD_SIZE in length
+> If a PUD_SIZE aligned mapping can not be created, then fall back to a
+> huge page size mapping.
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 > ---
-> This is a follow on to the optimization of the debug paths for poisoning
-> With this I get ~2 second drop on hackbench -g 20 -l 1000 with slub_debug=P
-> and no noticable change with slub_debug=- .
-
-zero day robot pointed out this is triggering one of the BUG_ON on bootup.
-I'll take a deeper look tomorrow unless the approach is actually worthless.
-> ---
->   mm/slub.c | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
->   1 file changed, 77 insertions(+), 5 deletions(-)
->
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 7277413..4507bd8 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1482,8 +1482,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
->   	}
->
->   	page->freelist = fixup_red_left(s, start);
-> -	page->inuse = page->objects;
-> -	page->frozen = 1;
-> +	page->inuse = kmem_cache_debug(s) ? 1 : page->objects;
-> +	page->frozen = kmem_cache_debug(s) ? 0 : 1;
->
->   out:
->   	if (gfpflags_allow_blocking(flags))
-> @@ -1658,6 +1658,64 @@ static inline void *acquire_slab(struct kmem_cache *s,
->   	return freelist;
->   }
->
-> +
-> +static inline void *acquire_slab_debug(struct kmem_cache *s,
-> +		struct kmem_cache_node *n, struct page *page,
-> +		int mode, int *objects)
-> +{
-> +	void *freelist;
-> +	unsigned long counters;
-> +	struct page new;
-> +	void *next;
-> +
-> +	lockdep_assert_held(&n->list_lock);
-> +
+>  fs/hugetlbfs/inode.c | 29 +++++++++++++++++++++++++++--
+>  1 file changed, 27 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 540ddc9..22b2e38 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -175,6 +175,17 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+>  	struct vm_area_struct *vma;
+>  	struct hstate *h = hstate_file(file);
+>  	struct vm_unmapped_area_info info;
+> +	bool pud_size_align = false;
+> +	unsigned long ret_addr;
 > +
 > +	/*
-> +	 * Zap the freelist and set the frozen bit.
-> +	 * The old freelist is the list of objects for the
-> +	 * per cpu allocation list.
+> +	 * If PMD sharing is enabled, align to PUD_SIZE to facilitate
+> +	 * sharing.  Only attempt alignment if no address was passed in,
+> +	 * flags indicate sharing and size is big enough.
 > +	 */
-> +	freelist = page->freelist;
-> +	counters = page->counters;
+> +	if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
+> +	    !addr && flags & MAP_SHARED && len >= PUD_SIZE)
+> +		pud_size_align = true;
+> 
+>  	if (len & ~huge_page_mask(h))
+>  		return -EINVAL;
+> @@ -199,9 +210,23 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+>  	info.length = len;
+>  	info.low_limit = TASK_UNMAPPED_BASE;
+>  	info.high_limit = TASK_SIZE;
+> -	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
+> +	if (pud_size_align)
+> +		info.align_mask = PAGE_MASK & (PUD_SIZE - 1);
+> +	else
+> +		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
+>  	info.align_offset = 0;
+> -	return vm_unmapped_area(&info);
+> +	ret_addr = vm_unmapped_area(&info);
 > +
-> +	BUG_ON(!freelist);
-> +
-> +	next = get_freepointer_safe(s, freelist);
-> +
-> +	new.counters = counters;
-> +	*objects = new.objects - new.inuse;
-> +	if (mode) {
-> +		new.inuse++;
-> +		new.freelist = next;
-> +	} else {
-> +		BUG();
+> +	/*
+> +	 * If failed with PUD_SIZE alignment, try again with huge page
+> +	 * size alignment.
+> +	 */
+
+Can we avoid going another round as long as it is a file with
+the PUD page size?
+
+Hillf
+> +	if ((ret_addr & ~PAGE_MASK) && pud_size_align) {
+> +		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
+> +		ret_addr = vm_unmapped_area(&info);
 > +	}
 > +
-> +	VM_BUG_ON(new.frozen);
-> +
-> +	if (!new.freelist) {
-> +		remove_partial(n, page);
-> +		add_full(s, n, page);
-> +	}
-> +
-> +	if (!__cmpxchg_double_slab(s, page,
-> +			freelist, counters,
-> +			new.freelist, new.counters,
-> +			"acquire_slab")) {
-> +		if (!new.freelist) {
-> +			remove_full(s, n, page);
-> +			add_partial(n, page, DEACTIVATE_TO_HEAD);
-> +		}
-> +		return NULL;
-> +	}
-> +
-> +	WARN_ON(!freelist);
-> +	return freelist;
-> +}
-> +
-> +
-> +
->   static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
->   static inline bool pfmemalloc_match(struct page *page, gfp_t gfpflags);
->
-> @@ -1688,7 +1746,11 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
->   		if (!pfmemalloc_match(page, flags))
->   			continue;
->
-> -		t = acquire_slab(s, n, page, object == NULL, &objects);
-> +		if (kmem_cache_debug(s))
-> +			t = acquire_slab_debug(s, n, page, object == NULL, &objects);
-> +		else
-> +			t = acquire_slab(s, n, page, object == NULL, &objects);
-> +
->   		if (!t)
->   			break;
->
-> @@ -2284,7 +2346,17 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
->   		 * muck around with it freely without cmpxchg
->   		 */
->   		freelist = page->freelist;
-> -		page->freelist = NULL;
-> +		page->freelist = kmem_cache_debug(s) ?
-> +				get_freepointer(s, freelist) : NULL;
-> +
-> +		if (kmem_cache_debug(s)) {
-> +			struct kmem_cache_node *n;
-> +
-> +			n = get_node(s, page_to_nid(page));
-> +			spin_lock(&n->list_lock);
-> +			add_partial(n, page, DEACTIVATE_TO_HEAD);
-> +			spin_unlock(&n->list_lock);
-> +		}
->
->   		stat(s, ALLOC_SLAB);
->   		c->page = page;
-> @@ -2446,7 +2518,7 @@ new_slab:
->   			!alloc_debug_processing(s, page, freelist, addr))
->   		goto new_slab;	/* Slab failed checks. Next slab needed */
->
-> -	deactivate_slab(s, page, get_freepointer(s, freelist));
-> +	/* No need to deactivate, no cpu slab */
->   	c->page = NULL;
->   	c->freelist = NULL;
->   	return freelist;
->
+> +	return ret_addr;
+>  }
+>  #endif
+> 
+> --
+> 2.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
