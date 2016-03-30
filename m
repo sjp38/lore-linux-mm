@@ -1,73 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id EF17C6B025F
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 05:24:41 -0400 (EDT)
-Received: by mail-wm0-f50.google.com with SMTP id r72so90560585wmg.0
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 02:24:41 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id z126si3592342wmz.77.2016.03.30.02.24.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Mar 2016 02:24:40 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id p65so12837256wmp.1
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 02:24:40 -0700 (PDT)
-Date: Wed, 30 Mar 2016 11:24:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/highmem: simplify is_highmem()
-Message-ID: <20160330092438.GG30729@dhcp22.suse.cz>
-References: <1459313022-11750-1-git-send-email-chanho.min@lge.com>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 329E26B0260
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 05:24:57 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id fe3so36061480pab.1
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 02:24:57 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id ez9si5181705pad.150.2016.03.30.02.24.56
+        for <linux-mm@kvack.org>;
+        Wed, 30 Mar 2016 02:24:56 -0700 (PDT)
+Date: Wed, 30 Mar 2016 10:24:48 +0100
+From: Steve Capper <steve.capper@arm.com>
+Subject: Re: [PATCH] mm: Exclude HugeTLB pages from THP page_mapped logic
+Message-ID: <20160330092448.GA19367@e103986-lin>
+References: <1459269581-21190-1-git-send-email-steve.capper@arm.com>
+ <20160329165149.GA1102@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1459313022-11750-1-git-send-email-chanho.min@lge.com>
+In-Reply-To: <20160329165149.GA1102@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chanho Min <chanho.min@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Dan Williams <dan.j.williams@intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Gunho Lee <gunho.lee@lge.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Steve Capper <steve.capper@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, dwoods@mellanox.com, mhocko@suse.com, mingo@kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed 30-03-16 13:43:42, Chanho Min wrote:
-> The is_highmem() is can be simplified by use of is_highmem_idx().
-> This patch removes redundant code and will make it easier to maintain
-> if the zone policy is changed or a new zone is added.
+On Tue, Mar 29, 2016 at 07:51:49PM +0300, Kirill A. Shutemov wrote:
+> On Tue, Mar 29, 2016 at 05:39:41PM +0100, Steve Capper wrote:
+> > HugeTLB pages cannot be split, thus use the compound_mapcount to
+> > track rmaps.
+> > 
+> > Currently the page_mapped function will check the compound_mapcount, but
+> > will also go through the constituent pages of a THP compound page and
+> > query the individual _mapcount's too.
+> > 
+> > Unfortunately, the page_mapped function does not distinguish between
+> > HugeTLB and THP compound pages and assumes that a compound page always
+> > needs to have HPAGE_PMD_NR pages querying.
+> > 
+> > For most cases when dealing with HugeTLB this is just inefficient, but
+> > for scenarios where the HugeTLB page size is less than the pmd block
+> > size (e.g. when using contiguous bit on ARM) this can lead to crashes.
+> > 
+> > This patch adjusts the page_mapped function such that we skip the
+> > unnecessary THP reference checks for HugeTLB pages.
+> > 
+> > Fixes: e1534ae95004 ("mm: differentiate page_mapped() from page_mapcount() for compound pages")
+> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Signed-off-by: Steve Capper <steve.capper@arm.com>
 > 
-> Signed-off-by: Chanho Min <chanho.min@lge.com>
-> ---
->  include/linux/mmzone.h |    5 +----
->  1 file changed, 1 insertion(+), 4 deletions(-)
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+Thanks!
+
 > 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index e23a9e7..9ac90c3 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -817,10 +817,7 @@ static inline int is_highmem_idx(enum zone_type idx)
->  static inline int is_highmem(struct zone *zone)
->  {
->  #ifdef CONFIG_HIGHMEM
-> -	int zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones;
-> -	return zone_off == ZONE_HIGHMEM * sizeof(*zone) ||
-> -	       (zone_off == ZONE_MOVABLE * sizeof(*zone) &&
-> -		zone_movable_is_highmem());
-> +	return is_highmem_idx(zone_idx(zone));
-
-This will reintroduce the pointer arithmetic removed by ddc81ed2c5d4
-("remove sparse warning for mmzone.h") AFAICS. I have no idea how much
-that matters though. The mentioned commit doesn't tell much about saves
-except for
-"
-	On X86_32 this saves a sar, but code size increases by one byte per
-        is_highmem() use due to 32-bit cmps rather than 16 bit cmps.
-"
-
->  #else
->  	return 0;
->  #endif
-> -- 
-> 1.7.9.5
+> > ---
+> > 
+> > Hi,
+> > 
+> > This patch is my approach to fixing a problem that unearthed with
+> > HugeTLB pages on arm64. We ran with PAGE_SIZE=64KB and placed down 32
+> > contiguous ptes to create 2MB HugeTLB pages. (We can provide hints to
+> > the MMU that page table entries are contiguous thus larger TLB entries
+> > can be used to represent them).
+> > 
+> > The PMD_SIZE was 512MB thus the old version of page_mapped would read
+> > through too many struct pages and lead to BUGs.
+> > 
+> > Original problem reported here:
+> > http://lists.infradead.org/pipermail/linux-arm-kernel/2016-March/414657.html
+> > 
+> > Having examined the HugeTLB code, I understand that only the
+> > compound_mapcount_ptr is used to track rmap presence so going through
+> > the individual _mapcounts for HugeTLB pages is superfluous? Or should I
+> > instead post a patch that changes hpage_nr_pages to use the compound
+> > order?
 > 
+> I would not touch hpage_nr_page().
+> 
+> We probably need to introduce compound_nr_pages() or something to replace
+> (1 << compound_order(page)) to be used independetely from thp/hugetlb
+> pages.
 
+Okay, I will stick with the approach in this patch. With HugeTLB we also
+have hstate information to use.
+
+> 
+> > Also, for the sake of readability, would it be worth changing the
+> > definition of PageTransHuge to refer to only THPs (not both HugeTLB
+> > and THP)?
+> 
+> I don't think so.
+> 
+> That would have overhead, since we wound need to do function call inside
+> PageTransHuge(). HugeTLB() is not inlinable.
+
+Ahh, I hadn't considered that...
+
+> 
+> hugetlb deverges from rest of mm pretty early, so thp vs. hugetlb
+> confusion is not that ofter. We just don't share enough codepath.
+
+Thanks Kirill, agreed.
+
+Cheers,
 -- 
-Michal Hocko
-SUSE Labs
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
