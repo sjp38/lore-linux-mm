@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 66F646B026C
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 03:11:03 -0400 (EDT)
-Received: by mail-pf0-f182.google.com with SMTP id 4so34913452pfd.0
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 00:11:03 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id v71si4414320pfi.22.2016.03.30.00.10.41
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id E45CD6B026D
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 03:11:05 -0400 (EDT)
+Received: by mail-pf0-f172.google.com with SMTP id 4so34914318pfd.0
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 00:11:05 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id sk8si4410299pac.44.2016.03.30.00.10.41
         for <linux-mm@kvack.org>;
         Wed, 30 Mar 2016 00:10:42 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v3 12/16] zsmalloc: zs_compact refactoring
-Date: Wed, 30 Mar 2016 16:12:11 +0900
-Message-Id: <1459321935-3655-13-git-send-email-minchan@kernel.org>
+Subject: [PATCH v3 13/16] zsmalloc: migrate head page of zspage
+Date: Wed, 30 Mar 2016 16:12:12 +0900
+Message-Id: <1459321935-3655-14-git-send-email-minchan@kernel.org>
 In-Reply-To: <1459321935-3655-1-git-send-email-minchan@kernel.org>
 References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,564 +19,576 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, Minchan Kim <minchan@kernel.org>
 
-Currently, we rely on class->lock to prevent zspage destruction.
-It was okay until now because the critical section is short but
-with run-time migration, it could be long so class->lock is not
-a good apporach any more.
+This patch introduces run-time migration feature for zspage.
+To begin with, it supports only head page migration for
+easy review(later patches will support tail page migration).
 
-So, this patch introduces [un]freeze_zspage functions which
-freeze allocated objects in the zspage with pinning tag so
-user cannot free using object. With those functions, this patch
-redesign compaction.
+For migration, it supports three functions
 
-Those functions will be used for implementing zspage runtime
-migrations, too.
+* zs_page_isolate
+
+It isolates a zspage which includes a subpage VM want to migrate
+from class so anyone cannot allocate new object from the zspage.
+IOW, allocation freeze
+
+* zs_page_migrate
+
+First of all, it freezes zspage to prevent zspage destrunction
+so anyone cannot free object. Then, It copies content from oldpage
+to newpage and create new page-chain with new page.
+If it was successful, drop the refcount of old page to free
+and putback new zspage to right data structure of zsmalloc.
+Lastly, unfreeze zspages so we allows object allocation/free
+from now on.
+
+* zs_page_putback
+
+It returns isolated zspage to right fullness_group list
+if it fails to migrate a page.
+
+NOTE: A hurdle to support migration is that destroying zspage
+while migration is going on. Once a zspage is isolated,
+anyone cannot allocate object from the zspage but can deallocate
+object freely so a zspage could be destroyed until all of objects
+in zspage are freezed to prevent deallocation. The problem is
+large window betwwen zs_page_isolate and freeze_zspage
+in zs_page_migrate so the zspage could be destroyed.
+
+A easy approach to solve the problem is that object freezing
+in zs_page_isolate but it has a drawback that any object cannot
+be deallocated until migration fails after isolation. However,
+There is large time gab between isolation and migration so
+any object freeing in other CPU should spin by pin_tag which
+would cause big latency. So, this patch introduces lock_zspage
+which holds PG_lock of all pages in a zspage right before
+freeing the zspage. VM migration locks the page, too right
+before calling ->migratepage so such race doesn't exist any more.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/zsmalloc.c | 393 ++++++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 257 insertions(+), 136 deletions(-)
+ include/uapi/linux/magic.h |   1 +
+ mm/zsmalloc.c              | 332 +++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 318 insertions(+), 15 deletions(-)
 
+diff --git a/include/uapi/linux/magic.h b/include/uapi/linux/magic.h
+index e1fbe72c39c0..93b1affe4801 100644
+--- a/include/uapi/linux/magic.h
++++ b/include/uapi/linux/magic.h
+@@ -79,5 +79,6 @@
+ #define NSFS_MAGIC		0x6e736673
+ #define BPF_FS_MAGIC		0xcafe4a11
+ #define BALLOON_KVM_MAGIC	0x13661366
++#define ZSMALLOC_MAGIC		0x58295829
+ 
+ #endif /* __LINUX_MAGIC_H__ */
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index b11dcd718502..ac8ca7b10720 100644
+index ac8ca7b10720..f6c9138c3be0 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
-@@ -922,6 +922,13 @@ static unsigned long obj_to_head(struct size_class *class, struct page *page,
- 		return *(unsigned long *)obj;
+@@ -56,6 +56,8 @@
+ #include <linux/debugfs.h>
+ #include <linux/zsmalloc.h>
+ #include <linux/zpool.h>
++#include <linux/mount.h>
++#include <linux/migrate.h>
+ 
+ /*
+  * This must be power of 2 and greater than of equal to sizeof(link_free).
+@@ -182,6 +184,8 @@ struct zs_size_stat {
+ static struct dentry *zs_stat_root;
+ #endif
+ 
++static struct vfsmount *zsmalloc_mnt;
++
+ /*
+  * number of size_classes
+  */
+@@ -263,6 +267,7 @@ struct zs_pool {
+ #ifdef CONFIG_ZSMALLOC_STAT
+ 	struct dentry *stat_dentry;
+ #endif
++	struct inode *inode;
+ };
+ 
+ struct zs_meta {
+@@ -412,6 +417,29 @@ static int is_last_page(struct page *page)
+ 	return PagePrivate2(page);
  }
  
-+static inline int testpin_tag(unsigned long handle)
++/*
++ * Indicate that whether zspage is isolated for page migration.
++ * Protected by size_class lock
++ */
++static void SetZsPageIsolate(struct page *first_page)
 +{
-+	unsigned long *ptr = (unsigned long *)handle;
-+
-+	return test_bit(HANDLE_PIN_BIT, ptr);
++	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
++	SetPageUptodate(first_page);
 +}
 +
- static inline int trypin_tag(unsigned long handle)
++static int ZsPageIsolate(struct page *first_page)
++{
++	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
++
++	return PageUptodate(first_page);
++}
++
++static void ClearZsPageIsolate(struct page *first_page)
++{
++	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
++	ClearPageUptodate(first_page);
++}
++
+ static int get_zspage_inuse(struct page *first_page)
  {
- 	unsigned long *ptr = (unsigned long *)handle;
-@@ -949,8 +956,7 @@ static void reset_page(struct page *page)
+ 	struct zs_meta *m;
+@@ -783,8 +811,11 @@ static enum fullness_group fix_fullness_group(struct size_class *class,
+ 	if (newfg == currfg)
+ 		goto out;
+ 
+-	remove_zspage(class, currfg, first_page);
+-	insert_zspage(class, newfg, first_page);
++	/* Later, putback will insert page to right list */
++	if (!ZsPageIsolate(first_page)) {
++		remove_zspage(class, currfg, first_page);
++		insert_zspage(class, newfg, first_page);
++	}
+ 	set_zspage_mapping(first_page, class_idx, newfg);
+ 
+ out:
+@@ -950,12 +981,31 @@ static void unpin_tag(unsigned long handle)
+ 
+ static void reset_page(struct page *page)
+ {
++	if (!PageIsolated(page))
++		__ClearPageMovable(page);
++	ClearPageIsolated(page);
+ 	clear_bit(PG_private, &page->flags);
+ 	clear_bit(PG_private_2, &page->flags);
+ 	set_page_private(page, 0);
  	page->freelist = NULL;
  }
  
--static void free_zspage(struct zs_pool *pool, struct size_class *class,
--			struct page *first_page)
-+static void free_zspage(struct zs_pool *pool, struct page *first_page)
++/**
++ * lock_zspage - lock all pages in the zspage
++ * @first_page: head page of the zspage
++ *
++ * To prevent destroy during migration, zspage freeing should
++ * hold locks of all pages in a zspage
++ */
++void lock_zspage(struct page *first_page)
++{
++	struct page *cursor = first_page;
++
++	do {
++		while (!trylock_page(cursor));
++	} while ((cursor = get_next_page(cursor)) != NULL);
++}
++
+ static void free_zspage(struct zs_pool *pool, struct page *first_page)
  {
  	struct page *nextp, *tmp, *head_extra;
+@@ -963,26 +1013,31 @@ static void free_zspage(struct zs_pool *pool, struct page *first_page)
+ 	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
+ 	VM_BUG_ON_PAGE(get_zspage_inuse(first_page), first_page);
  
-@@ -973,11 +979,6 @@ static void free_zspage(struct zs_pool *pool, struct size_class *class,
++	lock_zspage(first_page);
+ 	head_extra = (struct page *)page_private(first_page);
+ 
+-	reset_page(first_page);
+-	__free_page(first_page);
+-
+ 	/* zspage with only 1 system page */
+ 	if (!head_extra)
+-		return;
++		goto out;
+ 
+ 	list_for_each_entry_safe(nextp, tmp, &head_extra->lru, lru) {
+ 		list_del(&nextp->lru);
+ 		reset_page(nextp);
+-		__free_page(nextp);
++		unlock_page(nextp);
++		put_page(nextp);
  	}
  	reset_page(head_extra);
- 	__free_page(head_extra);
--
--	zs_stat_dec(class, OBJ_ALLOCATED, get_maxobj_per_zspage(
--			class->size, class->pages_per_zspage));
--	atomic_long_sub(class->pages_per_zspage,
--				&pool->pages_allocated);
+-	__free_page(head_extra);
++	unlock_page(head_extra);
++	put_page(head_extra);
++out:
++	reset_page(first_page);
++	unlock_page(first_page);
++	put_page(first_page);
  }
  
  /* Initialize a newly allocated zspage */
-@@ -1325,6 +1326,11 @@ static bool zspage_full(struct size_class *class, struct page *first_page)
- 	return get_zspage_inuse(first_page) == class->objs_per_zspage;
+-static void init_zspage(struct size_class *class, struct page *first_page)
++static void init_zspage(struct size_class *class, struct page *first_page,
++			struct address_space *mapping)
+ {
+ 	int freeobj = 1;
+ 	unsigned long off = 0;
+@@ -991,6 +1046,9 @@ static void init_zspage(struct size_class *class, struct page *first_page)
+ 	first_page->freelist = NULL;
+ 	INIT_LIST_HEAD(&first_page->lru);
+ 	set_zspage_inuse(first_page, 0);
++	BUG_ON(!trylock_page(first_page));
++	__SetPageMovable(first_page, mapping);
++	unlock_page(first_page);
+ 
+ 	while (page) {
+ 		struct page *next_page;
+@@ -1065,10 +1123,45 @@ static void create_page_chain(struct page *pages[], int nr_pages)
+ 	}
  }
  
-+static bool zspage_empty(struct size_class *class, struct page *first_page)
++static void replace_sub_page(struct size_class *class, struct page *first_page,
++		struct page *newpage, struct page *oldpage)
 +{
-+	return get_zspage_inuse(first_page) == 0;
++	struct page *page;
++	struct page *pages[ZS_MAX_PAGES_PER_ZSPAGE] = {NULL,};
++	int idx = 0;
++
++	page = first_page;
++	do {
++		if (page == oldpage)
++			pages[idx] = newpage;
++		else
++			pages[idx] = page;
++		idx++;
++	} while ((page = get_next_page(page)) != NULL);
++
++	create_page_chain(pages, class->pages_per_zspage);
++
++	if (is_first_page(oldpage)) {
++		enum fullness_group fg;
++		int class_idx;
++
++		SetZsPageIsolate(newpage);
++		get_zspage_mapping(oldpage, &class_idx, &fg);
++		set_zspage_mapping(newpage, class_idx, fg);
++		set_freeobj(newpage, get_freeobj(oldpage));
++		set_zspage_inuse(newpage, get_zspage_inuse(oldpage));
++		if (class->huge)
++			set_page_private(newpage,  page_private(oldpage));
++	}
++
++	__SetPageMovable(newpage, oldpage->mapping);
 +}
 +
- unsigned long zs_get_total_pages(struct zs_pool *pool)
- {
- 	return atomic_long_read(&pool->pages_allocated);
-@@ -1455,7 +1461,6 @@ static unsigned long obj_malloc(struct size_class *class,
- 		set_page_private(first_page, handle | OBJ_ALLOCATED_TAG);
- 	kunmap_atomic(vaddr);
- 	mod_zspage_inuse(first_page, 1);
--	zs_stat_inc(class, OBJ_USED, 1);
- 
- 	obj = location_to_obj(m_page, obj);
- 
-@@ -1510,6 +1515,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
- 	}
- 
- 	obj = obj_malloc(class, first_page, handle);
-+	zs_stat_inc(class, OBJ_USED, 1);
- 	/* Now move the zspage to another fullness group, if required */
- 	fix_fullness_group(class, first_page);
- 	record_obj(handle, obj);
-@@ -1540,7 +1546,6 @@ static void obj_free(struct size_class *class, unsigned long obj)
- 	kunmap_atomic(vaddr);
- 	set_freeobj(first_page, f_objidx);
- 	mod_zspage_inuse(first_page, -1);
--	zs_stat_dec(class, OBJ_USED, 1);
- }
- 
- void zs_free(struct zs_pool *pool, unsigned long handle)
-@@ -1564,10 +1569,19 @@ void zs_free(struct zs_pool *pool, unsigned long handle)
- 
- 	spin_lock(&class->lock);
- 	obj_free(class, obj);
-+	zs_stat_dec(class, OBJ_USED, 1);
- 	fullness = fix_fullness_group(class, first_page);
--	if (fullness == ZS_EMPTY)
--		free_zspage(pool, class, first_page);
-+	if (fullness == ZS_EMPTY) {
-+		zs_stat_dec(class, OBJ_ALLOCATED, get_maxobj_per_zspage(
-+				class->size, class->pages_per_zspage));
-+		spin_unlock(&class->lock);
-+		atomic_long_sub(class->pages_per_zspage,
-+					&pool->pages_allocated);
-+		free_zspage(pool, first_page);
-+		goto out;
-+	}
- 	spin_unlock(&class->lock);
-+out:
- 	unpin_tag(handle);
- 
- 	free_handle(pool, handle);
-@@ -1637,127 +1651,66 @@ static void zs_object_copy(struct size_class *class, unsigned long dst,
- 	kunmap_atomic(s_addr);
- }
- 
--/*
-- * Find alloced object in zspage from index object and
-- * return handle.
-- */
--static unsigned long find_alloced_obj(struct size_class *class,
--					struct page *page, int index)
-+static unsigned long handle_from_obj(struct size_class *class,
-+				struct page *first_page, int obj_idx)
- {
--	unsigned long head;
--	int offset = 0;
--	unsigned long handle = 0;
--	void *addr = kmap_atomic(page);
--
--	if (!is_first_page(page))
--		offset = page->index;
--	offset += class->size * index;
--
--	while (offset < PAGE_SIZE) {
--		head = obj_to_head(class, page, addr + offset);
--		if (head & OBJ_ALLOCATED_TAG) {
--			handle = head & ~OBJ_ALLOCATED_TAG;
--			if (trypin_tag(handle))
--				break;
--			handle = 0;
--		}
-+	struct page *page;
-+	unsigned long offset_in_page;
-+	void *addr;
-+	unsigned long head, handle = 0;
- 
--		offset += class->size;
--		index++;
--	}
-+	objidx_to_page_and_offset(class, first_page, obj_idx,
-+			&page, &offset_in_page);
- 
-+	addr = kmap_atomic(page);
-+	head = obj_to_head(class, page, addr + offset_in_page);
-+	if (head & OBJ_ALLOCATED_TAG)
-+		handle = head & ~OBJ_ALLOCATED_TAG;
- 	kunmap_atomic(addr);
-+
- 	return handle;
- }
- 
--struct zs_compact_control {
--	/* Source page for migration which could be a subpage of zspage. */
--	struct page *s_page;
--	/* Destination page for migration which should be a first page
--	 * of zspage. */
--	struct page *d_page;
--	 /* Starting object index within @s_page which used for live object
--	  * in the subpage. */
--	int index;
--};
--
--static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
--				struct zs_compact_control *cc)
-+static int migrate_zspage(struct size_class *class, struct page *dst_page,
-+				struct page *src_page)
- {
--	unsigned long used_obj, free_obj;
- 	unsigned long handle;
--	struct page *s_page = cc->s_page;
--	struct page *d_page = cc->d_page;
--	unsigned long index = cc->index;
--	int ret = 0;
-+	unsigned long old_obj, new_obj;
-+	int i;
-+	int nr_migrated = 0;
- 
--	while (1) {
--		handle = find_alloced_obj(class, s_page, index);
--		if (!handle) {
--			s_page = get_next_page(s_page);
--			if (!s_page)
--				break;
--			index = 0;
-+	for (i = 0; i < class->objs_per_zspage; i++) {
-+		handle = handle_from_obj(class, src_page, i);
-+		if (!handle)
- 			continue;
--		}
--
--		/* Stop if there is no more space */
--		if (zspage_full(class, d_page)) {
--			unpin_tag(handle);
--			ret = -ENOMEM;
-+		if (zspage_full(class, dst_page))
- 			break;
--		}
--
--		used_obj = handle_to_obj(handle);
--		free_obj = obj_malloc(class, d_page, handle);
--		zs_object_copy(class, free_obj, used_obj);
--		index++;
-+		old_obj = handle_to_obj(handle);
-+		new_obj = obj_malloc(class, dst_page, handle);
-+		zs_object_copy(class, new_obj, old_obj);
-+		nr_migrated++;
- 		/*
- 		 * record_obj updates handle's value to free_obj and it will
- 		 * invalidate lock bit(ie, HANDLE_PIN_BIT) of handle, which
- 		 * breaks synchronization using pin_tag(e,g, zs_free) so
- 		 * let's keep the lock bit.
- 		 */
--		free_obj |= BIT(HANDLE_PIN_BIT);
--		record_obj(handle, free_obj);
--		unpin_tag(handle);
--		obj_free(class, used_obj);
-+		new_obj |= BIT(HANDLE_PIN_BIT);
-+		record_obj(handle, new_obj);
-+		obj_free(class, old_obj);
- 	}
--
--	/* Remember last position in this iteration */
--	cc->s_page = s_page;
--	cc->index = index;
--
--	return ret;
--}
--
--static struct page *isolate_target_page(struct size_class *class)
--{
--	int i;
--	struct page *page;
--
--	for (i = 0; i < _ZS_NR_FULLNESS_GROUPS; i++) {
--		page = class->fullness_list[i];
--		if (page) {
--			remove_zspage(class, i, page);
--			break;
--		}
--	}
--
--	return page;
-+	return nr_migrated;
- }
- 
  /*
-  * putback_zspage - add @first_page into right class's fullness list
-- * @pool: target pool
-  * @class: destination class
-  * @first_page: target page
-  *
-  * Return @first_page's updated fullness_group
+  * Allocate a zspage for the given size class
   */
--static enum fullness_group putback_zspage(struct zs_pool *pool,
--			struct size_class *class,
--			struct page *first_page)
-+static enum fullness_group putback_zspage(struct size_class *class,
-+					struct page *first_page)
+-static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
++static struct page *alloc_zspage(struct zs_pool *pool,
++				struct size_class *class)
+ {
+ 	int i;
+ 	struct page *first_page = NULL;
+@@ -1088,7 +1181,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+ 	for (i = 0; i < class->pages_per_zspage; i++) {
+ 		struct page *page;
+ 
+-		page = alloc_page(flags);
++		page = alloc_page(pool->flags);
+ 		if (!page) {
+ 			while (--i >= 0)
+ 				__free_page(pages[i]);
+@@ -1100,7 +1193,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
+ 
+ 	create_page_chain(pages, class->pages_per_zspage);
+ 	first_page = pages[0];
+-	init_zspage(class, first_page);
++	init_zspage(class, first_page, pool->inode->i_mapping);
+ 
+ 	return first_page;
+ }
+@@ -1499,7 +1592,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ 
+ 	if (!first_page) {
+ 		spin_unlock(&class->lock);
+-		first_page = alloc_zspage(class, pool->flags);
++		first_page = alloc_zspage(pool, class);
+ 		if (unlikely(!first_page)) {
+ 			free_handle(pool, handle);
+ 			return 0;
+@@ -1559,6 +1652,7 @@ void zs_free(struct zs_pool *pool, unsigned long handle)
+ 	if (unlikely(!handle))
+ 		return;
+ 
++	/* Once handle is pinned, page|object migration cannot work */
+ 	pin_tag(handle);
+ 	obj = handle_to_obj(handle);
+ 	obj_to_location(obj, &f_page, &f_objidx);
+@@ -1714,6 +1808,9 @@ static enum fullness_group putback_zspage(struct size_class *class,
  {
  	enum fullness_group fullness;
  
-@@ -1768,17 +1721,155 @@ static enum fullness_group putback_zspage(struct zs_pool *pool,
- 	return fullness;
++	VM_BUG_ON_PAGE(!list_empty(&first_page->lru), first_page);
++	VM_BUG_ON_PAGE(ZsPageIsolate(first_page), first_page);
++
+ 	fullness = get_fullness_group(class, first_page);
+ 	insert_zspage(class, fullness, first_page);
+ 	set_zspage_mapping(first_page, class->index, fullness);
+@@ -2059,6 +2156,173 @@ static int zs_register_shrinker(struct zs_pool *pool)
+ 	return register_shrinker(&pool->shrinker);
  }
  
-+/*
-+ * freeze_zspage - freeze all objects in a zspage
-+ * @class: size class of the page
-+ * @first_page: first page of zspage
-+ *
-+ * Freeze all allocated objects in a zspage so objects couldn't be
-+ * freed until unfreeze objects. It should be called under class->lock.
-+ *
-+ * RETURNS:
-+ * the number of pinned objects
-+ */
-+static int freeze_zspage(struct size_class *class, struct page *first_page)
++bool zs_page_isolate(struct page *page, isolate_mode_t mode)
 +{
-+	unsigned long obj_idx;
-+	struct page *obj_page;
-+	unsigned long offset;
-+	void *addr;
-+	int nr_freeze = 0;
++	struct zs_pool *pool;
++	struct size_class *class;
++	int class_idx;
++	enum fullness_group fullness;
++	struct page *first_page;
 +
-+	for (obj_idx = 0; obj_idx < class->objs_per_zspage; obj_idx++) {
++	/*
++	 * The page is locked so it couldn't be destroyed.
++	 * For detail, look at lock_zspage in free_zspage.
++	 */
++	VM_BUG_ON_PAGE(!PageLocked(page), page);
++	VM_BUG_ON_PAGE(PageIsolated(page), page);
++	/*
++	 * In this implementation, it allows only first page migration.
++	 */
++	VM_BUG_ON_PAGE(!is_first_page(page), page);
++	first_page = page;
++
++	/*
++	 * Without class lock, fullness is meaningless while constant
++	 * class_idx is okay. We will get it under class lock at below,
++	 * again.
++	 */
++	get_zspage_mapping(first_page, &class_idx, &fullness);
++	pool = page->mapping->private_data;
++	class = pool->size_class[class_idx];
++
++	if (!spin_trylock(&class->lock))
++		return false;
++
++	get_zspage_mapping(first_page, &class_idx, &fullness);
++	remove_zspage(class, fullness, first_page);
++	SetZsPageIsolate(first_page);
++	SetPageIsolated(page);
++	spin_unlock(&class->lock);
++
++	return true;
++}
++
++int zs_page_migrate(struct address_space *mapping, struct page *newpage,
++		struct page *page, enum migrate_mode mode)
++{
++	struct zs_pool *pool;
++	struct size_class *class;
++	int class_idx;
++	enum fullness_group fullness;
++	struct page *first_page;
++	void *s_addr, *d_addr, *addr;
++	int ret = -EBUSY;
++	int offset = 0;
++	int freezed = 0;
++
++	VM_BUG_ON_PAGE(!PageMovable(page), page);
++	VM_BUG_ON_PAGE(!PageIsolated(page), page);
++
++	first_page = page;
++	get_zspage_mapping(first_page, &class_idx, &fullness);
++	pool = page->mapping->private_data;
++	class = pool->size_class[class_idx];
++
++	/*
++	 * Get stable fullness under class->lock
++	 */
++	if (!spin_trylock(&class->lock))
++		return ret;
++
++	get_zspage_mapping(first_page, &class_idx, &fullness);
++	if (get_zspage_inuse(first_page) == 0)
++		goto out_class_unlock;
++
++	freezed = freeze_zspage(class, first_page);
++	if (freezed != get_zspage_inuse(first_page))
++		goto out_unfreeze;
++
++	/* copy contents from page to newpage */
++	s_addr = kmap_atomic(page);
++	d_addr = kmap_atomic(newpage);
++	memcpy(d_addr, s_addr, PAGE_SIZE);
++	kunmap_atomic(d_addr);
++	kunmap_atomic(s_addr);
++
++	if (!is_first_page(page))
++		offset = page->index;
++
++	addr = kmap_atomic(page);
++	do {
++		unsigned long handle;
 +		unsigned long head;
++		unsigned long new_obj, old_obj;
++		unsigned long obj_idx;
++		struct page *dummy;
 +
-+		objidx_to_page_and_offset(class, first_page, obj_idx,
-+					&obj_page, &offset);
-+		addr = kmap_atomic(obj_page);
-+		head = obj_to_head(class, obj_page, addr + offset);
++		head = obj_to_head(class, page, addr + offset);
 +		if (head & OBJ_ALLOCATED_TAG) {
-+			unsigned long handle = head & ~OBJ_ALLOCATED_TAG;
++			handle = head & ~OBJ_ALLOCATED_TAG;
++			if (!testpin_tag(handle))
++				BUG();
 +
-+			if (!trypin_tag(handle)) {
-+				kunmap_atomic(addr);
-+				break;
-+			}
-+			nr_freeze++;
++			old_obj = handle_to_obj(handle);
++			obj_to_location(old_obj, &dummy, &obj_idx);
++			new_obj = location_to_obj(newpage, obj_idx);
++			new_obj |= BIT(HANDLE_PIN_BIT);
++			record_obj(handle, new_obj);
 +		}
-+		kunmap_atomic(addr);
-+	}
++		offset += class->size;
++	} while (offset < PAGE_SIZE);
++	kunmap_atomic(addr);
 +
-+	return nr_freeze;
++	replace_sub_page(class, first_page, newpage, page);
++	first_page = newpage;
++	get_page(newpage);
++	VM_BUG_ON_PAGE(get_fullness_group(class, first_page) ==
++			ZS_EMPTY, first_page);
++	ClearZsPageIsolate(first_page);
++	putback_zspage(class, first_page);
++
++	/* Migration complete. Free old page */
++	ClearPageIsolated(page);
++	reset_page(page);
++	put_page(page);
++	ret = MIGRATEPAGE_SUCCESS;
++
++out_unfreeze:
++	unfreeze_zspage(class, first_page, freezed);
++out_class_unlock:
++	spin_unlock(&class->lock);
++
++	return ret;
 +}
 +
-+/*
-+ * unfreeze_page - unfreeze objects freezed by freeze_zspage in a zspage
-+ * @class: size class of the page
-+ * @first_page: freezed zspage to unfreeze
-+ * @nr_obj: the number of objects to unfreeze
-+ *
-+ * unfreeze objects in a zspage.
-+ */
-+static void unfreeze_zspage(struct size_class *class, struct page *first_page,
-+			int nr_obj)
++void zs_page_putback(struct page *page)
 +{
-+	unsigned long obj_idx;
-+	struct page *obj_page;
-+	unsigned long offset;
-+	void *addr;
-+	int nr_unfreeze = 0;
++	struct zs_pool *pool;
++	struct size_class *class;
++	int class_idx;
++	enum fullness_group fullness;
++	struct page *first_page;
 +
-+	for (obj_idx = 0; obj_idx < class->objs_per_zspage &&
-+			nr_unfreeze < nr_obj; obj_idx++) {
-+		unsigned long head;
++	VM_BUG_ON_PAGE(!PageMovable(page), page);
++	VM_BUG_ON_PAGE(!PageIsolated(page), page);
 +
-+		objidx_to_page_and_offset(class, first_page, obj_idx,
-+					&obj_page, &offset);
-+		addr = kmap_atomic(obj_page);
-+		head = obj_to_head(class, obj_page, addr + offset);
-+		if (head & OBJ_ALLOCATED_TAG) {
-+			unsigned long handle = head & ~OBJ_ALLOCATED_TAG;
++	first_page = page;
++	get_zspage_mapping(first_page, &class_idx, &fullness);
++	pool = page->mapping->private_data;
++	class = pool->size_class[class_idx];
 +
-+			VM_BUG_ON(!testpin_tag(handle));
-+			unpin_tag(handle);
-+			nr_unfreeze++;
-+		}
-+		kunmap_atomic(addr);
-+	}
-+}
-+
-+/*
-+ * isolate_source_page - isolate a zspage for migration source
-+ * @class: size class of zspage for isolation
-+ *
-+ * Returns a zspage which are isolated from list so anyone can
-+ * allocate a object from that page. As well, freeze all objects
-+ * allocated in the zspage so anyone cannot access that objects
-+ * (e.g., zs_map_object, zs_free).
-+ */
- static struct page *isolate_source_page(struct size_class *class)
- {
- 	int i;
- 	struct page *page = NULL;
- 
- 	for (i = ZS_ALMOST_EMPTY; i >= ZS_ALMOST_FULL; i--) {
-+		int inuse, freezed;
-+
- 		page = class->fullness_list[i];
- 		if (!page)
- 			continue;
- 
- 		remove_zspage(class, i, page);
-+
-+		inuse = get_zspage_inuse(page);
-+		freezed = freeze_zspage(class, page);
-+
-+		if (inuse != freezed) {
-+			unfreeze_zspage(class, page, freezed);
-+			putback_zspage(class, page);
-+			page = NULL;
-+			continue;
-+		}
-+
-+		break;
-+	}
-+
-+	return page;
-+}
-+
-+/*
-+ * isolate_target_page - isolate a zspage for migration target
-+ * @class: size class of zspage for isolation
-+ *
-+ * Returns a zspage which are isolated from list so anyone can
-+ * allocate a object from that page. As well, freeze all objects
-+ * allocated in the zspage so anyone cannot access that objects
-+ * (e.g., zs_map_object, zs_free).
-+ */
-+static struct page *isolate_target_page(struct size_class *class)
-+{
-+	int i;
-+	struct page *page;
-+
-+	for (i = 0; i < _ZS_NR_FULLNESS_GROUPS; i++) {
-+		int inuse, freezed;
-+
-+		page = class->fullness_list[i];
-+		if (!page)
-+			continue;
-+
-+		remove_zspage(class, i, page);
-+
-+		inuse = get_zspage_inuse(page);
-+		freezed = freeze_zspage(class, page);
-+
-+		if (inuse != freezed) {
-+			unfreeze_zspage(class, page, freezed);
-+			putback_zspage(class, page);
-+			page = NULL;
-+			continue;
-+		}
-+
- 		break;
- 	}
- 
-@@ -1793,9 +1884,11 @@ static struct page *isolate_source_page(struct size_class *class)
- static unsigned long zs_can_compact(struct size_class *class)
- {
- 	unsigned long obj_wasted;
-+	unsigned long obj_allocated, obj_used;
- 
--	obj_wasted = zs_stat_get(class, OBJ_ALLOCATED) -
--		zs_stat_get(class, OBJ_USED);
-+	obj_allocated = zs_stat_get(class, OBJ_ALLOCATED);
-+	obj_used = zs_stat_get(class, OBJ_USED);
-+	obj_wasted = obj_allocated - obj_used;
- 
- 	obj_wasted /= get_maxobj_per_zspage(class->size,
- 			class->pages_per_zspage);
-@@ -1805,53 +1898,81 @@ static unsigned long zs_can_compact(struct size_class *class)
- 
- static void __zs_compact(struct zs_pool *pool, struct size_class *class)
- {
--	struct zs_compact_control cc;
--	struct page *src_page;
-+	struct page *src_page = NULL;
- 	struct page *dst_page = NULL;
- 
--	spin_lock(&class->lock);
--	while ((src_page = isolate_source_page(class))) {
-+	while (1) {
-+		int nr_migrated;
- 
--		if (!zs_can_compact(class))
-+		spin_lock(&class->lock);
-+		if (!zs_can_compact(class)) {
-+			spin_unlock(&class->lock);
- 			break;
-+		}
- 
--		cc.index = 0;
--		cc.s_page = src_page;
-+		/*
-+		 * Isolate source page and freeze all objects in a zspage
-+		 * to prevent zspage destroying.
-+		 */
-+		if (!src_page) {
-+			src_page = isolate_source_page(class);
-+			if (!src_page) {
-+				spin_unlock(&class->lock);
-+				break;
-+			}
-+		}
- 
--		while ((dst_page = isolate_target_page(class))) {
--			cc.d_page = dst_page;
--			/*
--			 * If there is no more space in dst_page, resched
--			 * and see if anyone had allocated another zspage.
--			 */
--			if (!migrate_zspage(pool, class, &cc))
-+		/* Isolate target page and freeze all objects in the zspage */
-+		if (!dst_page) {
-+			dst_page = isolate_target_page(class);
-+			if (!dst_page) {
-+				spin_unlock(&class->lock);
- 				break;
-+			}
-+		}
-+		spin_unlock(&class->lock);
-+
-+		nr_migrated = migrate_zspage(class, dst_page, src_page);
- 
--			VM_BUG_ON_PAGE(putback_zspage(pool, class,
--				dst_page) == ZS_EMPTY, dst_page);
-+		if (zspage_full(class, dst_page)) {
-+			spin_lock(&class->lock);
-+			putback_zspage(class, dst_page);
-+			unfreeze_zspage(class, dst_page,
-+				class->objs_per_zspage);
-+			spin_unlock(&class->lock);
-+			dst_page = NULL;
- 		}
- 
--		/* Stop if we couldn't find slot */
--		if (dst_page == NULL)
--			break;
-+		if (zspage_empty(class, src_page)) {
-+			free_zspage(pool, src_page);
-+			spin_lock(&class->lock);
-+			zs_stat_dec(class, OBJ_ALLOCATED,
-+				get_maxobj_per_zspage(
-+				class->size, class->pages_per_zspage));
-+			atomic_long_sub(class->pages_per_zspage,
-+					&pool->pages_allocated);
- 
--		VM_BUG_ON_PAGE(putback_zspage(pool, class,
--				dst_page) == ZS_EMPTY, dst_page);
--		if (putback_zspage(pool, class, src_page) == ZS_EMPTY) {
- 			pool->stats.pages_compacted += class->pages_per_zspage;
- 			spin_unlock(&class->lock);
--			free_zspage(pool, class, src_page);
--		} else {
--			spin_unlock(&class->lock);
-+			src_page = NULL;
- 		}
-+	}
- 
--		cond_resched();
--		spin_lock(&class->lock);
-+	if (!src_page && !dst_page)
-+		return;
-+
++	/*
++	 * If there is race betwwen zs_free and here, free_zspage
++	 * in zs_free will wait the page lock of @page without
++	 * destroying of zspage.
++	 */
++	INIT_LIST_HEAD(&first_page->lru);
 +	spin_lock(&class->lock);
-+	if (src_page) {
-+		putback_zspage(class, src_page);
-+		unfreeze_zspage(class, src_page,
-+				class->objs_per_zspage);
- 	}
++	ClearPageIsolated(page);
++	ClearZsPageIsolate(first_page);
++	putback_zspage(class, first_page);
++	spin_unlock(&class->lock);
++}
++
++const struct address_space_operations zsmalloc_aops = {
++	.isolate_page = zs_page_isolate,
++	.migratepage = zs_page_migrate,
++	.putback_page = zs_page_putback,
++};
++
+ /**
+  * zs_create_pool - Creates an allocation pool to work from.
+  * @flags: allocation flags used to allocate pool metadata
+@@ -2145,6 +2409,15 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
+ 	if (zs_pool_stat_create(pool, name))
+ 		goto err;
  
--	if (src_page)
--		VM_BUG_ON_PAGE(putback_zspage(pool, class,
--				src_page) == ZS_EMPTY, src_page);
-+	if (dst_page) {
-+		putback_zspage(class, dst_page);
-+		unfreeze_zspage(class, dst_page,
-+				class->objs_per_zspage);
++	pool->inode = alloc_anon_inode(zsmalloc_mnt->mnt_sb);
++	if (IS_ERR(pool->inode)) {
++		pool->inode = NULL;
++		goto err;
++	}
++
++	pool->inode->i_mapping->a_ops = &zsmalloc_aops;
++	pool->inode->i_mapping->private_data = pool;
++
+ 	/*
+ 	 * Not critical, we still can use the pool
+ 	 * and user can trigger compaction manually.
+@@ -2164,6 +2437,8 @@ void zs_destroy_pool(struct zs_pool *pool)
+ 	int i;
+ 
+ 	zs_unregister_shrinker(pool);
++	if (pool->inode)
++		iput(pool->inode);
+ 	zs_pool_stat_destroy(pool);
+ 
+ 	for (i = 0; i < zs_size_classes; i++) {
+@@ -2192,10 +2467,33 @@ void zs_destroy_pool(struct zs_pool *pool)
+ }
+ EXPORT_SYMBOL_GPL(zs_destroy_pool);
+ 
++static struct dentry *zs_mount(struct file_system_type *fs_type,
++				int flags, const char *dev_name, void *data)
++{
++	static const struct dentry_operations ops = {
++		.d_dname = simple_dname,
++	};
++
++	return mount_pseudo(fs_type, "zsmalloc:", NULL, &ops, ZSMALLOC_MAGIC);
++}
++
++static struct file_system_type zsmalloc_fs = {
++	.name		= "zsmalloc",
++	.mount		= zs_mount,
++	.kill_sb	= kill_anon_super,
++};
++
+ static int __init zs_init(void)
+ {
+-	int ret = zs_register_cpu_notifier();
++	int ret;
++
++	zsmalloc_mnt = kern_mount(&zsmalloc_fs);
++	if (IS_ERR(zsmalloc_mnt)) {
++		ret = PTR_ERR(zsmalloc_mnt);
++		goto out;
 +	}
  
- 	spin_unlock(&class->lock);
++	ret = zs_register_cpu_notifier();
+ 	if (ret)
+ 		goto notifier_fail;
+ 
+@@ -2218,6 +2516,7 @@ static int __init zs_init(void)
+ 		pr_err("zs stat initialization failed\n");
+ 		goto stat_fail;
+ 	}
++
+ 	return 0;
+ 
+ stat_fail:
+@@ -2226,7 +2525,8 @@ static int __init zs_init(void)
+ #endif
+ notifier_fail:
+ 	zs_unregister_cpu_notifier();
+-
++	kern_unmount(zsmalloc_mnt);
++out:
+ 	return ret;
  }
+ 
+@@ -2237,6 +2537,8 @@ static void __exit zs_exit(void)
+ #endif
+ 	zs_unregister_cpu_notifier();
+ 
++	kern_unmount(zsmalloc_mnt);
++
+ 	zs_stat_exit();
+ }
+ 
 -- 
 1.9.1
 
