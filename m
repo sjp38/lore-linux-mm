@@ -1,72 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D96A4828DF
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 03:16:39 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id td3so33130627pab.2
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 00:16:39 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id qe4si4373079pab.195.2016.03.30.00.16.38
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Mar 2016 00:16:39 -0700 (PDT)
-Message-ID: <56FB7D37.5070503@huawei.com>
-Date: Wed, 30 Mar 2016 15:16:07 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [RFC] mm: why cat /proc/pid/smaps | grep Rss is different from
- cat /proc/pid/statm?
-References: <56F14EEE.7060308@huawei.com> <CALvZod5PnHz5OsNrcfsMZ6=cxLBy9436htbKerv67S+CigwGbQ@mail.gmail.com>
-In-Reply-To: <CALvZod5PnHz5OsNrcfsMZ6=cxLBy9436htbKerv67S+CigwGbQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 74686828DF
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 03:18:20 -0400 (EDT)
+Received: by mail-pf0-f170.google.com with SMTP id n5so34967544pfn.2
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 00:18:20 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id ua9si4414213pab.25.2016.03.30.00.10.41
+        for <linux-mm@kvack.org>;
+        Wed, 30 Mar 2016 00:10:42 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v3 14/16] zsmalloc: use single linked list for page chain
+Date: Wed, 30 Mar 2016 16:12:13 +0900
+Message-Id: <1459321935-3655-15-git-send-email-minchan@kernel.org>
+In-Reply-To: <1459321935-3655-1-git-send-email-minchan@kernel.org>
+References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, Minchan Kim <minchan@kernel.org>
 
-On 2016/3/22 22:47, Shakeel Butt wrote:
+For tail page migration, we shouldn't use page->lru which
+was used for page chaining because VM will use it for own
+purpose so that we need another field for chaining.
+For chaining, singly linked list is enough and page->index
+of tail page to point first object offset in the page could
+be replaced in run-time calculation.
 
-> 
-> On Tue, Mar 22, 2016 at 6:55 AM, Xishi Qiu <qiuxishi@huawei.com <mailto:qiuxishi@huawei.com>> wrote:
-> 
->     [root@localhost c_test]# cat /proc/3948/smaps | grep Rss
-> 
-> The /proc/[pid]/smaps read triggers the traversal of all of process's vmas and then page tables and accumulate RSS on each present page table entry.
-> 
->     [root@localhost c_test]# cat /proc/3948/statm
->     1042 173 154 1 0 48 0
-> 
-> The files /proc/[pid]/statm and /proc/[pid]/status uses the counters (MM_ANONPAGES & MM_FILEPAGES) in mm_struct to report RSS of a process. These counters are modified on page table modifications. However the kernel implements an optimization where each thread keeps a local copy of these counters in its task_struct. These local counter are accumulated in the shared counter of mm_struct after some number of page faults (I think 32) faced by the thread and thus there will be mismatch with smaps file.
-> 
-> Shakeel
+So, this patch change page->lru list for chaining with singly
+linked list via page->freelist squeeze and introduces
+get_first_obj_ofs to get first object offset in a page.
 
-Hi Shakeel,
+With that, it could maintain page chaining without using
+page->lru.
 
-I malloc and memset 10M, then sleep. It seems that the problem is still exist,
-the kernel version is v4.1
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/zsmalloc.c | 119 ++++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 78 insertions(+), 41 deletions(-)
 
-[root@localhost c_test]# cat /proc/13746/statm
-3603 2767 250 1 0 2609 0
-[root@localhost c_test]# cat /proc/13746/smaps | grep Rss
-Rss:                   4 kB
-Rss:                   4 kB
-Rss:                   4 kB
-Rss:               10244 kB
-Rss:                 924 kB
-Rss:                   0 kB
-Rss:                  16 kB
-Rss:                   8 kB
-Rss:                  12 kB
-Rss:                 132 kB
-Rss:                  12 kB
-Rss:                   4 kB
-Rss:                   4 kB
-Rss:                   4 kB
-Rss:                   4 kB
-Rss:                   8 kB
-Rss:                   0 kB
-Rss:                   4 kB
-Rss:                   0 kB
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index f6c9138c3be0..a41cf3ef2077 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -17,10 +17,7 @@
+  *
+  * Usage of struct page fields:
+  *	page->private: points to the first component (0-order) page
+- *	page->index (union with page->freelist): offset of the first object
+- *		starting in this page.
+- *	page->lru: links together all component pages (except the first page)
+- *		of a zspage
++ *	page->index (union with page->freelist): override by struct zs_meta
+  *
+  *	For _first_ page only:
+  *
+@@ -271,10 +268,19 @@ struct zs_pool {
+ };
+ 
+ struct zs_meta {
+-	unsigned long freeobj:FREEOBJ_BITS;
+-	unsigned long class:CLASS_BITS;
+-	unsigned long fullness:FULLNESS_BITS;
+-	unsigned long inuse:INUSE_BITS;
++	union {
++		/* first page */
++		struct {
++			unsigned long freeobj:FREEOBJ_BITS;
++			unsigned long class:CLASS_BITS;
++			unsigned long fullness:FULLNESS_BITS;
++			unsigned long inuse:INUSE_BITS;
++		};
++		/* tail pages */
++		struct {
++			struct page *next;
++		};
++	};
+ };
+ 
+ struct mapping_area {
+@@ -491,6 +497,34 @@ static unsigned long get_freeobj(struct page *first_page)
+ 	return m->freeobj;
+ }
+ 
++static void set_next_page(struct page *page, struct page *next)
++{
++	struct zs_meta *m;
++
++	VM_BUG_ON_PAGE(is_first_page(page), page);
++
++	m = (struct zs_meta *)&page->index;
++	m->next = next;
++}
++
++static struct page *get_next_page(struct page *page)
++{
++	struct page *next;
++
++	if (is_last_page(page))
++		next = NULL;
++	else if (is_first_page(page))
++		next = (struct page *)page_private(page);
++	else {
++		struct zs_meta *m = (struct zs_meta *)&page->index;
++
++		VM_BUG_ON(!m->next);
++		next = m->next;
++	}
++
++	return next;
++}
++
+ static void get_zspage_mapping(struct page *first_page,
+ 				unsigned int *class_idx,
+ 				enum fullness_group *fullness)
+@@ -871,18 +905,30 @@ static struct page *get_first_page(struct page *page)
+ 		return (struct page *)page_private(page);
+ }
+ 
+-static struct page *get_next_page(struct page *page)
++int get_first_obj_ofs(struct size_class *class, struct page *first_page,
++			struct page *page)
+ {
+-	struct page *next;
++	int pos, bound;
++	int page_idx = 0;
++	int ofs = 0;
++	struct page *cursor = first_page;
+ 
+-	if (is_last_page(page))
+-		next = NULL;
+-	else if (is_first_page(page))
+-		next = (struct page *)page_private(page);
+-	else
+-		next = list_entry(page->lru.next, struct page, lru);
++	if (first_page == page)
++		goto out;
+ 
+-	return next;
++	while (page != cursor) {
++		page_idx++;
++		cursor = get_next_page(cursor);
++	}
++
++	bound = PAGE_SIZE * page_idx;
++	pos = (((class->objs_per_zspage * class->size) *
++		page_idx / class->pages_per_zspage) / class->size
++		) * class->size;
++
++	ofs = (pos + class->size) % PAGE_SIZE;
++out:
++	return ofs;
+ }
+ 
+ static void objidx_to_page_and_offset(struct size_class *class,
+@@ -1008,27 +1054,25 @@ void lock_zspage(struct page *first_page)
+ 
+ static void free_zspage(struct zs_pool *pool, struct page *first_page)
+ {
+-	struct page *nextp, *tmp, *head_extra;
++	struct page *nextp, *tmp;
+ 
+ 	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
+ 	VM_BUG_ON_PAGE(get_zspage_inuse(first_page), first_page);
+ 
+ 	lock_zspage(first_page);
+-	head_extra = (struct page *)page_private(first_page);
++	nextp = (struct page *)page_private(first_page);
+ 
+ 	/* zspage with only 1 system page */
+-	if (!head_extra)
++	if (!nextp)
+ 		goto out;
+ 
+-	list_for_each_entry_safe(nextp, tmp, &head_extra->lru, lru) {
+-		list_del(&nextp->lru);
+-		reset_page(nextp);
+-		unlock_page(nextp);
+-		put_page(nextp);
+-	}
+-	reset_page(head_extra);
+-	unlock_page(head_extra);
+-	put_page(head_extra);
++	do {
++		tmp = nextp;
++		nextp = get_next_page(nextp);
++		reset_page(tmp);
++		unlock_page(tmp);
++		put_page(tmp);
++	} while (nextp);
+ out:
+ 	reset_page(first_page);
+ 	unlock_page(first_page);
+@@ -1055,13 +1099,6 @@ static void init_zspage(struct size_class *class, struct page *first_page,
+ 		struct link_free *link;
+ 		void *vaddr;
+ 
+-		/*
+-		 * page->index stores offset of first object starting
+-		 * in the page.
+-		 */
+-		if (page != first_page)
+-			page->index = off;
+-
+ 		vaddr = kmap_atomic(page);
+ 		link = (struct link_free *)vaddr + off / sizeof(*link);
+ 
+@@ -1103,7 +1140,6 @@ static void create_page_chain(struct page *pages[], int nr_pages)
+ 	for (i = 0; i < nr_pages; i++) {
+ 		page = pages[i];
+ 
+-		INIT_LIST_HEAD(&page->lru);
+ 		if (i == 0) {
+ 			SetPagePrivate(page);
+ 			set_page_private(page, 0);
+@@ -1112,10 +1148,12 @@ static void create_page_chain(struct page *pages[], int nr_pages)
+ 
+ 		if (i == 1)
+ 			set_page_private(first_page, (unsigned long)page);
+-		if (i >= 1)
++		if (i >= 1) {
++			set_next_page(page, NULL);
+ 			set_page_private(page, (unsigned long)first_page);
++		}
+ 		if (i >= 2)
+-			list_add(&page->lru, &prev_page->lru);
++			set_next_page(prev_page, page);
+ 		if (i == nr_pages - 1)
+ 			SetPagePrivate2(page);
+ 
+@@ -2239,8 +2277,7 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+ 	kunmap_atomic(d_addr);
+ 	kunmap_atomic(s_addr);
+ 
+-	if (!is_first_page(page))
+-		offset = page->index;
++	offset = get_first_obj_ofs(class, first_page, page);
+ 
+ 	addr = kmap_atomic(page);
+ 	do {
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
