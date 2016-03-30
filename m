@@ -1,51 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 73D976B007E
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 04:09:37 -0400 (EDT)
-Received: by mail-io0-f180.google.com with SMTP id e3so56231156ioa.1
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 01:09:37 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id qf2si18177614igb.91.2016.03.30.01.09.36
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AC916B0005
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 04:10:59 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id zm5so34588209pac.0
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 01:10:59 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id v71si4779149pfi.22.2016.03.30.01.10.58
         for <linux-mm@kvack.org>;
-        Wed, 30 Mar 2016 01:09:36 -0700 (PDT)
-Date: Wed, 30 Mar 2016 17:11:35 +0900
+        Wed, 30 Mar 2016 01:10:59 -0700 (PDT)
+Date: Wed, 30 Mar 2016 17:12:58 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 02/11] mm/slab: remove BAD_ALIEN_MAGIC again
-Message-ID: <20160330081135.GB1678@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH 04/11] mm/slab: factor out kmem_cache_node initialization
+ code
+Message-ID: <20160330081258.GC1678@js1304-P5Q-DELUXE>
 References: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1459142821-20303-3-git-send-email-iamjoonsoo.kim@lge.com>
- <CAMuHMdU7WzkTccN_wa_LB+qx=1f_4V0SSRF+XqNdgYvCb2o5Ng@mail.gmail.com>
+ <1459142821-20303-5-git-send-email-iamjoonsoo.kim@lge.com>
+ <alpine.DEB.2.20.1603281955300.31323@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAMuHMdU7WzkTccN_wa_LB+qx=1f_4V0SSRF+XqNdgYvCb2o5Ng@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.20.1603281955300.31323@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 28, 2016 at 10:58:38AM +0200, Geert Uytterhoeven wrote:
-> Hi Jonsoo,
+On Mon, Mar 28, 2016 at 07:56:15PM -0500, Christoph Lameter wrote:
+> On Mon, 28 Mar 2016, js1304@gmail.com wrote:
 > 
-> On Mon, Mar 28, 2016 at 7:26 AM,  <js1304@gmail.com> wrote:
 > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >
-> > Initial attemp to remove BAD_ALIEN_MAGIC is once reverted by
-> > 'commit edcad2509550 ("Revert "slab: remove BAD_ALIEN_MAGIC"")'
-> > because it causes a problem on m68k which has many node
-> > but !CONFIG_NUMA. In this case, although alien cache isn't used
-> > at all but to cope with some initialization path, garbage value
-> > is used and that is BAD_ALIEN_MAGIC. Now, this patch set
-> > use_alien_caches to 0 when !CONFIG_NUMA, there is no initialization
-> > path problem so we don't need BAD_ALIEN_MAGIC at all. So remove it.
-> >
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > -		spin_lock_irq(&n->list_lock);
+> > -		n->free_limit =
+> > -			(1 + nr_cpus_node(node)) *
+> > -			cachep->batchcount + cachep->num;
+> > -		spin_unlock_irq(&n->list_lock);
+> > +		ret = init_cache_node(cachep, node, GFP_KERNEL);
+> > +		if (ret)
+> > +			return ret;
 > 
-> I gave this a try on m68k/ARAnyM, and it didn't crash, unlike the previous
-> version that was reverted, so
-> Tested-by: Geert Uytterhoeven <geert@linux-m68k.org>
+> Drop ret and do a
+> 
+> 	return init_cache_node(...);
+> 
+> instead?
 
-Thanks for testing!!!
+Will do it.
 
 Thanks.
 
