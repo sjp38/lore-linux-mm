@@ -1,60 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id E2DAA6B0005
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 07:10:48 -0400 (EDT)
-Received: by mail-wm0-f50.google.com with SMTP id p65so66354439wmp.0
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 04:10:48 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id w4si4398279wje.208.2016.03.30.04.10.45
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 456ED6B0005
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 07:47:08 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id zm5so39052088pac.0
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 04:47:08 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id ey12si5980105pac.203.2016.03.30.04.47.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Mar 2016 04:10:46 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id i204so11927732wmd.0
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 04:10:45 -0700 (PDT)
-Date: Wed, 30 Mar 2016 13:10:44 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] Revert "mm/page_alloc: protect pcp->batch accesses with
- ACCESS_ONCE"
-Message-ID: <20160330111044.GA4324@dhcp22.suse.cz>
-References: <1459333327-89720-1-git-send-email-hekuang@huawei.com>
- <20160330103839.GA4773@techsingularity.net>
- <56FBAFA0.3010604@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <56FBAFA0.3010604@huawei.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 30 Mar 2016 04:47:06 -0700 (PDT)
+Subject: Re: [RFC PATCH] mm, oom: move GFP_NOFS check to out_of_memory
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1459258055-1173-1-git-send-email-mhocko@kernel.org>
+	<alpine.DEB.2.10.1603291510560.11705@chino.kir.corp.google.com>
+	<20160330094750.GH30729@dhcp22.suse.cz>
+In-Reply-To: <20160330094750.GH30729@dhcp22.suse.cz>
+Message-Id: <201603302046.CBJ39064.LFVQOHOOJtFSMF@I-love.SAKURA.ne.jp>
+Date: Wed, 30 Mar 2016 20:46:48 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hekuang <hekuang@huawei.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, cody@linux.vnet.ibm.com, gilad@benyossef.com, kosaki.motohiro@gmail.com, mgorman@suse.de, penberg@kernel.org, lizefan@huawei.com, wangnan0@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org, rientjes@google.com
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Wed 30-03-16 18:51:12, Hekuang wrote:
-> hi
+Michal Hocko wrote:
+> On Tue 29-03-16 15:13:54, David Rientjes wrote:
+> > On Tue, 29 Mar 2016, Michal Hocko wrote:
+> > 
+> > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > > index 86349586eacb..1c2b7a82f0c4 100644
+> > > --- a/mm/oom_kill.c
+> > > +++ b/mm/oom_kill.c
+> > > @@ -876,6 +876,10 @@ bool out_of_memory(struct oom_control *oc)
+> > >  		return true;
+> > >  	}
+> > >  
+> > > +	/* The OOM killer does not compensate for IO-less reclaim. */
+> > > +	if (!(oc->gfp_mask & __GFP_FS))
+> > > +		return true;
+> > > +
+
+This patch will disable pagefault_out_of_memory() because currently
+pagefault_out_of_memory() is passing oc->gfp_mask == 0.
+
+Because of current behavior, calling oom notifiers from !__GFP_FS seems
+to be safe.
+
+> > >  	/*
+> > >  	 * Check if there were limitations on the allocation (only relevant for
+> > >  	 * NUMA) that may require different handling.
+> > 
+> > I don't object to this necessarily, but I think we need input from those 
+> > that have taken the time to implement their own oom notifier to see if 
+> > they agree.  In the past, they would only be called if reclaim has 
+> > completely failed; now, they can be called in low memory situations when 
+> > reclaim has had very little chance to be successful.  Getting an ack from 
+> > them would be helpful.
 > 
-> a?? 2016/3/30 18:38, Mel Gorman a??e??:
-> >On Wed, Mar 30, 2016 at 10:22:07AM +0000, He Kuang wrote:
-> >>This reverts commit 998d39cb236fe464af86a3492a24d2f67ee1efc2.
-> >>
-> >>When local irq is disabled, a percpu variable does not change, so we can
-> >>remove the access macros and let the compiler optimize the code safely.
-> >>
-> >batch can be changed from other contexts. Why is this safe?
-> >
-> I've mistakenly thought that per_cpu variable can only be accessed by that
-> cpu.
+> I will make sure to put them on the CC and mention this in the changelog
+> when I post this next time. I personally think that this shouldn't make
+> much difference in the real life because GFP_NOFS only loads are rare
 
-git blame would point you to 998d39cb236f ("mm/page_alloc: protect
-pcp->batch accesses with ACCESS_ONCE"). I haven't looked into the code
-deeply to confirm this is still the case but it would be a good lead
-that this is not that simple. ACCESS_ONCE resp. {READ,WRITE}_ONCE are
-usually quite subtle so I would encourage you or anybody else who try to
-remove them to study the code and the history deeper before removing
-them.
+GFP_NOFS only loads are rare. But some GFP_KERNEL load which got TIF_MEMDIE
+might be waiting for GFP_NOFS or GFP_NOIO loads to make progress.
 
--- 
-Michal Hocko
-SUSE Labs
+I think we are not ready to handle situations where out_of_memory() is called
+again after current thread got TIF_MEMDIE due to __GFP_NOFAIL allocation
+request when we ran out of memory reserves. We should not assume that the
+victim target thread does not have TIF_MEMDIE yet. I think we can handle it
+by making mark_oom_victim() return a bool and return via shortcut only if
+mark_oom_victim() successfully set TIF_MEMDIE. Though I don't like the
+shortcut approach that lacks a guaranteed unlocking mechanism.
+
+> and we should rather help by releasing memory when it is available
+> rather than rely on something else to do it for us. Waiting for Godot is
+> never a good strategy.
+> 
+> > I also think we have discussed this before, but I think the oom notifier 
+> > handling should be in done in the page allocator proper, i.e. in 
+> > __alloc_pages_may_oom().  We can leave out_of_memory() for a clear defined 
+> > purpose: to kill a process when all reclaim has failed.
+> 
+> I vaguely remember there was some issue with that the last time we have
+> discussed that. It was the duplication from the page fault and allocator
+> paths AFAIR. Nothing that cannot be handled though but the OOM notifier
+> API is just too ugly to spread outside OOM proper I guess. Why we cannot
+> move those users to use proper shrinkers interface (after it gets
+> extended by a priority of some sort and release some objects only after
+> we are really in troubles)? Something for a separate discussion,
+> though...
+
+Calling oom notifiers from SysRq-f is what we want?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
