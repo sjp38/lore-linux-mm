@@ -1,122 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id CC1306B0005
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 20:53:11 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id zm5so26845842pac.0
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 17:53:11 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id gj3si2057787pac.243.2016.03.29.17.53.10
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F0856B0005
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 21:15:56 -0400 (EDT)
+Received: by mail-ob0-f176.google.com with SMTP id m7so36647908obh.3
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 18:15:56 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id o20si521726otd.125.2016.03.29.18.15.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Mar 2016 17:53:10 -0700 (PDT)
-Received: by mail-pa0-x22f.google.com with SMTP id td3so26469063pab.2
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 17:53:10 -0700 (PDT)
-Date: Wed, 30 Mar 2016 09:54:36 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] zsmalloc: use workqueue to destroy pool in zpool callback
-Message-ID: <20160330005436.GA2630@swordfish>
-References: <1459288977-25562-1-git-send-email-yuzhao@google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 29 Mar 2016 18:15:55 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm: fix invalid node in alloc_migrate_target()
+Date: Wed, 30 Mar 2016 01:13:10 +0000
+Message-ID: <20160330011308.GA12660@hori1.linux.bs1.fc.nec.co.jp>
+References: <56F4E104.9090505@huawei.com> <56FA741F.7010705@suse.cz>
+In-Reply-To: <56FA741F.7010705@suse.cz>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <185D8B5B5B21FB4A83CD4929F0346AFA@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1459288977-25562-1-git-send-email-yuzhao@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu Zhao <yuzhao@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, Laura Abbott <lauraa@codeaurora.org>, "zhuhui@xiaomi.com" <zhuhui@xiaomi.com>, "wangxq10@lzu.edu.cn" <wangxq10@lzu.edu.cn>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello,
+On Tue, Mar 29, 2016 at 02:25:03PM +0200, Vlastimil Babka wrote:
+> On 03/25/2016 07:56 AM, Xishi Qiu wrote:
+> >It is incorrect to use next_node to find a target node, it will
+> >return MAX_NUMNODES or invalid node. This will lead to crash in
+> >buddy system allocation.
+>=20
+> One possible place of crash is:
+> alloc_huge_page_node()
+>     dequeue_huge_page_node()
+>         [accesses h->hugepage_freelists[nid] with size MAX_NUMANODES]
+>=20
+> >Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+>=20
+> Fixes: c8721bbbdd36 ("mm: memory-hotplug: enable memory hotplug to handle
+> hugepage")
+> Cc: stable
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-On (03/29/16 15:02), Yu Zhao wrote:
-> zs_destroy_pool() might sleep so it shouldn't be used in zpool
-> destroy callback which can be invoked in softirq context when
-> zsmalloc is configured to work with zswap.
+Thanks everyone for finding/fixing the bug!
 
-hm, interesting...
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-if we use zsmalloc with pool_stat enabled (pool specific nodes in
-debugfs), then doing quick hot_remove->hot_add of zram1 device
-
-	remove zram1  (destroy pool -> schedule_work)
-	add zram1 (zs_pool_stat_create pool1)
-
-can result in an error on the last step, right? because we have
-a race window between work->zs_pool_stat_destroy() and zs_pool_stat_create().
-correct? should we move zs_destroy_pool() out of work callback function
-and do it in zs_zpool_destroy()?
-
-	-ss
-
->   BUG: scheduling while atomic: swapper/6/0/0x00000100
->   ...
->   Call Trace:
->    <IRQ>  [<ffffffffaf09e31e>] dump_stack+0x4d/0x63
->    [<ffffffffaf09aae2>] __schedule_bug+0x46/0x54
->    [<ffffffffaea00704>] __schedule+0x334/0x3d3
->    [<ffffffffaea00897>] schedule+0x37/0x80
->    [<ffffffffaea00a5e>] schedule_preempt_disabled+0xe/0x10
->    [<ffffffffaeafced5>] mutex_optimistic_spin+0x185/0x1c0
->    [<ffffffffaea0215b>] __mutex_lock_slowpath+0x2b/0x100
->    [<ffffffffaebf90ce>] ? __drain_alien_cache+0x9e/0xf0
->    [<ffffffffaea0224b>] mutex_lock+0x1b/0x2f
->    [<ffffffffaebca4f0>] kmem_cache_destroy+0x50/0x130
->    [<ffffffffaec10405>] zs_destroy_pool+0x85/0xe0
->    [<ffffffffaec1046e>] zs_zpool_destroy+0xe/0x10
->    [<ffffffffaec101a4>] zpool_destroy_pool+0x54/0x70
->    [<ffffffffaebedac2>] __zswap_pool_release+0x62/0x90
->    [<ffffffffaeb1037e>] rcu_process_callbacks+0x22e/0x640
->    [<ffffffffaeb15a3e>] ? run_timer_softirq+0x3e/0x280
->    [<ffffffffaeabe13b>] __do_softirq+0xcb/0x250
->    [<ffffffffaeabe4dc>] irq_exit+0x9c/0xb0
->    [<ffffffffaea03e7a>] smp_apic_timer_interrupt+0x6a/0x80
->    [<ffffffffaf0a394f>] apic_timer_interrupt+0x7f/0x90
->    <EOI>  [<ffffffffaef609a2>] ? cpuidle_enter_state+0xb2/0x200
->    [<ffffffffaef60985>] ? cpuidle_enter_state+0x95/0x200
->    [<ffffffffaef60b27>] cpuidle_enter+0x17/0x20
->    [<ffffffffaeaf79c5>] cpu_startup_entry+0x235/0x320
->    [<ffffffffaea9a9db>] start_secondary+0xeb/0x100[  218.606157]
-> 
-> Signed-off-by: Yu Zhao <yuzhao@google.com>
-> ---
->  mm/zsmalloc.c | 13 ++++++++++++-
->  1 file changed, 12 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index e72efb1..fca5366 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -262,6 +262,9 @@ struct zs_pool {
->  #ifdef CONFIG_ZSMALLOC_STAT
->  	struct dentry *stat_dentry;
->  #endif
-> +#ifdef CONFIG_ZPOOL
-> +	struct work_struct zpool_destroy_work;
-> +#endif
->  };
->  
->  /*
-> @@ -327,9 +330,17 @@ static void *zs_zpool_create(const char *name, gfp_t gfp,
->  	return zs_create_pool(name, gfp);
->  }
->  
-> +static void zs_zpool_destroy_work(struct work_struct *work)
-> +{
-> +	zs_destroy_pool(container_of(work, struct zs_pool, zpool_destroy_work));
-> +}
-> +
->  static void zs_zpool_destroy(void *pool)
->  {
-> -	zs_destroy_pool(pool);
-> +	struct zs_pool *zs_pool = pool;
-> +
-> +	INIT_WORK(&zs_pool->zpool_destroy_work, zs_zpool_destroy_work);
-> +	schedule_work(&zs_pool->zpool_destroy_work);
->  }
->  
->  static int zs_zpool_malloc(void *pool, size_t size, gfp_t gfp,
-> -- 
-> 2.8.0.rc3.226.g39d4020
-> 
+> >---
+> >  mm/page_isolation.c | 8 ++++----
+> >  1 file changed, 4 insertions(+), 4 deletions(-)
+> >
+> >diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> >index 92c4c36..31555b6 100644
+> >--- a/mm/page_isolation.c
+> >+++ b/mm/page_isolation.c
+> >@@ -289,11 +289,11 @@ struct page *alloc_migrate_target(struct page *pag=
+e, unsigned long private,
+> >  	 * now as a simple work-around, we use the next node for destination.
+> >  	 */
+> >  	if (PageHuge(page)) {
+> >-		nodemask_t src =3D nodemask_of_node(page_to_nid(page));
+> >-		nodemask_t dst;
+> >-		nodes_complement(dst, src);
+> >+		int node =3D next_online_node(page_to_nid(page));
+> >+		if (node =3D=3D MAX_NUMNODES)
+> >+			node =3D first_online_node;
+> >  		return alloc_huge_page_node(page_hstate(compound_head(page)),
+> >-					    next_node(page_to_nid(page), dst));
+> >+					    node);
+> >  	}
+> >
+> >  	if (PageHighMem(page))
+> >
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
