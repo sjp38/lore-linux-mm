@@ -1,60 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id CB0216B0005
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 02:34:15 -0400 (EDT)
-Received: by mail-ob0-f175.google.com with SMTP id fp4so49019231obb.2
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 23:34:15 -0700 (PDT)
-Received: from mail-ob0-x230.google.com (mail-ob0-x230.google.com. [2607:f8b0:4003:c01::230])
-        by mx.google.com with ESMTPS id l67si964081otc.228.2016.03.29.23.34.14
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B603F6B007E
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 02:34:22 -0400 (EDT)
+Received: by mail-pf0-f182.google.com with SMTP id e128so12839821pfe.3
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 23:34:22 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id un9si4233933pac.14.2016.03.29.23.34.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Mar 2016 23:34:14 -0700 (PDT)
-Received: by mail-ob0-x230.google.com with SMTP id m7so47839471obh.3
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 23:34:14 -0700 (PDT)
+        Tue, 29 Mar 2016 23:34:21 -0700 (PDT)
+Date: Tue, 29 Mar 2016 23:34:15 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
+Message-ID: <20160330063415.GA2132@infradead.org>
+References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
+ <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1459313022-11750-1-git-send-email-chanho.min@lge.com>
-References: <1459313022-11750-1-git-send-email-chanho.min@lge.com>
-Date: Tue, 29 Mar 2016 23:34:14 -0700
-Message-ID: <CAPcyv4gqKZUh8_oE=J2xv2ZX78v3PKdHa1qmQP-FDMbt1iEAZQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/highmem: simplify is_highmem()
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chanho Min <chanho.min@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Gunho Lee <gunho.lee@lge.com>
+To: Vishal Verma <vishal.l.verma@intel.com>
+Cc: linux-nvdimm@ml01.01.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>
 
-On Tue, Mar 29, 2016 at 9:43 PM, Chanho Min <chanho.min@lge.com> wrote:
-> The is_highmem() is can be simplified by use of is_highmem_idx().
-> This patch removes redundant code and will make it easier to maintain
-> if the zone policy is changed or a new zone is added.
->
-> Signed-off-by: Chanho Min <chanho.min@lge.com>
-> ---
->  include/linux/mmzone.h |    5 +----
->  1 file changed, 1 insertion(+), 4 deletions(-)
->
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index e23a9e7..9ac90c3 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -817,10 +817,7 @@ static inline int is_highmem_idx(enum zone_type idx)
->  static inline int is_highmem(struct zone *zone)
->  {
->  #ifdef CONFIG_HIGHMEM
-> -       int zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones;
-> -       return zone_off == ZONE_HIGHMEM * sizeof(*zone) ||
-> -              (zone_off == ZONE_MOVABLE * sizeof(*zone) &&
-> -               zone_movable_is_highmem());
-> +       return is_highmem_idx(zone_idx(zone));
->  #else
->         return 0;
->  #endif
+Hi Vishal,
 
-Yup, looks like a straightforward replacement of open coded versions
-of the same routines.
-
-Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+still NAK to calling the direct I/O code directly from the dax code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
