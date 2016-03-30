@@ -1,108 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F2A0828DF
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 03:11:08 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id zm5so33432753pac.0
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 00:11:08 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id v13si4338008pas.199.2016.03.30.00.10.42
-        for <linux-mm@kvack.org>;
-        Wed, 30 Mar 2016 00:10:43 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v3 16/16] zram: use __GFP_MOVABLE for memory allocation
-Date: Wed, 30 Mar 2016 16:12:15 +0900
-Message-Id: <1459321935-3655-17-git-send-email-minchan@kernel.org>
-In-Reply-To: <1459321935-3655-1-git-send-email-minchan@kernel.org>
-References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D96A4828DF
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 03:16:39 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id td3so33130627pab.2
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 00:16:39 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id qe4si4373079pab.195.2016.03.30.00.16.38
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 30 Mar 2016 00:16:39 -0700 (PDT)
+Message-ID: <56FB7D37.5070503@huawei.com>
+Date: Wed, 30 Mar 2016 15:16:07 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [RFC] mm: why cat /proc/pid/smaps | grep Rss is different from
+ cat /proc/pid/statm?
+References: <56F14EEE.7060308@huawei.com> <CALvZod5PnHz5OsNrcfsMZ6=cxLBy9436htbKerv67S+CigwGbQ@mail.gmail.com>
+In-Reply-To: <CALvZod5PnHz5OsNrcfsMZ6=cxLBy9436htbKerv67S+CigwGbQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, Minchan Kim <minchan@kernel.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Zsmalloc is ready for page migration so zram can use __GFP_MOVABLE
-from now on.
+On 2016/3/22 22:47, Shakeel Butt wrote:
 
-I did test to see how it helps to make higher order pages.
-Test scenario is as follows.
+> 
+> On Tue, Mar 22, 2016 at 6:55 AM, Xishi Qiu <qiuxishi@huawei.com <mailto:qiuxishi@huawei.com>> wrote:
+> 
+>     [root@localhost c_test]# cat /proc/3948/smaps | grep Rss
+> 
+> The /proc/[pid]/smaps read triggers the traversal of all of process's vmas and then page tables and accumulate RSS on each present page table entry.
+> 
+>     [root@localhost c_test]# cat /proc/3948/statm
+>     1042 173 154 1 0 48 0
+> 
+> The files /proc/[pid]/statm and /proc/[pid]/status uses the counters (MM_ANONPAGES & MM_FILEPAGES) in mm_struct to report RSS of a process. These counters are modified on page table modifications. However the kernel implements an optimization where each thread keeps a local copy of these counters in its task_struct. These local counter are accumulated in the shared counter of mm_struct after some number of page faults (I think 32) faced by the thread and thus there will be mismatch with smaps file.
+> 
+> Shakeel
 
-KVM guest, 1G memory, ext4 formated zram block device,
+Hi Shakeel,
 
-for i in `seq 1 8`;
-do
-        dd if=/dev/vda1 of=mnt/test$i.txt bs=128M count=1 &
-done
+I malloc and memset 10M, then sleep. It seems that the problem is still exist,
+the kernel version is v4.1
 
-wait `pidof dd`
-
-for i in `seq 1 2 8`;
-do
-        rm -rf mnt/test$i.txt
-done
-fstrim -v mnt
-
-echo "init"
-cat /proc/buddyinfo
-
-echo "compaction"
-echo 1 > /proc/sys/vm/compact_memory
-cat /proc/buddyinfo
-
-old:
-
-init
-Node 0, zone      DMA    208    120     51     41     11      0      0      0      0      0      0
-Node 0, zone    DMA32  16380  13777   9184   3805    789     54      3      0      0      0      0
-compaction
-Node 0, zone      DMA    132     82     40     39     16      2      1      0      0      0      0
-Node 0, zone    DMA32   5219   5526   4969   3455   1831    677    139     15      0      0      0
-
-new:
-
-init
-Node 0, zone      DMA    379    115     97     19      2      0      0      0      0      0      0
-Node 0, zone    DMA32  18891  16774  10862   3947    637     21      0      0      0      0      0
-compaction  1
-Node 0, zone      DMA    214     66     87     29     10      3      0      0      0      0      0
-Node 0, zone    DMA32   1612   3139   3154   2469   1745    990    384     94      7      0      0
-
-As you can see, compaction made so many high-order pages. Yay!
-
-Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- drivers/block/zram/zram_drv.c | 3 ++-
- mm/zsmalloc.c                 | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 370c2f76016d..10f6ff1cf6a0 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -514,7 +514,8 @@ static struct zram_meta *zram_meta_alloc(char *pool_name, u64 disksize)
- 		goto out_error;
- 	}
- 
--	meta->mem_pool = zs_create_pool(pool_name, GFP_NOIO | __GFP_HIGHMEM);
-+	meta->mem_pool = zs_create_pool(pool_name, GFP_NOIO|__GFP_HIGHMEM
-+						|__GFP_MOVABLE);
- 	if (!meta->mem_pool) {
- 		pr_err("Error creating memory pool\n");
- 		goto out_error;
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index e24f4a160892..4b1ccb68f2ee 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -308,7 +308,7 @@ static void destroy_handle_cache(struct zs_pool *pool)
- static unsigned long alloc_handle(struct zs_pool *pool)
- {
- 	return (unsigned long)kmem_cache_alloc(pool->handle_cachep,
--		pool->flags & ~__GFP_HIGHMEM);
-+		pool->flags & ~(__GFP_HIGHMEM|__GFP_MOVABLE));
- }
- 
- static void free_handle(struct zs_pool *pool, unsigned long handle)
--- 
-1.9.1
+[root@localhost c_test]# cat /proc/13746/statm
+3603 2767 250 1 0 2609 0
+[root@localhost c_test]# cat /proc/13746/smaps | grep Rss
+Rss:                   4 kB
+Rss:                   4 kB
+Rss:                   4 kB
+Rss:               10244 kB
+Rss:                 924 kB
+Rss:                   0 kB
+Rss:                  16 kB
+Rss:                   8 kB
+Rss:                  12 kB
+Rss:                 132 kB
+Rss:                  12 kB
+Rss:                   4 kB
+Rss:                   4 kB
+Rss:                   4 kB
+Rss:                   4 kB
+Rss:                   8 kB
+Rss:                   0 kB
+Rss:                   4 kB
+Rss:                   0 kB
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
