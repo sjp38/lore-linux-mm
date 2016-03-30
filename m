@@ -1,109 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 329E26B0260
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 05:24:57 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id fe3so36061480pab.1
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 02:24:57 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id ez9si5181705pad.150.2016.03.30.02.24.56
-        for <linux-mm@kvack.org>;
-        Wed, 30 Mar 2016 02:24:56 -0700 (PDT)
-Date: Wed, 30 Mar 2016 10:24:48 +0100
-From: Steve Capper <steve.capper@arm.com>
-Subject: Re: [PATCH] mm: Exclude HugeTLB pages from THP page_mapped logic
-Message-ID: <20160330092448.GA19367@e103986-lin>
-References: <1459269581-21190-1-git-send-email-steve.capper@arm.com>
- <20160329165149.GA1102@node.shutemov.name>
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id AFDB96B0005
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 05:44:12 -0400 (EDT)
+Received: by mail-pf0-f175.google.com with SMTP id x3so38065635pfb.1
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 02:44:12 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id tb4si5314558pab.121.2016.03.30.02.43.25
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 30 Mar 2016 02:44:12 -0700 (PDT)
+Message-ID: <56FB9EE3.7010208@huawei.com>
+Date: Wed, 30 Mar 2016 17:39:47 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160329165149.GA1102@node.shutemov.name>
+Subject: Re: [RFC] mm: why cat /proc/pid/smaps | grep Rss is different from
+ cat /proc/pid/statm?
+References: <56F14EEE.7060308@huawei.com> <CALvZod5PnHz5OsNrcfsMZ6=cxLBy9436htbKerv67S+CigwGbQ@mail.gmail.com> <56FB7D37.5070503@huawei.com>
+In-Reply-To: <56FB7D37.5070503@huawei.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Steve Capper <steve.capper@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, dwoods@mellanox.com, mhocko@suse.com, mingo@kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Mar 29, 2016 at 07:51:49PM +0300, Kirill A. Shutemov wrote:
-> On Tue, Mar 29, 2016 at 05:39:41PM +0100, Steve Capper wrote:
-> > HugeTLB pages cannot be split, thus use the compound_mapcount to
-> > track rmaps.
-> > 
-> > Currently the page_mapped function will check the compound_mapcount, but
-> > will also go through the constituent pages of a THP compound page and
-> > query the individual _mapcount's too.
-> > 
-> > Unfortunately, the page_mapped function does not distinguish between
-> > HugeTLB and THP compound pages and assumes that a compound page always
-> > needs to have HPAGE_PMD_NR pages querying.
-> > 
-> > For most cases when dealing with HugeTLB this is just inefficient, but
-> > for scenarios where the HugeTLB page size is less than the pmd block
-> > size (e.g. when using contiguous bit on ARM) this can lead to crashes.
-> > 
-> > This patch adjusts the page_mapped function such that we skip the
-> > unnecessary THP reference checks for HugeTLB pages.
-> > 
-> > Fixes: e1534ae95004 ("mm: differentiate page_mapped() from page_mapcount() for compound pages")
-> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Signed-off-by: Steve Capper <steve.capper@arm.com>
+On 2016/3/30 15:16, Xishi Qiu wrote:
+
+> On 2016/3/22 22:47, Shakeel Butt wrote:
 > 
-> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
-Thanks!
-
+>>
+>> On Tue, Mar 22, 2016 at 6:55 AM, Xishi Qiu <qiuxishi@huawei.com <mailto:qiuxishi@huawei.com>> wrote:
+>>
+>>     [root@localhost c_test]# cat /proc/3948/smaps | grep Rss
+>>
+>> The /proc/[pid]/smaps read triggers the traversal of all of process's vmas and then page tables and accumulate RSS on each present page table entry.
+>>
+>>     [root@localhost c_test]# cat /proc/3948/statm
+>>     1042 173 154 1 0 48 0
+>>
+>> The files /proc/[pid]/statm and /proc/[pid]/status uses the counters (MM_ANONPAGES & MM_FILEPAGES) in mm_struct to report RSS of a process. These counters are modified on page table modifications. However the kernel implements an optimization where each thread keeps a local copy of these counters in its task_struct. These local counter are accumulated in the shared counter of mm_struct after some number of page faults (I think 32) faced by the thread and thus there will be mismatch with smaps file.
+>>
+>> Shakeel
 > 
-> > ---
-> > 
-> > Hi,
-> > 
-> > This patch is my approach to fixing a problem that unearthed with
-> > HugeTLB pages on arm64. We ran with PAGE_SIZE=64KB and placed down 32
-> > contiguous ptes to create 2MB HugeTLB pages. (We can provide hints to
-> > the MMU that page table entries are contiguous thus larger TLB entries
-> > can be used to represent them).
-> > 
-> > The PMD_SIZE was 512MB thus the old version of page_mapped would read
-> > through too many struct pages and lead to BUGs.
-> > 
-> > Original problem reported here:
-> > http://lists.infradead.org/pipermail/linux-arm-kernel/2016-March/414657.html
-> > 
-> > Having examined the HugeTLB code, I understand that only the
-> > compound_mapcount_ptr is used to track rmap presence so going through
-> > the individual _mapcounts for HugeTLB pages is superfluous? Or should I
-> > instead post a patch that changes hpage_nr_pages to use the compound
-> > order?
-> 
-> I would not touch hpage_nr_page().
-> 
-> We probably need to introduce compound_nr_pages() or something to replace
-> (1 << compound_order(page)) to be used independetely from thp/hugetlb
-> pages.
 
-Okay, I will stick with the approach in this patch. With HugeTLB we also
-have hstate information to use.
+Hi Shakeel,
 
+I misunderstand your meaning before. I know the reason now.
+
+Thanks,
+Xishi Qiu 
+
+> Hi Shakeel,
 > 
-> > Also, for the sake of readability, would it be worth changing the
-> > definition of PageTransHuge to refer to only THPs (not both HugeTLB
-> > and THP)?
-> 
-> I don't think so.
-> 
-> That would have overhead, since we wound need to do function call inside
-> PageTransHuge(). HugeTLB() is not inlinable.
+> I malloc and memset 10M, then sleep. It seems that the problem is still exist,
+> the kernel version is v4.1
+>
 
-Ahh, I hadn't considered that...
-
-> 
-> hugetlb deverges from rest of mm pretty early, so thp vs. hugetlb
-> confusion is not that ofter. We just don't share enough codepath.
-
-Thanks Kirill, agreed.
-
-Cheers,
--- 
-Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
