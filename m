@@ -1,61 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id AFDB96B0005
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 05:44:12 -0400 (EDT)
-Received: by mail-pf0-f175.google.com with SMTP id x3so38065635pfb.1
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 02:44:12 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id tb4si5314558pab.121.2016.03.30.02.43.25
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E86686B0253
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 05:47:52 -0400 (EDT)
+Received: by mail-wm0-f41.google.com with SMTP id 20so62556026wmh.1
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 02:47:52 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id t184si4689902wmb.113.2016.03.30.02.47.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Mar 2016 02:44:12 -0700 (PDT)
-Message-ID: <56FB9EE3.7010208@huawei.com>
-Date: Wed, 30 Mar 2016 17:39:47 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Mar 2016 02:47:51 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id 20so13032214wmh.3
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 02:47:51 -0700 (PDT)
+Date: Wed, 30 Mar 2016 11:47:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, oom: move GFP_NOFS check to out_of_memory
+Message-ID: <20160330094750.GH30729@dhcp22.suse.cz>
+References: <1459258055-1173-1-git-send-email-mhocko@kernel.org>
+ <alpine.DEB.2.10.1603291510560.11705@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] mm: why cat /proc/pid/smaps | grep Rss is different from
- cat /proc/pid/statm?
-References: <56F14EEE.7060308@huawei.com> <CALvZod5PnHz5OsNrcfsMZ6=cxLBy9436htbKerv67S+CigwGbQ@mail.gmail.com> <56FB7D37.5070503@huawei.com>
-In-Reply-To: <56FB7D37.5070503@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1603291510560.11705@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 2016/3/30 15:16, Xishi Qiu wrote:
-
-> On 2016/3/22 22:47, Shakeel Butt wrote:
+On Tue 29-03-16 15:13:54, David Rientjes wrote:
+> On Tue, 29 Mar 2016, Michal Hocko wrote:
 > 
->>
->> On Tue, Mar 22, 2016 at 6:55 AM, Xishi Qiu <qiuxishi@huawei.com <mailto:qiuxishi@huawei.com>> wrote:
->>
->>     [root@localhost c_test]# cat /proc/3948/smaps | grep Rss
->>
->> The /proc/[pid]/smaps read triggers the traversal of all of process's vmas and then page tables and accumulate RSS on each present page table entry.
->>
->>     [root@localhost c_test]# cat /proc/3948/statm
->>     1042 173 154 1 0 48 0
->>
->> The files /proc/[pid]/statm and /proc/[pid]/status uses the counters (MM_ANONPAGES & MM_FILEPAGES) in mm_struct to report RSS of a process. These counters are modified on page table modifications. However the kernel implements an optimization where each thread keeps a local copy of these counters in its task_struct. These local counter are accumulated in the shared counter of mm_struct after some number of page faults (I think 32) faced by the thread and thus there will be mismatch with smaps file.
->>
->> Shakeel
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 86349586eacb..1c2b7a82f0c4 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -876,6 +876,10 @@ bool out_of_memory(struct oom_control *oc)
+> >  		return true;
+> >  	}
+> >  
+> > +	/* The OOM killer does not compensate for IO-less reclaim. */
+> > +	if (!(oc->gfp_mask & __GFP_FS))
+> > +		return true;
+> > +
+> >  	/*
+> >  	 * Check if there were limitations on the allocation (only relevant for
+> >  	 * NUMA) that may require different handling.
 > 
+> I don't object to this necessarily, but I think we need input from those 
+> that have taken the time to implement their own oom notifier to see if 
+> they agree.  In the past, they would only be called if reclaim has 
+> completely failed; now, they can be called in low memory situations when 
+> reclaim has had very little chance to be successful.  Getting an ack from 
+> them would be helpful.
 
-Hi Shakeel,
+I will make sure to put them on the CC and mention this in the changelog
+when I post this next time. I personally think that this shouldn't make
+much difference in the real life because GFP_NOFS only loads are rare
+and we should rather help by releasing memory when it is available
+rather than rely on something else to do it for us. Waiting for Godot is
+never a good strategy.
 
-I misunderstand your meaning before. I know the reason now.
+> I also think we have discussed this before, but I think the oom notifier 
+> handling should be in done in the page allocator proper, i.e. in 
+> __alloc_pages_may_oom().  We can leave out_of_memory() for a clear defined 
+> purpose: to kill a process when all reclaim has failed.
 
-Thanks,
-Xishi Qiu 
+I vaguely remember there was some issue with that the last time we have
+discussed that. It was the duplication from the page fault and allocator
+paths AFAIR. Nothing that cannot be handled though but the OOM notifier
+API is just too ugly to spread outside OOM proper I guess. Why we cannot
+move those users to use proper shrinkers interface (after it gets
+extended by a priority of some sort and release some objects only after
+we are really in troubles)? Something for a separate discussion,
+though...
 
-> Hi Shakeel,
-> 
-> I malloc and memset 10M, then sleep. It seems that the problem is still exist,
-> the kernel version is v4.1
->
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
