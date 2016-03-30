@@ -1,32 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B603F6B007E
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 02:34:22 -0400 (EDT)
-Received: by mail-pf0-f182.google.com with SMTP id e128so12839821pfe.3
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 23:34:22 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id un9si4233933pac.14.2016.03.29.23.34.21
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 417226B0005
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 02:54:42 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id tt10so32919232pab.3
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 23:54:42 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id qe4si4249653pab.195.2016.03.29.23.54.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Mar 2016 23:34:21 -0700 (PDT)
-Date: Tue, 29 Mar 2016 23:34:15 -0700
-From: Christoph Hellwig <hch@infradead.org>
+        Tue, 29 Mar 2016 23:54:41 -0700 (PDT)
+Message-ID: <1459320877.4102.3.camel@kernel.org>
 Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-Message-ID: <20160330063415.GA2132@infradead.org>
+From: Vishal Verma <vishal@kernel.org>
+Date: Wed, 30 Mar 2016 00:54:37 -0600
+In-Reply-To: <20160330063415.GA2132@infradead.org>
 References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
- <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
+	 <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
+	 <20160330063415.GA2132@infradead.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vishal Verma <vishal.l.verma@intel.com>
-Cc: linux-nvdimm@ml01.01.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>
+To: Christoph Hellwig <hch@infradead.org>, Vishal Verma <vishal.l.verma@intel.com>
+Cc: Jens Axboe <axboe@fb.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-nvdimm@ml01.01.org, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-block@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
 
-Hi Vishal,
+On Tue, 2016-03-29 at 23:34 -0700, Christoph Hellwig wrote:
+> Hi Vishal,
+> 
+> still NAK to calling the direct I/O code directly from the dax code.
 
-still NAK to calling the direct I/O code directly from the dax code.
+Hm, I thought this was what you meant -- do the fallback/retry attempts
+at the callers of dax_do_io instead of the new dax wrapper function..
+Did I misunderstand you?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
