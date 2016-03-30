@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 040026B025F
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 22:00:29 -0400 (EDT)
-Received: by mail-pf0-f173.google.com with SMTP id n5so29145775pfn.2
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 19:00:28 -0700 (PDT)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 150386B0260
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 22:00:31 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id td3so27596747pab.2
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 19:00:31 -0700 (PDT)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id h88si2504247pfh.115.2016.03.29.19.00.21
+        by mx.google.com with ESMTP id h88si2504247pfh.115.2016.03.29.19.00.22
         for <linux-mm@kvack.org>;
-        Tue, 29 Mar 2016 19:00:21 -0700 (PDT)
+        Tue, 29 Mar 2016 19:00:22 -0700 (PDT)
 From: Vishal Verma <vishal.l.verma@intel.com>
-Subject: [PATCH v2 4/5] dax: use sb_issue_zerout instead of calling dax_clear_sectors
-Date: Tue, 29 Mar 2016 19:59:49 -0600
-Message-Id: <1459303190-20072-5-git-send-email-vishal.l.verma@intel.com>
+Subject: [PATCH v2 5/5] dax: handle media errors in dax_do_io
+Date: Tue, 29 Mar 2016 19:59:50 -0600
+Message-Id: <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
 In-Reply-To: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
 References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,129 +19,206 @@ List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
 Cc: Vishal Verma <vishal.l.verma@intel.com>, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>
 
-From: Matthew Wilcox <matthew.r.wilcox@intel.com>
+dax_do_io (called for read() or write() for a dax file system) may fail
+in the presence of bad blocks or media errors. Since we expect that a
+write should clear media errors on nvdimms, make dax_do_io fall back to
+the direct_IO path, which will send down a bio to the driver, which can
+then attempt to clear the error.
 
-dax_clear_sectors() cannot handle poisoned blocks.  These must be
-zeroed using the BIO interface instead.  Convert ext2 and XFS to use
-only sb_issue_zerout().
-
-Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-[vishal: Also remove the dax_clear_sectors function entirely]
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Jens Axboe <axboe@fb.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Christoph Hellwig <hch@infradead.org>
 Signed-off-by: Vishal Verma <vishal.l.verma@intel.com>
 ---
- fs/dax.c               | 32 --------------------------------
- fs/ext2/inode.c        |  7 +++----
- fs/xfs/xfs_bmap_util.c | 15 ++++-----------
- include/linux/dax.h    |  1 -
- 4 files changed, 7 insertions(+), 48 deletions(-)
+ fs/block_dev.c     | 17 ++++++++++++++---
+ fs/ext2/inode.c    | 22 +++++++++++++++-------
+ fs/ext4/indirect.c | 18 +++++++++++++-----
+ fs/ext4/inode.c    | 21 ++++++++++++++-------
+ fs/xfs/xfs_aops.c  | 14 ++++++++++++--
+ 5 files changed, 68 insertions(+), 24 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index ec6417b..f4ac5f2 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -78,38 +78,6 @@ struct page *read_dax_sector(struct block_device *bdev, sector_t n)
- 	return page;
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index c5837fa..d6113b9 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -166,13 +166,24 @@ blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
+ {
+ 	struct file *file = iocb->ki_filp;
+ 	struct inode *inode = bdev_file_inode(file);
++	ssize_t ret, ret_saved = 0;
+ 
+-	if (IS_DAX(inode))
+-		return dax_do_io(iocb, inode, iter, offset, blkdev_get_block,
++	if (IS_DAX(inode)) {
++		ret = dax_do_io(iocb, inode, iter, offset, blkdev_get_block,
+ 				NULL, DIO_SKIP_DIO_COUNT);
+-	return __blockdev_direct_IO(iocb, inode, I_BDEV(inode), iter, offset,
++		if (ret == -EIO && (iov_iter_rw(iter) == WRITE))
++			ret_saved = ret;
++		else
++			return ret;
++	}
++
++	ret = __blockdev_direct_IO(iocb, inode, I_BDEV(inode), iter, offset,
+ 				    blkdev_get_block, NULL, NULL,
+ 				    DIO_SKIP_DIO_COUNT);
++	if (ret < 0 && ret_saved)
++		return ret_saved;
++
++	return ret;
  }
  
--/*
-- * dax_clear_sectors() is called from within transaction context from XFS,
-- * and hence this means the stack from this point must follow GFP_NOFS
-- * semantics for all operations.
-- */
--int dax_clear_sectors(struct block_device *bdev, sector_t _sector, long _size)
--{
--	struct blk_dax_ctl dax = {
--		.sector = _sector,
--		.size = _size,
--	};
--
--	might_sleep();
--	do {
--		long count, sz;
--
--		count = dax_map_atomic(bdev, &dax);
--		if (count < 0)
--			return count;
--		sz = min_t(long, count, SZ_128K);
--		clear_pmem(dax.addr, sz);
--		dax.size -= sz;
--		dax.sector += sz / 512;
--		dax_unmap_atomic(bdev, &dax);
--		cond_resched();
--	} while (dax.size);
--
--	wmb_pmem();
--	return 0;
--}
--EXPORT_SYMBOL_GPL(dax_clear_sectors);
--
- /* the clear_pmem() calls are ordered by a wmb_pmem() in the caller */
- static void dax_new_buf(void __pmem *addr, unsigned size, unsigned first,
- 		loff_t pos, loff_t end)
+ int __sync_blockdev(struct block_device *bdev, int wait)
 diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index 6bd58e6..824f249 100644
+index 824f249..64792c6 100644
 --- a/fs/ext2/inode.c
 +++ b/fs/ext2/inode.c
-@@ -26,6 +26,7 @@
- #include <linux/highuid.h>
- #include <linux/pagemap.h>
- #include <linux/dax.h>
-+#include <linux/blkdev.h>
- #include <linux/quotaops.h>
- #include <linux/writeback.h>
- #include <linux/buffer_head.h>
-@@ -737,10 +738,8 @@ static int ext2_get_blocks(struct inode *inode,
- 		 * so that it's not found by another thread before it's
- 		 * initialised
- 		 */
--		err = dax_clear_sectors(inode->i_sb->s_bdev,
--				le32_to_cpu(chain[depth-1].key) <<
--				(inode->i_blkbits - 9),
--				1 << inode->i_blkbits);
-+		err = sb_issue_zeroout(inode->i_sb,
-+				le32_to_cpu(chain[depth-1].key), 1, GFP_NOFS);
- 		if (err) {
- 			mutex_unlock(&ei->truncate_mutex);
- 			goto cleanup;
-diff --git a/fs/xfs/xfs_bmap_util.c b/fs/xfs/xfs_bmap_util.c
-index a32c1dc..5b4351a 100644
---- a/fs/xfs/xfs_bmap_util.c
-+++ b/fs/xfs/xfs_bmap_util.c
-@@ -72,18 +72,11 @@ xfs_zero_extent(
- 	struct xfs_mount *mp = ip->i_mount;
- 	xfs_daddr_t	sector = xfs_fsb_to_db(ip, start_fsb);
- 	sector_t	block = XFS_BB_TO_FSBT(mp, sector);
--	ssize_t		size = XFS_FSB_TO_B(mp, count_fsb);
--
--	if (IS_DAX(VFS_I(ip)))
--		return dax_clear_sectors(xfs_find_bdev_for_inode(VFS_I(ip)),
--				sector, size);
--
--	/*
--	 * let the block layer decide on the fastest method of
--	 * implementing the zeroing.
--	 */
--	return sb_issue_zeroout(mp->m_super, block, count_fsb, GFP_NOFS);
+@@ -859,14 +859,22 @@ ext2_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
+ 	struct address_space *mapping = file->f_mapping;
+ 	struct inode *inode = mapping->host;
+ 	size_t count = iov_iter_count(iter);
+-	ssize_t ret;
++	ssize_t ret, ret_saved = 0;
  
-+	return blkdev_issue_zeroout(xfs_find_bdev_for_inode(VFS_I(ip)),
-+		block << (mp->m_super->s_blocksize_bits - 9),
-+		count_fsb << (mp->m_super->s_blocksize_bits - 9),
-+		GFP_NOFS, true);
+-	if (IS_DAX(inode))
+-		ret = dax_do_io(iocb, inode, iter, offset, ext2_get_block, NULL,
+-				DIO_LOCKING);
+-	else
+-		ret = blockdev_direct_IO(iocb, inode, iter, offset,
+-					 ext2_get_block);
++	if (IS_DAX(inode)) {
++		ret = dax_do_io(iocb, inode, iter, offset, ext2_get_block,
++				NULL, DIO_LOCKING | DIO_SKIP_HOLES);
++		if (ret == -EIO && iov_iter_rw(iter) == WRITE)
++			ret_saved = ret;
++		else
++			goto out;
++	}
++
++	ret = blockdev_direct_IO(iocb, inode, iter, offset, ext2_get_block);
++	if (ret < 0 && ret_saved)
++		ret = ret_saved;
++
++ out:
+ 	if (ret < 0 && iov_iter_rw(iter) == WRITE)
+ 		ext2_write_failed(mapping, offset + count);
+ 	return ret;
+diff --git a/fs/ext4/indirect.c b/fs/ext4/indirect.c
+index 3027fa6..798f341 100644
+--- a/fs/ext4/indirect.c
++++ b/fs/ext4/indirect.c
+@@ -716,14 +716,22 @@ retry:
+ 						   NULL, NULL, 0);
+ 		inode_dio_end(inode);
+ 	} else {
++		ssize_t ret_saved = 0;
++
+ locked:
+-		if (IS_DAX(inode))
++		if (IS_DAX(inode)) {
+ 			ret = dax_do_io(iocb, inode, iter, offset,
+ 					ext4_dio_get_block, NULL, DIO_LOCKING);
+-		else
+-			ret = blockdev_direct_IO(iocb, inode, iter, offset,
+-						 ext4_dio_get_block);
+-
++			if (ret == -EIO && iov_iter_rw(iter) == WRITE)
++				ret_saved = ret;
++			else
++				goto skip_dio;
++		}
++		ret = blockdev_direct_IO(iocb, inode, iter, offset,
++					 ext4_get_block);
++		if (ret < 0 && ret_saved)
++			ret = ret_saved;
++skip_dio:
+ 		if (unlikely(iov_iter_rw(iter) == WRITE && ret < 0)) {
+ 			loff_t isize = i_size_read(inode);
+ 			loff_t end = offset + count;
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index dab84a2..27f07c2 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -3341,7 +3341,7 @@ static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
+ {
+ 	struct file *file = iocb->ki_filp;
+ 	struct inode *inode = file->f_mapping->host;
+-	ssize_t ret;
++	ssize_t ret, ret_saved = 0;
+ 	size_t count = iov_iter_count(iter);
+ 	int overwrite = 0;
+ 	get_block_t *get_block_func = NULL;
+@@ -3401,15 +3401,22 @@ static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
+ #ifdef CONFIG_EXT4_FS_ENCRYPTION
+ 	BUG_ON(ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode));
+ #endif
+-	if (IS_DAX(inode))
++	if (IS_DAX(inode)) {
+ 		ret = dax_do_io(iocb, inode, iter, offset, get_block_func,
+ 				ext4_end_io_dio, dio_flags);
+-	else
+-		ret = __blockdev_direct_IO(iocb, inode,
+-					   inode->i_sb->s_bdev, iter, offset,
+-					   get_block_func,
+-					   ext4_end_io_dio, NULL, dio_flags);
++		if (ret == -EIO && iov_iter_rw(iter) == WRITE)
++			ret_saved = ret;
++		else
++			goto skip_dio;
++	}
+ 
++	ret = __blockdev_direct_IO(iocb, inode,
++				   inode->i_sb->s_bdev, iter, offset,
++				   get_block_func,
++				   ext4_end_io_dio, NULL, dio_flags);
++	if (ret < 0 && ret_saved)
++		ret = ret_saved;
++ skip_dio:
+ 	if (ret > 0 && !overwrite && ext4_test_inode_state(inode,
+ 						EXT4_STATE_DIO_UNWRITTEN)) {
+ 		int err;
+diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+index d445a64..7cfcf86 100644
+--- a/fs/xfs/xfs_aops.c
++++ b/fs/xfs/xfs_aops.c
+@@ -1413,6 +1413,7 @@ xfs_vm_direct_IO(
+ 	dio_iodone_t		*endio = NULL;
+ 	int			flags = 0;
+ 	struct block_device	*bdev;
++	ssize_t 		ret, ret_saved = 0;
+ 
+ 	if (iov_iter_rw(iter) == WRITE) {
+ 		endio = xfs_end_io_direct_write;
+@@ -1420,13 +1421,22 @@ xfs_vm_direct_IO(
+ 	}
+ 
+ 	if (IS_DAX(inode)) {
+-		return dax_do_io(iocb, inode, iter, offset,
++		ret = dax_do_io(iocb, inode, iter, offset,
+ 				 xfs_get_blocks_direct, endio, 0);
++		if (ret == -EIO && iov_iter_rw(iter) == WRITE)
++			ret_saved = ret;
++		else
++			return ret;
+ 	}
+ 
+ 	bdev = xfs_find_bdev_for_inode(inode);
+-	return  __blockdev_direct_IO(iocb, inode, bdev, iter, offset,
++	ret = __blockdev_direct_IO(iocb, inode, bdev, iter, offset,
+ 			xfs_get_blocks_direct, endio, NULL, flags);
++
++	if (ret < 0 && ret_saved)
++		ret = ret_saved;
++
++	return ret;
  }
  
  /*
-diff --git a/include/linux/dax.h b/include/linux/dax.h
-index 636dd59..933198a 100644
---- a/include/linux/dax.h
-+++ b/include/linux/dax.h
-@@ -7,7 +7,6 @@
- 
- ssize_t dax_do_io(struct kiocb *, struct inode *, struct iov_iter *, loff_t,
- 		  get_block_t, dio_iodone_t, int flags);
--int dax_clear_sectors(struct block_device *bdev, sector_t _sector, long _size);
- int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
- int dax_truncate_page(struct inode *, loff_t from, get_block_t);
- int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t,
 -- 
 2.5.5
 
