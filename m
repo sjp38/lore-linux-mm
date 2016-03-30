@@ -1,79 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F0856B0005
-	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 21:15:56 -0400 (EDT)
-Received: by mail-ob0-f176.google.com with SMTP id m7so36647908obh.3
-        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 18:15:56 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id o20si521726otd.125.2016.03.29.18.15.55
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Mar 2016 18:15:55 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm: fix invalid node in alloc_migrate_target()
-Date: Wed, 30 Mar 2016 01:13:10 +0000
-Message-ID: <20160330011308.GA12660@hori1.linux.bs1.fc.nec.co.jp>
-References: <56F4E104.9090505@huawei.com> <56FA741F.7010705@suse.cz>
-In-Reply-To: <56FA741F.7010705@suse.cz>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <185D8B5B5B21FB4A83CD4929F0346AFA@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 585416B0005
+	for <linux-mm@kvack.org>; Tue, 29 Mar 2016 22:00:21 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id fe3so27916681pab.1
+        for <linux-mm@kvack.org>; Tue, 29 Mar 2016 19:00:21 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id vd4si2333333pab.118.2016.03.29.19.00.20
+        for <linux-mm@kvack.org>;
+        Tue, 29 Mar 2016 19:00:20 -0700 (PDT)
+From: Vishal Verma <vishal.l.verma@intel.com>
+Subject: [PATCH v2 0/5] dax: handling of media errors
+Date: Tue, 29 Mar 2016 19:59:45 -0600
+Message-Id: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, Laura Abbott <lauraa@codeaurora.org>, "zhuhui@xiaomi.com" <zhuhui@xiaomi.com>, "wangxq10@lzu.edu.cn" <wangxq10@lzu.edu.cn>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-nvdimm@lists.01.org
+Cc: Vishal Verma <vishal.l.verma@intel.com>, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>
 
-On Tue, Mar 29, 2016 at 02:25:03PM +0200, Vlastimil Babka wrote:
-> On 03/25/2016 07:56 AM, Xishi Qiu wrote:
-> >It is incorrect to use next_node to find a target node, it will
-> >return MAX_NUMNODES or invalid node. This will lead to crash in
-> >buddy system allocation.
->=20
-> One possible place of crash is:
-> alloc_huge_page_node()
->     dequeue_huge_page_node()
->         [accesses h->hugepage_freelists[nid] with size MAX_NUMANODES]
->=20
-> >Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->=20
-> Fixes: c8721bbbdd36 ("mm: memory-hotplug: enable memory hotplug to handle
-> hugepage")
-> Cc: stable
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Until now, dax has been disabled if media errors were found on
+any device. This series attempts to address that.
 
-Thanks everyone for finding/fixing the bug!
+The first three patches from Dan re-enable dax even when media
+errors are present.
 
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+The fourth patch from Matthew removes the
+zeroout path from dax entirely, making zeroout operations always
+go through the driver (The motivation is that if a backing device
+has media errors, and we create a sparse file on it, we don't
+want the initial zeroing to happen via dax, we want to give the
+block driver a chance to clear the errors).
 
-> >---
-> >  mm/page_isolation.c | 8 ++++----
-> >  1 file changed, 4 insertions(+), 4 deletions(-)
-> >
-> >diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> >index 92c4c36..31555b6 100644
-> >--- a/mm/page_isolation.c
-> >+++ b/mm/page_isolation.c
-> >@@ -289,11 +289,11 @@ struct page *alloc_migrate_target(struct page *pag=
-e, unsigned long private,
-> >  	 * now as a simple work-around, we use the next node for destination.
-> >  	 */
-> >  	if (PageHuge(page)) {
-> >-		nodemask_t src =3D nodemask_of_node(page_to_nid(page));
-> >-		nodemask_t dst;
-> >-		nodes_complement(dst, src);
-> >+		int node =3D next_online_node(page_to_nid(page));
-> >+		if (node =3D=3D MAX_NUMNODES)
-> >+			node =3D first_online_node;
-> >  		return alloc_huge_page_node(page_hstate(compound_head(page)),
-> >-					    next_node(page_to_nid(page), dst));
-> >+					    node);
-> >  	}
-> >
-> >  	if (PageHighMem(page))
-> >
-> =
+One pending item is addressing clear_pmem usages in dax.c. clear_pmem is
+'unsafe' as it attempts to simply memcpy, and does not go through the driver.
+We have a few options of solving this:
+ 1. Remove all usages of clear_pmem that are not sector-aligned. For the
+    ones that are aligned, replace them with a bio submission that goes
+    through the driver to clear errors.
+ 2. Export from the block layer, either an API to zero sub-sector ranges,
+    or in general, clear errors in a range. The dax attempts to clear_pmem
+    can then use either of these and not be hit be media errors.
+
+I'll send out a v3 with a crack at option 1, but I wanted to get these
+changes (especially the ones in xfs) out for review.
+
+The fifth patch changes all the callers of dax_do_io to check for
+EIO, and fallback to direct_IO as needed. This forces the IO to
+go through the block driver, and can attempt to clear the error.
+
+
+v2:
+ - Use blockdev_issue_zeroout in xfs instead of sb_issue_zeroout (Christoph)
+ - Un-wrapper-ize dax_do_io and leave the fallback to direct_IO to callers
+   (Christoph)
+ - Rebase to v4.6-rc1 (fixup a couple of conflicts in ext4 and xfs)
+
+
+Dan Williams (3):
+  block, dax: pass blk_dax_ctl through to drivers
+  dax: fallback from pmd to pte on error
+  dax: enable dax in the presence of known media errors (badblocks)
+
+Vishal Verma (2):
+  dax: use sb_issue_zerout instead of calling dax_clear_sectors
+  dax: handle media errors in dax_do_io
+
+ arch/powerpc/sysdev/axonram.c | 10 +++++-----
+ block/ioctl.c                 |  9 ---------
+ drivers/block/brd.c           |  9 +++++----
+ drivers/nvdimm/pmem.c         | 17 +++++++++++++----
+ drivers/s390/block/dcssblk.c  | 12 ++++++------
+ fs/block_dev.c                | 19 +++++++++++++++----
+ fs/dax.c                      | 36 ++----------------------------------
+ fs/ext2/inode.c               | 29 ++++++++++++++++++-----------
+ fs/ext4/indirect.c            | 18 +++++++++++++-----
+ fs/ext4/inode.c               | 21 ++++++++++++++-------
+ fs/xfs/xfs_aops.c             | 14 ++++++++++++--
+ fs/xfs/xfs_bmap_util.c        | 15 ++++-----------
+ include/linux/blkdev.h        |  3 +--
+ include/linux/dax.h           |  1 -
+ 14 files changed, 108 insertions(+), 105 deletions(-)
+
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
