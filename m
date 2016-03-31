@@ -1,95 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 207566B025E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 07:56:44 -0400 (EDT)
-Received: by mail-ob0-f175.google.com with SMTP id fp4so21155093obb.2
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 04:56:44 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id f50si4937521otd.65.2016.03.31.04.56.42
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 31 Mar 2016 04:56:42 -0700 (PDT)
-Subject: Re: [RFC PATCH] mm, oom: move GFP_NOFS check to out_of_memory
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1459258055-1173-1-git-send-email-mhocko@kernel.org>
-	<alpine.DEB.2.10.1603291510560.11705@chino.kir.corp.google.com>
-	<20160330094750.GH30729@dhcp22.suse.cz>
-	<201603302046.CBJ39064.LFVQOHOOJtFSMF@I-love.SAKURA.ne.jp>
-	<20160330121141.GD4324@dhcp22.suse.cz>
-In-Reply-To: <20160330121141.GD4324@dhcp22.suse.cz>
-Message-Id: <201603312056.BJH95312.HOQFFSVMJOLtOF@I-love.SAKURA.ne.jp>
-Date: Thu, 31 Mar 2016 20:56:23 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BE766B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 08:29:49 -0400 (EDT)
+Received: by mail-wm0-f47.google.com with SMTP id p65so222978001wmp.1
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 05:29:49 -0700 (PDT)
+Received: from mail.free-electrons.com (down.free-electrons.com. [37.187.137.238])
+        by mx.google.com with ESMTP id 202si29606621wmy.77.2016.03.31.05.29.48
+        for <linux-mm@kvack.org>;
+        Thu, 31 Mar 2016 05:29:48 -0700 (PDT)
+From: Boris Brezillon <boris.brezillon@free-electrons.com>
+Subject: [PATCH 0/4] scatterlist: sg_table from virtual pointer
+Date: Thu, 31 Mar 2016 14:29:40 +0200
+Message-Id: <1459427384-21374-1-git-send-email-boris.brezillon@free-electrons.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: rientjes@google.com, linux-mm@kvack.org, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, linux-mtd@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Dave Gordon <david.s.gordon@intel.com>
+Cc: Mark Brown <broonie@kernel.org>, linux-spi@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Vinod Koul <vinod.koul@intel.com>, Dan Williams <dan.j.williams@intel.com>, dmaengine@vger.kernel.org, Mauro Carvalho Chehab <m.chehab@samsung.com>, Hans Verkuil <hans.verkuil@cisco.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, linux-media@vger.kernel.org, Boris Brezillon <boris.brezillon@free-electrons.com>, Richard Weinberger <richard@nod.at>, Herbert Xu <herbert@gondor.apana.org.au>, "David S. Miller" <davem@davemloft.net>, linux-crypto@vger.kernel.org, Vignesh R <vigneshr@ti.com>, linux-mm@kvack.org, Joerg Roedel <joro@8bytes.org>, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org
 
-Michal Hocko wrote:
-> On Wed 30-03-16 20:46:48, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Tue 29-03-16 15:13:54, David Rientjes wrote:
-> > > > On Tue, 29 Mar 2016, Michal Hocko wrote:
-> > > > 
-> > > > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > > > index 86349586eacb..1c2b7a82f0c4 100644
-> > > > > --- a/mm/oom_kill.c
-> > > > > +++ b/mm/oom_kill.c
-> > > > > @@ -876,6 +876,10 @@ bool out_of_memory(struct oom_control *oc)
-> > > > >  		return true;
-> > > > >  	}
-> > > > >  
-> > > > > +	/* The OOM killer does not compensate for IO-less reclaim. */
-> > > > > +	if (!(oc->gfp_mask & __GFP_FS))
-> > > > > +		return true;
-> > > > > +
-> > 
-> > This patch will disable pagefault_out_of_memory() because currently
-> > pagefault_out_of_memory() is passing oc->gfp_mask == 0.
-> > 
-> > Because of current behavior, calling oom notifiers from !__GFP_FS seems
-> > to be safe.
-> 
-> You are right! I have completely missed that and thought we were
-> providing GFP_KERNEL there. So we have two choices. Either we do
-> use GFP_KERNEL (same as we do for sysrq+f) or we special case
-> pagefault_out_of_memory in some way. The second option seems to be safer
-> because the gfp_mask has to contain at least ___GFP_DIRECT_RECLAIM to
-> trigger the OOM path.
+Hello,
 
-Oops, I missed that this patch also disables out_of_memory() for !__GFP_FS &&
-__GFP_NOFAIL allocation requests.
+This series has been extracted from another series [1] adding support
+for DMA operations in a NAND driver.
 
-> > I think we are not ready to handle situations where out_of_memory() is called
-> > again after current thread got TIF_MEMDIE due to __GFP_NOFAIL allocation
-> > request when we ran out of memory reserves. We should not assume that the
-> > victim target thread does not have TIF_MEMDIE yet. I think we can handle it
-> > by making mark_oom_victim() return a bool and return via shortcut only if
-> > mark_oom_victim() successfully set TIF_MEMDIE. Though I don't like the
-> > shortcut approach that lacks a guaranteed unlocking mechanism.
-> 
-> That would lead to premature follow up OOM when TIF_MEMDIE makes some
-> progress just not in time.
+The reason I decided to post those patches separately is because they
+are touching core stuff, and I'd like to have feedback on these specific
+aspects.
 
-We can never know whether the OOM killer prematurely killed a victim.
-It is possible that get_page_from_freelist() will succeed even if
-select_bad_process() did not find a TIF_MEMDIE thread. You said you don't
-want to violate the layer
-( http://lkml.kernel.org/r/20160129152307.GF32174@dhcp22.suse.cz ).
+The idea is to provide a generic function creating an sg_table from
+a virtual pointer and a length. This operation is complicated by
+the different memory regions exposed in kernel space. For example,
+you have the lowmem region, which guarantees that buffers are
+physically contiguous, while the vmalloc region does not.
 
-What we can do is tolerate possible premature OOM killer invocation using
-some threshold. You are proposing such change as OOM detection rework that
-might possibly cause premature OOM killer invocation.
-Waiting forever unconditionally (e.g.
-http://lkml.kernel.org/r/201602092349.ACG81273.OSVtMJQHLOFOFF@I-love.SAKURA.ne.jp )
-is no good. Suppressing OOM killer invocation forever unconditionally (e.g.
-decide based on only !__GFP_FS, decide based on only TIF_MEMDIE) is no good.
+sg_alloc_table_from_buf() detects in which memory region your buffer
+reside, and takes the appropriate precautions when creating the
+sg_table. This function also takes an extract parameter, allowing
+one to specify extra constraints, like the maximum DMA segment size,
+the required and the preferred alignment.
 
-Even if we stop returning via shortcut by making mark_oom_victim() return a
-bool, select_bad_process() will work as hold off mechanism. By combining with
-timeout (or something finite one) for TIF_MEMDIE, we can tolerate possible
-premature OOM killer invocation. It is much better than OOM-livelocked forever.
+Patch 1 and 2 are implementing sg_alloc_table_from_buf() (patch 1
+is needed to properly detect buffers residing in the highmem/kmap
+area).
+
+Patch 3 is making use of sg_alloc_table_from_buf() in the spi_map_buf()
+function (hopefully, other subsystems/drivers will be able to easily
+switch to this function too).
+
+Patch 4 is implementing what I really need: generic functions
+to map/unmap a virtual buffer passed through mtd->_read/_write().
+
+I'm not exactly a DMA or MM experts, so that would be great to have
+feedbacks on this approach. That's why I added so many people in Cc
+even if they're not directly impacted by those patches. Let me know if
+you want me to drop/add people from/to the recipient list.
+
+Thanks.
+
+Best Regards,
+
+Boris
+
+[1]http://www.spinics.net/lists/arm-kernel/msg493552.html
+
+Boris Brezillon (4):
+  mm: add is_highmem_addr() helper
+  scatterlist: add sg_alloc_table_from_buf() helper
+  spi: use sg_alloc_table_from_buf()
+  mtd: provide helper to prepare buffers for DMA operations
+
+ drivers/mtd/mtdcore.c       |  66 ++++++++++++++++
+ drivers/spi/spi.c           |  45 ++---------
+ include/linux/highmem.h     |  13 ++++
+ include/linux/mtd/mtd.h     |  25 ++++++
+ include/linux/scatterlist.h |  24 ++++++
+ lib/scatterlist.c           | 183 ++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 316 insertions(+), 40 deletions(-)
+
+-- 
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
