@@ -1,122 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 9969B6B007E
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 22:28:39 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id td3so54542495pab.2
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 19:28:39 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id tn1si4068757pab.54.2016.03.30.19.28.38
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 26DE06B025E
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 22:28:51 -0400 (EDT)
+Received: by mail-pf0-f170.google.com with SMTP id x3so57539383pfb.1
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 19:28:51 -0700 (PDT)
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com. [202.81.31.142])
+        by mx.google.com with ESMTPS id ew7si10468230pad.131.2016.03.30.19.28.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Mar 2016 19:28:38 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [RFC PATCH 2/2] x86/hugetlb: Attempt PUD_SIZE mapping alignment
- if PMD sharing enabled
-Date: Thu, 31 Mar 2016 02:26:56 +0000
-Message-ID: <20160331022655.GA24293@hori1.linux.bs1.fc.nec.co.jp>
-References: <1459213970-17957-1-git-send-email-mike.kravetz@oracle.com>
- <1459213970-17957-3-git-send-email-mike.kravetz@oracle.com>
- <20160329083510.GA27941@gmail.com> <56FAB5DB.8070003@oracle.com>
-In-Reply-To: <56FAB5DB.8070003@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <9F368A9A34165248A39CDDA955E4A1B4@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 30 Mar 2016 19:28:50 -0700 (PDT)
+Received: from localhost
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gwshan@linux.vnet.ibm.com>;
+	Thu, 31 Mar 2016 12:28:46 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 194513578056
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 13:28:38 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2V2SPY22097428
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 13:28:38 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2V2Rxi5018961
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 13:27:59 +1100
+Date: Thu, 31 Mar 2016 13:27:34 +1100
+From: Gavin Shan <gwshan@linux.vnet.ibm.com>
+Subject: Re: [RFC] mm: Fix memory corruption caused by deferred page
+ initialization
+Message-ID: <20160331022734.GA12552@gwshan>
+Reply-To: Gavin Shan <gwshan@linux.vnet.ibm.com>
+References: <1458921929-15264-1-git-send-email-gwshan@linux.vnet.ibm.com>
+ <3qXFh60DRNz9sDH@ozlabs.org>
+ <20160326133708.GA382@gwshan>
+ <20160327134827.GA24644@gwshan>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160327134827.GA24644@gwshan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Ingo Molnar <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Hugh Dickins <hughd@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steve Capper <steve.capper@linaro.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Gavin Shan <gwshan@linux.vnet.ibm.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, mgorman@suse.de, zhlcindy@linux.vnet.ibm.com
 
-On Tue, Mar 29, 2016 at 10:05:31AM -0700, Mike Kravetz wrote:
-> On 03/29/2016 01:35 AM, Ingo Molnar wrote:
-> >=20
-> > * Mike Kravetz <mike.kravetz@oracle.com> wrote:
-> >=20
-> >> When creating a hugetlb mapping, attempt PUD_SIZE alignment if the
-> >> following conditions are met:
-> >> - Address passed to mmap or shmat is NULL
-> >> - The mapping is flaged as shared
-> >> - The mapping is at least PUD_SIZE in length
-> >> If a PUD_SIZE aligned mapping can not be created, then fall back to a
-> >> huge page size mapping.
-> >>
-> >> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> >> ---
-> >>  arch/x86/mm/hugetlbpage.c | 64 ++++++++++++++++++++++++++++++++++++++=
-++++++---
-> >>  1 file changed, 61 insertions(+), 3 deletions(-)
-> >>
-> >> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> >> index 42982b2..4f53af5 100644
-> >> --- a/arch/x86/mm/hugetlbpage.c
-> >> +++ b/arch/x86/mm/hugetlbpage.c
-> >> @@ -78,14 +78,39 @@ static unsigned long hugetlb_get_unmapped_area_bot=
-tomup(struct file *file,
-> >>  {
-> >>  	struct hstate *h =3D hstate_file(file);
-> >>  	struct vm_unmapped_area_info info;
-> >> +	bool pud_size_align =3D false;
-> >> +	unsigned long ret_addr;
-> >> +
-> >> +	/*
-> >> +	 * If PMD sharing is enabled, align to PUD_SIZE to facilitate
-> >> +	 * sharing.  Only attempt alignment if no address was passed in,
-> >> +	 * flags indicate sharing and size is big enough.
-> >> +	 */
-> >> +	if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
-> >> +	    !addr && flags & MAP_SHARED && len >=3D PUD_SIZE)
-> >> +		pud_size_align =3D true;
-> >> =20
-> >>  	info.flags =3D 0;
-> >>  	info.length =3D len;
-> >>  	info.low_limit =3D current->mm->mmap_legacy_base;
-> >>  	info.high_limit =3D TASK_SIZE;
-> >> -	info.align_mask =3D PAGE_MASK & ~huge_page_mask(h);
-> >> +	if (pud_size_align)
-> >> +		info.align_mask =3D PAGE_MASK & (PUD_SIZE - 1);
-> >> +	else
-> >> +		info.align_mask =3D PAGE_MASK & ~huge_page_mask(h);
-> >>  	info.align_offset =3D 0;
-> >> -	return vm_unmapped_area(&info);
-> >> +	ret_addr =3D vm_unmapped_area(&info);
-> >> +
-> >> +	/*
-> >> +	 * If failed with PUD_SIZE alignment, try again with huge page
-> >> +	 * size alignment.
-> >> +	 */
-> >> +	if ((ret_addr & ~PAGE_MASK) && pud_size_align) {
-> >> +		info.align_mask =3D PAGE_MASK & ~huge_page_mask(h);
-> >> +		ret_addr =3D vm_unmapped_area(&info);
-> >> +	}
-> >=20
-> > So AFAICS 'ret_addr' is either page aligned, or is an error code. Would=
-n't it be a=20
-> > lot easier to read to say:
-> >=20
-> > 	if ((long)ret_addr > 0 && pud_size_align) {
-> > 		info.align_mask =3D PAGE_MASK & ~huge_page_mask(h);
-> > 		ret_addr =3D vm_unmapped_area(&info);
-> > 	}
-> >=20
-> > 	return ret_addr;
-> >=20
-> > to make it clear that it's about error handling, not some alignment=20
-> > requirement/restriction?
->=20
-> Yes, I agree that is easier to read.  However, it assumes that process
-> virtual addresses can never evaluate to a negative long value.  This may
-> be the case for x86_64 today.  But, there are other architectures where
-> this is not the case.  I know this is x86 specific code, but might it be
-> possible that x86 virtual addresses could be negative longs in the future=
-?
->=20
-> It appears that all callers of vm_unmapped_area() are using the page alig=
-ned
-> check to determine error.   I would prefer to do the same, and can add
-> comments to make that more clear.
+On Mon, Mar 28, 2016 at 12:48:27AM +1100, Gavin Shan wrote:
+>On Sun, Mar 27, 2016 at 12:37:09AM +1100, Gavin Shan wrote:
+>>On Sat, Mar 26, 2016 at 08:47:17PM +1100, Michael Ellerman wrote:
+>>>Hi Gavin,
+>>>
+>>>On Fri, 2016-25-03 at 16:05:29 UTC, Gavin Shan wrote:
+>>>> During deferred page initialization, the pages are moved from memblock
+>>>> or bootmem to buddy allocator without checking they were reserved. Those
+>>>> reserved pages can be reallocated to somebody else by buddy/slab allocator.
+>>>> It leads to memory corruption and potential kernel crash eventually.
+>>>
+>>>Can you give me a bit more detail on what the bug is?
+>>>
+>>>I haven't seen any issues on my systems, but I realise now I haven't enabled
+>>>DEFERRED_STRUCT_PAGE_INIT - I assumed it was enabled by default.
+>>>
+>>>How did this get tested before submission?
+>>>
+>>
+>>Michael, I have to reply with same context in another thread in case 
+>>somebody else wants to understand more: Li, who is in the cc list, is
+>>backporting deferred page initialization (CONFIG_DEFERRED_STRUCT_PAGE_INIT)
+>>from upstream kernel to RHEL 7.2 or 7.3 kernel (3.10.0-357.el7). RHEL kernel
+>>has (!CONFIG_NO_BOOTMEM && CONFIG_DEFERRED_STRUCT_PAGE_INIT), meaning
+>>bootmem is enabled. She eventually runs into kernel crash and I jumped
+>>in to help understanding the root cause.
+>>
+>>There're two related kernel config options: ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+>>and DEFERRED_STRUCT_PAGE_INIT. The former one is enabled on PPC by default.
+>>The later one isn't enabled by default.
+>>
+>>There are two test cases I had:
+>>
+>>- With (!CONFIG_NO_BOOTMEM && CONFIG_DEFERRED_STRUCT_PAGE_INIT)
+>>on PowerNV platform, upstream kernel (4.5.rc7) and additional patch to support
+>>bootmem as it was removed on powerpc a while ago.
+>>
+>>- With (CONFIG_NO_BOOTMEM && CONFIG_DEFERRED_STRUCT_PAGE_INIT) on PowerNV platform,
+>>upstream kernel (4.5.rc7), I dumped the reserved memblock regions and added printk
+>>in function deferred_init_memmap() to check if memblock reserved PFN 0x1fff80 (one
+>>page in memblock reserved region#31, refer to the below kernel log) is released
+>>to buddy allocator or not when doing deferred page struct initialization. I did
+>>see that PFN is released to buddy allocator at that time. However, I didn't see
+>>kernel crash and it would be luck and the current deferred page struct initialization
+>>implementation: The pages in region [0, 2GB] except the memblock reserved ones are
+>>presented to buddy allocator at early stage. It's not deferred. So for the pages in
+>>[0, 2GB], we don't have consistency issue between memblock and buddy allocator.
+>>The pages in region [2GB ...] are all presented to buddy allocator despite they're
+>>reserved in memblock or not. It ensures the kernel text section isn't corrupted
+>>and we're lucky not seeing program interrupt because of illegal instruction.
+>>
+>
+>After more debugging, it turns out that Michael is correct: we don't have problem
+>when CONFIG_NO_BOOTMEM=y. In the case, the page frames in [2G ...] is marked as
+>reserved in early stage (as below function calls reveal). During the deferred
+>initialization stage, those reserved pages won't be released to buddy allocator:
+>
+>- Below function calls mark reserved pages according to memblock reserved regions:
+>  init/main.c::start_kernel()
+>  init/main.c::mm_init()
+>  arch/powerpc/mm/mem.c::mem_init()
+>  nobootmem.c::free_all_bootmem()            <-> bootmem.c::free_all_bootmem() on !CONFIG_NO_BOOTMEM
+>  nobootmem.c::free_low_memory_core_early()
+>  nobootmem.c::reserve_bootmem_region()
+>
+>- In page_alloc.c::deferred_init_memmap(), the reserved pages aren't released
+>  to buddy allocator with below check:
+>
+>                        if (page->flags) {
+>                                VM_BUG_ON(page_zone(page) != zone);
+>                                goto free_range;
+>                        }
+>
+>
+>So the issue is only existing when CONFIG_NO_BOOTMEM=n. The alternative fix would
+>be similar to what we have on !CONFIG_NO_BOOTMEM: In early stage, all page structs
+>for bootmem reserved pages are initialized and mark them with PG_reserved. I'm
+>not sure it's worthy to fix it as we won't support bootmem as Michael mentioned.
+>
 
-IS_ERR_VALUE() might be helpful?=
+Mel, could you please confirm if we need a fix on !CONFIG_NO_BOOTMEM? If we need,
+I'll respin and send a patch for review.
+
+Thanks,
+Gavin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
