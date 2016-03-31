@@ -1,102 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f180.google.com (mail-yw0-f180.google.com [209.85.161.180])
-	by kanga.kvack.org (Postfix) with ESMTP id C73406B007E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 18:53:31 -0400 (EDT)
-Received: by mail-yw0-f180.google.com with SMTP id g127so118723263ywf.2
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 15:53:31 -0700 (PDT)
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com. [209.85.192.42])
-        by mx.google.com with ESMTPS id q71si3620745vke.148.2016.03.31.15.53.30
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FB706B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:06:53 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id zm5so76127344pac.0
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 16:06:53 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id h88si16899245pfh.115.2016.03.31.16.06.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Mar 2016 15:53:31 -0700 (PDT)
-Received: by mail-qg0-f42.google.com with SMTP id j35so80625626qge.0
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 15:53:30 -0700 (PDT)
-Subject: Re: Issue with ioremap
-References: <CAGnW=BYw9iqm8BpuWrxgcvXV3wwvHcvMtynPeHUGHHiZfPmfuA@mail.gmail.com>
- <20160331200147.GA20530@jcartwri.amer.corp.natinst.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <56FDAA66.2000505@redhat.com>
-Date: Thu, 31 Mar 2016 15:53:26 -0700
-MIME-Version: 1.0
-In-Reply-To: <20160331200147.GA20530@jcartwri.amer.corp.natinst.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+        Thu, 31 Mar 2016 16:06:52 -0700 (PDT)
+Date: Thu, 31 Mar 2016 16:06:50 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Exclude HugeTLB pages from THP page_mapped logic
+Message-Id: <20160331160650.cfc0fa57e97a45e94bc023f4@linux-foundation.org>
+In-Reply-To: <1459269581-21190-1-git-send-email-steve.capper@arm.com>
+References: <1459269581-21190-1-git-send-email-steve.capper@arm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Cartwright <joshc@ni.com>, punnaiah choudary kalluri <punnaia@xilinx.com>
-Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Sergey Dyasly <dserrg@gmail.com>, Russell King <rmk+kernel@arm.linux.org.uk>, Arnd Bergmann <arnd.bergmann@linaro.org>
+To: Steve Capper <steve.capper@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, dwoods@mellanox.com, mhocko@suse.com, mingo@kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-(cc linux-arm)
+On Tue, 29 Mar 2016 17:39:41 +0100 Steve Capper <steve.capper@arm.com> wrote:
 
-On 03/31/2016 01:01 PM, Josh Cartwright wrote:
-> On Fri, Apr 01, 2016 at 01:13:06AM +0530, punnaiah choudary kalluri wrote:
->> Hi,
->>
->> We are using the pl353 smc controller for interfacing the nand in our zynq SOC.
->> The driver for this controller is currently under mainline review.
->> Recently we are moved to 4.4 kernel and observing issues with the driver.
->> while debug, found that the issue is with the virtual address returned from
->> the ioremap is not aligned to the physical address and causing nand
->> access failures.
->> the nand controller physical address starts at 0xE1000000 and the size is 16MB.
->> the ioremap function in 4.3 kernel returns the virtual address that is
->> aligned to the size
->> but not the case in 4.4 kernel.
+> HugeTLB pages cannot be split, thus use the compound_mapcount to
+> track rmaps.
+> 
+> Currently the page_mapped function will check the compound_mapcount, but
+
+s/the page_mapped function/page_mapped()/.  It's so much simpler!
+
+> will also go through the constituent pages of a THP compound page and
+> query the individual _mapcount's too.
+> 
+> Unfortunately, the page_mapped function does not distinguish between
+> HugeTLB and THP compound pages and assumes that a compound page always
+> needs to have HPAGE_PMD_NR pages querying.
+> 
+> For most cases when dealing with HugeTLB this is just inefficient, but
+> for scenarios where the HugeTLB page size is less than the pmd block
+> size (e.g. when using contiguous bit on ARM) this can lead to crashes.
+> 
+> This patch adjusts the page_mapped function such that we skip the
+> unnecessary THP reference checks for HugeTLB pages.
+> 
+> Fixes: e1534ae95004 ("mm: differentiate page_mapped() from page_mapcount() for compound pages")
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Signed-off-by: Steve Capper <steve.capper@arm.com>
+> ---
+> 
+> Hi,
+> 
+> This patch is my approach to fixing a problem that unearthed with
+> HugeTLB pages on arm64. We ran with PAGE_SIZE=64KB and placed down 32
+> contiguous ptes to create 2MB HugeTLB pages. (We can provide hints to
+> the MMU that page table entries are contiguous thus larger TLB entries
+> can be used to represent them).
+
+So which kernel version(s) need this patch?  I think both 4.4 and 4.5
+will crash in this manner?  Should we backport the fix into 4.4.x and
+4.5.x?
+
 >
-> :(.  I had actually ran into this, too, as I was evaluating the use of
-> the upstream-targetted pl353 stuff; sorry I didn't say anything.
+> ...
 >
->> this controller uses the bits [31:24] as base address and use rest all
->> bits for configuring adders cycles, chip select information. so it
->> expects the virtual address also aligned to 0xFF000000 otherwise the
->> nand commands issued will fail.
->
-> The driver _currently_ expects the virtual address to be 16M aligned,
-> but is that a hard requirement?  It seems possible that the driver could
-> be written without this assumption, correct?
->
-> This would mean that the driver would need to maintain the cs/cycles
-> configuration state outside of the mapped virtual address, and then
-> calculate + add the calculated offset to the base.  Would that work?
-> I had been meaning to give it a try, but haven't gotten around to it.
->
->    Josh
->
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1031,6 +1031,8 @@ static inline bool page_mapped(struct page *page)
+>  	page = compound_head(page);
+>  	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
+>  		return true;
+> +	if (PageHuge(page))
+> +		return false;
+>  	for (i = 0; i < hpage_nr_pages(page); i++) {
+>  		if (atomic_read(&page[i]._mapcount) >= 0)
+>  			return true;
 
-I was curious so I took a look and this seems to be caused by
+page_mapped() is moronically huge.  Uninlining it saves 206 bytes per
+callsite. It has 40+ callsites.
 
-commit 803e3dbcb4cf80c898faccf01875f6ff6e5e76fd
-Author: Sergey Dyasly <dserrg@gmail.com>
-Date:   Wed Sep 9 16:27:18 2015 +0100
 
-     ARM: 8430/1: use default ioremap alignment for SMP or LPAE
-     
-     16MB alignment for ioremap mappings was added by commit a069c896d0d6 ("[ARM]
-     3705/1: add supersection support to ioremap()") in order to support supersection
-     mappings. But __arm_ioremap_pfn_caller uses section and supersection mappings
-     only in !SMP && !LPAE case. There is no need for such big alignment if either
-     SMP or LPAE is enabled.
-     
-     After this change, ioremap will use default maximum alignment of 128 pages.
-     
-     Link: https://lkml.kernel.org/g/1419328813-2211-1-git-send-email-d.safonov@partner.samsung.com
-     
-     Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
-     Cc: Nicolas Pitre <nicolas.pitre@linaro.org>
-     Cc: James Bottomley <JBottomley@parallels.com>
-     Cc: Will Deacon <will.deacon@arm.com>
-     Cc: Arnd Bergmann <arnd.bergmann@linaro.org>
-     Cc: Catalin Marinas <catalin.marinas@arm.com>
-     Cc: Andrew Morton <akpm@linux-foundation.org>
-     Cc: Dmitry Safonov <d.safonov@partner.samsung.com>
-     Signed-off-by: Sergey Dyasly <s.dyasly@samsung.com>
-     Signed-off-by: Russell King <rmk+kernel@arm.linux.org.uk>
 
-The thread assumed the higher alignment behavior was only needed for super
-section mappings. Apparently not.
 
-Thanks,
-Laura
+btw, is anyone else seeing this `make M=' breakage?
+
+akpm3:/usr/src/25> make M=mm
+Makefile:679: Cannot use CONFIG_KCOV: -fsanitize-coverage=trace-pc is not supported by compiler
+
+  WARNING: Symbol version dump ./Module.symvers
+           is missing; modules will have no dependencies and modversions.
+
+make[1]: *** No rule to make target `mm/filemap.o', needed by `mm/built-in.o'.  Stop.
+make: *** [_module_mm] Error 2
+
+It's a post-4.5 thing.
+
+
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm: uninline page_mapped()
+
+It's huge.  Uninlining it saves 206 bytes per callsite.  Shaves 4924 bytes
+from the x86_64 allmodconfig vmlinux.
+
+Cc: Steve Capper <steve.capper@arm.com>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ include/linux/mm.h |   21 +--------------------
+ mm/util.c          |   22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 20 deletions(-)
+
+diff -puN include/linux/mm.h~mm-uninline-page_mapped include/linux/mm.h
+--- a/include/linux/mm.h~mm-uninline-page_mapped
++++ a/include/linux/mm.h
+@@ -1019,26 +1019,7 @@ static inline pgoff_t page_file_index(st
+ 	return page->index;
+ }
+ 
+-/*
+- * Return true if this page is mapped into pagetables.
+- * For compound page it returns true if any subpage of compound page is mapped.
+- */
+-static inline bool page_mapped(struct page *page)
+-{
+-	int i;
+-	if (likely(!PageCompound(page)))
+-		return atomic_read(&page->_mapcount) >= 0;
+-	page = compound_head(page);
+-	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
+-		return true;
+-	if (PageHuge(page))
+-		return false;
+-	for (i = 0; i < hpage_nr_pages(page); i++) {
+-		if (atomic_read(&page[i]._mapcount) >= 0)
+-			return true;
+-	}
+-	return false;
+-}
++bool page_mapped(struct page *page);
+ 
+ /*
+  * Return true only if the page has been allocated with
+diff -puN mm/util.c~mm-uninline-page_mapped mm/util.c
+--- a/mm/util.c~mm-uninline-page_mapped
++++ a/mm/util.c
+@@ -346,6 +346,28 @@ void *page_rmapping(struct page *page)
+ 	return __page_rmapping(page);
+ }
+ 
++/*
++ * Return true if this page is mapped into pagetables.
++ * For compound page it returns true if any subpage of compound page is mapped.
++ */
++bool page_mapped(struct page *page)
++{
++	int i;
++	if (likely(!PageCompound(page)))
++		return atomic_read(&page->_mapcount) >= 0;
++	page = compound_head(page);
++	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
++		return true;
++	if (PageHuge(page))
++		return false;
++	for (i = 0; i < hpage_nr_pages(page); i++) {
++		if (atomic_read(&page[i]._mapcount) >= 0)
++			return true;
++	}
++	return false;
++}
++EXPORT_SYMBOL(page_mapped);
++
+ struct anon_vma *page_anon_vma(struct page *page)
+ {
+ 	unsigned long mapping;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
