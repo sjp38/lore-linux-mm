@@ -1,183 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FB706B007E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:06:53 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id zm5so76127344pac.0
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 16:06:53 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id h88si16899245pfh.115.2016.03.31.16.06.52
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 834416B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:09:01 -0400 (EDT)
+Received: by mail-wm0-f54.google.com with SMTP id 127so1384254wmu.1
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 16:09:01 -0700 (PDT)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id e18si13866711wjx.104.2016.03.31.16.09.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Mar 2016 16:06:52 -0700 (PDT)
-Date: Thu, 31 Mar 2016 16:06:50 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Exclude HugeTLB pages from THP page_mapped logic
-Message-Id: <20160331160650.cfc0fa57e97a45e94bc023f4@linux-foundation.org>
-In-Reply-To: <1459269581-21190-1-git-send-email-steve.capper@arm.com>
-References: <1459269581-21190-1-git-send-email-steve.capper@arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 31 Mar 2016 16:09:00 -0700 (PDT)
+Date: Fri, 1 Apr 2016 00:08:45 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: Issue with ioremap
+Message-ID: <20160331230845.GN19428@n2100.arm.linux.org.uk>
+References: <CAGnW=BYw9iqm8BpuWrxgcvXV3wwvHcvMtynPeHUGHHiZfPmfuA@mail.gmail.com>
+ <20160331200147.GA20530@jcartwri.amer.corp.natinst.com>
+ <56FDAA66.2000505@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56FDAA66.2000505@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, dwoods@mellanox.com, mhocko@suse.com, mingo@kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Josh Cartwright <joshc@ni.com>, punnaiah choudary kalluri <punnaia@xilinx.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Sergey Dyasly <dserrg@gmail.com>, Arnd Bergmann <arnd.bergmann@linaro.org>
 
-On Tue, 29 Mar 2016 17:39:41 +0100 Steve Capper <steve.capper@arm.com> wrote:
-
-> HugeTLB pages cannot be split, thus use the compound_mapcount to
-> track rmaps.
+On Thu, Mar 31, 2016 at 03:53:26PM -0700, Laura Abbott wrote:
+> (cc linux-arm)
 > 
-> Currently the page_mapped function will check the compound_mapcount, but
-
-s/the page_mapped function/page_mapped()/.  It's so much simpler!
-
-> will also go through the constituent pages of a THP compound page and
-> query the individual _mapcount's too.
+> On 03/31/2016 01:01 PM, Josh Cartwright wrote:
+> >The driver _currently_ expects the virtual address to be 16M aligned,
+> >but is that a hard requirement?  It seems possible that the driver could
+> >be written without this assumption, correct?
+> >
+> >This would mean that the driver would need to maintain the cs/cycles
+> >configuration state outside of the mapped virtual address, and then
+> >calculate + add the calculated offset to the base.  Would that work?
+> >I had been meaning to give it a try, but haven't gotten around to it.
 > 
-> Unfortunately, the page_mapped function does not distinguish between
-> HugeTLB and THP compound pages and assumes that a compound page always
-> needs to have HPAGE_PMD_NR pages querying.
-> 
-> For most cases when dealing with HugeTLB this is just inefficient, but
-> for scenarios where the HugeTLB page size is less than the pmd block
-> size (e.g. when using contiguous bit on ARM) this can lead to crashes.
-> 
-> This patch adjusts the page_mapped function such that we skip the
-> unnecessary THP reference checks for HugeTLB pages.
-> 
-> Fixes: e1534ae95004 ("mm: differentiate page_mapped() from page_mapcount() for compound pages")
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Signed-off-by: Steve Capper <steve.capper@arm.com>
-> ---
-> 
-> Hi,
-> 
-> This patch is my approach to fixing a problem that unearthed with
-> HugeTLB pages on arm64. We ran with PAGE_SIZE=64KB and placed down 32
-> contiguous ptes to create 2MB HugeTLB pages. (We can provide hints to
-> the MMU that page table entries are contiguous thus larger TLB entries
-> can be used to represent them).
+> I was curious so I took a look and this seems to be caused by
 
-So which kernel version(s) need this patch?  I think both 4.4 and 4.5
-will crash in this manner?  Should we backport the fix into 4.4.x and
-4.5.x?
+The driver is most likely buggy in the way Josh has identified.  The
+peripheral device has no clue what virtual address is used to access
+it, all it sees is the address on the bus.
 
->
-> ...
->
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1031,6 +1031,8 @@ static inline bool page_mapped(struct page *page)
->  	page = compound_head(page);
->  	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
->  		return true;
-> +	if (PageHuge(page))
-> +		return false;
->  	for (i = 0; i < hpage_nr_pages(page); i++) {
->  		if (atomic_read(&page[i]._mapcount) >= 0)
->  			return true;
-
-page_mapped() is moronically huge.  Uninlining it saves 206 bytes per
-callsite. It has 40+ callsites.
-
-
-
-
-btw, is anyone else seeing this `make M=' breakage?
-
-akpm3:/usr/src/25> make M=mm
-Makefile:679: Cannot use CONFIG_KCOV: -fsanitize-coverage=trace-pc is not supported by compiler
-
-  WARNING: Symbol version dump ./Module.symvers
-           is missing; modules will have no dependencies and modversions.
-
-make[1]: *** No rule to make target `mm/filemap.o', needed by `mm/built-in.o'.  Stop.
-make: *** [_module_mm] Error 2
-
-It's a post-4.5 thing.
-
-
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm: uninline page_mapped()
-
-It's huge.  Uninlining it saves 206 bytes per callsite.  Shaves 4924 bytes
-from the x86_64 allmodconfig vmlinux.
-
-Cc: Steve Capper <steve.capper@arm.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- include/linux/mm.h |   21 +--------------------
- mm/util.c          |   22 ++++++++++++++++++++++
- 2 files changed, 23 insertions(+), 20 deletions(-)
-
-diff -puN include/linux/mm.h~mm-uninline-page_mapped include/linux/mm.h
---- a/include/linux/mm.h~mm-uninline-page_mapped
-+++ a/include/linux/mm.h
-@@ -1019,26 +1019,7 @@ static inline pgoff_t page_file_index(st
- 	return page->index;
- }
- 
--/*
-- * Return true if this page is mapped into pagetables.
-- * For compound page it returns true if any subpage of compound page is mapped.
-- */
--static inline bool page_mapped(struct page *page)
--{
--	int i;
--	if (likely(!PageCompound(page)))
--		return atomic_read(&page->_mapcount) >= 0;
--	page = compound_head(page);
--	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
--		return true;
--	if (PageHuge(page))
--		return false;
--	for (i = 0; i < hpage_nr_pages(page); i++) {
--		if (atomic_read(&page[i]._mapcount) >= 0)
--			return true;
--	}
--	return false;
--}
-+bool page_mapped(struct page *page);
- 
- /*
-  * Return true only if the page has been allocated with
-diff -puN mm/util.c~mm-uninline-page_mapped mm/util.c
---- a/mm/util.c~mm-uninline-page_mapped
-+++ a/mm/util.c
-@@ -346,6 +346,28 @@ void *page_rmapping(struct page *page)
- 	return __page_rmapping(page);
- }
- 
-+/*
-+ * Return true if this page is mapped into pagetables.
-+ * For compound page it returns true if any subpage of compound page is mapped.
-+ */
-+bool page_mapped(struct page *page)
-+{
-+	int i;
-+	if (likely(!PageCompound(page)))
-+		return atomic_read(&page->_mapcount) >= 0;
-+	page = compound_head(page);
-+	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
-+		return true;
-+	if (PageHuge(page))
-+		return false;
-+	for (i = 0; i < hpage_nr_pages(page); i++) {
-+		if (atomic_read(&page[i]._mapcount) >= 0)
-+			return true;
-+	}
-+	return false;
-+}
-+EXPORT_SYMBOL(page_mapped);
-+
- struct anon_vma *page_anon_vma(struct page *page)
- {
- 	unsigned long mapping;
-_
+-- 
+RMK's Patch system: http://www.arm.linux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
