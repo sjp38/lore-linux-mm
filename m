@@ -1,54 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 846966B007E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 05:38:29 -0400 (EDT)
-Received: by mail-ig0-f181.google.com with SMTP id nk17so122300919igb.1
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 02:38:29 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id 6si9970711igy.14.2016.03.31.02.38.28
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 11D496B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 06:53:19 -0400 (EDT)
+Received: by mail-wm0-f42.google.com with SMTP id r72so135637201wmg.0
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 03:53:19 -0700 (PDT)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
+        by mx.google.com with ESMTPS id wg3si11096267wjb.162.2016.03.31.03.53.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 31 Mar 2016 02:38:29 -0700 (PDT)
-Message-ID: <56FCEFFE.6040604@huawei.com>
-Date: Thu, 31 Mar 2016 17:38:06 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Mar 2016 03:53:17 -0700 (PDT)
+Received: by mail-wm0-f45.google.com with SMTP id p65so109214469wmp.0
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 03:53:17 -0700 (PDT)
+Subject: Re: [PATCH 01/11] mm/slab: hold a slab_mutex when calling
+ __kmem_cache_shrink()
+References: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1459142821-20303-2-git-send-email-iamjoonsoo.kim@lge.com>
+From: Nikolay Borisov <kernel@kyup.com>
+Message-ID: <56FD019A.10906@kyup.com>
+Date: Thu, 31 Mar 2016 13:53:14 +0300
 MIME-Version: 1.0
-Subject: Re: [RFC] oom, but there is enough memory
-References: <56FCEAD0.9080806@huawei.com> <20160331093011.GC27831@dhcp22.suse.cz>
-In-Reply-To: <20160331093011.GC27831@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+In-Reply-To: <1459142821-20303-2-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On 2016/3/31 17:30, Michal Hocko wrote:
 
-> On Thu 31-03-16 17:16:00, Xishi Qiu wrote:
->> It triggers a lot of ooms, but there is enough memory(many large blocks).
->> And at last "Kernel panic - not syncing: Out of memory and no killable processes..."
->>
->> I find almost the every call trace include "pagefault_out_of_memory" and "gfp_mask=0x0".
->> If it does oom, why not it triger in mm core path? 
+
+On 03/28/2016 08:26 AM, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> It seems that somebody in the page fault path has returned with
-> VM_FAULT_OOM without invoking the page allocator and kept returning the
-> same error until there is nothing killable and so the oom killer panics.
+> Major kmem_cache metadata in slab subsystem is synchronized with
+> the slab_mutex. In SLAB, if some of them is changed, node's shared
+> array cache would be freed and re-populated. If __kmem_cache_shrink()
+> is called at the same time, it will call drain_array() with n->shared
+> without holding node lock so problem can happen.
 > 
-> [...]
->> <4>[63651.040374s][pid:2912,cpu3,sh]DMA free:550600kB min:5244kB low:27580kB high:28892kB active_anon:343060kB inactive_anon:1224kB active_file:107596kB inactive_file:465156kB unevictable:1040kB isolated(anon):0kB isolated(file):0kB present:2016252kB managed:1720040kB mlocked:1040kB dirty:40kB writeback:0kB mapped:200420kB shmem:1312kB slab_reclaimable:27048kB slab_unreclaimable:73300kB kernel_stack:15248kB pagetables:14484kB unstable:0kB bounce:0kB free_cma:30896kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+> We can fix this small theoretical race condition by holding node lock
+> in drain_array(), but, holding a slab_mutex in kmem_cache_shrink()
+> looks more appropriate solution because stable state would make things
+> less error-prone and this is not performance critical path.
 > 
-> This is rather weird. DMA zone with 2GB? What kind of architecture is
-> this?
+> In addtion, annotate on SLAB functions.
 
-Hi Michal,
-
-It's arm64, so DMA is [0-4G], and Normal is [4G-]
-Is that something wrong with the RAM hardware, then trigger the problem?
-
-Thanks,
-Xishi Qiu
+Just a nit but would it not be better instead of doing comment-style
+annotation to use lockdep_assert_held/_once. In both cases for someone
+to understand what locks have to be held will go and read the source. In
+my mind it's easier to miss a comment line, rather than the
+lockdep_assert. Furthermore in case lockdep is enabled a locking
+violation would spew useful info to dmesg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
