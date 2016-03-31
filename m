@@ -1,76 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f175.google.com (mail-yw0-f175.google.com [209.85.161.175])
-	by kanga.kvack.org (Postfix) with ESMTP id C2CBA6B007E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 18:06:15 -0400 (EDT)
-Received: by mail-yw0-f175.google.com with SMTP id h129so116713487ywb.1
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 15:06:15 -0700 (PDT)
-Received: from mail-yw0-x242.google.com (mail-yw0-x242.google.com. [2607:f8b0:4002:c05::242])
-        by mx.google.com with ESMTPS id a128si2117600ywc.156.2016.03.31.15.06.15
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id BB0A06B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 18:38:08 -0400 (EDT)
+Received: by mail-pf0-f179.google.com with SMTP id 4so79187213pfd.0
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 15:38:08 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ol15si16785473pab.45.2016.03.31.15.38.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Mar 2016 15:06:15 -0700 (PDT)
-Received: by mail-yw0-x242.google.com with SMTP id f6so13744003ywa.1
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 15:06:15 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160331214645.GA31294@google.com>
-References: <1459288977-25562-1-git-send-email-yuzhao@google.com>
- <20160329235950.GA19927@bbox> <20160331084639.GB3343@swordfish> <20160331214645.GA31294@google.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 31 Mar 2016 18:05:35 -0400
-Message-ID: <CALZtONCDqBjL9TFmUEwuHaNU3n55k0VwbYWqW-9dODuNWyzkLQ@mail.gmail.com>
-Subject: Re: [PATCH] zsmalloc: use workqueue to destroy pool in zpool callback
-Content-Type: text/plain; charset=UTF-8
+        Thu, 31 Mar 2016 15:38:07 -0700 (PDT)
+Date: Thu, 31 Mar 2016 15:38:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/highmem: simplify is_highmem()
+Message-Id: <20160331153806.960c2299698d40a625809e91@linux-foundation.org>
+In-Reply-To: <20160330092438.GG30729@dhcp22.suse.cz>
+References: <1459313022-11750-1-git-send-email-chanho.min@lge.com>
+	<20160330092438.GG30729@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu Zhao <yuzhao@google.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, Seth Jennings <sjenning@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Chanho Min <chanho.min@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Dan Williams <dan.j.williams@intel.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Gunho Lee <gunho.lee@lge.com>
 
-On Thu, Mar 31, 2016 at 5:46 PM, Yu Zhao <yuzhao@google.com> wrote:
-> On Thu, Mar 31, 2016 at 05:46:39PM +0900, Sergey Senozhatsky wrote:
->> On (03/30/16 08:59), Minchan Kim wrote:
->> > On Tue, Mar 29, 2016 at 03:02:57PM -0700, Yu Zhao wrote:
->> > > zs_destroy_pool() might sleep so it shouldn't be used in zpool
->> > > destroy callback which can be invoked in softirq context when
->> > > zsmalloc is configured to work with zswap.
->> >
->> > I think it's a limitation of zswap design, not zsmalloc.
->> > Could you handle it in zswap?
->>
->> agree. hm, looking at this backtrace
->>
->> >   [<ffffffffaea0224b>] mutex_lock+0x1b/0x2f
->> >   [<ffffffffaebca4f0>] kmem_cache_destroy+0x50/0x130
->> >   [<ffffffffaec10405>] zs_destroy_pool+0x85/0xe0
->> >   [<ffffffffaec1046e>] zs_zpool_destroy+0xe/0x10
->> >   [<ffffffffaec101a4>] zpool_destroy_pool+0x54/0x70
->> >   [<ffffffffaebedac2>] __zswap_pool_release+0x62/0x90
->> >   [<ffffffffaeb1037e>] rcu_process_callbacks+0x22e/0x640
->> >   [<ffffffffaeb15a3e>] ? run_timer_softirq+0x3e/0x280
->> >   [<ffffffffaeabe13b>] __do_softirq+0xcb/0x250
->> >   [<ffffffffaeabe4dc>] irq_exit+0x9c/0xb0
->> >   [<ffffffffaea03e7a>] smp_apic_timer_interrupt+0x6a/0x80
->> >   [<ffffffffaf0a394f>] apic_timer_interrupt+0x7f/0x90
->>
->> it also can hit the following path
->>
->>       rcu_process_callbacks()
->>               __zswap_pool_release()
->>                       zswap_pool_destroy()
->>                               zswap_cpu_comp_destroy()
->>                                       cpu_notifier_register_begin()
->>                                               mutex_lock(&cpu_add_remove_lock);  <<<
->>
->> can't it?
->>
->>       -ss
->
-> Thanks, Sergey. Now I'm convinced the problem should be fixed in
-> zswap. Since the rcu callback is already executed asynchronously,
-> using workqueue to defer the callback further more doesn't seem
-> to cause additional race condition at least.
+On Wed, 30 Mar 2016 11:24:38 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
-certainly seems appropriate to fix it in zswap, I'll work on a patch
-unless Seth or anyone else is already working on it.
+> On Wed 30-03-16 13:43:42, Chanho Min wrote:
+> > The is_highmem() is can be simplified by use of is_highmem_idx().
+> > This patch removes redundant code and will make it easier to maintain
+> > if the zone policy is changed or a new zone is added.
+> > 
+> > Signed-off-by: Chanho Min <chanho.min@lge.com>
+> > ---
+> >  include/linux/mmzone.h |    5 +----
+> >  1 file changed, 1 insertion(+), 4 deletions(-)
+> > 
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index e23a9e7..9ac90c3 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -817,10 +817,7 @@ static inline int is_highmem_idx(enum zone_type idx)
+> >  static inline int is_highmem(struct zone *zone)
+> >  {
+> >  #ifdef CONFIG_HIGHMEM
+> > -	int zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones;
+> > -	return zone_off == ZONE_HIGHMEM * sizeof(*zone) ||
+> > -	       (zone_off == ZONE_MOVABLE * sizeof(*zone) &&
+> > -		zone_movable_is_highmem());
+> > +	return is_highmem_idx(zone_idx(zone));
+> 
+> This will reintroduce the pointer arithmetic removed by ddc81ed2c5d4
+> ("remove sparse warning for mmzone.h") AFAICS. I have no idea how much
+> that matters though. The mentioned commit doesn't tell much about saves
+> except for
+> "
+> 	On X86_32 this saves a sar, but code size increases by one byte per
+>         is_highmem() use due to 32-bit cmps rather than 16 bit cmps.
+> "
+
+The patch shrinks my i386 allmodconfig page_alloc.o by 50 bytes, and
+that has just two is_highmem() callsites.  So I think it's OK from a
+code-size and performance piont of view
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
