@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ABE16B0253
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 04:51:03 -0400 (EDT)
-Received: by mail-wm0-f49.google.com with SMTP id p65so215163419wmp.1
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 01:51:03 -0700 (PDT)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DA2E6B025E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 04:51:05 -0400 (EDT)
+Received: by mail-wm0-f53.google.com with SMTP id p65so104882111wmp.0
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 01:51:05 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gg9si10638084wjb.115.2016.03.31.01.51.01
+        by mx.google.com with ESMTPS id z205si28744933wmb.97.2016.03.31.01.51.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Thu, 31 Mar 2016 01:51:01 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 3/4] mm, compaction: skip blocks where isolation fails in async direct compaction
-Date: Thu, 31 Mar 2016 10:50:35 +0200
-Message-Id: <1459414236-9219-4-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v2 2/4] mm, compaction: reduce spurious pcplist drains
+Date: Thu, 31 Mar 2016 10:50:34 +0200
+Message-Id: <1459414236-9219-3-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1459414236-9219-1-git-send-email-vbabka@suse.cz>
 References: <1459414236-9219-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,189 +20,82 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
 
-The goal of direct compaction is to quickly make a high-order page available
-for the pending allocation. Within an aligned block of pages of desired order,
-a single allocated page that cannot be isolated for migration means that the
-block cannot fully merge to a buddy page that would satisfy the allocation
-request. Therefore we can reduce the allocation stall by skipping the rest of
-the block immediately on isolation failure. For async compaction, this also
-means a higher chance of succeeding until it detects contention.
+Compaction drains the local pcplists each time migration scanner moves away
+from a cc->order aligned block where it isolated pages for migration, so that
+the pages freed by migrations can merge into higher orders.
 
-We however shouldn't completely sacrifice the second objective of compaction,
-which is to reduce overal long-term memory fragmentation. As a compromise,
-perform the eager skipping only in direct async compaction, while sync
-compaction (including kcompactd) remains thorough.
+The detection is currently coarser than it could be. The cc->last_migrated_pfn
+variable should track the lowest pfn that was isolated for migration. But it
+is set to the pfn where isolate_migratepages_block() starts scanning, which is
+typically the first pfn of the pageblock. There, the scanner might fail to
+isolate several order-aligned blocks, and then isolate COMPACT_CLUSTER_MAX in
+another block. This would cause the pcplists drain to be performed, although
+the scanner didn't yet finish the block where it isolated from.
+
+This patch thus makes cc->last_migrated_pfn handling more accurate by setting
+it to the pfn of an actually isolated page in isolate_migratepages_block().
+Although practical effects of this patch are likely low, it arguably makes the
+intent of the code more obvious. Also the next patch will make async direct
+compaction skip blocks more aggressively, and draining pcplists due to skipped
+blocks is wasteful.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/compaction.c | 84 ++++++++++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 77 insertions(+), 7 deletions(-)
+ mm/compaction.c | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 74b4b775459e..fe94d22d9144 100644
+index 3319145a387d..74b4b775459e 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -644,6 +644,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 	bool locked = false;
- 	struct page *page = NULL, *valid_page = NULL;
- 	unsigned long start_pfn = low_pfn;
-+	bool skip_on_failure = false;
-+	unsigned long next_skip_pfn = 0;
+@@ -787,6 +787,15 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		cc->nr_migratepages++;
+ 		nr_isolated++;
  
- 	/*
- 	 * Ensure that there are not too many pages isolated from the LRU
-@@ -664,10 +666,37 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 	if (compact_should_abort(cc))
- 		return 0;
- 
-+	if (cc->direct_compaction && (cc->mode == MIGRATE_ASYNC)) {
-+		skip_on_failure = true;
-+		next_skip_pfn = block_end_pfn(low_pfn, cc->order);
-+	}
-+
- 	/* Time to isolate some pages for migration */
- 	for (; low_pfn < end_pfn; low_pfn++) {
- 		bool is_lru;
- 
-+		if (skip_on_failure && low_pfn >= next_skip_pfn) {
-+			/*
-+			 * We have isolated all migration candidates in the
-+			 * previous order-aligned block, and did not skip it due
-+			 * to failure. We should migrate the pages now and
-+			 * hopefully succeed compaction.
-+			 */
-+			if (nr_isolated)
-+				break;
-+
-+			/*
-+			 * We failed to isolate in the previous order-aligned
-+			 * block. Set the new boundary to the end of the
-+			 * current block. Note we can't simply increase
-+			 * next_skip_pfn by 1 << order, as low_pfn might have
-+			 * been incremented by a higher number due to skipping
-+			 * a compound or a high-order buddy page in the
-+			 * previous loop iteration.
-+			 */
-+			next_skip_pfn = block_end_pfn(low_pfn, cc->order);
-+		}
-+
- 		/*
- 		 * Periodically drop the lock (if held) regardless of its
- 		 * contention, to give chance to IRQs. Abort async compaction
-@@ -679,7 +708,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 			break;
- 
- 		if (!pfn_valid_within(low_pfn))
--			continue;
-+			goto isolate_fail;
- 		nr_scanned++;
- 
- 		page = pfn_to_page(low_pfn);
-@@ -734,11 +763,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 			if (likely(comp_order < MAX_ORDER))
- 				low_pfn += (1UL << comp_order) - 1;
- 
--			continue;
-+			goto isolate_fail;
- 		}
- 
- 		if (!is_lru)
--			continue;
-+			goto isolate_fail;
- 
- 		/*
- 		 * Migration will fail if an anonymous page is pinned in memory,
-@@ -747,7 +776,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 		 */
- 		if (!page_mapping(page) &&
- 		    page_count(page) > page_mapcount(page))
--			continue;
-+			goto isolate_fail;
- 
- 		/* If we already hold the lock, we can skip some rechecking */
- 		if (!locked) {
-@@ -758,7 +787,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 
- 			/* Recheck PageLRU and PageCompound under lock */
- 			if (!PageLRU(page))
--				continue;
-+				goto isolate_fail;
- 
- 			/*
- 			 * Page become compound since the non-locked check,
-@@ -767,7 +796,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 			 */
- 			if (unlikely(PageCompound(page))) {
- 				low_pfn += (1UL << compound_order(page)) - 1;
--				continue;
-+				goto isolate_fail;
- 			}
- 		}
- 
-@@ -775,7 +804,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 
- 		/* Try isolate the page */
- 		if (__isolate_lru_page(page, isolate_mode) != 0)
--			continue;
-+			goto isolate_fail;
- 
- 		VM_BUG_ON_PAGE(PageCompound(page), page);
- 
-@@ -801,6 +830,35 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 			++low_pfn;
- 			break;
- 		}
-+
-+		continue;
-+isolate_fail:
-+		if (!skip_on_failure)
-+			continue;
-+
 +		/*
-+		 * We have isolated some pages, but then failed. Release them
-+		 * instead of migrating, as we cannot form the cc->order buddy
-+		 * page anyway.
++		 * Record where we could have freed pages by migration and not
++		 * yet flushed them to buddy allocator.
++		 * - this is the lowest page that was isolated and likely be
++		 * then freed by migration.
 +		 */
-+		if (nr_isolated) {
-+			if (locked) {
-+				spin_unlock_irqrestore(&zone->lru_lock,	flags);
-+				locked = false;
-+			}
-+			putback_movable_pages(migratelist);
-+			nr_isolated = 0;
-+			cc->last_migrated_pfn = 0;
-+		}
++		if (!cc->last_migrated_pfn)
++			cc->last_migrated_pfn = low_pfn;
 +
-+		if (low_pfn < next_skip_pfn) {
-+			low_pfn = next_skip_pfn - 1;
-+			/*
-+			 * The check near the loop beginning would have updated
-+			 * next_skip_pfn too, but this is a bit simpler.
-+			 */
-+			next_skip_pfn += 1UL << cc->order;
-+		}
- 	}
+ 		/* Avoid isolating too much */
+ 		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX) {
+ 			++low_pfn;
+@@ -1083,7 +1092,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 	unsigned long block_start_pfn;
+ 	unsigned long block_end_pfn;
+ 	unsigned long low_pfn;
+-	unsigned long isolate_start_pfn;
+ 	struct page *page;
+ 	const isolate_mode_t isolate_mode =
+ 		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
+@@ -1138,7 +1146,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 			continue;
  
- 	/*
-@@ -1409,6 +1467,18 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 				ret = COMPACT_CONTENDED;
- 				goto out;
- 			}
-+			/*
-+			 * We failed to migrate at least one page in the current
-+			 * order-aligned block, so skip the rest of it.
-+			 */
-+			if (cc->direct_compaction &&
-+						(cc->mode == MIGRATE_ASYNC)) {
-+				cc->migrate_pfn = block_end_pfn(
-+						cc->migrate_pfn - 1, cc->order);
-+				/* Draining pcplists is useless in this case */
-+				cc->last_migrated_pfn = 0;
-+
-+			}
+ 		/* Perform the isolation */
+-		isolate_start_pfn = low_pfn;
+ 		low_pfn = isolate_migratepages_block(cc, low_pfn,
+ 						block_end_pfn, isolate_mode);
+ 
+@@ -1148,15 +1155,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
  		}
  
- check_drain:
+ 		/*
+-		 * Record where we could have freed pages by migration and not
+-		 * yet flushed them to buddy allocator.
+-		 * - this is the lowest page that could have been isolated and
+-		 * then freed by migration.
+-		 */
+-		if (cc->nr_migratepages && !cc->last_migrated_pfn)
+-			cc->last_migrated_pfn = isolate_start_pfn;
+-
+-		/*
+ 		 * Either we isolated something and proceed with migration. Or
+ 		 * we failed and compact_zone should decide if we should
+ 		 * continue or not.
 -- 
 2.7.3
 
