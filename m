@@ -1,85 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 354F06B007E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 12:45:32 -0400 (EDT)
-Received: by mail-qg0-f51.google.com with SMTP id y89so69835734qge.2
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 09:45:32 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id b124si8391968qhd.126.2016.03.31.09.45.31
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 9492F6B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 13:24:40 -0400 (EDT)
+Received: by mail-ig0-f175.google.com with SMTP id nk17so131265800igb.1
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 10:24:40 -0700 (PDT)
+Received: from mezzanine.sirena.org.uk (mezzanine.sirena.org.uk. [2400:8900::f03c:91ff:fedb:4f4])
+        by mx.google.com with ESMTPS id u37si12112661ioi.214.2016.03.31.10.24.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Mar 2016 09:45:31 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/2] mm/hugetlbfs: Attempt PUD_SIZE mapping alignment
- if PMD sharing enabled
-References: <1459213970-17957-1-git-send-email-mike.kravetz@oracle.com>
- <1459213970-17957-2-git-send-email-mike.kravetz@oracle.com>
- <20160331021850.GA4079@hori1.linux.bs1.fc.nec.co.jp>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <56FD541B.4040002@oracle.com>
-Date: Thu, 31 Mar 2016 09:45:15 -0700
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 31 Mar 2016 10:24:39 -0700 (PDT)
+Date: Thu, 31 Mar 2016 10:23:53 -0700
+From: Mark Brown <broonie@kernel.org>
+Message-ID: <20160331172353.GJ2350@sirena.org.uk>
+References: <1459427384-21374-1-git-send-email-boris.brezillon@free-electrons.com>
+ <1459427384-21374-4-git-send-email-boris.brezillon@free-electrons.com>
 MIME-Version: 1.0
-In-Reply-To: <20160331021850.GA4079@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="HHj6mHPeUinss9N+"
+Content-Disposition: inline
+In-Reply-To: <1459427384-21374-4-git-send-email-boris.brezillon@free-electrons.com>
+Subject: Re: [PATCH 3/4] spi: use sg_alloc_table_from_buf()
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Hugh Dickins <hughd@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steve Capper <steve.capper@linaro.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Boris Brezillon <boris.brezillon@free-electrons.com>
+Cc: David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, linux-mtd@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Dave Gordon <david.s.gordon@intel.com>, linux-spi@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Vinod Koul <vinod.koul@intel.com>, Dan Williams <dan.j.williams@intel.com>, dmaengine@vger.kernel.org, Mauro Carvalho Chehab <m.chehab@samsung.com>, Hans Verkuil <hans.verkuil@cisco.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, linux-media@vger.kernel.org, Richard Weinberger <richard@nod.at>, Herbert Xu <herbert@gondor.apana.org.au>, "David S. Miller" <davem@davemloft.net>, linux-crypto@vger.kernel.org, Vignesh R <vigneshr@ti.com>, linux-mm@kvack.org, Joerg Roedel <joro@8bytes.org>, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org
 
-On 03/30/2016 07:18 PM, Naoya Horiguchi wrote:
-> On Mon, Mar 28, 2016 at 06:12:49PM -0700, Mike Kravetz wrote:
->> When creating a hugetlb mapping, attempt PUD_SIZE alignment if the
->> following conditions are met:
->> - Address passed to mmap or shmat is NULL
->> - The mapping is flaged as shared
->> - The mapping is at least PUD_SIZE in length
->> If a PUD_SIZE aligned mapping can not be created, then fall back to a
->> huge page size mapping.
-> 
-> It would be kinder if the patch description includes why this change.
-> Simply "to facilitate pmd sharing" is helpful for someone who read
-> "git log".
 
-Ok, will do.
+--HHj6mHPeUinss9N+
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-> 
->>
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->> ---
->>  fs/hugetlbfs/inode.c | 29 +++++++++++++++++++++++++++--
->>  1 file changed, 27 insertions(+), 2 deletions(-)
->>
->> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
->> index 540ddc9..22b2e38 100644
->> --- a/fs/hugetlbfs/inode.c
->> +++ b/fs/hugetlbfs/inode.c
->> @@ -175,6 +175,17 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
->>  	struct vm_area_struct *vma;
->>  	struct hstate *h = hstate_file(file);
->>  	struct vm_unmapped_area_info info;
->> +	bool pud_size_align = false;
->> +	unsigned long ret_addr;
->> +
->> +	/*
->> +	 * If PMD sharing is enabled, align to PUD_SIZE to facilitate
->> +	 * sharing.  Only attempt alignment if no address was passed in,
->> +	 * flags indicate sharing and size is big enough.
->> +	 */
->> +	if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
->> +	    !addr && flags & MAP_SHARED && len >= PUD_SIZE)
->> +		pud_size_align = true;
-> 
-> This code will have duplicates in the next patch, so how about checking
-> this in a separate check routine?
+On Thu, Mar 31, 2016 at 02:29:43PM +0200, Boris Brezillon wrote:
+> Replace custom implementation of sg_alloc_table_from_buf() by a call to
+> sg_alloc_table_from_buf().
 
-Good suggestion,  thanks
--- 
-Mike Kravetz
+Acked-by: Mark Brown <broonie@kernel.org>
 
-> 
-> Thanks,
-> Naoya Horiguchi
-> 
+--HHj6mHPeUinss9N+
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAEBCAAGBQJW/V0aAAoJECTWi3JdVIfQuGEH+wdaKEhHxJuIIwseLFy64w88
+sFhI2BJSaVk6ppdvYIdf67ku24WUoLyYEApHSGXfhntu00xAlzBh8YZjvg6F41Yg
+7Ql/wnd5YumDVMT72a9Cv1OlJ+dsUdBJuQl7/A952W53l4IR2AcBDrJ/zBWQDtOc
+bbohxZsXJP+Qou2Q9x8OebYsFr3p2Hw3XjteAVB6jwA9gINwDDLj05HgRCKbotHe
+5bMQ3pj2I1ruS4wN44SWj7YOMvLzR3nE4xVOdHV+iaFhcVTkaYn7fuWi1fdSRChk
+tCB1auoxNjAIsfnsvj6nnzAOcW/kPwKzOKIgz58DZPFkgiRKDM9wuDnN2AlMPBI=
+=uMgt
+-----END PGP SIGNATURE-----
+
+--HHj6mHPeUinss9N+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
