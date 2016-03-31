@@ -1,57 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 6509C6B007E
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 21:08:04 -0400 (EDT)
-Received: by mail-pf0-f173.google.com with SMTP id n5so56003161pfn.2
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 18:08:04 -0700 (PDT)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id z12si314556pas.77.2016.03.30.18.08.03
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Mar 2016 18:08:03 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id u2V180Xj021191
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 10:08:01 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm/hugetlb: optimize minimum size (min_size) accounting
-Date: Thu, 31 Mar 2016 01:00:03 +0000
-Message-ID: <20160331010002.GA20652@hori1.linux.bs1.fc.nec.co.jp>
-References: <1458949498-18916-1-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1458949498-18916-1-git-send-email-mike.kravetz@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <F6C7899D45B4694082D391F411FF5D2E@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A716B6B007E
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 21:15:44 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id td3so53226100pab.2
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 18:15:44 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTP id e5si10080070pfb.36.2016.03.30.18.15.43
+        for <linux-mm@kvack.org>;
+        Wed, 30 Mar 2016 18:15:43 -0700 (PDT)
+Subject: Re: [PATCH] Revert "mm/page_alloc: protect pcp->batch accesses with
+ ACCESS_ONCE"
+References: <1459333327-89720-1-git-send-email-hekuang@huawei.com>
+ <20160330103839.GA4773@techsingularity.net> <56FBAFA0.3010604@huawei.com>
+ <20160330111044.GA4324@dhcp22.suse.cz>
+From: Hekuang <hekuang@huawei.com>
+Message-ID: <56FC7A02.1080201@huawei.com>
+Date: Thu, 31 Mar 2016 09:14:42 +0800
 MIME-Version: 1.0
+In-Reply-To: <20160330111044.GA4324@dhcp22.suse.cz>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Paul Gortmaker <paul.gortmaker@windriver.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, cody@linux.vnet.ibm.com, gilad@benyossef.com, kosaki.motohiro@gmail.com, mgorman@suse.de, penberg@kernel.org, lizefan@huawei.com, wangnan0@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Mar 25, 2016 at 04:44:58PM -0700, Mike Kravetz wrote:
-> It was observed that minimum size accounting associated with the
-> hugetlbfs min_size mount option may not perform optimally and as
-> expected.  As huge pages/reservations are released from the filesystem
-> and given back to the global pools, they are reserved for subsequent
-> filesystem use as long as the subpool reserved count is less than
-> subpool minimum size.  It does not take into account used pages
-> within the filesystem.  The filesystem size limits are not exceeded
-> and this is technically not a bug.  However, better behavior would
-> be to wait for the number of used pages/reservations associated with
-> the filesystem to drop below the minimum size before taking reservations
-> to satisfy minimum size.
->=20
-> An optimization is also made to the hugepage_subpool_get_pages()
-> routine which is called when pages/reservations are allocated.  This
-> does not change behavior, but simply avoids the accounting if all
-> reservations have already been taken (subpool reserved count =3D=3D 0).
->=20
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+Hi
 
-Seems OK to me.
-
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>=
+a?? 2016/3/30 19:10, Michal Hocko a??e??:
+> On Wed 30-03-16 18:51:12, Hekuang wrote:
+>> hi
+>>
+>> a?? 2016/3/30 18:38, Mel Gorman a??e??:
+>>> On Wed, Mar 30, 2016 at 10:22:07AM +0000, He Kuang wrote:
+>>>> This reverts commit 998d39cb236fe464af86a3492a24d2f67ee1efc2.
+>>>>
+>>>> When local irq is disabled, a percpu variable does not change, so we can
+>>>> remove the access macros and let the compiler optimize the code safely.
+>>>>
+>>> batch can be changed from other contexts. Why is this safe?
+>>>
+>> I've mistakenly thought that per_cpu variable can only be accessed by that
+>> cpu.
+> git blame would point you to 998d39cb236f ("mm/page_alloc: protect
+> pcp->batch accesses with ACCESS_ONCE"). I haven't looked into the code
+> deeply to confirm this is still the case but it would be a good lead
+> that this is not that simple. ACCESS_ONCE resp. {READ,WRITE}_ONCE are
+> usually quite subtle so I would encourage you or anybody else who try to
+> remove them to study the code and the history deeper before removing
+> them.
+>
+Thank you for responding, I've read that commit and related articles and 
+not sending
+mail casually, though you may think it's a stupid patch. I'm a beginner 
+and I think
+sending mails to maillist is a effective way to learn kernel, And, sure 
+i'll be more careful and
+well prepared next time :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
