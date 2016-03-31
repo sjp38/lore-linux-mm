@@ -1,123 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 69FB56B007E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 12:32:34 -0400 (EDT)
-Received: by mail-ig0-f181.google.com with SMTP id nk17so130272381igb.1
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 09:32:34 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id v71si7874342ioi.24.2016.03.31.09.32.32
+Received: from mail-yw0-f176.google.com (mail-yw0-f176.google.com [209.85.161.176])
+	by kanga.kvack.org (Postfix) with ESMTP id C4FFE6B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 12:44:24 -0400 (EDT)
+Received: by mail-yw0-f176.google.com with SMTP id h65so104494407ywe.0
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 09:44:24 -0700 (PDT)
+Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
+        by mx.google.com with ESMTPS id k189si2844530ywg.200.2016.03.31.09.44.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Mar 2016 09:32:33 -0700 (PDT)
-Subject: Re: [RFC PATCH 2/2] x86/hugetlb: Attempt PUD_SIZE mapping alignment
- if PMD sharing enabled
-References: <1459213970-17957-1-git-send-email-mike.kravetz@oracle.com>
- <1459213970-17957-3-git-send-email-mike.kravetz@oracle.com>
- <20160329083510.GA27941@gmail.com> <56FAB5DB.8070003@oracle.com>
- <20160331022655.GA24293@hori1.linux.bs1.fc.nec.co.jp>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <56FD5106.90002@oracle.com>
-Date: Thu, 31 Mar 2016 09:32:06 -0700
+        Thu, 31 Mar 2016 09:44:24 -0700 (PDT)
+Received: by mail-yw0-x241.google.com with SMTP id f6so12269531ywa.1
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 09:44:23 -0700 (PDT)
+Date: Thu, 31 Mar 2016 12:44:22 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] writeback: fix the wrong congested state variable
+ definition
+Message-ID: <20160331164422.GB24661@htj.duckdns.org>
+References: <1459430381-13947-1-git-send-email-xiakaixu@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20160331022655.GA24293@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1459430381-13947-1-git-send-email-xiakaixu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Ingo Molnar <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Hugh Dickins <hughd@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steve Capper <steve.capper@linaro.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Kaixu Xia <xiakaixu@huawei.com>
+Cc: axboe@kernel.dk, lizefan@huawei.com, jack@suse.cz, linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com, neilb@suse.de, linux-kernel@vger.kernel.org
 
-On 03/30/2016 07:26 PM, Naoya Horiguchi wrote:
-> On Tue, Mar 29, 2016 at 10:05:31AM -0700, Mike Kravetz wrote:
->> On 03/29/2016 01:35 AM, Ingo Molnar wrote:
->>>
->>> * Mike Kravetz <mike.kravetz@oracle.com> wrote:
->>>
->>>> When creating a hugetlb mapping, attempt PUD_SIZE alignment if the
->>>> following conditions are met:
->>>> - Address passed to mmap or shmat is NULL
->>>> - The mapping is flaged as shared
->>>> - The mapping is at least PUD_SIZE in length
->>>> If a PUD_SIZE aligned mapping can not be created, then fall back to a
->>>> huge page size mapping.
->>>>
->>>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->>>> ---
->>>>  arch/x86/mm/hugetlbpage.c | 64 ++++++++++++++++++++++++++++++++++++++++++++---
->>>>  1 file changed, 61 insertions(+), 3 deletions(-)
->>>>
->>>> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
->>>> index 42982b2..4f53af5 100644
->>>> --- a/arch/x86/mm/hugetlbpage.c
->>>> +++ b/arch/x86/mm/hugetlbpage.c
->>>> @@ -78,14 +78,39 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
->>>>  {
->>>>  	struct hstate *h = hstate_file(file);
->>>>  	struct vm_unmapped_area_info info;
->>>> +	bool pud_size_align = false;
->>>> +	unsigned long ret_addr;
->>>> +
->>>> +	/*
->>>> +	 * If PMD sharing is enabled, align to PUD_SIZE to facilitate
->>>> +	 * sharing.  Only attempt alignment if no address was passed in,
->>>> +	 * flags indicate sharing and size is big enough.
->>>> +	 */
->>>> +	if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
->>>> +	    !addr && flags & MAP_SHARED && len >= PUD_SIZE)
->>>> +		pud_size_align = true;
->>>>  
->>>>  	info.flags = 0;
->>>>  	info.length = len;
->>>>  	info.low_limit = current->mm->mmap_legacy_base;
->>>>  	info.high_limit = TASK_SIZE;
->>>> -	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->>>> +	if (pud_size_align)
->>>> +		info.align_mask = PAGE_MASK & (PUD_SIZE - 1);
->>>> +	else
->>>> +		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->>>>  	info.align_offset = 0;
->>>> -	return vm_unmapped_area(&info);
->>>> +	ret_addr = vm_unmapped_area(&info);
->>>> +
->>>> +	/*
->>>> +	 * If failed with PUD_SIZE alignment, try again with huge page
->>>> +	 * size alignment.
->>>> +	 */
->>>> +	if ((ret_addr & ~PAGE_MASK) && pud_size_align) {
->>>> +		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->>>> +		ret_addr = vm_unmapped_area(&info);
->>>> +	}
->>>
->>> So AFAICS 'ret_addr' is either page aligned, or is an error code. Wouldn't it be a 
->>> lot easier to read to say:
->>>
->>> 	if ((long)ret_addr > 0 && pud_size_align) {
->>> 		info.align_mask = PAGE_MASK & ~huge_page_mask(h);
->>> 		ret_addr = vm_unmapped_area(&info);
->>> 	}
->>>
->>> 	return ret_addr;
->>>
->>> to make it clear that it's about error handling, not some alignment 
->>> requirement/restriction?
->>
->> Yes, I agree that is easier to read.  However, it assumes that process
->> virtual addresses can never evaluate to a negative long value.  This may
->> be the case for x86_64 today.  But, there are other architectures where
->> this is not the case.  I know this is x86 specific code, but might it be
->> possible that x86 virtual addresses could be negative longs in the future?
->>
->> It appears that all callers of vm_unmapped_area() are using the page aligned
->> check to determine error.   I would prefer to do the same, and can add
->> comments to make that more clear.
+On Thu, Mar 31, 2016 at 01:19:41PM +0000, Kaixu Xia wrote:
+> The right variable definition should be wb_congested_state that
+> include WB_async_congested and WB_sync_congested. So fix it.
 > 
-> IS_ERR_VALUE() might be helpful?
-> 
+> Signed-off-by: Kaixu Xia <xiakaixu@huawei.com>
 
-Thanks Naoya,  I'll change all this to use IS_ERR_VALUE().
+Acked-by: Tejun Heo <tj@kernel.org>
+
+Thanks.
 
 -- 
-Mike Kravetz
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
