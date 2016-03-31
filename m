@@ -1,49 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 093096B007E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 09:13:51 -0400 (EDT)
-Received: by mail-wm0-f47.google.com with SMTP id f198so605698wme.0
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 06:13:50 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g2si11730646wje.67.2016.03.31.06.13.49
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A04B66B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 09:20:44 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id zm5so66639103pac.0
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 06:20:44 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id d3si14131615pas.116.2016.03.31.06.20.42
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 31 Mar 2016 06:13:50 -0700 (PDT)
-Subject: Re: [PATCH] mm: fix invalid node in alloc_migrate_target()
-References: <56F4E104.9090505@huawei.com>
- <20160325122237.4ca4e0dbca215ccbf4f49922@linux-foundation.org>
- <56FA7DC8.4000902@suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56FD2285.4080600@suse.cz>
-Date: Thu, 31 Mar 2016 15:13:41 +0200
+        Thu, 31 Mar 2016 06:20:43 -0700 (PDT)
+From: Kaixu Xia <xiakaixu@huawei.com>
+Subject: [PATCH] writeback: fix the wrong congested state variable definition
+Date: Thu, 31 Mar 2016 13:19:41 +0000
+Message-ID: <1459430381-13947-1-git-send-email-xiakaixu@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <56FA7DC8.4000902@suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Xishi Qiu <qiuxishi@huawei.com>
-Cc: Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Laura Abbott <lauraa@codeaurora.org>, zhuhui@xiaomi.com, wangxq10@lzu.edu.cn, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: tj@kernel.org, axboe@kernel.dk
+Cc: lizefan@huawei.com, jack@suse.cz, linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com, neilb@suse.de, linux-kernel@vger.kernel.org, xiakaixu@huawei.com
 
-On 03/29/2016 03:06 PM, Vlastimil Babka wrote:
-> On 03/25/2016 08:22 PM, Andrew Morton wrote:
->> Also, mm/mempolicy.c:offset_il_node() worries me:
->>
->> 	do {
->> 		nid = next_node(nid, pol->v.nodes);
->> 		c++;
->> 	} while (c <= target);
->>
->> Can't `nid' hit MAX_NUMNODES?
->
-> AFAICS it can. interleave_nid() uses this and the nid is then used e.g.
-> in node_zonelist() where it's used for NODE_DATA(nid). That's quite
-> scary. It also predates git. Why don't we see crashes or KASAN finding this?
+The right variable definition should be wb_congested_state that
+include WB_async_congested and WB_sync_congested. So fix it.
 
-Ah, I see. In offset_il_node(), nid is initialized to -1, and the number 
-of do-while iterations calling next_node() is up to the number of bits 
-set in the pol->v.nodes bitmap, so it can't reach past the last set bit 
-and return MAX_NUMNODES.
+Signed-off-by: Kaixu Xia <xiakaixu@huawei.com>
+---
+ mm/backing-dev.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index bfbd709..0c6317b 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -898,7 +898,7 @@ static atomic_t nr_wb_congested[2];
+ void clear_wb_congested(struct bdi_writeback_congested *congested, int sync)
+ {
+ 	wait_queue_head_t *wqh = &congestion_wqh[sync];
+-	enum wb_state bit;
++	enum wb_congested_state bit;
+ 
+ 	bit = sync ? WB_sync_congested : WB_async_congested;
+ 	if (test_and_clear_bit(bit, &congested->state))
+@@ -911,7 +911,7 @@ EXPORT_SYMBOL(clear_wb_congested);
+ 
+ void set_wb_congested(struct bdi_writeback_congested *congested, int sync)
+ {
+-	enum wb_state bit;
++	enum wb_congested_state bit;
+ 
+ 	bit = sync ? WB_sync_congested : WB_async_congested;
+ 	if (!test_and_set_bit(bit, &congested->state))
+-- 
+1.8.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
