@@ -1,57 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 9492F6B007E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 13:24:40 -0400 (EDT)
-Received: by mail-ig0-f175.google.com with SMTP id nk17so131265800igb.1
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 10:24:40 -0700 (PDT)
-Received: from mezzanine.sirena.org.uk (mezzanine.sirena.org.uk. [2400:8900::f03c:91ff:fedb:4f4])
-        by mx.google.com with ESMTPS id u37si12112661ioi.214.2016.03.31.10.24.39
+Received: from mail-io0-f178.google.com (mail-io0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 416176B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 14:26:44 -0400 (EDT)
+Received: by mail-io0-f178.google.com with SMTP id e3so124494679ioa.1
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 11:26:44 -0700 (PDT)
+Received: from mail-io0-x236.google.com (mail-io0-x236.google.com. [2607:f8b0:4001:c06::236])
+        by mx.google.com with ESMTPS id x77si10793291iod.88.2016.03.31.11.26.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 31 Mar 2016 10:24:39 -0700 (PDT)
-Date: Thu, 31 Mar 2016 10:23:53 -0700
-From: Mark Brown <broonie@kernel.org>
-Message-ID: <20160331172353.GJ2350@sirena.org.uk>
-References: <1459427384-21374-1-git-send-email-boris.brezillon@free-electrons.com>
- <1459427384-21374-4-git-send-email-boris.brezillon@free-electrons.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Mar 2016 11:26:43 -0700 (PDT)
+Received: by mail-io0-x236.google.com with SMTP id a129so116352106ioe.0
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 11:26:43 -0700 (PDT)
+Subject: Re: [PATCH] writeback: fix the wrong congested state variable
+ definition
+References: <1459430381-13947-1-git-send-email-xiakaixu@huawei.com>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <56FD6BE0.1050802@kernel.dk>
+Date: Thu, 31 Mar 2016 12:26:40 -0600
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="HHj6mHPeUinss9N+"
-Content-Disposition: inline
-In-Reply-To: <1459427384-21374-4-git-send-email-boris.brezillon@free-electrons.com>
-Subject: Re: [PATCH 3/4] spi: use sg_alloc_table_from_buf()
+In-Reply-To: <1459430381-13947-1-git-send-email-xiakaixu@huawei.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Brezillon <boris.brezillon@free-electrons.com>
-Cc: David Woodhouse <dwmw2@infradead.org>, Brian Norris <computersforpeace@gmail.com>, linux-mtd@lists.infradead.org, Andrew Morton <akpm@linux-foundation.org>, Dave Gordon <david.s.gordon@intel.com>, linux-spi@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Vinod Koul <vinod.koul@intel.com>, Dan Williams <dan.j.williams@intel.com>, dmaengine@vger.kernel.org, Mauro Carvalho Chehab <m.chehab@samsung.com>, Hans Verkuil <hans.verkuil@cisco.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, linux-media@vger.kernel.org, Richard Weinberger <richard@nod.at>, Herbert Xu <herbert@gondor.apana.org.au>, "David S. Miller" <davem@davemloft.net>, linux-crypto@vger.kernel.org, Vignesh R <vigneshr@ti.com>, linux-mm@kvack.org, Joerg Roedel <joro@8bytes.org>, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org
+To: Kaixu Xia <xiakaixu@huawei.com>, tj@kernel.org
+Cc: lizefan@huawei.com, jack@suse.cz, linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com, neilb@suse.de, linux-kernel@vger.kernel.org
 
+On 03/31/2016 07:19 AM, Kaixu Xia wrote:
+> The right variable definition should be wb_congested_state that
+> include WB_async_congested and WB_sync_congested. So fix it.
 
---HHj6mHPeUinss9N+
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Added, thanks.
 
-On Thu, Mar 31, 2016 at 02:29:43PM +0200, Boris Brezillon wrote:
-> Replace custom implementation of sg_alloc_table_from_buf() by a call to
-> sg_alloc_table_from_buf().
-
-Acked-by: Mark Brown <broonie@kernel.org>
-
---HHj6mHPeUinss9N+
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAEBCAAGBQJW/V0aAAoJECTWi3JdVIfQuGEH+wdaKEhHxJuIIwseLFy64w88
-sFhI2BJSaVk6ppdvYIdf67ku24WUoLyYEApHSGXfhntu00xAlzBh8YZjvg6F41Yg
-7Ql/wnd5YumDVMT72a9Cv1OlJ+dsUdBJuQl7/A952W53l4IR2AcBDrJ/zBWQDtOc
-bbohxZsXJP+Qou2Q9x8OebYsFr3p2Hw3XjteAVB6jwA9gINwDDLj05HgRCKbotHe
-5bMQ3pj2I1ruS4wN44SWj7YOMvLzR3nE4xVOdHV+iaFhcVTkaYn7fuWi1fdSRChk
-tCB1auoxNjAIsfnsvj6nnzAOcW/kPwKzOKIgz58DZPFkgiRKDM9wuDnN2AlMPBI=
-=uMgt
------END PGP SIGNATURE-----
-
---HHj6mHPeUinss9N+--
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
