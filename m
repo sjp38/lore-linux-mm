@@ -1,131 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 26DE06B025E
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 22:28:51 -0400 (EDT)
-Received: by mail-pf0-f170.google.com with SMTP id x3so57539383pfb.1
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 19:28:51 -0700 (PDT)
-Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com. [202.81.31.142])
-        by mx.google.com with ESMTPS id ew7si10468230pad.131.2016.03.30.19.28.49
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CEB16B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 04:45:17 -0400 (EDT)
+Received: by mail-pf0-f173.google.com with SMTP id x3so64612562pfb.1
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 01:45:17 -0700 (PDT)
+Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
+        by mx.google.com with ESMTPS id ao8si12658326pad.241.2016.03.31.01.45.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Mar 2016 19:28:50 -0700 (PDT)
-Received: from localhost
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gwshan@linux.vnet.ibm.com>;
-	Thu, 31 Mar 2016 12:28:46 +1000
-Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 194513578056
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 13:28:38 +1100 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u2V2SPY22097428
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 13:28:38 +1100
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u2V2Rxi5018961
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 13:27:59 +1100
-Date: Thu, 31 Mar 2016 13:27:34 +1100
-From: Gavin Shan <gwshan@linux.vnet.ibm.com>
-Subject: Re: [RFC] mm: Fix memory corruption caused by deferred page
- initialization
-Message-ID: <20160331022734.GA12552@gwshan>
-Reply-To: Gavin Shan <gwshan@linux.vnet.ibm.com>
-References: <1458921929-15264-1-git-send-email-gwshan@linux.vnet.ibm.com>
- <3qXFh60DRNz9sDH@ozlabs.org>
- <20160326133708.GA382@gwshan>
- <20160327134827.GA24644@gwshan>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Mar 2016 01:45:16 -0700 (PDT)
+Received: by mail-pf0-x22c.google.com with SMTP id n5so64607257pfn.2
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 01:45:16 -0700 (PDT)
+Date: Thu, 31 Mar 2016 17:46:39 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] zsmalloc: use workqueue to destroy pool in zpool callback
+Message-ID: <20160331084639.GB3343@swordfish>
+References: <1459288977-25562-1-git-send-email-yuzhao@google.com>
+ <20160329235950.GA19927@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160327134827.GA24644@gwshan>
+In-Reply-To: <20160329235950.GA19927@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Shan <gwshan@linux.vnet.ibm.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, mgorman@suse.de, zhlcindy@linux.vnet.ibm.com
+To: Yu Zhao <yuzhao@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Mon, Mar 28, 2016 at 12:48:27AM +1100, Gavin Shan wrote:
->On Sun, Mar 27, 2016 at 12:37:09AM +1100, Gavin Shan wrote:
->>On Sat, Mar 26, 2016 at 08:47:17PM +1100, Michael Ellerman wrote:
->>>Hi Gavin,
->>>
->>>On Fri, 2016-25-03 at 16:05:29 UTC, Gavin Shan wrote:
->>>> During deferred page initialization, the pages are moved from memblock
->>>> or bootmem to buddy allocator without checking they were reserved. Those
->>>> reserved pages can be reallocated to somebody else by buddy/slab allocator.
->>>> It leads to memory corruption and potential kernel crash eventually.
->>>
->>>Can you give me a bit more detail on what the bug is?
->>>
->>>I haven't seen any issues on my systems, but I realise now I haven't enabled
->>>DEFERRED_STRUCT_PAGE_INIT - I assumed it was enabled by default.
->>>
->>>How did this get tested before submission?
->>>
->>
->>Michael, I have to reply with same context in another thread in case 
->>somebody else wants to understand more: Li, who is in the cc list, is
->>backporting deferred page initialization (CONFIG_DEFERRED_STRUCT_PAGE_INIT)
->>from upstream kernel to RHEL 7.2 or 7.3 kernel (3.10.0-357.el7). RHEL kernel
->>has (!CONFIG_NO_BOOTMEM && CONFIG_DEFERRED_STRUCT_PAGE_INIT), meaning
->>bootmem is enabled. She eventually runs into kernel crash and I jumped
->>in to help understanding the root cause.
->>
->>There're two related kernel config options: ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
->>and DEFERRED_STRUCT_PAGE_INIT. The former one is enabled on PPC by default.
->>The later one isn't enabled by default.
->>
->>There are two test cases I had:
->>
->>- With (!CONFIG_NO_BOOTMEM && CONFIG_DEFERRED_STRUCT_PAGE_INIT)
->>on PowerNV platform, upstream kernel (4.5.rc7) and additional patch to support
->>bootmem as it was removed on powerpc a while ago.
->>
->>- With (CONFIG_NO_BOOTMEM && CONFIG_DEFERRED_STRUCT_PAGE_INIT) on PowerNV platform,
->>upstream kernel (4.5.rc7), I dumped the reserved memblock regions and added printk
->>in function deferred_init_memmap() to check if memblock reserved PFN 0x1fff80 (one
->>page in memblock reserved region#31, refer to the below kernel log) is released
->>to buddy allocator or not when doing deferred page struct initialization. I did
->>see that PFN is released to buddy allocator at that time. However, I didn't see
->>kernel crash and it would be luck and the current deferred page struct initialization
->>implementation: The pages in region [0, 2GB] except the memblock reserved ones are
->>presented to buddy allocator at early stage. It's not deferred. So for the pages in
->>[0, 2GB], we don't have consistency issue between memblock and buddy allocator.
->>The pages in region [2GB ...] are all presented to buddy allocator despite they're
->>reserved in memblock or not. It ensures the kernel text section isn't corrupted
->>and we're lucky not seeing program interrupt because of illegal instruction.
->>
->
->After more debugging, it turns out that Michael is correct: we don't have problem
->when CONFIG_NO_BOOTMEM=y. In the case, the page frames in [2G ...] is marked as
->reserved in early stage (as below function calls reveal). During the deferred
->initialization stage, those reserved pages won't be released to buddy allocator:
->
->- Below function calls mark reserved pages according to memblock reserved regions:
->  init/main.c::start_kernel()
->  init/main.c::mm_init()
->  arch/powerpc/mm/mem.c::mem_init()
->  nobootmem.c::free_all_bootmem()            <-> bootmem.c::free_all_bootmem() on !CONFIG_NO_BOOTMEM
->  nobootmem.c::free_low_memory_core_early()
->  nobootmem.c::reserve_bootmem_region()
->
->- In page_alloc.c::deferred_init_memmap(), the reserved pages aren't released
->  to buddy allocator with below check:
->
->                        if (page->flags) {
->                                VM_BUG_ON(page_zone(page) != zone);
->                                goto free_range;
->                        }
->
->
->So the issue is only existing when CONFIG_NO_BOOTMEM=n. The alternative fix would
->be similar to what we have on !CONFIG_NO_BOOTMEM: In early stage, all page structs
->for bootmem reserved pages are initialized and mark them with PG_reserved. I'm
->not sure it's worthy to fix it as we won't support bootmem as Michael mentioned.
->
+On (03/30/16 08:59), Minchan Kim wrote:
+> On Tue, Mar 29, 2016 at 03:02:57PM -0700, Yu Zhao wrote:
+> > zs_destroy_pool() might sleep so it shouldn't be used in zpool
+> > destroy callback which can be invoked in softirq context when
+> > zsmalloc is configured to work with zswap.
+> 
+> I think it's a limitation of zswap design, not zsmalloc.
+> Could you handle it in zswap?
 
-Mel, could you please confirm if we need a fix on !CONFIG_NO_BOOTMEM? If we need,
-I'll respin and send a patch for review.
+agree. hm, looking at this backtrace
 
-Thanks,
-Gavin
+>   [<ffffffffaea0224b>] mutex_lock+0x1b/0x2f
+>   [<ffffffffaebca4f0>] kmem_cache_destroy+0x50/0x130
+>   [<ffffffffaec10405>] zs_destroy_pool+0x85/0xe0
+>   [<ffffffffaec1046e>] zs_zpool_destroy+0xe/0x10
+>   [<ffffffffaec101a4>] zpool_destroy_pool+0x54/0x70
+>   [<ffffffffaebedac2>] __zswap_pool_release+0x62/0x90
+>   [<ffffffffaeb1037e>] rcu_process_callbacks+0x22e/0x640
+>   [<ffffffffaeb15a3e>] ? run_timer_softirq+0x3e/0x280
+>   [<ffffffffaeabe13b>] __do_softirq+0xcb/0x250
+>   [<ffffffffaeabe4dc>] irq_exit+0x9c/0xb0
+>   [<ffffffffaea03e7a>] smp_apic_timer_interrupt+0x6a/0x80
+>   [<ffffffffaf0a394f>] apic_timer_interrupt+0x7f/0x90
+
+it also can hit the following path
+
+	rcu_process_callbacks()
+		__zswap_pool_release()
+			zswap_pool_destroy()
+				zswap_cpu_comp_destroy()
+					cpu_notifier_register_begin()
+						mutex_lock(&cpu_add_remove_lock);  <<<
+
+can't it?
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
