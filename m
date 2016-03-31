@@ -1,60 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F4606B025E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 16:01:49 -0400 (EDT)
-Received: by mail-ob0-f176.google.com with SMTP id m7so34888896obh.3
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 13:01:49 -0700 (PDT)
-Received: from ni.com (skprod2.natinst.com. [130.164.80.23])
-        by mx.google.com with ESMTPS id w3si5827805oey.69.2016.03.31.13.01.48
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DECE6B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 17:01:27 -0400 (EDT)
+Received: by mail-pf0-f182.google.com with SMTP id 4so77629282pfd.0
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 14:01:27 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id t73si16286695pfa.240.2016.03.31.14.01.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Mar 2016 13:01:48 -0700 (PDT)
-Date: Thu, 31 Mar 2016 15:01:47 -0500
-From: Josh Cartwright <joshc@ni.com>
-Subject: Re: Issue with ioremap
-Message-ID: <20160331200147.GA20530@jcartwri.amer.corp.natinst.com>
-References: <CAGnW=BYw9iqm8BpuWrxgcvXV3wwvHcvMtynPeHUGHHiZfPmfuA@mail.gmail.com>
-MIME-Version: 1.0
-In-Reply-To: <CAGnW=BYw9iqm8BpuWrxgcvXV3wwvHcvMtynPeHUGHHiZfPmfuA@mail.gmail.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        Thu, 31 Mar 2016 14:01:26 -0700 (PDT)
+Date: Thu, 31 Mar 2016 14:01:24 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: fix invalid node in alloc_migrate_target()
+Message-Id: <20160331140124.481acb67ef8f7356778cc4a0@linux-foundation.org>
+In-Reply-To: <56FD2285.4080600@suse.cz>
+References: <56F4E104.9090505@huawei.com>
+	<20160325122237.4ca4e0dbca215ccbf4f49922@linux-foundation.org>
+	<56FA7DC8.4000902@suse.cz>
+	<56FD2285.4080600@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: punnaiah choudary kalluri <punnaia@xilinx.com>
-Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Laura Abbott <lauraa@codeaurora.org>, zhuhui@xiaomi.com, wangxq10@lzu.edu.cn, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Apr 01, 2016 at 01:13:06AM +0530, punnaiah choudary kalluri wrote:
-> Hi,
+On Thu, 31 Mar 2016 15:13:41 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+
+> On 03/29/2016 03:06 PM, Vlastimil Babka wrote:
+> > On 03/25/2016 08:22 PM, Andrew Morton wrote:
+> >> Also, mm/mempolicy.c:offset_il_node() worries me:
+> >>
+> >> 	do {
+> >> 		nid = next_node(nid, pol->v.nodes);
+> >> 		c++;
+> >> 	} while (c <= target);
+> >>
+> >> Can't `nid' hit MAX_NUMNODES?
+> >
+> > AFAICS it can. interleave_nid() uses this and the nid is then used e.g.
+> > in node_zonelist() where it's used for NODE_DATA(nid). That's quite
+> > scary. It also predates git. Why don't we see crashes or KASAN finding this?
 > 
-> We are using the pl353 smc controller for interfacing the nand in our zynq SOC.
-> The driver for this controller is currently under mainline review.
-> Recently we are moved to 4.4 kernel and observing issues with the driver.
-> while debug, found that the issue is with the virtual address returned from
-> the ioremap is not aligned to the physical address and causing nand
-> access failures.
-> the nand controller physical address starts at 0xE1000000 and the size is 16MB.
-> the ioremap function in 4.3 kernel returns the virtual address that is
-> aligned to the size
-> but not the case in 4.4 kernel.
+> Ah, I see. In offset_il_node(), nid is initialized to -1, and the number 
+> of do-while iterations calling next_node() is up to the number of bits 
+> set in the pol->v.nodes bitmap, so it can't reach past the last set bit 
+> and return MAX_NUMNODES.
 
-:(.  I had actually ran into this, too, as I was evaluating the use of
-the upstream-targetted pl353 stuff; sorry I didn't say anything.
+Gack.  offset_il_node() should be dragged out, strangled, shot then burnt.
 
-> this controller uses the bits [31:24] as base address and use rest all
-> bits for configuring adders cycles, chip select information. so it
-> expects the virtual address also aligned to 0xFF000000 otherwise the
-> nand commands issued will fail.
+static unsigned offset_il_node(struct mempolicy *pol,
+		struct vm_area_struct *vma, unsigned long off)
+{
+	unsigned nnodes = nodes_weight(pol->v.nodes);
+	unsigned target;
+	int c;
+	int nid = NUMA_NO_NODE;
 
-The driver _currently_ expects the virtual address to be 16M aligned,
-but is that a hard requirement?  It seems possible that the driver could
-be written without this assumption, correct?
+	if (!nnodes)
+		return numa_node_id();
+	target = (unsigned int)off % nnodes;
+	c = 0;
+	do {
+		nid = next_node(nid, pol->v.nodes);
+		c++;
+	} while (c <= target);
+	return nid;
+}
 
-This would mean that the driver would need to maintain the cs/cycles
-configuration state outside of the mapped virtual address, and then
-calculate + add the calculated offset to the base.  Would that work?
-I had been meaning to give it a try, but haven't gotten around to it.
+For starters it is relying upon next_node(-1, ...) behaving like
+first_node().  Fair enough I guess, but that isn't very clear.
 
-  Josh
+static inline int __next_node(int n, const nodemask_t *srcp)
+{
+	return min_t(int,MAX_NUMNODES,find_next_bit(srcp->bits, MAX_NUMNODES, n+1));
+}
+
+will start from node 0 when it does the n+1.
+
+Also it is relying upon NUMA_NO_NODE having a value of -1.  That's just
+grubby - this code shouldn't "know" that NUMA_NO_NODE==-1.  It would have
+been better to use plain old "-1" here.
+
+
+Does this look clearer and correct?
+
+/*
+ * Do static interleaving for a VMA with known offset @n.  Returns the n'th
+ * node in pol->v.nodes (starting from n=0), wrapping around if n exceeds the
+ * number of present nodes.
+ */
+static unsigned offset_il_node(struct mempolicy *pol,
+			       struct vm_area_struct *vma, unsigned long n)
+{
+	unsigned nnodes = nodes_weight(pol->v.nodes);
+	unsigned target;
+	int i;
+	int nid;
+
+	if (!nnodes)
+		return numa_node_id();
+	target = (unsigned int)n % nnodes;
+	nid = first_node(pol->v.nodes);
+	for (i = 0; i < target; i++)
+		nid = next_node(nid, pol->v.nodes);
+	return nid;
+}
+
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm/mempolicy.c:offset_il_node() document and clarify
+
+This code was pretty obscure and was relying upon obscure side-effects of
+next_node(-1, ...) and was relying upon NUMA_NO_NODE being equal to -1.
+
+Clean that all up and document the function's intent.
+
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Joonsoo Kim <js1304@gmail.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Laura Abbott <lauraa@codeaurora.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/mempolicy.c |   20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
+
+diff -puN mm/mempolicy.c~mm-mempolicyc-offset_il_node-document-and-clarify mm/mempolicy.c
+--- a/mm/mempolicy.c~mm-mempolicyc-offset_il_node-document-and-clarify
++++ a/mm/mempolicy.c
+@@ -1763,23 +1763,25 @@ unsigned int mempolicy_slab_node(void)
+ 	}
+ }
+ 
+-/* Do static interleaving for a VMA with known offset. */
++/*
++ * Do static interleaving for a VMA with known offset @n.  Returns the n'th
++ * node in pol->v.nodes (starting from n=0), wrapping around if n exceeds the
++ * number of present nodes.
++ */
+ static unsigned offset_il_node(struct mempolicy *pol,
+-		struct vm_area_struct *vma, unsigned long off)
++			       struct vm_area_struct *vma, unsigned long n)
+ {
+ 	unsigned nnodes = nodes_weight(pol->v.nodes);
+ 	unsigned target;
+-	int c;
+-	int nid = NUMA_NO_NODE;
++	int i;
++	int nid;
+ 
+ 	if (!nnodes)
+ 		return numa_node_id();
+-	target = (unsigned int)off % nnodes;
+-	c = 0;
+-	do {
++	target = (unsigned int)n % nnodes;
++	nid = first_node(pol->v.nodes);
++	for (i = 0; i < target; i++)
+ 		nid = next_node(nid, pol->v.nodes);
+-		c++;
+-	} while (c <= target);
+ 	return nid;
+ }
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
