@@ -1,71 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D65C6B007E
-	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 21:47:45 -0400 (EDT)
-Received: by mail-ob0-f178.google.com with SMTP id x3so87672651obt.0
-        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 18:47:45 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id o84si4063310oik.104.2016.03.30.18.47.43
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id DCACB6B007E
+	for <linux-mm@kvack.org>; Wed, 30 Mar 2016 22:25:43 -0400 (EDT)
+Received: by mail-pf0-f173.google.com with SMTP id e128so36187957pfe.3
+        for <linux-mm@kvack.org>; Wed, 30 Mar 2016 19:25:43 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id h7si10505049pat.9.2016.03.30.19.25.42
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Mar 2016 18:47:44 -0700 (PDT)
-Subject: Re: [PATCH] Revert "mm/page_alloc: protect pcp->batch accesses with
- ACCESS_ONCE"
-References: <1459333327-89720-1-git-send-email-hekuang@huawei.com>
- <20160330103839.GA4773@techsingularity.net> <56FBAFA0.3010604@huawei.com>
- <20160330111044.GA4324@dhcp22.suse.cz> <56FC7A02.1080201@huawei.com>
- <56FC7FD2.9000203@huawei.com>
-From: Hekuang <hekuang@huawei.com>
-Message-ID: <56FC819C.5010305@huawei.com>
-Date: Thu, 31 Mar 2016 09:47:08 +0800
+        Wed, 30 Mar 2016 19:25:43 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC PATCH 1/2] mm/hugetlbfs: Attempt PUD_SIZE mapping
+ alignment if PMD sharing enabled
+Date: Thu, 31 Mar 2016 02:18:51 +0000
+Message-ID: <20160331021850.GA4079@hori1.linux.bs1.fc.nec.co.jp>
+References: <1459213970-17957-1-git-send-email-mike.kravetz@oracle.com>
+ <1459213970-17957-2-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1459213970-17957-2-git-send-email-mike.kravetz@oracle.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <CB4D9524F302A3448DE2061321C84918@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <56FC7FD2.9000203@huawei.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zefan Li <lizefan@huawei.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, cody@linux.vnet.ibm.com, gilad@benyossef.com, kosaki.motohiro@gmail.com, mgorman@suse.de, penberg@kernel.org, wangnan0@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Hugh Dickins <hughd@google.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steve Capper <steve.capper@linaro.org>, Andrew Morton <akpm@linux-foundation.org>
 
-hi
+On Mon, Mar 28, 2016 at 06:12:49PM -0700, Mike Kravetz wrote:
+> When creating a hugetlb mapping, attempt PUD_SIZE alignment if the
+> following conditions are met:
+> - Address passed to mmap or shmat is NULL
+> - The mapping is flaged as shared
+> - The mapping is at least PUD_SIZE in length
+> If a PUD_SIZE aligned mapping can not be created, then fall back to a
+> huge page size mapping.
 
-a?? 2016/3/31 9:39, Zefan Li a??e??:
-> On 2016/3/31 9:14, Hekuang wrote:
->> Hi
->>
->> a?? 2016/3/30 19:10, Michal Hocko a??e??:
->>> On Wed 30-03-16 18:51:12, Hekuang wrote:
->>>> hi
->>>>
->>>> a?? 2016/3/30 18:38, Mel Gorman a??e??:
->>>>> On Wed, Mar 30, 2016 at 10:22:07AM +0000, He Kuang wrote:
->>>>>> This reverts commit 998d39cb236fe464af86a3492a24d2f67ee1efc2.
->>>>>>
->>>>>> When local irq is disabled, a percpu variable does not change, so we can
->>>>>> remove the access macros and let the compiler optimize the code safely.
->>>>>>
->>>>> batch can be changed from other contexts. Why is this safe?
->>>>>
->>>> I've mistakenly thought that per_cpu variable can only be accessed by that
->>>> cpu.
->>> git blame would point you to 998d39cb236f ("mm/page_alloc: protect
->>> pcp->batch accesses with ACCESS_ONCE"). I haven't looked into the code
->>> deeply to confirm this is still the case but it would be a good lead
->>> that this is not that simple. ACCESS_ONCE resp. {READ,WRITE}_ONCE are
->>> usually quite subtle so I would encourage you or anybody else who try to
->>> remove them to study the code and the history deeper before removing
->>> them.
->>>
->> Thank you for responding, I've read that commit and related articles and not sending
->> mail casually, though you may think it's a stupid patch. I'm a beginner and I think
->> sending mails to maillist is a effective way to learn kernel, And, sure i'll be more careful and
->> well prepared next time :)
->>
-> pcp->batch can be changed in a different cpu. You may read percpu_pagelist_fraction_sysctl_handler()
-> to see how that can happen.
->
->
-OK. got it!
+It would be kinder if the patch description includes why this change.
+Simply "to facilitate pmd sharing" is helpful for someone who read
+"git log".
+
+>=20
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+>  fs/hugetlbfs/inode.c | 29 +++++++++++++++++++++++++++--
+>  1 file changed, 27 insertions(+), 2 deletions(-)
+>=20
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 540ddc9..22b2e38 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -175,6 +175,17 @@ hugetlb_get_unmapped_area(struct file *file, unsigne=
+d long addr,
+>  	struct vm_area_struct *vma;
+>  	struct hstate *h =3D hstate_file(file);
+>  	struct vm_unmapped_area_info info;
+> +	bool pud_size_align =3D false;
+> +	unsigned long ret_addr;
+> +
+> +	/*
+> +	 * If PMD sharing is enabled, align to PUD_SIZE to facilitate
+> +	 * sharing.  Only attempt alignment if no address was passed in,
+> +	 * flags indicate sharing and size is big enough.
+> +	 */
+> +	if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
+> +	    !addr && flags & MAP_SHARED && len >=3D PUD_SIZE)
+> +		pud_size_align =3D true;
+
+This code will have duplicates in the next patch, so how about checking
+this in a separate check routine?
+
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
