@@ -1,58 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 35C7C6B007E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 22:16:03 -0400 (EDT)
-Received: by mail-pf0-f170.google.com with SMTP id e128so61632912pfe.3
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:16:03 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id n3si17787268pfb.123.2016.03.31.19.16.01
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 850096B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 22:33:28 -0400 (EDT)
+Received: by mail-pf0-f180.google.com with SMTP id 4so83289513pfd.0
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:33:28 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id i22si17849884pfj.249.2016.03.31.19.33.27
         for <linux-mm@kvack.org>;
-        Thu, 31 Mar 2016 19:16:02 -0700 (PDT)
-Date: Fri, 1 Apr 2016 11:18:07 +0900
+        Thu, 31 Mar 2016 19:33:27 -0700 (PDT)
+Date: Fri, 1 Apr 2016 11:35:33 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 01/11] mm/slab: hold a slab_mutex when calling
- __kmem_cache_shrink()
-Message-ID: <20160401021806.GA13179@js1304-P5Q-DELUXE>
-References: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1459142821-20303-2-git-send-email-iamjoonsoo.kim@lge.com>
- <56FD019A.10906@kyup.com>
+Subject: Re: [RFC][PATCH] mm/slub: Skip CPU slab activation when debugging
+Message-ID: <20160401023533.GB13179@js1304-P5Q-DELUXE>
+References: <1459205581-4605-1-git-send-email-labbott@fedoraproject.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56FD019A.10906@kyup.com>
+In-Reply-To: <1459205581-4605-1-git-send-email-labbott@fedoraproject.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikolay Borisov <kernel@kyup.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Laura Abbott <labbott@redhat.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>
 
-On Thu, Mar 31, 2016 at 01:53:14PM +0300, Nikolay Borisov wrote:
+On Mon, Mar 28, 2016 at 03:53:01PM -0700, Laura Abbott wrote:
+> The per-cpu slab is designed to be the primary path for allocation in SLUB
+> since it assumed allocations will go through the fast path if possible.
+> When debugging is enabled, the fast path is disabled and per-cpu
+> allocations are not used. The current debugging code path still activates
+> the cpu slab for allocations and then immediately deactivates it. This
+> is useless work. When a slab is enabled for debugging, skip cpu
+> activation.
 > 
-> 
-> On 03/28/2016 08:26 AM, js1304@gmail.com wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > Major kmem_cache metadata in slab subsystem is synchronized with
-> > the slab_mutex. In SLAB, if some of them is changed, node's shared
-> > array cache would be freed and re-populated. If __kmem_cache_shrink()
-> > is called at the same time, it will call drain_array() with n->shared
-> > without holding node lock so problem can happen.
-> > 
-> > We can fix this small theoretical race condition by holding node lock
-> > in drain_array(), but, holding a slab_mutex in kmem_cache_shrink()
-> > looks more appropriate solution because stable state would make things
-> > less error-prone and this is not performance critical path.
-> > 
-> > In addtion, annotate on SLAB functions.
-> 
-> Just a nit but would it not be better instead of doing comment-style
-> annotation to use lockdep_assert_held/_once. In both cases for someone
-> to understand what locks have to be held will go and read the source. In
-> my mind it's easier to miss a comment line, rather than the
-> lockdep_assert. Furthermore in case lockdep is enabled a locking
-> violation would spew useful info to dmesg.
+> Signed-off-by: Laura Abbott <labbott@fedoraproject.org>
+> ---
+> This is a follow on to the optimization of the debug paths for poisoning
+> With this I get ~2 second drop on hackbench -g 20 -l 1000 with slub_debug=P
+> and no noticable change with slub_debug=- .
 
-Good idea. I'm not sure if lockdep_assert is best fit but I will add
-something to check it rather than just adding the comment.
+I'd like to know the performance difference between slub_debug=P and
+slub_debug=- with this change.
+
+Although this patch increases hackbench performance, I'm not sure it's
+sufficient for the production system. Concurrent slab allocation request
+will contend the node lock in every allocation attempt. So, there would be
+other ues-cases that performance drop due to slub_debug=P cannot be
+accepted even if it is security feature.
+
+How about allowing cpu partial list for debug cases?
+It will not hurt fast path and will make less contention on the node
+lock.
 
 Thanks.
 
