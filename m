@@ -1,206 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 66B5F6B0005
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 09:24:15 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id zm5so90525909pac.0
-        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 06:24:15 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id hx6si6783082pac.95.2016.04.01.06.24.14
-        for <linux-mm@kvack.org>;
-        Fri, 01 Apr 2016 06:24:14 -0700 (PDT)
-Date: Fri, 1 Apr 2016 14:24:07 +0100
-From: Steve Capper <steve.capper@arm.com>
-Subject: Re: [PATCH] mm: Exclude HugeTLB pages from THP page_mapped logic
-Message-ID: <20160401132406.GA22462@e103986-lin>
-References: <1459269581-21190-1-git-send-email-steve.capper@arm.com>
- <20160331160650.cfc0fa57e97a45e94bc023f4@linux-foundation.org>
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id DEBA16B0276
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 10:38:39 -0400 (EDT)
+Received: by mail-wm0-f50.google.com with SMTP id 191so22320901wmq.0
+        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 07:38:39 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id yu7si17019507wjc.184.2016.04.01.07.38.38
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 01 Apr 2016 07:38:38 -0700 (PDT)
+Subject: Re: [PATCH v3 03/16] mm: add non-lru movable page support document
+References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
+ <1459321935-3655-4-git-send-email-minchan@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56FE87EA.60806@suse.cz>
+Date: Fri, 1 Apr 2016 16:38:34 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160331160650.cfc0fa57e97a45e94bc023f4@linux-foundation.org>
+In-Reply-To: <1459321935-3655-4-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Steve Capper <steve.capper@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, dwoods@mellanox.com, mhocko@suse.com, mingo@kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, Jonathan Corbet <corbet@lwn.net>
 
-Hi Andrew,
+On 03/30/2016 09:12 AM, Minchan Kim wrote:
+> This patch describes what a subsystem should do for non-lru movable
+> page supporting.
 
-On Thu, Mar 31, 2016 at 04:06:50PM -0700, Andrew Morton wrote:
-> On Tue, 29 Mar 2016 17:39:41 +0100 Steve Capper <steve.capper@arm.com> wrote:
-> 
-> > HugeTLB pages cannot be split, thus use the compound_mapcount to
-> > track rmaps.
-> > 
-> > Currently the page_mapped function will check the compound_mapcount, but
-> 
-> s/the page_mapped function/page_mapped()/.  It's so much simpler!
+Intentionally reading this first without studying the code to better catch 
+things that would seem obvious otherwise.
 
-Thanks, agreed :-).
-
-> 
-> > will also go through the constituent pages of a THP compound page and
-> > query the individual _mapcount's too.
-> > 
-> > Unfortunately, the page_mapped function does not distinguish between
-> > HugeTLB and THP compound pages and assumes that a compound page always
-> > needs to have HPAGE_PMD_NR pages querying.
-> > 
-> > For most cases when dealing with HugeTLB this is just inefficient, but
-> > for scenarios where the HugeTLB page size is less than the pmd block
-> > size (e.g. when using contiguous bit on ARM) this can lead to crashes.
-> > 
-> > This patch adjusts the page_mapped function such that we skip the
-> > unnecessary THP reference checks for HugeTLB pages.
-> > 
-> > Fixes: e1534ae95004 ("mm: differentiate page_mapped() from page_mapcount() for compound pages")
-> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Signed-off-by: Steve Capper <steve.capper@arm.com>
-> > ---
-> > 
-> > Hi,
-> > 
-> > This patch is my approach to fixing a problem that unearthed with
-> > HugeTLB pages on arm64. We ran with PAGE_SIZE=64KB and placed down 32
-> > contiguous ptes to create 2MB HugeTLB pages. (We can provide hints to
-> > the MMU that page table entries are contiguous thus larger TLB entries
-> > can be used to represent them).
-> 
-> So which kernel version(s) need this patch?  I think both 4.4 and 4.5
-> will crash in this manner?  Should we backport the fix into 4.4.x and
-> 4.5.x?
-
-We de-activated the contiguous hint support just before 4.5 (as we ran
-into the problem too late). So no kernels are currently crashing due to
-this. If this goes in, we can then re-enable contiguous hint on ARM.
-
-> 
-> >
-> > ...
-> >
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -1031,6 +1031,8 @@ static inline bool page_mapped(struct page *page)
-> >  	page = compound_head(page);
-> >  	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
-> >  		return true;
-> > +	if (PageHuge(page))
-> > +		return false;
-> >  	for (i = 0; i < hpage_nr_pages(page); i++) {
-> >  		if (atomic_read(&page[i]._mapcount) >= 0)
-> >  			return true;
-> 
-> page_mapped() is moronically huge.  Uninlining it saves 206 bytes per
-> callsite. It has 40+ callsites.
-> 
-> 
-> 
-> 
-> btw, is anyone else seeing this `make M=' breakage?
-> 
-> akpm3:/usr/src/25> make M=mm
-> Makefile:679: Cannot use CONFIG_KCOV: -fsanitize-coverage=trace-pc is not supported by compiler
-> 
->   WARNING: Symbol version dump ./Module.symvers
->            is missing; modules will have no dependencies and modversions.
-> 
-> make[1]: *** No rule to make target `mm/filemap.o', needed by `mm/built-in.o'.  Stop.
-> make: *** [_module_mm] Error 2
-> 
-> It's a post-4.5 thing.
-
-Sorry I have not yet tried out KCOV.
-
-> 
-> 
-> 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm: uninline page_mapped()
-> 
-> It's huge.  Uninlining it saves 206 bytes per callsite.  Shaves 4924 bytes
-> from the x86_64 allmodconfig vmlinux.
-> 
-> Cc: Steve Capper <steve.capper@arm.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Jonathan Corbet <corbet@lwn.net>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
+>   Documentation/filesystems/vfs.txt | 11 ++++++-
+>   Documentation/vm/page_migration   | 69 ++++++++++++++++++++++++++++++++++++++-
+>   2 files changed, 78 insertions(+), 2 deletions(-)
+>
+> diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
+> index 4c1b6c3b4bc8..d63142f8ed7b 100644
+> --- a/Documentation/filesystems/vfs.txt
+> +++ b/Documentation/filesystems/vfs.txt
+> @@ -752,12 +752,21 @@ struct address_space_operations {
+>           and transfer data directly between the storage and the
+>           application's address space.
+>
+> +  isolate_page: Called by the VM when isolating a movable non-lru page.
+> +	If page is successfully isolated, we should mark the page as
+> +	PG_isolated via __SetPageIsolated.
 
-The below looks reasonable to me, I don't have any benchmarks handy to
-test for a performance regression on this though.
+Patch 02 changelog suggests SetPageIsolated, so this is confusing. I guess the 
+main point is that there might be parallel attempts and only one is allowed to 
+succeed, right? Whether it's done by atomic ops or otherwise doesn't matter to 
+e.g. compaction.
 
-> 
->  include/linux/mm.h |   21 +--------------------
->  mm/util.c          |   22 ++++++++++++++++++++++
->  2 files changed, 23 insertions(+), 20 deletions(-)
-> 
-> diff -puN include/linux/mm.h~mm-uninline-page_mapped include/linux/mm.h
-> --- a/include/linux/mm.h~mm-uninline-page_mapped
-> +++ a/include/linux/mm.h
-> @@ -1019,26 +1019,7 @@ static inline pgoff_t page_file_index(st
->  	return page->index;
->  }
->  
-> -/*
-> - * Return true if this page is mapped into pagetables.
-> - * For compound page it returns true if any subpage of compound page is mapped.
-> - */
-> -static inline bool page_mapped(struct page *page)
-> -{
-> -	int i;
-> -	if (likely(!PageCompound(page)))
-> -		return atomic_read(&page->_mapcount) >= 0;
-> -	page = compound_head(page);
-> -	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
-> -		return true;
-> -	if (PageHuge(page))
-> -		return false;
-> -	for (i = 0; i < hpage_nr_pages(page); i++) {
-> -		if (atomic_read(&page[i]._mapcount) >= 0)
-> -			return true;
-> -	}
-> -	return false;
-> -}
-> +bool page_mapped(struct page *page);
->  
->  /*
->   * Return true only if the page has been allocated with
-> diff -puN mm/util.c~mm-uninline-page_mapped mm/util.c
-> --- a/mm/util.c~mm-uninline-page_mapped
-> +++ a/mm/util.c
-> @@ -346,6 +346,28 @@ void *page_rmapping(struct page *page)
->  	return __page_rmapping(page);
->  }
->  
-> +/*
-> + * Return true if this page is mapped into pagetables.
-> + * For compound page it returns true if any subpage of compound page is mapped.
-> + */
-> +bool page_mapped(struct page *page)
-> +{
-> +	int i;
-> +	if (likely(!PageCompound(page)))
-> +		return atomic_read(&page->_mapcount) >= 0;
-> +	page = compound_head(page);
-> +	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
-> +		return true;
-> +	if (PageHuge(page))
-> +		return false;
-> +	for (i = 0; i < hpage_nr_pages(page); i++) {
-> +		if (atomic_read(&page[i]._mapcount) >= 0)
-> +			return true;
-> +	}
-> +	return false;
-> +}
-> +EXPORT_SYMBOL(page_mapped);
+>     migrate_page:  This is used to compact the physical memory usage.
+>           If the VM wants to relocate a page (maybe off a memory card
+>           that is signalling imminent failure) it will pass a new page
+>   	and an old page to this function.  migrate_page should
+>   	transfer any private data across and update any references
+> -        that it has to the page.
+> +	that it has to the page. If migrated page is non-lru page,
+> +	we should clear PG_isolated and PG_movable via __ClearPageIsolated
+> +	and __ClearPageMovable.
+
+Similar concern as __SetPageIsolated.
+
 > +
->  struct anon_vma *page_anon_vma(struct page *page)
->  {
->  	unsigned long mapping;
-> _
-> 
+> +  putback_page: Called by the VM when isolated page's migration fails.
+> +	We should clear PG_isolated marked in isolated_page function.
 
-Cheers,
--- 
-Steve
+Note this kind of wording is less confusing and could be used above wrt my concerns.
+
+>
+>     launder_page: Called before freeing a page - it writes back the dirty page. To
+>     	prevent redirtying the page, it is kept locked during the whole
+> diff --git a/Documentation/vm/page_migration b/Documentation/vm/page_migration
+> index fea5c0864170..c4e7551a414e 100644
+> --- a/Documentation/vm/page_migration
+> +++ b/Documentation/vm/page_migration
+> @@ -142,5 +142,72 @@ is increased so that the page cannot be freed while page migration occurs.
+>   20. The new page is moved to the LRU and can be scanned by the swapper
+>       etc again.
+>
+> -Christoph Lameter, May 8, 2006.
+> +C. Non-LRU Page migration
+> +-------------------------
+> +
+> +Although original migration aimed for reducing the latency of memory access
+> +for NUMA, compaction who want to create high-order page is also main customer.
+> +
+> +Ppage migration's disadvantage is that it was designed to migrate only
+> +*LRU* pages. However, there are potential non-lru movable pages which can be
+> +migrated in system, for example, zsmalloc, virtio-balloon pages.
+> +For virtio-balloon pages, some parts of migration code path was hooked up
+> +and added virtio-balloon specific functions to intercept logi.
+
+logi -> logic?
+
+> +It's too specific to one subsystem so other subsystem who want to make
+> +their pages movable should add own specific hooks in migration path.
+
+s/should/would have to/ I guess?
+
+> +To solve such problem, VM supports non-LRU page migration which provides
+> +generic functions for non-LRU movable pages without needing subsystem
+> +specific hook in mm/{migrate|compact}.c.
+> +
+> +If a subsystem want to make own pages movable, it should mark pages as
+> +PG_movable via __SetPageMovable. __SetPageMovable needs address_space for
+> +argument for register functions which will be called by VM.
+> +
+> +Three functions in address_space_operation related to non-lru movable page:
+> +
+> +	bool (*isolate_page) (struct page *, isolate_mode_t);
+> +	int (*migratepage) (struct address_space *,
+> +		struct page *, struct page *, enum migrate_mode);
+> +	void (*putback_page)(struct page *);
+> +
+> +1. Isolation
+> +
+> +What VM expected on isolate_page of subsystem is to set PG_isolated flags
+> +of the page if it was successful. With that, concurrent isolation among
+> +CPUs skips the isolated page by other CPU earlier. VM calls isolate_page
+> +under PG_lock of page. If a subsystem cannot isolate the page, it should
+> +return false.
+
+Ah, I see, so it's designed with page lock to handle the concurrent isolations etc.
+
+In http://marc.info/?l=linux-mm&m=143816716511904&w=2 Mel has warned about doing 
+this in general under page_lock and suggested that each user handles concurrent 
+calls to isolate_page() internally. Might be more generic that way, even if all 
+current implementers will actually use the page lock.
+
+Also it's worth reading that mail in full and incorporating here, as there are 
+more concerns related to concurrency that should be documented, e.g. with pages 
+that can be mapped to userspace. Not a case with zram and balloon pages I guess, 
+but one of Gioh's original use cases was a driver which IIRC could map pages. So 
+the design and documentation should keep that in mind.
+
+> +2. Migration
+> +
+> +After successful isolation, VM calls migratepage. The migratepage's goal is
+> +to move content of the old page to new page and set up struct page fields
+> +of new page. If migration is successful, subsystem should release old page's
+> +refcount to free. Keep in mind that subsystem should clear PG_movable and
+> +PG_isolated before releasing the refcount.  If everything are done, user
+> +should return MIGRATEPAGE_SUCCESS. If subsystem cannot migrate the page
+> +at the moment, migratepage can return -EAGAIN. On -EAGAIN, VM will retry page
+> +migration because VM interprets -EAGAIN as "temporal migration failure".
+> +
+> +3. Putback
+> +
+> +If migration was unsuccessful, VM calls putback_page. The subsystem should
+> +insert isolated page to own data structure again if it has. And subsystem
+> +should clear PG_isolated which was marked in isolation step.
+> +
+> +Note about releasing page:
+> +
+> +Subsystem can release pages whenever it want but if it releses the page
+> +which is already isolated, it should clear PG_isolated but doesn't touch
+> +PG_movable under PG_lock. Instead of it, VM will clear PG_movable after
+> +his job done. Otherweise, subsystem should clear both page flags before
+> +releasing the page.
+
+I don't understand this right now. But maybe I will get it after reading the 
+patches and suggest some improved wording here.
+
+> +
+> +Note about PG_isolated:
+> +
+> +PG_isolated check on a page is valid only if the page's flag is already
+> +set to PG_movable.
+
+But it's not possible to check both atomically, so I guess it implies checking 
+under page lock? If that's true, should be explicit.
+
+Thanks!
+
+> +Christoph Lameter, May 8, 2006.
+> +Minchan Kim, Mar 28, 2016.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
