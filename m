@@ -1,61 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id DA69D6B0264
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 07:21:11 -0400 (EDT)
-Received: by mail-wm0-f53.google.com with SMTP id 127so16416064wmu.1
-        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 04:21:11 -0700 (PDT)
-Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
-        by mx.google.com with ESMTPS id h11si16943631wmd.116.2016.04.01.04.21.10
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 033F36B0266
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 07:41:35 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id fe3so88896702pab.1
+        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 04:41:34 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id 25si20884170pfh.120.2016.04.01.04.41.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Apr 2016 04:21:10 -0700 (PDT)
-Subject: Re: [PATCH 2/2] UBIFS: Implement ->migratepage()
-References: <1459461513-31765-1-git-send-email-richard@nod.at>
- <1459461513-31765-3-git-send-email-richard@nod.at> <56FE4A1B.606@suse.cz>
-From: Richard Weinberger <richard@nod.at>
-Message-ID: <56FE599F.6080400@nod.at>
-Date: Fri, 1 Apr 2016 13:21:03 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Apr 2016 04:41:34 -0700 (PDT)
+Date: Fri, 1 Apr 2016 13:41:29 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH -mm v2 3/3] slub: make dead caches discard free slabs
+ immediately
+Message-ID: <20160401114129.GR3430@twins.programming.kicks-ass.net>
+References: <cover.1422461573.git.vdavydov@parallels.com>
+ <6eecfafdc6c3dcbb98d2176cdebcb65abbc180b4.1422461573.git.vdavydov@parallels.com>
+ <20160401090441.GD12845@twins.programming.kicks-ass.net>
+ <20160401105539.GA6610@esperanza>
 MIME-Version: 1.0
-In-Reply-To: <56FE4A1B.606@suse.cz>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160401105539.GA6610@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel@vger.kernel.org
-Cc: linux-mtd@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, boris.brezillon@free-electrons.com, maxime.ripard@free-electrons.com, david@sigma-star.at, david@fromorbit.com, dedekind1@gmail.com, alex@nextthing.co, akpm@linux-foundation.org, sasha.levin@oracle.com, iamjoonsoo.kim@lge.com, rvaswani@codeaurora.org, tony.luck@intel.com, shailendra.capricorn@gmail.com, kirill.shutemov@linux.intel.com, hch@infradead.org, hughd@google.com, mgorman@techsingularity.net
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Am 01.04.2016 um 12:14 schrieb Vlastimil Babka:
-> On 03/31/2016 11:58 PM, Richard Weinberger wrote:
->> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
->>
->> During page migrations UBIFS might get confused
->> and the following assert triggers:
->> UBIFS assert failed in ubifs_set_page_dirty at 1451 (pid 436)
+On Fri, Apr 01, 2016 at 01:55:40PM +0300, Vladimir Davydov wrote:
+> > > +	if (deactivate) {
+> > > +		/*
+> > > +		 * Disable empty slabs caching. Used to avoid pinning offline
+> > > +		 * memory cgroups by kmem pages that can be freed.
+> > > +		 */
+> > > +		s->cpu_partial = 0;
+> > > +		s->min_partial = 0;
+> > > +
+> > > +		/*
+> > > +		 * s->cpu_partial is checked locklessly (see put_cpu_partial),
+> > > +		 * so we have to make sure the change is visible.
+> > > +		 */
+> > > +		kick_all_cpus_sync();
+> > > +	}
+> > 
+> > Argh! what the heck! and without a single mention in the changelog.
 > 
-> It would be useful to have the full trace in changelog.
+> This function is only called when a memory cgroup is removed, which is
+> rather a rare event. I didn't think it would cause any pain. Sorry.
 
-Oh. Yes.
+Suppose you have a bunch of CPUs running HPC/RT code and someone causes
+the admin CPUs to create/destroy a few cgroups.
 
->> UBIFS is using PagePrivate() which can have different meanings across
->> filesystems. Therefore the generic page migration code cannot handle this
->> case correctly.
->> We have to implement our own migration function which basically does a
->> plain copy but also duplicates the page private flag.
->> UBIFS is not a block device filesystem and cannot use buffer_migrate_page().
->>
->> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->> [rw: Massaged changelog]
->> Signed-off-by: Richard Weinberger <richard@nod.at>
+> > Why are you spraying IPIs across the entire machine? Why isn't
+> > synchronize_sched() good enough, that would allow you to get rid of the
+> > local_irq_save/restore as well.
 > 
-> Stable?
+> synchronize_sched() is slower. Calling it for every per memcg kmem cache
+> would slow down cleanup on cgroup removal.
 
-Yep. But first I'd like to clarify if this approach is really the way to go.
-It is also not clear to me whether this issue was always the case or if
-a recently introduced change in MM uncovered it...
-Blindly applying to all stable versions is risky.
+Right, but who cares? cgroup removal isn't a fast path by any standard.
 
-Thanks,
-//richard
+> Regarding local_irq_save/restore - synchronize_sched() wouldn't allow us
+> to get rid of them, because unfreeze_partials() must be called with irqs
+> disabled.
+
+OK, I figured it was because it needed to be serialized against this
+kick_all_cpus_sync() IPI.
+
+> Come to think of it, kick_all_cpus_sync() is used as a memory barrier
+> here, so as to make sure that after it's finished all cpus will use the
+> new ->cpu_partial value, which makes me wonder if we could replace it
+> with a simple smp_mb. I mean, this_cpu_cmpxchg(), which is used by
+> put_cpu_partial to add a page to per-cpu partial list, must issue a full
+> memory barrier (am I correct?), so we have two possibilities here:
+
+Nope, this_cpu_cmpxchg() does not imply a memory barrier.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
