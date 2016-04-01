@@ -1,71 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id EA8AB6B025F
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 22:10:31 -0400 (EDT)
-Received: by mail-pf0-f171.google.com with SMTP id 4so82875882pfd.0
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:10:31 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id g7si17777023pat.103.2016.03.31.19.10.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Mar 2016 19:10:31 -0700 (PDT)
-Received: by mail-pa0-x22b.google.com with SMTP id tt10so79088902pab.3
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:10:31 -0700 (PDT)
-From: js1304@gmail.com
-Subject: [PATCH 4/4] mm/vmstat: make node_page_state() handles all zones by itself
-Date: Fri,  1 Apr 2016 11:10:10 +0900
-Message-Id: <1459476610-31076-4-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1459476610-31076-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1459476610-31076-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pf0-f170.google.com (mail-pf0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 35C7C6B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 22:16:03 -0400 (EDT)
+Received: by mail-pf0-f170.google.com with SMTP id e128so61632912pfe.3
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:16:03 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id n3si17787268pfb.123.2016.03.31.19.16.01
+        for <linux-mm@kvack.org>;
+        Thu, 31 Mar 2016 19:16:02 -0700 (PDT)
+Date: Fri, 1 Apr 2016 11:18:07 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 01/11] mm/slab: hold a slab_mutex when calling
+ __kmem_cache_shrink()
+Message-ID: <20160401021806.GA13179@js1304-P5Q-DELUXE>
+References: <1459142821-20303-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1459142821-20303-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <56FD019A.10906@kyup.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <56FD019A.10906@kyup.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Nikolay Borisov <kernel@kyup.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Thu, Mar 31, 2016 at 01:53:14PM +0300, Nikolay Borisov wrote:
+> 
+> 
+> On 03/28/2016 08:26 AM, js1304@gmail.com wrote:
+> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > 
+> > Major kmem_cache metadata in slab subsystem is synchronized with
+> > the slab_mutex. In SLAB, if some of them is changed, node's shared
+> > array cache would be freed and re-populated. If __kmem_cache_shrink()
+> > is called at the same time, it will call drain_array() with n->shared
+> > without holding node lock so problem can happen.
+> > 
+> > We can fix this small theoretical race condition by holding node lock
+> > in drain_array(), but, holding a slab_mutex in kmem_cache_shrink()
+> > looks more appropriate solution because stable state would make things
+> > less error-prone and this is not performance critical path.
+> > 
+> > In addtion, annotate on SLAB functions.
+> 
+> Just a nit but would it not be better instead of doing comment-style
+> annotation to use lockdep_assert_held/_once. In both cases for someone
+> to understand what locks have to be held will go and read the source. In
+> my mind it's easier to miss a comment line, rather than the
+> lockdep_assert. Furthermore in case lockdep is enabled a locking
+> violation would spew useful info to dmesg.
 
-node_page_state() manually add statistics per each zone and return
-total value for all zones. Whenever we add a new zone, we need to
-consider this function and it's really troublesome. Make it handles
-all zones by itself.
+Good idea. I'm not sure if lockdep_assert is best fit but I will add
+something to check it rather than just adding the comment.
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/vmstat.c | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
-
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 0a726e3..a7de9ad 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -600,19 +600,13 @@ void zone_statistics(struct zone *preferred_zone, struct zone *z, gfp_t flags)
- unsigned long node_page_state(int node, enum zone_stat_item item)
- {
- 	struct zone *zones = NODE_DATA(node)->node_zones;
-+	int i;
-+	unsigned long count = 0;
- 
--	return
--#ifdef CONFIG_ZONE_DMA
--		zone_page_state(&zones[ZONE_DMA], item) +
--#endif
--#ifdef CONFIG_ZONE_DMA32
--		zone_page_state(&zones[ZONE_DMA32], item) +
--#endif
--#ifdef CONFIG_HIGHMEM
--		zone_page_state(&zones[ZONE_HIGHMEM], item) +
--#endif
--		zone_page_state(&zones[ZONE_NORMAL], item) +
--		zone_page_state(&zones[ZONE_MOVABLE], item);
-+	for (i = 0; i < MAX_NR_ZONES; i++)
-+		count += zone_page_state(zones + i, item);
-+
-+	return count;
- }
- 
- #endif
--- 
-1.9.1
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
