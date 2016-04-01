@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B0156B025E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 22:10:27 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id td3so78792261pab.2
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:10:27 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id l27si17789011pfj.18.2016.03.31.19.10.26
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id EA8AB6B025F
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 22:10:31 -0400 (EDT)
+Received: by mail-pf0-f171.google.com with SMTP id 4so82875882pfd.0
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:10:31 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id g7si17777023pat.103.2016.03.31.19.10.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Mar 2016 19:10:26 -0700 (PDT)
-Received: by mail-pa0-x22c.google.com with SMTP id td3so78792115pab.2
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:10:26 -0700 (PDT)
+        Thu, 31 Mar 2016 19:10:31 -0700 (PDT)
+Received: by mail-pa0-x22b.google.com with SMTP id tt10so79088902pab.3
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:10:31 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH 3/4] mm/highmem: make nr_free_highpages() handles all highmem zones by itself
-Date: Fri,  1 Apr 2016 11:10:09 +0900
-Message-Id: <1459476610-31076-3-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 4/4] mm/vmstat: make node_page_state() handles all zones by itself
+Date: Fri,  1 Apr 2016 11:10:10 +0900
+Message-Id: <1459476610-31076-4-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1459476610-31076-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1459476610-31076-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,41 +24,46 @@ Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Go
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-nr_free_highpages() manually add statistics per each highmem zone
-and return total value for them. Whenever we add a new highmem zone,
-we need to consider this function and it's really troublesome. Make
-it handles all highmem zones by itself.
+node_page_state() manually add statistics per each zone and return
+total value for all zones. Whenever we add a new zone, we need to
+consider this function and it's really troublesome. Make it handles
+all zones by itself.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/highmem.c | 12 ++++--------
- 1 file changed, 4 insertions(+), 8 deletions(-)
+ mm/vmstat.c | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)
 
-diff --git a/mm/highmem.c b/mm/highmem.c
-index 123bcd3..50b4ca6 100644
---- a/mm/highmem.c
-+++ b/mm/highmem.c
-@@ -112,16 +112,12 @@ EXPORT_PER_CPU_SYMBOL(__kmap_atomic_idx);
- 
- unsigned int nr_free_highpages (void)
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 0a726e3..a7de9ad 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -600,19 +600,13 @@ void zone_statistics(struct zone *preferred_zone, struct zone *z, gfp_t flags)
+ unsigned long node_page_state(int node, enum zone_stat_item item)
  {
--	pg_data_t *pgdat;
-+	struct zone *zone;
- 	unsigned int pages = 0;
+ 	struct zone *zones = NODE_DATA(node)->node_zones;
++	int i;
++	unsigned long count = 0;
  
--	for_each_online_pgdat(pgdat) {
--		pages += zone_page_state(&pgdat->node_zones[ZONE_HIGHMEM],
--			NR_FREE_PAGES);
--		if (zone_movable_is_highmem())
--			pages += zone_page_state(
--					&pgdat->node_zones[ZONE_MOVABLE],
--					NR_FREE_PAGES);
-+	for_each_populated_zone(zone) {
-+		if (is_highmem(zone))
-+			pages += zone_page_state(zone, NR_FREE_PAGES);
- 	}
+-	return
+-#ifdef CONFIG_ZONE_DMA
+-		zone_page_state(&zones[ZONE_DMA], item) +
+-#endif
+-#ifdef CONFIG_ZONE_DMA32
+-		zone_page_state(&zones[ZONE_DMA32], item) +
+-#endif
+-#ifdef CONFIG_HIGHMEM
+-		zone_page_state(&zones[ZONE_HIGHMEM], item) +
+-#endif
+-		zone_page_state(&zones[ZONE_NORMAL], item) +
+-		zone_page_state(&zones[ZONE_MOVABLE], item);
++	for (i = 0; i < MAX_NR_ZONES; i++)
++		count += zone_page_state(zones + i, item);
++
++	return count;
+ }
  
- 	return pages;
+ #endif
 -- 
 1.9.1
 
