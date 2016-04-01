@@ -1,56 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 850096B007E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 22:33:28 -0400 (EDT)
-Received: by mail-pf0-f180.google.com with SMTP id 4so83289513pfd.0
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:33:28 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id i22si17849884pfj.249.2016.03.31.19.33.27
-        for <linux-mm@kvack.org>;
-        Thu, 31 Mar 2016 19:33:27 -0700 (PDT)
-Date: Fri, 1 Apr 2016 11:35:33 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC][PATCH] mm/slub: Skip CPU slab activation when debugging
-Message-ID: <20160401023533.GB13179@js1304-P5Q-DELUXE>
-References: <1459205581-4605-1-git-send-email-labbott@fedoraproject.org>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 8983E6B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 22:35:14 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id zm5so79697390pac.0
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:35:14 -0700 (PDT)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id q26si17905867pfi.106.2016.03.31.19.35.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Mar 2016 19:35:13 -0700 (PDT)
+Received: by mail-pa0-x230.google.com with SMTP id fe3so79625993pab.1
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:35:13 -0700 (PDT)
+Date: Thu, 31 Mar 2016 18:35:10 -0800
+From: Kent Overstreet <kent.overstreet@gmail.com>
+Subject: Re: [PATCH] mm: Refactor find_get_pages() & friends
+Message-ID: <20160401023510.GA28762@kmo-pixel>
+References: <20160309011643.GA23179@kmo-pixel>
+ <20160329142911.f2b069c8af06f649b86ec993@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1459205581-4605-1-git-send-email-labbott@fedoraproject.org>
+In-Reply-To: <20160329142911.f2b069c8af06f649b86ec993@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Mar 28, 2016 at 03:53:01PM -0700, Laura Abbott wrote:
-> The per-cpu slab is designed to be the primary path for allocation in SLUB
-> since it assumed allocations will go through the fast path if possible.
-> When debugging is enabled, the fast path is disabled and per-cpu
-> allocations are not used. The current debugging code path still activates
-> the cpu slab for allocations and then immediately deactivates it. This
-> is useless work. When a slab is enabled for debugging, skip cpu
-> activation.
+On Tue, Mar 29, 2016 at 02:29:11PM -0700, Andrew Morton wrote:
+> On Tue, 8 Mar 2016 16:16:43 -0900 Kent Overstreet <kent.overstreet@gmail.com> wrote:
 > 
-> Signed-off-by: Laura Abbott <labbott@fedoraproject.org>
-> ---
-> This is a follow on to the optimization of the debug paths for poisoning
-> With this I get ~2 second drop on hackbench -g 20 -l 1000 with slub_debug=P
-> and no noticable change with slub_debug=- .
+> > Collapse redundant implementations of various gang pagecache lookup - this is
+> > also prep work for pagecache iterator work
+> 
+> Patch looks nice.  Unfortunately filemap.c has changed rather a lot
+> since 4.5.  Can you please redo the patch some time?
+> 
+> And a more informative changelog would be appropriate, although it's
+> all pretty obvious.  I don't know what "pagecache iterator work" is
+> and I doubt if many other readers do either, so some illumination there
+> wouldn't hurt.
 
-I'd like to know the performance difference between slub_debug=P and
-slub_debug=- with this change.
+Can do - sending you the pagecache iterator patch too:
 
-Although this patch increases hackbench performance, I'm not sure it's
-sufficient for the production system. Concurrent slab allocation request
-will contend the node lock in every allocation attempt. So, there would be
-other ues-cases that performance drop due to slub_debug=P cannot be
-accepted even if it is security feature.
+Kent Overstreet (2):
+  mm: Refactor find_get_pages() & friends
+  mm: Real pagecache iterators
 
-How about allowing cpu partial list for debug cases?
-It will not hurt fast path and will make less contention on the node
-lock.
+ fs/ext4/inode.c            | 261 +++++++++++++------------------
+ include/linux/pagemap.h    | 142 +++++++++++++++--
+ include/linux/pagevec.h    |  67 +++++++-
+ include/linux/radix-tree.h |  49 ++----
+ mm/filemap.c               | 376 ++++++++++-----------------------------------
+ mm/page-writeback.c        | 148 ++++++++----------
+ mm/swap.c                  |  33 +---
+ mm/truncate.c              | 259 ++++++++++++-------------------
+ 8 files changed, 546 insertions(+), 789 deletions(-)
 
-Thanks.
+-- 
+2.8.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
