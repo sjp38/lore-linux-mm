@@ -1,53 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 834416B007E
-	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 19:09:01 -0400 (EDT)
-Received: by mail-wm0-f54.google.com with SMTP id 127so1384254wmu.1
-        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 16:09:01 -0700 (PDT)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id e18si13866711wjx.104.2016.03.31.16.09.00
+Received: from mail-yw0-f172.google.com (mail-yw0-f172.google.com [209.85.161.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 620976B007E
+	for <linux-mm@kvack.org>; Thu, 31 Mar 2016 20:21:12 -0400 (EDT)
+Received: by mail-yw0-f172.google.com with SMTP id g3so122830598ywa.3
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 17:21:12 -0700 (PDT)
+Received: from mail-yw0-x232.google.com (mail-yw0-x232.google.com. [2607:f8b0:4002:c05::232])
+        by mx.google.com with ESMTPS id b20si3229011ywe.369.2016.03.31.17.21.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 31 Mar 2016 16:09:00 -0700 (PDT)
-Date: Fri, 1 Apr 2016 00:08:45 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: Issue with ioremap
-Message-ID: <20160331230845.GN19428@n2100.arm.linux.org.uk>
-References: <CAGnW=BYw9iqm8BpuWrxgcvXV3wwvHcvMtynPeHUGHHiZfPmfuA@mail.gmail.com>
- <20160331200147.GA20530@jcartwri.amer.corp.natinst.com>
- <56FDAA66.2000505@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Mar 2016 17:21:11 -0700 (PDT)
+Received: by mail-yw0-x232.google.com with SMTP id g3so122829995ywa.3
+        for <linux-mm@kvack.org>; Thu, 31 Mar 2016 17:21:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <56FDAA66.2000505@redhat.com>
+In-Reply-To: <56EFB486.2090501@hpe.com>
+References: <1456496467-14247-1-git-send-email-juerg.haefliger@hpe.com>
+	<56D4FA15.9060700@gmail.com>
+	<56EFB486.2090501@hpe.com>
+Date: Fri, 1 Apr 2016 11:21:11 +1100
+Message-ID: <CAKTCnzmCiBM+Y4ndCBErrdHA+8VJ+q9reQzEoToYkcEteUZnVw@mail.gmail.com>
+Subject: Re: [RFC PATCH] Add support for eXclusive Page Frame Ownership (XPFO)
+From: Balbir Singh <bsingharora@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Josh Cartwright <joshc@ni.com>, punnaiah choudary kalluri <punnaia@xilinx.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Sergey Dyasly <dserrg@gmail.com>, Arnd Bergmann <arnd.bergmann@linaro.org>
+To: Juerg Haefliger <juerg.haefliger@hpe.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, vpk@cs.brown.edu
 
-On Thu, Mar 31, 2016 at 03:53:26PM -0700, Laura Abbott wrote:
-> (cc linux-arm)
-> 
-> On 03/31/2016 01:01 PM, Josh Cartwright wrote:
-> >The driver _currently_ expects the virtual address to be 16M aligned,
-> >but is that a hard requirement?  It seems possible that the driver could
-> >be written without this assumption, correct?
-> >
-> >This would mean that the driver would need to maintain the cs/cycles
-> >configuration state outside of the mapped virtual address, and then
-> >calculate + add the calculated offset to the base.  Would that work?
-> >I had been meaning to give it a try, but haven't gotten around to it.
-> 
-> I was curious so I took a look and this seems to be caused by
+On Mon, Mar 21, 2016 at 7:44 PM, Juerg Haefliger
+<juerg.haefliger@hpe.com> wrote:
+> Hi Balbir,
+>
+> Apologies for the slow reply.
+>
+No problem, I lost this in my inbox as well due to the reply latency.
+>
+> On 03/01/2016 03:10 AM, Balbir Singh wrote:
+>>
+>>
+>> On 27/02/16 01:21, Juerg Haefliger wrote:
+>>> This patch adds support for XPFO which protects against 'ret2dir' kernel
+>>> attacks. The basic idea is to enforce exclusive ownership of page frames
+>>> by either the kernel or userland, unless explicitly requested by the
+>>> kernel. Whenever a page destined for userland is allocated, it is
+>>> unmapped from physmap. When such a page is reclaimed from userland, it is
+>>> mapped back to physmap.
+>> physmap == xen physmap? Please clarify
+>
+> No, it's not XEN related. I might have the terminology wrong. Physmap is what
+> the original authors used for describing <quote> a large, contiguous virtual
+> memory region inside kernel address space that contains a direct mapping of part
+> or all (depending on the architecture) physical memory. </quote>
+>
+Thanks for clarifying
+>
+>>> Mapping/unmapping from physmap is accomplished by modifying the PTE
+>>> permission bits to allow/disallow access to the page.
+>>>
+>>> Additional fields are added to the page struct for XPFO housekeeping.
+>>> Specifically a flags field to distinguish user vs. kernel pages, a
+>>> reference counter to track physmap map/unmap operations and a lock to
+>>> protect the XPFO fields.
+>>>
+>>> Known issues/limitations:
+>>>   - Only supported on x86-64.
+>> Is it due to lack of porting or a design limitation?
+>
+> Lack of porting. Support for other architectures will come later.
+>
+OK
+>
+>>>   - Only supports 4k pages.
+>>>   - Adds additional data to the page struct.
+>>>   - There are most likely some additional and legitimate uses cases where
+>>>     the kernel needs to access userspace. Those need to be identified and
+>>>     made XPFO-aware.
+>> Why not build an audit mode for it?
+>
+> Can you elaborate what you mean by this?
+>
+What I meant is when the kernel needs to access userspace and XPFO is
+not aware of it
+and is going to block it, write to a log/trace buffer so that it can
+be audited for correctness
 
-The driver is most likely buggy in the way Josh has identified.  The
-peripheral device has no clue what virtual address is used to access
-it, all it sees is the address on the bus.
+>
+>>>   - There's a performance impact if XPFO is turned on. Per the paper
+>>>     referenced below it's in the 1-3% ballpark. More performance testing
+>>>     wouldn't hurt. What tests to run though?
+>>>
+>>> Reference paper by the original patch authors:
+>>>   http://www.cs.columbia.edu/~vpk/papers/ret2dir.sec14.pdf
+>>>
+>>> Suggested-by: Vasileios P. Kemerlis <vpk@cs.brown.edu>
+>>> Signed-off-by: Juerg Haefliger <juerg.haefliger@hpe.com>
+>> This patch needs to be broken down into smaller patches - a series
+>
+> Agreed.
+>
 
--- 
-RMK's Patch system: http://www.arm.linux.org.uk/developer/patches/
-FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
-according to speedtest.net.
+I think it will be good to describe what is XPFO aware
+
+1. How are device mmap'd shared between kernel/user covered?
+2. How is copy_from/to_user covered?
+3. How is vdso covered?
+4. More...
+
+
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
