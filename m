@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 081D36B007E
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 04:19:12 -0400 (EDT)
-Received: by mail-wm0-f45.google.com with SMTP id 127so11276521wmu.1
-        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 01:19:11 -0700 (PDT)
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D5A136B0253
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 04:19:18 -0400 (EDT)
+Received: by mail-wm0-f54.google.com with SMTP id 20so13017883wmh.1
+        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 01:19:18 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j16si33710521wmd.103.2016.04.01.01.19.10
+        by mx.google.com with ESMTPS id br5si15625171wjb.69.2016.04.01.01.19.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Apr 2016 01:19:10 -0700 (PDT)
-Subject: Re: [PATCH v2 3/5] mm/vmstat: add zone range overlapping check
+        Fri, 01 Apr 2016 01:19:18 -0700 (PDT)
+Subject: Re: [PATCH v2 4/5] mm/page_owner: add zone range overlapping check
 References: <1459476406-28418-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1459476406-28418-4-git-send-email-iamjoonsoo.kim@lge.com>
+ <1459476406-28418-5-git-send-email-iamjoonsoo.kim@lge.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56FE2EFF.3070509@suse.cz>
-Date: Fri, 1 Apr 2016 10:19:11 +0200
+Message-ID: <56FE2F0A.3000803@suse.cz>
+Date: Fri, 1 Apr 2016 10:19:22 +0200
 MIME-Version: 1.0
-In-Reply-To: <1459476406-28418-4-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1459476406-28418-5-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -34,15 +34,35 @@ On 1.4.2016 4:06, js1304@gmail.com wrote:
 > 
 > Therefore, we need to care this overlapping when iterating pfn range.
 > 
-> There are two places in vmstat.c that iterates pfn range and
-> they don't consider this overlapping. Add it.
+> There are one place in page_owner.c that iterates pfn range and
+> it doesn't consider this overlapping. Add it.
 > 
-> Without this patch, above system could over count pageblock number
-> on a zone.
+> Without this patch, above system could over count early allocated
+> page number before page_owner is activated.
 > 
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>  mm/page_owner.c | 3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/mm/page_owner.c b/mm/page_owner.c
+> index ac3d8d1..438768c 100644
+> --- a/mm/page_owner.c
+> +++ b/mm/page_owner.c
+> @@ -301,6 +301,9 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
+>  
+>  			page = pfn_to_page(pfn);
+>  
+> +			if (page_zone(page) != zone)
+> +				continue;
+> +
+>  			/*
+>  			 * We are safe to check buddy flag and order, because
+>  			 * this is init stage and only single thread runs.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
