@@ -1,127 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id CFD406B0272
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 08:58:31 -0400 (EDT)
-Received: by mail-wm0-f43.google.com with SMTP id p65so24979664wmp.1
-        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 05:58:31 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 72si17401308wmi.45.2016.04.01.05.58.30
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Apr 2016 05:58:30 -0700 (PDT)
-Subject: Re: [PATCH v3 01/16] mm: use put_page to free page instead of
- putback_lru_page
-References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
- <1459321935-3655-2-git-send-email-minchan@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <56FE706D.7080507@suse.cz>
-Date: Fri, 1 Apr 2016 14:58:21 +0200
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 66B5F6B0005
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 09:24:15 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id zm5so90525909pac.0
+        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 06:24:15 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id hx6si6783082pac.95.2016.04.01.06.24.14
+        for <linux-mm@kvack.org>;
+        Fri, 01 Apr 2016 06:24:14 -0700 (PDT)
+Date: Fri, 1 Apr 2016 14:24:07 +0100
+From: Steve Capper <steve.capper@arm.com>
+Subject: Re: [PATCH] mm: Exclude HugeTLB pages from THP page_mapped logic
+Message-ID: <20160401132406.GA22462@e103986-lin>
+References: <1459269581-21190-1-git-send-email-steve.capper@arm.com>
+ <20160331160650.cfc0fa57e97a45e94bc023f4@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1459321935-3655-2-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160331160650.cfc0fa57e97a45e94bc023f4@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Steve Capper <steve.capper@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, dwoods@mellanox.com, mhocko@suse.com, mingo@kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 03/30/2016 09:12 AM, Minchan Kim wrote:
-> Procedure of page migration is as follows:
->
-> First of all, it should isolate a page from LRU and try to
-> migrate the page. If it is successful, it releases the page
-> for freeing. Otherwise, it should put the page back to LRU
-> list.
->
-> For LRU pages, we have used putback_lru_page for both freeing
-> and putback to LRU list. It's okay because put_page is aware of
-> LRU list so if it releases last refcount of the page, it removes
-> the page from LRU list. However, It makes unnecessary operations
-> (e.g., lru_cache_add, pagevec and flags operations. It would be
-> not significant but no worth to do) and harder to support new
-> non-lru page migration because put_page isn't aware of non-lru
-> page's data structure.
->
-> To solve the problem, we can add new hook in put_page with
-> PageMovable flags check but it can increase overhead in
-> hot path and needs new locking scheme to stabilize the flag check
-> with put_page.
->
-> So, this patch cleans it up to divide two semantic(ie, put and putback).
-> If migration is successful, use put_page instead of putback_lru_page and
-> use putback_lru_page only on failure. That makes code more readable
-> and doesn't add overhead in put_page.
->
-> Comment from Vlastimil
-> "Yeah, and compaction (perhaps also other migration users) has to drain
-> the lru pvec... Getting rid of this stuff is worth even by itself."
->
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+Hi Andrew,
 
-[...]
+On Thu, Mar 31, 2016 at 04:06:50PM -0700, Andrew Morton wrote:
+> On Tue, 29 Mar 2016 17:39:41 +0100 Steve Capper <steve.capper@arm.com> wrote:
+> 
+> > HugeTLB pages cannot be split, thus use the compound_mapcount to
+> > track rmaps.
+> > 
+> > Currently the page_mapped function will check the compound_mapcount, but
+> 
+> s/the page_mapped function/page_mapped()/.  It's so much simpler!
 
-> @@ -974,28 +986,28 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
->   		list_del(&page->lru);
->   		dec_zone_page_state(page, NR_ISOLATED_ANON +
->   				page_is_file_cache(page));
-> -		/* Soft-offlined page shouldn't go through lru cache list */
+Thanks, agreed :-).
+
+> 
+> > will also go through the constituent pages of a THP compound page and
+> > query the individual _mapcount's too.
+> > 
+> > Unfortunately, the page_mapped function does not distinguish between
+> > HugeTLB and THP compound pages and assumes that a compound page always
+> > needs to have HPAGE_PMD_NR pages querying.
+> > 
+> > For most cases when dealing with HugeTLB this is just inefficient, but
+> > for scenarios where the HugeTLB page size is less than the pmd block
+> > size (e.g. when using contiguous bit on ARM) this can lead to crashes.
+> > 
+> > This patch adjusts the page_mapped function such that we skip the
+> > unnecessary THP reference checks for HugeTLB pages.
+> > 
+> > Fixes: e1534ae95004 ("mm: differentiate page_mapped() from page_mapcount() for compound pages")
+> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Signed-off-by: Steve Capper <steve.capper@arm.com>
+> > ---
+> > 
+> > Hi,
+> > 
+> > This patch is my approach to fixing a problem that unearthed with
+> > HugeTLB pages on arm64. We ran with PAGE_SIZE=64KB and placed down 32
+> > contiguous ptes to create 2MB HugeTLB pages. (We can provide hints to
+> > the MMU that page table entries are contiguous thus larger TLB entries
+> > can be used to represent them).
+> 
+> So which kernel version(s) need this patch?  I think both 4.4 and 4.5
+> will crash in this manner?  Should we backport the fix into 4.4.x and
+> 4.5.x?
+
+We de-activated the contiguous hint support just before 4.5 (as we ran
+into the problem too late). So no kernels are currently crashing due to
+this. If this goes in, we can then re-enable contiguous hint on ARM.
+
+> 
+> >
+> > ...
+> >
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -1031,6 +1031,8 @@ static inline bool page_mapped(struct page *page)
+> >  	page = compound_head(page);
+> >  	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
+> >  		return true;
+> > +	if (PageHuge(page))
+> > +		return false;
+> >  	for (i = 0; i < hpage_nr_pages(page); i++) {
+> >  		if (atomic_read(&page[i]._mapcount) >= 0)
+> >  			return true;
+> 
+> page_mapped() is moronically huge.  Uninlining it saves 206 bytes per
+> callsite. It has 40+ callsites.
+> 
+> 
+> 
+> 
+> btw, is anyone else seeing this `make M=' breakage?
+> 
+> akpm3:/usr/src/25> make M=mm
+> Makefile:679: Cannot use CONFIG_KCOV: -fsanitize-coverage=trace-pc is not supported by compiler
+> 
+>   WARNING: Symbol version dump ./Module.symvers
+>            is missing; modules will have no dependencies and modversions.
+> 
+> make[1]: *** No rule to make target `mm/filemap.o', needed by `mm/built-in.o'.  Stop.
+> make: *** [_module_mm] Error 2
+> 
+> It's a post-4.5 thing.
+
+Sorry I have not yet tried out KCOV.
+
+> 
+> 
+> 
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm: uninline page_mapped()
+> 
+> It's huge.  Uninlining it saves 206 bytes per callsite.  Shaves 4924 bytes
+> from the x86_64 allmodconfig vmlinux.
+> 
+> Cc: Steve Capper <steve.capper@arm.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+
+The below looks reasonable to me, I don't have any benchmarks handy to
+test for a performance regression on this though.
+
+> 
+>  include/linux/mm.h |   21 +--------------------
+>  mm/util.c          |   22 ++++++++++++++++++++++
+>  2 files changed, 23 insertions(+), 20 deletions(-)
+> 
+> diff -puN include/linux/mm.h~mm-uninline-page_mapped include/linux/mm.h
+> --- a/include/linux/mm.h~mm-uninline-page_mapped
+> +++ a/include/linux/mm.h
+> @@ -1019,26 +1019,7 @@ static inline pgoff_t page_file_index(st
+>  	return page->index;
+>  }
+>  
+> -/*
+> - * Return true if this page is mapped into pagetables.
+> - * For compound page it returns true if any subpage of compound page is mapped.
+> - */
+> -static inline bool page_mapped(struct page *page)
+> -{
+> -	int i;
+> -	if (likely(!PageCompound(page)))
+> -		return atomic_read(&page->_mapcount) >= 0;
+> -	page = compound_head(page);
+> -	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
+> -		return true;
+> -	if (PageHuge(page))
+> -		return false;
+> -	for (i = 0; i < hpage_nr_pages(page); i++) {
+> -		if (atomic_read(&page[i]._mapcount) >= 0)
+> -			return true;
+> -	}
+> -	return false;
+> -}
+> +bool page_mapped(struct page *page);
+>  
+>  /*
+>   * Return true only if the page has been allocated with
+> diff -puN mm/util.c~mm-uninline-page_mapped mm/util.c
+> --- a/mm/util.c~mm-uninline-page_mapped
+> +++ a/mm/util.c
+> @@ -346,6 +346,28 @@ void *page_rmapping(struct page *page)
+>  	return __page_rmapping(page);
+>  }
+>  
+> +/*
+> + * Return true if this page is mapped into pagetables.
+> + * For compound page it returns true if any subpage of compound page is mapped.
+> + */
+> +bool page_mapped(struct page *page)
+> +{
+> +	int i;
+> +	if (likely(!PageCompound(page)))
+> +		return atomic_read(&page->_mapcount) >= 0;
+> +	page = compound_head(page);
+> +	if (atomic_read(compound_mapcount_ptr(page)) >= 0)
+> +		return true;
+> +	if (PageHuge(page))
+> +		return false;
+> +	for (i = 0; i < hpage_nr_pages(page); i++) {
+> +		if (atomic_read(&page[i]._mapcount) >= 0)
+> +			return true;
 > +	}
+> +	return false;
+> +}
+> +EXPORT_SYMBOL(page_mapped);
 > +
-> +	/*
-> +	 * If migration is successful, drop the reference grabbed during
-> +	 * isolation. Otherwise, restore the page to LRU list unless we
-> +	 * want to retry.
-> +	 */
-> +	if (rc == MIGRATEPAGE_SUCCESS) {
-> +		put_page(page);
->   		if (reason == MR_MEMORY_FAILURE) {
-> -			put_page(page);
->   			if (!test_set_page_hwpoison(page))
->   				num_poisoned_pages_inc();
-> -		} else
-> +		}
+>  struct anon_vma *page_anon_vma(struct page *page)
+>  {
+>  	unsigned long mapping;
+> _
+> 
 
-Hmm, I didn't notice it previously, or it's due to rebasing, but it seems that 
-you restricted the memory failure handling (i.e. setting hwpoison) to 
-MIGRATE_SUCCESS, while previously it was done for all non-EAGAIN results. I 
-think that goes against the intention of hwpoison, which is IIRC to catch and 
-kill the poor process that still uses the page?
-
-Also (but not your fault) the put_page() preceding test_set_page_hwpoison(page)) 
-IMHO deserves a comment saying which pin we are releasing and which one we still 
-have (hopefully? if I read description of da1b13ccfbebe right) otherwise it 
-looks like doing something with a page that we just potentially freed.
-
-> +	} else {
-> +		if (rc != -EAGAIN)
->   			putback_lru_page(page);
-> +		if (put_new_page)
-> +			put_new_page(newpage, private);
-> +		else
-> +			put_page(newpage);
->   	}
->
-> -	/*
-> -	 * If migration was not successful and there's a freeing callback, use
-> -	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
-> -	 * during isolation.
-> -	 */
-> -	if (put_new_page)
-> -		put_new_page(newpage, private);
-> -	else if (unlikely(__is_movable_balloon_page(newpage))) {
-> -		/* drop our reference, page already in the balloon */
-> -		put_page(newpage);
-> -	} else
-> -		putback_lru_page(newpage);
-> -
->   	if (result) {
->   		if (rc)
->   			*result = rc;
->
+Cheers,
+-- 
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
