@@ -1,42 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 80BAF6B007E
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 04:03:53 -0400 (EDT)
-Received: by mail-wm0-f51.google.com with SMTP id 191so10869210wmq.0
-        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 01:03:53 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id q7si33709466wmd.38.2016.04.01.01.03.52
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 081D36B007E
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 04:19:12 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id 127so11276521wmu.1
+        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 01:19:11 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j16si33710521wmd.103.2016.04.01.01.19.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Apr 2016 01:03:52 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id 20so2583897wmh.3
-        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 01:03:52 -0700 (PDT)
-Date: Fri, 1 Apr 2016 10:03:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: vmscan: reclaim highmem zone if buffer_heads is over
- limit
-Message-ID: <20160401080350.GB8916@dhcp22.suse.cz>
-References: <1459497658-22203-1-git-send-email-minchan@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 01 Apr 2016 01:19:10 -0700 (PDT)
+Subject: Re: [PATCH v2 3/5] mm/vmstat: add zone range overlapping check
+References: <1459476406-28418-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1459476406-28418-4-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <56FE2EFF.3070509@suse.cz>
+Date: Fri, 1 Apr 2016 10:19:11 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1459497658-22203-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1459476406-28418-4-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri 01-04-16 17:00:58, Minchan Kim wrote:
-[...]
-> [2] commit 5acbd3bfc93b ("mm, oom: rework oom detection")
+On 1.4.2016 4:06, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> There is a system that node's pfn are overlapped like as following.
+> 
+> -----pfn-------->
+> N0 N1 N2 N0 N1 N2
+> 
+> Therefore, we need to care this overlapping when iterating pfn range.
+> 
+> There are two places in vmstat.c that iterates pfn range and
+> they don't consider this overlapping. Add it.
+> 
+> Without this patch, above system could over count pageblock number
+> on a zone.
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-I didn't look a tht patch yet but wanted to note that this sha is most
-probably from linux-next and won't be stable. Also this patch will most
-likely see some changes in future so making changes on top which should
-go in independetly will likely just complicate things.
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
