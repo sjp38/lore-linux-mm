@@ -1,80 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 033F36B0266
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 07:41:35 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id fe3so88896702pab.1
-        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 04:41:34 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id 25si20884170pfh.120.2016.04.01.04.41.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Apr 2016 04:41:34 -0700 (PDT)
-Date: Fri, 1 Apr 2016 13:41:29 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH -mm v2 3/3] slub: make dead caches discard free slabs
- immediately
-Message-ID: <20160401114129.GR3430@twins.programming.kicks-ass.net>
-References: <cover.1422461573.git.vdavydov@parallels.com>
- <6eecfafdc6c3dcbb98d2176cdebcb65abbc180b4.1422461573.git.vdavydov@parallels.com>
- <20160401090441.GD12845@twins.programming.kicks-ass.net>
- <20160401105539.GA6610@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160401105539.GA6610@esperanza>
+Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id D0BD56B0268
+	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 08:30:09 -0400 (EDT)
+Received: by mail-pf0-f169.google.com with SMTP id 4so93565561pfd.0
+        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 05:30:09 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id di9si6101718pad.129.2016.04.01.05.30.08
+        for <linux-mm@kvack.org>;
+        Fri, 01 Apr 2016 05:30:08 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH, REBASED 3/3] mm: drop PAGE_CACHE_* and page_cache_{get,release} definition
+Date: Fri,  1 Apr 2016 15:29:49 +0300
+Message-Id: <1459513789-146254-4-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1459513789-146254-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1459513789-146254-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, Apr 01, 2016 at 01:55:40PM +0300, Vladimir Davydov wrote:
-> > > +	if (deactivate) {
-> > > +		/*
-> > > +		 * Disable empty slabs caching. Used to avoid pinning offline
-> > > +		 * memory cgroups by kmem pages that can be freed.
-> > > +		 */
-> > > +		s->cpu_partial = 0;
-> > > +		s->min_partial = 0;
-> > > +
-> > > +		/*
-> > > +		 * s->cpu_partial is checked locklessly (see put_cpu_partial),
-> > > +		 * so we have to make sure the change is visible.
-> > > +		 */
-> > > +		kick_all_cpus_sync();
-> > > +	}
-> > 
-> > Argh! what the heck! and without a single mention in the changelog.
-> 
-> This function is only called when a memory cgroup is removed, which is
-> rather a rare event. I didn't think it would cause any pain. Sorry.
+All users gone. We can remove these macros.
 
-Suppose you have a bunch of CPUs running HPC/RT code and someone causes
-the admin CPUs to create/destroy a few cgroups.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ include/linux/pagemap.h | 15 ---------------
+ 1 file changed, 15 deletions(-)
 
-> > Why are you spraying IPIs across the entire machine? Why isn't
-> > synchronize_sched() good enough, that would allow you to get rid of the
-> > local_irq_save/restore as well.
-> 
-> synchronize_sched() is slower. Calling it for every per memcg kmem cache
-> would slow down cleanup on cgroup removal.
-
-Right, but who cares? cgroup removal isn't a fast path by any standard.
-
-> Regarding local_irq_save/restore - synchronize_sched() wouldn't allow us
-> to get rid of them, because unfreeze_partials() must be called with irqs
-> disabled.
-
-OK, I figured it was because it needed to be serialized against this
-kick_all_cpus_sync() IPI.
-
-> Come to think of it, kick_all_cpus_sync() is used as a memory barrier
-> here, so as to make sure that after it's finished all cpus will use the
-> new ->cpu_partial value, which makes me wonder if we could replace it
-> with a simple smp_mb. I mean, this_cpu_cmpxchg(), which is used by
-> put_cpu_partial to add a page to per-cpu partial list, must issue a full
-> memory barrier (am I correct?), so we have two possibilities here:
-
-Nope, this_cpu_cmpxchg() does not imply a memory barrier.
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index b3fc0370c14f..7e1ab155c67c 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -86,21 +86,6 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
+ 				(__force unsigned long)mask;
+ }
+ 
+-/*
+- * The page cache can be done in larger chunks than
+- * one page, because it allows for more efficient
+- * throughput (it can then be mapped into user
+- * space in smaller chunks for same flexibility).
+- *
+- * Or rather, it _will_ be done in larger chunks.
+- */
+-#define PAGE_CACHE_SHIFT	PAGE_SHIFT
+-#define PAGE_CACHE_SIZE		PAGE_SIZE
+-#define PAGE_CACHE_MASK		PAGE_MASK
+-#define PAGE_CACHE_ALIGN(addr)	(((addr)+PAGE_CACHE_SIZE-1)&PAGE_CACHE_MASK)
+-
+-#define page_cache_get(page)		get_page(page)
+-#define page_cache_release(page)	put_page(page)
+ void release_pages(struct page **pages, int nr, bool cold);
+ 
+ /*
+-- 
+2.8.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
