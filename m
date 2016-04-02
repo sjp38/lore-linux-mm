@@ -1,91 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 35EF66B007E
-	for <linux-mm@kvack.org>; Fri,  1 Apr 2016 19:51:26 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id j9so12342666obd.3
-        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 16:51:26 -0700 (PDT)
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com. [209.85.192.42])
-        by mx.google.com with ESMTPS id r185si8516039oia.32.2016.04.01.16.51.25
+Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FA0F6B007E
+	for <linux-mm@kvack.org>; Sat,  2 Apr 2016 05:48:44 -0400 (EDT)
+Received: by mail-lb0-f178.google.com with SMTP id bc4so93378879lbc.2
+        for <linux-mm@kvack.org>; Sat, 02 Apr 2016 02:48:43 -0700 (PDT)
+Received: from mail-lf0-x22c.google.com (mail-lf0-x22c.google.com. [2a00:1450:4010:c07::22c])
+        by mx.google.com with ESMTPS id m69si8813111lfb.21.2016.04.02.02.48.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Apr 2016 16:51:25 -0700 (PDT)
-Received: by mail-qg0-f42.google.com with SMTP id y89so109285246qge.2
-        for <linux-mm@kvack.org>; Fri, 01 Apr 2016 16:51:25 -0700 (PDT)
-Subject: Re: [RFC][PATCH] mm/slub: Skip CPU slab activation when debugging
-References: <1459205581-4605-1-git-send-email-labbott@fedoraproject.org>
- <20160401023533.GB13179@js1304-P5Q-DELUXE> <56FEF2F8.7010508@redhat.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <56FF0979.5060000@redhat.com>
-Date: Fri, 1 Apr 2016 16:51:21 -0700
+        Sat, 02 Apr 2016 02:48:42 -0700 (PDT)
+Received: by mail-lf0-x22c.google.com with SMTP id p188so76656273lfd.0
+        for <linux-mm@kvack.org>; Sat, 02 Apr 2016 02:48:42 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <56FEF2F8.7010508@redhat.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Sat, 2 Apr 2016 11:48:22 +0200
+Message-ID: <CACT4Y+ZmuZMV5CjSFOeXviwQdABAgT7T+StKfTqan9YDtgEi5g@mail.gmail.com>
+Subject: mm: BUG in khugepaged_scan_mm_slot
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
 
-On 04/01/2016 03:15 PM, Laura Abbott wrote:
-> On 03/31/2016 07:35 PM, Joonsoo Kim wrote:
->> On Mon, Mar 28, 2016 at 03:53:01PM -0700, Laura Abbott wrote:
->>> The per-cpu slab is designed to be the primary path for allocation in SLUB
->>> since it assumed allocations will go through the fast path if possible.
->>> When debugging is enabled, the fast path is disabled and per-cpu
->>> allocations are not used. The current debugging code path still activates
->>> the cpu slab for allocations and then immediately deactivates it. This
->>> is useless work. When a slab is enabled for debugging, skip cpu
->>> activation.
->>>
->>> Signed-off-by: Laura Abbott <labbott@fedoraproject.org>
->>> ---
->>> This is a follow on to the optimization of the debug paths for poisoning
->>> With this I get ~2 second drop on hackbench -g 20 -l 1000 with slub_debug=P
->>> and no noticable change with slub_debug=- .
->>
->> I'd like to know the performance difference between slub_debug=P and
->> slub_debug=- with this change.
->>
->
-> with the hackbench benchmark
->
-> slub_debug=- 6.834
->
-> slub_debug=P 8.059
->
->
-> so ~1.2 second difference.
->
->> Although this patch increases hackbench performance, I'm not sure it's
->> sufficient for the production system. Concurrent slab allocation request
->> will contend the node lock in every allocation attempt. So, there would be
->> other ues-cases that performance drop due to slub_debug=P cannot be
->> accepted even if it is security feature.
->>
->
-> Hmmm, I hadn't considered that :-/
->
->> How about allowing cpu partial list for debug cases?
->> It will not hurt fast path and will make less contention on the node
->> lock.
->>
->
-> That helps more than this patch! It brings slub_debug=P down to 7.535
-> with the same relaxing of restrictions of CMPXCHG (allow the partials
-> with poison or redzoning, restrict otherwise).
->
-> It still seems unfortunate that deactive_slab takes up so much time
-> of __slab_alloc. I'll give some more thought about trying to skip
-> the CPU slab activation with the cpu partial list.
->
+Hello,
 
-I realized I was too eager about the number there. That number includes
-using the slow path since the CPU partial list activates the fast path.
-I'll need to think about how to use the CPU partial list and still
-force debugging on the slow path.
+The following program triggers a BUG in khugepaged_scan_mm_slot:
 
-Thanks,
-Laura
+
+vma ffff880032698f90 start 0000000020c57000 end 0000000020c58000
+next ffff88003269a1b8 prev ffff88003269ac18 mm ffff88005e274780
+prot 35 anon_vma ffff88003182c000 vm_ops           (null)
+pgoff fed00 file ffff8800324552c0 private_data           (null)
+flags: 0x5144477(read|write|exec|mayread|maywrite|mayexec|pfnmap|io|dontexpand|account)
+------------[ cut here ]------------
+kernel BUG at mm/huge_memory.c:2313!
+invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
+Modules linked in:
+CPU: 2 PID: 1180 Comm: khugepaged Not tainted 4.5.0-rc7+ #337
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+task: ffff88003d910000 ti: ffff88003da70000 task.ti: ffff88003da70000
+RIP: 0010:[<ffffffff8178bd07>]  [<ffffffff8178bd07>]
+hugepage_vma_check+0x117/0x150
+RSP: 0018:ffff88003da77bb0  EFLAGS: 00010286
+RAX: 0000000000000001 RBX: ffff880032698f90 RCX: 0000000000000000
+RDX: 0000000000000001 RSI: ffff88006d616d18 RDI: ffffed0007b4ef4c
+RBP: ffff88003da77bc8 R08: 0000000000000001 R09: 0000000000000000
+R10: 1ffff100064d31f2 R11: 0000000000000001 R12: 0000000000000001
+R13: ffff880032698fe0 R14: 0000000000000806 R15: ffff880032698f90
+FS:  0000000000000000(0000) GS:ffff88006d600000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 00007fe965ad9e78 CR3: 0000000007ae9000 CR4: 00000000000006e0
+Stack:
+ 0000000020c00000 0000000000000000 ffffffff88937638 ffff88003da77e00
+ ffffffff81790b33 0000000000000082 ffffffff87fc1580 0000000000000004
+ ffff88003da77c38 ffff88003d910810 0000000000000000 ffff88003d910000
+Call Trace:
+ [<     inline     >] khugepaged_scan_mm_slot mm/huge_memory.c:2651
+ [<     inline     >] khugepaged_do_scan mm/huge_memory.c:2755
+ [<ffffffff81790b33>] khugepaged+0x993/0x48e0 mm/huge_memory.c:2790
+ [<ffffffff813c195f>] kthread+0x23f/0x2d0 drivers/block/aoe/aoecmd.c:1303
+ [<ffffffff866d1b2f>] ret_from_fork+0x3f/0x70 arch/x86/entry/entry_64.S:468
+Code: 00 fc ff df 48 c1 ea 03 80 3c 02 00 75 2c 48 f7 43 50 88 44 44
+10 41 bc 01 00 00 00 74 b4 e8 71 cf de ff 48 89 df e8 99 e5 f5 ff <0f>
+0b 4c 89 ef e8 ff c0 fe ff e9 0a ff ff ff 4c 89 ef e8 f2 c0
+RIP  [<ffffffff8178bd07>] hugepage_vma_check+0x117/0x150 mm/huge_memory.c:2313
+ RSP <ffff88003da77bb0>
+---[ end trace 61cae986a344948b ]---
+
+
+The process itself hangs dead.
+
+
+// autogenerated by syzkaller (http://github.com/google/syzkaller)
+#include <pthread.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+#ifndef SYS_userfaultfd
+#define SYS_userfaultfd 323
+#endif
+
+long r[29];
+
+void* thr(void* arg)
+{
+  switch ((long)arg) {
+  case 0:
+    r[0] = syscall(SYS_mmap, 0x20000000ul, 0xc59000ul, 0x3ul, 0x32ul,
+                   0xfffffffffffffffful, 0x0ul);
+    break;
+  case 1:
+    r[1] = syscall(SYS_accept, 0x1869ful, 0x20c51ffful, 0x20c51000ul, 0,
+                   0, 0);
+    break;
+  case 2:
+    r[2] = syscall(SYS_fcntl, r[1], 0x9ul, 0, 0, 0, 0);
+    break;
+  case 3:
+    r[3] = syscall(SYS_ioprio_set, 0x1ul, r[2], 0xfffffffffffffffful, 0,
+                   0, 0);
+    break;
+  case 4:
+    r[4] = syscall(SYS_userfaultfd, 0x0ul, 0, 0, 0, 0, 0);
+    break;
+  case 5:
+    *(uint64_t*)0x20a49fe8 = (uint64_t)0xaa;
+    *(uint64_t*)0x20a49ff0 = (uint64_t)0x0;
+    *(uint64_t*)0x20a49ff8 = (uint64_t)0x0;
+    r[8] =
+        syscall(SYS_ioctl, r[4], 0xc018aa3ful, 0x20a49fe8ul, 0, 0, 0);
+    break;
+  case 6:
+    *(uint64_t*)0x20c4c000 = (uint64_t)0x200cb000;
+    *(uint64_t*)0x20c4c008 = (uint64_t)0x800000;
+    *(uint64_t*)0x20c4c010 = (uint64_t)0x1;
+    *(uint64_t*)0x20c4c018 = (uint64_t)0x0;
+    r[13] =
+        syscall(SYS_ioctl, r[4], 0xc020aa00ul, 0x20c4c000ul, 0, 0, 0);
+    break;
+  case 7:
+    r[14] = syscall(SYS_readahead, 0xfffffffffffffffful, 0x40ul, 0x6ul,
+                    0, 0, 0);
+    break;
+  case 8:
+    r[15] = syscall(SYS_sched_getaffinity, 0x0ul, 0x8ul, 0x20472000ul,
+                    0, 0, 0);
+    break;
+  case 9:
+    r[16] = syscall(SYS_prctl, 0xful, 0x205d5ff8ul, 0, 0, 0, 0);
+    break;
+  case 10:
+    r[18] =
+        syscall(SYS_open, "/dev/hpet", 0x40ul, 0, 0, 0);
+    break;
+  case 11:
+    *(uint32_t*)0x20c56000 = (uint32_t)0x7fff;
+    r[20] = syscall(SYS_ioctl, r[18], 0x5420ul, 0x20c56000ul, 0, 0, 0);
+    break;
+  case 12:
+    r[21] = syscall(SYS_mmap, 0x20c57000ul, 0x1000ul, 0x7ul, 0x812ul,
+                    r[18], 0x0ul);
+    break;
+  case 13:
+    *(uint8_t*)0x20c57ffe = (uint8_t)0x6;
+    *(uint8_t*)0x20c57fff = (uint8_t)0x100000001;
+    r[24] = syscall(SYS_ioctl, r[18], 0x541cul, 0x20c57ffeul, 0, 0, 0);
+    break;
+  case 14:
+    memcpy((void*)0x20814ffd, "\x2e\x2f\x66\x69\x6c\x65\x30\x00", 8);
+    r[26] = syscall(SYS_creat, 0x20814ffdul, 0x80ul, 0, 0, 0, 0);
+    break;
+  case 15:
+    r[27] = syscall(SYS_pipe, 0x205a4ffful, 0, 0, 0, 0, 0);
+    break;
+  case 16:
+    r[28] = syscall(SYS_accept4, r[18], 0x20b0112aul, 0x20c55ffeul,
+                    0x80800ul, 0, 0);
+    break;
+  }
+  return 0;
+}
+
+int main()
+{
+  long i;
+  pthread_t th[17];
+
+  memset(r, -1, sizeof(r));
+  for (i = 0; i < 17; i++) {
+    pthread_create(&th[i], 0, thr, (void*)i);
+    usleep(10000);
+  }
+  usleep(100000);
+  return 0;
+}
+
+
+For better reproducibility also do:
+
+$ echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs;
+echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
+
+
+On commit 8e0f93cda48ed054e1216bab5c60017e1a5fc1e8.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
