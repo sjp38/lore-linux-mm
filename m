@@ -1,190 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FA0F6B007E
-	for <linux-mm@kvack.org>; Sat,  2 Apr 2016 05:48:44 -0400 (EDT)
-Received: by mail-lb0-f178.google.com with SMTP id bc4so93378879lbc.2
-        for <linux-mm@kvack.org>; Sat, 02 Apr 2016 02:48:43 -0700 (PDT)
-Received: from mail-lf0-x22c.google.com (mail-lf0-x22c.google.com. [2a00:1450:4010:c07::22c])
-        by mx.google.com with ESMTPS id m69si8813111lfb.21.2016.04.02.02.48.42
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 03FF46B007E
+	for <linux-mm@kvack.org>; Sat,  2 Apr 2016 11:37:51 -0400 (EDT)
+Received: by mail-lb0-f175.google.com with SMTP id bc4so100866057lbc.2
+        for <linux-mm@kvack.org>; Sat, 02 Apr 2016 08:37:50 -0700 (PDT)
+Received: from mail-lb0-x236.google.com (mail-lb0-x236.google.com. [2a00:1450:4010:c04::236])
+        by mx.google.com with ESMTPS id f184si11005354lfg.145.2016.04.02.08.37.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 02 Apr 2016 02:48:42 -0700 (PDT)
-Received: by mail-lf0-x22c.google.com with SMTP id p188so76656273lfd.0
-        for <linux-mm@kvack.org>; Sat, 02 Apr 2016 02:48:42 -0700 (PDT)
+        Sat, 02 Apr 2016 08:37:49 -0700 (PDT)
+Received: by mail-lb0-x236.google.com with SMTP id qe11so100809977lbc.3
+        for <linux-mm@kvack.org>; Sat, 02 Apr 2016 08:37:49 -0700 (PDT)
+Subject: [PATCH] mm/huge_memory: replace VM_NO_THP VM_BUG_ON with actual VMA
+ check
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Date: Sat, 02 Apr 2016 18:37:44 +0300
+Message-ID: <145961146490.28194.16019687861681349309.stgit@zurg>
 MIME-Version: 1.0
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Sat, 2 Apr 2016 11:48:22 +0200
-Message-ID: <CACT4Y+ZmuZMV5CjSFOeXviwQdABAgT7T+StKfTqan9YDtgEi5g@mail.gmail.com>
-Subject: mm: BUG in khugepaged_scan_mm_slot
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, stable <stable@vger.kernel.org>
 
-Hello,
+Khugepaged detects own VMAs by checking vm_file and vm_ops but this
+way it cannot distinguish private /dev/zero mappings from other special
+mappings like /dev/hpet which has no vm_ops and popultes PTEs in mmap.
 
-The following program triggers a BUG in khugepaged_scan_mm_slot:
+This fixes false-positive VM_BUG_ON and prevents installing THP where
+they are not expected.
 
+Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+Reported-by: Dmitry Vyukov <dvyukov@google.com>
+Link: http://lkml.kernel.org/r/CACT4Y+ZmuZMV5CjSFOeXviwQdABAgT7T+StKfTqan9YDtgEi5g@mail.gmail.com
+Fixes: 78f11a255749 ("mm: thp: fix /dev/zero MAP_PRIVATE and vm_flags cleanups")
+Cc: stable <stable@vger.kernel.org>
+---
+ mm/huge_memory.c |    6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-vma ffff880032698f90 start 0000000020c57000 end 0000000020c58000
-next ffff88003269a1b8 prev ffff88003269ac18 mm ffff88005e274780
-prot 35 anon_vma ffff88003182c000 vm_ops           (null)
-pgoff fed00 file ffff8800324552c0 private_data           (null)
-flags: 0x5144477(read|write|exec|mayread|maywrite|mayexec|pfnmap|io|dontexpand|account)
-------------[ cut here ]------------
-kernel BUG at mm/huge_memory.c:2313!
-invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
-Modules linked in:
-CPU: 2 PID: 1180 Comm: khugepaged Not tainted 4.5.0-rc7+ #337
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-task: ffff88003d910000 ti: ffff88003da70000 task.ti: ffff88003da70000
-RIP: 0010:[<ffffffff8178bd07>]  [<ffffffff8178bd07>]
-hugepage_vma_check+0x117/0x150
-RSP: 0018:ffff88003da77bb0  EFLAGS: 00010286
-RAX: 0000000000000001 RBX: ffff880032698f90 RCX: 0000000000000000
-RDX: 0000000000000001 RSI: ffff88006d616d18 RDI: ffffed0007b4ef4c
-RBP: ffff88003da77bc8 R08: 0000000000000001 R09: 0000000000000000
-R10: 1ffff100064d31f2 R11: 0000000000000001 R12: 0000000000000001
-R13: ffff880032698fe0 R14: 0000000000000806 R15: ffff880032698f90
-FS:  0000000000000000(0000) GS:ffff88006d600000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-CR2: 00007fe965ad9e78 CR3: 0000000007ae9000 CR4: 00000000000006e0
-Stack:
- 0000000020c00000 0000000000000000 ffffffff88937638 ffff88003da77e00
- ffffffff81790b33 0000000000000082 ffffffff87fc1580 0000000000000004
- ffff88003da77c38 ffff88003d910810 0000000000000000 ffff88003d910000
-Call Trace:
- [<     inline     >] khugepaged_scan_mm_slot mm/huge_memory.c:2651
- [<     inline     >] khugepaged_do_scan mm/huge_memory.c:2755
- [<ffffffff81790b33>] khugepaged+0x993/0x48e0 mm/huge_memory.c:2790
- [<ffffffff813c195f>] kthread+0x23f/0x2d0 drivers/block/aoe/aoecmd.c:1303
- [<ffffffff866d1b2f>] ret_from_fork+0x3f/0x70 arch/x86/entry/entry_64.S:468
-Code: 00 fc ff df 48 c1 ea 03 80 3c 02 00 75 2c 48 f7 43 50 88 44 44
-10 41 bc 01 00 00 00 74 b4 e8 71 cf de ff 48 89 df e8 99 e5 f5 ff <0f>
-0b 4c 89 ef e8 ff c0 fe ff e9 0a ff ff ff 4c 89 ef e8 f2 c0
-RIP  [<ffffffff8178bd07>] hugepage_vma_check+0x117/0x150 mm/huge_memory.c:2313
- RSP <ffff88003da77bb0>
----[ end trace 61cae986a344948b ]---
-
-
-The process itself hangs dead.
-
-
-// autogenerated by syzkaller (http://github.com/google/syzkaller)
-#include <pthread.h>
-#include <stdint.h>
-#include <string.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-
-#ifndef SYS_userfaultfd
-#define SYS_userfaultfd 323
-#endif
-
-long r[29];
-
-void* thr(void* arg)
-{
-  switch ((long)arg) {
-  case 0:
-    r[0] = syscall(SYS_mmap, 0x20000000ul, 0xc59000ul, 0x3ul, 0x32ul,
-                   0xfffffffffffffffful, 0x0ul);
-    break;
-  case 1:
-    r[1] = syscall(SYS_accept, 0x1869ful, 0x20c51ffful, 0x20c51000ul, 0,
-                   0, 0);
-    break;
-  case 2:
-    r[2] = syscall(SYS_fcntl, r[1], 0x9ul, 0, 0, 0, 0);
-    break;
-  case 3:
-    r[3] = syscall(SYS_ioprio_set, 0x1ul, r[2], 0xfffffffffffffffful, 0,
-                   0, 0);
-    break;
-  case 4:
-    r[4] = syscall(SYS_userfaultfd, 0x0ul, 0, 0, 0, 0, 0);
-    break;
-  case 5:
-    *(uint64_t*)0x20a49fe8 = (uint64_t)0xaa;
-    *(uint64_t*)0x20a49ff0 = (uint64_t)0x0;
-    *(uint64_t*)0x20a49ff8 = (uint64_t)0x0;
-    r[8] =
-        syscall(SYS_ioctl, r[4], 0xc018aa3ful, 0x20a49fe8ul, 0, 0, 0);
-    break;
-  case 6:
-    *(uint64_t*)0x20c4c000 = (uint64_t)0x200cb000;
-    *(uint64_t*)0x20c4c008 = (uint64_t)0x800000;
-    *(uint64_t*)0x20c4c010 = (uint64_t)0x1;
-    *(uint64_t*)0x20c4c018 = (uint64_t)0x0;
-    r[13] =
-        syscall(SYS_ioctl, r[4], 0xc020aa00ul, 0x20c4c000ul, 0, 0, 0);
-    break;
-  case 7:
-    r[14] = syscall(SYS_readahead, 0xfffffffffffffffful, 0x40ul, 0x6ul,
-                    0, 0, 0);
-    break;
-  case 8:
-    r[15] = syscall(SYS_sched_getaffinity, 0x0ul, 0x8ul, 0x20472000ul,
-                    0, 0, 0);
-    break;
-  case 9:
-    r[16] = syscall(SYS_prctl, 0xful, 0x205d5ff8ul, 0, 0, 0, 0);
-    break;
-  case 10:
-    r[18] =
-        syscall(SYS_open, "/dev/hpet", 0x40ul, 0, 0, 0);
-    break;
-  case 11:
-    *(uint32_t*)0x20c56000 = (uint32_t)0x7fff;
-    r[20] = syscall(SYS_ioctl, r[18], 0x5420ul, 0x20c56000ul, 0, 0, 0);
-    break;
-  case 12:
-    r[21] = syscall(SYS_mmap, 0x20c57000ul, 0x1000ul, 0x7ul, 0x812ul,
-                    r[18], 0x0ul);
-    break;
-  case 13:
-    *(uint8_t*)0x20c57ffe = (uint8_t)0x6;
-    *(uint8_t*)0x20c57fff = (uint8_t)0x100000001;
-    r[24] = syscall(SYS_ioctl, r[18], 0x541cul, 0x20c57ffeul, 0, 0, 0);
-    break;
-  case 14:
-    memcpy((void*)0x20814ffd, "\x2e\x2f\x66\x69\x6c\x65\x30\x00", 8);
-    r[26] = syscall(SYS_creat, 0x20814ffdul, 0x80ul, 0, 0, 0, 0);
-    break;
-  case 15:
-    r[27] = syscall(SYS_pipe, 0x205a4ffful, 0, 0, 0, 0, 0);
-    break;
-  case 16:
-    r[28] = syscall(SYS_accept4, r[18], 0x20b0112aul, 0x20c55ffeul,
-                    0x80800ul, 0, 0);
-    break;
-  }
-  return 0;
-}
-
-int main()
-{
-  long i;
-  pthread_t th[17];
-
-  memset(r, -1, sizeof(r));
-  for (i = 0; i < 17; i++) {
-    pthread_create(&th[i], 0, thr, (void*)i);
-    usleep(10000);
-  }
-  usleep(100000);
-  return 0;
-}
-
-
-For better reproducibility also do:
-
-$ echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/alloc_sleep_millisecs;
-echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
-
-
-On commit 8e0f93cda48ed054e1216bab5c60017e1a5fc1e8.
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 86f9f8b82f8e..93de199ba0f1 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1960,10 +1960,9 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
+ 		 * page fault if needed.
+ 		 */
+ 		return 0;
+-	if (vma->vm_ops)
++	if (vma->vm_ops || (vm_flags & VM_NO_THP))
+ 		/* khugepaged not yet working on file or special mappings */
+ 		return 0;
+-	VM_BUG_ON_VMA(vm_flags & VM_NO_THP, vma);
+ 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
+ 	hend = vma->vm_end & HPAGE_PMD_MASK;
+ 	if (hstart < hend)
+@@ -2352,8 +2351,7 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
+ 		return false;
+ 	if (is_vma_temporary_stack(vma))
+ 		return false;
+-	VM_BUG_ON_VMA(vma->vm_flags & VM_NO_THP, vma);
+-	return true;
++	return !(vma->vm_flags & VM_NO_THP);
+ }
+ 
+ static void collapse_huge_page(struct mm_struct *mm,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
