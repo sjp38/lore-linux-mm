@@ -1,57 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A6516B0253
-	for <linux-mm@kvack.org>; Sun,  3 Apr 2016 19:46:28 -0400 (EDT)
-Received: by mail-pf0-f181.google.com with SMTP id n1so26370917pfn.2
-        for <linux-mm@kvack.org>; Sun, 03 Apr 2016 16:46:28 -0700 (PDT)
+Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1146C6B0005
+	for <linux-mm@kvack.org>; Sun,  3 Apr 2016 19:49:00 -0400 (EDT)
+Received: by mail-pf0-f178.google.com with SMTP id e128so109607703pfe.3
+        for <linux-mm@kvack.org>; Sun, 03 Apr 2016 16:49:00 -0700 (PDT)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id 79si37354135pfo.227.2016.04.03.16.46.26
+        by mx.google.com with ESMTP id g1si37464145pfd.0.2016.04.03.16.48.58
         for <linux-mm@kvack.org>;
-        Sun, 03 Apr 2016 16:46:27 -0700 (PDT)
+        Sun, 03 Apr 2016 16:48:59 -0700 (PDT)
+Date: Mon, 4 Apr 2016 08:49:03 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] mm:vmscan: clean up classzone_idx
-Date: Mon,  4 Apr 2016 08:46:25 +0900
-Message-Id: <1459727185-5753-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH] mm: vmscan: reclaim highmem zone if buffer_heads is over
+ limit
+Message-ID: <20160403234903.GA5833@bbox>
+References: <1459497658-22203-1-git-send-email-minchan@kernel.org>
+ <20160401080350.GB8916@dhcp22.suse.cz>
+ <20160401131458.e31d45f56a98c62669b35e3d@linux-foundation.org>
+MIME-Version: 1.0
+In-Reply-To: <20160401131458.e31d45f56a98c62669b35e3d@linux-foundation.org>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
 
-[1] removed classzone_idx so we don't need code related to it.
-This patch cleans it up.
+On Fri, Apr 01, 2016 at 01:14:58PM -0700, Andrew Morton wrote:
+> On Fri, 1 Apr 2016 10:03:50 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > On Fri 01-04-16 17:00:58, Minchan Kim wrote:
+> > [...]
+> > > [2] commit 5acbd3bfc93b ("mm, oom: rework oom detection")
+> > 
+> > I didn't look a tht patch yet but wanted to note that this sha is most
+> > probably from linux-next and won't be stable. Also this patch will most
+> > likely see some changes in future so making changes on top which should
+> > go in independetly will likely just complicate things.
+> 
+> Yes, we'll need two patches please.  One to fix 6b4f7799c6a5 ("mm:
+> vmscan: invoke slab shrinkers from shrink_zone()") (which is in
+> mainline) and a second to clean up -mm's "mm, oom: rework oom detection".
 
-[1] mm, oom: rework oom detection
+Andrew, Michal
 
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/vmscan.c | 8 --------
- 1 file changed, 8 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d84efa03c8a8..6e67de2a61ed 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2551,16 +2551,8 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 					gfp_zone(sc->gfp_mask), sc->nodemask) {
--		enum zone_type classzone_idx;
--
- 		if (!populated_zone(zone))
- 			continue;
--
--		classzone_idx = requested_highidx;
--		while (!populated_zone(zone->zone_pgdat->node_zones +
--							classzone_idx))
--			classzone_idx--;
--
- 		/*
- 		 * Take care memory controller reclaiming has small influence
- 		 * to global LRU.
--- 
-1.9.1
+Thanks. I just sent out it as separate patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
