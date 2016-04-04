@@ -1,85 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 69E206B0260
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 06:48:24 -0400 (EDT)
-Received: by mail-ig0-f177.google.com with SMTP id g8so21202871igr.0
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 03:48:24 -0700 (PDT)
+Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B9956B0262
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 06:58:46 -0400 (EDT)
+Received: by mail-oi0-f48.google.com with SMTP id y204so45455598oie.3
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 03:58:46 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id x18si7477091igx.85.2016.04.04.03.48.23
+        by mx.google.com with ESMTPS id c16si11808202oig.110.2016.04.04.03.58.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 04 Apr 2016 03:48:23 -0700 (PDT)
-Subject: Re: [PATCH] android,lowmemorykiller: Don't abuse TIF_MEMDIE.
+        Mon, 04 Apr 2016 03:58:44 -0700 (PDT)
+Subject: Re: [PATCH] mm,writeback: Don't use memory reserves for wb_start_writeback
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1457434892-12642-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20160308141858.GJ13542@dhcp22.suse.cz>
-	<20160311220109.GD11274@kroah.com>
-	<201603212000.BJE57350.MOFOFFLQVJSHtO@I-love.SAKURA.ne.jp>
-	<20160321111030.GA11284@kroah.com>
-In-Reply-To: <20160321111030.GA11284@kroah.com>
-Message-Id: <201604041948.EBJ39073.OVtFMFSFLOOQJH@I-love.SAKURA.ne.jp>
-Date: Mon, 4 Apr 2016 19:48:15 +0900
+References: <201603242303.CEJ65666.VOOFJLFQOMtFSH@I-love.SAKURA.ne.jp>
+	<20160324141714.aa9ccff6d5df5d2974eb86f8@linux-foundation.org>
+	<20160329085434.GB3228@dhcp22.suse.cz>
+	<20160329164942.GA10963@quack.suse.cz>
+In-Reply-To: <20160329164942.GA10963@quack.suse.cz>
+Message-Id: <201604041958.CEJ60985.OFVMLOHJFQFOtS@I-love.SAKURA.ne.jp>
+Date: Mon, 4 Apr 2016 19:58:37 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org
-Cc: mhocko@suse.cz, devel@driverdev.osuosl.org, linux-mm@kvack.org, arve@android.com, riandrews@android.com
+To: jack@suse.cz, mhocko@kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, tj@kernel.org
 
-Greg KH wrote:
-> On Mon, Mar 21, 2016 at 08:00:49PM +0900, Tetsuo Handa wrote:
-> > Greg Kroah-Hartman wrote:
-> > > On Tue, Mar 08, 2016 at 03:18:59PM +0100, Michal Hocko wrote:
-> > > > On Tue 08-03-16 20:01:32, Tetsuo Handa wrote:
-> > > > > Currently, lowmemorykiller (LMK) is using TIF_MEMDIE for two purposes.
-> > > > > One is to remember processes killed by LMK, and the other is to
-> > > > > accelerate termination of processes killed by LMK.
-> > > > > 
-> > > > > But since LMK is invoked as a memory shrinker function, there still
-> > > > > should be some memory available. It is very likely that memory
-> > > > > allocations by processes killed by LMK will succeed without using
-> > > > > ALLOC_NO_WATERMARKS via TIF_MEMDIE. Even if their allocations cannot
-> > > > > escape from memory allocation loop unless they use ALLOC_NO_WATERMARKS,
-> > > > > lowmem_deathpending_timeout can guarantee forward progress by choosing
-> > > > > next victim process.
-> > > > > 
-> > > > > On the other hand, mark_oom_victim() assumes that it must be called with
-> > > > > oom_lock held and it must not be called after oom_killer_disable() was
-> > > > > called. But LMK is calling it without holding oom_lock and checking
-> > > > > oom_killer_disabled. It is possible that LMK calls mark_oom_victim()
-> > > > > due to allocation requests by kernel threads after current thread
-> > > > > returned from oom_killer_disabled(). This will break synchronization
-> > > > > for PM/suspend.
-> > > > > 
-> > > > > This patch introduces per a task_struct flag for remembering processes
-> > > > > killed by LMK, and replaces TIF_MEMDIE with that flag. By applying this
-> > > > > patch, assumption by mark_oom_victim() becomes true.
-> > > > 
-> > > > Thanks for looking into this. A separate flag sounds like a better way
-> > > > to go (assuming that the flags are not scarce which doesn't seem to be
-> > > > the case here).
-> > > >  
-> > > > The LMK cannot kill the frozen tasks now but this shouldn't be a big deal
-> > > > because this is not strictly necessary for the system to move on. We are
-> > > > not OOM.
-> > > > 
-> > > > > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > > > Cc: Michal Hocko <mhocko@suse.cz>
-> > > > > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> > > > > Cc: Arve Hjonnevag <arve@android.com>
-> > > > > Cc: Riley Andrews <riandrews@android.com>
-> > > > 
-> > > > Acked-by: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > So, any objection for me taking this through the staging tree?
-> > > 
-> > Seems no objection. Please take this through the staging tree.
-> 
-> Ok, will do so after 4.6-rc1 is out.
-> 
-I haven't seen this patch in linux-next. Would you take this?
+Hello, Jan.
 
-Regards.
+Assuming that you will find a better solution, can we apply this patch
+for now to stop bleeding?
+This problem frequently prevents me from testing OOM livelock condition.
+
+Jan Kara wrote:
+> On Tue 29-03-16 10:54:35, Michal Hocko wrote:
+> > On Thu 24-03-16 14:17:14, Andrew Morton wrote:
+> > > On Thu, 24 Mar 2016 23:03:16 +0900 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> wrote:
+> > > 
+> > > > Andrew, can you take this patch?
+> > > 
+> > > Tejun.
+> > > 
+> > > > ----------------------------------------
+> > > > >From 5d43acbc5849a63494a732e39374692822145923 Mon Sep 17 00:00:00 2001
+> > > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > > Date: Sun, 13 Mar 2016 23:03:05 +0900
+> > > > Subject: [PATCH] mm,writeback: Don't use memory reserves for
+> > > >  wb_start_writeback
+> > > > 
+> > > > When writeback operation cannot make forward progress because memory
+> > > > allocation requests needed for doing I/O cannot be satisfied (e.g.
+> > > > under OOM-livelock situation), we can observe flood of order-0 page
+> > > > allocation failure messages caused by complete depletion of memory
+> > > > reserves.
+> > > > 
+> > > > This is caused by unconditionally allocating "struct wb_writeback_work"
+> > > > objects using GFP_ATOMIC from PF_MEMALLOC context.
+> > > > 
+> > > > __alloc_pages_nodemask() {
+> > > >   __alloc_pages_slowpath() {
+> > > >     __alloc_pages_direct_reclaim() {
+> > > >       __perform_reclaim() {
+> > > >         current->flags |= PF_MEMALLOC;
+> > > >         try_to_free_pages() {
+> > > >           do_try_to_free_pages() {
+> > > >             wakeup_flusher_threads() {
+> > > >               wb_start_writeback() {
+> > > >                 kzalloc(sizeof(*work), GFP_ATOMIC) {
+> > > >                   /* ALLOC_NO_WATERMARKS via PF_MEMALLOC */
+> > > >                 }
+> > > >               }
+> > > >             }
+> > > >           }
+> > > >         }
+> > > >         current->flags &= ~PF_MEMALLOC;
+> > > >       }
+> > > >     }
+> > > >   }
+> > > > }
+> > > > 
+> > > > Since I/O is stalling, allocating writeback requests forever shall deplete
+> > > > memory reserves. Fortunately, since wb_start_writeback() can fall back to
+> > > > wb_wakeup() when allocating "struct wb_writeback_work" failed, we don't
+> > > > need to allow wb_start_writeback() to use memory reserves.
+> > > > 
+> > > > ...
+> > > >
+> > > > --- a/fs/fs-writeback.c
+> > > > +++ b/fs/fs-writeback.c
+> > > > @@ -929,7 +929,8 @@ void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+> > > >  	 * This is WB_SYNC_NONE writeback, so if allocation fails just
+> > > >  	 * wakeup the thread for old dirty data writeback
+> > > >  	 */
+> > > > -	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+> > > > +	work = kzalloc(sizeof(*work),
+> > > > +		       GFP_NOWAIT | __GFP_NOMEMALLOC | __GFP_NOWARN);
+> > > >  	if (!work) {
+> > > >  		trace_writeback_nowork(wb);
+> > > >  		wb_wakeup(wb);
+> > > 
+> > > Oh geeze.  fs/fs-writeback.c has grown waaay too many GFP_ATOMICs :(
+> > > 
+> > > How does this actually all work?
+> > 
+> > Jack has explained it a bit
+> > http://lkml.kernel.org/r/20160318131136.GE7152@quack.suse.cz
+> > 
+> > > afaict if we fail this
+> > > wb_writeback_work allocation, wb_workfn->wb_do_writeback will later say
+> > > "hey, there are no work items!" and will do nothing at all.  Or does
+> > > wb_workfn() fall into write-1024-pages-anyway mode and if so, how did
+> > > it know how to do that?
+> 
+> We will end up in wb_do_writeback() which finds there's no work item so it
+> falls back to doing default background writeback (i.e., write out until
+> number of dirty pages is below background_dirty_limit).
+> 
+> > > If we had (say) a mempool of wb_writeback_work's (at least for for
+> > > wb_start_writeback), would that help anything?  Or would writeback
+> > > simply fail shortly afterwards for other reasons?
+> 
+> Not sure mempools would significantly improve the situation. Writeback code
+> is able to deal with the failed allocation so I think the issue remains
+> more with writeback code mostly pointlessly exhausting memory reserves with
+> atomic allocations.
+> 
+> I think it is somewhat dumb from do_try_to_free_pages() that it calls
+> wakeup_flusher_threads() so often (I guess it can quickly end up asking to
+> write more than it is ever sensible to ask). Admittedly it is also dumb from
+> the writeback code that it is not able to merge requests for writeback - we
+> could easily merge items created by wb_start_writeback() with matching
+> 'reason' and 'range_cyclic'.
+> 
+> I'm not sure how easy it is to fix the first thing, I think improving the
+> second one may be worth it and I can have a look at that.
+> 
+> 								Honza
+> -- 
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
