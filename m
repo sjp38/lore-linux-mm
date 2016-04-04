@@ -1,75 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f41.google.com (mail-lf0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DA8B6B0253
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 05:43:02 -0400 (EDT)
-Received: by mail-lf0-f41.google.com with SMTP id g184so86785351lfb.3
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 02:43:02 -0700 (PDT)
-Received: from mail-lf0-f54.google.com (mail-lf0-f54.google.com. [209.85.215.54])
-        by mx.google.com with ESMTPS id h141si15441810lfb.77.2016.04.04.02.43.00
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id EB1126B025E
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 06:39:44 -0400 (EDT)
+Received: by mail-lb0-f171.google.com with SMTP id qe11so154168469lbc.3
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 03:39:44 -0700 (PDT)
+Received: from mail-lb0-x22a.google.com (mail-lb0-x22a.google.com. [2a00:1450:4010:c04::22a])
+        by mx.google.com with ESMTPS id v126si15569458lfd.132.2016.04.04.03.39.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Apr 2016 02:43:01 -0700 (PDT)
-Received: by mail-lf0-f54.google.com with SMTP id p188so133984205lfd.0
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 02:43:00 -0700 (PDT)
-Date: Mon, 4 Apr 2016 11:42:59 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm:vmscan: clean up classzone_idx
-Message-ID: <20160404094259.GC13463@dhcp22.suse.cz>
-References: <1459727185-5753-1-git-send-email-minchan@kernel.org>
+        Mon, 04 Apr 2016 03:39:43 -0700 (PDT)
+Received: by mail-lb0-x22a.google.com with SMTP id vo2so154748830lbb.1
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 03:39:43 -0700 (PDT)
+Date: Mon, 4 Apr 2016 13:39:40 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: Bloat caused by unnecessary calls to compound_head()?
+Message-ID: <20160404103940.GC21187@node.shutemov.name>
+References: <20160326185049.GA4257@zzz>
+ <20160327194649.GA9638@node.shutemov.name>
+ <20160401013329.GB1323@zzz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1459727185-5753-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <20160401013329.GB1323@zzz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
+To: Eric Biggers <ebiggers3@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, Hugh Dickins <hughd@google.com>
 
-On Mon 04-04-16 08:46:25, Minchan Kim wrote:
-> [1] removed classzone_idx so we don't need code related to it.
-> This patch cleans it up.
+On Thu, Mar 31, 2016 at 08:33:29PM -0500, Eric Biggers wrote:
+> On Sun, Mar 27, 2016 at 10:46:49PM +0300, Kirill A. Shutemov wrote:
+> > The idea is to introduce new type to indicate head page --
+> > 'struct head_page' -- it's compatible with struct page on memory layout,
+> > but distinct from C point of view. compound_head() should return pointer
+> > of that type. For the proof-of-concept I've introduced new helper --
+> > compound_head_t().
+> > 
 > 
-> [1] mm, oom: rework oom detection
+> Well, it's good for optimizing the specific case of mark_page_accessed().  I'm
+> more worried about the general level of bloat, since the Page* macros are used
+> in so many places.  And generating page-flags.h with a script is something to be
+> avoided if at all possible.
 
-As per http://lkml.kernel.org/r/20160404094213.GB13463@dhcp22.suse.cz
-the removal of classzone_idx was unintentional and wrong.
+I think it can be done without generating page-flags.h. We can generate
+with preprocessor Head* helpers in addition to Page*. New heplers would
+opperate with struct head_page rather than struct page.
 
-> 
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/vmscan.c | 8 --------
->  1 file changed, 8 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index d84efa03c8a8..6e67de2a61ed 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2551,16 +2551,8 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
->  
->  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
->  					gfp_zone(sc->gfp_mask), sc->nodemask) {
-> -		enum zone_type classzone_idx;
-> -
->  		if (!populated_zone(zone))
->  			continue;
-> -
-> -		classzone_idx = requested_highidx;
-> -		while (!populated_zone(zone->zone_pgdat->node_zones +
-> -							classzone_idx))
-> -			classzone_idx--;
-> -
->  		/*
->  		 * Take care memory controller reclaiming has small influence
->  		 * to global LRU.
-> -- 
-> 1.9.1
-> 
+> I wasn't following the discussion around the original page-flags patchset.  Can
+> you point me to a discussion of the benefits of the page "policy" checks --- why
+> are they suddenly needed when they weren't before?  Or any helpful comments in
+> the code?
+
+Recent THP refcounting rework (went into v4.5) made possible mapping part
+of huge page with PTEs. Basically, we now have page table entries which
+point to tail pages. It means we have tail pages in codepaths where we
+haven't before and we need to deal with this.
+
+Many of the flags apply to whole compound page, not a subpage. So we need
+to redirect page flag operation to head page.
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
