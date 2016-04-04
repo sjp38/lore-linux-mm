@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 784936B028F
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 13:13:59 -0400 (EDT)
-Received: by mail-lb0-f170.google.com with SMTP id u8so170700986lbk.0
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 10:13:59 -0700 (PDT)
+Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EBF06B0290
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 13:14:03 -0400 (EDT)
+Received: by mail-lb0-f169.google.com with SMTP id bc4so169337223lbc.2
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 10:14:03 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id kd3si32270918wjb.84.2016.04.04.10.13.58
+        by mx.google.com with ESMTPS id j131si3394279wma.16.2016.04.04.10.14.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Apr 2016 10:13:58 -0700 (PDT)
+        Mon, 04 Apr 2016 10:14:00 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 1/3] mm: workingset: only do workingset activations on reads
-Date: Mon,  4 Apr 2016 13:13:36 -0400
-Message-Id: <1459790018-6630-2-git-send-email-hannes@cmpxchg.org>
+Subject: [PATCH 2/3] mm: filemap: only do access activations on reads
+Date: Mon,  4 Apr 2016 13:13:37 -0400
+Message-Id: <1459790018-6630-3-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1459790018-6630-1-git-send-email-hannes@cmpxchg.org>
 References: <1459790018-6630-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,47 +20,50 @@ List-ID: <linux-mm.kvack.org>
 To: Andres Freund <andres@anarazel.de>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-From: Rik van Riel <riel@redhat.com>
+Andres Freund observed that his database workload is struggling with
+the transaction journal creating pressure on frequently read pages.
 
-When rewriting a page, the data in that page is replaced with new
-data. This means that evicting something else from the active file
-list, in order to cache data that will be replaced by something else,
-is likely to be a waste of memory.
+Access patterns like transaction journals frequently write the same
+pages over and over, but in the majority of cases those pages are
+never read back. There are no caching benefits to be had for those
+pages, so activating them and having them put pressure on pages that
+do benefit from caching is a bad choice.
 
-It is better to save the active list for frequently read pages, because
-reads actually use the data that is in the page.
+Leave page activations to read accesses and don't promote pages based
+on writes alone.
 
-This patch ignores partial writes, because it is unclear whether the
-complexity of identifying those is worth any potential performance
-gain obtained from better caching pages that see repeated partial
-writes at large enough intervals to not get caught by the use-twice
-promotion code used for the inactive file list.
+It could be said that partially written pages do contain cache-worthy
+data, because even if *userspace* does not access the unwritten part,
+the kernel still has to read it from the filesystem for correctness.
+However, a counter argument is that these pages enjoy at least *some*
+protection over other inactive file pages through the writeback cache,
+in the sense that dirty pages are written back with a delay and cache
+reclaim leaves them alone until they have been written back to
+disk. Should that turn out to be insufficient and we see increased
+read IO from partial writes under memory pressure, we can always go
+back and update grab_cache_page_write_begin() to take (pos, len) so
+that it can tell partial writes from pages that don't need partial
+reads. But for now, keep it simple.
 
 Reported-by: Andres Freund <andres@anarazel.de>
-Signed-off-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/filemap.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ mm/filemap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/filemap.c b/mm/filemap.c
-index a8c69c8..ca33816 100644
+index ca33816..edfec5e 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -713,8 +713,12 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
- 		 * The page might have been evicted from cache only
- 		 * recently, in which case it should be activated like
- 		 * any other repeatedly accessed page.
-+		 * The exception is pages getting rewritten; evicting other
-+		 * data from the working set, only to cache data that will
-+		 * get overwritten with something else, is a waste of memory.
- 		 */
--		if (shadow && workingset_refault(shadow)) {
-+		if (!(gfp_mask & __GFP_WRITE) &&
-+		    shadow && workingset_refault(shadow)) {
- 			SetPageActive(page);
- 			workingset_activation(page);
- 		} else
+@@ -2579,7 +2579,7 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
+ 					pgoff_t index, unsigned flags)
+ {
+ 	struct page *page;
+-	int fgp_flags = FGP_LOCK|FGP_ACCESSED|FGP_WRITE|FGP_CREAT;
++	int fgp_flags = FGP_LOCK|FGP_WRITE|FGP_CREAT;
+ 
+ 	if (flags & AOP_FLAG_NOFS)
+ 		fgp_flags |= FGP_NOFS;
 -- 
 2.8.0
 
