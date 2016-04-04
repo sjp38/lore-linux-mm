@@ -1,75 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 78C3B828E5
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 16:40:20 -0400 (EDT)
-Received: by mail-pf0-f171.google.com with SMTP id 184so51585458pff.0
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 13:40:20 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id r13si239670pfb.82.2016.04.04.13.40.06
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 9855F828E5
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 17:22:35 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id zm5so151935902pac.0
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 14:22:35 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 79si2376936pfm.61.2016.04.04.14.22.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Apr 2016 13:40:07 -0700 (PDT)
-Date: Mon, 4 Apr 2016 23:39:52 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: re: zsmalloc: zs_compact refactoring
-Message-ID: <20160404203952.GA8379@mwanda>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        Mon, 04 Apr 2016 14:22:34 -0700 (PDT)
+Date: Mon, 4 Apr 2016 14:22:33 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/3] mm: filemap: only do access activations on reads
+Message-Id: <20160404142233.cfdea284b8107768fb359efd@linux-foundation.org>
+In-Reply-To: <1459790018-6630-3-git-send-email-hannes@cmpxchg.org>
+References: <1459790018-6630-1-git-send-email-hannes@cmpxchg.org>
+	<1459790018-6630-3-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan@kernel.org
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andres Freund <andres@anarazel.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Hello Minchan Kim,
+On Mon,  4 Apr 2016 13:13:37 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-The patch 9a0346061ab8: "zsmalloc: zs_compact refactoring" from Apr
-2, 2016, leads to the following static checker warning:
+> Andres Freund observed that his database workload is struggling with
+> the transaction journal creating pressure on frequently read pages.
+> 
+> Access patterns like transaction journals frequently write the same
+> pages over and over, but in the majority of cases those pages are
+> never read back. There are no caching benefits to be had for those
+> pages, so activating them and having them put pressure on pages that
+> do benefit from caching is a bad choice.
 
-	mm/zsmalloc.c:1851 handle_from_obj()
-	warn: bit shifter 'OBJ_ALLOCATED_TAG' used for logical '&'
+Read-after-write is a pretty common pattern: temporary files for
+example.  What are the opportunities for regressions here?
 
-mm/zsmalloc.c
-  1622  static unsigned long obj_malloc(struct size_class *class,
-  1623                                  struct page *first_page, unsigned long handle)
-  1624  {
-  1625          unsigned long obj;
-  1626          struct link_free *link;
-  1627  
-  1628          struct page *m_page;
-  1629          unsigned long m_offset;
-  1630          void *vaddr;
-  1631  
-  1632          obj = get_freeobj(first_page);
-  1633          objidx_to_page_and_offset(class, first_page, obj,
-  1634                                  &m_page, &m_offset);
-  1635  
-  1636          vaddr = kmap_atomic(m_page);
-  1637          link = (struct link_free *)vaddr + m_offset / sizeof(*link);
-  1638          set_freeobj(first_page, link->next >> OBJ_ALLOCATED_TAG);
-                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-OBJ_ALLOCATED_TAG is 1.  Here it's used as a shifter.
-
-  1639          if (!class->huge)
-  1640                  /* record handle in the header of allocated chunk */
-  1641                  link->handle = handle | OBJ_ALLOCATED_TAG;
-
-Here it's a bit mask.  It's sort of confusing to re-use it like this.
-It's done through out the file.
-
-  1642          else
-  1643                  /* record handle in first_page->private */
-  1644                  set_page_private(first_page, handle | OBJ_ALLOCATED_TAG);
-  1645          kunmap_atomic(vaddr);
-  1646          mod_zspage_inuse(first_page, 1);
-  1647  
-  1648          obj = location_to_obj(m_page, obj);
-  1649  
-  1650          return obj;
-  1651  }
-
-regards,
-dan carpenter
+Did you consider providing userspace with a way to hint "this file is
+probably write-then-not-read"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
