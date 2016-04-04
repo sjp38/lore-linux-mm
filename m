@@ -1,53 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 56FB9828E5
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 19:26:47 -0400 (EDT)
-Received: by mail-pf0-f182.google.com with SMTP id n1so49104431pfn.2
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 16:26:47 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id un9si3377948pac.14.2016.04.04.16.26.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Apr 2016 16:26:46 -0700 (PDT)
-Received: from mail.kernel.org (localhost [127.0.0.1])
-	by mail.kernel.org (Postfix) with ESMTP id DC4CB202EB
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 23:26:45 +0000 (UTC)
-Received: from mail-lf0-f41.google.com (mail-lf0-f41.google.com [209.85.215.41])
-	(using TLSv1.2 with cipher AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 639262024F
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 23:26:44 +0000 (UTC)
-Received: by mail-lf0-f41.google.com with SMTP id g184so118990893lfb.3
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 16:26:44 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <570288E1.4060203@suse.cz>
-References: <1459754566.19748.9.camel@kernel.org>
-	<570288E1.4060203@suse.cz>
-Date: Mon, 4 Apr 2016 16:26:42 -0700
-Message-ID: <CAF1ivSaLX7q=52KSvqsvGiHB6M+JmGFDHVCRtNKXYRsyThT93w@mail.gmail.com>
-Subject: Re: /proc/meminfo question
-From: Ming Lin <mlin@kernel.org>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id EB06C828E5
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 19:58:25 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id zm5so154317981pac.0
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 16:58:25 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id 12si29518100pfm.92.2016.04.04.16.58.24
+        for <linux-mm@kvack.org>;
+        Mon, 04 Apr 2016 16:58:25 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] thp: keep huge zero pinned until tlb flush
+Date: Tue,  5 Apr 2016 02:57:27 +0300
+Message-Id: <1459814247-45614-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Ming Lin <mlin@kernel.org>, linux-mm <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, Apr 4, 2016 at 8:31 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->
->
-> For debugging such leaks I suggest you try the page_owner functionality
-> instead.
+Andrea has found[1] a race condition on MMU-gather based TLB flush vs
+split_huge_page() or shrinker which frees huge zero under us (patch 1/2
+and 2/2 respectively).
 
-Hi Vlastimil,
+With new THP refcounting, we don't patch 1/2: mmu_gather keeps the page
+page pinned until flush is complete and the pin prevent the page from
+being split under us.
 
-"page_owner" is a great tool!
-I have found the leak and fixed it.
+We sill need patch 2/2. This is simplified version of Andrea's patch.
+We don't need fancy encoding.
 
-Thanks.
+[1] http://lkml.kernel.org/r/1447938052-22165-1-git-send-email-aarcange@redhat.com
 
->
-> Vlastimil
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ include/linux/huge_mm.h | 1 +
+ mm/huge_memory.c        | 6 +++---
+ mm/swap.c               | 5 +++++
+ 3 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 7008623e24b1..8232e0b8a04f 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -152,6 +152,7 @@ static inline bool is_huge_zero_pmd(pmd_t pmd)
+ }
+ 
+ struct page *get_huge_zero_page(void);
++void put_huge_zero_page(void);
+ 
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 820214137bc5..860c7dec197e 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -235,7 +235,7 @@ retry:
+ 	return READ_ONCE(huge_zero_page);
+ }
+ 
+-static void put_huge_zero_page(void)
++void put_huge_zero_page(void)
+ {
+ 	/*
+ 	 * Counter should never go to zero here. Only shrinker can put
+@@ -1715,12 +1715,12 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 	if (vma_is_dax(vma)) {
+ 		spin_unlock(ptl);
+ 		if (is_huge_zero_pmd(orig_pmd))
+-			put_huge_zero_page();
++			tlb_remove_page(tlb, pmd_page(orig_pmd));
+ 	} else if (is_huge_zero_pmd(orig_pmd)) {
+ 		pte_free(tlb->mm, pgtable_trans_huge_withdraw(tlb->mm, pmd));
+ 		atomic_long_dec(&tlb->mm->nr_ptes);
+ 		spin_unlock(ptl);
+-		put_huge_zero_page();
++		tlb_remove_page(tlb, pmd_page(orig_pmd));
+ 	} else {
+ 		struct page *page = pmd_page(orig_pmd);
+ 		page_remove_rmap(page, true);
+diff --git a/mm/swap.c b/mm/swap.c
+index 09fe5e97714a..11915bd0f047 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -728,6 +728,11 @@ void release_pages(struct page **pages, int nr, bool cold)
+ 			zone = NULL;
+ 		}
+ 
++		if (is_huge_zero_page(page)) {
++			put_huge_zero_page();
++			continue;
++		}
++
+ 		page = compound_head(page);
+ 		if (!put_page_testzero(page))
+ 			continue;
+-- 
+2.8.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
