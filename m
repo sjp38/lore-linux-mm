@@ -1,62 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 599356B0005
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 05:42:16 -0400 (EDT)
-Received: by mail-lb0-f180.google.com with SMTP id vo2so152281335lbb.1
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 02:42:16 -0700 (PDT)
-Received: from mail-lb0-f195.google.com (mail-lb0-f195.google.com. [209.85.217.195])
-        by mx.google.com with ESMTPS id rl2si15430239lbb.151.2016.04.04.02.42.14
+Received: from mail-lf0-f41.google.com (mail-lf0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DA8B6B0253
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 05:43:02 -0400 (EDT)
+Received: by mail-lf0-f41.google.com with SMTP id g184so86785351lfb.3
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 02:43:02 -0700 (PDT)
+Received: from mail-lf0-f54.google.com (mail-lf0-f54.google.com. [209.85.215.54])
+        by mx.google.com with ESMTPS id h141si15441810lfb.77.2016.04.04.02.43.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Apr 2016 02:42:15 -0700 (PDT)
-Received: by mail-lb0-f195.google.com with SMTP id bc4so21012555lbc.0
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 02:42:14 -0700 (PDT)
-Date: Mon, 4 Apr 2016 11:42:13 +0200
+        Mon, 04 Apr 2016 02:43:01 -0700 (PDT)
+Received: by mail-lf0-f54.google.com with SMTP id p188so133984205lfd.0
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 02:43:00 -0700 (PDT)
+Date: Mon, 4 Apr 2016 11:42:59 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] mm, oom: rework oom detection
-Message-ID: <20160404094213.GB13463@dhcp22.suse.cz>
-References: <1450203586-10959-1-git-send-email-mhocko@kernel.org>
- <1450203586-10959-2-git-send-email-mhocko@kernel.org>
- <20160404082343.GD6610@esperanza>
+Subject: Re: [PATCH] mm:vmscan: clean up classzone_idx
+Message-ID: <20160404094259.GC13463@dhcp22.suse.cz>
+References: <1459727185-5753-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160404082343.GD6610@esperanza>
+In-Reply-To: <1459727185-5753-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon 04-04-16 11:23:43, Vladimir Davydov wrote:
-> On Tue, Dec 15, 2015 at 07:19:44PM +0100, Michal Hocko wrote:
-> ...
-> > @@ -2592,17 +2589,10 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
-> >  						&nr_soft_scanned);
-> >  			sc->nr_reclaimed += nr_soft_reclaimed;
-> >  			sc->nr_scanned += nr_soft_scanned;
-> > -			if (nr_soft_reclaimed)
-> > -				reclaimable = true;
-> >  			/* need some check for avoid more shrink_zone() */
-> >  		}
-> >  
-> > -		if (shrink_zone(zone, sc, zone_idx(zone) == classzone_idx))
-> > -			reclaimable = true;
-> > -
-> > -		if (global_reclaim(sc) &&
-> > -		    !reclaimable && zone_reclaimable(zone))
-> > -			reclaimable = true;
-> > +		shrink_zone(zone, sc, zone_idx(zone));
+On Mon 04-04-16 08:46:25, Minchan Kim wrote:
+> [1] removed classzone_idx so we don't need code related to it.
+> This patch cleans it up.
 > 
-> Shouldn't it be
-> 
-> 		shrink_zone(zone, sc, zone_idx(zone) == classzone_idx);
-> 
-> ?
+> [1] mm, oom: rework oom detection
 
-I cannot remember the reason why I have removed it so it is more likely
-this was unintentional. Thanks for catching this. I will fold it into
-the original patch before I repost the full series (this week
-hopefully).
+As per http://lkml.kernel.org/r/20160404094213.GB13463@dhcp22.suse.cz
+the removal of classzone_idx was unintentional and wrong.
+
+> 
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/vmscan.c | 8 --------
+>  1 file changed, 8 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index d84efa03c8a8..6e67de2a61ed 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2551,16 +2551,8 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+>  
+>  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+>  					gfp_zone(sc->gfp_mask), sc->nodemask) {
+> -		enum zone_type classzone_idx;
+> -
+>  		if (!populated_zone(zone))
+>  			continue;
+> -
+> -		classzone_idx = requested_highidx;
+> -		while (!populated_zone(zone->zone_pgdat->node_zones +
+> -							classzone_idx))
+> -			classzone_idx--;
+> -
+>  		/*
+>  		 * Take care memory controller reclaiming has small influence
+>  		 * to global LRU.
+> -- 
+> 1.9.1
+> 
+
 -- 
 Michal Hocko
 SUSE Labs
