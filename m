@@ -1,80 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FCE36B0005
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 05:07:32 -0400 (EDT)
-Received: by mail-ig0-f170.google.com with SMTP id ma7so79887654igc.0
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 02:07:32 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id d7si23829738ioe.106.2016.04.04.02.07.31
-        for <linux-mm@kvack.org>;
-        Mon, 04 Apr 2016 02:07:31 -0700 (PDT)
-Date: Mon, 4 Apr 2016 18:07:38 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm/hwpoison: fix wrong num_poisoned_pages account
-Message-ID: <20160404090738.GB12898@bbox>
-References: <1459749992-7861-1-git-send-email-minchan@kernel.org>
+Received: from mail-lf0-f49.google.com (mail-lf0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 51D8D6B0005
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 05:32:03 -0400 (EDT)
+Received: by mail-lf0-f49.google.com with SMTP id c62so160703027lfc.1
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 02:32:03 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id x3si27335461wjy.198.2016.04.04.02.32.01
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 04 Apr 2016 02:32:01 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 426B79909F
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 09:32:01 +0000 (UTC)
+Date: Mon, 4 Apr 2016 10:31:59 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH v2 4/4] mm, compaction: direct freepage allocation for
+ async direct compaction
+Message-ID: <20160404093159.GB4773@techsingularity.net>
+References: <1459414236-9219-1-git-send-email-vbabka@suse.cz>
+ <1459414236-9219-5-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1459749992-7861-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1459414236-9219-5-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, stable@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon, Apr 04, 2016 at 03:06:32PM +0900, Minchan Kim wrote:
-> Currently, migration code increases num_poisoned_pages on failed
-> migration page as well as successfully migrated one at the trial
-> of memory-failure. It will make the stat wrong.
+On Thu, Mar 31, 2016 at 10:50:36AM +0200, Vlastimil Babka wrote:
+> The goal of direct compaction is to quickly make a high-order page available
+> for the pending allocation. The free page scanner can add significant latency
+> when searching for migration targets, although to succeed the compaction, the
+> only important limit on the target free pages is that they must not come from
+> the same order-aligned block as the migrated pages.
 > 
-> As well, it marks page as PG_HWPoison even if the migration trial
-> failed. It would make we cannot recover the corrupted page using
-> memory-failure facility.
-> 
-> This patches fixes it.
-> 
-> Cc: stable@vger.kernel.org
-> Reported-by: Vlastimil Babka <vbabka@suse.cz>
-> Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Hello Andrew,
+What prevents the free pages being allocated from behind the migration
+scanner? Having compaction abort when the scanners meet misses
+compaction opportunities but it avoids the problem of Compactor A using
+pageblock X as a migration target and Compactor B using pageblock X as a
+migration source.
 
-This patch will make conflict with current mmotm which has
-my non-lru page migration work.
-It's okay to drop my non-lru page migration work to apply this
-bug fix patch in current mmotm because I will try to support
-userspace mapped drvier non-lru page Vlastimil pointed out
-in that thread.
-
-Thanks.
-
-> ---
->  mm/migrate.c | 8 +++++++-
->  1 file changed, 7 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 6c822a7b27e0..f9dfb18a4eba 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -975,7 +975,13 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
->  		dec_zone_page_state(page, NR_ISOLATED_ANON +
->  				page_is_file_cache(page));
->  		/* Soft-offlined page shouldn't go through lru cache list */
-> -		if (reason == MR_MEMORY_FAILURE) {
-> +		if (reason == MR_MEMORY_FAILURE && rc == MIGRATEPAGE_SUCCESS) {
-> +			/*
-> +			 * With this release, we free successfully migrated
-> +			 * page and set PG_HWPoison on just freed page
-> +			 * intentionally. Although it's rather weird, it's how
-> +			 * HWPoison flag works at the moment.
-> +			 */
->  			put_page(page);
->  			if (!test_set_page_hwpoison(page))
->  				num_poisoned_pages_inc();
-> -- 
-> 1.9.1
-> 
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
