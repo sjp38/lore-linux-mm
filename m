@@ -1,317 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
-	by kanga.kvack.org (Postfix) with ESMTP id B22306B0291
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 13:14:06 -0400 (EDT)
-Received: by mail-lb0-f170.google.com with SMTP id bc4so169339294lbc.2
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 10:14:06 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id op7si9085617wjc.120.2016.04.04.10.14.03
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 39A2E828E2
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 13:15:28 -0400 (EDT)
+Received: by mail-qk0-f171.google.com with SMTP id o6so65122350qkc.2
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 10:15:28 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a89si22999111qge.3.2016.04.04.10.15.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Apr 2016 10:14:03 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 3/3] mm: vmscan: reduce size of inactive file list
-Date: Mon,  4 Apr 2016 13:13:38 -0400
-Message-Id: <1459790018-6630-4-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1459790018-6630-1-git-send-email-hannes@cmpxchg.org>
-References: <1459790018-6630-1-git-send-email-hannes@cmpxchg.org>
+        Mon, 04 Apr 2016 10:15:27 -0700 (PDT)
+Date: Mon, 4 Apr 2016 13:15:23 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: mm: BUG in khugepaged_scan_mm_slot
+Message-ID: <20160404171523.GB6974@redhat.com>
+References: <CACT4Y+ZmuZMV5CjSFOeXviwQdABAgT7T+StKfTqan9YDtgEi5g@mail.gmail.com>
+ <5702582A.1030904@suse.cz>
+ <20160404120625.GA6133@node.shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160404120625.GA6133@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andres Freund <andres@anarazel.de>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
 
-From: Rik van Riel <riel@redhat.com>
+Hello,
 
-The inactive file list should still be large enough to contain
-readahead windows and freshly written file data, but it no
-longer is the only source for detecting multiple accesses to
-file pages. The workingset refault measurement code causes
-recently evicted file pages that get accessed again after a
-shorter interval to be promoted directly to the active list.
+On Mon, Apr 04, 2016 at 03:06:25PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Apr 04, 2016 at 02:03:54PM +0200, Vlastimil Babka wrote:
+> > [+CC Andrea]
+> > 
+> > On 04/02/2016 11:48 AM, Dmitry Vyukov wrote:
+> > >Hello,
+> > >
+> > >The following program triggers a BUG in khugepaged_scan_mm_slot:
+> > >
+> > >
+> > >vma ffff880032698f90 start 0000000020c57000 end 0000000020c58000
+> > >next ffff88003269a1b8 prev ffff88003269ac18 mm ffff88005e274780
+> > >prot 35 anon_vma ffff88003182c000 vm_ops           (null)
+> > >pgoff fed00 file ffff8800324552c0 private_data           (null)
+> > >flags: 0x5144477(read|write|exec|mayread|maywrite|mayexec|pfnmap|io|dontexpand|account)
+> > >------------[ cut here ]------------
+> > >kernel BUG at mm/huge_memory.c:2313!
+> > >invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
+> > 
+> > That's VM_BUG_ON_VMA(vma->vm_flags & VM_NO_THP, vma) in
+> > hugepage_vma_check().
+> > 
+> > #define VM_NO_THP (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
+> > 
+> > #define VM_SPECIAL (VM_IO | VM_DONTEXPAND | VM_PFNMAP | VM_MIXEDMAP)
+> > 
+> > Of those, we have VM_IO | VM_DONTEXPAND.
+> > 
+> > I don't know if it's valid for a vma with anon_vma to have such flags, if
+> > yes, we should probably modify hugepage_vma_check(). Called from
+> > khugepaged_scan_mm_slot() it should just return false out VM_NO_THP. Called
+> > from collapse_huge_page() it could keep the VM_BUG_ON. Or maybe just have
+> > VM_BUG_ON(!hugepage_vma_check()) there? Hmm actually no, there's a mmap_sem
+> > release for read and then acquire for write, so we can't rely on the check
+> > done earlier from khugepaged_scan_mm_slot().
+> > 
+> > So we should probably just change the VM_BUG_ON to another "return false"
+> > condition. Unless the VM_BUG_ON uncovered a real bug and the earlier
+> > conditions in hugepage_vma_check() should guarantee the VM_BUG_ON be false
+> > for any vma.
+> 
+> http://lkml.kernel.org/r/145961146490.28194.16019687861681349309.stgit@zurg
 
-With that mechanism in place, we can afford to (on a larger
-system) dedicate more memory to the active file list, so we
-can actually cache more of the frequently used file pages
-in memory, and not have them pushed out by streaming writes,
-once-used streaming file reads, etc.
+That's not the only place that assumes vm_ops NULL means anonymous and
+not VM_IO though, so I agree with Vlastimil we should think once more
+about this fix, either that or extend it to other places.
 
-This can help things like database workloads, where only
-half the page cache can currently be used to cache the
-database working set. This patch automatically increases
-that fraction on larger systems, using the same ratio that
-has already been used for anonymous memory.
+I wonder if perhaps there was a mistake in checking vm_ops in the
+first place and leaving the vm_ops check isn't the right fix. Wouldn't
+it be more correct to apply a s/!vm_ops/!vm_file/ and not just there?
+What problem would then we run into if we used !vm_file?
 
-Reported-by: Andres Freund <andres@anarazel.de>
-Signed-off-by: Rik van Riel <riel@redhat.com>
-[hannes@cmpxchg.org: cgroup-awareness]
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/memcontrol.h |  25 -----------
- mm/page_alloc.c            |  44 -------------------
- mm/vmscan.c                | 104 ++++++++++++++++++---------------------------
- 3 files changed, 42 insertions(+), 131 deletions(-)
+The assumption in this vm_ops check is that it was safer to a vm_file
+check but clearly it isn't as some chardev is not setting vm_ops
+(don't they need to vm_ops->close?). But all chardevs have vm_file
+set, so if we could use that instead, we can retain the VM_BUG_ON or
+better convert it to a graceful warn on that bails out.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 1191d79..3694f88 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -415,25 +415,6 @@ unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
- 	return mz->lru_size[lru];
- }
- 
--static inline bool mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
--{
--	unsigned long inactive_ratio;
--	unsigned long inactive;
--	unsigned long active;
--	unsigned long gb;
--
--	inactive = mem_cgroup_get_lru_size(lruvec, LRU_INACTIVE_ANON);
--	active = mem_cgroup_get_lru_size(lruvec, LRU_ACTIVE_ANON);
--
--	gb = (inactive + active) >> (30 - PAGE_SHIFT);
--	if (gb)
--		inactive_ratio = int_sqrt(10 * gb);
--	else
--		inactive_ratio = 1;
--
--	return inactive * inactive_ratio < active;
--}
--
- void mem_cgroup_handle_over_high(void);
- 
- void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
-@@ -646,12 +627,6 @@ static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
- 	return true;
- }
- 
--static inline bool
--mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
--{
--	return true;
--}
--
- static inline unsigned long
- mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
- {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 59de90d..67db15d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6395,49 +6395,6 @@ void setup_per_zone_wmarks(void)
- }
- 
- /*
-- * The inactive anon list should be small enough that the VM never has to
-- * do too much work, but large enough that each inactive page has a chance
-- * to be referenced again before it is swapped out.
-- *
-- * The inactive_anon ratio is the target ratio of ACTIVE_ANON to
-- * INACTIVE_ANON pages on this zone's LRU, maintained by the
-- * pageout code. A zone->inactive_ratio of 3 means 3:1 or 25% of
-- * the anonymous pages are kept on the inactive list.
-- *
-- * total     target    max
-- * memory    ratio     inactive anon
-- * -------------------------------------
-- *   10MB       1         5MB
-- *  100MB       1        50MB
-- *    1GB       3       250MB
-- *   10GB      10       0.9GB
-- *  100GB      31         3GB
-- *    1TB     101        10GB
-- *   10TB     320        32GB
-- */
--static void __meminit calculate_zone_inactive_ratio(struct zone *zone)
--{
--	unsigned int gb, ratio;
--
--	/* Zone size in gigabytes */
--	gb = zone->managed_pages >> (30 - PAGE_SHIFT);
--	if (gb)
--		ratio = int_sqrt(10 * gb);
--	else
--		ratio = 1;
--
--	zone->inactive_ratio = ratio;
--}
--
--static void __meminit setup_per_zone_inactive_ratio(void)
--{
--	struct zone *zone;
--
--	for_each_zone(zone)
--		calculate_zone_inactive_ratio(zone);
--}
--
--/*
-  * Initialise min_free_kbytes.
-  *
-  * For small machines we want it small (128k min).  For large machines
-@@ -6482,7 +6439,6 @@ int __meminit init_per_zone_wmark_min(void)
- 	setup_per_zone_wmarks();
- 	refresh_zone_stat_thresholds();
- 	setup_per_zone_lowmem_reserve();
--	setup_per_zone_inactive_ratio();
- 	return 0;
- }
- module_init(init_per_zone_wmark_min)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b934223e..6f4f18c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1865,83 +1865,63 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 	free_hot_cold_page_list(&l_hold, true);
- }
- 
--#ifdef CONFIG_SWAP
--static bool inactive_anon_is_low_global(struct zone *zone)
--{
--	unsigned long active, inactive;
--
--	active = zone_page_state(zone, NR_ACTIVE_ANON);
--	inactive = zone_page_state(zone, NR_INACTIVE_ANON);
--
--	return inactive * zone->inactive_ratio < active;
--}
--
--/**
-- * inactive_anon_is_low - check if anonymous pages need to be deactivated
-- * @lruvec: LRU vector to check
-+/*
-+ * The inactive anon list should be small enough that the VM never has
-+ * to do too much work.
-  *
-- * Returns true if the zone does not have enough inactive anon pages,
-- * meaning some active anon pages need to be deactivated.
-- */
--static bool inactive_anon_is_low(struct lruvec *lruvec)
--{
--	/*
--	 * If we don't have swap space, anonymous page deactivation
--	 * is pointless.
--	 */
--	if (!total_swap_pages)
--		return false;
--
--	if (!mem_cgroup_disabled())
--		return mem_cgroup_inactive_anon_is_low(lruvec);
--
--	return inactive_anon_is_low_global(lruvec_zone(lruvec));
--}
--#else
--static inline bool inactive_anon_is_low(struct lruvec *lruvec)
--{
--	return false;
--}
--#endif
--
--/**
-- * inactive_file_is_low - check if file pages need to be deactivated
-- * @lruvec: LRU vector to check
-+ * The inactive file list should be small enough to leave most memory
-+ * to the established workingset on the scan-resistant active list,
-+ * but large enough to avoid thrashing the aggregate readahead window.
-  *
-- * When the system is doing streaming IO, memory pressure here
-- * ensures that active file pages get deactivated, until more
-- * than half of the file pages are on the inactive list.
-+ * Both inactive lists should also be large enough that each inactive
-+ * page has a chance to be referenced again before it is reclaimed.
-  *
-- * Once we get to that situation, protect the system's working
-- * set from being evicted by disabling active file page aging.
-+ * The inactive_ratio is the target ratio of ACTIVE to INACTIVE pages
-+ * on this LRU, maintained by the pageout code. A zone->inactive_ratio
-+ * of 3 means 3:1 or 25% of the pages are kept on the inactive list.
-  *
-- * This uses a different ratio than the anonymous pages, because
-- * the page cache uses a use-once replacement algorithm.
-+ * total     target    max
-+ * memory    ratio     inactive
-+ * -------------------------------------
-+ *   10MB       1         5MB
-+ *  100MB       1        50MB
-+ *    1GB       3       250MB
-+ *   10GB      10       0.9GB
-+ *  100GB      31         3GB
-+ *    1TB     101        10GB
-+ *   10TB     320        32GB
-  */
--static bool inactive_file_is_low(struct lruvec *lruvec)
-+static bool inactive_list_is_low(struct lruvec *lruvec, bool file)
- {
-+	unsigned long inactive_ratio;
- 	unsigned long inactive;
- 	unsigned long active;
-+	unsigned long gb;
- 
--	inactive = lruvec_lru_size(lruvec, LRU_INACTIVE_FILE);
--	active = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE);
-+	/*
-+	 * If we don't have swap space, anonymous page deactivation
-+	 * is pointless.
-+	 */
-+	if (!file && !total_swap_pages)
-+		return false;
- 
--	return active > inactive;
--}
-+	inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
-+	active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
- 
--static bool inactive_list_is_low(struct lruvec *lruvec, enum lru_list lru)
--{
--	if (is_file_lru(lru))
--		return inactive_file_is_low(lruvec);
-+	gb = (inactive + active) >> (30 - PAGE_SHIFT);
-+	if (gb)
-+		inactive_ratio = int_sqrt(10 * gb);
- 	else
--		return inactive_anon_is_low(lruvec);
-+		inactive_ratio = 1;
-+
-+	return inactive * inactive_ratio < active;
- }
- 
- static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 				 struct lruvec *lruvec, struct scan_control *sc)
- {
- 	if (is_active_lru(lru)) {
--		if (inactive_list_is_low(lruvec, lru))
-+		if (inactive_list_is_low(lruvec, is_file_lru(lru)))
- 			shrink_active_list(nr_to_scan, lruvec, sc, lru);
- 		return 0;
- 	}
-@@ -2062,7 +2042,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	 * lruvec even if it has plenty of old anonymous pages unless the
- 	 * system is under heavy pressure.
- 	 */
--	if (!inactive_file_is_low(lruvec) &&
-+	if (!inactive_list_is_low(lruvec, true) &&
- 	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority) {
- 		scan_balance = SCAN_FILE;
- 		goto out;
-@@ -2304,7 +2284,7 @@ static void shrink_zone_memcg(struct zone *zone, struct mem_cgroup *memcg,
- 	 * Even if we did not try to evict anon pages at all, we want to
- 	 * rebalance the anon lru active/inactive ratio.
- 	 */
--	if (inactive_anon_is_low(lruvec))
-+	if (inactive_list_is_low(lruvec, false))
- 		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
- 				   sc, LRU_ACTIVE_ANON);
- 
-@@ -2965,7 +2945,7 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc)
- 	do {
- 		struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
- 
--		if (inactive_anon_is_low(lruvec))
-+		if (inactive_list_is_low(lruvec, false))
- 			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
- 					   sc, LRU_ACTIVE_ANON);
- 
--- 
-2.8.0
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
