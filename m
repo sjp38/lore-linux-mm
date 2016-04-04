@@ -1,139 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f45.google.com (mail-lf0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C4CF6B0272
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 09:09:29 -0400 (EDT)
-Received: by mail-lf0-f45.google.com with SMTP id g184so95491525lfb.3
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 06:09:29 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ax8si31169846wjc.175.2016.04.04.06.09.27
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 04 Apr 2016 06:09:27 -0700 (PDT)
-Subject: Re: [PATCH v3 03/16] mm: add non-lru movable page support document
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A21836B0273
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 09:17:27 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id zm5so144528521pac.0
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 06:17:27 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id xe1si453255pab.53.2016.04.04.06.17.26
+        for <linux-mm@kvack.org>;
+        Mon, 04 Apr 2016 06:17:26 -0700 (PDT)
+Date: Mon, 4 Apr 2016 15:17:18 +0200
+From: John Einar Reitan <john.reitan@foss.arm.com>
+Subject: Re: [PATCH v3 00/16] Support non-lru page migration
+Message-ID: <20160404131718.GA18963@e106921-lin.trondheim.arm.com>
 References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
- <1459321935-3655-4-git-send-email-minchan@kernel.org>
- <56FE87EA.60806@suse.cz> <20160404022552.GD6543@bbox>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <57026782.3020201@suse.cz>
-Date: Mon, 4 Apr 2016 15:09:22 +0200
 MIME-Version: 1.0
-In-Reply-To: <20160404022552.GD6543@bbox>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="sm4nu43k4a2Rpi4c"
+Content-Disposition: inline
+In-Reply-To: <1459321935-3655-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, Jonathan Corbet <corbet@lwn.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>
 
-On 04/04/2016 04:25 AM, Minchan Kim wrote:
->>
->> Ah, I see, so it's designed with page lock to handle the concurrent isolations etc.
->>
->> In http://marc.info/?l=linux-mm&m=143816716511904&w=2 Mel has warned
->> about doing this in general under page_lock and suggested that each
->> user handles concurrent calls to isolate_page() internally. Might be
->> more generic that way, even if all current implementers will
->> actually use the page lock.
->
-> We need PG_lock for two reasons.
->
-> Firstly, it guarantees page's flags operation(i.e., PG_movable, PG_isolated)
-> atomicity. Another thing is for stability for page->mapping->a_ops.
->
-> For example,
->
-> isolate_migratepages_block
->          if (PageMovable(page))
->                  isolate_movable_page
->                          get_page_unless_zero <--- 1
->                          trylock_page
->                          page->mapping->a_ops->isolate_page <--- 2
->
-> Between 1 and 2, driver can nullify page->mapping so we need PG_lock
 
-Hmm I see, that really doesn't seem easily solvable without page_lock.
-My idea is that compaction code would just check PageMovable() and 
-PageIsolated() to find a candidate. page->mapping->a_ops->isolate_page 
-would do the driver-specific necessary locking, revalidate if the page 
-state and succeed isolation, or fail. It would need to handle the 
-possibility that the page already doesn't belong to the mapping, which 
-is probably not a problem. But what if the driver is a module that was 
-already unloaded, and even though we did NULL-check each part from page 
-to isolate_page, it points to a function that's already gone? That would 
-need some extra handling to prevent that, hm...
+--sm4nu43k4a2Rpi4c
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
->>
->>> +2. Migration
->>> +
->>> +After successful isolation, VM calls migratepage. The migratepage's goal is
->>> +to move content of the old page to new page and set up struct page fields
->>> +of new page. If migration is successful, subsystem should release old page's
->>> +refcount to free. Keep in mind that subsystem should clear PG_movable and
->>> +PG_isolated before releasing the refcount.  If everything are done, user
->>> +should return MIGRATEPAGE_SUCCESS. If subsystem cannot migrate the page
->>> +at the moment, migratepage can return -EAGAIN. On -EAGAIN, VM will retry page
->>> +migration because VM interprets -EAGAIN as "temporal migration failure".
->>> +
->>> +3. Putback
->>> +
->>> +If migration was unsuccessful, VM calls putback_page. The subsystem should
->>> +insert isolated page to own data structure again if it has. And subsystem
->>> +should clear PG_isolated which was marked in isolation step.
->>> +
->>> +Note about releasing page:
->>> +
->>> +Subsystem can release pages whenever it want but if it releses the page
->>> +which is already isolated, it should clear PG_isolated but doesn't touch
->>> +PG_movable under PG_lock. Instead of it, VM will clear PG_movable after
->>> +his job done. Otherweise, subsystem should clear both page flags before
->>> +releasing the page.
->>
->> I don't understand this right now. But maybe I will get it after
->> reading the patches and suggest some improved wording here.
->
-> I will try to explain why such rule happens in there.
->
-> The problem is that put_page is aware of PageLRU. So, if someone releases
-> last refcount of LRU page, __put_page checks PageLRU and then, clear the
-> flags and detatch the page in LRU list(i.e., data structure).
-> But in case of driver page, data structure like LRU among drivers is not only one.
-> IOW, we should add following code in put_page to handle various requirements
-> of driver page.
->
-> void __put_page(struct page *page)
-> {
->          if (PageMovable(page)) {
->                  /*
->                   * It will tity up driver's data structure like LRU
->                   * and reset page's flags. And it should be atomic
->                   * and always successful
->                   */
->                  page->put(page);
->                  __ClearPageMovable(page);
->          } else if (PageCompound(page))
->                  __put_compound_page(page);
->          else
->                  __put_single_page(page);
->
-> }
->
-> I'd like to avoid add new branch for not popular job in put_page which is hot.
-> (Might change in future but not popular at the moment)
-> So, rule of driver is as follows.
->
-> When the driver releases the page and he found the page is PG_isolated,
-> he should unmark only PG_isolated, not PG_movable so migration side of
-> VM can catch it up "Hmm, the isolated non-lru page doesn't have PG_isolated
-> any more. It means drivers releases the page. So, let's put the page
-> instead of putback operation".
->
-> When the driver releases the page and he doesn't see PG_isolated mark
-> of the page, driver should reset both PG_isolated and PG_movable.
+On Wed, Mar 30, 2016 at 04:11:59PM +0900, Minchan Kim wrote:
+> Recently, I got many reports about perfermance degradation
+> in embedded system(Android mobile phone, webOS TV and so on)
+> and failed to fork easily.
+>=20
+> The problem was fragmentation caused by zram and GPU driver
+> pages. Their pages cannot be migrated so compaction cannot
+> work well, either so reclaimer ends up shrinking all of working
+> set pages. It made system very slow and even to fail to fork
+> easily.
+>=20
+> Other pain point is that they cannot work with CMA.
+> Most of CMA memory space could be idle(ie, it could be used
+> for movable pages unless driver is using) but if driver(i.e.,
+> zram) cannot migrate his page, that memory space could be
+> wasted. In our product which has big CMA memory, it reclaims
+> zones too exccessively although there are lots of free space
+> in CMA so system was very slow easily.
+>=20
+> To solve these problem, this patch try to add facility to
+> migrate non-lru pages via introducing new friend functions
+> of migratepage in address_space_operation and new page flags.
+>=20
+> 	(isolate_page, putback_page)
+> 	(PG_movable, PG_isolated)
+>=20
+> For details, please read description in
+> "mm/compaction: support non-lru movable page migration".
 
-Yeah think I understand now, thanks for the explanation. But since I 
-found the "freeing isolated page" part to be racy in the 02/16 
-subthread, it might be premature now to improve the wording now :/
+Thanks, this mirrors what we see with the ARM Mali GPU drivers too.
 
+One thing with the current design which worries me is the potential
+for multiple calls due to many separated pages being migrated.
+On GPUs (or any other device) which has an IOMMU and L2 cache, which
+isn't coherent with the CPU, we must do L2 cache flush & invalidation
+per page. I guess batching pages isn't easily possible?
+
+
+--sm4nu43k4a2Rpi4c
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQGcBAABCAAGBQJXAmlZAAoJEPmPNPdCQ4pIlBwL/1pxZRdGGS+YVXOWnKmLrVhR
+LwzyVmu02A7lMgHXoAMGHuWaH06mGRLfwgjU56fi2JnLeNkHR/wpR95gGckvS8zd
+xQmogKXU4ZE8xbqqft6qwxv3IE+mGkwCPMGrLVjvgfKR0/iJ7ojQYN9fhoV1Z3br
+Pn0/lhMdOqo1jnHHmMDp9PD6s32l3SdnISfjHXF72fSA5u4Uv/kITReSyRgaWQSB
+efJjZjM7QPPHomeUcy1u/ZdbJYI5FRnZpaNJMGuCX8d7hnlIu1WS7zdlJzhMs3qi
+mzU5/49J/eoycEadTFJD9VsvKKO0W5GpPP03A2PEHcsiGv3mEqjsnomNNCBLfebO
+2bT8pMYR3VV7/+W/DjEOvMvlWCrq01uxuJIcjJVpoC3Wh6aMJW8fX1Po8RZQIfRb
++en68y8EocFXu1oevCEP2jBUmBpd/uXzLUStbHDbijDH3G53PBBsv8msFpm9HIfM
+Ice5LUXN2cBJcmwD0KwZwn9a2SUoy/NQesE50nBfSA==
+=0/aR
+-----END PGP SIGNATURE-----
+
+--sm4nu43k4a2Rpi4c--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
