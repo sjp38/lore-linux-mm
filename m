@@ -1,90 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E58706B0279
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 09:20:10 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id td3so143897820pab.2
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 06:20:10 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s28si41738204pfi.238.2016.04.04.06.20.09
+Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
+	by kanga.kvack.org (Postfix) with ESMTP id DF4436B027B
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 09:24:38 -0400 (EDT)
+Received: by mail-lb0-f173.google.com with SMTP id u8so161054731lbk.0
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 06:24:38 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id vl10si31260508wjc.75.2016.04.04.06.24.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Apr 2016 06:20:10 -0700 (PDT)
-Date: Mon, 4 Apr 2016 06:20:09 -0700
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] android,lowmemorykiller: Don't abuse TIF_MEMDIE.
-Message-ID: <20160404132009.GA9031@kroah.com>
-References: <1457434892-12642-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160308141858.GJ13542@dhcp22.suse.cz>
- <20160311220109.GD11274@kroah.com>
- <201603212000.BJE57350.MOFOFFLQVJSHtO@I-love.SAKURA.ne.jp>
- <20160321111030.GA11284@kroah.com>
- <201604041948.EBJ39073.OVtFMFSFLOOQJH@I-love.SAKURA.ne.jp>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 04 Apr 2016 06:24:37 -0700 (PDT)
+Subject: Re: [PATCH v3 02/16] mm/compaction: support non-lru movable page
+ migration
+References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
+ <1459321935-3655-3-git-send-email-minchan@kernel.org>
+ <56FEE82A.30602@suse.cz> <20160404051225.GA6838@bbox>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <57026B12.6060000@suse.cz>
+Date: Mon, 4 Apr 2016 15:24:34 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201604041948.EBJ39073.OVtFMFSFLOOQJH@I-love.SAKURA.ne.jp>
+In-Reply-To: <20160404051225.GA6838@bbox>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@suse.cz, devel@driverdev.osuosl.org, arve@android.com, riandrews@android.com, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, dri-devel@lists.freedesktop.org, Gioh Kim <gurugio@hanmail.net>
 
-On Mon, Apr 04, 2016 at 07:48:15PM +0900, Tetsuo Handa wrote:
-> Greg KH wrote:
-> > On Mon, Mar 21, 2016 at 08:00:49PM +0900, Tetsuo Handa wrote:
-> > > Greg Kroah-Hartman wrote:
-> > > > On Tue, Mar 08, 2016 at 03:18:59PM +0100, Michal Hocko wrote:
-> > > > > On Tue 08-03-16 20:01:32, Tetsuo Handa wrote:
-> > > > > > Currently, lowmemorykiller (LMK) is using TIF_MEMDIE for two purposes.
-> > > > > > One is to remember processes killed by LMK, and the other is to
-> > > > > > accelerate termination of processes killed by LMK.
-> > > > > > 
-> > > > > > But since LMK is invoked as a memory shrinker function, there still
-> > > > > > should be some memory available. It is very likely that memory
-> > > > > > allocations by processes killed by LMK will succeed without using
-> > > > > > ALLOC_NO_WATERMARKS via TIF_MEMDIE. Even if their allocations cannot
-> > > > > > escape from memory allocation loop unless they use ALLOC_NO_WATERMARKS,
-> > > > > > lowmem_deathpending_timeout can guarantee forward progress by choosing
-> > > > > > next victim process.
-> > > > > > 
-> > > > > > On the other hand, mark_oom_victim() assumes that it must be called with
-> > > > > > oom_lock held and it must not be called after oom_killer_disable() was
-> > > > > > called. But LMK is calling it without holding oom_lock and checking
-> > > > > > oom_killer_disabled. It is possible that LMK calls mark_oom_victim()
-> > > > > > due to allocation requests by kernel threads after current thread
-> > > > > > returned from oom_killer_disabled(). This will break synchronization
-> > > > > > for PM/suspend.
-> > > > > > 
-> > > > > > This patch introduces per a task_struct flag for remembering processes
-> > > > > > killed by LMK, and replaces TIF_MEMDIE with that flag. By applying this
-> > > > > > patch, assumption by mark_oom_victim() becomes true.
-> > > > > 
-> > > > > Thanks for looking into this. A separate flag sounds like a better way
-> > > > > to go (assuming that the flags are not scarce which doesn't seem to be
-> > > > > the case here).
-> > > > >  
-> > > > > The LMK cannot kill the frozen tasks now but this shouldn't be a big deal
-> > > > > because this is not strictly necessary for the system to move on. We are
-> > > > > not OOM.
-> > > > > 
-> > > > > > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > > > > Cc: Michal Hocko <mhocko@suse.cz>
-> > > > > > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> > > > > > Cc: Arve Hjonnevag <arve@android.com>
-> > > > > > Cc: Riley Andrews <riandrews@android.com>
-> > > > > 
-> > > > > Acked-by: Michal Hocko <mhocko@suse.com>
-> > > > 
-> > > > So, any objection for me taking this through the staging tree?
-> > > > 
-> > > Seems no objection. Please take this through the staging tree.
-> > 
-> > Ok, will do so after 4.6-rc1 is out.
-> > 
-> I haven't seen this patch in linux-next. Would you take this?
+On 04/04/2016 07:12 AM, Minchan Kim wrote:
+> On Fri, Apr 01, 2016 at 11:29:14PM +0200, Vlastimil Babka wrote:
+>> Might have been better as a separate migration patch and then a
+>> compaction patch. It's prefixed mm/compaction, but most changed are
+>> in mm/migrate.c
+>
+> Indeed. The title is rather misleading but not sure it's a good idea
+> to separate compaction and migration part.
 
-It's in my queue, I'll get to it soon, thanks.
+Guess it's better to see the new functions together with its user after 
+all, OK.
 
-greg k-h
+> I will just resend to change the tile from "mm/compaction" to
+> "mm/migration".
+
+OK!
+
+>> Also I'm a bit uncomfortable how isolate_movable_page() blindly expects that
+>> page->mapping->a_ops->isolate_page exists for PageMovable() pages.
+>> What if it's a false positive on a PG_reclaim page? Can we rely on
+>> PG_reclaim always (and without races) implying PageLRU() so that we
+>> don't even attempt isolate_movable_page()?
+>
+> For now, we shouldn't have such a false positive because PageMovable
+> checks page->_mapcount == PAGE_MOVABLE_MAPCOUNT_VALUE as well as PG_movable
+> under PG_lock.
+>
+> But I read your question about user-mapped drvier pages so we cannot
+> use _mapcount anymore so I will find another thing. A option is this.
+>
+> static inline int PageMovable(struct page *page)
+> {
+>          int ret = 0;
+>          struct address_space *mapping;
+>          struct address_space_operations *a_op;
+>
+>          if (!test_bit(PG_movable, &(page->flags))
+>                  goto out;
+>
+>          mapping = page->mapping;
+>          if (!mapping)
+>                  goto out;
+>
+>          a_op = mapping->a_op;
+>          if (!aop)
+>                  goto out;
+>          if (a_op->isolate_page)
+>                  ret = 1;
+> out:
+>          return ret;
+>
+> }
+>
+> It works under PG_lock but with this, we need trylock_page to peek
+> whether it's movable non-lru or not for scanning pfn.
+
+Hm I hoped that with READ_ONCE() we could do the peek safely without 
+trylock_page, if we use it only as a heuristic. But I guess it would 
+require at least RCU-level protection of the 
+page->mapping->a_op->isolate_page chain.
+
+> For avoiding that, we need another function to peek which just checks
+> PG_movable bit instead of all things.
+>
+>
+> /*
+>   * If @page_locked is false, we cannot guarantee page->mapping's stability
+>   * so just the function checks with PG_movable which could be false positive
+>   * so caller should check it again under PG_lock to check a_ops->isolate_page.
+>   */
+> static inline int PageMovable(struct page *page, bool page_locked)
+> {
+>          int ret = 0;
+>          struct address_space *mapping;
+>          struct address_space_operations *a_op;
+>
+>          if (!test_bit(PG_movable, &(page->flags))
+>                  goto out;
+>
+>          if (!page_locked) {
+>                  ret = 1;
+>                  goto out;
+>          }
+>
+>          mapping = page->mapping;
+>          if (!mapping)
+>                  goto out;
+>
+>          a_op = mapping->a_op;
+>          if (!aop)
+>                  goto out;
+>          if (a_op->isolate_page)
+>                  ret = 1;
+> out:
+>          return ret;
+> }
+
+I wouldn't put everything into single function, but create something 
+like __PageMovable() just for the unlocked peek. Unlike the 
+zone->lru_lock, we don't keep page_lock() across iterations in 
+isolate_migratepages_block(), as obviously each page has different lock.
+So the page_locked parameter would be always passed as constant, and at 
+that point it's better to have separate functions.
+
+So I guess the question is how many false positives from overlap with 
+PG_reclaim the scanner will hit if we give up on 
+PAGE_MOVABLE_MAPCOUNT_VALUE, as that will increase number of page locks 
+just to realize that it's not actual PageMovable() page...
+
+> Thanks for detail review, Vlastimil!
+> I will resend new versions after vacation in this week.
+
+You're welcome, great!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
