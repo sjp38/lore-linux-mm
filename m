@@ -1,144 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
-	by kanga.kvack.org (Postfix) with ESMTP id DF4436B027B
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 09:24:38 -0400 (EDT)
-Received: by mail-lb0-f173.google.com with SMTP id u8so161054731lbk.0
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 06:24:38 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id vl10si31260508wjc.75.2016.04.04.06.24.37
+Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D04B6B027E
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 09:46:57 -0400 (EDT)
+Received: by mail-lb0-f169.google.com with SMTP id bc4so161025082lbc.2
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 06:46:57 -0700 (PDT)
+Received: from mail-lb0-x241.google.com (mail-lb0-x241.google.com. [2a00:1450:4010:c04::241])
+        by mx.google.com with ESMTPS id g69si6496422lfb.54.2016.04.04.06.46.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 04 Apr 2016 06:24:37 -0700 (PDT)
-Subject: Re: [PATCH v3 02/16] mm/compaction: support non-lru movable page
- migration
-References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
- <1459321935-3655-3-git-send-email-minchan@kernel.org>
- <56FEE82A.30602@suse.cz> <20160404051225.GA6838@bbox>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <57026B12.6060000@suse.cz>
-Date: Mon, 4 Apr 2016 15:24:34 +0200
-MIME-Version: 1.0
-In-Reply-To: <20160404051225.GA6838@bbox>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Apr 2016 06:46:55 -0700 (PDT)
+Received: by mail-lb0-x241.google.com with SMTP id gk8so20225475lbc.2
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 06:46:55 -0700 (PDT)
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: [PATCH v2 2/3] mm/vmap: Add a notifier for when we run out of vmap address space
+Date: Mon,  4 Apr 2016 14:46:42 +0100
+Message-Id: <1459777603-23618-3-git-send-email-chris@chris-wilson.co.uk>
+In-Reply-To: <1459777603-23618-1-git-send-email-chris@chris-wilson.co.uk>
+References: <1459777603-23618-1-git-send-email-chris@chris-wilson.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, dri-devel@lists.freedesktop.org, Gioh Kim <gurugio@hanmail.net>
+To: intel-gfx@lists.freedesktop.org
+Cc: Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Roman Peniaev <r.peniaev@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Tvrtko Ursulin <tvrtko.ursulin@intel.com>
 
-On 04/04/2016 07:12 AM, Minchan Kim wrote:
-> On Fri, Apr 01, 2016 at 11:29:14PM +0200, Vlastimil Babka wrote:
->> Might have been better as a separate migration patch and then a
->> compaction patch. It's prefixed mm/compaction, but most changed are
->> in mm/migrate.c
->
-> Indeed. The title is rather misleading but not sure it's a good idea
-> to separate compaction and migration part.
+vmaps are temporary kernel mappings that may be of long duration.
+Reusing a vmap on an object is preferrable for a driver as the cost of
+setting up the vmap can otherwise dominate the operation on the object.
+However, the vmap address space is rather limited on 32bit systems and
+so we add a notification for vmap pressure in order for the driver to
+release any cached vmappings.
 
-Guess it's better to see the new functions together with its user after 
-all, OK.
+The interface is styled after the oom-notifier where the callees are
+passed a pointer to an unsigned long counter for them to indicate if they
+have freed any space.
 
-> I will just resend to change the tile from "mm/compaction" to
-> "mm/migration".
+v2: Guard the blocking notifier call with gfpflags_allow_blocking()
+v3: Correct typo in forward declaration and move to head of file
 
-OK!
+Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Roman Peniaev <r.peniaev@gmail.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+Acked-by: Andrew Morton <akpm@linux-foundation.org> # for inclusion via DRM
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Cc: Tvrtko Ursulin <tvrtko.ursulin@intel.com>
+---
+ include/linux/vmalloc.h |  4 ++++
+ mm/vmalloc.c            | 27 +++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)
 
->> Also I'm a bit uncomfortable how isolate_movable_page() blindly expects that
->> page->mapping->a_ops->isolate_page exists for PageMovable() pages.
->> What if it's a false positive on a PG_reclaim page? Can we rely on
->> PG_reclaim always (and without races) implying PageLRU() so that we
->> don't even attempt isolate_movable_page()?
->
-> For now, we shouldn't have such a false positive because PageMovable
-> checks page->_mapcount == PAGE_MOVABLE_MAPCOUNT_VALUE as well as PG_movable
-> under PG_lock.
->
-> But I read your question about user-mapped drvier pages so we cannot
-> use _mapcount anymore so I will find another thing. A option is this.
->
-> static inline int PageMovable(struct page *page)
-> {
->          int ret = 0;
->          struct address_space *mapping;
->          struct address_space_operations *a_op;
->
->          if (!test_bit(PG_movable, &(page->flags))
->                  goto out;
->
->          mapping = page->mapping;
->          if (!mapping)
->                  goto out;
->
->          a_op = mapping->a_op;
->          if (!aop)
->                  goto out;
->          if (a_op->isolate_page)
->                  ret = 1;
-> out:
->          return ret;
->
-> }
->
-> It works under PG_lock but with this, we need trylock_page to peek
-> whether it's movable non-lru or not for scanning pfn.
-
-Hm I hoped that with READ_ONCE() we could do the peek safely without 
-trylock_page, if we use it only as a heuristic. But I guess it would 
-require at least RCU-level protection of the 
-page->mapping->a_op->isolate_page chain.
-
-> For avoiding that, we need another function to peek which just checks
-> PG_movable bit instead of all things.
->
->
-> /*
->   * If @page_locked is false, we cannot guarantee page->mapping's stability
->   * so just the function checks with PG_movable which could be false positive
->   * so caller should check it again under PG_lock to check a_ops->isolate_page.
->   */
-> static inline int PageMovable(struct page *page, bool page_locked)
-> {
->          int ret = 0;
->          struct address_space *mapping;
->          struct address_space_operations *a_op;
->
->          if (!test_bit(PG_movable, &(page->flags))
->                  goto out;
->
->          if (!page_locked) {
->                  ret = 1;
->                  goto out;
->          }
->
->          mapping = page->mapping;
->          if (!mapping)
->                  goto out;
->
->          a_op = mapping->a_op;
->          if (!aop)
->                  goto out;
->          if (a_op->isolate_page)
->                  ret = 1;
-> out:
->          return ret;
-> }
-
-I wouldn't put everything into single function, but create something 
-like __PageMovable() just for the unlocked peek. Unlike the 
-zone->lru_lock, we don't keep page_lock() across iterations in 
-isolate_migratepages_block(), as obviously each page has different lock.
-So the page_locked parameter would be always passed as constant, and at 
-that point it's better to have separate functions.
-
-So I guess the question is how many false positives from overlap with 
-PG_reclaim the scanner will hit if we give up on 
-PAGE_MOVABLE_MAPCOUNT_VALUE, as that will increase number of page locks 
-just to realize that it's not actual PageMovable() page...
-
-> Thanks for detail review, Vlastimil!
-> I will resend new versions after vacation in this week.
-
-You're welcome, great!
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index d1f1d338af20..8b51df3ab334 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -8,6 +8,7 @@
+ #include <linux/rbtree.h>
+ 
+ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
++struct notifier_block;		/* in notifier.h */
+ 
+ /* bits in flags of vmalloc's vm_struct below */
+ #define VM_IOREMAP		0x00000001	/* ioremap() and friends */
+@@ -187,4 +188,7 @@ pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
+ #define VMALLOC_TOTAL 0UL
+ #endif
+ 
++int register_vmap_purge_notifier(struct notifier_block *nb);
++int unregister_vmap_purge_notifier(struct notifier_block *nb);
++
+ #endif /* _LINUX_VMALLOC_H */
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index ae7d20b447ff..293889d7f482 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -21,6 +21,7 @@
+ #include <linux/debugobjects.h>
+ #include <linux/kallsyms.h>
+ #include <linux/list.h>
++#include <linux/notifier.h>
+ #include <linux/rbtree.h>
+ #include <linux/radix-tree.h>
+ #include <linux/rcupdate.h>
+@@ -344,6 +345,8 @@ static void __insert_vmap_area(struct vmap_area *va)
+ 
+ static void purge_vmap_area_lazy(void);
+ 
++static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
++
+ /*
+  * Allocate a region of KVA of the specified size and alignment, within the
+  * vstart and vend.
+@@ -363,6 +366,8 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 	BUG_ON(offset_in_page(size));
+ 	BUG_ON(!is_power_of_2(align));
+ 
++	might_sleep_if(gfpflags_allow_blocking(gfp_mask));
++
+ 	va = kmalloc_node(sizeof(struct vmap_area),
+ 			gfp_mask & GFP_RECLAIM_MASK, node);
+ 	if (unlikely(!va))
+@@ -468,6 +473,16 @@ overflow:
+ 		purged = 1;
+ 		goto retry;
+ 	}
++
++	if (gfpflags_allow_blocking(gfp_mask)) {
++		unsigned long freed = 0;
++		blocking_notifier_call_chain(&vmap_notify_list, 0, &freed);
++		if (freed > 0) {
++			purged = 0;
++			goto retry;
++		}
++	}
++
+ 	if (printk_ratelimit())
+ 		pr_warn("vmap allocation for size %lu failed: use vmalloc=<size> to increase size\n",
+ 			size);
+@@ -475,6 +490,18 @@ overflow:
+ 	return ERR_PTR(-EBUSY);
+ }
+ 
++int register_vmap_purge_notifier(struct notifier_block *nb)
++{
++	return blocking_notifier_chain_register(&vmap_notify_list, nb);
++}
++EXPORT_SYMBOL_GPL(register_vmap_purge_notifier);
++
++int unregister_vmap_purge_notifier(struct notifier_block *nb)
++{
++	return blocking_notifier_chain_unregister(&vmap_notify_list, nb);
++}
++EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
++
+ static void __free_vmap_area(struct vmap_area *va)
+ {
+ 	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
+-- 
+2.8.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
