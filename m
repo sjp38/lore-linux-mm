@@ -1,53 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f49.google.com (mail-lf0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 46726828E5
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 14:52:48 -0400 (EDT)
-Received: by mail-lf0-f49.google.com with SMTP id g184so110459614lfb.3
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 11:52:48 -0700 (PDT)
-Received: from mail.anarazel.de (mail.anarazel.de. [217.115.131.40])
-        by mx.google.com with ESMTP id 17si22377724wjx.30.2016.04.04.11.52.46
-        for <linux-mm@kvack.org>;
-        Mon, 04 Apr 2016 11:52:46 -0700 (PDT)
-Date: Mon, 4 Apr 2016 20:52:41 +0200
-From: Andres Freund <andres@anarazel.de>
-Subject: Re: [PATCH 0/3] mm: support bigger cache workingsets and protect
- against writes
-Message-ID: <20160404185241.GF25969@awork2.anarazel.de>
-References: <1459790018-6630-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 78C3B828E5
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 16:40:20 -0400 (EDT)
+Received: by mail-pf0-f171.google.com with SMTP id 184so51585458pff.0
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 13:40:20 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id r13si239670pfb.82.2016.04.04.13.40.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Apr 2016 13:40:07 -0700 (PDT)
+Date: Mon, 4 Apr 2016 23:39:52 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Subject: re: zsmalloc: zs_compact refactoring
+Message-ID: <20160404203952.GA8379@mwanda>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1459790018-6630-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: minchan@kernel.org
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org
 
-Hi Johannes,
+Hello Minchan Kim,
 
-On 2016-04-04 13:13:35 -0400, Johannes Weiner wrote:
-> this is a follow-up to http://www.spinics.net/lists/linux-mm/msg101739.html
-> where Andres reported his database workingset being pushed out by the
-> minimum size enforcement of the inactive file list - currently 50% of cache
-> - as well as repeatedly written file pages that are never actually read.
+The patch 9a0346061ab8: "zsmalloc: zs_compact refactoring" from Apr
+2, 2016, leads to the following static checker warning:
 
-Thanks for following up!
+	mm/zsmalloc.c:1851 handle_from_obj()
+	warn: bit shifter 'OBJ_ALLOCATED_TAG' used for logical '&'
 
+mm/zsmalloc.c
+  1622  static unsigned long obj_malloc(struct size_class *class,
+  1623                                  struct page *first_page, unsigned long handle)
+  1624  {
+  1625          unsigned long obj;
+  1626          struct link_free *link;
+  1627  
+  1628          struct page *m_page;
+  1629          unsigned long m_offset;
+  1630          void *vaddr;
+  1631  
+  1632          obj = get_freeobj(first_page);
+  1633          objidx_to_page_and_offset(class, first_page, obj,
+  1634                                  &m_page, &m_offset);
+  1635  
+  1636          vaddr = kmap_atomic(m_page);
+  1637          link = (struct link_free *)vaddr + m_offset / sizeof(*link);
+  1638          set_freeobj(first_page, link->next >> OBJ_ALLOCATED_TAG);
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OBJ_ALLOCATED_TAG is 1.  Here it's used as a shifter.
 
-> Andres, I tried reproducing your postgres scenario, but I could never get
-> the WAL to interfere even with wal_log = hot_standby mode. It's a 8G
-> machine, I set shared_buffers = 2GB, ran pgbench -i -s 290, and then -c 32
-> -j 32 -M prepared -t 150000. Any input on how to trigger the thrashing you
-> observed would be appreciated. But it would be great if you could test these
-> patches on your known-problematic setup as well.
+  1639          if (!class->huge)
+  1640                  /* record handle in the header of allocated chunk */
+  1641                  link->handle = handle | OBJ_ALLOCATED_TAG;
 
-I'm unfortunately in the process of moving to the US (as in, I'm packing
-boxes), so I can't get back to you just now. I'll try ASAP (early next
-week).
+Here it's a bit mask.  It's sort of confusing to re-use it like this.
+It's done through out the file.
 
-Regards,
+  1642          else
+  1643                  /* record handle in first_page->private */
+  1644                  set_page_private(first_page, handle | OBJ_ALLOCATED_TAG);
+  1645          kunmap_atomic(vaddr);
+  1646          mod_zspage_inuse(first_page, 1);
+  1647  
+  1648          obj = location_to_obj(m_page, obj);
+  1649  
+  1650          return obj;
+  1651  }
 
-Andres
+regards,
+dan carpenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
