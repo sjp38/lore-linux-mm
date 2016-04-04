@@ -1,59 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id BBE1A6B028E
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 13:13:57 -0400 (EDT)
-Received: by mail-lb0-f171.google.com with SMTP id u8so170699732lbk.0
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 10:13:57 -0700 (PDT)
+Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 784936B028F
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 13:13:59 -0400 (EDT)
+Received: by mail-lb0-f170.google.com with SMTP id u8so170700986lbk.0
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 10:13:59 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id g130si14397990wma.19.2016.04.04.10.13.56
+        by mx.google.com with ESMTPS id kd3si32270918wjb.84.2016.04.04.10.13.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Apr 2016 10:13:56 -0700 (PDT)
+        Mon, 04 Apr 2016 10:13:58 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 0/3] mm: support bigger cache workingsets and protect against writes
-Date: Mon,  4 Apr 2016 13:13:35 -0400
-Message-Id: <1459790018-6630-1-git-send-email-hannes@cmpxchg.org>
+Subject: [PATCH 1/3] mm: workingset: only do workingset activations on reads
+Date: Mon,  4 Apr 2016 13:13:36 -0400
+Message-Id: <1459790018-6630-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1459790018-6630-1-git-send-email-hannes@cmpxchg.org>
+References: <1459790018-6630-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andres Freund <andres@anarazel.de>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Hi,
+From: Rik van Riel <riel@redhat.com>
 
-this is a follow-up to http://www.spinics.net/lists/linux-mm/msg101739.html
-where Andres reported his database workingset being pushed out by the
-minimum size enforcement of the inactive file list - currently 50% of cache
-- as well as repeatedly written file pages that are never actually read.
+When rewriting a page, the data in that page is replaced with new
+data. This means that evicting something else from the active file
+list, in order to cache data that will be replaced by something else,
+is likely to be a waste of memory.
 
-Two changes fell out of the discussions. The first change observes that
-pages that are only ever written don't benefit from caching beyond what the
-writeback cache does for partial page writes, and so we shouldn't promote
-them to the active file list where they compete with pages whose cached data
-is actually accessed repeatedly. This change comes in two patches - one for
-in-cache write accesses and one for refaults triggered by writes, neither of
-which should promote a cache page.
+It is better to save the active list for frequently read pages, because
+reads actually use the data that is in the page.
 
-Second, with the refault detection we don't need to set 50% of the cache
-aside for used-once cache anymore since we can detect frequently used pages
-even when they are evicted between accesses. We can allow the active list to
-be bigger and thus protect a bigger workingset that isn't challenged by
-streamers. Depending on the access patterns, this can increase major faults
-during workingset transitions for better performance during stable phases.
+This patch ignores partial writes, because it is unclear whether the
+complexity of identifying those is worth any potential performance
+gain obtained from better caching pages that see repeated partial
+writes at large enough intervals to not get caught by the use-twice
+promotion code used for the inactive file list.
 
-Andres, I tried reproducing your postgres scenario, but I could never get
-the WAL to interfere even with wal_log = hot_standby mode. It's a 8G
-machine, I set shared_buffers = 2GB, ran pgbench -i -s 290, and then -c 32
--j 32 -M prepared -t 150000. Any input on how to trigger the thrashing you
-observed would be appreciated. But it would be great if you could test these
-patches on your known-problematic setup as well.
+Reported-by: Andres Freund <andres@anarazel.de>
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/filemap.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-Thanks!
-
- include/linux/memcontrol.h |  25 -----------
- mm/filemap.c               |   8 +++-
- mm/page_alloc.c            |  44 ------------------
- mm/vmscan.c                | 104 +++++++++++++++++--------------------------
- 4 files changed, 48 insertions(+), 133 deletions(-)
+diff --git a/mm/filemap.c b/mm/filemap.c
+index a8c69c8..ca33816 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -713,8 +713,12 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+ 		 * The page might have been evicted from cache only
+ 		 * recently, in which case it should be activated like
+ 		 * any other repeatedly accessed page.
++		 * The exception is pages getting rewritten; evicting other
++		 * data from the working set, only to cache data that will
++		 * get overwritten with something else, is a waste of memory.
+ 		 */
+-		if (shadow && workingset_refault(shadow)) {
++		if (!(gfp_mask & __GFP_WRITE) &&
++		    shadow && workingset_refault(shadow)) {
+ 			SetPageActive(page);
+ 			workingset_activation(page);
+ 		} else
+-- 
+2.8.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
