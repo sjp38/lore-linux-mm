@@ -1,65 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id EB1126B025E
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 06:39:44 -0400 (EDT)
-Received: by mail-lb0-f171.google.com with SMTP id qe11so154168469lbc.3
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 03:39:44 -0700 (PDT)
-Received: from mail-lb0-x22a.google.com (mail-lb0-x22a.google.com. [2a00:1450:4010:c04::22a])
-        by mx.google.com with ESMTPS id v126si15569458lfd.132.2016.04.04.03.39.43
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 69E206B0260
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 06:48:24 -0400 (EDT)
+Received: by mail-ig0-f177.google.com with SMTP id g8so21202871igr.0
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 03:48:24 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id x18si7477091igx.85.2016.04.04.03.48.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Apr 2016 03:39:43 -0700 (PDT)
-Received: by mail-lb0-x22a.google.com with SMTP id vo2so154748830lbb.1
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 03:39:43 -0700 (PDT)
-Date: Mon, 4 Apr 2016 13:39:40 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: Bloat caused by unnecessary calls to compound_head()?
-Message-ID: <20160404103940.GC21187@node.shutemov.name>
-References: <20160326185049.GA4257@zzz>
- <20160327194649.GA9638@node.shutemov.name>
- <20160401013329.GB1323@zzz>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 04 Apr 2016 03:48:23 -0700 (PDT)
+Subject: Re: [PATCH] android,lowmemorykiller: Don't abuse TIF_MEMDIE.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1457434892-12642-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20160308141858.GJ13542@dhcp22.suse.cz>
+	<20160311220109.GD11274@kroah.com>
+	<201603212000.BJE57350.MOFOFFLQVJSHtO@I-love.SAKURA.ne.jp>
+	<20160321111030.GA11284@kroah.com>
+In-Reply-To: <20160321111030.GA11284@kroah.com>
+Message-Id: <201604041948.EBJ39073.OVtFMFSFLOOQJH@I-love.SAKURA.ne.jp>
+Date: Mon, 4 Apr 2016 19:48:15 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160401013329.GB1323@zzz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill.shutemov@linux.intel.com, Hugh Dickins <hughd@google.com>
+To: gregkh@linuxfoundation.org
+Cc: mhocko@suse.cz, devel@driverdev.osuosl.org, linux-mm@kvack.org, arve@android.com, riandrews@android.com
 
-On Thu, Mar 31, 2016 at 08:33:29PM -0500, Eric Biggers wrote:
-> On Sun, Mar 27, 2016 at 10:46:49PM +0300, Kirill A. Shutemov wrote:
-> > The idea is to introduce new type to indicate head page --
-> > 'struct head_page' -- it's compatible with struct page on memory layout,
-> > but distinct from C point of view. compound_head() should return pointer
-> > of that type. For the proof-of-concept I've introduced new helper --
-> > compound_head_t().
-> > 
+Greg KH wrote:
+> On Mon, Mar 21, 2016 at 08:00:49PM +0900, Tetsuo Handa wrote:
+> > Greg Kroah-Hartman wrote:
+> > > On Tue, Mar 08, 2016 at 03:18:59PM +0100, Michal Hocko wrote:
+> > > > On Tue 08-03-16 20:01:32, Tetsuo Handa wrote:
+> > > > > Currently, lowmemorykiller (LMK) is using TIF_MEMDIE for two purposes.
+> > > > > One is to remember processes killed by LMK, and the other is to
+> > > > > accelerate termination of processes killed by LMK.
+> > > > > 
+> > > > > But since LMK is invoked as a memory shrinker function, there still
+> > > > > should be some memory available. It is very likely that memory
+> > > > > allocations by processes killed by LMK will succeed without using
+> > > > > ALLOC_NO_WATERMARKS via TIF_MEMDIE. Even if their allocations cannot
+> > > > > escape from memory allocation loop unless they use ALLOC_NO_WATERMARKS,
+> > > > > lowmem_deathpending_timeout can guarantee forward progress by choosing
+> > > > > next victim process.
+> > > > > 
+> > > > > On the other hand, mark_oom_victim() assumes that it must be called with
+> > > > > oom_lock held and it must not be called after oom_killer_disable() was
+> > > > > called. But LMK is calling it without holding oom_lock and checking
+> > > > > oom_killer_disabled. It is possible that LMK calls mark_oom_victim()
+> > > > > due to allocation requests by kernel threads after current thread
+> > > > > returned from oom_killer_disabled(). This will break synchronization
+> > > > > for PM/suspend.
+> > > > > 
+> > > > > This patch introduces per a task_struct flag for remembering processes
+> > > > > killed by LMK, and replaces TIF_MEMDIE with that flag. By applying this
+> > > > > patch, assumption by mark_oom_victim() becomes true.
+> > > > 
+> > > > Thanks for looking into this. A separate flag sounds like a better way
+> > > > to go (assuming that the flags are not scarce which doesn't seem to be
+> > > > the case here).
+> > > >  
+> > > > The LMK cannot kill the frozen tasks now but this shouldn't be a big deal
+> > > > because this is not strictly necessary for the system to move on. We are
+> > > > not OOM.
+> > > > 
+> > > > > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > > > Cc: Michal Hocko <mhocko@suse.cz>
+> > > > > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> > > > > Cc: Arve Hjonnevag <arve@android.com>
+> > > > > Cc: Riley Andrews <riandrews@android.com>
+> > > > 
+> > > > Acked-by: Michal Hocko <mhocko@suse.com>
+> > > 
+> > > So, any objection for me taking this through the staging tree?
+> > > 
+> > Seems no objection. Please take this through the staging tree.
 > 
-> Well, it's good for optimizing the specific case of mark_page_accessed().  I'm
-> more worried about the general level of bloat, since the Page* macros are used
-> in so many places.  And generating page-flags.h with a script is something to be
-> avoided if at all possible.
+> Ok, will do so after 4.6-rc1 is out.
+> 
+I haven't seen this patch in linux-next. Would you take this?
 
-I think it can be done without generating page-flags.h. We can generate
-with preprocessor Head* helpers in addition to Page*. New heplers would
-opperate with struct head_page rather than struct page.
-
-> I wasn't following the discussion around the original page-flags patchset.  Can
-> you point me to a discussion of the benefits of the page "policy" checks --- why
-> are they suddenly needed when they weren't before?  Or any helpful comments in
-> the code?
-
-Recent THP refcounting rework (went into v4.5) made possible mapping part
-of huge page with PTEs. Basically, we now have page table entries which
-point to tail pages. It means we have tail pages in codepaths where we
-haven't before and we need to deal with this.
-
-Many of the flags apply to whole compound page, not a subpage. So we need
-to redirect page flag operation to head page.
-
--- 
- Kirill A. Shutemov
+Regards.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
