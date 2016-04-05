@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 77C0B828DF
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 18:00:28 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fe3so18721031pab.1
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 15:00:28 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id vx8si10201416pac.107.2016.04.05.15.00.27
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 996A56B0284
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 18:02:15 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id td3so18698209pab.2
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 15:02:15 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id uz7si10180430pab.179.2016.04.05.15.02.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 15:00:27 -0700 (PDT)
-Received: by mail-pa0-x22a.google.com with SMTP id zm5so18741896pac.0
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 15:00:27 -0700 (PDT)
-Date: Tue, 5 Apr 2016 15:00:25 -0700 (PDT)
+        Tue, 05 Apr 2016 15:02:14 -0700 (PDT)
+Received: by mail-pa0-x22d.google.com with SMTP id fe3so18750697pab.1
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 15:02:14 -0700 (PDT)
+Date: Tue, 5 Apr 2016 15:02:11 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 27/31] huge tmpfs recovery: tweak shmem_getpage_gfp to fill
- team
+Subject: [PATCH 28/31] huge tmpfs recovery: debugfs stats to complete this
+ phase
 In-Reply-To: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1604051458520.5965@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1604051500290.5965@eggly.anvils>
 References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -25,159 +25,161 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-shmem_recovery_swapin() took the trouble to arrange for pages to be
-swapped in to their final destinations without needing page migration.
-It's daft not to do the same for pages being newly instantiated (when
-a huge page has been allocated after transient fragmentation, too late
-to satisfy the initial fault).
+Implement the shr_stats(name) macro that has been inserted all over, to
+make the success of recovery visible in debugfs.  After a little testing,
+"cd /sys/kernel/debug/shmem_huge_recovery; grep . *" showed:
 
-Let SGP_TEAM convey the intended destination down to shmem_getpage_gfp().
-And make sure that SGP_TEAM cannot instantiate pages beyond the last
-huge page: although shmem_recovery_populate() has a PageTeam check
-against truncation, that's insufficient, and only shmem_getpage_gfp()
-knows what adjustments to make when we have allocated too far.
+huge_alloced:15872
+huge_failed:0
+huge_too_late:0
+page_created:0
+page_migrate:1298014
+page_off_lru:300
+page_raced:0
+page_teamed:6831300
+page_unmigrated:3243
+recov_completed:15484
+recov_failed:0
+recov_partial:696
+recov_retried:2463
+remap_another:0
+remap_faulter:15484
+remap_untried:0
+resume_tagged:279
+resume_teamed:68
+swap_cached:699229
+swap_entry:7530549
+swap_gone:20
+swap_read:6831300
+work_already:43218374
+work_queued:16221
+work_too_late:2
+work_too_many:0
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- mm/shmem.c |   56 ++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 49 insertions(+), 7 deletions(-)
+ Documentation/filesystems/tmpfs.txt |    2 
+ mm/shmem.c                          |   91 ++++++++++++++++++++++++--
+ 2 files changed, 88 insertions(+), 5 deletions(-)
 
+--- a/Documentation/filesystems/tmpfs.txt
++++ b/Documentation/filesystems/tmpfs.txt
+@@ -224,6 +224,8 @@ shmem_pmdmapped 12582912   bytes tmpfs h
+ Note: the individual pages of a huge team might be charged to different
+ memcgs, but these counts assume that they are all charged to the same as head.
+ 
++/sys/kernel/debug/shmem_huge_recovery: recovery stats to assist development.
++
+ Author:
+    Christoph Rohland <cr@sap.com>, 1.12.01
+ Updated:
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -464,6 +464,7 @@ static int shmem_populate_hugeteam(struc
- 		/* Mark all pages dirty even when map is readonly, for now */
- 		if (PageUptodate(head + i) && PageDirty(head + i))
- 			continue;
-+		page = NULL;
- 		error = shmem_getpage_gfp(inode, index, &page, SGP_TEAM,
- 					  gfp, vma->vm_mm, NULL);
- 		if (error)
-@@ -965,6 +966,7 @@ again:
- 		    !account_head)
- 			continue;
- 
-+		page = team;	/* used as hint if not yet instantiated */
- 		error = shmem_getpage_gfp(recovery->inode, index, &page,
- 					  SGP_TEAM, gfp, recovery->mm, NULL);
- 		if (error)
-@@ -2708,6 +2710,7 @@ static int shmem_replace_page(struct pag
- 
- /*
-  * shmem_getpage_gfp - find page in cache, or get from swap, or allocate
-+ *                     (or use page indicated by shmem_recovery_populate)
+@@ -6,8 +6,8 @@
+  *		 2000-2001 Christoph Rohland
+  *		 2000-2001 SAP AG
+  *		 2002 Red Hat Inc.
+- * Copyright (C) 2002-2011 Hugh Dickins.
+- * Copyright (C) 2011 Google Inc.
++ * Copyright (C) 2002-2016 Hugh Dickins.
++ * Copyright (C) 2011-2016 Google Inc.
+  * Copyright (C) 2002-2005 VERITAS Software Corporation.
+  * Copyright (C) 2004 Andi Kleen, SuSE Labs
   *
-  * If we allocate a new one we do not mark it dirty. That's up to the
-  * vm. If we swap it in we mark it dirty since we also free the swap
-@@ -2727,14 +2730,20 @@ static int shmem_getpage_gfp(struct inod
- 	struct mem_cgroup *memcg;
- 	struct page *page;
- 	swp_entry_t swap;
-+	loff_t offset;
- 	int error;
- 	int once = 0;
--	int alloced = 0;
-+	bool alloced = false;
-+	bool exposed_swapbacked = false;
- 	struct page *hugehint;
- 	struct page *alloced_huge = NULL;
+@@ -788,9 +788,90 @@ struct recovery {
+ 	bool exposed_team;
+ };
  
- 	if (index > (MAX_LFS_FILESIZE >> PAGE_SHIFT))
- 		return -EFBIG;
+-#define shr_stats(x)	do {} while (0)
+-#define shr_stats_add(x, n) do {} while (0)
+-/* Stats implemented in a later patch */
++#ifdef CONFIG_DEBUG_FS
++#include <linux/debugfs.h>
 +
-+	offset = (loff_t)index << PAGE_SHIFT;
-+	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && sgp == SGP_TEAM)
-+		offset &= ~((loff_t)HPAGE_PMD_SIZE-1);
- repeat:
- 	swap.val = 0;
- 	page = find_lock_entry(mapping, index);
-@@ -2743,8 +2752,7 @@ repeat:
- 		page = NULL;
- 	}
- 
--	if (sgp <= SGP_CACHE &&
--	    ((loff_t)index << PAGE_SHIFT) >= i_size_read(inode)) {
-+	if (sgp <= SGP_TEAM && offset >= i_size_read(inode)) {
- 		error = -EINVAL;
- 		goto unlock;
- 	}
-@@ -2863,8 +2871,34 @@ repeat:
- 			percpu_counter_inc(&sbinfo->used_blocks);
- 		}
- 
--		/* Take huge hint from super, except for shmem_symlink() */
- 		hugehint = NULL;
-+		if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
-+		    sgp == SGP_TEAM && *pagep) {
-+			struct page *head;
++static struct dentry *shr_debugfs_root;
++static struct {
++	/*
++	 * Just stats: no need to use atomics; and although many of these
++	 * u32s can soon overflow, debugging doesn't need them to be u64s.
++	 */
++	u32 huge_alloced;
++	u32 huge_failed;
++	u32 huge_too_late;
++	u32 page_created;
++	u32 page_migrate;
++	u32 page_off_lru;
++	u32 page_raced;
++	u32 page_teamed;
++	u32 page_unmigrated;
++	u32 recov_completed;
++	u32 recov_failed;
++	u32 recov_partial;
++	u32 recov_retried;
++	u32 remap_another;
++	u32 remap_faulter;
++	u32 remap_untried;
++	u32 resume_tagged;
++	u32 resume_teamed;
++	u32 swap_cached;
++	u32 swap_entry;
++	u32 swap_gone;
++	u32 swap_read;
++	u32 work_already;
++	u32 work_queued;
++	u32 work_too_late;
++	u32 work_too_many;
++} shmem_huge_recovery_stats;
 +
-+			if (!get_page_unless_zero(*pagep)) {
-+				error = -ENOENT;
-+				goto decused;
-+			}
-+			page = *pagep;
-+			lock_page(page);
-+			head = page - (index & (HPAGE_PMD_NR-1));
-+			if (!PageTeam(head)) {
-+				error = -ENOENT;
-+				goto decused;
-+			}
-+			if (PageSwapBacked(page)) {
-+				shr_stats(page_raced);
-+				/* maybe already created; or swapin truncated */
-+				error = page->mapping ? -EEXIST : -ENOENT;
-+				goto decused;
-+			}
-+			SetPageSwapBacked(page);
-+			exposed_swapbacked = true;
-+			goto memcg;
-+		}
++#define shr_create(x)	debugfs_create_u32(#x, S_IRUGO, shr_debugfs_root, \
++					   &shmem_huge_recovery_stats.x)
++static int __init shmem_debugfs_init(void)
++{
++	if (!debugfs_initialized())
++		return -ENODEV;
++	shr_debugfs_root = debugfs_create_dir("shmem_huge_recovery", NULL);
++	if (!shr_debugfs_root)
++		return -ENOMEM;
 +
-+		/* Take huge hint from super, except for shmem_symlink() */
- 		if (mapping->a_ops == &shmem_aops &&
- 		    (shmem_huge == SHMEM_HUGE_FORCE ||
- 		     (sbinfo->huge && shmem_huge != SHMEM_HUGE_DENY)))
-@@ -2878,7 +2912,7 @@ repeat:
- 		}
- 		if (sgp == SGP_WRITE)
- 			__SetPageReferenced(page);
--
-+memcg:
- 		error = mem_cgroup_try_charge(page, charge_mm, gfp, &memcg,
- 				false);
- 		if (error)
-@@ -2894,6 +2928,11 @@ repeat:
- 			goto decused;
- 		}
- 		mem_cgroup_commit_charge(page, memcg, false, false);
-+		if (exposed_swapbacked) {
-+			shr_stats(page_created);
-+			/* cannot clear swapbacked once sent to lru */
-+			exposed_swapbacked = false;
-+		}
- 		lru_cache_add_anon(page);
++	shr_create(huge_alloced);
++	shr_create(huge_failed);
++	shr_create(huge_too_late);
++	shr_create(page_created);
++	shr_create(page_migrate);
++	shr_create(page_off_lru);
++	shr_create(page_raced);
++	shr_create(page_teamed);
++	shr_create(page_unmigrated);
++	shr_create(recov_completed);
++	shr_create(recov_failed);
++	shr_create(recov_partial);
++	shr_create(recov_retried);
++	shr_create(remap_another);
++	shr_create(remap_faulter);
++	shr_create(remap_untried);
++	shr_create(resume_tagged);
++	shr_create(resume_teamed);
++	shr_create(swap_cached);
++	shr_create(swap_entry);
++	shr_create(swap_gone);
++	shr_create(swap_read);
++	shr_create(work_already);
++	shr_create(work_queued);
++	shr_create(work_too_late);
++	shr_create(work_too_many);
++	return 0;
++}
++fs_initcall(shmem_debugfs_init);
++
++#undef  shr_create
++#define shr_stats(x)		(shmem_huge_recovery_stats.x++)
++#define shr_stats_add(x, n)	(shmem_huge_recovery_stats.x += n)
++#else
++#define shr_stats(x)		do {} while (0)
++#define shr_stats_add(x, n)	do {} while (0)
++#endif /* CONFIG_DEBUG_FS */
  
- 		spin_lock(&info->lock);
-@@ -2937,8 +2976,7 @@ clear:
- 	}
- 
- 	/* Perhaps the file has been truncated since we checked */
--	if (sgp <= SGP_CACHE &&
--	    ((loff_t)index << PAGE_SHIFT) >= i_size_read(inode)) {
-+	if (sgp <= SGP_TEAM && offset >= i_size_read(inode)) {
- 		if (alloced && !PageTeam(page)) {
- 			ClearPageDirty(page);
- 			delete_from_page_cache(page);
-@@ -2966,6 +3004,10 @@ failed:
- 		error = -EEXIST;
- unlock:
- 	if (page) {
-+		if (exposed_swapbacked) {
-+			ClearPageSwapBacked(page);
-+			exposed_swapbacked = false;
-+		}
- 		unlock_page(page);
- 		put_page(page);
- 	}
+ static bool shmem_work_still_useful(struct recovery *recovery)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
