@@ -1,25 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id CEFB56B0262
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 07:25:52 -0400 (EDT)
-Received: by mail-wm0-f44.google.com with SMTP id 20so17181945wmh.1
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:25:52 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id h4si36561590wjx.249.2016.04.05.04.25.46
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DBA06B0264
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 07:25:55 -0400 (EDT)
+Received: by mail-wm0-f46.google.com with SMTP id 191so21056550wmq.0
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:25:55 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id mc5si36593887wjb.99.2016.04.05.04.25.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 04:25:46 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id n3so3356520wmn.1
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:25:46 -0700 (PDT)
+        Tue, 05 Apr 2016 04:25:47 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id n3so3356738wmn.1
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:25:47 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 04/11] mm, compaction: cover all compaction mode in compact_zone
-Date: Tue,  5 Apr 2016 13:25:26 +0200
-Message-Id: <1459855533-4600-5-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 05/11] mm, compaction: distinguish COMPACT_DEFERRED from COMPACT_SKIPPED
+Date: Tue,  5 Apr 2016 13:25:27 +0200
+Message-Id: <1459855533-4600-6-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
 References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -27,54 +24,95 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpx
 
 From: Michal Hocko <mhocko@suse.com>
 
-the compiler is complaining after "mm, compaction: change COMPACT_
-constants into enum"
+try_to_compact_pages can currently return COMPACT_SKIPPED even when the
+compaction is defered for some zone just because zone DMA is skipped
+in 99% of cases due to watermark checks. This makes COMPACT_DEFERRED
+basically unusable for the page allocator as a feedback mechanism.
 
-mm/compaction.c: In function a??compact_zonea??:
-mm/compaction.c:1350:2: warning: enumeration value a??COMPACT_DEFERREDa?? not handled in switch [-Wswitch]
-  switch (ret) {
-  ^
-mm/compaction.c:1350:2: warning: enumeration value a??COMPACT_COMPLETEa?? not handled in switch [-Wswitch]
-mm/compaction.c:1350:2: warning: enumeration value a??COMPACT_NO_SUITABLE_PAGEa?? not handled in switch [-Wswitch]
-mm/compaction.c:1350:2: warning: enumeration value a??COMPACT_NOT_SUITABLE_ZONEa?? not handled in switch [-Wswitch]
-mm/compaction.c:1350:2: warning: enumeration value a??COMPACT_CONTENDEDa?? not handled in switch [-Wswitch]
+Make sure we distinguish those two states properly and switch their
+ordering in the enum. This would mean that the COMPACT_SKIPPED will be
+returned only when all eligible zones are skipped.
 
-compaction_suitable is allowed to return only COMPACT_PARTIAL,
-COMPACT_SKIPPED and COMPACT_CONTINUE so other cases are simply
-impossible. Put a VM_BUG_ON to catch an impossible return value.
+This shouldn't introduce any functional change.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 ---
- mm/compaction.c | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ include/linux/compaction.h        | 7 +++++--
+ include/trace/events/compaction.h | 2 +-
+ mm/compaction.c                   | 8 +++++---
+ 3 files changed, 11 insertions(+), 6 deletions(-)
 
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index 4458fd94170f..7e177d111c39 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -4,13 +4,16 @@
+ /* Return values for compact_zone() and try_to_compact_pages() */
+ /* When adding new states, please adjust include/trace/events/compaction.h */
+ enum compact_result {
+-	/* compaction didn't start as it was deferred due to past failures */
+-	COMPACT_DEFERRED,
+ 	/*
+ 	 * compaction didn't start as it was not possible or direct reclaim
+ 	 * was more suitable
+ 	 */
+ 	COMPACT_SKIPPED,
++	/* compaction didn't start as it was deferred due to past failures */
++	COMPACT_DEFERRED,
++	/* compaction not active last round */
++	COMPACT_INACTIVE = COMPACT_DEFERRED,
++
+ 	/* compaction should continue to another pageblock */
+ 	COMPACT_CONTINUE,
+ 	/*
+diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+index e215bf68f521..6ba16c86d7db 100644
+--- a/include/trace/events/compaction.h
++++ b/include/trace/events/compaction.h
+@@ -10,8 +10,8 @@
+ #include <trace/events/mmflags.h>
+ 
+ #define COMPACTION_STATUS					\
+-	EM( COMPACT_DEFERRED,		"deferred")		\
+ 	EM( COMPACT_SKIPPED,		"skipped")		\
++	EM( COMPACT_DEFERRED,		"deferred")		\
+ 	EM( COMPACT_CONTINUE,		"continue")		\
+ 	EM( COMPACT_PARTIAL,		"partial")		\
+ 	EM( COMPACT_COMPLETE,		"complete")		\
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 8ae7b1c46c72..b06de27b7f72 100644
+index b06de27b7f72..13709e33a2fc 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1433,15 +1433,12 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+@@ -1637,7 +1637,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 	int may_perform_io = gfp_mask & __GFP_IO;
+ 	struct zoneref *z;
+ 	struct zone *zone;
+-	enum compact_result rc = COMPACT_DEFERRED;
++	enum compact_result rc = COMPACT_SKIPPED;
+ 	int all_zones_contended = COMPACT_CONTENDED_LOCK; /* init for &= op */
  
- 	ret = compaction_suitable(zone, cc->order, cc->alloc_flags,
- 							cc->classzone_idx);
--	switch (ret) {
--	case COMPACT_PARTIAL:
--	case COMPACT_SKIPPED:
--		/* Compaction is likely to fail */
-+	/* Compaction is likely to fail */
-+	if (ret == COMPACT_PARTIAL || ret == COMPACT_SKIPPED)
- 		return ret;
--	case COMPACT_CONTINUE:
--		/* Fall through to compaction */
--		;
--	}
-+
-+	/* huh, compaction_suitable is returning something unexpected */
-+	VM_BUG_ON(ret != COMPACT_CONTINUE);
+ 	*contended = COMPACT_CONTENDED_NONE;
+@@ -1654,8 +1654,10 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 		enum compact_result status;
+ 		int zone_contended;
  
- 	/*
- 	 * Clear pageblock skip if there were failures recently and compaction
+-		if (compaction_deferred(zone, order))
++		if (compaction_deferred(zone, order)) {
++			rc = max_t(enum compact_result, COMPACT_DEFERRED, rc);
+ 			continue;
++		}
+ 
+ 		status = compact_zone_order(zone, order, gfp_mask, mode,
+ 				&zone_contended, alloc_flags,
+@@ -1726,7 +1728,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 	 * If at least one zone wasn't deferred or skipped, we report if all
+ 	 * zones that were tried were lock contended.
+ 	 */
+-	if (rc > COMPACT_SKIPPED && all_zones_contended)
++	if (rc > COMPACT_INACTIVE && all_zones_contended)
+ 		*contended = COMPACT_CONTENDED_LOCK;
+ 
+ 	return rc;
 -- 
 2.8.0.rc3
 
