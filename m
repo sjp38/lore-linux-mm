@@ -1,84 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f41.google.com (mail-lf0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id C9DE66B0264
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 12:02:23 -0400 (EDT)
-Received: by mail-lf0-f41.google.com with SMTP id e190so12168559lfe.0
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 09:02:23 -0700 (PDT)
-Received: from mail-lf0-x231.google.com (mail-lf0-x231.google.com. [2a00:1450:4010:c07::231])
-        by mx.google.com with ESMTPS id f68si5420874lff.179.2016.04.05.09.02.22
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 728F06B0266
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 13:39:04 -0400 (EDT)
+Received: by mail-oi0-f43.google.com with SMTP id y204so26569539oie.3
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 10:39:04 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0065.outbound.protection.outlook.com. [157.56.112.65])
+        by mx.google.com with ESMTPS id p7si14484289oew.31.2016.04.05.10.39.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 09:02:22 -0700 (PDT)
-Received: by mail-lf0-x231.google.com with SMTP id e190so12168200lfe.0
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 09:02:22 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 05 Apr 2016 10:39:03 -0700 (PDT)
+From: Chris Metcalf <cmetcalf@mellanox.com>
+Subject: [PATCH v12 02/13] vmstat: add vmstat_idle function
+Date: Tue, 5 Apr 2016 13:38:31 -0400
+Message-ID: <1459877922-15512-3-git-send-email-cmetcalf@mellanox.com>
+In-Reply-To: <1459877922-15512-1-git-send-email-cmetcalf@mellanox.com>
+References: <1459877922-15512-1-git-send-email-cmetcalf@mellanox.com>
 MIME-Version: 1.0
-In-Reply-To: <20160405153439.GA2647@kroah.com>
-References: <CALjTZvavWqtLoGQiWb+HxHP4rwRwaZiP0QrPRb+9kYGdicXohg@mail.gmail.com>
-	<20160405153439.GA2647@kroah.com>
-Date: Tue, 5 Apr 2016 17:02:21 +0100
-Message-ID: <CALjTZvat4FhSc1AvNzjNwfa5tYydiTQLTnxz6cU7-Qd+h5mi6A@mail.gmail.com>
-Subject: Re: [BUG] lib: zram lz4 compression/decompression still broken on big endian
-From: Rui Salvaterra <rsalvaterra@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: linux-kernel@vger.kernel.org, eunb.song@samsung.com, minchan@kernel.org, linux-mm@kvack.org
+To: Gilad Ben Yossef <giladb@ezchip.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van
+ Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E.
+ McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Chris Metcalf <cmetcalf@mellanox.com>
 
-2016-04-05 16:34 GMT+01:00 Greg KH <gregkh@linuxfoundation.org>:
-> On Tue, Apr 05, 2016 at 03:07:48PM +0100, Rui Salvaterra wrote:
->> Hi,
->>
->>
->> I apologise in advance if I've cc'ed too many/the wrong people/lists.
->>
->> Whenever I try to use zram with lz4, on my Power Mac G5 (tested with
->> kernel 4.4.0-16-powerpc64-smp from Ubuntu 16.04 LTS), I get the
->> following on my dmesg:
->>
->> [13150.675820] zram: Added device: zram0
->> [13150.704133] zram0: detected capacity change from 0 to 5131976704
->> [13150.715960] zram: Decompression failed! err=-1, page=0
->> [13150.716008] zram: Decompression failed! err=-1, page=0
->> [13150.716027] zram: Decompression failed! err=-1, page=0
->> [13150.716032] Buffer I/O error on dev zram0, logical block 0, async page read
->>
->> I believe Eunbong Song wrote a patch [1] to fix this (or a very
->> identical) bug on MIPS, but it never got merged (maybe
->> incorrect/incomplete?). Is there any hope of seeing this bug fixed?
->>
->>
->> Thanks,
->>
->> Rui Salvaterra
->>
->>
->> [1] http://comments.gmane.org/gmane.linux.kernel/1752745
->
-> For some reason it never got merged, sorry, I don't remember why.
->
-> Have you tested this patch?  If so, can you resend it with your
-> tested-by: line added to it?
->
-> thanks,
->
-> greg k-h
+This function checks to see if a vmstat worker is not running,
+and the vmstat diffs don't require an update.  The function is
+called from the task-isolation code to see if we need to
+actually do some work to quiet vmstat.
 
-Hi, Greg
+Acked-by: Christoph Lameter <cl@linux.com>
+Signed-off-by: Chris Metcalf <cmetcalf@mellanox.com>
+---
+ include/linux/vmstat.h |  2 ++
+ mm/vmstat.c            | 12 ++++++++++++
+ 2 files changed, 14 insertions(+)
 
-
-No, I haven't tested the patch at all. I want to do so, and fix if if
-necessary, but I still need to learn how to (meaning, I need to watch
-your "first kernel patch" presentation again). I'd love to get
-involved in kernel development, and this seems to be a good
-opportunity, if none of the kernel gods beat me to it (I may need a
-month, but then again nobody complained about this bug in almost two
-years).
-
-
-Thanks,
-
-Rui
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index 43b2f1c33266..504ebd1fdf33 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -191,6 +191,7 @@ extern void __dec_zone_state(struct zone *, enum zone_stat_item);
+ 
+ void quiet_vmstat(void);
+ void quiet_vmstat_sync(void);
++bool vmstat_idle(void);
+ void cpu_vm_stats_fold(int cpu);
+ void refresh_zone_stat_thresholds(void);
+ 
+@@ -253,6 +254,7 @@ static inline void refresh_zone_stat_thresholds(void) { }
+ static inline void cpu_vm_stats_fold(int cpu) { }
+ static inline void quiet_vmstat(void) { }
+ static inline void quiet_vmstat_sync(void) { }
++static inline bool vmstat_idle(void) { return true; }
+ 
+ static inline void drain_zonestat(struct zone *zone,
+ 			struct per_cpu_pageset *pset) { }
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 7a1cfe383349..fa34ea480ac0 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1469,6 +1469,18 @@ void quiet_vmstat_sync(void)
+ }
+ 
+ /*
++ * Report on whether vmstat processing is quiesced on the core currently:
++ * no vmstat worker running and no vmstat updates to perform.
++ */
++bool vmstat_idle(void)
++{
++	int cpu = smp_processor_id();
++	return cpumask_test_cpu(cpu, cpu_stat_off) &&
++		!delayed_work_pending(this_cpu_ptr(&vmstat_work)) &&
++		!need_update(cpu);
++}
++
++/*
+  * Shepherd worker thread that checks the
+  * differentials of processors that have their worker
+  * threads for vm statistics updates disabled because of
+-- 
+2.7.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
