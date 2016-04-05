@@ -1,325 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 198486B0270
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 07:26:09 -0400 (EDT)
-Received: by mail-wm0-f54.google.com with SMTP id 191so21063153wmq.0
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:26:09 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id o7si22173002wjr.71.2016.04.05.04.25.52
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F6E16B0005
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 07:58:14 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id td3so9495872pab.2
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:58:14 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id b9si7400794pas.197.2016.04.05.04.58.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 04:25:52 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id n3so3357308wmn.1
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:25:52 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 11/11] mm: consider compaction feedback also for costly allocation
-Date: Tue,  5 Apr 2016 13:25:33 +0200
-Message-Id: <1459855533-4600-12-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
-References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
+        Tue, 05 Apr 2016 04:58:13 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id d184so1168222pfc.1
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:58:13 -0700 (PDT)
+From: Ming Lei <tom.leiming@gmail.com>
+Subject: [PATCH 00/27] block: cleanup direct access on .bi_vcnt & .bi_io_vec
+Date: Tue,  5 Apr 2016 19:56:45 +0800
+Message-Id: <1459857443-20611-1-git-send-email-tom.leiming@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Jens Axboe <axboe@fb.com>, linux-kernel@vger.kernel.org
+Cc: linux-block@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Boaz Harrosh <boaz@plexistor.com>, Ming Lei <tom.leiming@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <andreas.dilger@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "open list:STAGING SUBSYSTEM" <devel@driverdev.osuosl.org>, "open list:DEVICE-MAPPER  LVM" <dm-devel@redhat.com>, "open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>, Frank Zago <fzago@cray.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hannes Reinecke <hare@suse.de>, James Simmons <jsimmons@infradead.org>, Jan Kara <jack@suse.cz>, Jarod Wilson <jarod@redhat.com>, Jiri Kosina <jkosina@suse.cz>, Joe Perches <joe@perches.com>, "John L. Hammond" <john.hammond@intel.com>, Julia Lawall <Julia.Lawall@lip6.fr>, Keith Busch <keith.busch@intel.com>, Kent Overstreet <kent.overstreet@gmail.com>, "open list:BCACHE BLOCK LAYER CACHE" <linux-bcache@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:SUSPEND TO RAM" <linux-pm@vger.kernel.org>, "open list:SOFTWARE RAID Multiple Disks SUPPORT" <linux-raid@vger.kernel.org>, "open list:TARGET SUBSYSTEM" <linux-scsi@vger.kernel.org>, "open list:LogFS" <logfs@logfs.org>, "moderated list:STAGING - LUSTRE PARALLEL FILESYSTEM" <lustre-devel@lists.lustre.org>, Mike Rapoport <mike.rapoport@gmail.com>, Mike Snitzer <snitzer@redhat.com>, Miklos Szeredi <mszeredi@suse.cz>, Minchan Kim <minchan@kernel.org>, Ming Lin <ming.l@ssi.samsung.com>, NeilBrown <neilb@suse.com>, NeilBrown <neilb@suse.de>, Oleg Drokin <green@linuxhacker.ru>, Omar Sandoval <osandov@osandov.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, "open list:TARGET SUBSYSTEM" <target-devel@vger.kernel.org>, Tejun Heo <tj@kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+Hi Guys,
 
-PAGE_ALLOC_COSTLY_ORDER retry logic is mostly handled inside
-should_reclaim_retry currently where we decide to not retry after at
-least order worth of pages were reclaimed or the watermark check for at
-least one zone would succeed after reclaiming all pages if the reclaim
-hasn't made any progress. Compaction feedback is mostly ignored and we
-just try to make sure that the compaction did at least something before
-giving up.
+It is always not a good practice to access bio->bi_vcnt and
+bio->bi_io_vec from drivers directly. Also this kind of direct
+access will cause trouble when converting to multipage bvecs.
 
-The first condition was added by a41f24ea9fd6 ("page allocator: smarter
-retry of costly-order allocations) and it assumed that lumpy reclaim
-could have created a page of the sufficient order. Lumpy reclaim,
-has been removed quite some time ago so the assumption doesn't hold
-anymore. Remove the check for the number of reclaimed pages and rely
-on the compaction feedback solely. should_reclaim_retry now only
-makes sure that we keep retrying reclaim for high order pages only
-if they are hidden by watermaks so order-0 reclaim makes really sense.
+The 1st patch introduces the following 4 bio helpers which can be
+used inside drivers for avoiding direct access to .bi_vcnt and .bi_io_vec.
 
-should_compact_retry now keeps retrying even for the costly allocations.
-The number of retries is reduced wrt. !costly requests because they are
-less important and harder to grant and so their pressure shouldn't cause
-contention for other requests or cause an over reclaim. We also do not
-reset no_progress_loops for costly request to make sure we do not keep
-reclaiming too agressively.
+	bio_pages()
+	bio_is_full()
+	bio_get_base_vec()
+	bio_set_vec_table()
 
-This has been tested by running a process which fragments memory:
-	- compact memory
-	- mmap large portion of the memory (1920M on 2GRAM machine with 2G
-	  of swapspace)
-	- MADV_DONTNEED single page in PAGE_SIZE*((1UL<<MAX_ORDER)-1)
-	  steps until certain amount of memory is freed (250M in my test)
-	  and reduce the step to (step / 2) + 1 after reaching the end of
-	  the mapping
-	- then run a script which populates the page cache 2G (MemTotal)
-	  from /dev/zero to a new file
-And then tries to allocate
-nr_hugepages=$(awk '/MemAvailable/{printf "%d\n", $2/(2*1024)}' /proc/meminfo)
-huge pages.
+Both bio_pages() and bio_is_full() can be easy to convert to
+multipage bvecs.
 
-root@test1:~# echo 1 > /proc/sys/vm/overcommit_memory;echo 1 > /proc/sys/vm/compact_memory; ./fragment-mem-and-run /root/alloc_hugepages.sh 1920M 250M
-Node 0, zone      DMA     31     28     31     10      2      0      2      1      2      3      1
-Node 0, zone    DMA32    437    319    171     50     28     25     20     16     16     14    437
+For bio_get_base_vec() and bio_set_vec_table(), they are often used
+during initializing a new bio or in case of single bvec bio. With the
+two new helpers, it becomes quite easy to audit access to .bi_io_vec
+and .bi_vcnt.
 
-* This is the /proc/buddyinfo after the compaction
+Most of the other patches use the 4 helpers to clean up most of direct
+access to .bi_vcnt and .bi_io_vec from drivers, except for MD and btrfs,
+which two subsystems will be done in the future. 
 
-Done fragmenting. size=2013265920 freed=262144000
-Node 0, zone      DMA    165     48      3      1      2      0      2      2      2      2      0
-Node 0, zone    DMA32  35109  14575    185     51     41     12      6      0      0      0      0
+Also bio_add_page() is used in floppy, dm-crypt and fs/logfs to
+avoiding direct access to .bi_vcnt & .bi_io_vec.
 
-* /proc/buddyinfo after memory got fragmented
+Thanks,
+Ming
 
-Executing "/root/alloc_hugepages.sh"
-Eating some pagecache
-508623+0 records in
-508623+0 records out
-2083319808 bytes (2.1 GB) copied, 11.7292 s, 178 MB/s
-Node 0, zone      DMA      3      5      3      1      2      0      2      2      2      2      0
-Node 0, zone    DMA32    111    344    153     20     24     10      3      0      0      0      0
+Ming Lei (27):
+  block: bio: introduce 4 helpers for cleanup
+  block: drbd: use bio_get_base_vec() to retrieve the 1st bvec
+  block: drbd: remove impossible failure handling
+  block: loop: use bio_get_base_vec() to retrive bvec table
+  block: pktcdvd: use bio_get_base_vec() to retrive bvec table
+  block: floppy: use bio_set_vec_table()
+  block: floppy: use bio_add_page()
+  staging: lustre: avoid to use bio->bi_vcnt directly
+  target: use bio_is_full()
+  bcache: debug: avoid to access .bi_io_vec directly
+  bcache: io.c: use bio_set_vec_table
+  bcache: journal.c: use bio_set_vec_table()
+  bcache: movinggc: use bio_set_vec_table()
+  bcache: writeback: use bio_set_vec_table()
+  bcache: super: use bio_set_vec_table()
+  bcache: super: use bio_get_base_vec
+  dm: crypt: use bio_add_page()
+  dm: dm-io.c: use bio_get_base_vec()
+  dm: dm.c: replace 'bio->bi_vcnt == 1' with !bio_multiple_segments
+  dm: dm-bufio.c: use bio_set_vec_table()
+  fs: logfs: use bio_set_vec_table()
+  fs: logfs: convert to bio_add_page() in sync_request()
+  fs: logfs: use bio_add_page() in __bdev_writeseg()
+  fs: logfs: use bio_add_page() in do_erase()
+  fs: logfs: remove unnecesary check
+  kernel/power/swap.c: use bio_get_base_vec()
+  mm: page_io.c: use bio_get_base_vec()
 
-* /proc/buddyinfo after page cache got eaten
+ drivers/block/drbd/drbd_bitmap.c            |   4 +-
+ drivers/block/drbd/drbd_receiver.c          |  14 +---
+ drivers/block/floppy.c                      |   9 +--
+ drivers/block/loop.c                        |   5 +-
+ drivers/block/pktcdvd.c                     |   3 +-
+ drivers/md/bcache/debug.c                   |  11 ++-
+ drivers/md/bcache/io.c                      |   3 +-
+ drivers/md/bcache/journal.c                 |   3 +-
+ drivers/md/bcache/movinggc.c                |   6 +-
+ drivers/md/bcache/super.c                   |  28 +++++---
+ drivers/md/bcache/writeback.c               |   4 +-
+ drivers/md/dm-bufio.c                       |   3 +-
+ drivers/md/dm-crypt.c                       |   8 +--
+ drivers/md/dm-io.c                          |   7 +-
+ drivers/md/dm.c                             |   3 +-
+ drivers/staging/lustre/lustre/llite/lloop.c |   9 +--
+ drivers/target/target_core_pscsi.c          |   2 +-
+ fs/logfs/dev_bdev.c                         | 107 +++++++++++-----------------
+ include/linux/bio.h                         |  28 ++++++++
+ kernel/power/swap.c                         |  10 ++-
+ mm/page_io.c                                |  18 ++++-
+ 21 files changed, 156 insertions(+), 129 deletions(-)
 
-Trying to allocate 129
-129
-
-* 129 hugepages requested and all of them granted.
-
-Node 0, zone      DMA      3      5      3      1      2      0      2      2      2      2      0
-Node 0, zone    DMA32    127     97     30     99     11      6      2      1      4      0      0
-
-* /proc/buddyinfo after hugetlb allocation.
-
-10 runs will behave as follows:
-Trying to allocate 130
-130
---
-Trying to allocate 129
-129
---
-Trying to allocate 128
-128
---
-Trying to allocate 129
-129
---
-Trying to allocate 128
-128
---
-Trying to allocate 129
-129
---
-Trying to allocate 132
-132
---
-Trying to allocate 129
-129
---
-Trying to allocate 128
-128
---
-Trying to allocate 129
-129
-
-So basically 100% success for all 10 attempts.
-Without the patch numbers looked much worse:
-Trying to allocate 128
-12
---
-Trying to allocate 129
-14
---
-Trying to allocate 129
-7
---
-Trying to allocate 129
-16
---
-Trying to allocate 129
-30
---
-Trying to allocate 129
-38
---
-Trying to allocate 129
-19
---
-Trying to allocate 129
-37
---
-Trying to allocate 129
-28
---
-Trying to allocate 129
-37
-
-Just for completness the base kernel without oom detection rework looks
-as follows:
-Trying to allocate 127
-30
---
-Trying to allocate 129
-12
---
-Trying to allocate 129
-52
---
-Trying to allocate 128
-32
---
-Trying to allocate 129
-12
---
-Trying to allocate 129
-10
---
-Trying to allocate 129
-32
---
-Trying to allocate 128
-14
---
-Trying to allocate 128
-16
---
-Trying to allocate 129
-8
-
-As we can see the success rate is much more volatile and smaller without
-this patch. So the patch not only makes the retry logic for costly
-requests more sensible the success rate is even higher.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/page_alloc.c | 63 +++++++++++++++++++++++++++++----------------------------
- 1 file changed, 32 insertions(+), 31 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3d26ab892a7d..90a18ae92849 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3019,6 +3019,8 @@ should_compact_retry(unsigned int order, enum compact_result compact_result,
- 		     enum migrate_mode *migrate_mode,
- 		     int compaction_retries)
- {
-+	int max_retries = MAX_COMPACT_RETRIES;
-+
- 	if (!order)
- 		return false;
- 
-@@ -3036,17 +3038,24 @@ should_compact_retry(unsigned int order, enum compact_result compact_result,
- 	}
- 
- 	/*
--	 * !costly allocations are really important and we have to make sure
--	 * the compaction wasn't deferred or didn't bail out early due to locks
--	 * contention before we go OOM. Still cap the reclaim retry loops with
--	 * progress to prevent from looping forever and potential trashing.
-+	 * make sure the compaction wasn't deferred or didn't bail out early
-+	 * due to locks contention before we declare that we should give up.
- 	 */
--	if (order <= PAGE_ALLOC_COSTLY_ORDER) {
--		if (compaction_withdrawn(compact_result))
--			return true;
--		if (compaction_retries <= MAX_COMPACT_RETRIES)
--			return true;
--	}
-+	if (compaction_withdrawn(compact_result))
-+		return true;
-+
-+	/*
-+	 * !costly requests are much more important than __GFP_REPEAT
-+	 * costly ones because they are de facto nofail and invoke OOM
-+	 * killer to move on while costly can fail and users are ready
-+	 * to cope with that. 1/4 retries is rather arbitrary but we
-+	 * would need much more detailed feedback from compaction to
-+	 * make a better decision.
-+	 */
-+	if (order > PAGE_ALLOC_COSTLY_ORDER)
-+		max_retries /= 4;
-+	if (compaction_retries <= max_retries)
-+		return true;
- 
- 	return false;
- }
-@@ -3207,18 +3216,17 @@ static inline bool is_thp_gfp_mask(gfp_t gfp_mask)
-  * Checks whether it makes sense to retry the reclaim to make a forward progress
-  * for the given allocation request.
-  * The reclaim feedback represented by did_some_progress (any progress during
-- * the last reclaim round), pages_reclaimed (cumulative number of reclaimed
-- * pages) and no_progress_loops (number of reclaim rounds without any progress
-- * in a row) is considered as well as the reclaimable pages on the applicable
-- * zone list (with a backoff mechanism which is a function of no_progress_loops).
-+ * the last reclaim round) and no_progress_loops (number of reclaim rounds without
-+ * any progress in a row) is considered as well as the reclaimable pages on the
-+ * applicable zone list (with a backoff mechanism which is a function of
-+ * no_progress_loops).
-  *
-  * Returns true if a retry is viable or false to enter the oom path.
-  */
- static inline bool
- should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 		     struct alloc_context *ac, int alloc_flags,
--		     bool did_some_progress, unsigned long pages_reclaimed,
--		     int no_progress_loops)
-+		     bool did_some_progress, int no_progress_loops)
- {
- 	struct zone *zone;
- 	struct zoneref *z;
-@@ -3230,14 +3238,6 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 	if (no_progress_loops > MAX_RECLAIM_RETRIES)
- 		return false;
- 
--	if (order > PAGE_ALLOC_COSTLY_ORDER) {
--		if (pages_reclaimed >= (1<<order))
--			return false;
--
--		if (did_some_progress)
--			return true;
--	}
--
- 	/*
- 	 * Keep reclaiming pages while there is a chance this will lead somewhere.
- 	 * If none of the target zones can satisfy our allocation request even
-@@ -3308,7 +3308,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	bool can_direct_reclaim = gfp_mask & __GFP_DIRECT_RECLAIM;
- 	struct page *page = NULL;
- 	int alloc_flags;
--	unsigned long pages_reclaimed = 0;
- 	unsigned long did_some_progress;
- 	enum migrate_mode migration_mode = MIGRATE_ASYNC;
- 	enum compact_result compact_result;
-@@ -3442,16 +3441,18 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
- 		goto noretry;
- 
--	if (did_some_progress) {
-+	/*
-+	 * Costly allocations might have made a progress but this doesn't mean
-+	 * their order will become available due to high fragmentation so
-+	 * always increment the no progress counter for them
-+	 */
-+	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
- 		no_progress_loops = 0;
--		pages_reclaimed += did_some_progress;
--	} else {
-+	else
- 		no_progress_loops++;
--	}
- 
- 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
--				 did_some_progress > 0, pages_reclaimed,
--				 no_progress_loops))
-+				 did_some_progress > 0, no_progress_loops))
- 		goto retry;
- 
- 	/*
 -- 
-2.8.0.rc3
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
