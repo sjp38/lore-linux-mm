@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 95D956B026E
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 07:26:06 -0400 (EDT)
-Received: by mail-wm0-f41.google.com with SMTP id n3so17216538wmn.0
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:26:06 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id d203si2863016wmc.55.2016.04.05.04.25.51
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 198486B0270
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 07:26:09 -0400 (EDT)
+Received: by mail-wm0-f54.google.com with SMTP id 191so21063153wmq.0
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:26:09 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id o7si22173002wjr.71.2016.04.05.04.25.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 04:25:51 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id 20so3339158wmh.3
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:25:51 -0700 (PDT)
+        Tue, 05 Apr 2016 04:25:52 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id n3so3357308wmn.1
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:25:52 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 10/11] mm, oom: protect !costly allocations some more
-Date: Tue,  5 Apr 2016 13:25:32 +0200
-Message-Id: <1459855533-4600-11-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 11/11] mm: consider compaction feedback also for costly allocation
+Date: Tue,  5 Apr 2016 13:25:33 +0200
+Message-Id: <1459855533-4600-12-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
 References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,205 +24,300 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpx
 
 From: Michal Hocko <mhocko@suse.com>
 
-should_reclaim_retry will give up retries for higher order allocations
-if none of the eligible zones has any requested or higher order pages
-available even if we pass the watermak check for order-0. This is done
-because there is no guarantee that the reclaimable and currently free
-pages will form the required order.
+PAGE_ALLOC_COSTLY_ORDER retry logic is mostly handled inside
+should_reclaim_retry currently where we decide to not retry after at
+least order worth of pages were reclaimed or the watermark check for at
+least one zone would succeed after reclaiming all pages if the reclaim
+hasn't made any progress. Compaction feedback is mostly ignored and we
+just try to make sure that the compaction did at least something before
+giving up.
 
-This can, however, lead to situations were the high-order request (e.g.
-order-2 required for the stack allocation during fork) will trigger
-OOM too early - e.g. after the first reclaim/compaction round. Such a
-system would have to be highly fragmented and there is no guarantee
-further reclaim/compaction attempts would help but at least make sure
-that the compaction was active before we go OOM and keep retrying even
-if should_reclaim_retry tells us to oom if
-	- the last compaction round backed off or
-	- we haven't completed at least MAX_COMPACT_RETRIES active
-	  compaction rounds.
+The first condition was added by a41f24ea9fd6 ("page allocator: smarter
+retry of costly-order allocations) and it assumed that lumpy reclaim
+could have created a page of the sufficient order. Lumpy reclaim,
+has been removed quite some time ago so the assumption doesn't hold
+anymore. Remove the check for the number of reclaimed pages and rely
+on the compaction feedback solely. should_reclaim_retry now only
+makes sure that we keep retrying reclaim for high order pages only
+if they are hidden by watermaks so order-0 reclaim makes really sense.
 
-The first rule ensures that the very last attempt for compaction
-was not ignored while the second guarantees that the compaction has done
-some work. Multiple retries might be needed to prevent occasional
-pigggy packing of other contexts to steal the compacted pages before
-the current context manages to retry to allocate them.
+should_compact_retry now keeps retrying even for the costly allocations.
+The number of retries is reduced wrt. !costly requests because they are
+less important and harder to grant and so their pressure shouldn't cause
+contention for other requests or cause an over reclaim. We also do not
+reset no_progress_loops for costly request to make sure we do not keep
+reclaiming too agressively.
 
-compaction_failed() is taken as a final word from the compaction that
-the retry doesn't make much sense. We have to be careful though because
-the first compaction round is MIGRATE_ASYNC which is rather weak as it
-ignores pages under writeback and gives up too easily in other
-situations. We therefore have to make sure that MIGRATE_SYNC_LIGHT mode
-has been used before we give up. With this logic in place we do not have
-to increase the migration mode unconditionally and rather do it only if
-the compaction failed for the weaker mode. A nice side effect is that
-the stronger migration mode is used only when really needed so this has
-a potential of smaller latencies in some cases.
+This has been tested by running a process which fragments memory:
+	- compact memory
+	- mmap large portion of the memory (1920M on 2GRAM machine with 2G
+	  of swapspace)
+	- MADV_DONTNEED single page in PAGE_SIZE*((1UL<<MAX_ORDER)-1)
+	  steps until certain amount of memory is freed (250M in my test)
+	  and reduce the step to (step / 2) + 1 after reaching the end of
+	  the mapping
+	- then run a script which populates the page cache 2G (MemTotal)
+	  from /dev/zero to a new file
+And then tries to allocate
+nr_hugepages=$(awk '/MemAvailable/{printf "%d\n", $2/(2*1024)}' /proc/meminfo)
+huge pages.
 
-Please note that the compaction doesn't tell us much about how
-successful it was when returning compaction_made_progress so we just
-have to blindly trust that another retry is worthwhile and cap the
-number to something reasonable to guarantee a convergence.
+root@test1:~# echo 1 > /proc/sys/vm/overcommit_memory;echo 1 > /proc/sys/vm/compact_memory; ./fragment-mem-and-run /root/alloc_hugepages.sh 1920M 250M
+Node 0, zone      DMA     31     28     31     10      2      0      2      1      2      3      1
+Node 0, zone    DMA32    437    319    171     50     28     25     20     16     16     14    437
 
-If the given number of successful retries is not sufficient for a
-reasonable workloads we should focus on the collected compaction
-tracepoints data and try to address the issue in the compaction code.
-If this is not feasible we can increase the retries limit.
+* This is the /proc/buddyinfo after the compaction
+
+Done fragmenting. size=2013265920 freed=262144000
+Node 0, zone      DMA    165     48      3      1      2      0      2      2      2      2      0
+Node 0, zone    DMA32  35109  14575    185     51     41     12      6      0      0      0      0
+
+* /proc/buddyinfo after memory got fragmented
+
+Executing "/root/alloc_hugepages.sh"
+Eating some pagecache
+508623+0 records in
+508623+0 records out
+2083319808 bytes (2.1 GB) copied, 11.7292 s, 178 MB/s
+Node 0, zone      DMA      3      5      3      1      2      0      2      2      2      2      0
+Node 0, zone    DMA32    111    344    153     20     24     10      3      0      0      0      0
+
+* /proc/buddyinfo after page cache got eaten
+
+Trying to allocate 129
+129
+
+* 129 hugepages requested and all of them granted.
+
+Node 0, zone      DMA      3      5      3      1      2      0      2      2      2      2      0
+Node 0, zone    DMA32    127     97     30     99     11      6      2      1      4      0      0
+
+* /proc/buddyinfo after hugetlb allocation.
+
+10 runs will behave as follows:
+Trying to allocate 130
+130
+--
+Trying to allocate 129
+129
+--
+Trying to allocate 128
+128
+--
+Trying to allocate 129
+129
+--
+Trying to allocate 128
+128
+--
+Trying to allocate 129
+129
+--
+Trying to allocate 132
+132
+--
+Trying to allocate 129
+129
+--
+Trying to allocate 128
+128
+--
+Trying to allocate 129
+129
+
+So basically 100% success for all 10 attempts.
+Without the patch numbers looked much worse:
+Trying to allocate 128
+12
+--
+Trying to allocate 129
+14
+--
+Trying to allocate 129
+7
+--
+Trying to allocate 129
+16
+--
+Trying to allocate 129
+30
+--
+Trying to allocate 129
+38
+--
+Trying to allocate 129
+19
+--
+Trying to allocate 129
+37
+--
+Trying to allocate 129
+28
+--
+Trying to allocate 129
+37
+
+Just for completness the base kernel without oom detection rework looks
+as follows:
+Trying to allocate 127
+30
+--
+Trying to allocate 129
+12
+--
+Trying to allocate 129
+52
+--
+Trying to allocate 128
+32
+--
+Trying to allocate 129
+12
+--
+Trying to allocate 129
+10
+--
+Trying to allocate 129
+32
+--
+Trying to allocate 128
+14
+--
+Trying to allocate 128
+16
+--
+Trying to allocate 129
+8
+
+As we can see the success rate is much more volatile and smaller without
+this patch. So the patch not only makes the retry logic for costly
+requests more sensible the success rate is even higher.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/page_alloc.c | 89 ++++++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 78 insertions(+), 11 deletions(-)
+ mm/page_alloc.c | 63 +++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 32 insertions(+), 31 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c05de84c8157..3d26ab892a7d 100644
+index 3d26ab892a7d..90a18ae92849 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2939,6 +2939,13 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 	return page;
- }
- 
-+
-+/*
-+ * Maximum number of compaction retries wit a progress before OOM
-+ * killer is consider as the only way to move forward.
-+ */
-+#define MAX_COMPACT_RETRIES 16
-+
- #ifdef CONFIG_COMPACTION
- /* Try memory compaction for high-order allocations before reclaim */
- static struct page *
-@@ -3006,6 +3013,43 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 
- 	return NULL;
- }
-+
-+static inline bool
-+should_compact_retry(unsigned int order, enum compact_result compact_result,
-+		     enum migrate_mode *migrate_mode,
-+		     int compaction_retries)
-+{
-+	if (!order)
-+		return false;
-+
-+	/*
-+	 * compaction considers all the zone as desperately out of memory
-+	 * so it doesn't really make much sense to retry except when the
-+	 * failure could be caused by weak migration mode.
-+	 */
-+	if (compaction_failed(compact_result)) {
-+		if (*migrate_mode == MIGRATE_ASYNC) {
-+			*migrate_mode = MIGRATE_SYNC_LIGHT;
-+			return true;
-+		}
-+		return false;
-+	}
-+
-+	/*
-+	 * !costly allocations are really important and we have to make sure
-+	 * the compaction wasn't deferred or didn't bail out early due to locks
-+	 * contention before we go OOM. Still cap the reclaim retry loops with
-+	 * progress to prevent from looping forever and potential trashing.
-+	 */
-+	if (order <= PAGE_ALLOC_COSTLY_ORDER) {
-+		if (compaction_withdrawn(compact_result))
-+			return true;
-+		if (compaction_retries <= MAX_COMPACT_RETRIES)
-+			return true;
-+	}
-+
-+	return false;
-+}
- #else
- static inline struct page *
- __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
-@@ -3014,6 +3058,14 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+@@ -3019,6 +3019,8 @@ should_compact_retry(unsigned int order, enum compact_result compact_result,
+ 		     enum migrate_mode *migrate_mode,
+ 		     int compaction_retries)
  {
- 	return NULL;
- }
++	int max_retries = MAX_COMPACT_RETRIES;
 +
-+static inline bool
-+should_compact_retry(unsigned int order, enum compact_result compact_result,
-+		     enum migrate_mode *migrate_mode,
-+		     int compaction_retries)
-+{
-+	return false;
-+}
- #endif /* CONFIG_COMPACTION */
+ 	if (!order)
+ 		return false;
  
- /* Perform direct synchronous page reclaim */
-@@ -3260,6 +3312,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+@@ -3036,17 +3038,24 @@ should_compact_retry(unsigned int order, enum compact_result compact_result,
+ 	}
+ 
+ 	/*
+-	 * !costly allocations are really important and we have to make sure
+-	 * the compaction wasn't deferred or didn't bail out early due to locks
+-	 * contention before we go OOM. Still cap the reclaim retry loops with
+-	 * progress to prevent from looping forever and potential trashing.
++	 * make sure the compaction wasn't deferred or didn't bail out early
++	 * due to locks contention before we declare that we should give up.
+ 	 */
+-	if (order <= PAGE_ALLOC_COSTLY_ORDER) {
+-		if (compaction_withdrawn(compact_result))
+-			return true;
+-		if (compaction_retries <= MAX_COMPACT_RETRIES)
+-			return true;
+-	}
++	if (compaction_withdrawn(compact_result))
++		return true;
++
++	/*
++	 * !costly requests are much more important than __GFP_REPEAT
++	 * costly ones because they are de facto nofail and invoke OOM
++	 * killer to move on while costly can fail and users are ready
++	 * to cope with that. 1/4 retries is rather arbitrary but we
++	 * would need much more detailed feedback from compaction to
++	 * make a better decision.
++	 */
++	if (order > PAGE_ALLOC_COSTLY_ORDER)
++		max_retries /= 4;
++	if (compaction_retries <= max_retries)
++		return true;
+ 
+ 	return false;
+ }
+@@ -3207,18 +3216,17 @@ static inline bool is_thp_gfp_mask(gfp_t gfp_mask)
+  * Checks whether it makes sense to retry the reclaim to make a forward progress
+  * for the given allocation request.
+  * The reclaim feedback represented by did_some_progress (any progress during
+- * the last reclaim round), pages_reclaimed (cumulative number of reclaimed
+- * pages) and no_progress_loops (number of reclaim rounds without any progress
+- * in a row) is considered as well as the reclaimable pages on the applicable
+- * zone list (with a backoff mechanism which is a function of no_progress_loops).
++ * the last reclaim round) and no_progress_loops (number of reclaim rounds without
++ * any progress in a row) is considered as well as the reclaimable pages on the
++ * applicable zone list (with a backoff mechanism which is a function of
++ * no_progress_loops).
+  *
+  * Returns true if a retry is viable or false to enter the oom path.
+  */
+ static inline bool
+ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+ 		     struct alloc_context *ac, int alloc_flags,
+-		     bool did_some_progress, unsigned long pages_reclaimed,
+-		     int no_progress_loops)
++		     bool did_some_progress, int no_progress_loops)
+ {
+ 	struct zone *zone;
+ 	struct zoneref *z;
+@@ -3230,14 +3238,6 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+ 	if (no_progress_loops > MAX_RECLAIM_RETRIES)
+ 		return false;
+ 
+-	if (order > PAGE_ALLOC_COSTLY_ORDER) {
+-		if (pages_reclaimed >= (1<<order))
+-			return false;
+-
+-		if (did_some_progress)
+-			return true;
+-	}
+-
+ 	/*
+ 	 * Keep reclaiming pages while there is a chance this will lead somewhere.
+ 	 * If none of the target zones can satisfy our allocation request even
+@@ -3308,7 +3308,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	bool can_direct_reclaim = gfp_mask & __GFP_DIRECT_RECLAIM;
+ 	struct page *page = NULL;
+ 	int alloc_flags;
+-	unsigned long pages_reclaimed = 0;
  	unsigned long did_some_progress;
  	enum migrate_mode migration_mode = MIGRATE_ASYNC;
  	enum compact_result compact_result;
-+	int compaction_retries = 0;
- 	int no_progress_loops = 0;
+@@ -3442,16 +3441,18 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+ 		goto noretry;
  
- 	/*
-@@ -3362,6 +3415,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (page)
- 		goto got_pg;
+-	if (did_some_progress) {
++	/*
++	 * Costly allocations might have made a progress but this doesn't mean
++	 * their order will become available due to high fragmentation so
++	 * always increment the no progress counter for them
++	 */
++	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
+ 		no_progress_loops = 0;
+-		pages_reclaimed += did_some_progress;
+-	} else {
++	else
+ 		no_progress_loops++;
+-	}
  
-+	if (order && compaction_made_progress(compact_result))
-+		compaction_retries++;
-+
- 	/*
- 	 * Checks for THP-specific high-order allocations and back off
- 	 * if the the compaction backed off
-@@ -3369,14 +3425,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (is_thp_gfp_mask(gfp_mask) && compaction_withdrawn(compact_result))
- 		goto nopage;
- 
--	/*
--	 * It can become very expensive to allocate transparent hugepages at
--	 * fault, so use asynchronous memory compaction for THP unless it is
--	 * khugepaged trying to collapse.
--	 */
--	if (!is_thp_gfp_mask(gfp_mask) || (current->flags & PF_KTHREAD))
--		migration_mode = MIGRATE_SYNC_LIGHT;
--
- 	/* Try direct reclaim and then allocating */
- 	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
- 							&did_some_progress);
-@@ -3406,6 +3454,17 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 				 no_progress_loops))
+ 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
+-				 did_some_progress > 0, pages_reclaimed,
+-				 no_progress_loops))
++				 did_some_progress > 0, no_progress_loops))
  		goto retry;
  
-+	/*
-+	 * It doesn't make any sense to retry for the compaction if the order-0
-+	 * reclaim is not able to make any progress because the current
-+	 * implementation of the compaction depends on the sufficient amount
-+	 * of free memory (see __compaction_suitable)
-+	 */
-+	if (did_some_progress > 0 &&
-+			should_compact_retry(order, compact_result,
-+				&migration_mode, compaction_retries))
-+		goto retry;
-+
- 	/* Reclaim has failed us, start killing things */
- 	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
- 	if (page)
-@@ -3419,10 +3478,18 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 
- noretry:
  	/*
--	 * High-order allocations do not necessarily loop after
--	 * direct reclaim and reclaim/compaction depends on compaction
--	 * being called after reclaim so call directly if necessary
-+	 * High-order allocations do not necessarily loop after direct reclaim
-+	 * and reclaim/compaction depends on compaction being called after
-+	 * reclaim so call directly if necessary.
-+	 * It can become very expensive to allocate transparent hugepages at
-+	 * fault, so use asynchronous memory compaction for THP unless it is
-+	 * khugepaged trying to collapse. All other requests should tolerate
-+	 * at least light sync migration.
- 	 */
-+	if (is_thp_gfp_mask(gfp_mask) && !(current->flags & PF_KTHREAD))
-+		migration_mode = MIGRATE_ASYNC;
-+	else
-+		migration_mode = MIGRATE_SYNC_LIGHT;
- 	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags,
- 					    ac, migration_mode,
- 					    &compact_result);
 -- 
 2.8.0.rc3
 
