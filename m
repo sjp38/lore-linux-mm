@@ -1,111 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F6E16B0005
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 07:58:14 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id td3so9495872pab.2
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:58:14 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id b9si7400794pas.197.2016.04.05.04.58.13
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E5156B0005
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 08:03:11 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id u206so1060016wme.1
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 05:03:11 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i69si18758042wmc.104.2016.04.05.05.03.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 04:58:13 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id d184so1168222pfc.1
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 04:58:13 -0700 (PDT)
-From: Ming Lei <tom.leiming@gmail.com>
-Subject: [PATCH 00/27] block: cleanup direct access on .bi_vcnt & .bi_io_vec
-Date: Tue,  5 Apr 2016 19:56:45 +0800
-Message-Id: <1459857443-20611-1-git-send-email-tom.leiming@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Apr 2016 05:03:10 -0700 (PDT)
+Subject: Re: [PATCH v3 04/16] mm/balloon: use general movable page feature
+ into balloon
+References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
+ <1459321935-3655-5-git-send-email-minchan@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5703A979.402@suse.cz>
+Date: Tue, 5 Apr 2016 14:03:05 +0200
+MIME-Version: 1.0
+In-Reply-To: <1459321935-3655-5-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@fb.com>, linux-kernel@vger.kernel.org
-Cc: linux-block@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Boaz Harrosh <boaz@plexistor.com>, Ming Lei <tom.leiming@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <andreas.dilger@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "open list:STAGING SUBSYSTEM" <devel@driverdev.osuosl.org>, "open list:DEVICE-MAPPER  LVM" <dm-devel@redhat.com>, "open list:DRBD DRIVER" <drbd-dev@lists.linbit.com>, Frank Zago <fzago@cray.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Hannes Reinecke <hare@suse.de>, James Simmons <jsimmons@infradead.org>, Jan Kara <jack@suse.cz>, Jarod Wilson <jarod@redhat.com>, Jiri Kosina <jkosina@suse.cz>, Joe Perches <joe@perches.com>, "John L. Hammond" <john.hammond@intel.com>, Julia Lawall <Julia.Lawall@lip6.fr>, Keith Busch <keith.busch@intel.com>, Kent Overstreet <kent.overstreet@gmail.com>, "open list:BCACHE BLOCK LAYER CACHE" <linux-bcache@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, "open list:SUSPEND TO RAM" <linux-pm@vger.kernel.org>, "open list:SOFTWARE RAID Multiple Disks SUPPORT" <linux-raid@vger.kernel.org>, "open list:TARGET SUBSYSTEM" <linux-scsi@vger.kernel.org>, "open list:LogFS" <logfs@logfs.org>, "moderated list:STAGING - LUSTRE PARALLEL FILESYSTEM" <lustre-devel@lists.lustre.org>, Mike Rapoport <mike.rapoport@gmail.com>, Mike Snitzer <snitzer@redhat.com>, Miklos Szeredi <mszeredi@suse.cz>, Minchan Kim <minchan@kernel.org>, Ming Lin <ming.l@ssi.samsung.com>, NeilBrown <neilb@suse.com>, NeilBrown <neilb@suse.de>, Oleg Drokin <green@linuxhacker.ru>, Omar Sandoval <osandov@osandov.com>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, "open list:TARGET SUBSYSTEM" <target-devel@vger.kernel.org>, Tejun Heo <tj@kernel.org>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, Gioh Kim <gurugio@hanmail.net>
 
-Hi Guys,
+On 03/30/2016 09:12 AM, Minchan Kim wrote:
+> Now, VM has a feature to migrate non-lru movable pages so
+> balloon doesn't need custom migration hooks in migrate.c
+> and compact.c. Instead, this patch implements page->mapping
+> ->{isolate|migrate|putback} functions.
+>
+> With that, we could remove hooks for ballooning in general
+> migration functions and make balloon compaction simple.
+>
+> Cc: virtualization@lists.linux-foundation.org
+> Cc: Rafael Aquini <aquini@redhat.com>
+> Cc: Konstantin Khlebnikov <koct9i@gmail.com>
+> Signed-off-by: Gioh Kim <gurugio@hanmail.net>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-It is always not a good practice to access bio->bi_vcnt and
-bio->bi_io_vec from drivers directly. Also this kind of direct
-access will cause trouble when converting to multipage bvecs.
+I'm not familiar with the inode and pseudofs stuff, so just some things 
+I noticed:
 
-The 1st patch introduces the following 4 bio helpers which can be
-used inside drivers for avoiding direct access to .bi_vcnt and .bi_io_vec.
+> -#define PAGE_MOVABLE_MAPCOUNT_VALUE (-255)
+> +#define PAGE_MOVABLE_MAPCOUNT_VALUE (-256)
+> +#define PAGE_BALLOON_MAPCOUNT_VALUE PAGE_MOVABLE_MAPCOUNT_VALUE
+>
+>   static inline int PageMovable(struct page *page)
+>   {
+> -	return ((test_bit(PG_movable, &(page)->flags) &&
+> -		atomic_read(&page->_mapcount) == PAGE_MOVABLE_MAPCOUNT_VALUE)
+> -		|| PageBalloon(page));
+> +	return (test_bit(PG_movable, &(page)->flags) &&
+> +		atomic_read(&page->_mapcount) == PAGE_MOVABLE_MAPCOUNT_VALUE);
+>   }
+>
+>   /* Caller should hold a PG_lock */
+> @@ -645,6 +626,35 @@ static inline void __ClearPageMovable(struct page *page)
+>
+>   PAGEFLAG(Isolated, isolated, PF_ANY);
+>
+> +static inline int PageBalloon(struct page *page)
+> +{
+> +	return atomic_read(&page->_mapcount) == PAGE_BALLOON_MAPCOUNT_VALUE
+> +		&& PagePrivate2(page);
+> +}
 
-	bio_pages()
-	bio_is_full()
-	bio_get_base_vec()
-	bio_set_vec_table()
+Hmm so you are now using PG_private_2 flag here, but it's not 
+documented. Also the only caller of PageBalloon() seems to be 
+stable_page_flags(). Which will now report all movable pages with 
+PG_private_2 as KPF_BALOON. Seems like an overkill and also not 
+reliable. Could it test e.g. page->mapping instead?
 
-Both bio_pages() and bio_is_full() can be easy to convert to
-multipage bvecs.
+Or maybe if we manage to get rid of PAGE_MOVABLE_MAPCOUNT_VALUE, we can 
+keep PAGE_BALLOON_MAPCOUNT_VALUE to simply distinguish balloon pages for 
+stable_page_flags().
 
-For bio_get_base_vec() and bio_set_vec_table(), they are often used
-during initializing a new bio or in case of single bvec bio. With the
-two new helpers, it becomes quite easy to audit access to .bi_io_vec
-and .bi_vcnt.
+> @@ -1033,7 +1019,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+>   out:
+>   	/* If migration is successful, move newpage to right list */
+>   	if (rc == MIGRATEPAGE_SUCCESS) {
+> -		if (unlikely(__is_movable_balloon_page(newpage)))
+> +		if (unlikely(PageMovable(newpage)))
+>   			put_page(newpage);
+>   		else
+>   			putback_lru_page(newpage);
 
-Most of the other patches use the 4 helpers to clean up most of direct
-access to .bi_vcnt and .bi_io_vec from drivers, except for MD and btrfs,
-which two subsystems will be done in the future. 
+Hmm shouldn't the condition have been changed to
 
-Also bio_add_page() is used in floppy, dm-crypt and fs/logfs to
-avoiding direct access to .bi_vcnt & .bi_io_vec.
+if (unlikely(__is_movable_balloon_page(newpage)) || PageMovable(newpage)
 
-Thanks,
-Ming
+by patch 02/16? And this patch should be just removing the 
+balloon-specific check? Otherwise it seems like between patches 02 and 
+04, other kinds of PageMovable pages were unnecessarily/wrongly routed 
+through putback_lru_page()?
 
-Ming Lei (27):
-  block: bio: introduce 4 helpers for cleanup
-  block: drbd: use bio_get_base_vec() to retrieve the 1st bvec
-  block: drbd: remove impossible failure handling
-  block: loop: use bio_get_base_vec() to retrive bvec table
-  block: pktcdvd: use bio_get_base_vec() to retrive bvec table
-  block: floppy: use bio_set_vec_table()
-  block: floppy: use bio_add_page()
-  staging: lustre: avoid to use bio->bi_vcnt directly
-  target: use bio_is_full()
-  bcache: debug: avoid to access .bi_io_vec directly
-  bcache: io.c: use bio_set_vec_table
-  bcache: journal.c: use bio_set_vec_table()
-  bcache: movinggc: use bio_set_vec_table()
-  bcache: writeback: use bio_set_vec_table()
-  bcache: super: use bio_set_vec_table()
-  bcache: super: use bio_get_base_vec
-  dm: crypt: use bio_add_page()
-  dm: dm-io.c: use bio_get_base_vec()
-  dm: dm.c: replace 'bio->bi_vcnt == 1' with !bio_multiple_segments
-  dm: dm-bufio.c: use bio_set_vec_table()
-  fs: logfs: use bio_set_vec_table()
-  fs: logfs: convert to bio_add_page() in sync_request()
-  fs: logfs: use bio_add_page() in __bdev_writeseg()
-  fs: logfs: use bio_add_page() in do_erase()
-  fs: logfs: remove unnecesary check
-  kernel/power/swap.c: use bio_get_base_vec()
-  mm: page_io.c: use bio_get_base_vec()
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index d82196244340..c7696a2e11c7 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1254,7 +1254,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>
+>   	list_for_each_entry_safe(page, next, page_list, lru) {
+>   		if (page_is_file_cache(page) && !PageDirty(page) &&
+> -		    !isolated_balloon_page(page)) {
+> +		    !PageIsolated(page)) {
+>   			ClearPageActive(page);
+>   			list_move(&page->lru, &clean_pages);
+>   		}
 
- drivers/block/drbd/drbd_bitmap.c            |   4 +-
- drivers/block/drbd/drbd_receiver.c          |  14 +---
- drivers/block/floppy.c                      |   9 +--
- drivers/block/loop.c                        |   5 +-
- drivers/block/pktcdvd.c                     |   3 +-
- drivers/md/bcache/debug.c                   |  11 ++-
- drivers/md/bcache/io.c                      |   3 +-
- drivers/md/bcache/journal.c                 |   3 +-
- drivers/md/bcache/movinggc.c                |   6 +-
- drivers/md/bcache/super.c                   |  28 +++++---
- drivers/md/bcache/writeback.c               |   4 +-
- drivers/md/dm-bufio.c                       |   3 +-
- drivers/md/dm-crypt.c                       |   8 +--
- drivers/md/dm-io.c                          |   7 +-
- drivers/md/dm.c                             |   3 +-
- drivers/staging/lustre/lustre/llite/lloop.c |   9 +--
- drivers/target/target_core_pscsi.c          |   2 +-
- fs/logfs/dev_bdev.c                         | 107 +++++++++++-----------------
- include/linux/bio.h                         |  28 ++++++++
- kernel/power/swap.c                         |  10 ++-
- mm/page_io.c                                |  18 ++++-
- 21 files changed, 156 insertions(+), 129 deletions(-)
+This looks like the same comment as above at first glance. But looking 
+closer, it's even weirder. isolated_balloon_page() was simply 
+PageBalloon() after d6d86c0a7f8dd... weird already. You replace it with 
+check for !PageIsolated() which looks like a more correct check, so ok. 
+Except the potential false positive with PG_owner_priv_1.
 
--- 
-1.9.1
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
