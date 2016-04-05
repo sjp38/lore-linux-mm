@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A5AD6B007E
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 04:26:14 -0400 (EDT)
-Received: by mail-wm0-f41.google.com with SMTP id n3so11071441wmn.0
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 01:26:14 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTP id ei9si159024wjd.95.2016.04.05.01.26.10
-        for <linux-mm@kvack.org>;
-        Tue, 05 Apr 2016 01:26:13 -0700 (PDT)
+Received: from mail-lf0-f43.google.com (mail-lf0-f43.google.com [209.85.215.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D5A76B007E
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 04:29:22 -0400 (EDT)
+Received: by mail-lf0-f43.google.com with SMTP id e190so3139387lfe.0
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 01:29:22 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id d13si18482682lfd.149.2016.04.05.01.29.18
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Apr 2016 01:29:20 -0700 (PDT)
 From: Chen Feng <puck.chen@hisilicon.com>
-Subject: [PATCH 2/2] arm64: mm: make pfn always valid with flat memory
-Date: Tue, 5 Apr 2016 16:22:52 +0800
-Message-ID: <1459844572-53069-2-git-send-email-puck.chen@hisilicon.com>
-In-Reply-To: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
-References: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
+Subject: [PATCH 1/2] arm64: mem-model: add flatmem model for arm64
+Date: Tue, 5 Apr 2016 16:22:51 +0800
+Message-ID: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -21,44 +20,35 @@ List-ID: <linux-mm.kvack.org>
 To: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, akpm@linux-foundation.org, robin.murphy@arm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, rientjes@google.com, linux-mm@kvack.org
 Cc: puck.chen@hisilicon.com, puck.chen@foxmail.com, oliver.fu@hisilicon.com, linuxarm@huawei.com, dan.zhao@hisilicon.com, suzhuangluan@hisilicon.com, yudongbin@hislicon.com, albert.lubing@hisilicon.com, xuyiping@hisilicon.com, saberlily.xia@hisilicon.com
 
-Make the pfn always valid when using flat memory.
-If the reserved memory is not align to memblock-size,
-there will be holes in zone.
+We can reduce the memory allocated at mem-map
+by flatmem.
 
-This patch makes the memory in buddy always in the
-array of mem-map.
+currently, the default memory-model in arm64 is
+sparse memory. The mem-map array is not freed in
+this scene. If the physical address is too long,
+it will reserved too much memory for the mem-map
+array.
 
 Signed-off-by: Chen Feng <puck.chen@hisilicon.com>
 Signed-off-by: Fu Jun <oliver.fu@hisilicon.com>
 ---
- arch/arm64/mm/init.c | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ arch/arm64/Kconfig | 3 +++
+ 1 file changed, 3 insertions(+)
 
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index ea989d8..0e1d5b7 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -306,7 +306,8 @@ static void __init free_unused_memmap(void)
- 	struct memblock_region *reg;
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 4f43622..c18930d 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -559,6 +559,9 @@ config ARCH_SPARSEMEM_ENABLE
+ 	def_bool y
+ 	select SPARSEMEM_VMEMMAP_ENABLE
  
- 	for_each_memblock(memory, reg) {
--		start = __phys_to_pfn(reg->base);
-+		start = round_down(__phys_to_pfn(reg->base),
-+				   MAX_ORDER_NR_PAGES);
++config ARCH_FLATMEM_ENABLE
++	def_bool y
++
+ config ARCH_SPARSEMEM_DEFAULT
+ 	def_bool ARCH_SPARSEMEM_ENABLE
  
- #ifdef CONFIG_SPARSEMEM
- 		/*
-@@ -327,8 +328,8 @@ static void __init free_unused_memmap(void)
- 		 * memmap entries are valid from the bank end aligned to
- 		 * MAX_ORDER_NR_PAGES.
- 		 */
--		prev_end = ALIGN(__phys_to_pfn(reg->base + reg->size),
--				 MAX_ORDER_NR_PAGES);
-+		prev_end = round_up(__phys_to_pfn(reg->base + reg->size),
-+				    MAX_ORDER_NR_PAGES);
- 	}
- 
- #ifdef CONFIG_SPARSEMEM
 -- 
 1.9.1
 
