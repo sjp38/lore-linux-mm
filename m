@@ -1,207 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 116FE6B0274
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 16:42:04 -0400 (EDT)
-Received: by mail-pf0-f177.google.com with SMTP id n1so17859111pfn.2
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 13:42:04 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id gc5si9816188pac.224.2016.04.05.13.42.03
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 646516B0277
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 16:44:21 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id td3so17598772pab.2
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 13:44:21 -0700 (PDT)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id le10si9847061pab.161.2016.04.05.13.44.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 13:42:03 -0700 (PDT)
-Received: by mail-pa0-x22e.google.com with SMTP id zm5so17635259pac.0
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 13:42:03 -0700 (PDT)
-Date: Tue, 5 Apr 2016 13:42:00 -0700 (PDT)
+        Tue, 05 Apr 2016 13:44:20 -0700 (PDT)
+Received: by mail-pa0-x234.google.com with SMTP id zm5so17667677pac.0
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 13:44:20 -0700 (PDT)
+Date: Tue, 5 Apr 2016 13:44:16 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 02/10] mm: update_lru_size do the __mod_zone_page_state
+Subject: [PATCH 03/10] mm: use __SetPageSwapBacked and dont
+ ClearPageSwapBacked
 In-Reply-To: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1604051340120.5965@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1604051342080.5965@eggly.anvils>
 References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Konstantin Khlebnikov pointed out (nearly four years ago, when lumpy
-reclaim was removed) that lru_size can be updated by -nr_taken once
-per call to isolate_lru_pages(), instead of page by page.
+v3.16 commit 07a427884348 ("mm: shmem: avoid atomic operation during
+shmem_getpage_gfp") rightly replaced one instance of SetPageSwapBacked
+by __SetPageSwapBacked, pointing out that the newly allocated page is
+not yet visible to other users (except speculative get_page_unless_zero-
+ers, who may not update page flags before their further checks).
 
-Update it inside isolate_lru_pages(), or at its two callsites?  I
-chose to update it at the callsites, rearranging and grouping the
-updates by nr_taken and nr_scanned together in both.
+That was part of a series in which Mel was focused on tmpfs profiles:
+but almost all SetPageSwapBacked uses can be so optimized, with the same
+justification.  Remove ClearPageSwapBacked from __read_swap_cache_async()
+error path: it's not an error to free a page with PG_swapbacked set.
 
-With one exception, mem_cgroup_update_lru_size(,lru,) is then used
-where __mod_zone_page_state(,NR_LRU_BASE+lru,) is used; and we shall
-be adding some more calls in a future commit.  Make the code a little
-smaller and simpler by incorporating stat update in lru_size update.
+Follow a convention of __SetPageLocked, __SetPageSwapBacked instead of
+doing it differently in different places; but that's for tidiness - if
+the ordering actually mattered, we should not be using the __variants.
 
-The exception was move_active_pages_to_lru(), which aggregated the
-pgmoved stat update separately from the individual lru_size updates;
-but I still think this a simplification worth making.
-
-However, the __mod_zone_page_state is not peculiar to mem_cgroups: so
-better use the name update_lru_size, calls mem_cgroup_update_lru_size
-when CONFIG_MEMCG.
+There's probably scope for further __SetPageFlags in other places,
+but SwapBacked is the one I'm interested in at the moment.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- include/linux/memcontrol.h |    6 ------
- include/linux/mm_inline.h  |   24 ++++++++++++++++++------
- mm/memcontrol.c            |    2 ++
- mm/vmscan.c                |   23 ++++++++++-------------
- 4 files changed, 30 insertions(+), 25 deletions(-)
+Sorry, Mel did give
+Reviewed-by: Mel Gorman <mgorman@suse.de>
+a year ago, but the kernel has moved on since then,
+so it feels slightly ruder to carry that forward without asking,
+than to ask again after all this time not submitting what he approved.
 
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -658,12 +658,6 @@ mem_cgroup_get_lru_size(struct lruvec *l
- 	return 0;
- }
+ mm/migrate.c    |    6 +++---
+ mm/rmap.c       |    2 +-
+ mm/shmem.c      |    4 ++--
+ mm/swap_state.c |    3 +--
+ 4 files changed, 7 insertions(+), 8 deletions(-)
+
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -332,7 +332,7 @@ int migrate_page_move_mapping(struct add
+ 		newpage->index = page->index;
+ 		newpage->mapping = page->mapping;
+ 		if (PageSwapBacked(page))
+-			SetPageSwapBacked(newpage);
++			__SetPageSwapBacked(newpage);
  
--static inline void
--mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
--			      int increment)
--{
--}
--
- static inline unsigned long
- mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
- 			     int nid, unsigned int lru_mask)
---- a/include/linux/mm_inline.h
-+++ b/include/linux/mm_inline.h
-@@ -22,22 +22,34 @@ static inline int page_is_file_cache(str
- 	return !PageSwapBacked(page);
- }
- 
-+static __always_inline void __update_lru_size(struct lruvec *lruvec,
-+				enum lru_list lru, int nr_pages)
-+{
-+	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, nr_pages);
-+}
-+
-+static __always_inline void update_lru_size(struct lruvec *lruvec,
-+				enum lru_list lru, int nr_pages)
-+{
-+#ifdef CONFIG_MEMCG
-+	mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
-+#else
-+	__update_lru_size(lruvec, lru, nr_pages);
-+#endif
-+}
-+
- static __always_inline void add_page_to_lru_list(struct page *page,
- 				struct lruvec *lruvec, enum lru_list lru)
- {
--	int nr_pages = hpage_nr_pages(page);
--	mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
-+	update_lru_size(lruvec, lru, hpage_nr_pages(page));
- 	list_add(&page->lru, &lruvec->lists[lru]);
--	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, nr_pages);
- }
- 
- static __always_inline void del_page_from_lru_list(struct page *page,
- 				struct lruvec *lruvec, enum lru_list lru)
- {
--	int nr_pages = hpage_nr_pages(page);
- 	list_del(&page->lru);
--	mem_cgroup_update_lru_size(lruvec, lru, -nr_pages);
--	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, -nr_pages);
-+	update_lru_size(lruvec, lru, -hpage_nr_pages(page));
- }
- 
- /**
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1034,6 +1034,8 @@ void mem_cgroup_update_lru_size(struct l
- 	long size;
- 	bool empty;
- 
-+	__update_lru_size(lruvec, lru, nr_pages);
-+
- 	if (mem_cgroup_disabled())
- 		return;
- 
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1374,7 +1374,6 @@ static unsigned long isolate_lru_pages(u
- 	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
- 					!list_empty(src); scan++) {
- 		struct page *page;
--		int nr_pages;
- 
- 		page = lru_to_page(src);
- 		prefetchw_prev_lru_page(page, src, flags);
-@@ -1383,10 +1382,8 @@ static unsigned long isolate_lru_pages(u
- 
- 		switch (__isolate_lru_page(page, mode)) {
- 		case 0:
--			nr_pages = hpage_nr_pages(page);
--			mem_cgroup_update_lru_size(lruvec, lru, -nr_pages);
-+			nr_taken += hpage_nr_pages(page);
- 			list_move(&page->lru, dst);
--			nr_taken += nr_pages;
- 			break;
- 
- 		case -EBUSY:
-@@ -1602,8 +1599,9 @@ shrink_inactive_list(unsigned long nr_to
- 	nr_taken = isolate_lru_pages(nr_to_scan, lruvec, &page_list,
- 				     &nr_scanned, sc, isolate_mode, lru);
- 
--	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -nr_taken);
-+	update_lru_size(lruvec, lru, -nr_taken);
- 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, nr_taken);
-+	reclaim_stat->recent_scanned[file] += nr_taken;
- 
- 	if (global_reclaim(sc)) {
- 		__mod_zone_page_state(zone, NR_PAGES_SCANNED, nr_scanned);
-@@ -1624,8 +1622,6 @@ shrink_inactive_list(unsigned long nr_to
- 
- 	spin_lock_irq(&zone->lru_lock);
- 
--	reclaim_stat->recent_scanned[file] += nr_taken;
--
- 	if (global_reclaim(sc)) {
- 		if (current_is_kswapd())
- 			__count_zone_vm_events(PGSTEAL_KSWAPD, zone,
-@@ -1742,7 +1738,7 @@ static void move_active_pages_to_lru(str
- 		SetPageLRU(page);
- 
- 		nr_pages = hpage_nr_pages(page);
--		mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
-+		update_lru_size(lruvec, lru, nr_pages);
- 		list_move(&page->lru, &lruvec->lists[lru]);
- 		pgmoved += nr_pages;
- 
-@@ -1760,7 +1756,7 @@ static void move_active_pages_to_lru(str
- 				list_add(&page->lru, pages_to_free);
- 		}
+ 		return MIGRATEPAGE_SUCCESS;
  	}
--	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
-+
- 	if (!is_active_lru(lru))
- 		__count_vm_events(PGDEACTIVATE, pgmoved);
- }
-@@ -1794,14 +1790,15 @@ static void shrink_active_list(unsigned
+@@ -378,7 +378,7 @@ int migrate_page_move_mapping(struct add
+ 	newpage->index = page->index;
+ 	newpage->mapping = page->mapping;
+ 	if (PageSwapBacked(page))
+-		SetPageSwapBacked(newpage);
++		__SetPageSwapBacked(newpage);
  
- 	nr_taken = isolate_lru_pages(nr_to_scan, lruvec, &l_hold,
- 				     &nr_scanned, sc, isolate_mode, lru);
--	if (global_reclaim(sc))
--		__mod_zone_page_state(zone, NR_PAGES_SCANNED, nr_scanned);
+ 	get_page(newpage);	/* add cache reference */
+ 	if (PageSwapCache(page)) {
+@@ -1785,7 +1785,7 @@ int migrate_misplaced_transhuge_page(str
  
-+	update_lru_size(lruvec, lru, -nr_taken);
-+	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, nr_taken);
- 	reclaim_stat->recent_scanned[file] += nr_taken;
+ 	/* Prepare a page as a migration target */
+ 	__SetPageLocked(new_page);
+-	SetPageSwapBacked(new_page);
++	__SetPageSwapBacked(new_page);
  
-+	if (global_reclaim(sc))
-+		__mod_zone_page_state(zone, NR_PAGES_SCANNED, nr_scanned);
- 	__count_zone_vm_events(PGREFILL, zone, nr_scanned);
--	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -nr_taken);
--	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, nr_taken);
-+
- 	spin_unlock_irq(&zone->lru_lock);
+ 	/* anon mapping, we can simply copy page->mapping to the new page: */
+ 	new_page->mapping = page->mapping;
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1249,7 +1249,7 @@ void page_add_new_anon_rmap(struct page
+ 	int nr = compound ? hpage_nr_pages(page) : 1;
  
- 	while (!list_empty(&l_hold)) {
+ 	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+-	SetPageSwapBacked(page);
++	__SetPageSwapBacked(page);
+ 	if (compound) {
+ 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+ 		/* increment count (starts at -1) */
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1085,8 +1085,8 @@ static int shmem_replace_page(struct pag
+ 	flush_dcache_page(newpage);
+ 
+ 	__SetPageLocked(newpage);
++	__SetPageSwapBacked(newpage);
+ 	SetPageUptodate(newpage);
+-	SetPageSwapBacked(newpage);
+ 	set_page_private(newpage, swap_index);
+ 	SetPageSwapCache(newpage);
+ 
+@@ -1276,8 +1276,8 @@ repeat:
+ 			goto decused;
+ 		}
+ 
+-		__SetPageSwapBacked(page);
+ 		__SetPageLocked(page);
++		__SetPageSwapBacked(page);
+ 		if (sgp == SGP_WRITE)
+ 			__SetPageReferenced(page);
+ 
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -358,7 +358,7 @@ struct page *__read_swap_cache_async(swp
+ 
+ 		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
+ 		__SetPageLocked(new_page);
+-		SetPageSwapBacked(new_page);
++		__SetPageSwapBacked(new_page);
+ 		err = __add_to_swap_cache(new_page, entry);
+ 		if (likely(!err)) {
+ 			radix_tree_preload_end();
+@@ -370,7 +370,6 @@ struct page *__read_swap_cache_async(swp
+ 			return new_page;
+ 		}
+ 		radix_tree_preload_end();
+-		ClearPageSwapBacked(new_page);
+ 		__ClearPageLocked(new_page);
+ 		/*
+ 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
