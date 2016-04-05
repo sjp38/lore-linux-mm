@@ -1,151 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id CAB9C6B0005
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 04:18:50 -0400 (EDT)
-Received: by mail-pf0-f180.google.com with SMTP id 184so6260468pff.0
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 01:18:50 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id yi4si1461583pac.177.2016.04.05.01.18.49
-        for <linux-mm@kvack.org>;
-        Tue, 05 Apr 2016 01:18:50 -0700 (PDT)
-Message-ID: <1459844378.5564.12.camel@linux.intel.com>
-Subject: Re: [PATCH v2 3/3] drm/i915/shrinker: Hook up vmap allocation
- failure notifier
-From: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Date: Tue, 05 Apr 2016 11:19:38 +0300
-In-Reply-To: <1459777603-23618-4-git-send-email-chris@chris-wilson.co.uk>
-References: <1459777603-23618-1-git-send-email-chris@chris-wilson.co.uk>
-	 <1459777603-23618-4-git-send-email-chris@chris-wilson.co.uk>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 74EDC6B0253
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 04:20:55 -0400 (EDT)
+Received: by mail-wm0-f54.google.com with SMTP id 191so15772365wmq.0
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 01:20:55 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b2si35688489wjy.233.2016.04.05.01.20.54
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Apr 2016 01:20:54 -0700 (PDT)
+Subject: Re: [PATCH v3 01/16] mm: use put_page to free page instead of
+ putback_lru_page
+References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
+ <1459321935-3655-2-git-send-email-minchan@kernel.org>
+ <56FE706D.7080507@suse.cz> <20160404013917.GC6543@bbox>
+ <20160404044458.GA20250@hori1.linux.bs1.fc.nec.co.jp>
+ <57027E47.7070909@suse.cz>
+ <20160405015402.GA30962@hori1.linux.bs1.fc.nec.co.jp>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <57037562.3040203@suse.cz>
+Date: Tue, 5 Apr 2016 10:20:50 +0200
+MIME-Version: 1.0
+In-Reply-To: <20160405015402.GA30962@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>, intel-gfx@lists.freedesktop.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Roman Pen <r.peniaev@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tvrtko Ursulin <tvrtko.ursulin@intel.com>, Mika Kahola <mika.kahola@intel.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jlayton@poochiereds.net" <jlayton@poochiereds.net>, "bfields@fieldses.org" <bfields@fieldses.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "koct9i@gmail.com" <koct9i@gmail.com>, "aquini@redhat.com" <aquini@redhat.com>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, "rknize@motorola.com" <rknize@motorola.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>
 
-On ma, 2016-04-04 at 14:46 +0100, Chris Wilson wrote:
-> If the core runs out of vmap address space, it will call a notifier in
-> case any driver can reap some of its vmaps. As i915.ko is possibily
-> holding onto vmap address space that could be recovered, hook into the
-> notifier chain and try and reap objects holding onto vmaps.
+On 04/05/2016 03:54 AM, Naoya Horiguchi wrote:
+> On Mon, Apr 04, 2016 at 04:46:31PM +0200, Vlastimil Babka wrote:
+>> On 04/04/2016 06:45 AM, Naoya Horiguchi wrote:
+>>> On Mon, Apr 04, 2016 at 10:39:17AM +0900, Minchan Kim wrote:
+> ...
+>>>>>
+>>>>> Also (but not your fault) the put_page() preceding
+>>>>> test_set_page_hwpoison(page)) IMHO deserves a comment saying which
+>>>>> pin we are releasing and which one we still have (hopefully? if I
+>>>>> read description of da1b13ccfbebe right) otherwise it looks like
+>>>>> doing something with a page that we just potentially freed.
+>>>>
+>>>> Yes, while I read the code, I had same question. I think the releasing
+>>>> refcount is for get_any_page.
+>>>
+>>> As the other callers of page migration do, soft_offline_page expects the
+>>> migration source page to be freed at this put_page() (no pin remains.)
+>>> The refcount released here is from isolate_lru_page() in __soft_offline_page().
+>>> (the pin by get_any_page is released by put_hwpoison_page just after it.)
+>>>
+>>> .. yes, doing something just after freeing page looks weird, but that's
+>>> how PageHWPoison flag works. IOW, many other page flags are maintained
+>>> only during one "allocate-free" life span, but PageHWPoison still does
+>>> its job beyond it.
+>>
+>> But what prevents the page from being allocated again between put_page()
+>> and test_set_page_hwpoison()? In that case we would be marking page
+>> poisoned while still in use, which is the same as marking it while still
+>> in use after a failed migration?
 > 
-> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Roman Pen <r.peniaev@gmail.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+> Actually nothing prevents that race. But I think that the result of the race
+> is that the error page can be reused for allocation, which results in killing
+> processes at page fault time. Soft offline is kind of mild/precautious thing
+> (for correctable errors that don't require immediate handling), so killing
+> processes looks to me an overkill. And marking hwpoison means that we can no
+> longer do retry from userspace.
 
-A comment below. But regardless;
+So you agree that this race is a bug? It may turn a soft-offline attempt
+into a killed process. In that case we should fix it the same as we are
+fixing the failed migration case. Maybe it will be just enough to switch
+the test_set_page_hwpoison() and put_page() calls?
 
-Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-
-> Cc: Tvrtko Ursulin <tvrtko.ursulin@intel.com>
-> Cc: Mika Kahola <mika.kahola@intel.com>
-> ---
-> A drivers/gpu/drm/i915/i915_drv.hA A A A A A A A A A |A A 1 +
-> A drivers/gpu/drm/i915/i915_gem_shrinker.c | 39 ++++++++++++++++++++++++++++++++
-> A 2 files changed, 40 insertions(+)
+> And another practical thing is the race with unpoison_memory() as described
+> in commit da1b13ccfbebe. unpoison_memory() properly works only for properly
+> poisoned pages, so doing unpoison for in-use hwpoisoned pages is fragile.
+> That's why I'd like to avoid setting PageHWPoison for in-use pages if possible.
 > 
-> diff --git a/drivers/gpu/drm/i915/i915_drv.h b/drivers/gpu/drm/i915/i915_drv.h
-> index dd187727c813..6443745d4182 100644
-> --- a/drivers/gpu/drm/i915/i915_drv.h
-> +++ b/drivers/gpu/drm/i915/i915_drv.h
-> @@ -1257,6 +1257,7 @@ struct i915_gem_mm {
-> A 	struct i915_hw_ppgtt *aliasing_ppgtt;
-> A 
-> A 	struct notifier_block oom_notifier;
-> +	struct notifier_block vmap_notifier;
-> A 	struct shrinker shrinker;
-> A 	bool shrinker_no_lock_stealing;
-> A 
-> diff --git a/drivers/gpu/drm/i915/i915_gem_shrinker.c b/drivers/gpu/drm/i915/i915_gem_shrinker.c
-> index e391ee3ec486..be7501afb59e 100644
-> --- a/drivers/gpu/drm/i915/i915_gem_shrinker.c
-> +++ b/drivers/gpu/drm/i915/i915_gem_shrinker.c
-> @@ -28,6 +28,7 @@
-> A #include 
-> A #include 
-> A #include 
-> +#include 
-> A #include 
-> A #include 
-> A 
-> @@ -356,6 +357,40 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
-> A 	return NOTIFY_DONE;
-> A }
-> A 
-> +static int
-> +i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr)
-> +{
-> +	struct drm_i915_private *dev_priv =
-> +		container_of(nb, struct drm_i915_private, mm.vmap_notifier);
-> +	struct drm_device *dev = dev_priv->dev;
-> +	unsigned long timeout = msecs_to_jiffies(5000) + 1;
-> +	unsigned long freed_pages;
-> +	bool was_interruptible;
-> +	bool unlock;
-> +
-> +	while (!i915_gem_shrinker_lock(dev, &unlock) && --timeout) {
-> +		schedule_timeout_killable(1);
-> +		if (fatal_signal_pending(current))
-> +			return NOTIFY_DONE;
-> +	}
-> +	if (timeout == 0) {
-> +		pr_err("Unable to purge GPU vmaps due to lock contention.\n");
-> +		return NOTIFY_DONE;
-> +	}
-> +
-> +	was_interruptible = dev_priv->mm.interruptible;
-> +	dev_priv->mm.interruptible = false;
-> +
-> +	freed_pages = i915_gem_shrink_all(dev_priv);
-> +
-> +	dev_priv->mm.interruptible = was_interruptible;
+>> (Also, which part prevents pages with PageHWPoison to be allocated
+>> again, anyway? I can't find it and test_set_page_hwpoison() doesn't
+>> remove from buddy freelists).
+> 
+> check_new_page() in mm/page_alloc.c should prevent reallocation of PageHWPoison.
+> As you pointed out, memory error handler doens't remove it from buddy freelists.
 
-Up until here this is same function as the oom shrinker, so I would
-combine these two and here do "if (vmap) goto out;" sort of thing.
+Oh, I see. It's using __PG_HWPOISON wrapper, so I didn't notice it when
+searching. In any case that results in a bad_page() warning, right? Is
+it desirable for a soft-offlined page? If we didn't free poisoned pages
+to buddy system, they wouldn't trigger this warning.
 
-Would just need a way to distinct between two calling sites. I did not
-come up with a quick solution as both are passing 0 as event.
+> BTW, it might be a bit off-topic, but recently I felt that check_new_page()
+> might be improvable, because when check_new_page() returns 1, the whole buddy
+> block (not only the bad page) seems to be leaked from buddy freelist.
+> For example, if thp (order 9) is requested, and PageHWPoison (or any other
+> types of bad pages) is found in an order 9 block, all 512 page are discarded.
+> Unpoison can't bring it back to buddy.
+> So, some code to split buddy block including bad page (and recovering code from
+> unpoison) might be helpful, although that's another story ...
 
-Regards, Joonas
+Hm sounds like another argument for not freeing the page to buddy lists
+in the first place. Maybe a hook in free_pages_check()?
 
-> +	if (unlock)
-> +		mutex_unlock(&dev->struct_mutex);
-> +
-> +	*(unsigned long *)ptr += freed_pages;
-> +	return NOTIFY_DONE;
-> +}
-> +
-> A /**
-> A  * i915_gem_shrinker_init - Initialize i915 shrinker
-> A  * @dev_priv: i915 device
-> @@ -371,6 +406,9 @@ void i915_gem_shrinker_init(struct drm_i915_private *dev_priv)
-> A 
-> A 	dev_priv->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;
-> A 	WARN_ON(register_oom_notifier(&dev_priv->mm.oom_notifier));
-> +
-> +	dev_priv->mm.vmap_notifier.notifier_call = i915_gem_shrinker_vmap;
-> +	WARN_ON(register_vmap_purge_notifier(&dev_priv->mm.vmap_notifier));
-> A }
-> A 
-> A /**
-> @@ -381,6 +419,7 @@ void i915_gem_shrinker_init(struct drm_i915_private *dev_priv)
-> A  */
-> A void i915_gem_shrinker_cleanup(struct drm_i915_private *dev_priv)
-> A {
-> +	WARN_ON(unregister_vmap_purge_notifier(&dev_priv->mm.vmap_notifier));
-> A 	WARN_ON(unregister_oom_notifier(&dev_priv->mm.oom_notifier));
-> A 	unregister_shrinker(&dev_priv->mm.shrinker);
-> A }
--- 
-Joonas Lahtinen
-Open Source Technology Center
-Intel Corporation
+> Thanks,
+> Naoya Horiguchi
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
