@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AABE6B027D
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 16:51:18 -0400 (EDT)
-Received: by mail-pf0-f175.google.com with SMTP id c20so18026129pfc.1
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 13:51:18 -0700 (PDT)
-Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
-        by mx.google.com with ESMTPS id n3si3657377pfb.123.2016.04.05.13.51.17
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CEE56B0283
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 16:52:52 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id fe3so17772476pab.1
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 13:52:52 -0700 (PDT)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id a22si15774978pfj.116.2016.04.05.13.52.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 13:51:17 -0700 (PDT)
-Received: by mail-pf0-x230.google.com with SMTP id n1so17990671pfn.2
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 13:51:17 -0700 (PDT)
-Date: Tue, 5 Apr 2016 13:51:15 -0700 (PDT)
+        Tue, 05 Apr 2016 13:52:51 -0700 (PDT)
+Received: by mail-pa0-x230.google.com with SMTP id fe3so17772332pab.1
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 13:52:51 -0700 (PDT)
+Date: Tue, 5 Apr 2016 13:52:48 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 07/10] huge mm: move_huge_pmd does not need new_vma
+Subject: [PATCH 08/10] huge pagecache: extend mremap pmd rmap lockout to
+ files
 In-Reply-To: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1604051349410.5965@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1604051351280.5965@eggly.anvils>
 References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -24,70 +25,103 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Remove move_huge_pmd()'s redundant new_vma arg: all it was used for was
-a VM_NOHUGEPAGE check on new_vma flags, but the new_vma is cloned from
-the old vma, so a trans_huge_pmd in the new_vma will be as acceptable
-as it was in the old vma, alignment and size permitting.
+Whatever huge pagecache implementation we go with, file rmap locking
+must be added to anon rmap locking, when mremap's move_page_tables()
+finds a pmd_trans_huge pmd entry: a simple change, let's do it now.
+
+Factor out take_rmap_locks() and drop_rmap_locks() to handle the
+locking for make move_ptes() and move_page_tables(), and delete
+the VM_BUG_ON_VMA which rejected vm_file and required anon_vma.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- include/linux/huge_mm.h |    4 +---
- mm/huge_memory.c        |    7 ++-----
- mm/mremap.c             |    5 ++---
- 3 files changed, 5 insertions(+), 11 deletions(-)
+ mm/mremap.c |   42 ++++++++++++++++++++++--------------------
+ 1 file changed, 22 insertions(+), 20 deletions(-)
 
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -28,9 +28,7 @@ extern int zap_huge_pmd(struct mmu_gathe
- extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			unsigned long addr, unsigned long end,
- 			unsigned char *vec);
--extern bool move_huge_pmd(struct vm_area_struct *vma,
--			 struct vm_area_struct *new_vma,
--			 unsigned long old_addr,
-+extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
- 			 unsigned long new_addr, unsigned long old_end,
- 			 pmd_t *old_pmd, pmd_t *new_pmd);
- extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1704,20 +1704,17 @@ int zap_huge_pmd(struct mmu_gather *tlb,
- 	return 1;
- }
- 
--bool move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
--		  unsigned long old_addr,
-+bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
- 		  unsigned long new_addr, unsigned long old_end,
- 		  pmd_t *old_pmd, pmd_t *new_pmd)
- {
- 	spinlock_t *old_ptl, *new_ptl;
- 	pmd_t pmd;
--
- 	struct mm_struct *mm = vma->vm_mm;
- 
- 	if ((old_addr & ~HPAGE_PMD_MASK) ||
- 	    (new_addr & ~HPAGE_PMD_MASK) ||
--	    old_end - old_addr < HPAGE_PMD_SIZE ||
--	    (new_vma->vm_flags & VM_NOHUGEPAGE))
-+	    old_end - old_addr < HPAGE_PMD_SIZE)
- 		return false;
- 
- 	/*
 --- a/mm/mremap.c
 +++ b/mm/mremap.c
-@@ -198,9 +198,8 @@ unsigned long move_page_tables(struct vm
+@@ -70,6 +70,22 @@ static pmd_t *alloc_new_pmd(struct mm_st
+ 	return pmd;
+ }
+ 
++static void take_rmap_locks(struct vm_area_struct *vma)
++{
++	if (vma->vm_file)
++		i_mmap_lock_write(vma->vm_file->f_mapping);
++	if (vma->anon_vma)
++		anon_vma_lock_write(vma->anon_vma);
++}
++
++static void drop_rmap_locks(struct vm_area_struct *vma)
++{
++	if (vma->anon_vma)
++		anon_vma_unlock_write(vma->anon_vma);
++	if (vma->vm_file)
++		i_mmap_unlock_write(vma->vm_file->f_mapping);
++}
++
+ static pte_t move_soft_dirty_pte(pte_t pte)
+ {
+ 	/*
+@@ -90,8 +106,6 @@ static void move_ptes(struct vm_area_str
+ 		struct vm_area_struct *new_vma, pmd_t *new_pmd,
+ 		unsigned long new_addr, bool need_rmap_locks)
+ {
+-	struct address_space *mapping = NULL;
+-	struct anon_vma *anon_vma = NULL;
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	pte_t *old_pte, *new_pte, pte;
+ 	spinlock_t *old_ptl, *new_ptl;
+@@ -114,16 +128,8 @@ static void move_ptes(struct vm_area_str
+ 	 *   serialize access to individual ptes, but only rmap traversal
+ 	 *   order guarantees that we won't miss both the old and new ptes).
+ 	 */
+-	if (need_rmap_locks) {
+-		if (vma->vm_file) {
+-			mapping = vma->vm_file->f_mapping;
+-			i_mmap_lock_write(mapping);
+-		}
+-		if (vma->anon_vma) {
+-			anon_vma = vma->anon_vma;
+-			anon_vma_lock_write(anon_vma);
+-		}
+-	}
++	if (need_rmap_locks)
++		take_rmap_locks(vma);
+ 
+ 	/*
+ 	 * We don't have to worry about the ordering of src and dst
+@@ -151,10 +157,8 @@ static void move_ptes(struct vm_area_str
+ 		spin_unlock(new_ptl);
+ 	pte_unmap(new_pte - 1);
+ 	pte_unmap_unlock(old_pte - 1, old_ptl);
+-	if (anon_vma)
+-		anon_vma_unlock_write(anon_vma);
+-	if (mapping)
+-		i_mmap_unlock_write(mapping);
++	if (need_rmap_locks)
++		drop_rmap_locks(vma);
+ }
+ 
+ #define LATENCY_LIMIT	(64 * PAGE_SIZE)
+@@ -193,15 +197,13 @@ unsigned long move_page_tables(struct vm
+ 		if (pmd_trans_huge(*old_pmd)) {
+ 			if (extent == HPAGE_PMD_SIZE) {
+ 				bool moved;
+-				VM_BUG_ON_VMA(vma->vm_file || !vma->anon_vma,
+-					      vma);
  				/* See comment in move_ptes() */
  				if (need_rmap_locks)
- 					anon_vma_lock_write(vma->anon_vma);
--				moved = move_huge_pmd(vma, new_vma, old_addr,
--						    new_addr, old_end,
--						    old_pmd, new_pmd);
-+				moved = move_huge_pmd(vma, old_addr, new_addr,
-+						    old_end, old_pmd, new_pmd);
+-					anon_vma_lock_write(vma->anon_vma);
++					take_rmap_locks(vma);
+ 				moved = move_huge_pmd(vma, old_addr, new_addr,
+ 						    old_end, old_pmd, new_pmd);
  				if (need_rmap_locks)
- 					anon_vma_unlock_write(vma->anon_vma);
+-					anon_vma_unlock_write(vma->anon_vma);
++					drop_rmap_locks(vma);
  				if (moved) {
+ 					need_flush = true;
+ 					continue;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
