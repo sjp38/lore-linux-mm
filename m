@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 89A9B828DF
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 17:44:11 -0400 (EDT)
-Received: by mail-pf0-f177.google.com with SMTP id e128so18749583pfe.3
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 14:44:11 -0700 (PDT)
-Received: from mail-pf0-x22f.google.com (mail-pf0-x22f.google.com. [2607:f8b0:400e:c00::22f])
-        by mx.google.com with ESMTPS id h17si9614626pfj.143.2016.04.05.14.44.10
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 706DF828DF
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 17:46:07 -0400 (EDT)
+Received: by mail-pf0-f182.google.com with SMTP id c20so18822298pfc.1
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 14:46:07 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id w1si10155274par.40.2016.04.05.14.46.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 14:44:10 -0700 (PDT)
-Received: by mail-pf0-x22f.google.com with SMTP id e128so18749385pfe.3
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 14:44:10 -0700 (PDT)
-Date: Tue, 5 Apr 2016 14:44:07 -0700 (PDT)
+        Tue, 05 Apr 2016 14:46:06 -0700 (PDT)
+Received: by mail-pa0-x229.google.com with SMTP id zm5so18543534pac.0
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 14:46:06 -0700 (PDT)
+Date: Tue, 5 Apr 2016 14:46:03 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 18/31] huge tmpfs: mem_cgroup move charge on shmem huge
- pages
+Subject: [PATCH 19/31] huge tmpfs: mem_cgroup shmem_pmdmapped accounting
 In-Reply-To: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1604051441190.5965@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1604051444130.5965@eggly.anvils>
 References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -25,214 +24,160 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Early on, for simplicity, we disabled moving huge tmpfs pages from
-one memcg to another (nowadays only required when moving a task into a
-memcg having move_charge_at_immigrate exceptionally set).  We're about
-to add a couple of memcg stats for huge tmpfs, and will need to confront
-how to handle moving those stats, so better enable moving the pages now.
+From: Andres Lagar-Cavilla <andreslc@google.com>
 
-Although they're discovered by the pmd's get_mctgt_type_thp(), they
-have to be considered page by page, in what's usually the pte scan:
-because although the common case is for each member of the team to be
-owned by the same memcg, nowhere is that enforced - perhaps one day
-we shall need to enforce such a limitation, but not so far.
+Grep now for shmem_pmdmapped in memory.stat (and also for
+"total_..." in a hierarchical setting).
 
+This metric allows for easy checking on a per-cgroup basis of the
+amount of page team memory hugely mapped (at least once) out there.
+
+The metric is counted towards the cgroup owning the page (unlike in an
+event such as THP split) because the team page may be mapped hugely
+for the first time via a shared map in some other process.
+
+Moved up mem_group_move_account()'s PageWriteback block:
+that movement is irrelevant to this patch, but lets us concentrate
+better on the PageTeam locking issues which follow in the next patch.
+
+Signed-off-by: Andres Lagar-Cavilla <andreslc@google.com>
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- mm/memcontrol.c |  103 +++++++++++++++++++++++++---------------------
- 1 file changed, 58 insertions(+), 45 deletions(-)
+ include/linux/memcontrol.h |    2 ++
+ include/linux/pageteam.h   |   16 ++++++++++++++++
+ mm/huge_memory.c           |    4 ++++
+ mm/memcontrol.c            |   35 ++++++++++++++++++++++++++---------
+ 4 files changed, 48 insertions(+), 9 deletions(-)
 
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -50,6 +50,8 @@ enum mem_cgroup_stat_index {
+ 	MEM_CGROUP_STAT_DIRTY,          /* # of dirty pages in page cache */
+ 	MEM_CGROUP_STAT_WRITEBACK,	/* # of pages under writeback */
+ 	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
++	/* # of pages charged as hugely mapped teams */
++	MEM_CGROUP_STAT_SHMEM_PMDMAPPED,
+ 	MEM_CGROUP_STAT_NSTATS,
+ 	/* default hierarchy stats */
+ 	MEMCG_KERNEL_STACK = MEM_CGROUP_STAT_NSTATS,
+--- a/include/linux/pageteam.h
++++ b/include/linux/pageteam.h
+@@ -135,6 +135,22 @@ static inline bool dec_team_pmd_mapped(s
+ }
+ 
+ /*
++ * Supplies those values which mem_cgroup_move_account()
++ * needs to maintain memcg's huge tmpfs stats correctly.
++ */
++static inline void count_team_pmd_mapped(struct page *head, int *file_mapped,
++					 bool *pmd_mapped)
++{
++	long team_usage;
++
++	*file_mapped = 1;
++	team_usage = atomic_long_read(&head->team_usage);
++	*pmd_mapped = team_usage >= TEAM_PMD_MAPPED;
++	if (*pmd_mapped)
++		*file_mapped = HPAGE_PMD_NR - team_pte_count(team_usage);
++}
++
++/*
+  * Returns true if this pte mapping is of a non-team page, or of a team page not
+  * covered by an existing huge pmd mapping: whereupon stats need to be updated.
+  * Only called when mapcount goes up from 0 to 1 i.e. _mapcount from -1 to 0.
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -3514,6 +3514,8 @@ static void page_add_team_rmap(struct pa
+ 		__mod_zone_page_state(zone, NR_FILE_MAPPED, nr_pages);
+ 		mem_cgroup_update_page_stat(page,
+ 				MEM_CGROUP_STAT_FILE_MAPPED, nr_pages);
++		mem_cgroup_update_page_stat(page,
++				MEM_CGROUP_STAT_SHMEM_PMDMAPPED, HPAGE_PMD_NR);
+ 	}
+ 	unlock_page_memcg(page);
+ }
+@@ -3533,6 +3535,8 @@ static void page_remove_team_rmap(struct
+ 		__mod_zone_page_state(zone, NR_FILE_MAPPED, -nr_pages);
+ 		mem_cgroup_update_page_stat(page,
+ 				MEM_CGROUP_STAT_FILE_MAPPED, -nr_pages);
++		mem_cgroup_update_page_stat(page,
++				MEM_CGROUP_STAT_SHMEM_PMDMAPPED, -HPAGE_PMD_NR);
+ 	}
+ 	unlock_page_memcg(page);
+ }
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -4332,6 +4332,7 @@ static int mem_cgroup_do_precharge(unsig
-  *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
-  *     target for charge migration. if @target is not NULL, the entry is stored
-  *     in target->ent.
-+ *   3(MC_TARGET_TEAM): if pmd entry is not an anon THP: check it page by page
-  *
-  * Called with pte lock held.
-  */
-@@ -4344,6 +4345,7 @@ enum mc_target_type {
- 	MC_TARGET_NONE = 0,
- 	MC_TARGET_PAGE,
- 	MC_TARGET_SWAP,
-+	MC_TARGET_TEAM,
+@@ -37,6 +37,7 @@
+ #include <linux/mm.h>
+ #include <linux/hugetlb.h>
+ #include <linux/pagemap.h>
++#include <linux/pageteam.h>
+ #include <linux/smp.h>
+ #include <linux/page-flags.h>
+ #include <linux/backing-dev.h>
+@@ -106,6 +107,7 @@ static const char * const mem_cgroup_sta
+ 	"dirty",
+ 	"writeback",
+ 	"swap",
++	"shmem_pmdmapped",
  };
  
- static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
-@@ -4565,19 +4567,22 @@ static enum mc_target_type get_mctgt_typ
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- /*
-- * We don't consider swapping or file mapped pages because THP does not
-- * support them for now.
-  * Caller should make sure that pmd_trans_huge(pmd) is true.
-  */
--static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
--		unsigned long addr, pmd_t pmd, union mc_target *target)
-+static enum mc_target_type get_mctgt_type_thp(pmd_t pmd,
-+		union mc_target *target, unsigned long *pfn)
+ static const char * const mem_cgroup_events_names[] = {
+@@ -4447,7 +4449,8 @@ static int mem_cgroup_move_account(struc
+ 				   struct mem_cgroup *to)
  {
--	struct page *page = NULL;
-+	struct page *page;
- 	enum mc_target_type ret = MC_TARGET_NONE;
+ 	unsigned long flags;
+-	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
++	int nr_pages = compound ? hpage_nr_pages(page) : 1;
++	int file_mapped = 1;
+ 	int ret;
+ 	bool anon;
  
- 	page = pmd_page(pmd);
--	/* Don't attempt to move huge tmpfs pages yet: can be enabled later */
--	if (!(mc.flags & MOVE_ANON) || !PageAnon(page))
-+	if (!PageAnon(page)) {
-+		if (!(mc.flags & MOVE_FILE))
-+			return ret;
-+		*pfn = page_to_pfn(page);
-+		return MC_TARGET_TEAM;
-+	}
-+	if (!(mc.flags & MOVE_ANON))
- 		return ret;
- 	if (page->mem_cgroup == mc.from) {
- 		ret = MC_TARGET_PAGE;
-@@ -4589,8 +4594,8 @@ static enum mc_target_type get_mctgt_typ
- 	return ret;
- }
- #else
--static inline enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
--		unsigned long addr, pmd_t pmd, union mc_target *target)
-+static inline enum mc_target_type get_mctgt_type_thp(pmd_t pmd,
-+		union mc_target *target, unsigned long *pfn)
- {
- 	return MC_TARGET_NONE;
- }
-@@ -4601,24 +4606,33 @@ static int mem_cgroup_count_precharge_pt
- 					struct mm_walk *walk)
- {
- 	struct vm_area_struct *vma = walk->vma;
--	pte_t *pte;
-+	enum mc_target_type target_type;
-+	unsigned long uninitialized_var(pfn);
-+	pte_t ptent;
-+	pte_t *pte = NULL;
- 	spinlock_t *ptl;
+@@ -4471,10 +4474,10 @@ static int mem_cgroup_move_account(struc
  
- 	ptl = pmd_trans_huge_lock(pmd, vma);
- 	if (ptl) {
--		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
-+		target_type = get_mctgt_type_thp(*pmd, NULL, &pfn);
-+		if (target_type == MC_TARGET_PAGE)
- 			mc.precharge += HPAGE_PMD_NR;
--		spin_unlock(ptl);
--		return 0;
-+		if (target_type != MC_TARGET_TEAM)
-+			goto unlock;
-+	} else {
-+		if (pmd_trans_unstable(pmd))
-+			return 0;
-+		pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	spin_lock_irqsave(&from->move_lock, flags);
+ 
+-	if (!anon && page_mapped(page)) {
+-		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
++	if (PageWriteback(page)) {
++		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_WRITEBACK],
+ 			       nr_pages);
+-		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
++		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_WRITEBACK],
+ 			       nr_pages);
  	}
--
--	if (pmd_trans_unstable(pmd))
--		return 0;
--	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
--	for (; addr != end; pte++, addr += PAGE_SIZE)
--		if (get_mctgt_type(vma, addr, *pte, NULL))
-+	for (; addr != end; addr += PAGE_SIZE) {
-+		ptent = pte ? *(pte++) : pfn_pte(pfn++, vma->vm_page_prot);
-+		if (get_mctgt_type(vma, addr, ptent, NULL))
- 			mc.precharge++;	/* increment precharge temporarily */
--	pte_unmap_unlock(pte - 1, ptl);
-+	}
-+	if (pte)
-+		pte_unmap(pte - 1);
-+unlock:
-+	spin_unlock(ptl);
- 	cond_resched();
  
- 	return 0;
-@@ -4787,22 +4801,21 @@ static int mem_cgroup_move_charge_pte_ra
- {
- 	int ret = 0;
- 	struct vm_area_struct *vma = walk->vma;
--	pte_t *pte;
-+	unsigned long uninitialized_var(pfn);
-+	pte_t ptent;
-+	pte_t *pte = NULL;
- 	spinlock_t *ptl;
- 	enum mc_target_type target_type;
- 	union mc_target target;
- 	struct page *page;
--
-+retry:
- 	ptl = pmd_trans_huge_lock(pmd, vma);
- 	if (ptl) {
--		if (mc.precharge < HPAGE_PMD_NR) {
--			spin_unlock(ptl);
--			return 0;
--		}
--		target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
-+		target_type = get_mctgt_type_thp(*pmd, &target, &pfn);
- 		if (target_type == MC_TARGET_PAGE) {
- 			page = target.page;
--			if (!isolate_lru_page(page)) {
-+			if (mc.precharge >= HPAGE_PMD_NR &&
-+			    !isolate_lru_page(page)) {
- 				if (!mem_cgroup_move_account(page, true,
- 							     mc.from, mc.to)) {
- 					mc.precharge -= HPAGE_PMD_NR;
-@@ -4811,22 +4824,19 @@ static int mem_cgroup_move_charge_pte_ra
- 				putback_lru_page(page);
- 			}
- 			put_page(page);
-+			addr = end;
- 		}
--		spin_unlock(ptl);
--		return 0;
-+		if (target_type != MC_TARGET_TEAM)
-+			goto unlock;
-+		/* addr is not aligned when retrying after precharge ran out */
-+		pfn += (addr & (HPAGE_PMD_SIZE-1)) >> PAGE_SHIFT;
-+	} else {
-+		if (pmd_trans_unstable(pmd))
-+			return 0;
-+		pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	}
--
--	if (pmd_trans_unstable(pmd))
--		return 0;
--retry:
--	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
--	for (; addr != end; addr += PAGE_SIZE) {
--		pte_t ptent = *(pte++);
--		swp_entry_t ent;
--
--		if (!mc.precharge)
--			break;
--
-+	for (; addr != end && mc.precharge; addr += PAGE_SIZE) {
-+		ptent = pte ? *(pte++) : pfn_pte(pfn++, vma->vm_page_prot);
- 		switch (get_mctgt_type(vma, addr, ptent, &target)) {
- 		case MC_TARGET_PAGE:
- 			page = target.page;
-@@ -4851,8 +4861,8 @@ put:			/* get_mctgt_type() gets the page
- 			put_page(page);
- 			break;
- 		case MC_TARGET_SWAP:
--			ent = target.ent;
--			if (!mem_cgroup_move_swap_account(ent, mc.from, mc.to)) {
-+			if (!mem_cgroup_move_swap_account(target.ent,
-+							  mc.from, mc.to)) {
- 				mc.precharge--;
- 				/* we fixup refcnts and charges later. */
- 				mc.moved_swap++;
-@@ -4862,7 +4872,10 @@ put:			/* get_mctgt_type() gets the page
- 			break;
+@@ -4494,11 +4497,25 @@ static int mem_cgroup_move_account(struc
  		}
  	}
--	pte_unmap_unlock(pte - 1, ptl);
-+	if (pte)
-+		pte_unmap(pte - 1);
-+unlock:
-+	spin_unlock(ptl);
- 	cond_resched();
  
- 	if (addr != end) {
+-	if (PageWriteback(page)) {
+-		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_WRITEBACK],
+-			       nr_pages);
+-		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_WRITEBACK],
+-			       nr_pages);
++	if (!anon && PageTeam(page)) {
++		if (page == team_head(page)) {
++			bool pmd_mapped;
++
++			count_team_pmd_mapped(page, &file_mapped, &pmd_mapped);
++			if (pmd_mapped) {
++				__this_cpu_sub(from->stat->count[
++				MEM_CGROUP_STAT_SHMEM_PMDMAPPED], HPAGE_PMD_NR);
++				__this_cpu_add(to->stat->count[
++				MEM_CGROUP_STAT_SHMEM_PMDMAPPED], HPAGE_PMD_NR);
++			}
++		}
++	}
++
++	if (!anon && page_mapped(page)) {
++		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
++			       file_mapped);
++		__this_cpu_add(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
++			       file_mapped);
+ 	}
+ 
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
