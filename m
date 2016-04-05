@@ -1,218 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CE836B0280
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 17:02:54 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fe3so17917221pab.1
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 14:02:54 -0700 (PDT)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id f63si3702317pfj.137.2016.04.05.14.02.53
+Received: from mail-yw0-f179.google.com (mail-yw0-f179.google.com [209.85.161.179])
+	by kanga.kvack.org (Postfix) with ESMTP id D230A6B0288
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 17:10:17 -0400 (EDT)
+Received: by mail-yw0-f179.google.com with SMTP id i84so26353203ywc.2
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 14:10:17 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id s10si8325242ywb.88.2016.04.05.14.10.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 14:02:53 -0700 (PDT)
-Received: by mail-pa0-x231.google.com with SMTP id fe3so17917025pab.1
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 14:02:53 -0700 (PDT)
-Date: Tue, 5 Apr 2016 14:02:49 -0700 (PDT)
+        Tue, 05 Apr 2016 14:10:16 -0700 (PDT)
+Received: by mail-pa0-x22d.google.com with SMTP id bx7so1848979pad.3
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 14:10:16 -0700 (PDT)
+Date: Tue, 5 Apr 2016 14:10:13 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 10/10] arch: fix has_transparent_hugepage()
-In-Reply-To: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1604051355280.5965@eggly.anvils>
-References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
+Subject: [PATCH 00/31] huge tmpfs: THPagecache implemented by teams
+Message-ID: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, Arnd Bergman <arnd@arndb.de>, Ralf Baechle <ralf@linux-mips.org>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@arm.linux.org.uk>, Will Deacon <will.deacon@arm.com>, Michael Ellerman <mpe@ellerman.id.au>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, David Miller <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-I've just discovered that the useful-sounding has_transparent_hugepage()
-is actually an architecture-dependent minefield: on some arches it only
-builds if CONFIG_TRANSPARENT_HUGEPAGE=y, on others it's also there when
-not, but on some of those (arm and arm64) it then gives the wrong answer;
-and on mips alone it's marked __init, which would crash if called later
-(but so far it has not been called later).
+Here is my "huge tmpfs" implementation of Transparent Huge Pagecache,
+rebased to v4.6-rc2 plus the "mm: easy preliminaries to THPagecache"
+series.
 
-Straighten this out: make it available to all configs, with a sensible
-default in asm-generic/pgtable.h, removing its definitions from those
-arches (arc, arm, arm64, sparc, tile) which are served by the default,
-adding #define has_transparent_hugepage has_transparent_hugepage to those
-(mips, powerpc, s390, x86) which need to override the default at runtime,
-and removing the __init from mips (but maybe that kind of code should be
-avoided after init: set a static variable the first time it's called).
+The design is just the same as before, when I posted against v3.19:
+using a team of pagecache pages placed within a huge-order extent,
+instead of using a compound page (see 04/31 for more info on that).
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
- arch/arc/include/asm/hugepage.h              |    2 -
- arch/arm/include/asm/pgtable-3level.h        |    5 ----
- arch/arm64/include/asm/pgtable.h             |    5 ----
- arch/mips/include/asm/pgtable.h              |    1 
- arch/mips/mm/tlb-r4k.c                       |   21 ++++++++---------
- arch/powerpc/include/asm/book3s/64/pgtable.h |    1 
- arch/powerpc/include/asm/pgtable.h           |    1 
- arch/s390/include/asm/pgtable.h              |    1 
- arch/sparc/include/asm/pgtable_64.h          |    2 -
- arch/tile/include/asm/pgtable.h              |    1 
- arch/x86/include/asm/pgtable.h               |    1 
- include/asm-generic/pgtable.h                |    8 ++++++
- 12 files changed, 23 insertions(+), 26 deletions(-)
+Patches 01-17 are much as before, but with whatever changes were
+needed for the rebase, and bugfixes folded back in.  Patches 18-22
+add memcg and smaps visibility.  But the more important ones are
+patches 23-29, which add recovery: reassembling a hugepage after
+fragmentation or swapping.  Patches 30-31 reflect gfpmask doubts:
+you might prefer that I fold 31 back in and keep 30 internal.
 
---- a/arch/arc/include/asm/hugepage.h
-+++ b/arch/arc/include/asm/hugepage.h
-@@ -61,8 +61,6 @@ static inline void set_pmd_at(struct mm_
- extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
- 				 pmd_t *pmd);
- 
--#define has_transparent_hugepage() 1
--
- /* Generic variants assume pgtable_t is struct page *, hence need for these */
- #define __HAVE_ARCH_PGTABLE_DEPOSIT
- extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
---- a/arch/arm/include/asm/pgtable-3level.h
-+++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -281,11 +281,6 @@ static inline void set_pmd_at(struct mm_
- 	flush_pmd_entry(pmdp);
- }
- 
--static inline int has_transparent_hugepage(void)
--{
--	return 1;
--}
--
- #endif /* __ASSEMBLY__ */
- 
- #endif /* _ASM_PGTABLE_3LEVEL_H */
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -304,11 +304,6 @@ static inline pgprot_t mk_sect_prot(pgpr
- 
- #define set_pmd_at(mm, addr, pmdp, pmd)	set_pte_at(mm, addr, (pte_t *)pmdp, pmd_pte(pmd))
- 
--static inline int has_transparent_hugepage(void)
--{
--	return 1;
--}
--
- #define __pgprot_modify(prot,mask,bits) \
- 	__pgprot((pgprot_val(prot) & ~(mask)) | (bits))
- 
---- a/arch/mips/include/asm/pgtable.h
-+++ b/arch/mips/include/asm/pgtable.h
-@@ -468,6 +468,7 @@ static inline int io_remap_pfn_range(str
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 
-+#define has_transparent_hugepage has_transparent_hugepage
- extern int has_transparent_hugepage(void);
- 
- static inline int pmd_trans_huge(pmd_t pmd)
---- a/arch/mips/mm/tlb-r4k.c
-+++ b/arch/mips/mm/tlb-r4k.c
-@@ -399,19 +399,20 @@ void add_wired_entry(unsigned long entry
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 
--int __init has_transparent_hugepage(void)
-+int has_transparent_hugepage(void)
- {
--	unsigned int mask;
--	unsigned long flags;
-+	static unsigned int mask = -1;
- 
--	local_irq_save(flags);
--	write_c0_pagemask(PM_HUGE_MASK);
--	back_to_back_c0_hazard();
--	mask = read_c0_pagemask();
--	write_c0_pagemask(PM_DEFAULT_MASK);
--
--	local_irq_restore(flags);
-+	if (mask == -1) {	/* first call comes during __init */
-+		unsigned long flags;
- 
-+		local_irq_save(flags);
-+		write_c0_pagemask(PM_HUGE_MASK);
-+		back_to_back_c0_hazard();
-+		mask = read_c0_pagemask();
-+		write_c0_pagemask(PM_DEFAULT_MASK);
-+		local_irq_restore(flags);
-+	}
- 	return mask == PM_HUGE_MASK;
- }
- 
---- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-@@ -219,6 +219,7 @@ extern void set_pmd_at(struct mm_struct
- 		       pmd_t *pmdp, pmd_t pmd);
- extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
- 				 pmd_t *pmd);
-+#define has_transparent_hugepage has_transparent_hugepage
- extern int has_transparent_hugepage(void);
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
---- a/arch/powerpc/include/asm/pgtable.h
-+++ b/arch/powerpc/include/asm/pgtable.h
-@@ -65,7 +65,6 @@ extern int gup_hugepte(pte_t *ptep, unsi
- 		       struct page **pages, int *nr);
- #ifndef CONFIG_TRANSPARENT_HUGEPAGE
- #define pmd_large(pmd)		0
--#define has_transparent_hugepage() 0
- #endif
- pte_t *__find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
- 				   bool *is_thp, unsigned *shift);
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -1223,6 +1223,7 @@ static inline int pmd_trans_huge(pmd_t p
- 	return pmd_val(pmd) & _SEGMENT_ENTRY_LARGE;
- }
- 
-+#define has_transparent_hugepage has_transparent_hugepage
- static inline int has_transparent_hugepage(void)
- {
- 	return MACHINE_HAS_HPAGE ? 1 : 0;
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -681,8 +681,6 @@ static inline unsigned long pmd_trans_hu
- 	return pte_val(pte) & _PAGE_PMD_HUGE;
- }
- 
--#define has_transparent_hugepage() 1
--
- static inline pmd_t pmd_mkold(pmd_t pmd)
- {
- 	pte_t pte = __pte(pmd_val(pmd));
---- a/arch/tile/include/asm/pgtable.h
-+++ b/arch/tile/include/asm/pgtable.h
-@@ -487,7 +487,6 @@ static inline pmd_t pmd_modify(pmd_t pmd
- }
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--#define has_transparent_hugepage() 1
- #define pmd_trans_huge pmd_huge_page
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -181,6 +181,7 @@ static inline int pmd_trans_huge(pmd_t p
- 	return (pmd_val(pmd) & (_PAGE_PSE|_PAGE_DEVMAP)) == _PAGE_PSE;
- }
- 
-+#define has_transparent_hugepage has_transparent_hugepage
- static inline int has_transparent_hugepage(void)
- {
- 	return cpu_has_pse;
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -806,4 +806,12 @@ static inline int pmd_clear_huge(pmd_t *
- #define io_remap_pfn_range remap_pfn_range
- #endif
- 
-+#ifndef has_transparent_hugepage
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define has_transparent_hugepage() 1
-+#else
-+#define has_transparent_hugepage() 0
-+#endif
-+#endif
-+
- #endif /* _ASM_GENERIC_PGTABLE_H */
+It was lack of recovery which stopped me from proposing inclusion
+of the series a year ago: this series now is fully featured, and
+ready for v4.7 - but I expect we shall want to wait a release to
+give time to consider the alternatives.
+
+I currently believe that the same functionality (including the
+team implementation's support for small files, standard mlocking,
+and recovery) can be achieved with compound pages, but not easily:
+I think the huge tmpfs functionality should be made available soon,
+then converted at leisure to compound pages, if that works out (but
+it's not a job I want to do - what we have here is good enough).
+
+Huge tmpfs has been in use within Google for about a year: it's
+been a success, and gaining ever wider adoption.  Several TODOs
+have not yet been toDONE, because they just haven't surfaced as
+real-life issues yet: that includes NUMA migration, which is at
+the top of my list, but so far we've done well enough without it.
+
+01 huge tmpfs: prepare counts in meminfo, vmstat and SysRq-m
+02 huge tmpfs: include shmem freeholes in available memory
+03 huge tmpfs: huge=N mount option and /proc/sys/vm/shmem_huge
+04 huge tmpfs: try to allocate huge pages, split into a team
+05 huge tmpfs: avoid team pages in a few places
+06 huge tmpfs: shrinker to migrate and free underused holes
+07 huge tmpfs: get_unmapped_area align & fault supply huge page
+08 huge tmpfs: try_to_unmap_one use page_check_address_transhuge
+09 huge tmpfs: avoid premature exposure of new pagetable
+10 huge tmpfs: map shmem by huge page pmd or by page team ptes
+11 huge tmpfs: disband split huge pmds on race or memory failure
+12 huge tmpfs: extend get_user_pages_fast to shmem pmd
+13 huge tmpfs: use Unevictable lru with variable hpage_nr_pages
+14 huge tmpfs: fix Mlocked meminfo, track huge & unhuge mlocks
+15 huge tmpfs: fix Mapped meminfo, track huge & unhuge mappings
+16 kvm: plumb return of hva when resolving page fault.
+17 kvm: teach kvm to map page teams as huge pages.
+18 huge tmpfs: mem_cgroup move charge on shmem huge pages
+19 huge tmpfs: mem_cgroup shmem_pmdmapped accounting
+20 huge tmpfs: mem_cgroup shmem_hugepages accounting
+21 huge tmpfs: show page team flag in pageflags
+22 huge tmpfs: /proc/<pid>/smaps show ShmemHugePages
+23 huge tmpfs recovery: framework for reconstituting huge pages
+24 huge tmpfs recovery: shmem_recovery_populate to fill huge page
+25 huge tmpfs recovery: shmem_recovery_remap & remap_team_by_pmd
+26 huge tmpfs recovery: shmem_recovery_swapin to read from swap
+27 huge tmpfs recovery: tweak shmem_getpage_gfp to fill team
+28 huge tmpfs recovery: debugfs stats to complete this phase
+29 huge tmpfs recovery: page migration call back into shmem
+30 huge tmpfs: shmem_huge_gfpmask and shmem_recovery_gfpmask
+31 huge tmpfs: no kswapd by default on sync allocations
+
+ Documentation/cgroup-v1/memory.txt     |    2 
+ Documentation/filesystems/proc.txt     |   20 
+ Documentation/filesystems/tmpfs.txt    |  106 +
+ Documentation/sysctl/vm.txt            |   46 
+ Documentation/vm/pagemap.txt           |    2 
+ Documentation/vm/transhuge.txt         |   38 
+ Documentation/vm/unevictable-lru.txt   |   15 
+ arch/mips/mm/gup.c                     |   15 
+ arch/s390/mm/gup.c                     |   19 
+ arch/sparc/mm/gup.c                    |   19 
+ arch/x86/kvm/mmu.c                     |  150 +
+ arch/x86/kvm/paging_tmpl.h             |    6 
+ arch/x86/mm/gup.c                      |   15 
+ drivers/base/node.c                    |   20 
+ drivers/char/mem.c                     |   23 
+ fs/proc/meminfo.c                      |   11 
+ fs/proc/page.c                         |    6 
+ fs/proc/task_mmu.c                     |   28 
+ include/linux/huge_mm.h                |   14 
+ include/linux/kvm_host.h               |    2 
+ include/linux/memcontrol.h             |   17 
+ include/linux/migrate.h                |    2 
+ include/linux/migrate_mode.h           |    2 
+ include/linux/mm.h                     |    3 
+ include/linux/mm_types.h               |    1 
+ include/linux/mmzone.h                 |    5 
+ include/linux/page-flags.h             |   10 
+ include/linux/shmem_fs.h               |   29 
+ include/trace/events/migrate.h         |    7 
+ include/trace/events/mmflags.h         |    7 
+ include/uapi/linux/kernel-page-flags.h |    3 
+ ipc/shm.c                              |    6 
+ kernel/sysctl.c                        |   33 
+ mm/compaction.c                        |    5 
+ mm/filemap.c                           |   10 
+ mm/gup.c                               |   19 
+ mm/huge_memory.c                       |  363 +++-
+ mm/internal.h                          |   26 
+ mm/memcontrol.c                        |  187 +-
+ mm/memory-failure.c                    |    7 
+ mm/memory.c                            |  225 +-
+ mm/mempolicy.c                         |   13 
+ mm/migrate.c                           |   37 
+ mm/mlock.c                             |  183 +-
+ mm/mmap.c                              |   16 
+ mm/page-writeback.c                    |    2 
+ mm/page_alloc.c                        |   55 
+ mm/rmap.c                              |  129 -
+ mm/shmem.c                             | 2066 ++++++++++++++++++++++-
+ mm/swap.c                              |    5 
+ mm/truncate.c                          |    2 
+ mm/util.c                              |    1 
+ mm/vmscan.c                            |   47 
+ mm/vmstat.c                            |    3 
+ tools/vm/page-types.c                  |    2 
+ virt/kvm/kvm_main.c                    |   14 
+ 56 files changed, 3627 insertions(+), 472 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
