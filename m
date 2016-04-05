@@ -1,172 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id CEBEF828DF
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 17:58:50 -0400 (EDT)
-Received: by mail-pf0-f182.google.com with SMTP id c20so19001284pfc.1
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 14:58:50 -0700 (PDT)
-Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
-        by mx.google.com with ESMTPS id x80si626612pfa.98.2016.04.05.14.58.50
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 77C0B828DF
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 18:00:28 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fe3so18721031pab.1
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 15:00:28 -0700 (PDT)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id vx8si10201416pac.107.2016.04.05.15.00.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 14:58:50 -0700 (PDT)
-Received: by mail-pf0-x22c.google.com with SMTP id 184so19018096pff.0
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 14:58:50 -0700 (PDT)
-Date: Tue, 5 Apr 2016 14:58:47 -0700 (PDT)
+        Tue, 05 Apr 2016 15:00:27 -0700 (PDT)
+Received: by mail-pa0-x22a.google.com with SMTP id zm5so18741896pac.0
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 15:00:27 -0700 (PDT)
+Date: Tue, 5 Apr 2016 15:00:25 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 26/31] huge tmpfs recovery: shmem_recovery_swapin to read
- from swap
+Subject: [PATCH 27/31] huge tmpfs recovery: tweak shmem_getpage_gfp to fill
+ team
 In-Reply-To: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1604051456330.5965@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1604051458520.5965@eggly.anvils>
 References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-If pages of the extent are out on swap, we would much prefer to read
-them in to their final locations on the assigned huge page, than have
-swapin_readahead() adding unrelated pages, and __read_swap_cache_async()
-allocating intermediate pages, from which we would then have to migrate
-(though some may well be already in swapcache, and then need migration).
+shmem_recovery_swapin() took the trouble to arrange for pages to be
+swapped in to their final destinations without needing page migration.
+It's daft not to do the same for pages being newly instantiated (when
+a huge page has been allocated after transient fragmentation, too late
+to satisfy the initial fault).
 
-And we'd like to get all the swap I/O underway at the start, then wait
-on it in probably a single page lock of the main population loop:
-which can forget about swap, leaving shmem_getpage_gfp() to handle
-the transitions from swapcache to pagecache.
-
-shmem_recovery_swapin() is very much based on __read_swap_cache_async(),
-but the things it needs to worry about are not always the same: it does
-not matter if __read_swap_cache_async() occasionally reads an unrelated
-page which has inherited a freed swap block; but shmem_recovery_swapin()
-better not place that inside the huge page it is helping to build.
-
-Ifdef CONFIG_SWAP around it and its shmem_next_swap() helper because a
-couple of functions it calls are undeclared without CONFIG_SWAP.
+Let SGP_TEAM convey the intended destination down to shmem_getpage_gfp().
+And make sure that SGP_TEAM cannot instantiate pages beyond the last
+huge page: although shmem_recovery_populate() has a PageTeam check
+against truncation, that's insufficient, and only shmem_getpage_gfp()
+knows what adjustments to make when we have allocated too far.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- mm/shmem.c |  101 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 101 insertions(+)
+ mm/shmem.c |   56 ++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 49 insertions(+), 7 deletions(-)
 
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -804,6 +804,105 @@ static bool shmem_work_still_useful(stru
- 		!RB_EMPTY_ROOT(&mapping->i_mmap);  /* file is still mapped */
- }
+@@ -464,6 +464,7 @@ static int shmem_populate_hugeteam(struc
+ 		/* Mark all pages dirty even when map is readonly, for now */
+ 		if (PageUptodate(head + i) && PageDirty(head + i))
+ 			continue;
++		page = NULL;
+ 		error = shmem_getpage_gfp(inode, index, &page, SGP_TEAM,
+ 					  gfp, vma->vm_mm, NULL);
+ 		if (error)
+@@ -965,6 +966,7 @@ again:
+ 		    !account_head)
+ 			continue;
  
-+#ifdef CONFIG_SWAP
-+static void *shmem_next_swap(struct address_space *mapping,
-+			     pgoff_t *index, pgoff_t end)
-+{
-+	pgoff_t start = *index + 1;
-+	struct radix_tree_iter iter;
-+	void **slot;
-+	void *radswap;
++		page = team;	/* used as hint if not yet instantiated */
+ 		error = shmem_getpage_gfp(recovery->inode, index, &page,
+ 					  SGP_TEAM, gfp, recovery->mm, NULL);
+ 		if (error)
+@@ -2708,6 +2710,7 @@ static int shmem_replace_page(struct pag
+ 
+ /*
+  * shmem_getpage_gfp - find page in cache, or get from swap, or allocate
++ *                     (or use page indicated by shmem_recovery_populate)
+  *
+  * If we allocate a new one we do not mark it dirty. That's up to the
+  * vm. If we swap it in we mark it dirty since we also free the swap
+@@ -2727,14 +2730,20 @@ static int shmem_getpage_gfp(struct inod
+ 	struct mem_cgroup *memcg;
+ 	struct page *page;
+ 	swp_entry_t swap;
++	loff_t offset;
+ 	int error;
+ 	int once = 0;
+-	int alloced = 0;
++	bool alloced = false;
++	bool exposed_swapbacked = false;
+ 	struct page *hugehint;
+ 	struct page *alloced_huge = NULL;
+ 
+ 	if (index > (MAX_LFS_FILESIZE >> PAGE_SHIFT))
+ 		return -EFBIG;
 +
-+	rcu_read_lock();
-+restart:
-+	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
-+		if (iter.index >= end)
-+			break;
-+		radswap = radix_tree_deref_slot(slot);
-+		if (radix_tree_exception(radswap)) {
-+			if (radix_tree_deref_retry(radswap))
-+				goto restart;
-+			goto out;
-+		}
-+	}
-+	radswap = NULL;
-+out:
-+	rcu_read_unlock();
-+	*index = iter.index;
-+	return radswap;
-+}
++	offset = (loff_t)index << PAGE_SHIFT;
++	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && sgp == SGP_TEAM)
++		offset &= ~((loff_t)HPAGE_PMD_SIZE-1);
+ repeat:
+ 	swap.val = 0;
+ 	page = find_lock_entry(mapping, index);
+@@ -2743,8 +2752,7 @@ repeat:
+ 		page = NULL;
+ 	}
+ 
+-	if (sgp <= SGP_CACHE &&
+-	    ((loff_t)index << PAGE_SHIFT) >= i_size_read(inode)) {
++	if (sgp <= SGP_TEAM && offset >= i_size_read(inode)) {
+ 		error = -EINVAL;
+ 		goto unlock;
+ 	}
+@@ -2863,8 +2871,34 @@ repeat:
+ 			percpu_counter_inc(&sbinfo->used_blocks);
+ 		}
+ 
+-		/* Take huge hint from super, except for shmem_symlink() */
+ 		hugehint = NULL;
++		if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
++		    sgp == SGP_TEAM && *pagep) {
++			struct page *head;
 +
-+static void shmem_recovery_swapin(struct recovery *recovery, struct page *head)
-+{
-+	struct shmem_inode_info *info = SHMEM_I(recovery->inode);
-+	struct address_space *mapping = recovery->inode->i_mapping;
-+	pgoff_t index = recovery->head_index - 1;
-+	pgoff_t end = recovery->head_index + HPAGE_PMD_NR;
-+	struct blk_plug plug;
-+	void *radswap;
-+	int error;
-+
-+	/*
-+	 * If the file has nothing swapped out, don't waste time here.
-+	 * If the team has already been exposed by an earlier attempt,
-+	 * it is not safe to pursue this optimization again - truncation
-+	 * *might* let swapin I/O overlap with fresh use of the page.
-+	 */
-+	if (!info->swapped || recovery->exposed_team)
-+		return;
-+
-+	blk_start_plug(&plug);
-+	while ((radswap = shmem_next_swap(mapping, &index, end))) {
-+		swp_entry_t swap = radix_to_swp_entry(radswap);
-+		struct page *page = head + (index & (HPAGE_PMD_NR-1));
-+
-+		/*
-+		 * Code below is adapted from __read_swap_cache_async():
-+		 * we want to set up async swapin to the right pages.
-+		 * We don't have to worry about a more limiting gfp_mask
-+		 * leading to -ENOMEM from __add_to_swap_cache(), but we
-+		 * do have to worry about swapcache_prepare() succeeding
-+		 * when swap has been freed and reused for an unrelated page.
-+		 */
-+		shr_stats(swap_entry);
-+		error = radix_tree_preload(GFP_KERNEL);
-+		if (error)
-+			break;
-+
-+		error = swapcache_prepare(swap);
-+		if (error) {
-+			radix_tree_preload_end();
-+			shr_stats(swap_cached);
-+			continue;
-+		}
-+
-+		if (!shmem_confirm_swap(mapping, index, swap)) {
-+			radix_tree_preload_end();
-+			swapcache_free(swap);
-+			shr_stats(swap_gone);
-+			continue;
++			if (!get_page_unless_zero(*pagep)) {
++				error = -ENOENT;
++				goto decused;
++			}
++			page = *pagep;
++			lock_page(page);
++			head = page - (index & (HPAGE_PMD_NR-1));
++			if (!PageTeam(head)) {
++				error = -ENOENT;
++				goto decused;
++			}
++			if (PageSwapBacked(page)) {
++				shr_stats(page_raced);
++				/* maybe already created; or swapin truncated */
++				error = page->mapping ? -EEXIST : -ENOENT;
++				goto decused;
++			}
++			SetPageSwapBacked(page);
++			exposed_swapbacked = true;
++			goto memcg;
 +		}
 +
-+		__SetPageLocked(page);
-+		__SetPageSwapBacked(page);
-+		error = __add_to_swap_cache(page, swap);
-+		radix_tree_preload_end();
-+		VM_BUG_ON(error);
-+
-+		shr_stats(swap_read);
-+		lru_cache_add_anon(page);
-+		swap_readpage(page);
-+		cond_resched();
-+	}
-+	blk_finish_plug(&plug);
-+	lru_add_drain();	/* not necessary but may help debugging */
-+}
-+#else
-+static void shmem_recovery_swapin(struct recovery *recovery, struct page *head)
-+{
-+}
-+#endif /* CONFIG_SWAP */
-+
- static struct page *shmem_get_recovery_page(struct page *page,
- 					unsigned long private, int **result)
- {
-@@ -855,6 +954,8 @@ static int shmem_recovery_populate(struc
- 	/* Warning: this optimization relies on disband's ClearPageChecked */
- 	if (PageTeam(head) && PageChecked(head))
- 		return 0;
-+
-+	shmem_recovery_swapin(recovery, head);
- again:
- 	migratable = 0;
- 	unmigratable = 0;
++		/* Take huge hint from super, except for shmem_symlink() */
+ 		if (mapping->a_ops == &shmem_aops &&
+ 		    (shmem_huge == SHMEM_HUGE_FORCE ||
+ 		     (sbinfo->huge && shmem_huge != SHMEM_HUGE_DENY)))
+@@ -2878,7 +2912,7 @@ repeat:
+ 		}
+ 		if (sgp == SGP_WRITE)
+ 			__SetPageReferenced(page);
+-
++memcg:
+ 		error = mem_cgroup_try_charge(page, charge_mm, gfp, &memcg,
+ 				false);
+ 		if (error)
+@@ -2894,6 +2928,11 @@ repeat:
+ 			goto decused;
+ 		}
+ 		mem_cgroup_commit_charge(page, memcg, false, false);
++		if (exposed_swapbacked) {
++			shr_stats(page_created);
++			/* cannot clear swapbacked once sent to lru */
++			exposed_swapbacked = false;
++		}
+ 		lru_cache_add_anon(page);
+ 
+ 		spin_lock(&info->lock);
+@@ -2937,8 +2976,7 @@ clear:
+ 	}
+ 
+ 	/* Perhaps the file has been truncated since we checked */
+-	if (sgp <= SGP_CACHE &&
+-	    ((loff_t)index << PAGE_SHIFT) >= i_size_read(inode)) {
++	if (sgp <= SGP_TEAM && offset >= i_size_read(inode)) {
+ 		if (alloced && !PageTeam(page)) {
+ 			ClearPageDirty(page);
+ 			delete_from_page_cache(page);
+@@ -2966,6 +3004,10 @@ failed:
+ 		error = -EEXIST;
+ unlock:
+ 	if (page) {
++		if (exposed_swapbacked) {
++			ClearPageSwapBacked(page);
++			exposed_swapbacked = false;
++		}
+ 		unlock_page(page);
+ 		put_page(page);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
