@@ -1,49 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CED86B02BD
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 19:25:14 -0400 (EDT)
-Received: by mail-pf0-f178.google.com with SMTP id n1so20223090pfn.2
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 16:25:14 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id l79si89053pfj.200.2016.04.05.16.25.13
-        for <linux-mm@kvack.org>;
-        Tue, 05 Apr 2016 16:25:13 -0700 (PDT)
-Date: Tue, 05 Apr 2016 19:25:07 -0400 (EDT)
-Message-Id: <20160405.192507.1323523820451519013.davem@davemloft.net>
-Subject: Re: [PATCH 10/10] arch: fix has_transparent_hugepage()
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <alpine.LSU.2.11.1604051355280.5965@eggly.anvils>
-References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
-	<alpine.LSU.2.11.1604051355280.5965@eggly.anvils>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EB1E828F3
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 19:37:36 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id f198so51306487wme.0
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 16:37:36 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id y9si103613wje.220.2016.04.05.16.37.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Apr 2016 16:37:35 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id i204so8562297wmd.0
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 16:37:35 -0700 (PDT)
+Subject: Re: [PATCH 17/31] kvm: teach kvm to map page teams as huge pages.
+References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils>
+ <alpine.LSU.2.11.1604051439340.5965@eggly.anvils>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <57044C3A.7060109@redhat.com>
+Date: Wed, 6 Apr 2016 01:37:30 +0200
+MIME-Version: 1.0
+In-Reply-To: <alpine.LSU.2.11.1604051439340.5965@eggly.anvils>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, andreslc@google.com, yang.shi@linaro.org, quning@gmail.com, arnd@arndb.de, ralf@linux-mips.org, vgupta@synopsys.com, linux@arm.linux.org.uk, will.deacon@arm.com, mpe@ellerman.id.au, aneesh.kumar@linux.vnet.ibm.com, schwidefsky@de.ibm.com, gerald.schaefer@de.ibm.com, cmetcalf@tilera.com, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org
 
-From: Hugh Dickins <hughd@google.com>
-Date: Tue, 5 Apr 2016 14:02:49 -0700 (PDT)
 
-> I've just discovered that the useful-sounding has_transparent_hugepage()
-> is actually an architecture-dependent minefield: on some arches it only
-> builds if CONFIG_TRANSPARENT_HUGEPAGE=y, on others it's also there when
-> not, but on some of those (arm and arm64) it then gives the wrong answer;
-> and on mips alone it's marked __init, which would crash if called later
-> (but so far it has not been called later).
-> 
-> Straighten this out: make it available to all configs, with a sensible
-> default in asm-generic/pgtable.h, removing its definitions from those
-> arches (arc, arm, arm64, sparc, tile) which are served by the default,
-> adding #define has_transparent_hugepage has_transparent_hugepage to those
-> (mips, powerpc, s390, x86) which need to override the default at runtime,
-> and removing the __init from mips (but maybe that kind of code should be
-> avoided after init: set a static variable the first time it's called).
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-Acked-by: David S. Miller <davem@davemloft.net>
+On 05/04/2016 23:41, Hugh Dickins wrote:
+> +/*
+> + * We are holding kvm->mmu_lock, serializing against mmu notifiers.
+> + * We have a ref on page.
+> ...
+> +static bool is_huge_tmpfs(struct kvm_vcpu *vcpu,
+> +			  unsigned long address, struct page *page)
+
+vcpu is only used to access vcpu->kvm->mm.  If it's still possible to
+give a sensible rule for locking, I wouldn't mind if is_huge_tmpfs took
+the mm directly and was moved out of KVM.  Otherwise, it would be quite
+easy for people touch mm code to miss it.
+
+Apart from this, both patches look good.
+
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
