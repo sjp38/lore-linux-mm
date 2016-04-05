@@ -1,74 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id C84366B027D
-	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 23:10:52 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id fe3so995022pab.1
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 20:10:52 -0700 (PDT)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id 67si45823630pfh.155.2016.04.04.20.10.51
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 717696B02A4
+	for <linux-mm@kvack.org>; Mon,  4 Apr 2016 23:40:07 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id fe3so1446966pab.1
+        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 20:40:07 -0700 (PDT)
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com. [202.81.31.145])
+        by mx.google.com with ESMTPS id p28si2626333pfi.167.2016.04.04.20.40.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Apr 2016 20:10:51 -0700 (PDT)
-Received: by mail-pf0-x22b.google.com with SMTP id c20so1014837pfc.1
-        for <linux-mm@kvack.org>; Mon, 04 Apr 2016 20:10:51 -0700 (PDT)
-Subject: Re: [PATCH v3 01/16] mm: use put_page to free page instead of
- putback_lru_page
-References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
- <1459321935-3655-2-git-send-email-minchan@kernel.org>
- <57020177.60006@gmail.com> <20160404060134.GA7555@bbox>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <57032CAE.10404@gmail.com>
-Date: Tue, 5 Apr 2016 13:10:38 +1000
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 04 Apr 2016 20:40:06 -0700 (PDT)
+Received: from localhost
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 5 Apr 2016 13:40:02 +1000
+Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 17F622BB0059
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 13:39:44 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u353dVsC12059124
+	for <linux-mm@kvack.org>; Tue, 5 Apr 2016 13:39:43 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u353d7eZ023433
+	for <linux-mm@kvack.org>; Tue, 5 Apr 2016 13:39:07 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/4] mm/writeback: correct dirty page calculation for highmem
+In-Reply-To: <20160405013613.GA27945@js1304-P5Q-DELUXE>
+References: <1459476610-31076-1-git-send-email-iamjoonsoo.kim@lge.com> <20160405013613.GA27945@js1304-P5Q-DELUXE>
+Date: Tue, 05 Apr 2016 09:08:47 +0530
+Message-ID: <87a8l8ybaw.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20160404060134.GA7555@bbox>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
+> [ text/plain ]
+> On Fri, Apr 01, 2016 at 11:10:07AM +0900, js1304@gmail.com wrote:
+>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> 
+>> ZONE_MOVABLE could be treated as highmem so we need to consider it for
+>> accurate calculation of dirty pages. And, in following patches, ZONE_CMA
+>> will be introduced and it can be treated as highmem, too. So, instead of
+>> manually adding stat of ZONE_MOVABLE, looping all zones and check whether
+>> the zone is highmem or not and add stat of the zone which can be treated
+>> as highmem.
+>> 
+>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> ---
+>>  mm/page-writeback.c | 8 ++++++--
+>>  1 file changed, 6 insertions(+), 2 deletions(-)
+>
+> Hello, Andrew.
+>
+> Could you review and merge these simple fixup and cleanup patches?
+> I'd like to send ZONE_CMA patchset v2 based on linux-next after this
+> series is merged to linux-next.
+>
 
-On 04/04/16 16:01, Minchan Kim wrote:
-> On Mon, Apr 04, 2016 at 03:53:59PM +1000, Balbir Singh wrote:
->>
->> On 30/03/16 18:12, Minchan Kim wrote:
->>> Procedure of page migration is as follows:
->>>
->>> First of all, it should isolate a page from LRU and try to
->>> migrate the page. If it is successful, it releases the page
->>> for freeing. Otherwise, it should put the page back to LRU
->>> list.
->>>
->>> For LRU pages, we have used putback_lru_page for both freeing
->>> and putback to LRU list. It's okay because put_page is aware of
->>> LRU list so if it releases last refcount of the page, it removes
->>> the page from LRU list. However, It makes unnecessary operations
->>> (e.g., lru_cache_add, pagevec and flags operations. It would be
->>> not significant but no worth to do) and harder to support new
->>> non-lru page migration because put_page isn't aware of non-lru
->>> page's data structure.
->>>
->>> To solve the problem, we can add new hook in put_page with
->>> PageMovable flags check but it can increase overhead in
->>> hot path and needs new locking scheme to stabilize the flag check
->>> with put_page.
->>>
->>> So, this patch cleans it up to divide two semantic(ie, put and putback).
->>> If migration is successful, use put_page instead of putback_lru_page and
->>> use putback_lru_page only on failure. That makes code more readable
->>> and doesn't add overhead in put_page.
->> So effectively when we return from unmap_and_move() the page is either
->> put_page or putback_lru_page() and the page is gone from under us.
-> I didn't get your point.
-> Could you elaborate it more what you want to say about this patch?
+I searched with ZONE_HIGHMEM and AFAICS this series do handle all the
+highmem path.
 
-I was just adding to my understanding of this change based on your changelog.
-My understanding is that we take the extra reference in isolate_lru_page()
-but by the time we return from unmap_and_move() we drop the extra reference
+For the series:
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-Balbir Singh
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
