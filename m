@@ -1,56 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id CE6FF6B026C
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 13:51:09 -0400 (EDT)
-Received: by mail-wm0-f50.google.com with SMTP id u206so14309559wme.1
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 10:51:09 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id w19si13602197wjr.196.2016.04.05.10.51.08
+Received: from mail-qk0-f179.google.com (mail-qk0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C7E86B026E
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 15:06:47 -0400 (EDT)
+Received: by mail-qk0-f179.google.com with SMTP id o6so9094037qkc.2
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 12:06:47 -0700 (PDT)
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
+        by mx.google.com with ESMTPS id f81si27363689qkb.82.2016.04.05.12.06.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 10:51:08 -0700 (PDT)
-Date: Tue, 5 Apr 2016 13:50:59 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/3] mm: filemap: only do access activations on reads
-Message-ID: <20160405175059.GA16935@cmpxchg.org>
-References: <1459790018-6630-1-git-send-email-hannes@cmpxchg.org>
- <1459790018-6630-3-git-send-email-hannes@cmpxchg.org>
- <20160404142233.cfdea284b8107768fb359efd@linux-foundation.org>
- <1459805987.6219.32.camel@redhat.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Apr 2016 12:06:46 -0700 (PDT)
+Received: from localhost
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sukadev@linux.vnet.ibm.com>;
+	Tue, 5 Apr 2016 13:06:45 -0600
+Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 6C6BDC4000F
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 12:54:49 -0600 (MDT)
+Received: from d01av05.pok.ibm.com (d01av05.pok.ibm.com [9.56.224.195])
+	by b01cxnp22035.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u35J6eu337421280
+	for <linux-mm@kvack.org>; Tue, 5 Apr 2016 19:06:40 GMT
+Received: from d01av05.pok.ibm.com (localhost [127.0.0.1])
+	by d01av05.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u35J0vmq029660
+	for <linux-mm@kvack.org>; Tue, 5 Apr 2016 15:00:57 -0400
+Date: Tue, 5 Apr 2016 12:05:47 -0700
+From: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
+Subject: [PATCH 1/1] powerpc/mm: Add memory barrier in __hugepte_alloc()
+Message-ID: <20160405190547.GA12673@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1459805987.6219.32.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andres Freund <andres@anarazel.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, James Dykman <jdykman@us.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Mon, Apr 04, 2016 at 05:39:47PM -0400, Rik van Riel wrote:
-> As for hinting, I suspect it may make sense to differentiate
-> between whole page and partial page writes, where partial
-> page writes use FGP_ACCESSED, and whole page writes do not,
-> under the assumption that if we write a partial page, there
-> may be a higher chance that other parts of the page get
-> accessed again for other writes (or reads).
-
-The writeback cache should handle at least the multiple subpage writes
-case.
-
-What I find a little weird about counting accesses from partial writes
-only is when a write covers a full page and then parts of the next. We
-would cache only a small piece of what's likely one coherent chunk.
-
-Or when a user writes out several pages in a loop of subpage chunks.
-
-This will get even worse to program against when we start having page
-cache transparently backed by pages of different sizes.
-
-Because of that I think it'd be better to apply LRU aging decisions
-based on type of access rather based on specific request sizes.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
