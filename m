@@ -1,107 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f181.google.com (mail-pf0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 25DE66B025F
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 17:21:58 -0400 (EDT)
-Received: by mail-pf0-f181.google.com with SMTP id c20so41177282pfc.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 14:21:58 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id o68si6894186pfj.173.2016.04.06.14.21.50
+Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CCF06B0260
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 17:22:00 -0400 (EDT)
+Received: by mail-pf0-f169.google.com with SMTP id e128so41075288pfe.3
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 14:22:00 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id yk5si6891850pab.160.2016.04.06.14.21.52
         for <linux-mm@kvack.org>;
-        Wed, 06 Apr 2016 14:21:50 -0700 (PDT)
+        Wed, 06 Apr 2016 14:21:52 -0700 (PDT)
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: [PATCH 00/30] Radix tree multiorder fixes
-Date: Wed,  6 Apr 2016 17:21:09 -0400
-Message-Id: <1459977699-2349-1-git-send-email-willy@linux.intel.com>
+Subject: [PATCH 05/30] radix tree test suite: keep regression test runs short
+Date: Wed,  6 Apr 2016 17:21:14 -0400
+Message-Id: <1459977699-2349-6-git-send-email-willy@linux.intel.com>
+In-Reply-To: <1459977699-2349-1-git-send-email-willy@linux.intel.com>
+References: <1459977699-2349-1-git-send-email-willy@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>, Matthew Wilcox <willy@linux.intel.com>
 
-I must apologise for commit f96d18ff84 which left the impression that
-the support for multiorder radix tree entries was functional.  As soon as
-Ross tried to use it, it became apparent that my testing was completely
-inadequate, and it didn't even work a little bit for orders that were
-not a multiple of shift.
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-This series of patches is the result of about 5 weeks of redesign,
-reimplementation, testing, arguing and hair-pulling.  The great news is
-that the test-suite is now far better than it was.  That's reflected in
-the diffstat for the test-suite alone:
- 12 files changed, 427 insertions(+), 28 deletions(-)
+Currently the full suite of regression tests take upwards of 30 minutes to
+run on my development machine.  The vast majority of this time is taken by
+the big_gang_check() and copy_tag_check() tests, which each run their tests
+through thousands of iterations...does this have value?
 
-The highlight for users of the tree is that the restriction on the order
-being >= RADIX_TREE_MAP_SHIFT is now gone; the radix tree now supports
-any order between 0 and 64.
+Without big_gang_check() and copy_tag_check(), the test suite runs in
+around 15 seconds on my box.
 
-For those who are interested in how the tree works, patch 9 is probably
-the most interesting one as it introduces the new machinery for handling
-sibling entries.
+Honestly the first time I ever ran through the entire test suite was to
+gather the timings for this email - it simply takes too long to be useful
+on a normal basis.
 
-I've tried to be fair in attributing authorship to the person who
-contributed the majority of the code in each patch; Ross has been an
-invaluable partner in the development of this support and it's fair to
-say that each of us has code in every commit.
+Instead, hide the excessive iterations through big_gang_check() and
+copy_tag_check() tests behind an '-l' flag (for "long run") in case they
+are still useful, but allow the regression test suite to complete in a
+reasonable amount of time.  We still run each of these tests a few times (3
+at present) to try and keep the test coverage.
 
-I should also express my appreciation of the 0day testing.  It prompted
-me that I was bloating the tinyconfig in an unacceptable way, and it
-bisected to a commit which contained a rahter nasty memory-corruption bug.
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+---
+ tools/testing/radix-tree/main.c | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)
 
-Matthew Wilcox (20):
-  radix-tree: Introduce radix_tree_empty
-  radix tree test suite: Fix build
-  radix tree test suite: Add tests for radix_tree_locate_item()
-  Introduce CONFIG_RADIX_TREE_MULTIORDER
-  radix-tree: Add missing sibling entry functionality
-  radix-tree: Fix sibling entry insertion
-  radix-tree: Fix deleting a multi-order entry through an alias
-  radix-tree: Remove restriction on multi-order entries
-  radix-tree: Introduce radix_tree_load_root()
-  radix-tree: Fix extending the tree for multi-order entries at offset 0
-  radix-tree: Fix several shrinking bugs with multiorder entries
-  radix tree test suite: Start adding multiorder tests
-  radix-tree: Rewrite __radix_tree_lookup
-  radix-tree: Fix multiorder BUG_ON in radix_tree_insert
-  radix-tree: add support for multi-order iterating
-  radix tree test suite: Add multiorder shrinking test
-  radix-tree: Fix radix_tree_create for sibling entries
-  radix-tree: Rewrite radix_tree_locate_item
-  radix-tree: Fix two bugs in radix_tree_range_tag_if_tagged()
-  radix-tree: Add copyright statements
-
-Ross Zwisler (10):
-  radix tree test suite: Allow testing other fan-out values
-  radix tree test suite: keep regression test runs short
-  radix tree test suite: rebuild when headers change
-  radix-tree: remove unused looping macros
-  radix tree test suite: multi-order iteration test
-  radix-tree: Rewrite radix_tree_tag_set
-  radix-tree: Rewrite radix_tree_tag_clear
-  radix-tree: Rewrite radix_tree_tag_get
-  radix-tree test suite: add multi-order tag test
-  radix-tree: Fix radix_tree_dump() for multi-order entries
-
- include/linux/radix-tree.h                    | 103 +++--
- kernel/irq/irqdomain.c                        |   7 +-
- lib/Kconfig                                   |   3 +
- lib/radix-tree.c                              | 545 +++++++++++++++-----------
- mm/Kconfig                                    |   1 +
- tools/testing/radix-tree/Makefile             |   4 +-
- tools/testing/radix-tree/generated/autoconf.h |   3 +
- tools/testing/radix-tree/linux/init.h         |   0
- tools/testing/radix-tree/linux/kernel.h       |  15 +-
- tools/testing/radix-tree/linux/slab.h         |   1 -
- tools/testing/radix-tree/linux/types.h        |   7 +-
- tools/testing/radix-tree/main.c               |  71 +++-
- tools/testing/radix-tree/multiorder.c         | 317 +++++++++++++++
- tools/testing/radix-tree/regression2.c        |   7 -
- tools/testing/radix-tree/tag_check.c          |  10 +
- tools/testing/radix-tree/test.c               |  13 +-
- tools/testing/radix-tree/test.h               |   7 +-
- 17 files changed, 807 insertions(+), 307 deletions(-)
- create mode 100644 tools/testing/radix-tree/generated/autoconf.h
- create mode 100644 tools/testing/radix-tree/linux/init.h
- create mode 100644 tools/testing/radix-tree/multiorder.c
-
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index 71c5272443b1..122c8b9be17e 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -61,11 +61,11 @@ void __big_gang_check(void)
+ 	} while (!wrapped);
+ }
+ 
+-void big_gang_check(void)
++void big_gang_check(bool long_run)
+ {
+ 	int i;
+ 
+-	for (i = 0; i < 1000; i++) {
++	for (i = 0; i < (long_run ? 1000 : 3); i++) {
+ 		__big_gang_check();
+ 		srand(time(0));
+ 		printf("%d ", i);
+@@ -270,7 +270,7 @@ static void locate_check(void)
+ 	item_kill_tree(&tree);
+ }
+ 
+-static void single_thread_tests(void)
++static void single_thread_tests(bool long_run)
+ {
+ 	int i;
+ 
+@@ -285,9 +285,9 @@ static void single_thread_tests(void)
+ 	printf("after add_and_check: %d allocated\n", nr_allocated);
+ 	dynamic_height_check();
+ 	printf("after dynamic_height_check: %d allocated\n", nr_allocated);
+-	big_gang_check();
++	big_gang_check(long_run);
+ 	printf("after big_gang_check: %d allocated\n", nr_allocated);
+-	for (i = 0; i < 2000; i++) {
++	for (i = 0; i < (long_run ? 2000 : 3); i++) {
+ 		copy_tag_check();
+ 		printf("%d ", i);
+ 		fflush(stdout);
+@@ -295,15 +295,23 @@ static void single_thread_tests(void)
+ 	printf("after copy_tag_check: %d allocated\n", nr_allocated);
+ }
+ 
+-int main(void)
++int main(int argc, char **argv)
+ {
++	bool long_run = false;
++	int opt;
++
++	while ((opt = getopt(argc, argv, "l")) != -1) {
++		if (opt == 'l')
++			long_run = true;
++	}
++
+ 	rcu_register_thread();
+ 	radix_tree_init();
+ 
+ 	regression1_test();
+ 	regression2_test();
+ 	regression3_test();
+-	single_thread_tests();
++	single_thread_tests(long_run);
+ 
+ 	sleep(1);
+ 	printf("after sleep(1): %d allocated\n", nr_allocated);
 -- 
 2.8.0.rc3
 
