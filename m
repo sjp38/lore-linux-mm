@@ -1,104 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id BBAB46B0271
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 18:10:26 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id td3so41082647pab.2
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 15:10:26 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id l27si7138557pfj.18.2016.04.06.15.10.26
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F43C6B0273
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 18:13:29 -0400 (EDT)
+Received: by mail-pf0-f180.google.com with SMTP id c20so41881380pfc.1
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 15:13:29 -0700 (PDT)
+Received: from mail-pf0-x236.google.com (mail-pf0-x236.google.com. [2607:f8b0:400e:c00::236])
+        by mx.google.com with ESMTPS id d27si6311180pfj.14.2016.04.06.15.13.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Apr 2016 15:10:26 -0700 (PDT)
-Received: by mail-pa0-x22a.google.com with SMTP id td3so41082505pab.2
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 15:10:26 -0700 (PDT)
-Date: Wed, 6 Apr 2016 15:10:23 -0700 (PDT)
+        Wed, 06 Apr 2016 15:13:28 -0700 (PDT)
+Received: by mail-pf0-x236.google.com with SMTP id c20so41881260pfc.1
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 15:13:28 -0700 (PDT)
+Date: Wed, 6 Apr 2016 15:13:27 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch v2] mm, hugetlb_cgroup: round limit_in_bytes down to hugepage
- size
-In-Reply-To: <5704BBBF.8040302@kyup.com>
-Message-ID: <alpine.DEB.2.10.1604061510040.10401@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1604051824320.32718@chino.kir.corp.google.com> <5704BA37.2080508@kyup.com> <5704BBBF.8040302@kyup.com>
+Subject: Re: [PATCH 0/2] memory_hotplug: introduce config and command line
+ options to set the default onlining policy
+In-Reply-To: <20160406115334.82af80e922f8b3eec6336a8b@linux-foundation.org>
+Message-ID: <alpine.DEB.2.10.1604061512460.10401@chino.kir.corp.google.com>
+References: <1459950312-25504-1-git-send-email-vkuznets@redhat.com> <20160406115334.82af80e922f8b3eec6336a8b@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Nikolay Borisov <kernel@kyup.com>
-Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, David Vrabel <david.vrabel@citrix.com>, Igor Mammedov <imammedo@redhat.com>, Lennart Poettering <lennart@poettering.net>
 
-The page_counter rounds limits down to page size values.  This makes
-sense, except in the case of hugetlb_cgroup where it's not possible to
-charge partial hugepages.
+On Wed, 6 Apr 2016, Andrew Morton wrote:
 
-Round the hugetlb_cgroup limit down to hugepage size.
+> > This patchset continues the work I started with:
+> > 
+> > commit 31bc3858ea3ebcc3157b3f5f0e624c5962f5a7a6
+> > Author: Vitaly Kuznetsov <vkuznets@redhat.com>
+> > Date:   Tue Mar 15 14:56:48 2016 -0700
+> > 
+> >     memory-hotplug: add automatic onlining policy for the newly added memory
+> > 
+> > Initially I was going to stop there and bring the policy setting logic to
+> > userspace. I met two issues on this way:
+> > 
+> > 1) It is possible to have memory hotplugged at boot (e.g. with QEMU). These
+> >    blocks stay offlined if we turn the onlining policy on by userspace.
+> > 
+> > 2) My attempt to bring this policy setting to systemd failed, systemd
+> >    maintainers suggest to change the default in kernel or ... to use tmpfiles.d
+> >    to alter the policy (which looks like a hack to me): 
+> >    https://github.com/systemd/systemd/pull/2938
+> 
+> That discussion really didn't come to a conclusion and I don't
+> understand why you consider Lennert's "recommended way" to be a hack?
+> 
+> > Here I suggest to add a config option to set the default value for the policy
+> > and a kernel command line parameter to make the override.
+> 
+> But the patchset looks pretty reasonable regardless of the above.
+> 
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/hugetlb_cgroup.c | 35 ++++++++++++++++++++++++++---------
- 1 file changed, 26 insertions(+), 9 deletions(-)
-
-diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
---- a/mm/hugetlb_cgroup.c
-+++ b/mm/hugetlb_cgroup.c
-@@ -67,26 +67,42 @@ static inline bool hugetlb_cgroup_have_usage(struct hugetlb_cgroup *h_cg)
- 	return false;
- }
- 
-+static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
-+				struct hugetlb_cgroup *parent_h_cgroup)
-+{
-+	int idx;
-+
-+	for (idx = 0; idx < HUGE_MAX_HSTATE; idx++) {
-+		struct page_counter *counter = &h_cgroup->hugepage[idx];
-+		struct page_counter *parent = NULL;
-+		unsigned long limit;
-+		int ret;
-+
-+		if (parent_h_cgroup)
-+			parent = &parent_h_cgroup->hugepage[idx];
-+		page_counter_init(counter, parent);
-+
-+		limit = round_down(PAGE_COUNTER_MAX,
-+				   1 << huge_page_order(&hstates[idx]));
-+		ret = page_counter_limit(counter, limit);
-+		VM_BUG_ON(ret);
-+	}
-+}
-+
- static struct cgroup_subsys_state *
- hugetlb_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
- {
- 	struct hugetlb_cgroup *parent_h_cgroup = hugetlb_cgroup_from_css(parent_css);
- 	struct hugetlb_cgroup *h_cgroup;
--	int idx;
- 
- 	h_cgroup = kzalloc(sizeof(*h_cgroup), GFP_KERNEL);
- 	if (!h_cgroup)
- 		return ERR_PTR(-ENOMEM);
- 
--	if (parent_h_cgroup) {
--		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
--			page_counter_init(&h_cgroup->hugepage[idx],
--					  &parent_h_cgroup->hugepage[idx]);
--	} else {
-+	if (!parent_h_cgroup)
- 		root_h_cgroup = h_cgroup;
--		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
--			page_counter_init(&h_cgroup->hugepage[idx], NULL);
--	}
-+
-+	hugetlb_cgroup_init(h_cgroup, parent_h_cgroup);
- 	return &h_cgroup->css;
- }
- 
-@@ -285,6 +301,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
- 		return ret;
- 
- 	idx = MEMFILE_IDX(of_cft(of)->private);
-+	nr_pages = round_down(nr_pages, 1 << huge_page_order(&hstates[idx]));
- 
- 	switch (MEMFILE_ATTR(of_cft(of)->private)) {
- 	case RES_LIMIT:
+I don't understand why initscripts simply cannot crawl sysfs memory blocks 
+and online them for the same behavior.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
