@@ -1,48 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 3548A6B0264
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 17:22:06 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fe3so40462450pab.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 14:22:06 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id o68si6894186pfj.173.2016.04.06.14.21.52
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AFEE6B0265
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 17:22:08 -0400 (EDT)
+Received: by mail-pf0-f173.google.com with SMTP id n1so41121373pfn.2
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 14:22:08 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id r86si6878769pfb.219.2016.04.06.14.21.52
         for <linux-mm@kvack.org>;
         Wed, 06 Apr 2016 14:21:52 -0700 (PDT)
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: [PATCH 10/30] radix-tree: Fix sibling entry insertion
-Date: Wed,  6 Apr 2016 17:21:19 -0400
-Message-Id: <1459977699-2349-11-git-send-email-willy@linux.intel.com>
+Subject: [PATCH 06/30] radix tree test suite: rebuild when headers change
+Date: Wed,  6 Apr 2016 17:21:15 -0400
+Message-Id: <1459977699-2349-7-git-send-email-willy@linux.intel.com>
 In-Reply-To: <1459977699-2349-1-git-send-email-willy@linux.intel.com>
 References: <1459977699-2349-1-git-send-email-willy@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>, Matthew Wilcox <willy@linux.intel.com>
 
-The subtraction was the wrong way round, leading to undefined behaviour
-(shift by an amount larger than the size of the type).
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
 
+When we make changes to radix-tree.h in the regular kernel source
+(include/linux/radix-tree.h), we really want our test code to be rebuilt.
+
+We also include a few other headers from tools/include and probably want
+to rebuild if these have been changed.
+
+Update the makefile so that all of our objects will be rebuilt when any
+of the headers we depend on are changed.
+
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- lib/radix-tree.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ tools/testing/radix-tree/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 40343f28a705..42a0492b2ba2 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -526,8 +526,8 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
+index 604212db9d4b..43febba864bd 100644
+--- a/tools/testing/radix-tree/Makefile
++++ b/tools/testing/radix-tree/Makefile
+@@ -13,7 +13,7 @@ main:	$(OFILES)
+ clean:
+ 	$(RM) -f $(TARGETS) *.o radix-tree.c
  
- #ifdef CONFIG_RADIX_TREE_MULTIORDER
- 	/* Insert pointers to the canonical entry */
--	if ((shift - order) > 0) {
--		int i, n = 1 << (shift - order);
-+	if (order > shift) {
-+		int i, n = 1 << (order - shift);
- 		offset = offset & ~(n - 1);
- 		slot = ptr_to_indirect(&node->slots[offset]);
- 		for (i = 0; i < n; i++) {
+-$(OFILES): *.h */*.h
++$(OFILES): *.h */*.h ../../../include/linux/radix-tree.h ../../include/linux/*.h
+ 
+ radix-tree.c: ../../../lib/radix-tree.c
+ 	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
 -- 
 2.8.0.rc3
 
