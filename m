@@ -1,64 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BD226B026F
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 07:57:08 -0400 (EDT)
-Received: by mail-wm0-f53.google.com with SMTP id v188so20153332wme.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 04:57:08 -0700 (PDT)
-Received: from e06smtp16.uk.ibm.com (e06smtp16.uk.ibm.com. [195.75.94.112])
-        by mx.google.com with ESMTPS id m6si22461781wmf.86.2016.04.06.04.57.06
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id E3E5A6B026E
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 08:11:26 -0400 (EDT)
+Received: by mail-pf0-f176.google.com with SMTP id n1so32368109pfn.2
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 05:11:26 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id r82si4308518pfb.75.2016.04.06.05.11.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Apr 2016 04:57:07 -0700 (PDT)
-Received: from localhost
-	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Wed, 6 Apr 2016 12:57:06 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 2BF661B08070
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 12:57:42 +0100 (BST)
-Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u36Bv4ur8126772
-	for <linux-mm@kvack.org>; Wed, 6 Apr 2016 11:57:04 GMT
-Received: from d06av07.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u36Bv2p4004007
-	for <linux-mm@kvack.org>; Wed, 6 Apr 2016 07:57:03 -0400
-Date: Wed, 6 Apr 2016 13:56:59 +0200
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH 10/10] arch: fix has_transparent_hugepage()
-Message-ID: <20160406135659.29846d02@thinkpad>
-In-Reply-To: <alpine.LSU.2.11.1604051355280.5965@eggly.anvils>
-References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
-	<alpine.LSU.2.11.1604051355280.5965@eggly.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Apr 2016 05:11:26 -0700 (PDT)
+Received: by mail-pa0-x22f.google.com with SMTP id bx7so15708249pad.3
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 05:11:25 -0700 (PDT)
+Date: Wed, 6 Apr 2016 22:09:11 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [BUG] lib: zram lz4 compression/decompression still broken on
+ big endian
+Message-ID: <20160406130911.GA584@swordfish>
+References: <CALjTZvavWqtLoGQiWb+HxHP4rwRwaZiP0QrPRb+9kYGdicXohg@mail.gmail.com>
+ <20160405153439.GA2647@kroah.com>
+ <CALjTZvat4FhSc1AvNzjNwfa5tYydiTQLTnxz6cU7-Qd+h5mi6A@mail.gmail.com>
+ <20160406053325.GA415@swordfish>
+ <CALjTZvZaD7VHieU4A_5JAGZfN-7toWGm1UpM3zqreP6YsvA37A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALjTZvZaD7VHieU4A_5JAGZfN-7toWGm1UpM3zqreP6YsvA37A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, Arnd Bergman <arnd@arndb.de>, Ralf Baechle <ralf@linux-mips.org>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@arm.linux.org.uk>, Will Deacon <will.deacon@arm.com>, Michael Ellerman <mpe@ellerman.id.au>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, David Miller <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Rui Salvaterra <rsalvaterra@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Greg KH <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, eunb.song@samsung.com, minchan@kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Chanho Min <chanho.min@lge.com>, Kyungsik Lee <kyungsik.lee@lge.com>
 
-On Tue, 5 Apr 2016 14:02:49 -0700 (PDT)
-Hugh Dickins <hughd@google.com> wrote:
+Cc Chanho Min, Kyungsik Lee
 
-> I've just discovered that the useful-sounding has_transparent_hugepage()
-> is actually an architecture-dependent minefield: on some arches it only
-> builds if CONFIG_TRANSPARENT_HUGEPAGE=y, on others it's also there when
-> not, but on some of those (arm and arm64) it then gives the wrong answer;
-> and on mips alone it's marked __init, which would crash if called later
-> (but so far it has not been called later).
-> 
-> Straighten this out: make it available to all configs, with a sensible
-> default in asm-generic/pgtable.h, removing its definitions from those
-> arches (arc, arm, arm64, sparc, tile) which are served by the default,
-> adding #define has_transparent_hugepage has_transparent_hugepage to those
-> (mips, powerpc, s390, x86) which need to override the default at runtime,
-> and removing the __init from mips (but maybe that kind of code should be
-> avoided after init: set a static variable the first time it's called).
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
 
-Acked-by: Gerald Schaefer <gerald.schaefer@de.ibm.com> # for arch/s390 bits
+Hello,
+
+On (04/06/16 10:39), Rui Salvaterra wrote:
+> > may we please ask you to test the patch first? quite possible there
+> > is nothing to fix there; I've no access to mips h/w but the patch
+> > seems correct to me.
+> >
+> > LZ4_READ_LITTLEENDIAN_16 does get_unaligned_le16(), so
+> > LZ4_WRITE_LITTLEENDIAN_16 must do put_unaligned_le16() /* not put_unaligned() */
+> >
+[..]
+> Consequentially, while I believe the patch will fix the mips case, I'm
+> not so sure about ppc (or any other big endian architecture with
+> efficient unaligned accesses).
+
+frankly, yes, I took a quick look today (after I sent my initial
+message, tho) ... and it is fishy, I agree. was going to followup
+on my email but somehow got interrupted, sorry.
+
+so we have, write:
+	((U16_S *)(p)) = v    OR    put_unaligned(v, (u16 *)(p))
+
+and only one read:
+	get_unaligned_le16(p))
+
+I guess it's either read part also must depend on
+HAVE_EFFICIENT_UNALIGNED_ACCESS, or write path
+should stop doing so.
+
+I ended up with two patches, NONE was tested (!!!). like at all.
+
+1) provide CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS-dependent
+   LZ4_READ_LITTLEENDIAN_16
+
+2) provide common LZ4_WRITE_LITTLEENDIAN_16 and LZ4_READ_LITTLEENDIAN_16
+   regardless CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS.
+
+
+assuming that common LZ4_WRITE_LITTLEENDIAN_16 will somehow hit the
+performance, I'd probably prefer option #1.
+
+the patch is below. would be great if you can help testing it.
+
+---
+
+ lib/lz4/lz4defs.h | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/lib/lz4/lz4defs.h b/lib/lz4/lz4defs.h
+index abcecdc..a23e6c2 100644
+--- a/lib/lz4/lz4defs.h
++++ b/lib/lz4/lz4defs.h
+@@ -36,10 +36,14 @@ typedef struct _U64_S { u64 v; } U64_S;
+ #define PUT4(s, d) (A32(d) = A32(s))
+ #define PUT8(s, d) (A64(d) = A64(s))
+ #define LZ4_WRITE_LITTLEENDIAN_16(p, v)	\
+-	do {	\
+-		A16(p) = v; \
+-		p += 2; \
++	do {					\
++		A16(p) = v; 			\
++		p += 2; 			\
+ 	} while (0)
++
++#define LZ4_READ_LITTLEENDIAN_16(d, s, p)	\
++	(d = s - A16(p))
++
+ #else /* CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */
+ 
+ #define A64(x) get_unaligned((u64 *)&(((U16_S *)(x))->v))
+@@ -52,10 +56,13 @@ typedef struct _U64_S { u64 v; } U64_S;
+ 	put_unaligned(get_unaligned((const u64 *) s), (u64 *) d)
+ 
+ #define LZ4_WRITE_LITTLEENDIAN_16(p, v)	\
+-	do {	\
+-		put_unaligned(v, (u16 *)(p)); \
+-		p += 2; \
++	do {						\
++		put_unaligned_le16(v, (u16 *)(p));	\
++		p += 2; 				\
+ 	} while (0)
++
++#define LZ4_READ_LITTLEENDIAN_16(d, s, p) 		\
++	(d = s - get_unaligned_le16(p))
+ #endif
+ 
+ #define COPYLENGTH 8
+@@ -140,9 +147,6 @@ typedef struct _U64_S { u64 v; } U64_S;
+ 
+ #endif
+ 
+-#define LZ4_READ_LITTLEENDIAN_16(d, s, p) \
+-	(d = s - get_unaligned_le16(p))
+-
+ #define LZ4_WILDCOPY(s, d, e)		\
+ 	do {				\
+ 		LZ4_COPYPACKET(s, d);	\
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
