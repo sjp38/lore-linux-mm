@@ -1,188 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id CDF6B6B025E
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 17:28:52 -0400 (EDT)
-Received: by mail-pf0-f177.google.com with SMTP id 184so41323718pff.0
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 14:28:52 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id v13si6883234pas.199.2016.04.06.14.21.54
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 877FE6B026D
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 17:29:00 -0400 (EDT)
+Received: by mail-pf0-f173.google.com with SMTP id n1so41213864pfn.2
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 14:29:00 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id rl12si6929207pab.36.2016.04.06.14.21.54
         for <linux-mm@kvack.org>;
         Wed, 06 Apr 2016 14:21:54 -0700 (PDT)
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: [PATCH 16/30] radix tree test suite: Start adding multiorder tests
-Date: Wed,  6 Apr 2016 17:21:25 -0400
-Message-Id: <1459977699-2349-17-git-send-email-willy@linux.intel.com>
+Subject: [PATCH 20/30] radix tree test suite: multi-order iteration test
+Date: Wed,  6 Apr 2016 17:21:29 -0400
+Message-Id: <1459977699-2349-21-git-send-email-willy@linux.intel.com>
 In-Reply-To: <1459977699-2349-1-git-send-email-willy@linux.intel.com>
 References: <1459977699-2349-1-git-send-email-willy@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>, Matthew Wilcox <willy@linux.intel.com>
 
-Test suite infrastructure for working with multiorder entries.
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-The test itself is pretty basic: Add an entry, check that all expected
-indices return that entry and that indices around that entry don't return
-an entry. Then delete the entry and check no index returns that entry.
-Tests a few edge conditions including the multiorder entry at index 0
-and at a higher index.  Also tests deleting through an alias as well as
-through the canonical index.
+Add a unit test to verify that we can iterate over multi-order entries
+properly via a radix_tree_for_each_slot() loop.
 
+This was done with a single, somewhat complicated configuration that was
+meant to test many of the various corner cases having to do with
+multi-order entries:
+
+- An iteration could begin at a sibling entry, and we need to return the
+  canonical entry.
+- We could have entries of various orders in the same slots[] array.
+- We could have multi-order entries at a nonzero height, followed by
+  indirect pointers to more radix tree nodes later in that same slots[]
+  array.
+
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- tools/testing/radix-tree/Makefile     |  2 +-
- tools/testing/radix-tree/main.c       |  2 ++
- tools/testing/radix-tree/multiorder.c | 58 +++++++++++++++++++++++++++++++++++
- tools/testing/radix-tree/test.c       | 13 ++++++--
- tools/testing/radix-tree/test.h       |  6 +++-
- 5 files changed, 76 insertions(+), 5 deletions(-)
- create mode 100644 tools/testing/radix-tree/multiorder.c
+ tools/testing/radix-tree/multiorder.c | 92 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 92 insertions(+)
 
-diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
-index 43febba864bd..3b530467148e 100644
---- a/tools/testing/radix-tree/Makefile
-+++ b/tools/testing/radix-tree/Makefile
-@@ -3,7 +3,7 @@ CFLAGS += -I. -g -Wall -D_LGPL_SOURCE
- LDFLAGS += -lpthread -lurcu
- TARGETS = main
- OFILES = main.o radix-tree.o linux.o test.o tag_check.o find_next_bit.o \
--	 regression1.o regression2.o regression3.o
-+	 regression1.o regression2.o regression3.o multiorder.o
- 
- targets: $(TARGETS)
- 
-diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
-index 122c8b9be17e..b6a700b00cce 100644
---- a/tools/testing/radix-tree/main.c
-+++ b/tools/testing/radix-tree/main.c
-@@ -275,6 +275,8 @@ static void single_thread_tests(bool long_run)
- 	int i;
- 
- 	printf("starting single_thread_tests: %d allocated\n", nr_allocated);
-+	multiorder_checks();
-+	printf("after multiorder_check: %d allocated\n", nr_allocated);
- 	locate_check();
- 	printf("after locate_check: %d allocated\n", nr_allocated);
- 	tag_check();
 diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
-new file mode 100644
-index 000000000000..cfe718c78eb6
---- /dev/null
+index 606bfe04b104..583c5127fbcf 100644
+--- a/tools/testing/radix-tree/multiorder.c
 +++ b/tools/testing/radix-tree/multiorder.c
-@@ -0,0 +1,58 @@
-+/*
-+ * multiorder.c: Multi-order radix tree entry testing
-+ * Copyright (c) 2016 Intel Corporation
-+ * Author: Ross Zwisler <ross.zwisler@linux.intel.com>
-+ * Author: Matthew Wilcox <matthew.r.wilcox@intel.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify it
-+ * under the terms and conditions of the GNU General Public License,
-+ * version 2, as published by the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope it will be useful, but WITHOUT
-+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-+ * more details.
-+ */
-+#include <linux/radix-tree.h>
-+#include <linux/slab.h>
-+#include <linux/errno.h>
-+
-+#include "test.h"
-+
-+static void multiorder_check(unsigned long index, int order)
+@@ -57,6 +57,96 @@ static void multiorder_insert_bug(void)
+ 	item_kill_tree(&tree);
+ }
+ 
++void multiorder_iteration(void)
 +{
-+	unsigned long i;
-+	unsigned long min = index & ~((1UL << order) - 1);
-+	unsigned long max = min + (1UL << order);
 +	RADIX_TREE(tree, GFP_KERNEL);
++	struct radix_tree_iter iter;
++	void **slot;
++	int i, err;
 +
-+	printf("Multiorder index %ld, order %d\n", index, order);
++	printf("Multiorder iteration test\n");
 +
-+	assert(item_insert_order(&tree, index, order) == 0);
++#define NUM_ENTRIES 11
++	int index[NUM_ENTRIES] = {0, 2, 4, 8, 16, 32, 34, 36, 64, 72, 128};
++	int order[NUM_ENTRIES] = {1, 1, 2, 3,  4,  1,  0,  1,  3,  0, 7};
 +
-+	for (i = min; i < max; i++) {
-+		struct item *item = item_lookup(&tree, i);
-+		assert(item != 0);
-+		assert(item->index == index);
++	for (i = 0; i < NUM_ENTRIES; i++) {
++		err = item_insert_order(&tree, index[i], order[i]);
++		assert(!err);
 +	}
-+	for (i = 0; i < min; i++)
-+		item_check_absent(&tree, i);
-+	for (i = max; i < 2*max; i++)
-+		item_check_absent(&tree, i);
 +
-+	assert(item_delete(&tree, index) != 0);
++	i = 0;
++	/* start from index 1 to verify we find the multi-order entry at 0 */
++	radix_tree_for_each_slot(slot, &tree, &iter, 1) {
++		int height = order[i] / RADIX_TREE_MAP_SHIFT;
++		int shift = height * RADIX_TREE_MAP_SHIFT;
 +
-+	for (i = 0; i < 2*max; i++)
-+		item_check_absent(&tree, i);
++		assert(iter.index == index[i]);
++		assert(iter.shift == shift);
++		i++;
++	}
++
++	/*
++	 * Now iterate through the tree starting at an elevated multi-order
++	 * entry, beginning at an index in the middle of the range.
++	 */
++	i = 8;
++	radix_tree_for_each_slot(slot, &tree, &iter, 70) {
++		int height = order[i] / RADIX_TREE_MAP_SHIFT;
++		int shift = height * RADIX_TREE_MAP_SHIFT;
++
++		assert(iter.index == index[i]);
++		assert(iter.shift == shift);
++		i++;
++	}
++
++	item_kill_tree(&tree);
 +}
 +
-+void multiorder_checks(void)
++void multiorder_tagged_iteration(void)
 +{
++	RADIX_TREE(tree, GFP_KERNEL);
++	struct radix_tree_iter iter;
++	void **slot;
 +	int i;
 +
-+	for (i = 0; i < 20; i++) {
-+		multiorder_check(200, i);
-+		multiorder_check(0, i);
-+		multiorder_check((1UL << i) + 1, i);
++	printf("Multiorder tagged iteration test\n");
++
++#define MT_NUM_ENTRIES 9
++	int index[MT_NUM_ENTRIES] = {0, 2, 4, 16, 32, 40, 64, 72, 128};
++	int order[MT_NUM_ENTRIES] = {1, 0, 2, 4,  3,  1,  3,  0,   7};
++
++#define TAG_ENTRIES 7
++	int tag_index[TAG_ENTRIES] = {0, 4, 16, 40, 64, 72, 128};
++
++	for (i = 0; i < MT_NUM_ENTRIES; i++)
++		assert(!item_insert_order(&tree, index[i], order[i]));
++
++	assert(!radix_tree_tagged(&tree, 1));
++
++	for (i = 0; i < TAG_ENTRIES; i++)
++		assert(radix_tree_tag_set(&tree, tag_index[i], 1));
++
++	i = 0;
++	/* start from index 1 to verify we find the multi-order entry at 0 */
++	radix_tree_for_each_tagged(slot, &tree, &iter, 1, 1) {
++		assert(iter.index == tag_index[i]);
++		i++;
 +	}
-+}
-diff --git a/tools/testing/radix-tree/test.c b/tools/testing/radix-tree/test.c
-index 2bebf34cdc27..da54f11e8ba7 100644
---- a/tools/testing/radix-tree/test.c
-+++ b/tools/testing/radix-tree/test.c
-@@ -24,14 +24,21 @@ int item_tag_get(struct radix_tree_root *root, unsigned long index, int tag)
- 	return radix_tree_tag_get(root, index, tag);
- }
- 
--int __item_insert(struct radix_tree_root *root, struct item *item)
-+int __item_insert(struct radix_tree_root *root, struct item *item,
-+			unsigned order)
- {
--	return radix_tree_insert(root, item->index, item);
-+	return __radix_tree_insert(root, item->index, order, item);
- }
- 
- int item_insert(struct radix_tree_root *root, unsigned long index)
- {
--	return __item_insert(root, item_create(index));
-+	return __item_insert(root, item_create(index), 0);
++
++	/*
++	 * Now iterate through the tree starting at an elevated multi-order
++	 * entry, beginning at an index in the middle of the range.
++	 */
++	i = 4;
++	radix_tree_for_each_slot(slot, &tree, &iter, 70) {
++		assert(iter.index == tag_index[i]);
++		i++;
++	}
++
++	item_kill_tree(&tree);
 +}
 +
-+int item_insert_order(struct radix_tree_root *root, unsigned long index,
-+			unsigned order)
-+{
-+	return __item_insert(root, item_create(index), order);
+ void multiorder_checks(void)
+ {
+ 	int i;
+@@ -67,5 +157,7 @@ void multiorder_checks(void)
+ 		multiorder_check((1UL << i) + 1, i);
+ 	}
+ 
++	multiorder_iteration();
++	multiorder_tagged_iteration();
+ 	multiorder_insert_bug();
  }
- 
- int item_delete(struct radix_tree_root *root, unsigned long index)
-diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
-index 4e1d95faaa94..53cb595db44a 100644
---- a/tools/testing/radix-tree/test.h
-+++ b/tools/testing/radix-tree/test.h
-@@ -8,8 +8,11 @@ struct item {
- };
- 
- struct item *item_create(unsigned long index);
--int __item_insert(struct radix_tree_root *root, struct item *item);
-+int __item_insert(struct radix_tree_root *root, struct item *item,
-+			unsigned order);
- int item_insert(struct radix_tree_root *root, unsigned long index);
-+int item_insert_order(struct radix_tree_root *root, unsigned long index,
-+			unsigned order);
- int item_delete(struct radix_tree_root *root, unsigned long index);
- struct item *item_lookup(struct radix_tree_root *root, unsigned long index);
- 
-@@ -23,6 +26,7 @@ void item_full_scan(struct radix_tree_root *root, unsigned long start,
- void item_kill_tree(struct radix_tree_root *root);
- 
- void tag_check(void);
-+void multiorder_checks(void);
- 
- struct item *
- item_tag_set(struct radix_tree_root *root, unsigned long index, int tag);
 -- 
 2.8.0.rc3
 
