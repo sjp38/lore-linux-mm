@@ -1,114 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f50.google.com (mail-lf0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id AC7F16B0005
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 05:39:47 -0400 (EDT)
-Received: by mail-lf0-f50.google.com with SMTP id j11so29448703lfb.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 02:39:47 -0700 (PDT)
-Received: from mail-lb0-x234.google.com (mail-lb0-x234.google.com. [2a00:1450:4010:c04::234])
-        by mx.google.com with ESMTPS id 88si788469lfw.239.2016.04.06.02.39.46
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id EF9B06B0005
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 05:52:18 -0400 (EDT)
+Received: by mail-wm0-f49.google.com with SMTP id l6so57256295wml.1
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 02:52:18 -0700 (PDT)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id yu7si2320772wjc.184.2016.04.06.02.52.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Apr 2016 02:39:46 -0700 (PDT)
-Received: by mail-lb0-x234.google.com with SMTP id u8so26125370lbk.0
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 02:39:46 -0700 (PDT)
+        Wed, 06 Apr 2016 02:52:17 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 7D3FB1C1D3C
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 10:52:17 +0100 (IST)
+Date: Wed, 6 Apr 2016 10:52:15 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 03/10] mm: use __SetPageSwapBacked and dont
+ ClearPageSwapBacked
+Message-ID: <20160406095136.GC4773@techsingularity.net>
+References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
+ <alpine.LSU.2.11.1604051342080.5965@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20160406053325.GA415@swordfish>
-References: <CALjTZvavWqtLoGQiWb+HxHP4rwRwaZiP0QrPRb+9kYGdicXohg@mail.gmail.com>
-	<20160405153439.GA2647@kroah.com>
-	<CALjTZvat4FhSc1AvNzjNwfa5tYydiTQLTnxz6cU7-Qd+h5mi6A@mail.gmail.com>
-	<20160406053325.GA415@swordfish>
-Date: Wed, 6 Apr 2016 10:39:45 +0100
-Message-ID: <CALjTZvZaD7VHieU4A_5JAGZfN-7toWGm1UpM3zqreP6YsvA37A@mail.gmail.com>
-Subject: Re: [BUG] lib: zram lz4 compression/decompression still broken on big endian
-From: Rui Salvaterra <rsalvaterra@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1604051342080.5965@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, eunb.song@samsung.com, minchan@kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-2016-04-06 6:33 GMT+01:00 Sergey Senozhatsky
-<sergey.senozhatsky.work@gmail.com>:
-> On (04/05/16 17:02), Rui Salvaterra wrote:
-> [..]
->> > For some reason it never got merged, sorry, I don't remember why.
->> >
->> > Have you tested this patch?  If so, can you resend it with your
->> > tested-by: line added to it?
->> >
->> > thanks,
->> >
->> > greg k-h
->>
->> Hi, Greg
->>
->>
->> No, I haven't tested the patch at all. I want to do so, and fix if if
->> necessary, but I still need to learn how to (meaning, I need to watch
->> your "first kernel patch" presentation again). I'd love to get
->> involved in kernel development, and this seems to be a good
->> opportunity, if none of the kernel gods beat me to it (I may need a
->> month, but then again nobody complained about this bug in almost two
->> years).
->
-> Hello Rui,
->
-> may we please ask you to test the patch first? quite possible there
-> is nothing to fix there; I've no access to mips h/w but the patch
-> seems correct to me.
->
-> LZ4_READ_LITTLEENDIAN_16 does get_unaligned_le16(), so
-> LZ4_WRITE_LITTLEENDIAN_16 must do put_unaligned_le16() /* not put_unaligned() */
->
->         -ss
+On Tue, Apr 05, 2016 at 01:44:16PM -0700, Hugh Dickins wrote:
+> v3.16 commit 07a427884348 ("mm: shmem: avoid atomic operation during
+> shmem_getpage_gfp") rightly replaced one instance of SetPageSwapBacked
+> by __SetPageSwapBacked, pointing out that the newly allocated page is
+> not yet visible to other users (except speculative get_page_unless_zero-
+> ers, who may not update page flags before their further checks).
+> 
+> That was part of a series in which Mel was focused on tmpfs profiles:
+> but almost all SetPageSwapBacked uses can be so optimized, with the same
+> justification.  Remove ClearPageSwapBacked from __read_swap_cache_async()
+> error path: it's not an error to free a page with PG_swapbacked set.
+> 
+> Follow a convention of __SetPageLocked, __SetPageSwapBacked instead of
+> doing it differently in different places; but that's for tidiness - if
+> the ordering actually mattered, we should not be using the __variants.
+> 
+> There's probably scope for further __SetPageFlags in other places,
+> but SwapBacked is the one I'm interested in at the moment.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> ---
+> Sorry, Mel did give
+> a year ago, but the kernel has moved on since then,
 
-Hi, Sergey
+Still looks good to me so
 
+Reviewed-by: Mel Gorman <mgorman@techsingularity.net>
 
-Besides ppc64, I have ppc32, x86 and x86_64 hardware readily
-available. The only mips (74kc, also big endian) hardware I have
-access to is my router, running OpenWrt, I can try to test it there
-too, but it will be more complicated. Still, after reading the
-existing code [1] more thoroughly, I can't see how Eunbong Song's
-patch [2] would fix the ppc case (please correct me if I'm wrong,
-which is highly likely, since my C preprocessor knowledge varies
-between nonexistent to very superficial).
-
-Now, LZ4_READ_LITTLEENDIAN_16 is unconditionally defined as:
-
-#define LZ4_READ_LITTLEENDIAN_16(d, s, p)
-                (d = s - get_unaligned_le16(p))
-
-As far as I can tell, and unlike ppc, mips doesn't define
-HAVE_EFFICIENT_UNALIGNED_ACCESS, which means for mips case,
-LZ4_WRITE_LITTLEENDIAN_16 will be defined as:
-
-#define LZ4_WRITE_LITTLEENDIAN_16(p, v)
-                do {
-                                put_unaligned(v, (u16 *)(p));
-                                p += 2;
-                } while (0)
-
-Whereas for ppc, which defines HAVE_EFFICIENT_UNALIGNED_ACCESS,
-LZ4_WRITE_LITTLEENDIAN_16 will be defined as:
-
-#define LZ4_WRITE_LITTLEENDIAN_16(p, v)
-                do {
-                                A16(p) = v;
-                                p += 2;
-                } while (0)
-
-Consequentially, while I believe the patch will fix the mips case, I'm
-not so sure about ppc (or any other big endian architecture with
-efficient unaligned accesses).
-
-
-Thanks,
-
-Rui
-
-[1] https://git.kernel.org/cgit/linux/kernel/git/stable/linux-stable.git/tree/lib/lz4/lz4defs.h?h=v4.4.6
-[2] http://permalink.gmane.org/gmane.linux.kernel/1752745
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
