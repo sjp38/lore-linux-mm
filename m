@@ -1,74 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id BFE706B0005
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 13:46:07 -0400 (EDT)
-Received: by mail-pf0-f171.google.com with SMTP id n1so37987616pfn.2
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 10:46:07 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 13si5919029pft.59.2016.04.06.10.46.07
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 832356B0005
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 13:52:57 -0400 (EDT)
+Received: by mail-ig0-f169.google.com with SMTP id gy3so84039432igb.0
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 10:52:57 -0700 (PDT)
+Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
+        by mx.google.com with ESMTPS id g79si4005604ioe.130.2016.04.06.10.52.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Apr 2016 10:46:07 -0700 (PDT)
-Date: Wed, 6 Apr 2016 10:46:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 09/11] mm, compaction: Abstract compaction feedback to
- helpers
-Message-Id: <20160406104605.e6254b153f2ab5a26fd556e5@linux-foundation.org>
-In-Reply-To: <alpine.LSU.2.11.1604051727150.7348@eggly.anvils>
-References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
-	<1459855533-4600-10-git-send-email-mhocko@kernel.org>
-	<20160405165826.012236e79db7f396fda546a8@linux-foundation.org>
-	<alpine.LSU.2.11.1604051727150.7348@eggly.anvils>
+        Wed, 06 Apr 2016 10:52:57 -0700 (PDT)
+Message-ID: <1459964672.20338.41.camel@hpe.com>
+Subject: Re: [PATCH] x86 get_unmapped_area: Add PMD alignment for DAX PMD
+ mmap
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Wed, 06 Apr 2016 11:44:32 -0600
+In-Reply-To: <20160406165027.GA2781@linux.intel.com>
+References: <1459951089-14911-1-git-send-email-toshi.kani@hpe.com>
+	 <20160406165027.GA2781@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: mingo@kernel.org, bp@suse.de, hpa@zytor.com, tglx@linutronix.de, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, x86@kernel.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
 
-On Tue, 5 Apr 2016 17:55:39 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
-
-> > I ended up doing this:
+On Wed, 2016-04-06 at 12:50 -0400, Matthew Wilcox wrote:
+> On Wed, Apr 06, 2016 at 07:58:09AM -0600, Toshi Kani wrote:
 > > 
-> > 	/* Checks for THP-specific high-order allocations */
-> > 	if (!is_thp_allocation(gfp_mask, order))
-> > 		migration_mode = MIGRATE_SYNC_LIGHT;
+> > When CONFIG_FS_DAX_PMD is set, DAX supports mmap() using PMD page
+> > size.A A This feature relies on both mmap virtual address and FS
+> > block data (i.e. physical address) to be aligned by the PMD page
+> > size.A A Users can use mkfs options to specify FS to align block
+> > allocations.A A However, aligning mmap() address requires application
+> > changes to mmap() calls, such as:
 > > 
-> > 	/*
-> > 	 * Checks for THP-specific high-order allocations and back off
-> > 	 * if the the compaction backed off
-> > 	 */
-> > 	if (is_thp_allocation(gfp_mask) && compaction_withdrawn(compact_result))
-> > 		goto nopage;
-> 
-> You'll already have found that is_thp_allocation() needs the order too.
-> But then you had to drop a hunk out of his 10/11 also to fit with mine.
-> 
-> What you've done may be just right, but I haven't had time to digest
-> Michal's changes yet (and not yet seen what happens to the PF_KTHREAD
-> distinction), so I think it will probably end up better if you take
-> his exactly as he tested and posted them, and drop my 30/31 and 31/31
-> for now - I can resubmit them (or maybe drop 30 altogether) after I've
-> pondered and tested a little on top of Michal's.
-> 
-> Huge tmpfs got along fine for many months without 30/31 and 31/31: 30
-> is just for experimentation, and 31 to reduce the compaction stalls we
-> saw under some loads.  Maybe I'll find that Michal's rework has changed
-> the balance there anyway, and something else or nothing at all needed.
-> 
-> (The gfp_mask stuff was very confusing, and it's painful for me, how
-> ~__GFP_KSWAPD_RECLAIM gets used as a secret password to say "THP" and
-> how to angle compaction - or maybe it's all more straightforward now.)
+> > A -A A /* let the kernel to assign a mmap addr */
+> > A -A A mptr = mmap(NULL, fsize, PROT_READ|PROT_WRITE, FLAGS, fd, 0);
+> > 
+> > A +A A /* 1. obtain a PMD-aligned virtual address */
+> > A +A A ret = posix_memalign(&mptr, PMD_SIZE, fsize);
+> > A +A A if (!ret)
+> > A +A A A A free(mptr);A A /* 2. release the virt addr */
+> > A +
+> > A +A A /* 3. then pass the PMD-aligned virt addr to mmap() */
+> > A +A A mptr = mmap(mptr, fsize, PROT_READ|PROT_WRITE, FLAGS, fd, 0);
+> > 
+> > These changes add unnecessary dependency to DAX and PMD page size
+> > into application code.A A The kernel should assign a mmap address
+> > appropriate for the operation.
+>
+> I question the need for this patch.A A Choosing an appropriate base address
+> is the least of the changes needed for an application to take advantage
+> of DAX.A A 
 
-OK, thanks.  I dropped
-huge-tmpfs-shmem_huge_gfpmask-and-shmem_recovery_gfpmask.patch and
-huge-tmpfs-no-kswapd-by-default-on-sync-allocations.patch and restored
-Michal's patches.
+An application also needs to make sure that a given range [base -
+base+size] is free in VMA. A The above example uses posix_memalign() to find
+such a range, which in turn calls mmap() with size as (fsize + PMD_SIZE) in
+this case.
 
-> Many thanks for giving us both this quick exposure!
+> The NVML chooses appropriate addresses and gets a properly aligned
+> address without any kernel code.
 
-I'll push all this into -next later today.
+An application like NVML can continue to specify a specific address to
+mmap(). A Most existing applications, however, do not specify an address to
+mmap(). A With this patch, specifying an address will remain optional.
+
+> > Change arch_get_unmapped_area() and arch_get_unmapped_area_topdown()
+> > to request PMD_SIZE alignment when the request is for a DAX file and
+> > its mapping range is large enough for using a PMD page.
+>
+> I think this is the wrong place for it, if we decide that this is the
+> right thing to do.A A The filesystem has a get_unmapped_area() which
+> should be used instead.
+
+Yes, I considered adding a filesystem entry point, but decided going this
+way because:
+A -A arch_get_unmapped_area() andA arch_get_unmapped_area_topdown() are arch-
+specific code. A Therefore, this filesystem entry point will need arch-
+specific implementation.A 
+A - There is nothing filesystem specific about requesting PMD alignment.
+
+> > 
+> > @@ -157,6 +157,13 @@ arch_get_unmapped_area(struct file *filp, unsigned
+> > long addr,
+> > A 		info.align_mask = get_align_mask();
+> > A 		info.align_offset += get_align_bits();
+> > A 	}
+> > +	if (filp && IS_ENABLED(CONFIG_FS_DAX_PMD) &&
+> > IS_DAX(file_inode(filp))) {
+>
+> And there's never a need for the IS_ENABLED.A A IS_DAX() compiles to '0' if
+> CONFIG_FS_DAX is disabled.
+
+CONFIG_FS_DAX_PMD can be disabled while CONFIG_FS_DAX is enabled.
+
+> And where would this end?A A Would you also change this code to look for
+> 1GB entries if CONFIG_FS_DAX_PUD is enabled?A A Far better to have this
+> in the individual filesystem (probably calling a common helper in the DAX
+> code).
+
+Yes, it can be easily extended to support PUD. A This avoids another round
+of application changes to align with the PUD size.
+
+If the PUD support turns out to be filesystem specific, we may need a
+capability bit in addition to CONFIG_FS_DAX_PUD.
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
