@@ -1,133 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B2A116B007E
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 10:13:29 -0400 (EDT)
-Received: by mail-wm0-f44.google.com with SMTP id 191so59827127wmq.0
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 07:13:29 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id k11si22218454wmg.101.2016.04.06.07.13.28
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C5AD6B0253
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 10:13:32 -0400 (EDT)
+Received: by mail-wm0-f54.google.com with SMTP id f198so75609801wme.0
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 07:13:32 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id z126si3947955wmz.77.2016.04.06.07.13.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Apr 2016 07:13:28 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id n3so13658789wmn.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 07:13:28 -0700 (PDT)
+        Wed, 06 Apr 2016 07:13:29 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id i204so13658853wmd.0
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 07:13:29 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 1/3] mm, oom: move GFP_NOFS check to out_of_memory
-Date: Wed,  6 Apr 2016 16:13:14 +0200
-Message-Id: <1459951996-12875-2-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 2/3] oom, oom_reaper: Try to reap tasks which skip regular OOM killer path
+Date: Wed,  6 Apr 2016 16:13:15 +0200
+Message-Id: <1459951996-12875-3-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1459951996-12875-1-git-send-email-mhocko@kernel.org>
 References: <1459951996-12875-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Daniel Vetter <daniel.vetter@intel.com>, Raushaniya Maksudova <rmaksudova@parallels.com>, "Michael S . Tsirkin" <mst@redhat.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>
 
 From: Michal Hocko <mhocko@suse.com>
 
-__alloc_pages_may_oom is the central place to decide when the
-out_of_memory should be invoked. This is a good approach for most checks
-there because they are page allocator specific and the allocation fails
-right after for all of them.
+If either the current task is already killed or PF_EXITING or a selected
+task is PF_EXITING then the oom killer is suppressed and so is the oom
+reaper. This patch adds try_oom_reaper which checks the given task
+and queues it for the oom reaper if that is safe to be done meaning
+that the task doesn't share the mm with an alive process.
 
-The notable exception is GFP_NOFS context which is faking
-did_some_progress and keep the page allocator looping even though there
-couldn't have been any progress from the OOM killer. This patch doesn't
-change this behavior because we are not ready to allow those allocation
-requests to fail yet (and maybe we will face the reality that we will
-never manage to safely fail these request). Instead __GFP_FS check
-is moved down to out_of_memory and prevent from OOM victim selection
-there. There are two reasons for that
-	- OOM notifiers might release some memory even from this context
-	  as none of the registered notifier seems to be FS related
-	- this might help a dying thread to get an access to memory
-          reserves and move on which will make the behavior more
-          consistent with the case when the task gets killed from a
-          different context.
+This might help to release the memory pressure while the task tries to
+exit.
 
-Keep a comment in __alloc_pages_may_oom to make sure we do not forget
-how GFP_NOFS is special and that we really want to do something about
-it.
-
-Note to the current oom_notifier users:
-The observable difference for you is that oom notifiers cannot depend on
-any fs locks because we could deadlock. Not that this would be allowed
-today because that would just lockup machine in most of the cases and
-ruling out the OOM killer along the way. Another difference is that
-callbacks might be invoked sooner now because GFP_NOFS is a weaker
-reclaim context and so there could be reclaimable memory which is just
-not reachable now. That would require GFP_NOFS only loads which are
-really rare and more importantly the observable result would be dropping
-of reconstructible object and potential performance drop which is not
-such a big deal when we are struggling to fulfill other important
-allocation requests.
-
-Cc: Daniel Vetter <daniel.vetter@intel.com>
-Cc: Raushaniya Maksudova <rmaksudova@parallels.com>
-Cc: Michael S. Tsirkin <mst@redhat.com>
-Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/oom_kill.c   |  9 +++++++++
- mm/page_alloc.c | 24 ++++++++++--------------
- 2 files changed, 19 insertions(+), 14 deletions(-)
+ mm/oom_kill.c | 90 +++++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 72 insertions(+), 18 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 86349586eacb..32d8210b8773 100644
+index 32d8210b8773..74c38f5fffef 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -877,6 +877,15 @@ bool out_of_memory(struct oom_control *oc)
- 	}
+@@ -412,6 +412,25 @@ bool oom_killer_disabled __read_mostly;
  
- 	/*
-+	 * The OOM killer does not compensate for IO-less reclaim.
-+	 * pagefault_out_of_memory lost its gfp context so we have to
-+	 * make sure exclude 0 mask - all other users should have at least
-+	 * ___GFP_DIRECT_RECLAIM to get here.
-+	 */
-+	if (oc->gfp_mask && !(oc->gfp_mask & (__GFP_FS|__GFP_NOFAIL)))
-+		return true;
+ #define K(x) ((x) << (PAGE_SHIFT-10))
+ 
++/*
++ * task->mm can be NULL if the task is the exited group leader.  So to
++ * determine whether the task is using a particular mm, we examine all the
++ * task's threads: if one of those is using this mm then this task was also
++ * using it.
++ */
++static bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
++{
++	struct task_struct *t;
++
++	for_each_thread(p, t) {
++		struct mm_struct *t_mm = READ_ONCE(t->mm);
++		if (t_mm)
++			return t_mm == mm;
++	}
++	return false;
++}
++
++
+ #ifdef CONFIG_MMU
+ /*
+  * OOM Reaper kernel thread which tries to reap the memory used by the OOM
+@@ -563,6 +582,53 @@ static void wake_oom_reaper(struct task_struct *tsk)
+ 	wake_up(&oom_reaper_wait);
+ }
+ 
++/* Check if we can reap the given task. This has to be called with stable
++ * tsk->mm
++ */
++static void try_oom_reaper(struct task_struct *tsk)
++{
++	struct mm_struct *mm = tsk->mm;
++	struct task_struct *p;
++
++	if (!mm)
++		return;
 +
 +	/*
- 	 * Check if there were limitations on the allocation (only relevant for
- 	 * NUMA) that may require different handling.
- 	 */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1b889dba7bd4..736ea28abfcf 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2872,22 +2872,18 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 		/* The OOM killer does not needlessly kill tasks for lowmem */
- 		if (ac->high_zoneidx < ZONE_NORMAL)
- 			goto out;
--		/* The OOM killer does not compensate for IO-less reclaim */
--		if (!(gfp_mask & __GFP_FS)) {
--			/*
--			 * XXX: Page reclaim didn't yield anything,
--			 * and the OOM killer can't be invoked, but
--			 * keep looping as per tradition.
--			 *
--			 * But do not keep looping if oom_killer_disable()
--			 * was already called, for the system is trying to
--			 * enter a quiescent state during suspend.
--			 */
--			*did_some_progress = !oom_killer_disabled;
--			goto out;
--		}
- 		if (pm_suspended_storage())
- 			goto out;
-+		/*
-+		 * XXX: GFP_NOFS allocations should rather fail than rely on
-+		 * other request to make a forward progress.
-+		 * We are in an unfortunate situation where out_of_memory cannot
-+		 * do much for this context but let's try it to at least get
-+		 * access to memory reserved if the current task is killed (see
-+		 * out_of_memory). Once filesystems are ready to handle allocation
-+		 * failures more gracefully we should just bail out here.
-+		 */
++	 * There might be other threads/processes which are either not
++	 * dying or even not killable.
++	 */
++	if (atomic_read(&mm->mm_users) > 1) {
++		rcu_read_lock();
++		for_each_process(p) {
++			bool exiting;
 +
- 		/* The OOM killer may not free memory on a specific node */
- 		if (gfp_mask & __GFP_THISNODE)
- 			goto out;
++			if (!process_shares_mm(p, mm))
++				continue;
++			if (same_thread_group(p, tsk))
++				continue;
++			if (fatal_signal_pending(p))
++				continue;
++
++			/*
++			 * If the task is exiting make sure the whole thread group
++			 * is exiting and cannot acces mm anymore.
++			 */
++			spin_lock_irq(&p->sighand->siglock);
++			exiting = signal_group_exit(p->signal);
++			spin_unlock_irq(&p->sighand->siglock);
++			if (exiting)
++				continue;
++
++			/* Give up */
++			rcu_read_unlock();
++			return;
++		}
++		rcu_read_unlock();
++	}
++
++	wake_oom_reaper(tsk);
++}
++
+ static int __init oom_init(void)
+ {
+ 	oom_reaper_th = kthread_run(oom_reaper, NULL, "oom_reaper");
+@@ -575,6 +641,10 @@ static int __init oom_init(void)
+ }
+ subsys_initcall(oom_init)
+ #else
++static void try_oom_reaper(struct task_struct *tsk)
++{
++}
++
+ static void wake_oom_reaper(struct task_struct *tsk)
+ {
+ }
+@@ -653,24 +723,6 @@ void oom_killer_enable(void)
+ }
+ 
+ /*
+- * task->mm can be NULL if the task is the exited group leader.  So to
+- * determine whether the task is using a particular mm, we examine all the
+- * task's threads: if one of those is using this mm then this task was also
+- * using it.
+- */
+-static bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
+-{
+-	struct task_struct *t;
+-
+-	for_each_thread(p, t) {
+-		struct mm_struct *t_mm = READ_ONCE(t->mm);
+-		if (t_mm)
+-			return t_mm == mm;
+-	}
+-	return false;
+-}
+-
+-/*
+  * Must be called while holding a reference to p, which will be released upon
+  * returning.
+  */
+@@ -694,6 +746,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	task_lock(p);
+ 	if (p->mm && task_will_free_mem(p)) {
+ 		mark_oom_victim(p);
++		try_oom_reaper(p);
+ 		task_unlock(p);
+ 		put_task_struct(p);
+ 		return;
+@@ -873,6 +926,7 @@ bool out_of_memory(struct oom_control *oc)
+ 	if (current->mm &&
+ 	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
+ 		mark_oom_victim(current);
++		try_oom_reaper(current);
+ 		return true;
+ 	}
+ 
 -- 
 2.8.0.rc3
 
