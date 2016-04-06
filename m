@@ -1,62 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F43C6B0273
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 18:13:29 -0400 (EDT)
-Received: by mail-pf0-f180.google.com with SMTP id c20so41881380pfc.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 15:13:29 -0700 (PDT)
-Received: from mail-pf0-x236.google.com (mail-pf0-x236.google.com. [2607:f8b0:400e:c00::236])
-        by mx.google.com with ESMTPS id d27si6311180pfj.14.2016.04.06.15.13.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Apr 2016 15:13:28 -0700 (PDT)
-Received: by mail-pf0-x236.google.com with SMTP id c20so41881260pfc.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 15:13:28 -0700 (PDT)
-Date: Wed, 6 Apr 2016 15:13:27 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 0/2] memory_hotplug: introduce config and command line
- options to set the default onlining policy
-In-Reply-To: <20160406115334.82af80e922f8b3eec6336a8b@linux-foundation.org>
-Message-ID: <alpine.DEB.2.10.1604061512460.10401@chino.kir.corp.google.com>
-References: <1459950312-25504-1-git-send-email-vkuznets@redhat.com> <20160406115334.82af80e922f8b3eec6336a8b@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A86206B0260
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 18:51:27 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id fe3so41652159pab.1
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 15:51:27 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id bm3si7282397pad.35.2016.04.06.15.51.26
+        for <linux-mm@kvack.org>;
+        Wed, 06 Apr 2016 15:51:26 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 01/30] thp, mlock: update unevictable-lru.txt
+Date: Thu,  7 Apr 2016 01:50:51 +0300
+Message-Id: <1459983080-106718-2-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1459983080-106718-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1459983080-106718-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, David Vrabel <david.vrabel@citrix.com>, Igor Mammedov <imammedo@redhat.com>, Lennart Poettering <lennart@poettering.net>
+To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, 6 Apr 2016, Andrew Morton wrote:
+Add description of THP handling into unevictable-lru.txt.
 
-> > This patchset continues the work I started with:
-> > 
-> > commit 31bc3858ea3ebcc3157b3f5f0e624c5962f5a7a6
-> > Author: Vitaly Kuznetsov <vkuznets@redhat.com>
-> > Date:   Tue Mar 15 14:56:48 2016 -0700
-> > 
-> >     memory-hotplug: add automatic onlining policy for the newly added memory
-> > 
-> > Initially I was going to stop there and bring the policy setting logic to
-> > userspace. I met two issues on this way:
-> > 
-> > 1) It is possible to have memory hotplugged at boot (e.g. with QEMU). These
-> >    blocks stay offlined if we turn the onlining policy on by userspace.
-> > 
-> > 2) My attempt to bring this policy setting to systemd failed, systemd
-> >    maintainers suggest to change the default in kernel or ... to use tmpfiles.d
-> >    to alter the policy (which looks like a hack to me): 
-> >    https://github.com/systemd/systemd/pull/2938
-> 
-> That discussion really didn't come to a conclusion and I don't
-> understand why you consider Lennert's "recommended way" to be a hack?
-> 
-> > Here I suggest to add a config option to set the default value for the policy
-> > and a kernel command line parameter to make the override.
-> 
-> But the patchset looks pretty reasonable regardless of the above.
-> 
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ Documentation/vm/unevictable-lru.txt | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
 
-I don't understand why initscripts simply cannot crawl sysfs memory blocks 
-and online them for the same behavior.
+diff --git a/Documentation/vm/unevictable-lru.txt b/Documentation/vm/unevictable-lru.txt
+index fa3b527086fa..0026a8d33fc0 100644
+--- a/Documentation/vm/unevictable-lru.txt
++++ b/Documentation/vm/unevictable-lru.txt
+@@ -461,6 +461,27 @@ unevictable LRU is enabled, the work of compaction is mostly handled by
+ the page migration code and the same work flow as described in MIGRATING
+ MLOCKED PAGES will apply.
+ 
++MLOCKING TRANSPARENT HUGE PAGES
++-------------------------------
++
++A transparent huge page is represented by a single entry on an LRU list.
++Therefore, we can only make unevictable an entire compound page, not
++individual subpages.
++
++If a user tries to mlock() part of a huge page, we want the rest of the
++page to be reclaimable.
++
++We cannot just split the page on partial mlock() as split_huge_page() can
++fail and new intermittent failure mode for the syscall is undesirable.
++
++We handle this by keeping PTE-mapped huge pages on normal LRU lists: the
++PMD on border of VM_LOCKED VMA will be split into PTE table.
++
++This way the huge page is accessible for vmscan. Under memory pressure the
++page will be split, subpages which belong to VM_LOCKED VMAs will be moved
++to unevictable LRU and the rest can be reclaimed.
++
++See also comment in follow_trans_huge_pmd().
+ 
+ mmap(MAP_LOCKED) SYSTEM CALL HANDLING
+ -------------------------------------
+-- 
+2.8.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
