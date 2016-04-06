@@ -1,145 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 242106B027F
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 07:24:12 -0400 (EDT)
-Received: by mail-wm0-f50.google.com with SMTP id 191so54416596wmq.0
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 04:24:12 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id m9si2676399wjx.242.2016.04.06.04.24.10
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D46C6B025F
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 07:27:11 -0400 (EDT)
+Received: by mail-wm0-f51.google.com with SMTP id l6so60544069wml.1
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 04:27:11 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id gh2si2689830wjb.232.2016.04.06.04.27.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Apr 2016 04:24:11 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id BD621210047
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 11:24:10 +0000 (UTC)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 27/27] mm: vmstat: Account per-zone stalls and pages skipped during reclaim
-Date: Wed,  6 Apr 2016 12:22:16 +0100
-Message-Id: <1459941736-3633-28-git-send-email-mgorman@techsingularity.net>
-In-Reply-To: <1459941736-3633-23-git-send-email-mgorman@techsingularity.net>
-References: <1459941736-3633-23-git-send-email-mgorman@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Apr 2016 04:27:10 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id i204so12290733wmd.0
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 04:27:10 -0700 (PDT)
+Date: Wed, 6 Apr 2016 13:27:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/1] powerpc/mm: Add memory barrier in __hugepte_alloc()
+Message-ID: <20160406112708.GF24272@dhcp22.suse.cz>
+References: <20160405190547.GA12673@us.ibm.com>
+ <20160406095623.GA24283@dhcp22.suse.cz>
+ <8737qzxd4i.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8737qzxd4i.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, James Dykman <jdykman@us.ibm.com>
 
-The vmstat allocstall was fairly useful in the general sense but
-node-based LRUs change that. It's important to know if a stall was for an
-address-limited allocation request as this will require skipping pages from
-other zones. This patch adds pgstall_* counters to replace allocstall. The
-sum of the counters will equal the old allocstall so it can be trivially
-recalculated. A high number of address-limited allocation requests may
-result in a lot of useless LRU scanning for suitable pages.
+On Wed 06-04-16 15:39:17, Aneesh Kumar K.V wrote:
+> Michal Hocko <mhocko@kernel.org> writes:
+> 
+> > [ text/plain ]
+> > On Tue 05-04-16 12:05:47, Sukadev Bhattiprolu wrote:
+> > [...]
+> >> diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+> >> index d991b9e..081f679 100644
+> >> --- a/arch/powerpc/mm/hugetlbpage.c
+> >> +++ b/arch/powerpc/mm/hugetlbpage.c
+> >> @@ -81,6 +81,13 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+> >>  	if (! new)
+> >>  		return -ENOMEM;
+> >>  
+> >> +	/*
+> >> +	 * Make sure other cpus find the hugepd set only after a
+> >> +	 * properly initialized page table is visible to them.
+> >> +	 * For more details look for comment in __pte_alloc().
+> >> +	 */
+> >> +	smp_wmb();
+> >> +
+> >
+> > what is the pairing memory barrier?
+> >
+> >>  	spin_lock(&mm->page_table_lock);
+> >>  #ifdef CONFIG_PPC_FSL_BOOK3E
+> >>  	/*
+> 
+> This is documented in __pte_alloc(). I didn't want to repeat the same
+> here.
+> 
+> 	/*
+> 	 * Ensure all pte setup (eg. pte page lock and page clearing) are
+> 	 * visible before the pte is made visible to other CPUs by being
+> 	 * put into page tables.
+> 	 *
+> 	 * The other side of the story is the pointer chasing in the page
+> 	 * table walking code (when walking the page table without locking;
+> 	 * ie. most of the time). Fortunately, these data accesses consist
+> 	 * of a chain of data-dependent loads, meaning most CPUs (alpha
+> 	 * being the notable exception) will already guarantee loads are
+> 	 * seen in-order. See the alpha page table accessors for the
+> 	 * smp_read_barrier_depends() barriers in page table walking code.
+> 	 */
+> 	smp_wmb(); /* Could be smp_wmb__xxx(before|after)_spin_lock */
 
-As address-limited allocations require pages to be skipped, it's important
-to know how much useless LRU scanning took place so this patch adds
-pgskip* counters. This yields the following model
+OK, I have missed the reference to __pte_alloc. My bad!
 
-1. The number of address-space limited stalls can be accounted for (pgstall)
-2. The amount of useless work required to reclaim the data is accounted (pgskip)
-3. The total number of scans is available from pgscan_kswapd and pgscan_direct
-   so from that the ratio of useful to useless scans can be calculated.
-
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- include/linux/vm_event_item.h |  4 +++-
- mm/vmscan.c                   | 15 +++++++++++++--
- mm/vmstat.c                   |  3 ++-
- 3 files changed, 18 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 8dcb5a813163..0a0503da8c3b 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -23,6 +23,8 @@
- 
- enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		FOR_ALL_ZONES(PGALLOC),
-+		FOR_ALL_ZONES(PGSTALL),
-+		FOR_ALL_ZONES(PGSCAN_SKIP),
- 		PGFREE, PGACTIVATE, PGDEACTIVATE,
- 		PGFAULT, PGMAJFAULT,
- 		PGLAZYFREED,
-@@ -37,7 +39,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- #endif
- 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_INODESTEAL,
- 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
--		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+		PAGEOUTRUN, PGROTATED,
- 		DROP_PAGECACHE, DROP_SLAB,
- #ifdef CONFIG_NUMA_BALANCING
- 		NUMA_PTE_UPDATES,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 522378c9849a..d7d664324442 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1372,6 +1372,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 	struct list_head *src = &lruvec->lists[lru];
- 	unsigned long nr_taken = 0;
- 	unsigned long scan;
-+	unsigned long nr_skipped[MAX_NR_ZONES] = { 0, };
- 	LIST_HEAD(pages_skipped);
- 
- 	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
-@@ -1386,6 +1387,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 
- 		if (page_zonenum(page) > sc->reclaim_idx) {
- 			list_move(&page->lru, &pages_skipped);
-+			nr_skipped[page_zonenum(page)]++;
- 			continue;
- 		}
- 
-@@ -1414,8 +1416,17 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 	 * scanning would soon rescan the same pages to skip and put the
- 	 * system at risk of premature OOM.
- 	 */
--	if (!list_empty(&pages_skipped))
-+	if (!list_empty(&pages_skipped)) {
-+		int zid;
-+
- 		list_splice(&pages_skipped, src);
-+		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-+			if (!nr_skipped[zid])
-+				continue;
-+
-+			__count_zid_vm_events(PGSCAN_SKIP, zid, nr_skipped[zid]);
-+		}
-+	}
- 	*nr_scanned = scan;
- 	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan, scan,
- 				    nr_taken, mode, is_file_lru(lru));
-@@ -2686,7 +2697,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 	delayacct_freepages_start();
- 
- 	if (global_reclaim(sc))
--		count_vm_event(ALLOCSTALL);
-+		__count_zid_vm_events(PGSTALL, classzone_idx, 1);
- 
- 	do {
- 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 2de1f3790548..ee1fb1242c59 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -992,6 +992,8 @@ const char * const vmstat_text[] = {
- 	"pswpout",
- 
- 	TEXTS_FOR_ZONES("pgalloc")
-+	TEXTS_FOR_ZONES("pgstall")
-+	TEXTS_FOR_ZONES("pgskip")
- 
- 	"pgfree",
- 	"pgactivate",
-@@ -1017,7 +1019,6 @@ const char * const vmstat_text[] = {
- 	"kswapd_low_wmark_hit_quickly",
- 	"kswapd_high_wmark_hit_quickly",
- 	"pageoutrun",
--	"allocstall",
- 
- 	"pgrotated",
- 
 -- 
-2.6.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
