@@ -1,199 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EA906B0005
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 05:19:59 -0400 (EDT)
-Received: by mail-wm0-f41.google.com with SMTP id u206so36692888wme.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 02:19:59 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n9si1225110wjz.199.2016.04.06.02.19.58
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id EF58B6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 05:26:23 -0400 (EDT)
+Received: by mail-wm0-f47.google.com with SMTP id u206so36919593wme.1
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 02:26:23 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id v7si2264906wjy.23.2016.04.06.02.26.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Apr 2016 02:19:58 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2] cpuset: use static key better and convert to new API
-Date: Wed,  6 Apr 2016 11:19:52 +0200
-Message-Id: <1459934392-12756-1-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1459931973-29247-1-git-send-email-vbabka@suse.cz>
-References: <1459931973-29247-1-git-send-email-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Apr 2016 02:26:22 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id a140so11421897wma.2
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 02:26:22 -0700 (PDT)
+Date: Wed, 6 Apr 2016 11:26:21 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 09/11] mm, compaction: Abstract compaction feedback to
+ helpers
+Message-ID: <20160406092620.GD24272@dhcp22.suse.cz>
+References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
+ <1459855533-4600-10-git-send-email-mhocko@kernel.org>
+ <20160405165826.012236e79db7f396fda546a8@linux-foundation.org>
+ <alpine.LSU.2.11.1604051727150.7348@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1604051727150.7348@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-An important function for cpusets is cpuset_node_allowed(), which optimizes on
-the fact if there's a single root CPU set, it must be trivially allowed. But
-the check "nr_cpusets() <= 1" doesn't use the cpusets_enabled_key static key
-the right way where static keys eliminate branching overhead with jump labels.
+On Tue 05-04-16 17:55:39, Hugh Dickins wrote:
+> On Tue, 5 Apr 2016, Andrew Morton wrote:
+> > On Tue,  5 Apr 2016 13:25:31 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+> > > -	if (is_thp_gfp_mask(gfp_mask)) {
+> > > -		/*
+> > > -		 * If compaction is deferred for high-order allocations, it is
+> > > -		 * because sync compaction recently failed. If this is the case
+> > > -		 * and the caller requested a THP allocation, we do not want
+> > > -		 * to heavily disrupt the system, so we fail the allocation
+> > > -		 * instead of entering direct reclaim.
+> > > -		 */
+> > > -		if (compact_result == COMPACT_DEFERRED)
+> > > -			goto nopage;
+> > > -
+> > > -		/*
+> > > -		 * Compaction is contended so rather back off than cause
+> > > -		 * excessive stalls.
+> > > -		 */
+> > > -		if(compact_result == COMPACT_CONTENDED)
+> > > -			goto nopage;
+> > > -	}
+> > > +	/*
+> > > +	 * Checks for THP-specific high-order allocations and back off
+> > > +	 * if the the compaction backed off
+> > > +	 */
+> > > +	if (is_thp_gfp_mask(gfp_mask) && compaction_withdrawn(compact_result))
+> > > +		goto nopage;
+> > 
+> > This change smashed into Hugh's "huge tmpfs: shmem_huge_gfpmask and
+> > shmem_recovery_gfpmask".
+> > 
+> > I ended up doing this:
+> > 
+> > 	/* Checks for THP-specific high-order allocations */
+> > 	if (!is_thp_allocation(gfp_mask, order))
+> > 		migration_mode = MIGRATE_SYNC_LIGHT;
+> > 
+> > 	/*
+> > 	 * Checks for THP-specific high-order allocations and back off
+> > 	 * if the the compaction backed off
+> > 	 */
+> > 	if (is_thp_allocation(gfp_mask) && compaction_withdrawn(compact_result))
+> > 		goto nopage;
+> 
+> You'll already have found that is_thp_allocation() needs the order too.
+> But then you had to drop a hunk out of his 10/11 also to fit with mine.
+> 
+> What you've done may be just right, but I haven't had time to digest
+> Michal's changes yet (and not yet seen what happens to the PF_KTHREAD
+> distinction), so I think it will probably end up better if you take
+> his exactly as he tested and posted them, and drop my 30/31 and 31/31
+> for now
 
-This patch converts it so that static key is used properly. It's also switched
-to the new static key API and the checking functions are converted to return
-bool instead of int. We also provide a new variant __cpuset_zone_allowed()
-which expects that the static key check was already done and they key was
-enabled. This is needed for get_page_from_freelist() where we want to also
-avoid the relatively slower check when ALLOC_CPUSET is not set in alloc_flags.
+I have only briefly checked your patch30 but I guess the above is
+not really necessary. If the request is __GFP_REPEAT (I haven't checked
+whether that is the case for shmem) then we promote to MIGRATE_SYNC_LIGHT
+as soon as we cannot move on with ASYNC. For !__GFP_REPEAT I did
++       if (is_thp_gfp_mask(gfp_mask) && !(current->flags & PF_KTHREAD))
++               migration_mode = MIGRATE_ASYNC;
++       else
++               migration_mode = MIGRATE_SYNC_LIGHT;
+        page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags,
+                                            ac, migration_mode,
+                                            &compact_result);
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- v2: fix !CONFIG_CPUSETS thanks to kbuild test robot
+so you will end up doing SYNC_LIGHT for !is_thp_allocation as well
 
- include/linux/cpuset.h | 42 ++++++++++++++++++++++++++++--------------
- kernel/cpuset.c        | 14 +++++++-------
- mm/page_alloc.c        |  2 +-
- 3 files changed, 36 insertions(+), 22 deletions(-)
+> - I can resubmit them (or maybe drop 30 altogether) after I've
+> pondered and tested a little on top of Michal's.
 
-diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
-index fea160ee5803..054c734d0170 100644
---- a/include/linux/cpuset.h
-+++ b/include/linux/cpuset.h
-@@ -16,26 +16,26 @@
+I guess this would be safer. If it turns out that we need some special
+handling I would prefer if that could be done in should_compact_retry.
  
- #ifdef CONFIG_CPUSETS
- 
--extern struct static_key cpusets_enabled_key;
-+extern struct static_key_false cpusets_enabled_key;
- static inline bool cpusets_enabled(void)
- {
--	return static_key_false(&cpusets_enabled_key);
-+	return static_branch_unlikely(&cpusets_enabled_key);
- }
- 
- static inline int nr_cpusets(void)
- {
- 	/* jump label reference count + the top-level cpuset */
--	return static_key_count(&cpusets_enabled_key) + 1;
-+	return static_key_count(&cpusets_enabled_key.key) + 1;
- }
- 
- static inline void cpuset_inc(void)
- {
--	static_key_slow_inc(&cpusets_enabled_key);
-+	static_branch_inc(&cpusets_enabled_key);
- }
- 
- static inline void cpuset_dec(void)
- {
--	static_key_slow_dec(&cpusets_enabled_key);
-+	static_branch_dec(&cpusets_enabled_key);
- }
- 
- extern int cpuset_init(void);
-@@ -48,16 +48,25 @@ extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
- void cpuset_init_current_mems_allowed(void);
- int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask);
- 
--extern int __cpuset_node_allowed(int node, gfp_t gfp_mask);
-+extern bool __cpuset_node_allowed(int node, gfp_t gfp_mask);
- 
--static inline int cpuset_node_allowed(int node, gfp_t gfp_mask)
-+static inline bool cpuset_node_allowed(int node, gfp_t gfp_mask)
- {
--	return nr_cpusets() <= 1 || __cpuset_node_allowed(node, gfp_mask);
-+	if (cpusets_enabled())
-+		return __cpuset_node_allowed(node, gfp_mask);
-+	return true;
- }
- 
--static inline int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
-+static inline bool __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
- {
--	return cpuset_node_allowed(zone_to_nid(z), gfp_mask);
-+	return __cpuset_node_allowed(zone_to_nid(z), gfp_mask);
-+}
-+
-+static inline bool cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
-+{
-+	if (cpusets_enabled())
-+		return __cpuset_zone_allowed(z, gfp_mask);
-+	return true;
- }
- 
- extern int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
-@@ -174,14 +183,19 @@ static inline int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask)
- 	return 1;
- }
- 
--static inline int cpuset_node_allowed(int node, gfp_t gfp_mask)
-+static inline bool cpuset_node_allowed(int node, gfp_t gfp_mask)
- {
--	return 1;
-+	return true;
- }
- 
--static inline int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
-+static inline bool __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
- {
--	return 1;
-+	return true;
-+}
-+
-+static inline bool cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
-+{
-+	return true;
- }
- 
- static inline int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
-diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-index 00ab5c2b7c5b..37a0b44d101f 100644
---- a/kernel/cpuset.c
-+++ b/kernel/cpuset.c
-@@ -62,7 +62,7 @@
- #include <linux/cgroup.h>
- #include <linux/wait.h>
- 
--struct static_key cpusets_enabled_key __read_mostly = STATIC_KEY_INIT_FALSE;
-+DEFINE_STATIC_KEY_FALSE(cpusets_enabled_key);
- 
- /* See "Frequency meter" comments, below. */
- 
-@@ -2528,27 +2528,27 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
-  *	GFP_KERNEL   - any node in enclosing hardwalled cpuset ok
-  *	GFP_USER     - only nodes in current tasks mems allowed ok.
-  */
--int __cpuset_node_allowed(int node, gfp_t gfp_mask)
-+bool __cpuset_node_allowed(int node, gfp_t gfp_mask)
- {
- 	struct cpuset *cs;		/* current cpuset ancestors */
- 	int allowed;			/* is allocation in zone z allowed? */
- 	unsigned long flags;
- 
- 	if (in_interrupt())
--		return 1;
-+		return true;
- 	if (node_isset(node, current->mems_allowed))
--		return 1;
-+		return true;
- 	/*
- 	 * Allow tasks that have access to memory reserves because they have
- 	 * been OOM killed to get memory anywhere.
- 	 */
- 	if (unlikely(test_thread_flag(TIF_MEMDIE)))
--		return 1;
-+		return true;
- 	if (gfp_mask & __GFP_HARDWALL)	/* If hardwall request, stop here */
--		return 0;
-+		return false;
- 
- 	if (current->flags & PF_EXITING) /* Let dying task have memory */
--		return 1;
-+		return true;
- 
- 	/* Not hardwall and node outside mems_allowed: scan up cpusets */
- 	spin_lock_irqsave(&callback_lock, flags);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 59de90d5d3a3..69edac810084 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2650,7 +2650,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 
- 		if (cpusets_enabled() &&
- 			(alloc_flags & ALLOC_CPUSET) &&
--			!cpuset_zone_allowed(zone, gfp_mask))
-+			!__cpuset_zone_allowed(zone, gfp_mask))
- 				continue;
- 		/*
- 		 * Distribute pages in proportion to the individual
+> Huge tmpfs got along fine for many months without 30/31 and 31/31: 30
+> is just for experimentation, and 31 to reduce the compaction stalls we
+> saw under some loads.  Maybe I'll find that Michal's rework has changed
+> the balance there anyway, and something else or nothing at all needed.
+> 
+> (The gfp_mask stuff was very confusing, and it's painful for me, how
+> ~__GFP_KSWAPD_RECLAIM gets used as a secret password to say "THP" and
+> how to angle compaction - or maybe it's all more straightforward now.)
+> 
+> Many thanks for giving us both this quick exposure!
+
+Thanks!
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
