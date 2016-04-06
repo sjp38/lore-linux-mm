@@ -1,79 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F16B6B0253
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 09:45:23 -0400 (EDT)
-Received: by mail-qg0-f47.google.com with SMTP id c6so36052759qga.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 06:45:23 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s128si2104265qhs.53.2016.04.06.06.45.22
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F0AD6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 10:06:41 -0400 (EDT)
+Received: by mail-ig0-f182.google.com with SMTP id kb1so41897039igb.0
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 07:06:41 -0700 (PDT)
+Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
+        by mx.google.com with ESMTPS id z79si3134165ioi.42.2016.04.06.07.06.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Apr 2016 06:45:22 -0700 (PDT)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: [PATCH 2/2] memory_hotplug: introduce memhp_default_state= command line parameter
-Date: Wed,  6 Apr 2016 15:45:12 +0200
-Message-Id: <1459950312-25504-3-git-send-email-vkuznets@redhat.com>
-In-Reply-To: <1459950312-25504-1-git-send-email-vkuznets@redhat.com>
-References: <1459950312-25504-1-git-send-email-vkuznets@redhat.com>
+        Wed, 06 Apr 2016 07:06:40 -0700 (PDT)
+From: Toshi Kani <toshi.kani@hpe.com>
+Subject: [PATCH] x86 get_unmapped_area: Add PMD alignment for DAX PMD mmap
+Date: Wed,  6 Apr 2016 07:58:09 -0600
+Message-Id: <1459951089-14911-1-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, David Vrabel <david.vrabel@citrix.com>, David Rientjes <rientjes@google.com>, Igor Mammedov <imammedo@redhat.com>
+To: mingo@kernel.org, bp@suse.de, hpa@zytor.com, tglx@linutronix.de
+Cc: dan.j.williams@intel.com, willy@linux.intel.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, x86@kernel.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>
 
-CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE specifies the default value for the
-memory hotplug onlining policy. Add a command line parameter to make it
-possible to override the default. It may come handy for debug and testing
-purposes.
+When CONFIG_FS_DAX_PMD is set, DAX supports mmap() using PMD page
+size.  This feature relies on both mmap virtual address and FS
+block data (i.e. physical address) to be aligned by the PMD page
+size.  Users can use mkfs options to specify FS to align block
+allocations.  However, aligning mmap() address requires application
+changes to mmap() calls, such as:
 
-Signed-off-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+ -  /* let the kernel to assign a mmap addr */
+ -  mptr = mmap(NULL, fsize, PROT_READ|PROT_WRITE, FLAGS, fd, 0);
+
+ +  /* 1. obtain a PMD-aligned virtual address */
+ +  ret = posix_memalign(&mptr, PMD_SIZE, fsize);
+ +  if (!ret)
+ +    free(mptr);  /* 2. release the virt addr */
+ +
+ +  /* 3. then pass the PMD-aligned virt addr to mmap() */
+ +  mptr = mmap(mptr, fsize, PROT_READ|PROT_WRITE, FLAGS, fd, 0);
+
+These changes add unnecessary dependency to DAX and PMD page size
+into application code.  The kernel should assign a mmap address
+appropriate for the operation.
+
+Change arch_get_unmapped_area() and arch_get_unmapped_area_topdown()
+to request PMD_SIZE alignment when the request is for a DAX file and
+its mapping range is large enough for using a PMD page.
+
+Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- Documentation/kernel-parameters.txt |  8 ++++++++
- mm/memory_hotplug.c                 | 11 +++++++++++
- 2 files changed, 19 insertions(+)
+ arch/x86/kernel/sys_x86_64.c |   14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index ecc74fa..b05ee2f 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -2141,6 +2141,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			[KNL,SH] Allow user to override the default size for
- 			per-device physically contiguous DMA buffers.
+diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
+index 10e0272..a294c66 100644
+--- a/arch/x86/kernel/sys_x86_64.c
++++ b/arch/x86/kernel/sys_x86_64.c
+@@ -157,6 +157,13 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+ 		info.align_mask = get_align_mask();
+ 		info.align_offset += get_align_bits();
+ 	}
++	if (filp && IS_ENABLED(CONFIG_FS_DAX_PMD) && IS_DAX(file_inode(filp))) {
++		unsigned long off_end = info.align_offset + len;
++		unsigned long off_pmd = round_up(info.align_offset, PMD_SIZE);
++
++		if ((off_end > off_pmd) && ((off_end - off_pmd) >= PMD_SIZE))
++			info.align_mask |= (PMD_SIZE - 1);
++	}
+ 	return vm_unmapped_area(&info);
+ }
  
-+        memhp_default_state=online/offline
-+			[KNL] Set the initial state for the memory hotplug
-+			onlining policy. If not specified, the default value is
-+			set according to the
-+			CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE kernel config
-+			option.
-+			See Documentation/memory-hotplug.txt.
+@@ -200,6 +207,13 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 		info.align_mask = get_align_mask();
+ 		info.align_offset += get_align_bits();
+ 	}
++	if (filp && IS_ENABLED(CONFIG_FS_DAX_PMD) && IS_DAX(file_inode(filp))) {
++		unsigned long off_end = info.align_offset + len;
++		unsigned long off_pmd = round_up(info.align_offset, PMD_SIZE);
 +
- 	memmap=exactmap	[KNL,X86] Enable setting of an exact
- 			E820 memory map, as specified by the user.
- 			Such memmap=exactmap lines can be constructed based on
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 072e0a1..179f3af 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -85,6 +85,17 @@ bool memhp_auto_online = true;
- #endif
- EXPORT_SYMBOL_GPL(memhp_auto_online);
- 
-+static int __init setup_memhp_default_state(char *str)
-+{
-+	if (!strcmp(str, "online"))
-+		memhp_auto_online = true;
-+	else if (!strcmp(str, "offline"))
-+		memhp_auto_online = false;
-+
-+	return 1;
-+}
-+__setup("memhp_default_state=", setup_memhp_default_state);
-+
- void get_online_mems(void)
- {
- 	might_sleep();
--- 
-2.5.5
++		if ((off_end > off_pmd) && ((off_end - off_pmd) >= PMD_SIZE))
++			info.align_mask |= (PMD_SIZE - 1);
++	}
+ 	addr = vm_unmapped_area(&info);
+ 	if (!(addr & ~PAGE_MASK))
+ 		return addr;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
