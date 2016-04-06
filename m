@@ -1,166 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8931A828F3
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 20:56:25 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id zm5so21327947pac.0
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 17:56:25 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id s6si541228pfi.138.2016.04.05.17.56.24
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C49596B02B0
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 21:12:05 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id zm5so21583634pac.0
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 18:12:05 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id cz6si588266pad.230.2016.04.05.18.12.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 05 Apr 2016 17:56:24 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 01/16] mm: use put_page to free page instead of
- putback_lru_page
-Date: Wed, 6 Apr 2016 00:54:04 +0000
-Message-ID: <20160406005403.GA29576@hori1.linux.bs1.fc.nec.co.jp>
-References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
- <1459321935-3655-2-git-send-email-minchan@kernel.org>
- <56FE706D.7080507@suse.cz> <20160404013917.GC6543@bbox>
- <20160404044458.GA20250@hori1.linux.bs1.fc.nec.co.jp>
- <57027E47.7070909@suse.cz>
- <20160405015402.GA30962@hori1.linux.bs1.fc.nec.co.jp>
- <57037562.3040203@suse.cz>
-In-Reply-To: <57037562.3040203@suse.cz>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <B63A2058FEB6714FBB784846F111B38A@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Apr 2016 18:12:05 -0700 (PDT)
+Received: by mail-pa0-x22f.google.com with SMTP id fe3so21556952pab.1
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 18:12:05 -0700 (PDT)
+Date: Tue, 5 Apr 2016 18:12:02 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 17/31] kvm: teach kvm to map page teams as huge pages.
+In-Reply-To: <57044C3A.7060109@redhat.com>
+Message-ID: <alpine.LSU.2.11.1604051756020.7348@eggly.anvils>
+References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils> <alpine.LSU.2.11.1604051439340.5965@eggly.anvils> <57044C3A.7060109@redhat.com>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jlayton@poochiereds.net" <jlayton@poochiereds.net>, "bfields@fieldses.org" <bfields@fieldses.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "koct9i@gmail.com" <koct9i@gmail.com>, "aquini@redhat.com" <aquini@redhat.com>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, "rknize@motorola.com" <rknize@motorola.com>, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>
+To: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Apr 05, 2016 at 10:20:50AM +0200, Vlastimil Babka wrote:
-> On 04/05/2016 03:54 AM, Naoya Horiguchi wrote:
-> > On Mon, Apr 04, 2016 at 04:46:31PM +0200, Vlastimil Babka wrote:
-> >> On 04/04/2016 06:45 AM, Naoya Horiguchi wrote:
-> >>> On Mon, Apr 04, 2016 at 10:39:17AM +0900, Minchan Kim wrote:
+On Wed, 6 Apr 2016, Paolo Bonzini wrote:
+> On 05/04/2016 23:41, Hugh Dickins wrote:
+> > +/*
+> > + * We are holding kvm->mmu_lock, serializing against mmu notifiers.
+> > + * We have a ref on page.
 > > ...
-> >>>>>
-> >>>>> Also (but not your fault) the put_page() preceding
-> >>>>> test_set_page_hwpoison(page)) IMHO deserves a comment saying which
-> >>>>> pin we are releasing and which one we still have (hopefully? if I
-> >>>>> read description of da1b13ccfbebe right) otherwise it looks like
-> >>>>> doing something with a page that we just potentially freed.
-> >>>>
-> >>>> Yes, while I read the code, I had same question. I think the releasi=
-ng
-> >>>> refcount is for get_any_page.
-> >>>
-> >>> As the other callers of page migration do, soft_offline_page expects =
-the
-> >>> migration source page to be freed at this put_page() (no pin remains.=
-)
-> >>> The refcount released here is from isolate_lru_page() in __soft_offli=
-ne_page().
-> >>> (the pin by get_any_page is released by put_hwpoison_page just after =
-it.)
-> >>>
-> >>> .. yes, doing something just after freeing page looks weird, but that=
-'s
-> >>> how PageHWPoison flag works. IOW, many other page flags are maintaine=
-d
-> >>> only during one "allocate-free" life span, but PageHWPoison still doe=
-s
-> >>> its job beyond it.
-> >>
-> >> But what prevents the page from being allocated again between put_page=
-()
-> >> and test_set_page_hwpoison()? In that case we would be marking page
-> >> poisoned while still in use, which is the same as marking it while sti=
-ll
-> >> in use after a failed migration?
-> >=20
-> > Actually nothing prevents that race. But I think that the result of the=
- race
-> > is that the error page can be reused for allocation, which results in k=
-illing
-> > processes at page fault time. Soft offline is kind of mild/precautious =
-thing
-> > (for correctable errors that don't require immediate handling), so kill=
-ing
-> > processes looks to me an overkill. And marking hwpoison means that we c=
-an no
-> > longer do retry from userspace.
->=20
-> So you agree that this race is a bug? It may turn a soft-offline attempt
-> into a killed process. In that case we should fix it the same as we are
-> fixing the failed migration case.
+> > +static bool is_huge_tmpfs(struct kvm_vcpu *vcpu,
+> > +			  unsigned long address, struct page *page)
+> 
+> vcpu is only used to access vcpu->kvm->mm.  If it's still possible to
 
-I agree, it's a bug, although rare and non-critical.
+Hah, you've lighted on precisely a line of code where I changed around
+what Andres had - I thought it nicer to pass down vcpu, because that
+matched the function above, and in many cases vcpu is not dereferenced
+here at all.  So, definitely blame me not Andres for that interface.
 
-> Maybe it will be just enough to switch
-> the test_set_page_hwpoison() and put_page() calls?
+> give a sensible rule for locking, I wouldn't mind if is_huge_tmpfs took
+> the mm directly and was moved out of KVM.  Otherwise, it would be quite
+> easy for people touch mm code to miss it.
 
-Unfortunately that restores the other race with unpoison (described below.)
-Sorry for my bad/unclear statements, these races seems exclusive and a comp=
-atible
-solution is not found, so I prioritized fixing the latter one by comparing
-severity (the latter causes kernel crash,) which led to the current code.
+Good point.  On the other hand, as you acknowledge in your "If...",
+it might turn out to be too special-purpose in its assumptions to be
+a safe export from core mm: Andres and I need to give it more thought.
 
-> > And another practical thing is the race with unpoison_memory() as descr=
-ibed
-> > in commit da1b13ccfbebe. unpoison_memory() properly works only for prop=
-erly
-> > poisoned pages, so doing unpoison for in-use hwpoisoned pages is fragil=
-e.
-> > That's why I'd like to avoid setting PageHWPoison for in-use pages if p=
-ossible.
-> >=20
-> >> (Also, which part prevents pages with PageHWPoison to be allocated
-> >> again, anyway? I can't find it and test_set_page_hwpoison() doesn't
-> >> remove from buddy freelists).
-> >=20
-> > check_new_page() in mm/page_alloc.c should prevent reallocation of Page=
-HWPoison.
-> > As you pointed out, memory error handler doens't remove it from buddy f=
-reelists.
->=20
-> Oh, I see. It's using __PG_HWPOISON wrapper, so I didn't notice it when
-> searching. In any case that results in a bad_page() warning, right? Is
-> it desirable for a soft-offlined page?
+> 
+> Apart from this, both patches look good.
 
-That's right, and the bad_page warning might be too strong for soft offlini=
-ng.
-We can't tell which of memory_failure/soft_offline_page a PageHWPoison came
-from, but users can find other lines in dmesg which should tell that.
-And memory error events can hit buddy pages directly, in that case we still
-need the check in check_new_page().
+Thanks so much for such a quick response; and contrary to what I'd
+expected in my "FYI" comment, Andrew has taken them into his tree,
+to give them some early exposure via mmotm and linux-next - but
+of course that doesn't stop us from changing it as you suggest -
+we'll think it over again.
 
-> If we didn't free poisoned pages
-> to buddy system, they wouldn't trigger this warning.
-
-Actually, we didn't free at commit add05cecef80 ("mm: soft-offline: don't f=
-ree
-target page in successful page migration"), but that's was reverted in
-commit f4c18e6f7b5b ("mm: check __PG_HWPOISON separately from PAGE_FLAGS_CH=
-ECK_AT_*").
-Now I start thinking the revert was a bad decision, so I'll dig this proble=
-m again.
-
-> > BTW, it might be a bit off-topic, but recently I felt that check_new_pa=
-ge()
-> > might be improvable, because when check_new_page() returns 1, the whole=
- buddy
-> > block (not only the bad page) seems to be leaked from buddy freelist.
-> > For example, if thp (order 9) is requested, and PageHWPoison (or any ot=
-her
-> > types of bad pages) is found in an order 9 block, all 512 page are disc=
-arded.
-> > Unpoison can't bring it back to buddy.
-> > So, some code to split buddy block including bad page (and recovering c=
-ode from
-> > unpoison) might be helpful, although that's another story ...
->=20
-> Hm sounds like another argument for not freeing the page to buddy lists
-> in the first place. Maybe a hook in free_pages_check()?
-
-Sounds a good idea. I'll try it, too.
-
-Thanks,
-Naoya Horiguchi=
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
