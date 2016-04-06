@@ -1,63 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C49596B02B0
-	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 21:12:05 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id zm5so21583634pac.0
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 18:12:05 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id cz6si588266pad.230.2016.04.05.18.12.05
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B8E536B02BE
+	for <linux-mm@kvack.org>; Tue,  5 Apr 2016 21:25:15 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id bx7so5590874pad.3
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 18:25:15 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id p28si682829pfi.167.2016.04.05.18.25.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Apr 2016 18:12:05 -0700 (PDT)
-Received: by mail-pa0-x22f.google.com with SMTP id fe3so21556952pab.1
-        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 18:12:05 -0700 (PDT)
-Date: Tue, 5 Apr 2016 18:12:02 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 17/31] kvm: teach kvm to map page teams as huge pages.
-In-Reply-To: <57044C3A.7060109@redhat.com>
-Message-ID: <alpine.LSU.2.11.1604051756020.7348@eggly.anvils>
-References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils> <alpine.LSU.2.11.1604051439340.5965@eggly.anvils> <57044C3A.7060109@redhat.com>
+        Tue, 05 Apr 2016 18:25:15 -0700 (PDT)
+Received: by mail-pa0-x235.google.com with SMTP id zm5so21794505pac.0
+        for <linux-mm@kvack.org>; Tue, 05 Apr 2016 18:25:15 -0700 (PDT)
+Date: Tue, 5 Apr 2016 18:25:13 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, hugetlb_cgroup: round limit_in_bytes down to hugepage
+ size
+Message-ID: <alpine.DEB.2.10.1604051824320.32718@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 6 Apr 2016, Paolo Bonzini wrote:
-> On 05/04/2016 23:41, Hugh Dickins wrote:
-> > +/*
-> > + * We are holding kvm->mmu_lock, serializing against mmu notifiers.
-> > + * We have a ref on page.
-> > ...
-> > +static bool is_huge_tmpfs(struct kvm_vcpu *vcpu,
-> > +			  unsigned long address, struct page *page)
-> 
-> vcpu is only used to access vcpu->kvm->mm.  If it's still possible to
+The page_counter rounds limits down to page size values.  This makes
+sense, except in the case of hugetlb_cgroup where it's not possible to
+charge partial hugepages.
 
-Hah, you've lighted on precisely a line of code where I changed around
-what Andres had - I thought it nicer to pass down vcpu, because that
-matched the function above, and in many cases vcpu is not dereferenced
-here at all.  So, definitely blame me not Andres for that interface.
+Round the hugetlb_cgroup limit down to hugepage size.
 
-> give a sensible rule for locking, I wouldn't mind if is_huge_tmpfs took
-> the mm directly and was moved out of KVM.  Otherwise, it would be quite
-> easy for people touch mm code to miss it.
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/hugetlb_cgroup.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-Good point.  On the other hand, as you acknowledge in your "If...",
-it might turn out to be too special-purpose in its assumptions to be
-a safe export from core mm: Andres and I need to give it more thought.
-
-> 
-> Apart from this, both patches look good.
-
-Thanks so much for such a quick response; and contrary to what I'd
-expected in my "FYI" comment, Andrew has taken them into his tree,
-to give them some early exposure via mmotm and linux-next - but
-of course that doesn't stop us from changing it as you suggest -
-we'll think it over again.
-
-Hugh
+diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+--- a/mm/hugetlb_cgroup.c
++++ b/mm/hugetlb_cgroup.c
+@@ -288,6 +288,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
+ 
+ 	switch (MEMFILE_ATTR(of_cft(of)->private)) {
+ 	case RES_LIMIT:
++		nr_pages &= ~((1 << huge_page_order(&hstates[idx])) - 1);
+ 		mutex_lock(&hugetlb_limit_mutex);
+ 		ret = page_counter_limit(&h_cg->hugepage[idx], nr_pages);
+ 		mutex_unlock(&hugetlb_limit_mutex);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
