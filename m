@@ -1,86 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 645286B0005
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 17:21:51 -0400 (EDT)
-Received: by mail-pf0-f169.google.com with SMTP id c20so41175663pfc.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 14:21:51 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id o68si6894186pfj.173.2016.04.06.14.21.50
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E8A96B007E
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 17:21:52 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id bx7so24273707pad.3
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 14:21:52 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id yk5si6891850pab.160.2016.04.06.14.21.50
         for <linux-mm@kvack.org>;
         Wed, 06 Apr 2016 14:21:50 -0700 (PDT)
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: [PATCH 04/30] radix tree test suite: Allow testing other fan-out values
-Date: Wed,  6 Apr 2016 17:21:13 -0400
-Message-Id: <1459977699-2349-5-git-send-email-willy@linux.intel.com>
+Subject: [PATCH 01/30] radix-tree: Introduce radix_tree_empty
+Date: Wed,  6 Apr 2016 17:21:10 -0400
+Message-Id: <1459977699-2349-2-git-send-email-willy@linux.intel.com>
 In-Reply-To: <1459977699-2349-1-git-send-email-willy@linux.intel.com>
 References: <1459977699-2349-1-git-send-email-willy@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>, Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>
 
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
+The irqdomain code was checking for 0 or 1 entries, not 0 entries like
+the comment said they were.  Introduce a new helper that will actually
+check for an empty tree.
 
-The defines in regression2.c are already in radix-tree.h and duplicating
-them in the test case makes experimenting with other values for the
-fan-out harder than necessary.  Allow the user of the radix tree to decide
-what the fan-out should be rather than fixing it to 8 for non-kernel uses.
-
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- include/linux/radix-tree.h              | 4 +---
- tools/testing/radix-tree/linux/kernel.h | 2 ++
- tools/testing/radix-tree/regression2.c  | 7 -------
- 3 files changed, 3 insertions(+), 10 deletions(-)
+ include/linux/radix-tree.h | 5 +++++
+ kernel/irq/irqdomain.c     | 7 +------
+ 2 files changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 83f708e5db59..5ce5a1e0ecc5 100644
+index 51a97ac8bfbf..83f708e5db59 100644
 --- a/include/linux/radix-tree.h
 +++ b/include/linux/radix-tree.h
-@@ -70,10 +70,8 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
+@@ -136,6 +136,11 @@ do {									\
+ 	(root)->rnode = NULL;						\
+ } while (0)
  
- #define RADIX_TREE_MAX_TAGS 3
- 
--#ifdef __KERNEL__
-+#ifndef RADIX_TREE_MAP_SHIFT
- #define RADIX_TREE_MAP_SHIFT	(CONFIG_BASE_SMALL ? 4 : 6)
--#else
--#define RADIX_TREE_MAP_SHIFT	3	/* For more stressful testing */
- #endif
- 
- #define RADIX_TREE_MAP_SIZE	(1UL << RADIX_TREE_MAP_SHIFT)
-diff --git a/tools/testing/radix-tree/linux/kernel.h b/tools/testing/radix-tree/linux/kernel.h
-index 76a88f35fdc4..31fe2c77d7ae 100644
---- a/tools/testing/radix-tree/linux/kernel.h
-+++ b/tools/testing/radix-tree/linux/kernel.h
-@@ -12,6 +12,8 @@
- #define CONFIG_SHMEM
- #define CONFIG_SWAP
- 
-+#define RADIX_TREE_MAP_SHIFT	3
++static inline bool radix_tree_empty(struct radix_tree_root *root)
++{
++	return root->rnode == NULL;
++}
 +
- #ifndef NULL
- #define NULL	0
- #endif
-diff --git a/tools/testing/radix-tree/regression2.c b/tools/testing/radix-tree/regression2.c
-index 5d2fa28cdca3..63bf347aaf33 100644
---- a/tools/testing/radix-tree/regression2.c
-+++ b/tools/testing/radix-tree/regression2.c
-@@ -51,13 +51,6 @@
+ /**
+  * Radix-tree synchronization
+  *
+diff --git a/kernel/irq/irqdomain.c b/kernel/irq/irqdomain.c
+index 3a519a01118b..ba3f60d8df2f 100644
+--- a/kernel/irq/irqdomain.c
++++ b/kernel/irq/irqdomain.c
+@@ -139,12 +139,7 @@ void irq_domain_remove(struct irq_domain *domain)
+ {
+ 	mutex_lock(&irq_domain_mutex);
  
- #include "regression.h"
+-	/*
+-	 * radix_tree_delete() takes care of destroying the root
+-	 * node when all entries are removed. Shout if there are
+-	 * any mappings left.
+-	 */
+-	WARN_ON(domain->revmap_tree.height);
++	WARN_ON(!radix_tree_empty(&domain->revmap_tree));
  
--#ifdef __KERNEL__
--#define RADIX_TREE_MAP_SHIFT    (CONFIG_BASE_SMALL ? 4 : 6)
--#else
--#define RADIX_TREE_MAP_SHIFT    3       /* For more stressful testing */
--#endif
--
--#define RADIX_TREE_MAP_SIZE     (1UL << RADIX_TREE_MAP_SHIFT)
- #define PAGECACHE_TAG_DIRTY     0
- #define PAGECACHE_TAG_WRITEBACK 1
- #define PAGECACHE_TAG_TOWRITE   2
+ 	list_del(&domain->link);
+ 
 -- 
 2.8.0.rc3
 
