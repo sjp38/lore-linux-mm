@@ -1,63 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id EF9B06B0005
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 05:52:18 -0400 (EDT)
-Received: by mail-wm0-f49.google.com with SMTP id l6so57256295wml.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 02:52:18 -0700 (PDT)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id yu7si2320772wjc.184.2016.04.06.02.52.17
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id EFFDB6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 05:56:26 -0400 (EDT)
+Received: by mail-wm0-f54.google.com with SMTP id l6so57403615wml.1
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 02:56:26 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id 3si24006508wmk.45.2016.04.06.02.56.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Apr 2016 02:52:17 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 7D3FB1C1D3C
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 10:52:17 +0100 (IST)
-Date: Wed, 6 Apr 2016 10:52:15 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 03/10] mm: use __SetPageSwapBacked and dont
- ClearPageSwapBacked
-Message-ID: <20160406095136.GC4773@techsingularity.net>
-References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
- <alpine.LSU.2.11.1604051342080.5965@eggly.anvils>
+        Wed, 06 Apr 2016 02:56:25 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id a140so11639952wma.2
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 02:56:25 -0700 (PDT)
+Date: Wed, 6 Apr 2016 11:56:24 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/1] powerpc/mm: Add memory barrier in __hugepte_alloc()
+Message-ID: <20160406095623.GA24283@dhcp22.suse.cz>
+References: <20160405190547.GA12673@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1604051342080.5965@eggly.anvils>
+In-Reply-To: <20160405190547.GA12673@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, James Dykman <jdykman@us.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Tue, Apr 05, 2016 at 01:44:16PM -0700, Hugh Dickins wrote:
-> v3.16 commit 07a427884348 ("mm: shmem: avoid atomic operation during
-> shmem_getpage_gfp") rightly replaced one instance of SetPageSwapBacked
-> by __SetPageSwapBacked, pointing out that the newly allocated page is
-> not yet visible to other users (except speculative get_page_unless_zero-
-> ers, who may not update page flags before their further checks).
-> 
-> That was part of a series in which Mel was focused on tmpfs profiles:
-> but almost all SetPageSwapBacked uses can be so optimized, with the same
-> justification.  Remove ClearPageSwapBacked from __read_swap_cache_async()
-> error path: it's not an error to free a page with PG_swapbacked set.
-> 
-> Follow a convention of __SetPageLocked, __SetPageSwapBacked instead of
-> doing it differently in different places; but that's for tidiness - if
-> the ordering actually mattered, we should not be using the __variants.
-> 
-> There's probably scope for further __SetPageFlags in other places,
-> but SwapBacked is the one I'm interested in at the moment.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
-> Sorry, Mel did give
-> a year ago, but the kernel has moved on since then,
+On Tue 05-04-16 12:05:47, Sukadev Bhattiprolu wrote:
+[...]
+> diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+> index d991b9e..081f679 100644
+> --- a/arch/powerpc/mm/hugetlbpage.c
+> +++ b/arch/powerpc/mm/hugetlbpage.c
+> @@ -81,6 +81,13 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+>  	if (! new)
+>  		return -ENOMEM;
+>  
+> +	/*
+> +	 * Make sure other cpus find the hugepd set only after a
+> +	 * properly initialized page table is visible to them.
+> +	 * For more details look for comment in __pte_alloc().
+> +	 */
+> +	smp_wmb();
+> +
 
-Still looks good to me so
+what is the pairing memory barrier?
 
-Reviewed-by: Mel Gorman <mgorman@techsingularity.net>
+>  	spin_lock(&mm->page_table_lock);
+>  #ifdef CONFIG_PPC_FSL_BOOK3E
+>  	/*
+> -- 
+> 1.8.3.1
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
