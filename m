@@ -1,155 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E56C6B0272
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 17:29:14 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fe3so40556832pab.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 14:29:14 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 978746B0274
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 17:29:38 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id bx7so24375636pad.3
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 14:29:38 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
         by mx.google.com with ESMTP id xd4si6912209pab.110.2016.04.06.14.21.54
         for <linux-mm@kvack.org>;
         Wed, 06 Apr 2016 14:21:54 -0700 (PDT)
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: [PATCH 25/30] radix-tree test suite: add multi-order tag test
-Date: Wed,  6 Apr 2016 17:21:34 -0400
-Message-Id: <1459977699-2349-26-git-send-email-willy@linux.intel.com>
+Subject: [PATCH 21/30] radix tree test suite: Add multiorder shrinking test
+Date: Wed,  6 Apr 2016 17:21:30 -0400
+Message-Id: <1459977699-2349-22-git-send-email-willy@linux.intel.com>
 In-Reply-To: <1459977699-2349-1-git-send-email-willy@linux.intel.com>
 References: <1459977699-2349-1-git-send-email-willy@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>, Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>
 
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Ensure that the tree goes back down to the same height when an item is
+inserted & removed from the tree at a higher index.
 
-Add a generic test for multi-order tag verification, and call it using
-several different configurations.
-
-This test creates a multi-order radix tree using the given index and order,
-and then sets, checks and clears tags using the indices covered by the
-single multi-order radix tree entry.
-
-With the various calls done by this test we verify root multi-order entries
-without siblings, multi-order entries without siblings in a radix tree
-node, as well as multi-order entries with siblings of various sizes.
-
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- tools/testing/radix-tree/multiorder.c | 97 +++++++++++++++++++++++++++++++++++
- 1 file changed, 97 insertions(+)
+ tools/testing/radix-tree/multiorder.c | 38 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)
 
 diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
-index 10b9708a71f9..de3d0e96f987 100644
+index 583c5127fbcf..10b9708a71f9 100644
 --- a/tools/testing/radix-tree/multiorder.c
 +++ b/tools/testing/radix-tree/multiorder.c
-@@ -19,6 +19,102 @@
+@@ -46,6 +46,41 @@ static void multiorder_check(unsigned long index, int order)
+ 		item_check_absent(&tree, i);
+ }
  
- #include "test.h"
- 
-+#define for_each_index(i, base, order) \
-+	for (i = base; i < base + (1 << order); i++)
-+
-+static void __multiorder_tag_test(int index, int order)
++static void multiorder_shrink(unsigned long index, int order)
 +{
++	unsigned long i;
++	unsigned long max = 1 << order;
 +	RADIX_TREE(tree, GFP_KERNEL);
-+	int base, err, i;
++	struct radix_tree_node *node;
 +
-+	/* our canonical entry */
-+	base = index & ~((1 << order) - 1);
++	printf("Multiorder shrink index %ld, order %d\n", index, order);
 +
-+	printf("Multiorder tag test with index %d, canonical entry %d\n",
-+			index, base);
++	assert(item_insert_order(&tree, 0, order) == 0);
 +
-+	err = item_insert_order(&tree, index, order);
-+	assert(!err);
++	node = tree.rnode;
 +
-+	/*
-+	 * Verify we get collisions for covered indices.  We try and fail to
-+	 * insert an exceptional entry so we don't leak memory via
-+	 * item_insert_order().
-+	 */
-+	for_each_index(i, base, order) {
-+		err = __radix_tree_insert(&tree, i, order,
-+				(void *)(0xA0 | RADIX_TREE_EXCEPTIONAL_ENTRY));
-+		assert(err == -EEXIST);
++	assert(item_insert(&tree, index) == 0);
++	assert(node != tree.rnode);
++
++	assert(item_delete(&tree, index) != 0);
++	assert(node == tree.rnode);
++
++	for (i = 0; i < max; i++) {
++		struct item *item = item_lookup(&tree, i);
++		assert(item != 0);
++		assert(item->index == 0);
++	}
++	for (i = max; i < 2*max; i++)
++		item_check_absent(&tree, i);
++
++	if (!item_delete(&tree, 0)) {
++		printf("failed to delete index %ld (order %d)\n", index, order);		abort();
 +	}
 +
-+	for_each_index(i, base, order) {
-+		assert(!radix_tree_tag_get(&tree, i, 0));
-+		assert(!radix_tree_tag_get(&tree, i, 1));
-+	}
-+
-+	assert(radix_tree_tag_set(&tree, index, 0));
-+
-+	for_each_index(i, base, order) {
-+		assert(radix_tree_tag_get(&tree, i, 0));
-+		assert(!radix_tree_tag_get(&tree, i, 1));
-+	}
-+
-+	assert(radix_tree_tag_clear(&tree, index, 0));
-+
-+	for_each_index(i, base, order) {
-+		assert(!radix_tree_tag_get(&tree, i, 0));
-+		assert(!radix_tree_tag_get(&tree, i, 1));
-+	}
-+
-+	assert(!radix_tree_tagged(&tree, 0));
-+	assert(!radix_tree_tagged(&tree, 1));
-+
-+	item_kill_tree(&tree);
++	for (i = 0; i < 2*max; i++)
++		item_check_absent(&tree, i);
 +}
 +
-+static void multiorder_tag_tests(void)
-+{
-+	/* test multi-order entry for indices 0-7 with no sibling pointers */
-+	__multiorder_tag_test(0, 3);
-+	__multiorder_tag_test(5, 3);
-+
-+	/* test multi-order entry for indices 8-15 with no sibling pointers */
-+	__multiorder_tag_test(8, 3);
-+	__multiorder_tag_test(15, 3);
-+
-+	/*
-+	 * Our order 5 entry covers indices 0-31 in a tree with height=2.
-+	 * This is broken up as follows:
-+	 * 0-7:		canonical entry
-+	 * 8-15:	sibling 1
-+	 * 16-23:	sibling 2
-+	 * 24-31:	sibling 3
-+	 */
-+	__multiorder_tag_test(0, 5);
-+	__multiorder_tag_test(29, 5);
-+
-+	/* same test, but with indices 32-63 */
-+	__multiorder_tag_test(32, 5);
-+	__multiorder_tag_test(44, 5);
-+
-+	/*
-+	 * Our order 8 entry covers indices 0-255 in a tree with height=3.
-+	 * This is broken up as follows:
-+	 * 0-63:	canonical entry
-+	 * 64-127:	sibling 1
-+	 * 128-191:	sibling 2
-+	 * 192-255:	sibling 3
-+	 */
-+	__multiorder_tag_test(0, 8);
-+	__multiorder_tag_test(190, 8);
-+
-+	/* same test, but with indices 256-511 */
-+	__multiorder_tag_test(256, 8);
-+	__multiorder_tag_test(300, 8);
-+
-+	__multiorder_tag_test(0x12345678UL, 8);
-+}
-+
- static void multiorder_check(unsigned long index, int order)
+ static void multiorder_insert_bug(void)
  {
- 	unsigned long i;
-@@ -195,6 +291,7 @@ void multiorder_checks(void)
- 	for (i = 0; i < 15; i++)
- 		multiorder_shrink((1UL << (i + RADIX_TREE_MAP_SHIFT)), i);
+ 	RADIX_TREE(tree, GFP_KERNEL);
+@@ -157,6 +192,9 @@ void multiorder_checks(void)
+ 		multiorder_check((1UL << i) + 1, i);
+ 	}
  
-+	multiorder_tag_tests();
++	for (i = 0; i < 15; i++)
++		multiorder_shrink((1UL << (i + RADIX_TREE_MAP_SHIFT)), i);
++
  	multiorder_iteration();
  	multiorder_tagged_iteration();
  	multiorder_insert_bug();
