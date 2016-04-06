@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id C67D36B0293
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 18:58:25 -0400 (EDT)
-Received: by mail-pf0-f180.google.com with SMTP id n1so42433307pfn.2
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 15:58:25 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id 67si7253346pfh.155.2016.04.06.15.51.36
+Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id EC3456B0296
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 18:58:28 -0400 (EDT)
+Received: by mail-pf0-f176.google.com with SMTP id e128so42394283pfe.3
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 15:58:28 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id sa8si7277677pac.61.2016.04.06.15.51.36
         for <linux-mm@kvack.org>;
         Wed, 06 Apr 2016 15:51:36 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 20/30] filemap: prepare find and delete operations for huge pages
-Date: Thu,  7 Apr 2016 01:51:10 +0300
-Message-Id: <1459983080-106718-21-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 23/30] shmem: prepare huge= mount option and sysfs knob
+Date: Thu,  7 Apr 2016 01:51:13 +0300
+Message-Id: <1459983080-106718-24-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1459983080-106718-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1459983080-106718-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,392 +19,316 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For now, we would have HPAGE_PMD_NR entries in radix tree for every huge
-page. That's suboptimal and it will be changed to use Matthew's
-multi-order entries later.
+This patch adds new mount option "huge=". It can have following values:
 
-'add' operation is not changed, because we don't need it to implement
-hugetmpfs: shmem uses its own implementation.
+  - "always":
+	Attempt to allocate huge pages every time we need a new page;
+
+  - "never":
+	Do not allocate huge pages;
+
+  - "within_size":
+	Only allocate huge page if it will be fully within i_size.
+	Also respect fadvise()/madvise() hints;
+
+  - "advise:
+	Only allocate huge pages if requested with fadvise()/madvise();
+
+Default is "never" for now.
+
+"mount -o remount,huge= /mountpoint" works fine after mount: remounting
+huge=never will not attempt to break up huge pages at all, just stop
+more from being allocated.
+
+No new config option: put this under CONFIG_TRANSPARENT_HUGEPAGE,
+which is the appropriate option to protect those who don't want
+the new bloat, and with which we shall share some pmd code.
+
+Prohibit the option when !CONFIG_TRANSPARENT_HUGEPAGE, just as mpol is
+invalid without CONFIG_NUMA (was hidden in mpol_parse_str(): make it
+explicit).
+
+Allow enabling THP only if the machine has_transparent_hugepage().
+
+But what about Shmem with no user-visible mount?  SysV SHM, memfds,
+shared anonymous mmaps (of /dev/zero or MAP_ANONYMOUS), GPU drivers'
+DRM objects, Ashmem.  Though unlikely to suit all usages, provide
+sysfs knob /sys/kernel/mm/transparent_hugepage/shmem_enabled to
+experiment with huge on those.
+
+And allow shmem_enabled two further values:
+
+  - "deny":
+	For use in emergencies, to force the huge option off from
+	all mounts;
+  - "force":
+	Force the huge option on for all - very useful for testing;
+
+Based on patch by Hugh Dickins.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c | 187 ++++++++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 134 insertions(+), 53 deletions(-)
+ include/linux/huge_mm.h  |   2 +
+ include/linux/shmem_fs.h |   3 +-
+ mm/huge_memory.c         |   3 +
+ mm/shmem.c               | 161 +++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 168 insertions(+), 1 deletion(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 7e982835d4ec..bf29ab4f87dc 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -110,43 +110,18 @@
-  *   ->tasklist_lock            (memory_failure, collect_procs_ao)
-  */
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 8a0da3317402..80afdcbb9080 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -43,6 +43,8 @@ enum transparent_hugepage_flag {
+ #endif
+ };
  
--static void page_cache_tree_delete(struct address_space *mapping,
--				   struct page *page, void *shadow)
-+static void __page_cache_tree_delete(struct address_space *mapping,
-+		struct radix_tree_node *node, void **slot, unsigned long index,
-+		void *shadow)
- {
--	struct radix_tree_node *node;
--	unsigned long index;
--	unsigned int offset;
- 	unsigned int tag;
--	void **slot;
--
--	VM_BUG_ON(!PageLocked(page));
++extern struct kobj_attribute shmem_enabled_attr;
++
+ #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
+ #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
  
--	__radix_tree_lookup(&mapping->page_tree, page->index, &node, &slot);
--
--	if (shadow) {
--		mapping->nrexceptional++;
--		/*
--		 * Make sure the nrexceptional update is committed before
--		 * the nrpages update so that final truncate racing
--		 * with reclaim does not see both counters 0 at the
--		 * same time and miss a shadow entry.
--		 */
--		smp_wmb();
--	}
--	mapping->nrpages--;
--
--	if (!node) {
--		/* Clear direct pointer tags in root node */
--		mapping->page_tree.gfp_mask &= __GFP_BITS_MASK;
--		radix_tree_replace_slot(slot, shadow);
--		return;
--	}
-+	VM_BUG_ON(node == NULL);
-+	VM_BUG_ON(*slot == NULL);
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index 4d4780c00d34..466f18c73a49 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -28,9 +28,10 @@ struct shmem_sb_info {
+ 	unsigned long max_inodes;   /* How many inodes are allowed */
+ 	unsigned long free_inodes;  /* How many are left for allocation */
+ 	spinlock_t stat_lock;	    /* Serialize shmem_sb_info changes */
++	umode_t mode;		    /* Mount mode for root directory */
++	unsigned char huge;	    /* Whether to try for hugepages */
+ 	kuid_t uid;		    /* Mount uid for root directory */
+ 	kgid_t gid;		    /* Mount gid for root directory */
+-	umode_t mode;		    /* Mount mode for root directory */
+ 	struct mempolicy *mpol;     /* default memory policy for mappings */
+ };
  
- 	/* Clear tree tags for the removed page */
--	index = page->index;
--	offset = index & RADIX_TREE_MAP_MASK;
- 	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
--		if (test_bit(offset, node->tags[tag]))
-+		if (test_bit(index & RADIX_TREE_MAP_MASK, node->tags[tag]))
- 			radix_tree_tag_clear(&mapping->page_tree, index, tag);
- 	}
- 
-@@ -173,6 +148,54 @@ static void page_cache_tree_delete(struct address_space *mapping,
- 	}
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index ea7ad6cb0893..b9788468e50b 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -442,6 +442,9 @@ static struct attribute *hugepage_attr[] = {
+ 	&enabled_attr.attr,
+ 	&defrag_attr.attr,
+ 	&use_zero_page_attr.attr,
++#ifdef CONFIG_SHMEM
++	&shmem_enabled_attr.attr,
++#endif
+ #ifdef CONFIG_DEBUG_VM
+ 	&debug_cow_attr.attr,
+ #endif
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 719bd6b88d98..8dec1c8500fe 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -289,6 +289,87 @@ static bool shmem_confirm_swap(struct address_space *mapping,
  }
  
-+static void page_cache_tree_delete(struct address_space *mapping,
-+				   struct page *page, void *shadow)
+ /*
++ * Definitions for "huge tmpfs": tmpfs mounted with the huge= option
++ *
++ * SHMEM_HUGE_NEVER:
++ *	disables huge pages for the mount;
++ * SHMEM_HUGE_ALWAYS:
++ *	enables huge pages for the mount;
++ * SHMEM_HUGE_WITHIN_SIZE:
++ *	only allocate huge pages if the page will be fully within i_size,
++ *	also respect fadvise()/madvise() hints;
++ * SHMEM_HUGE_ADVISE:
++ *	only allocate huge pages if requested with fadvise()/madvise();
++ */
++
++#define SHMEM_HUGE_NEVER	0
++#define SHMEM_HUGE_ALWAYS	1
++#define SHMEM_HUGE_WITHIN_SIZE	2
++#define SHMEM_HUGE_ADVISE	3
++
++/*
++ * Special values.
++ * Only can be set via /sys/kernel/mm/transparent_hugepage/shmem_enabled:
++ *
++ * SHMEM_HUGE_DENY:
++ *	disables huge on shm_mnt and all mounts, for emergency use;
++ * SHMEM_HUGE_FORCE:
++ *	enables huge on shm_mnt and all mounts, w/o needing option, for testing;
++ *
++ */
++#define SHMEM_HUGE_DENY		(-1)
++#define SHMEM_HUGE_FORCE	(-2)
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++/* ifdef here to avoid bloating shmem.o when not necessary */
++
++int shmem_huge __read_mostly;
++
++static int shmem_parse_huge(const char *str)
 +{
-+	struct radix_tree_node *node;
-+	unsigned long index;
-+	void **slot;
-+	int i, nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
++	if (!strcmp(str, "never"))
++		return SHMEM_HUGE_NEVER;
++	if (!strcmp(str, "always"))
++		return SHMEM_HUGE_ALWAYS;
++	if (!strcmp(str, "within_size"))
++		return SHMEM_HUGE_WITHIN_SIZE;
++	if (!strcmp(str, "advise"))
++		return SHMEM_HUGE_ADVISE;
++	if (!strcmp(str, "deny"))
++		return SHMEM_HUGE_DENY;
++	if (!strcmp(str, "force"))
++		return SHMEM_HUGE_FORCE;
++	return -EINVAL;
++}
 +
-+	VM_BUG_ON_PAGE(!PageLocked(page), page);
-+	VM_BUG_ON_PAGE(PageTail(page), page);
-+
-+	__radix_tree_lookup(&mapping->page_tree, page->index, &node, &slot);
-+
-+	if (shadow) {
-+		mapping->nrexceptional += nr;
-+		/*
-+		 * Make sure the nrexceptional update is committed before
-+		 * the nrpages update so that final truncate racing
-+		 * with reclaim does not see both counters 0 at the
-+		 * same time and miss a shadow entry.
-+		 */
-+		smp_wmb();
-+	}
-+	mapping->nrpages -= nr;
-+
-+	if (!node) {
-+		/* Clear direct pointer tags in root node */
-+		mapping->page_tree.gfp_mask &= __GFP_BITS_MASK;
-+		VM_BUG_ON(nr != 1);
-+		radix_tree_replace_slot(slot, shadow);
-+		return;
-+	}
-+
-+	index = page->index;
-+	VM_BUG_ON_PAGE(index & (nr - 1), page);
-+	for (i = 0; i < nr; i++) {
-+		/* Cross node border */
-+		if (i && ((index + i) & RADIX_TREE_MAP_MASK) == 0) {
-+			__radix_tree_lookup(&mapping->page_tree,
-+					page->index + i, &node, &slot);
-+		}
-+
-+		__page_cache_tree_delete(mapping, node,
-+				slot + (i & RADIX_TREE_MAP_MASK), index + i,
-+				shadow);
++static const char *shmem_format_huge(int huge)
++{
++	switch (huge) {
++	case SHMEM_HUGE_NEVER:
++		return "never";
++	case SHMEM_HUGE_ALWAYS:
++		return "always";
++	case SHMEM_HUGE_WITHIN_SIZE:
++		return "within_size";
++	case SHMEM_HUGE_ADVISE:
++		return "advise";
++	case SHMEM_HUGE_DENY:
++		return "deny";
++	case SHMEM_HUGE_FORCE:
++		return "force";
++	default:
++		VM_BUG_ON(1);
++		return "bad_val";
 +	}
 +}
 +
- /*
-  * Delete a page from the page cache and free it. Caller has to make
-  * sure the page is locked and that nobody else uses it - or that usage
-@@ -181,6 +204,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
- void __delete_from_page_cache(struct page *page, void *shadow)
- {
- 	struct address_space *mapping = page->mapping;
-+	int nr = hpage_nr_pages(page);
- 
- 	trace_mm_filemap_delete_from_page_cache(page);
- 	/*
-@@ -193,6 +217,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 	else
- 		cleancache_invalidate_page(mapping, page);
- 
-+	VM_BUG_ON_PAGE(PageTail(page), page);
- 	VM_BUG_ON_PAGE(page_mapped(page), page);
- 	if (!IS_ENABLED(CONFIG_DEBUG_VM) && unlikely(page_mapped(page))) {
- 		int mapcount;
-@@ -224,9 +249,9 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 
- 	/* hugetlb pages do not participate in page cache accounting. */
- 	if (!PageHuge(page))
--		__dec_zone_page_state(page, NR_FILE_PAGES);
-+		__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, -nr);
- 	if (PageSwapBacked(page))
--		__dec_zone_page_state(page, NR_SHMEM);
-+		__mod_zone_page_state(page_zone(page), NR_SHMEM, -nr);
- 
- 	/*
- 	 * At this point page must be either written or cleaned by truncate.
-@@ -250,9 +275,8 @@ void __delete_from_page_cache(struct page *page, void *shadow)
++#else /* !CONFIG_TRANSPARENT_HUGEPAGE */
++
++#define shmem_huge SHMEM_HUGE_DENY
++
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
++
++/*
+  * Like add_to_page_cache_locked, but error if expected item has gone.
   */
- void delete_from_page_cache(struct page *page)
- {
--	struct address_space *mapping = page->mapping;
-+	struct address_space *mapping = page_mapping(page);
- 	unsigned long flags;
--
- 	void (*freepage)(struct page *);
+ static int shmem_add_to_page_cache(struct page *page,
+@@ -2868,11 +2949,24 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
+ 			sbinfo->gid = make_kgid(current_user_ns(), gid);
+ 			if (!gid_valid(sbinfo->gid))
+ 				goto bad_val;
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++		} else if (!strcmp(this_char, "huge")) {
++			int huge;
++			huge = shmem_parse_huge(value);
++			if (huge < 0)
++				goto bad_val;
++			if (!has_transparent_hugepage() &&
++					huge != SHMEM_HUGE_NEVER)
++				goto bad_val;
++			sbinfo->huge = huge;
++#endif
++#ifdef CONFIG_NUMA
+ 		} else if (!strcmp(this_char,"mpol")) {
+ 			mpol_put(mpol);
+ 			mpol = NULL;
+ 			if (mpol_parse_str(value, &mpol))
+ 				goto bad_val;
++#endif
+ 		} else {
+ 			pr_err("tmpfs: Bad mount option %s\n", this_char);
+ 			goto error;
+@@ -2918,6 +3012,7 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
+ 		goto out;
  
- 	BUG_ON(!PageLocked(page));
-@@ -265,7 +289,13 @@ void delete_from_page_cache(struct page *page)
- 
- 	if (freepage)
- 		freepage(page);
--	put_page(page);
-+
-+	if (PageTransHuge(page) && !PageHuge(page)) {
-+		page_ref_sub(page, HPAGE_PMD_NR);
-+		VM_BUG_ON_PAGE(page_count(page) <= 0, page);
-+	} else {
-+		put_page(page);
-+	}
+ 	error = 0;
++	sbinfo->huge = config.huge;
+ 	sbinfo->max_blocks  = config.max_blocks;
+ 	sbinfo->max_inodes  = config.max_inodes;
+ 	sbinfo->free_inodes = config.max_inodes - inodes;
+@@ -2951,6 +3046,11 @@ static int shmem_show_options(struct seq_file *seq, struct dentry *root)
+ 	if (!gid_eq(sbinfo->gid, GLOBAL_ROOT_GID))
+ 		seq_printf(seq, ",gid=%u",
+ 				from_kgid_munged(&init_user_ns, sbinfo->gid));
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	/* Rightly or wrongly, show huge mount option unmasked by shmem_huge */
++	if (sbinfo->huge)
++		seq_printf(seq, ",huge=%s", shmem_format_huge(sbinfo->huge));
++#endif
+ 	shmem_show_mpol(seq, sbinfo->mpol);
+ 	return 0;
  }
- EXPORT_SYMBOL(delete_from_page_cache);
- 
-@@ -1054,7 +1084,7 @@ EXPORT_SYMBOL(page_cache_prev_hole);
- struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
- {
- 	void **pagep;
--	struct page *page;
-+	struct page *head, *page;
- 
- 	rcu_read_lock();
- repeat:
-@@ -1074,9 +1104,17 @@ repeat:
- 			 */
- 			goto out;
- 		}
--		if (!page_cache_get_speculative(page))
-+
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
- 			goto repeat;
- 
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
-+			goto repeat;
-+		}
-+
- 		/*
- 		 * Has the page moved?
- 		 * This is part of the lockless pagecache protocol. See
-@@ -1119,12 +1157,12 @@ repeat:
- 	if (page && !radix_tree_exception(page)) {
- 		lock_page(page);
- 		/* Has the page been truncated? */
--		if (unlikely(page->mapping != mapping)) {
-+		if (unlikely(page_mapping(page) != mapping)) {
- 			unlock_page(page);
- 			put_page(page);
- 			goto repeat;
- 		}
--		VM_BUG_ON_PAGE(page->index != offset, page);
-+		VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
+@@ -3289,6 +3389,13 @@ int __init shmem_init(void)
+ 		pr_err("Could not kern_mount tmpfs\n");
+ 		goto out1;
  	}
- 	return page;
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	if (has_transparent_hugepage() && shmem_huge < SHMEM_HUGE_DENY)
++		SHMEM_SB(shm_mnt->mnt_sb)->huge = shmem_huge;
++	else
++		shmem_huge = 0; /* just in case it was patched */
++#endif
+ 	return 0;
+ 
+ out1:
+@@ -3300,6 +3407,60 @@ out3:
+ 	return error;
  }
-@@ -1256,7 +1294,7 @@ unsigned find_get_entries(struct address_space *mapping,
  
- 	rcu_read_lock();
- 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
-@@ -1273,8 +1311,16 @@ repeat:
- 			 */
- 			goto export;
- 		}
--		if (!page_cache_get_speculative(page))
++#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && defined(CONFIG_SYSFS)
++static ssize_t shmem_enabled_show(struct kobject *kobj,
++		struct kobj_attribute *attr, char *buf)
++{
++	int values[] = {
++		SHMEM_HUGE_ALWAYS,
++		SHMEM_HUGE_WITHIN_SIZE,
++		SHMEM_HUGE_ADVISE,
++		SHMEM_HUGE_NEVER,
++		SHMEM_HUGE_DENY,
++		SHMEM_HUGE_FORCE,
++	};
++	int i, count;
 +
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
-+			goto repeat;
++	for (i = 0, count = 0; i < ARRAY_SIZE(values); i++) {
++		const char *fmt = shmem_huge == values[i] ? "[%s] " : "%s ";
 +
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
- 			goto repeat;
-+		}
- 
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
-@@ -1319,7 +1365,7 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
- 
- 	rcu_read_lock();
- 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
-@@ -1338,9 +1384,16 @@ repeat:
- 			continue;
- 		}
- 
--		if (!page_cache_get_speculative(page))
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
- 			goto repeat;
- 
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
-+			goto repeat;
-+		}
++		count += sprintf(buf + count, fmt,
++				shmem_format_huge(values[i]));
++	}
++	buf[count - 1] = '\n';
++	return count;
++}
 +
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
- 			put_page(page);
-@@ -1380,7 +1433,7 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
- 
- 	rcu_read_lock();
- 	radix_tree_for_each_contig(slot, &mapping->page_tree, &iter, index) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		/* The hole, there no reason to continue */
-@@ -1400,8 +1453,14 @@ repeat:
- 			break;
- 		}
- 
--		if (!page_cache_get_speculative(page))
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
- 			goto repeat;
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
-+			goto repeat;
-+		}
- 
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
-@@ -1414,7 +1473,7 @@ repeat:
- 		 * otherwise we can get both false positives and false
- 		 * negatives, which is just confusing to the caller.
- 		 */
--		if (page->mapping == NULL || page->index != iter.index) {
-+		if (page->mapping == NULL || page_to_pgoff(page) != iter.index) {
- 			put_page(page);
- 			break;
- 		}
-@@ -1452,7 +1511,7 @@ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
- 	rcu_read_lock();
- 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
- 				   &iter, *index, tag) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
-@@ -1477,8 +1536,15 @@ repeat:
- 			continue;
- 		}
- 
--		if (!page_cache_get_speculative(page))
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
-+			goto repeat;
++static ssize_t shmem_enabled_store(struct kobject *kobj,
++		struct kobj_attribute *attr, const char *buf, size_t count)
++{
++	char tmp[16];
++	int huge;
 +
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
- 			goto repeat;
-+		}
- 
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
-@@ -1526,7 +1592,7 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
- 	rcu_read_lock();
- 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
- 				   &iter, start, tag) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
-@@ -1544,9 +1610,17 @@ repeat:
- 			 */
- 			goto export;
- 		}
--		if (!page_cache_get_speculative(page))
++	if (count + 1 > sizeof(tmp))
++		return -EINVAL;
++	memcpy(tmp, buf, count);
++	tmp[count] = '\0';
++	if (count && tmp[count - 1] == '\n')
++		tmp[count - 1] = '\0';
 +
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
- 			goto repeat;
- 
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
-+			goto repeat;
-+		}
++	huge = shmem_parse_huge(tmp);
++	if (huge == -EINVAL)
++		return -EINVAL;
++	if (!has_transparent_hugepage() &&
++			huge != SHMEM_HUGE_NEVER && huge != SHMEM_HUGE_DENY)
++		return -EINVAL;
 +
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
- 			put_page(page);
-@@ -2140,7 +2214,7 @@ void filemap_map_pages(struct fault_env *fe,
- 	struct address_space *mapping = file->f_mapping;
- 	pgoff_t last_pgoff = start_pgoff;
- 	loff_t size;
--	struct page *page;
-+	struct page *head, *page;
- 
- 	rcu_read_lock();
- 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter,
-@@ -2159,8 +2233,15 @@ repeat:
- 			goto next;
- 		}
- 
--		if (!page_cache_get_speculative(page))
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
-+			goto repeat;
++	shmem_huge = huge;
++	if (shmem_huge < SHMEM_HUGE_DENY)
++		SHMEM_SB(shm_mnt->mnt_sb)->huge = shmem_huge;
++	return count;
++}
 +
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
- 			goto repeat;
-+		}
++struct kobj_attribute shmem_enabled_attr =
++	__ATTR(shmem_enabled, 0644, shmem_enabled_show, shmem_enabled_store);
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE && CONFIG_SYSFS */
++
+ #else /* !CONFIG_SHMEM */
  
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
+ /*
 -- 
 2.8.0.rc3
 
