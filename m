@@ -1,76 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A24EB6B0005
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 05:09:44 -0400 (EDT)
-Received: by mail-wm0-f42.google.com with SMTP id n3so53782562wmn.0
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 02:09:44 -0700 (PDT)
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id a194si9144110wma.76.2016.04.06.02.09.43
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FC656B0005
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 05:16:53 -0400 (EDT)
+Received: by mail-wm0-f52.google.com with SMTP id f198so64480423wme.0
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 02:16:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id lm2si2164568wjc.202.2016.04.06.02.16.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Apr 2016 02:09:43 -0700 (PDT)
-Received: by mail-wm0-f51.google.com with SMTP id f198so64226429wme.0
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 02:09:43 -0700 (PDT)
-Date: Wed, 6 Apr 2016 11:09:42 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, hugetlb_cgroup: round limit_in_bytes down to
- hugepage size
-Message-ID: <20160406090941.GC24272@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1604051824320.32718@chino.kir.corp.google.com>
- <5704BA37.2080508@kyup.com>
- <5704BBBF.8040302@kyup.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 06 Apr 2016 02:16:52 -0700 (PDT)
+Subject: Re: [PATCH] cpuset: use static key better and convert to new API
+References: <201604061600.UbEyxDC5%fengguang.wu@intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5704D402.5040705@suse.cz>
+Date: Wed, 6 Apr 2016 11:16:50 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5704BBBF.8040302@kyup.com>
+In-Reply-To: <201604061600.UbEyxDC5%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nikolay Borisov <kernel@kyup.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 06-04-16 10:33:19, Nikolay Borisov wrote:
-> 
-> 
-> On 04/06/2016 10:26 AM, Nikolay Borisov wrote:
-> > 
-> > 
-> > On 04/06/2016 04:25 AM, David Rientjes wrote:
-> >> The page_counter rounds limits down to page size values.  This makes
-> >> sense, except in the case of hugetlb_cgroup where it's not possible to
-> >> charge partial hugepages.
-> >>
-> >> Round the hugetlb_cgroup limit down to hugepage size.
-> >>
-> >> Signed-off-by: David Rientjes <rientjes@google.com>
-> >> ---
-> >>  mm/hugetlb_cgroup.c | 1 +
-> >>  1 file changed, 1 insertion(+)
-> >>
-> >> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-> >> --- a/mm/hugetlb_cgroup.c
-> >> +++ b/mm/hugetlb_cgroup.c
-> >> @@ -288,6 +288,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
-> >>  
-> >>  	switch (MEMFILE_ATTR(of_cft(of)->private)) {
-> >>  	case RES_LIMIT:
-> >> +		nr_pages &= ~((1 << huge_page_order(&hstates[idx])) - 1);
-> > 
-> > Why not:
-> > 
-> > nr_pages = round_down(nr_pages, huge_page_order(&hstates[idx]));
-> 
-> Oops, that should be:
-> 
-> round_down(nr_pages, 1 << huge_page_order(&hstates[idx]));
+On 04/06/2016 10:56 AM, kbuild test robot wrote:
+> Hi Vlastimil,
+>
+> [auto build test ERROR on v4.6-rc2]
+> [also build test ERROR on next-20160406]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improving the system]
+>
+> url:    https://github.com/0day-ci/linux/commits/Vlastimil-Babka/cpuset-use-static-key-better-and-convert-to-new-API/20160406-164542
+> config: x86_64-randconfig-x011-201614 (attached as .config)
+> reproduce:
+>          # save the attached .config to linux build tree
+>          make ARCH=x86_64
+>
+> All errors (new ones prefixed by >>):
+>
+>     mm/page_alloc.c: In function 'get_page_from_freelist':
+>>> mm/page_alloc.c:2653:5: error: implicit declaration of function '__cpuset_zone_allowed' [-Werror=implicit-function-declaration]
 
-round_down is a bit nicer.
-
-Anyway
-Acked-by: Michal Hocko <mhocko@suse.com>
-
--- 
-Michal Hocko
-SUSE Labs
+Ah, forgot about !CONFIG_CPUSETS. Sorry, I'll send v2.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
