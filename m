@@ -1,83 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BA9D6B0005
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 22:39:24 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id fe3so45086430pab.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 19:39:24 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id g29si8333506pfj.135.2016.04.06.19.39.22
-        for <linux-mm@kvack.org>;
-        Wed, 06 Apr 2016 19:39:23 -0700 (PDT)
-Date: Thu, 7 Apr 2016 11:39:37 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: zsmalloc: zs_compact refactoring
-Message-ID: <20160407023937.GE15178@bbox>
-References: <20160404203952.GA8379@mwanda>
+Received: from mail-pf0-f174.google.com (mail-pf0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 61F086B0253
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 22:54:06 -0400 (EDT)
+Received: by mail-pf0-f174.google.com with SMTP id e128so46009648pfe.3
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 19:54:06 -0700 (PDT)
+Received: from mail-pf0-x22f.google.com (mail-pf0-x22f.google.com. [2607:f8b0:400e:c00::22f])
+        by mx.google.com with ESMTPS id s69si8420869pfi.105.2016.04.06.19.54.05
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Apr 2016 19:54:05 -0700 (PDT)
+Received: by mail-pf0-x22f.google.com with SMTP id c20so46100861pfc.1
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 19:54:05 -0700 (PDT)
+Date: Wed, 6 Apr 2016 19:53:57 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 12/31] huge tmpfs: extend get_user_pages_fast to shmem
+ pmd
+In-Reply-To: <20160406070044.GD3078@gmail.com>
+Message-ID: <alpine.LSU.2.11.1604061917530.3092@eggly.anvils>
+References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils> <alpine.LSU.2.11.1604051429160.5965@eggly.anvils> <20160406070044.GD3078@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20160404203952.GA8379@mwanda>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, Ralf Baechle <ralf@linux-mips.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-Hello Dan,
+On Wed, 6 Apr 2016, Ingo Molnar wrote:
+> * Hugh Dickins <hughd@google.com> wrote:
+> 
+> > ---
+> > Cc'ed to arch maintainers as an FYI: this patch is not expected to
+> > go into the tree in the next few weeks, and depends upon a PageTeam
+> > definition not yet available outside this huge tmpfs patchset.
+> > Please refer to linux-mm or linux-kernel for more context.
 
-On Mon, Apr 04, 2016 at 11:39:52PM +0300, Dan Carpenter wrote:
-> Hello Minchan Kim,
-> 
-> The patch 9a0346061ab8: "zsmalloc: zs_compact refactoring" from Apr
-> 2, 2016, leads to the following static checker warning:
-> 
-> 	mm/zsmalloc.c:1851 handle_from_obj()
-> 	warn: bit shifter 'OBJ_ALLOCATED_TAG' used for logical '&'
-> 
-> mm/zsmalloc.c
->   1622  static unsigned long obj_malloc(struct size_class *class,
->   1623                                  struct page *first_page, unsigned long handle)
->   1624  {
->   1625          unsigned long obj;
->   1626          struct link_free *link;
->   1627  
->   1628          struct page *m_page;
->   1629          unsigned long m_offset;
->   1630          void *vaddr;
->   1631  
->   1632          obj = get_freeobj(first_page);
->   1633          objidx_to_page_and_offset(class, first_page, obj,
->   1634                                  &m_page, &m_offset);
->   1635  
->   1636          vaddr = kmap_atomic(m_page);
->   1637          link = (struct link_free *)vaddr + m_offset / sizeof(*link);
->   1638          set_freeobj(first_page, link->next >> OBJ_ALLOCATED_TAG);
->                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> OBJ_ALLOCATED_TAG is 1.  Here it's used as a shifter.
-> 
->   1639          if (!class->huge)
->   1640                  /* record handle in the header of allocated chunk */
->   1641                  link->handle = handle | OBJ_ALLOCATED_TAG;
-> 
-> Here it's a bit mask.  It's sort of confusing to re-use it like this.
-> It's done through out the file.
+Actually, Andrew took it and the rest into mmotm yesterday, to give them
+better exposure through linux-next, so they should appear there soon.
 
-I will send clean up patch.
-Thanks.
+> > 
+> >  arch/mips/mm/gup.c  |   15 ++++++++++++++-
+> >  arch/s390/mm/gup.c  |   19 ++++++++++++++++++-
+> >  arch/sparc/mm/gup.c |   19 ++++++++++++++++++-
+> >  arch/x86/mm/gup.c   |   15 ++++++++++++++-
+> >  mm/gup.c            |   19 ++++++++++++++++++-
+> >  5 files changed, 82 insertions(+), 5 deletions(-)
+...
+> 
+> Ouch!
+
+Oh sorry, I didn't mean to hurt you ;)
 
 > 
->   1642          else
->   1643                  /* record handle in first_page->private */
->   1644                  set_page_private(first_page, handle | OBJ_ALLOCATED_TAG);
->   1645          kunmap_atomic(vaddr);
->   1646          mod_zspage_inuse(first_page, 1);
->   1647  
->   1648          obj = location_to_obj(m_page, obj);
->   1649  
->   1650          return obj;
->   1651  }
+> Looks like there are two main variants - so these kinds of repetitive patterns 
+> very much call for some sort of factoring out of common code, right?
+
+Hmm.  I'm still struggling between the two extremes, of
+
+(a) agreeing completely with you, and saying, yeah, I'll take on the job
+    of refactoring every architecture's get_user_pages_as_fast_as_you_can(),
+    without much likelihood of testing more than one,
+
+and
+
+(b) running a mile, and pointing out that we have a tradition of using
+    arch/x86/mm/gup.c as a template for the others, and here I've just
+    added a few more lines to that template (which never gets built more
+    than once into any kernel).
+
+Both are appealing in their different ways, but I think you can tell
+which I'm leaning towards...
+
+Honestly, I am still struggling between those two; but I think the patch
+as it stands is one thing, and cleanup for commonality should be another
+however weaselly that sounds ("I'll come back to it" - yeah, right).
+
+Hugh
+
 > 
-> regards,
-> dan carpenter
+> Then the fix could be applied to the common portion(s) only, which will cut down 
+> this gigantic diffstat:
+> 
+>   >  5 files changed, 82 insertions(+), 5 deletions(-)
+> 
+> Thanks,
+> 
+> 	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
