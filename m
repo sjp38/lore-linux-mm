@@ -1,77 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EE9506B0253
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 12:14:07 -0400 (EDT)
-Received: by mail-qg0-f51.google.com with SMTP id j35so67359847qge.0
-        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 09:14:07 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y98si6431168qge.38.2016.04.07.09.14.07
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D7636B0253
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 12:18:07 -0400 (EDT)
+Received: by mail-wm0-f49.google.com with SMTP id l6so32425891wml.1
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 09:18:07 -0700 (PDT)
+Received: from molly.corsac.net (pic75-3-78-194-244-226.fbxo.proxad.net. [78.194.244.226])
+        by mx.google.com with ESMTPS id e19si9756392wme.19.2016.04.07.09.18.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Apr 2016 09:14:07 -0700 (PDT)
-Message-ID: <1460045640.30063.3.camel@redhat.com>
-Subject: Re: [Lsf-pc] [Lsf] [LSF/MM TOPIC] Generic page-pool recycle
- facility?
-From: Rik van Riel <riel@redhat.com>
-Date: Thu, 07 Apr 2016 12:14:00 -0400
-In-Reply-To: <2816CC0C-686E-43CA-8689-027085255703@oracle.com>
-References: <1460034425.20949.7.camel@HansenPartnership.com>
-	 <20160407161715.52635cac@redhat.com> <20160407143854.GA7685@infradead.org>
-	 <2816CC0C-686E-43CA-8689-027085255703@oracle.com>
+        Thu, 07 Apr 2016 09:18:06 -0700 (PDT)
+Received: from corsac.net (unknown [IPv6:2a01:e34:ec2f:4e21::1])
+	by molly.corsac.net (Postfix) with ESMTPS id 1532284
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 18:18:03 +0200 (CEST)
+Message-ID: <1460045867.2818.67.camel@debian.org>
+Subject: Re: [kernel-hardening] Re: [RFC v1] mm: SLAB freelist randomization
+From: Yves-Alexis Perez <corsac@debian.org>
+Date: Thu, 07 Apr 2016 18:17:47 +0200
+In-Reply-To: <CAGXu5jLEENTFL_NYA5r4SqmUefkEwL68_Br6bX_RY2xNv95GVg@mail.gmail.com>
+References: <1459971348-81477-1-git-send-email-thgarnie@google.com>
+	 <CAGXu5jLEENTFL_NYA5r4SqmUefkEwL68_Br6bX_RY2xNv95GVg@mail.gmail.com>
 Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-UsUylZjyd8DzUzsJ2NSn"
+	protocol="application/pgp-signature"; boundary="=-biMppi13q/Rue9M3C58x"
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chuck Lever <chuck.lever@oracle.com>, Christoph Hellwig <hch@infradead.org>
-Cc: lsf@lists.linux-foundation.org, Tom Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-mm <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Jesper Dangaard Brouer <brouer@redhat.com>, lsf-pc@lists.linux-foundation.org, Alexei Starovoitov <alexei.starovoitov@gmail.com>
+To: kernel-hardening@lists.openwall.com, Thomas Garnier <thgarnie@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Laura Abbott <labbott@fedoraproject.org>
 
 
---=-UsUylZjyd8DzUzsJ2NSn
+--=-biMppi13q/Rue9M3C58x
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
-On Thu, 2016-04-07 at 08:48 -0700, Chuck Lever wrote:
-> >=20
-> > On Apr 7, 2016, at 7:38 AM, Christoph Hellwig <hch@infradead.org>
-> > wrote:
-> >=20
-> > This is also very interesting for storage targets, which face the
-> > same
-> > issue.=C2=A0=C2=A0SCST has a mode where it caches some fully constructe=
-d
-> > SGLs,
-> > which is probably very similar to what NICs want to do.
-> +1 for NFS server.
+On mer., 2016-04-06 at 14:45 -0700, Kees Cook wrote:
+> > This security feature reduces the predictability of
+> > the kernel slab allocator against heap overflows.
+>=20
+> I would add "... rendering attacks much less stable." And if you can
+> find a specific example exploit that is foiled by this, I would refer
+> to it.
 
-I have swapped around my slot (into the MM track)
-with Jesper's slot (now a plenary session), since
-there seems to be a fair amount of interest in
-Jesper's proposal from IO and FS people, and my
-topic is more MM specific.
+One good example might (or might not) be the keyring issue from earlier thi=
+s
+year (CVE-2016-0728):
 
+http://perception-point.io/2016/01/14/analysis-and-exploitation-of-a-linux-=
+ker
+nel-vulnerability-cve-2016-0728/
+
+Regards,
 --=20
-All Rights Reversed.
+Yves-Alexis
 
 
---=-UsUylZjyd8DzUzsJ2NSn
+--=-biMppi13q/Rue9M3C58x
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQEcBAABCAAGBQJXBodIAAoJEM553pKExN6D454IALC5jqiIbLVMGRBwiOvNBus+
-1dylF98TNkuiHOqurG/X5ipRmisWO61uhls/64+jWBz6GhwWCPw456rM7WGoNEK6
-ewEuVuspKTJqkTDcek5bLUE3a3QznfZMO2NnIVi2s+VNfIL+23fWNxDO2S5YN08P
-x0Ru6FDzqAm6pqmddIgka+463utaKS7OMpbC6ak0aFNGh/LDmEHXb5Ap6OZ6gHKY
-OgF8Ce7Acd51ISRRa6wgIR3PYjgYBhJidSPmbbDtYkYjr/7N7tqVa9gnz0wa45yK
-oj2MpG2WBr4fhGMD0C3f+sZS2KqcOs6Pl1hB7tkce/XMXi6n7FsPPOwtywsHIaA=
-=lFk5
+iQEcBAABCAAGBQJXBogrAAoJEG3bU/KmdcClQKsH/1y013Vezh04OGPgpDotuaC4
+w6CHEpjyFdxg2WZCEoJuV7EeSiAYmczw9uRKAGAeJ+gXdmf+z66U2FwqXkvJlkGc
+2sFBpsO/JYNydlyfsc7r8LVP5/PzTazm4Ww1nWYQPKCj65cQhy9yczsn2SgUDGgL
+IN8ks/AJNZT2qxuYsr8E6dmv448xf4u/p9HTf9MGfv0S3/4CeeU2+BjPQnOCmGuP
+yxvYVIxxavHICp8We+fyNDIYva+nKtLSvETuwF4QkxuscJrY17xI04rLIK0alTiT
+EyqvZluPVWRgQ3Hm945gLf4ifXsNiTgOKKuurLrMVdCe6UEu0p8b0LiAGMvi8E0=
+=62+d
 -----END PGP SIGNATURE-----
 
---=-UsUylZjyd8DzUzsJ2NSn--
+--=-biMppi13q/Rue9M3C58x--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
