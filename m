@@ -1,43 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id AB6426B007E
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 10:21:55 -0400 (EDT)
-Received: by mail-pf0-f176.google.com with SMTP id 184so56883817pff.0
-        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 07:21:55 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m27si379011pfj.88.2016.04.07.07.21.54
-        for <linux-mm@kvack.org>;
-        Thu, 07 Apr 2016 07:21:54 -0700 (PDT)
-Date: Thu, 7 Apr 2016 15:21:48 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 1/2] arm64: mem-model: add flatmem model for arm64
-Message-ID: <20160407142148.GI5657@arm.com>
-References: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C06D6B025F
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 10:38:56 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id zm5so56153068pac.0
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 07:38:56 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id i5si453432pfj.121.2016.04.07.07.38.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Apr 2016 07:38:55 -0700 (PDT)
+Date: Thu, 7 Apr 2016 07:38:54 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Generic page-pool recycle facility?
+Message-ID: <20160407143854.GA7685@infradead.org>
+References: <1460034425.20949.7.camel@HansenPartnership.com>
+ <20160407161715.52635cac@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
+In-Reply-To: <20160407161715.52635cac@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Feng <puck.chen@hisilicon.com>
-Cc: catalin.marinas@arm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, akpm@linux-foundation.org, robin.murphy@arm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, rientjes@google.com, linux-mm@kvack.org, puck.chen@foxmail.com, oliver.fu@hisilicon.com, linuxarm@huawei.com, dan.zhao@hisilicon.com, suzhuangluan@hisilicon.com, yudongbin@hislicon.com, albert.lubing@hisilicon.com, xuyiping@hisilicon.com, saberlily.xia@hisilicon.com
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Brenden Blanco <bblanco@plumgrid.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Tom Herbert <tom@herbertland.com>, lsf-pc@lists.linux-foundation.org, Alexei Starovoitov <alexei.starovoitov@gmail.com>
 
-On Tue, Apr 05, 2016 at 04:22:51PM +0800, Chen Feng wrote:
-> We can reduce the memory allocated at mem-map
-> by flatmem.
-> 
-> currently, the default memory-model in arm64 is
-> sparse memory. The mem-map array is not freed in
-> this scene. If the physical address is too long,
-> it will reserved too much memory for the mem-map
-> array.
-
-Can you elaborate a bit more on this, please? We use the vmemmap, so any
-spaces between memory banks only burns up virtual space. What exactly is
-the problem you're seeing that makes you want to use flatmem (which is
-probably unsuitable for the majority of arm64 machines).
-
-Will
+This is also very interesting for storage targets, which face the same
+issue.  SCST has a mode where it caches some fully constructed SGLs,
+which is probably very similar to what NICs want to do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
