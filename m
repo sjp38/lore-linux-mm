@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D94D6B025E
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 01:38:02 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id fe3so47914003pab.1
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 22:38:02 -0700 (PDT)
+Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CC956B025F
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 01:38:03 -0400 (EDT)
+Received: by mail-pf0-f180.google.com with SMTP id c20so48754349pfc.1
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 22:38:03 -0700 (PDT)
 Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [125.16.236.2])
-        by mx.google.com with ESMTPS id q82si9299027pfi.220.2016.04.06.22.38.00
+        by mx.google.com with ESMTPS id l27si9364185pfj.18.2016.04.06.22.38.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Apr 2016 22:38:01 -0700 (PDT)
+        Wed, 06 Apr 2016 22:38:02 -0700 (PDT)
 Received: from localhost
 	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 7 Apr 2016 11:07:59 +0530
+	Thu, 7 Apr 2016 11:08:00 +0530
 Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u375cFmW11534694
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2016 11:08:15 +0530
+	by d28relay04.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u375cDHB8388946
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2016 11:08:13 +0530
 Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u375bpdM006220
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2016 11:07:55 +0530
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u375bnak006165
+	for <linux-mm@kvack.org>; Thu, 7 Apr 2016 11:07:54 +0530
 From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH 06/10] powerpc/hugetlb: Split the function 'huge_pte_offset'
-Date: Thu,  7 Apr 2016 11:07:40 +0530
-Message-Id: <1460007464-26726-7-git-send-email-khandual@linux.vnet.ibm.com>
+Subject: [PATCH 05/10] powerpc/hugetlb: Split the function 'huge_pte_alloc'
+Date: Thu,  7 Apr 2016 11:07:39 +0530
+Message-Id: <1460007464-26726-6-git-send-email-khandual@linux.vnet.ibm.com>
 In-Reply-To: <1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com>
 References: <1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -30,69 +30,126 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 Cc: hughd@google.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, mgorman@techsingularity.net, dave.hansen@intel.com, aneesh.kumar@linux.vnet.ibm.com, mpe@ellerman.id.au
 
-Currently the function 'huge_pte_offset' has just got one version for all
-possible configurations and platforms. This change splits that function
-into two versions, first one for ARCH_WANT_GENERAL_HUGETLB implementation
-and the other one for everything else. This change is again one of the
-prerequisites towards enabling ARCH_WANT_GENERAL_ HUGETLB config option
-on POWER platform.
+Currently the function 'huge_pte_alloc' has got two versions, one for the
+BOOK3S server and the other one for the BOOK3E embedded platforms. This
+change splits only the BOOK3S server version into two parts, one for the
+ARCH_WANT_GENERAL_HUGETLB config implementation and the other one for
+everything else. This change is one of the prerequisites towards enabling
+ARCH_WANT_GENERAL_HUGETLB config option on POWER platform.
 
 Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
- arch/powerpc/mm/hugetlbpage.c | 35 +++++++++++++++++++++++++++++++++++
- 1 file changed, 35 insertions(+)
+ arch/powerpc/mm/hugetlbpage.c | 67 +++++++++++++++++++++++++++----------------
+ 1 file changed, 43 insertions(+), 24 deletions(-)
 
 diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index e453918..8fc6d23 100644
+index d991b9e..e453918 100644
 --- a/arch/powerpc/mm/hugetlbpage.c
 +++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -53,11 +53,46 @@ static unsigned nr_gpages;
- 
- #define hugepd_none(hpd)	((hpd).pd == 0)
- 
-+#ifndef CONFIG_ARCH_WANT_GENERAL_HUGETLB
- pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
- {
- 	/* Only called for hugetlbfs pages, hence can ignore THP */
+@@ -59,6 +59,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
  	return __find_linux_pte_or_hugepte(mm->pgd, addr, NULL, NULL);
  }
+ 
++#ifndef CONFIG_ARCH_WANT_GENERAL_HUGETLB
+ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+ 			   unsigned long address, unsigned pdshift, unsigned pshift)
+ {
+@@ -116,6 +117,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+ 	spin_unlock(&mm->page_table_lock);
+ 	return 0;
+ }
++#endif /* !CONFIG_ARCH_WANT_GENERAL_HUGETLB */
+ 
+ /*
+  * These macros define how to determine which level of the page table holds
+@@ -130,6 +132,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+ #endif
+ 
+ #ifdef CONFIG_PPC_BOOK3S_64
++#ifndef CONFIG_ARCH_WANT_GENERAL_HUGETLB
+ /*
+  * At this point we do the placement change only for BOOK3S 64. This would
+  * possibly work on other subarchs.
+@@ -145,32 +148,23 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
+ 
+ 	addr &= ~(sz-1);
+ 	pg = pgd_offset(mm, addr);
+-
+-	if (pshift == PGDIR_SHIFT)
+-		/* 16GB huge page */
+-		return (pte_t *) pg;
+-	else if (pshift > PUD_SHIFT)
+-		/*
+-		 * We need to use hugepd table
+-		 */
++	if (pshift > PUD_SHIFT) {
+ 		hpdp = (hugepd_t *)pg;
+-	else {
+-		pdshift = PUD_SHIFT;
+-		pu = pud_alloc(mm, pg, addr);
+-		if (pshift == PUD_SHIFT)
+-			return (pte_t *)pu;
+-		else if (pshift > PMD_SHIFT)
+-			hpdp = (hugepd_t *)pu;
+-		else {
+-			pdshift = PMD_SHIFT;
+-			pm = pmd_alloc(mm, pu, addr);
+-			if (pshift == PMD_SHIFT)
+-				/* 16MB hugepage */
+-				return (pte_t *)pm;
+-			else
+-				hpdp = (hugepd_t *)pm;
+-		}
++		goto hugepd_search;
+ 	}
++
++	pdshift = PUD_SHIFT;
++	pu = pud_alloc(mm, pg, addr);
++	if (pshift > PMD_SHIFT) {
++		hpdp = (hugepd_t *)pu;
++		goto hugepd_search;
++	}
++
++	pdshift = PMD_SHIFT;
++	pm = pmd_alloc(mm, pu, addr);
++	hpdp = (hugepd_t *)pm;
++
++hugepd_search:
+ 	if (!hpdp)
+ 		return NULL;
+ 
+@@ -182,6 +176,31 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
+ 	return hugepte_offset(*hpdp, addr, pdshift);
+ }
+ 
 +#else /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
-+pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
++pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
 +{
-+	pgd_t pgd, *pgdp;
-+	pud_t pud, *pudp;
-+	pmd_t pmd, *pmdp;
++	pgd_t *pg;
++	pud_t *pu;
++	pmd_t *pm;
++	unsigned pshift = __ffs(sz);
 +
-+	pgdp = mm->pgd + pgd_index(addr);
-+	pgd  = READ_ONCE(*pgdp);
++	addr &= ~(sz-1);
++	pg = pgd_offset(mm, addr);
 +
-+	if (pgd_none(pgd))
-+		return NULL;
++	if (pshift == PGDIR_SHIFT)	/* 16GB Huge Page */
++		return (pte_t *)pg;
 +
-+	if (pgd_huge(pgd))
-+		return (pte_t *)pgdp;
++	pu = pud_alloc(mm, pg, addr);	/* NA, skipped */
++	if (pshift == PUD_SHIFT)
++		return (pte_t *)pu;
 +
-+	pudp = pud_offset(&pgd, addr);
-+	pud  = READ_ONCE(*pudp);
-+	if (pud_none(pud))
-+		return NULL;
++	pm = pmd_alloc(mm, pu, addr);	/* 16MB Huge Page */
++	if (pshift == PMD_SHIFT)
++		return (pte_t *)pm;
 +
-+	if (pud_huge(pud))
-+		return (pte_t *)pudp;
-+
-+	pmdp = pmd_offset(&pud, addr);
-+	pmd  = READ_ONCE(*pmdp);
-+	if (pmd_none(pmd))
-+		return NULL;
-+
-+	if (pmd_huge(pmd))
-+		return (pte_t *)pmdp;
 +	return NULL;
 +}
 +#endif /* !CONFIG_ARCH_WANT_GENERAL_HUGETLB */
+ #else
  
- #ifndef CONFIG_ARCH_WANT_GENERAL_HUGETLB
- static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
 -- 
 2.1.0
 
