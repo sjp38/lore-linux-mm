@@ -1,61 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E9D16B0005
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 03:44:50 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id zm5so50061847pac.0
-        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 00:44:50 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id b5si10010388pat.133.2016.04.07.00.44.47
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id BD0C16B0005
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 04:28:45 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id zm5so50759432pac.0
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 01:28:45 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id kq10si10211628pab.242.2016.04.07.01.28.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Apr 2016 00:44:49 -0700 (PDT)
-Subject: Re: [PATCH 1/2] arm64: mem-model: add flatmem model for arm64
-References: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
-From: Chen Feng <puck.chen@hisilicon.com>
-Message-ID: <57060E79.8030801@hisilicon.com>
-Date: Thu, 7 Apr 2016 15:38:33 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Apr 2016 01:28:45 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id q129so6556038pfb.3
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 01:28:44 -0700 (PDT)
+Subject: Re: [PATCH 01/10] mm/mmap: Replace SHM_HUGE_MASK with MAP_HUGE_MASK
+ inside mmap_pgoff
+References: <1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com>
+ <1460007464-26726-2-git-send-email-khandual@linux.vnet.ibm.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <57061A34.6090301@gmail.com>
+Date: Thu, 7 Apr 2016 18:28:36 +1000
 MIME-Version: 1.0
-In-Reply-To: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <1460007464-26726-2-git-send-email-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, akpm@linux-foundation.org, robin.murphy@arm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, rientjes@google.com, linux-mm@kvack.org, mgorman@suse.de
-Cc: puck.chen@foxmail.com, oliver.fu@hisilicon.com, linuxarm@huawei.com, dan.zhao@hisilicon.com, suzhuangluan@hisilicon.com, yudongbin@hislicon.com, albert.lubing@hisilicon.com, xuyiping@hisilicon.com, saberlily.xia@hisilicon.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+Cc: hughd@google.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, mgorman@techsingularity.net, dave.hansen@intel.com, aneesh.kumar@linux.vnet.ibm.com, mpe@ellerman.id.au
 
-add Mel Gorman
 
-On 2016/4/5 16:22, Chen Feng wrote:
-> We can reduce the memory allocated at mem-map
-> by flatmem.
+
+On 07/04/16 15:37, Anshuman Khandual wrote:
+> The commit 091d0d55b286 ("shm: fix null pointer deref when userspace
+> specifies invalid hugepage size") had replaced MAP_HUGE_MASK with
+> SHM_HUGE_MASK. Though both of them contain the same numeric value of
+> 0x3f, MAP_HUGE_MASK flag sounds more appropriate than the other one
+> in the context. Hence change it back.
 > 
-> currently, the default memory-model in arm64 is
-> sparse memory. The mem-map array is not freed in
-> this scene. If the physical address is too long,
-> it will reserved too much memory for the mem-map
-> array.
-> 
-> Signed-off-by: Chen Feng <puck.chen@hisilicon.com>
-> Signed-off-by: Fu Jun <oliver.fu@hisilicon.com>
-> ---
->  arch/arm64/Kconfig | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index 4f43622..c18930d 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -559,6 +559,9 @@ config ARCH_SPARSEMEM_ENABLE
->  	def_bool y
->  	select SPARSEMEM_VMEMMAP_ENABLE
->  
-> +config ARCH_FLATMEM_ENABLE
-> +	def_bool y
-> +
->  config ARCH_SPARSEMEM_DEFAULT
->  	def_bool ARCH_SPARSEMEM_ENABLE
->  
-> 
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+
+Acked-by: Balbir Singh <bsingharora@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
