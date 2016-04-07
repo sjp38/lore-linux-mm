@@ -1,43 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 64BC56B0005
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 11:11:58 -0400 (EDT)
-Received: by mail-qg0-f41.google.com with SMTP id c6so65620703qga.1
-        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 08:11:58 -0700 (PDT)
-Received: from na01-bl2-obe.outbound.protection.outlook.com (mail-bl2on0081.outbound.protection.outlook.com. [65.55.169.81])
-        by mx.google.com with ESMTPS id z69si6246850qgd.9.2016.04.07.08.11.57
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 97E606B0253
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 11:18:32 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id fe3so56679218pab.1
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 08:18:32 -0700 (PDT)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id z4si63690par.198.2016.04.07.08.18.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 07 Apr 2016 08:11:57 -0700 (PDT)
-Subject: Re: [Lsf] [Lsf-pc] [LSF/MM TOPIC] Generic page-pool recycle facility?
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Apr 2016 08:18:31 -0700 (PDT)
+Received: by mail-pa0-x22e.google.com with SMTP id fe3so56679032pab.1
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 08:18:31 -0700 (PDT)
+Message-ID: <1460042309.6473.414.camel@edumazet-glaptop3.roam.corp.google.com>
+Subject: Re: [LSF/MM TOPIC] Generic page-pool recycle facility?
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Thu, 07 Apr 2016 08:18:29 -0700
+In-Reply-To: <20160407161715.52635cac@redhat.com>
 References: <1460034425.20949.7.camel@HansenPartnership.com>
- <20160407161715.52635cac@redhat.com> <20160407143854.GA7685@infradead.org>
-From: Bart Van Assche <bart.vanassche@sandisk.com>
-Message-ID: <570678B7.7010802@sandisk.com>
-Date: Thu, 7 Apr 2016 08:11:51 -0700
-MIME-Version: 1.0
-In-Reply-To: <20160407143854.GA7685@infradead.org>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+	 <20160407161715.52635cac@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, Tom Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, "lsf@lists.linux-foundation.org" <lsf@lists.linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, Alexei Starovoitov <alexei.starovoitov@gmail.com>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tom Herbert <tom@herbertland.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, Brenden Blanco <bblanco@plumgrid.com>, lsf-pc@lists.linux-foundation.org
 
-On 04/07/16 07:38, Christoph Hellwig wrote:
-> This is also very interesting for storage targets, which face the same
-> issue.  SCST has a mode where it caches some fully constructed SGLs,
-> which is probably very similar to what NICs want to do.
+On Thu, 2016-04-07 at 16:17 +0200, Jesper Dangaard Brouer wrote:
+> (Topic proposal for MM-summit)
+> 
+> Network Interface Cards (NIC) drivers, and increasing speeds stress
+> the page-allocator (and DMA APIs).  A number of driver specific
+> open-coded approaches exists that work-around these bottlenecks in the
+> page allocator and DMA APIs. E.g. open-coded recycle mechanisms, and
+> allocating larger pages and handing-out page "fragments".
+> 
+> I'm proposing a generic page-pool recycle facility, that can cover the
+> driver use-cases, increase performance and open up for zero-copy RX.
+> 
+> 
+> The basic performance problem is that pages (containing packets at RX)
+> are cycled through the page allocator (freed at TX DMA completion
+> time).  While a system in a steady state, could avoid calling the page
+> allocator, when having a pool of pages equal to the size of the RX
+> ring plus the number of outstanding frames in the TX ring (waiting for
+> DMA completion).
 
-I think a cached allocator for page sets + the scatterlists that 
-describe these page sets would not only be useful for SCSI target 
-implementations but also for the Linux SCSI initiator. Today the scsi-mq 
-code reserves space in each scsi_cmnd for a scatterlist of 
-SCSI_MAX_SG_SEGMENTS. If scatterlists would be cached together with page 
-sets less memory would be needed per scsi_cmnd. See also 
-scsi_mq_setup_tags() and scsi_alloc_sgtable().
 
-Bart.
+We certainly used this at Google for quite a while.
+
+The thing is : in steady state, the number of pages being 'in tx queues'
+is lower than number of pages that were allocated for RX queues.
+
+The page allocator is hardly hit, once you have big enough RX ring
+buffers. (Nothing fancy, simply the default number of slots)
+
+The 'hard codedA' code is quite small actually
+
+if (page_count(page) != 1) {
+    free the page and allocate another one, 
+    since we are not the exclusive owner.
+    Prefer __GFP_COLD pages btw.
+}
+page_ref_inc(page);
+
+Problem of a 'pool' is that it matches a router workload, not host one.
+
+With existing code, new pages are automatically allocated on demand, if
+say previous pages are still used by skb stored in sockets receive
+queues and consumers are slow to react to the presence of this data.
+
+But in most cases (steady state), the refcount on the page is released
+by the application reading the data before the driver cycled through the
+RX ring buffer and drivers only increments the page count.
+
+I also played with grouping pages into the same 2MB pages, but got mixed
+results.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
