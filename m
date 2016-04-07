@@ -1,82 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 97E606B0253
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 11:18:32 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id fe3so56679218pab.1
-        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 08:18:32 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id z4si63690par.198.2016.04.07.08.18.31
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A9FE46B0253
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 11:22:37 -0400 (EDT)
+Received: by mail-wm0-f44.google.com with SMTP id v188so60335414wme.1
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 08:22:37 -0700 (PDT)
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
+        by mx.google.com with ESMTPS id g72si9482870wmi.124.2016.04.07.08.22.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Apr 2016 08:18:31 -0700 (PDT)
-Received: by mail-pa0-x22e.google.com with SMTP id fe3so56679032pab.1
-        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 08:18:31 -0700 (PDT)
-Message-ID: <1460042309.6473.414.camel@edumazet-glaptop3.roam.corp.google.com>
-Subject: Re: [LSF/MM TOPIC] Generic page-pool recycle facility?
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Thu, 07 Apr 2016 08:18:29 -0700
-In-Reply-To: <20160407161715.52635cac@redhat.com>
-References: <1460034425.20949.7.camel@HansenPartnership.com>
-	 <20160407161715.52635cac@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Thu, 07 Apr 2016 08:22:36 -0700 (PDT)
+Received: by mail-wm0-f50.google.com with SMTP id 191so95533148wmq.0
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 08:22:36 -0700 (PDT)
+Date: Thu, 7 Apr 2016 17:22:35 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Re: Re: PG_reserved and compound pages
+Message-ID: <20160407152234.GE32755@dhcp22.suse.cz>
+References: <4482994.u2S3pScRyb@noys2>
+ <3877205.TjDYue2aah@noys2>
+ <20160406153343.GJ24272@dhcp22.suse.cz>
+ <20567553.kUaGmfXpqH@noys2>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20567553.kUaGmfXpqH@noys2>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Tom Herbert <tom@herbertland.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, Brenden Blanco <bblanco@plumgrid.com>, lsf-pc@lists.linux-foundation.org
+To: Frank Mehnert <frank.mehnert@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 2016-04-07 at 16:17 +0200, Jesper Dangaard Brouer wrote:
-> (Topic proposal for MM-summit)
+On Thu 07-04-16 15:45:02, Frank Mehnert wrote:
+> On Wednesday 06 April 2016 17:33:43 Michal Hocko wrote:
+[...]
+> > Do you map your pages to the userspace? If yes then vma with VM_IO or
+> > VM_PFNMAP should keep any attempt away from those pages.
 > 
-> Network Interface Cards (NIC) drivers, and increasing speeds stress
-> the page-allocator (and DMA APIs).  A number of driver specific
-> open-coded approaches exists that work-around these bottlenecks in the
-> page allocator and DMA APIs. E.g. open-coded recycle mechanisms, and
-> allocating larger pages and handing-out page "fragments".
+> Yes, such memory objects are also mapped to userland. Do you think that
+> VM_IO or VM_PFNMAP would guard against NUMA page migration?
+
+Both auto numa and manual numa migration checks vma_migratable and that
+excludes both VM flags.
+
+> Because when
+> NUMA page migration was introduced (I believe with Linux 3.8) I tested
+> both flags and saw that they didn't prevent the migration on such VM
+> areas. Maybe this changed in the meantime, do you have more information
+> about that?
+
+I haven't checked the history much but vma_migratable should be there
+for quite some time. Maybe it wasn't used in the past. Dunno
+
+> The drawback of at least VM_IO is that such memory is not part of a core
+> dump.
+
+that seems to be correct as per vma_dump_size
+
+> Actually currently we use vm_insert_page() for userland mapping
+> and mark the VM areas as
 > 
-> I'm proposing a generic page-pool recycle facility, that can cover the
-> driver use-cases, increase performance and open up for zero-copy RX.
-> 
-> 
-> The basic performance problem is that pages (containing packets at RX)
-> are cycled through the page allocator (freed at TX DMA completion
-> time).  While a system in a steady state, could avoid calling the page
-> allocator, when having a pool of pages equal to the size of the RX
-> ring plus the number of outstanding frames in the TX ring (waiting for
-> DMA completion).
+>   VM_DONTEXPAND | VM_DONTDUMP
 
+but that means that it won't end up in the dump either. Or am I missing
+your point.
 
-We certainly used this at Google for quite a while.
-
-The thing is : in steady state, the number of pages being 'in tx queues'
-is lower than number of pages that were allocated for RX queues.
-
-The page allocator is hardly hit, once you have big enough RX ring
-buffers. (Nothing fancy, simply the default number of slots)
-
-The 'hard codedA' code is quite small actually
-
-if (page_count(page) != 1) {
-    free the page and allocate another one, 
-    since we are not the exclusive owner.
-    Prefer __GFP_COLD pages btw.
-}
-page_ref_inc(page);
-
-Problem of a 'pool' is that it matches a router workload, not host one.
-
-With existing code, new pages are automatically allocated on demand, if
-say previous pages are still used by skb stored in sockets receive
-queues and consumers are slow to react to the presence of this data.
-
-But in most cases (steady state), the refcount on the page is released
-by the application reading the data before the driver cycled through the
-RX ring buffer and drivers only increments the page count.
-
-I also played with grouping pages into the same 2MB pages, but got mixed
-results.
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
