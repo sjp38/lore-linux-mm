@@ -1,56 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f174.google.com (mail-qk0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id B3AD86B0005
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 17:14:21 -0400 (EDT)
-Received: by mail-qk0-f174.google.com with SMTP id i4so36556302qkc.3
-        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 14:14:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z203si7363253qka.44.2016.04.07.14.14.20
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id CE1976B0005
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 17:29:00 -0400 (EDT)
+Received: by mail-ob0-f178.google.com with SMTP id fp4so61302317obb.2
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 14:29:00 -0700 (PDT)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id sw5si3544471obc.4.2016.04.07.14.29.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Apr 2016 14:14:20 -0700 (PDT)
-Date: Thu, 7 Apr 2016 23:14:13 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC v1] mm: SLAB freelist randomization
-Message-ID: <20160407231413.53e371ff@redhat.com>
-In-Reply-To: <CAGXu5jLEENTFL_NYA5r4SqmUefkEwL68_Br6bX_RY2xNv95GVg@mail.gmail.com>
-References: <1459971348-81477-1-git-send-email-thgarnie@google.com>
-	<CAGXu5jLEENTFL_NYA5r4SqmUefkEwL68_Br6bX_RY2xNv95GVg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 07 Apr 2016 14:29:00 -0700 (PDT)
+Message-ID: <1460064033.20338.74.camel@hpe.com>
+Subject: Re: [PATCH] x86 get_unmapped_area: Add PMD alignment for DAX PMD
+ mmap
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Thu, 07 Apr 2016 15:20:33 -0600
+In-Reply-To: <20160407174111.GG2781@linux.intel.com>
+References: <1459951089-14911-1-git-send-email-toshi.kani@hpe.com>
+	 <20160406165027.GA2781@linux.intel.com> <1459964672.20338.41.camel@hpe.com>
+	 <20160407174111.GG2781@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: brouer@redhat.com, Thomas Garnier <thgarnie@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Laura Abbott <labbott@fedoraproject.org>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: mingo@kernel.org, bp@suse.de, hpa@zytor.com, tglx@linutronix.de, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, x86@kernel.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
 
+On Thu, 2016-04-07 at 13:41 -0400, Matthew Wilcox wrote:
+> On Wed, Apr 06, 2016 at 11:44:32AM -0600, Toshi Kani wrote:
+> > > 
+> > > The NVML chooses appropriate addresses and gets a properly aligned
+> > > address without any kernel code.
+> >
+> > An application like NVML can continue to specify a specific address to
+> > mmap(). A Most existing applications, however, do not specify an address
+> > to mmap(). A With this patch, specifying an address will remain
+> > optional.
+>
+> The point is that this *can* be done in userspace.A A You need to sell us
+> on the advantages of doing it in the kernel.
 
-On Wed, 6 Apr 2016 14:45:30 -0700 Kees Cook <keescook@chromium.org> wrote:
+Sure. A As I said, the point is that we do not need to modify existing
+applications for using DAX PMD mappings.
 
-> On Wed, Apr 6, 2016 at 12:35 PM, Thomas Garnier <thgarnie@google.com> wrote:
-[...]
-> > re-used on slab creation for performance.  
-> 
-> I'd like to see some benchmark results for this so the Kconfig can
-> include the performance characteristics. I recommend using hackbench
-> and kernel build times with a before/after comparison.
-> 
+For instance, fio with "ioengine=mmap" performs I/Os with mmap().
+https://github.com/caius/fio/blob/master/engines/mmap.c
 
-It looks like it only happens on init, right? (Thus must bench tools
-might not be the right choice).
+With this change, unmodified fio can be used for testing with DAX PMD
+mappings. A There are many examples like this, and I do not think we want to
+modify all applications that we want to evaluate/test with.
 
-My slab tools for benchmarking the fastpath is here:
- https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/slab_bulk_test01.c
+> > > I think this is the wrong place for it, if we decide that this is the
+> > > right thing to do.A A The filesystem has a get_unmapped_area() which
+> > > should be used instead.
+> >
+> > Yes, I considered adding a filesystem entry point, but decided going
+> > this way because:
+> > A -A arch_get_unmapped_area() andA arch_get_unmapped_area_topdown() are
+> > arch-specific code. A Therefore, this filesystem entry point will need
+> > arch-specific implementation.A 
+> > A - There is nothing filesystem specific about requesting PMD alignment.
+>
+> See http://article.gmane.org/gmane.linux.kernel.mm/149227 for Hugh's
+> approach for shmem.A A I strongly believe that if we're going to do this
+> i the kernel, we should build on this approach, and not hack something
+> into each architecture's generic get_unmapped_area.
 
-And I also carry a version of Christoph's slab bench tool:
- https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/slab_test.c
+Thanks for the pointer. A Yes, we can call current->mm->get_unmapped_area()
+with size + PMD_SIZE, and adjust with the alignment in a filesystem entry
+point. A I will update the patch with this approach.
 
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
