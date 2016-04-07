@@ -1,42 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id D02246B0253
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 11:48:57 -0400 (EDT)
-Received: by mail-ig0-f174.google.com with SMTP id g8so74079977igr.0
-        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 08:48:57 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id n7si222876igj.18.2016.04.07.08.48.57
+Received: from mail-lf0-f46.google.com (mail-lf0-f46.google.com [209.85.215.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D52056B0005
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 12:11:34 -0400 (EDT)
+Received: by mail-lf0-f46.google.com with SMTP id j11so60493330lfb.1
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 09:11:34 -0700 (PDT)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id m13si4524636lfm.15.2016.04.07.09.11.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Apr 2016 08:48:57 -0700 (PDT)
+        Thu, 07 Apr 2016 09:11:33 -0700 (PDT)
+Received: by mail-lf0-x241.google.com with SMTP id e190so7890406lfe.1
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 09:11:33 -0700 (PDT)
+Date: Thu, 7 Apr 2016 18:11:29 +0200
+From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Subject: Re: [PATCH 0/3] mm/mmap.c: don't unmap the overlapping VMA(s)
+Message-ID: <20160407161128.GA2713@home.local>
+References: <1459624654-7955-1-git-send-email-kwapulinski.piotr@gmail.com>
+ <20160404073100.GA10272@dhcp22.suse.cz>
+ <570287B3.6050903@suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Subject: Re: [Lsf] [Lsf-pc] [LSF/MM TOPIC] Generic page-pool recycle facility?
-From: Chuck Lever <chuck.lever@oracle.com>
-In-Reply-To: <20160407143854.GA7685@infradead.org>
-Date: Thu, 7 Apr 2016 08:48:15 -0700
-Content-Transfer-Encoding: 7bit
-Message-Id: <2816CC0C-686E-43CA-8689-027085255703@oracle.com>
-References: <1460034425.20949.7.camel@HansenPartnership.com> <20160407161715.52635cac@redhat.com> <20160407143854.GA7685@infradead.org>
+Content-Disposition: inline
+In-Reply-To: <570287B3.6050903@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Tom Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, lsf-pc@lists.linux-foundation.org, Alexei Starovoitov <alexei.starovoitov@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, mtk.manpages@gmail.com, cmetcalf@mellanox.com, arnd@arndb.de, viro@zeniv.linux.org.uk, mszeredi@suse.cz, dave@stgolabs.net, kirill.shutemov@linux.intel.com, mingo@kernel.org, dan.j.williams@intel.com, dave.hansen@linux.intel.com, koct9i@gmail.com, hannes@cmpxchg.org, jack@suse.cz, xiexiuqi@huawei.com, iamjoonsoo.kim@lge.com, oleg@redhat.com, gang.chen.5i5j@gmail.com, aarcange@redhat.com, aryabinin@virtuozzo.com, rientjes@google.com, denc716@gmail.com, toshi.kani@hpe.com, ldufour@linux.vnet.ibm.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-
-> On Apr 7, 2016, at 7:38 AM, Christoph Hellwig <hch@infradead.org> wrote:
+On Mon, Apr 04, 2016 at 05:26:43PM +0200, Vlastimil Babka wrote:
+> On 04/04/2016 09:31 AM, Michal Hocko wrote:
+> >On Sat 02-04-16 21:17:31, Piotr Kwapulinski wrote:
+> >>Currently the mmap(MAP_FIXED) discards the overlapping part of the
+> >>existing VMA(s).
+> >>Introduce the new MAP_DONTUNMAP flag which forces the mmap to fail
+> >>with ENOMEM whenever the overlapping occurs and MAP_FIXED is set.
+> >>No existing mapping(s) is discarded.
+> >
+> >You forgot to tell us what is the use case for this new flag.
 > 
-> This is also very interesting for storage targets, which face the same
-> issue.  SCST has a mode where it caches some fully constructed SGLs,
-> which is probably very similar to what NICs want to do.
+> Exactly. Also, returning ENOMEM is strange, EINVAL might be a better match,
+> otherwise how would you distinguish a "geunine" ENOMEM from passing a wrong
+> address?
+> 
+> 
 
-+1 for NFS server.
+Thanks to all for suggestions. I'll fix them.
 
+The example use case:
+#include <stdio.h>
+#include <string.h>
+#include <sys/mman.h>
 
---
-Chuck Lever
+void main(void)
+{
+  void* addr = (void*)0x1000000;
+  size_t size = 0x600000;
+  void* start = 0;
+  start = mmap(addr,
+               size,
+               PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+               -1, 0);
 
+  strcpy(start, "PPPP");
+  printf("%s\n", start);        // == PPPP
 
+  addr = (void*)0x1000000;
+  size = 0x9000;
+  start = mmap(addr,
+               size,
+               PROT_READ | PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+               -1, 0);
+  
+  printf("%s\n", start);        // != PPPP
+}
+
+Another use case, this time with huge pages in action.
+The limit configured in proc's nr_hugepages is exceeded.
+mmap unmaps the area and fails. No new mapping is created.
+The program segfaults.
+
+echo 0 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+void main(void)
+{
+  void* addr = (void*)0x1000000;
+  size_t size = 0x600000;
+  void* start = 0;
+  start = mmap(addr,
+               size,
+               PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+               -1, 0);
+
+  strcpy(start, "PPPP");
+  printf("%s\n", start);        // == PPPP
+
+  addr = (void*)0x1000000;
+  size = 0x400000;
+  start = mmap(addr,
+               size,
+               PROT_READ | PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED | MAP_HUGETLB,
+               -1, 0);         // mmap fails but unmaps the area
+
+  printf("%s\n", start);       // segfault
+}
+
+Piotr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
