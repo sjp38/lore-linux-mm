@@ -1,75 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D7636B0253
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 12:18:07 -0400 (EDT)
-Received: by mail-wm0-f49.google.com with SMTP id l6so32425891wml.1
-        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 09:18:07 -0700 (PDT)
-Received: from molly.corsac.net (pic75-3-78-194-244-226.fbxo.proxad.net. [78.194.244.226])
-        by mx.google.com with ESMTPS id e19si9756392wme.19.2016.04.07.09.18.05
+Received: from mail-lf0-f41.google.com (mail-lf0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 74F376B0253
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 12:20:52 -0400 (EDT)
+Received: by mail-lf0-f41.google.com with SMTP id g184so60893628lfb.3
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 09:20:52 -0700 (PDT)
+Received: from mail-lb0-x243.google.com (mail-lb0-x243.google.com. [2a00:1450:4010:c04::243])
+        by mx.google.com with ESMTPS id nb5si4536232lbb.41.2016.04.07.09.20.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Apr 2016 09:18:06 -0700 (PDT)
-Received: from corsac.net (unknown [IPv6:2a01:e34:ec2f:4e21::1])
-	by molly.corsac.net (Postfix) with ESMTPS id 1532284
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 18:18:03 +0200 (CEST)
-Message-ID: <1460045867.2818.67.camel@debian.org>
-Subject: Re: [kernel-hardening] Re: [RFC v1] mm: SLAB freelist randomization
-From: Yves-Alexis Perez <corsac@debian.org>
-Date: Thu, 07 Apr 2016 18:17:47 +0200
-In-Reply-To: <CAGXu5jLEENTFL_NYA5r4SqmUefkEwL68_Br6bX_RY2xNv95GVg@mail.gmail.com>
-References: <1459971348-81477-1-git-send-email-thgarnie@google.com>
-	 <CAGXu5jLEENTFL_NYA5r4SqmUefkEwL68_Br6bX_RY2xNv95GVg@mail.gmail.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-biMppi13q/Rue9M3C58x"
-Mime-Version: 1.0
+        Thu, 07 Apr 2016 09:20:51 -0700 (PDT)
+Received: by mail-lb0-x243.google.com with SMTP id q4so6816217lbq.3
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 09:20:50 -0700 (PDT)
+Date: Thu, 7 Apr 2016 18:20:47 +0200
+From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Subject: Re: [PATCH 0/3] mm/mmap.c: don't unmap the overlapping VMA(s)
+Message-ID: <20160407162046.GA3602@home.local>
+References: <1459624654-7955-1-git-send-email-kwapulinski.piotr@gmail.com>
+ <20160404073100.GA10272@dhcp22.suse.cz>
+ <570287B3.6050903@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <570287B3.6050903@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel-hardening@lists.openwall.com, Thomas Garnier <thgarnie@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Laura Abbott <labbott@fedoraproject.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, mtk.manpages@gmail.com, cmetcalf@mellanox.com, arnd@arndb.de, viro@zeniv.linux.org.uk, mszeredi@suse.cz, dave@stgolabs.net, kirill.shutemov@linux.intel.com, mingo@kernel.org, dan.j.williams@intel.com, dave.hansen@linux.intel.com, koct9i@gmail.com, hannes@cmpxchg.org, jack@suse.cz, xiexiuqi@huawei.com, iamjoonsoo.kim@lge.com, oleg@redhat.com, gang.chen.5i5j@gmail.com, aarcange@redhat.com, aryabinin@virtuozzo.com, rientjes@google.com, denc716@gmail.com, toshi.kani@hpe.com, ldufour@linux.vnet.ibm.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
+On Mon, Apr 04, 2016 at 05:26:43PM +0200, Vlastimil Babka wrote:
+> On 04/04/2016 09:31 AM, Michal Hocko wrote:
+> >On Sat 02-04-16 21:17:31, Piotr Kwapulinski wrote:
+> >>Currently the mmap(MAP_FIXED) discards the overlapping part of the
+> >>existing VMA(s).
+> >>Introduce the new MAP_DONTUNMAP flag which forces the mmap to fail
+> >>with ENOMEM whenever the overlapping occurs and MAP_FIXED is set.
+> >>No existing mapping(s) is discarded.
+> >
+> >You forgot to tell us what is the use case for this new flag.
+> 
+> Exactly. Also, returning ENOMEM is strange, EINVAL might be a better match,
+> otherwise how would you distinguish a "geunine" ENOMEM from passing a wrong
+> address?
+> 
+> 
 
---=-biMppi13q/Rue9M3C58x
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Thanks to all for suggestions. I'll fix them.
 
-On mer., 2016-04-06 at 14:45 -0700, Kees Cook wrote:
-> > This security feature reduces the predictability of
-> > the kernel slab allocator against heap overflows.
->=20
-> I would add "... rendering attacks much less stable." And if you can
-> find a specific example exploit that is foiled by this, I would refer
-> to it.
+The example use case:
+#include <stdio.h>
+#include <string.h>
+#include <sys/mman.h>
 
-One good example might (or might not) be the keyring issue from earlier thi=
-s
-year (CVE-2016-0728):
+void main(void)
+{
+  void* addr = (void*)0x1000000;
+  size_t size = 0x600000;
+  void* start = 0;
+  start = mmap(addr,
+               size,
+               PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+               -1, 0);
 
-http://perception-point.io/2016/01/14/analysis-and-exploitation-of-a-linux-=
-ker
-nel-vulnerability-cve-2016-0728/
+  strcpy(start, "PPPP");
+  printf("%s\n", start);        // == PPPP
 
-Regards,
---=20
-Yves-Alexis
+  addr = (void*)0x1000000;
+  size = 0x9000;
+  start = mmap(addr,
+               size,
+               PROT_READ | PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+               -1, 0);
+  
+  printf("%s\n", start);        // != PPPP
+}
 
+Another use case, this time with huge pages in action.
+The limit configured in proc's nr_hugepages is exceeded.
+mmap unmaps the area and fails. No new mapping is created.
+The program segfaults.
 
---=-biMppi13q/Rue9M3C58x
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
+echo 0 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+#include <stdio.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
-iQEcBAABCAAGBQJXBogrAAoJEG3bU/KmdcClQKsH/1y013Vezh04OGPgpDotuaC4
-w6CHEpjyFdxg2WZCEoJuV7EeSiAYmczw9uRKAGAeJ+gXdmf+z66U2FwqXkvJlkGc
-2sFBpsO/JYNydlyfsc7r8LVP5/PzTazm4Ww1nWYQPKCj65cQhy9yczsn2SgUDGgL
-IN8ks/AJNZT2qxuYsr8E6dmv448xf4u/p9HTf9MGfv0S3/4CeeU2+BjPQnOCmGuP
-yxvYVIxxavHICp8We+fyNDIYva+nKtLSvETuwF4QkxuscJrY17xI04rLIK0alTiT
-EyqvZluPVWRgQ3Hm945gLf4ifXsNiTgOKKuurLrMVdCe6UEu0p8b0LiAGMvi8E0=
-=62+d
------END PGP SIGNATURE-----
+void main(void)
+{
+  void* addr = (void*)0x1000000;
+  size_t size = 0x600000;
+  void* start = 0;
+  start = mmap(addr,
+               size,
+               PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+               -1, 0);
 
---=-biMppi13q/Rue9M3C58x--
+  strcpy(start, "PPPP");
+  printf("%s\n", start);        // == PPPP
+
+  addr = (void*)0x1000000;
+  size = 0x400000;
+  start = mmap(addr,
+               size,
+               PROT_READ | PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED | MAP_HUGETLB,
+               -1, 0);         // mmap fails but unmaps the area
+
+  printf("%s\n", addr);       // segfault
+}
+
+Piotr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
