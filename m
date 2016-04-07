@@ -1,107 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id ED6C46B025E
-	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 22:05:31 -0400 (EDT)
-Received: by mail-pf0-f172.google.com with SMTP id 184so45369822pff.0
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 19:05:31 -0700 (PDT)
-Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
-        by mx.google.com with ESMTPS id c67si8170506pfj.47.2016.04.06.19.05.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Apr 2016 19:05:31 -0700 (PDT)
-Received: by mail-pf0-x235.google.com with SMTP id 184so45369594pff.0
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 19:05:31 -0700 (PDT)
-Date: Wed, 6 Apr 2016 19:05:20 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 23/31] huge tmpfs recovery: framework for reconstituting
- huge pages
-In-Reply-To: <5704E4D2.5020808@nextfour.com>
-Message-ID: <alpine.LSU.2.11.1604061820150.2262@eggly.anvils>
-References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils> <alpine.LSU.2.11.1604051451430.5965@eggly.anvils> <5704E4D2.5020808@nextfour.com>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E9B266B025E
+	for <linux-mm@kvack.org>; Wed,  6 Apr 2016 22:26:59 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id fe3so44885546pab.1
+        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 19:26:59 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id ug10si8221798pab.237.2016.04.06.19.26.58
+        for <linux-mm@kvack.org>;
+        Wed, 06 Apr 2016 19:26:59 -0700 (PDT)
+Date: Thu, 7 Apr 2016 11:27:14 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v3 03/16] mm: add non-lru movable page support document
+Message-ID: <20160407022714.GC15178@bbox>
+References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
+ <1459321935-3655-4-git-send-email-minchan@kernel.org>
+ <56FE87EA.60806@suse.cz>
+ <20160404022552.GD6543@bbox>
+ <57026782.3020201@suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <57026782.3020201@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mika Penttila <mika.penttila@nextfour.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>, Jonathan Corbet <corbet@lwn.net>
 
-On Wed, 6 Apr 2016, Mika Penttila wrote:
-> On 04/06/2016 12:53 AM, Hugh Dickins wrote:
-> > +static void shmem_recovery_work(struct work_struct *work)
-...
-> > +
-> > +	if (head) {
-> > +		/* We are resuming work from a previous partial recovery */
-> > +		if (PageTeam(page))
-> > +			shr_stats(resume_teamed);
-> > +		else
-> > +			shr_stats(resume_tagged);
-> > +	} else {
-> > +		gfp_t gfp = mapping_gfp_mask(mapping);
-> > +		/*
-> > +		 * XXX: Note that with swapin readahead, page_to_nid(page) will
-> > +		 * often choose an unsuitable NUMA node: something to fix soon,
-> > +		 * but not an immediate blocker.
-> > +		 */
-> > +		head = __alloc_pages_node(page_to_nid(page),
-> > +			gfp | __GFP_NOWARN | __GFP_THISNODE, HPAGE_PMD_ORDER);
-> > +		if (!head) {
-> > +			shr_stats(huge_failed);
-> > +			error = -ENOMEM;
-> > +			goto out;
-> > +		}
+On Mon, Apr 04, 2016 at 03:09:22PM +0200, Vlastimil Babka wrote:
+> On 04/04/2016 04:25 AM, Minchan Kim wrote:
+> >>
+> >>Ah, I see, so it's designed with page lock to handle the concurrent isolations etc.
+> >>
+> >>In http://marc.info/?l=linux-mm&m=143816716511904&w=2 Mel has warned
+> >>about doing this in general under page_lock and suggested that each
+> >>user handles concurrent calls to isolate_page() internally. Might be
+> >>more generic that way, even if all current implementers will
+> >>actually use the page lock.
+> >
+> >We need PG_lock for two reasons.
+> >
+> >Firstly, it guarantees page's flags operation(i.e., PG_movable, PG_isolated)
+> >atomicity. Another thing is for stability for page->mapping->a_ops.
+> >
+> >For example,
+> >
+> >isolate_migratepages_block
+> >         if (PageMovable(page))
+> >                 isolate_movable_page
+> >                         get_page_unless_zero <--- 1
+> >                         trylock_page
+> >                         page->mapping->a_ops->isolate_page <--- 2
+> >
+> >Between 1 and 2, driver can nullify page->mapping so we need PG_lock
 > 
-> Should this head marked PageTeam? Because in patch 27/31 when given as a hint to shmem_getpage_gfp() :
-> 
->  		hugehint = NULL;
-> +		if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
-> +		    sgp == SGP_TEAM && *pagep) {
-> +			struct page *head;
-> +
-> +			if (!get_page_unless_zero(*pagep)) {
-> +				error = -ENOENT;
-> +				goto decused;
-> +			}
-> +			page = *pagep;
-> +			lock_page(page);
-> +			head = page - (index & (HPAGE_PMD_NR-1));     
-> 
-> we fail always because :
-> +			if (!PageTeam(head)) {
-> +				error = -ENOENT;
-> +				goto decused;
-> +			}
+> Hmm I see, that really doesn't seem easily solvable without page_lock.
+> My idea is that compaction code would just check PageMovable() and
+> PageIsolated() to find a candidate.
+> page->mapping->a_ops->isolate_page would do the driver-specific
+> necessary locking, revalidate if the page state and succeed
+> isolation, or fail. It would need to handle the possibility that the
 
-Great observation, thank you Mika.
+So you mean that VM can try to isolate false-positive page of the driver?
+I don't think it's a good idea. For handling that, every driver should
+keep some logics to handle such false-positive which needs each own
+data structure or something to remember the page passed from VM
+is valid or not. It makes driver's logic more complicated and need
+more codes to handle it. It's not a good deal.
 
-We don't fail always, because in most cases the page wanted for the head
-will either be already in memory, or read in from swap, and that SGP_TEAM
-block in shmem_getpage_gfp() (with the -ENOENT you show) not come into play
-on it: then shmem_recovery_populate() does its !recovery->exposed_team
-SetPageTeam(head) and all is well from then on.
+> page already doesn't belong to the mapping, which is probably not a
+> problem. But what if the driver is a module that was already
+> unloaded, and even though we did NULL-check each part from page to
+> isolate_page, it points to a function that's already gone? That
+> would need some extra handling to prevent that, hm...
 
-But I think what you point out means that the current recovery code is
-incapable of assembling a hugepage if its first page was not already
-instantiated earlier: not something I'd realized until you showed me.
-Not a common failing, and would never be the case for an extent which had
-been mapped huge in the past, but it's certainly not what I'd intended.
-
-As to whether the head should be marked PageTeam immediately after the
-hugepage allocation: I think not, especially because of the swapin case
-(26/31).  Swapin may need to read data from disk into that head page,
-and I've never had to think about the consequences of having a swap
-page marked PageTeam.  Perhaps it would work out okay, but I'd prefer
-not to go there.
-
-At this moment I'm too tired to think what the right answer will be,
-and certainly won't be able to commit to any without some testing.
-
-So, not as incapacitating as perhaps you thought, and not any danger
-to people trying out huge tmpfs, but definitely something to be fixed:
-I'll mull it over in the background and let you know when I'm sure.
-
-Thank you again,
-Hugh
+Yes, driver should clean up pages is is using. For it, we need some lock.
+I think page_lock is good for it because we are migrating *page* and page_lock
+have been used it for a long time in migration path.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
