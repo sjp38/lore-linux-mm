@@ -1,58 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 09DC66B0253
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 12:35:48 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id fp4so56359866obb.2
-        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 09:35:48 -0700 (PDT)
-Received: from mail-oi0-x235.google.com (mail-oi0-x235.google.com. [2607:f8b0:4003:c06::235])
-        by mx.google.com with ESMTPS id e8si3123719obp.53.2016.04.07.09.35.47
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 2713E6B0005
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 13:24:48 -0400 (EDT)
+Received: by mail-wm0-f46.google.com with SMTP id u206so96412871wme.1
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 10:24:48 -0700 (PDT)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id c65si31134942wmd.107.2016.04.07.10.24.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Apr 2016 09:35:47 -0700 (PDT)
-Received: by mail-oi0-x235.google.com with SMTP id y204so105630581oie.3
-        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 09:35:47 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1460045867.2818.67.camel@debian.org>
-References: <1459971348-81477-1-git-send-email-thgarnie@google.com>
-	<CAGXu5jLEENTFL_NYA5r4SqmUefkEwL68_Br6bX_RY2xNv95GVg@mail.gmail.com>
-	<1460045867.2818.67.camel@debian.org>
-Date: Thu, 7 Apr 2016 09:35:46 -0700
-Message-ID: <CAJcbSZFx4rT6fXKvOF-wgHTSZBgqfQGw0qn=JqwAygNHDVUvNQ@mail.gmail.com>
-Subject: Re: [kernel-hardening] Re: [RFC v1] mm: SLAB freelist randomization
-From: Thomas Garnier <thgarnie@google.com>
-Content-Type: text/plain; charset=UTF-8
+        Thu, 07 Apr 2016 10:24:46 -0700 (PDT)
+Received: by mail-wm0-x232.google.com with SMTP id f198so34668846wme.0
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 10:24:46 -0700 (PDT)
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: [PATCH v5 0/2] mm, thp: Fix unnecessarry resource consuming in swapin
+Date: Thu,  7 Apr 2016 20:24:21 +0300
+Message-Id: <1460049861-10646-1-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yves-Alexis Perez <corsac@debian.org>
-Cc: kernel-hardening@lists.openwall.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Laura Abbott <labbott@fedoraproject.org>
+To: linux-mm@kvack.org
+Cc: hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
-That's a use after free. The randomization of the freelist should not
-have much effect on that. I was going to quote this exploit that is
-applicable to SLAB as well:
-https://jon.oberheide.org/blog/2010/09/10/linux-kernel-can-slub-overflow
+This patch series fixes unnecessarry resource consuming
+in khugepaged swapin and introduces a new function to
+calculate value of specific vm event.
 
-Regards.
-Thomas
+Ebru Akagunduz (2):
+  mm, vmstat: calculate particular vm event
+  mm, thp: avoid unnecessary swapin in khugepaged
 
-On Thu, Apr 7, 2016 at 9:17 AM, Yves-Alexis Perez <corsac@debian.org> wrote:
-> On mer., 2016-04-06 at 14:45 -0700, Kees Cook wrote:
->> > This security feature reduces the predictability of
->> > the kernel slab allocator against heap overflows.
->>
->> I would add "... rendering attacks much less stable." And if you can
->> find a specific example exploit that is foiled by this, I would refer
->> to it.
->
-> One good example might (or might not) be the keyring issue from earlier this
-> year (CVE-2016-0728):
->
-> http://perception-point.io/2016/01/14/analysis-and-exploitation-of-a-linux-ker
-> nel-vulnerability-cve-2016-0728/
->
-> Regards,
-> --
-> Yves-Alexis
->
+ include/linux/vmstat.h |  6 ++++++
+ mm/huge_memory.c       | 18 +++++++++++++++---
+ mm/vmstat.c            | 12 ++++++++++++
+ 3 files changed, 33 insertions(+), 3 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
