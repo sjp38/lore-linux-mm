@@ -1,140 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f169.google.com (mail-pf0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id B6A0D6B025E
-	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 01:48:13 -0400 (EDT)
-Received: by mail-pf0-f169.google.com with SMTP id n1so48868043pfn.2
-        for <linux-mm@kvack.org>; Wed, 06 Apr 2016 22:48:13 -0700 (PDT)
-Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com. [125.16.236.6])
-        by mx.google.com with ESMTPS id se2si9404755pac.54.2016.04.06.22.48.11
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Apr 2016 22:48:12 -0700 (PDT)
-Received: from localhost
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 7 Apr 2016 11:08:03 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u375cFNj13631824
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2016 11:08:16 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u375bq0V006292
-	for <linux-mm@kvack.org>; Thu, 7 Apr 2016 11:07:57 +0530
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH 08/10] powerpc/hugetlb: Selectively enable ARCH_WANT_GENERAL_HUGETLB
-Date: Thu,  7 Apr 2016 11:07:42 +0530
-Message-Id: <1460007464-26726-9-git-send-email-khandual@linux.vnet.ibm.com>
-In-Reply-To: <1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com>
-References: <1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com>
+Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CDD56B0005
+	for <linux-mm@kvack.org>; Thu,  7 Apr 2016 03:41:28 -0400 (EDT)
+Received: by mail-oi0-f52.google.com with SMTP id p188so88801823oih.2
+        for <linux-mm@kvack.org>; Thu, 07 Apr 2016 00:41:28 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTP id h16si2345702oig.64.2016.04.07.00.41.25
+        for <linux-mm@kvack.org>;
+        Thu, 07 Apr 2016 00:41:27 -0700 (PDT)
+Subject: Re: [PATCH 2/2] arm64: mm: make pfn always valid with flat memory
+References: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
+ <1459844572-53069-2-git-send-email-puck.chen@hisilicon.com>
+From: Chen Feng <puck.chen@hisilicon.com>
+Message-ID: <57060E97.7060101@hisilicon.com>
+Date: Thu, 7 Apr 2016 15:39:03 +0800
+MIME-Version: 1.0
+In-Reply-To: <1459844572-53069-2-git-send-email-puck.chen@hisilicon.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
-Cc: hughd@google.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, mgorman@techsingularity.net, dave.hansen@intel.com, aneesh.kumar@linux.vnet.ibm.com, mpe@ellerman.id.au
+To: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, akpm@linux-foundation.org, robin.murphy@arm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, rientjes@google.com, linux-mm@kvack.org, mgorman@suse.de
+Cc: puck.chen@foxmail.com, oliver.fu@hisilicon.com, linuxarm@huawei.com, dan.zhao@hisilicon.com, suzhuangluan@hisilicon.com, yudongbin@hislicon.com, albert.lubing@hisilicon.com, xuyiping@hisilicon.com, saberlily.xia@hisilicon.com
 
-This enables ARCH_WANT_GENERAL_HUGETLB config option only for BOOK3S
-platforms with 64K page size implementation. Existing arch specific
-functions for ARCH_WANT_GENERAL_HUGETLB config like 'huge_pte_alloc'
-and 'huge_pte_offset' are no longer required and are removed with
-this change.
+add Mel Gorman
 
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
- arch/powerpc/Kconfig          |  4 +++
- arch/powerpc/mm/hugetlbpage.c | 58 -------------------------------------------
- 2 files changed, 4 insertions(+), 58 deletions(-)
-
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index 7cd32c0..9b3ce18 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -33,6 +33,10 @@ config HAVE_SETUP_PER_CPU_AREA
- config NEED_PER_CPU_EMBED_FIRST_CHUNK
- 	def_bool PPC64
- 
-+config ARCH_WANT_GENERAL_HUGETLB
-+	depends on HUGETLB_PAGE && PPC_64K_PAGES && PPC_BOOK3S_64
-+	def_bool y
-+
- config NR_IRQS
- 	int "Number of virtual interrupt numbers"
- 	range 32 32768
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index 4f44c62..bd0e584 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -59,39 +59,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
- 	/* Only called for hugetlbfs pages, hence can ignore THP */
- 	return __find_linux_pte_or_hugepte(mm->pgd, addr, NULL, NULL);
- }
--#else /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
--pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
--{
--	pgd_t pgd, *pgdp;
--	pud_t pud, *pudp;
--	pmd_t pmd, *pmdp;
--
--	pgdp = mm->pgd + pgd_index(addr);
--	pgd  = READ_ONCE(*pgdp);
--
--	if (pgd_none(pgd))
--		return NULL;
--
--	if (pgd_huge(pgd))
--		return (pte_t *)pgdp;
--
--	pudp = pud_offset(&pgd, addr);
--	pud  = READ_ONCE(*pudp);
--	if (pud_none(pud))
--		return NULL;
--
--	if (pud_huge(pud))
--		return (pte_t *)pudp;
--
--	pmdp = pmd_offset(&pud, addr);
--	pmd  = READ_ONCE(*pmdp);
--	if (pmd_none(pmd))
--		return NULL;
--
--	if (pmd_huge(pmd))
--		return (pte_t *)pmdp;
--	return NULL;
--}
- #endif /* !CONFIG_ARCH_WANT_GENERAL_HUGETLB */
- 
- #ifndef CONFIG_ARCH_WANT_GENERAL_HUGETLB
-@@ -210,31 +177,6 @@ hugepd_search:
- 
- 	return hugepte_offset(*hpdp, addr, pdshift);
- }
--
--#else /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
--pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz)
--{
--	pgd_t *pg;
--	pud_t *pu;
--	pmd_t *pm;
--	unsigned pshift = __ffs(sz);
--
--	addr &= ~(sz-1);
--	pg = pgd_offset(mm, addr);
--
--	if (pshift == PGDIR_SHIFT)	/* 16GB Huge Page */
--		return (pte_t *)pg;
--
--	pu = pud_alloc(mm, pg, addr);	/* NA, skipped */
--	if (pshift == PUD_SHIFT)
--		return (pte_t *)pu;
--
--	pm = pmd_alloc(mm, pu, addr);	/* 16MB Huge Page */
--	if (pshift == PMD_SHIFT)
--		return (pte_t *)pm;
--
--	return NULL;
--}
- #endif /* !CONFIG_ARCH_WANT_GENERAL_HUGETLB */
- #else
- 
--- 
-2.1.0
+On 2016/4/5 16:22, Chen Feng wrote:
+> Make the pfn always valid when using flat memory.
+> If the reserved memory is not align to memblock-size,
+> there will be holes in zone.
+> 
+> This patch makes the memory in buddy always in the
+> array of mem-map.
+> 
+> Signed-off-by: Chen Feng <puck.chen@hisilicon.com>
+> Signed-off-by: Fu Jun <oliver.fu@hisilicon.com>
+> ---
+>  arch/arm64/mm/init.c | 7 ++++---
+>  1 file changed, 4 insertions(+), 3 deletions(-)
+> 
+> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+> index ea989d8..0e1d5b7 100644
+> --- a/arch/arm64/mm/init.c
+> +++ b/arch/arm64/mm/init.c
+> @@ -306,7 +306,8 @@ static void __init free_unused_memmap(void)
+>  	struct memblock_region *reg;
+>  
+>  	for_each_memblock(memory, reg) {
+> -		start = __phys_to_pfn(reg->base);
+> +		start = round_down(__phys_to_pfn(reg->base),
+> +				   MAX_ORDER_NR_PAGES);
+>  
+>  #ifdef CONFIG_SPARSEMEM
+>  		/*
+> @@ -327,8 +328,8 @@ static void __init free_unused_memmap(void)
+>  		 * memmap entries are valid from the bank end aligned to
+>  		 * MAX_ORDER_NR_PAGES.
+>  		 */
+> -		prev_end = ALIGN(__phys_to_pfn(reg->base + reg->size),
+> -				 MAX_ORDER_NR_PAGES);
+> +		prev_end = round_up(__phys_to_pfn(reg->base + reg->size),
+> +				    MAX_ORDER_NR_PAGES);
+>  	}
+>  
+>  #ifdef CONFIG_SPARSEMEM
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
