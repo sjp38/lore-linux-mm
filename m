@@ -1,87 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A7656B025E
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 16:05:16 -0400 (EDT)
-Received: by mail-pf0-f173.google.com with SMTP id n1so81692071pfn.2
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 13:05:16 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p28si2456581pfi.167.2016.04.08.13.05.15
+Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
+	by kanga.kvack.org (Postfix) with ESMTP id D5FD86B025E
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 16:08:17 -0400 (EDT)
+Received: by mail-qg0-f52.google.com with SMTP id f105so76045453qge.2
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 13:08:17 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q196si11140149qha.43.2016.04.08.13.08.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Apr 2016 13:05:15 -0700 (PDT)
-Date: Fri, 8 Apr 2016 13:05:14 -0700
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] lib: lz4: fixed zram with lz4 on big endian machines
-Message-ID: <20160408200514.GA20114@kroah.com>
-References: <1460129004-2011-1-git-send-email-rsalvaterra@gmail.com>
- <20160408165051.GB16346@kroah.com>
- <CALjTZvYS5s0uyH_HxbG970Zans0uYzj5g6Wj2M2YUjfL_v8Xog@mail.gmail.com>
+        Fri, 08 Apr 2016 13:08:16 -0700 (PDT)
+Date: Fri, 8 Apr 2016 22:08:08 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH v2 1/5] bpf: add PHYS_DEV prog type for early driver
+ filter
+Message-ID: <20160408220808.682630d7@redhat.com>
+In-Reply-To: <20160408172651.GA38264@ast-mbp.thefacebook.com>
+References: <1460090930-11219-1-git-send-email-bblanco@plumgrid.com>
+	<20160408123614.2a15a346@redhat.com>
+	<20160408143340.10e5b1d0@redhat.com>
+	<20160408172651.GA38264@ast-mbp.thefacebook.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALjTZvYS5s0uyH_HxbG970Zans0uYzj5g6Wj2M2YUjfL_v8Xog@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rui Salvaterra <rsalvaterra@gmail.com>
-Cc: Chanho Min <chanho.min@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, eunb.song@samsung.com, linux-kernel@vger.kernel.org, kyungsik.lee@lge.com, stable@vger.kernel.org, minchan@kernel.org, sergey.senozhatsky@gmail.com, linux-mm@kvack.org
+To: Alexei Starovoitov <alexei.starovoitov@gmail.com>
+Cc: Brenden Blanco <bblanco@plumgrid.com>, davem@davemloft.net, netdev@vger.kernel.org, tom@herbertland.com, ogerlitz@mellanox.com, daniel@iogearbox.net, eric.dumazet@gmail.com, ecree@solarflare.com, john.fastabend@gmail.com, tgraf@suug.ch, johannes@sipsolutions.net, eranlinuxmellanox@gmail.com, lorenzo@google.com, linux-mm <linux-mm@kvack.org>, brouer@redhat.com
 
-On Fri, Apr 08, 2016 at 08:51:17PM +0100, Rui Salvaterra wrote:
+On Fri, 8 Apr 2016 10:26:53 -0700
+Alexei Starovoitov <alexei.starovoitov@gmail.com> wrote:
+
+> On Fri, Apr 08, 2016 at 02:33:40PM +0200, Jesper Dangaard Brouer wrote:
+> > 
+> > On Fri, 8 Apr 2016 12:36:14 +0200 Jesper Dangaard Brouer <brouer@redhat.com> wrote:
+> >   
+> > > > +/* user return codes for PHYS_DEV prog type */
+> > > > +enum bpf_phys_dev_action {
+> > > > +	BPF_PHYS_DEV_DROP,
+> > > > +	BPF_PHYS_DEV_OK,
+> > > > +};    
+> > > 
+> > > I can imagine these extra return codes:
+> > > 
+> > >  BPF_PHYS_DEV_MODIFIED,   /* Packet page/payload modified */
+> > >  BPF_PHYS_DEV_STOLEN,     /* E.g. forward use-case */
+> > >  BPF_PHYS_DEV_SHARED,     /* Queue for async processing, e.g. tcpdump use-case */
+> > > 
+> > > The "STOLEN" and "SHARED" use-cases require some refcnt manipulations,
+> > > which we can look at when we get that far...  
+> > 
+> > I want to point out something which is quite FUNDAMENTAL, for
+> > understanding these return codes (and network stack).
+> > 
+> > 
+> > At driver RX time, the network stack basically have two ways of
+> > building an SKB, which is send up the stack.
+> > 
+> > Option-A (fastest): The packet page is writable. The SKB can be
+> > allocated and skb->data/head can point directly to the page.  And
+> > we place/write skb_shared_info in the end/tail-room. (This is done by
+> > calling build_skb()).
+> > 
+> > Option-B (slower): The packet page is read-only.  The SKB cannot point
+> > skb->data/head directly to the page, because skb_shared_info need to be
+> > written into skb->end (slightly hidden via skb_shinfo() casting).  To
+> > get around this, a separate piece of memory is allocated (speedup by
+> > __alloc_page_frag) for pointing skb->data/head, so skb_shared_info can
+> > be written. (This is done when calling netdev/napi_alloc_skb()).
+> >   Drivers then need to copy over packet headers, and assign + adjust
+> > skb_shinfo(skb)->frags[0] offset to skip copied headers.
+> > 
+> > 
+> > Unfortunately most drivers use option-B.  Due to cost of calling the
+> > page allocator.  It is only slightly most expensive to get a larger
+> > compound page from the page allocator, which then can be partitioned into
+> > page-fragments, thus amortizing the page alloc cost.  Unfortunately the
+> > cost is added later, when constructing the SKB.
+> >  Another reason for option-B, is that archs with expensive IOMMU
+> > requirements (like PowerPC), don't need to dma_unmap on every packet,
+> > but only on the compound page level.
+> > 
+> > Side-note: Most drivers have a "copy-break" optimization.  Especially
+> > for option-B, when copying header data anyhow. For small packet, one
+> > might as well free (or recycle) the RX page, if header size fits into
+> > the newly allocated memory (for skb_shared_info).  
 > 
-> On 8 Apr 2016 17:50, "Greg KH" <gregkh@linuxfoundation.org> wrote:
-> >
-> > On Fri, Apr 08, 2016 at 04:23:24PM +0100, Rui Salvaterra wrote:
-> > > Based on Sergey's test patch [1], this fixes zram with lz4 compression on
-> big endian cpus. Tested on ppc64 with no regression on x86_64.
-> >
-> > Please wrap your text at 72 columns in a changelog comment.
-> >
-> > >
-> > > [1] http://marc.info/?l=linux-kernel&m=145994470805853&w=4
-> > >
-> > > Cc: stable@vger.kernel.org
-> > > Signed-off-by: Rui Salvaterra <rsalvaterra@gmail.com>
-> >
-> > Please attribute Sergey here in the signed-off-by area with a
-> > "Suggested-by:" type mark
-> >
-> > > ---
-> > >  lib/lz4/lz4defs.h | 29 +++++++++++++++--------------
-> > >  1 file changed, 15 insertions(+), 14 deletions(-)
-> > >
-> > > diff --git a/lib/lz4/lz4defs.h b/lib/lz4/lz4defs.h
-> > > index abcecdc..a98c08c 100644
-> > > --- a/lib/lz4/lz4defs.h
-> > > +++ b/lib/lz4/lz4defs.h
-> > > @@ -11,8 +11,7 @@
-> > >  /*
-> > >   * Detects 64 bits mode
-> > >   */
-> > > -#if (defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) \
-> > > -     || defined(__ppc64__) || defined(__LP64__))
-> > > +#if defined(CONFIG_64BIT)
-> >
-> > This patch seems to do two different things, clean up the #if tests, and
-> > change the endian of some calls.  Can you break this up into 2 different
-> > patches?
-> >
-> > thanks,
-> >
-> > greg k-h
+> I think you guys are going into overdesign territory, so
+> . nack on read-only pages
+
+Unfortunately you cannot just ignore or nack read-only pages. They are
+a fact in the current drivers.
+
+Most drivers today (at-least the ones we care about) only deliver
+read-only pages.  If you don't accept read-only pages day-1, then you
+first have to rewrite a lot of drivers... and that will stall the
+project!  How will you deal with this fact?
+
+The early drop filter use-case in this patchset, can ignore read-only
+pages.  But ABI wise we need to deal with the future case where we do
+need/require writeable pages.  A simple need-writable pages in the API
+could help us move forward.
+
+
+> . nack on copy-break approach
+
+Copy-break can be ignored.  It sort of happens at a higher-level in the
+driver. (Eric likely want/care this happens for local socket delivery).
+
+
+> . nack on per-ring programs
+
+Hmmm... I don't see it as a lot more complicated to attach the program
+to the ring.  But maybe we can extend the API later, and thus postpone that
+discussion.
+
+> . nack on modified/stolen/shared return codes
 > 
-> Hi Greg,
-> 
-> Thanks for the review (and patience). The 64-bit #if test is actually part of
-> the fix, since __ppc64__ isn't defined anywhere and we'd fall into the 32-bit
-> definitions for ppc64. I can send the other one separately, for sure. I'll do a
-> v2 tomorrow.
+> The whole thing must be dead simple to use. Above is not simple by any means.
 
-Ah, well document that please, it was not obvious at all that this was
-required.
+Maybe you missed that the above was a description of how the current
+network stack handles this, which is not simple... which is root of the
+hole performance issue.
 
-thanks,
 
-greg k-h-
+> The programs must see writeable pages only and return codes:
+> drop, pass to stack, redirect to xmit.
+> If program wishes to modify packets before passing it to stack, it
+> shouldn't need to deal with different return values.
+
+> No special things to deal with small or large packets. No header splits.
+> Program must not be aware of any such things.
+
+I agree on this.  This layer only deals with packets at the page level,
+single packets stored in continuous memory.
+
+
+> Drivers can use DMA_BIDIRECTIONAL to allow received page to be
+> modified by the program and immediately sent to xmit.
+
+We just have to verify that DMA_BIDIRECTIONAL does not add extra
+overhead (which is explicitly stated that it likely does on the
+DMA-API-HOWTO.txt, but I like to verify this with a micro benchmark)
+
+> No dma map/unmap/sync per packet. If some odd architectures/dma setups
+> cannot do it, then XDP will not be applicable there.
+
+I do like the idea of rejecting XDP eBPF programs based on the DMA
+setup is not compatible, or if the driver does not implement e.g.
+writable DMA pages.
+
+Customers wanting this feature will then go buy the NIC which support
+this feature.  There is nothing more motivating for NIC vendors seeing
+customers buying the competitors hardware. And it only require a driver
+change to get this market...
+
+
+> We are not going to sacrifice performance for generality.
+
+Agree.
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
