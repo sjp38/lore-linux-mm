@@ -1,38 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id C80096B007E
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 18:58:46 -0400 (EDT)
-Received: by mail-wm0-f44.google.com with SMTP id n3so38858694wmn.0
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 15:58:46 -0700 (PDT)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id up10si15487875wjc.216.2016.04.08.15.58.45
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A0C466B007E
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 19:00:25 -0400 (EDT)
+Received: by mail-wm0-f51.google.com with SMTP id f198so80451707wme.0
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 16:00:25 -0700 (PDT)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id cd8si15528801wjc.91.2016.04.08.16.00.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Apr 2016 15:58:45 -0700 (PDT)
-Received: by mail-wm0-x232.google.com with SMTP id l6so80624884wml.1
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 15:58:45 -0700 (PDT)
+        Fri, 08 Apr 2016 16:00:24 -0700 (PDT)
+Received: by mail-wm0-x22c.google.com with SMTP id f198so80451296wme.0
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 16:00:24 -0700 (PDT)
 From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: [PATCH v6 0/2] mm, thp: Fix unnecessarry resource consuming in swapin
-Date: Sat,  9 Apr 2016 01:58:16 +0300
-Message-Id: <1460156296-6504-1-git-send-email-ebru.akagunduz@gmail.com>
+Subject: [PATCH v6 1/2] mm, vmstat: calculate particular vm event
+Date: Sat,  9 Apr 2016 02:00:04 +0300
+Message-Id: <1460156404-8462-1-git-send-email-ebru.akagunduz@gmail.com>
+In-Reply-To: <1460156296-6504-1-git-send-email-ebru.akagunduz@gmail.com>
+References: <1460156296-6504-1-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: cl@linux.com, hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
-This patch series fixes unnecessarry resource consuming
-in khugepaged swapin and introduces a new function to
-calculate value of specific vm event.
+Currently, vmstat can calculate specific vm event with all_vm_events()
+however it calculates all vm events at a time. This patch introduces
+a new function to calculate only single event at a time.
 
-Ebru Akagunduz (2):
-  mm, vmstat: calculate particular vm event
-  mm, thp: avoid unnecessary swapin in khugepaged
+Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Suggested-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Christoph Lameter <cl@linux.com>
+---
+Changes in v2:
+ - this patch newly created in this version
+ - create sum event function to
+   calculate particular vm event (Kirill A. Shutemov)
+
+Changes in v3:
+ - add dummy definition of sum_vm_event
+   when CONFIG_VM_EVENTS is not set
+   (Kirill A. Shutemov)
+
+Changes in v4:
+ - add Suggested-by tag (Vlastimil Babka)
+
+Changes in v5:
+ - CC'ed Christoph Lameter <cl@linux.com> (Andrew Morton)
+
+Changes in v6:
+ - Fix commit log (Christoph Lameter)
 
  include/linux/vmstat.h |  6 ++++++
- mm/huge_memory.c       | 18 +++++++++++++++---
  mm/vmstat.c            | 12 ++++++++++++
- 3 files changed, 33 insertions(+), 3 deletions(-)
+ 2 files changed, 18 insertions(+)
 
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index 02fce41..723be2c 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -53,6 +53,8 @@ static inline void count_vm_events(enum vm_event_item item, long delta)
+ 
+ extern void all_vm_events(unsigned long *);
+ 
++extern unsigned long sum_vm_event(enum vm_event_item item);
++
+ extern void vm_events_fold_cpu(int cpu);
+ 
+ #else
+@@ -73,6 +75,10 @@ static inline void __count_vm_events(enum vm_event_item item, long delta)
+ static inline void all_vm_events(unsigned long *ret)
+ {
+ }
++static inline unsigned long sum_vm_event(enum vm_event_item item)
++{
++	return 0;
++}
+ static inline void vm_events_fold_cpu(int cpu)
+ {
+ }
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 070fd90..d6b6c03 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -34,6 +34,18 @@
+ DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
+ EXPORT_PER_CPU_SYMBOL(vm_event_states);
+ 
++unsigned long sum_vm_event(enum vm_event_item item)
++{
++	int cpu;
++	unsigned long ret = 0;
++
++	get_online_cpus();
++	for_each_online_cpu(cpu)
++		ret += per_cpu(vm_event_states, cpu).event[item];
++	put_online_cpus();
++	return ret;
++}
++
+ static void sum_vm_events(unsigned long *ret)
+ {
+ 	int cpu;
 -- 
 1.9.1
 
