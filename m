@@ -1,162 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A57E6B007E
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 17:34:23 -0400 (EDT)
-Received: by mail-pf0-f175.google.com with SMTP id n1so82886862pfn.2
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 14:34:23 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id w88si2804591pfi.231.2016.04.08.14.34.22
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 7254C6B007E
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 18:49:15 -0400 (EDT)
+Received: by mail-wm0-f44.google.com with SMTP id f198so80273148wme.0
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 15:49:15 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id u129si5066602wmd.50.2016.04.08.15.49.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Apr 2016 14:34:22 -0700 (PDT)
-Received: by mail-pa0-x22c.google.com with SMTP id bx7so65279434pad.3
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 14:34:22 -0700 (PDT)
-Date: Fri, 8 Apr 2016 14:34:16 -0700
-From: Alexei Starovoitov <alexei.starovoitov@gmail.com>
-Subject: Re: [RFC PATCH v2 1/5] bpf: add PHYS_DEV prog type for early driver
- filter
-Message-ID: <20160408213414.GA43408@ast-mbp.thefacebook.com>
-References: <1460090930-11219-1-git-send-email-bblanco@plumgrid.com>
- <20160408123614.2a15a346@redhat.com>
- <20160408143340.10e5b1d0@redhat.com>
- <20160408172651.GA38264@ast-mbp.thefacebook.com>
- <20160408220808.682630d7@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160408220808.682630d7@redhat.com>
+        Fri, 08 Apr 2016 15:49:14 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH] mm: memcontrol: let v2 cgroups follow changes in system swappiness
+Date: Fri,  8 Apr 2016 18:49:04 -0400
+Message-Id: <1460155744-15942-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Brenden Blanco <bblanco@plumgrid.com>, davem@davemloft.net, netdev@vger.kernel.org, tom@herbertland.com, ogerlitz@mellanox.com, daniel@iogearbox.net, eric.dumazet@gmail.com, ecree@solarflare.com, john.fastabend@gmail.com, tgraf@suug.ch, johannes@sipsolutions.net, eranlinuxmellanox@gmail.com, lorenzo@google.com, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri, Apr 08, 2016 at 10:08:08PM +0200, Jesper Dangaard Brouer wrote:
-> On Fri, 8 Apr 2016 10:26:53 -0700
-> Alexei Starovoitov <alexei.starovoitov@gmail.com> wrote:
-> 
-> > On Fri, Apr 08, 2016 at 02:33:40PM +0200, Jesper Dangaard Brouer wrote:
-> > > 
-> > > On Fri, 8 Apr 2016 12:36:14 +0200 Jesper Dangaard Brouer <brouer@redhat.com> wrote:
-> > >   
-> > > > > +/* user return codes for PHYS_DEV prog type */
-> > > > > +enum bpf_phys_dev_action {
-> > > > > +	BPF_PHYS_DEV_DROP,
-> > > > > +	BPF_PHYS_DEV_OK,
-> > > > > +};    
-> > > > 
-> > > > I can imagine these extra return codes:
-> > > > 
-> > > >  BPF_PHYS_DEV_MODIFIED,   /* Packet page/payload modified */
-> > > >  BPF_PHYS_DEV_STOLEN,     /* E.g. forward use-case */
-> > > >  BPF_PHYS_DEV_SHARED,     /* Queue for async processing, e.g. tcpdump use-case */
-> > > > 
-> > > > The "STOLEN" and "SHARED" use-cases require some refcnt manipulations,
-> > > > which we can look at when we get that far...  
-> > > 
-> > > I want to point out something which is quite FUNDAMENTAL, for
-> > > understanding these return codes (and network stack).
-> > > 
-> > > 
-> > > At driver RX time, the network stack basically have two ways of
-> > > building an SKB, which is send up the stack.
-> > > 
-> > > Option-A (fastest): The packet page is writable. The SKB can be
-> > > allocated and skb->data/head can point directly to the page.  And
-> > > we place/write skb_shared_info in the end/tail-room. (This is done by
-> > > calling build_skb()).
-> > > 
-> > > Option-B (slower): The packet page is read-only.  The SKB cannot point
-> > > skb->data/head directly to the page, because skb_shared_info need to be
-> > > written into skb->end (slightly hidden via skb_shinfo() casting).  To
-> > > get around this, a separate piece of memory is allocated (speedup by
-> > > __alloc_page_frag) for pointing skb->data/head, so skb_shared_info can
-> > > be written. (This is done when calling netdev/napi_alloc_skb()).
-> > >   Drivers then need to copy over packet headers, and assign + adjust
-> > > skb_shinfo(skb)->frags[0] offset to skip copied headers.
-> > > 
-> > > 
-> > > Unfortunately most drivers use option-B.  Due to cost of calling the
-> > > page allocator.  It is only slightly most expensive to get a larger
-> > > compound page from the page allocator, which then can be partitioned into
-> > > page-fragments, thus amortizing the page alloc cost.  Unfortunately the
-> > > cost is added later, when constructing the SKB.
-> > >  Another reason for option-B, is that archs with expensive IOMMU
-> > > requirements (like PowerPC), don't need to dma_unmap on every packet,
-> > > but only on the compound page level.
-> > > 
-> > > Side-note: Most drivers have a "copy-break" optimization.  Especially
-> > > for option-B, when copying header data anyhow. For small packet, one
-> > > might as well free (or recycle) the RX page, if header size fits into
-> > > the newly allocated memory (for skb_shared_info).  
-> > 
-> > I think you guys are going into overdesign territory, so
-> > . nack on read-only pages
-> 
-> Unfortunately you cannot just ignore or nack read-only pages. They are
-> a fact in the current drivers.
-> 
-> Most drivers today (at-least the ones we care about) only deliver
-> read-only pages.  If you don't accept read-only pages day-1, then you
-> first have to rewrite a lot of drivers... and that will stall the
-> project!  How will you deal with this fact?
-> 
-> The early drop filter use-case in this patchset, can ignore read-only
-> pages.  But ABI wise we need to deal with the future case where we do
-> need/require writeable pages.  A simple need-writable pages in the API
-> could help us move forward.
+Cgroup2 currently doesn't have a per-cgroup swappiness setting. We
+might want to add one later - that's a different discussion - but
+until we do, the cgroups should always follow the system setting.
+Otherwise it will be unchangeably set to whatever the ancestor
+inherited from the system setting at the time of cgroup creation.
 
-the program should never need to worry about whether dma buffer is
-writeable or not. Complicating drivers, api, abi, usability
-for the single use case of fast packet drop is not acceptable.
-XDP is not going to be a fit for all drivers and all architectures.
-That is cruicial 'performance vs generality' aspect of the design.
-All kernel-bypasses are taking advantage of specific architecture.
-We have to take advantage of it as well. If it doesn't fit
-powerpc with iommu, so be it. XDP will return -enotsupp.
-That is fundamental point. We have to cut such corners and avoid
-all cases where unnecessary generality hurts performance.
-Read-only pages is clearly such thing.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: stable@vger.kernel.org # 4.5
+---
+ include/linux/swap.h | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-> > The whole thing must be dead simple to use. Above is not simple by any means.
-> 
-> Maybe you missed that the above was a description of how the current
-> network stack handles this, which is not simple... which is root of the
-> hole performance issue.
-
-Disagree. The stack has copy-break, gro, gso and everything else because
-it's serving _host_ use case. XDP is packet forwarder use case.
-The requirements are completely different. Ex. the host needs gso
-in the core and drivers. It needs to deliver data all the way
-to user space and back. That is hard and that's where complexity
-comes from. For packet forwarder none of it is needed. So saying,
-look we have this complexity, so XDP needs it too, is flawed argument.
-The kernel is serving host and applications.
-XDP is pure packet-in/packet-out framework to achieve better
-performance than kernel-bypass, since kernel is the right
-place to do it. It has clean access to interrupts, per-cpu,
-scheduler, device registers and so on.
-Though there are only two broad use cases packet drop and forward,
-they cover a ton of real cases: firewalls, dos prevention,
-load balancer, nat, etc. In other words mostly stateless.
-As soon as packet needs to be queued somewhere we have to
-instantiate skb and pass it to the stack.
-So no queues in XDP and no 'stolen' and 'shared' return codes.
-The program always runs to completion with single packet.
-There is no header vs payload split. There is no header
-from program point of view. It's raw bytes in dma buffer.
-
-> I do like the idea of rejecting XDP eBPF programs based on the DMA
-> setup is not compatible, or if the driver does not implement e.g.
-> writable DMA pages.
-
-exactly.
-
-> Customers wanting this feature will then go buy the NIC which support
-> this feature.  There is nothing more motivating for NIC vendors seeing
-> customers buying the competitors hardware. And it only require a driver
-> change to get this market...
-
-exactly.
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index e58dba3..15d17c8 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -534,6 +534,10 @@ static inline swp_entry_t get_swap_page(void)
+ #ifdef CONFIG_MEMCG
+ static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
+ {
++	/* Cgroup2 doesn't have per-cgroup swappiness */
++	if (cgroup_subsys_on_dfl(memory_cgrp_subsys))
++		return vm_swappiness;
++
+ 	/* root ? */
+ 	if (mem_cgroup_disabled() || !memcg->css.parent)
+ 		return vm_swappiness;
+-- 
+2.8.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
