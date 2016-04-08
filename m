@@ -1,79 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6E46B007E
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 07:34:28 -0400 (EDT)
-Received: by mail-wm0-f49.google.com with SMTP id 191so15317111wmq.0
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 04:34:28 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 94F0F6B0253
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 07:34:44 -0400 (EDT)
+Received: by mail-wm0-f49.google.com with SMTP id u206so18867275wme.1
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 04:34:44 -0700 (PDT)
 Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id 13si13025065wjv.41.2016.04.08.04.34.27
+        by mx.google.com with ESMTPS id k71si2559209wmg.79.2016.04.08.04.34.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Apr 2016 04:34:27 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id a140so3642710wma.2
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 04:34:27 -0700 (PDT)
-Date: Fri, 8 Apr 2016 13:34:25 +0200
+        Fri, 08 Apr 2016 04:34:43 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id l6so3637503wml.3
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 04:34:43 -0700 (PDT)
+Date: Fri, 8 Apr 2016 13:34:42 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/3] mm, oom_reaper: clear TIF_MEMDIE for all tasks
- queued for oom_reaper
-Message-ID: <20160408113425.GF29820@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/3] oom, oom_reaper: Try to reap tasks which skip
+ regular OOM killer path
+Message-ID: <20160408113442.GG29820@dhcp22.suse.cz>
 References: <1459951996-12875-1-git-send-email-mhocko@kernel.org>
- <1459951996-12875-4-git-send-email-mhocko@kernel.org>
- <201604072055.GAI52128.tHLVOFJOQMFOFS@I-love.SAKURA.ne.jp>
+ <1459951996-12875-3-git-send-email-mhocko@kernel.org>
+ <201604072038.CHC51027.MSJOFVLHOFFtQO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201604072055.GAI52128.tHLVOFJOQMFOFS@I-love.SAKURA.ne.jp>
+In-Reply-To: <201604072038.CHC51027.MSJOFVLHOFFtQO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, oleg@redhat.com
 
-On Thu 07-04-16 20:55:34, Tetsuo Handa wrote:
+On Thu 07-04-16 20:38:43, Tetsuo Handa wrote:
 > Michal Hocko wrote:
-> > The first obvious one is when the oom victim clears its mm and gets
-> > stuck later on. oom_reaper would back of on find_lock_task_mm returning
-> > NULL. We can safely try to clear TIF_MEMDIE in this case because such a
-> > task would be ignored by the oom killer anyway. The flag would be
-> > cleared by that time already most of the time anyway.
+> > @@ -563,6 +582,53 @@ static void wake_oom_reaper(struct task_struct *tsk)
+> >  	wake_up(&oom_reaper_wait);
+> >  }
+> >  
+> > +/* Check if we can reap the given task. This has to be called with stable
+> > + * tsk->mm
+> > + */
+> > +static void try_oom_reaper(struct task_struct *tsk)
+> > +{
+> > +	struct mm_struct *mm = tsk->mm;
+> > +	struct task_struct *p;
+> > +
+> > +	if (!mm)
+> > +		return;
+> > +
+> > +	/*
+> > +	 * There might be other threads/processes which are either not
+> > +	 * dying or even not killable.
+> > +	 */
+> > +	if (atomic_read(&mm->mm_users) > 1) {
+> > +		rcu_read_lock();
+> > +		for_each_process(p) {
+> > +			bool exiting;
+> > +
+> > +			if (!process_shares_mm(p, mm))
+> > +				continue;
+> > +			if (same_thread_group(p, tsk))
+> > +				continue;
+> > +			if (fatal_signal_pending(p))
+> > +				continue;
+> > +
+> > +			/*
+> > +			 * If the task is exiting make sure the whole thread group
+> > +			 * is exiting and cannot acces mm anymore.
+> > +			 */
+> > +			spin_lock_irq(&p->sighand->siglock);
+> > +			exiting = signal_group_exit(p->signal);
+> > +			spin_unlock_irq(&p->sighand->siglock);
+> > +			if (exiting)
+> > +				continue;
+> > +
+> > +			/* Give up */
+> > +			rcu_read_unlock();
+> > +			return;
+> > +		}
+> > +		rcu_read_unlock();
+> > +	}
+> > +
+> > +	wake_oom_reaper(tsk);
+> > +}
+> > +
 > 
-> I didn't understand what this wants to tell. The OOM victim will clear
-> TIF_MEMDIE as soon as it sets current->mm = NULL.
+> I think you want to change "try_oom_reaper() without wake_oom_reaper()"
+> as mm_is_reapable() and use it from oom_kill_process() in order to skip
+> p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN test which needlessly makes
+> can_oom_reap false.
 
-No it clears the flag _after_ it returns from mmput. There is no
-guarantee it won't get stuck somewhere on the way there - e.g. exit_aio
-waits for completion and who knows what else might get stuck.
+Not sure I understand the OOM_SCORE_ADJ_MIN part. We cannot reap the
+task if somebody sharing the mm is OOM_SCORE_ADJ_MIN. We have to check
+this in oom_kill_process because we are sending SIGKILL but we do not
+have to check for this explicitly in try_oom_reaper because we only care
+about exiting/killed tasks.
 
-> Even if the oom victim
-> clears its mm and gets stuck later on (e.g. at exit_task_work()),
-> TIF_MEMDIE was already cleared by that moment by the OOM victim.
+[...]
+
+> > @@ -873,6 +926,7 @@ bool out_of_memory(struct oom_control *oc)
+> >  	if (current->mm &&
+> >  	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
+> >  		mark_oom_victim(current);
+> > +		try_oom_reaper(current);
+> >  		return true;
+> >  	}
+> >  
 > 
-> > 
-> > The less obvious one is when the oom reaper fails due to mmap_sem
-> > contention. Even if we clear TIF_MEMDIE for this task then it is not
-> > very likely that we would select another task too easily because
-> > we haven't reaped the last victim and so it would be still the #1
-> > candidate. There is a rare race condition possible when the current
-> > victim terminates before the next select_bad_process but considering
-> > that oom_reap_task had retried several times before giving up then
-> > this sounds like a borderline thing.
-> 
-> Is it helpful? Allowing the OOM killer to select the same thread again
-> simply makes the kernel log buffer flooded with the OOM kill messages.
+> Why don't you call try_oom_reaper() from the shortcuts in
+> mem_cgroup_out_of_memory() as well?
 
-I am trying to be as conservative as possible here. The likelyhood of
-mmap sem contention will be reduced considerably after my
-down_write_killable series will get merged. If this turns out to be a
-problem (trivial to spot as the same task will be killed again) then we
-can think about a fix for that (e.g. ignore the task if the has been
-selected more than N times).
+I have focused on the global case and the correctness for now. But I
+agree we can safely squash mem_cgroup_out_of_memory part into the patch
+as well. Thanks for pointing this out.
 
-> I think we should not allow the OOM killer to select the same thread again
-> by e.g. doing tsk->signal->oom_score_adj = OOM_SCORE_ADJ_MIN regardless of
-> whether reaping that thread's memory succeeded or not.
+> Why don't you embed try_oom_reaper() into mark_oom_victim() like I did at
+> http://lkml.kernel.org/r/201602052014.HBG52666.HFMOQVLFOSFJtO@I-love.SAKURA.ne.jp ?
 
-I think this comes with some risk and so it should go as a separate
-patch with a full justification why the outcome is better. Especially
-after the mmap_sem contention will be reduced by other means.
+it didn't fit in the current flow of oom_kill_process where we do:
+do_send_sig_info(victim)
+mark_oom_victim(victim)
+kill_sharing_tasks
+
+so in the case of shared mm we wouldn't schedule the task for the reaper
+most likely because we have to kill them first.
 -- 
 Michal Hocko
 SUSE Labs
