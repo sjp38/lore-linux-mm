@@ -1,98 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id E2C056B025E
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 11:32:34 -0400 (EDT)
-Received: by mail-lb0-f175.google.com with SMTP id u8so71629250lbk.0
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 08:32:34 -0700 (PDT)
-Received: from mail-lb0-x242.google.com (mail-lb0-x242.google.com. [2a00:1450:4010:c04::242])
-        by mx.google.com with ESMTPS id r128si7227136lfe.62.2016.04.08.08.32.33
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F7D26B0253
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 12:12:28 -0400 (EDT)
+Received: by mail-ig0-f182.google.com with SMTP id gy3so16711869igb.0
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 09:12:28 -0700 (PDT)
+Received: from mail-io0-x22e.google.com (mail-io0-x22e.google.com. [2607:f8b0:4001:c06::22e])
+        by mx.google.com with ESMTPS id l79si5641751ioe.190.2016.04.08.09.12.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Apr 2016 08:32:33 -0700 (PDT)
-Received: by mail-lb0-x242.google.com with SMTP id ot1so3249018lbb.0
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 08:32:33 -0700 (PDT)
-Date: Fri, 8 Apr 2016 17:32:29 +0200
-From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-Subject: Re: [PATCH 0/3] mm/mmap.c: don't unmap the overlapping VMA(s)
-Message-ID: <20160408153228.GA1397@home.local>
-References: <1459624654-7955-1-git-send-email-kwapulinski.piotr@gmail.com>
- <20160404073100.GA10272@dhcp22.suse.cz>
- <570287B3.6050903@suse.cz>
- <20160407161128.GA2713@home.local>
- <20160407163108.GF32755@dhcp22.suse.cz>
+        Fri, 08 Apr 2016 09:12:27 -0700 (PDT)
+Received: by mail-io0-x22e.google.com with SMTP id 2so137377227ioy.1
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 09:12:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160407163108.GF32755@dhcp22.suse.cz>
+In-Reply-To: <20160407223853.6f4c7dbd@redhat.com>
+References: <1460034425.20949.7.camel@HansenPartnership.com>
+	<20160407161715.52635cac@redhat.com>
+	<1460058531.13579.12.camel@netapp.com>
+	<20160407223853.6f4c7dbd@redhat.com>
+Date: Fri, 8 Apr 2016 09:12:26 -0700
+Message-ID: <CAKgT0UdaTbwvA+Q2t-yri1HqHzMdfMecL3Dqf1MMq39kF96ZKQ@mail.gmail.com>
+Subject: Re: [Lsf] [LSF/MM TOPIC] Generic page-pool recycle facility?
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, mtk.manpages@gmail.com, cmetcalf@mellanox.com, arnd@arndb.de, viro@zeniv.linux.org.uk, mszeredi@suse.cz, dave@stgolabs.net, kirill.shutemov@linux.intel.com, mingo@kernel.org, dan.j.williams@intel.com, dave.hansen@linux.intel.com, koct9i@gmail.com, hannes@cmpxchg.org, jack@suse.cz, xiexiuqi@huawei.com, iamjoonsoo.kim@lge.com, oleg@redhat.com, gang.chen.5i5j@gmail.com, aarcange@redhat.com, aryabinin@virtuozzo.com, rientjes@google.com, denc716@gmail.com, toshi.kani@hpe.com, ldufour@linux.vnet.ibm.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: "Waskiewicz, PJ" <PJ.Waskiewicz@netapp.com>, "lsf@lists.linux-foundation.org" <lsf@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "bblanco@plumgrid.com" <bblanco@plumgrid.com>, "alexei.starovoitov@gmail.com" <alexei.starovoitov@gmail.com>, "James.Bottomley@HansenPartnership.com" <James.Bottomley@hansenpartnership.com>, "tom@herbertland.com" <tom@herbertland.com>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
 
-On Thu, Apr 07, 2016 at 06:31:09PM +0200, Michal Hocko wrote:
-> On Thu 07-04-16 18:11:29, Piotr Kwapulinski wrote:
-> > On Mon, Apr 04, 2016 at 05:26:43PM +0200, Vlastimil Babka wrote:
-> > > On 04/04/2016 09:31 AM, Michal Hocko wrote:
-> > > >On Sat 02-04-16 21:17:31, Piotr Kwapulinski wrote:
-> > > >>Currently the mmap(MAP_FIXED) discards the overlapping part of the
-> > > >>existing VMA(s).
-> > > >>Introduce the new MAP_DONTUNMAP flag which forces the mmap to fail
-> > > >>with ENOMEM whenever the overlapping occurs and MAP_FIXED is set.
-> > > >>No existing mapping(s) is discarded.
-> > > >
-> > > >You forgot to tell us what is the use case for this new flag.
-> > > 
-> > > Exactly. Also, returning ENOMEM is strange, EINVAL might be a better match,
-> > > otherwise how would you distinguish a "geunine" ENOMEM from passing a wrong
-> > > address?
-> > > 
-> > > 
-> > 
-> > Thanks to all for suggestions. I'll fix them.
-> > 
-> > The example use case:
-> > #include <stdio.h>
-> > #include <string.h>
-> > #include <sys/mman.h>
-> > 
-> > void main(void)
-> > {
-> >   void* addr = (void*)0x1000000;
-> >   size_t size = 0x600000;
-> >   void* start = 0;
-> >   start = mmap(addr,
-> >                size,
-> >                PROT_WRITE,
-> >                MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-> >                -1, 0);
-> > 
-> >   strcpy(start, "PPPP");
-> >   printf("%s\n", start);        // == PPPP
-> > 
-> >   addr = (void*)0x1000000;
-> >   size = 0x9000;
-> >   start = mmap(addr,
-> >                size,
-> >                PROT_READ | PROT_WRITE,
-> >                MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-> >                -1, 0);
-> >   
-> >   printf("%s\n", start);        // != PPPP
-> > }
-> > 
-> > Another use case, this time with huge pages in action.
-> > The limit configured in proc's nr_hugepages is exceeded.
-> > mmap unmaps the area and fails. No new mapping is created.
-> > The program segfaults.
-> 
-> Yes and this is the standard behavior for ages. So _why_ somebody wants
-> non-default behavior. When I've asked for the use case I meant a real
-> life code (not just an example snippet) which cannot cope with the
-> standard semantic. In other words why this cannot be handled in the
-> userspace and we have to add a new API which we have to maintain for
-> ever?
+On Thu, Apr 7, 2016 at 1:38 PM, Jesper Dangaard Brouer
+<brouer@redhat.com> wrote:
+> On Thu, 7 Apr 2016 19:48:50 +0000
+> "Waskiewicz, PJ" <PJ.Waskiewicz@netapp.com> wrote:
+>
+>> On Thu, 2016-04-07 at 16:17 +0200, Jesper Dangaard Brouer wrote:
+>> > (Topic proposal for MM-summit)
+>> >
+>> > Network Interface Cards (NIC) drivers, and increasing speeds stress
+>> > the page-allocator (and DMA APIs).  A number of driver specific
+>> > open-coded approaches exists that work-around these bottlenecks in
+>> > the
+>> > page allocator and DMA APIs. E.g. open-coded recycle mechanisms, and
+>> > allocating larger pages and handing-out page "fragments".
+>> >
+>> > I'm proposing a generic page-pool recycle facility, that can cover
+>> > the
+>> > driver use-cases, increase performance and open up for zero-copy RX.
+>>
+>> Is this based on the page recycle stuff from ixgbe that used to be in
+>> the driver?  If so I'd really like to be part of the discussion.
+>
+> Okay, so it is not part of the driver any-longer?  I've studied the
+> current ixgbe driver (and other NIC drivers) closely.  Do you have some
+> code pointers, to this older code?
 
-Ok, I got it. Thanks for feedback.
+No, it is still in the driver.  I think when PJ said "used to" he was
+referring to the fact that the code was present in the driver back
+when he was working on it at Intel.
+
+You have to realize that the page reuse code has been in the Intel
+drivers for a long time.  I think I introduced it originally on igb in
+July of 2008 as page recycling, commit bf36c1a0040c ("igb: add page
+recycling support"), and it was copied over to ixgbe in September,
+commit 762f4c571058 ("ixgbe: recycle pages in packet split mode").
+
+> The likely-fastest recycle code I've see is in the bnx2x driver.  If
+> you are interested see: bnx2x_reuse_rx_data().  Again is it a bit
+> open-coded produce/consumer ring queue (which would be nice to also
+> cleanup).
+
+Yeah, that is essentially the same kind of code we have in
+ixgbe_reuse_rx_page().  From what I can tell though the bnx2x doesn't
+actually reuse the buffers in the common case.  That function is only
+called in the copy-break and error cases to recycle the buffer so that
+it doesn't have to be freed.
+
+> To amortize the cost of allocating a single page, most other drivers
+> use the trick of allocating a larger (compound) page, and partition
+> this page into smaller "fragments".  Which also amortize the cost of
+> dma_map/unmap (important on non-x86).
+
+Right.  The only reason why I went the reuse route instead of the
+compound page route is that I had speculated that you could still
+bottleneck yourself since the issue I was trying to avoid was the
+dma_map call hitting a global lock in IOMMU enabled systems.  With the
+larger page route I could at best reduce the number of map calls to
+1/16 or 1/32 of what it was.  By doing the page reuse I actually bring
+it down to something approaching 0 as long as the buffers are being
+freed in a reasonable timeframe.  This way the code would scale so I
+wouldn't have to worry about how many rings were active at the same
+time.
+
+As PJ can attest we even saw bugs where the page reuse actually was
+too effective in some cases leading to us carrying memory from one
+node to another when the interrupt was migrated.  That was why we had
+to add the code to force us to free the page if it came from another
+node.
+
+> This is actually problematic performance wise, because packet-data
+> (in these page fragments) only get DMA_sync'ed, and is thus considered
+> "read-only".  As netstack need to write packet headers, yet-another
+> (writable) memory area is allocated per packet (plus the SKB meta-data
+> struct).
+
+Have you done any actual testing with build_skb recently that shows
+how much of a gain there is to be had?  I'm just curious as I know I
+saw a gain back in the day, but back when I ran that test we didn't
+have things like napi_alloc_skb running around which should be a
+pretty big win.  It might be useful to hack a driver such as ixgbe to
+use build_skb and see if it is even worth the trouble to do it
+properly.
+
+Here is a patch I had generated back in 2013 to convert ixgbe over to
+using build_skb, https://patchwork.ozlabs.org/patch/236044/.  You
+might be able to updated to make it work against current ixgbe and
+then could come back to us with data on what the actual gain is.  My
+thought is the gain should have significantly decreased since back in
+the day as we optimized napi_alloc_skb to the point where I think the
+only real difference is probably the memcpy to pull the headers from
+the page.
+
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
