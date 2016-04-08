@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F7A36B025F
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 13:02:05 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id fe3so77939729pab.1
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 10:02:05 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id 83si1707329pfl.78.2016.04.08.10.02.03
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id C1E936B025F
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 13:26:59 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id td3so78268356pab.2
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 10:26:59 -0700 (PDT)
+Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
+        by mx.google.com with ESMTPS id oq6si1892680pab.84.2016.04.08.10.26.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Apr 2016 10:02:03 -0700 (PDT)
-Received: by mail-pa0-x22d.google.com with SMTP id zm5so78003453pac.0
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 10:02:03 -0700 (PDT)
-Date: Fri, 8 Apr 2016 10:02:00 -0700
-From: Brenden Blanco <bblanco@plumgrid.com>
+        Fri, 08 Apr 2016 10:26:58 -0700 (PDT)
+Received: by mail-pf0-x230.google.com with SMTP id 184so79733802pff.0
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 10:26:58 -0700 (PDT)
+Date: Fri, 8 Apr 2016 10:26:53 -0700
+From: Alexei Starovoitov <alexei.starovoitov@gmail.com>
 Subject: Re: [RFC PATCH v2 1/5] bpf: add PHYS_DEV prog type for early driver
  filter
-Message-ID: <20160408170159.GC28353@gmail.com>
+Message-ID: <20160408172651.GA38264@ast-mbp.thefacebook.com>
 References: <1460090930-11219-1-git-send-email-bblanco@plumgrid.com>
  <20160408123614.2a15a346@redhat.com>
  <20160408143340.10e5b1d0@redhat.com>
@@ -26,7 +26,7 @@ In-Reply-To: <20160408143340.10e5b1d0@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: davem@davemloft.net, netdev@vger.kernel.org, tom@herbertland.com, alexei.starovoitov@gmail.com, ogerlitz@mellanox.com, daniel@iogearbox.net, eric.dumazet@gmail.com, ecree@solarflare.com, john.fastabend@gmail.com, tgraf@suug.ch, johannes@sipsolutions.net, eranlinuxmellanox@gmail.com, lorenzo@google.com, linux-mm <linux-mm@kvack.org>
+Cc: Brenden Blanco <bblanco@plumgrid.com>, davem@davemloft.net, netdev@vger.kernel.org, tom@herbertland.com, ogerlitz@mellanox.com, daniel@iogearbox.net, eric.dumazet@gmail.com, ecree@solarflare.com, john.fastabend@gmail.com, tgraf@suug.ch, johannes@sipsolutions.net, eranlinuxmellanox@gmail.com, lorenzo@google.com, linux-mm <linux-mm@kvack.org>
 
 On Fri, Apr 08, 2016 at 02:33:40PM +0200, Jesper Dangaard Brouer wrote:
 > 
@@ -82,40 +82,25 @@ On Fri, Apr 08, 2016 at 02:33:40PM +0200, Jesper Dangaard Brouer wrote:
 > for option-B, when copying header data anyhow. For small packet, one
 > might as well free (or recycle) the RX page, if header size fits into
 > the newly allocated memory (for skb_shared_info).
-> 
-> 
-> For the early filter drop (DDoS use-case), it does not matter that the
-> packet-page is read-only.
-> 
-> BUT for the future XDP (eXpress Data Path) use-case it does matter.  If
-> we ever want to see speeds comparable to DPDK, then drivers to
-> need to implement option-A, as this allow forwarding at the packet-page
-> level.
-> 
-> I hope, my future page-pool facility can remove/hide the cost calling
-> the page allocator.
-> 
-Can't wait! This will open up a lot of doors.
-> 
-> Back to the return codes, thus:
-> -------------------------------
-> BPF_PHYS_DEV_SHARED requires driver use option-B, when constructing
-> the SKB, and treat packet data as read-only.
-> 
-> BPF_PHYS_DEV_MODIFIED requires driver to provide a writable packet-page.
-I understand the driver/hw requirement, but the codes themselves I think
-need some tweaking. For instance, if the packet is both modified and
-forwarded, should the flags be ORed together? Or is the need for this
-return code made obsolete if the driver knows ahead of time via struct
-bpf_prog flags that the prog intends to modify the packet, and can set
-up the page accordingly?
-> 
-> -- 
-> Best regards,
->   Jesper Dangaard Brouer
->   MSc.CS, Principal Kernel Engineer at Red Hat
->   Author of http://www.iptv-analyzer.org
->   LinkedIn: http://www.linkedin.com/in/brouer
+
+I think you guys are going into overdesign territory, so
+. nack on read-only pages
+. nack on copy-break approach
+. nack on per-ring programs
+. nack on modified/stolen/shared return codes
+
+The whole thing must be dead simple to use. Above is not simple by any means.
+The programs must see writeable pages only and return codes:
+drop, pass to stack, redirect to xmit.
+If program wishes to modify packets before passing it to stack, it
+shouldn't need to deal with different return values.
+No special things to deal with small or large packets. No header splits.
+Program must not be aware of any such things.
+Drivers can use DMA_BIDIRECTIONAL to allow received page to be
+modified by the program and immediately sent to xmit. 
+No dma map/unmap/sync per packet. If some odd architectures/dma setups
+cannot do it, then XDP will not be applicable there.
+We are not going to sacrifice performance for generality.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
