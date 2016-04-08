@@ -1,80 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f52.google.com (mail-lf0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AC066B007E
-	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 10:53:32 -0400 (EDT)
-Received: by mail-lf0-f52.google.com with SMTP id c126so80967789lfb.2
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 07:53:32 -0700 (PDT)
-Received: from mail-lb0-x243.google.com (mail-lb0-x243.google.com. [2a00:1450:4010:c04::243])
-        by mx.google.com with ESMTPS id o2si7130487lfa.61.2016.04.08.07.53.30
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CEDB6B007E
+	for <linux-mm@kvack.org>; Fri,  8 Apr 2016 11:24:18 -0400 (EDT)
+Received: by mail-pf0-f172.google.com with SMTP id e128so77839096pfe.3
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 08:24:18 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id m76si1314415pfj.133.2016.04.08.08.24.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Apr 2016 07:53:31 -0700 (PDT)
-Received: by mail-lb0-x243.google.com with SMTP id q4so8861859lbq.3
-        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 07:53:30 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160407140702.GB464@swordfish>
-References: <CALjTZvavWqtLoGQiWb+HxHP4rwRwaZiP0QrPRb+9kYGdicXohg@mail.gmail.com>
-	<20160405153439.GA2647@kroah.com>
-	<CALjTZvat4FhSc1AvNzjNwfa5tYydiTQLTnxz6cU7-Qd+h5mi6A@mail.gmail.com>
-	<20160406053325.GA415@swordfish>
-	<CALjTZvZaD7VHieU4A_5JAGZfN-7toWGm1UpM3zqreP6YsvA37A@mail.gmail.com>
-	<20160406130911.GA584@swordfish>
-	<CALjTZva=ocKHU8hdwmrQZvK-5QnHcc4EQD7CogJuELYk7=J=Og@mail.gmail.com>
-	<20160407140702.GB464@swordfish>
-Date: Fri, 8 Apr 2016 15:53:30 +0100
-Message-ID: <CALjTZvYx+zYV0SHWR0=C+jhQ0M9BbeU0TRRuPDks_B4ZkZpVaA@mail.gmail.com>
-Subject: Re: [BUG] lib: zram lz4 compression/decompression still broken on big endian
+        Fri, 08 Apr 2016 08:24:17 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id r187so9764432pfr.2
+        for <linux-mm@kvack.org>; Fri, 08 Apr 2016 08:24:17 -0700 (PDT)
 From: Rui Salvaterra <rsalvaterra@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH] lib: lz4: fixed zram with lz4 on big endian machines
+Date: Fri,  8 Apr 2016 16:23:24 +0100
+Message-Id: <1460129004-2011-1-git-send-email-rsalvaterra@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Greg KH <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, eunb.song@samsung.com, minchan@kernel.org, linux-mm@kvack.org, Chanho Min <chanho.min@lge.com>, Kyungsik Lee <kyungsik.lee@lge.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, sergey.senozhatsky@gmail.com, sergey.senozhatsky.work@gmail.com, gregkh@linuxfoundation.org, eunb.song@samsung.com, minchan@kernel.org, chanho.min@lge.com, kyungsik.lee@lge.com, Rui Salvaterra <rsalvaterra@gmail.com>, stable@vger.kernel.org
 
-2016-04-07 15:07 GMT+01:00 Sergey Senozhatsky <sergey.senozhatsky@gmail.com>:
-> On (04/07/16 13:33), Rui Salvaterra wrote:
-> [..]
->> Hi again, Sergey
->
-> Hello,
->
->> Thanks for the patch, I'll test it as soon as possible. I agree with
->> your second option, usually one selects lz4 when (especially
->> decompression) speed is paramount, so it needs all the help it can
->> get.
->
-> thanks!
->
->> Speaking of fishy, the 64-bit detection code also looks suspiciously
->> bogus. Some of the identifiers don't even exist anywhere in the kernel
->> (__ppc64__, por example, after grepping all .c and .h files).
->> Shouldn't we instead check for CONFIG_64BIT or BITS_PER_LONG == 64?
->
-> definitely a good question. personally, I'd prefer to test for
-> CONFIG_64BIT only, looking at this hairy
->
->   /* Detects 64 bits mode */
->   #if (defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) \
->          || defined(__ppc64__) || defined(__LP64__))
->
-> and remove/rewrite a bunch of other stuff. but the thing with cleanups
-> is that they don't fix anything, while potentially can introduce bugs.
-> it's more risky to touch the stable code. /* well, removing those 'ghost'
-> identifiers is sort of OK to me */. but that's just my opinion, I'll
-> leave it to you and Greg.
->
->         -ss
+Based on Sergey's test patch [1], this fixes zram with lz4 compression on big endian cpus. Tested on ppc64 with no regression on x86_64.
 
-Hi again, Sergey
+[1] http://marc.info/?l=linux-kernel&m=145994470805853&w=4
 
-I finally was able to test your patch but, as I suspected, it wasn't
-enough. However, based on it, I was able to write a (hopefully)
-correct one, which I'll send soon (tested on ppc64, with no
-regressions on x86_64).
+Cc: stable@vger.kernel.org
+Signed-off-by: Rui Salvaterra <rsalvaterra@gmail.com>
+---
+ lib/lz4/lz4defs.h | 29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)
 
-Thanks,
-
-Rui
+diff --git a/lib/lz4/lz4defs.h b/lib/lz4/lz4defs.h
+index abcecdc..a98c08c 100644
+--- a/lib/lz4/lz4defs.h
++++ b/lib/lz4/lz4defs.h
+@@ -11,8 +11,7 @@
+ /*
+  * Detects 64 bits mode
+  */
+-#if (defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) \
+-	|| defined(__ppc64__) || defined(__LP64__))
++#if defined(CONFIG_64BIT)
+ #define LZ4_ARCH64 1
+ #else
+ #define LZ4_ARCH64 0
+@@ -25,9 +24,7 @@
+ typedef struct _U16_S { u16 v; } U16_S;
+ typedef struct _U32_S { u32 v; } U32_S;
+ typedef struct _U64_S { u64 v; } U64_S;
+-#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)		\
+-	|| defined(CONFIG_ARM) && __LINUX_ARM_ARCH__ >= 6	\
+-	&& defined(ARM_EFFICIENT_UNALIGNED_ACCESS)
++#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+ 
+ #define A16(x) (((U16_S *)(x))->v)
+ #define A32(x) (((U32_S *)(x))->v)
+@@ -35,6 +32,10 @@ typedef struct _U64_S { u64 v; } U64_S;
+ 
+ #define PUT4(s, d) (A32(d) = A32(s))
+ #define PUT8(s, d) (A64(d) = A64(s))
++
++#define LZ4_READ_LITTLEENDIAN_16(d, s, p)	\
++	(d = s - A16(p))
++
+ #define LZ4_WRITE_LITTLEENDIAN_16(p, v)	\
+ 	do {	\
+ 		A16(p) = v; \
+@@ -51,12 +52,15 @@ typedef struct _U64_S { u64 v; } U64_S;
+ #define PUT8(s, d) \
+ 	put_unaligned(get_unaligned((const u64 *) s), (u64 *) d)
+ 
+-#define LZ4_WRITE_LITTLEENDIAN_16(p, v)	\
+-	do {	\
+-		put_unaligned(v, (u16 *)(p)); \
+-		p += 2; \
++#define LZ4_READ_LITTLEENDIAN_16(d, s, p)	\
++	(d = s - get_unaligned_le16(p))
++
++#define LZ4_WRITE_LITTLEENDIAN_16(p, v)			\
++	do {						\
++		put_unaligned_le16(v, (u16 *)(p));	\
++		p += 2;					\
+ 	} while (0)
+-#endif
++#endif /* CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */
+ 
+ #define COPYLENGTH 8
+ #define ML_BITS  4
+@@ -138,10 +142,7 @@ typedef struct _U64_S { u64 v; } U64_S;
+ #define LZ4_NBCOMMONBYTES(val) (__builtin_ctz(val) >> 3)
+ #endif
+ 
+-#endif
+-
+-#define LZ4_READ_LITTLEENDIAN_16(d, s, p) \
+-	(d = s - get_unaligned_le16(p))
++#endif /* LZ4_ARCH64 */
+ 
+ #define LZ4_WILDCOPY(s, d, e)		\
+ 	do {				\
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
