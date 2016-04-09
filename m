@@ -1,34 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D4B06B0253
-	for <linux-mm@kvack.org>; Sat,  9 Apr 2016 10:04:34 -0400 (EDT)
-Received: by mail-io0-f180.google.com with SMTP id g185so162052672ioa.2
-        for <linux-mm@kvack.org>; Sat, 09 Apr 2016 07:04:34 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id uz15si8141369igb.12.2016.04.09.07.04.33
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E18946B007E
+	for <linux-mm@kvack.org>; Sat,  9 Apr 2016 11:29:21 -0400 (EDT)
+Received: by mail-ig0-f182.google.com with SMTP id f1so32853649igr.1
+        for <linux-mm@kvack.org>; Sat, 09 Apr 2016 08:29:21 -0700 (PDT)
+Received: from mail-ig0-x244.google.com (mail-ig0-x244.google.com. [2607:f8b0:4001:c05::244])
+        by mx.google.com with ESMTPS id 10si9838971ioq.39.2016.04.09.08.29.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 09 Apr 2016 07:04:33 -0700 (PDT)
-Subject: Re: [PATCH 5/6] mm,oom: Re-enable OOM killer using timers.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201602171928.GDE00540.SLJMOFFQOHtFVO@I-love.SAKURA.ne.jp>
-	<201602171934.DGG57308.FOSFMQVLOtJFHO@I-love.SAKURA.ne.jp>
-	<20160217132052.GI29196@dhcp22.suse.cz>
-	<201604092300.BDI39040.FFSQLJOMHOOVtF@I-love.SAKURA.ne.jp>
-In-Reply-To: <201604092300.BDI39040.FFSQLJOMHOOVtF@I-love.SAKURA.ne.jp>
-Message-Id: <201604092304.DBF69231.OFQHJFVMFLStOO@I-love.SAKURA.ne.jp>
-Date: Sat, 9 Apr 2016 23:04:23 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 09 Apr 2016 08:29:21 -0700 (PDT)
+Received: by mail-ig0-x244.google.com with SMTP id nt3so6065916igb.0
+        for <linux-mm@kvack.org>; Sat, 09 Apr 2016 08:29:20 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 1/5] bpf: add PHYS_DEV prog type for early driver
+ filter
+References: <1460090930-11219-1-git-send-email-bblanco@plumgrid.com>
+ <20160408123614.2a15a346@redhat.com> <20160408143340.10e5b1d0@redhat.com>
+ <20160408172651.GA38264@ast-mbp.thefacebook.com>
+ <20160408220808.682630d7@redhat.com>
+ <20160408213414.GA43408@ast-mbp.thefacebook.com>
+ <CALx6S36d74D-8Rx762nmNwb1TF0M0sBfojBhUF96prJiYmDYiQ@mail.gmail.com>
+From: Jamal Hadi Salim <jhs@mojatatu.com>
+Message-ID: <57091FCE.50104@mojatatu.com>
+Date: Sat, 9 Apr 2016 11:29:18 -0400
+MIME-Version: 1.0
+In-Reply-To: <CALx6S36d74D-8Rx762nmNwb1TF0M0sBfojBhUF96prJiYmDYiQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, oleg@redhat.com
+To: Tom Herbert <tom@herbertland.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Brenden Blanco <bblanco@plumgrid.com>, "David S. Miller" <davem@davemloft.net>, Linux Kernel Network Developers <netdev@vger.kernel.org>, Or Gerlitz <ogerlitz@mellanox.com>, Daniel Borkmann <daniel@iogearbox.net>, Eric Dumazet <eric.dumazet@gmail.com>, Edward Cree <ecree@solarflare.com>, john fastabend <john.fastabend@gmail.com>, Thomas Graf <tgraf@suug.ch>, Johannes Berg <johannes@sipsolutions.net>, eranlinuxmellanox@gmail.com, Lorenzo Colitti <lorenzo@google.com>, linux-mm <linux-mm@kvack.org>
 
-Tetsuo Handa wrote:
-> There is no reason to add this patch which handles the slowpath right now.
-Oops.
-There is no reason _not_ to add this patch which handles the slowpath right now.
+On 16-04-09 07:29 AM, Tom Herbert wrote:
+
+> +1. Forwarding which will be a common application almost always
+> requires modification (decrement TTL), and header data split has
+> always been a weak feature since the device has to have some arbitrary
+> rules about what headers needs to be split out (either implements
+> protocol specific parsing or some fixed length).
+
+Then this is sensible. I was cruising the threads and
+confused by your earlier emails Tom because you talked
+about XPS etc. It sounded like the idea evolved into putting
+the whole freaking stack on bpf.
+If this is _forwarding only_ it maybe useful to look at
+Alexey's old code in particular the DMA bits;
+he built his own lookup algorithm but sounds like bpf is
+a much better fit today.
+
+cheers,
+jamal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
