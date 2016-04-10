@@ -1,68 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 90AA66B0005
-	for <linux-mm@kvack.org>; Sat,  9 Apr 2016 21:42:22 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id ot11so14420496pab.1
-        for <linux-mm@kvack.org>; Sat, 09 Apr 2016 18:42:22 -0700 (PDT)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id 18si9994190pfs.117.2016.04.09.18.42.21
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 10AE86B0253
+	for <linux-mm@kvack.org>; Sat,  9 Apr 2016 21:44:14 -0400 (EDT)
+Received: by mail-pf0-f173.google.com with SMTP id n1so99871168pfn.2
+        for <linux-mm@kvack.org>; Sat, 09 Apr 2016 18:44:14 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id fh8si10341746pab.5.2016.04.09.18.44.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 09 Apr 2016 18:42:21 -0700 (PDT)
-Received: by mail-pa0-x230.google.com with SMTP id bx7so81776572pad.3
-        for <linux-mm@kvack.org>; Sat, 09 Apr 2016 18:42:21 -0700 (PDT)
-Date: Sun, 10 Apr 2016 11:40:06 +0900
+        Sat, 09 Apr 2016 18:44:13 -0700 (PDT)
+Received: by mail-pa0-x232.google.com with SMTP id bx7so81793597pad.3
+        for <linux-mm@kvack.org>; Sat, 09 Apr 2016 18:44:13 -0700 (PDT)
+Date: Sun, 10 Apr 2016 11:41:58 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v2 2/2] lib: lz4: cleanup unaligned access efficiency
- detection
-Message-ID: <20160410024006.GA695@swordfish>
+Subject: Re: [PATCH v2 1/2] lib: lz4: fixed zram with lz4 on big endian
+ machines
+Message-ID: <20160410024158.GB695@swordfish>
 References: <1460235935-1003-1-git-send-email-rsalvaterra@gmail.com>
- <1460235935-1003-3-git-send-email-rsalvaterra@gmail.com>
+ <1460235935-1003-2-git-send-email-rsalvaterra@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1460235935-1003-3-git-send-email-rsalvaterra@gmail.com>
+In-Reply-To: <1460235935-1003-2-git-send-email-rsalvaterra@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rui Salvaterra <rsalvaterra@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, sergey.senozhatsky@gmail.com, sergey.senozhatsky.work@gmail.com, gregkh@linuxfoundation.org, eunb.song@samsung.com, minchan@kernel.org, chanho.min@lge.com, kyungsik.lee@lge.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, sergey.senozhatsky@gmail.com, sergey.senozhatsky.work@gmail.com, gregkh@linuxfoundation.org, eunb.song@samsung.com, minchan@kernel.org, chanho.min@lge.com, kyungsik.lee@lge.com, stable@vger.kernel.org
 
 On (04/09/16 22:05), Rui Salvaterra wrote:
-> These identifiers are bogus. The interested architectures should define
-> HAVE_EFFICIENT_UNALIGNED_ACCESS whenever relevant to do so. If this
-> isn't true for some arch, it should be fixed in the arch definition.
+> Note that the 64-bit preprocessor test is not a cleanup, it's part of
+> the fix, since those identifiers are bogus (for example, __ppc64__
+> isn't defined anywhere else in the kernel, which means we'd fall into
+> the 32-bit definitions on ppc64).
 
-yes, besides ARM_EFFICIENT_UNALIGNED_ACCESS exists only in lib/lz4/lz4defs.h
+good find.
 
+> Tested on ppc64 with no regression on x86_64.
+> 
+> [1] http://marc.info/?l=linux-kernel&m=145994470805853&w=4
+> 
+> Cc: stable@vger.kernel.org
+> Suggested-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 > Signed-off-by: Rui Salvaterra <rsalvaterra@gmail.com>
 
 Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-
 	-ss
-
-> ---
->  lib/lz4/lz4defs.h | 4 +---
->  1 file changed, 1 insertion(+), 3 deletions(-)
-> 
-> diff --git a/lib/lz4/lz4defs.h b/lib/lz4/lz4defs.h
-> index 0710a62..c79d7ea 100644
-> --- a/lib/lz4/lz4defs.h
-> +++ b/lib/lz4/lz4defs.h
-> @@ -24,9 +24,7 @@
->  typedef struct _U16_S { u16 v; } U16_S;
->  typedef struct _U32_S { u32 v; } U32_S;
->  typedef struct _U64_S { u64 v; } U64_S;
-> -#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)		\
-> -	|| defined(CONFIG_ARM) && __LINUX_ARM_ARCH__ >= 6	\
-> -	&& defined(ARM_EFFICIENT_UNALIGNED_ACCESS)
-> +#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
->  
->  #define A16(x) (((U16_S *)(x))->v)
->  #define A32(x) (((U32_S *)(x))->v)
-> -- 
-> 2.7.4
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
