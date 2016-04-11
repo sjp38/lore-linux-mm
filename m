@@ -1,109 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E3F6C6B0005
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:14:12 -0400 (EDT)
-Received: by mail-wm0-f54.google.com with SMTP id v188so81693300wme.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:14:12 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id xy1si26291424wjc.0.2016.04.11.04.08.40
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BEB136B0253
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:17:08 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id f198so140899385wme.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:17:08 -0700 (PDT)
+Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
+        by mx.google.com with ESMTPS id r84si17852345wma.59.2016.04.11.04.17.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 04:08:40 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id l6so20397625wml.3
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:08:40 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 19/19] jbd2: get rid of superfluous __GFP_REPEAT
-Date: Mon, 11 Apr 2016 13:08:12 +0200
-Message-Id: <1460372892-8157-20-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
-References: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
+        Mon, 11 Apr 2016 04:17:07 -0700 (PDT)
+Received: by mail-wm0-x230.google.com with SMTP id v188so81789467wme.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:17:07 -0700 (PDT)
+Date: Mon, 11 Apr 2016 14:17:05 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 03/31] huge tmpfs: huge=N mount option and
+ /proc/sys/vm/shmem_huge
+Message-ID: <20160411111705.GE22996@node.shutemov.name>
+References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils>
+ <alpine.LSU.2.11.1604051413580.5965@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1604051413580.5965@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Theodore Ts'o <tytso@mit.edu>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Tue, Apr 05, 2016 at 02:15:05PM -0700, Hugh Dickins wrote:
+> Plumb in a new "huge=1" or "huge=0" mount option to tmpfs: I don't
+> want to get into a maze of boot options, madvises and fadvises at
+> this stage, nor extend the use of the existing THP tuning to tmpfs;
+> though either might be pursued later on.  We just want a way to ask
+> a tmpfs filesystem to favor huge pages, and a way to turn that off
+> again when it doesn't work out so well.  Default of course is off.
+> 
+> "mount -o remount,huge=N /mountpoint" works fine after mount:
+> remounting from huge=1 (on) to huge=0 (off) will not attempt to
+> break up huge pages at all, just stop more from being allocated.
+> 
+> It's possible that we shall allow more values for the option later,
+> to select different strategies (e.g. how hard to try when allocating
+> huge pages, or when to map hugely and when not, or how sparse a huge
+> page should be before it is split up), either for experiments, or well
+> baked in: so use an unsigned char in the superblock rather than a bool.
 
-jbd2_alloc is explicit about its allocation preferences wrt. the
-allocation size. Sub page allocations go to the slab allocator
-and larger are using either the page allocator or vmalloc. This
-is all good but the logic is unnecessarily complex.
-1) as per Ted, the vmalloc fallback is a left-over:
-: jbd2_alloc is only passed in the bh->b_size, which can't be >
-: PAGE_SIZE, so the code path that calls vmalloc() should never get
-: called.  When we conveted jbd2_alloc() to suppor sub-page size
-: allocations in commit d2eecb039368, there was an assumption that it
-: could be called with a size greater than PAGE_SIZE, but that's
-: certaily not true today.
-Moreover vmalloc allocation might even lead to a deadlock because
-the callers expect GFP_NOFS context while vmalloc is GFP_KERNEL.
+Make the value a string from beginning would be better choice in my
+opinion. As more allocation policies would be implemented, number would
+not make much sense.
 
-2) __GFP_REPEAT for requests <= PAGE_ALLOC_COSTLY_ORDER is ignored
-since the flag was introduced.
+For record, my implementation has four allocation policies: never, always,
+within_size and advise.
 
-Let's simplify the code flow and use the slab allocator for sub-page
-requests and the page allocator for others. Even though order > 0 is
-not currently used as per above leave that option open.
+> 
+> No new config option: put this under CONFIG_TRANSPARENT_HUGEPAGE,
+> which is the appropriate option to protect those who don't want
+> the new bloat, and with which we shall share some pmd code.  Use a
+> "name=numeric_value" format like most other tmpfs options.  Prohibit
+> the option when !CONFIG_TRANSPARENT_HUGEPAGE, just as mpol is invalid
+> without CONFIG_NUMA (was hidden in mpol_parse_str(): make it explicit).
+> Allow setting >0 only if the machine has_transparent_hugepage().
+> 
+> But what about Shmem with no user-visible mount?  SysV SHM, memfds,
+> shared anonymous mmaps (of /dev/zero or MAP_ANONYMOUS), GPU drivers'
+> DRM objects, ashmem.  Though unlikely to suit all usages, provide
+> sysctl /proc/sys/vm/shmem_huge to experiment with huge on those.  We
+> may add a memfd_create flag and a per-file huge/non-huge fcntl later.
 
-Cc: "Theodore Ts'o" <tytso@mit.edu>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- fs/jbd2/journal.c | 32 +++++++-------------------------
- 1 file changed, 7 insertions(+), 25 deletions(-)
+I use sysfs knob instead:
 
-diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
-index 435f0b26ac20..bd7c31d8c05e 100644
---- a/fs/jbd2/journal.c
-+++ b/fs/jbd2/journal.c
-@@ -2328,18 +2328,10 @@ void *jbd2_alloc(size_t size, gfp_t flags)
- 
- 	BUG_ON(size & (size-1)); /* Must be a power of 2 */
- 
--	flags |= __GFP_REPEAT;
--	if (size == PAGE_SIZE)
--		ptr = (void *)__get_free_pages(flags, 0);
--	else if (size > PAGE_SIZE) {
--		int order = get_order(size);
--
--		if (order < 3)
--			ptr = (void *)__get_free_pages(flags, order);
--		else
--			ptr = vmalloc(size);
--	} else
-+	if (size < PAGE_SIZE)
- 		ptr = kmem_cache_alloc(get_slab(size), flags);
-+	else
-+		ptr = (void *)__get_free_pages(flags, get_order(size));
- 
- 	/* Check alignment; SLUB has gotten this wrong in the past,
- 	 * and this can lead to user data corruption! */
-@@ -2350,20 +2342,10 @@ void *jbd2_alloc(size_t size, gfp_t flags)
- 
- void jbd2_free(void *ptr, size_t size)
- {
--	if (size == PAGE_SIZE) {
--		free_pages((unsigned long)ptr, 0);
--		return;
--	}
--	if (size > PAGE_SIZE) {
--		int order = get_order(size);
--
--		if (order < 3)
--			free_pages((unsigned long)ptr, order);
--		else
--			vfree(ptr);
--		return;
--	}
--	kmem_cache_free(get_slab(size), ptr);
-+	if (size < PAGE_SIZE)
-+		kmem_cache_free(get_slab(size), ptr);
-+	else
-+		free_pages((unsigned long)ptr, get_order(size));
- };
- 
- /*
+/sys/kernel/mm/transparent_hugepage/shmem_enabled
+
+And string values there as well. It's better match current THP interface.
+
+> And allow shmem_huge two further values: -1 for use in emergencies,
+> to force the huge option off from all mounts; and (currently) 2,
+> to force the huge option on for all - very useful for testing.
+
+In my case, it's "deny" and "force".
+
 -- 
-2.8.0.rc3
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
