@@ -1,60 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id CA98D6B0005
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 02:05:26 -0400 (EDT)
-Received: by mail-io0-f176.google.com with SMTP id o126so173812381iod.0
-        for <linux-mm@kvack.org>; Sun, 10 Apr 2016 23:05:26 -0700 (PDT)
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com. [202.81.31.148])
-        by mx.google.com with ESMTPS id r18si14076233igs.91.2016.04.10.23.05.25
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 994496B0005
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 02:10:57 -0400 (EDT)
+Received: by mail-pf0-f177.google.com with SMTP id c20so117579853pfc.1
+        for <linux-mm@kvack.org>; Sun, 10 Apr 2016 23:10:57 -0700 (PDT)
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com. [125.16.236.9])
+        by mx.google.com with ESMTPS id c62si1480453pfd.69.2016.04.10.23.10.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sun, 10 Apr 2016 23:05:26 -0700 (PDT)
+        Sun, 10 Apr 2016 23:10:56 -0700 (PDT)
 Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 11 Apr 2016 16:05:22 +1000
-Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id C70212CE805B
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 16:04:57 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u3B64nk955443500
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 16:04:57 +1000
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u3B64O30004017
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 16:04:25 +1000
-Message-ID: <570B3E51.2090308@linux.vnet.ibm.com>
-Date: Mon, 11 Apr 2016 11:34:01 +0530
+	Mon, 11 Apr 2016 11:40:54 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u3B6AlnV6095162
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 11:40:47 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u3B6AhsW009363
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 11:40:45 +0530
+Message-ID: <570B3FDB.90305@linux.vnet.ibm.com>
+Date: Mon, 11 Apr 2016 11:40:35 +0530
 From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 03/10] mm/hugetlb: Protect follow_huge_(pud|pgd) functions
- from race
-References: <201604071708.osnfXWQP%fengguang.wu@intel.com>
-In-Reply-To: <201604071708.osnfXWQP%fengguang.wu@intel.com>
+Subject: Re: [PATCH 02/10] mm/hugetlb: Add PGD based implementation awareness
+References: <1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com> <1460007464-26726-3-git-send-email-khandual@linux.vnet.ibm.com> <570622B4.5020407@gmail.com> <570B3531.2000808@linux.vnet.ibm.com>
+In-Reply-To: <570B3531.2000808@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: dave.hansen@intel.com, mgorman@techsingularity.net, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kbuild-all@01.org, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, linuxppc-dev@lists.ozlabs.org, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com
+To: Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+Cc: hughd@google.com, dave.hansen@intel.com, aneesh.kumar@linux.vnet.ibm.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On 04/07/2016 03:04 PM, kbuild test robot wrote:
-> All errors (new ones prefixed by >>):
+On 04/11/2016 10:55 AM, Anshuman Khandual wrote:
+> On 04/07/2016 02:34 PM, Balbir Singh wrote:
+>> > 
+>> > 
+>> > On 07/04/16 15:37, Anshuman Khandual wrote:
+>>> >> Currently the config ARCH_WANT_GENERAL_HUGETLB enabled functions like
+>>> >> 'huge_pte_alloc' and 'huge_pte_offset' dont take into account HugeTLB
+>>> >> page implementation at the PGD level. This is also true for functions
+>>> >> like 'follow_page_mask' which is called from move_pages() system call.
+>>> >> This lack of PGD level huge page support prohibits some architectures
+>>> >> to use these generic HugeTLB functions.
+>>> >>
+>> > 
+>> > From what I know of move_pages(), it will always call follow_page_mask()
+>> > with FOLL_GET (I could be wrong here) and the implementation below
+>> > returns NULL for follow_huge_pgd().
+> You are right. This patch makes ARCH_WANT_GENERAL_HUGETLB functions aware
+> of PGD implementation so that we can do all transactions on 16GB pages
+> using these function instead of the present arch overrides. But that also
+> requires follow_page_mask() changes for every other access to the page
+> than the migrate_pages() usage.
 > 
->    mm/hugetlb.c: In function 'follow_huge_pud':
->>> >> mm/hugetlb.c:4360:3: error: implicit declaration of function 'pud_page' [-Werror=implicit-function-declaration]
->       page = pud_page(*pud) + ((address & ~PUD_MASK) >> PAGE_SHIFT);
->       ^
->    mm/hugetlb.c:4360:8: warning: assignment makes pointer from integer without a cast
->       page = pud_page(*pud) + ((address & ~PUD_MASK) >> PAGE_SHIFT);
->            ^
->    mm/hugetlb.c: In function 'follow_huge_pgd':
->    mm/hugetlb.c:4395:3: error: implicit declaration of function 'pgd_page' [-Werror=implicit-function-declaration]
->       page = pgd_page(*pgd) + ((address & ~PGDIR_MASK) >> PAGE_SHIFT);
+> But yes, we dont support migrate_pages() on PGD based pages yet, hence
+> it just returns NULL in that case. May be the commit message needs to
+> reflect this.
 
-Both the build errors here are because of the fact that pgd_page() is
-not available for some platforms and config options. It got missed as
-I ran only powerpc config options for build test purpose. My bad, will
-fix it.
+The next commit actually changes follow_huge_pud|pgd() functions to
+support FOLL_GET and PGD based huge page migration.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
