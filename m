@@ -1,62 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id BF97A6B0005
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 06:35:11 -0400 (EDT)
-Received: by mail-wm0-f48.google.com with SMTP id a140so6885106wma.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 03:35:11 -0700 (PDT)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id p77si17658375wmd.43.2016.04.11.03.35.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 03:35:10 -0700 (PDT)
-Received: by mail-wm0-x22c.google.com with SMTP id v188so80421191wme.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 03:35:10 -0700 (PDT)
-Date: Mon, 11 Apr 2016 13:35:08 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 09/10] huge pagecache: mmap_sem is unlocked when
- truncation splits pmd
-Message-ID: <20160411103508.GC22996@node.shutemov.name>
-References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
- <alpine.LSU.2.11.1604051352540.5965@eggly.anvils>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id E63636B0253
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 06:40:18 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id zm5so119490969pac.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 03:40:18 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b90si2858241pfd.128.2016.04.11.03.40.18
+        for <linux-mm@kvack.org>;
+        Mon, 11 Apr 2016 03:40:18 -0700 (PDT)
+Date: Mon, 11 Apr 2016 11:40:13 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH 1/2] arm64: mem-model: add flatmem model for arm64
+Message-ID: <20160411104013.GG15729@arm.com>
+References: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
+ <20160407142148.GI5657@arm.com>
+ <570B10B2.2000000@hisilicon.com>
+ <CAKv+Gu8iQ0NzLFWHy9Ggyv+jL-BqJ3x-KaRD1SZ1mU6yU3c7UQ@mail.gmail.com>
+ <570B5875.20804@hisilicon.com>
+ <CAKv+Gu9aqR=E3TmbPDFEUC+Q13bAJTU5wVTTHkOr6aX6BZ1OVA@mail.gmail.com>
+ <570B758E.7070005@hisilicon.com>
+ <CAKv+Gu-cWWUi6fCiveqaZRVhGCpEasCLEs7wq6t+C-x65g4cgQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1604051352540.5965@eggly.anvils>
+In-Reply-To: <CAKv+Gu-cWWUi6fCiveqaZRVhGCpEasCLEs7wq6t+C-x65g4cgQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, Matthew Wilcox <willy@linux.intel.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Chen Feng <puck.chen@hisilicon.com>, Mark Rutland <mark.rutland@arm.com>, mhocko@suse.com, Laura Abbott <labbott@redhat.com>, Dan Zhao <dan.zhao@hisilicon.com>, Yiping Xu <xuyiping@hisilicon.com>, puck.chen@foxmail.com, albert.lubing@hisilicon.com, Catalin Marinas <catalin.marinas@arm.com>, suzhuangluan@hisilicon.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxarm@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, David Rientjes <rientjes@google.com>, oliver.fu@hisilicon.com, Andrew Morton <akpm@linux-foundation.org>, robin.murphy@arm.com, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, saberlily.xia@hisilicon.com
 
-On Tue, Apr 05, 2016 at 01:55:23PM -0700, Hugh Dickins wrote:
-> zap_pmd_range()'s CONFIG_DEBUG_VM !rwsem_is_locked(&mmap_sem) BUG()
-> will be invalid with huge pagecache, in whatever way it is implemented:
-> truncation of a hugely-mapped file to an unhugely-aligned size would
-> easily hit it.
+On Mon, Apr 11, 2016 at 12:31:53PM +0200, Ard Biesheuvel wrote:
+> On 11 April 2016 at 11:59, Chen Feng <puck.chen@hisilicon.com> wrote:
+> > Please see the pg-tables below.
+> >
+> >
+> > With sparse and vmemmap enable.
+> >
+> > ---[ vmemmap start ]---
+> > 0xffffffbdc0200000-0xffffffbdc4800000          70M     RW NX SHD AF    UXN MEM/NORMAL
+> > ---[ vmemmap end ]---
+> >
 > 
-> (Although anon THP could in principle apply khugepaged to private file
-> mappings, which are not excluded by the MADV_HUGEPAGE restrictions, in
-> practice there's a vm_ops check which excludes them, so it never hits
-> this BUG() - there's no interface to "truncate" an anonymous mapping.)
+> OK, I see what you mean now. Sorry for taking so long to catch up.
 > 
-> We could complicate the test, to check i_mmap_rwsem also when there's a
-> vm_file; but my inclination was to make zap_pmd_range() more readable by
-> simply deleting this check.  A search has shown no report of the issue in
-> the years since commit e0897d75f0b2 ("mm, thp: print useful information
-> when mmap_sem is unlocked in zap_pmd_range") expanded it from VM_BUG_ON()
-> - though I cannot point to what commit I would say then fixed the issue.
+> > The board is 4GB, and the memap is 70MB
+> > 1G memory --- 14MB mem_map array.
 > 
-> But there are a couple of other patches now floating around, neither
-> yet in the tree: let's agree to retain the check as a VM_BUG_ON_VMA(),
-> as Matthew Wilcox has done; but subject to a vma_is_anonymous() check,
-> as Kirill Shutemov has done.  And let's get this in, without waiting
-> for any particular huge pagecache implementation to reach the tree.
+> No, this is incorrect. 1 GB corresponds with 16 MB worth of struct
+> pages assuming sizeof(struct page) == 64
 > 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+> So you are losing 6 MB to rounding here, which I agree is significant.
+> I wonder if it makes sense to use a lower value for SECTION_SIZE_BITS
+> on 4k pages kernels, but perhaps we're better off asking the opinion
+> of the other cc'ees.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+You need to be really careful making SECTION_SIZE_BITS smaller because
+it has a direct correlation on the use of page->flags and you can end up
+running out of bits fairly easily.
 
--- 
- Kirill A. Shutemov
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
