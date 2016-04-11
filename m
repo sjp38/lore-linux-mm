@@ -1,86 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id BEB136B0253
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:17:08 -0400 (EDT)
-Received: by mail-wm0-f45.google.com with SMTP id f198so140899385wme.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:17:08 -0700 (PDT)
-Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
-        by mx.google.com with ESMTPS id r84si17852345wma.59.2016.04.11.04.17.07
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DB6F6B0260
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:23:26 -0400 (EDT)
+Received: by mail-wm0-f47.google.com with SMTP id l6so141361531wml.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:23:26 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id j5si28296632wjz.127.2016.04.11.04.23.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 04:17:07 -0700 (PDT)
-Received: by mail-wm0-x230.google.com with SMTP id v188so81789467wme.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:17:07 -0700 (PDT)
-Date: Mon, 11 Apr 2016 14:17:05 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 03/31] huge tmpfs: huge=N mount option and
- /proc/sys/vm/shmem_huge
-Message-ID: <20160411111705.GE22996@node.shutemov.name>
-References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils>
- <alpine.LSU.2.11.1604051413580.5965@eggly.anvils>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 11 Apr 2016 04:23:24 -0700 (PDT)
+Message-ID: <570B85B6.8000805@huawei.com>
+Date: Mon, 11 Apr 2016 19:08:38 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1604051413580.5965@eggly.anvils>
+Subject: Re: [PATCH 2/2] arm64: mm: make pfn always valid with flat memory
+References: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com> <1459844572-53069-2-git-send-email-puck.chen@hisilicon.com>
+In-Reply-To: <1459844572-53069-2-git-send-email-puck.chen@hisilicon.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Chen Feng <puck.chen@hisilicon.com>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@linaro.org, mark.rutland@arm.com, akpm@linux-foundation.org, robin.murphy@arm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, rientjes@google.com, linux-mm@kvack.org, dan.zhao@hisilicon.com, puck.chen@foxmail.com, suzhuangluan@hisilicon.com, linuxarm@huawei.com, saberlily.xia@hisilicon.com, oliver.fu@hisilicon.com, yudongbin@hislicon.com
 
-On Tue, Apr 05, 2016 at 02:15:05PM -0700, Hugh Dickins wrote:
-> Plumb in a new "huge=1" or "huge=0" mount option to tmpfs: I don't
-> want to get into a maze of boot options, madvises and fadvises at
-> this stage, nor extend the use of the existing THP tuning to tmpfs;
-> though either might be pursued later on.  We just want a way to ask
-> a tmpfs filesystem to favor huge pages, and a way to turn that off
-> again when it doesn't work out so well.  Default of course is off.
+On 2016/4/5 16:22, Chen Feng wrote:
+
+> Make the pfn always valid when using flat memory.
+> If the reserved memory is not align to memblock-size,
+> there will be holes in zone.
 > 
-> "mount -o remount,huge=N /mountpoint" works fine after mount:
-> remounting from huge=1 (on) to huge=0 (off) will not attempt to
-> break up huge pages at all, just stop more from being allocated.
+> This patch makes the memory in buddy always in the
+> array of mem-map.
 > 
-> It's possible that we shall allow more values for the option later,
-> to select different strategies (e.g. how hard to try when allocating
-> huge pages, or when to map hugely and when not, or how sparse a huge
-> page should be before it is split up), either for experiments, or well
-> baked in: so use an unsigned char in the superblock rather than a bool.
-
-Make the value a string from beginning would be better choice in my
-opinion. As more allocation policies would be implemented, number would
-not make much sense.
-
-For record, my implementation has four allocation policies: never, always,
-within_size and advise.
-
+> Signed-off-by: Chen Feng <puck.chen@hisilicon.com>
+> Signed-off-by: Fu Jun <oliver.fu@hisilicon.com>
+> ---
+>  arch/arm64/mm/init.c | 7 ++++---
+>  1 file changed, 4 insertions(+), 3 deletions(-)
 > 
-> No new config option: put this under CONFIG_TRANSPARENT_HUGEPAGE,
-> which is the appropriate option to protect those who don't want
-> the new bloat, and with which we shall share some pmd code.  Use a
-> "name=numeric_value" format like most other tmpfs options.  Prohibit
-> the option when !CONFIG_TRANSPARENT_HUGEPAGE, just as mpol is invalid
-> without CONFIG_NUMA (was hidden in mpol_parse_str(): make it explicit).
-> Allow setting >0 only if the machine has_transparent_hugepage().
-> 
-> But what about Shmem with no user-visible mount?  SysV SHM, memfds,
-> shared anonymous mmaps (of /dev/zero or MAP_ANONYMOUS), GPU drivers'
-> DRM objects, ashmem.  Though unlikely to suit all usages, provide
-> sysctl /proc/sys/vm/shmem_huge to experiment with huge on those.  We
-> may add a memfd_create flag and a per-file huge/non-huge fcntl later.
+> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+> index ea989d8..0e1d5b7 100644
+> --- a/arch/arm64/mm/init.c
+> +++ b/arch/arm64/mm/init.c
+> @@ -306,7 +306,8 @@ static void __init free_unused_memmap(void)
 
-I use sysfs knob instead:
+How about let free_unused_memmap() support for CONFIG_SPARSEMEM_VMEMMAP?
 
-/sys/kernel/mm/transparent_hugepage/shmem_enabled
+Thanks,
+Xishi Qiu
 
-And string values there as well. It's better match current THP interface.
+>  	struct memblock_region *reg;
+>  
+>  	for_each_memblock(memory, reg) {
+> -		start = __phys_to_pfn(reg->base);
+> +		start = round_down(__phys_to_pfn(reg->base),
+> +				   MAX_ORDER_NR_PAGES);
+>  
+>  #ifdef CONFIG_SPARSEMEM
+>  		/*
+> @@ -327,8 +328,8 @@ static void __init free_unused_memmap(void)
+>  		 * memmap entries are valid from the bank end aligned to
+>  		 * MAX_ORDER_NR_PAGES.
+>  		 */
+> -		prev_end = ALIGN(__phys_to_pfn(reg->base + reg->size),
+> -				 MAX_ORDER_NR_PAGES);
+> +		prev_end = round_up(__phys_to_pfn(reg->base + reg->size),
+> +				    MAX_ORDER_NR_PAGES);
+>  	}
+>  
+>  #ifdef CONFIG_SPARSEMEM
 
-> And allow shmem_huge two further values: -1 for use in emergencies,
-> to force the huge option off from all mounts; and (currently) 2,
-> to force the huge option on for all - very useful for testing.
 
-In my case, it's "deny" and "force".
-
--- 
- Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
