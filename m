@@ -1,63 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D2436B0005
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 09:26:23 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id td3so121703313pab.2
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 06:26:23 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id q73si3551983pfi.65.2016.04.11.06.26.21
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 305D46B0253
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 09:27:48 -0400 (EDT)
+Received: by mail-wm0-f41.google.com with SMTP id v188so86417271wme.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 06:27:48 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id uw6si28822250wjc.225.2016.04.11.06.27.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Apr 2016 06:26:22 -0700 (PDT)
-Subject: Re: [PATCH 2/3] oom, oom_reaper: Try to reap tasks which skip regular OOM killer path
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201604072038.CHC51027.MSJOFVLHOFFtQO@I-love.SAKURA.ne.jp>
-	<201604082019.EDH52671.OJHQFMStOFLVOF@I-love.SAKURA.ne.jp>
-	<20160408115033.GH29820@dhcp22.suse.cz>
-	<201604091339.FAJ12491.FVHQFFMSJLtOOO@I-love.SAKURA.ne.jp>
-	<20160411120238.GF23157@dhcp22.suse.cz>
-In-Reply-To: <20160411120238.GF23157@dhcp22.suse.cz>
-Message-Id: <201604112226.IFC52662.FOFVtQSJLOFMOH@I-love.SAKURA.ne.jp>
-Date: Mon, 11 Apr 2016 22:26:09 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Apr 2016 06:27:47 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id y144so21212179wmd.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 06:27:46 -0700 (PDT)
+Date: Mon, 11 Apr 2016 15:27:45 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 06/11] mm, compaction: distinguish between full and
+ partial COMPACT_COMPLETE
+Message-ID: <20160411132745.GH23157@dhcp22.suse.cz>
+References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
+ <1459855533-4600-7-git-send-email-mhocko@kernel.org>
+ <570B9432.9090600@suse.cz>
+ <20160411124653.GG23157@dhcp22.suse.cz>
+ <570B9E50.9040000@suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <570B9E50.9040000@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, oleg@redhat.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Michal Hocko wrote:
-> On Sat 09-04-16 13:39:30, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Fri 08-04-16 20:19:28, Tetsuo Handa wrote:
-> > > > I looked at next-20160408 but I again came to think that we should remove
-> > > > these shortcuts (something like a patch shown bottom).
-> > >
-> > > feel free to send the patch with the full description. But I would
-> > > really encourage you to check the history to learn why those have been
-> > > added and describe why those concerns are not valid/important anymore.
-> > 
-> > I believe that past discussions and decisions about current code are too
-> > optimistic because they did not take 'The "too small to fail" memory-
-> > allocation rule' problem into account.
+On Mon 11-04-16 14:53:36, Vlastimil Babka wrote:
+> On 04/11/2016 02:46 PM, Michal Hocko wrote:
+> >>This assumes that migrate scanner at initial position implies also free
+> >>scanner at the initial position. That should be true, because migration
+> >>scanner is the first to run. But getting the zone->compact_cached_*_pfn is
+> >>racy. Worse, zone->compact_cached_migrate_pfn is array distinguishing sync
+> >>and async compaction, so it's possible that async compaction has advanced
+> >>both its own migrate scanner cached position, and the shared free scanner
+> >>cached position, and then sync compaction starts migrate scanner at
+> >>start_pfn, but free scanner has already advanced.
+> >
+> >OK, I see. The whole thing smelled racy but I thought it wouldn't be
+> >such a big deal. Even if we raced then only a marginal part of the zone
+> >wouldn't be scanned, right? Or is it possible that free_pfn would appear
+> >in the middle of the zone because of the race?
 > 
-> In most cases they were driven by _real_ usecases though. And that
-> is what matters. Theoretically possible issues which happen under
-> crazy workloads which are DoSing the machine already are not something
-> to optimize for. Sure we should try to cope with them as gracefully
-> as possible, no questions about that, but we should try hard not to
-> reintroduce previous issues during _sensible_ workloads.
+> The racy part is negligible but I didn't realize the sync/async migrate
+> scanner part until now. So yeah, free_pfn could have got to middle of zone
+> when it was in the async mode. But that also means that the async mode
+> recently used up all free pages in the second half of the zone. WRT free
+> pages isolation, async mode is not trying less than sync, so it shouldn't be
+> a considerable missed opportunity if we don't rescan the it, though.
 
-I'm not requesting you to optimize for crazy workloads. None of my
-customers intentionally put crazy workloads, but they are getting silent
-hangups and I'm suspecting that something went wrong with memory management.
-But there is no evidence because memory management subsystem remains silent.
-You call my testcases DoS, but there is no evidence that my customers
-are not hitting the same problem my testcases found.
-
-I'm suggesting you to at least emit diagnostic messages when something went
-wrong. That is what kmallocwd is for. And if you do not want to emit
-diagnostic messages, I'm fine with timeout based approach.
+I am not really sure I understand. The primary intention of this patch
+is to distinguish where we have scanned basically whole zones from cases
+where a new scan started off previous mark and so it was just unlucky to
+see only tiny bit of the zone where we would clearly give up too early.
+FWIU this shouldn't be the case if we start scanning from the beginning
+of the zone even if we raced on the other end of the zone because the
+missed part would be negligible. Is that understanding correct?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
