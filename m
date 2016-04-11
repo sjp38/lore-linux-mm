@@ -1,73 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 31ADE6B026B
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:58:25 -0400 (EDT)
-Received: by mail-wm0-f47.google.com with SMTP id l6so136366758wml.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 01:58:25 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 8si14286392wmq.96.2016.04.11.01.58.23
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Apr 2016 01:58:23 -0700 (PDT)
-Date: Mon, 11 Apr 2016 09:58:19 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Generic page-pool recycle facility?
-Message-ID: <20160411085819.GE21128@suse.de>
-References: <1460034425.20949.7.camel@HansenPartnership.com>
- <20160407161715.52635cac@redhat.com>
+Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 81C7D6B0262
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 06:06:09 -0400 (EDT)
+Received: by mail-pf0-f173.google.com with SMTP id c20so121266103pfc.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 03:06:09 -0700 (PDT)
+Received: from szxga02-in.huawei.com ([119.145.14.65])
+        by mx.google.com with ESMTP id c62si2682393pfd.69.2016.04.11.03.06.07
+        for <linux-mm@kvack.org>;
+        Mon, 11 Apr 2016 03:06:08 -0700 (PDT)
+Subject: Re: [PATCH 1/2] arm64: mem-model: add flatmem model for arm64
+References: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
+ <20160407142148.GI5657@arm.com> <570B10B2.2000000@hisilicon.com>
+ <CAKv+Gu8iQ0NzLFWHy9Ggyv+jL-BqJ3x-KaRD1SZ1mU6yU3c7UQ@mail.gmail.com>
+ <570B5875.20804@hisilicon.com>
+ <CAKv+Gu9aqR=E3TmbPDFEUC+Q13bAJTU5wVTTHkOr6aX6BZ1OVA@mail.gmail.com>
+From: Chen Feng <puck.chen@hisilicon.com>
+Message-ID: <570B758E.7070005@hisilicon.com>
+Date: Mon, 11 Apr 2016 17:59:42 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20160407161715.52635cac@redhat.com>
+In-Reply-To: <CAKv+Gu9aqR=E3TmbPDFEUC+Q13bAJTU5wVTTHkOr6aX6BZ1OVA@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Brenden Blanco <bblanco@plumgrid.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Tom Herbert <tom@herbertland.com>, lsf-pc@lists.linux-foundation.org, Alexei Starovoitov <alexei.starovoitov@gmail.com>
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Will Deacon <will.deacon@arm.com>, mhocko@suse.com, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Dan Zhao <dan.zhao@hisilicon.com>, Yiping Xu <xuyiping@hisilicon.com>, puck.chen@foxmail.com, albert.lubing@hisilicon.com, Catalin Marinas <catalin.marinas@arm.com>, suzhuangluan@hisilicon.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxarm@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, David Rientjes <rientjes@google.com>, oliver.fu@hisilicon.com, Andrew Morton <akpm@linux-foundation.org>, robin.murphy@arm.com, yudongbin@hislicon.com, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, saberlily.xia@hisilicon.com
 
-On Thu, Apr 07, 2016 at 04:17:15PM +0200, Jesper Dangaard Brouer wrote:
-> (Topic proposal for MM-summit)
+Hi Ard,
+
+On 2016/4/11 16:00, Ard Biesheuvel wrote:
+> On 11 April 2016 at 09:55, Chen Feng <puck.chen@hisilicon.com> wrote:
+>> Hi Ard,
+>>
+>> On 2016/4/11 15:35, Ard Biesheuvel wrote:
+>>> On 11 April 2016 at 04:49, Chen Feng <puck.chen@hisilicon.com> wrote:
+>>>> Hi will,
+>>>> Thanks for review.
+>>>>
+>>>> On 2016/4/7 22:21, Will Deacon wrote:
+>>>>> On Tue, Apr 05, 2016 at 04:22:51PM +0800, Chen Feng wrote:
+>>>>>> We can reduce the memory allocated at mem-map
+>>>>>> by flatmem.
+>>>>>>
+>>>>>> currently, the default memory-model in arm64 is
+>>>>>> sparse memory. The mem-map array is not freed in
+>>>>>> this scene. If the physical address is too long,
+>>>>>> it will reserved too much memory for the mem-map
+>>>>>> array.
+>>>>>
+>>>>> Can you elaborate a bit more on this, please? We use the vmemmap, so any
+>>>>> spaces between memory banks only burns up virtual space. What exactly is
+>>>>> the problem you're seeing that makes you want to use flatmem (which is
+>>>>> probably unsuitable for the majority of arm64 machines).
+>>>>>
+>>>> The root cause we want to use flat-mem is the mam_map alloced in sparse-mem
+>>>> is not freed.
+>>>>
+>>>> take a look at here:
+>>>> arm64/mm/init.c
+>>>> void __init mem_init(void)
+>>>> {
+>>>> #ifndef CONFIG_SPARSEMEM_VMEMMAP
+>>>>         free_unused_memmap();
+>>>> #endif
+>>>> }
+>>>>
+>>>> Memory layout (3GB)
+>>>>
+>>>>  0             1.5G    2G             3.5G            4G
+>>>>  |              |      |               |              |
+>>>>  +--------------+------+---------------+--------------+
+>>>>  |    MEM       | hole |     MEM       |   IO (regs)  |
+>>>>  +--------------+------+---------------+--------------+
+>>>>
+>>>>
+>>>> Memory layout (4GB)
+>>>>
+>>>>  0                                    3.5G            4G    4.5G
+>>>>  |                                     |              |       |
+>>>>  +-------------------------------------+--------------+-------+
+>>>>  |                   MEM               |   IO (regs)  |  MEM  |
+>>>>  +-------------------------------------+--------------+-------+
+>>>>
+>>>> Currently, the sparse memory section is 1GB.
+>>>>
+>>>> 3GB ddr: the 1.5 ~2G and 3.5 ~ 4G are holes.
+>>>> 3GB ddr: the 3.5 ~ 4G and 4.5 ~ 5G are holes.
+>>>>
+>>>> This will alloc 1G/4K * (struct page) memory for mem_map array.
+>>>>
+>>>
+>>> No, this is incorrect. Sparsemem vmemmap only allocates struct pages
+>>> for memory regions that are actually populated.
+>>>
+>>> For instance, on the Foundation model with 4 GB of memory, you may see
+>>> something like this in the boot log
+>>>
+>>> [    0.000000]     vmemmap : 0xffffffbdc0000000 - 0xffffffbfc0000000
+>>> (     8 GB maximum)
+>>> [    0.000000]               0xffffffbdc0000000 - 0xffffffbde2000000
+>>> (   544 MB actual)
+>>>
+>>> but in reality, only the following regions have been allocated
+>>>
+>>> ---[ vmemmap start ]---
+>>> 0xffffffbdc0000000-0xffffffbdc2000000          32M       RW NX SHD AF
+>>>       BLK UXN MEM/NORMAL
+>>> 0xffffffbde0000000-0xffffffbde2000000          32M       RW NX SHD AF
+>>>       BLK UXN MEM/NORMAL
+>>> ---[ vmemmap end ]---
+>>>
+>>> so only 64 MB is used to back 4 GB of RAM with struct pages, which is
+>>> minimal. Moving to flatmem will not reduce the memory footprint at
+>>> all.
+>>
+>> Yes,but the populate is section, which is 1GB. Take a look at the above
+>> memory layout.
+>>
+>> The section 1G ~ 2G is a section. But 1.5G ~ 2G is a hole.
+>>
+>> The section 3G ~ 4G is a section. But 3.5G ~ 4G is a hole.
+>>>>  0             1.5G    2G             3.5G            4G
+>>>>  |              |      |               |              |
+>>>>  +--------------+------+---------------+--------------+
+>>>>  |    MEM       | hole |     MEM       |   IO (regs)  |
+>>>>  +--------------+------+---------------+--------------+
+>> The hole in 1.5G ~ 2G is also allocated mem-map array. And also with the 3.5G ~ 4G.
+>>
 > 
-> Network Interface Cards (NIC) drivers, and increasing speeds stress
-> the page-allocator (and DMA APIs).  A number of driver specific
-> open-coded approaches exists that work-around these bottlenecks in the
-> page allocator and DMA APIs. E.g. open-coded recycle mechanisms, and
-> allocating larger pages and handing-out page "fragments".
+> No, it is not. It may be covered by a section, but that does not mean
+> sparsemem vmemmap will actually allocate backing for it. The
+> granularity used by sparsemem vmemmap on a 4k pages kernel is 128 MB,
+> due to the fact that the backing is performed at PMD granularity.
 > 
-> I'm proposing a generic page-pool recycle facility, that can cover the
-> driver use-cases, increase performance and open up for zero-copy RX.
+> Please, could you share the contents of the vmemmap section in
+> /sys/kernel/debug/kernel_page_tables of your system running with
+> sparsemem vmemmap enabled? You will need to set CONFIG_ARM64_PTDUMP=y
+>
+
+Please see the pg-tables below.
+
+
+With sparse and vmemmap enable.
+
+---[ vmemmap start ]---
+0xffffffbdc0200000-0xffffffbdc4800000          70M     RW NX SHD AF    UXN MEM/NORMAL
+---[ vmemmap end ]---
+
+
+The board is 4GB, and the memap is 70MB
+1G memory --- 14MB mem_map array.
+So the 4GB has 5 sections, which used 5 * 14MB memory.
+
+
+
+
+
+
+> .
 > 
-
-Which bottleneck dominates -- the page allocator or the DMA API when
-setting up coherent pages?
-
-I'm wary of another page allocator API being introduced if it's for
-performance reasons. In response to this thread, I spent two days on
-a series that boosts performance of the allocator in the fast paths by
-11-18% to illustrate that there was low-hanging fruit for optimising. If
-the one-LRU-per-node series was applied on top, there would be a further
-boost to performance on the allocation side. It could be further boosted
-if debugging checks and statistic updates were conditionally disabled by
-the caller.
-
-The main reason another allocator concerns me is that those pages
-are effectively pinned and cannot be reclaimed by the VM in low memory
-situations. It ends up needing its own API for tuning the size and hoping
-all the drivers get it right without causing OOM situations. It becomes
-a slippery slope of introducing shrinkers, locking and complexity. Then
-callers start getting concerned about NUMA locality and having to deal
-with multiple lists to maintain performance. Ultimately, it ends up being
-as slow as the page allocator and back to square 1 except now with more code.
-
-If it's the DMA API that dominates then something may be required but it
-should rely on the existing page allocator to alloc/free from. It would
-also need something like drain_all_pages to force free everything in there
-in low memory situations. Remember that multiple instances private to
-drivers or tasks will require shrinker implementations and the complexity
-may get unwieldly.
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
