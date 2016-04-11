@@ -1,82 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id DF7796B0253
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:04:50 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id ot11so36221122pab.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:04:50 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id g24si2981065pfj.91.2016.04.11.04.04.48
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 263BF6B025F
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:05:49 -0400 (EDT)
+Received: by mail-wm0-f49.google.com with SMTP id f198so140526051wme.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:05:49 -0700 (PDT)
+Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
+        by mx.google.com with ESMTPS id 3si17803235wmk.45.2016.04.11.04.05.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Apr 2016 04:04:50 -0700 (PDT)
-Subject: Re: [PATCH 1/2] arm64: mem-model: add flatmem model for arm64
-References: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
- <20160407142148.GI5657@arm.com> <570B10B2.2000000@hisilicon.com>
- <CAKv+Gu8iQ0NzLFWHy9Ggyv+jL-BqJ3x-KaRD1SZ1mU6yU3c7UQ@mail.gmail.com>
- <570B5875.20804@hisilicon.com>
- <CAKv+Gu9aqR=E3TmbPDFEUC+Q13bAJTU5wVTTHkOr6aX6BZ1OVA@mail.gmail.com>
- <570B758E.7070005@hisilicon.com>
- <CAKv+Gu-cWWUi6fCiveqaZRVhGCpEasCLEs7wq6t+C-x65g4cgQ@mail.gmail.com>
- <20160411104013.GG15729@arm.com>
-From: Chen Feng <puck.chen@hisilicon.com>
-Message-ID: <570B8310.40103@hisilicon.com>
-Date: Mon, 11 Apr 2016 18:57:20 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Apr 2016 04:05:47 -0700 (PDT)
+Received: by mail-wm0-x22e.google.com with SMTP id l6so140774766wml.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:05:47 -0700 (PDT)
+Date: Mon, 11 Apr 2016 14:05:45 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 01/31] huge tmpfs: prepare counts in meminfo, vmstat and
+ SysRq-m
+Message-ID: <20160411110545.GD22996@node.shutemov.name>
+References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils>
+ <alpine.LSU.2.11.1604051410260.5965@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20160411104013.GG15729@arm.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1604051410260.5965@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: Mark Rutland <mark.rutland@arm.com>, mhocko@suse.com, Laura Abbott <labbott@redhat.com>, Dan Zhao <dan.zhao@hisilicon.com>, Yiping Xu <xuyiping@hisilicon.com>, puck.chen@foxmail.com, albert.lubing@hisilicon.com, Catalin Marinas <catalin.marinas@arm.com>, suzhuangluan@hisilicon.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxarm@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, David Rientjes <rientjes@google.com>, oliver.fu@hisilicon.com, Andrew Morton <akpm@linux-foundation.org>, robin.murphy@arm.com, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, saberlily.xia@hisilicon.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Will,
+On Tue, Apr 05, 2016 at 02:12:26PM -0700, Hugh Dickins wrote:
+> ShmemFreeHoles will show the wastage from using huge pages for small, or
+> sparsely occupied, or unrounded files: wastage not included in Shmem or
+> MemFree, but will be freed under memory pressure.  (But no count for the
+> partially occupied portions of huge pages: seems less important, but
+> could be added.)
 
-On 2016/4/11 18:40, Will Deacon wrote:
-> On Mon, Apr 11, 2016 at 12:31:53PM +0200, Ard Biesheuvel wrote:
->> On 11 April 2016 at 11:59, Chen Feng <puck.chen@hisilicon.com> wrote:
->>> Please see the pg-tables below.
->>>
->>>
->>> With sparse and vmemmap enable.
->>>
->>> ---[ vmemmap start ]---
->>> 0xffffffbdc0200000-0xffffffbdc4800000          70M     RW NX SHD AF    UXN MEM/NORMAL
->>> ---[ vmemmap end ]---
->>>
->>
->> OK, I see what you mean now. Sorry for taking so long to catch up.
->>
->>> The board is 4GB, and the memap is 70MB
->>> 1G memory --- 14MB mem_map array.
->>
->> No, this is incorrect. 1 GB corresponds with 16 MB worth of struct
->> pages assuming sizeof(struct page) == 64
->>
->> So you are losing 6 MB to rounding here, which I agree is significant.
->> I wonder if it makes sense to use a lower value for SECTION_SIZE_BITS
->> on 4k pages kernels, but perhaps we're better off asking the opinion
->> of the other cc'ees.
-> 
-> You need to be really careful making SECTION_SIZE_BITS smaller because
-> it has a direct correlation on the use of page->flags and you can end up
-> running out of bits fairly easily.
+And here first difference in interfaces comes: I don't have an
+equivalent in my implementation, as I don't track such information.
+It looks like an implementation detail for team-pages based huge tmpfs.
 
-Yes, making SECTION_SIZE_BITS smaller can solve the current situation.
+We don't track anything similar for anon-THP.
 
-But if the phys-addr is 64GB, but only 4GB ddr is the valid address. And the
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3830,6 +3830,11 @@ out:
+>  }
+>  
+>  #define K(x) ((x) << (PAGE_SHIFT-10))
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +#define THPAGE_PMD_NR	HPAGE_PMD_NR
+> +#else
+> +#define THPAGE_PMD_NR	0	/* Avoid BUILD_BUG() */
+> +#endif
 
-holes are not always 512MB.
+I've just put THP-related counters on separate line and wrap it into
+#ifdef.
 
-But, can you tell us why *smaller SIZE makes running out of bits fairly easily*?
 
-And how about the flat-mem model?
-
-> 
-> Will
-> 
-> .
-> 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
