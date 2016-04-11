@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 959CA6B0253
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 02:46:04 -0400 (EDT)
-Received: by mail-wm0-f43.google.com with SMTP id v188so73031497wme.1
-        for <linux-mm@kvack.org>; Sun, 10 Apr 2016 23:46:04 -0700 (PDT)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id E48266B025E
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 02:46:06 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id u206so90315510wme.1
+        for <linux-mm@kvack.org>; Sun, 10 Apr 2016 23:46:06 -0700 (PDT)
 Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id bh5si27162015wjb.83.2016.04.10.23.46.03
+        by mx.google.com with ESMTPS id ba1si27154867wjb.133.2016.04.10.23.46.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Apr 2016 23:46:03 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id a140so18909529wma.2
-        for <linux-mm@kvack.org>; Sun, 10 Apr 2016 23:46:03 -0700 (PDT)
+        Sun, 10 Apr 2016 23:46:04 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id n3so18923053wmn.1
+        for <linux-mm@kvack.org>; Sun, 10 Apr 2016 23:46:04 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 1/2] vmscan: consider classzone_idx in compaction_ready
-Date: Mon, 11 Apr 2016 08:45:50 +0200
-Message-Id: <1460357151-25554-2-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 2/2] mm, oom, compaction: prevent from should_compact_retry looping for ever for costly orders
+Date: Mon, 11 Apr 2016 08:45:51 +0200
+Message-Id: <1460357151-25554-3-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1460357151-25554-1-git-send-email-mhocko@kernel.org>
 References: <1460357151-25554-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,73 +24,220 @@ Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babk
 
 From: Michal Hocko <mhocko@suse.com>
 
-while playing with the oom detection rework [1] I have noticed
-that my heavy order-9 (hugetlb) load close to OOM ended up in an
-endless loop where the reclaim hasn't made any progress but
-did_some_progress didn't reflect that and compaction_suitable
-was backing off because no zone is above low wmark + 1 << order.
+"mm: consider compaction feedback also for costly allocation" has
+removed the upper bound for the reclaim/compaction retries based on the
+number of reclaimed pages for costly orders. While this is desirable
+the patch did miss a mis interaction between reclaim, compaction and the
+retry logic. The direct reclaim tries to get zones over min watermark
+while compaction backs off and returns COMPACT_SKIPPED when all zones
+are below low watermark + 1<<order gap. If we are getting really close
+to OOM then __compaction_suitable can keep returning COMPACT_SKIPPED a
+high order request (e.g. hugetlb order-9) while the reclaim is not able
+to release enough pages to get us over low watermark. The reclaim is
+still able to make some progress (usually trashing over few remaining
+pages) so we are not able to break out from the loop.
 
-It turned out that this is in fact an old standing bug in compaction_ready
-which ignores the requested_highidx and did the watermark check for
-0 classzone_idx. This succeeds for zone DMA most of the time as the zone
-is mostly unused because of lowmem protection. This also means that the
-OOM killer wouldn't be triggered for higher order requests even when
-there is no reclaim progress and we essentially rely on order-0 request
-to find this out. This has been broken in one way or another since
-fe4b1b244bdb ("mm: vmscan: when reclaiming for compaction, ensure there
-are sufficient free pages available") but only since 7335084d446b ("mm:
-vmscan: do not OOM if aborting reclaim to start compaction") we are not
-invoking the OOM killer based on the wrong calculation.
+I have seen this happening with the same test described in "mm: consider
+compaction feedback also for costly allocation" on a swapless system.
+The original problem got resolved by "vmscan: consider classzone_idx in
+compaction_ready" but it shows how things might go wrong when we
+approach the oom event horizont.
 
-Propagate requested_highidx down to compaction_ready and use it for both
-the watermak check and compaction_suitable to fix this issue.
+The reason why compaction requires being over low rather than min
+watermark is not clear to me. This check was there essentially since
+56de7263fcf3 ("mm: compaction: direct compact when a high-order
+allocation fails"). It is clearly an implementation detail though and we
+shouldn't pull it into the generic retry logic while we should be able
+to cope with such eventuality. The only place in should_compact_retry
+where we retry without any upper bound is for compaction_withdrawn()
+case.
 
-[1] http://lkml.kernel.org/r/1459855533-4600-1-git-send-email-mhocko@kernel.org
+Introduce compaction_zonelist_suitable function which checks the given
+zonelist and returns true only if there is at least one zone which would
+would unblock __compaction_suitable if more memory got reclaimed. In
+this implementation it checks __compaction_suitable with NR_FREE_PAGES
+plus part of the reclaimable memory as the target for the watermark check.
+The reclaimable memory is reduced linearly by the allocation order. The
+idea is that we do not want to reclaim all the remaining memory for a
+single allocation request just unblock __compaction_suitable which
+doesn't guarantee we will make a further progress.
+
+The new helper is then used if compaction_withdrawn() feedback was
+provided so we do not retry if there is no outlook for a further
+progress. !costly requests shouldn't be affected much - e.g. order-2
+pages would require to have at least 64kB on the reclaimable LRUs while
+order-9 would need at least 32M which should be enough to not lock up.
+
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/vmscan.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ include/linux/compaction.h |  4 ++++
+ include/linux/mmzone.h     |  3 +++
+ mm/compaction.c            | 42 +++++++++++++++++++++++++++++++++++++++---
+ mm/page_alloc.c            | 18 +++++++++++-------
+ 4 files changed, 57 insertions(+), 10 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9a3b2342dbae..a2ba60aa7b88 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2482,7 +2482,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
-  * Returns true if compaction should go ahead for a high-order request, or
-  * the high-order allocation would succeed without compaction.
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index 512db9c3f0ed..e7c55a1d17da 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -142,6 +142,10 @@ static inline bool compaction_withdrawn(enum compact_result result)
+ 	return false;
+ }
+ 
++
++bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
++					int alloc_flags);
++
+ extern int kcompactd_run(int nid);
+ extern void kcompactd_stop(int nid);
+ extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx);
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 150c6049f961..0bf13c7cd8cd 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -746,6 +746,9 @@ static inline bool is_dev_zone(const struct zone *zone)
+ extern struct mutex zonelists_mutex;
+ void build_all_zonelists(pg_data_t *pgdat, struct zone *zone);
+ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
++bool __zone_watermark_ok(struct zone *z, unsigned int order,
++			unsigned long mark, int classzone_idx, int alloc_flags,
++			long free_pages);
+ bool zone_watermark_ok(struct zone *z, unsigned int order,
+ 		unsigned long mark, int classzone_idx, int alloc_flags);
+ bool zone_watermark_ok_safe(struct zone *z, unsigned int order,
+diff --git a/mm/compaction.c b/mm/compaction.c
+index e2e487cea5ea..68dfbc07692d 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1369,7 +1369,8 @@ static enum compact_result compact_finished(struct zone *zone,
+  *   COMPACT_CONTINUE - If compaction should run now
   */
--static inline bool compaction_ready(struct zone *zone, int order)
-+static inline bool compaction_ready(struct zone *zone, int order, int classzone_idx)
+ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+-					int alloc_flags, int classzone_idx)
++					int alloc_flags, int classzone_idx,
++					unsigned long wmark_target)
  {
- 	unsigned long balance_gap, watermark;
- 	bool watermark_ok;
-@@ -2496,7 +2496,7 @@ static inline bool compaction_ready(struct zone *zone, int order)
- 	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
- 			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
- 	watermark = high_wmark_pages(zone) + balance_gap + (2UL << order);
--	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, 0);
-+	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, classzone_idx);
+ 	int fragindex;
+ 	unsigned long watermark;
+@@ -1392,7 +1393,8 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 	 * allocated and for a short time, the footprint is higher
+ 	 */
+ 	watermark += (2UL << order);
+-	if (!zone_watermark_ok(zone, 0, watermark, classzone_idx, alloc_flags))
++	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
++				 alloc_flags, wmark_target))
+ 		return COMPACT_SKIPPED;
  
  	/*
- 	 * If compaction is deferred, reclaim up to a point where
-@@ -2509,7 +2509,7 @@ static inline bool compaction_ready(struct zone *zone, int order)
- 	 * If compaction is not ready to start and allocation is not likely
- 	 * to succeed without it, then keep reclaiming.
- 	 */
--	if (compaction_suitable(zone, order, 0, 0) == COMPACT_SKIPPED)
-+	if (compaction_suitable(zone, order, 0, classzone_idx) == COMPACT_SKIPPED)
- 		return false;
+@@ -1418,7 +1420,8 @@ enum compact_result compaction_suitable(struct zone *zone, int order,
+ {
+ 	enum compact_result ret;
  
- 	return watermark_ok;
-@@ -2586,7 +2586,7 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 			if (IS_ENABLED(CONFIG_COMPACTION) &&
- 			    sc->order > PAGE_ALLOC_COSTLY_ORDER &&
- 			    zonelist_zone_idx(z) <= requested_highidx &&
--			    compaction_ready(zone, sc->order)) {
-+			    compaction_ready(zone, sc->order, requested_highidx)) {
- 				sc->compaction_ready = true;
- 				continue;
- 			}
+-	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx);
++	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx,
++				    zone_page_state(zone, NR_FREE_PAGES));
+ 	trace_mm_compaction_suitable(zone, order, ret);
+ 	if (ret == COMPACT_NOT_SUITABLE_ZONE)
+ 		ret = COMPACT_SKIPPED;
+@@ -1426,6 +1429,39 @@ enum compact_result compaction_suitable(struct zone *zone, int order,
+ 	return ret;
+ }
+ 
++bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
++		int alloc_flags)
++{
++	struct zone *zone;
++	struct zoneref *z;
++
++	/*
++	 * Make sure at least one zone would pass __compaction_suitable if we continue
++	 * retrying the reclaim.
++	 */
++	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->classzone_idx,
++					ac->nodemask) {
++		unsigned long available;
++		enum compact_result compact_result;
++
++		/*
++		 * Do not consider all the reclaimable memory because we do not
++		 * want to trash just for a single high order allocation which
++		 * is even not guaranteed to appear even if __compaction_suitable
++		 * is happy about the watermark check.
++		 */
++		available = zone_reclaimable_pages(zone) / order;
++		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
++		compact_result = __compaction_suitable(zone, order, alloc_flags,
++				ac->high_zoneidx, available);
++		if (compact_result != COMPACT_SKIPPED &&
++				compact_result != COMPACT_NOT_SUITABLE_ZONE)
++			return true;
++	}
++
++	return false;
++}
++
+ static enum compact_result compact_zone(struct zone *zone, struct compact_control *cc)
+ {
+ 	enum compact_result ret;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 90a18ae92849..4d294df93cd4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2526,7 +2526,7 @@ static inline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
+  * one free page of a suitable size. Checking now avoids taking the zone lock
+  * to check in the allocation paths if no pages are free.
+  */
+-static bool __zone_watermark_ok(struct zone *z, unsigned int order,
++bool __zone_watermark_ok(struct zone *z, unsigned int order,
+ 			unsigned long mark, int classzone_idx, int alloc_flags,
+ 			long free_pages)
+ {
+@@ -3015,8 +3015,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ }
+ 
+ static inline bool
+-should_compact_retry(unsigned int order, enum compact_result compact_result,
+-		     enum migrate_mode *migrate_mode,
++should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
++		     enum compact_result compact_result, enum migrate_mode *migrate_mode,
+ 		     int compaction_retries)
+ {
+ 	int max_retries = MAX_COMPACT_RETRIES;
+@@ -3040,9 +3040,11 @@ should_compact_retry(unsigned int order, enum compact_result compact_result,
+ 	/*
+ 	 * make sure the compaction wasn't deferred or didn't bail out early
+ 	 * due to locks contention before we declare that we should give up.
++	 * But do not retry if the given zonelist is not suitable for
++	 * compaction.
+ 	 */
+ 	if (compaction_withdrawn(compact_result))
+-		return true;
++		return compaction_zonelist_suitable(ac, order, alloc_flags);
+ 
+ 	/*
+ 	 * !costly requests are much more important than __GFP_REPEAT
+@@ -3069,7 +3071,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ }
+ 
+ static inline bool
+-should_compact_retry(unsigned int order, enum compact_result compact_result,
++should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_flags,
++		     enum compact_result compact_result,
+ 		     enum migrate_mode *migrate_mode,
+ 		     int compaction_retries)
+ {
+@@ -3462,8 +3465,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 * of free memory (see __compaction_suitable)
+ 	 */
+ 	if (did_some_progress > 0 &&
+-			should_compact_retry(order, compact_result,
+-				&migration_mode, compaction_retries))
++			should_compact_retry(ac, order, alloc_flags,
++				compact_result, &migration_mode,
++				compaction_retries))
+ 		goto retry;
+ 
+ 	/* Reclaim has failed us, start killing things */
 -- 
 2.8.0.rc3
 
