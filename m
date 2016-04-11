@@ -1,72 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id D01DA6B0262
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:48:08 -0400 (EDT)
-Received: by mail-wm0-f53.google.com with SMTP id v188so84890418wme.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 05:48:08 -0700 (PDT)
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com. [195.75.94.101])
-        by mx.google.com with ESMTPS id v124si18260704wmg.0.2016.04.11.05.48.07
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D6796B0005
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:53:39 -0400 (EDT)
+Received: by mail-wm0-f42.google.com with SMTP id l6so144542150wml.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 05:53:39 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id uu10si28684212wjc.123.2016.04.11.05.53.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Apr 2016 05:48:07 -0700 (PDT)
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Mon, 11 Apr 2016 13:48:06 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 4290E1B0806E
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 13:48:22 +0100 (BST)
-Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u3BClfMa3277246
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 12:47:41 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u3BClf8Q018128
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 06:47:41 -0600
-Date: Mon, 11 Apr 2016 14:47:39 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [PATCH 13/19] s390: get rid of superfluous __GFP_REPEAT
-Message-ID: <20160411124739.GB3976@osiris>
-References: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
- <1460372892-8157-14-git-send-email-mhocko@kernel.org>
- <20160411132837.3cba168f.cornelia.huck@de.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 11 Apr 2016 05:53:38 -0700 (PDT)
+Subject: Re: [PATCH 06/11] mm, compaction: distinguish between full and
+ partial COMPACT_COMPLETE
+References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
+ <1459855533-4600-7-git-send-email-mhocko@kernel.org>
+ <570B9432.9090600@suse.cz> <20160411124653.GG23157@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <570B9E50.9040000@suse.cz>
+Date: Mon, 11 Apr 2016 14:53:36 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160411132837.3cba168f.cornelia.huck@de.ibm.com>
+In-Reply-To: <20160411124653.GG23157@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cornelia Huck <cornelia.huck@de.ibm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-arch@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Apr 11, 2016 at 01:28:37PM +0200, Cornelia Huck wrote:
-> On Mon, 11 Apr 2016 13:08:06 +0200
-> Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > __GFP_REPEAT has a rather weak semantic but since it has been introduced
-> > around 2.6.12 it has been ignored for low order allocations.
-> > 
-> > arch_dup_task_struct uses __GFP_REPEAT for fpu_regs_size which is either
-> > sizeof(__vector128) * __NUM_VXRS = 4069B resp.
-> > sizeof(freg_t) * __NUM_FPRS = 1024B AFAICS. page_table_alloc then uses
-> > the flag for a single page allocation. This means that this flag has
-> > never been actually useful here because it has always been used only for
-> > PAGE_ALLOC_COSTLY requests.
-> > 
-> > Cc: Christian Borntraeger <borntraeger@de.ibm.com>
-> > Cc: Cornelia Huck <cornelia.huck@de.ibm.com>
-> 
-> Let's cc: Martin/Heiko instead :)
-> 
-> > Cc: linux-arch@vger.kernel.org
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > ---
-> >  arch/s390/kernel/process.c | 2 +-
-> >  arch/s390/mm/pgalloc.c     | 2 +-
-> >  2 files changed, 2 insertions(+), 2 deletions(-)
+On 04/11/2016 02:46 PM, Michal Hocko wrote:
+>> This assumes that migrate scanner at initial position implies also free
+>> scanner at the initial position. That should be true, because migration
+>> scanner is the first to run. But getting the zone->compact_cached_*_pfn is
+>> racy. Worse, zone->compact_cached_migrate_pfn is array distinguishing sync
+>> and async compaction, so it's possible that async compaction has advanced
+>> both its own migrate scanner cached position, and the shared free scanner
+>> cached position, and then sync compaction starts migrate scanner at
+>> start_pfn, but free scanner has already advanced.
+>
+> OK, I see. The whole thing smelled racy but I thought it wouldn't be
+> such a big deal. Even if we raced then only a marginal part of the zone
+> wouldn't be scanned, right? Or is it possible that free_pfn would appear
+> in the middle of the zone because of the race?
 
-Acked-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+The racy part is negligible but I didn't realize the sync/async migrate 
+scanner part until now. So yeah, free_pfn could have got to middle of 
+zone when it was in the async mode. But that also means that the async 
+mode recently used up all free pages in the second half of the zone. WRT 
+free pages isolation, async mode is not trying less than sync, so it 
+shouldn't be a considerable missed opportunity if we don't rescan the 
+it, though.
+
+>> So you might still see a false positive COMPACT_COMPLETE, just less
+>> frequently and probably with much lower impact.
+>> But if you need to be truly reliable, check also that cc->free_pfn ==
+>> round_down(end_pfn - 1, pageblock_nr_pages)
+>
+> I do not think we need the precise check if the race window (in the
+> skipped zone range) is always small.
+>
+> Thanks!
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
