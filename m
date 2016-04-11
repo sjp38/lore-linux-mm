@@ -1,56 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E939828DF
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:09:03 -0400 (EDT)
-Received: by mail-wm0-f47.google.com with SMTP id a140so7989134wma.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:09:03 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id h128si17830001wmf.4.2016.04.11.04.08.39
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id E3F6C6B0005
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:14:12 -0400 (EDT)
+Received: by mail-wm0-f54.google.com with SMTP id v188so81693300wme.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:14:12 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id xy1si26291424wjc.0.2016.04.11.04.08.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 04:08:39 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id l6so20397534wml.3
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:08:39 -0700 (PDT)
+        Mon, 11 Apr 2016 04:08:40 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id l6so20397625wml.3
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:08:40 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 18/19] crypto: get rid of superfluous __GFP_REPEAT
-Date: Mon, 11 Apr 2016 13:08:11 +0200
-Message-Id: <1460372892-8157-19-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 19/19] jbd2: get rid of superfluous __GFP_REPEAT
+Date: Mon, 11 Apr 2016 13:08:12 +0200
+Message-Id: <1460372892-8157-20-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
 References: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Herbert Xu <herbert@gondor.apana.org.au>, "David S. Miller" <davem@davemloft.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Theodore Ts'o <tytso@mit.edu>
 
 From: Michal Hocko <mhocko@suse.com>
 
-__GFP_REPEAT has a rather weak semantic but since it has been introduced
-around 2.6.12 it has been ignored for low order allocations.
+jbd2_alloc is explicit about its allocation preferences wrt. the
+allocation size. Sub page allocations go to the slab allocator
+and larger are using either the page allocator or vmalloc. This
+is all good but the logic is unnecessarily complex.
+1) as per Ted, the vmalloc fallback is a left-over:
+: jbd2_alloc is only passed in the bh->b_size, which can't be >
+: PAGE_SIZE, so the code path that calls vmalloc() should never get
+: called.  When we conveted jbd2_alloc() to suppor sub-page size
+: allocations in commit d2eecb039368, there was an assumption that it
+: could be called with a size greater than PAGE_SIZE, but that's
+: certaily not true today.
+Moreover vmalloc allocation might even lead to a deadlock because
+the callers expect GFP_NOFS context while vmalloc is GFP_KERNEL.
 
-lzo_init uses __GFP_REPEAT to allocate LZO1X_MEM_COMPRESS 16K. This is
-order 3 allocation request and __GFP_REPEAT is ignored for this size
-as well as all <= PAGE_ALLOC_COSTLY requests.
+2) __GFP_REPEAT for requests <= PAGE_ALLOC_COSTLY_ORDER is ignored
+since the flag was introduced.
 
-Cc: Herbert Xu <herbert@gondor.apana.org.au>
-Cc: "David S. Miller" <davem@davemloft.net>
+Let's simplify the code flow and use the slab allocator for sub-page
+requests and the page allocator for others. Even though order > 0 is
+not currently used as per above leave that option open.
+
+Cc: "Theodore Ts'o" <tytso@mit.edu>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- crypto/lzo.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/jbd2/journal.c | 32 +++++++-------------------------
+ 1 file changed, 7 insertions(+), 25 deletions(-)
 
-diff --git a/crypto/lzo.c b/crypto/lzo.c
-index 4b3e92525dac..c3f3dd9a28c5 100644
---- a/crypto/lzo.c
-+++ b/crypto/lzo.c
-@@ -32,7 +32,7 @@ static int lzo_init(struct crypto_tfm *tfm)
- 	struct lzo_ctx *ctx = crypto_tfm_ctx(tfm);
+diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
+index 435f0b26ac20..bd7c31d8c05e 100644
+--- a/fs/jbd2/journal.c
++++ b/fs/jbd2/journal.c
+@@ -2328,18 +2328,10 @@ void *jbd2_alloc(size_t size, gfp_t flags)
  
- 	ctx->lzo_comp_mem = kmalloc(LZO1X_MEM_COMPRESS,
--				    GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
-+				    GFP_KERNEL | __GFP_NOWARN);
- 	if (!ctx->lzo_comp_mem)
- 		ctx->lzo_comp_mem = vmalloc(LZO1X_MEM_COMPRESS);
- 	if (!ctx->lzo_comp_mem)
+ 	BUG_ON(size & (size-1)); /* Must be a power of 2 */
+ 
+-	flags |= __GFP_REPEAT;
+-	if (size == PAGE_SIZE)
+-		ptr = (void *)__get_free_pages(flags, 0);
+-	else if (size > PAGE_SIZE) {
+-		int order = get_order(size);
+-
+-		if (order < 3)
+-			ptr = (void *)__get_free_pages(flags, order);
+-		else
+-			ptr = vmalloc(size);
+-	} else
++	if (size < PAGE_SIZE)
+ 		ptr = kmem_cache_alloc(get_slab(size), flags);
++	else
++		ptr = (void *)__get_free_pages(flags, get_order(size));
+ 
+ 	/* Check alignment; SLUB has gotten this wrong in the past,
+ 	 * and this can lead to user data corruption! */
+@@ -2350,20 +2342,10 @@ void *jbd2_alloc(size_t size, gfp_t flags)
+ 
+ void jbd2_free(void *ptr, size_t size)
+ {
+-	if (size == PAGE_SIZE) {
+-		free_pages((unsigned long)ptr, 0);
+-		return;
+-	}
+-	if (size > PAGE_SIZE) {
+-		int order = get_order(size);
+-
+-		if (order < 3)
+-			free_pages((unsigned long)ptr, order);
+-		else
+-			vfree(ptr);
+-		return;
+-	}
+-	kmem_cache_free(get_slab(size), ptr);
++	if (size < PAGE_SIZE)
++		kmem_cache_free(get_slab(size), ptr);
++	else
++		free_pages((unsigned long)ptr, get_order(size));
+ };
+ 
+ /*
 -- 
 2.8.0.rc3
 
