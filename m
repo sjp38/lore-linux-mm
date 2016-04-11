@@ -1,57 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 0711D828DF
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:08:59 -0400 (EDT)
-Received: by mail-wm0-f46.google.com with SMTP id l6so140879931wml.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:08:58 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id 124si17803150wma.39.2016.04.11.04.08.38
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ACFE828DF
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:09:01 -0400 (EDT)
+Received: by mail-wm0-f47.google.com with SMTP id n3so99499476wmn.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:09:01 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id v71si17820065wmd.18.2016.04.11.04.08.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 04:08:38 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id l6so20397405wml.3
+        Mon, 11 Apr 2016 04:08:39 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id l6so20397478wml.3
         for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:08:38 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 16/19] unicore32: get rid of superfluous __GFP_REPEAT
-Date: Mon, 11 Apr 2016 13:08:09 +0200
-Message-Id: <1460372892-8157-17-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 17/19] dm: get rid of superfluous gfp flags
+Date: Mon, 11 Apr 2016 13:08:10 +0200
+Message-Id: <1460372892-8157-18-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
 References: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, linux-arch@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Shaohua Li <shli@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>
 
 From: Michal Hocko <mhocko@suse.com>
 
-__GFP_REPEAT has a rather weak semantic but since it has been introduced
-around 2.6.12 it has been ignored for low order allocations.
+copy_params seems to be little bit confused about which allocation flags
+to use. It enforces GFP_NOIO even though it uses
+memalloc_noio_{save,restore} which enforces GFP_NOIO at the page
+allocator level automatically (via memalloc_noio_flags). It also
+uses __GFP_REPEAT for the __vmalloc request which doesn't make much
+sense either because vmalloc doesn't rely on costly high order
+allocations.
 
-PGALLOC_GFP uses __GFP_REPEAT but it is only used in pte_alloc_one,
-pte_alloc_one_kernel which does order-0 request.  This means that this
-flag has never been actually useful here because it has always been used
-only for PAGE_ALLOC_COSTLY requests.
-
-Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
-Cc: linux-arch@vger.kernel.org
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Mikulas Patocka <mpatocka@redhat.com>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- arch/unicore32/include/asm/pgalloc.h | 2 +-
+ drivers/md/dm-ioctl.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/unicore32/include/asm/pgalloc.h b/arch/unicore32/include/asm/pgalloc.h
-index 2e02d1356fdf..26775793c204 100644
---- a/arch/unicore32/include/asm/pgalloc.h
-+++ b/arch/unicore32/include/asm/pgalloc.h
-@@ -28,7 +28,7 @@ extern void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd);
- #define pgd_alloc(mm)			get_pgd_slow(mm)
- #define pgd_free(mm, pgd)		free_pgd_slow(mm, pgd)
- 
--#define PGALLOC_GFP	(GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO)
-+#define PGALLOC_GFP	(GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
- 
- /*
-  * Allocate one PTE table.
+diff --git a/drivers/md/dm-ioctl.c b/drivers/md/dm-ioctl.c
+index 2adf81d81fca..dfe629a294e1 100644
+--- a/drivers/md/dm-ioctl.c
++++ b/drivers/md/dm-ioctl.c
+@@ -1723,7 +1723,7 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
+ 	if (!dmi) {
+ 		unsigned noio_flag;
+ 		noio_flag = memalloc_noio_save();
+-		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_REPEAT | __GFP_HIGH | __GFP_HIGHMEM, PAGE_KERNEL);
++		dmi = __vmalloc(param_kernel->data_size, __GFP_HIGH | __GFP_HIGHMEM, PAGE_KERNEL);
+ 		memalloc_noio_restore(noio_flag);
+ 		if (dmi)
+ 			*param_flags |= DM_PARAMS_VMALLOC;
 -- 
 2.8.0.rc3
 
