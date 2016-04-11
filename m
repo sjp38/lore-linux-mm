@@ -1,146 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 376DA6B025E
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:26:46 -0400 (EDT)
-Received: by mail-qg0-f41.google.com with SMTP id c6so142142198qga.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 05:26:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y7si20059338qgd.97.2016.04.11.05.26.44
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id DF8526B0260
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:46:32 -0400 (EDT)
+Received: by mail-pf0-f175.google.com with SMTP id 184so123728990pff.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 05:46:32 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id vb6si3497409pac.158.2016.04.11.05.46.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 05:26:45 -0700 (PDT)
-Date: Mon, 11 Apr 2016 14:26:39 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Generic page-pool recycle facility?
-Message-ID: <20160411142639.1c5e520b@redhat.com>
-In-Reply-To: <20160411085819.GE21128@suse.de>
-References: <1460034425.20949.7.camel@HansenPartnership.com>
-	<20160407161715.52635cac@redhat.com>
-	<20160411085819.GE21128@suse.de>
+        Mon, 11 Apr 2016 05:46:32 -0700 (PDT)
+Received: by mail-pa0-x22d.google.com with SMTP id bx7so104920660pad.3
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 05:46:32 -0700 (PDT)
+Subject: Re: [PATCH 03/10] mm/hugetlb: Protect follow_huge_(pud|pgd) functions
+ from race
+References: <1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com>
+ <1460007464-26726-4-git-send-email-khandual@linux.vnet.ibm.com>
+ <570627C9.5030105@gmail.com> <570B3897.6040804@linux.vnet.ibm.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <570B9C93.5050507@gmail.com>
+Date: Mon, 11 Apr 2016 22:46:11 +1000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <570B3897.6040804@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Brenden Blanco <bblanco@plumgrid.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, Tom Herbert <tom@herbertland.com>, lsf-pc@lists.linux-foundation.org, Alexei Starovoitov <alexei.starovoitov@gmail.com>, brouer@redhat.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+Cc: hughd@google.com, dave.hansen@intel.com, aneesh.kumar@linux.vnet.ibm.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, akpm@linux-foundation.org
 
- 
-On Mon, 11 Apr 2016 09:58:19 +0100 Mel Gorman <mgorman@suse.de> wrote:
 
-> On Thu, Apr 07, 2016 at 04:17:15PM +0200, Jesper Dangaard Brouer wrote:
-> > (Topic proposal for MM-summit)
-> > 
-> > Network Interface Cards (NIC) drivers, and increasing speeds stress
-> > the page-allocator (and DMA APIs).  A number of driver specific
-> > open-coded approaches exists that work-around these bottlenecks in the
-> > page allocator and DMA APIs. E.g. open-coded recycle mechanisms, and
-> > allocating larger pages and handing-out page "fragments".
-> > 
-> > I'm proposing a generic page-pool recycle facility, that can cover the
-> > driver use-cases, increase performance and open up for zero-copy RX.
-> >   
+
+On 11/04/16 15:39, Anshuman Khandual wrote:
+> On 04/07/2016 02:56 PM, Balbir Singh wrote:
+>>
+>> On 07/04/16 15:37, Anshuman Khandual wrote:
+>>>> follow_huge_(pmd|pud|pgd) functions are used to walk the page table and
+>>>> fetch the page struct during 'follow_page_mask' call. There are possible
+>>>> race conditions faced by these functions which arise out of simultaneous
+>>>> calls of move_pages() and freeing of huge pages. This was fixed partly
+>>>> by the previous commit e66f17ff7177 ("mm/hugetlb: take page table lock
+>>>> in follow_huge_pmd()") for only PMD based huge pages.
+>>>>
+>>>> After implementing similar logic, functions like follow_huge_(pud|pgd)
+>>>> are now safe from above mentioned race conditions and also can support
+>>>> FOLL_GET. Generic version of the function 'follow_huge_addr' has been
+>>>> left as it is and its upto the architecture to decide on it.
+>>>>
+>>>> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+>>>> ---
+>>>>  include/linux/mm.h | 33 +++++++++++++++++++++++++++
+>>>>  mm/hugetlb.c       | 67 ++++++++++++++++++++++++++++++++++++++++++++++--------
+>>>>  2 files changed, 91 insertions(+), 9 deletions(-)
+>>>>
+>>>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>>>> index ffcff53..734182a 100644
+>>>> --- a/include/linux/mm.h
+>>>> +++ b/include/linux/mm.h
+>>>> @@ -1751,6 +1751,19 @@ static inline void pgtable_page_dtor(struct page *page)
+>>>>  		NULL: pte_offset_kernel(pmd, address))
+>>>>  
+>>>>  #if USE_SPLIT_PMD_PTLOCKS
+>> Do we still use USE_SPLIT_PMD_PTLOCKS? I think its good enough. with pgd's
+>> we are likely to use the same locks and the split nature may not be really
+>> split.
+>>
 > 
-> Which bottleneck dominates -- the page allocator or the DMA API when
-> setting up coherent pages?
->
+> Sorry Balbir, did not get what you asked. Can you please elaborate on
+> this ?
+> 
 
-It is actually both, but mostly DMA on non-x86 archs.  The need to
-support multiple archs, then also cause a slowdown on x86, due to a
-side-effect.
+What I meant is that do we need SPLIT_PUD_PTLOCKS for example? I don't think we do
 
-On arch's like PowerPC, the DMA API is the bottleneck.  To workaround
-the cost of DMA calls, NIC driver alloc large order (compound) pages.
-(dma_map compound page, handout page-fragments for RX ring, and later
-dma_unmap when last RX page-fragments is seen).
-
-The unfortunate side-effect is that these RX page-fragments (which
-contain packet data) need to be considered 'read-only', because a
-dma_unmap call can be destructive.  Network packets need to be
-modified (minimum time-to-live).  Thus, netstack alloc new writable
-memory, copy-over IP-headers, and adjust offset pointer into RX-page.
-Avoiding the dma_unmap (AFAIK) will allow to make RX-pages writable.
-
-Idea by page-pool is to recycling pages back to the originating
-device, then we can avoid the need to call dma_unmap().  And only call
-dma_map() when setting up pages.
-
-
-> I'm wary of another page allocator API being introduced if it's for
-> performance reasons. In response to this thread, I spent two days on
-> a series that boosts performance of the allocator in the fast paths by
-> 11-18% to illustrate that there was low-hanging fruit for optimising. If
-> the one-LRU-per-node series was applied on top, there would be a further
-> boost to performance on the allocation side. It could be further boosted
-> if debugging checks and statistic updates were conditionally disabled by
-> the caller.
-
-It is always great if you can optimized the page allocator.  IMHO the
-page allocator is too slow.  At least for my performance needs (67ns
-per packet, approx 201 cycles at 3GHz).  I've measured[1]
-alloc_pages(order=0) + __free_pages() to cost 277 cycles(tsc).
-
-The trick described above, of allocating a higher order page and
-handing out page-fragments, also workaround this page allocator
-bottleneck (on x86).
-
-I've measured order 3 (32KB) alloc_pages(order=3) + __free_pages() to
-cost approx 500 cycles(tsc).  That was more expensive, BUT an order=3
-page 32Kb correspond to 8 pages (32768/4096), thus 500/8 = 62.5
-cycles.  Usually a network RX-frame only need to be 2048 bytes, thus
-the "bulk" effect speed up is x16 (32768/2048), thus 31.25 cycles.
-
-I view this as a bulking trick... maybe the page allocator can just
-give us a bulking API? ;-)
-
-
-> The main reason another allocator concerns me is that those pages
-> are effectively pinned and cannot be reclaimed by the VM in low memory
-> situations. It ends up needing its own API for tuning the size and hoping
-> all the drivers get it right without causing OOM situations. It becomes
-> a slippery slope of introducing shrinkers, locking and complexity. Then
-> callers start getting concerned about NUMA locality and having to deal
-> with multiple lists to maintain performance. Ultimately, it ends up being
-> as slow as the page allocator and back to square 1 except now with more code.
-
-The pages assigned to the RX ring queue are pinned like today.  The
-pages avail in the pool could easily be reclaimed.
-
-I actually think we are better off providing a generic page pool
-interface the drivers can use.  Instead of the situation where drivers
-and subsystems invent their own, which does not cooperate in OOM
-situations.
-
-For the networking fast forwarding use-case (NOT localhost delivery),
-then the page pool size would actually be limited at a fairly small
-fixed size.  Packets will be hard dropped if exceeding this limit.
-The idea is, you want to limit the maximum latency the system can
-introduce then forwarding a packet, even in high overload situations.
-There is a good argumentation in section 3.2. of Google's paper[2].
-They limit the pool size to 3000 and calculate this can max introduce
-300 micro-sec latency.
-
-
-> If it's the DMA API that dominates then something may be required but it
-> should rely on the existing page allocator to alloc/free from. It would
-> also need something like drain_all_pages to force free everything in there
-> in low memory situations. Remember that multiple instances private to
-> drivers or tasks will require shrinker implementations and the complexity
-> may get unwieldly.
-
-I'll read up on the shrinker interface.
-
-
-[1] https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm/bench
-
-[2] http://static.googleusercontent.com/media/research.google.com/en//pubs/archive/44824.pdf
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
