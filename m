@@ -1,245 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id E48266B025E
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 02:46:06 -0400 (EDT)
-Received: by mail-wm0-f45.google.com with SMTP id u206so90315510wme.1
-        for <linux-mm@kvack.org>; Sun, 10 Apr 2016 23:46:06 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id ba1si27154867wjb.133.2016.04.10.23.46.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Apr 2016 23:46:04 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id n3so18923053wmn.1
-        for <linux-mm@kvack.org>; Sun, 10 Apr 2016 23:46:04 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] mm, oom, compaction: prevent from should_compact_retry looping for ever for costly orders
-Date: Mon, 11 Apr 2016 08:45:51 +0200
-Message-Id: <1460357151-25554-3-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1460357151-25554-1-git-send-email-mhocko@kernel.org>
-References: <1460357151-25554-1-git-send-email-mhocko@kernel.org>
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EF736B0005
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 03:03:06 -0400 (EDT)
+Received: by mail-ig0-f178.google.com with SMTP id kb1so74900007igb.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 00:03:06 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id c16si14268380igo.104.2016.04.11.00.03.04
+        for <linux-mm@kvack.org>;
+        Mon, 11 Apr 2016 00:03:05 -0700 (PDT)
+Date: Mon, 11 Apr 2016 16:05:47 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 0/4] reduce latency of direct async compaction
+Message-ID: <20160411070547.GA26116@js1304-P5Q-DELUXE>
+References: <1459414236-9219-1-git-send-email-vbabka@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1459414236-9219-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On Thu, Mar 31, 2016 at 10:50:32AM +0200, Vlastimil Babka wrote:
+> The goal here is to reduce latency (and increase success) of direct async
+> compaction by making it focus more on the goal of creating a high-order page,
+> at some expense of thoroughness.
+> 
+> This is based on an older attempt [1] which I didn't finish as it seemed that
+> it increased longer-term fragmentation. Now it seems it doesn't, and we have
+> kcompactd for that goal. The main patch (3) makes migration scanner skip whole
+> order-aligned blocks as soon as isolation fails in them, as it takes just one
+> unmigrated page to prevent a high-order buddy page from fully merging.
+> 
+> Patch 4 then attempts to reduce the excessive freepage scanning (such as
+> reported in [2]) by allocating migration targets directly from freelists. Here
+> we just need to be sure that the free pages are not from the same block as the
+> migrated pages. This is also limited to direct async compaction and is not
+> meant to replace the more thorough free scanner for other scenarios.
 
-"mm: consider compaction feedback also for costly allocation" has
-removed the upper bound for the reclaim/compaction retries based on the
-number of reclaimed pages for costly orders. While this is desirable
-the patch did miss a mis interaction between reclaim, compaction and the
-retry logic. The direct reclaim tries to get zones over min watermark
-while compaction backs off and returns COMPACT_SKIPPED when all zones
-are below low watermark + 1<<order gap. If we are getting really close
-to OOM then __compaction_suitable can keep returning COMPACT_SKIPPED a
-high order request (e.g. hugetlb order-9) while the reclaim is not able
-to release enough pages to get us over low watermark. The reclaim is
-still able to make some progress (usually trashing over few remaining
-pages) so we are not able to break out from the loop.
+I don't like that another algorithm is introduced for async
+compaction. As you know, we already suffer from corner case that async
+compaction have (such as compaction deferring doesn't work if we only
+do async compaction). It makes further analysis/improvement harder. Generally,
+more difference on async compaction would cause more problem later.
 
-I have seen this happening with the same test described in "mm: consider
-compaction feedback also for costly allocation" on a swapless system.
-The original problem got resolved by "vmscan: consider classzone_idx in
-compaction_ready" but it shows how things might go wrong when we
-approach the oom event horizont.
+In suggested approach, possible risky places I think is finish condition
+and deferring logic. Scanner meet position would be greatly affected
+by system load. If there are no processes and async compaction
+isn't aborted, freepage scanner will be at the end of the zone and
+we can scan migratable page until we reach there. But, in the other case
+that the system has some load, async compaction would be aborted easily and
+freepage scanner will be at the some of point of the zone and
+async compaction's scanning power can be limited a lot.
 
-The reason why compaction requires being over low rather than min
-watermark is not clear to me. This check was there essentially since
-56de7263fcf3 ("mm: compaction: direct compact when a high-order
-allocation fails"). It is clearly an implementation detail though and we
-shouldn't pull it into the generic retry logic while we should be able
-to cope with such eventuality. The only place in should_compact_retry
-where we retry without any upper bound is for compaction_withdrawn()
-case.
+And, with different algorithm, it doesn't make sense to share same deferring
+logic. Async compaction can succeed even if sync compaction continually fails.
 
-Introduce compaction_zonelist_suitable function which checks the given
-zonelist and returns true only if there is at least one zone which would
-would unblock __compaction_suitable if more memory got reclaimed. In
-this implementation it checks __compaction_suitable with NR_FREE_PAGES
-plus part of the reclaimable memory as the target for the watermark check.
-The reclaimable memory is reduced linearly by the allocation order. The
-idea is that we do not want to reclaim all the remaining memory for a
-single allocation request just unblock __compaction_suitable which
-doesn't guarantee we will make a further progress.
+I hope that we don't make async/sync compaction more diverse. I'd be
+more happy if we can apply such a change to both async/sync direct
+compaction.
 
-The new helper is then used if compaction_withdrawn() feedback was
-provided so we do not retry if there is no outlook for a further
-progress. !costly requests shouldn't be affected much - e.g. order-2
-pages would require to have at least 64kB on the reclaimable LRUs while
-order-9 would need at least 32M which should be enough to not lock up.
+> 
+> [1] https://lkml.org/lkml/2014/7/16/988
+> [2] http://www.spinics.net/lists/linux-mm/msg97475.html
+> 
+> Testing was done using stress-highalloc from mmtests, configured for order-4
+> GFP_KERNEL allocations:
+> 
+>                               4.6-rc1               4.6-rc1               4.6-rc1
+>                                patch2                patch3                patch4
+> Success 1 Min         24.00 (  0.00%)       27.00 (-12.50%)       43.00 (-79.17%)
+> Success 1 Mean        30.20 (  0.00%)       31.60 ( -4.64%)       51.60 (-70.86%)
+> Success 1 Max         37.00 (  0.00%)       35.00 (  5.41%)       73.00 (-97.30%)
+> Success 2 Min         42.00 (  0.00%)       32.00 ( 23.81%)       73.00 (-73.81%)
+> Success 2 Mean        44.00 (  0.00%)       44.80 ( -1.82%)       78.00 (-77.27%)
+> Success 2 Max         48.00 (  0.00%)       52.00 ( -8.33%)       81.00 (-68.75%)
+> Success 3 Min         91.00 (  0.00%)       92.00 ( -1.10%)       88.00 (  3.30%)
+> Success 3 Mean        92.20 (  0.00%)       92.80 ( -0.65%)       91.00 (  1.30%)
+> Success 3 Max         94.00 (  0.00%)       93.00 (  1.06%)       94.00 (  0.00%)
+> 
+> While the eager skipping of unsuitable blocks from patch 3 didn't affect
+> success rates, direct freepage allocation did improve them.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- include/linux/compaction.h |  4 ++++
- include/linux/mmzone.h     |  3 +++
- mm/compaction.c            | 42 +++++++++++++++++++++++++++++++++++++++---
- mm/page_alloc.c            | 18 +++++++++++-------
- 4 files changed, 57 insertions(+), 10 deletions(-)
+Direct freepage allocation changes compaction algorithm a lot. It
+removes limitation that we cannot get freepages from behind the
+migration scanner so we can get freepage easily. It would be achieved
+by other compaction algorithm changes (such as your pivot change or my
+compaction algorithm change or this patchset). For the long term, this
+limitation should be removed for sync compaction (at least direct sync
+compaction), too. What's the reason that you don't apply this algorithm
+to other cases? Is there any change in fragmentation?
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 512db9c3f0ed..e7c55a1d17da 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -142,6 +142,10 @@ static inline bool compaction_withdrawn(enum compact_result result)
- 	return false;
- }
- 
-+
-+bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
-+					int alloc_flags);
-+
- extern int kcompactd_run(int nid);
- extern void kcompactd_stop(int nid);
- extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx);
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 150c6049f961..0bf13c7cd8cd 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -746,6 +746,9 @@ static inline bool is_dev_zone(const struct zone *zone)
- extern struct mutex zonelists_mutex;
- void build_all_zonelists(pg_data_t *pgdat, struct zone *zone);
- void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
-+bool __zone_watermark_ok(struct zone *z, unsigned int order,
-+			unsigned long mark, int classzone_idx, int alloc_flags,
-+			long free_pages);
- bool zone_watermark_ok(struct zone *z, unsigned int order,
- 		unsigned long mark, int classzone_idx, int alloc_flags);
- bool zone_watermark_ok_safe(struct zone *z, unsigned int order,
-diff --git a/mm/compaction.c b/mm/compaction.c
-index e2e487cea5ea..68dfbc07692d 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1369,7 +1369,8 @@ static enum compact_result compact_finished(struct zone *zone,
-  *   COMPACT_CONTINUE - If compaction should run now
-  */
- static enum compact_result __compaction_suitable(struct zone *zone, int order,
--					int alloc_flags, int classzone_idx)
-+					int alloc_flags, int classzone_idx,
-+					unsigned long wmark_target)
- {
- 	int fragindex;
- 	unsigned long watermark;
-@@ -1392,7 +1393,8 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
- 	 * allocated and for a short time, the footprint is higher
- 	 */
- 	watermark += (2UL << order);
--	if (!zone_watermark_ok(zone, 0, watermark, classzone_idx, alloc_flags))
-+	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
-+				 alloc_flags, wmark_target))
- 		return COMPACT_SKIPPED;
- 
- 	/*
-@@ -1418,7 +1420,8 @@ enum compact_result compaction_suitable(struct zone *zone, int order,
- {
- 	enum compact_result ret;
- 
--	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx);
-+	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx,
-+				    zone_page_state(zone, NR_FREE_PAGES));
- 	trace_mm_compaction_suitable(zone, order, ret);
- 	if (ret == COMPACT_NOT_SUITABLE_ZONE)
- 		ret = COMPACT_SKIPPED;
-@@ -1426,6 +1429,39 @@ enum compact_result compaction_suitable(struct zone *zone, int order,
- 	return ret;
- }
- 
-+bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
-+		int alloc_flags)
-+{
-+	struct zone *zone;
-+	struct zoneref *z;
-+
-+	/*
-+	 * Make sure at least one zone would pass __compaction_suitable if we continue
-+	 * retrying the reclaim.
-+	 */
-+	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->classzone_idx,
-+					ac->nodemask) {
-+		unsigned long available;
-+		enum compact_result compact_result;
-+
-+		/*
-+		 * Do not consider all the reclaimable memory because we do not
-+		 * want to trash just for a single high order allocation which
-+		 * is even not guaranteed to appear even if __compaction_suitable
-+		 * is happy about the watermark check.
-+		 */
-+		available = zone_reclaimable_pages(zone) / order;
-+		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
-+		compact_result = __compaction_suitable(zone, order, alloc_flags,
-+				ac->high_zoneidx, available);
-+		if (compact_result != COMPACT_SKIPPED &&
-+				compact_result != COMPACT_NOT_SUITABLE_ZONE)
-+			return true;
-+	}
-+
-+	return false;
-+}
-+
- static enum compact_result compact_zone(struct zone *zone, struct compact_control *cc)
- {
- 	enum compact_result ret;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 90a18ae92849..4d294df93cd4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2526,7 +2526,7 @@ static inline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
-  * one free page of a suitable size. Checking now avoids taking the zone lock
-  * to check in the allocation paths if no pages are free.
-  */
--static bool __zone_watermark_ok(struct zone *z, unsigned int order,
-+bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 			unsigned long mark, int classzone_idx, int alloc_flags,
- 			long free_pages)
- {
-@@ -3015,8 +3015,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- }
- 
- static inline bool
--should_compact_retry(unsigned int order, enum compact_result compact_result,
--		     enum migrate_mode *migrate_mode,
-+should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
-+		     enum compact_result compact_result, enum migrate_mode *migrate_mode,
- 		     int compaction_retries)
- {
- 	int max_retries = MAX_COMPACT_RETRIES;
-@@ -3040,9 +3040,11 @@ should_compact_retry(unsigned int order, enum compact_result compact_result,
- 	/*
- 	 * make sure the compaction wasn't deferred or didn't bail out early
- 	 * due to locks contention before we declare that we should give up.
-+	 * But do not retry if the given zonelist is not suitable for
-+	 * compaction.
- 	 */
- 	if (compaction_withdrawn(compact_result))
--		return true;
-+		return compaction_zonelist_suitable(ac, order, alloc_flags);
- 
- 	/*
- 	 * !costly requests are much more important than __GFP_REPEAT
-@@ -3069,7 +3071,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- }
- 
- static inline bool
--should_compact_retry(unsigned int order, enum compact_result compact_result,
-+should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_flags,
-+		     enum compact_result compact_result,
- 		     enum migrate_mode *migrate_mode,
- 		     int compaction_retries)
- {
-@@ -3462,8 +3465,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	 * of free memory (see __compaction_suitable)
- 	 */
- 	if (did_some_progress > 0 &&
--			should_compact_retry(order, compact_result,
--				&migration_mode, compaction_retries))
-+			should_compact_retry(ac, order, alloc_flags,
-+				compact_result, &migration_mode,
-+				compaction_retries))
- 		goto retry;
- 
- 	/* Reclaim has failed us, start killing things */
--- 
-2.8.0.rc3
+Thanks.
+
+> 
+>              4.6-rc1     4.6-rc1     4.6-rc1
+>               patch2      patch3      patch4
+> User         2587.42     2566.53     2413.57
+> System        482.89      471.20      461.71
+> Elapsed      1395.68     1382.00     1392.87
+> 
+> Times are not so useful metric for this benchmark as main portion is the
+> interfering kernel builds, but results do hint at reduced system times.
+> 
+>                                    4.6-rc1     4.6-rc1     4.6-rc1
+>                                     patch2      patch3      patch4
+> Direct pages scanned                163614      159608      123385
+> Kswapd pages scanned               2070139     2078790     2081385
+> Kswapd pages reclaimed             2061707     2069757     2073723
+> Direct pages reclaimed              163354      159505      122304
+> 
+> Reduced direct reclaim was unintended, but could be explained by more
+> successful first attempt at (async) direct compaction, which is attempted
+> before the first reclaim attempt in __alloc_pages_slowpath().
+> 
+> Compaction stalls                    33052       39853       55091
+> Compaction success                   12121       19773       37875
+> Compaction failures                  20931       20079       17216
+> 
+> Compaction is indeed more successful, and thus less likely to get deferred,
+> so there are also more direct compaction stalls. 
+> 
+> Page migrate success               3781876     3326819     2790838
+> Page migrate failure                 45817       41774       38113
+> Compaction pages isolated          7868232     6941457     5025092
+> Compaction migrate scanned       168160492   127269354    87087993
+> Compaction migrate prescanned            0           0           0
+> Compaction free scanned         2522142582  2326342620   743205879
+> Compaction free direct alloc             0           0      920792
+> Compaction free dir. all. miss           0           0        5865
+> Compaction cost                       5252        4476        3602
+> 
+> Patch 2 reduces migration scanned pages by 25% thanks to the eager skipping.
+> Patch 3 reduces free scanned pages by 70%. The portion of direct allocation
+> misses to all direct allocations is less than 1% which should be acceptable.
+> Interestingly, patch 3 also reduces migration scanned pages by another 30% on
+> top of patch 2. The reason is not clear, but we can rejoice nevertheless.
+
+s/Patch 2/Patch 3
+s/Patch 3/Patch 4
+
+> Vlastimil Babka (4):
+>   mm, compaction: wrap calculating first and last pfn of pageblock
+>   mm, compaction: reduce spurious pcplist drains
+>   mm, compaction: skip blocks where isolation fails in async direct
+>     compaction
+>   mm, compaction: direct freepage allocation for async direct compaction
+> 
+>  include/linux/vm_event_item.h |   1 +
+>  mm/compaction.c               | 189 ++++++++++++++++++++++++++++++++++--------
+>  mm/internal.h                 |   5 ++
+>  mm/page_alloc.c               |  27 ++++++
+>  mm/vmstat.c                   |   2 +
+>  5 files changed, 191 insertions(+), 33 deletions(-)
+> 
+> -- 
+> 2.7.3
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
