@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E3BE6B0262
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:14:06 -0400 (EDT)
-Received: by mail-wm0-f48.google.com with SMTP id n3so93370604wmn.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 01:14:06 -0700 (PDT)
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id pd7si27477895wjb.189.2016.04.11.01.14.05
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 11E106B0263
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:14:10 -0400 (EDT)
+Received: by mail-wm0-f41.google.com with SMTP id l6so134841762wml.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 01:14:10 -0700 (PDT)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
+        by mx.google.com with ESMTPS id xb9si27542059wjc.63.2016.04.11.01.14.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 01:14:05 -0700 (PDT)
+        Mon, 11 Apr 2016 01:14:08 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id E88101C18A6
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 09:14:04 +0100 (IST)
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 86CB41C17E2
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 09:14:08 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 04/22] mm, page_alloc: Inline zone_statistics
-Date: Mon, 11 Apr 2016 09:13:27 +0100
-Message-Id: <1460362424-26369-5-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 05/22] mm, page_alloc: Inline the fast path of the zonelist iterator
+Date: Mon, 11 Apr 2016 09:13:28 +0100
+Message-Id: <1460362424-26369-6-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460362424-26369-1-git-send-email-mgorman@techsingularity.net>
 References: <1460362424-26369-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,135 +23,157 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-zone_statistics has one call-site but it's a public function. Make
-it static and inline.
+The page allocator iterates through a zonelist for zones that match
+the addressing limitations and nodemask of the caller but many allocations
+will not be restricted. Despite this, there is always functional call
+overhead which builds up.
+
+This patch inlines the optimistic basic case and only calls the
+iterator function for the complex case. A hindrance was the fact that
+cpuset_current_mems_allowed is used in the fastpath as the allowed nodemask
+even though all nodes are allowed on most systems. The patch handles this
+by only considering cpuset_current_mems_allowed if a cpuset exists. As well
+as being faster in the fast-path, this removes some junk in the slowpath.
 
 The performance difference on a page allocator microbenchmark is;
 
                                            4.6.0-rc2                  4.6.0-rc2
-                                    statbranch-v1r20           statinline-v1r20
-Min      alloc-odr0-1               419.00 (  0.00%)           412.00 (  1.67%)
-Min      alloc-odr0-2               305.00 (  0.00%)           301.00 (  1.31%)
-Min      alloc-odr0-4               250.00 (  0.00%)           247.00 (  1.20%)
-Min      alloc-odr0-8               219.00 (  0.00%)           215.00 (  1.83%)
-Min      alloc-odr0-16              203.00 (  0.00%)           199.00 (  1.97%)
-Min      alloc-odr0-32              195.00 (  0.00%)           191.00 (  2.05%)
-Min      alloc-odr0-64              191.00 (  0.00%)           187.00 (  2.09%)
-Min      alloc-odr0-128             189.00 (  0.00%)           185.00 (  2.12%)
-Min      alloc-odr0-256             198.00 (  0.00%)           193.00 (  2.53%)
-Min      alloc-odr0-512             210.00 (  0.00%)           207.00 (  1.43%)
-Min      alloc-odr0-1024            216.00 (  0.00%)           213.00 (  1.39%)
-Min      alloc-odr0-2048            221.00 (  0.00%)           220.00 (  0.45%)
-Min      alloc-odr0-4096            227.00 (  0.00%)           226.00 (  0.44%)
-Min      alloc-odr0-8192            232.00 (  0.00%)           229.00 (  1.29%)
-Min      alloc-odr0-16384           232.00 (  0.00%)           229.00 (  1.29%)
+                                    statinline-v1r20              optiter-v1r20
+Min      alloc-odr0-1               412.00 (  0.00%)           382.00 (  7.28%)
+Min      alloc-odr0-2               301.00 (  0.00%)           282.00 (  6.31%)
+Min      alloc-odr0-4               247.00 (  0.00%)           233.00 (  5.67%)
+Min      alloc-odr0-8               215.00 (  0.00%)           203.00 (  5.58%)
+Min      alloc-odr0-16              199.00 (  0.00%)           188.00 (  5.53%)
+Min      alloc-odr0-32              191.00 (  0.00%)           182.00 (  4.71%)
+Min      alloc-odr0-64              187.00 (  0.00%)           177.00 (  5.35%)
+Min      alloc-odr0-128             185.00 (  0.00%)           175.00 (  5.41%)
+Min      alloc-odr0-256             193.00 (  0.00%)           184.00 (  4.66%)
+Min      alloc-odr0-512             207.00 (  0.00%)           197.00 (  4.83%)
+Min      alloc-odr0-1024            213.00 (  0.00%)           203.00 (  4.69%)
+Min      alloc-odr0-2048            220.00 (  0.00%)           209.00 (  5.00%)
+Min      alloc-odr0-4096            226.00 (  0.00%)           214.00 (  5.31%)
+Min      alloc-odr0-8192            229.00 (  0.00%)           218.00 (  4.80%)
+Min      alloc-odr0-16384           229.00 (  0.00%)           219.00 (  4.37%)
+
+perf indicated that next_zones_zonelist disappeared in the profile and
+__next_zones_zonelist did not appear. This is expected as the micro-benchmark
+would hit the inlined fast-path every time.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- include/linux/vmstat.h |  2 --
- mm/page_alloc.c        | 31 +++++++++++++++++++++++++++++++
- mm/vmstat.c            | 29 -----------------------------
- 3 files changed, 31 insertions(+), 31 deletions(-)
+ include/linux/mmzone.h | 13 +++++++++++--
+ mm/mmzone.c            |  2 +-
+ mm/page_alloc.c        | 26 +++++++++-----------------
+ 3 files changed, 21 insertions(+), 20 deletions(-)
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 73fae8c4a5fb..152d26b7f972 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -163,12 +163,10 @@ static inline unsigned long zone_page_state_snapshot(struct zone *zone,
- #ifdef CONFIG_NUMA
- 
- extern unsigned long node_page_state(int node, enum zone_stat_item item);
--extern void zone_statistics(struct zone *, struct zone *, gfp_t gfp);
- 
- #else
- 
- #define node_page_state(node, item) global_page_state(item)
--#define zone_statistics(_zl, _z, gfp) do { } while (0)
- 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index c60df9257cc7..0c4d5ebb3849 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -922,6 +922,10 @@ static inline int zonelist_node_idx(struct zoneref *zoneref)
  #endif /* CONFIG_NUMA */
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6812de41f698..b56c2b2911a2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2352,6 +2352,37 @@ int split_free_page(struct page *page)
  }
  
- /*
-+ * Update NUMA hit/miss statistics 
-+ *
-+ * Must be called with interrupts disabled.
-+ *
-+ * When __GFP_OTHER_NODE is set assume the node of the preferred
-+ * zone is the local node. This is useful for daemons who allocate
-+ * memory on behalf of other processes.
-+ */
-+static inline void zone_statistics(struct zone *preferred_zone, struct zone *z,
-+								gfp_t flags)
++struct zoneref *__next_zones_zonelist(struct zoneref *z,
++					enum zone_type highest_zoneidx,
++					nodemask_t *nodes);
++
+ /**
+  * next_zones_zonelist - Returns the next zone at or below highest_zoneidx within the allowed nodemask using a cursor within a zonelist as a starting point
+  * @z - The cursor used as a starting point for the search
+@@ -934,9 +938,14 @@ static inline int zonelist_node_idx(struct zoneref *zoneref)
+  * being examined. It should be advanced by one before calling
+  * next_zones_zonelist again.
+  */
+-struct zoneref *next_zones_zonelist(struct zoneref *z,
++static __always_inline struct zoneref *next_zones_zonelist(struct zoneref *z,
+ 					enum zone_type highest_zoneidx,
+-					nodemask_t *nodes);
++					nodemask_t *nodes)
 +{
-+#ifdef CONFIG_NUMA
-+	int local_nid = numa_node_id();
-+	enum zone_stat_item local_stat = NUMA_LOCAL;
-+
-+	if (unlikely(flags & __GFP_OTHER_NODE)) {
-+		local_stat = NUMA_OTHER;
-+		local_nid = preferred_zone->node;
-+	}
-+
-+	if (z->node == local_nid) {
-+		__inc_zone_state(z, NUMA_HIT);
-+		__inc_zone_state(z, local_stat);
-+	} else {
-+		__inc_zone_state(z, NUMA_MISS);
-+		__inc_zone_state(preferred_zone, NUMA_FOREIGN);
-+	}
-+#endif
++	if (likely(!nodes && zonelist_zone_idx(z) <= highest_zoneidx))
++		return z;
++	return __next_zones_zonelist(z, highest_zoneidx, nodes);
 +}
-+
-+/*
-  * Allocate a page from the given zone. Use pcplists for order-0 allocations.
-  */
- static inline
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 2e58ead9bcf5..a4bda11eac8d 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -570,35 +570,6 @@ void drain_zonestat(struct zone *zone, struct per_cpu_pageset *pset)
  
- #ifdef CONFIG_NUMA
- /*
-- * zonelist = the list of zones passed to the allocator
-- * z 	    = the zone from which the allocation occurred.
-- *
-- * Must be called with interrupts disabled.
-- *
-- * When __GFP_OTHER_NODE is set assume the node of the preferred
-- * zone is the local node. This is useful for daemons who allocate
-- * memory on behalf of other processes.
-- */
--void zone_statistics(struct zone *preferred_zone, struct zone *z, gfp_t flags)
--{
--	int local_nid = numa_node_id();
--	enum zone_stat_item local_stat = NUMA_LOCAL;
--
--	if (unlikely(flags & __GFP_OTHER_NODE)) {
--		local_stat = NUMA_OTHER;
--		local_nid = preferred_zone->node;
+ /**
+  * first_zones_zonelist - Returns the first zone at or below highest_zoneidx within the allowed nodemask in a zonelist
+diff --git a/mm/mmzone.c b/mm/mmzone.c
+index 52687fb4de6f..5652be858e5e 100644
+--- a/mm/mmzone.c
++++ b/mm/mmzone.c
+@@ -52,7 +52,7 @@ static inline int zref_in_nodemask(struct zoneref *zref, nodemask_t *nodes)
+ }
+ 
+ /* Returns the next zone at or below highest_zoneidx in a zonelist */
+-struct zoneref *next_zones_zonelist(struct zoneref *z,
++struct zoneref *__next_zones_zonelist(struct zoneref *z,
+ 					enum zone_type highest_zoneidx,
+ 					nodemask_t *nodes)
+ {
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b56c2b2911a2..e9acc0b0f787 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3193,17 +3193,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+ 
+-	/*
+-	 * Find the true preferred zone if the allocation is unconstrained by
+-	 * cpusets.
+-	 */
+-	if (!(alloc_flags & ALLOC_CPUSET) && !ac->nodemask) {
+-		struct zoneref *preferred_zoneref;
+-		preferred_zoneref = first_zones_zonelist(ac->zonelist,
+-				ac->high_zoneidx, NULL, &ac->preferred_zone);
+-		ac->classzone_idx = zonelist_zone_idx(preferred_zoneref);
 -	}
 -
--	if (z->node == local_nid) {
--		__inc_zone_state(z, NUMA_HIT);
--		__inc_zone_state(z, local_stat);
--	} else {
--		__inc_zone_state(z, NUMA_MISS);
--		__inc_zone_state(preferred_zone, NUMA_FOREIGN);
--	}
--}
+ 	/* This is the last chance, in general, before the goto nopage. */
+ 	page = get_page_from_freelist(gfp_mask, order,
+ 				alloc_flags & ~ALLOC_NO_WATERMARKS, ac);
+@@ -3359,14 +3348,21 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	struct zoneref *preferred_zoneref;
+ 	struct page *page = NULL;
+ 	unsigned int cpuset_mems_cookie;
+-	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
++	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_FAIR;
+ 	gfp_t alloc_mask; /* The gfp_t that was actually used for allocation */
+ 	struct alloc_context ac = {
+ 		.high_zoneidx = gfp_zone(gfp_mask),
++		.zonelist = zonelist,
+ 		.nodemask = nodemask,
+ 		.migratetype = gfpflags_to_migratetype(gfp_mask),
+ 	};
+ 
++	if (cpusets_enabled()) {
++		alloc_flags |= ALLOC_CPUSET;
++		if (!ac.nodemask)
++			ac.nodemask = &cpuset_current_mems_allowed;
++	}
++
+ 	gfp_mask &= gfp_allowed_mask;
+ 
+ 	lockdep_trace_alloc(gfp_mask);
+@@ -3390,16 +3386,12 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ retry_cpuset:
+ 	cpuset_mems_cookie = read_mems_allowed_begin();
+ 
+-	/* We set it here, as __alloc_pages_slowpath might have changed it */
+-	ac.zonelist = zonelist;
 -
--/*
-  * Determine the per node value of a stat item.
-  */
- unsigned long node_page_state(int node, enum zone_stat_item item)
+ 	/* Dirty zone balancing only done in the fast path */
+ 	ac.spread_dirty_pages = (gfp_mask & __GFP_WRITE);
+ 
+ 	/* The preferred zone is used for statistics later */
+ 	preferred_zoneref = first_zones_zonelist(ac.zonelist, ac.high_zoneidx,
+-				ac.nodemask ? : &cpuset_current_mems_allowed,
+-				&ac.preferred_zone);
++				ac.nodemask, &ac.preferred_zone);
+ 	if (!ac.preferred_zone)
+ 		goto out;
+ 	ac.classzone_idx = zonelist_zone_idx(preferred_zoneref);
 -- 
 2.6.4
 
