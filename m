@@ -1,45 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 579766B025F
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 03:27:06 -0400 (EDT)
-Received: by mail-wm0-f49.google.com with SMTP id v188so74115640wme.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 00:27:06 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gy10si27329700wjc.115.2016.04.11.00.27.04
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 9808E6B0253
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 03:31:20 -0400 (EDT)
+Received: by mail-wm0-f53.google.com with SMTP id v188so74244707wme.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 00:31:20 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id m192si16912238wmg.14.2016.04.11.00.31.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Apr 2016 00:27:05 -0700 (PDT)
-Subject: Re: [PATCH v2 4/4] mm, compaction: direct freepage allocation for
- async direct compaction
-References: <1459414236-9219-1-git-send-email-vbabka@suse.cz>
- <1459414236-9219-5-git-send-email-vbabka@suse.cz>
- <20160411071351.GB26116@js1304-P5Q-DELUXE>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <570B51C6.4050005@suse.cz>
-Date: Mon, 11 Apr 2016 09:27:02 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Apr 2016 00:31:19 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id y144so19070286wmd.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 00:31:19 -0700 (PDT)
+Date: Mon, 11 Apr 2016 09:31:18 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: memcontrol: let v2 cgroups follow changes in system
+ swappiness
+Message-ID: <20160411073117.GC23157@dhcp22.suse.cz>
+References: <1460155744-15942-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20160411071351.GB26116@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1460155744-15942-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 04/11/2016 09:13 AM, Joonsoo Kim wrote:
-> On Thu, Mar 31, 2016 at 10:50:36AM +0200, Vlastimil Babka wrote:
->> The goal of direct compaction is to quickly make a high-order page available
->> for the pending allocation. The free page scanner can add significant latency
->> when searching for migration targets, although to succeed the compaction, the
->> only important limit on the target free pages is that they must not come from
->> the same order-aligned block as the migrated pages.
->
-> If we fails migration, free pages will remain and they can interfere
-> further compaction success because they doesn't come from previous
-> order-aligned block but can come from next order-aligned block. You
-> need to free remaining freelist after migration attempt fails?
+On Fri 08-04-16 18:49:04, Johannes Weiner wrote:
+> Cgroup2 currently doesn't have a per-cgroup swappiness setting. We
+> might want to add one later - that's a different discussion - but
+> until we do, the cgroups should always follow the system setting.
+> Otherwise it will be unchangeably set to whatever the ancestor
+> inherited from the system setting at the time of cgroup creation.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: stable@vger.kernel.org # 4.5
 
-Oh, good point, thanks!
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  include/linux/swap.h | 4 ++++
+>  1 file changed, 4 insertions(+)
+> 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index e58dba3..15d17c8 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -534,6 +534,10 @@ static inline swp_entry_t get_swap_page(void)
+>  #ifdef CONFIG_MEMCG
+>  static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
+>  {
+> +	/* Cgroup2 doesn't have per-cgroup swappiness */
+> +	if (cgroup_subsys_on_dfl(memory_cgrp_subsys))
+> +		return vm_swappiness;
+> +
+>  	/* root ? */
+>  	if (mem_cgroup_disabled() || !memcg->css.parent)
+>  		return vm_swappiness;
+> -- 
+> 2.8.0
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
