@@ -1,117 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f173.google.com (mail-pf0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 44DBC6B0262
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 11:54:38 -0400 (EDT)
-Received: by mail-pf0-f173.google.com with SMTP id e128so126113446pfe.3
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:54:38 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id n69si4153152pfi.104.2016.04.11.08.54.30
+Received: from mail-pf0-f179.google.com (mail-pf0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EDA46B0263
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 11:54:40 -0400 (EDT)
+Received: by mail-pf0-f179.google.com with SMTP id c20so126233306pfc.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:54:40 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id q7si4142610pfq.27.2016.04.11.08.54.32
         for <linux-mm@kvack.org>;
-        Mon, 11 Apr 2016 08:54:31 -0700 (PDT)
-Subject: [PATCH 3/8] x86, pkeys: make mprotect_key() mask off additional vm_flags
+        Mon, 11 Apr 2016 08:54:33 -0700 (PDT)
+Subject: [PATCH 7/8] pkeys: add details of system call use to Documentation/
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 11 Apr 2016 08:54:26 -0700
+Date: Mon, 11 Apr 2016 08:54:32 -0700
 References: <20160411155422.A2B8FD0C@viggo.jf.intel.com>
 In-Reply-To: <20160411155422.A2B8FD0C@viggo.jf.intel.com>
-Message-Id: <20160411155426.EB4517DE@viggo.jf.intel.com>
+Message-Id: <20160411155432.8F0A9A5F@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, akpm@linux-foundation.org
+Cc: Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, linux-api@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, torvalds@linux-foundation.org, akpm@linux-foundation.org
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Today, mprotect() takes 4 bits of data: PROT_READ/WRITE/EXEC/NONE.
-Three of those bits: READ/WRITE/EXEC get translated directly in to
-vma->vm_flags by calc_vm_prot_bits().  If a bit is unset in
-mprotect()'s 'prot' argument then it must be cleared in vma->vm_flags
-during the mprotect() call.
-
-We do this clearing today by first calculating the VMA flags we
-want set, then clearing the ones we do not want to inherit from
-the original VMA:
-
-	vm_flags = calc_vm_prot_bits(prot, key);
-	...
-	newflags = vm_flags;
-	newflags |= (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
-
-However, we *also* want to mask off the original VMA's vm_flags in
-which we store the protection key.
-
-To do that, this patch adds a new macro:
-
-	ARCH_VM_PKEY_FLAGS
-
-which allows the architecture to specify additional bits that it would
-like cleared.  We use that to ensure that the VM_PKEY_BIT* bits get
-cleared.
+This spells out all of the pkey-related system calls that we have
+and provides some example code fragments to demonstrate how we
+expect them to be used.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-api@vger.kernel.org
 Cc: linux-mm@kvack.org
 Cc: x86@kernel.org
 Cc: torvalds@linux-foundation.org
 Cc: akpm@linux-foundation.org
 ---
 
- b/arch/x86/include/asm/pkeys.h |    2 ++
- b/include/linux/pkeys.h        |    1 +
- b/mm/mprotect.c                |   11 ++++++++++-
- 3 files changed, 13 insertions(+), 1 deletion(-)
+ b/Documentation/x86/protection-keys.txt |   63 ++++++++++++++++++++++++++++++++
+ 1 file changed, 63 insertions(+)
 
-diff -puN arch/x86/include/asm/pkeys.h~pkeys-112-mask-off-correct-vm_flags arch/x86/include/asm/pkeys.h
---- a/arch/x86/include/asm/pkeys.h~pkeys-112-mask-off-correct-vm_flags	2016-04-11 08:38:41.373273394 -0700
-+++ b/arch/x86/include/asm/pkeys.h	2016-04-11 08:38:41.380273711 -0700
-@@ -38,4 +38,6 @@ static inline int arch_override_mprotect
- extern int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- 		unsigned long init_val);
+diff -puN Documentation/x86/protection-keys.txt~pkeys-120-syscall-docs Documentation/x86/protection-keys.txt
+--- a/Documentation/x86/protection-keys.txt~pkeys-120-syscall-docs	2016-04-11 08:38:43.515370350 -0700
++++ b/Documentation/x86/protection-keys.txt	2016-04-11 08:38:43.518370485 -0700
+@@ -18,6 +18,69 @@ even though there is theoretically space
+ permissions are enforced on data access only and have no effect on
+ instruction fetches.
  
-+#define ARCH_VM_PKEY_FLAGS (VM_PKEY_BIT0 | VM_PKEY_BIT1 | VM_PKEY_BIT2 | VM_PKEY_BIT3)
++=========================== Syscalls ===========================
 +
- #endif /*_ASM_X86_PKEYS_H */
-diff -puN include/linux/pkeys.h~pkeys-112-mask-off-correct-vm_flags include/linux/pkeys.h
---- a/include/linux/pkeys.h~pkeys-112-mask-off-correct-vm_flags	2016-04-11 08:38:41.375273485 -0700
-+++ b/include/linux/pkeys.h	2016-04-11 08:38:41.381273757 -0700
-@@ -16,6 +16,7 @@
- #define execute_only_pkey(mm) (0)
- #define arch_override_mprotect_pkey(vma, prot, pkey) (0)
- #define PKEY_DEDICATED_EXECUTE_ONLY 0
-+#define ARCH_VM_PKEY_FLAGS 0
- #endif /* ! CONFIG_ARCH_HAS_PKEYS */
- 
- /*
-diff -puN mm/mprotect.c~pkeys-112-mask-off-correct-vm_flags mm/mprotect.c
---- a/mm/mprotect.c~pkeys-112-mask-off-correct-vm_flags	2016-04-11 08:38:41.377273575 -0700
-+++ b/mm/mprotect.c	2016-04-11 08:38:41.381273757 -0700
-@@ -410,6 +410,7 @@ static int do_mprotect_pkey(unsigned lon
- 		prev = vma;
- 
- 	for (nstart = start ; ; ) {
-+		unsigned long mask_off_old_flags;
- 		unsigned long newflags;
- 		int vma_pkey;
- 
-@@ -419,9 +420,17 @@ static int do_mprotect_pkey(unsigned lon
- 		if (rier && (vma->vm_flags & VM_MAYEXEC))
- 			prot |= PROT_EXEC;
- 
-+		/*
-+		 * Each mprotect() call explicitly passes r/w/x permissions.
-+		 * If a permission is not passed to mprotect(), it must be
-+		 * cleared from the VMA.
-+		 */
-+		mask_off_old_flags = VM_READ | VM_WRITE | VM_EXEC |
-+					ARCH_VM_PKEY_FLAGS;
++There are 5 system calls which directly interact with pkeys:
 +
- 		vma_pkey = arch_override_mprotect_pkey(vma, prot, pkey);
- 		newflags = calc_vm_prot_bits(prot, vma_pkey);
--		newflags |= (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
-+		newflags |= (vma->vm_flags & ~mask_off_old_flags);
++	int pkey_alloc(unsigned long flags, unsigned long init_access_rights)
++	int pkey_free(int pkey);
++	int sys_pkey_mprotect(unsigned long start, size_t len,
++			      unsigned long prot, int pkey);
++	unsigned long pkey_get(int pkey);
++	int pkey_set(int pkey, unsigned long access_rights);
++
++Before a pkey can be used, it must first be allocated with
++pkey_alloc().  An application may either call pkey_set() or the
++WRPKRU instruction directly in order to change access permissions
++to memory covered with a key.
++
++	int real_prot = PROT_READ|PROT_WRITE;
++	pkey = pkey_alloc(0, PKEY_DENY_WRITE);
++	ptr = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
++	ret = pkey_mprotect(ptr, PAGE_SIZE, real_prot, pkey);
++	... application runs here
++
++Now, if the application needs to update the data at 'ptr', it can
++gain access, do the update, then remove its write access:
++
++	pkey_set(pkey, 0); // clear PKEY_DENY_WRITE
++	*ptr = foo; // assign something
++	pkey_set(pkey, PKEY_DENY_WRITE); // set PKEY_DENY_WRITE again
++
++Now when it frees the memory, it will also free the pkey since it
++is no longer in use:
++
++	munmap(ptr, PAGE_SIZE);
++	pkey_free(pkey);
++
++=========================== Behavior ===========================
++
++The kernel attempts to make protection keys consistent with the
++behavior of a plain mprotect().  For instance if you do this:
++
++	mprotect(ptr, size, PROT_NONE);
++	something(ptr);
++
++you can expect the same effects with protection keys when doing this:
++
++	sys_pkey_alloc(0, PKEY_DISABLE_WRITE | PKEY_DISABLE_READ);
++	sys_pkey_mprotect(ptr, size, PROT_READ|PROT_WRITE);
++	something(ptr);
++
++That should be true whether something() is a direct access to 'ptr'
++like:
++
++	*ptr = foo;
++
++or when the kernel does the access on the application's behalf like
++with a read():
++
++	read(fd, ptr, 1);
++
++The kernel will send a SIGSEGV in both cases, but si_code will be set
++to SEGV_PKERR when violating protection keys versus SEGV_ACCERR when
++the plain mprotect() permissions are violated.
++
+ =========================== Config Option ===========================
  
- 		/* newflags >> 4 shift VM_MAY% in place of VM_% */
- 		if ((newflags & ~(newflags >> 4)) & (VM_READ | VM_WRITE | VM_EXEC)) {
+ This config option adds approximately 1.5kb of text. and 50 bytes of
 _
 
 --
