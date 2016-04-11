@@ -1,100 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C3A2C6B025F
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:02:42 -0400 (EDT)
-Received: by mail-wm0-f43.google.com with SMTP id v188so83286667wme.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 05:02:42 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id bu3si28494776wjc.51.2016.04.11.05.02.40
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 041FB6B025E
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:10:31 -0400 (EDT)
+Received: by mail-wm0-f41.google.com with SMTP id l6so142976403wml.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 05:10:30 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cd8si28501517wjc.91.2016.04.11.05.10.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 05:02:40 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id a140so20758875wma.2
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 05:02:40 -0700 (PDT)
-Date: Mon, 11 Apr 2016 14:02:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/3] oom, oom_reaper: Try to reap tasks which skipregular
- OOM killer path
-Message-ID: <20160411120238.GF23157@dhcp22.suse.cz>
-References: <1459951996-12875-1-git-send-email-mhocko@kernel.org>
- <1459951996-12875-3-git-send-email-mhocko@kernel.org>
- <201604072038.CHC51027.MSJOFVLHOFFtQO@I-love.SAKURA.ne.jp>
- <201604082019.EDH52671.OJHQFMStOFLVOF@I-love.SAKURA.ne.jp>
- <20160408115033.GH29820@dhcp22.suse.cz>
- <201604091339.FAJ12491.FVHQFFMSJLtOOO@I-love.SAKURA.ne.jp>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 11 Apr 2016 05:10:29 -0700 (PDT)
+Subject: Re: [PATCH 06/11] mm, compaction: distinguish between full and
+ partial COMPACT_COMPLETE
+References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
+ <1459855533-4600-7-git-send-email-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <570B9432.9090600@suse.cz>
+Date: Mon, 11 Apr 2016 14:10:26 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201604091339.FAJ12491.FVHQFFMSJLtOOO@I-love.SAKURA.ne.jp>
+In-Reply-To: <1459855533-4600-7-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, oleg@redhat.com
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Sat 09-04-16 13:39:30, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Fri 08-04-16 20:19:28, Tetsuo Handa wrote:
-> > > I looked at next-20160408 but I again came to think that we should remove
-> > > these shortcuts (something like a patch shown bottom).
-> >
-> > feel free to send the patch with the full description. But I would
-> > really encourage you to check the history to learn why those have been
-> > added and describe why those concerns are not valid/important anymore.
-> 
-> I believe that past discussions and decisions about current code are too
-> optimistic because they did not take 'The "too small to fail" memory-
-> allocation rule' problem into account.
+On 04/05/2016 01:25 PM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>
+> COMPACT_COMPLETE now means that compaction and free scanner met. This is
+> not very useful information if somebody just wants to use this feedback
+> and make any decisions based on that. The current caller might be a poor
+> guy who just happened to scan tiny portion of the zone and that could be
+> the reason no suitable pages were compacted. Make sure we distinguish
+> the full and partial zone walks.
+>
+> Consumers should treat COMPACT_PARTIAL_SKIPPED as a potential success
+> and be optimistic in retrying.
+>
+> The existing users of COMPACT_COMPLETE are conservatively changed to
+> use COMPACT_PARTIAL_SKIPPED as well but some of them should be probably
+> reconsidered and only defer the compaction only for COMPACT_COMPLETE
+> with the new semantic.
+>
+> This patch shouldn't introduce any functional changes.
+>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-In most cases they were driven by _real_ usecases though. And that
-is what matters. Theoretically possible issues which happen under
-crazy workloads which are DoSing the machine already are not something
-to optimize for. Sure we should try to cope with them as gracefully
-as possible, no questions about that, but we should try hard not to
-reintroduce previous issues during _sensible_ workloads.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-> If you ignore me with "check the history to learn why those have been added
-> and describe why those concerns are not valid/important anymore", I can do
-> nothing. What are valid/important concerns that have higher priority than
-> keeping 'The "too small to fail" memory-allocation rule' problem and continue
-> telling a lie to end users? Please enumerate such concerns.
+With some notes:
 
-I feel like we are looping in a circle and I do not want to waste my
-time repeating arguments which were already mentioned several times. 
-I have already told you that you have to justify potentially disruptive
-changes properly. So far you are more focused on extreme cases while
-you do not seem to care all that much about those which happen most of
-the time. We surely do not want to regress there. If I am telling you
-to study the history of our heuristics it is to _help_ you understand
-why they have been introduced so that you can argue with the reasoning
-and/or come up with improvements. Unless you start doing this chances
-are that your patches will not see overly warm welcome.
+> @@ -1463,6 +1466,10 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+>   		zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
+>   		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
+>   	}
+> +
+> +	if (cc->migrate_pfn == start_pfn)
+> +		cc->whole_zone = true;
+> +
 
-> > Your way of throwing a large patch based on an extreme load which is
-> > basically DoSing the machine is not the ideal one.
-> 
-> You are not paying attention to real world's limitations I'm facing.
-
-So far I haven't seen any _real_world_ example from you, to be honest.
-All I can see is hammering the system with some DoS scenarios which
-triggered different corner cases in the behavior. Those are good to make
-us think about our limitations and think for longterm solutions.
-
-> I have to waste my resource trying to identify and fix on behalf of
-> customers before they determine the kernel version to use for their
-> systems, for your way of thinking is that "We don't need to worry about
-> it because I have never received such report"
-
-No I am not saying that. I am saying that I have never seen a _properly_
-configured system to blow up in a way that would trigger pathological
-cases you are mentioning. And that is a big difference. You can
-misconfigure your system in so many ways and put it on knees without a
-way out.
-
-With all due respect I will not continue in this line of discussion
-because it doesn't lead anywhere.
--- 
-Michal Hocko
-SUSE Labs
+This assumes that migrate scanner at initial position implies also free 
+scanner at the initial position. That should be true, because migration 
+scanner is the first to run. But getting the zone->compact_cached_*_pfn 
+is racy. Worse, zone->compact_cached_migrate_pfn is array distinguishing 
+sync and async compaction, so it's possible that async compaction has 
+advanced both its own migrate scanner cached position, and the shared 
+free scanner cached position, and then sync compaction starts migrate 
+scanner at start_pfn, but free scanner has already advanced.
+So you might still see a false positive COMPACT_COMPLETE, just less 
+frequently and probably with much lower impact.
+But if you need to be truly reliable, check also that cc->free_pfn == 
+round_down(end_pfn - 1, pageblock_nr_pages)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
