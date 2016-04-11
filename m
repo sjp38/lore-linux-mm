@@ -1,101 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DDB96B0005
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 10:51:49 -0400 (EDT)
-Received: by mail-wm0-f42.google.com with SMTP id f198so149191601wme.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:51:49 -0700 (PDT)
-Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
-        by mx.google.com with ESMTPS id za6si29146080wjc.241.2016.04.11.07.51.47
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id A5B316B0253
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 11:07:20 -0400 (EDT)
+Received: by mail-wm0-f50.google.com with SMTP id n3so108892607wmn.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:07:20 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a66si18856983wma.67.2016.04.11.08.07.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 07:51:48 -0700 (PDT)
-Received: by mail-wm0-x22b.google.com with SMTP id f198so149190983wme.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:51:47 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 11 Apr 2016 08:07:19 -0700 (PDT)
+Subject: Re: [PATCH 11/11] mm: consider compaction feedback also for costly
+ allocation
+References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
+ <1459855533-4600-12-git-send-email-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <570BBDA3.8030708@suse.cz>
+Date: Mon, 11 Apr 2016 17:07:15 +0200
 MIME-Version: 1.0
-In-Reply-To: <CAG_fn=W_zM0u_NjSzJNi9KiNRY=rtQSYWTVfOQ2nGedApWMBdg@mail.gmail.com>
-References: <cover.1457949315.git.glider@google.com>
-	<4f6880ee0c1545b3ae9c25cfe86a879d724c4e7b.1457949315.git.glider@google.com>
-	<20160411074452.GC26116@js1304-P5Q-DELUXE>
-	<CAG_fn=W_zM0u_NjSzJNi9KiNRY=rtQSYWTVfOQ2nGedApWMBdg@mail.gmail.com>
-Date: Mon, 11 Apr 2016 16:51:47 +0200
-Message-ID: <CAG_fn=XQ1jvUXG2xWM9rEgqBEB-DBrA-G6wWOZ9t_SvfrKjdsg@mail.gmail.com>
-Subject: Re: [PATCH v7 5/7] mm, kasan: Stackdepot implementation. Enable
- stackdepot for SLAB
-From: Alexander Potapenko <glider@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1459855533-4600-12-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon, Apr 11, 2016 at 4:39 PM, Alexander Potapenko <glider@google.com> wr=
-ote:
-> On Mon, Apr 11, 2016 at 9:44 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wro=
-te:
->> On Mon, Mar 14, 2016 at 11:43:43AM +0100, Alexander Potapenko wrote:
->>> +depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
->>> +                                 gfp_t alloc_flags)
->>> +{
->>> +     u32 hash;
->>> +     depot_stack_handle_t retval =3D 0;
->>> +     struct stack_record *found =3D NULL, **bucket;
->>> +     unsigned long flags;
->>> +     struct page *page =3D NULL;
->>> +     void *prealloc =3D NULL;
->>> +     bool *rec;
->>> +
->>> +     if (unlikely(trace->nr_entries =3D=3D 0))
->>> +             goto fast_exit;
->>> +
->>> +     rec =3D this_cpu_ptr(&depot_recursion);
->>> +     /* Don't store the stack if we've been called recursively. */
->>> +     if (unlikely(*rec))
->>> +             goto fast_exit;
->>> +     *rec =3D true;
->>> +
->>> +     hash =3D hash_stack(trace->entries, trace->nr_entries);
->>> +     /* Bad luck, we won't store this stack. */
->>> +     if (hash =3D=3D 0)
->>> +             goto exit;
->>
->> Hello,
->>
->> why is hash =3D=3D 0 skipped?
->>
->> Thanks.
-> We have to keep a special value to distinguish allocations for which
-> we don't have the stack trace for some reason.
-> Making 0 such a value seems natural.
-Well, the above statement is false.
-Because we only compare the hash to the records that are already in
-the depot, there's no point in reserving this value.
+On 04/05/2016 01:25 PM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 >
-> --
-> Alexander Potapenko
-> Software Engineer
+> PAGE_ALLOC_COSTLY_ORDER retry logic is mostly handled inside
+> should_reclaim_retry currently where we decide to not retry after at
+> least order worth of pages were reclaimed or the watermark check for at
+> least one zone would succeed after reclaiming all pages if the reclaim
+> hasn't made any progress. Compaction feedback is mostly ignored and we
+> just try to make sure that the compaction did at least something before
+> giving up.
 >
-> Google Germany GmbH
-> Erika-Mann-Stra=C3=9Fe, 33
-> 80636 M=C3=BCnchen
+> The first condition was added by a41f24ea9fd6 ("page allocator: smarter
+> retry of costly-order allocations) and it assumed that lumpy reclaim
+> could have created a page of the sufficient order. Lumpy reclaim,
+> has been removed quite some time ago so the assumption doesn't hold
+> anymore. Remove the check for the number of reclaimed pages and rely
+> on the compaction feedback solely. should_reclaim_retry now only
+> makes sure that we keep retrying reclaim for high order pages only
+> if they are hidden by watermaks so order-0 reclaim makes really sense.
 >
-> Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-> Registergericht und -nummer: Hamburg, HRB 86891
-> Sitz der Gesellschaft: Hamburg
+> should_compact_retry now keeps retrying even for the costly allocations.
+> The number of retries is reduced wrt. !costly requests because they are
+> less important and harder to grant and so their pressure shouldn't cause
+> contention for other requests or cause an over reclaim. We also do not
+> reset no_progress_loops for costly request to make sure we do not keep
+> reclaiming too agressively.
 
+[...]
 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
