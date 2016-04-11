@@ -1,60 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 228616B0253
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 03:42:11 -0400 (EDT)
-Received: by mail-ig0-f169.google.com with SMTP id gy3so75418647igb.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 00:42:11 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id aw4si14444774igc.47.2016.04.11.00.42.09
-        for <linux-mm@kvack.org>;
-        Mon, 11 Apr 2016 00:42:10 -0700 (PDT)
-Date: Mon, 11 Apr 2016 16:44:52 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v7 5/7] mm, kasan: Stackdepot implementation. Enable
- stackdepot for SLAB
-Message-ID: <20160411074452.GC26116@js1304-P5Q-DELUXE>
-References: <cover.1457949315.git.glider@google.com>
- <4f6880ee0c1545b3ae9c25cfe86a879d724c4e7b.1457949315.git.glider@google.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 556586B025E
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:00:15 -0400 (EDT)
+Received: by mail-ig0-f169.google.com with SMTP id g8so65800940igr.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 01:00:15 -0700 (PDT)
+Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
+        by mx.google.com with ESMTPS id i34si15899684ioo.118.2016.04.11.01.00.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Apr 2016 01:00:14 -0700 (PDT)
+Received: by mail-ig0-x233.google.com with SMTP id kb1so75759021igb.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 01:00:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4f6880ee0c1545b3ae9c25cfe86a879d724c4e7b.1457949315.git.glider@google.com>
+In-Reply-To: <570B5875.20804@hisilicon.com>
+References: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
+	<20160407142148.GI5657@arm.com>
+	<570B10B2.2000000@hisilicon.com>
+	<CAKv+Gu8iQ0NzLFWHy9Ggyv+jL-BqJ3x-KaRD1SZ1mU6yU3c7UQ@mail.gmail.com>
+	<570B5875.20804@hisilicon.com>
+Date: Mon, 11 Apr 2016 10:00:14 +0200
+Message-ID: <CAKv+Gu9aqR=E3TmbPDFEUC+Q13bAJTU5wVTTHkOr6aX6BZ1OVA@mail.gmail.com>
+Subject: Re: [PATCH 1/2] arm64: mem-model: add flatmem model for arm64
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, rostedt@goodmis.org, kcc@google.com, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Chen Feng <puck.chen@hisilicon.com>
+Cc: Will Deacon <will.deacon@arm.com>, mhocko@suse.com, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, Dan Zhao <dan.zhao@hisilicon.com>, Yiping Xu <xuyiping@hisilicon.com>, puck.chen@foxmail.com, albert.lubing@hisilicon.com, Catalin Marinas <catalin.marinas@arm.com>, suzhuangluan@hisilicon.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxarm@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, David Rientjes <rientjes@google.com>, oliver.fu@hisilicon.com, Andrew Morton <akpm@linux-foundation.org>, robin.murphy@arm.com, yudongbin@hislicon.com, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, saberlily.xia@hisilicon.com
 
-On Mon, Mar 14, 2016 at 11:43:43AM +0100, Alexander Potapenko wrote:
-> +depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
-> +				    gfp_t alloc_flags)
-> +{
-> +	u32 hash;
-> +	depot_stack_handle_t retval = 0;
-> +	struct stack_record *found = NULL, **bucket;
-> +	unsigned long flags;
-> +	struct page *page = NULL;
-> +	void *prealloc = NULL;
-> +	bool *rec;
-> +
-> +	if (unlikely(trace->nr_entries == 0))
-> +		goto fast_exit;
-> +
-> +	rec = this_cpu_ptr(&depot_recursion);
-> +	/* Don't store the stack if we've been called recursively. */
-> +	if (unlikely(*rec))
-> +		goto fast_exit;
-> +	*rec = true;
-> +
-> +	hash = hash_stack(trace->entries, trace->nr_entries);
-> +	/* Bad luck, we won't store this stack. */
-> +	if (hash == 0)
-> +		goto exit;
+On 11 April 2016 at 09:55, Chen Feng <puck.chen@hisilicon.com> wrote:
+> Hi Ard,
+>
+> On 2016/4/11 15:35, Ard Biesheuvel wrote:
+>> On 11 April 2016 at 04:49, Chen Feng <puck.chen@hisilicon.com> wrote:
+>>> Hi will,
+>>> Thanks for review.
+>>>
+>>> On 2016/4/7 22:21, Will Deacon wrote:
+>>>> On Tue, Apr 05, 2016 at 04:22:51PM +0800, Chen Feng wrote:
+>>>>> We can reduce the memory allocated at mem-map
+>>>>> by flatmem.
+>>>>>
+>>>>> currently, the default memory-model in arm64 is
+>>>>> sparse memory. The mem-map array is not freed in
+>>>>> this scene. If the physical address is too long,
+>>>>> it will reserved too much memory for the mem-map
+>>>>> array.
+>>>>
+>>>> Can you elaborate a bit more on this, please? We use the vmemmap, so any
+>>>> spaces between memory banks only burns up virtual space. What exactly is
+>>>> the problem you're seeing that makes you want to use flatmem (which is
+>>>> probably unsuitable for the majority of arm64 machines).
+>>>>
+>>> The root cause we want to use flat-mem is the mam_map alloced in sparse-mem
+>>> is not freed.
+>>>
+>>> take a look at here:
+>>> arm64/mm/init.c
+>>> void __init mem_init(void)
+>>> {
+>>> #ifndef CONFIG_SPARSEMEM_VMEMMAP
+>>>         free_unused_memmap();
+>>> #endif
+>>> }
+>>>
+>>> Memory layout (3GB)
+>>>
+>>>  0             1.5G    2G             3.5G            4G
+>>>  |              |      |               |              |
+>>>  +--------------+------+---------------+--------------+
+>>>  |    MEM       | hole |     MEM       |   IO (regs)  |
+>>>  +--------------+------+---------------+--------------+
+>>>
+>>>
+>>> Memory layout (4GB)
+>>>
+>>>  0                                    3.5G            4G    4.5G
+>>>  |                                     |              |       |
+>>>  +-------------------------------------+--------------+-------+
+>>>  |                   MEM               |   IO (regs)  |  MEM  |
+>>>  +-------------------------------------+--------------+-------+
+>>>
+>>> Currently, the sparse memory section is 1GB.
+>>>
+>>> 3GB ddr: the 1.5 ~2G and 3.5 ~ 4G are holes.
+>>> 3GB ddr: the 3.5 ~ 4G and 4.5 ~ 5G are holes.
+>>>
+>>> This will alloc 1G/4K * (struct page) memory for mem_map array.
+>>>
+>>
+>> No, this is incorrect. Sparsemem vmemmap only allocates struct pages
+>> for memory regions that are actually populated.
+>>
+>> For instance, on the Foundation model with 4 GB of memory, you may see
+>> something like this in the boot log
+>>
+>> [    0.000000]     vmemmap : 0xffffffbdc0000000 - 0xffffffbfc0000000
+>> (     8 GB maximum)
+>> [    0.000000]               0xffffffbdc0000000 - 0xffffffbde2000000
+>> (   544 MB actual)
+>>
+>> but in reality, only the following regions have been allocated
+>>
+>> ---[ vmemmap start ]---
+>> 0xffffffbdc0000000-0xffffffbdc2000000          32M       RW NX SHD AF
+>>       BLK UXN MEM/NORMAL
+>> 0xffffffbde0000000-0xffffffbde2000000          32M       RW NX SHD AF
+>>       BLK UXN MEM/NORMAL
+>> ---[ vmemmap end ]---
+>>
+>> so only 64 MB is used to back 4 GB of RAM with struct pages, which is
+>> minimal. Moving to flatmem will not reduce the memory footprint at
+>> all.
+>
+> Yes,but the populate is section, which is 1GB. Take a look at the above
+> memory layout.
+>
+> The section 1G ~ 2G is a section. But 1.5G ~ 2G is a hole.
+>
+> The section 3G ~ 4G is a section. But 3.5G ~ 4G is a hole.
+>>>  0             1.5G    2G             3.5G            4G
+>>>  |              |      |               |              |
+>>>  +--------------+------+---------------+--------------+
+>>>  |    MEM       | hole |     MEM       |   IO (regs)  |
+>>>  +--------------+------+---------------+--------------+
+> The hole in 1.5G ~ 2G is also allocated mem-map array. And also with the 3.5G ~ 4G.
+>
 
-Hello,
+No, it is not. It may be covered by a section, but that does not mean
+sparsemem vmemmap will actually allocate backing for it. The
+granularity used by sparsemem vmemmap on a 4k pages kernel is 128 MB,
+due to the fact that the backing is performed at PMD granularity.
 
-why is hash == 0 skipped?
-
-Thanks.
+Please, could you share the contents of the vmemmap section in
+/sys/kernel/debug/kernel_page_tables of your system running with
+sparsemem vmemmap enabled? You will need to set CONFIG_ARM64_PTDUMP=y
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
