@@ -1,43 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 850B06B0005
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 06:28:30 -0400 (EDT)
-Received: by mail-wm0-f45.google.com with SMTP id a140so6665867wma.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 03:28:30 -0700 (PDT)
-Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
-        by mx.google.com with ESMTPS id 191si17642581wmk.101.2016.04.11.03.28.28
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E0746B0005
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 06:31:54 -0400 (EDT)
+Received: by mail-ig0-f178.google.com with SMTP id g8so68794077igr.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 03:31:54 -0700 (PDT)
+Received: from mail-io0-x235.google.com (mail-io0-x235.google.com. [2607:f8b0:4001:c06::235])
+        by mx.google.com with ESMTPS id 135si16597762ion.104.2016.04.11.03.31.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 03:28:29 -0700 (PDT)
-Received: by mail-wm0-x22b.google.com with SMTP id a140so6665265wma.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 03:28:28 -0700 (PDT)
-Date: Mon, 11 Apr 2016 13:28:26 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 07/10] huge mm: move_huge_pmd does not need new_vma
-Message-ID: <20160411102826.GA22996@node.shutemov.name>
-References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
- <alpine.LSU.2.11.1604051349410.5965@eggly.anvils>
+        Mon, 11 Apr 2016 03:31:53 -0700 (PDT)
+Received: by mail-io0-x235.google.com with SMTP id u185so35104001iod.3
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 03:31:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1604051349410.5965@eggly.anvils>
+In-Reply-To: <570B758E.7070005@hisilicon.com>
+References: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
+	<20160407142148.GI5657@arm.com>
+	<570B10B2.2000000@hisilicon.com>
+	<CAKv+Gu8iQ0NzLFWHy9Ggyv+jL-BqJ3x-KaRD1SZ1mU6yU3c7UQ@mail.gmail.com>
+	<570B5875.20804@hisilicon.com>
+	<CAKv+Gu9aqR=E3TmbPDFEUC+Q13bAJTU5wVTTHkOr6aX6BZ1OVA@mail.gmail.com>
+	<570B758E.7070005@hisilicon.com>
+Date: Mon, 11 Apr 2016 12:31:53 +0200
+Message-ID: <CAKv+Gu-cWWUi6fCiveqaZRVhGCpEasCLEs7wq6t+C-x65g4cgQ@mail.gmail.com>
+Subject: Re: [PATCH 1/2] arm64: mem-model: add flatmem model for arm64
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Chen Feng <puck.chen@hisilicon.com>, Mark Rutland <mark.rutland@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, mhocko@suse.com, Laura Abbott <labbott@redhat.com>, Dan Zhao <dan.zhao@hisilicon.com>, Yiping Xu <xuyiping@hisilicon.com>, puck.chen@foxmail.com, albert.lubing@hisilicon.com, Catalin Marinas <catalin.marinas@arm.com>, suzhuangluan@hisilicon.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxarm@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, David Rientjes <rientjes@google.com>, oliver.fu@hisilicon.com, Andrew Morton <akpm@linux-foundation.org>, robin.murphy@arm.com, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, saberlily.xia@hisilicon.com
 
-On Tue, Apr 05, 2016 at 01:51:15PM -0700, Hugh Dickins wrote:
-> Remove move_huge_pmd()'s redundant new_vma arg: all it was used for was
-> a VM_NOHUGEPAGE check on new_vma flags, but the new_vma is cloned from
-> the old vma, so a trans_huge_pmd in the new_vma will be as acceptable
-> as it was in the old vma, alignment and size permitting.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+On 11 April 2016 at 11:59, Chen Feng <puck.chen@hisilicon.com> wrote:
+> Hi Ard,
+>
+> On 2016/4/11 16:00, Ard Biesheuvel wrote:
+>> On 11 April 2016 at 09:55, Chen Feng <puck.chen@hisilicon.com> wrote:
+>>> Hi Ard,
+>>>
+>>> On 2016/4/11 15:35, Ard Biesheuvel wrote:
+>>>> On 11 April 2016 at 04:49, Chen Feng <puck.chen@hisilicon.com> wrote:
+>>>>> Hi will,
+>>>>> Thanks for review.
+>>>>>
+>>>>> On 2016/4/7 22:21, Will Deacon wrote:
+>>>>>> On Tue, Apr 05, 2016 at 04:22:51PM +0800, Chen Feng wrote:
+>>>>>>> We can reduce the memory allocated at mem-map
+>>>>>>> by flatmem.
+>>>>>>>
+>>>>>>> currently, the default memory-model in arm64 is
+>>>>>>> sparse memory. The mem-map array is not freed in
+>>>>>>> this scene. If the physical address is too long,
+>>>>>>> it will reserved too much memory for the mem-map
+>>>>>>> array.
+>>>>>>
+>>>>>> Can you elaborate a bit more on this, please? We use the vmemmap, so any
+>>>>>> spaces between memory banks only burns up virtual space. What exactly is
+>>>>>> the problem you're seeing that makes you want to use flatmem (which is
+>>>>>> probably unsuitable for the majority of arm64 machines).
+>>>>>>
+>>>>> The root cause we want to use flat-mem is the mam_map alloced in sparse-mem
+>>>>> is not freed.
+>>>>>
+>>>>> take a look at here:
+>>>>> arm64/mm/init.c
+>>>>> void __init mem_init(void)
+>>>>> {
+>>>>> #ifndef CONFIG_SPARSEMEM_VMEMMAP
+>>>>>         free_unused_memmap();
+>>>>> #endif
+>>>>> }
+>>>>>
+>>>>> Memory layout (3GB)
+>>>>>
+>>>>>  0             1.5G    2G             3.5G            4G
+>>>>>  |              |      |               |              |
+>>>>>  +--------------+------+---------------+--------------+
+>>>>>  |    MEM       | hole |     MEM       |   IO (regs)  |
+>>>>>  +--------------+------+---------------+--------------+
+>>>>>
+>>>>>
+>>>>> Memory layout (4GB)
+>>>>>
+>>>>>  0                                    3.5G            4G    4.5G
+>>>>>  |                                     |              |       |
+>>>>>  +-------------------------------------+--------------+-------+
+>>>>>  |                   MEM               |   IO (regs)  |  MEM  |
+>>>>>  +-------------------------------------+--------------+-------+
+>>>>>
+>>>>> Currently, the sparse memory section is 1GB.
+>>>>>
+>>>>> 3GB ddr: the 1.5 ~2G and 3.5 ~ 4G are holes.
+>>>>> 3GB ddr: the 3.5 ~ 4G and 4.5 ~ 5G are holes.
+>>>>>
+>>>>> This will alloc 1G/4K * (struct page) memory for mem_map array.
+>>>>>
+>>>>
+>>>> No, this is incorrect. Sparsemem vmemmap only allocates struct pages
+>>>> for memory regions that are actually populated.
+>>>>
+>>>> For instance, on the Foundation model with 4 GB of memory, you may see
+>>>> something like this in the boot log
+>>>>
+>>>> [    0.000000]     vmemmap : 0xffffffbdc0000000 - 0xffffffbfc0000000
+>>>> (     8 GB maximum)
+>>>> [    0.000000]               0xffffffbdc0000000 - 0xffffffbde2000000
+>>>> (   544 MB actual)
+>>>>
+>>>> but in reality, only the following regions have been allocated
+>>>>
+>>>> ---[ vmemmap start ]---
+>>>> 0xffffffbdc0000000-0xffffffbdc2000000          32M       RW NX SHD AF
+>>>>       BLK UXN MEM/NORMAL
+>>>> 0xffffffbde0000000-0xffffffbde2000000          32M       RW NX SHD AF
+>>>>       BLK UXN MEM/NORMAL
+>>>> ---[ vmemmap end ]---
+>>>>
+>>>> so only 64 MB is used to back 4 GB of RAM with struct pages, which is
+>>>> minimal. Moving to flatmem will not reduce the memory footprint at
+>>>> all.
+>>>
+>>> Yes,but the populate is section, which is 1GB. Take a look at the above
+>>> memory layout.
+>>>
+>>> The section 1G ~ 2G is a section. But 1.5G ~ 2G is a hole.
+>>>
+>>> The section 3G ~ 4G is a section. But 3.5G ~ 4G is a hole.
+>>>>>  0             1.5G    2G             3.5G            4G
+>>>>>  |              |      |               |              |
+>>>>>  +--------------+------+---------------+--------------+
+>>>>>  |    MEM       | hole |     MEM       |   IO (regs)  |
+>>>>>  +--------------+------+---------------+--------------+
+>>> The hole in 1.5G ~ 2G is also allocated mem-map array. And also with the 3.5G ~ 4G.
+>>>
+>>
+>> No, it is not. It may be covered by a section, but that does not mean
+>> sparsemem vmemmap will actually allocate backing for it. The
+>> granularity used by sparsemem vmemmap on a 4k pages kernel is 128 MB,
+>> due to the fact that the backing is performed at PMD granularity.
+>>
+>> Please, could you share the contents of the vmemmap section in
+>> /sys/kernel/debug/kernel_page_tables of your system running with
+>> sparsemem vmemmap enabled? You will need to set CONFIG_ARM64_PTDUMP=y
+>>
+>
+> Please see the pg-tables below.
+>
+>
+> With sparse and vmemmap enable.
+>
+> ---[ vmemmap start ]---
+> 0xffffffbdc0200000-0xffffffbdc4800000          70M     RW NX SHD AF    UXN MEM/NORMAL
+> ---[ vmemmap end ]---
+>
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+OK, I see what you mean now. Sorry for taking so long to catch up.
 
--- 
- Kirill A. Shutemov
+> The board is 4GB, and the memap is 70MB
+> 1G memory --- 14MB mem_map array.
+
+No, this is incorrect. 1 GB corresponds with 16 MB worth of struct
+pages assuming sizeof(struct page) == 64
+
+So you are losing 6 MB to rounding here, which I agree is significant.
+I wonder if it makes sense to use a lower value for SECTION_SIZE_BITS
+on 4k pages kernels, but perhaps we're better off asking the opinion
+of the other cc'ees.
+
+Thanks,
+Ard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
