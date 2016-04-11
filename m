@@ -1,52 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 50DF36B0005
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 12:20:55 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id zm5so124259513pac.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 09:20:55 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ur6si4403838pac.226.2016.04.11.09.20.54
-        for <linux-mm@kvack.org>;
-        Mon, 11 Apr 2016 09:20:54 -0700 (PDT)
-Date: Mon, 11 Apr 2016 12:20:47 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [Lsf] [Lsf-pc] [LSF/MM TOPIC] Generic page-pool recycle facility?
-Message-ID: <20160411162047.GJ2781@linux.intel.com>
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id AB88E6B0005
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 12:53:57 -0400 (EDT)
+Received: by mail-pf0-f172.google.com with SMTP id c20so127112022pfc.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 09:53:57 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id i5si4402994pfj.121.2016.04.11.09.53.56
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Apr 2016 09:53:56 -0700 (PDT)
+Received: by mail-pa0-x22d.google.com with SMTP id bx7so108427138pad.3
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 09:53:56 -0700 (PDT)
+Message-ID: <1460393634.6473.560.camel@edumazet-glaptop3.roam.corp.google.com>
+Subject: Re: [Lsf] [Lsf-pc] [LSF/MM TOPIC] Generic page-pool recycle
+ facility?
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Mon, 11 Apr 2016 09:53:54 -0700
+In-Reply-To: <20160411181907.15fdb8b9@redhat.com>
 References: <1460034425.20949.7.camel@HansenPartnership.com>
- <20160407161715.52635cac@redhat.com>
- <20160411085819.GE21128@suse.de>
- <20160411142639.1c5e520b@redhat.com>
- <20160411130826.GB32073@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160411130826.GB32073@techsingularity.net>
+	 <20160407161715.52635cac@redhat.com> <20160411085819.GE21128@suse.de>
+	 <20160411142639.1c5e520b@redhat.com>
+	 <20160411130826.GB32073@techsingularity.net>
+	 <20160411181907.15fdb8b9@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Brenden Blanco <bblanco@plumgrid.com>, lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Tom Herbert <tom@herbertland.com>, lsf-pc@lists.linux-foundation.org, Alexei Starovoitov <alexei.starovoitov@gmail.com>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, James Bottomley <James.Bottomley@HansenPartnership.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Brenden Blanco <bblanco@plumgrid.com>, lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Tom Herbert <tom@herbertland.com>, lsf-pc@lists.linux-foundation.org, Alexei Starovoitov <alexei.starovoitov@gmail.com>
 
-On Mon, Apr 11, 2016 at 02:08:27PM +0100, Mel Gorman wrote:
-> On Mon, Apr 11, 2016 at 02:26:39PM +0200, Jesper Dangaard Brouer wrote:
-> > On arch's like PowerPC, the DMA API is the bottleneck.  To workaround
-> > the cost of DMA calls, NIC driver alloc large order (compound) pages.
-> > (dma_map compound page, handout page-fragments for RX ring, and later
-> > dma_unmap when last RX page-fragments is seen).
-> 
-> So, IMO only holding onto the DMA pages is all that is justified but not a
-> recycle of order-0 pages built on top of the core allocator. For DMA pages,
-> it would take a bit of legwork but the per-cpu allocator could be split
-> and converted to hold arbitrary sized pages with a constructer/destructor
-> to do the DMA coherency step when pages are taken from or handed back to
-> the core allocator. I'm not volunteering to do that unfortunately but I
-> estimate it'd be a few days work unless it needs to be per-CPU and NUMA
-> aware in which case the memory footprint will be high.
+On Mon, 2016-04-11 at 18:19 +0200, Jesper Dangaard Brouer wrote:
 
-Have "we" tried to accelerate the DMA calls in PowerPC?  For example, it
-could hold onto a cache of recently used mappings and recycle them if that
-still works.  It trades off a bit of security (a device can continue to DMA
-after the memory should no longer be accessible to it) for speed, but then
-so does the per-driver hack of keeping pages around still mapped.
+> Drivers also do tricks where they fallback to smaller order pages. E.g.
+> lookup function mlx4_alloc_pages().  I've tried to simulate that
+> function here:
+> https://github.com/netoptimizer/prototype-kernel/blob/91d323fc53/kernel/mm/bench/page_bench01.c#L69
+
+We use order-0 pages on mlx4 at Google, as order-3 pages are very
+dangerous for some kind of attacks...
+
+An out of order TCP packet can hold an order-3 pages, while claiming to
+use 1.5 KBvia skb->truesize.
+
+order-0 only pages allow the page recycle trick used by Intel driver,
+and we hardly see any page allocations in typical workloads.
+
+While order-3 pages are 'nice' for friendly datacenter kind of traffic,
+they also are a higher risk on hosts connected to the wild Internet.
+
+Maybe I should upstream this patch ;)
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
