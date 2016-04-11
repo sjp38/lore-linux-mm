@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id A096C6B0264
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:14:13 -0400 (EDT)
-Received: by mail-wm0-f41.google.com with SMTP id u206so93151378wme.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 01:14:13 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id k81si3490317wma.66.2016.04.11.01.14.12
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id AEAB66B0266
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:14:17 -0400 (EDT)
+Received: by mail-wm0-f49.google.com with SMTP id f198so134579095wme.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 01:14:17 -0700 (PDT)
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id j9si17058536wma.95.2016.04.11.01.14.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Apr 2016 01:14:12 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Apr 2016 01:14:16 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 4419E98B84
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:14:12 +0000 (UTC)
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 60CC41C18A6
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 09:14:16 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 06/22] mm, page_alloc: Use __dec_zone_state for order-0 page allocation
-Date: Mon, 11 Apr 2016 09:13:29 +0100
-Message-Id: <1460362424-26369-7-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 07/22] mm, page_alloc: Avoid unnecessary zone lookups during pageblock operations
+Date: Mon, 11 Apr 2016 09:13:30 +0100
+Message-Id: <1460362424-26369-8-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460362424-26369-1-git-send-email-mgorman@techsingularity.net>
 References: <1460362424-26369-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,59 +23,90 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-__dec_zone_state is cheaper to use for removing an order-0 page as it
-has fewer conditions to check.
-
-The performance difference on a page allocator microbenchmark is;
-
-                                           4.6.0-rc2                  4.6.0-rc2
-                                       optiter-v1r11              decstat-v1r11
-Min      alloc-odr0-1               382.00 (  0.00%)           382.00 (  0.00%)
-Min      alloc-odr0-2               283.00 (  0.00%)           275.00 (  2.83%)
-Min      alloc-odr0-4               232.00 (  0.00%)           228.00 (  1.72%)
-Min      alloc-odr0-8               203.00 (  0.00%)           199.00 (  1.97%)
-Min      alloc-odr0-16              188.00 (  0.00%)           186.00 (  1.06%)
-Min      alloc-odr0-32              181.00 (  0.00%)           178.00 (  1.66%)
-Min      alloc-odr0-64              177.00 (  0.00%)           174.00 (  1.69%)
-Min      alloc-odr0-128             175.00 (  0.00%)           172.00 (  1.71%)
-Min      alloc-odr0-256             189.00 (  0.00%)           181.00 (  4.23%)
-Min      alloc-odr0-512             198.00 (  0.00%)           193.00 (  2.53%)
-Min      alloc-odr0-1024            203.00 (  0.00%)           200.00 (  1.48%)
-Min      alloc-odr0-2048            209.00 (  0.00%)           206.00 (  1.44%)
-Min      alloc-odr0-4096            214.00 (  0.00%)           212.00 (  0.93%)
-Min      alloc-odr0-8192            218.00 (  0.00%)           215.00 (  1.38%)
-Min      alloc-odr0-16384           219.00 (  0.00%)           215.00 (  1.83%)
+Pageblocks have an associated bitmap to store migrate types and whether
+the pageblock should be skipped during compaction. The bitmap may be
+associated with a memory section or a zone but the zone is looked up
+unconditionally. The compiler should optimise this away automatically so
+this is a cosmetic patch only in many cases.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/page_alloc.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/page_alloc.c | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e9acc0b0f787..ab16560b76e6 100644
+index ab16560b76e6..d00847bb1612 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2414,6 +2414,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
- 		else
- 			page = list_first_entry(list, struct page, lru);
+@@ -6759,23 +6759,23 @@ void *__init alloc_large_system_hash(const char *tablename,
+ }
  
-+		__dec_zone_state(zone, NR_ALLOC_BATCH);
- 		list_del(&page->lru);
- 		pcp->count--;
- 	} else {
-@@ -2435,11 +2436,11 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
- 		spin_unlock(&zone->lock);
- 		if (!page)
- 			goto failed;
-+		__mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
- 		__mod_zone_freepage_state(zone, -(1 << order),
- 					  get_pcppage_migratetype(page));
- 	}
+ /* Return a pointer to the bitmap storing bits affecting a block of pages */
+-static inline unsigned long *get_pageblock_bitmap(struct zone *zone,
++static inline unsigned long *get_pageblock_bitmap(struct page *page,
+ 							unsigned long pfn)
+ {
+ #ifdef CONFIG_SPARSEMEM
+ 	return __pfn_to_section(pfn)->pageblock_flags;
+ #else
+-	return zone->pageblock_flags;
++	return page_zone(page)->pageblock_flags;
+ #endif /* CONFIG_SPARSEMEM */
+ }
  
--	__mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
- 	if (atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]) <= 0 &&
- 	    !test_bit(ZONE_FAIR_DEPLETED, &zone->flags))
- 		set_bit(ZONE_FAIR_DEPLETED, &zone->flags);
+-static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
++static inline int pfn_to_bitidx(struct page *page, unsigned long pfn)
+ {
+ #ifdef CONFIG_SPARSEMEM
+ 	pfn &= (PAGES_PER_SECTION-1);
+ 	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+ #else
+-	pfn = pfn - round_down(zone->zone_start_pfn, pageblock_nr_pages);
++	pfn = pfn - round_down(page_zone(page)->zone_start_pfn, pageblock_nr_pages);
+ 	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+ #endif /* CONFIG_SPARSEMEM */
+ }
+@@ -6793,14 +6793,12 @@ unsigned long get_pfnblock_flags_mask(struct page *page, unsigned long pfn,
+ 					unsigned long end_bitidx,
+ 					unsigned long mask)
+ {
+-	struct zone *zone;
+ 	unsigned long *bitmap;
+ 	unsigned long bitidx, word_bitidx;
+ 	unsigned long word;
+ 
+-	zone = page_zone(page);
+-	bitmap = get_pageblock_bitmap(zone, pfn);
+-	bitidx = pfn_to_bitidx(zone, pfn);
++	bitmap = get_pageblock_bitmap(page, pfn);
++	bitidx = pfn_to_bitidx(page, pfn);
+ 	word_bitidx = bitidx / BITS_PER_LONG;
+ 	bitidx &= (BITS_PER_LONG-1);
+ 
+@@ -6822,20 +6820,18 @@ void set_pfnblock_flags_mask(struct page *page, unsigned long flags,
+ 					unsigned long end_bitidx,
+ 					unsigned long mask)
+ {
+-	struct zone *zone;
+ 	unsigned long *bitmap;
+ 	unsigned long bitidx, word_bitidx;
+ 	unsigned long old_word, word;
+ 
+ 	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
+ 
+-	zone = page_zone(page);
+-	bitmap = get_pageblock_bitmap(zone, pfn);
+-	bitidx = pfn_to_bitidx(zone, pfn);
++	bitmap = get_pageblock_bitmap(page, pfn);
++	bitidx = pfn_to_bitidx(page, pfn);
+ 	word_bitidx = bitidx / BITS_PER_LONG;
+ 	bitidx &= (BITS_PER_LONG-1);
+ 
+-	VM_BUG_ON_PAGE(!zone_spans_pfn(zone, pfn), page);
++	VM_BUG_ON_PAGE(!zone_spans_pfn(page_zone(page), pfn), page);
+ 
+ 	bitidx += end_bitidx;
+ 	mask <<= (BITS_PER_LONG - bitidx - 1);
 -- 
 2.6.4
 
