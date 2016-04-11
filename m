@@ -1,58 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 95670828DF
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:08:43 -0400 (EDT)
-Received: by mail-wm0-f54.google.com with SMTP id a140so7978726wma.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:08:43 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id c2si17800129wma.96.2016.04.11.04.08.32
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C313A828DF
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:08:45 -0400 (EDT)
+Received: by mail-wm0-f42.google.com with SMTP id a140so7979951wma.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:08:45 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id wl1si28213761wjc.217.2016.04.11.04.08.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 04:08:32 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id a140so20428382wma.2
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:08:32 -0700 (PDT)
+        Mon, 11 Apr 2016 04:08:33 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id y144so20346836wmd.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:08:33 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 09/19] parisc: get rid of superfluous __GFP_REPEAT
-Date: Mon, 11 Apr 2016 13:08:02 +0200
-Message-Id: <1460372892-8157-10-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 10/19] score: get rid of superfluous __GFP_REPEAT
+Date: Mon, 11 Apr 2016 13:08:03 +0200
+Message-Id: <1460372892-8157-11-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
 References: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, linux-arch@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Chen Liqin <liqin.linux@gmail.com>, Lennox Wu <lennox.wu@gmail.com>, linux-arch@vger.kernel.org
 
 From: Michal Hocko <mhocko@suse.com>
 
 __GFP_REPEAT has a rather weak semantic but since it has been introduced
 around 2.6.12 it has been ignored for low order allocations.
 
-pmd_alloc_one allocate PMD_ORDER which is 1. This means that this flag
-has never been actually useful here because it has always been used only
-for PAGE_ALLOC_COSTLY requests.
+pte_alloc_one{_kernel} allocate PTE_ORDER which is 0. This means that
+this flag has never been actually useful here because it has always been
+used only for PAGE_ALLOC_COSTLY requests.
 
-Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>
-Cc: Helge Deller <deller@gmx.de>
+Cc: Chen Liqin <liqin.linux@gmail.com>
+Cc: Lennox Wu <lennox.wu@gmail.com>
 Cc: linux-arch@vger.kernel.org
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- arch/parisc/include/asm/pgalloc.h | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ arch/score/include/asm/pgalloc.h | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-diff --git a/arch/parisc/include/asm/pgalloc.h b/arch/parisc/include/asm/pgalloc.h
-index 52c3defb40c9..f08dda3f0995 100644
---- a/arch/parisc/include/asm/pgalloc.h
-+++ b/arch/parisc/include/asm/pgalloc.h
-@@ -63,8 +63,7 @@ static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmd)
- 
- static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+diff --git a/arch/score/include/asm/pgalloc.h b/arch/score/include/asm/pgalloc.h
+index 2e067657db98..49b012d78c1a 100644
+--- a/arch/score/include/asm/pgalloc.h
++++ b/arch/score/include/asm/pgalloc.h
+@@ -42,8 +42,7 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
  {
--	pmd_t *pmd = (pmd_t *)__get_free_pages(GFP_KERNEL|__GFP_REPEAT,
--					       PMD_ORDER);
-+	pmd_t *pmd = (pmd_t *)__get_free_pages(GFP_KERNEL, PMD_ORDER);
- 	if (pmd)
- 		memset(pmd, 0, PAGE_SIZE<<PMD_ORDER);
- 	return pmd;
+ 	pte_t *pte;
+ 
+-	pte = (pte_t *) __get_free_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO,
+-					PTE_ORDER);
++	pte = (pte_t *) __get_free_pages(GFP_KERNEL|__GFP_ZERO, PTE_ORDER);
+ 
+ 	return pte;
+ }
+@@ -53,7 +52,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
+ {
+ 	struct page *pte;
+ 
+-	pte = alloc_pages(GFP_KERNEL | __GFP_REPEAT, PTE_ORDER);
++	pte = alloc_pages(GFP_KERNEL, PTE_ORDER);
+ 	if (!pte)
+ 		return NULL;
+ 	clear_highpage(pte);
 -- 
 2.8.0.rc3
 
