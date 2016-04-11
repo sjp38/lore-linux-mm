@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id BE5CD6B0275
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:15:49 -0400 (EDT)
-Received: by mail-wm0-f50.google.com with SMTP id n3so93430263wmn.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 01:15:49 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id d203si17074928wmf.56.2016.04.11.01.15.48
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 08EB16B0262
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:15:54 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id f198so134635464wme.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 01:15:53 -0700 (PDT)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id 195si17093787wmh.23.2016.04.11.01.15.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 01:15:48 -0700 (PDT)
+        Mon, 11 Apr 2016 01:15:52 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 73C2A1C149D
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 09:15:48 +0100 (IST)
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id AF0561C17BD
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 09:15:52 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 16/22] mm, page_alloc: Move __GFP_HARDWALL modifications out of the fastpath
-Date: Mon, 11 Apr 2016 09:13:39 +0100
-Message-Id: <1460362424-26369-17-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 17/22] mm, page_alloc: Reduce cost of fair zone allocation policy retry
+Date: Mon, 11 Apr 2016 09:13:40 +0100
+Message-Id: <1460362424-26369-18-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460362424-26369-1-git-send-email-mgorman@techsingularity.net>
 References: <1460362424-26369-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,56 +23,102 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-__GFP_HARDWALL only has meaning in the context of cpusets but the fast path
-always applies the flag on the first attempt. Move the manipulations into
-the cpuset paths where they will be masked by a static branch in the common
-case.
+The fair zone allocation policy is not without cost but it can be reduced
+slightly. This patch removes an unnecessary local variable, checks the
+likely conditions of the fair zone policy first, uses a bool instead of
+a flags check and falls through when a remote node is encountered instead
+of doing a full restart. The benefit is marginal but it's there
+
+                                           4.6.0-rc2                  4.6.0-rc2
+                                       decstat-v1r11              optfair-v1r12
+Min      alloc-odr0-1               382.00 (  0.00%)           370.00 (  3.14%)
+Min      alloc-odr0-2               275.00 (  0.00%)           271.00 (  1.45%)
+Min      alloc-odr0-4               228.00 (  0.00%)           227.00 (  0.44%)
+Min      alloc-odr0-8               199.00 (  0.00%)           197.00 (  1.01%)
+Min      alloc-odr0-16              186.00 (  0.00%)           182.00 (  2.15%)
+Min      alloc-odr0-32              178.00 (  0.00%)           175.00 (  1.69%)
+Min      alloc-odr0-64              174.00 (  0.00%)           171.00 (  1.72%)
+Min      alloc-odr0-128             172.00 (  0.00%)           169.00 (  1.74%)
+Min      alloc-odr0-256             181.00 (  0.00%)           179.00 (  1.10%)
+Min      alloc-odr0-512             193.00 (  0.00%)           192.00 (  0.52%)
+Min      alloc-odr0-1024            200.00 (  0.00%)           201.00 ( -0.50%)
+Min      alloc-odr0-2048            206.00 (  0.00%)           205.00 (  0.49%)
+Min      alloc-odr0-4096            212.00 (  0.00%)           211.00 (  0.47%)
+Min      alloc-odr0-8192            215.00 (  0.00%)           214.00 (  0.47%)
+Min      alloc-odr0-16384           215.00 (  0.00%)           214.00 (  0.47%)
+
+One of the most important benefits -- avoiding a second search when
+falling back to another node is not triggered by this particular test so
+the benefit for some corner cases is understated.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/page_alloc.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ mm/page_alloc.c | 32 ++++++++++++++------------------
+ 1 file changed, 14 insertions(+), 18 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 73dc0413e997..219e0d05ed88 100644
+index 219e0d05ed88..25a8ab07b287 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3353,7 +3353,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 	struct page *page;
- 	unsigned int cpuset_mems_cookie;
- 	unsigned int alloc_flags = ALLOC_WMARK_LOW|ALLOC_FAIR;
--	gfp_t alloc_mask; /* The gfp_t that was actually used for allocation */
-+	gfp_t alloc_mask = gfp_mask; /* The gfp_t that was actually used for allocation */
- 	struct alloc_context ac = {
- 		.high_zoneidx = gfp_zone(gfp_mask),
- 		.zonelist = zonelist,
-@@ -3362,6 +3362,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 	};
+@@ -2675,12 +2675,10 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ {
+ 	struct zoneref *z;
+ 	struct zone *zone;
+-	bool fair_skipped;
+-	bool zonelist_rescan;
++	bool fair_skipped = false;
++	bool apply_fair = (alloc_flags & ALLOC_FAIR);
  
- 	if (cpusets_enabled()) {
-+		alloc_mask |= __GFP_HARDWALL;
- 		alloc_flags |= ALLOC_CPUSET;
- 		if (!ac.nodemask)
- 			ac.nodemask = &cpuset_current_mems_allowed;
-@@ -3391,7 +3392,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 	ac.classzone_idx = zonelist_zone_idx(preferred_zoneref);
- 
- 	/* First allocation attempt */
--	alloc_mask = gfp_mask|__GFP_HARDWALL;
- 	page = get_page_from_freelist(alloc_mask, order, alloc_flags, &ac);
- 	if (unlikely(!page)) {
+ zonelist_scan:
+-	zonelist_rescan = false;
+-
+ 	/*
+ 	 * Scan zonelist, looking for a zone with enough free.
+ 	 * See also __cpuset_node_allowed() comment in kernel/cpuset.c.
+@@ -2700,13 +2698,16 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 		 * page was allocated in should have no effect on the
+ 		 * time the page has in memory before being reclaimed.
+ 		 */
+-		if (alloc_flags & ALLOC_FAIR) {
+-			if (!zone_local(ac->preferred_zone, zone))
+-				break;
++		if (apply_fair) {
+ 			if (test_bit(ZONE_FAIR_DEPLETED, &zone->flags)) {
+ 				fair_skipped = true;
+ 				continue;
+ 			}
++			if (!zone_local(ac->preferred_zone, zone)) {
++				if (fair_skipped)
++					goto reset_fair;
++				apply_fair = false;
++			}
+ 		}
  		/*
-@@ -3417,8 +3417,10 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 	 * the mask is being updated. If a page allocation is about to fail,
- 	 * check if the cpuset changed during allocation and if so, retry.
+ 		 * When allocating a page cache page for writing, we
+@@ -2795,18 +2796,13 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 	 * include remote zones now, before entering the slowpath and waking
+ 	 * kswapd: prefer spilling to a remote zone over swapping locally.
  	 */
--	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
-+	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie))) {
-+		alloc_mask = gfp_mask;
- 		goto retry_cpuset;
+-	if (alloc_flags & ALLOC_FAIR) {
+-		alloc_flags &= ~ALLOC_FAIR;
+-		if (fair_skipped) {
+-			zonelist_rescan = true;
+-			reset_alloc_batches(ac->preferred_zone);
+-		}
+-		if (nr_online_nodes > 1)
+-			zonelist_rescan = true;
+-	}
+-
+-	if (zonelist_rescan)
++	if (fair_skipped) {
++reset_fair:
++		apply_fair = false;
++		fair_skipped = false;
++		reset_alloc_batches(ac->preferred_zone);
+ 		goto zonelist_scan;
 +	}
  
- 	return page;
+ 	return NULL;
  }
 -- 
 2.6.4
