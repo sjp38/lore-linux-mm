@@ -1,56 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id D3E156B0253
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:02:23 -0400 (EDT)
-Received: by mail-wm0-f53.google.com with SMTP id l6so140656692wml.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:02:23 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t187si17795804wmg.2.2016.04.11.04.02.22
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id DF7796B0253
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:04:50 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id ot11so36221122pab.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 04:04:50 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id g24si2981065pfj.91.2016.04.11.04.04.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Apr 2016 04:02:22 -0700 (PDT)
-Subject: Re: [PATCH 05/11] mm, compaction: distinguish COMPACT_DEFERRED from
- COMPACT_SKIPPED
-References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
- <1459855533-4600-6-git-send-email-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <570B843C.8050608@suse.cz>
-Date: Mon, 11 Apr 2016 13:02:20 +0200
+        Mon, 11 Apr 2016 04:04:50 -0700 (PDT)
+Subject: Re: [PATCH 1/2] arm64: mem-model: add flatmem model for arm64
+References: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
+ <20160407142148.GI5657@arm.com> <570B10B2.2000000@hisilicon.com>
+ <CAKv+Gu8iQ0NzLFWHy9Ggyv+jL-BqJ3x-KaRD1SZ1mU6yU3c7UQ@mail.gmail.com>
+ <570B5875.20804@hisilicon.com>
+ <CAKv+Gu9aqR=E3TmbPDFEUC+Q13bAJTU5wVTTHkOr6aX6BZ1OVA@mail.gmail.com>
+ <570B758E.7070005@hisilicon.com>
+ <CAKv+Gu-cWWUi6fCiveqaZRVhGCpEasCLEs7wq6t+C-x65g4cgQ@mail.gmail.com>
+ <20160411104013.GG15729@arm.com>
+From: Chen Feng <puck.chen@hisilicon.com>
+Message-ID: <570B8310.40103@hisilicon.com>
+Date: Mon, 11 Apr 2016 18:57:20 +0800
 MIME-Version: 1.0
-In-Reply-To: <1459855533-4600-6-git-send-email-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20160411104013.GG15729@arm.com>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Mark Rutland <mark.rutland@arm.com>, mhocko@suse.com, Laura Abbott <labbott@redhat.com>, Dan Zhao <dan.zhao@hisilicon.com>, Yiping Xu <xuyiping@hisilicon.com>, puck.chen@foxmail.com, albert.lubing@hisilicon.com, Catalin Marinas <catalin.marinas@arm.com>, suzhuangluan@hisilicon.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxarm@huawei.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, David Rientjes <rientjes@google.com>, oliver.fu@hisilicon.com, Andrew Morton <akpm@linux-foundation.org>, robin.murphy@arm.com, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, saberlily.xia@hisilicon.com
 
-On 04/05/2016 01:25 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
->
-> try_to_compact_pages can currently return COMPACT_SKIPPED even when the
-> compaction is defered for some zone just because zone DMA is skipped
-> in 99% of cases due to watermark checks. This makes COMPACT_DEFERRED
-> basically unusable for the page allocator as a feedback mechanism.
->
-> Make sure we distinguish those two states properly and switch their
-> ordering in the enum. This would mean that the COMPACT_SKIPPED will be
-> returned only when all eligible zones are skipped.
->
-> This shouldn't introduce any functional change.
+Hi Will,
 
-Hmm, really? __alloc_pages_direct_compact() does distinguish 
-COMPACT_DEFERRED, and sets *deferred compaction, so ultimately this is 
-some change for THP allocations?
+On 2016/4/11 18:40, Will Deacon wrote:
+> On Mon, Apr 11, 2016 at 12:31:53PM +0200, Ard Biesheuvel wrote:
+>> On 11 April 2016 at 11:59, Chen Feng <puck.chen@hisilicon.com> wrote:
+>>> Please see the pg-tables below.
+>>>
+>>>
+>>> With sparse and vmemmap enable.
+>>>
+>>> ---[ vmemmap start ]---
+>>> 0xffffffbdc0200000-0xffffffbdc4800000          70M     RW NX SHD AF    UXN MEM/NORMAL
+>>> ---[ vmemmap end ]---
+>>>
+>>
+>> OK, I see what you mean now. Sorry for taking so long to catch up.
+>>
+>>> The board is 4GB, and the memap is 70MB
+>>> 1G memory --- 14MB mem_map array.
+>>
+>> No, this is incorrect. 1 GB corresponds with 16 MB worth of struct
+>> pages assuming sizeof(struct page) == 64
+>>
+>> So you are losing 6 MB to rounding here, which I agree is significant.
+>> I wonder if it makes sense to use a lower value for SECTION_SIZE_BITS
+>> on 4k pages kernels, but perhaps we're better off asking the opinion
+>> of the other cc'ees.
+> 
+> You need to be really careful making SECTION_SIZE_BITS smaller because
+> it has a direct correlation on the use of page->flags and you can end up
+> running out of bits fairly easily.
 
-Also there's no mention of COMPACT_INACTIVE in the changelog (which 
-indeed isn't functional change, but might surprise somebody).
+Yes, making SECTION_SIZE_BITS smaller can solve the current situation.
 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+But if the phys-addr is 64GB, but only 4GB ddr is the valid address. And the
 
-Patch itself is OK.
+holes are not always 512MB.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+But, can you tell us why *smaller SIZE makes running out of bits fairly easily*?
+
+And how about the flat-mem model?
+
+> 
+> Will
+> 
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
