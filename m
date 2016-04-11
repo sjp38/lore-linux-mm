@@ -1,77 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id DF8526B0260
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:46:32 -0400 (EDT)
-Received: by mail-pf0-f175.google.com with SMTP id 184so123728990pff.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 05:46:32 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id vb6si3497409pac.158.2016.04.11.05.46.32
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 9331C6B0261
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:46:56 -0400 (EDT)
+Received: by mail-wm0-f43.google.com with SMTP id v188so84845904wme.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 05:46:56 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id n9si27678769wjz.199.2016.04.11.05.46.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 05:46:32 -0700 (PDT)
-Received: by mail-pa0-x22d.google.com with SMTP id bx7so104920660pad.3
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 05:46:32 -0700 (PDT)
-Subject: Re: [PATCH 03/10] mm/hugetlb: Protect follow_huge_(pud|pgd) functions
- from race
-References: <1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com>
- <1460007464-26726-4-git-send-email-khandual@linux.vnet.ibm.com>
- <570627C9.5030105@gmail.com> <570B3897.6040804@linux.vnet.ibm.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <570B9C93.5050507@gmail.com>
-Date: Mon, 11 Apr 2016 22:46:11 +1000
+        Mon, 11 Apr 2016 05:46:55 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id a140so21033934wma.2
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 05:46:55 -0700 (PDT)
+Date: Mon, 11 Apr 2016 14:46:53 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 06/11] mm, compaction: distinguish between full and
+ partial COMPACT_COMPLETE
+Message-ID: <20160411124653.GG23157@dhcp22.suse.cz>
+References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
+ <1459855533-4600-7-git-send-email-mhocko@kernel.org>
+ <570B9432.9090600@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <570B3897.6040804@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <570B9432.9090600@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
-Cc: hughd@google.com, dave.hansen@intel.com, aneesh.kumar@linux.vnet.ibm.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-
-
-On 11/04/16 15:39, Anshuman Khandual wrote:
-> On 04/07/2016 02:56 PM, Balbir Singh wrote:
->>
->> On 07/04/16 15:37, Anshuman Khandual wrote:
->>>> follow_huge_(pmd|pud|pgd) functions are used to walk the page table and
->>>> fetch the page struct during 'follow_page_mask' call. There are possible
->>>> race conditions faced by these functions which arise out of simultaneous
->>>> calls of move_pages() and freeing of huge pages. This was fixed partly
->>>> by the previous commit e66f17ff7177 ("mm/hugetlb: take page table lock
->>>> in follow_huge_pmd()") for only PMD based huge pages.
->>>>
->>>> After implementing similar logic, functions like follow_huge_(pud|pgd)
->>>> are now safe from above mentioned race conditions and also can support
->>>> FOLL_GET. Generic version of the function 'follow_huge_addr' has been
->>>> left as it is and its upto the architecture to decide on it.
->>>>
->>>> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
->>>> ---
->>>>  include/linux/mm.h | 33 +++++++++++++++++++++++++++
->>>>  mm/hugetlb.c       | 67 ++++++++++++++++++++++++++++++++++++++++++++++--------
->>>>  2 files changed, 91 insertions(+), 9 deletions(-)
->>>>
->>>> diff --git a/include/linux/mm.h b/include/linux/mm.h
->>>> index ffcff53..734182a 100644
->>>> --- a/include/linux/mm.h
->>>> +++ b/include/linux/mm.h
->>>> @@ -1751,6 +1751,19 @@ static inline void pgtable_page_dtor(struct page *page)
->>>>  		NULL: pte_offset_kernel(pmd, address))
->>>>  
->>>>  #if USE_SPLIT_PMD_PTLOCKS
->> Do we still use USE_SPLIT_PMD_PTLOCKS? I think its good enough. with pgd's
->> we are likely to use the same locks and the split nature may not be really
->> split.
->>
+On Mon 11-04-16 14:10:26, Vlastimil Babka wrote:
+> On 04/05/2016 01:25 PM, Michal Hocko wrote:
+> >From: Michal Hocko <mhocko@suse.com>
+> >
+> >COMPACT_COMPLETE now means that compaction and free scanner met. This is
+> >not very useful information if somebody just wants to use this feedback
+> >and make any decisions based on that. The current caller might be a poor
+> >guy who just happened to scan tiny portion of the zone and that could be
+> >the reason no suitable pages were compacted. Make sure we distinguish
+> >the full and partial zone walks.
+> >
+> >Consumers should treat COMPACT_PARTIAL_SKIPPED as a potential success
+> >and be optimistic in retrying.
+> >
+> >The existing users of COMPACT_COMPLETE are conservatively changed to
+> >use COMPACT_PARTIAL_SKIPPED as well but some of them should be probably
+> >reconsidered and only defer the compaction only for COMPACT_COMPLETE
+> >with the new semantic.
+> >
+> >This patch shouldn't introduce any functional changes.
+> >
+> >Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> Sorry Balbir, did not get what you asked. Can you please elaborate on
-> this ?
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+Thanks!
+
+> With some notes:
 > 
+> >@@ -1463,6 +1466,10 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+> >  		zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
+> >  		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
+> >  	}
+> >+
+> >+	if (cc->migrate_pfn == start_pfn)
+> >+		cc->whole_zone = true;
+> >+
+> 
+> This assumes that migrate scanner at initial position implies also free
+> scanner at the initial position. That should be true, because migration
+> scanner is the first to run. But getting the zone->compact_cached_*_pfn is
+> racy. Worse, zone->compact_cached_migrate_pfn is array distinguishing sync
+> and async compaction, so it's possible that async compaction has advanced
+> both its own migrate scanner cached position, and the shared free scanner
+> cached position, and then sync compaction starts migrate scanner at
+> start_pfn, but free scanner has already advanced.
 
-What I meant is that do we need SPLIT_PUD_PTLOCKS for example? I don't think we do
+OK, I see. The whole thing smelled racy but I thought it wouldn't be
+such a big deal. Even if we raced then only a marginal part of the zone
+wouldn't be scanned, right? Or is it possible that free_pfn would appear
+in the middle of the zone because of the race?
 
-Balbir
+> So you might still see a false positive COMPACT_COMPLETE, just less
+> frequently and probably with much lower impact.
+> But if you need to be truly reliable, check also that cc->free_pfn ==
+> round_down(end_pfn - 1, pageblock_nr_pages)
+
+I do not think we need the precise check if the race window (in the
+skipped zone range) is always small.
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
