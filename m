@@ -1,48 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 162A16B007E
-	for <linux-mm@kvack.org>; Sun, 10 Apr 2016 14:45:52 -0400 (EDT)
-Received: by mail-wm0-f49.google.com with SMTP id v188so63412264wme.1
-        for <linux-mm@kvack.org>; Sun, 10 Apr 2016 11:45:52 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id j143si14252090wmd.65.2016.04.10.11.45.50
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 832376B0005
+	for <linux-mm@kvack.org>; Sun, 10 Apr 2016 21:16:40 -0400 (EDT)
+Received: by mail-oi0-f51.google.com with SMTP id p188so190740840oih.2
+        for <linux-mm@kvack.org>; Sun, 10 Apr 2016 18:16:40 -0700 (PDT)
+Received: from smtpbg65.qq.com (smtpbg65.qq.com. [103.7.28.233])
+        by mx.google.com with ESMTPS id f8si6110314obh.105.2016.04.10.18.16.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Apr 2016 11:45:50 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id l6so16545021wml.3
-        for <linux-mm@kvack.org>; Sun, 10 Apr 2016 11:45:50 -0700 (PDT)
-Subject: Re: [Lsf] [Lsf-pc] [LSF/MM TOPIC] Generic page-pool recycle facility?
-References: <1460034425.20949.7.camel@HansenPartnership.com>
- <20160407161715.52635cac@redhat.com> <20160407143854.GA7685@infradead.org>
- <570678B7.7010802@sandisk.com>
-From: Sagi Grimberg <sagi@grimberg.me>
-Message-ID: <570A9F5B.5010600@grimberg.me>
-Date: Sun, 10 Apr 2016 21:45:47 +0300
-MIME-Version: 1.0
-In-Reply-To: <570678B7.7010802@sandisk.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 10 Apr 2016 18:16:39 -0700 (PDT)
+From: "=?ISO-8859-1?B?TWluZyBMaQ==?=" <mingli199x@qq.com>
+Subject: [PATCH] mm: put activate_page_pvecs and others pagevec together 
+Mime-Version: 1.0
+Content-Type: text/plain;
+	charset="ISO-8859-1"
+Content-Transfer-Encoding: base64
+Date: Mon, 11 Apr 2016 09:16:29 +0800
+Message-ID: <tencent_396EED8911B375260606A8A3@qq.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <bart.vanassche@sandisk.com>, Christoph Hellwig <hch@infradead.org>, Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: "lsf@lists.linux-foundation.org" <lsf@lists.linux-foundation.org>, Tom Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-mm <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, Alexei Starovoitov <alexei.starovoitov@gmail.com>
+To: =?ISO-8859-1?B?QW5kcmV3IE1vcnRvbg==?= <akpm@linux-foundation.org>, =?ISO-8859-1?B?TWljaGFsIEhvY2tv?= <mhocko@suse.com>, =?ISO-8859-1?B?S2lyaWxsIEEuIFNodXRlbW92?= <kirill.shutemov@linux.intel.com>, =?ISO-8859-1?B?RGF2aWQgUmllbnRqZXM=?= <rientjes@google.com>, =?ISO-8859-1?B?Vmxhc3RpbWlsIEJhYmth?= <Babkavbabka@suse.cz>, =?ISO-8859-1?B?VGVqdW4gSGVv?= <tj@kernel.org>
+Cc: =?ISO-8859-1?B?bGludXgtbW0=?= <linux-mm@kvack.org>, =?ISO-8859-1?B?bGludXgta2VybmVs?= <linux-kernel@vger.kernel.org>
+
+aGksIEkgaGF2ZSBiZWVuIHN0dWR5aW5nIG1tIGFuZCBsZWFybiBhZ2V4eHgsIGF0IHRoZSB2
+ZXJ5IGJlZ2lubmluZyBJIGZlbHQgY29uZnVzZSB3aGVuIEkgc2F3IGFjdGl2YXRleHh4LCBh
+ZnRlciBJIGxlYXJuZWQgdGhlIHdob2xlIHRoaW5nIEkgdW5kZXJzdG9vZCB0aGF0IGl0J3Mg
+c2ltaWxhciB3aXRoIG90aGVyIHBhZ2V2ZWMncyBmdW5jdGlvbi4gQ2FuIHdlIHB1dCBpdCB3
+aXRoIG90aGVyIHBhZ2V2ZWMgdG9nZXRoZXI/IEkgdGhpbmsgaXQgaXMgZWFzaWVyIGZvciBu
+ZXdiaWVzIHRvIHJlYWQgYW5kIHVuZGVyc3RhbmQuCgpyZWdhcmRzLAoKCgpTaWduZWQtb2Zm
+LWJ5OiBNaW5nIExpIDxtaW5nbGkxOTl4QHFxLmNvbT4KCi0tLQptbS9zd2FwLmMgfCA1ICsr
+Ky0tCjEgZmlsZSBjaGFuZ2VkLCAzIGluc2VydGlvbnMoKyksIDIgZGVsZXRpb25zKC0pCgpk
+aWZmIC0tZ2l0IGEvbW0vc3dhcC5jIGIvbW0vc3dhcC5jCmluZGV4IDA5ZmU1ZTkuLjVjOTkw
+MWMgMTAwNjQ0Ci0tLSBhL21tL3N3YXAuYworKysgYi9tbS9zd2FwLmMKQEAgLTQ3LDYgKzQ3
+LDkgQEAgc3RhdGljIERFRklORV9QRVJfQ1BVKHN0cnVjdCBwYWdldmVjLCBscnVfYWRkX3B2
+ZWMpOwpzdGF0aWMgREVGSU5FX1BFUl9DUFUoc3RydWN0IHBhZ2V2ZWMsIGxydV9yb3RhdGVf
+cHZlY3MpOwpzdGF0aWMgREVGSU5FX1BFUl9DUFUoc3RydWN0IHBhZ2V2ZWMsIGxydV9kZWFj
+dGl2YXRlX2ZpbGVfcHZlY3MpOwpzdGF0aWMgREVGSU5FX1BFUl9DUFUoc3RydWN0IHBhZ2V2
+ZWMsIGxydV9kZWFjdGl2YXRlX3B2ZWNzKTsKKyNpZmRlZiBDT05GSUdfU01QCitzdGF0aWMg
+REVGSU5FX1BFUl9DUFUoc3RydWN0IHBhZ2V2ZWMsIGFjdGl2YXRlX3BhZ2VfcHZlY3MpOwor
+I2VuZGlmCgovKgoqIFRoaXMgcGF0aCBhbG1vc3QgbmV2ZXIgaGFwcGVucyBmb3IgVk0gYWN0
+aXZpdHkgLSBwYWdlcyBhcmUgbm9ybWFsbHkKQEAgLTI3NCw4ICsyNzcsNiBAQCBzdGF0aWMg
+dm9pZCBfX2FjdGl2YXRlX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UsIHN0cnVjdCBscnV2ZWMg
+KmxydXZlYywKfQoKI2lmZGVmIENPTkZJR19TTVAKLXN0YXRpYyBERUZJTkVfUEVSX0NQVShz
+dHJ1Y3QgcGFnZXZlYywgYWN0aXZhdGVfcGFnZV9wdmVjcyk7Ci0Kc3RhdGljIHZvaWQgYWN0
+aXZhdGVfcGFnZV9kcmFpbihpbnQgY3B1KQp7CnN0cnVjdCBwYWdldmVjICpwdmVjID0gJnBl
+cl9jcHUoYWN0aXZhdGVfcGFnZV9wdmVjcywgY3B1KTsKLS0gCjEuOC4zLjE=
 
 
->> This is also very interesting for storage targets, which face the same
->> issue.  SCST has a mode where it caches some fully constructed SGLs,
->> which is probably very similar to what NICs want to do.
->
-> I think a cached allocator for page sets + the scatterlists that
-> describe these page sets would not only be useful for SCSI target
-> implementations but also for the Linux SCSI initiator. Today the scsi-mq
-> code reserves space in each scsi_cmnd for a scatterlist of
-> SCSI_MAX_SG_SEGMENTS. If scatterlists would be cached together with page
-> sets less memory would be needed per scsi_cmnd.
-
-If we go down this road how about also attaching some driver opaques
-to the page sets?
-
-I know of some drivers that can make good use of those ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
