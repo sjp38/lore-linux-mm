@@ -1,124 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C7586B0253
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 11:14:13 -0400 (EDT)
-Received: by mail-wm0-f46.google.com with SMTP id v188so90764279wme.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:14:13 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id q7si29245027wjo.248.2016.04.11.08.14.12
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E0616B0005
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 11:24:01 -0400 (EDT)
+Received: by mail-qg0-f48.google.com with SMTP id j35so146922212qge.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:24:01 -0700 (PDT)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0118.outbound.protection.outlook.com. [157.55.234.118])
+        by mx.google.com with ESMTPS id 124si13533167qke.4.2016.04.11.08.23.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 08:14:12 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id a140so22007091wma.2
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 08:14:12 -0700 (PDT)
-Date: Mon, 11 Apr 2016 17:14:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 09/11] mm, compaction: Abstract compaction feedback to
- helpers
-Message-ID: <20160411151410.GL23157@dhcp22.suse.cz>
-References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
- <1459855533-4600-10-git-send-email-mhocko@kernel.org>
- <570BB719.2030007@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 11 Apr 2016 08:24:00 -0700 (PDT)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCH] x86/vdso: add mremap hook to vm_special_mapping
+Date: Mon, 11 Apr 2016 18:22:49 +0300
+Message-ID: <1460388169-13340-1-git-send-email-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <570BB719.2030007@suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: luto@amacapital.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>
 
-On Mon 11-04-16 16:39:21, Vlastimil Babka wrote:
-> On 04/05/2016 01:25 PM, Michal Hocko wrote:
-[...]
-> >+/* Compaction has failed and it doesn't make much sense to keep retrying. */
-> >+static inline bool compaction_failed(enum compact_result result)
-> >+{
-> >+	/* All zones where scanned completely and still not result. */
-> 
-> Hmm given that try_to_compact_pages() uses a max() on results, then in fact
-> it takes only one zone to get this. Others could have been also SKIPPED or
-> DEFERRED. Is that what you want?
+Add possibility for userspace 32-bit applications to move
+vdso mapping. Previously, when userspace app called
+mremap for vdso, in return path it would land on previous
+address of vdso page, resulting in segmentation violation.
+Now it lands fine and returns to userspace with remapped vdso.
 
-In short I didn't find any better way and still guarantee a some
-guarantee of convergence. COMPACT_COMPLETE means that at least one zone
-was completely scanned and led to no result. That zone would be
-compact_suitable by definition. If I made DEFERRED or SKIPPED more
-priorite (aka higher in the enum) then I could easily end up in a state
-where all zones would return COMPACT_COMPLETE and few remaining would
-just alternate returning their DEFFERED resp. SKIPPED. So while this
-might sound like giving up too early I couldn't come up with anything
-more specific that would lead to reliable results.
+Renamed and moved text_mapping structure declaration inside
+map_vdso, as it used only there and now it complement
+vvar_mapping variable.
 
-I am open to any suggestions of course.
+There is still problem for remapping vdso in glibc applications:
+linker relocates addresses for syscalls on vdso page, so
+you need to relink with the new addresses. Or the next syscall
+through glibc may fail:
+  Program received signal SIGSEGV, Segmentation fault.
+  #0  0xf7fd9b80 in __kernel_vsyscall ()
+  #1  0xf7ec8238 in _exit () from /usr/lib32/libc.so.6
 
-[...]
-> >--- a/mm/page_alloc.c
-> >+++ b/mm/page_alloc.c
-> >@@ -3362,25 +3362,12 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> >  	if (page)
-> >  		goto got_pg;
-> >
-> >-	/* Checks for THP-specific high-order allocations */
-> >-	if (is_thp_gfp_mask(gfp_mask)) {
-> >-		/*
-> >-		 * If compaction is deferred for high-order allocations, it is
-> >-		 * because sync compaction recently failed. If this is the case
-> >-		 * and the caller requested a THP allocation, we do not want
-> >-		 * to heavily disrupt the system, so we fail the allocation
-> >-		 * instead of entering direct reclaim.
-> >-		 */
-> >-		if (compact_result == COMPACT_DEFERRED)
-> >-			goto nopage;
-> >-
-> >-		/*
-> >-		 * Compaction is contended so rather back off than cause
-> >-		 * excessive stalls.
-> >-		 */
-> >-		if(compact_result == COMPACT_CONTENDED)
-> >-			goto nopage;
-> >-	}
-> >+	/*
-> >+	 * Checks for THP-specific high-order allocations and back off
-> >+	 * if the the compaction backed off
-> >+	 */
-> >+	if (is_thp_gfp_mask(gfp_mask) && compaction_withdrawn(compact_result))
-> >+		goto nopage;
-> 
-> The change of semantics for THP is not trivial here and should at least be
-> discussed in changelog. CONTENDED and DEFERRED is only subset of
-> compaction_withdrawn() as seen above.
+Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+---
+ arch/x86/entry/vdso/vma.c | 33 ++++++++++++++++++++++++++++-----
+ include/linux/mm_types.h  |  3 +++
+ mm/mmap.c                 | 10 ++++++++++
+ 3 files changed, 41 insertions(+), 5 deletions(-)
 
-True. My main motivation was to get rid of the compaction specific code
-from the allocator path as much as possible. I can drop the above hunk
-of course but I think we should get rid of these checks and make the
-code simpler. To be honest I am not even sure those changes are really
-measurable.
-
-> Why is it useful to back off due to
-> COMPACT_PARTIAL_SKIPPED (we were just unlucky in our starting position), but
-> not due to COMPACT_COMPLETE (we have seen the whole zone but failed anyway)?
-
-OK, that is a good remark. I could change that to:
-	if (is_thp_gfp_mask(gfp_mask) &&
-		(compaction_withdrawn(compact_result) || compaction_failed(compact_result))
-
-> Why back off due to COMPACT_SKIPPED (not enough order-0 pages) without
-> trying reclaim at least once, and then another async compaction, like
-> before?
-
-The idea was that COMPACT_SKIPPED wouldn't change after a single reclaim
-round most of the time because a zone would have to get above
-low_wmark + 1<<9 pages.  So the only situation where it would matter would be if
-we had some order-9 pages available hidden by the min wmark and we would
-reclaim enough to get above the above gap. I am not sure this is what we
-really want in the first place. Increase the reclaim stalls when we are
-getting under memory pressure.
-
-Thanks!
+diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
+index 10f704584922..08ac59907cde 100644
+--- a/arch/x86/entry/vdso/vma.c
++++ b/arch/x86/entry/vdso/vma.c
+@@ -12,6 +12,7 @@
+ #include <linux/random.h>
+ #include <linux/elf.h>
+ #include <linux/cpu.h>
++#include <linux/ptrace.h>
+ #include <asm/pvclock.h>
+ #include <asm/vgtod.h>
+ #include <asm/proto.h>
+@@ -98,10 +99,26 @@ static int vdso_fault(const struct vm_special_mapping *sm,
+ 	return 0;
+ }
+ 
+-static const struct vm_special_mapping text_mapping = {
+-	.name = "[vdso]",
+-	.fault = vdso_fault,
+-};
++static int vdso_mremap(const struct vm_special_mapping *sm,
++		      struct vm_area_struct *new_vma)
++{
++	struct pt_regs *regs = current_pt_regs();
++
++#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
++	/* Fixing userspace landing - look at do_fast_syscall_32 */
++	if (regs->ip == (unsigned long)current->mm->context.vdso +
++			vdso_image_32.sym_int80_landing_pad
++#ifdef CONFIG_IA32_EMULATION
++		&& current_thread_info()->status & TS_COMPAT
++#endif
++	   )
++		regs->ip = new_vma->vm_start +
++			vdso_image_32.sym_int80_landing_pad;
++#endif
++	new_vma->vm_mm->context.vdso = (void __user *)new_vma->vm_start;
++
++	return 0;
++}
+ 
+ static int vvar_fault(const struct vm_special_mapping *sm,
+ 		      struct vm_area_struct *vma, struct vm_fault *vmf)
+@@ -162,6 +179,12 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+ 	struct vm_area_struct *vma;
+ 	unsigned long addr, text_start;
+ 	int ret = 0;
++
++	static const struct vm_special_mapping vdso_mapping = {
++		.name = "[vdso]",
++		.fault = vdso_fault,
++		.mremap = vdso_mremap,
++	};
+ 	static const struct vm_special_mapping vvar_mapping = {
+ 		.name = "[vvar]",
+ 		.fault = vvar_fault,
+@@ -195,7 +218,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+ 				       image->size,
+ 				       VM_READ|VM_EXEC|
+ 				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+-				       &text_mapping);
++				       &vdso_mapping);
+ 
+ 	if (IS_ERR(vma)) {
+ 		ret = PTR_ERR(vma);
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index c2d75b4fa86c..4d16ab9287af 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -586,6 +586,9 @@ struct vm_special_mapping {
+ 	int (*fault)(const struct vm_special_mapping *sm,
+ 		     struct vm_area_struct *vma,
+ 		     struct vm_fault *vmf);
++
++	int (*mremap)(const struct vm_special_mapping *sm,
++		     struct vm_area_struct *new_vma);
+ };
+ 
+ enum tlb_flush_reason {
+diff --git a/mm/mmap.c b/mm/mmap.c
+index bd2e1a533bc1..ba71658dd1a1 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2930,9 +2930,19 @@ static const char *special_mapping_name(struct vm_area_struct *vma)
+ 	return ((struct vm_special_mapping *)vma->vm_private_data)->name;
+ }
+ 
++static int special_mapping_mremap(struct vm_area_struct *new_vma)
++{
++	struct vm_special_mapping *sm = new_vma->vm_private_data;
++
++	if (sm->mremap)
++		return sm->mremap(sm, new_vma);
++	return 0;
++}
++
+ static const struct vm_operations_struct special_mapping_vmops = {
+ 	.close = special_mapping_close,
+ 	.fault = special_mapping_fault,
++	.mremap = special_mapping_mremap,
+ 	.name = special_mapping_name,
+ };
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.8.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
