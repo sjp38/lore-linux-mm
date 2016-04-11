@@ -1,81 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E41C6B0005
-	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 10:48:43 -0400 (EDT)
-Received: by mail-wm0-f48.google.com with SMTP id f198so149059264wme.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:48:43 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a4si25014397wjv.9.2016.04.11.07.48.41
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DDB96B0005
+	for <linux-mm@kvack.org>; Mon, 11 Apr 2016 10:51:49 -0400 (EDT)
+Received: by mail-wm0-f42.google.com with SMTP id f198so149191601wme.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:51:49 -0700 (PDT)
+Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
+        by mx.google.com with ESMTPS id za6si29146080wjc.241.2016.04.11.07.51.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Apr 2016 07:48:42 -0700 (PDT)
-Subject: Re: [PATCH 10/11] mm, oom: protect !costly allocations some more
-References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
- <1459855533-4600-11-git-send-email-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <570BB948.6000900@suse.cz>
-Date: Mon, 11 Apr 2016 16:48:40 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Apr 2016 07:51:48 -0700 (PDT)
+Received: by mail-wm0-x22b.google.com with SMTP id f198so149190983wme.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 07:51:47 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1459855533-4600-11-git-send-email-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAG_fn=W_zM0u_NjSzJNi9KiNRY=rtQSYWTVfOQ2nGedApWMBdg@mail.gmail.com>
+References: <cover.1457949315.git.glider@google.com>
+	<4f6880ee0c1545b3ae9c25cfe86a879d724c4e7b.1457949315.git.glider@google.com>
+	<20160411074452.GC26116@js1304-P5Q-DELUXE>
+	<CAG_fn=W_zM0u_NjSzJNi9KiNRY=rtQSYWTVfOQ2nGedApWMBdg@mail.gmail.com>
+Date: Mon, 11 Apr 2016 16:51:47 +0200
+Message-ID: <CAG_fn=XQ1jvUXG2xWM9rEgqBEB-DBrA-G6wWOZ9t_SvfrKjdsg@mail.gmail.com>
+Subject: Re: [PATCH v7 5/7] mm, kasan: Stackdepot implementation. Enable
+ stackdepot for SLAB
+From: Alexander Potapenko <glider@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On 04/05/2016 01:25 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Mon, Apr 11, 2016 at 4:39 PM, Alexander Potapenko <glider@google.com> wr=
+ote:
+> On Mon, Apr 11, 2016 at 9:44 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wro=
+te:
+>> On Mon, Mar 14, 2016 at 11:43:43AM +0100, Alexander Potapenko wrote:
+>>> +depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
+>>> +                                 gfp_t alloc_flags)
+>>> +{
+>>> +     u32 hash;
+>>> +     depot_stack_handle_t retval =3D 0;
+>>> +     struct stack_record *found =3D NULL, **bucket;
+>>> +     unsigned long flags;
+>>> +     struct page *page =3D NULL;
+>>> +     void *prealloc =3D NULL;
+>>> +     bool *rec;
+>>> +
+>>> +     if (unlikely(trace->nr_entries =3D=3D 0))
+>>> +             goto fast_exit;
+>>> +
+>>> +     rec =3D this_cpu_ptr(&depot_recursion);
+>>> +     /* Don't store the stack if we've been called recursively. */
+>>> +     if (unlikely(*rec))
+>>> +             goto fast_exit;
+>>> +     *rec =3D true;
+>>> +
+>>> +     hash =3D hash_stack(trace->entries, trace->nr_entries);
+>>> +     /* Bad luck, we won't store this stack. */
+>>> +     if (hash =3D=3D 0)
+>>> +             goto exit;
+>>
+>> Hello,
+>>
+>> why is hash =3D=3D 0 skipped?
+>>
+>> Thanks.
+> We have to keep a special value to distinguish allocations for which
+> we don't have the stack trace for some reason.
+> Making 0 such a value seems natural.
+Well, the above statement is false.
+Because we only compare the hash to the records that are already in
+the depot, there's no point in reserving this value.
 >
-> should_reclaim_retry will give up retries for higher order allocations
-> if none of the eligible zones has any requested or higher order pages
-> available even if we pass the watermak check for order-0. This is done
-> because there is no guarantee that the reclaimable and currently free
-> pages will form the required order.
+> --
+> Alexander Potapenko
+> Software Engineer
 >
-> This can, however, lead to situations were the high-order request (e.g.
-> order-2 required for the stack allocation during fork) will trigger
-> OOM too early - e.g. after the first reclaim/compaction round. Such a
-> system would have to be highly fragmented and there is no guarantee
-> further reclaim/compaction attempts would help but at least make sure
-> that the compaction was active before we go OOM and keep retrying even
-> if should_reclaim_retry tells us to oom if
-> 	- the last compaction round backed off or
-> 	- we haven't completed at least MAX_COMPACT_RETRIES active
-> 	  compaction rounds.
+> Google Germany GmbH
+> Erika-Mann-Stra=C3=9Fe, 33
+> 80636 M=C3=BCnchen
 >
-> The first rule ensures that the very last attempt for compaction
-> was not ignored while the second guarantees that the compaction has done
-> some work. Multiple retries might be needed to prevent occasional
-> pigggy packing of other contexts to steal the compacted pages before
-> the current context manages to retry to allocate them.
->
-> compaction_failed() is taken as a final word from the compaction that
-> the retry doesn't make much sense. We have to be careful though because
-> the first compaction round is MIGRATE_ASYNC which is rather weak as it
-> ignores pages under writeback and gives up too easily in other
-> situations. We therefore have to make sure that MIGRATE_SYNC_LIGHT mode
-> has been used before we give up. With this logic in place we do not have
-> to increase the migration mode unconditionally and rather do it only if
-> the compaction failed for the weaker mode. A nice side effect is that
-> the stronger migration mode is used only when really needed so this has
-> a potential of smaller latencies in some cases.
->
-> Please note that the compaction doesn't tell us much about how
-> successful it was when returning compaction_made_progress so we just
-> have to blindly trust that another retry is worthwhile and cap the
-> number to something reasonable to guarantee a convergence.
->
-> If the given number of successful retries is not sufficient for a
-> reasonable workloads we should focus on the collected compaction
-> tracepoints data and try to address the issue in the compaction code.
-> If this is not feasible we can increase the retries limit.
->
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+> Registergericht und -nummer: Hamburg, HRB 86891
+> Sitz der Gesellschaft: Hamburg
 
-Looks good.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
