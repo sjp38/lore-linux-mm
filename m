@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EE1B828E8
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:14:17 -0400 (EDT)
-Received: by mail-wm0-f51.google.com with SMTP id v188so120540480wme.1
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:14:17 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id a66si23098932wma.67.2016.04.12.03.14.16
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id C4561828E8
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:14:22 -0400 (EDT)
+Received: by mail-wm0-f41.google.com with SMTP id f198so180815622wme.0
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:14:22 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id a125si23054820wmh.123.2016.04.12.03.14.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Apr 2016 03:14:16 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 12 Apr 2016 03:14:21 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 1E3611C25C7
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 11:14:16 +0100 (IST)
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 3B54D98FB7
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 10:14:21 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 20/24] mm, page_alloc: Check multiple page fields with a single branch
-Date: Tue, 12 Apr 2016 11:12:21 +0100
-Message-Id: <1460455945-29644-21-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 21/24] cpuset: use static key better and convert to new API
+Date: Tue, 12 Apr 2016 11:12:22 +0100
+Message-Id: <1460455945-29644-22-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460455945-29644-1-git-send-email-mgorman@techsingularity.net>
 References: <1460455945-29644-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,123 +23,200 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Every page allocated or freed is checked for sanity to avoid corruptions
-that are difficult to detect later.  A bad page could be due to a number of
-fields. Instead of using multiple branches, this patch combines multiple
-fields into a single branch. A detailed check is only necessary if that
-check fails.
+From: Vlastimil Babka <vbabka@suse.cz>
+
+An important function for cpusets is cpuset_node_allowed(), which optimizes on
+the fact if there's a single root CPU set, it must be trivially allowed. But
+the check "nr_cpusets() <= 1" doesn't use the cpusets_enabled_key static key
+the right way where static keys eliminate branching overhead with jump labels.
+
+This patch converts it so that static key is used properly. It's also switched
+to the new static key API and the checking functions are converted to return
+bool instead of int. We also provide a new variant __cpuset_zone_allowed()
+which expects that the static key check was already done and they key was
+enabled. This is needed for get_page_from_freelist() where we want to also
+avoid the relatively slower check when ALLOC_CPUSET is not set in alloc_flags.
+
+The impact on the page allocator microbenchmark is less than expected but the
+cleanup in itself is worthwhile.
 
                                            4.6.0-rc2                  4.6.0-rc2
-                                      initonce-v1r20            multcheck-v1r20
-Min      alloc-odr0-1               359.00 (  0.00%)           348.00 (  3.06%)
-Min      alloc-odr0-2               260.00 (  0.00%)           254.00 (  2.31%)
-Min      alloc-odr0-4               214.00 (  0.00%)           213.00 (  0.47%)
-Min      alloc-odr0-8               186.00 (  0.00%)           186.00 (  0.00%)
-Min      alloc-odr0-16              173.00 (  0.00%)           173.00 (  0.00%)
-Min      alloc-odr0-32              165.00 (  0.00%)           166.00 ( -0.61%)
-Min      alloc-odr0-64              162.00 (  0.00%)           162.00 (  0.00%)
-Min      alloc-odr0-128             161.00 (  0.00%)           160.00 (  0.62%)
-Min      alloc-odr0-256             170.00 (  0.00%)           169.00 (  0.59%)
-Min      alloc-odr0-512             181.00 (  0.00%)           180.00 (  0.55%)
-Min      alloc-odr0-1024            190.00 (  0.00%)           188.00 (  1.05%)
-Min      alloc-odr0-2048            196.00 (  0.00%)           194.00 (  1.02%)
-Min      alloc-odr0-4096            202.00 (  0.00%)           199.00 (  1.49%)
-Min      alloc-odr0-8192            205.00 (  0.00%)           202.00 (  1.46%)
-Min      alloc-odr0-16384           205.00 (  0.00%)           203.00 (  0.98%)
+                                     multcheck-v1r20               cpuset-v1r20
+Min      alloc-odr0-1               348.00 (  0.00%)           348.00 (  0.00%)
+Min      alloc-odr0-2               254.00 (  0.00%)           254.00 (  0.00%)
+Min      alloc-odr0-4               213.00 (  0.00%)           213.00 (  0.00%)
+Min      alloc-odr0-8               186.00 (  0.00%)           183.00 (  1.61%)
+Min      alloc-odr0-16              173.00 (  0.00%)           171.00 (  1.16%)
+Min      alloc-odr0-32              166.00 (  0.00%)           163.00 (  1.81%)
+Min      alloc-odr0-64              162.00 (  0.00%)           159.00 (  1.85%)
+Min      alloc-odr0-128             160.00 (  0.00%)           157.00 (  1.88%)
+Min      alloc-odr0-256             169.00 (  0.00%)           166.00 (  1.78%)
+Min      alloc-odr0-512             180.00 (  0.00%)           180.00 (  0.00%)
+Min      alloc-odr0-1024            188.00 (  0.00%)           187.00 (  0.53%)
+Min      alloc-odr0-2048            194.00 (  0.00%)           193.00 (  0.52%)
+Min      alloc-odr0-4096            199.00 (  0.00%)           198.00 (  0.50%)
+Min      alloc-odr0-8192            202.00 (  0.00%)           201.00 (  0.50%)
+Min      alloc-odr0-16384           203.00 (  0.00%)           202.00 (  0.49%)
 
-Again, the benefit is marginal but avoiding excessive branches is
-important. Ideally the paths would not have to check these conditions at
-all but regrettably abandoning the tests would make use-after-free bugs
-much harder to detect.
-
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/page_alloc.c | 55 +++++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 43 insertions(+), 12 deletions(-)
+ include/linux/cpuset.h | 42 ++++++++++++++++++++++++++++--------------
+ kernel/cpuset.c        | 14 +++++++-------
+ mm/page_alloc.c        |  2 +-
+ 3 files changed, 36 insertions(+), 22 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4019dfe26b11..0100609f6510 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -784,10 +784,42 @@ static inline void __free_one_page(struct page *page,
- 	zone->free_area[order].nr_free++;
+diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+index fea160ee5803..054c734d0170 100644
+--- a/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
+@@ -16,26 +16,26 @@
+ 
+ #ifdef CONFIG_CPUSETS
+ 
+-extern struct static_key cpusets_enabled_key;
++extern struct static_key_false cpusets_enabled_key;
+ static inline bool cpusets_enabled(void)
+ {
+-	return static_key_false(&cpusets_enabled_key);
++	return static_branch_unlikely(&cpusets_enabled_key);
  }
  
-+/*
-+ * A bad page could be due to a number of fields. Instead of multiple branches,
-+ * try and check multiple fields with one check. The caller must do a detailed
-+ * check if necessary.
-+ */
-+static inline bool page_expected_state(struct page *page,
-+					unsigned long check_flags)
+ static inline int nr_cpusets(void)
+ {
+ 	/* jump label reference count + the top-level cpuset */
+-	return static_key_count(&cpusets_enabled_key) + 1;
++	return static_key_count(&cpusets_enabled_key.key) + 1;
+ }
+ 
+ static inline void cpuset_inc(void)
+ {
+-	static_key_slow_inc(&cpusets_enabled_key);
++	static_branch_inc(&cpusets_enabled_key);
+ }
+ 
+ static inline void cpuset_dec(void)
+ {
+-	static_key_slow_dec(&cpusets_enabled_key);
++	static_branch_dec(&cpusets_enabled_key);
+ }
+ 
+ extern int cpuset_init(void);
+@@ -48,16 +48,25 @@ extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
+ void cpuset_init_current_mems_allowed(void);
+ int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask);
+ 
+-extern int __cpuset_node_allowed(int node, gfp_t gfp_mask);
++extern bool __cpuset_node_allowed(int node, gfp_t gfp_mask);
+ 
+-static inline int cpuset_node_allowed(int node, gfp_t gfp_mask)
++static inline bool cpuset_node_allowed(int node, gfp_t gfp_mask)
+ {
+-	return nr_cpusets() <= 1 || __cpuset_node_allowed(node, gfp_mask);
++	if (cpusets_enabled())
++		return __cpuset_node_allowed(node, gfp_mask);
++	return true;
+ }
+ 
+-static inline int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
++static inline bool __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
+ {
+-	return cpuset_node_allowed(zone_to_nid(z), gfp_mask);
++	return __cpuset_node_allowed(zone_to_nid(z), gfp_mask);
++}
++
++static inline bool cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 +{
-+	if (unlikely(atomic_read(&page->_mapcount) != -1))
-+		return false;
-+
-+	if (unlikely((unsigned long)page->mapping |
-+			page_ref_count(page) |
-+#ifdef CONFIG_MEMCG
-+			(unsigned long)page->mem_cgroup |
-+#endif
-+			(page->flags & check_flags)))
-+		return false;
-+
++	if (cpusets_enabled())
++		return __cpuset_zone_allowed(z, gfp_mask);
++	return true;
+ }
+ 
+ extern int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
+@@ -174,14 +183,19 @@ static inline int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask)
+ 	return 1;
+ }
+ 
+-static inline int cpuset_node_allowed(int node, gfp_t gfp_mask)
++static inline bool cpuset_node_allowed(int node, gfp_t gfp_mask)
+ {
+-	return 1;
++	return true;
+ }
+ 
+-static inline int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
++static inline bool __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
+ {
+-	return 1;
 +	return true;
 +}
 +
- static inline int free_pages_check(struct page *page)
- {
--	const char *bad_reason = NULL;
--	unsigned long bad_flags = 0;
-+	const char *bad_reason;
-+	unsigned long bad_flags;
-+
-+	if (page_expected_state(page, PAGE_FLAGS_CHECK_AT_FREE)) {
-+		page_cpupid_reset_last(page);
-+		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-+		return 0;
-+	}
-+
-+	/* Something has gone sideways, find it */
-+	bad_reason = NULL;
-+	bad_flags = 0;
- 
- 	if (unlikely(atomic_read(&page->_mapcount) != -1))
- 		bad_reason = "nonzero mapcount";
-@@ -803,14 +835,8 @@ static inline int free_pages_check(struct page *page)
- 	if (unlikely(page->mem_cgroup))
- 		bad_reason = "page still charged to cgroup";
- #endif
--	if (unlikely(bad_reason)) {
--		bad_page(page, bad_reason, bad_flags);
--		return 1;
--	}
--	page_cpupid_reset_last(page);
--	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
--		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
--	return 0;
-+	bad_page(page, bad_reason, bad_flags);
-+	return 1;
++static inline bool cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
++{
++	return true;
  }
  
- /*
-@@ -1491,9 +1517,14 @@ static inline void expand(struct zone *zone, struct page *page,
-  */
- static inline int check_new_page(struct page *page)
- {
--	const char *bad_reason = NULL;
--	unsigned long bad_flags = 0;
-+	const char *bad_reason;
-+	unsigned long bad_flags;
-+
-+	if (page_expected_state(page, PAGE_FLAGS_CHECK_AT_PREP|__PG_HWPOISON))
-+		return 0;
+ static inline int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index 00ab5c2b7c5b..37a0b44d101f 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -62,7 +62,7 @@
+ #include <linux/cgroup.h>
+ #include <linux/wait.h>
  
-+	bad_reason = NULL;
-+	bad_flags = 0;
- 	if (unlikely(atomic_read(&page->_mapcount) != -1))
- 		bad_reason = "nonzero mapcount";
- 	if (unlikely(page->mapping != NULL))
+-struct static_key cpusets_enabled_key __read_mostly = STATIC_KEY_INIT_FALSE;
++DEFINE_STATIC_KEY_FALSE(cpusets_enabled_key);
+ 
+ /* See "Frequency meter" comments, below. */
+ 
+@@ -2528,27 +2528,27 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
+  *	GFP_KERNEL   - any node in enclosing hardwalled cpuset ok
+  *	GFP_USER     - only nodes in current tasks mems allowed ok.
+  */
+-int __cpuset_node_allowed(int node, gfp_t gfp_mask)
++bool __cpuset_node_allowed(int node, gfp_t gfp_mask)
+ {
+ 	struct cpuset *cs;		/* current cpuset ancestors */
+ 	int allowed;			/* is allocation in zone z allowed? */
+ 	unsigned long flags;
+ 
+ 	if (in_interrupt())
+-		return 1;
++		return true;
+ 	if (node_isset(node, current->mems_allowed))
+-		return 1;
++		return true;
+ 	/*
+ 	 * Allow tasks that have access to memory reserves because they have
+ 	 * been OOM killed to get memory anywhere.
+ 	 */
+ 	if (unlikely(test_thread_flag(TIF_MEMDIE)))
+-		return 1;
++		return true;
+ 	if (gfp_mask & __GFP_HARDWALL)	/* If hardwall request, stop here */
+-		return 0;
++		return false;
+ 
+ 	if (current->flags & PF_EXITING) /* Let dying task have memory */
+-		return 1;
++		return true;
+ 
+ 	/* Not hardwall and node outside mems_allowed: scan up cpusets */
+ 	spin_lock_irqsave(&callback_lock, flags);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0100609f6510..3fd8489b3055 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2747,7 +2747,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 
+ 		if (cpusets_enabled() &&
+ 			(alloc_flags & ALLOC_CPUSET) &&
+-			!cpuset_zone_allowed(zone, gfp_mask))
++			!__cpuset_zone_allowed(zone, gfp_mask))
+ 				continue;
+ 		/*
+ 		 * Distribute pages in proportion to the individual
 -- 
 2.6.4
 
