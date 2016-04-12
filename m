@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id BECE46B0266
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:13:19 -0400 (EDT)
-Received: by mail-wm0-f44.google.com with SMTP id u206so21262854wme.1
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:13:19 -0700 (PDT)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 005166B0266
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:13:25 -0400 (EDT)
+Received: by mail-wm0-f45.google.com with SMTP id a140so47127528wma.0
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:13:24 -0700 (PDT)
 Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id r3si33528721wjy.50.2016.04.12.03.13.18
+        by mx.google.com with ESMTPS id i2si33502616wja.89.2016.04.12.03.13.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Apr 2016 03:13:18 -0700 (PDT)
+        Tue, 12 Apr 2016 03:13:24 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 6CAFB1C258C
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 11:13:18 +0100 (IST)
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id AAF8E1C1012
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 11:13:23 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 09/24] mm, page_alloc: Convert nr_fair_skipped to bool
-Date: Tue, 12 Apr 2016 11:12:10 +0100
-Message-Id: <1460455945-29644-10-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 10/24] mm, page_alloc: Remove unnecessary local variable in get_page_from_freelist
+Date: Tue, 12 Apr 2016 11:12:11 +0100
+Message-Id: <1460455945-29644-11-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460455945-29644-1-git-send-email-mgorman@techsingularity.net>
 References: <1460455945-29644-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,45 +23,34 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-The number of zones skipped to a zone expiring its fair zone allocation quota
-is irrelevant. Convert to bool.
+zonelist here is a copy of a struct field that is used once. Ditch it.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/page_alloc.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/page_alloc.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4bce6298dd07..e778485a64c1 100644
+index e778485a64c1..313db1c43839 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2677,7 +2677,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+@@ -2673,7 +2673,6 @@ static struct page *
+ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 						const struct alloc_context *ac)
+ {
+-	struct zonelist *zonelist = ac->zonelist;
  	struct zoneref *z;
  	struct page *page = NULL;
  	struct zone *zone;
--	int nr_fair_skipped = 0;
-+	bool fair_skipped;
- 	bool zonelist_rescan;
- 
- zonelist_scan:
-@@ -2705,7 +2705,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 			if (!zone_local(ac->preferred_zone, zone))
- 				break;
- 			if (test_bit(ZONE_FAIR_DEPLETED, &zone->flags)) {
--				nr_fair_skipped++;
-+				fair_skipped = true;
- 				continue;
- 			}
- 		}
-@@ -2798,7 +2798,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+@@ -2687,7 +2686,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 	 * Scan zonelist, looking for a zone with enough free.
+ 	 * See also __cpuset_node_allowed() comment in kernel/cpuset.c.
  	 */
- 	if (alloc_flags & ALLOC_FAIR) {
- 		alloc_flags &= ~ALLOC_FAIR;
--		if (nr_fair_skipped) {
-+		if (fair_skipped) {
- 			zonelist_rescan = true;
- 			reset_alloc_batches(ac->preferred_zone);
- 		}
+-	for_each_zone_zonelist_nodemask(zone, z, zonelist, ac->high_zoneidx,
++	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
+ 								ac->nodemask) {
+ 		unsigned long mark;
+ 
 -- 
 2.6.4
 
