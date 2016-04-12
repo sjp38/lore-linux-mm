@@ -1,111 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D0316B025E
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 05:14:28 -0400 (EDT)
-Received: by mail-wm0-f41.google.com with SMTP id a140so45127407wma.0
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 02:14:28 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s3si22839961wmf.48.2016.04.12.02.14.27
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id F37156B025E
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 05:19:22 -0400 (EDT)
+Received: by mail-wm0-f42.google.com with SMTP id a140so45293559wma.0
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 02:19:22 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id k10si33333398wjn.38.2016.04.12.02.19.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Apr 2016 02:14:27 -0700 (PDT)
-Subject: Re: mmotm woes, mainly compaction
-References: <alpine.LSU.2.11.1604120005350.1832@eggly.anvils>
- <570CB9CE.1070408@suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <570CBC72.9020003@suse.cz>
-Date: Tue, 12 Apr 2016 11:14:26 +0200
-MIME-Version: 1.0
-In-Reply-To: <570CB9CE.1070408@suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Apr 2016 02:19:21 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id a140so3664988wma.2
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 02:19:21 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] oom: consider multi-threaded tasks in task_will_free_mem
+Date: Tue, 12 Apr 2016 11:19:16 +0200
+Message-Id: <1460452756-15491-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 04/12/2016 11:03 AM, Vlastimil Babka wrote:
-> On 04/12/2016 09:18 AM, Hugh Dickins wrote:
->> 3. /proc/sys/vm/stat_refresh warns nr_isolated_anon and nr_isolated_file
->>      go increasingly negative under compaction: which would add delay when
->>      should be none, or no delay when should delay.  putback_movable_pages()
->>      decrements the NR_ISOLATED counts which acct_isolated() increments,
->>      so isolate_migratepages_block() needs to acct before putback in that
->>      special case, and isolate_migratepages_range() can always do the acct
->>      itself, leaving migratepages putback to caller like most other places.
->
-> The isolate_migratepages_block() part is mmotm-specific, so I'll split
-> it out in this patch. Thanks for catching it and the lack of reset for
-> cc->nr_migratepages which wasn't mentioned in changelog so I added it.
->
->> 5. It's easier to track the life of cc->migratepages if we don't assign
->>      it to a migratelist variable.
->
-> This is also included here.
->
-> This is a -fix for:
-> mm-compaction-skip-blocks-where-isolation-fails-in-async-direct-compaction.patch
->
-> ----8<----
->  From 59a0075b6cf85045aa2dc5cee1f27797bcd0b3d2 Mon Sep 17 00:00:00 2001
-> From: Hugh Dickins <hughd@google.com>
-> Date: Tue, 12 Apr 2016 10:51:20 +0200
-> Subject: [PATCH] mm, compaction: prevent nr_isolated_* from going negative
->
-> /proc/sys/vm/stat_refresh warns nr_isolated_anon and nr_isolated_file
-> go increasingly negative under compaction: which would add delay when
-> should be none, or no delay when should delay.  putback_movable_pages()
-> decrements the NR_ISOLATED counts which acct_isolated() increments,
-> so isolate_migratepages_block() needs to acct before putback in that
-> special case. It's also useful to reset cc->nr_migratepages after putback
-> so we don't needlessly return too early on the COMPACT_CLUSTER_MAX check.
->
-> Also it's easier to track the life of cc->migratepages if we don't assign
-> it to a migratelist variable.
+From: Michal Hocko <mhocko@suse.com>
 
-Forgot
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+task_will_free_mem is a misnomer for a more complex PF_EXITING test
+for early break out from the oom killer because it is believed that
+such a task would release its memory shortly and so we do not have
+to select an oom victim and perform a disruptive action.
 
-> ---
->   mm/compaction.c | 9 +++++----
->   1 file changed, 5 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 67f886ecd773..ab649fba3d88 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -638,7 +638,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->   {
->   	struct zone *zone = cc->zone;
->   	unsigned long nr_scanned = 0, nr_isolated = 0;
-> -	struct list_head *migratelist = &cc->migratepages;
->   	struct lruvec *lruvec;
->   	unsigned long flags = 0;
->   	bool locked = false;
-> @@ -817,7 +816,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->   		del_page_from_lru_list(page, lruvec, page_lru(page));
->
->   isolate_success:
-> -		list_add(&page->lru, migratelist);
-> +		list_add(&page->lru, &cc->migratepages);
->   		cc->nr_migratepages++;
->   		nr_isolated++;
->
-> @@ -851,9 +850,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->   				spin_unlock_irqrestore(&zone->lru_lock,	flags);
->   				locked = false;
->   			}
-> -			putback_movable_pages(migratelist);
-> -			nr_isolated = 0;
-> +			acct_isolated(zone, cc);
-> +			putback_movable_pages(&cc->migratepages);
-> +			cc->nr_migratepages = 0;
->   			cc->last_migrated_pfn = 0;
-> +			nr_isolated = 0;
->   		}
->
->   		if (low_pfn < next_skip_pfn) {
->
+Currently we make sure that the given task is not participating in the
+core dumping because it might get blocked for a long time - see
+d003f371b270 ("oom: don't assume that a coredumping thread will exit
+soon").
+
+The check can still do better though. We shouldn't consider the task
+unless the whole thread group is going down. This is rather unlikely
+but not impossible. A single exiting thread would surely leave all the
+address space behind. If we are really unlucky it might get stuck on the
+exit path and keep its TIF_MEMDIE and so block the oom killer.
+
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+
+Hi,
+I hope I got it right but I would really appreciate if Oleg found some
+time and double checked after me. The fix is more cosmetic than anything
+else but I guess it is worth it.
+
+Thanks!
+
+ include/linux/oom.h | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 628a43242a34..b09c7dc523ff 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -102,13 +102,24 @@ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
+ 
+ static inline bool task_will_free_mem(struct task_struct *task)
+ {
++	struct signal_struct *sig = task->signal;
++
+ 	/*
+ 	 * A coredumping process may sleep for an extended period in exit_mm(),
+ 	 * so the oom killer cannot assume that the process will promptly exit
+ 	 * and release memory.
+ 	 */
+-	return (task->flags & PF_EXITING) &&
+-		!(task->signal->flags & SIGNAL_GROUP_COREDUMP);
++	if (sig->flags & SIGNAL_GROUP_COREDUMP)
++		return false;
++
++	if (!(task->flags & PF_EXITING))
++		return false;
++
++	/* Make sure that the whole thread group is going down */
++	if (!thread_group_empty(task) && !(sig->flags & SIGNAL_GROUP_EXIT))
++		return false;
++
++	return true;
+ }
+ 
+ /* sysctls */
+-- 
+2.8.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
