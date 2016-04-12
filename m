@@ -1,76 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 997886B0005
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 00:48:28 -0400 (EDT)
-Received: by mail-pf0-f177.google.com with SMTP id n1so6168859pfn.2
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 21:48:28 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id gi2si7882128pac.105.2016.04.11.21.48.27
-        for <linux-mm@kvack.org>;
-        Mon, 11 Apr 2016 21:48:27 -0700 (PDT)
-Date: Tue, 12 Apr 2016 13:51:13 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v7 5/7] mm, kasan: Stackdepot implementation. Enable
- stackdepot for SLAB
-Message-ID: <20160412045113.GB29018@js1304-P5Q-DELUXE>
-References: <cover.1457949315.git.glider@google.com>
- <4f6880ee0c1545b3ae9c25cfe86a879d724c4e7b.1457949315.git.glider@google.com>
- <20160411074452.GC26116@js1304-P5Q-DELUXE>
- <CAG_fn=W_zM0u_NjSzJNi9KiNRY=rtQSYWTVfOQ2nGedApWMBdg@mail.gmail.com>
- <CAG_fn=XQ1jvUXG2xWM9rEgqBEB-DBrA-G6wWOZ9t_SvfrKjdsg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAG_fn=XQ1jvUXG2xWM9rEgqBEB-DBrA-G6wWOZ9t_SvfrKjdsg@mail.gmail.com>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F79A6B0005
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 00:51:28 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id zm5so6126304pac.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 21:51:28 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id d28si7649027pfb.176.2016.04.11.21.51.27
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Apr 2016 21:51:27 -0700 (PDT)
+Received: by mail-pa0-x235.google.com with SMTP id zm5so6126141pac.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 21:51:27 -0700 (PDT)
+From: js1304@gmail.com
+Subject: [PATCH v2 00/11] mm/slab: reduce lock contention in alloc path
+Date: Tue, 12 Apr 2016 13:50:55 +0900
+Message-Id: <1460436666-20462-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon, Apr 11, 2016 at 04:51:47PM +0200, Alexander Potapenko wrote:
-> On Mon, Apr 11, 2016 at 4:39 PM, Alexander Potapenko <glider@google.com> wrote:
-> > On Mon, Apr 11, 2016 at 9:44 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> >> On Mon, Mar 14, 2016 at 11:43:43AM +0100, Alexander Potapenko wrote:
-> >>> +depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
-> >>> +                                 gfp_t alloc_flags)
-> >>> +{
-> >>> +     u32 hash;
-> >>> +     depot_stack_handle_t retval = 0;
-> >>> +     struct stack_record *found = NULL, **bucket;
-> >>> +     unsigned long flags;
-> >>> +     struct page *page = NULL;
-> >>> +     void *prealloc = NULL;
-> >>> +     bool *rec;
-> >>> +
-> >>> +     if (unlikely(trace->nr_entries == 0))
-> >>> +             goto fast_exit;
-> >>> +
-> >>> +     rec = this_cpu_ptr(&depot_recursion);
-> >>> +     /* Don't store the stack if we've been called recursively. */
-> >>> +     if (unlikely(*rec))
-> >>> +             goto fast_exit;
-> >>> +     *rec = true;
-> >>> +
-> >>> +     hash = hash_stack(trace->entries, trace->nr_entries);
-> >>> +     /* Bad luck, we won't store this stack. */
-> >>> +     if (hash == 0)
-> >>> +             goto exit;
-> >>
-> >> Hello,
-> >>
-> >> why is hash == 0 skipped?
-> >>
-> >> Thanks.
-> > We have to keep a special value to distinguish allocations for which
-> > we don't have the stack trace for some reason.
-> > Making 0 such a value seems natural.
-> Well, the above statement is false.
-> Because we only compare the hash to the records that are already in
-> the depot, there's no point in reserving this value.
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-So, could you make a patch for it?
+Major changes from v1
+o hold node lock instead of slab_mutex in kmem_cache_shrink()
+o fix suspend-to-ram issue reported by Nishanth
+o use synchronize_sched() instead of kick_all_cpus_sync()
 
-Thanks.
+While processing concurrent allocation, SLAB could be contended
+a lot because it did a lots of work with holding a lock. This
+patchset try to reduce the number of critical section to reduce
+lock contention. Major changes are lockless decision to allocate
+more slab and lockless cpu cache refill from the newly allocated slab.
+
+Below is the result of concurrent allocation/free in slab allocation
+benchmark made by Christoph a long time ago. I make the output simpler.
+The number shows cycle count during alloc/free respectively so less
+is better.
+
+* Before
+Kmalloc N*alloc N*free(32): Average=365/806
+Kmalloc N*alloc N*free(64): Average=452/690
+Kmalloc N*alloc N*free(128): Average=736/886
+Kmalloc N*alloc N*free(256): Average=1167/985
+Kmalloc N*alloc N*free(512): Average=2088/1125
+Kmalloc N*alloc N*free(1024): Average=4115/1184
+Kmalloc N*alloc N*free(2048): Average=8451/1748
+Kmalloc N*alloc N*free(4096): Average=16024/2048
+
+* After
+Kmalloc N*alloc N*free(32): Average=344/792
+Kmalloc N*alloc N*free(64): Average=347/882
+Kmalloc N*alloc N*free(128): Average=390/959
+Kmalloc N*alloc N*free(256): Average=393/1067
+Kmalloc N*alloc N*free(512): Average=683/1229
+Kmalloc N*alloc N*free(1024): Average=1295/1325
+Kmalloc N*alloc N*free(2048): Average=2513/1664
+Kmalloc N*alloc N*free(4096): Average=4742/2172
+
+It shows that performance improves greatly (roughly more than 50%)
+for the object class whose size is more than 128 bytes.
+
+Joonsoo Kim (11):
+  mm/slab: fix the theoretical race by holding proper lock
+  mm/slab: remove BAD_ALIEN_MAGIC again
+  mm/slab: drain the free slab as much as possible
+  mm/slab: factor out kmem_cache_node initialization code
+  mm/slab: clean-up kmem_cache_node setup
+  mm/slab: don't keep free slabs if free_objects exceeds free_limit
+  mm/slab: racy access/modify the slab color
+  mm/slab: make cache_grow() handle the page allocated on arbitrary node
+  mm/slab: separate cache_grow() to two parts
+  mm/slab: refill cpu cache through a new slab without holding a node
+    lock
+  mm/slab: lockless decision to grow cache
+
+ mm/slab.c | 562 +++++++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 295 insertions(+), 267 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
