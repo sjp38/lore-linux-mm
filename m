@@ -1,56 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id CBA2E6B0005
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 02:28:46 -0400 (EDT)
-Received: by mail-qg0-f43.google.com with SMTP id f52so7940964qga.3
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 23:28:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 68si23187278qhx.75.2016.04.11.23.28.45
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 886BA6B0005
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 02:57:32 -0400 (EDT)
+Received: by mail-wm0-f52.google.com with SMTP id f198so174034397wme.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 23:57:32 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id o19si16952607wmg.25.2016.04.11.23.57.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 23:28:46 -0700 (PDT)
-Date: Tue, 12 Apr 2016 08:28:38 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [Lsf] [Lsf-pc] [LSF/MM TOPIC] Generic page-pool recycle
- facility?
-Message-ID: <20160412082838.4ce17c1a@redhat.com>
-In-Reply-To: <CAKgT0UdbO00-Pe3xdrCC2T8L=XVZasWSQQVzTTs9r521RDes+Q@mail.gmail.com>
-References: <1460034425.20949.7.camel@HansenPartnership.com>
-	<20160407161715.52635cac@redhat.com>
-	<20160407143854.GA7685@infradead.org>
-	<570678B7.7010802@sandisk.com>
-	<570A9F5B.5010600@grimberg.me>
-	<20160411234157.3fc9c6fe@redhat.com>
-	<CAKgT0UdbO00-Pe3xdrCC2T8L=XVZasWSQQVzTTs9r521RDes+Q@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 11 Apr 2016 23:57:31 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id a140so2817009wma.2
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 23:57:31 -0700 (PDT)
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: [PATCH] mm/vmalloc: Keep a separate lazy-free list
+Date: Tue, 12 Apr 2016 07:57:19 +0100
+Message-Id: <1460444239-22475-1-git-send-email-chris@chris-wilson.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: "lsf@lists.linux-foundation.org" <lsf@lists.linux-foundation.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, Sagi Grimberg <sagi@grimberg.me>, Tom Herbert <tom@herbertland.com>, Brenden Blanco <bblanco@plumgrid.com>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Bart Van Assche <bart.vanassche@sandisk.com>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, brouer@redhat.com
+To: intel-gfx@lists.freedesktop.org
+Cc: Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Tvrtko Ursulin <tvrtko.ursulin@linux.intel.com>, Daniel Vetter <daniel.vetter@ffwll.ch>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Roman Pen <r.peniaev@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Toshi Kani <toshi.kani@hp.com>, Shawn Lin <shawn.lin@rock-chips.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+When mixing lots of vmallocs and set_memory_*() (which calls
+vm_unmap_aliases()) I encountered situations where the performance
+degraded severely due to the walking of the entire vmap_area list each
+invocation. One simple improvement is to add the lazily freed vmap_area
+to a separate lockless free list, such that we then avoid having to walk
+the full list on each purge.
 
-On Mon, 11 Apr 2016 15:02:51 -0700 Alexander Duyck <alexander.duyck@gmail.com> wrote:
+Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Cc: Tvrtko Ursulin <tvrtko.ursulin@linux.intel.com>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Roman Pen <r.peniaev@gmail.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Toshi Kani <toshi.kani@hp.com>
+Cc: Shawn Lin <shawn.lin@rock-chips.com>
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+---
+ include/linux/vmalloc.h |  3 ++-
+ mm/vmalloc.c            | 29 ++++++++++++++---------------
+ 2 files changed, 16 insertions(+), 16 deletions(-)
 
-> Have you taken a look at possibly trying to optimize the DMA pool API
-> to work with pages?  It sounds like it is supposed to do something
-> similar to what you are wanting to do.
-
-Yes, I have looked at the mm/dmapool.c API. AFAIK this is for DMA
-coherent memory (see use of dma_alloc_coherent/dma_free_coherent). 
-
-What we are doing is "streaming" DMA memory, when processing the RX
-ring.
-
-(NIC are only using DMA coherent memory for the descriptors, which are
-allocated on driver init)
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 8b51df3ab334..3d9d786a943c 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -4,6 +4,7 @@
+ #include <linux/spinlock.h>
+ #include <linux/init.h>
+ #include <linux/list.h>
++#include <linux/llist.h>
+ #include <asm/page.h>		/* pgprot_t */
+ #include <linux/rbtree.h>
+ 
+@@ -45,7 +46,7 @@ struct vmap_area {
+ 	unsigned long flags;
+ 	struct rb_node rb_node;         /* address sorted rbtree */
+ 	struct list_head list;          /* address sorted list */
+-	struct list_head purge_list;    /* "lazy purge" list */
++	struct llist_node purge_list;    /* "lazy purge" list */
+ 	struct vm_struct *vm;
+ 	struct rcu_head rcu_head;
+ };
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 293889d7f482..5388bf64dc32 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -21,6 +21,7 @@
+ #include <linux/debugobjects.h>
+ #include <linux/kallsyms.h>
+ #include <linux/list.h>
++#include <linux/llist.h>
+ #include <linux/notifier.h>
+ #include <linux/rbtree.h>
+ #include <linux/radix-tree.h>
+@@ -282,6 +283,7 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
+ static DEFINE_SPINLOCK(vmap_area_lock);
+ /* Export for kexec only */
+ LIST_HEAD(vmap_area_list);
++static LLIST_HEAD(vmap_purge_list);
+ static struct rb_root vmap_area_root = RB_ROOT;
+ 
+ /* The vmap cache globals are protected by vmap_area_lock */
+@@ -628,7 +630,7 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 					int sync, int force_flush)
+ {
+ 	static DEFINE_SPINLOCK(purge_lock);
+-	LIST_HEAD(valist);
++	struct llist_node *valist;
+ 	struct vmap_area *va;
+ 	struct vmap_area *n_va;
+ 	int nr = 0;
+@@ -647,20 +649,15 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 	if (sync)
+ 		purge_fragmented_blocks_allcpus();
+ 
+-	rcu_read_lock();
+-	list_for_each_entry_rcu(va, &vmap_area_list, list) {
+-		if (va->flags & VM_LAZY_FREE) {
+-			if (va->va_start < *start)
+-				*start = va->va_start;
+-			if (va->va_end > *end)
+-				*end = va->va_end;
+-			nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
+-			list_add_tail(&va->purge_list, &valist);
+-			va->flags |= VM_LAZY_FREEING;
+-			va->flags &= ~VM_LAZY_FREE;
+-		}
++	valist = llist_del_all(&vmap_purge_list);
++	llist_for_each_entry(va, valist, purge_list) {
++		if (va->va_start < *start)
++			*start = va->va_start;
++		if (va->va_end > *end)
++			*end = va->va_end;
++		nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
++		va->flags |= VM_LAZY_FREEING;
+ 	}
+-	rcu_read_unlock();
+ 
+ 	if (nr)
+ 		atomic_sub(nr, &vmap_lazy_nr);
+@@ -670,7 +667,7 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 
+ 	if (nr) {
+ 		spin_lock(&vmap_area_lock);
+-		list_for_each_entry_safe(va, n_va, &valist, purge_list)
++		llist_for_each_entry_safe(va, n_va, valist, purge_list)
+ 			__free_vmap_area(va);
+ 		spin_unlock(&vmap_area_lock);
+ 	}
+@@ -706,6 +703,8 @@ static void purge_vmap_area_lazy(void)
+ static void free_vmap_area_noflush(struct vmap_area *va)
+ {
+ 	va->flags |= VM_LAZY_FREE;
++	llist_add(&va->purge_list, &vmap_purge_list);
++
+ 	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
+ 	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
+ 		try_purge_vmap_area_lazy();
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+2.8.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
