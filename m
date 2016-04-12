@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AABE6B0260
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:12:43 -0400 (EDT)
-Received: by mail-wm0-f54.google.com with SMTP id n3so21297859wmn.0
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:12:43 -0700 (PDT)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id m9si33469097wjx.242.2016.04.12.03.12.42
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 81A746B0261
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:12:48 -0400 (EDT)
+Received: by mail-wm0-f43.google.com with SMTP id f198so180763756wme.0
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:12:48 -0700 (PDT)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id y5si33522858wjx.10.2016.04.12.03.12.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Apr 2016 03:12:42 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 12 Apr 2016 03:12:47 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 2C5BA1C2428
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 11:12:42 +0100 (IST)
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 132A498E4C
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 10:12:47 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 02/24] mm, page_alloc: Use new PageAnonHead helper in the free page fast path
-Date: Tue, 12 Apr 2016 11:12:03 +0100
-Message-Id: <1460455945-29644-3-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 03/24] mm, page_alloc: Reduce branches in zone_statistics
+Date: Tue, 12 Apr 2016 11:12:04 +0100
+Message-Id: <1460455945-29644-4-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460455945-29644-1-git-send-email-mgorman@techsingularity.net>
 References: <1460455945-29644-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,91 +23,67 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-The PageAnon check always checks for compound_head but this is a relatively
-expensive check if the caller already knows the page is a head page. This
-patch creates a helper and uses it in the page free path which only operates
-on head pages.
+zone_statistics has more branches than it really needs to take an
+unlikely GFP flag into account. Reduce the number and annotate
+the unlikely flag.
 
-With this patch and "Only check PageCompound for high-order pages", the
-performance difference on a page allocator microbenchmark is;
+The performance difference on a page allocator microbenchmark is;
 
                                            4.6.0-rc2                  4.6.0-rc2
-                                             vanilla           nocompound-v1r20
-Min      alloc-odr0-1               425.00 (  0.00%)           417.00 (  1.88%)
-Min      alloc-odr0-2               313.00 (  0.00%)           308.00 (  1.60%)
-Min      alloc-odr0-4               257.00 (  0.00%)           253.00 (  1.56%)
-Min      alloc-odr0-8               224.00 (  0.00%)           221.00 (  1.34%)
-Min      alloc-odr0-16              208.00 (  0.00%)           205.00 (  1.44%)
-Min      alloc-odr0-32              199.00 (  0.00%)           199.00 (  0.00%)
-Min      alloc-odr0-64              195.00 (  0.00%)           193.00 (  1.03%)
-Min      alloc-odr0-128             192.00 (  0.00%)           191.00 (  0.52%)
-Min      alloc-odr0-256             204.00 (  0.00%)           200.00 (  1.96%)
-Min      alloc-odr0-512             213.00 (  0.00%)           212.00 (  0.47%)
-Min      alloc-odr0-1024            219.00 (  0.00%)           219.00 (  0.00%)
-Min      alloc-odr0-2048            225.00 (  0.00%)           225.00 (  0.00%)
-Min      alloc-odr0-4096            230.00 (  0.00%)           231.00 ( -0.43%)
-Min      alloc-odr0-8192            235.00 (  0.00%)           234.00 (  0.43%)
-Min      alloc-odr0-16384           235.00 (  0.00%)           234.00 (  0.43%)
-Min      free-odr0-1                215.00 (  0.00%)           191.00 ( 11.16%)
-Min      free-odr0-2                152.00 (  0.00%)           136.00 ( 10.53%)
-Min      free-odr0-4                119.00 (  0.00%)           107.00 ( 10.08%)
-Min      free-odr0-8                106.00 (  0.00%)            96.00 (  9.43%)
-Min      free-odr0-16                97.00 (  0.00%)            87.00 ( 10.31%)
-Min      free-odr0-32                91.00 (  0.00%)            83.00 (  8.79%)
-Min      free-odr0-64                89.00 (  0.00%)            81.00 (  8.99%)
-Min      free-odr0-128               88.00 (  0.00%)            80.00 (  9.09%)
-Min      free-odr0-256              106.00 (  0.00%)            95.00 ( 10.38%)
-Min      free-odr0-512              116.00 (  0.00%)           111.00 (  4.31%)
-Min      free-odr0-1024             125.00 (  0.00%)           118.00 (  5.60%)
-Min      free-odr0-2048             133.00 (  0.00%)           126.00 (  5.26%)
-Min      free-odr0-4096             136.00 (  0.00%)           130.00 (  4.41%)
-Min      free-odr0-8192             138.00 (  0.00%)           130.00 (  5.80%)
-Min      free-odr0-16384            137.00 (  0.00%)           130.00 (  5.11%)
-
-There is a sizable boost to the free allocator performance. While there
-is an apparent boost on the allocation side, it's likely a co-incidence
-or due to the patches slightly reducing cache footprint.
+                                    nocompound-v1r10           statbranch-v1r10
+Min      alloc-odr0-1               417.00 (  0.00%)           419.00 ( -0.48%)
+Min      alloc-odr0-2               308.00 (  0.00%)           305.00 (  0.97%)
+Min      alloc-odr0-4               253.00 (  0.00%)           250.00 (  1.19%)
+Min      alloc-odr0-8               221.00 (  0.00%)           219.00 (  0.90%)
+Min      alloc-odr0-16              205.00 (  0.00%)           203.00 (  0.98%)
+Min      alloc-odr0-32              199.00 (  0.00%)           195.00 (  2.01%)
+Min      alloc-odr0-64              193.00 (  0.00%)           191.00 (  1.04%)
+Min      alloc-odr0-128             191.00 (  0.00%)           189.00 (  1.05%)
+Min      alloc-odr0-256             200.00 (  0.00%)           198.00 (  1.00%)
+Min      alloc-odr0-512             212.00 (  0.00%)           210.00 (  0.94%)
+Min      alloc-odr0-1024            219.00 (  0.00%)           216.00 (  1.37%)
+Min      alloc-odr0-2048            225.00 (  0.00%)           221.00 (  1.78%)
+Min      alloc-odr0-4096            231.00 (  0.00%)           227.00 (  1.73%)
+Min      alloc-odr0-8192            234.00 (  0.00%)           232.00 (  0.85%)
+Min      alloc-odr0-16384           234.00 (  0.00%)           232.00 (  0.85%)
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- include/linux/page-flags.h | 7 ++++++-
- mm/page_alloc.c            | 2 +-
- 2 files changed, 7 insertions(+), 2 deletions(-)
+ mm/vmstat.c | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index f4ed4f1b0c77..ccd04ee1ba2d 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -371,10 +371,15 @@ PAGEFLAG(Idle, idle, PF_ANY)
- #define PAGE_MAPPING_KSM	2
- #define PAGE_MAPPING_FLAGS	(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM)
- 
-+static __always_inline int PageAnonHead(struct page *page)
-+{
-+	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
-+}
-+
- static __always_inline int PageAnon(struct page *page)
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 5e4300482897..2e58ead9bcf5 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -581,17 +581,21 @@ void drain_zonestat(struct zone *zone, struct per_cpu_pageset *pset)
+  */
+ void zone_statistics(struct zone *preferred_zone, struct zone *z, gfp_t flags)
  {
- 	page = compound_head(page);
--	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
-+	return PageAnonHead(page);
+-	if (z->zone_pgdat == preferred_zone->zone_pgdat) {
++	int local_nid = numa_node_id();
++	enum zone_stat_item local_stat = NUMA_LOCAL;
++
++	if (unlikely(flags & __GFP_OTHER_NODE)) {
++		local_stat = NUMA_OTHER;
++		local_nid = preferred_zone->node;
++	}
++
++	if (z->node == local_nid) {
+ 		__inc_zone_state(z, NUMA_HIT);
++		__inc_zone_state(z, local_stat);
+ 	} else {
+ 		__inc_zone_state(z, NUMA_MISS);
+ 		__inc_zone_state(preferred_zone, NUMA_FOREIGN);
+ 	}
+-	if (z->node == ((flags & __GFP_OTHER_NODE) ?
+-			preferred_zone->node : numa_node_id()))
+-		__inc_zone_state(z, NUMA_LOCAL);
+-	else
+-		__inc_zone_state(z, NUMA_OTHER);
  }
  
- #ifdef CONFIG_KSM
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5d205bcfe10d..6812de41f698 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1048,7 +1048,7 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
- 			bad += free_pages_check(page + i);
- 		}
- 	}
--	if (PageAnon(page))
-+	if (PageAnonHead(page))
- 		page->mapping = NULL;
- 	bad += free_pages_check(page);
- 	if (bad)
+ /*
 -- 
 2.6.4
 
