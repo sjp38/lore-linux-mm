@@ -1,149 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 886BA6B0005
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 02:57:32 -0400 (EDT)
-Received: by mail-wm0-f52.google.com with SMTP id f198so174034397wme.0
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 23:57:32 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id o19si16952607wmg.25.2016.04.11.23.57.31
+Received: from mail-pf0-f172.google.com (mail-pf0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 181F26B0005
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:18:12 -0400 (EDT)
+Received: by mail-pf0-f172.google.com with SMTP id c20so8604362pfc.1
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 00:18:12 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id a190si8338058pfa.80.2016.04.12.00.18.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 23:57:31 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id a140so2817009wma.2
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 23:57:31 -0700 (PDT)
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: [PATCH] mm/vmalloc: Keep a separate lazy-free list
-Date: Tue, 12 Apr 2016 07:57:19 +0100
-Message-Id: <1460444239-22475-1-git-send-email-chris@chris-wilson.co.uk>
+        Tue, 12 Apr 2016 00:18:11 -0700 (PDT)
+Received: by mail-pa0-x229.google.com with SMTP id ot11so8428373pab.1
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 00:18:11 -0700 (PDT)
+Date: Tue, 12 Apr 2016 00:18:00 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: mmotm woes, mainly compaction
+Message-ID: <alpine.LSU.2.11.1604120005350.1832@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: intel-gfx@lists.freedesktop.org
-Cc: Chris Wilson <chris@chris-wilson.co.uk>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Tvrtko Ursulin <tvrtko.ursulin@linux.intel.com>, Daniel Vetter <daniel.vetter@ffwll.ch>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Roman Pen <r.peniaev@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Toshi Kani <toshi.kani@hp.com>, Shawn Lin <shawn.lin@rock-chips.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-When mixing lots of vmallocs and set_memory_*() (which calls
-vm_unmap_aliases()) I encountered situations where the performance
-degraded severely due to the walking of the entire vmap_area list each
-invocation. One simple improvement is to add the lazily freed vmap_area
-to a separate lockless free list, such that we then avoid having to walk
-the full list on each purge.
+Michal, I'm sorry to say that I now find that I misinformed you.
 
-Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Cc: Tvrtko Ursulin <tvrtko.ursulin@linux.intel.com>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Roman Pen <r.peniaev@gmail.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Toshi Kani <toshi.kani@hp.com>
-Cc: Shawn Lin <shawn.lin@rock-chips.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- include/linux/vmalloc.h |  3 ++-
- mm/vmalloc.c            | 29 ++++++++++++++---------------
- 2 files changed, 16 insertions(+), 16 deletions(-)
+You'll remember when we were chasing the order=2 OOMs on two of my
+machines at the end of March (in private mail).  And you sent me a
+mail containing two patches, the second "Another thing to try ...
+so this on top" doing a *migrate_mode++.
 
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 8b51df3ab334..3d9d786a943c 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -4,6 +4,7 @@
- #include <linux/spinlock.h>
- #include <linux/init.h>
- #include <linux/list.h>
-+#include <linux/llist.h>
- #include <asm/page.h>		/* pgprot_t */
- #include <linux/rbtree.h>
- 
-@@ -45,7 +46,7 @@ struct vmap_area {
- 	unsigned long flags;
- 	struct rb_node rb_node;         /* address sorted rbtree */
- 	struct list_head list;          /* address sorted list */
--	struct list_head purge_list;    /* "lazy purge" list */
-+	struct llist_node purge_list;    /* "lazy purge" list */
- 	struct vm_struct *vm;
- 	struct rcu_head rcu_head;
- };
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 293889d7f482..5388bf64dc32 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -21,6 +21,7 @@
- #include <linux/debugobjects.h>
- #include <linux/kallsyms.h>
- #include <linux/list.h>
-+#include <linux/llist.h>
- #include <linux/notifier.h>
- #include <linux/rbtree.h>
- #include <linux/radix-tree.h>
-@@ -282,6 +283,7 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
- static DEFINE_SPINLOCK(vmap_area_lock);
- /* Export for kexec only */
- LIST_HEAD(vmap_area_list);
-+static LLIST_HEAD(vmap_purge_list);
- static struct rb_root vmap_area_root = RB_ROOT;
- 
- /* The vmap cache globals are protected by vmap_area_lock */
-@@ -628,7 +630,7 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
- 					int sync, int force_flush)
+I answered you definitively that the first patch worked,
+so "I haven't tried adding the one below at all".
+
+Not true, I'm afraid.  Although I had split the *migrate_mode++ one
+off into a separate patch that I did not apply, I found looking back
+today (when trying to work out why order=2 OOMs were still a problem
+on mmotm 2016-04-06) that I never deleted that part from the end of
+the first patch; so in fact what I'd been testing had included the
+second; and now I find that _it_ was the effective solution.
+
+Which is particularly sad because I think we were both a bit
+uneasy about the *migrate_mode++ one: partly the style of it
+incrementing the enum; but more seriously that it advances all the
+way to MIGRATE_SYNC, when the first went only to MIGRATE_SYNC_LIGHT.
+
+But without it, I am still stuck with the order=2 OOMs.
+
+And worse: after establishing that that fixes the order=2 OOMs for
+me on 4.6-rc2-mm1, I thought I'd better check that the three you
+posted today (the 1/2 classzone_idx one, the 2/2 prevent looping
+forever, and the "ction-abstract-compaction-feedback-to-helpers-fix";
+but I'm too far behind to consider or try the RFC thp backoff one)
+(a) did not surprisingly fix it on their own, and (b) worked well
+with the *migrate_mode++ one added in.
+
+(a) as you'd expect, they did not help on their own; and (b) they
+worked fine together on the G5 (until it hit the powerpc swapping
+sigsegv, which I think the powerpc guys are hoping is a figment of
+my imagination); but (b) they did not work fine together on the
+laptop, that combination now gives it order=1 OOMs.  Despair.
+
+And I'm sorry that it's taken me so long to report, but aside from
+home distractions, I had quite a lot of troubles with 4.6-rc2-mm1 on
+different machines, once I got down to trying it.  But located Eric's
+fix to an __inet_hash() crash in linux-next, and spotted Joonsoo's
+setup_kmem_cache_node() slab bootup fix on lkml this morning.
+With those out of the way, and forgetting the OOMs for now,
+
+[PATCH mmotm] mm: fix several bugs in compaction
+
+Fix three problems in the mmotm 2016-04-06-20-40 mm/compaction.c,
+plus three minor tidyups there.  Sorry, I'm now too tired to work
+out which is a fix to what patch, and split them up appropriately:
+better get these out quickly now.
+
+1. Fix crash in release_pages() from compact_zone() from kcompactd_do_work():
+   kcompactd needs to INIT_LIST_HEAD on the new freepages_held list.
+
+2. Fix crash in get_pfnblock_flags_mask() from suitable_migration_target()
+   from isolate_freepages(): there's a case when that "block_start_pfn -=
+   pageblock_nr_pages" loop can pass through 0 and end up trying to access
+   a pageblock before the start of the mem_map[].  (I have not worked out
+   why this never hit me before 4.6-rc2-mm1, it looks much older.)
+
+3. /proc/sys/vm/stat_refresh warns nr_isolated_anon and nr_isolated_file
+   go increasingly negative under compaction: which would add delay when
+   should be none, or no delay when should delay.  putback_movable_pages()
+   decrements the NR_ISOLATED counts which acct_isolated() increments,
+   so isolate_migratepages_block() needs to acct before putback in that
+   special case, and isolate_migratepages_range() can always do the acct
+   itself, leaving migratepages putback to caller like most other places.
+
+4. Added VM_BUG_ONs to assert freepages_held is empty, matching those on
+   the other lists - though they're getting to look rather too much now.
+
+5. It's easier to track the life of cc->migratepages if we don't assign
+   it to a migratelist variable.
+
+6. Remove unused bool success from kcompactd_do_work().
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
+
+--- 4.6-rc2-mm1/mm/compaction.c	2016-04-10 09:43:20.314514944 -0700
++++ linux/mm/compaction.c	2016-04-11 11:35:08.536604712 -0700
+@@ -638,7 +638,6 @@ isolate_migratepages_block(struct compac
  {
- 	static DEFINE_SPINLOCK(purge_lock);
--	LIST_HEAD(valist);
-+	struct llist_node *valist;
- 	struct vmap_area *va;
- 	struct vmap_area *n_va;
- 	int nr = 0;
-@@ -647,20 +649,15 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
- 	if (sync)
- 		purge_fragmented_blocks_allcpus();
+ 	struct zone *zone = cc->zone;
+ 	unsigned long nr_scanned = 0, nr_isolated = 0;
+-	struct list_head *migratelist = &cc->migratepages;
+ 	struct lruvec *lruvec;
+ 	unsigned long flags = 0;
+ 	bool locked = false;
+@@ -817,7 +816,7 @@ isolate_migratepages_block(struct compac
+ 		del_page_from_lru_list(page, lruvec, page_lru(page));
  
--	rcu_read_lock();
--	list_for_each_entry_rcu(va, &vmap_area_list, list) {
--		if (va->flags & VM_LAZY_FREE) {
--			if (va->va_start < *start)
--				*start = va->va_start;
--			if (va->va_end > *end)
--				*end = va->va_end;
--			nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
--			list_add_tail(&va->purge_list, &valist);
--			va->flags |= VM_LAZY_FREEING;
--			va->flags &= ~VM_LAZY_FREE;
+ isolate_success:
+-		list_add(&page->lru, migratelist);
++		list_add(&page->lru, &cc->migratepages);
+ 		cc->nr_migratepages++;
+ 		nr_isolated++;
+ 
+@@ -851,9 +850,11 @@ isolate_fail:
+ 				spin_unlock_irqrestore(&zone->lru_lock,	flags);
+ 				locked = false;
+ 			}
+-			putback_movable_pages(migratelist);
+-			nr_isolated = 0;
++			acct_isolated(zone, cc);
++			putback_movable_pages(&cc->migratepages);
++			cc->nr_migratepages = 0;
+ 			cc->last_migrated_pfn = 0;
++			nr_isolated = 0;
+ 		}
+ 
+ 		if (low_pfn < next_skip_pfn) {
+@@ -928,17 +929,8 @@ isolate_migratepages_range(struct compac
+ 
+ 		pfn = isolate_migratepages_block(cc, pfn, block_end_pfn,
+ 							ISOLATE_UNEVICTABLE);
+-
+-		/*
+-		 * In case of fatal failure, release everything that might
+-		 * have been isolated in the previous iteration, and signal
+-		 * the failure back to caller.
+-		 */
+-		if (!pfn) {
+-			putback_movable_pages(&cc->migratepages);
+-			cc->nr_migratepages = 0;
++		if (!pfn)
+ 			break;
 -		}
-+	valist = llist_del_all(&vmap_purge_list);
-+	llist_for_each_entry(va, valist, purge_list) {
-+		if (va->va_start < *start)
-+			*start = va->va_start;
-+		if (va->va_end > *end)
-+			*end = va->va_end;
-+		nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
-+		va->flags |= VM_LAZY_FREEING;
- 	}
--	rcu_read_unlock();
  
- 	if (nr)
- 		atomic_sub(nr, &vmap_lazy_nr);
-@@ -670,7 +667,7 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX)
+ 			break;
+@@ -1019,7 +1011,7 @@ static void isolate_freepages(struct com
+ 	 * pages on cc->migratepages. We stop searching if the migrate
+ 	 * and free page scanners meet or enough free pages are isolated.
+ 	 */
+-	for (; block_start_pfn >= low_pfn;
++	for (; block_start_pfn >= low_pfn && block_start_pfn < block_end_pfn;
+ 				block_end_pfn = block_start_pfn,
+ 				block_start_pfn -= pageblock_nr_pages,
+ 				isolate_start_pfn = block_start_pfn) {
+@@ -1617,6 +1609,7 @@ static enum compact_result compact_zone_
  
- 	if (nr) {
- 		spin_lock(&vmap_area_lock);
--		list_for_each_entry_safe(va, n_va, &valist, purge_list)
-+		llist_for_each_entry_safe(va, n_va, valist, purge_list)
- 			__free_vmap_area(va);
- 		spin_unlock(&vmap_area_lock);
+ 	VM_BUG_ON(!list_empty(&cc.freepages));
+ 	VM_BUG_ON(!list_empty(&cc.migratepages));
++	VM_BUG_ON(!list_empty(&cc.freepages_held));
+ 
+ 	*contended = cc.contended;
+ 	return ret;
+@@ -1776,6 +1769,7 @@ static void __compact_pgdat(pg_data_t *p
+ 
+ 		VM_BUG_ON(!list_empty(&cc->freepages));
+ 		VM_BUG_ON(!list_empty(&cc->migratepages));
++		VM_BUG_ON(!list_empty(&cc->freepages_held));
+ 
+ 		if (is_via_compact_memory(cc->order))
+ 			continue;
+@@ -1915,7 +1909,6 @@ static void kcompactd_do_work(pg_data_t
+ 		.ignore_skip_hint = true,
+ 
+ 	};
+-	bool success = false;
+ 
+ 	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
+ 							cc.classzone_idx);
+@@ -1940,12 +1933,12 @@ static void kcompactd_do_work(pg_data_t
+ 		cc.zone = zone;
+ 		INIT_LIST_HEAD(&cc.freepages);
+ 		INIT_LIST_HEAD(&cc.migratepages);
++		INIT_LIST_HEAD(&cc.freepages_held);
+ 
+ 		status = compact_zone(zone, &cc);
+ 
+ 		if (zone_watermark_ok(zone, cc.order, low_wmark_pages(zone),
+ 						cc.classzone_idx, 0)) {
+-			success = true;
+ 			compaction_defer_reset(zone, cc.order, false);
+ 		} else if (status == COMPACT_PARTIAL_SKIPPED || status == COMPACT_COMPLETE) {
+ 			/*
+@@ -1957,6 +1950,7 @@ static void kcompactd_do_work(pg_data_t
+ 
+ 		VM_BUG_ON(!list_empty(&cc.freepages));
+ 		VM_BUG_ON(!list_empty(&cc.migratepages));
++		VM_BUG_ON(!list_empty(&cc.freepages_held));
  	}
-@@ -706,6 +703,8 @@ static void purge_vmap_area_lazy(void)
- static void free_vmap_area_noflush(struct vmap_area *va)
- {
- 	va->flags |= VM_LAZY_FREE;
-+	llist_add(&va->purge_list, &vmap_purge_list);
-+
- 	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
- 	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
- 		try_purge_vmap_area_lazy();
--- 
-2.8.0.rc3
+ 
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
