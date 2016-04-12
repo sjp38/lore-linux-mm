@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id E82BF6B0263
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 00:51:52 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id bx7so6045880pad.3
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 21:51:52 -0700 (PDT)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id kk8si7885648pab.26.2016.04.11.21.51.52
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 310236B0264
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 00:51:56 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id zm5so6133112pac.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 21:51:56 -0700 (PDT)
+Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
+        by mx.google.com with ESMTPS id yk10si7886661pac.24.2016.04.11.21.51.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 21:51:52 -0700 (PDT)
-Received: by mail-pf0-x22b.google.com with SMTP id e128so6194387pfe.3
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 21:51:52 -0700 (PDT)
+        Mon, 11 Apr 2016 21:51:55 -0700 (PDT)
+Received: by mail-pf0-x234.google.com with SMTP id c20so6242104pfc.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 21:51:55 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH v2 07/11] mm/slab: racy access/modify the slab color
-Date: Tue, 12 Apr 2016 13:51:02 +0900
-Message-Id: <1460436666-20462-8-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 08/11] mm/slab: make cache_grow() handle the page allocated on arbitrary node
+Date: Tue, 12 Apr 2016 13:51:03 +0900
+Message-Id: <1460436666-20462-9-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1460436666-20462-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1460436666-20462-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,91 +24,166 @@ Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David R
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Slab color isn't needed to be changed strictly.  Because locking for
-changing slab color could cause more lock contention so this patch
-implements racy access/modify the slab color.  This is a preparation step
-to implement lockless allocation path when there is no free objects in the
-kmem_cache.
+Currently, cache_grow() assumes that allocated page's nodeid would be same
+with parameter nodeid which is used for allocation request.  If we discard
+this assumption, we can handle fallback_alloc() case gracefully.  So, this
+patch makes cache_grow() handle the page allocated on arbitrary node and
+clean-up relevant code.
 
-Below is the result of concurrent allocation/free in slab allocation
-benchmark made by Christoph a long time ago.  I make the output simpler.
-The number shows cycle count during alloc/free respectively so less is
-better.
-
-* Before
-Kmalloc N*alloc N*free(32): Average=365/806
-Kmalloc N*alloc N*free(64): Average=452/690
-Kmalloc N*alloc N*free(128): Average=736/886
-Kmalloc N*alloc N*free(256): Average=1167/985
-Kmalloc N*alloc N*free(512): Average=2088/1125
-Kmalloc N*alloc N*free(1024): Average=4115/1184
-Kmalloc N*alloc N*free(2048): Average=8451/1748
-Kmalloc N*alloc N*free(4096): Average=16024/2048
-
-* After
-Kmalloc N*alloc N*free(32): Average=355/750
-Kmalloc N*alloc N*free(64): Average=452/812
-Kmalloc N*alloc N*free(128): Average=559/1070
-Kmalloc N*alloc N*free(256): Average=1176/980
-Kmalloc N*alloc N*free(512): Average=1939/1189
-Kmalloc N*alloc N*free(1024): Average=3521/1278
-Kmalloc N*alloc N*free(2048): Average=7152/1838
-Kmalloc N*alloc N*free(4096): Average=13438/2013
-
-It shows that contention is reduced for object size >= 1024 and
-performance increases by roughly 15%.
-
-Acked-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/slab.c | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ mm/slab.c | 60 +++++++++++++++++++++---------------------------------------
+ 1 file changed, 21 insertions(+), 39 deletions(-)
 
 diff --git a/mm/slab.c b/mm/slab.c
-index 6e61461..a3422bc 100644
+index a3422bc..1910589 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -2561,20 +2561,7 @@ static int cache_grow(struct kmem_cache *cachep,
- 	}
- 	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
+@@ -2543,13 +2543,14 @@ static void slab_map_pages(struct kmem_cache *cache, struct page *page,
+  * Grow (by 1) the number of slabs within a cache.  This is called by
+  * kmem_cache_alloc() when there are no active objs left in a cache.
+  */
+-static int cache_grow(struct kmem_cache *cachep,
+-		gfp_t flags, int nodeid, struct page *page)
++static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ {
+ 	void *freelist;
+ 	size_t offset;
+ 	gfp_t local_flags;
++	int page_node;
+ 	struct kmem_cache_node *n;
++	struct page *page;
  
--	/* Take the node list lock to change the colour_next on this node */
- 	check_irq_off();
--	n = get_node(cachep, nodeid);
--	spin_lock(&n->list_lock);
--
--	/* Get colour for the slab, and cal the next value. */
--	offset = n->colour_next;
--	n->colour_next++;
--	if (n->colour_next >= cachep->colour)
--		n->colour_next = 0;
--	spin_unlock(&n->list_lock);
--
--	offset *= cachep->colour_off;
--
- 	if (gfpflags_allow_blocking(local_flags))
- 		local_irq_enable();
- 
-@@ -2595,6 +2582,19 @@ static int cache_grow(struct kmem_cache *cachep,
+ 	/*
+ 	 * Be lazy and only check for valid flags here,  keeping it out of the
+@@ -2577,12 +2578,12 @@ static int cache_grow(struct kmem_cache *cachep,
+ 	 * Get mem for the objs.  Attempt to allocate a physical page from
+ 	 * 'nodeid'.
+ 	 */
+-	if (!page)
+-		page = kmem_getpages(cachep, local_flags, nodeid);
++	page = kmem_getpages(cachep, local_flags, nodeid);
  	if (!page)
  		goto failed;
  
-+	n = get_node(cachep, nodeid);
-+
-+	/* Get colour for the slab, and cal the next value. */
-+	n->colour_next++;
-+	if (n->colour_next >= cachep->colour)
-+		n->colour_next = 0;
-+
-+	offset = n->colour_next;
-+	if (offset >= cachep->colour)
-+		offset = 0;
-+
-+	offset *= cachep->colour_off;
-+
+-	n = get_node(cachep, nodeid);
++	page_node = page_to_nid(page);
++	n = get_node(cachep, page_node);
+ 
+ 	/* Get colour for the slab, and cal the next value. */
+ 	n->colour_next++;
+@@ -2597,7 +2598,7 @@ static int cache_grow(struct kmem_cache *cachep,
+ 
  	/* Get slab management. */
  	freelist = alloc_slabmgmt(cachep, page, offset,
- 			local_flags & ~GFP_CONSTRAINT_MASK, nodeid);
+-			local_flags & ~GFP_CONSTRAINT_MASK, nodeid);
++			local_flags & ~GFP_CONSTRAINT_MASK, page_node);
+ 	if (OFF_SLAB(cachep) && !freelist)
+ 		goto opps1;
+ 
+@@ -2616,13 +2617,13 @@ static int cache_grow(struct kmem_cache *cachep,
+ 	STATS_INC_GROWN(cachep);
+ 	n->free_objects += cachep->num;
+ 	spin_unlock(&n->list_lock);
+-	return 1;
++	return page_node;
+ opps1:
+ 	kmem_freepages(cachep, page);
+ failed:
+ 	if (gfpflags_allow_blocking(local_flags))
+ 		local_irq_disable();
+-	return 0;
++	return -1;
+ }
+ 
+ #if DEBUG
+@@ -2903,14 +2904,14 @@ alloc_done:
+ 				return obj;
+ 		}
+ 
+-		x = cache_grow(cachep, gfp_exact_node(flags), node, NULL);
++		x = cache_grow(cachep, gfp_exact_node(flags), node);
+ 
+ 		/* cache_grow can reenable interrupts, then ac could change. */
+ 		ac = cpu_cache_get(cachep);
+ 		node = numa_mem_id();
+ 
+ 		/* no objects in sight? abort */
+-		if (!x && ac->avail == 0)
++		if (x < 0 && ac->avail == 0)
+ 			return NULL;
+ 
+ 		if (!ac->avail)		/* objects refilled by interrupt? */
+@@ -3039,7 +3040,6 @@ static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
+ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
+ {
+ 	struct zonelist *zonelist;
+-	gfp_t local_flags;
+ 	struct zoneref *z;
+ 	struct zone *zone;
+ 	enum zone_type high_zoneidx = gfp_zone(flags);
+@@ -3050,8 +3050,6 @@ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
+ 	if (flags & __GFP_THISNODE)
+ 		return NULL;
+ 
+-	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
+-
+ retry_cpuset:
+ 	cpuset_mems_cookie = read_mems_allowed_begin();
+ 	zonelist = node_zonelist(mempolicy_slab_node(), flags);
+@@ -3081,33 +3079,17 @@ retry:
+ 		 * We may trigger various forms of reclaim on the allowed
+ 		 * set and go into memory reserves if necessary.
+ 		 */
+-		struct page *page;
++		nid = cache_grow(cache, flags, numa_mem_id());
++		if (nid >= 0) {
++			obj = ____cache_alloc_node(cache,
++				gfp_exact_node(flags), nid);
+ 
+-		if (gfpflags_allow_blocking(local_flags))
+-			local_irq_enable();
+-		kmem_flagcheck(cache, flags);
+-		page = kmem_getpages(cache, local_flags, numa_mem_id());
+-		if (gfpflags_allow_blocking(local_flags))
+-			local_irq_disable();
+-		if (page) {
+ 			/*
+-			 * Insert into the appropriate per node queues
++			 * Another processor may allocate the objects in
++			 * the slab since we are not holding any locks.
+ 			 */
+-			nid = page_to_nid(page);
+-			if (cache_grow(cache, flags, nid, page)) {
+-				obj = ____cache_alloc_node(cache,
+-					gfp_exact_node(flags), nid);
+-				if (!obj)
+-					/*
+-					 * Another processor may allocate the
+-					 * objects in the slab since we are
+-					 * not holding any locks.
+-					 */
+-					goto retry;
+-			} else {
+-				/* cache_grow already freed obj */
+-				obj = NULL;
+-			}
++			if (!obj)
++				goto retry;
+ 		}
+ 	}
+ 
+@@ -3158,8 +3140,8 @@ retry:
+ 
+ must_grow:
+ 	spin_unlock(&n->list_lock);
+-	x = cache_grow(cachep, gfp_exact_node(flags), nodeid, NULL);
+-	if (x)
++	x = cache_grow(cachep, gfp_exact_node(flags), nodeid);
++	if (x >= 0)
+ 		goto retry;
+ 
+ 	return fallback_alloc(cachep, flags);
 -- 
 1.9.1
 
