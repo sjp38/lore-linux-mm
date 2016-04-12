@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A7A76B0267
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:13:30 -0400 (EDT)
-Received: by mail-wm0-f48.google.com with SMTP id f198so180785998wme.0
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:13:30 -0700 (PDT)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 642876B0269
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:13:35 -0400 (EDT)
+Received: by mail-wm0-f53.google.com with SMTP id l6so181204524wml.1
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:13:35 -0700 (PDT)
 Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id g2si33543196wje.67.2016.04.12.03.13.29
+        by mx.google.com with ESMTPS id a3si23018987wmc.122.2016.04.12.03.13.34
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Apr 2016 03:13:29 -0700 (PDT)
+        Tue, 12 Apr 2016 03:13:34 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id CE3A398BA7
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 10:13:28 +0000 (UTC)
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 17A8F98E3D
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 10:13:34 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 11/24] mm, page_alloc: Remove unnecessary initialisation in get_page_from_freelist
-Date: Tue, 12 Apr 2016 11:12:12 +0100
-Message-Id: <1460455945-29644-12-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 12/24] mm, page_alloc: Remove unnecessary initialisation from __alloc_pages_nodemask()
+Date: Tue, 12 Apr 2016 11:12:13 +0100
+Message-Id: <1460455945-29644-13-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460455945-29644-1-git-send-email-mgorman@techsingularity.net>
 References: <1460455945-29644-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,7 +23,8 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-See subject.
+page is guaranteed to be set before it is read with or without the
+initialisation.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
@@ -31,25 +32,18 @@ Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 313db1c43839..f5ddb342c967 100644
+index f5ddb342c967..df03ccc7f07c 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2674,7 +2674,6 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 						const struct alloc_context *ac)
+@@ -3348,7 +3348,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 			struct zonelist *zonelist, nodemask_t *nodemask)
  {
- 	struct zoneref *z;
+ 	struct zoneref *preferred_zoneref;
 -	struct page *page = NULL;
- 	struct zone *zone;
- 	bool fair_skipped;
- 	bool zonelist_rescan;
-@@ -2688,6 +2687,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 	 */
- 	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
- 								ac->nodemask) {
-+		struct page *page;
- 		unsigned long mark;
- 
- 		if (cpusets_enabled() &&
++	struct page *page;
+ 	unsigned int cpuset_mems_cookie;
+ 	unsigned int alloc_flags = ALLOC_WMARK_LOW|ALLOC_FAIR;
+ 	gfp_t alloc_mask; /* The gfp_t that was actually used for allocation */
 -- 
 2.6.4
 
