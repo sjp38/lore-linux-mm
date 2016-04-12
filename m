@@ -1,58 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 00F016B0005
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 11:00:44 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id zm5so15067465pac.0
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 08:00:43 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m22si10362840pfi.43.2016.04.12.08.00.42
-        for <linux-mm@kvack.org>;
-        Tue, 12 Apr 2016 08:00:42 -0700 (PDT)
-Date: Tue, 12 Apr 2016 16:00:36 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH 2/2] arm64: mm: make pfn always valid with flat memory
-Message-ID: <20160412150036.GG8066@e104818-lin.cambridge.arm.com>
-References: <1459844572-53069-1-git-send-email-puck.chen@hisilicon.com>
- <1459844572-53069-2-git-send-email-puck.chen@hisilicon.com>
- <570B85B6.8000805@huawei.com>
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 430CD6B0005
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 11:03:58 -0400 (EDT)
+Received: by mail-qg0-f53.google.com with SMTP id c6so18127684qga.1
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 08:03:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j138si24678719qhc.103.2016.04.12.08.03.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Apr 2016 08:03:57 -0700 (PDT)
+Date: Tue, 12 Apr 2016 17:03:47 +0200
+From: Jesper Dangaard Brouer <jbrouer@redhat.com>
+Subject: Re: [Lsf] [LSF/MM TOPIC] Ideas for SLUB allocator
+Message-ID: <20160412170347.4e21f5d3@redhat.com>
+In-Reply-To: <20160412133728.GM2781@linux.intel.com>
+References: <20160412120215.000283c7@redhat.com>
+	<20160412133728.GM2781@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <570B85B6.8000805@huawei.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Chen Feng <puck.chen@hisilicon.com>, mark.rutland@arm.com, dan.zhao@hisilicon.com, mhocko@suse.com, puck.chen@foxmail.com, ard.biesheuvel@linaro.org, suzhuangluan@hisilicon.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, linuxarm@huawei.com, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, rientjes@google.com, oliver.fu@hisilicon.com, akpm@linux-foundation.org, robin.murphy@arm.com, yudongbin@hislicon.com, linux-arm-kernel@lists.infradead.org, saberlily.xia@hisilicon.com
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, js1304@gmail.com, lsf-pc@lists.linux-foundation.org
 
-On Mon, Apr 11, 2016 at 07:08:38PM +0800, Xishi Qiu wrote:
-> On 2016/4/5 16:22, Chen Feng wrote:
-> 
-> > Make the pfn always valid when using flat memory.
-> > If the reserved memory is not align to memblock-size,
-> > there will be holes in zone.
-> > 
-> > This patch makes the memory in buddy always in the
-> > array of mem-map.
-> > 
-> > Signed-off-by: Chen Feng <puck.chen@hisilicon.com>
-> > Signed-off-by: Fu Jun <oliver.fu@hisilicon.com>
-> > ---
-> >  arch/arm64/mm/init.c | 7 ++++---
-> >  1 file changed, 4 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> > index ea989d8..0e1d5b7 100644
-> > --- a/arch/arm64/mm/init.c
-> > +++ b/arch/arm64/mm/init.c
-> > @@ -306,7 +306,8 @@ static void __init free_unused_memmap(void)
-> 
-> How about let free_unused_memmap() support for CONFIG_SPARSEMEM_VMEMMAP?
+On Tue, 12 Apr 2016 09:37:28 -0400
+Matthew Wilcox <willy@linux.intel.com> wrote:
 
-We would need extra care to check that the memmap was actually allocated
-in the first place.
+> On Tue, Apr 12, 2016 at 12:02:15PM +0200, Jesper Dangaard Brouer wrote:
+> > Hi Rik,
+> > 
+> > I have another topic, which is very MM-specific.
+> > 
+> > I have some ideas for improving SLUB allocator further, after my work
+> > on implementing the slab bulk APIs.  Maybe you can give me a small
+> > slot, I only have 7 guidance slides.  Or else I hope we/I can talk
+> > about these ideas in a hallway track with Christoph and others involved
+> > in slab development...
+> > 
+> > I've already published the preliminary slides here:
+> >  http://people.netfilter.org/hawk/presentations/MM-summit2016/slab_mm_summit2016.odp  
+> 
+> The current bulk API returns the pointers in an array.  What the
+> radix tree would like is the ability to bulk allocate from a slab and
+> chain the allocations through an offset.  See __radix_tree_preload()
+> in lib/radix-tree.c.  I don't know if this is a common thing to do
+> elsewhere in the kernel.  Obviously, radix-tree could allocate the array
+> on the stack and set up the chain itself, but I would think it would be
+> just as easy for slab to do it itself and save the stack space.
+
+It does look like a good candidate for bulk alloc in __radix_tree_preload().
+Especially because you have an annoying preempt_disable() and
+preempt_enable() interaction loop, and reloading of this_cpu_ptr.
+
+And RADIX_TREE_PRELOAD_SIZE==21 is not excessive alloc bulking.
+Considering local_irq's are disabled during the bulk alloc.
+
+The allocator is delivering "raw" memory, thus it does not know
+anything about the callers data structure, and shouldn't. (I have
+considered delivering bulk objects single linked via offset 0, as this
+already happens internally in SLUB, but I decided against it)
+
+Looking closer at your specific data structures, they are also a bit
+complicated to deliver "linked" easily...
+
+struct radix_tree_preload {
+	int nr;
+	/* nodes->private_data points to next preallocated node */
+	struct radix_tree_node *nodes;
+};
+
+struct radix_tree_node {
+	unsigned int	path;	/* Offset in parent & height from the bottom */
+	unsigned int	count;
+	union {
+		struct {
+			/* Used when ascending tree */
+			struct radix_tree_node *parent;
+			/* For tree user */
+			void *private_data;
+		};
+		/* Used when freeing node */
+		struct rcu_head	rcu_head;
+	};
+	/* For tree user */
+	struct list_head private_list;
+	void __rcu	*slots[RADIX_TREE_MAP_SIZE];
+	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
+};
 
 -- 
-Catalin
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
