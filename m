@@ -1,70 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CAE986B0253
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 15:55:19 -0400 (EDT)
-Received: by mail-qg0-f51.google.com with SMTP id j35so25775523qge.0
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 12:55:19 -0700 (PDT)
-Received: from prod-mail-xrelay05.akamai.com (prod-mail-xrelay05.akamai.com. [23.79.238.179])
-        by mx.google.com with ESMTP id q196si25646966qha.43.2016.04.12.12.55.18
-        for <linux-mm@kvack.org>;
-        Tue, 12 Apr 2016 12:55:19 -0700 (PDT)
-From: Jason Baron <jbaron@akamai.com>
-Subject: [PATCH 1/1] mm: update min_free_kbytes from khugepaged after core initialization
-Date: Tue, 12 Apr 2016 15:54:37 -0400
-Message-Id: <2bd05bd3f581116cee2d6396ea72613cf217a8c5.1460488349.git.jbaron@akamai.com>
-In-Reply-To: <cover.1460488349.git.jbaron@akamai.com>
-References: <cover.1460488349.git.jbaron@akamai.com>
-In-Reply-To: <cover.1460488349.git.jbaron@akamai.com>
-References: <cover.1460488349.git.jbaron@akamai.com>
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id CC3AD6B0005
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 17:14:42 -0400 (EDT)
+Received: by mail-qg0-f47.google.com with SMTP id f52so27464880qga.3
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 14:14:42 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b32si17484979qgb.109.2016.04.12.14.14.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Apr 2016 14:14:42 -0700 (PDT)
+Date: Tue, 12 Apr 2016 23:14:35 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [Lsf] [LSF/MM TOPIC] Ideas for SLUB allocator
+Message-ID: <20160412231435.3cbf3aeb@redhat.com>
+In-Reply-To: <1460484828.7134.4.camel@redhat.com>
+References: <20160412120215.000283c7@redhat.com>
+	<alpine.DEB.2.20.1604121057490.14315@east.gentwo.org>
+	<1460484828.7134.4.camel@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com
-Cc: rientjes@google.com, aarcange@redhat.com, mgorman@techsingularity.net, mhocko@suse.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: brouer@redhat.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, js1304@gmail.com, lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, lsf-pc@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>
 
-Khugepaged attempts to raise min_free_kbytes if its set too low. However,
-on boot khugepaged sets min_free_kbytes first from subsys_initcall(), and
-then the mm 'core' over-rides min_free_kbytes after from
-init_per_zone_wmark_min(), via a module_init() call.
+On Tue, 12 Apr 2016 14:13:48 -0400
+Rik van Riel <riel@redhat.com> wrote:
 
-Khugepaged used to use a late_initcall() to set min_free_kbytes (such that
-it occurred after the core initialization), however this was removed when
-the initialization of min_free_kbytes was integrated into the starting of
-the khugepaged thread.
+> On Tue, 2016-04-12 at 11:01 -0500, Christoph Lameter wrote:
+> > On Tue, 12 Apr 2016, Jesper Dangaard Brouer wrote:
+> >  =20
+> > > I have some ideas for improving SLUB allocator further, after my
+> > > work
+> > > on implementing the slab bulk APIs.=C2=A0=C2=A0Maybe you can give me =
+a small
+> > > slot, I only have 7 guidance slides.=C2=A0=C2=A0Or else I hope we/I c=
+an talk
+> > > about these ideas in a hallway track with Christoph and others
+> > > involved
+> > > in slab development... =20
+> >=20
+> > I will be there.
+> >  =20
+> > > I've already published the preliminary slides here:
+> > > =C2=A0http://people.netfilter.org/hawk/presentations/MM-summit2016/sl=
+ab_
+> > > mm_summit2016.odp =20
+> >=20
+> > Re Autotuning: SLUB obj per page:
+> > 	SLUB can combine pages of different orders in a slab cache so
+> > this would
+> > 	be possible.
+> >=20
+> > per CPU freelist per page:
+> > 	Could we drop the per cpu partial lists if this works?
+> >=20
+> > Clearing memory:
+> > 	Could exploit the fact that the page is zero on alloc and also
+> > zap
+> > 	when no object in the page is in use? =20
+>=20
+> Between the SLUB things both of you want to
+> discuss, do you think one 30 minute slot will
+> be enough to start with, or should we schedule
+> a whole hour?
+>=20
+> We have some free slots left on the second day,
+> where discussions can overflow if necessary.
 
-The fix here is simply to invoke the core initialization using a
-core_initcall() instead of module_init(), such that the previous
-initialization ordering is restored. I didn't restore the late_initcall()
-since start_stop_khugepaged() already sets min_free_kbytes via
-set_recommended_min_free_kbytes().
+30 min slot is fine by me :-)
 
-This was noticed when we had a number of page allocation failures when
-moving a workload to a kernel with this new initialization ordering. On an
-8GB system this restores min_free_kbytes back to 67584 from 11365 when
-CONFIG_TRANSPARENT_HUGEPAGE=y is set and either
-CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y or
-CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y.
-
-Fixes: 79553da293d3 ("thp: cleanup khugepaged startup")
-Signed-off-by: Jason Baron <jbaron@akamai.com>
----
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 59de90d5d3a3..c1069efcc4d7 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6485,7 +6485,7 @@ int __meminit init_per_zone_wmark_min(void)
- 	setup_per_zone_inactive_ratio();
- 	return 0;
- }
--module_init(init_per_zone_wmark_min)
-+core_initcall(init_per_zone_wmark_min)
- 
- /*
-  * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so
--- 
-2.6.1
+--=20
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
