@@ -1,108 +1,550 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 626DC6B0253
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:24:42 -0400 (EDT)
-Received: by mail-qg0-f47.google.com with SMTP id f105so8791025qge.2
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 00:24:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y130si2603662qka.87.2016.04.12.00.24.41
+Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id D0ACA6B0005
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:59:44 -0400 (EDT)
+Received: by mail-io0-f173.google.com with SMTP id g185so18218087ioa.2
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 00:59:44 -0700 (PDT)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id vv1si6809998igb.11.2016.04.12.00.59.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Apr 2016 00:24:41 -0700 (PDT)
-Date: Tue, 12 Apr 2016 09:24:34 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH v2 11/11] mm/slab: lockless decision to grow cache
-Message-ID: <20160412092434.0929a04c@redhat.com>
-In-Reply-To: <1460436666-20462-12-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1460436666-20462-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1460436666-20462-12-git-send-email-iamjoonsoo.kim@lge.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 12 Apr 2016 00:59:43 -0700 (PDT)
+MIME-version: 1.0
+Content-type: text/plain; charset=UTF-8; format=flowed
+Received: from epcpsbgr3.samsung.com
+ (u143.gpu120.samsung.co.kr [203.254.230.143])
+ by mailout4.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ 64bit (built May  5 2014))
+ with ESMTP id <0O5I023FEGVIRFD0@mailout4.samsung.com> for linux-mm@kvack.org;
+ Tue, 12 Apr 2016 16:59:42 +0900 (KST)
+Content-transfer-encoding: 8BIT
+Subject: Re: [PATCH v3 02/16] mm/compaction: support non-lru movable page
+ migration
+References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
+ <1459321935-3655-3-git-send-email-minchan@kernel.org>
+From: Chulmin Kim <cmlaika.kim@samsung.com>
+Message-id: <570CAB12.2090408@samsung.com>
+Date: Tue, 12 Apr 2016 17:00:18 +0900
+In-reply-to: <1459321935-3655-3-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, brouer@redhat.com
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 12 Apr 2016 13:51:06 +0900
-js1304@gmail.com wrote:
+On 2016e?? 03i?? 30i? 1/4  16:12, Minchan Kim wrote:
+> We have allowed migration for only LRU pages until now and it was
+> enough to make high-order pages. But recently, embedded system(e.g.,
+> webOS, android) uses lots of non-movable pages(e.g., zram, GPU memory)
+> so we have seen several reports about troubles of small high-order
+> allocation. For fixing the problem, there were several efforts
+> (e,g,. enhance compaction algorithm, SLUB fallback to 0-order page,
+> reserved memory, vmalloc and so on) but if there are lots of
+> non-movable pages in system, their solutions are void in the long run.
+>
+> So, this patch is to support facility to change non-movable pages
+> with movable. For the feature, this patch introduces functions related
+> to migration to address_space_operations as well as some page flags.
+>
+> Basically, this patch supports two page-flags and two functions related
+> to page migration. The flag and page->mapping stability are protected
+> by PG_lock.
+>
+> 	PG_movable
+> 	PG_isolated
+>
+> 	bool (*isolate_page) (struct page *, isolate_mode_t);
+> 	void (*putback_page) (struct page *);
+>
+> Duty of subsystem want to make their pages as migratable are
+> as follows:
+>
+> 1. It should register address_space to page->mapping then mark
+> the page as PG_movable via __SetPageMovable.
+>
+> 2. It should mark the page as PG_isolated via SetPageIsolated
+> if isolation is sucessful and return true.
+>
+> 3. If migration is successful, it should clear PG_isolated and
+> PG_movable of the page for free preparation then release the
+> reference of the page to free.
+>
+> 4. If migration fails, putback function of subsystem should
+> clear PG_isolated via ClearPageIsolated.
+>
+> 5. If a subsystem want to release isolated page, it should
+> clear PG_isolated but not PG_movable. Instead, VM will do it.
+>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: dri-devel@lists.freedesktop.org
+> Cc: virtualization@lists.linux-foundation.org
+> Signed-off-by: Gioh Kim <gurugio@hanmail.net>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>   Documentation/filesystems/Locking      |   4 +
+>   Documentation/filesystems/vfs.txt      |   5 +
+>   fs/proc/page.c                         |   3 +
+>   include/linux/fs.h                     |   2 +
+>   include/linux/migrate.h                |   2 +
+>   include/linux/page-flags.h             |  31 ++++++
+>   include/uapi/linux/kernel-page-flags.h |   1 +
+>   mm/compaction.c                        |  14 ++-
+>   mm/migrate.c                           | 174 +++++++++++++++++++++++++++++----
+>   9 files changed, 217 insertions(+), 19 deletions(-)
+>
+> diff --git a/Documentation/filesystems/Locking b/Documentation/filesystems/Locking
+> index 619af9bfdcb3..0bb79560abb3 100644
+> --- a/Documentation/filesystems/Locking
+> +++ b/Documentation/filesystems/Locking
+> @@ -195,7 +195,9 @@ unlocks and drops the reference.
+>   	int (*releasepage) (struct page *, int);
+>   	void (*freepage)(struct page *);
+>   	int (*direct_IO)(struct kiocb *, struct iov_iter *iter, loff_t offset);
+> +	bool (*isolate_page) (struct page *, isolate_mode_t);
+>   	int (*migratepage)(struct address_space *, struct page *, struct page *);
+> +	void (*putback_page) (struct page *);
+>   	int (*launder_page)(struct page *);
+>   	int (*is_partially_uptodate)(struct page *, unsigned long, unsigned long);
+>   	int (*error_remove_page)(struct address_space *, struct page *);
+> @@ -219,7 +221,9 @@ invalidatepage:		yes
+>   releasepage:		yes
+>   freepage:		yes
+>   direct_IO:
+> +isolate_page:		yes
+>   migratepage:		yes (both)
+> +putback_page:		yes
+>   launder_page:		yes
+>   is_partially_uptodate:	yes
+>   error_remove_page:	yes
+> diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
+> index b02a7d598258..4c1b6c3b4bc8 100644
+> --- a/Documentation/filesystems/vfs.txt
+> +++ b/Documentation/filesystems/vfs.txt
+> @@ -592,9 +592,14 @@ struct address_space_operations {
+>   	int (*releasepage) (struct page *, int);
+>   	void (*freepage)(struct page *);
+>   	ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter, loff_t offset);
+> +	/* isolate a page for migration */
+> +	bool (*isolate_page) (struct page *, isolate_mode_t);
+>   	/* migrate the contents of a page to the specified target */
+>   	int (*migratepage) (struct page *, struct page *);
+> +	/* put the page back to right list */
+> +	void (*putback_page) (struct page *);
+>   	int (*launder_page) (struct page *);
+> +
+>   	int (*is_partially_uptodate) (struct page *, unsigned long,
+>   					unsigned long);
+>   	void (*is_dirty_writeback) (struct page *, bool *, bool *);
+> diff --git a/fs/proc/page.c b/fs/proc/page.c
+> index 3ecd445e830d..ce3d08a4ad8d 100644
+> --- a/fs/proc/page.c
+> +++ b/fs/proc/page.c
+> @@ -157,6 +157,9 @@ u64 stable_page_flags(struct page *page)
+>   	if (page_is_idle(page))
+>   		u |= 1 << KPF_IDLE;
+>
+> +	if (PageMovable(page))
+> +		u |= 1 << KPF_MOVABLE;
+> +
+>   	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
+>
+>   	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index da9e67d937e5..36f2d610e7a8 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -401,6 +401,8 @@ struct address_space_operations {
+>   	 */
+>   	int (*migratepage) (struct address_space *,
+>   			struct page *, struct page *, enum migrate_mode);
+> +	bool (*isolate_page)(struct page *, isolate_mode_t);
+> +	void (*putback_page)(struct page *);
+>   	int (*launder_page) (struct page *);
+>   	int (*is_partially_uptodate) (struct page *, unsigned long,
+>   					unsigned long);
+> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> index 9b50325e4ddf..404fbfefeb33 100644
+> --- a/include/linux/migrate.h
+> +++ b/include/linux/migrate.h
+> @@ -37,6 +37,8 @@ extern int migrate_page(struct address_space *,
+>   			struct page *, struct page *, enum migrate_mode);
+>   extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
+>   		unsigned long private, enum migrate_mode mode, int reason);
+> +extern bool isolate_movable_page(struct page *page, isolate_mode_t mode);
+> +extern void putback_movable_page(struct page *page);
+>
+>   extern int migrate_prep(void);
+>   extern int migrate_prep_local(void);
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index f4ed4f1b0c77..77ebf8fdbc6e 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -129,6 +129,10 @@ enum pageflags {
+>
+>   	/* Compound pages. Stored in first tail page's flags */
+>   	PG_double_map = PG_private_2,
+> +
+> +	/* non-lru movable pages */
+> +	PG_movable = PG_reclaim,
+> +	PG_isolated = PG_owner_priv_1,
+>   };
+>
+>   #ifndef __GENERATING_BOUNDS_H
+> @@ -614,6 +618,33 @@ static inline void __ClearPageBalloon(struct page *page)
+>   	atomic_set(&page->_mapcount, -1);
+>   }
+>
+> +#define PAGE_MOVABLE_MAPCOUNT_VALUE (-255)
+> +
+> +static inline int PageMovable(struct page *page)
+> +{
+> +	return ((test_bit(PG_movable, &(page)->flags) &&
+> +		atomic_read(&page->_mapcount) == PAGE_MOVABLE_MAPCOUNT_VALUE)
+> +		|| PageBalloon(page));
+> +}
+> +
+> +/* Caller should hold a PG_lock */
+> +static inline void __SetPageMovable(struct page *page,
+> +				struct address_space *mapping)
+> +{
+> +	page->mapping = mapping;
+> +	__set_bit(PG_movable, &page->flags);
+> +	atomic_set(&page->_mapcount, PAGE_MOVABLE_MAPCOUNT_VALUE);
+> +}
+> +
+> +static inline void __ClearPageMovable(struct page *page)
+> +{
+> +	atomic_set(&page->_mapcount, -1);
+> +	__clear_bit(PG_movable, &(page)->flags);
+> +	page->mapping = NULL;
+> +}
+> +
+> +PAGEFLAG(Isolated, isolated, PF_ANY);
+> +
+>   /*
+>    * If network-based swap is enabled, sl*b must keep track of whether pages
+>    * were allocated from pfmemalloc reserves.
+> diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
+> index 5da5f8751ce7..a184fd2434fa 100644
+> --- a/include/uapi/linux/kernel-page-flags.h
+> +++ b/include/uapi/linux/kernel-page-flags.h
+> @@ -34,6 +34,7 @@
+>   #define KPF_BALLOON		23
+>   #define KPF_ZERO_PAGE		24
+>   #define KPF_IDLE		25
+> +#define KPF_MOVABLE		26
+>
+>
+>   #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index ccf97b02b85f..7557aedddaee 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -703,7 +703,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+>
+>   		/*
+>   		 * Check may be lockless but that's ok as we recheck later.
+> -		 * It's possible to migrate LRU pages and balloon pages
+> +		 * It's possible to migrate LRU and movable kernel pages.
+>   		 * Skip any other type of page
+>   		 */
+>   		is_lru = PageLRU(page);
+> @@ -714,6 +714,18 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+>   					goto isolate_success;
+>   				}
+>   			}
+> +
+> +			if (unlikely(PageMovable(page)) &&
+> +					!PageIsolated(page)) {
+> +				if (locked) {
+> +					spin_unlock_irqrestore(&zone->lru_lock,
+> +									flags);
+> +					locked = false;
+> +				}
+> +
+> +				if (isolate_movable_page(page, isolate_mode))
+> +					goto isolate_success;
+> +			}
+>   		}
+>
+>   		/*
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 53529c805752..b56bf2b3fe8c 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -73,6 +73,85 @@ int migrate_prep_local(void)
+>   	return 0;
+>   }
+>
+> +bool isolate_movable_page(struct page *page, isolate_mode_t mode)
+> +{
+> +	bool ret = false;
+> +
+> +	/*
+> +	 * Avoid burning cycles with pages that are yet under __free_pages(),
+> +	 * or just got freed under us.
+> +	 *
+> +	 * In case we 'win' a race for a movable page being freed under us and
+> +	 * raise its refcount preventing __free_pages() from doing its job
+> +	 * the put_page() at the end of this block will take care of
+> +	 * release this page, thus avoiding a nasty leakage.
+> +	 */
+> +	if (unlikely(!get_page_unless_zero(page)))
+> +		goto out;
+> +
+> +	/*
+> +	 * Check PG_movable before holding a PG_lock because page's owner
+> +	 * assumes anybody doesn't touch PG_lock of newly allocated page.
+> +	 */
+> +	if (unlikely(!PageMovable(page)))
+> +		goto out_putpage;
+> +	/*
+> +	 * As movable pages are not isolated from LRU lists, concurrent
+> +	 * compaction threads can race against page migration functions
+> +	 * as well as race against the releasing a page.
+> +	 *
+> +	 * In order to avoid having an already isolated movable page
+> +	 * being (wrongly) re-isolated while it is under migration,
+> +	 * or to avoid attempting to isolate pages being released,
+> +	 * lets be sure we have the page lock
+> +	 * before proceeding with the movable page isolation steps.
+> +	 */
+> +	if (unlikely(!trylock_page(page)))
+> +		goto out_putpage;
+> +
+> +	if (!PageMovable(page) || PageIsolated(page))
+> +		goto out_no_isolated;
 
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> To check whther free objects exist or not precisely, we need to grab a
-           ^^^^^^    
-(spelling)
-> lock.  But, accuracy isn't that important because race window would be
-> even small and if there is too much free object, cache reaper would reap
-> it.  So, this patch makes the check for free object exisistence not to
-                                                      ^^^^^^^^^^^
-(spelling)
 
-> hold a lock.  This will reduce lock contention in heavily allocation case.
-> 
-> Note that until now, n->shared can be freed during the processing by
-> writing slabinfo, but, with some trick in this patch, we can access it
-> freely within interrupt disabled period.
-> 
-> Below is the result of concurrent allocation/free in slab allocation
-> benchmark made by Christoph a long time ago.  I make the output simpler.
-> The number shows cycle count during alloc/free respectively so less is
-> better.
+Hello Minchan.
 
-I cannot figure out which if Christoph's tests you are using.  And I
-even have a copy of his test here:
- https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/slab_test.c
+We captured a problem case.
+We suspect that
+a zs subpage(T) in the below condition can be isolated twice,
+which seems wrong.
 
-I think you need to describe the test a bit better...
+  migrate_ctx_A         migrate_ctx_B            C (proc being killed)
+-------------       ----------------        -----------------
+  lock_page(T)
+  isolate(T)
+  unlock_page(T)
 
-Looking a long time at the output on my own system, I guess you are
-showing results from the "Concurrent allocs".  Then it would be
-relevant how many CPUs your system have.
+                                               zs_free() (making zspage 
+ZS_EMPTY)
+                                                   free_zspage()
+                                                      lock_page(T)
+                                                      reset_page(T)
+                                                         (Keeps T 
+"PageMovable" and Clears "PageIsolated")
+                                                      unlock_page(T)
 
-It would also be relevant to mention that N=10000.  And perhaps mention
-that it means, e.g all CPUs do N=10000 alloc concurrently, synchronize
-before doing N free concurrently.
 
-> * Before
-> Kmalloc N*alloc N*free(32): Average=248/966
-> Kmalloc N*alloc N*free(64): Average=261/949
-> Kmalloc N*alloc N*free(128): Average=314/1016
-> Kmalloc N*alloc N*free(256): Average=741/1061
-> Kmalloc N*alloc N*free(512): Average=1246/1152
-> Kmalloc N*alloc N*free(1024): Average=2437/1259
-> Kmalloc N*alloc N*free(2048): Average=4980/1800
-> Kmalloc N*alloc N*free(4096): Average=9000/2078
-> 
-> * After
-> Kmalloc N*alloc N*free(32): Average=344/792
-> Kmalloc N*alloc N*free(64): Average=347/882
-> Kmalloc N*alloc N*free(128): Average=390/959
-> Kmalloc N*alloc N*free(256): Average=393/1067
-> Kmalloc N*alloc N*free(512): Average=683/1229
-> Kmalloc N*alloc N*free(1024): Average=1295/1325
-> Kmalloc N*alloc N*free(2048): Average=2513/1664
-> Kmalloc N*alloc N*free(4096): Average=4742/2172
-> 
-> It shows that allocation performance decreases for the object size up to
-> 128 and it may be due to extra checks in cache_alloc_refill().  But, with
-> considering improvement of free performance, net result looks the same.
-> Result for other size class looks very promising, roughly, 50% performance
-> improvement.
+                        lock_page(T)
+                        isolate(T)
 
-Super nice performance boost.  The numbers on my system are
-significantly smaller, but this is a before/after test and the absolute
-numbers are not that important.
 
-Oh, maybe this was because I ran the test with SLUB... recompiling with
-SLAB... and the results are comparable to your numbers (on my 8 core
-i7-4790K CPU @ 4.00GHz)
+In our case,
+during the second isolation (migrateB),
+there was null pointer dereference
+((Without DEBUG_VM) T's first page was set to NULL)
 
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+
+Not sure this is the case you and Vlastimil discussed.
+(I think it is a bit different)
+
+Thanks.
+Chulmin
+
+> +
+> +	ret = page->mapping->a_ops->isolate_page(page, mode);
+> +	if (!ret)
+> +		goto out_no_isolated;
+> +
+> +	WARN_ON_ONCE(!PageIsolated(page));
+> +	unlock_page(page);
+> +	return ret;
+> +
+> +out_no_isolated:
+> +	unlock_page(page);
+> +out_putpage:
+> +	put_page(page);
+> +out:
+> +	return ret;
+> +}
+> +
+> +/* It should be called on page which is PG_movable */
+> +void putback_movable_page(struct page *page)
+> +{
+> +	/*
+> +	 * 'lock_page()' stabilizes the page and prevents races against
+> +	 * concurrent isolation threads attempting to re-isolate it.
+> +	 */
+> +	VM_BUG_ON_PAGE(!PageMovable(page), page);
+> +
+> +	lock_page(page);
+> +	if (PageIsolated(page)) {
+> +		struct address_space *mapping;
+> +
+> +		mapping = page_mapping(page);
+> +		mapping->a_ops->putback_page(page);
+> +		WARN_ON_ONCE(PageIsolated(page));
+> +	} else {
+> +		__ClearPageMovable(page);
+> +	}
+> +	unlock_page(page);
+> +	/* drop the extra ref count taken for movable page isolation */
+> +	put_page(page);
+> +}
+> +
+>   /*
+>    * Put previously isolated pages back onto the appropriate lists
+>    * from where they were once taken off for compaction/migration.
+> @@ -94,10 +173,18 @@ void putback_movable_pages(struct list_head *l)
+>   		list_del(&page->lru);
+>   		dec_zone_page_state(page, NR_ISOLATED_ANON +
+>   				page_is_file_cache(page));
+> -		if (unlikely(isolated_balloon_page(page)))
+> +		if (unlikely(isolated_balloon_page(page))) {
+>   			balloon_page_putback(page);
+> -		else
+> +		} else if (unlikely(PageMovable(page))) {
+> +			if (PageIsolated(page)) {
+> +				putback_movable_page(page);
+> +			} else {
+> +				__ClearPageMovable(page);
+> +				put_page(page);
+> +			}
+> +		} else {
+>   			putback_lru_page(page);
+> +		}
+>   	}
+>   }
+>
+> @@ -592,7 +679,7 @@ void migrate_page_copy(struct page *newpage, struct page *page)
+>    ***********************************************************/
+>
+>   /*
+> - * Common logic to directly migrate a single page suitable for
+> + * Common logic to directly migrate a single LRU page suitable for
+>    * pages that do not use PagePrivate/PagePrivate2.
+>    *
+>    * Pages are locked upon entry and exit.
+> @@ -755,24 +842,54 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+>   				enum migrate_mode mode)
+>   {
+>   	struct address_space *mapping;
+> -	int rc;
+> +	int rc = -EAGAIN;
+> +	bool lru_movable = true;
+>
+>   	VM_BUG_ON_PAGE(!PageLocked(page), page);
+>   	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
+>
+>   	mapping = page_mapping(page);
+> -	if (!mapping)
+> -		rc = migrate_page(mapping, newpage, page, mode);
+> -	else if (mapping->a_ops->migratepage)
+> -		/*
+> -		 * Most pages have a mapping and most filesystems provide a
+> -		 * migratepage callback. Anonymous pages are part of swap
+> -		 * space which also has its own migratepage callback. This
+> -		 * is the most common path for page migration.
+> -		 */
+> -		rc = mapping->a_ops->migratepage(mapping, newpage, page, mode);
+> -	else
+> -		rc = fallback_migrate_page(mapping, newpage, page, mode);
+> +	/*
+> +	 * In case of non-lru page, it could be released after
+> +	 * isolation step. In that case, we shouldn't try
+> +	 * fallback migration which was designed for LRU pages.
+> +	 *
+> +	 * The rule for such case is that subsystem should clear
+> +	 * PG_isolated but remains PG_movable so VM should catch
+> +	 * it and clear PG_movable for it.
+> +	 */
+> +	if (unlikely(PageMovable(page))) {
+> +		lru_movable = false;
+> +		VM_BUG_ON_PAGE(!mapping, page);
+> +		if (!PageIsolated(page)) {
+> +			rc = MIGRATEPAGE_SUCCESS;
+> +			__ClearPageMovable(page);
+> +			goto out;
+> +		}
+> +	}
+> +
+> +	if (likely(lru_movable)) {
+> +		if (!mapping)
+> +			rc = migrate_page(mapping, newpage, page, mode);
+> +		else if (mapping->a_ops->migratepage)
+> +			/*
+> +			 * Most pages have a mapping and most filesystems
+> +			 * provide a migratepage callback. Anonymous pages
+> +			 * are part of swap space which also has its own
+> +			 * migratepage callback. This is the most common path
+> +			 * for page migration.
+> +			 */
+> +			rc = mapping->a_ops->migratepage(mapping, newpage,
+> +							page, mode);
+> +		else
+> +			rc = fallback_migrate_page(mapping, newpage,
+> +							page, mode);
+> +	} else {
+> +		rc = mapping->a_ops->migratepage(mapping, newpage,
+> +						page, mode);
+> +		WARN_ON_ONCE(rc == MIGRATEPAGE_SUCCESS &&
+> +			PageIsolated(page));
+> +	}
+>
+>   	/*
+>   	 * When successful, old pagecache page->mapping must be cleared before
+> @@ -782,6 +899,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+>   		if (!PageAnon(page))
+>   			page->mapping = NULL;
+>   	}
+> +out:
+>   	return rc;
+>   }
+>
+> @@ -960,6 +1078,8 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+>   			put_new_page(newpage, private);
+>   		else
+>   			put_page(newpage);
+> +		if (PageMovable(page))
+> +			__ClearPageMovable(page);
+>   		goto out;
+>   	}
+>
+> @@ -1000,8 +1120,26 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+>   				num_poisoned_pages_inc();
+>   		}
+>   	} else {
+> -		if (rc != -EAGAIN)
+> -			putback_lru_page(page);
+> +		if (rc != -EAGAIN) {
+> +			/*
+> +			 * subsystem couldn't remove PG_movable since page is
+> +			 * isolated so PageMovable check is not racy in here.
+> +			 * But PageIsolated check can be racy but it's okay
+> +			 * because putback_movable_page checks it under PG_lock
+> +			 * again.
+> +			 */
+> +			if (unlikely(PageMovable(page))) {
+> +				if (PageIsolated(page))
+> +					putback_movable_page(page);
+> +				else {
+> +					__ClearPageMovable(page);
+> +					put_page(page);
+> +				}
+> +			} else {
+> +				putback_lru_page(page);
+> +			}
+> +		}
+> +
+>   		if (put_new_page)
+>   			put_new_page(newpage, private);
+>   		else
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
