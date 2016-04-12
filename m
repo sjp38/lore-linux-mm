@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f178.google.com (mail-pf0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id C18D66B025F
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 00:51:38 -0400 (EDT)
-Received: by mail-pf0-f178.google.com with SMTP id c20so6237463pfc.1
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 21:51:38 -0700 (PDT)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id t24si7647440pfi.39.2016.04.11.21.51.38
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D5256B0260
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 00:51:42 -0400 (EDT)
+Received: by mail-pf0-f177.google.com with SMTP id 184so6282981pff.0
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 21:51:42 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id 75si7645631pfs.118.2016.04.11.21.51.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Apr 2016 21:51:38 -0700 (PDT)
-Received: by mail-pa0-x230.google.com with SMTP id bx7so6042058pad.3
-        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 21:51:38 -0700 (PDT)
+        Mon, 11 Apr 2016 21:51:41 -0700 (PDT)
+Received: by mail-pa0-x231.google.com with SMTP id ot11so6101930pab.1
+        for <linux-mm@kvack.org>; Mon, 11 Apr 2016 21:51:41 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH v2 03/11] mm/slab: drain the free slab as much as possible
-Date: Tue, 12 Apr 2016 13:50:58 +0900
-Message-Id: <1460436666-20462-4-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 04/11] mm/slab: factor out kmem_cache_node initialization code
+Date: Tue, 12 Apr 2016 13:50:59 +0900
+Message-Id: <1460436666-20462-5-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1460436666-20462-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1460436666-20462-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,59 +24,104 @@ Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David R
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-slabs_tofree() implies freeing all free slab. We can do it with
-just providing INT_MAX.
+It can be reused on other place, so factor out it.  Following patch will
+use it.
 
-Acked-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/slab.c | 12 +++---------
- 1 file changed, 3 insertions(+), 9 deletions(-)
+ mm/slab.c | 68 ++++++++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 39 insertions(+), 29 deletions(-)
 
 diff --git a/mm/slab.c b/mm/slab.c
-index 373b8be..5451929 100644
+index 5451929..49af685 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -888,12 +888,6 @@ static int init_cache_node_node(int node)
+@@ -841,6 +841,40 @@ static inline gfp_t gfp_exact_node(gfp_t flags)
+ }
+ #endif
+ 
++static int init_cache_node(struct kmem_cache *cachep, int node, gfp_t gfp)
++{
++	struct kmem_cache_node *n;
++
++	/*
++	 * Set up the kmem_cache_node for cpu before we can
++	 * begin anything. Make sure some other cpu on this
++	 * node has not already allocated this
++	 */
++	n = get_node(cachep, node);
++	if (n)
++		return 0;
++
++	n = kmalloc_node(sizeof(struct kmem_cache_node), gfp, node);
++	if (!n)
++		return -ENOMEM;
++
++	kmem_cache_node_init(n);
++	n->next_reap = jiffies + REAPTIMEOUT_NODE +
++		    ((unsigned long)cachep) % REAPTIMEOUT_NODE;
++
++	n->free_limit =
++		(1 + nr_cpus_node(node)) * cachep->batchcount + cachep->num;
++
++	/*
++	 * The kmem_cache_nodes don't come and go as CPUs
++	 * come and go.  slab_mutex is sufficient
++	 * protection here.
++	 */
++	cachep->node[node] = n;
++
++	return 0;
++}
++
+ /*
+  * Allocates and initializes node for a node on each slab cache, used for
+  * either memory or cpu hotplug.  If memory is being hot-added, the kmem_cache_node
+@@ -852,39 +886,15 @@ static inline gfp_t gfp_exact_node(gfp_t flags)
+  */
+ static int init_cache_node_node(int node)
+ {
++	int ret;
+ 	struct kmem_cache *cachep;
+-	struct kmem_cache_node *n;
+-	const size_t memsize = sizeof(struct kmem_cache_node);
+ 
+ 	list_for_each_entry(cachep, &slab_caches, list) {
+-		/*
+-		 * Set up the kmem_cache_node for cpu before we can
+-		 * begin anything. Make sure some other cpu on this
+-		 * node has not already allocated this
+-		 */
+-		n = get_node(cachep, node);
+-		if (!n) {
+-			n = kmalloc_node(memsize, GFP_KERNEL, node);
+-			if (!n)
+-				return -ENOMEM;
+-			kmem_cache_node_init(n);
+-			n->next_reap = jiffies + REAPTIMEOUT_NODE +
+-			    ((unsigned long)cachep) % REAPTIMEOUT_NODE;
+-
+-			/*
+-			 * The kmem_cache_nodes don't come and go as CPUs
+-			 * come and go.  slab_mutex is sufficient
+-			 * protection here.
+-			 */
+-			cachep->node[node] = n;
+-		}
+-
+-		spin_lock_irq(&n->list_lock);
+-		n->free_limit =
+-			(1 + nr_cpus_node(node)) *
+-			cachep->batchcount + cachep->num;
+-		spin_unlock_irq(&n->list_lock);
++		ret = init_cache_node(cachep, node, GFP_KERNEL);
++		if (ret)
++			return ret;
+ 	}
++
  	return 0;
  }
  
--static inline int slabs_tofree(struct kmem_cache *cachep,
--						struct kmem_cache_node *n)
--{
--	return (n->free_objects + cachep->num - 1) / cachep->num;
--}
--
- static void cpuup_canceled(long cpu)
- {
- 	struct kmem_cache *cachep;
-@@ -958,7 +952,7 @@ free_slab:
- 		n = get_node(cachep, node);
- 		if (!n)
- 			continue;
--		drain_freelist(cachep, n, slabs_tofree(cachep, n));
-+		drain_freelist(cachep, n, INT_MAX);
- 	}
- }
- 
-@@ -1110,7 +1104,7 @@ static int __meminit drain_cache_node_node(int node)
- 		if (!n)
- 			continue;
- 
--		drain_freelist(cachep, n, slabs_tofree(cachep, n));
-+		drain_freelist(cachep, n, INT_MAX);
- 
- 		if (!list_empty(&n->slabs_full) ||
- 		    !list_empty(&n->slabs_partial)) {
-@@ -2304,7 +2298,7 @@ int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
- 
- 	check_irq_on();
- 	for_each_kmem_cache_node(cachep, node, n) {
--		drain_freelist(cachep, n, slabs_tofree(cachep, n));
-+		drain_freelist(cachep, n, INT_MAX);
- 
- 		ret += !list_empty(&n->slabs_full) ||
- 			!list_empty(&n->slabs_partial);
 -- 
 1.9.1
 
