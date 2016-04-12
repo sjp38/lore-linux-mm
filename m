@@ -1,67 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id F08076B0253
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 07:53:51 -0400 (EDT)
-Received: by mail-wm0-f41.google.com with SMTP id v188so123796303wme.1
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 04:53:51 -0700 (PDT)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id D16896B025E
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 07:55:01 -0400 (EDT)
+Received: by mail-wm0-f53.google.com with SMTP id n3so24779049wmn.0
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 04:55:01 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q67si5831749wme.44.2016.04.12.04.53.50
+        by mx.google.com with ESMTPS id ev6si2880239wjd.58.2016.04.12.04.55.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Apr 2016 04:53:50 -0700 (PDT)
+        Tue, 12 Apr 2016 04:55:00 -0700 (PDT)
 Subject: Re: [PATCH 09/11] mm, compaction: Abstract compaction feedback to
  helpers
 References: <1459855533-4600-1-git-send-email-mhocko@kernel.org>
  <1459855533-4600-10-git-send-email-mhocko@kernel.org>
- <570BB719.2030007@suse.cz> <20160411151410.GL23157@dhcp22.suse.cz>
+ <20160411154036.GN23157@dhcp22.suse.cz>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <570CE1CB.7070106@suse.cz>
-Date: Tue, 12 Apr 2016 13:53:47 +0200
+Message-ID: <570CE213.8050505@suse.cz>
+Date: Tue, 12 Apr 2016 13:54:59 +0200
 MIME-Version: 1.0
-In-Reply-To: <20160411151410.GL23157@dhcp22.suse.cz>
+In-Reply-To: <20160411154036.GN23157@dhcp22.suse.cz>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 04/11/2016 05:14 PM, Michal Hocko wrote:
-> On Mon 11-04-16 16:39:21, Vlastimil Babka wrote:
->> On 04/05/2016 01:25 PM, Michal Hocko wrote:
-> [...]
->>> +/* Compaction has failed and it doesn't make much sense to keep retrying. */
->>> +static inline bool compaction_failed(enum compact_result result)
->>> +{
->>> +	/* All zones where scanned completely and still not result. */
->>
->> Hmm given that try_to_compact_pages() uses a max() on results, then in fact
->> it takes only one zone to get this. Others could have been also SKIPPED or
->> DEFERRED. Is that what you want?
+On 04/11/2016 05:40 PM, Michal Hocko wrote:
+> Hi Andrew,
+> Vlastimil has pointed out[1] that using compaction_withdrawn() for THP
+> allocations has some non-trivial consequences. While I still think that
+> the check is OK it is true we shouldn't sneak in a potential behavior
+> change into something that basically provides an API. So can you fold
+> the following partial revert into the original patch please?
 >
-> In short I didn't find any better way and still guarantee a some
-> guarantee of convergence. COMPACT_COMPLETE means that at least one zone
-> was completely scanned and led to no result. That zone would be
-> compact_suitable by definition. If I made DEFERRED or SKIPPED more
-> priorite (aka higher in the enum) then I could easily end up in a state
-> where all zones would return COMPACT_COMPLETE and few remaining would
-> just alternate returning their DEFFERED resp. SKIPPED. So while this
-> might sound like giving up too early I couldn't come up with anything
-> more specific that would lead to reliable results.
+> [1] http://lkml.kernel.org/r/570BB719.2030007@suse.cz
 >
-> I am open to any suggestions of course.
+> ---
+>  From 71ddeee4238e33d67ef07883e73f946a7cc40e73 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Mon, 11 Apr 2016 17:38:22 +0200
+> Subject: [PATCH] ction-abstract-compaction-feedback-to-helpers-fix
+>
+> Preserve the original thp back off checks to not introduce any
+> functional changes as per Vlastimil.
+>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-I guess you would have to track each zone separately and make sure 
-you've seen COMPACT_COMPLETE in all of them, although not necessary 
-during the same zonelist attempt. But then do the same for reclaim, as 
-you would also have to match COMPAT_SKIPPED and inability of reclaim... 
-and that gets uglier and uglier, and also against the move to node-based 
-reclaim...
-
-So there's a danger that you'll see COMPACT_COMPLETE on a small ZONE_DMA 
-early on, before the larger zones even stop being deferred, but I don't 
-see an easy solution.
-
+Ack, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
