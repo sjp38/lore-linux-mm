@@ -1,102 +1,322 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 50498828E8
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:14:38 -0400 (EDT)
-Received: by mail-wm0-f51.google.com with SMTP id a140so47168334wma.0
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:14:38 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id y185si23095867wmg.9.2016.04.12.03.14.37
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id EE2556B0276
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:26:28 -0400 (EDT)
+Received: by mail-wm0-f49.google.com with SMTP id l6so181648489wml.1
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:26:28 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id ma2si1629042wjb.145.2016.04.12.03.26.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Apr 2016 03:14:37 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id D8E2198FBA
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 10:14:36 +0000 (UTC)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Apr 2016 03:26:27 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 24EFD1C2295
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 11:26:27 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 24/24] mm, page_alloc: Do not lookup pcp migratetype during bulk free
-Date: Tue, 12 Apr 2016 11:12:25 +0100
-Message-Id: <1460455945-29644-25-git-send-email-mgorman@techsingularity.net>
-In-Reply-To: <1460455945-29644-1-git-send-email-mgorman@techsingularity.net>
-References: <1460455945-29644-1-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 00/28] Move LRU page reclaim from zones to nodes v4
+Date: Tue, 12 Apr 2016 11:25:55 +0100
+Message-Id: <1460456783-30996-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-During bulk free, the pcp type of the page is known as it was removed
-from a specific list. It only needs to be rechecked if an isolated
-pageblock exists. This patch removes an unnecessary variable in
-the process. The impact is that the round-robin freeing of PCP
-lists is distorted when an isolated pageblock is encountered but
-that is a rare and harmless corner-case.
+Changelog since v3
+o Rebase on top of the page allocator optimisation series
+o Remove RFC tag
 
-The impact on the page allocator microbench of the bulk free patches is
-visible for higher batch counts when the bulk free paths are hit.
+This is the latest version of a series that moves LRUs from the zones to
+the node that is based upon 4.6-rc3 plus the page allocator optimisation
+series. Conceptually, this is simple but there are a lot of details. Some
+of the broad motivations for this are;
 
-pagealloc
-                                           4.6.0-rc3                  4.6.0-rc3
-                                         cpuset-v2r2                 micro-v2r2
-Min      free-odr0-1                191.00 (  0.00%)           195.00 ( -2.09%)
-Min      free-odr0-2                136.00 (  0.00%)           136.00 (  0.00%)
-Min      free-odr0-4                107.00 (  0.00%)           107.00 (  0.00%)
-Min      free-odr0-8                 95.00 (  0.00%)            95.00 (  0.00%)
-Min      free-odr0-16                87.00 (  0.00%)            87.00 (  0.00%)
-Min      free-odr0-32                82.00 (  0.00%)            82.00 (  0.00%)
-Min      free-odr0-64                80.00 (  0.00%)            80.00 (  0.00%)
-Min      free-odr0-128               79.00 (  0.00%)            79.00 (  0.00%)
-Min      free-odr0-256               94.00 (  0.00%)            97.00 ( -3.19%)
-Min      free-odr0-512              112.00 (  0.00%)           109.00 (  2.68%)
-Min      free-odr0-1024             118.00 (  0.00%)           118.00 (  0.00%)
-Min      free-odr0-2048             123.00 (  0.00%)           121.00 (  1.63%)
-Min      free-odr0-4096             127.00 (  0.00%)           125.00 (  1.57%)
-Min      free-odr0-8192             129.00 (  0.00%)           127.00 (  1.55%)
-Min      free-odr0-16384            128.00 (  0.00%)           127.00 (  0.78%)
+1. The residency of a page partially depends on what zone the page was
+   allocated from.  This is partially combatted by the fair zone allocation
+   policy but that is a partial solution that introduces overhead in the
+   page allocator paths.
 
-It's tiny but the patches are trivial.
+2. Currently, reclaim on node 0 behaves slightly different to node 1. For
+   example, direct reclaim scans in zonelist order and reclaims even if
+   the zone is over the high watermark regardless of the age of pages
+   in that LRU. Kswapd on the other hand starts reclaim on the highest
+   unbalanced zone. A difference in distribution of file/anon pages due
+   to when they were allocated results can result in a difference in 
+   again. While the fair zone allocation policy mitigates some of the
+   problems here, the page reclaim results on a multi-zone node will
+   always be different to a single-zone node.
+   it was scheduled on as a result.
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/page_alloc.c | 13 ++++---------
- 1 file changed, 4 insertions(+), 9 deletions(-)
+3. kswapd and the page allocator scan zones in the opposite order to
+   avoid interfering with each other but it's sensitive to timing.  This
+   mitigates the page allocator using pages that were allocated very recently
+   in the ideal case but it's sensitive to timing. When kswapd is allocating
+   from lower zones then it's great but during the rebalancing of the highest
+   zone, the page allocator and kswapd interfere with each other. It's worse
+   if the highest zone is small and difficult to balance.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1b1553c1156c..4d4079309760 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -876,7 +876,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 		 */
- 		do {
- 			batch_free++;
--			if (++migratetype == MIGRATE_PCPTYPES)
-+			if (++migratetype >= MIGRATE_PCPTYPES)
- 				migratetype = 0;
- 			list = &pcp->lists[migratetype];
- 		} while (list_empty(list));
-@@ -886,21 +886,16 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 			batch_free = count;
- 
- 		do {
--			int mt;	/* migratetype of the to-be-freed page */
--
- 			page = list_last_entry(list, struct page, lru);
- 			/* must delete as __free_one_page list manipulates */
- 			list_del(&page->lru);
- 
--			mt = get_pcppage_migratetype(page);
--			/* MIGRATE_ISOLATE page should not go to pcplists */
--			VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
- 			/* Pageblock could have been isolated meanwhile */
- 			if (unlikely(isolated_pageblocks))
--				mt = get_pageblock_migratetype(page);
-+				migratetype = get_pageblock_migratetype(page);
- 
--			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
--			trace_mm_page_pcpu_drain(page, 0, mt);
-+			__free_one_page(page, page_to_pfn(page), zone, 0, migratetype);
-+			trace_mm_page_pcpu_drain(page, 0, migratetype);
- 		} while (--count && --batch_free && !list_empty(list));
- 	}
- 	spin_unlock(&zone->lock);
+4. slab shrinkers are node-based which makes it harder to identify the exact
+   relationship between slab reclaim and LRU reclaim.
+
+The reason we have zone-based reclaim is that we used to have
+large highmem zones in common configurations and it was necessary
+to quickly find ZONE_NORMAL pages for reclaim. Today, this is much
+less of a concern as machines with lots of memory will (or should) use
+64-bit kernels. Combinations of 32-bit hardware and 64-bit hardware are
+rare. Machines that do use highmem should have relatively low highmem:lowmem
+ratios than we worried about in the past.
+
+Conceptually, moving to node LRUs should be easier to understand. The
+page allocator plays fewer tricks to game reclaim and reclaim behaves
+similarly on all nodes. 
+
+It was tested on a UMA (16 cores single socket) and a NUMA machine (48
+cores, 2 sockets). In most cases, only the UMA results are presented as
+the NUMA machine takes an excessive amount of time to complete tests.
+
+There may be an obvious difference in the number of
+allocations from each zone as the fair zone allocation policy is removed
+towards the end of the series. In cases where the working set exceeds memory,
+the differences will be small but on small workloads it'll be very obvious.
+For example, these are the allocation stats on a workload that is doing small
+amounts of dd.
+
+                             4.6.0-rc1   4.6.0-rc1
+                               vanilla  nodelru-v3
+DMA allocs                           0           0
+DMA32 allocs                   1961196           0
+Normal allocs                  3355799     5247180
+Movable allocs                       0           0
+
+The key reason why this is not a problem is that kswapd will sleep if any
+applicable zone for a classzone is free. If it tried to balance all zones
+then there would be excessive reclaim.
+
+bonnie
+------
+
+This was configured to do an IO test with a working set 2*RAM using the
+ext4 filesystem.  For both machines, there was no significant performance
+difference between them but this is the result for the UMA machine
+
+bonnie
+                                           4.6.0-rc1                   4.6.0-rc1
+                                             vanilla               nodelru-v3r10
+Hmean    SeqOut Char            53306.32 (  0.00%)        79027.86 ( 48.25%)
+Hmean    SeqOut Block           87796.15 (  0.00%)        87881.69 (  0.10%)
+Hmean    SeqOut Rewrite         35996.31 (  0.00%)        36355.59 (  1.00%)
+Hmean    SeqIn  Char            38789.17 (  0.00%)        76356.20 ( 96.85%)
+Hmean    SeqIn  Block          105315.39 (  0.00%)       105514.07 (  0.19%)
+Hmean    Random seeks             329.80 (  0.00%)          334.36 (  1.38%)
+Hmean    SeqCreate ops              4.62 (  0.00%)            4.62 (  0.00%)
+Hmean    SeqCreate read             4.62 (  0.00%)            4.62 (  0.00%)
+Hmean    SeqCreate del            599.29 (  0.00%)         1580.23 (163.68%)
+Hmean    RandCreate ops             5.00 (  0.00%)            5.00 (  0.00%)
+Hmean    RandCreate read            5.00 (  0.00%)            4.62 ( -7.69%)
+Hmean    RandCreate del           629.51 (  0.00%)         1634.55 (159.66%)
+
+           4.6.0-rc1   4.6.0-rc1
+             vanillanodelru-v3r10
+User         2049.02     1078.82
+System        294.25      181.00
+Elapsed      6960.58     6021.58
+
+Note that the massive gains shown here are possible an anomaly. It has been noted
+that in some cases, bonnie gets an artifical boost due to dumb reclaim luck. There
+is no guarantee this result would be reproducible on the same machine let alone
+any other machine. That said, the VM stats are interesting;
+
+However, the overall VM stats are interesting
+
+
+                             4.5.0-rc3   4.5.0-rc3
+                          mmotm-20160209   nodelru-v2
+Swap Ins                            14           0
+Swap Outs                          873           0
+DMA allocs                           0           0
+DMA32 allocs                  38259888    36320496
+Normal allocs                 64762073    66488556
+Movable allocs                       0           0
+Allocation stalls                 3584           0
+Direct pages scanned            736769           0
+Kswapd pages scanned          77818637    78836064
+Kswapd pages reclaimed        77782378    78812260
+Direct pages reclaimed          736548           0
+Kswapd efficiency                  99%         99%
+Kswapd velocity              11179.907   13092.256
+Direct efficiency                  99%        100%
+Direct velocity                105.849       0.000
+
+The series does not swap the workload and it never stalls on direct reclaim. There
+is a slight increase in kswapd scans but it's offset by the elimination of direct
+scans and the overall scanning velocity is not noticably higher. While it's not
+reported here, the overall IO stats and CPU usage over time are very similar. kswapd
+CPU usage is slightly elevated but (0.5% usage to roughly 1.2% usage over time) but
+that is acceptable given the lack of direct reclaim.
+
+tiobench
+--------
+
+tiobench is a flawed benchmark but it's very important in this case. tiobench
+benefited from a bug prior to the fair zone allocation policy that allowed
+old pages to be artificially preserved. The visible impact was that performance
+exceeded the physical capabilities of the disk. With this patch applied the results are
+
+tiobench Throughput
+tiobench Throughput
+                                         4.6.0-rc1             4.6.0-rc1
+                                           vanilla            nodelru-v3
+Hmean    PotentialReadSpeed        85.84 (  0.00%)       86.20 (  0.42%)
+Hmean    SeqRead-MB/sec-1          84.48 (  0.00%)       84.60 (  0.14%)
+Hmean    SeqRead-MB/sec-2          75.69 (  0.00%)       75.44 ( -0.34%)
+Hmean    SeqRead-MB/sec-4          77.35 (  0.00%)       77.62 (  0.35%)
+Hmean    SeqRead-MB/sec-8          68.29 (  0.00%)       68.58 (  0.43%)
+Hmean    SeqRead-MB/sec-16         62.82 (  0.00%)       62.72 ( -0.15%)
+Hmean    RandRead-MB/sec-1          0.93 (  0.00%)        0.88 ( -4.69%)
+Hmean    RandRead-MB/sec-2          1.11 (  0.00%)        1.08 ( -3.20%)
+Hmean    RandRead-MB/sec-4          1.52 (  0.00%)        1.48 ( -2.86%)
+Hmean    RandRead-MB/sec-8          1.70 (  0.00%)        1.70 ( -0.26%)
+Hmean    RandRead-MB/sec-16         1.96 (  0.00%)        1.91 ( -2.49%)
+Hmean    SeqWrite-MB/sec-1         83.01 (  0.00%)       83.07 (  0.07%)
+Hmean    SeqWrite-MB/sec-2         77.80 (  0.00%)       78.20 (  0.52%)
+Hmean    SeqWrite-MB/sec-4         81.68 (  0.00%)       81.72 (  0.05%)
+Hmean    SeqWrite-MB/sec-8         78.17 (  0.00%)       78.41 (  0.31%)
+Hmean    SeqWrite-MB/sec-16        80.08 (  0.00%)       80.08 (  0.01%)
+Hmean    RandWrite-MB/sec-1         1.17 (  0.00%)        1.17 ( -0.03%)
+Hmean    RandWrite-MB/sec-2         1.02 (  0.00%)        1.06 (  4.21%)
+Hmean    RandWrite-MB/sec-4         1.02 (  0.00%)        1.04 (  2.32%)
+Hmean    RandWrite-MB/sec-8         0.95 (  0.00%)        0.97 (  1.75%)
+Hmean    RandWrite-MB/sec-16        0.95 (  0.00%)        0.96 (  0.97%)
+
+Note that the performance is almost identical allowing us to conclude that
+the correct reclaim behaviour granted by the fair zone allocation policy
+is preserved.
+
+stutter
+-------
+
+stutter simulates a simple workload. One part uses a lot of anonymous
+memory, a second measures mmap latency and a third copies a large file.
+The primary metric is checking for mmap latency.
+
+stutter
+                             4.6.0-rc1             4.6.0-rc1
+                               vanilla            nodelru-v3
+Min         mmap     13.4442 (  0.00%)     13.6705 ( -1.68%)
+1st-qrtle   mmap     38.0442 (  0.00%)     37.7842 (  0.68%)
+2nd-qrtle   mmap     78.5109 (  0.00%)     40.3648 ( 48.59%)
+3rd-qrtle   mmap     86.7806 (  0.00%)     46.2499 ( 46.70%)
+Max-90%     mmap     89.7028 (  0.00%)     86.5790 (  3.48%)
+Max-93%     mmap     90.6776 (  0.00%)     89.5367 (  1.26%)
+Max-95%     mmap     91.1678 (  0.00%)     90.3138 (  0.94%)
+Max-99%     mmap     92.0036 (  0.00%)     93.2003 ( -1.30%)
+Max         mmap    167.0073 (  0.00%)     94.5935 ( 43.36%)
+Mean        mmap     68.7672 (  0.00%)     48.9853 ( 28.77%)
+Best99%Mean mmap     68.5246 (  0.00%)     48.5354 ( 29.17%)
+Best95%Mean mmap     67.5540 (  0.00%)     46.7102 ( 30.86%)
+Best90%Mean mmap     66.2798 (  0.00%)     44.3547 ( 33.08%)
+Best50%Mean mmap     50.7730 (  0.00%)     37.1298 ( 26.87%)
+Best10%Mean mmap     35.8311 (  0.00%)     33.6910 (  5.97%)
+Best5%Mean  mmap     34.0159 (  0.00%)     31.4259 (  7.61%)
+Best1%Mean  mmap     22.1306 (  0.00%)     24.8851 (-12.45%)
+
+           4.6.0-rc1   4.6.0-rc1
+             vanillanodelru-v3r10
+User            1.51        0.97
+System        138.03      122.58
+Elapsed      2420.90     2394.80
+
+The VM stats in this case were not that intresting and are very roughly comparable.
+
+Page allocator intensive workloads showed few differences as the cost
+of the fair zone allocation policy does not dominate from a userspace
+perspective but a microbench of just the allocator shows a difference
+
+                                           4.6.0-rc1                   4.6.0-rc1
+                                             vanilla                 nodelru-v3
+Min      total-odr0-1               725.00 (  0.00%)           697.00 (  3.86%)
+Min      total-odr0-2               559.00 (  0.00%)           527.00 (  5.72%)
+Min      total-odr0-4               459.00 (  0.00%)           436.00 (  5.01%)
+Min      total-odr0-8               403.00 (  0.00%)           391.00 (  2.98%)
+Min      total-odr0-16              329.00 (  0.00%)           366.00 (-11.25%)
+Min      total-odr0-32              365.00 (  0.00%)           355.00 (  2.74%)
+Min      total-odr0-64              297.00 (  0.00%)           348.00 (-17.17%)
+Min      total-odr0-128             752.00 (  0.00%)           344.00 ( 54.26%)
+Min      total-odr0-256             385.00 (  0.00%)           379.00 (  1.56%)
+Min      total-odr0-512             899.00 (  0.00%)           414.00 ( 53.95%)
+Min      total-odr0-1024            763.00 (  0.00%)           530.00 ( 30.54%)
+Min      total-odr0-2048            982.00 (  0.00%)           469.00 ( 52.24%)
+Min      total-odr0-4096            928.00 (  0.00%)           526.00 ( 43.32%)
+Min      total-odr0-8192           1007.00 (  0.00%)           768.00 ( 23.73%)
+Min      total-odr0-16384           375.00 (  0.00%)           366.00 (  2.40%)
+
+This series is not without its hazards. There are at least three areas
+that I'm concerned with even though I could not reproduce any problems in
+that area.
+
+1. Reclaim/compaction is going to be affected because the amount of reclaim is
+   no longer targetted at a specific zone. Compaction works on a per-zone basis
+   so there is no guarantee that reclaiming a few THP's worth page pages will
+   have a positive impact on compaction success rates.
+
+2. The Slab/LRU reclaim ratio is affected because the frequency the shrinkers
+   are called is now different. This may or may not be a problem but if it
+   is, it'll be because shrinkers are not called enough and some balancing
+   is required.
+
+3. The anon/file reclaim ratio may be affected. Pages about to be dirtied are
+   distributed between zones and the fair zone allocation policy used to do
+   something very similar for anon. The distribution is now different but not
+   necessarily in any way that matters but it's still worth bearing in mind.
+
+ Documentation/cgroup-v1/memcg_test.txt    |   4 +-
+ Documentation/cgroup-v1/memory.txt        |   4 +-
+ arch/s390/appldata/appldata_mem.c         |   2 +-
+ arch/tile/mm/pgtable.c                    |  18 +-
+ drivers/base/node.c                       |  73 +--
+ drivers/staging/android/lowmemorykiller.c |  12 +-
+ fs/fs-writeback.c                         |   4 +-
+ fs/fuse/file.c                            |   8 +-
+ fs/nfs/internal.h                         |   2 +-
+ fs/nfs/write.c                            |   2 +-
+ fs/proc/meminfo.c                         |  14 +-
+ include/linux/backing-dev.h               |   2 +-
+ include/linux/memcontrol.h                |  30 +-
+ include/linux/mm_inline.h                 |   4 +-
+ include/linux/mm_types.h                  |   2 +-
+ include/linux/mmzone.h                    | 156 +++---
+ include/linux/swap.h                      |  13 +-
+ include/linux/topology.h                  |   2 +-
+ include/linux/vm_event_item.h             |  14 +-
+ include/linux/vmstat.h                    | 111 +++-
+ include/linux/writeback.h                 |   2 +-
+ include/trace/events/vmscan.h             |  40 +-
+ include/trace/events/writeback.h          |  10 +-
+ kernel/power/snapshot.c                   |  10 +-
+ kernel/sysctl.c                           |   4 +-
+ mm/backing-dev.c                          |  14 +-
+ mm/compaction.c                           |  24 +-
+ mm/filemap.c                              |  14 +-
+ mm/huge_memory.c                          |  14 +-
+ mm/internal.h                             |  11 +-
+ mm/memcontrol.c                           | 235 ++++-----
+ mm/memory-failure.c                       |   4 +-
+ mm/memory_hotplug.c                       |   7 +-
+ mm/mempolicy.c                            |   2 +-
+ mm/migrate.c                              |  35 +-
+ mm/mlock.c                                |  12 +-
+ mm/page-writeback.c                       | 119 ++---
+ mm/page_alloc.c                           | 291 +++++-----
+ mm/page_idle.c                            |   4 +-
+ mm/rmap.c                                 |  15 +-
+ mm/shmem.c                                |  12 +-
+ mm/swap.c                                 |  66 +--
+ mm/swap_state.c                           |   4 +-
+ mm/util.c                                 |   4 +-
+ mm/vmscan.c                               | 847 ++++++++++++++----------------
+ mm/vmstat.c                               | 369 ++++++++++---
+ mm/workingset.c                           |  53 +-
+ 47 files changed, 1477 insertions(+), 1222 deletions(-)
+
 -- 
 2.6.4
 
