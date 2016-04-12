@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E0FAF6B025F
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:13:45 -0400 (EDT)
-Received: by mail-wm0-f48.google.com with SMTP id n3so21335355wmn.0
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:13:45 -0700 (PDT)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id f125si23110752wme.20.2016.04.12.03.13.44
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F1256B026B
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:13:51 -0400 (EDT)
+Received: by mail-wm0-f51.google.com with SMTP id a140so47142631wma.0
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:13:51 -0700 (PDT)
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id mb1si33509920wjb.176.2016.04.12.03.13.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Apr 2016 03:13:44 -0700 (PDT)
+        Tue, 12 Apr 2016 03:13:50 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 867791C2592
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 11:13:44 +0100 (IST)
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 0BCC51C2592
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 11:13:50 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 14/24] mm, page_alloc: Simplify last cpupid reset
-Date: Tue, 12 Apr 2016 11:12:15 +0100
-Message-Id: <1460455945-29644-15-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 15/24] mm, page_alloc: Move might_sleep_if check to the allocator slowpath
+Date: Tue, 12 Apr 2016 11:12:16 +0100
+Message-Id: <1460455945-29644-16-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460455945-29644-1-git-send-email-mgorman@techsingularity.net>
 References: <1460455945-29644-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,29 +23,39 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-The current reset unnecessarily clears flags and makes pointless calculations.
+There is a debugging check for callers that specify __GFP_DIRECT_RECLAIM
+from a context that cannot sleep. Triggering this is almost certainly
+a bug but it's also overhead in the fast path. Move the check to the slow
+path. It'll be harder to trigger as it'll only be checked when watermarks
+are depleted but it'll also only be checked in a path that can sleep.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- include/linux/mm.h | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ mm/page_alloc.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ffcff53e3b2b..60656db00abd 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -837,10 +837,7 @@ extern int page_cpupid_xchg_last(struct page *page, int cpupid);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e50e754ec9eb..73dc0413e997 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3176,6 +3176,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		return NULL;
+ 	}
  
- static inline void page_cpupid_reset_last(struct page *page)
- {
--	int cpupid = (1 << LAST_CPUPID_SHIFT) - 1;
++	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
++
+ 	/*
+ 	 * We also sanity check to catch abuse of atomic reserves being used by
+ 	 * callers that are not in atomic context.
+@@ -3369,8 +3371,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 
+ 	lockdep_trace_alloc(gfp_mask);
+ 
+-	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
 -
--	page->flags &= ~(LAST_CPUPID_MASK << LAST_CPUPID_PGSHIFT);
--	page->flags |= (cpupid & LAST_CPUPID_MASK) << LAST_CPUPID_PGSHIFT;
-+	page->flags |= LAST_CPUPID_MASK << LAST_CPUPID_PGSHIFT;
- }
- #endif /* LAST_CPUPID_NOT_IN_PAGE_FLAGS */
- #else /* !CONFIG_NUMA_BALANCING */
+ 	if (should_fail_alloc_page(gfp_mask, order))
+ 		return NULL;
+ 
 -- 
 2.6.4
 
