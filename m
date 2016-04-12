@@ -1,214 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f180.google.com (mail-pf0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 03E5C6B0253
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 04:04:43 -0400 (EDT)
-Received: by mail-pf0-f180.google.com with SMTP id e128so9296134pfe.3
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 01:04:42 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id 16si8561676pfi.41.2016.04.12.01.04.04
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 56AA86B0005
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 04:13:37 -0400 (EDT)
+Received: by mail-ig0-f181.google.com with SMTP id kb1so101965891igb.0
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 01:13:37 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id d10si9426033igg.22.2016.04.12.01.13.35
         for <linux-mm@kvack.org>;
-        Tue, 12 Apr 2016 01:04:42 -0700 (PDT)
-Message-ID: <570CABDE.7030902@cn.fujitsu.com>
-Date: Tue, 12 Apr 2016 16:03:42 +0800
-From: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+        Tue, 12 Apr 2016 01:13:36 -0700 (PDT)
+Date: Tue, 12 Apr 2016 17:16:22 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 11/11] mm/slab: lockless decision to grow cache
+Message-ID: <20160412081622.GA32274@js1304-P5Q-DELUXE>
+References: <1460436666-20462-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1460436666-20462-12-git-send-email-iamjoonsoo.kim@lge.com>
+ <20160412092434.0929a04c@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 5/5] x86, acpi, cpu-hotplug: Set persistent cpuid <->
- nodeid mapping when booting.
-References: <cover.1458177577.git.zhugh.fnst@cn.fujitsu.com> <0ecee1cba429e53220c7887c7a139ad598c5a4a2.1458177577.git.zhugh.fnst@cn.fujitsu.com> <20160406142916.GA1462@red-moon>
-In-Reply-To: <20160406142916.GA1462@red-moon>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160412092434.0929a04c@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
-Cc: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dennis.chen@arm.com
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Lorenzo,
+On Tue, Apr 12, 2016 at 09:24:34AM +0200, Jesper Dangaard Brouer wrote:
+> On Tue, 12 Apr 2016 13:51:06 +0900
+> js1304@gmail.com wrote:
+> 
+> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > 
+> > To check whther free objects exist or not precisely, we need to grab a
+>            ^^^^^^    
+> (spelling)
 
-Thanks for your test and detailed suggestions.
-I will update those later.
+Will fix.
 
-Thanks,
-Zhu
+> > lock.  But, accuracy isn't that important because race window would be
+> > even small and if there is too much free object, cache reaper would reap
+> > it.  So, this patch makes the check for free object exisistence not to
+>                                                       ^^^^^^^^^^^
+> (spelling)
 
-On 04/06/2016 10:29 PM, Lorenzo Pieralisi wrote:
-> [+Dennis since he reported ARM64 build breakage]
->
-> On Thu, Mar 17, 2016 at 09:32:40AM +0800, Zhu Guihua wrote:
->> From: Gu Zheng <guz.fnst@cn.fujitsu.com>
->>
->> The whole patch-set aims at making cpuid <-> nodeid mapping persistent. So that,
->> when node online/offline happens, cache based on cpuid <-> nodeid mapping such as
->> wq_numa_possible_cpumask will not cause any problem.
->> It contains 4 steps:
->> 1. Enable apic registeration flow to handle both enabled and disabled cpus.
->> 2. Introduce a new array storing all possible cpuid <-> apicid mapping.
->> 3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
->> 4. Establish all possible cpuid <-> nodeid mapping.
->>
->> This patch finishes step 4.
-> And it breaks the build on ARM64.
->
-> drivers/acpi/processor_core.c: In function 'set_processor_node_mapping':
-> drivers/acpi/processor_core.c:316:2: error: implicit declaration of
-> function 'acpi_map_cpu2node' [-Werror=implicit-function-declaration]
->
-> [...]
->
->> diff --git a/arch/ia64/kernel/acpi.c b/arch/ia64/kernel/acpi.c
->> index b1698bc..7db5563 100644
->> --- a/arch/ia64/kernel/acpi.c
->> +++ b/arch/ia64/kernel/acpi.c
->> @@ -796,7 +796,7 @@ int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
->>    *  ACPI based hotplug CPU support
->>    */
->>   #ifdef CONFIG_ACPI_HOTPLUG_CPU
->> -static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
->> +int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
-> Return value seems to be ignored on IA64 so you can get rid of it,
-> see below.
->
->>   {
->>   #ifdef CONFIG_ACPI_NUMA
->>   	/*
->> diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
->> index 0ce06ee..7d45261 100644
->> --- a/arch/x86/kernel/acpi/boot.c
->> +++ b/arch/x86/kernel/acpi/boot.c
->> @@ -696,7 +696,7 @@ static void __init acpi_set_irq_model_ioapic(void)
->>   #ifdef CONFIG_ACPI_HOTPLUG_CPU
->>   #include <acpi/processor.h>
->>   
->> -static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
->> +void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
->>   {
->>   #ifdef CONFIG_ACPI_NUMA
->>   	int nid;
->> diff --git a/drivers/acpi/bus.c b/drivers/acpi/bus.c
->> index 0e85678..215177a 100644
->> --- a/drivers/acpi/bus.c
->> +++ b/drivers/acpi/bus.c
->> @@ -1110,6 +1110,9 @@ static int __init acpi_init(void)
->>   	acpi_sleep_proc_init();
->>   	acpi_wakeup_device_init();
->>   	acpi_debugger_init();
->> +#ifdef CONFIG_ACPI_HOTPLUG_CPU
->> +	acpi_set_processor_mapping();
->> +#endif
->>   	return 0;
->>   }
->>   
->> diff --git a/drivers/acpi/processor_core.c b/drivers/acpi/processor_core.c
->> index 824b98b..45580ff 100644
->> --- a/drivers/acpi/processor_core.c
->> +++ b/drivers/acpi/processor_core.c
->> @@ -261,6 +261,71 @@ int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
->>   }
->>   EXPORT_SYMBOL_GPL(acpi_get_cpuid);
->>   
->> +#ifdef CONFIG_ACPI_HOTPLUG_CPU
->> +static bool map_processor(acpi_handle handle, int *phys_id, int *cpuid)
-> phys_id size is 64 bits (phys_cpuid_t) on ARM64, (phys_cpuid_t *phys_id) is
-> what you have to have here.
->
->> +{
->> +	int type;
->> +	u32 acpi_id;
->> +	acpi_status status;
->> +	acpi_object_type acpi_type;
->> +	unsigned long long tmp;
->> +	union acpi_object object = { 0 };
->> +	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
->> +
->> +	status = acpi_get_type(handle, &acpi_type);
->> +	if (ACPI_FAILURE(status))
->> +		return false;
->> +
->> +	switch (acpi_type) {
->> +	case ACPI_TYPE_PROCESSOR:
->> +		status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
->> +		if (ACPI_FAILURE(status))
->> +			return false;
->> +		acpi_id = object.processor.proc_id;
->> +		break;
->> +	case ACPI_TYPE_DEVICE:
->> +		status = acpi_evaluate_integer(handle, "_UID", NULL, &tmp);
->> +		if (ACPI_FAILURE(status))
->> +			return false;
->> +		acpi_id = tmp;
->> +		break;
->> +	default:
->> +		return false;
->> +	}
->> +
->> +	type = (acpi_type == ACPI_TYPE_DEVICE) ? 1 : 0;
->> +
->> +	*phys_id = __acpi_get_phys_id(handle, type, acpi_id, false);
-> Wrong on ARM64, see above.
->
->> +	*cpuid = acpi_map_cpuid(*phys_id, acpi_id);
->> +	if (*cpuid == -1)
->> +		return false;
->> +
->> +	return true;
->> +}
->> +
->> +static acpi_status __init
->> +set_processor_node_mapping(acpi_handle handle, u32 lvl, void *context,
->> +			   void **rv)
->> +{
->> +	u32 apic_id;
-> - You can't use u32 here see above
-> - This is generic code and on ARM64 I have no idea what apic_id means,
->    choose another variable name please (phys_id ?)
->
->> +	int cpu_id;
->> +
->> +	if (!map_processor(handle, &apic_id, &cpu_id))
->> +		return AE_ERROR;
->> +
->> +	acpi_map_cpu2node(handle, cpu_id, apic_id);
->> +	return AE_OK;
->> +}
->> +
->> +void __init acpi_set_processor_mapping(void)
->> +{
->> +	/* Set persistent cpu <-> node mapping for all processors. */
->> +	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
->> +			    ACPI_UINT32_MAX, set_processor_node_mapping,
->> +			    NULL, NULL, NULL);
->> +}
->> +#endif
->> +
->>   #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
->>   static int get_ioapic_id(struct acpi_subtable_header *entry, u32 gsi_base,
->>   			 u64 *phys_addr, int *ioapic_id)
->> diff --git a/include/linux/acpi.h b/include/linux/acpi.h
->> index 06ed7e5..ad9e7c7 100644
->> --- a/include/linux/acpi.h
->> +++ b/include/linux/acpi.h
->> @@ -265,6 +265,12 @@ static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
->>   /* Arch dependent functions for cpu hotplug support */
->>   int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu);
->>   int acpi_unmap_cpu(int cpu);
->> +#if defined(CONFIG_X86)
->> +void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid);
->> +#elif defined(CONFIG_IA64)
->> +int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid);
->> +#endif
-> We do not need this per-arch ifdeffery unless I am missing something
-> obvious here, either you change the IA64 prototype or X86 one and
-> declare one prototype for all arches, either will do given that return
-> value is always ignored (I think changing x86 to return an int is
-> advisable).
->
-> Lorenzo
->
->
-> .
->
+Ditto.
 
+> 
+> > hold a lock.  This will reduce lock contention in heavily allocation case.
+> > 
+> > Note that until now, n->shared can be freed during the processing by
+> > writing slabinfo, but, with some trick in this patch, we can access it
+> > freely within interrupt disabled period.
+> > 
+> > Below is the result of concurrent allocation/free in slab allocation
+> > benchmark made by Christoph a long time ago.  I make the output simpler.
+> > The number shows cycle count during alloc/free respectively so less is
+> > better.
+> 
+> I cannot figure out which if Christoph's tests you are using.  And I
+> even have a copy of his test here:
+>  https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/slab_test.c
 
+I don't remember where I grab the source but it's same thing you have.
+But, my version has some modification for stable result. I do each test
+50 times and get the average result.
+
+> I think you need to describe the test a bit better...
+
+Okay. I assume that relevant people (like as Christoph or you) can
+understand the result easily but it seems not.
+
+> Looking a long time at the output on my own system, I guess you are
+> showing results from the "Concurrent allocs".  Then it would be
+> relevant how many CPUs your system have.
+
+Right. I'm doing the test with my 8 core i7-3770 CPU @ 3.40GHz.
+
+> It would also be relevant to mention that N=10000.  And perhaps mention
+> that it means, e.g all CPUs do N=10000 alloc concurrently, synchronize
+> before doing N free concurrently.
+
+I'm doing the test with N=100000.
+
+> 
+> > * Before
+> > Kmalloc N*alloc N*free(32): Average=248/966
+> > Kmalloc N*alloc N*free(64): Average=261/949
+> > Kmalloc N*alloc N*free(128): Average=314/1016
+> > Kmalloc N*alloc N*free(256): Average=741/1061
+> > Kmalloc N*alloc N*free(512): Average=1246/1152
+> > Kmalloc N*alloc N*free(1024): Average=2437/1259
+> > Kmalloc N*alloc N*free(2048): Average=4980/1800
+> > Kmalloc N*alloc N*free(4096): Average=9000/2078
+> > 
+> > * After
+> > Kmalloc N*alloc N*free(32): Average=344/792
+> > Kmalloc N*alloc N*free(64): Average=347/882
+> > Kmalloc N*alloc N*free(128): Average=390/959
+> > Kmalloc N*alloc N*free(256): Average=393/1067
+> > Kmalloc N*alloc N*free(512): Average=683/1229
+> > Kmalloc N*alloc N*free(1024): Average=1295/1325
+> > Kmalloc N*alloc N*free(2048): Average=2513/1664
+> > Kmalloc N*alloc N*free(4096): Average=4742/2172
+> > 
+> > It shows that allocation performance decreases for the object size up to
+> > 128 and it may be due to extra checks in cache_alloc_refill().  But, with
+> > considering improvement of free performance, net result looks the same.
+> > Result for other size class looks very promising, roughly, 50% performance
+> > improvement.
+> 
+> Super nice performance boost.  The numbers on my system are
+
+Thanks!
+
+> significantly smaller, but this is a before/after test and the absolute
+> numbers are not that important.
+> 
+> Oh, maybe this was because I ran the test with SLUB... recompiling with
+> SLAB... and the results are comparable to your numbers (on my 8 core
+> i7-4790K CPU @ 4.00GHz)
+
+Okay.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
