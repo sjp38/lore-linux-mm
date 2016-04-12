@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 843D06B028B
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:45:42 -0400 (EDT)
-Received: by mail-wm0-f48.google.com with SMTP id v188so121571815wme.1
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:45:42 -0700 (PDT)
-Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
-        by mx.google.com with ESMTPS id l12si23220546wmd.110.2016.04.12.03.45.41
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C4E086B028C
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 06:45:45 -0400 (EDT)
+Received: by mail-wm0-f47.google.com with SMTP id l6so182307407wml.1
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 03:45:45 -0700 (PDT)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
+        by mx.google.com with ESMTPS id t65si23180709wmd.90.2016.04.12.03.45.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Apr 2016 03:45:41 -0700 (PDT)
+        Tue, 12 Apr 2016 03:45:44 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 26EAA1C1ED9
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 11:45:41 +0100 (IST)
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 600511C2498
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 11:45:44 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 24/28] mm, vmscan: Add classzone information to tracepoints
-Date: Tue, 12 Apr 2016 11:45:00 +0100
-Message-Id: <1460457904-754-11-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 25/28] mm, page_alloc: Remove fair zone allocation policy
+Date: Tue, 12 Apr 2016 11:45:01 +0100
+Message-Id: <1460457904-754-12-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460457904-754-1-git-send-email-mgorman@techsingularity.net>
 References: <1460456783-30996-1-git-send-email-mgorman@techsingularity.net>
  <1460457904-754-1-git-send-email-mgorman@techsingularity.net>
@@ -24,142 +24,221 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-This is convenient when tracking down why the skip count is high because it'll
-show what classzone kswapd woke up at and what zones are being isolated.
+The fair zone allocation policy interleaves allocation requests between
+zones to avoid an age inversion problem whereby new pages are reclaimed
+to balance a zone. Reclaim is now node-based so this should no longer be
+an issue and the fair zone allocation policy is not free. This patch
+removes it.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- include/trace/events/vmscan.h | 28 ++++++++++++++++++----------
- mm/vmscan.c                   |  4 ++--
- 2 files changed, 20 insertions(+), 12 deletions(-)
+ include/linux/mmzone.h |  2 --
+ mm/internal.h          |  1 -
+ mm/page_alloc.c        | 74 +-------------------------------------------------
+ mm/vmstat.c            |  1 -
+ 4 files changed, 1 insertion(+), 77 deletions(-)
 
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index 897f1aa1ee5f..3d242fb8910a 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -55,21 +55,23 @@ TRACE_EVENT(mm_vmscan_kswapd_sleep,
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 2fd1cbd59d26..e34f80b50ad3 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -117,7 +117,6 @@ struct zone_padding {
+ enum zone_stat_item {
+ 	/* First 128 byte cacheline (assuming 64 bit words) */
+ 	NR_FREE_PAGES,
+-	NR_ALLOC_BATCH,
+ 	NR_MLOCK,		/* mlock()ed pages found and moved off LRU */
+ 	NR_SLAB_RECLAIMABLE,
+ 	NR_SLAB_UNRECLAIMABLE,
+@@ -515,7 +514,6 @@ struct zone {
  
- TRACE_EVENT(mm_vmscan_kswapd_wake,
+ enum zone_flags {
+ 	ZONE_OOM_LOCKED,		/* zone is in OOM killer zonelist */
+-	ZONE_FAIR_DEPLETED,		/* fair zone policy batch depleted */
+ };
  
--	TP_PROTO(int nid, int order),
-+	TP_PROTO(int nid, int zid, int order),
+ enum pgdat_flags {
+diff --git a/mm/internal.h b/mm/internal.h
+index 33dac007ad0e..977f98cc2e78 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -460,7 +460,6 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+ #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
+ #define ALLOC_CMA		0x80 /* allow allocations from CMA areas */
+-#define ALLOC_FAIR		0x100 /* fair zone allocation */
  
--	TP_ARGS(nid, order),
-+	TP_ARGS(nid, zid, order),
+ enum ttu_flags;
+ struct tlbflush_unmap_batch;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 04583a65be5c..b54f45876130 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2441,7 +2441,6 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
+ 		else
+ 			page = list_first_entry(list, struct page, lru);
  
- 	TP_STRUCT__entry(
- 		__field(	int,	nid	)
-+		__field(	int,	zid	)
- 		__field(	int,	order	)
- 	),
+-		__dec_zone_state(zone, NR_ALLOC_BATCH);
+ 		list_del(&page->lru);
+ 		pcp->count--;
+ 	} else {
+@@ -2463,15 +2462,10 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
+ 		spin_unlock(&zone->lock);
+ 		if (!page)
+ 			goto failed;
+-		__mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
+ 		__mod_zone_freepage_state(zone, -(1 << order),
+ 					  get_pcppage_migratetype(page));
+ 	}
  
- 	TP_fast_assign(
- 		__entry->nid	= nid;
-+		__entry->zid    = zid;
- 		__entry->order	= order;
- 	),
- 
--	TP_printk("nid=%d order=%d", __entry->nid, __entry->order)
-+	TP_printk("nid=%d zid=%d order=%d", __entry->nid, __entry->zid, __entry->order)
- );
- 
- TRACE_EVENT(mm_vmscan_wakeup_kswapd,
-@@ -266,16 +268,18 @@ TRACE_EVENT(mm_shrink_slab_end,
- 
- DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
- 
--	TP_PROTO(int order,
-+	TP_PROTO(int classzone_idx,
-+		int order,
- 		unsigned long nr_requested,
- 		unsigned long nr_scanned,
- 		unsigned long nr_taken,
- 		isolate_mode_t isolate_mode,
- 		int file),
- 
--	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, isolate_mode, file),
-+	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_taken, isolate_mode, file),
- 
- 	TP_STRUCT__entry(
-+		__field(int, classzone_idx)
- 		__field(int, order)
- 		__field(unsigned long, nr_requested)
- 		__field(unsigned long, nr_scanned)
-@@ -285,6 +289,7 @@ DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
- 	),
- 
- 	TP_fast_assign(
-+		__entry->classzone_idx = classzone_idx;
- 		__entry->order = order;
- 		__entry->nr_requested = nr_requested;
- 		__entry->nr_scanned = nr_scanned;
-@@ -293,8 +298,9 @@ DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
- 		__entry->file = file;
- 	),
- 
--	TP_printk("isolate_mode=%d order=%d nr_requested=%lu nr_scanned=%lu nr_taken=%lu file=%d",
-+	TP_printk("isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_taken=%lu file=%d",
- 		__entry->isolate_mode,
-+		__entry->classzone_idx,
- 		__entry->order,
- 		__entry->nr_requested,
- 		__entry->nr_scanned,
-@@ -304,27 +310,29 @@ DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
- 
- DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_lru_isolate,
- 
--	TP_PROTO(int order,
-+	TP_PROTO(int classzone_idx,
-+		int order,
- 		unsigned long nr_requested,
- 		unsigned long nr_scanned,
- 		unsigned long nr_taken,
- 		isolate_mode_t isolate_mode,
- 		int file),
- 
--	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, isolate_mode, file)
-+	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_taken, isolate_mode, file)
- 
- );
- 
- DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_memcg_isolate,
- 
--	TP_PROTO(int order,
-+	TP_PROTO(int classzone_idx,
-+		int order,
- 		unsigned long nr_requested,
- 		unsigned long nr_scanned,
- 		unsigned long nr_taken,
- 		isolate_mode_t isolate_mode,
- 		int file),
- 
--	TP_ARGS(order, nr_requested, nr_scanned, nr_taken, isolate_mode, file)
-+	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_taken, isolate_mode, file)
- 
- );
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index dfd8bdfadfe4..e5aa605da6c4 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1417,7 +1417,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 	if (!list_empty(&pages_skipped))
- 		list_splice(&pages_skipped, src);
- 	*nr_scanned = scan;
--	trace_mm_vmscan_lru_isolate(sc->order, nr_to_scan, scan,
-+	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan, scan,
- 				    nr_taken, mode, is_file_lru(lru));
- 	return nr_taken;
+-	if (atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]) <= 0 &&
+-	    !test_bit(ZONE_FAIR_DEPLETED, &zone->flags))
+-		set_bit(ZONE_FAIR_DEPLETED, &zone->flags);
+-
+ 	__count_zone_vm_events(PGALLOC, zone, 1 << order);
+ 	zone_statistics(preferred_zone, zone, gfp_flags);
+ 	local_irq_restore(flags);
+@@ -2683,40 +2677,18 @@ bool zone_watermark_ok_safe(struct zone *z, unsigned int order,
  }
-@@ -3402,7 +3402,7 @@ static int kswapd(void *p)
- 		 * Try reclaim the requested order but if that fails
- 		 * then try sleeping on the basis of the order reclaimed.
- 		 */
--		trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
-+		trace_mm_vmscan_kswapd_wake(pgdat->node_id, classzone_idx, order);
- 		if (balance_pgdat(pgdat, order, classzone_idx) < order)
- 			goto kswapd_try_sleep;
  
+ #ifdef CONFIG_NUMA
+-static bool zone_local(struct zone *local_zone, struct zone *zone)
+-{
+-	return local_zone->node == zone->node;
+-}
+-
+ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+ {
+ 	return node_distance(zone_to_nid(local_zone), zone_to_nid(zone)) <
+ 				RECLAIM_DISTANCE;
+ }
+ #else	/* CONFIG_NUMA */
+-static bool zone_local(struct zone *local_zone, struct zone *zone)
+-{
+-	return true;
+-}
+-
+ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+ {
+ 	return true;
+ }
+ #endif	/* CONFIG_NUMA */
+ 
+-static void reset_alloc_batches(struct zone *preferred_zone)
+-{
+-	struct zone *zone = preferred_zone->zone_pgdat->node_zones;
+-
+-	do {
+-		mod_zone_page_state(zone, NR_ALLOC_BATCH,
+-			high_wmark_pages(zone) - low_wmark_pages(zone) -
+-			atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]));
+-		clear_bit(ZONE_FAIR_DEPLETED, &zone->flags);
+-	} while (zone++ != preferred_zone);
+-}
+-
+ /*
+  * get_page_from_freelist goes through the zonelist trying to allocate
+  * a page.
+@@ -2727,10 +2699,6 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ {
+ 	struct zoneref *z = ac->preferred_zoneref;
+ 	struct zone *zone;
+-	bool fair_skipped = false;
+-	bool apply_fair = (alloc_flags & ALLOC_FAIR);
+-
+-zonelist_scan:
+ 	/*
+ 	 * Scan zonelist, looking for a zone with enough free.
+ 	 * See also __cpuset_node_allowed() comment in kernel/cpuset.c.
+@@ -2745,23 +2713,6 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 			!__cpuset_zone_allowed(zone, gfp_mask))
+ 				continue;
+ 		/*
+-		 * Distribute pages in proportion to the individual
+-		 * zone size to ensure fair page aging.  The zone a
+-		 * page was allocated in should have no effect on the
+-		 * time the page has in memory before being reclaimed.
+-		 */
+-		if (apply_fair) {
+-			if (test_bit(ZONE_FAIR_DEPLETED, &zone->flags)) {
+-				fair_skipped = true;
+-				continue;
+-			}
+-			if (!zone_local(ac->preferred_zoneref->zone, zone)) {
+-				if (fair_skipped)
+-					goto reset_fair;
+-				apply_fair = false;
+-			}
+-		}
+-		/*
+ 		 * When allocating a page cache page for writing, we
+ 		 * want to get it from a node that is within its dirty
+ 		 * limit, such that no single node holds more than its
+@@ -2833,22 +2784,6 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 		}
+ 	}
+ 
+-	/*
+-	 * The first pass makes sure allocations are spread fairly within the
+-	 * local node.  However, the local node might have free pages left
+-	 * after the fairness batches are exhausted, and remote zones haven't
+-	 * even been considered yet.  Try once more without fairness, and
+-	 * include remote zones now, before entering the slowpath and waking
+-	 * kswapd: prefer spilling to a remote zone over swapping locally.
+-	 */
+-	if (fair_skipped) {
+-reset_fair:
+-		apply_fair = false;
+-		fair_skipped = false;
+-		reset_alloc_batches(ac->preferred_zoneref->zone);
+-		goto zonelist_scan;
+-	}
+-
+ 	return NULL;
+ }
+ 
+@@ -3393,7 +3328,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ {
+ 	struct page *page;
+ 	unsigned int cpuset_mems_cookie;
+-	unsigned int alloc_flags = ALLOC_WMARK_LOW|ALLOC_FAIR;
++	unsigned int alloc_flags = ALLOC_WMARK_LOW;
+ 	gfp_t alloc_mask = gfp_mask; /* The gfp_t that was actually used for allocation */
+ 	struct alloc_context ac = {
+ 		.high_zoneidx = gfp_zone(gfp_mask),
+@@ -5605,9 +5540,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 		zone_seqlock_init(zone);
+ 		zone_pcp_init(zone);
+ 
+-		/* For bootup, initialized properly in watermark setup */
+-		mod_zone_page_state(zone, NR_ALLOC_BATCH, zone->managed_pages);
+-
+ 		if (!size)
+ 			continue;
+ 
+@@ -6452,10 +6384,6 @@ static void __setup_per_zone_wmarks(void)
+ 		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + tmp;
+ 		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + tmp * 2;
+ 
+-		__mod_zone_page_state(zone, NR_ALLOC_BATCH,
+-			high_wmark_pages(zone) - low_wmark_pages(zone) -
+-			atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]));
+-
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+ 	}
+ 
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 9a516b41952c..4e9643bbe7c4 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -914,7 +914,6 @@ int fragmentation_index(struct zone *zone, unsigned int order)
+ const char * const vmstat_text[] = {
+ 	/* enum zone_stat_item countes */
+ 	"nr_free_pages",
+-	"nr_alloc_batch",
+ 	"nr_mlock",
+ 	"nr_slab_reclaimable",
+ 	"nr_slab_unreclaimable",
 -- 
 2.6.4
 
