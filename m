@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CB7286B0005
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 11:53:50 -0400 (EDT)
-Received: by mail-wm0-f51.google.com with SMTP id u206so34110513wme.1
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 08:53:50 -0700 (PDT)
-Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
-        by mx.google.com with ESMTPS id e19si24511652wmc.60.2016.04.12.08.53.49
+Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 10BA06B0005
+	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 12:01:45 -0400 (EDT)
+Received: by mail-io0-f174.google.com with SMTP id u185so34018552iod.3
+        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 09:01:45 -0700 (PDT)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id 68si22799258iow.126.2016.04.12.09.01.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Apr 2016 08:53:49 -0700 (PDT)
-Received: by mail-wm0-x231.google.com with SMTP id l6so194027163wml.1
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 08:53:49 -0700 (PDT)
-Date: Tue, 12 Apr 2016 16:53:47 +0100
-From: Matt Fleming <matt@codeblueprint.co.uk>
-Subject: Re: [PATCH 03/19] x86/efi: get rid of superfluous __GFP_REPEAT
-Message-ID: <20160412155347.GF2829@codeblueprint.co.uk>
-References: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
- <1460372892-8157-4-git-send-email-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1460372892-8157-4-git-send-email-mhocko@kernel.org>
+        Tue, 12 Apr 2016 09:01:44 -0700 (PDT)
+Date: Tue, 12 Apr 2016 11:01:42 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [LSF/MM TOPIC] Ideas for SLUB allocator
+In-Reply-To: <20160412120215.000283c7@redhat.com>
+Message-ID: <alpine.DEB.2.20.1604121057490.14315@east.gentwo.org>
+References: <20160412120215.000283c7@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org
+To: Jesper Dangaard Brouer <jbrouer@redhat.com>
+Cc: lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, js1304@gmail.com, lsf-pc@lists.linux-foundation.org
 
-On Mon, 11 Apr, at 01:07:56PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> __GFP_REPEAT has a rather weak semantic but since it has been introduced
-> around 2.6.12 it has been ignored for low order allocations.
-> 
-> efi_alloc_page_tables uses __GFP_REPEAT but it allocates an order-0
-> page. This means that this flag has never been actually useful here
-> because it has always been used only for PAGE_ALLOC_COSTLY requests.
-> 
-> Cc: Matt Fleming <matt@codeblueprint.co.uk>
-> Cc: linux-arch@vger.kernel.org
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  arch/x86/platform/efi/efi_64.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+On Tue, 12 Apr 2016, Jesper Dangaard Brouer wrote:
 
-Looks fine. I suspect I copied it from other pgtable creation code,
+> I have some ideas for improving SLUB allocator further, after my work
+> on implementing the slab bulk APIs.  Maybe you can give me a small
+> slot, I only have 7 guidance slides.  Or else I hope we/I can talk
+> about these ideas in a hallway track with Christoph and others involved
+> in slab development...
 
-Reviewed-by: Matt Fleming <matt@codeblueprint.co.uk>
+I will be there.
+
+> I've already published the preliminary slides here:
+>  http://people.netfilter.org/hawk/presentations/MM-summit2016/slab_mm_summit2016.odp
+
+Re Autotuning: SLUB obj per page:
+	SLUB can combine pages of different orders in a slab cache so this would
+	be possible.
+
+per CPU freelist per page:
+	Could we drop the per cpu partial lists if this works?
+
+Clearing memory:
+	Could exploit the fact that the page is zero on alloc and also zap
+	when no object in the page is in use?
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
