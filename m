@@ -1,79 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 43882828DF
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2016 04:58:54 -0400 (EDT)
-Received: by mail-wm0-f49.google.com with SMTP id v188so162019245wme.1
-        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 01:58:54 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id y4si21660620wjy.204.2016.04.13.01.58.52
+Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E432828DF
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2016 05:57:21 -0400 (EDT)
+Received: by mail-wm0-f50.google.com with SMTP id a140so91487643wma.0
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 02:57:21 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id hh4si38931299wjc.172.2016.04.13.02.57.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Apr 2016 01:58:52 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id a140so11962929wma.2
-        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 01:58:52 -0700 (PDT)
-Date: Wed, 13 Apr 2016 10:58:49 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 12/31] huge tmpfs: extend get_user_pages_fast to shmem pmd
-Message-ID: <20160413085849.GA29175@gmail.com>
-References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils>
- <alpine.LSU.2.11.1604051429160.5965@eggly.anvils>
- <20160406070044.GD3078@gmail.com>
- <alpine.LSU.2.11.1604061917530.3092@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1604061917530.3092@eggly.anvils>
+        Wed, 13 Apr 2016 02:57:20 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id y144so12365882wmd.0
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 02:57:20 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] x86: add frame annotation for call_rwsem_down_write_failed_killable
+Date: Wed, 13 Apr 2016 11:57:12 +0200
+Message-Id: <1460541432-21631-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1460041951-22347-11-git-send-email-mhocko@kernel.org>
+References: <1460041951-22347-11-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, Ralf Baechle <ralf@linux-mips.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Michal Hocko <mhocko@suse.com>
 
+From: Michal Hocko <mhocko@suse.com>
 
-* Hugh Dickins <hughd@google.com> wrote:
+3387a535ce62 ("x86/asm: Create stack frames in rwsem functions") has
+added FRAME_{BEGIN,END} annotations to rwsem asm stubs. The patch
+which has added call_rwsem_down_write_failed_killable was based on an
+older tree so it didn't know about annotations. Let's add them.
 
-> > >  arch/mips/mm/gup.c  |   15 ++++++++++++++-
-> > >  arch/s390/mm/gup.c  |   19 ++++++++++++++++++-
-> > >  arch/sparc/mm/gup.c |   19 ++++++++++++++++++-
-> > >  arch/x86/mm/gup.c   |   15 ++++++++++++++-
-> > >  mm/gup.c            |   19 ++++++++++++++++++-
-> > >  5 files changed, 82 insertions(+), 5 deletions(-)
-> ...
+Reported-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
 
-> > Looks like there are two main variants - so these kinds of repetitive patterns 
-> > very much call for some sort of factoring out of common code, right?
-> 
-> Hmm.  I'm still struggling between the two extremes, of
-> 
-> (a) agreeing completely with you, and saying, yeah, I'll take on the job
->     of refactoring every architecture's get_user_pages_as_fast_as_you_can(),
->     without much likelihood of testing more than one,
-> 
-> and
-> 
-> (b) running a mile, and pointing out that we have a tradition of using
->     arch/x86/mm/gup.c as a template for the others, and here I've just
->     added a few more lines to that template (which never gets built more
->     than once into any kernel).
-> 
-> Both are appealing in their different ways, but I think you can tell
-> which I'm leaning towards...
-> 
-> Honestly, I am still struggling between those two; but I think the patch
-> as it stands is one thing, and cleanup for commonality should be another
-> however weaselly that sounds ("I'll come back to it" - yeah, right).
+Hi Ingo,
+please apply this on top of [1] when merging to tip/locking/rwsem.
+Thanks!
 
-Yeah, so my worry is this: your patch for example roughly doubles the algorithmic 
-complexity of mm/gup.c and arch/*/mm/gup.c's ::gup_huge_pmd().
+[1] http://lkml.kernel.org/r/1460041951-22347-11-git-send-email-mhocko@kernel.org
+ arch/x86/lib/rwsem.S | 2 ++
+ 1 file changed, 2 insertions(+)
 
-And you want this to add a new feature!
-
-So it really looks like to me this is the last sane chance to unify cheaply, then 
-add the feature you want. Everyone else in the future will be able to refer to 
-your example to chicken out! ;-)
-
-Thanks,
-
-	Ingo
+diff --git a/arch/x86/lib/rwsem.S b/arch/x86/lib/rwsem.S
+index 4534a7e912f3..a37462a23546 100644
+--- a/arch/x86/lib/rwsem.S
++++ b/arch/x86/lib/rwsem.S
+@@ -107,10 +107,12 @@ ENTRY(call_rwsem_down_write_failed)
+ ENDPROC(call_rwsem_down_write_failed)
+ 
+ ENTRY(call_rwsem_down_write_failed_killable)
++	FRAME_BEGIN
+ 	save_common_regs
+ 	movq %rax,%rdi
+ 	call rwsem_down_write_failed_killable
+ 	restore_common_regs
++	FRAME_END
+ 	ret
+ ENDPROC(call_rwsem_down_write_failed_killable)
+ 
+-- 
+2.8.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
