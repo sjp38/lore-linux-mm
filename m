@@ -1,82 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id CC3AD6B0005
-	for <linux-mm@kvack.org>; Tue, 12 Apr 2016 17:14:42 -0400 (EDT)
-Received: by mail-qg0-f47.google.com with SMTP id f52so27464880qga.3
-        for <linux-mm@kvack.org>; Tue, 12 Apr 2016 14:14:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b32si17484979qgb.109.2016.04.12.14.14.42
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 518ED6B0005
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2016 03:54:21 -0400 (EDT)
+Received: by mail-wm0-f46.google.com with SMTP id u206so61547958wme.1
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 00:54:21 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id y15si28021487wmd.12.2016.04.13.00.54.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Apr 2016 14:14:42 -0700 (PDT)
-Date: Tue, 12 Apr 2016 23:14:35 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [Lsf] [LSF/MM TOPIC] Ideas for SLUB allocator
-Message-ID: <20160412231435.3cbf3aeb@redhat.com>
-In-Reply-To: <1460484828.7134.4.camel@redhat.com>
-References: <20160412120215.000283c7@redhat.com>
-	<alpine.DEB.2.20.1604121057490.14315@east.gentwo.org>
-	<1460484828.7134.4.camel@redhat.com>
+        Wed, 13 Apr 2016 00:54:19 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id n3so11515284wmn.1
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 00:54:19 -0700 (PDT)
+Date: Wed, 13 Apr 2016 09:54:17 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 01/10] mm/mmap: Replace SHM_HUGE_MASK with MAP_HUGE_MASK
+ inside mmap_pgoff
+Message-ID: <20160413075417.GA14356@dhcp22.suse.cz>
+References: <1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com>
+ <1460007464-26726-2-git-send-email-khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1460007464-26726-2-git-send-email-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: brouer@redhat.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, js1304@gmail.com, lsf@lists.linux-foundation.org, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, lsf-pc@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, hughd@google.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, mgorman@techsingularity.net, dave.hansen@intel.com, aneesh.kumar@linux.vnet.ibm.com, mpe@ellerman.id.au
 
-On Tue, 12 Apr 2016 14:13:48 -0400
-Rik van Riel <riel@redhat.com> wrote:
+On Thu 07-04-16 11:07:35, Anshuman Khandual wrote:
+> The commit 091d0d55b286 ("shm: fix null pointer deref when userspace
+> specifies invalid hugepage size") had replaced MAP_HUGE_MASK with
+> SHM_HUGE_MASK. Though both of them contain the same numeric value of
+> 0x3f, MAP_HUGE_MASK flag sounds more appropriate than the other one
+> in the context. Hence change it back.
 
-> On Tue, 2016-04-12 at 11:01 -0500, Christoph Lameter wrote:
-> > On Tue, 12 Apr 2016, Jesper Dangaard Brouer wrote:
-> >  =20
-> > > I have some ideas for improving SLUB allocator further, after my
-> > > work
-> > > on implementing the slab bulk APIs.=C2=A0=C2=A0Maybe you can give me =
-a small
-> > > slot, I only have 7 guidance slides.=C2=A0=C2=A0Or else I hope we/I c=
-an talk
-> > > about these ideas in a hallway track with Christoph and others
-> > > involved
-> > > in slab development... =20
-> >=20
-> > I will be there.
-> >  =20
-> > > I've already published the preliminary slides here:
-> > > =C2=A0http://people.netfilter.org/hawk/presentations/MM-summit2016/sl=
-ab_
-> > > mm_summit2016.odp =20
-> >=20
-> > Re Autotuning: SLUB obj per page:
-> > 	SLUB can combine pages of different orders in a slab cache so
-> > this would
-> > 	be possible.
-> >=20
-> > per CPU freelist per page:
-> > 	Could we drop the per cpu partial lists if this works?
-> >=20
-> > Clearing memory:
-> > 	Could exploit the fact that the page is zero on alloc and also
-> > zap
-> > 	when no object in the page is in use? =20
->=20
-> Between the SLUB things both of you want to
-> discuss, do you think one 30 minute slot will
-> be enough to start with, or should we schedule
-> a whole hour?
->=20
-> We have some free slots left on the second day,
-> where discussions can overflow if necessary.
+Yes, SHM_HUGE_MASK mixing with MAP_HUGE_SHIFT is not only misleading
+it might bite us later should any of the two change.
 
-30 min slot is fine by me :-)
+> 
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
---=20
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/mmap.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index bd2e1a53..7d730a4 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1315,7 +1315,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+>  		struct user_struct *user = NULL;
+>  		struct hstate *hs;
+>  
+> -		hs = hstate_sizelog((flags >> MAP_HUGE_SHIFT) & SHM_HUGE_MASK);
+> +		hs = hstate_sizelog((flags >> MAP_HUGE_SHIFT) & MAP_HUGE_MASK);
+>  		if (!hs)
+>  			return -EINVAL;
+>  
+> -- 
+> 2.1.0
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
