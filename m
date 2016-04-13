@@ -1,52 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id DA786828DF
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2016 09:28:05 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id er2so5053826pad.3
-        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 06:28:05 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 71si6261059pfy.175.2016.04.13.06.28.04
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 5959C828DF
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2016 09:33:50 -0400 (EDT)
+Received: by mail-wm0-f53.google.com with SMTP id u206so78335167wme.1
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 06:33:50 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id s1si1281319wme.105.2016.04.13.06.33.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Apr 2016 06:28:04 -0700 (PDT)
-Subject: Re: [PATCH] oom: consider multi-threaded tasks in task_will_free_mem
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1460452756-15491-1-git-send-email-mhocko@kernel.org>
-	<570E27D6.9060908@I-love.SAKURA.ne.jp>
-	<20160413130858.GI14351@dhcp22.suse.cz>
-In-Reply-To: <20160413130858.GI14351@dhcp22.suse.cz>
-Message-Id: <201604132227.BDI51567.VMOFOHFOLQtSFJ@I-love.SAKURA.ne.jp>
-Date: Wed, 13 Apr 2016 22:27:52 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Apr 2016 06:33:49 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id a140so14043326wma.2
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 06:33:48 -0700 (PDT)
+Date: Wed, 13 Apr 2016 15:33:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: CC in git cover letter vs patches (was Re: [PATCH 0/19] get rid
+ of superfluous __GFP_REPORT)
+Message-ID: <20160413133347.GJ14351@dhcp22.suse.cz>
+References: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
+ <570E2BC1.8050809@synopsys.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <570E2BC1.8050809@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, git@vger.kernel.org
 
-Michal Hocko wrote:
-> > The whole thread group is going down does not mean we make sure that
-> > we will send SIGKILL to other thread groups sharing the same memory which
-> > is possibly holding mmap_sem for write, does it?
+On Wed 13-04-16 16:51:37, Vineet Gupta wrote:
+> Trimming CC list + CC git folks
 > 
-> And the patch description doesn't say anything about processes sharing
-> mm. This is supposed to be a minor fix of an obviously suboptimal
-> behavior of task_will_free_mem. Can we stick to the proposed patch,
-> please?
+> Hi Michal,
 > 
-> If we really do care about processes sharing mm _that_much_ then it
-> should be handled in the separate patch.
+> On Monday 11 April 2016 04:37 PM, Michal Hocko wrote:
+> > Hi,
+> > this is the second version of the patchset previously sent [1]
+> 
+> I have a git question if you didn't mind w.r.t. this series. Maybe there's an
+> obvious answer... I'm using git 2.5.0
+> 
+> I was wondering how you manage to union the individual patch CC in just the cover
+> letter w/o bombarding everyone with everything.
 
-I do care. The OOM reaper cannot work unless SIGKILL is sent to a thread
-which is holding mmap_sem for write. Thus, sending SIGKILL to all thread
-groups sharing the mm is needed by your down_write_killable(&mm->mmap_sem)
-changes. Like I wrote at
-http://lkml.kernel.org/r/201604092300.BDI39040.FFSQLJOMHOOVtF@I-love.SAKURA.ne.jp ,
-we cannot fix that problem unless you accept the slowpath.
+I am using the following flow:
 
-I don't like you don't explain your approach for handling the slowpath.
-If you explain your approach for handling the slowpath and I agree on
-your approach, I will also agree on the proposed patches.
+$ rm *.patch
+$ for format-patch range
+$ git send-email [--to resp. --cc for all patches] --cc-cmd ./cc-cmd-only-cover.sh --compose *.patch
+
+$ cat ./cc-cmd-only-cover.sh 
+#!/bin/bash
+
+# --compose with generate *gitsendemail.msg file
+# --cover-letter expects *cover-letter* file
+if [[ $1 == *gitsendemail.msg* || $1 == *cover-letter* ]]; then
+        grep '<.*@.*>' -h *.patch | sed 's/^.*: //' | sort | uniq
+fi
+
+it is a little bit coarse and it would be great if git had a default
+option for that but this seems to be working just fine for patch-bombs
+where the recipients only have to care about their parts and the cover
+for the overal idea of the change.
+
+HTH
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
