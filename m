@@ -1,65 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EE4E828DF
-	for <linux-mm@kvack.org>; Wed, 13 Apr 2016 07:20:31 -0400 (EDT)
-Received: by mail-wm0-f54.google.com with SMTP id a140so95314674wma.0
-        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 04:20:31 -0700 (PDT)
-Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
-        by mx.google.com with ESMTPS id 143si697834wma.114.2016.04.13.04.20.30
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id CD3C8828DF
+	for <linux-mm@kvack.org>; Wed, 13 Apr 2016 07:20:44 -0400 (EDT)
+Received: by mail-wm0-f42.google.com with SMTP id n3so71681341wmn.0
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 04:20:44 -0700 (PDT)
+Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
+        by mx.google.com with ESMTPS id o3si27174966wjd.55.2016.04.13.04.20.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Apr 2016 04:20:30 -0700 (PDT)
-Received: by mail-wm0-x229.google.com with SMTP id n3so71671077wmn.0
-        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 04:20:30 -0700 (PDT)
+        Wed, 13 Apr 2016 04:20:43 -0700 (PDT)
+Received: by mail-wm0-x235.google.com with SMTP id n3so71680762wmn.0
+        for <linux-mm@kvack.org>; Wed, 13 Apr 2016 04:20:43 -0700 (PDT)
 From: Alexander Potapenko <glider@google.com>
-Subject: [PATCH v2 1/2] mm, kasan: don't call kasan_krealloc() from ksize().
-Date: Wed, 13 Apr 2016 13:20:09 +0200
-Message-Id: <2126fe9ca8c3a4698c0ad7aae652dce28e261182.1460545373.git.glider@google.com>
+Subject: [PATCH v2 2/2] mm, kasan: add a ksize() test
+Date: Wed, 13 Apr 2016 13:20:10 +0200
+Message-Id: <562d43518232cf7d26297ee004255a083b084071.1460545373.git.glider@google.com>
+In-Reply-To: <2126fe9ca8c3a4698c0ad7aae652dce28e261182.1460545373.git.glider@google.com>
+References: <2126fe9ca8c3a4698c0ad7aae652dce28e261182.1460545373.git.glider@google.com>
+In-Reply-To: <2126fe9ca8c3a4698c0ad7aae652dce28e261182.1460545373.git.glider@google.com>
+References: <2126fe9ca8c3a4698c0ad7aae652dce28e261182.1460545373.git.glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: adech.fo@gmail.com, dvyukov@google.com, cl@linux.com, akpm@linux-foundation.org, ryabinin.a.a@gmail.com, kcc@google.com
 Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Instead of calling kasan_krealloc(), which replaces the memory allocation
-stack ID (if stack depot is used), just unpoison the whole memory chunk.
+Add a test that makes sure ksize() unpoisons the whole chunk.
 
 Signed-off-by: Alexander Potapenko <glider@google.com>
 ---
 v2: - splitted v1 into two patches
 ---
- mm/slab.c | 2 +-
- mm/slub.c | 5 +++--
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ lib/test_kasan.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 17e2848..de46319 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -4324,7 +4324,7 @@ size_t ksize(const void *objp)
- 	/* We assume that ksize callers could use the whole allocated area,
- 	 * so we need to unpoison this area.
- 	 */
--	kasan_krealloc(objp, size, GFP_NOWAIT);
-+	kasan_unpoison_shadow(objp, size);
+diff --git a/lib/test_kasan.c b/lib/test_kasan.c
+index 82169fb..48e5a0b 100644
+--- a/lib/test_kasan.c
++++ b/lib/test_kasan.c
+@@ -344,6 +344,25 @@ static noinline void __init kasan_stack_oob(void)
+ 	*(volatile char *)p;
+ }
  
- 	return size;
- }
-diff --git a/mm/slub.c b/mm/slub.c
-index 4dbb109e..62194e2 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3635,8 +3635,9 @@ size_t ksize(const void *object)
++static noinline void __init ksize_unpoisons_memory(void)
++{
++	char *ptr;
++	size_t size = 123, real_size = size;
++
++	pr_info("ksize() unpoisons the whole allocated chunk\n");
++	ptr = kmalloc(size, GFP_KERNEL);
++	if (!ptr) {
++		pr_err("Allocation failed\n");
++		return;
++	}
++	real_size = ksize(ptr);
++	/* This access doesn't trigger an error. */
++	ptr[size] = 'x';
++	/* This one does. */
++	ptr[real_size] = 'y';
++	kfree(ptr);
++}
++
+ static int __init kmalloc_tests_init(void)
  {
- 	size_t size = __ksize(object);
- 	/* We assume that ksize callers could use whole allocated area,
--	   so we need unpoison this area. */
--	kasan_krealloc(object, size, GFP_NOWAIT);
-+	 * so we need to unpoison this area.
-+	 */
-+	kasan_unpoison_shadow(object, size);
- 	return size;
+ 	kmalloc_oob_right();
+@@ -367,6 +386,7 @@ static int __init kmalloc_tests_init(void)
+ 	kmem_cache_oob();
+ 	kasan_stack_oob();
+ 	kasan_global_oob();
++	ksize_unpoisons_memory();
+ 	return -EAGAIN;
  }
- EXPORT_SYMBOL(ksize);
+ 
 -- 
 2.8.0.rc3.226.g39d4020
 
