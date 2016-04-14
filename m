@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 233356B025E
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 10:17:37 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id zy2so92835900pac.1
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 07:17:37 -0700 (PDT)
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D0D66B025F
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 10:17:39 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id zy2so92836905pac.1
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 07:17:39 -0700 (PDT)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id z4si10947975par.198.2016.04.14.07.17.31
+        by mx.google.com with ESMTP id w13si4753111pas.206.2016.04.14.07.17.31
         for <linux-mm@kvack.org>;
         Thu, 14 Apr 2016 07:17:31 -0700 (PDT)
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: [PATCH v2 14/29] radix-tree: Fix extending the tree for multi-order entries at offset 0
-Date: Thu, 14 Apr 2016 10:16:35 -0400
-Message-Id: <1460643410-30196-15-git-send-email-willy@linux.intel.com>
+Subject: [PATCH v2 15/29] radix tree test suite: Start adding multiorder tests
+Date: Thu, 14 Apr 2016 10:16:36 -0400
+Message-Id: <1460643410-30196-16-git-send-email-willy@linux.intel.com>
 In-Reply-To: <1460643410-30196-1-git-send-email-willy@linux.intel.com>
 References: <1460643410-30196-1-git-send-email-willy@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,96 +19,170 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-The current code will insert entries at each level, as if we're going
-to add a new entry at the bottom level, so we then get an -EEXIST when
-we try to insert the entry into the tree.  The best way to fix this is
-to not check 'order' when inserting into an empty tree.
+Test suite infrastructure for working with multiorder entries.
 
-We still need to 'extend' the tree to the height necessary for the
-maximum index corresponding to this entry, so pass that value to
-radix_tree_extend() rather than the index we're asked to create, or we
-won't create a tree that's deep enough.
+The test itself is pretty basic: Add an entry, check that all expected
+indices return that entry and that indices around that entry don't return
+an entry. Then delete the entry and check no index returns that entry.
+Tests a few edge conditions including the multiorder entry at index 0
+and at a higher index.  Also tests deleting through an alias as well as
+through the canonical index.
 
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- lib/radix-tree.c | 28 +++++++++++++++++-----------
- 1 file changed, 17 insertions(+), 11 deletions(-)
+ tools/testing/radix-tree/Makefile     |  2 +-
+ tools/testing/radix-tree/main.c       |  2 ++
+ tools/testing/radix-tree/multiorder.c | 58 +++++++++++++++++++++++++++++++++++
+ tools/testing/radix-tree/test.c       | 13 ++++++--
+ tools/testing/radix-tree/test.h       |  6 +++-
+ 5 files changed, 76 insertions(+), 5 deletions(-)
+ create mode 100644 tools/testing/radix-tree/multiorder.c
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 272ce81..f13ddbb 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -432,7 +432,7 @@ static unsigned radix_tree_load_root(struct radix_tree_root *root,
-  *	Extend a radix tree so it can store key @index.
-  */
- static int radix_tree_extend(struct radix_tree_root *root,
--				unsigned long index, unsigned order)
-+				unsigned long index)
- {
- 	struct radix_tree_node *node;
- 	struct radix_tree_node *slot;
-@@ -444,7 +444,7 @@ static int radix_tree_extend(struct radix_tree_root *root,
- 	while (index > radix_tree_maxindex(height))
- 		height++;
+diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
+index 43febba..3b53046 100644
+--- a/tools/testing/radix-tree/Makefile
++++ b/tools/testing/radix-tree/Makefile
+@@ -3,7 +3,7 @@ CFLAGS += -I. -g -Wall -D_LGPL_SOURCE
+ LDFLAGS += -lpthread -lurcu
+ TARGETS = main
+ OFILES = main.o radix-tree.o linux.o test.o tag_check.o find_next_bit.o \
+-	 regression1.o regression2.o regression3.o
++	 regression1.o regression2.o regression3.o multiorder.o
  
--	if ((root->rnode == NULL) && (order == 0)) {
-+	if (root->rnode == NULL) {
- 		root->height = height;
- 		goto out;
- 	}
-@@ -467,7 +467,7 @@ static int radix_tree_extend(struct radix_tree_root *root,
- 		node->count = 1;
- 		node->parent = NULL;
- 		slot = root->rnode;
--		if (radix_tree_is_indirect_ptr(slot) && newheight > 1) {
-+		if (radix_tree_is_indirect_ptr(slot)) {
- 			slot = indirect_to_ptr(slot);
- 			slot->parent = node;
- 			slot = ptr_to_indirect(slot);
-@@ -478,7 +478,7 @@ static int radix_tree_extend(struct radix_tree_root *root,
- 		root->height = newheight;
- 	} while (height > root->height);
- out:
--	return 0;
-+	return height * RADIX_TREE_MAP_SHIFT;
+ targets: $(TARGETS)
+ 
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index 122c8b9..b6a700b 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -275,6 +275,8 @@ static void single_thread_tests(bool long_run)
+ 	int i;
+ 
+ 	printf("starting single_thread_tests: %d allocated\n", nr_allocated);
++	multiorder_checks();
++	printf("after multiorder_check: %d allocated\n", nr_allocated);
+ 	locate_check();
+ 	printf("after locate_check: %d allocated\n", nr_allocated);
+ 	tag_check();
+diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
+new file mode 100644
+index 0000000..cfe718c
+--- /dev/null
++++ b/tools/testing/radix-tree/multiorder.c
+@@ -0,0 +1,58 @@
++/*
++ * multiorder.c: Multi-order radix tree entry testing
++ * Copyright (c) 2016 Intel Corporation
++ * Author: Ross Zwisler <ross.zwisler@linux.intel.com>
++ * Author: Matthew Wilcox <matthew.r.wilcox@intel.com>
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ */
++#include <linux/radix-tree.h>
++#include <linux/slab.h>
++#include <linux/errno.h>
++
++#include "test.h"
++
++static void multiorder_check(unsigned long index, int order)
++{
++	unsigned long i;
++	unsigned long min = index & ~((1UL << order) - 1);
++	unsigned long max = min + (1UL << order);
++	RADIX_TREE(tree, GFP_KERNEL);
++
++	printf("Multiorder index %ld, order %d\n", index, order);
++
++	assert(item_insert_order(&tree, index, order) == 0);
++
++	for (i = min; i < max; i++) {
++		struct item *item = item_lookup(&tree, i);
++		assert(item != 0);
++		assert(item->index == index);
++	}
++	for (i = 0; i < min; i++)
++		item_check_absent(&tree, i);
++	for (i = max; i < 2*max; i++)
++		item_check_absent(&tree, i);
++
++	assert(item_delete(&tree, index) != 0);
++
++	for (i = 0; i < 2*max; i++)
++		item_check_absent(&tree, i);
++}
++
++void multiorder_checks(void)
++{
++	int i;
++
++	for (i = 0; i < 20; i++) {
++		multiorder_check(200, i);
++		multiorder_check(0, i);
++		multiorder_check((1UL << i) + 1, i);
++	}
++}
+diff --git a/tools/testing/radix-tree/test.c b/tools/testing/radix-tree/test.c
+index 2bebf34..da54f11 100644
+--- a/tools/testing/radix-tree/test.c
++++ b/tools/testing/radix-tree/test.c
+@@ -24,14 +24,21 @@ int item_tag_get(struct radix_tree_root *root, unsigned long index, int tag)
+ 	return radix_tree_tag_get(root, index, tag);
  }
  
- /**
-@@ -503,20 +503,26 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
- 			void ***slotp)
+-int __item_insert(struct radix_tree_root *root, struct item *item)
++int __item_insert(struct radix_tree_root *root, struct item *item,
++			unsigned order)
  {
- 	struct radix_tree_node *node = NULL, *slot;
-+	unsigned long maxindex;
- 	unsigned int height, shift, offset;
--	int error;
-+	unsigned long max = index | ((1UL << order) - 1);
+-	return radix_tree_insert(root, item->index, item);
++	return __radix_tree_insert(root, item->index, order, item);
+ }
+ 
+ int item_insert(struct radix_tree_root *root, unsigned long index)
+ {
+-	return __item_insert(root, item_create(index));
++	return __item_insert(root, item_create(index), 0);
++}
 +
-+	shift = radix_tree_load_root(root, &slot, &maxindex);
++int item_insert_order(struct radix_tree_root *root, unsigned long index,
++			unsigned order)
++{
++	return __item_insert(root, item_create(index), order);
+ }
  
- 	/* Make sure the tree is high enough.  */
--	if (index > radix_tree_maxindex(root->height)) {
--		error = radix_tree_extend(root, index, order);
--		if (error)
-+	if (max > maxindex) {
-+		int error = radix_tree_extend(root, max);
-+		if (error < 0)
- 			return error;
-+		shift = error;
-+		slot = root->rnode;
-+		if (order == shift) {
-+			shift += RADIX_TREE_MAP_SHIFT;
-+			root->height++;
-+		}
- 	}
+ int item_delete(struct radix_tree_root *root, unsigned long index)
+diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
+index 4e1d95f..53cb595 100644
+--- a/tools/testing/radix-tree/test.h
++++ b/tools/testing/radix-tree/test.h
+@@ -8,8 +8,11 @@ struct item {
+ };
  
--	slot = root->rnode;
--
- 	height = root->height;
--	shift = height * RADIX_TREE_MAP_SHIFT;
+ struct item *item_create(unsigned long index);
+-int __item_insert(struct radix_tree_root *root, struct item *item);
++int __item_insert(struct radix_tree_root *root, struct item *item,
++			unsigned order);
+ int item_insert(struct radix_tree_root *root, unsigned long index);
++int item_insert_order(struct radix_tree_root *root, unsigned long index,
++			unsigned order);
+ int item_delete(struct radix_tree_root *root, unsigned long index);
+ struct item *item_lookup(struct radix_tree_root *root, unsigned long index);
  
- 	offset = 0;			/* uninitialised var warning */
- 	while (shift > order) {
+@@ -23,6 +26,7 @@ void item_full_scan(struct radix_tree_root *root, unsigned long start,
+ void item_kill_tree(struct radix_tree_root *root);
+ 
+ void tag_check(void);
++void multiorder_checks(void);
+ 
+ struct item *
+ item_tag_set(struct radix_tree_root *root, unsigned long index, int tag);
 -- 
 2.8.0.rc3
 
