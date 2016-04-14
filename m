@@ -1,75 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 357876B0005
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 17:07:39 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id e185so162893205vkb.2
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 14:07:39 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s201si15607250qke.3.2016.04.14.14.07.38
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6790B6B0005
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 18:00:03 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id t124so152355513pfb.1
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 15:00:03 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id d207si6797510pfd.66.2016.04.14.15.00.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Apr 2016 14:07:38 -0700 (PDT)
-Date: Thu, 14 Apr 2016 17:07:34 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [RFC 2/8] userfaultfd: support write protection for userfault
- vma range
-Message-ID: <20160414210734.GH9976@redhat.com>
-References: <cover.1447964595.git.shli@fb.com>
- <60c73a4374d16d15e3975c590b48a2d2d384c23e.1447964595.git.shli@fb.com>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Apr 2016 15:00:02 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Clarify reason to kill other threads sharing the vitctim's memory.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1460631391-8628-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<1460631391-8628-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20160414113108.GE2850@dhcp22.suse.cz>
+	<201604150003.GAI13041.MLHFOtOFOQSJVF@I-love.SAKURA.ne.jp>
+	<20160414151838.GK2850@dhcp22.suse.cz>
+In-Reply-To: <20160414151838.GK2850@dhcp22.suse.cz>
+Message-Id: <201604150659.BFI12469.tHLSOFMOJFQVFO@I-love.SAKURA.ne.jp>
+Date: Fri, 15 Apr 2016 06:59:53 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <60c73a4374d16d15e3975c590b48a2d2d384c23e.1447964595.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, linux-mm@kvack.org
 
-Hello,
+Michal Hocko wrote:
+> On Fri 15-04-16 00:03:31, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> [...]
+> > > I would rather be explicit that we _do not care_
+> > > about these configurations. It is just PITA maintain and it doesn't make
+> > > any sense. So rather than trying to document all the weird thing that
+> > > might happen I would welcome a warning "mm shared with OOM_SCORE_ADJ_MIN
+> > > task. Something is broken in your configuration!"
+> > 
+> > Would you please stop rejecting configurations which do not match your values?
+> 
+> Can you point out a single real life example where the above
+> configuration would make a sense? This is not about _my_ values. This is
+> about general _sanity_. If two/more entities share the mm and they disagree
+> about their OOM priorities then something is clearly broken. Don't you think?
+> How can the OOM killer do anything sensible here? The API we have
+> created is broken because it allows broken configurations too easily. It
+> is too late to fix it though so we can only rely on admins to use it
+> sensibly.
 
-Do you have a more recent version of this patchset?
+I explained it at http://lkml.kernel.org/r/201603152015.JAE86937.VFOLtQFOFJOSHM@I-love.SAKURA.ne.jp .
+I don't do such usage does not mean nobody does such usage.
 
-On Thu, Nov 19, 2015 at 02:33:47PM -0800, Shaohua Li wrote:
-> +	down_read(&dst_mm->mmap_sem);
+> 
+> So please try to step back and think about whether it actually make
+> sense to make the oom even more complex/confusing for something that
+> gives little (if any) sense.
 
-[..]
-
-> +	if (enable_wp)
-> +		newprot = vm_get_page_prot(dst_vma->vm_flags & ~(VM_WRITE));
-> +	else
-> +		newprot = vm_get_page_prot(dst_vma->vm_flags);
-
-The vm_flags for anon vmas are always wrprotected, just we mark them
-writable during fault or during cow if vm_flags VM_WRITE is set, when
-we know it's not shared. So this requires checking the mapcount
-somewhere while fork cannot run, or the above won't properly
-unprotect?
-
-> +
-> +	change_protection(dst_vma, start, start + len, newprot,
-> +				!enable_wp, 0);
-
-change_protection(prot_numa=0) assumes mmap_sem hold for writing
-breaking here:
-
-	 /* !prot_numa is protected by mmap_sem held for write */
-	if (!prot_numa)
-		return pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
-
-	pmdl = pmd_lock(vma->vm_mm, pmd);
-	if (unlikely(pmd_trans_huge(*pmd) || pmd_none(*pmd))) {
-		spin_unlock(pmdl);
-		return NULL;
-	}
-
-	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
-	spin_unlock(pmdl);
-
-With userfaultfd the pmd can be trans unstable as we only hold the
-mmap_sem for reading.
-
-In short calling change_protection() with prot_numa==0 with only the
-mmap_sem for reading looks wrong...
+Syscalls respond with "your usage is invalid" (by returning -EINVAL)
+than "ignore such usage and crash" (by triggering kernel panic).
+Why the OOM killer cannot respond with "I need to kill a different victim"
+than "ignore and silently hang up" ? Doing so with bounded wait is trivial
+and also helps "Whenever we select a victim and call mark_oom_victim
+we hope it will eventually get out of its kernel code path" problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
