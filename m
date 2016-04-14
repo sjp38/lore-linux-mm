@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EEEBE828DF
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 11:15:24 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id d19so48859880lfb.0
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 08:15:24 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4780E828DF
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 11:15:27 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id a140so55405335wma.1
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 08:15:27 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 131si35277030wmg.123.2016.04.14.08.15.23
+        by mx.google.com with ESMTPS id pe10si45798340wjb.12.2016.04.14.08.15.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Apr 2016 08:15:23 -0700 (PDT)
+        Thu, 14 Apr 2016 08:15:25 -0700 (PDT)
 From: Petr Mladek <pmladek@suse.com>
-Subject: [PATCH v6 05/20] kthread: Add destroy_kthread_worker()
-Date: Thu, 14 Apr 2016 17:14:24 +0200
-Message-Id: <1460646879-617-6-git-send-email-pmladek@suse.com>
+Subject: [PATCH v6 06/20] kthread: Detect when a kthread work is used by more workers
+Date: Thu, 14 Apr 2016 17:14:25 +0200
+Message-Id: <1460646879-617-7-git-send-email-pmladek@suse.com>
 In-Reply-To: <1460646879-617-1-git-send-email-pmladek@suse.com>
 References: <1460646879-617-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,62 +20,113 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
 
-The current kthread worker users call flush() and stop() explicitly.
-This function drains the worker, stops it, and frees the kthread_worker
-struct in one call.
+Nothing currently prevents a work from queuing for a kthread worker
+when it is already running on another one. This means that the work
+might run in parallel on more workers. Also some operations, e.g.
+flush or drain are not reliable.
 
-It is supposed to be used together with create_kthread_worker*() that
-allocates struct kthread_worker.
+This problem will be even more visible after we add cancel_kthread_work()
+function. It will only have "work" as the parameter and will use
+worker->lock to synchronize with others.
 
-Also note that drain() correctly handles self-queuing works in compare
-with flush().
+Well, normally this is not a problem because the API users are sane.
+But bugs might happen and users also might be crazy.
+
+This patch adds a warning when we try to insert the work for another
+worker. It does not fully prevent the misuse because it would make the
+code much more complicated without a big benefit.
+
+It adds the same warning also into flush_kthread_work() instead of
+the repeated attempts to get the right lock.
+
+A side effect is that one needs to explicitly reinitialize the work
+if it must be queued into another worker. This is needed, for example,
+when the worker is stopped and started again. It is a bit inconvenient.
+But it looks like a good compromise between the stability and complexity.
+
+I have double checked all existing users of the kthread worker API
+and they all seems to initialize the work after the worker gets
+started.
+
+Just for completeness, the patch adds a check that the work is not
+already in a queue.
+
+The patch also puts all the checks into a separate function. It will
+be reused when implementing delayed works.
 
 Signed-off-by: Petr Mladek <pmladek@suse.com>
 ---
- include/linux/kthread.h |  2 ++
- kernel/kthread.c        | 21 +++++++++++++++++++++
- 2 files changed, 23 insertions(+)
+ kernel/kthread.c | 28 ++++++++++++++++++++--------
+ 1 file changed, 20 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/kthread.h b/include/linux/kthread.h
-index 468011efa68d..a36604fa8aa2 100644
---- a/include/linux/kthread.h
-+++ b/include/linux/kthread.h
-@@ -136,4 +136,6 @@ bool queue_kthread_work(struct kthread_worker *worker,
- void flush_kthread_work(struct kthread_work *work);
- void flush_kthread_worker(struct kthread_worker *worker);
- 
-+void destroy_kthread_worker(struct kthread_worker *worker);
-+
- #endif /* _LINUX_KTHREAD_H */
 diff --git a/kernel/kthread.c b/kernel/kthread.c
-index 6051aa9d93c6..441651765f08 100644
+index 441651765f08..385a7d6b4872 100644
 --- a/kernel/kthread.c
 +++ b/kernel/kthread.c
-@@ -852,3 +852,24 @@ void drain_kthread_worker(struct kthread_worker *worker)
- 	spin_unlock_irq(&worker->lock);
- }
- EXPORT_SYMBOL(drain_kthread_worker);
-+
-+/**
-+ * destroy_kthread_worker - destroy a kthread worker
-+ * @worker: worker to be destroyed
+@@ -574,6 +574,9 @@ EXPORT_SYMBOL_GPL(__init_kthread_worker);
+  * The works are not allowed to keep any locks, disable preemption or interrupts
+  * when they finish. There is defined a safe point for freezing when one work
+  * finishes and before a new one is started.
 + *
-+ * Drain and destroy @worker.  It has the same conditions
-+ * for use as drain_kthread_worker(), see above.
-+ */
-+void destroy_kthread_worker(struct kthread_worker *worker)
++ * Also the works must not be handled by more workers at the same time, see also
++ * queue_kthread_work().
+  */
+ int kthread_worker_fn(void *worker_ptr)
+ {
+@@ -710,12 +713,21 @@ create_kthread_worker_on_cpu(int cpu, const char namefmt[], ...)
+ }
+ EXPORT_SYMBOL(create_kthread_worker_on_cpu);
+ 
++static void insert_kthread_work_sanity_check(struct kthread_worker *worker,
++					       struct kthread_work *work)
 +{
-+	struct task_struct *task;
-+
-+	task = worker->task;
-+	if (WARN_ON(!task))
-+		return;
-+
-+	drain_kthread_worker(worker);
-+	kthread_stop(task);
-+	kfree(worker);
++	lockdep_assert_held(&worker->lock);
++	WARN_ON_ONCE(!list_empty(&work->node));
++	/* Do not use a work with more workers, see queue_kthread_work() */
++	WARN_ON_ONCE(work->worker && work->worker != worker);
 +}
-+EXPORT_SYMBOL(destroy_kthread_worker);
++
+ /* insert @work before @pos in @worker */
+ static void insert_kthread_work(struct kthread_worker *worker,
+-			       struct kthread_work *work,
+-			       struct list_head *pos)
++				struct kthread_work *work,
++				struct list_head *pos)
+ {
+-	lockdep_assert_held(&worker->lock);
++	insert_kthread_work_sanity_check(worker, work);
+ 
+ 	list_add_tail(&work->node, pos);
+ 	work->worker = worker;
+@@ -731,6 +743,9 @@ static void insert_kthread_work(struct kthread_worker *worker,
+  * Queue @work to work processor @task for async execution.  @task
+  * must have been created with kthread_worker_create().  Returns %true
+  * if @work was successfully queued, %false if it was already pending.
++ *
++ * Reinitialize the work if it needs to be used by another worker.
++ * For example, when the worker was stopped and started again.
+  */
+ bool queue_kthread_work(struct kthread_worker *worker,
+ 			struct kthread_work *work)
+@@ -775,16 +790,13 @@ void flush_kthread_work(struct kthread_work *work)
+ 	struct kthread_worker *worker;
+ 	bool noop = false;
+ 
+-retry:
+ 	worker = work->worker;
+ 	if (!worker)
+ 		return;
+ 
+ 	spin_lock_irq(&worker->lock);
+-	if (work->worker != worker) {
+-		spin_unlock_irq(&worker->lock);
+-		goto retry;
+-	}
++	/* Work must not be used with more workers, see queue_kthread_work(). */
++	WARN_ON_ONCE(work->worker != worker);
+ 
+ 	if (!list_empty(&work->node))
+ 		insert_kthread_work(worker, &fwork.work, work->node.next);
 -- 
 1.8.5.6
 
