@@ -1,65 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 357006B007E
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 15:22:26 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id t184so36270064qkh.3
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 12:22:26 -0700 (PDT)
-Received: from omr1.cc.vt.edu (omr1.cc.ipv6.vt.edu. [2607:b400:92:8300:0:c6:2117:b0e])
-        by mx.google.com with ESMTPS id w206si13754396qhc.124.2016.04.14.12.22.25
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7985A6B007E
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 15:56:31 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id u190so147507241pfb.0
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 12:56:31 -0700 (PDT)
+Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
+        by mx.google.com with ESMTPS id 74si8878555pfk.37.2016.04.14.12.56.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Apr 2016 12:22:25 -0700 (PDT)
-Subject: Re: linux-next crash during very early boot
-From: Valdis.Kletnieks@vt.edu
-In-Reply-To: <20160414013546.GA9198@js1304-P5Q-DELUXE>
-References: <3689.1460593786@turing-police.cc.vt.edu>
- <20160414013546.GA9198@js1304-P5Q-DELUXE>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1460661743_2431P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 14 Apr 2016 15:22:23 -0400
-Message-ID: <39499.1460661743@turing-police.cc.vt.edu>
+        Thu, 14 Apr 2016 12:56:30 -0700 (PDT)
+Received: by mail-pf0-x234.google.com with SMTP id c20so49006940pfc.1
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 12:56:30 -0700 (PDT)
+Date: Thu, 14 Apr 2016 12:56:28 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 01/19] tree wide: get rid of __GFP_REPEAT for order-0
+ allocations part I
+In-Reply-To: <1460372892-8157-2-git-send-email-mhocko@kernel.org>
+Message-ID: <alpine.DEB.2.10.1604141255020.6593@chino.kir.corp.google.com>
+References: <1460372892-8157-1-git-send-email-mhocko@kernel.org> <1460372892-8157-2-git-send-email-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org
 
---==_Exmh_1460661743_2431P
-Content-Type: text/plain; charset=us-ascii
+On Mon, 11 Apr 2016, Michal Hocko wrote:
 
-On Thu, 14 Apr 2016 10:35:47 +0900, Joonsoo Kim said:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> __GFP_REPEAT has a rather weak semantic but since it has been introduced
+> around 2.6.12 it has been ignored for low order allocations. Yet we have
+> the full kernel tree with its usage for apparently order-0 allocations.
+> This is really confusing because __GFP_REPEAT is explicitly documented
+> to allow allocation failures which is a weaker semantic than the current
+> order-0 has (basically nofail).
+> 
+> Let's simply drop __GFP_REPEAT from those places. This would allow
+> to identify place which really need allocator to retry harder and
+> formulate a more specific semantic for what the flag is supposed to do
+> actually.
+> 
+> Cc: linux-arch@vger.kernel.org
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-> My fault. It should be assgined every time. Please test below patch.
-> I will send it with proper SOB after you confirm the problem disappear.
-> Thanks for report and analysis!
-
-Still bombs out, sorry.  Will do more debugging this evening if I have
-a chance - will follow up tomorrow morning US time....
-
---==_Exmh_1460661743_2431P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-Comment: Exmh version 2.5 07/13/2001
-
-iQIVAwUBVw/t7wdmEQWDXROgAQLczxAAqjkYzz4s7U9mkzMW2nqO42cdfA7sW1K4
-Z4fBISAnEtcn6PwjE7UJeMZOtHqMRNd057o1YbO+YIRdm7XLXgMNBmvv6+80W/RR
-gri+sJSXHCl02LHB5FYOu8+/fwVYp9DMaJyrZ+a+G8h7HQV+2xoiW0g+/izEtZTK
-bCcdBND2rn8WSQ0PPmV1EyUpEidJcj6Foi+teWhp+Syl/1wxi/s7Pruj+uH3Q+FA
-9aXBdXIjSHMgxiPYeXeHadJu2MKqohjjJ5XUQ2xdLeygneuAj1wbMXtFbGOBItGF
-bF3Xp+XN/HDYbj3PRlvlCxBrFH1RoNXSZ2v/DrVTRLJ7ohlkLTH5Y92sXKtBdZOj
-nVQeJPL6EQQ3KYM3+5XDjCPZJCAZCIanptgJCCNlncyHlIeVeGVlJshWAo/7PKJz
-QA8VmbgdNtG8RRnaaxJSzkK1LVNiR0afV230aQ/XFi3G1gmiUsRDVQ/UpUT90CAL
-fwVVX4TfZkCiFeDm5ah3GmYbU+KIOvQoM2lwJSDIRaFEpsb6JmlmXcG6sgQk8uTx
-Q9V/8WoVnhlls2zIo4kQJLfqEwpTzBvo07TcRfsnjempuyqN8K4AdxqF1DlqU6MS
-dp65xtPeIQQwdlFYT1x+j03cSNQYVjSC5mJhZQs3k3izQXgU0YzXEA/Itvb+VUww
-GMJ2cBtM/Ao=
-=JSuh
------END PGP SIGNATURE-----
-
---==_Exmh_1460661743_2431P--
+I did exactly this before, and Andrew objected saying that __GFP_REPEAT 
+may not be needed for the current page allocator's implementation but 
+could with others and that setting __GFP_REPEAT for an allocation 
+provided useful information with regards to intent.  At the time, I 
+attempted to eliminate __GFP_REPEAT entirely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
