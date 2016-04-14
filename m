@@ -1,60 +1,121 @@
-From: "=?ISO-8859-1?B?TWluZyBMaQ==?=" <mingli199x@qq.com>
-Subject: [PATCH] mm: put activate_page_pvecs and others pagevec together
-Date: Mon, 11 Apr 2016 09:16:29 +0800
-Message-ID: <tencent_396EED8911B375260606A8A3__11439.7544567057$1460337405$gmane$org@qq.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: Re: [PATCH 01/10] mm: update_lru_size warn and reset bad lru_size
+Date: Thu, 14 Apr 2016 13:56:41 +0200
+Message-ID: <570F8579.2070201@suse.cz>
+References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
+ <alpine.LSU.2.11.1604051337450.5965@eggly.anvils>
 Mime-Version: 1.0
-Content-Type: text/plain;
-	charset="ISO-8859-1"
-Content-Transfer-Encoding: base64
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by plane.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1apQT4-0006yi-PW
-	for glkm-linux-mm-2@m.gmane.org; Mon, 11 Apr 2016 03:16:43 +0200
-Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 832376B0005
-	for <linux-mm@kvack.org>; Sun, 10 Apr 2016 21:16:40 -0400 (EDT)
-Received: by mail-oi0-f51.google.com with SMTP id p188so190740840oih.2
-        for <linux-mm@kvack.org>; Sun, 10 Apr 2016 18:16:40 -0700 (PDT)
-Received: from smtpbg65.qq.com (smtpbg65.qq.com. [103.7.28.233])
-        by mx.google.com with ESMTPS id f8si6110314obh.105.2016.04.10.18.16.38
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 10 Apr 2016 18:16:39 -0700 (PDT)
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: =?ISO-8859-1?B?QW5kcmV3IE1vcnRvbg==?= <akpm@linux-foundation.org>, =?ISO-8859-1?B?TWljaGFsIEhvY2tv?= <mhocko@suse.com>, =?ISO-8859-1?B?S2lyaWxsIEEuIFNodXRlbW92?= <kirill.shutemov@linux.intel.com>, =?ISO-8859-1?B?RGF2aWQgUmllbnRqZXM=?= <rientjes@google.com>, =?ISO-8859-1?B?Vmxhc3RpbWlsIEJhYmth?= <Babkavbabka@suse.cz>, =?ISO-8859-1?B?VGVqdW4gSGVv?= <tj@kernel.org>
-Cc: =?ISO-8859-1?B?bGludXgtbW0=?= <linux-mm@kvack.org>, =?ISO-8859-1?B?bGludXgta2VybmVs?= <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <alpine.LSU.2.11.1604051337450.5965@eggly.anvils>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>
+List-Id: linux-mm.kvack.org
 
-aGksIEkgaGF2ZSBiZWVuIHN0dWR5aW5nIG1tIGFuZCBsZWFybiBhZ2V4eHgsIGF0IHRoZSB2
-ZXJ5IGJlZ2lubmluZyBJIGZlbHQgY29uZnVzZSB3aGVuIEkgc2F3IGFjdGl2YXRleHh4LCBh
-ZnRlciBJIGxlYXJuZWQgdGhlIHdob2xlIHRoaW5nIEkgdW5kZXJzdG9vZCB0aGF0IGl0J3Mg
-c2ltaWxhciB3aXRoIG90aGVyIHBhZ2V2ZWMncyBmdW5jdGlvbi4gQ2FuIHdlIHB1dCBpdCB3
-aXRoIG90aGVyIHBhZ2V2ZWMgdG9nZXRoZXI/IEkgdGhpbmsgaXQgaXMgZWFzaWVyIGZvciBu
-ZXdiaWVzIHRvIHJlYWQgYW5kIHVuZGVyc3RhbmQuCgpyZWdhcmRzLAoKCgpTaWduZWQtb2Zm
-LWJ5OiBNaW5nIExpIDxtaW5nbGkxOTl4QHFxLmNvbT4KCi0tLQptbS9zd2FwLmMgfCA1ICsr
-Ky0tCjEgZmlsZSBjaGFuZ2VkLCAzIGluc2VydGlvbnMoKyksIDIgZGVsZXRpb25zKC0pCgpk
-aWZmIC0tZ2l0IGEvbW0vc3dhcC5jIGIvbW0vc3dhcC5jCmluZGV4IDA5ZmU1ZTkuLjVjOTkw
-MWMgMTAwNjQ0Ci0tLSBhL21tL3N3YXAuYworKysgYi9tbS9zd2FwLmMKQEAgLTQ3LDYgKzQ3
-LDkgQEAgc3RhdGljIERFRklORV9QRVJfQ1BVKHN0cnVjdCBwYWdldmVjLCBscnVfYWRkX3B2
-ZWMpOwpzdGF0aWMgREVGSU5FX1BFUl9DUFUoc3RydWN0IHBhZ2V2ZWMsIGxydV9yb3RhdGVf
-cHZlY3MpOwpzdGF0aWMgREVGSU5FX1BFUl9DUFUoc3RydWN0IHBhZ2V2ZWMsIGxydV9kZWFj
-dGl2YXRlX2ZpbGVfcHZlY3MpOwpzdGF0aWMgREVGSU5FX1BFUl9DUFUoc3RydWN0IHBhZ2V2
-ZWMsIGxydV9kZWFjdGl2YXRlX3B2ZWNzKTsKKyNpZmRlZiBDT05GSUdfU01QCitzdGF0aWMg
-REVGSU5FX1BFUl9DUFUoc3RydWN0IHBhZ2V2ZWMsIGFjdGl2YXRlX3BhZ2VfcHZlY3MpOwor
-I2VuZGlmCgovKgoqIFRoaXMgcGF0aCBhbG1vc3QgbmV2ZXIgaGFwcGVucyBmb3IgVk0gYWN0
-aXZpdHkgLSBwYWdlcyBhcmUgbm9ybWFsbHkKQEAgLTI3NCw4ICsyNzcsNiBAQCBzdGF0aWMg
-dm9pZCBfX2FjdGl2YXRlX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UsIHN0cnVjdCBscnV2ZWMg
-KmxydXZlYywKfQoKI2lmZGVmIENPTkZJR19TTVAKLXN0YXRpYyBERUZJTkVfUEVSX0NQVShz
-dHJ1Y3QgcGFnZXZlYywgYWN0aXZhdGVfcGFnZV9wdmVjcyk7Ci0Kc3RhdGljIHZvaWQgYWN0
-aXZhdGVfcGFnZV9kcmFpbihpbnQgY3B1KQp7CnN0cnVjdCBwYWdldmVjICpwdmVjID0gJnBl
-cl9jcHUoYWN0aXZhdGVfcGFnZV9wdmVjcywgY3B1KTsKLS0gCjEuOC4zLjE=
+On 04/05/2016 10:40 PM, Hugh Dickins wrote:
+> Though debug kernels have a VM_BUG_ON to help protect from misaccounting
+> lru_size, non-debug kernels are liable to wrap it around: and then the
+> vast unsigned long size draws page reclaim into a loop of repeatedly
+> doing nothing on an empty list, without even a cond_resched().
+>
+> That soft lockup looks confusingly like an over-busy reclaim scenario,
+> with lots of contention on the lru_lock in shrink_inactive_list():
+> yet has a totally different origin.
+>
+> Help differentiate with a custom warning in mem_cgroup_update_lru_size(),
+> even in non-debug kernels; and reset the size to avoid the lockup.  But
+> the particular bug which suggested this change was mine alone, and since
+> fixed.
 
+In my opinion, the code now looks quite complicated, not sure it's a good 
+tradeoff for a rare (?) development bug. But I guess it's up to memcg 
+maintainers which I note are not explicitly CC'd, so adding them now.
 
+Maybe more generally, we can discuss in LSF/MM's mm debugging session, what it 
+means that DEBUG_VM check has to become unconditional. Does it mean insufficient 
+testing with DEBUG_VM during development/integration phase? Or are some bugs so 
+rare we can't depend on that phase to catch them? IIRC Fedora kernels are built 
+with DEBUG_VM, unless that changed...
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Make it a WARN_ONCE: the first occurrence is the most informative, a
+> flurry may follow, yet even when rate-limited little more is learnt.
+>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> ---
+>   include/linux/mm_inline.h |    2 +-
+>   mm/memcontrol.c           |   24 ++++++++++++++++++++----
+>   2 files changed, 21 insertions(+), 5 deletions(-)
+>
+> --- a/include/linux/mm_inline.h
+> +++ b/include/linux/mm_inline.h
+> @@ -35,8 +35,8 @@ static __always_inline void del_page_fro
+>   				struct lruvec *lruvec, enum lru_list lru)
+>   {
+>   	int nr_pages = hpage_nr_pages(page);
+> -	mem_cgroup_update_lru_size(lruvec, lru, -nr_pages);
+>   	list_del(&page->lru);
+> +	mem_cgroup_update_lru_size(lruvec, lru, -nr_pages);
+>   	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, -nr_pages);
+>   }
+>
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1022,22 +1022,38 @@ out:
+>    * @lru: index of lru list the page is sitting on
+>    * @nr_pages: positive when adding or negative when removing
+>    *
+> - * This function must be called when a page is added to or removed from an
+> - * lru list.
+> + * This function must be called under lru_lock, just before a page is added
+> + * to or just after a page is removed from an lru list (that ordering being
+> + * so as to allow it to check that lru_size 0 is consistent with list_empty).
+>    */
+>   void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
+>   				int nr_pages)
+>   {
+>   	struct mem_cgroup_per_zone *mz;
+>   	unsigned long *lru_size;
+> +	long size;
+> +	bool empty;
+
+Could there be more descriptive names? lru_size vs size looks confusing.
+
+>
+>   	if (mem_cgroup_disabled())
+>   		return;
+>
+>   	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
+>   	lru_size = mz->lru_size + lru;
+> -	*lru_size += nr_pages;
+> -	VM_BUG_ON((long)(*lru_size) < 0);
+> +	empty = list_empty(lruvec->lists + lru);
+> +
+> +	if (nr_pages < 0)
+> +		*lru_size += nr_pages;
+> +
+> +	size = *lru_size;
+> +	if (WARN_ONCE(size < 0 || empty != !size,
+
+Maybe I'm just not used enough to constructs like "empty != !size", but it 
+really takes me longer than I'd like to get the meaning :(
+
+> +		"%s(%p, %d, %d): lru_size %ld but %sempty\n",
+> +		__func__, lruvec, lru, nr_pages, size, empty ? "" : "not ")) {
+> +		VM_BUG_ON(1);
+> +		*lru_size = 0;
+> +	}
+> +
+> +	if (nr_pages > 0)
+> +		*lru_size += nr_pages;
+>   }
+>
+>   bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg)
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
