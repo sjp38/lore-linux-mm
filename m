@@ -1,79 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 73DCF6B007E
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 06:57:51 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id o126so158495018iod.1
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 03:57:51 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id i37si13861457otd.58.2016.04.14.03.57.49
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DCE276B0005
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 07:13:02 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l6so49924024wml.3
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 04:13:02 -0700 (PDT)
+Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
+        by mx.google.com with ESMTPS id by8si44740623wjb.40.2016.04.14.04.13.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Apr 2016 03:57:50 -0700 (PDT)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH] mm,oom: Clarify reason to kill other threads sharing the vitctim's memory.
-Date: Thu, 14 Apr 2016 19:56:31 +0900
-Message-Id: <1460631391-8628-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-In-Reply-To: <1460631391-8628-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1460631391-8628-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Apr 2016 04:13:01 -0700 (PDT)
+Received: by mail-wm0-x235.google.com with SMTP id u206so120372632wme.1
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 04:13:01 -0700 (PDT)
+MIME-Version: 1.0
+Date: Thu, 14 Apr 2016 13:13:01 +0200
+Message-ID: <CAMJBoFN3__W1=q7R=ZgDsaiTe3nsmyXJVvDv-eURsqVeM9NR2Q@mail.gmail.com>
+Subject: Re: [PATCH] z3fold: the 3-fold allocator for compressed pages
+From: Vitaly Wool <vitalywool@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Seth Jennings <sjenning@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>
 
-Current comment for "Kill all user processes sharing victim->mm in other
-thread groups" is not clear that doing so is a best effort avoidance.
+[resending due to mail client issues]
 
-I tried to update that logic along with TIF_MEMDIE for several times
-but not yet accepted. Therefore, this patch changes only comment so that
-we can apply now.
+On Thu, Apr 14, 2016 at 10:48 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>
+> On 04/14/2016 10:05 AM, Vitaly Wool wrote:
+>>
+>> This patch introduces z3fold, a special purpose allocator for storing
+>> compressed pages. It is designed to store up to three compressed pages per
+>> physical page. It is a ZBUD derivative which allows for higher compression
+>> ratio keeping the simplicity and determinism of its predecessor.
+>
+>
+> So the obvious question is, why a separate allocator and not extend zbud?
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/oom_kill.c | 29 ++++++++++++++++++++++-------
- 1 file changed, 22 insertions(+), 7 deletions(-)
+Well, as far as I recall Seth was very much for keeping zbud as simple
+as possible. I am fine either way but if we have zpool API, why not
+have another zpool API user?
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index e78818d..43d0002 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -814,13 +814,28 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	task_unlock(victim);
- 
- 	/*
--	 * Kill all user processes sharing victim->mm in other thread groups, if
--	 * any.  They don't get access to memory reserves, though, to avoid
--	 * depletion of all memory.  This prevents mm->mmap_sem livelock when an
--	 * oom killed thread cannot exit because it requires the semaphore and
--	 * its contended by another thread trying to allocate memory itself.
--	 * That thread will now get access to memory reserves since it has a
--	 * pending fatal signal.
-+	 * Kill all user processes sharing victim->mm in other thread groups,
-+	 * if any. This reduces possibility of hitting mm->mmap_sem livelock
-+	 * when an OOM victim thread cannot exit because it requires the
-+	 * mm->mmap_sem for read at exit_mm() while another thread is trying
-+	 * to allocate memory with that mm->mmap_sem held for write.
-+	 *
-+	 * Any thread except the victim thread itself which is killed by
-+	 * this heuristic does not get access to memory reserves as of now,
-+	 * but it will get access to memory reserves by calling out_of_memory()
-+	 * or mem_cgroup_out_of_memory() since it has a pending fatal signal.
-+	 *
-+	 * Note that this heuristic is not perfect because it is possible that
-+	 * a thread which shares victim->mm and is doing memory allocation with
-+	 * victim->mm->mmap_sem held for write is marked as OOM_SCORE_ADJ_MIN.
-+	 * Also, it is possible that a thread which shares victim->mm and is
-+	 * doing memory allocation with victim->mm->mmap_sem held for write
-+	 * (possibly the victim thread itself which got TIF_MEMDIE) is blocked
-+	 * at unkillable locks from direct reclaim paths because nothing
-+	 * prevents TIF_MEMDIE threads which already started direct reclaim
-+	 * paths from being blocked at unkillable locks. In such cases, the
-+	 * OOM reaper will be unable to reap victim->mm and we will need to
-+	 * select a different OOM victim.
- 	 */
- 	rcu_read_lock();
- 	for_each_process(p) {
--- 
-1.8.3.1
+>
+> I didn't study the code, nor notice a design/algorithm overview doc, but it seems z3fold keeps the idea of one compressed page at the beginning, one at the end of page frame, but it adds another one in the middle? Also how is the buddy-matching done?
+
+
+Basically yes. There is 'start_middle' variable which point to the
+start of the middle page, if any. The matching is done basing on the
+buddy number.
+
+~vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
