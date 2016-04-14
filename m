@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 93B688295A
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 10:38:02 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id u190so132303186pfb.0
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 07:38:02 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id 85si7769514pfn.180.2016.04.14.07.37.44
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DBB48295A
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 10:38:04 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id dx6so50542964pad.0
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 07:38:04 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id e65si7776846pfd.212.2016.04.14.07.38.01
         for <linux-mm@kvack.org>;
-        Thu, 14 Apr 2016 07:37:44 -0700 (PDT)
+        Thu, 14 Apr 2016 07:38:01 -0700 (PDT)
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: [PATCH 13/19] radix-tree: Tidy up next_chunk
-Date: Thu, 14 Apr 2016 10:37:16 -0400
-Message-Id: <1460644642-30642-14-git-send-email-willy@linux.intel.com>
+Subject: [PATCH 04/19] radix-tree: Replace node->height with node->shift
+Date: Thu, 14 Apr 2016 10:37:07 -0400
+Message-Id: <1460644642-30642-5-git-send-email-willy@linux.intel.com>
 In-Reply-To: <1460644642-30642-1-git-send-email-willy@linux.intel.com>
 References: <1460644642-30642-1-git-send-email-willy@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,258 +19,139 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Convert radix_tree_next_chunk to use 'child' instead of 'slot' as the name
-of the child node.  Also use node_maxindex() where it makes sense.
-
-The 'rnode' variable was unnecessary; it doesn't overlap in usage with
-'node', so we can just use 'node' the whole way through the function.
-
-Improve the testcase to start the walk from every index in the carefully
-constructed tree, and to accept any index within the range covered by
-the entry.
+node->shift represents the shift necessary for looking in the slots
+array at this level.  It is equal to the old
+(node->height - 1) * RADIX_TREE_MAP_SHIFT.
 
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- lib/radix-tree.c                      | 53 +++++++------------
- tools/testing/radix-tree/multiorder.c | 99 +++++++++++++++++++----------------
- 2 files changed, 74 insertions(+), 78 deletions(-)
+ include/linux/radix-tree.h |  2 +-
+ lib/radix-tree.c           | 30 ++++++++++++++++--------------
+ 2 files changed, 17 insertions(+), 15 deletions(-)
 
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 2d2ad9d..0374582 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -89,7 +89,7 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
+ #define RADIX_TREE_COUNT_MASK	((1UL << RADIX_TREE_COUNT_SHIFT) - 1)
+ 
+ struct radix_tree_node {
+-	unsigned char	height;	/* From the bottom */
++	unsigned char	shift;	/* Bits remaining in each slot */
+ 	unsigned char	offset;	/* Slot offset in parent */
+ 	unsigned int	count;
+ 	union {
 diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 094dfc0..fab4485 100644
+index d42c5b5..e963823 100644
 --- a/lib/radix-tree.c
 +++ b/lib/radix-tree.c
-@@ -876,7 +876,7 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
- 			     struct radix_tree_iter *iter, unsigned flags)
+@@ -223,10 +223,10 @@ static void dump_node(struct radix_tree_node *node,
  {
- 	unsigned shift, tag = flags & RADIX_TREE_ITER_TAG_MASK;
--	struct radix_tree_node *rnode, *node;
-+	struct radix_tree_node *node, *child;
- 	unsigned long index, offset, maxindex;
+ 	unsigned long i;
  
- 	if ((flags & RADIX_TREE_ITER_TAGGED) && !root_tag_get(root, tag))
-@@ -896,38 +896,29 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
- 		return NULL;
+-	pr_debug("radix node: %p offset %d tags %lx %lx %lx height %d count %d parent %p\n",
++	pr_debug("radix node: %p offset %d tags %lx %lx %lx shift %d count %d parent %p\n",
+ 		node, node->offset,
+ 		node->tags[0][0], node->tags[1][0], node->tags[2][0],
+-		node->height, node->count, node->parent);
++		node->shift, node->count, node->parent);
  
-  restart:
--	shift = radix_tree_load_root(root, &rnode, &maxindex);
-+	shift = radix_tree_load_root(root, &child, &maxindex);
- 	if (index > maxindex)
- 		return NULL;
-+	if (!child)
-+		return NULL;
+ 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
+ 		unsigned long first = index | (i << shift);
+@@ -419,9 +419,14 @@ static inline unsigned long radix_tree_maxindex(unsigned int height)
+ 	return height_to_maxindex[height];
+ }
  
--	if (radix_tree_is_internal_node(rnode)) {
--		rnode = entry_to_node(rnode);
--	} else if (rnode) {
-+	if (!radix_tree_is_internal_node(child)) {
- 		/* Single-slot tree */
- 		iter->index = index;
- 		iter->next_index = maxindex + 1;
- 		iter->tags = 1;
--		__set_iter_shift(iter, shift);
-+		__set_iter_shift(iter, 0);
- 		return (void **)&root->rnode;
--	} else
--		return NULL;
--
--	shift -= RADIX_TREE_MAP_SHIFT;
--	offset = index >> shift;
--
--	node = rnode;
--	while (1) {
--		struct radix_tree_node *slot;
--		unsigned new_off = radix_tree_descend(node, &slot, offset);
-+	}
++static inline unsigned long shift_maxindex(unsigned int shift)
++{
++	return (RADIX_TREE_MAP_SIZE << shift) - 1;
++}
++
+ static inline unsigned long node_maxindex(struct radix_tree_node *node)
+ {
+-	return radix_tree_maxindex(node->height);
++	return shift_maxindex(node->shift);
+ }
  
--		if (new_off < offset) {
--			offset = new_off;
--			index &= ~((RADIX_TREE_MAP_SIZE << shift) - 1);
--			index |= offset << shift;
--		}
-+	do {
-+		node = entry_to_node(child);
-+		shift -= RADIX_TREE_MAP_SHIFT;
-+		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
-+		offset = radix_tree_descend(node, &child, offset);
+ static unsigned radix_tree_load_root(struct radix_tree_root *root,
+@@ -434,7 +439,7 @@ static unsigned radix_tree_load_root(struct radix_tree_root *root,
+ 	if (likely(radix_tree_is_indirect_ptr(node))) {
+ 		node = indirect_to_ptr(node);
+ 		*maxindex = node_maxindex(node);
+-		return node->height * RADIX_TREE_MAP_SHIFT;
++		return node->shift + RADIX_TREE_MAP_SHIFT;
+ 	}
  
- 		if ((flags & RADIX_TREE_ITER_TAGGED) ?
--				!tag_get(node, tag, offset) : !slot) {
-+				!tag_get(node, tag, offset) : !child) {
- 			/* Hole detected */
- 			if (flags & RADIX_TREE_ITER_CONTIG)
- 				return NULL;
-@@ -945,29 +936,23 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
- 					if (slot)
- 						break;
- 				}
--			index &= ~((RADIX_TREE_MAP_SIZE << shift) - 1);
-+			index &= ~node_maxindex(node);
- 			index += offset << shift;
- 			/* Overflow after ~0UL */
- 			if (!index)
- 				return NULL;
- 			if (offset == RADIX_TREE_MAP_SIZE)
- 				goto restart;
--			slot = rcu_dereference_raw(node->slots[offset]);
-+			child = rcu_dereference_raw(node->slots[offset]);
+ 	*maxindex = 0;
+@@ -475,9 +480,9 @@ static int radix_tree_extend(struct radix_tree_root *root,
  		}
  
--		if ((slot == NULL) || (slot == RADIX_TREE_RETRY))
-+		if ((child == NULL) || (child == RADIX_TREE_RETRY))
- 			goto restart;
--		if (!radix_tree_is_internal_node(slot))
--			break;
+ 		/* Increase the height.  */
+-		newheight = root->height + 1;
++		newheight = root->height;
+ 		BUG_ON(newheight > BITS_PER_LONG);
+-		node->height = newheight;
++		node->shift = newheight * RADIX_TREE_MAP_SHIFT;
+ 		node->offset = 0;
+ 		node->count = 1;
+ 		node->parent = NULL;
+@@ -490,7 +495,7 @@ static int radix_tree_extend(struct radix_tree_root *root,
+ 		node->slots[0] = slot;
+ 		node = ptr_to_indirect(node);
+ 		rcu_assign_pointer(root->rnode, node);
+-		root->height = newheight;
++		root->height = ++newheight;
+ 	} while (height > root->height);
+ out:
+ 	return height * RADIX_TREE_MAP_SHIFT;
+@@ -519,7 +524,7 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+ {
+ 	struct radix_tree_node *node = NULL, *slot;
+ 	unsigned long maxindex;
+-	unsigned int height, shift, offset;
++	unsigned int shift, offset;
+ 	unsigned long max = index | ((1UL << order) - 1);
+ 
+ 	shift = radix_tree_load_root(root, &slot, &maxindex);
+@@ -537,16 +542,15 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+ 		}
+ 	}
+ 
+-	height = root->height;
 -
--		node = entry_to_node(slot);
+ 	offset = 0;			/* uninitialised var warning */
+ 	while (shift > order) {
++		shift -= RADIX_TREE_MAP_SHIFT;
+ 		if (slot == NULL) {
+ 			/* Have to add a child node.  */
+ 			slot = radix_tree_node_alloc(root);
+ 			if (!slot)
+ 				return -ENOMEM;
+-			slot->height = height;
++			slot->shift = shift;
+ 			slot->offset = offset;
+ 			slot->parent = node;
+ 			if (node) {
+@@ -560,8 +564,6 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+ 			break;
+ 
+ 		/* Go a level down */
+-		height--;
 -		shift -= RADIX_TREE_MAP_SHIFT;
--		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
--	}
-+	} while (radix_tree_is_internal_node(child));
+ 		node = indirect_to_ptr(slot);
+ 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
+ 		offset = radix_tree_descend(node, &slot, offset);
+@@ -1322,7 +1324,7 @@ static unsigned long __locate(struct radix_tree_node *slot, void *item,
+ 	unsigned int shift;
+ 	unsigned long base, i;
  
- 	/* Update the iterator state */
--	iter->index = index & ~((1 << shift) - 1);
--	iter->next_index = (index | ((RADIX_TREE_MAP_SIZE << shift) - 1)) + 1;
-+	iter->index = (index &~ node_maxindex(node)) | (offset << node->shift);
-+	iter->next_index = (index | node_maxindex(node)) + 1;
- 	__set_iter_shift(iter, shift);
+-	shift = slot->height * RADIX_TREE_MAP_SHIFT;
++	shift = slot->shift + RADIX_TREE_MAP_SHIFT;
  
- 	/* Construct iter->tags bit-mask from node->tags[tag] array */
-diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
-index c061f4b..39d9b95 100644
---- a/tools/testing/radix-tree/multiorder.c
-+++ b/tools/testing/radix-tree/multiorder.c
-@@ -202,7 +202,7 @@ void multiorder_iteration(void)
- 	RADIX_TREE(tree, GFP_KERNEL);
- 	struct radix_tree_iter iter;
- 	void **slot;
--	int i, err;
-+	int i, j, err;
- 
- 	printf("Multiorder iteration test\n");
- 
-@@ -215,29 +215,21 @@ void multiorder_iteration(void)
- 		assert(!err);
- 	}
- 
--	i = 0;
--	/* start from index 1 to verify we find the multi-order entry at 0 */
--	radix_tree_for_each_slot(slot, &tree, &iter, 1) {
--		int height = order[i] / RADIX_TREE_MAP_SHIFT;
--		int shift = height * RADIX_TREE_MAP_SHIFT;
--
--		assert(iter.index == index[i]);
--		assert(iter.shift == shift);
--		i++;
--	}
--
--	/*
--	 * Now iterate through the tree starting at an elevated multi-order
--	 * entry, beginning at an index in the middle of the range.
--	 */
--	i = 8;
--	radix_tree_for_each_slot(slot, &tree, &iter, 70) {
--		int height = order[i] / RADIX_TREE_MAP_SHIFT;
--		int shift = height * RADIX_TREE_MAP_SHIFT;
--
--		assert(iter.index == index[i]);
--		assert(iter.shift == shift);
--		i++;
-+	for (j = 0; j < 256; j++) {
-+		for (i = 0; i < NUM_ENTRIES; i++)
-+			if (j <= (index[i] | ((1 << order[i]) - 1)))
-+				break;
-+
-+		radix_tree_for_each_slot(slot, &tree, &iter, j) {
-+			int height = order[i] / RADIX_TREE_MAP_SHIFT;
-+			int shift = height * RADIX_TREE_MAP_SHIFT;
-+			int mask = (1 << order[i]) - 1;
-+
-+			assert(iter.index >= (index[i] &~ mask));
-+			assert(iter.index <= (index[i] | mask));
-+			assert(iter.shift == shift);
-+			i++;
-+		}
- 	}
- 
- 	item_kill_tree(&tree);
-@@ -249,7 +241,7 @@ void multiorder_tagged_iteration(void)
- 	struct radix_tree_iter iter;
- 	void **slot;
- 	unsigned long first = 0;
--	int i;
-+	int i, j;
- 
- 	printf("Multiorder tagged iteration test\n");
- 
-@@ -268,30 +260,49 @@ void multiorder_tagged_iteration(void)
- 	for (i = 0; i < TAG_ENTRIES; i++)
- 		assert(radix_tree_tag_set(&tree, tag_index[i], 1));
- 
--	i = 0;
--	/* start from index 1 to verify we find the multi-order entry at 0 */
--	radix_tree_for_each_tagged(slot, &tree, &iter, 1, 1) {
--		assert(iter.index == tag_index[i]);
--		i++;
--	}
--
--	/*
--	 * Now iterate through the tree starting at an elevated multi-order
--	 * entry, beginning at an index in the middle of the range.
--	 */
--	i = 4;
--	radix_tree_for_each_slot(slot, &tree, &iter, 70) {
--		assert(iter.index == tag_index[i]);
--		i++;
-+	for (j = 0; j < 256; j++) {
-+		int mask, k;
-+
-+		for (i = 0; i < TAG_ENTRIES; i++) {
-+			for (k = i; index[k] < tag_index[i]; k++)
-+				;
-+			if (j <= (index[k] | ((1 << order[k]) - 1)))
-+				break;
-+		}
-+
-+		radix_tree_for_each_tagged(slot, &tree, &iter, j, 1) {
-+			for (k = i; index[k] < tag_index[i]; k++)
-+				;
-+			mask = (1 << order[k]) - 1;
-+
-+			assert(iter.index >= (tag_index[i] &~ mask));
-+			assert(iter.index <= (tag_index[i] | mask));
-+			i++;
-+		}
- 	}
- 
- 	radix_tree_range_tag_if_tagged(&tree, &first, ~0UL,
- 					MT_NUM_ENTRIES, 1, 2);
- 
--	i = 0;
--	radix_tree_for_each_tagged(slot, &tree, &iter, 1, 2) {
--		assert(iter.index == tag_index[i]);
--		i++;
-+	for (j = 0; j < 256; j++) {
-+		int mask, k;
-+
-+		for (i = 0; i < TAG_ENTRIES; i++) {
-+			for (k = i; index[k] < tag_index[i]; k++)
-+				;
-+			if (j <= (index[k] | ((1 << order[k]) - 1)))
-+				break;
-+		}
-+
-+		radix_tree_for_each_tagged(slot, &tree, &iter, j, 2) {
-+			for (k = i; index[k] < tag_index[i]; k++)
-+				;
-+			mask = (1 << order[k]) - 1;
-+
-+			assert(iter.index >= (tag_index[i] &~ mask));
-+			assert(iter.index <= (tag_index[i] | mask));
-+			i++;
-+		}
- 	}
- 
- 	first = 1;
+ 	do {
+ 		shift -= RADIX_TREE_MAP_SHIFT;
 -- 
 2.8.0.rc3
 
