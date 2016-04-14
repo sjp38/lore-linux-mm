@@ -1,44 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5580A6B0005
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 04:16:54 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u190so116651053pfb.0
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 01:16:54 -0700 (PDT)
-Received: from helcar.hengli.com.au (helcar.hengli.com.au. [209.40.204.226])
-        by mx.google.com with ESMTPS id rk14si6522641pab.187.2016.04.14.01.16.51
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B14E96B0005
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 04:32:40 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id c20so117000378pfc.2
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 01:32:40 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id wj2si6520667pab.71.2016.04.14.01.32.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Apr 2016 01:16:52 -0700 (PDT)
-Date: Thu, 14 Apr 2016 16:16:42 +0800
-From: Herbert Xu <herbert@gondor.apana.org.au>
-Subject: Re: [PATCH 18/19] crypto: get rid of superfluous __GFP_REPEAT
-Message-ID: <20160414081642.GA21031@gondor.apana.org.au>
-References: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
- <1460372892-8157-19-git-send-email-mhocko@kernel.org>
- <20160414062731.GA19640@gondor.apana.org.au>
- <20160414070216.GA2850@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Apr 2016 01:32:39 -0700 (PDT)
+Subject: Re: [PATCH v2] cpuset: use static key better and convert to new API
+References: <1459931973-29247-1-git-send-email-vbabka@suse.cz>
+ <1459934392-12756-1-git-send-email-vbabka@suse.cz>
+From: Zefan Li <lizefan@huawei.com>
+Message-ID: <570F54C2.2000300@huawei.com>
+Date: Thu, 14 Apr 2016 16:28:50 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160414070216.GA2850@dhcp22.suse.cz>
+In-Reply-To: <1459934392-12756-1-git-send-email-vbabka@suse.cz>
+Content-Type: text/plain; charset="gbk"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "David S. Miller" <davem@davemloft.net>
+To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Apr 14, 2016 at 09:02:17AM +0200, Michal Hocko wrote:
->
-> Will do. Do you prefer it now as a stand along patch or when I repost
-> the full series. This one doesn't depend on any previous so I can do
-> both ways.
+On 2016/4/6 17:19, Vlastimil Babka wrote:
+> An important function for cpusets is cpuset_node_allowed(), which optimizes on
+> the fact if there's a single root CPU set, it must be trivially allowed. But
+> the check "nr_cpusets() <= 1" doesn't use the cpusets_enabled_key static key
+> the right way where static keys eliminate branching overhead with jump labels.
+> 
+> This patch converts it so that static key is used properly. It's also switched
+> to the new static key API and the checking functions are converted to return
+> bool instead of int. We also provide a new variant __cpuset_zone_allowed()
+> which expects that the static key check was already done and they key was
+> enabled. This is needed for get_page_from_freelist() where we want to also
+> avoid the relatively slower check when ALLOC_CPUSET is not set in alloc_flags.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-I think a standalone patch is fine.
+Looks good to me.
 
-Thanks,
--- 
-Email: Herbert Xu <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
+Acked-by: Zefan Li <lizefan@huawei.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
