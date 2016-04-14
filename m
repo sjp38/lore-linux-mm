@@ -1,54 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7985A6B007E
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 15:56:31 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u190so147507241pfb.0
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 12:56:31 -0700 (PDT)
-Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
-        by mx.google.com with ESMTPS id 74si8878555pfk.37.2016.04.14.12.56.30
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 769346B007E
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 16:08:40 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id t124so147936236pfb.1
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 13:08:40 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id f63si8949081pfj.137.2016.04.14.13.08.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Apr 2016 12:56:30 -0700 (PDT)
-Received: by mail-pf0-x234.google.com with SMTP id c20so49006940pfc.1
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 12:56:30 -0700 (PDT)
-Date: Thu, 14 Apr 2016 12:56:28 -0700 (PDT)
+        Thu, 14 Apr 2016 13:08:39 -0700 (PDT)
+Received: by mail-pa0-x231.google.com with SMTP id fs9so29043750pac.2
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 13:08:39 -0700 (PDT)
+Date: Thu, 14 Apr 2016 13:08:38 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 01/19] tree wide: get rid of __GFP_REPEAT for order-0
- allocations part I
-In-Reply-To: <1460372892-8157-2-git-send-email-mhocko@kernel.org>
-Message-ID: <alpine.DEB.2.10.1604141255020.6593@chino.kir.corp.google.com>
-References: <1460372892-8157-1-git-send-email-mhocko@kernel.org> <1460372892-8157-2-git-send-email-mhocko@kernel.org>
+Subject: Re: [PATCH 1/1] mm: update min_free_kbytes from khugepaged after
+ core initialization
+In-Reply-To: <2bd05bd3f581116cee2d6396ea72613cf217a8c5.1460488349.git.jbaron@akamai.com>
+Message-ID: <alpine.DEB.2.10.1604141307580.6593@chino.kir.corp.google.com>
+References: <cover.1460488349.git.jbaron@akamai.com> <2bd05bd3f581116cee2d6396ea72613cf217a8c5.1460488349.git.jbaron@akamai.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org
+To: Jason Baron <jbaron@akamai.com>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, mgorman@techsingularity.net, mhocko@suse.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 11 Apr 2016, Michal Hocko wrote:
+On Tue, 12 Apr 2016, Jason Baron wrote:
 
-> From: Michal Hocko <mhocko@suse.com>
+> Khugepaged attempts to raise min_free_kbytes if its set too low. However,
+> on boot khugepaged sets min_free_kbytes first from subsys_initcall(), and
+> then the mm 'core' over-rides min_free_kbytes after from
+> init_per_zone_wmark_min(), via a module_init() call.
 > 
-> __GFP_REPEAT has a rather weak semantic but since it has been introduced
-> around 2.6.12 it has been ignored for low order allocations. Yet we have
-> the full kernel tree with its usage for apparently order-0 allocations.
-> This is really confusing because __GFP_REPEAT is explicitly documented
-> to allow allocation failures which is a weaker semantic than the current
-> order-0 has (basically nofail).
+> Khugepaged used to use a late_initcall() to set min_free_kbytes (such that
+> it occurred after the core initialization), however this was removed when
+> the initialization of min_free_kbytes was integrated into the starting of
+> the khugepaged thread.
 > 
-> Let's simply drop __GFP_REPEAT from those places. This would allow
-> to identify place which really need allocator to retry harder and
-> formulate a more specific semantic for what the flag is supposed to do
-> actually.
+> The fix here is simply to invoke the core initialization using a
+> core_initcall() instead of module_init(), such that the previous
+> initialization ordering is restored. I didn't restore the late_initcall()
+> since start_stop_khugepaged() already sets min_free_kbytes via
+> set_recommended_min_free_kbytes().
 > 
-> Cc: linux-arch@vger.kernel.org
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> This was noticed when we had a number of page allocation failures when
+> moving a workload to a kernel with this new initialization ordering. On an
+> 8GB system this restores min_free_kbytes back to 67584 from 11365 when
+> CONFIG_TRANSPARENT_HUGEPAGE=y is set and either
+> CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y or
+> CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y.
+> 
+> Fixes: 79553da293d3 ("thp: cleanup khugepaged startup")
+> Signed-off-by: Jason Baron <jbaron@akamai.com>
 
-I did exactly this before, and Andrew objected saying that __GFP_REPEAT 
-may not be needed for the current page allocator's implementation but 
-could with others and that setting __GFP_REPEAT for an allocation 
-provided useful information with regards to intent.  At the time, I 
-attempted to eliminate __GFP_REPEAT entirely.
+Acked-by: David Rientjes <rientjes@google.com>
+
+I assume it could also be fixed by not setting min_free_kbytes lower in 
+init_per_zone_wmark_min(), but if the ordering is correct this is less 
+code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
