@@ -1,115 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 00EEC6B0253
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 10:17:35 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id zy2so92834884pac.1
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 07:17:34 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 233356B025E
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 10:17:37 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id zy2so92835900pac.1
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 07:17:37 -0700 (PDT)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id fe1si11001656pac.200.2016.04.14.07.17.30
+        by mx.google.com with ESMTP id z4si10947975par.198.2016.04.14.07.17.31
         for <linux-mm@kvack.org>;
         Thu, 14 Apr 2016 07:17:31 -0700 (PDT)
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: [PATCH v2 05/29] radix tree test suite: keep regression test runs short
-Date: Thu, 14 Apr 2016 10:16:26 -0400
-Message-Id: <1460643410-30196-6-git-send-email-willy@linux.intel.com>
+Subject: [PATCH v2 14/29] radix-tree: Fix extending the tree for multi-order entries at offset 0
+Date: Thu, 14 Apr 2016 10:16:35 -0400
+Message-Id: <1460643410-30196-15-git-send-email-willy@linux.intel.com>
 In-Reply-To: <1460643410-30196-1-git-send-email-willy@linux.intel.com>
 References: <1460643410-30196-1-git-send-email-willy@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>, Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.com>, Neil Brown <neilb@suse.de>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
+The current code will insert entries at each level, as if we're going
+to add a new entry at the bottom level, so we then get an -EEXIST when
+we try to insert the entry into the tree.  The best way to fix this is
+to not check 'order' when inserting into an empty tree.
 
-Currently the full suite of regression tests take upwards of 30 minutes to
-run on my development machine.  The vast majority of this time is taken by
-the big_gang_check() and copy_tag_check() tests, which each run their tests
-through thousands of iterations...does this have value?
+We still need to 'extend' the tree to the height necessary for the
+maximum index corresponding to this entry, so pass that value to
+radix_tree_extend() rather than the index we're asked to create, or we
+won't create a tree that's deep enough.
 
-Without big_gang_check() and copy_tag_check(), the test suite runs in
-around 15 seconds on my box.
-
-Honestly the first time I ever ran through the entire test suite was to
-gather the timings for this email - it simply takes too long to be useful
-on a normal basis.
-
-Instead, hide the excessive iterations through big_gang_check() and
-copy_tag_check() tests behind an '-l' flag (for "long run") in case they
-are still useful, but allow the regression test suite to complete in a
-reasonable amount of time.  We still run each of these tests a few times (3
-at present) to try and keep the test coverage.
-
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- tools/testing/radix-tree/main.c | 22 +++++++++++++++-------
- 1 file changed, 15 insertions(+), 7 deletions(-)
+ lib/radix-tree.c | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)
 
-diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
-index 71c5272..122c8b9 100644
---- a/tools/testing/radix-tree/main.c
-+++ b/tools/testing/radix-tree/main.c
-@@ -61,11 +61,11 @@ void __big_gang_check(void)
- 	} while (!wrapped);
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 272ce81..f13ddbb 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -432,7 +432,7 @@ static unsigned radix_tree_load_root(struct radix_tree_root *root,
+  *	Extend a radix tree so it can store key @index.
+  */
+ static int radix_tree_extend(struct radix_tree_root *root,
+-				unsigned long index, unsigned order)
++				unsigned long index)
+ {
+ 	struct radix_tree_node *node;
+ 	struct radix_tree_node *slot;
+@@ -444,7 +444,7 @@ static int radix_tree_extend(struct radix_tree_root *root,
+ 	while (index > radix_tree_maxindex(height))
+ 		height++;
+ 
+-	if ((root->rnode == NULL) && (order == 0)) {
++	if (root->rnode == NULL) {
+ 		root->height = height;
+ 		goto out;
+ 	}
+@@ -467,7 +467,7 @@ static int radix_tree_extend(struct radix_tree_root *root,
+ 		node->count = 1;
+ 		node->parent = NULL;
+ 		slot = root->rnode;
+-		if (radix_tree_is_indirect_ptr(slot) && newheight > 1) {
++		if (radix_tree_is_indirect_ptr(slot)) {
+ 			slot = indirect_to_ptr(slot);
+ 			slot->parent = node;
+ 			slot = ptr_to_indirect(slot);
+@@ -478,7 +478,7 @@ static int radix_tree_extend(struct radix_tree_root *root,
+ 		root->height = newheight;
+ 	} while (height > root->height);
+ out:
+-	return 0;
++	return height * RADIX_TREE_MAP_SHIFT;
  }
  
--void big_gang_check(void)
-+void big_gang_check(bool long_run)
+ /**
+@@ -503,20 +503,26 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+ 			void ***slotp)
  {
- 	int i;
- 
--	for (i = 0; i < 1000; i++) {
-+	for (i = 0; i < (long_run ? 1000 : 3); i++) {
- 		__big_gang_check();
- 		srand(time(0));
- 		printf("%d ", i);
-@@ -270,7 +270,7 @@ static void locate_check(void)
- 	item_kill_tree(&tree);
- }
- 
--static void single_thread_tests(void)
-+static void single_thread_tests(bool long_run)
- {
- 	int i;
- 
-@@ -285,9 +285,9 @@ static void single_thread_tests(void)
- 	printf("after add_and_check: %d allocated\n", nr_allocated);
- 	dynamic_height_check();
- 	printf("after dynamic_height_check: %d allocated\n", nr_allocated);
--	big_gang_check();
-+	big_gang_check(long_run);
- 	printf("after big_gang_check: %d allocated\n", nr_allocated);
--	for (i = 0; i < 2000; i++) {
-+	for (i = 0; i < (long_run ? 2000 : 3); i++) {
- 		copy_tag_check();
- 		printf("%d ", i);
- 		fflush(stdout);
-@@ -295,15 +295,23 @@ static void single_thread_tests(void)
- 	printf("after copy_tag_check: %d allocated\n", nr_allocated);
- }
- 
--int main(void)
-+int main(int argc, char **argv)
- {
-+	bool long_run = false;
-+	int opt;
+ 	struct radix_tree_node *node = NULL, *slot;
++	unsigned long maxindex;
+ 	unsigned int height, shift, offset;
+-	int error;
++	unsigned long max = index | ((1UL << order) - 1);
 +
-+	while ((opt = getopt(argc, argv, "l")) != -1) {
-+		if (opt == 'l')
-+			long_run = true;
-+	}
-+
- 	rcu_register_thread();
- 	radix_tree_init();
++	shift = radix_tree_load_root(root, &slot, &maxindex);
  
- 	regression1_test();
- 	regression2_test();
- 	regression3_test();
--	single_thread_tests();
-+	single_thread_tests(long_run);
+ 	/* Make sure the tree is high enough.  */
+-	if (index > radix_tree_maxindex(root->height)) {
+-		error = radix_tree_extend(root, index, order);
+-		if (error)
++	if (max > maxindex) {
++		int error = radix_tree_extend(root, max);
++		if (error < 0)
+ 			return error;
++		shift = error;
++		slot = root->rnode;
++		if (order == shift) {
++			shift += RADIX_TREE_MAP_SHIFT;
++			root->height++;
++		}
+ 	}
  
- 	sleep(1);
- 	printf("after sleep(1): %d allocated\n", nr_allocated);
+-	slot = root->rnode;
+-
+ 	height = root->height;
+-	shift = height * RADIX_TREE_MAP_SHIFT;
+ 
+ 	offset = 0;			/* uninitialised var warning */
+ 	while (shift > order) {
 -- 
 2.8.0.rc3
 
