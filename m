@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A1873828DF
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 10:18:30 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id vv3so93346619pab.2
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 07:18:30 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id uk4si9817724pab.234.2016.04.14.07.18.29
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 49FCC6B007E
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 10:19:16 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id u190so131382457pfb.0
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 07:19:16 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id o81si7710341pfa.174.2016.04.14.07.19.15
         for <linux-mm@kvack.org>;
-        Thu, 14 Apr 2016 07:18:29 -0700 (PDT)
+        Thu, 14 Apr 2016 07:19:15 -0700 (PDT)
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: [PATCH v2 23/29] radix-tree: Rewrite radix_tree_tag_get
-Date: Thu, 14 Apr 2016 10:16:44 -0400
-Message-Id: <1460643410-30196-24-git-send-email-willy@linux.intel.com>
+Subject: [PATCH v2 04/29] radix tree test suite: Allow testing other fan-out values
+Date: Thu, 14 Apr 2016 10:16:25 -0400
+Message-Id: <1460643410-30196-5-git-send-email-willy@linux.intel.com>
 In-Reply-To: <1460643410-30196-1-git-send-email-willy@linux.intel.com>
 References: <1460643410-30196-1-git-send-email-willy@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,82 +21,66 @@ Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdev
 
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Use the new multi-order support functions to rewrite radix_tree_tag_get()
+The defines in regression2.c are already in radix-tree.h and duplicating
+them in the test case makes experimenting with other values for the
+fan-out harder than necessary.  Allow the user of the radix tree to decide
+what the fan-out should be rather than fixing it to 8 for non-kernel uses.
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- lib/radix-tree.c | 44 ++++++++++++++++++--------------------------
- 1 file changed, 18 insertions(+), 26 deletions(-)
+ include/linux/radix-tree.h              | 4 +---
+ tools/testing/radix-tree/linux/kernel.h | 2 ++
+ tools/testing/radix-tree/regression2.c  | 7 -------
+ 3 files changed, 3 insertions(+), 10 deletions(-)
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index ee56562..b1ca744 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -831,45 +831,37 @@ EXPORT_SYMBOL(radix_tree_tag_clear);
- int radix_tree_tag_get(struct radix_tree_root *root,
- 			unsigned long index, unsigned int tag)
- {
--	unsigned int height, shift;
--	struct radix_tree_node *node;
-+	struct radix_tree_node *node, *parent;
-+	unsigned long maxindex;
-+	unsigned int shift;
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 83f708e..5ce5a1e 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -70,10 +70,8 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
  
--	/* check the root's tag bit */
- 	if (!root_tag_get(root, tag))
- 		return 0;
+ #define RADIX_TREE_MAX_TAGS 3
  
--	node = rcu_dereference_raw(root->rnode);
-+	shift = radix_tree_load_root(root, &node, &maxindex);
-+	if (index > maxindex)
-+		return 0;
- 	if (node == NULL)
- 		return 0;
+-#ifdef __KERNEL__
++#ifndef RADIX_TREE_MAP_SHIFT
+ #define RADIX_TREE_MAP_SHIFT	(CONFIG_BASE_SMALL ? 4 : 6)
+-#else
+-#define RADIX_TREE_MAP_SHIFT	3	/* For more stressful testing */
+ #endif
  
--	if (!radix_tree_is_indirect_ptr(node))
--		return (index == 0);
--	node = indirect_to_ptr(node);
--
--	height = node->path & RADIX_TREE_HEIGHT_MASK;
--	if (index > radix_tree_maxindex(height))
--		return 0;
-+	while (radix_tree_is_indirect_ptr(node)) {
-+		int offset;
+ #define RADIX_TREE_MAP_SIZE	(1UL << RADIX_TREE_MAP_SHIFT)
+diff --git a/tools/testing/radix-tree/linux/kernel.h b/tools/testing/radix-tree/linux/kernel.h
+index 76a88f3..31fe2c77 100644
+--- a/tools/testing/radix-tree/linux/kernel.h
++++ b/tools/testing/radix-tree/linux/kernel.h
+@@ -12,6 +12,8 @@
+ #define CONFIG_SHMEM
+ #define CONFIG_SWAP
  
--	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
-+		shift -= RADIX_TREE_MAP_SHIFT;
-+		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
- 
--	for ( ; ; ) {
--		int offset;
-+		parent = indirect_to_ptr(node);
-+		offset = radix_tree_descend(parent, &node, offset);
- 
--		if (node == NULL)
-+		if (!node)
- 			return 0;
--		node = indirect_to_ptr(node);
--
--		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
--		if (!tag_get(node, tag, offset))
-+		if (!tag_get(parent, tag, offset))
- 			return 0;
--		if (height == 1)
--			return 1;
--		node = rcu_dereference_raw(node->slots[offset]);
--		if (!radix_tree_is_indirect_ptr(node))
--			return 1;
--		shift -= RADIX_TREE_MAP_SHIFT;
--		height--;
-+		if (node == RADIX_TREE_RETRY)
-+			break;
- 	}
++#define RADIX_TREE_MAP_SHIFT	3
 +
-+	return 1;
- }
- EXPORT_SYMBOL(radix_tree_tag_get);
+ #ifndef NULL
+ #define NULL	0
+ #endif
+diff --git a/tools/testing/radix-tree/regression2.c b/tools/testing/radix-tree/regression2.c
+index 5d2fa28..63bf347 100644
+--- a/tools/testing/radix-tree/regression2.c
++++ b/tools/testing/radix-tree/regression2.c
+@@ -51,13 +51,6 @@
  
+ #include "regression.h"
+ 
+-#ifdef __KERNEL__
+-#define RADIX_TREE_MAP_SHIFT    (CONFIG_BASE_SMALL ? 4 : 6)
+-#else
+-#define RADIX_TREE_MAP_SHIFT    3       /* For more stressful testing */
+-#endif
+-
+-#define RADIX_TREE_MAP_SIZE     (1UL << RADIX_TREE_MAP_SHIFT)
+ #define PAGECACHE_TAG_DIRTY     0
+ #define PAGECACHE_TAG_WRITEBACK 1
+ #define PAGECACHE_TAG_TOWRITE   2
 -- 
 2.8.0.rc3
 
