@@ -1,120 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 094EC6B025E
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 11:03:44 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id hb4so94301317pac.3
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 08:03:44 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id y80si7699664pfb.47.2016.04.14.08.03.42
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EC86828DF
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 11:15:07 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id q8so48649623lfe.3
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 08:15:07 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 20si17031706wjh.191.2016.04.14.08.15.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Apr 2016 08:03:42 -0700 (PDT)
-Subject: Re: [PATCH] mm,oom: Clarify reason to kill other threads sharing thevitctim's memory.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1460631391-8628-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<1460631391-8628-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20160414113108.GE2850@dhcp22.suse.cz>
-In-Reply-To: <20160414113108.GE2850@dhcp22.suse.cz>
-Message-Id: <201604150003.GAI13041.MLHFOtOFOQSJVF@I-love.SAKURA.ne.jp>
-Date: Fri, 15 Apr 2016 00:03:31 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Thu, 14 Apr 2016 08:15:05 -0700 (PDT)
+From: Petr Mladek <pmladek@suse.com>
+Subject: [PATCH v6 00/20] kthread: Use kthread worker API more widely
+Date: Thu, 14 Apr 2016 17:14:19 +0200
+Message-Id: <1460646879-617-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-watchdog@vger.kernel.org, Corey Minyard <minyard@acm.org>, openipmi-developer@lists.sourceforge.net, Doug Ledford <dledford@redhat.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, linux-rdma@vger.kernel.org, Maxim Levitsky <maximlevitsky@gmail.com>, Zhang Rui <rui.zhang@intel.com>, Eduardo Valentin <edubezval@gmail.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-pm@vger.kernel.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-Michal Hocko wrote:
-> On Thu 14-04-16 19:56:31, Tetsuo Handa wrote:
-> > Current comment for "Kill all user processes sharing victim->mm in other
-> > thread groups" is not clear that doing so is a best effort avoidance.
-> > 
-> > I tried to update that logic along with TIF_MEMDIE for several times
-> > but not yet accepted. Therefore, this patch changes only comment so that
-> > we can apply now.
-> > 
-> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > ---
-> >  mm/oom_kill.c | 29 ++++++++++++++++++++++-------
-> >  1 file changed, 22 insertions(+), 7 deletions(-)
-> > 
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index e78818d..43d0002 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -814,13 +814,28 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
-> >  	task_unlock(victim);
-> >  
-> >  	/*
-> > -	 * Kill all user processes sharing victim->mm in other thread groups, if
-> > -	 * any.  They don't get access to memory reserves, though, to avoid
-> > -	 * depletion of all memory.  This prevents mm->mmap_sem livelock when an
->            ^^^^^^^^^
-> this was an useful information which you have dropped. Why?
-> 
+My intention is to make it easier to manipulate and maintain kthreads.
+Especially, I want to replace all the custom main cycles with a
+generic one. Also I want to make the kthreads sleep in a consistent
+state in a common place when there is no work.
 
-Because I don't think setting TIF_MEMDIE to all threads sharing the victim's
-memory at oom_kill_process() increases the risk of depleting the memory
-reserves, for TIF_MEMDIE helps only if that thread is doing memory allocation.
-I explained it at
-http://lkml.kernel.org/r/201603162016.EBJ05275.VHMFSOLJOFQtOF@I-love.SAKURA.ne.jp .
+My first attempt was with a brand new API (iterant kthread), see
+http://thread.gmane.org/gmane.linux.kernel.api/11892 . But I was
+directed to improve the existing kthread worker API. This is
+the 4th iteration of the new direction.
 
-> > -	 * oom killed thread cannot exit because it requires the semaphore and
-> > -	 * its contended by another thread trying to allocate memory itself.
-> > -	 * That thread will now get access to memory reserves since it has a
-> > -	 * pending fatal signal.
-> > +	 * Kill all user processes sharing victim->mm in other thread groups,
-> > +	 * if any. This reduces possibility of hitting mm->mmap_sem livelock
-> > +	 * when an OOM victim thread cannot exit because it requires the
-> > +	 * mm->mmap_sem for read at exit_mm() while another thread is trying
-> > +	 * to allocate memory with that mm->mmap_sem held for write.
-> > +	 *
-> > +	 * Any thread except the victim thread itself which is killed by
-> > +	 * this heuristic does not get access to memory reserves as of now,
-> > +	 * but it will get access to memory reserves by calling out_of_memory()
-> > +	 * or mem_cgroup_out_of_memory() since it has a pending fatal signal.
-> > +	 *
-> > +	 * Note that this heuristic is not perfect because it is possible that
-> > +	 * a thread which shares victim->mm and is doing memory allocation with
-> > +	 * victim->mm->mmap_sem held for write is marked as OOM_SCORE_ADJ_MIN.
-> 
-> Is this really helpful? I would rather be explicit that we _do not care_
-> about these configurations. It is just PITA maintain and it doesn't make
-> any sense. So rather than trying to document all the weird thing that
-> might happen I would welcome a warning "mm shared with OOM_SCORE_ADJ_MIN
-> task. Something is broken in your configuration!"
 
-Would you please stop rejecting configurations which do not match your values?
-The OOM killer provides a safety net against accidental memory usage.
-A properly configured system should not call out_of_memory() from the beginning.
-Systems you call properly configured should use panic_on_oom > 0.
-What I'm asking for is a workaround for rescuing current users from unexplained
-silent hangups.
+1nd..10th patches: improve the existing kthread worker API
 
-> 
-> > +	 * Also, it is possible that a thread which shares victim->mm and is
-> > +	 * doing memory allocation with victim->mm->mmap_sem held for write
-> > +	 * (possibly the victim thread itself which got TIF_MEMDIE) is blocked
-> > +	 * at unkillable locks from direct reclaim paths because nothing
-> > +	 * prevents TIF_MEMDIE threads which already started direct reclaim
-> > +	 * paths from being blocked at unkillable locks. In such cases, the
-> > +	 * OOM reaper will be unable to reap victim->mm and we will need to
-> > +	 * select a different OOM victim.
-> 
-> This is a more general problem and not related to this particular code.
-> Whenever we select a victim and call mark_oom_victim we hope it will
-> eventually get out of its kernel code path (unless it was running in the
-> userspace) so I am not sure this is placed properly.
+11th..16th, 18th, 20th patches: convert several kthreads into
+      the kthread worker API, namely: khugepaged, ring buffer
+      benchmark, hung_task, kmemleak, ipmi, IB/fmr_pool,
+      memstick/r592, intel_powerclamp
+      
+17th, 19th patches: do some preparation steps; they usually do
+      some clean up that makes sense even without the conversion.
 
-To be able to act as a safety net, we should not ignore corner cases.
-Please explain your approach for handling the slowpath.
 
-> 
-> >  	 */
-> >  	rcu_read_lock();
-> >  	for_each_process(p) {
-> > -- 
-> > 1.8.3.1
+Changes against v5:
+
+  + removed spin_trylock() from delayed_kthread_work_timer_fn();
+    instead temporary released worked->lock() when calling
+    del_timer_sync(); made sure that any queueing was blocked
+    by work->canceling in the meatime
+
+  + used 0th byte for KTW_FREEZABLE to reduce confusion
+
+  + fixed warnings in comments reported by make htmldocs
+
+  + sigh, there was no easy way to create an empty va_list
+    that would work on all architectures; decided to make
+    @namefmt generic in create_kthread_worker_on_cpu()
+
+  + converted khungtaskd a better way; it was inspired by
+    the recent changes that appeared in 4.6-rc1
+
+
+Changes against v4:
+
+  + added worker->delayed_work_list; it simplified the check
+    for pending work; we do not longer need the new timer_active()
+    function; also we do not need the link work->timer. On the
+    other hand we need to distinguish between the normal and
+    the delayed work by a boolean parameter passed to
+    the common functions, e.g. __cancel_kthread_work_sync()
+    
+  + replaced most try_lock repeat cycles with a WARN_ON();
+    the API does not allow to use the work with more workers;
+    so such a situation would be a bug; it removed the
+    complex try_lock_kthread_work() function that supported
+    more modes;
+
+  + renamed kthread_work_pending() to queuing_blocked();
+    added this function later when really needed
+
+  + renamed try_to_cancel_kthread_work() to __cancel_kthread_work();
+    in fact, this a common implementation for the async cancel()
+    function
+
+  + removed a dull check for invalid cpu number in
+    create_kthread_worker_on_cpu(); removed some other unnecessary
+    code structures as suggested by Tejun
+
+  + consistently used bool return value in all new __cancel functions
+
+  + fixed ordering of cpu and flags parameters in
+    create_kthread_worker_on_cpu() vs. create_kthread_worker()
+
+  + used memset in the init_kthread_worker()
+
+  + updated many comments as suggested by Tejun and as
+    required the above changes
+
+  + removed obsolete patch adding timer_active()
+
+  + removed obsolete patch for using try_lock in flush_kthread_worker()
+
+  + double checked all existing users of kthread worker API
+    that they reinitialized the work when the worker was started
+    and would not print false warnings; all looked fine
+
+  + added taken acks for the Intel Powerclamp conversion
+    
+
+Changes against v3:
+
+  + allow to free struct kthread_work from its callback; do not touch
+    the struct from the worker post-mortem; as a side effect, the structure
+    must be reinitialized when the worker gets restarted; updated
+    khugepaged, and kmemleak accordingly
+
+  + call del_timer_sync() with worker->lock; instead, detect canceling
+    in the timer callback and give up an attempt to get the lock there;
+    do busy loop with spin_is_locked() to reduce cache bouncing
+
+  + renamed ipmi+func() -> ipmi_kthread_worker_func() as suggested
+    by Corey
+
+  + added some collected Reviewed-by
+
+  
+Changes against v2:
+
+  + used worker->lock to synchronize the operations with the work
+    instead of the PENDING bit as suggested by Tejun Heo; it simplified
+    the implementation in several ways
+
+  + added timer_active(); used it together with del_timer_sync()
+    to cancel the work a less tricky way
+
+  + removed the controversial conversion of the RCU kthreads
+
+  + added several other examples: hung_task, kmemleak, ipmi,
+    IB/fmr_pool, memstick/r592, intel_powerclamp
+
+  + the helper fixes for the ring buffer benchmark has been improved
+    as suggested by Steven; they already are in the Linus tree now
+
+  + fixed a possible race between the check for existing khugepaged
+    worker and queuing the work
+ 
+
+Changes against v1:
+
+  + remove wrappers to manipulate the scheduling policy and priority
+
+  + remove questionable wakeup_and_destroy_kthread_worker() variant
+
+  + do not check for chained work when draining the queue
+
+  + allocate struct kthread worker in create_kthread_work() and
+    use more simple checks for running worker
+
+  + add support for delayed kthread works and use them instead
+    of waiting inside the works
+
+  + rework the "unrelated" fixes for the ring buffer benchmark
+    as discussed in the 1st RFC; also sent separately
+
+  + convert also the consumer in the ring buffer benchmark
+
+
+I have tested this patch set against the stable Linus tree
+for 4.6-rc3.
+
+Comments against v5 can be found at
+http://thread.gmane.org/gmane.linux.kernel.mm/146726
+
+Petr Mladek (20):
+  kthread/smpboot: Do not park in kthread_create_on_cpu()
+  kthread: Allow to call __kthread_create_on_node() with va_list args
+  kthread: Add create_kthread_worker*()
+  kthread: Add drain_kthread_worker()
+  kthread: Add destroy_kthread_worker()
+  kthread: Detect when a kthread work is used by more workers
+  kthread: Initial support for delayed kthread work
+  kthread: Allow to cancel kthread work
+  kthread: Allow to modify delayed kthread work
+  kthread: Better support freezable kthread workers
+  mm/huge_page: Convert khugepaged() into kthread worker API
+  ring_buffer: Convert benchmark kthreads into kthread worker API
+  hung_task: Convert hungtaskd into kthread worker API
+  kmemleak: Convert kmemleak kthread into kthread worker API
+  ipmi: Convert kipmi kthread into kthread worker API
+  IB/fmr_pool: Convert the cleanup thread into kthread worker API
+  memstick/r592: Better synchronize debug messages in r592_io kthread
+  memstick/r592: convert r592_io kthread into kthread worker API
+  thermal/intel_powerclamp: Remove duplicated code that starts the
+    kthread
+  thermal/intel_powerclamp: Convert the kthread to kthread worker API
+
+ drivers/char/ipmi/ipmi_si_intf.c     | 121 ++++----
+ drivers/infiniband/core/fmr_pool.c   |  54 ++--
+ drivers/memstick/host/r592.c         |  61 ++--
+ drivers/memstick/host/r592.h         |   5 +-
+ drivers/thermal/intel_powerclamp.c   | 302 ++++++++++--------
+ include/linux/kthread.h              |  57 ++++
+ kernel/hung_task.c                   |  83 +++--
+ kernel/kthread.c                     | 571 +++++++++++++++++++++++++++++++----
+ kernel/smpboot.c                     |   5 +
+ kernel/trace/ring_buffer_benchmark.c | 133 ++++----
+ mm/huge_memory.c                     | 138 +++++----
+ mm/kmemleak.c                        |  87 +++---
+ 12 files changed, 1106 insertions(+), 511 deletions(-)
+
+CC: Catalin Marinas <catalin.marinas@arm.com>
+CC: linux-watchdog@vger.kernel.org
+CC: Corey Minyard <minyard@acm.org>
+CC: openipmi-developer@lists.sourceforge.net
+CC: Doug Ledford <dledford@redhat.com>
+CC: Sean Hefty <sean.hefty@intel.com>
+CC: Hal Rosenstock <hal.rosenstock@gmail.com>
+CC: linux-rdma@vger.kernel.org
+CC: Maxim Levitsky <maximlevitsky@gmail.com>
+CC: Zhang Rui <rui.zhang@intel.com>
+CC: Eduardo Valentin <edubezval@gmail.com>
+CC: Jacob Pan <jacob.jun.pan@linux.intel.com>
+CC: linux-pm@vger.kernel.org
+CC: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+
+-- 
+1.8.5.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
