@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C8F436B007E
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 10:17:32 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c20so131015364pfc.2
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 07:17:32 -0700 (PDT)
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 00EEC6B0253
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 10:17:35 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id zy2so92834884pac.1
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 07:17:34 -0700 (PDT)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
         by mx.google.com with ESMTP id fe1si11001656pac.200.2016.04.14.07.17.30
         for <linux-mm@kvack.org>;
-        Thu, 14 Apr 2016 07:17:30 -0700 (PDT)
+        Thu, 14 Apr 2016 07:17:31 -0700 (PDT)
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: [PATCH v2 06/29] radix tree test suite: rebuild when headers change
-Date: Thu, 14 Apr 2016 10:16:27 -0400
-Message-Id: <1460643410-30196-7-git-send-email-willy@linux.intel.com>
+Subject: [PATCH v2 05/29] radix tree test suite: keep regression test runs short
+Date: Thu, 14 Apr 2016 10:16:26 -0400
+Message-Id: <1460643410-30196-6-git-send-email-willy@linux.intel.com>
 In-Reply-To: <1460643410-30196-1-git-send-email-willy@linux.intel.com>
 References: <1460643410-30196-1-git-send-email-willy@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,34 +21,95 @@ Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdev
 
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-When we make changes to radix-tree.h in the regular kernel source
-(include/linux/radix-tree.h), we really want our test code to be rebuilt.
+Currently the full suite of regression tests take upwards of 30 minutes to
+run on my development machine.  The vast majority of this time is taken by
+the big_gang_check() and copy_tag_check() tests, which each run their tests
+through thousands of iterations...does this have value?
 
-We also include a few other headers from tools/include and probably want
-to rebuild if these have been changed.
+Without big_gang_check() and copy_tag_check(), the test suite runs in
+around 15 seconds on my box.
 
-Update the makefile so that all of our objects will be rebuilt when any
-of the headers we depend on are changed.
+Honestly the first time I ever ran through the entire test suite was to
+gather the timings for this email - it simply takes too long to be useful
+on a normal basis.
+
+Instead, hide the excessive iterations through big_gang_check() and
+copy_tag_check() tests behind an '-l' flag (for "long run") in case they
+are still useful, but allow the regression test suite to complete in a
+reasonable amount of time.  We still run each of these tests a few times (3
+at present) to try and keep the test coverage.
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- tools/testing/radix-tree/Makefile | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ tools/testing/radix-tree/main.c | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)
 
-diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
-index 604212d..43febba 100644
---- a/tools/testing/radix-tree/Makefile
-+++ b/tools/testing/radix-tree/Makefile
-@@ -13,7 +13,7 @@ main:	$(OFILES)
- clean:
- 	$(RM) -f $(TARGETS) *.o radix-tree.c
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index 71c5272..122c8b9 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -61,11 +61,11 @@ void __big_gang_check(void)
+ 	} while (!wrapped);
+ }
  
--$(OFILES): *.h */*.h
-+$(OFILES): *.h */*.h ../../../include/linux/radix-tree.h ../../include/linux/*.h
+-void big_gang_check(void)
++void big_gang_check(bool long_run)
+ {
+ 	int i;
  
- radix-tree.c: ../../../lib/radix-tree.c
- 	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
+-	for (i = 0; i < 1000; i++) {
++	for (i = 0; i < (long_run ? 1000 : 3); i++) {
+ 		__big_gang_check();
+ 		srand(time(0));
+ 		printf("%d ", i);
+@@ -270,7 +270,7 @@ static void locate_check(void)
+ 	item_kill_tree(&tree);
+ }
+ 
+-static void single_thread_tests(void)
++static void single_thread_tests(bool long_run)
+ {
+ 	int i;
+ 
+@@ -285,9 +285,9 @@ static void single_thread_tests(void)
+ 	printf("after add_and_check: %d allocated\n", nr_allocated);
+ 	dynamic_height_check();
+ 	printf("after dynamic_height_check: %d allocated\n", nr_allocated);
+-	big_gang_check();
++	big_gang_check(long_run);
+ 	printf("after big_gang_check: %d allocated\n", nr_allocated);
+-	for (i = 0; i < 2000; i++) {
++	for (i = 0; i < (long_run ? 2000 : 3); i++) {
+ 		copy_tag_check();
+ 		printf("%d ", i);
+ 		fflush(stdout);
+@@ -295,15 +295,23 @@ static void single_thread_tests(void)
+ 	printf("after copy_tag_check: %d allocated\n", nr_allocated);
+ }
+ 
+-int main(void)
++int main(int argc, char **argv)
+ {
++	bool long_run = false;
++	int opt;
++
++	while ((opt = getopt(argc, argv, "l")) != -1) {
++		if (opt == 'l')
++			long_run = true;
++	}
++
+ 	rcu_register_thread();
+ 	radix_tree_init();
+ 
+ 	regression1_test();
+ 	regression2_test();
+ 	regression3_test();
+-	single_thread_tests();
++	single_thread_tests(long_run);
+ 
+ 	sleep(1);
+ 	printf("after sleep(1): %d allocated\n", nr_allocated);
 -- 
 2.8.0.rc3
 
