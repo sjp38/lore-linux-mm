@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B0703828DF
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 11:15:38 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l6so55529934wml.3
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 08:15:38 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0046E828DF
+	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 11:15:41 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w143so54975447wmw.2
+        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 08:15:40 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 3si19852879wmy.118.2016.04.14.08.15.37
+        by mx.google.com with ESMTPS id iq7si45740590wjb.143.2016.04.14.08.15.39
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Apr 2016 08:15:37 -0700 (PDT)
+        Thu, 14 Apr 2016 08:15:39 -0700 (PDT)
 From: Petr Mladek <pmladek@suse.com>
-Subject: [PATCH v6 12/20] ring_buffer: Convert benchmark kthreads into kthread worker API
-Date: Thu, 14 Apr 2016 17:14:31 +0200
-Message-Id: <1460646879-617-13-git-send-email-pmladek@suse.com>
+Subject: [PATCH v6 13/20] hung_task: Convert hungtaskd into kthread worker API
+Date: Thu, 14 Apr 2016 17:14:32 +0200
+Message-Id: <1460646879-617-14-git-send-email-pmladek@suse.com>
 In-Reply-To: <1460646879-617-1-git-send-email-pmladek@suse.com>
 References: <1460646879-617-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>, linux-watchdog@vger.kernel.org
 
 Kthreads are currently implemented as an infinite loop. Each
 has its own variant of checks for terminating, freezing,
@@ -36,264 +36,201 @@ single thread for the work. It helps to make sure that it is
 available when needed. Also it allows a better control, e.g.
 define a scheduling priority.
 
-This patch converts the ring buffer benchmark producer into a kthread
-worker because it modifies the scheduling priority and policy.
-Also, it is a benchmark. It makes CPU very busy. It will most likely
-run only limited time. IMHO, it does not make sense to mess the system
-workqueues with it.
+This patch converts hungtaskd() in kthread worker API because
+it modifies the priority.
 
-The thread is split into two independent works. It might look more
-complicated but it helped me to find a race in the sleeping part
-that was fixed separately.
+This patch moves one iteration of the main cycle into a self-queuing
+delayed kthread work. It does not longer check if it was called
+earlier. Instead, the work is scheduled only when needed. This
+requires storing the time of the last check into a global
+variable.
 
-kthread_should_stop() could not longer be used inside the works
-because it defines the life of the worker and it needs to stay
-usable until all works are done. Instead, we add @test_end
-global variable. It is set during normal termination in compare
-with @test_error.
+Also the check is not longer schedule with MAX_SCHEDULE_TIMEOUT
+when it is disabled. Instead the work is canceled and it is
+not queued at all.
+
+There is a small race window when sysctl_hung_task_timeout_secs
+might be modified between queuing and processing the work.
+Therefore the lapsed time has to be computed explicitly.
+
+The user nice and initial hung_task_last_checked values are
+set from hung_task_init(). Otherwise, we would need to add
+an extra init_work.
+
+The patch also handles the error when the kthread worker could not
+be crated from some reasons. It was broken before. For example,
+wake_up_process would have failed if watchdog_task included an error
+code instead of a valid pointer.
 
 Signed-off-by: Petr Mladek <pmladek@suse.com>
+CC: linux-watchdog@vger.kernel.org
 ---
- kernel/trace/ring_buffer_benchmark.c | 133 ++++++++++++++++-------------------
- 1 file changed, 59 insertions(+), 74 deletions(-)
+ kernel/hung_task.c | 83 ++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 50 insertions(+), 33 deletions(-)
 
-diff --git a/kernel/trace/ring_buffer_benchmark.c b/kernel/trace/ring_buffer_benchmark.c
-index 6df9a83e20d7..7ff443f1e406 100644
---- a/kernel/trace/ring_buffer_benchmark.c
-+++ b/kernel/trace/ring_buffer_benchmark.c
-@@ -26,10 +26,17 @@ static int wakeup_interval = 100;
- static int reader_finish;
- static DECLARE_COMPLETION(read_start);
- static DECLARE_COMPLETION(read_done);
--
- static struct ring_buffer *buffer;
--static struct task_struct *producer;
--static struct task_struct *consumer;
-+
-+static void rb_producer_hammer_func(struct kthread_work *dummy);
-+static struct kthread_worker *rb_producer_worker;
-+static DEFINE_DELAYED_KTHREAD_WORK(rb_producer_hammer_work,
-+				   rb_producer_hammer_func);
-+
-+static void rb_consumer_func(struct kthread_work *dummy);
-+static struct kthread_worker *rb_consumer_worker;
-+static DEFINE_KTHREAD_WORK(rb_consumer_work, rb_consumer_func);
-+
- static unsigned long read;
+diff --git a/kernel/hung_task.c b/kernel/hung_task.c
+index d234022805dc..9070c822abd8 100644
+--- a/kernel/hung_task.c
++++ b/kernel/hung_task.c
+@@ -36,12 +36,15 @@ int __read_mostly sysctl_hung_task_check_count = PID_MAX_LIMIT;
+  * Zero means infinite timeout - no checking done:
+  */
+ unsigned long __read_mostly sysctl_hung_task_timeout_secs = CONFIG_DEFAULT_HUNG_TASK_TIMEOUT;
++unsigned long hung_task_last_checked;
  
- static unsigned int disable_reader;
-@@ -61,6 +68,7 @@ MODULE_PARM_DESC(consumer_fifo, "fifo prio for consumer");
- static int read_events;
+ int __read_mostly sysctl_hung_task_warnings = 10;
  
- static int test_error;
-+static int test_end;
+ static int __read_mostly did_panic;
  
- #define TEST_ERROR()				\
- 	do {					\
-@@ -77,7 +85,7 @@ enum event_status {
+-static struct task_struct *watchdog_task;
++static struct kthread_worker *watchdog_worker;
++static void watchdog_check_func(struct kthread_work *dummy);
++static DEFINE_DELAYED_KTHREAD_WORK(watchdog_check_work, watchdog_check_func);
  
- static bool break_test(void)
+ /*
+  * Should we panic (and reboot, if panic_timeout= is set) when a
+@@ -72,7 +75,7 @@ static struct notifier_block panic_block = {
+ 	.notifier_call = hung_task_panic,
+ };
+ 
+-static void check_hung_task(struct task_struct *t, unsigned long timeout)
++static void check_hung_task(struct task_struct *t, unsigned long lapsed)
  {
--	return test_error || kthread_should_stop();
-+	return test_error || test_end;
+ 	unsigned long switch_count = t->nvcsw + t->nivcsw;
+ 
+@@ -109,7 +112,7 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
+ 	 * complain:
+ 	 */
+ 	pr_err("INFO: task %s:%d blocked for more than %ld seconds.\n",
+-		t->comm, t->pid, timeout);
++		t->comm, t->pid, lapsed);
+ 	pr_err("      %s %s %.*s\n",
+ 		print_tainted(), init_utsname()->release,
+ 		(int)strcspn(init_utsname()->version, " "),
+@@ -155,7 +158,7 @@ static bool rcu_lock_break(struct task_struct *g, struct task_struct *t)
+  * a really long time (120 seconds). If that happens, print out
+  * a warning.
+  */
+-static void check_hung_uninterruptible_tasks(unsigned long timeout)
++static void check_hung_uninterruptible_tasks(unsigned long lapsed)
+ {
+ 	int max_count = sysctl_hung_task_check_count;
+ 	int batch_count = HUNG_TASK_BATCHING;
+@@ -179,20 +182,12 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
+ 		}
+ 		/* use "==" to skip the TASK_KILLABLE tasks waiting on NFS */
+ 		if (t->state == TASK_UNINTERRUPTIBLE)
+-			check_hung_task(t, timeout);
++			check_hung_task(t, lapsed);
+ 	}
+  unlock:
+ 	rcu_read_unlock();
  }
  
- static enum event_status read_event(int cpu)
-@@ -262,8 +270,8 @@ static void ring_buffer_producer(void)
- 		end_time = ktime_get();
- 
- 		cnt++;
--		if (consumer && !(cnt % wakeup_interval))
--			wake_up_process(consumer);
-+		if (rb_consumer_worker && !(cnt % wakeup_interval))
-+			wake_up_process(rb_consumer_worker->task);
- 
- #ifndef CONFIG_PREEMPT
- 		/*
-@@ -281,14 +289,14 @@ static void ring_buffer_producer(void)
- 	} while (ktime_before(end_time, timeout) && !break_test());
- 	trace_printk("End ring buffer hammer\n");
- 
--	if (consumer) {
-+	if (rb_consumer_worker) {
- 		/* Init both completions here to avoid races */
- 		init_completion(&read_start);
- 		init_completion(&read_done);
- 		/* the completions must be visible before the finish var */
- 		smp_wmb();
- 		reader_finish = 1;
--		wake_up_process(consumer);
-+		wake_up_process(rb_consumer_worker->task);
- 		wait_for_completion(&read_done);
- 	}
- 
-@@ -366,68 +374,39 @@ static void ring_buffer_producer(void)
- 	}
- }
- 
--static void wait_to_die(void)
+-static long hung_timeout_jiffies(unsigned long last_checked,
+-				 unsigned long timeout)
 -{
--	set_current_state(TASK_INTERRUPTIBLE);
--	while (!kthread_should_stop()) {
--		schedule();
--		set_current_state(TASK_INTERRUPTIBLE);
--	}
--	__set_current_state(TASK_RUNNING);
+-	/* timeout of 0 will disable the watchdog */
+-	return timeout ? last_checked - jiffies + timeout * HZ :
+-		MAX_SCHEDULE_TIMEOUT;
 -}
 -
--static int ring_buffer_consumer_thread(void *arg)
-+static void rb_consumer_func(struct kthread_work *dummy)
+ /*
+  * Process updating of timeout sysctl
+  */
+@@ -201,13 +196,26 @@ int proc_dohung_task_timeout_secs(struct ctl_table *table, int write,
+ 				  size_t *lenp, loff_t *ppos)
  {
--	while (!break_test()) {
--		complete(&read_start);
--
--		ring_buffer_consumer();
-+	complete(&read_start);
+ 	int ret;
++	long remaining;
  
--		set_current_state(TASK_INTERRUPTIBLE);
--		if (break_test())
--			break;
--		schedule();
--	}
--	__set_current_state(TASK_RUNNING);
--
--	if (!kthread_should_stop())
--		wait_to_die();
--
--	return 0;
-+	ring_buffer_consumer();
- }
+ 	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
  
--static int ring_buffer_producer_thread(void *arg)
-+static void rb_producer_hammer_func(struct kthread_work *dummy)
- {
--	while (!break_test()) {
--		ring_buffer_reset(buffer);
-+	if (break_test())
-+		return;
- 
--		if (consumer) {
--			wake_up_process(consumer);
--			wait_for_completion(&read_start);
--		}
--
--		ring_buffer_producer();
--		if (break_test())
--			goto out_kill;
-+	ring_buffer_reset(buffer);
- 
--		trace_printk("Sleeping for 10 secs\n");
--		set_current_state(TASK_INTERRUPTIBLE);
--		if (break_test())
--			goto out_kill;
--		schedule_timeout(HZ * SLEEP_TIME);
-+	if (rb_consumer_worker) {
-+		queue_kthread_work(rb_consumer_worker, &rb_consumer_work);
-+		wait_for_completion(&read_start);
- 	}
- 
--out_kill:
--	__set_current_state(TASK_RUNNING);
--	if (!kthread_should_stop())
--		wait_to_die();
-+	ring_buffer_producer();
- 
--	return 0;
-+	if (break_test())
-+		return;
+-	if (ret || !write)
++	if (ret || !write || !watchdog_worker)
++		goto out;
 +
-+	trace_printk("Sleeping for 10 secs\n");
-+	queue_delayed_kthread_work(rb_producer_worker,
-+				   &rb_producer_hammer_work,
-+				   HZ * SLEEP_TIME);
- }
- 
- static int __init ring_buffer_benchmark_init(void)
- {
--	int ret;
-+	int ret = 0;
- 
- 	/* make a one meg buffer in overwite mode */
- 	buffer = ring_buffer_alloc(1000000, RB_FL_OVERWRITE);
-@@ -435,19 +414,21 @@ static int __init ring_buffer_benchmark_init(void)
- 		return -ENOMEM;
- 
- 	if (!disable_reader) {
--		consumer = kthread_create(ring_buffer_consumer_thread,
--					  NULL, "rb_consumer");
--		ret = PTR_ERR(consumer);
--		if (IS_ERR(consumer))
-+		rb_consumer_worker = create_kthread_worker(0, "rb_consumer");
-+		if (IS_ERR(rb_consumer_worker)) {
-+			ret = PTR_ERR(rb_consumer_worker);
- 			goto out_fail;
-+		}
- 	}
- 
--	producer = kthread_run(ring_buffer_producer_thread,
--			       NULL, "rb_producer");
--	ret = PTR_ERR(producer);
--
--	if (IS_ERR(producer))
-+	rb_producer_worker = create_kthread_worker(0, "rb_producer");
-+	if (IS_ERR(rb_producer_worker)) {
-+		ret = PTR_ERR(rb_producer_worker);
- 		goto out_kill;
++	/* Disable watchdog when there is a zero timeout */
++	if (!sysctl_hung_task_timeout_secs) {
++		cancel_delayed_kthread_work_sync(&watchdog_check_work);
+ 		goto out;
 +	}
+ 
+-	wake_up_process(watchdog_task);
++	/* Reschedule the check according to the updated timeout */
++	remaining = sysctl_hung_task_timeout_secs * HZ -
++		    (jiffies - hung_task_last_checked);
++	if (remaining < 0)
++		remaining = 0;
++	mod_delayed_kthread_work(watchdog_worker, &watchdog_check_work,
++				 remaining);
+ 
+  out:
+ 	return ret;
+@@ -221,36 +229,45 @@ void reset_hung_task_detector(void)
+ }
+ EXPORT_SYMBOL_GPL(reset_hung_task_detector);
+ 
++static void schedule_next_watchdog_check(void)
++{
++	unsigned long timeout = READ_ONCE(sysctl_hung_task_timeout_secs);
 +
-+	queue_delayed_kthread_work(rb_producer_worker,
-+				   &rb_producer_hammer_work, 0);
- 
- 	/*
- 	 * Run them as low-prio background tasks by default:
-@@ -457,24 +438,26 @@ static int __init ring_buffer_benchmark_init(void)
- 			struct sched_param param = {
- 				.sched_priority = consumer_fifo
- 			};
--			sched_setscheduler(consumer, SCHED_FIFO, &param);
-+			sched_setscheduler(rb_consumer_worker->task,
-+					   SCHED_FIFO, &param);
- 		} else
--			set_user_nice(consumer, consumer_nice);
-+			set_user_nice(rb_consumer_worker->task, consumer_nice);
- 	}
- 
- 	if (producer_fifo >= 0) {
- 		struct sched_param param = {
- 			.sched_priority = producer_fifo
- 		};
--		sched_setscheduler(producer, SCHED_FIFO, &param);
-+		sched_setscheduler(rb_producer_worker->task,
-+				   SCHED_FIFO, &param);
- 	} else
--		set_user_nice(producer, producer_nice);
-+		set_user_nice(rb_producer_worker->task, producer_nice);
- 
- 	return 0;
- 
-  out_kill:
--	if (consumer)
--		kthread_stop(consumer);
-+	if (rb_consumer_worker)
-+		destroy_kthread_worker(rb_consumer_worker);
- 
-  out_fail:
- 	ring_buffer_free(buffer);
-@@ -483,9 +466,11 @@ static int __init ring_buffer_benchmark_init(void)
- 
- static void __exit ring_buffer_benchmark_exit(void)
++	hung_task_last_checked = jiffies;
++	if (timeout)
++		queue_delayed_kthread_work(watchdog_worker,
++					   &watchdog_check_work,
++					   timeout * HZ);
++}
++
+ /*
+  * kthread which checks for tasks stuck in D state
+  */
+-static int watchdog(void *dummy)
++static void watchdog_check_func(struct kthread_work *dummy)
  {
--	kthread_stop(producer);
--	if (consumer)
--		kthread_stop(consumer);
-+	test_end = 1;
-+	cancel_delayed_kthread_work_sync(&rb_producer_hammer_work);
-+	destroy_kthread_worker(rb_producer_worker);
-+	if (rb_consumer_worker)
-+		destroy_kthread_worker(rb_consumer_worker);
- 	ring_buffer_free(buffer);
+-	unsigned long hung_last_checked = jiffies;
++	unsigned long lapsed = (jiffies - hung_task_last_checked) / HZ;
+ 
+-	set_user_nice(current, 0);
++	if (!atomic_xchg(&reset_hung_task, 0))
++		check_hung_uninterruptible_tasks(lapsed);
+ 
+-	for ( ; ; ) {
+-		unsigned long timeout = sysctl_hung_task_timeout_secs;
+-		long t = hung_timeout_jiffies(hung_last_checked, timeout);
+-
+-		if (t <= 0) {
+-			if (!atomic_xchg(&reset_hung_task, 0))
+-				check_hung_uninterruptible_tasks(timeout);
+-			hung_last_checked = jiffies;
+-			continue;
+-		}
+-		schedule_timeout_interruptible(t);
+-	}
+-
+-	return 0;
++	schedule_next_watchdog_check();
  }
  
+ static int __init hung_task_init(void)
+ {
++	struct kthread_worker *worker;
++
+ 	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
+-	watchdog_task = kthread_run(watchdog, NULL, "khungtaskd");
++	worker = create_kthread_worker(0, "khungtaskd");
++	if (IS_ERR(worker)) {
++		pr_warn("Failed to create khungtaskd\n");
++		goto out;
++	}
++	watchdog_worker = worker;
++	set_user_nice(worker->task, 0);
++	schedule_next_watchdog_check();
+ 
++ out:
+ 	return 0;
+ }
+ subsys_initcall(hung_task_init);
 -- 
 1.8.5.6
 
