@@ -1,151 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8778A6B0005
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 08:44:10 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id t184so76555559qkh.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:44:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e46si20000343qgd.31.2016.04.15.05.44.09
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E0A1C6B0005
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 08:52:39 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id a125so17671053wmd.0
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:52:39 -0700 (PDT)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id y4si33382500wjy.204.2016.04.15.05.52.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 05:44:09 -0700 (PDT)
-Date: Fri, 15 Apr 2016 14:44:02 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH 00/28] Optimise page alloc/free fast paths v3
-Message-ID: <20160415144402.5fbe7a1e@redhat.com>
-In-Reply-To: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
-References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
+        Fri, 15 Apr 2016 05:52:38 -0700 (PDT)
+Received: by mail-wm0-x231.google.com with SMTP id v188so29840586wme.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:52:38 -0700 (PDT)
+Date: Fri, 15 Apr 2016 15:52:36 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: post-copy is broken?
+Message-ID: <20160415125236.GA3376@node.shutemov.name>
+References: <F2CBF3009FA73547804AE4C663CAB28E0417E6B1@shsmsx102.ccr.corp.intel.com>
+ <20160412175501.GB6415@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E0417EE92@shsmsx102.ccr.corp.intel.com>
+ <F2CBF3009FA73547804AE4C663CAB28E0417EEE4@shsmsx102.ccr.corp.intel.com>
+ <20160413080545.GA2270@work-vm>
+ <20160413114103.GB2270@work-vm>
+ <20160413125053.GC2270@work-vm>
+ <20160413205132.GG26364@redhat.com>
+ <20160414123441.GF2252@work-vm>
+ <20160414162230.GC9976@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160414162230.GC9976@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, brouer@redhat.com, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, kirill.shutemov@linux.intel.com, "Li, Liang Z" <liang.z.li@intel.com>, Amit Shah <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, linux-mm@kvack.org
 
-On Fri, 15 Apr 2016 09:58:52 +0100
-Mel Gorman <mgorman@techsingularity.net> wrote:
-
-> There were no further responses to the last series but I kept going and
-> added a few more small bits. Most are basic micro-optimisations.  The last
-> two patches weaken debugging checks to improve performance at the cost of
-> delayed detection of some use-after-free and memory corruption bugs. If
-> they make people uncomfortable, they can be dropped and the rest of the
-> series stands on its own.
+On Thu, Apr 14, 2016 at 12:22:30PM -0400, Andrea Arcangeli wrote:
+> Adding linux-mm too,
 > 
-> Changelog since v2
-> o Add more micro-optimisations
-> o Weak debugging checks in favor of speed
+> On Thu, Apr 14, 2016 at 01:34:41PM +0100, Dr. David Alan Gilbert wrote:
+> > * Andrea Arcangeli (aarcange@redhat.com) wrote:
+> > 
+> > > The next suspect is the massive THP refcounting change that went
+> > > upstream recently:
+> > 
+> > > As further debug hint, can you try to disable THP and see if that
+> > > makes the problem go away?
+> > 
+> > Yep, this seems to be the problem (cc'ing in Kirill).
+> > 
+> > 122afea9626ab3f717b250a8dd3d5ebf57cdb56c - works (just before Kirill disables THP)
+> > 61f5d698cc97600e813ca5cf8e449b1ea1c11492 - breaks (when THP is reenabled)
+> > 
+> > It's pretty reliable; as you say disabling THP makes it work again
+> > and putting it back to THP/madvise mode makes it break.  And you need
+> > to test on a machine with some free ram to make sure THP has a chance
+> > to have happened.
+> > 
+> > I'm not sure of all of the rework that happened in that series,
+> > but my reading of it is that splitting of THP pages gets deferred;
+> > so I wonder if when I do the madvise to turn THP off, if it's actually
+> > still got THP pages and thus we end up with a whole THP mapped
+> > when I'm expecting to be userfaulting those pages.
 > 
-[...]
+> Good thing at least I didn't make UFFDIO_COPY THP aware yet so there's
+> less variables (as no user was interested to handle userfaults at THP
+> granularity yet, and from userland such an improvement would be
+> completely invisible in terms of API, so if an user starts doing that
+> we can just optimize the kernel for it, criu restore could do that as
+> the faults will come from disk-I/O, when network is involved THP
+> userfaults wouldn't have a great tradeoff with regard to the increased
+> fault latency).
 > 
-> The overall impact on a page allocator microbenchmark for a range of orders
+> I suspect there is an handle_userfault missing somewhere in connection
+> with trans_huge_pmd splits (not anymore THP splits) that you're doing
+> with MADV_DONTNEED to zap those pages in the destination that got
+> redirtied in source during the last precopy stage. Or more simply
+> MADV_DONTNEED isn't zapping all the right ptes after the trans huge
+> pmd got splitted.
+> 
+> The fact the page isn't splitted shouldn't matter too much, all we care
+> about is the pte triggers handle_userfault after MADV_DONTNEED.
+> 
+> The userfaultfd testcase in the kernel isn't exercising this case
+> unfortunately, that should probably be improved too, so there is a
+> simpler way to reproduce than running precopy before postcopy in qemu.
 
-I also micro benchmarked this patchset.  Avail via Mel Gorman's kernel tree:
- http://git.kernel.org/cgit/linux/kernel/git/mel/linux.git
-tested branch mm-vmscan-node-lru-v5r9 which also contain the node-lru series.
+I've tested current Linus' tree and v4.5 using qemu postcopy test case for
+both x86-64 and i386 and it never failed for me:
 
-Tool:
- https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/bench/page_bench01.c
-Run as:
- modprobe page_bench01; rmmod page_bench01 ; dmesg | tail -n40 | grep 'alloc_pages order'
+/x86_64/postcopy: first_byte = 7e last_byte = 7d hit_edge = 1 OK
+OK
+/i386/postcopy: first_byte = f6 last_byte = f5 hit_edge = 1 OK
+OK
 
-Results kernel 4.6.0-rc1 :
-
- alloc_pages order:0(4096B/x1) 272 cycles per-4096B 272 cycles
- alloc_pages order:1(8192B/x2) 395 cycles per-4096B 197 cycles
- alloc_pages order:2(16384B/x4) 433 cycles per-4096B 108 cycles
- alloc_pages order:3(32768B/x8) 503 cycles per-4096B 62 cycles
- alloc_pages order:4(65536B/x16) 682 cycles per-4096B 42 cycles
- alloc_pages order:5(131072B/x32) 910 cycles per-4096B 28 cycles
- alloc_pages order:6(262144B/x64) 1384 cycles per-4096B 21 cycles
- alloc_pages order:7(524288B/x128) 2335 cycles per-4096B 18 cycles
- alloc_pages order:8(1048576B/x256) 4108 cycles per-4096B 16 cycles
- alloc_pages order:9(2097152B/x512) 8398 cycles per-4096B 16 cycles
-
-After Mel Gorman's optimizations, results from mm-vmscan-node-lru-v5r::
-
- alloc_pages order:0(4096B/x1) 231 cycles per-4096B 231 cycles
- alloc_pages order:1(8192B/x2) 351 cycles per-4096B 175 cycles
- alloc_pages order:2(16384B/x4) 357 cycles per-4096B 89 cycles
- alloc_pages order:3(32768B/x8) 397 cycles per-4096B 49 cycles
- alloc_pages order:4(65536B/x16) 481 cycles per-4096B 30 cycles
- alloc_pages order:5(131072B/x32) 652 cycles per-4096B 20 cycles
- alloc_pages order:6(262144B/x64) 1054 cycles per-4096B 16 cycles
- alloc_pages order:7(524288B/x128) 1852 cycles per-4096B 14 cycles
- alloc_pages order:8(1048576B/x256) 3156 cycles per-4096B 12 cycles
- alloc_pages order:9(2097152B/x512) 6790 cycles per-4096B 13 cycles
-
-
-
-I've also started doing some parallel concurrency testing workloads[1]
- [1] https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/bench/page_bench03.c
-
-Order-0 pages scale nicely:
-
-Results kernel 4.6.0-rc1 :
- Parallel-CPUs:1 page order:0(4096B/x1) ave 274 cycles per-4096B 274 cycles
- Parallel-CPUs:2 page order:0(4096B/x1) ave 283 cycles per-4096B 283 cycles
- Parallel-CPUs:3 page order:0(4096B/x1) ave 284 cycles per-4096B 284 cycles
- Parallel-CPUs:4 page order:0(4096B/x1) ave 288 cycles per-4096B 288 cycles
- Parallel-CPUs:5 page order:0(4096B/x1) ave 417 cycles per-4096B 417 cycles
- Parallel-CPUs:6 page order:0(4096B/x1) ave 503 cycles per-4096B 503 cycles
- Parallel-CPUs:7 page order:0(4096B/x1) ave 567 cycles per-4096B 567 cycles
- Parallel-CPUs:8 page order:0(4096B/x1) ave 620 cycles per-4096B 620 cycles
-
-And even better with you changes! :-))) This is great work!
-
-Results from mm-vmscan-node-lru-v5r:
- Parallel-CPUs:1 page order:0(4096B/x1) ave 246 cycles per-4096B 246 cycles
- Parallel-CPUs:2 page order:0(4096B/x1) ave 251 cycles per-4096B 251 cycles
- Parallel-CPUs:3 page order:0(4096B/x1) ave 254 cycles per-4096B 254 cycles
- Parallel-CPUs:4 page order:0(4096B/x1) ave 258 cycles per-4096B 258 cycles
- Parallel-CPUs:5 page order:0(4096B/x1) ave 313 cycles per-4096B 313 cycles
- Parallel-CPUs:6 page order:0(4096B/x1) ave 369 cycles per-4096B 369 cycles
- Parallel-CPUs:7 page order:0(4096B/x1) ave 379 cycles per-4096B 379 cycles
- Parallel-CPUs:8 page order:0(4096B/x1) ave 399 cycles per-4096B 399 cycles
-
-
-It does not seem that higher order page scale... and your patches does
-not change this pattern.
-
-Example order-3 pages, which is often used in the network stack:
-
-Results kernel 4.6.0-rc1 ::
- Parallel-CPUs:1 page order:3(32768B/x8) ave 524 cycles per-4096B 65 cycles
- Parallel-CPUs:2 page order:3(32768B/x8) ave 2131 cycles per-4096B 266 cycles
- Parallel-CPUs:3 page order:3(32768B/x8) ave 3885 cycles per-4096B 485 cycles
- Parallel-CPUs:4 page order:3(32768B/x8) ave 4520 cycles per-4096B 565 cycles
- Parallel-CPUs:5 page order:3(32768B/x8) ave 5604 cycles per-4096B 700 cycles
- Parallel-CPUs:6 page order:3(32768B/x8) ave 7125 cycles per-4096B 890 cycles
- Parallel-CPUs:7 page order:3(32768B/x8) ave 7883 cycles per-4096B 985 cycles
- Parallel-CPUs:8 page order:3(32768B/x8) ave 9364 cycles per-4096B 1170 cycles
-
-Results from mm-vmscan-node-lru-v5r:
- Parallel-CPUs:1 page order:3(32768B/x8) ave 421 cycles per-4096B 52 cycles
- Parallel-CPUs:2 page order:3(32768B/x8) ave 2236 cycles per-4096B 279 cycles
- Parallel-CPUs:3 page order:3(32768B/x8) ave 3408 cycles per-4096B 426 cycles
- Parallel-CPUs:4 page order:3(32768B/x8) ave 4687 cycles per-4096B 585 cycles
- Parallel-CPUs:5 page order:3(32768B/x8) ave 5972 cycles per-4096B 746 cycles
- Parallel-CPUs:6 page order:3(32768B/x8) ave 7349 cycles per-4096B 918 cycles
- Parallel-CPUs:7 page order:3(32768B/x8) ave 8436 cycles per-4096B 1054 cycles
- Parallel-CPUs:8 page order:3(32768B/x8) ave 9589 cycles per-4096B 1198 cycles
+I've run it directly, setting relevant QTEST_QEMU_BINARY.
 
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
-
-https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/bench/page_bench03.c
-
- for ORDER in $(seq 0 5) ; do \
-    for X in $(seq 1 8) ; do \
-       modprobe page_bench03 page_order=$ORDER parallel_cpus=$X run_flags=$((2#100)); \
-       rmmod page_bench03 ; dmesg | tail -n 3 | grep Parallel-CPUs ; \
-    done; \
- done
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
