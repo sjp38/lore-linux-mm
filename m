@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B4867828E6
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:10:30 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id w143so13146672wmw.2
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:10:30 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id bb7si49467672wjc.182.2016.04.15.02.10.29
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F22C3828E6
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:10:40 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id l15so64078979lfg.2
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:10:40 -0700 (PDT)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id s1si10907822wme.105.2016.04.15.02.10.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 02:10:29 -0700 (PDT)
+        Fri, 15 Apr 2016 02:10:39 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 38CE71C1999
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 10:10:29 +0100 (IST)
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 63A221C1B9E
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 10:10:39 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 27/28] mm, page_alloc: Defer debugging checks of freed pages until a PCP drain
-Date: Fri, 15 Apr 2016 10:07:54 +0100
-Message-Id: <1460711275-1130-15-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 28/28] mm, page_alloc: Defer debugging checks of pages allocated from the PCP
+Date: Fri, 15 Apr 2016 10:07:55 +0100
+Message-Id: <1460711275-1130-16-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
 References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
  <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
@@ -24,301 +24,205 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Every page free checks a number of page fields for validity. This
-catches premature frees and corruptions but it is also expensive.
-This patch weakens the debugging check by checking PCP pages at the
-time they are drained from the PCP list. This will trigger the bug
-but the site that freed the corrupt page will be lost. To get the
-full context, a kernel rebuild with DEBUG_VM is necessary.
+Every page allocated checks a number of page fields for validity. This
+catches corruption bugs of pages that are already freed but it is expensive.
+This patch weakens the debugging check by checking PCP pages only when
+the PCP lists are being refilled. All compound pages are checked. This
+potentially avoids debugging checks entirely if the PCP lists are never
+emptied and refilled so some corruption issues may be missed. Full checking
+requires DEBUG_VM.
+
+With the two deferred debugging patches applied, the impact to a page
+allocator microbenchmark is
+
+                                           4.6.0-rc3                  4.6.0-rc3
+                                         inline-v3r6            deferalloc-v3r7
+Min      alloc-odr0-1               344.00 (  0.00%)           317.00 (  7.85%)
+Min      alloc-odr0-2               248.00 (  0.00%)           231.00 (  6.85%)
+Min      alloc-odr0-4               209.00 (  0.00%)           192.00 (  8.13%)
+Min      alloc-odr0-8               181.00 (  0.00%)           166.00 (  8.29%)
+Min      alloc-odr0-16              168.00 (  0.00%)           154.00 (  8.33%)
+Min      alloc-odr0-32              161.00 (  0.00%)           148.00 (  8.07%)
+Min      alloc-odr0-64              158.00 (  0.00%)           145.00 (  8.23%)
+Min      alloc-odr0-128             156.00 (  0.00%)           143.00 (  8.33%)
+Min      alloc-odr0-256             168.00 (  0.00%)           154.00 (  8.33%)
+Min      alloc-odr0-512             178.00 (  0.00%)           167.00 (  6.18%)
+Min      alloc-odr0-1024            186.00 (  0.00%)           174.00 (  6.45%)
+Min      alloc-odr0-2048            192.00 (  0.00%)           180.00 (  6.25%)
+Min      alloc-odr0-4096            198.00 (  0.00%)           184.00 (  7.07%)
+Min      alloc-odr0-8192            200.00 (  0.00%)           188.00 (  6.00%)
+Min      alloc-odr0-16384           201.00 (  0.00%)           188.00 (  6.47%)
+Min      free-odr0-1                189.00 (  0.00%)           180.00 (  4.76%)
+Min      free-odr0-2                132.00 (  0.00%)           126.00 (  4.55%)
+Min      free-odr0-4                104.00 (  0.00%)            99.00 (  4.81%)
+Min      free-odr0-8                 90.00 (  0.00%)            85.00 (  5.56%)
+Min      free-odr0-16                84.00 (  0.00%)            80.00 (  4.76%)
+Min      free-odr0-32                80.00 (  0.00%)            76.00 (  5.00%)
+Min      free-odr0-64                78.00 (  0.00%)            74.00 (  5.13%)
+Min      free-odr0-128               77.00 (  0.00%)            73.00 (  5.19%)
+Min      free-odr0-256               94.00 (  0.00%)            91.00 (  3.19%)
+Min      free-odr0-512              108.00 (  0.00%)           112.00 ( -3.70%)
+Min      free-odr0-1024             115.00 (  0.00%)           118.00 ( -2.61%)
+Min      free-odr0-2048             120.00 (  0.00%)           125.00 ( -4.17%)
+Min      free-odr0-4096             123.00 (  0.00%)           129.00 ( -4.88%)
+Min      free-odr0-8192             126.00 (  0.00%)           130.00 ( -3.17%)
+Min      free-odr0-16384            126.00 (  0.00%)           131.00 ( -3.97%)
+
+Note that the free paths for large numbers of pages is impacted as the
+debugging cost gets shifted into that path when the page data is no longer
+necessarily cache-hot.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/page_alloc.c | 244 +++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 146 insertions(+), 98 deletions(-)
+ mm/page_alloc.c | 92 +++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 64 insertions(+), 28 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e63afe07c032..b5722790c846 100644
+index b5722790c846..147c0d55ed32 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -939,6 +939,148 @@ static inline int free_pages_check(struct page *page)
- 	return 1;
+@@ -1704,7 +1704,41 @@ static inline bool free_pages_prezeroed(bool poisoned)
+ 		page_poisoning_enabled() && poisoned;
  }
  
-+static int free_tail_pages_check(struct page *head_page, struct page *page)
-+{
-+	int ret = 1;
-+
-+	/*
-+	 * We rely page->lru.next never has bit 0 set, unless the page
-+	 * is PageTail(). Let's make sure that's true even for poisoned ->lru.
-+	 */
-+	BUILD_BUG_ON((unsigned long)LIST_POISON1 & 1);
-+
-+	if (!IS_ENABLED(CONFIG_DEBUG_VM)) {
-+		ret = 0;
-+		goto out;
-+	}
-+	switch (page - head_page) {
-+	case 1:
-+		/* the first tail page: ->mapping is compound_mapcount() */
-+		if (unlikely(compound_mapcount(page))) {
-+			bad_page(page, "nonzero compound_mapcount", 0);
-+			goto out;
-+		}
-+		break;
-+	case 2:
-+		/*
-+		 * the second tail page: ->mapping is
-+		 * page_deferred_list().next -- ignore value.
-+		 */
-+		break;
-+	default:
-+		if (page->mapping != TAIL_MAPPING) {
-+			bad_page(page, "corrupted mapping in tail page", 0);
-+			goto out;
-+		}
-+		break;
-+	}
-+	if (unlikely(!PageTail(page))) {
-+		bad_page(page, "PageTail not set", 0);
-+		goto out;
-+	}
-+	if (unlikely(compound_head(page) != head_page)) {
-+		bad_page(page, "compound_head not consistent", 0);
-+		goto out;
-+	}
-+	ret = 0;
-+out:
-+	page->mapping = NULL;
-+	clear_compound_head(page);
-+	return ret;
-+}
-+
-+static bool free_pages_prepare(struct page *page, unsigned int order)
-+{
-+	int bad = 0;
-+
-+	VM_BUG_ON_PAGE(PageTail(page), page);
-+
-+	trace_mm_page_free(page, order);
-+	kmemcheck_free_shadow(page, order);
-+	kasan_free_pages(page, order);
-+
-+	/*
-+	 * Check tail pages before head page information is cleared to
-+	 * avoid checking PageCompound for order-0 pages.
-+	 */
-+	if (order) {
-+		bool compound = PageCompound(page);
-+		int i;
-+
-+		VM_BUG_ON_PAGE(compound && compound_order(page) != order, page);
-+
-+		for (i = 1; i < (1 << order); i++) {
-+			if (compound)
-+				bad += free_tail_pages_check(page, page + i);
-+			bad += free_pages_check(page + i);
-+		}
-+	}
-+	if (PageAnonHead(page))
-+		page->mapping = NULL;
-+	bad += free_pages_check(page);
-+	if (bad)
-+		return false;
-+
-+	reset_page_owner(page, order);
-+
-+	if (!PageHighMem(page)) {
-+		debug_check_no_locks_freed(page_address(page),
-+					   PAGE_SIZE << order);
-+		debug_check_no_obj_freed(page_address(page),
-+					   PAGE_SIZE << order);
-+	}
-+	arch_free_page(page, order);
-+	kernel_poison_pages(page, 1 << order, 0);
-+	kernel_map_pages(page, 1 << order, 0);
-+
-+	return true;
-+}
-+
+-static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
 +#ifdef CONFIG_DEBUG_VM
-+static inline bool free_pcp_prepare(struct page *page)
-+{
-+	return free_pages_prepare(page, 0);
-+}
-+
-+static inline bool bulkfree_pcp_prepare(struct page *page)
++static bool check_pcp_refill(struct page *page)
 +{
 +	return false;
 +}
-+#else
-+static bool free_pcp_prepare(struct page *page)
++
++static bool check_new_pcp(struct page *page)
 +{
-+	VM_BUG_ON_PAGE(PageTail(page), page);
-+
-+	trace_mm_page_free(page, 0);
-+	kmemcheck_free_shadow(page, 0);
-+	kasan_free_pages(page, 0);
-+
-+	if (PageAnonHead(page))
-+		page->mapping = NULL;
-+
-+	reset_page_owner(page, 0);
-+
-+	if (!PageHighMem(page)) {
-+		debug_check_no_locks_freed(page_address(page),
-+					   PAGE_SIZE);
-+		debug_check_no_obj_freed(page_address(page),
-+					   PAGE_SIZE);
-+	}
-+	arch_free_page(page, 0);
-+	kernel_poison_pages(page, 0, 0);
-+	kernel_map_pages(page, 0, 0);
-+
-+	page_cpupid_reset_last(page);
-+	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-+	return true;
++	return check_new_page(page);
 +}
-+
-+static bool bulkfree_pcp_prepare(struct page *page)
++#else
++static bool check_pcp_refill(struct page *page)
 +{
-+	return free_pages_check(page);
++	return check_new_page(page);
++}
++static bool check_new_pcp(struct page *page)
++{
++	return false;
 +}
 +#endif /* CONFIG_DEBUG_VM */
 +
- /*
-  * Frees a number of pages from the PCP lists
-  * Assumes all pages on list are in same zone, and of same order.
-@@ -999,6 +1141,9 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 			if (unlikely(isolated_pageblocks))
- 				mt = get_pageblock_migratetype(page);
- 
-+			if (bulkfree_pcp_prepare(page))
-+				continue;
++static bool check_new_pages(struct page *page, unsigned int order)
++{
++	int i;
++	for (i = 0; i < (1 << order); i++) {
++		struct page *p = page + i;
 +
- 			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
- 			trace_mm_page_pcpu_drain(page, 0, mt);
- 		} while (--count && --batch_free && !list_empty(list));
-@@ -1025,56 +1170,6 @@ static void free_one_page(struct zone *zone,
- 	spin_unlock(&zone->lock);
- }
- 
--static int free_tail_pages_check(struct page *head_page, struct page *page)
--{
--	int ret = 1;
--
--	/*
--	 * We rely page->lru.next never has bit 0 set, unless the page
--	 * is PageTail(). Let's make sure that's true even for poisoned ->lru.
--	 */
--	BUILD_BUG_ON((unsigned long)LIST_POISON1 & 1);
--
--	if (!IS_ENABLED(CONFIG_DEBUG_VM)) {
--		ret = 0;
--		goto out;
--	}
--	switch (page - head_page) {
--	case 1:
--		/* the first tail page: ->mapping is compound_mapcount() */
--		if (unlikely(compound_mapcount(page))) {
--			bad_page(page, "nonzero compound_mapcount", 0);
--			goto out;
--		}
--		break;
--	case 2:
--		/*
--		 * the second tail page: ->mapping is
--		 * page_deferred_list().next -- ignore value.
--		 */
--		break;
--	default:
--		if (page->mapping != TAIL_MAPPING) {
--			bad_page(page, "corrupted mapping in tail page", 0);
--			goto out;
--		}
--		break;
--	}
--	if (unlikely(!PageTail(page))) {
--		bad_page(page, "PageTail not set", 0);
--		goto out;
--	}
--	if (unlikely(compound_head(page) != head_page)) {
--		bad_page(page, "compound_head not consistent", 0);
--		goto out;
--	}
--	ret = 0;
--out:
--	page->mapping = NULL;
--	clear_compound_head(page);
--	return ret;
--}
--
- static void __meminit __init_single_page(struct page *page, unsigned long pfn,
- 				unsigned long zone, int nid)
++		if (unlikely(check_new_page(p)))
++			return true;
++	}
++
++	return false;
++}
++
++static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+ 							unsigned int alloc_flags)
  {
-@@ -1148,53 +1243,6 @@ void __meminit reserve_bootmem_region(unsigned long start, unsigned long end)
+ 	int i;
+@@ -1712,8 +1746,6 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+ 
+ 	for (i = 0; i < (1 << order); i++) {
+ 		struct page *p = page + i;
+-		if (unlikely(check_new_page(p)))
+-			return 1;
+ 		if (poisoned)
+ 			poisoned &= page_is_poisoned(p);
  	}
+@@ -1745,8 +1777,6 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+ 		set_page_pfmemalloc(page);
+ 	else
+ 		clear_page_pfmemalloc(page);
+-
+-	return 0;
  }
  
--static bool free_pages_prepare(struct page *page, unsigned int order)
--{
--	int bad = 0;
--
--	VM_BUG_ON_PAGE(PageTail(page), page);
--
--	trace_mm_page_free(page, order);
--	kmemcheck_free_shadow(page, order);
--	kasan_free_pages(page, order);
--
--	/*
--	 * Check tail pages before head page information is cleared to
--	 * avoid checking PageCompound for order-0 pages.
--	 */
--	if (order) {
--		bool compound = PageCompound(page);
--		int i;
--
--		VM_BUG_ON_PAGE(compound && compound_order(page) != order, page);
--
--		for (i = 1; i < (1 << order); i++) {
--			if (compound)
--				bad += free_tail_pages_check(page, page + i);
--			bad += free_pages_check(page + i);
+ /*
+@@ -2168,6 +2198,9 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 		if (unlikely(page == NULL))
+ 			break;
+ 
++		if (unlikely(check_pcp_refill(page)))
++			continue;
++
+ 		/*
+ 		 * Split buddy pages returned by expand() are received here
+ 		 * in physical page order. The page is added to the callers and
+@@ -2579,20 +2612,22 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
+ 		struct list_head *list;
+ 
+ 		local_irq_save(flags);
+-		pcp = &this_cpu_ptr(zone->pageset)->pcp;
+-		list = &pcp->lists[migratetype];
+-		if (list_empty(list)) {
+-			pcp->count += rmqueue_bulk(zone, 0,
+-					pcp->batch, list,
+-					migratetype, cold);
+-			if (unlikely(list_empty(list)))
+-				goto failed;
 -		}
--	}
--	if (PageAnonHead(page))
--		page->mapping = NULL;
--	bad += free_pages_check(page);
--	if (bad)
--		return false;
--
--	reset_page_owner(page, order);
--
--	if (!PageHighMem(page)) {
--		debug_check_no_locks_freed(page_address(page),
--					   PAGE_SIZE << order);
--		debug_check_no_obj_freed(page_address(page),
--					   PAGE_SIZE << order);
--	}
--	arch_free_page(page, order);
--	kernel_poison_pages(page, 1 << order, 0);
--	kernel_map_pages(page, 1 << order, 0);
--
--	return true;
--}
--
- static void __free_pages_ok(struct page *page, unsigned int order)
- {
- 	unsigned long flags;
-@@ -2327,7 +2375,7 @@ void free_hot_cold_page(struct page *page, bool cold)
- 	unsigned long pfn = page_to_pfn(page);
- 	int migratetype;
++		do {
++			pcp = &this_cpu_ptr(zone->pageset)->pcp;
++			list = &pcp->lists[migratetype];
++			if (list_empty(list)) {
++				pcp->count += rmqueue_bulk(zone, 0,
++						pcp->batch, list,
++						migratetype, cold);
++				if (unlikely(list_empty(list)))
++					goto failed;
++			}
  
--	if (!free_pages_prepare(page, 0))
-+	if (!free_pcp_prepare(page))
- 		return;
+-		if (cold)
+-			page = list_last_entry(list, struct page, lru);
+-		else
+-			page = list_first_entry(list, struct page, lru);
++			if (cold)
++				page = list_last_entry(list, struct page, lru);
++			else
++				page = list_first_entry(list, struct page, lru);
++		} while (page && check_new_pcp(page));
  
- 	migratetype = get_pfnblock_migratetype(page, pfn);
+ 		__dec_zone_state(zone, NR_ALLOC_BATCH);
+ 		list_del(&page->lru);
+@@ -2605,14 +2640,16 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
+ 		WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1));
+ 		spin_lock_irqsave(&zone->lock, flags);
+ 
+-		page = NULL;
+-		if (alloc_flags & ALLOC_HARDER) {
+-			page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
+-			if (page)
+-				trace_mm_page_alloc_zone_locked(page, order, migratetype);
+-		}
+-		if (!page)
+-			page = __rmqueue(zone, order, migratetype);
++		do {
++			page = NULL;
++			if (alloc_flags & ALLOC_HARDER) {
++				page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
++				if (page)
++					trace_mm_page_alloc_zone_locked(page, order, migratetype);
++			}
++			if (!page)
++				page = __rmqueue(zone, order, migratetype);
++		} while (page && check_new_pages(page, order));
+ 		spin_unlock(&zone->lock);
+ 		if (!page)
+ 			goto failed;
+@@ -2979,8 +3016,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 		page = buffered_rmqueue(ac->preferred_zoneref->zone, zone, order,
+ 				gfp_mask, alloc_flags, ac->migratetype);
+ 		if (page) {
+-			if (prep_new_page(page, order, gfp_mask, alloc_flags))
+-				goto try_this_zone;
++			prep_new_page(page, order, gfp_mask, alloc_flags);
+ 
+ 			/*
+ 			 * If this is a high-order atomic allocation then check
 -- 
 2.6.4
 
