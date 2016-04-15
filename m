@@ -1,145 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E04482F66
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:18:21 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l6so13417683wml.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:18:21 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id jj5si36684537wjb.124.2016.04.15.02.18.20
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BE11682F66
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:19:03 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id l15so64226999lfg.2
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:19:03 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id v62si10989947wmg.23.2016.04.15.02.19.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Apr 2016 02:18:20 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id D8F01F42E5
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:18:19 +0000 (UTC)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 27/27] mm: vmstat: Account per-zone stalls and pages skipped during reclaim
-Date: Fri, 15 Apr 2016 10:13:33 +0100
-Message-Id: <1460711613-2761-28-git-send-email-mgorman@techsingularity.net>
-In-Reply-To: <1460711613-2761-1-git-send-email-mgorman@techsingularity.net>
-References: <1460711613-2761-1-git-send-email-mgorman@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Apr 2016 02:19:02 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id n3so4431669wmn.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:19:02 -0700 (PDT)
+Date: Fri, 15 Apr 2016 11:18:59 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCHv2] x86/vdso: add mremap hook to vm_special_mapping
+Message-ID: <20160415091859.GA10167@gmail.com>
+References: <1460388169-13340-1-git-send-email-dsafonov@virtuozzo.com>
+ <1460651571-10545-1-git-send-email-dsafonov@virtuozzo.com>
+ <CALCETrUhDvdyJV53Am2sgefyMJmHs5u1voOM2N76Si7BTtJWaQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrUhDvdyJV53Am2sgefyMJmHs5u1voOM2N76Si7BTtJWaQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dmitry Safonov <0x7f454c46@gmail.com>
 
-The vmstat allocstall was fairly useful in the general sense but
-node-based LRUs change that. It's important to know if a stall was for an
-address-limited allocation request as this will require skipping pages from
-other zones. This patch adds pgstall_* counters to replace allocstall. The
-sum of the counters will equal the old allocstall so it can be trivially
-recalculated. A high number of address-limited allocation requests may
-result in a lot of useless LRU scanning for suitable pages.
 
-As address-limited allocations require pages to be skipped, it's important
-to know how much useless LRU scanning took place so this patch adds
-pgskip* counters. This yields the following model
+* Andy Lutomirski <luto@amacapital.net> wrote:
 
-1. The number of address-space limited stalls can be accounted for (pgstall)
-2. The amount of useless work required to reclaim the data is accounted (pgskip)
-3. The total number of scans is available from pgscan_kswapd and pgscan_direct
-   so from that the ratio of useful to useless scans can be calculated.
+> > +       if (regs->ip == (unsigned long)current->mm->context.vdso +
+> > +                       vdso_image_32.sym_int80_landing_pad
+> > +#ifdef CONFIG_IA32_EMULATION
+> > +               && current_thread_info()->status & TS_COMPAT
+> > +#endif
+> 
+> Instead of ifdef, use the (grossly misnamed) is_ia32_task() helper for
+> this, please.
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- include/linux/vm_event_item.h |  4 +++-
- mm/vmscan.c                   | 15 +++++++++++++--
- mm/vmstat.c                   |  3 ++-
- 3 files changed, 18 insertions(+), 4 deletions(-)
+Please also let's do the rename.
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 8dcb5a813163..0a0503da8c3b 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -23,6 +23,8 @@
- 
- enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		FOR_ALL_ZONES(PGALLOC),
-+		FOR_ALL_ZONES(PGSTALL),
-+		FOR_ALL_ZONES(PGSCAN_SKIP),
- 		PGFREE, PGACTIVATE, PGDEACTIVATE,
- 		PGFAULT, PGMAJFAULT,
- 		PGLAZYFREED,
-@@ -37,7 +39,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- #endif
- 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_INODESTEAL,
- 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
--		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+		PAGEOUTRUN, PGROTATED,
- 		DROP_PAGECACHE, DROP_SLAB,
- #ifdef CONFIG_NUMA_BALANCING
- 		NUMA_PTE_UPDATES,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e5aa605da6c4..752990878108 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1372,6 +1372,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 	struct list_head *src = &lruvec->lists[lru];
- 	unsigned long nr_taken = 0;
- 	unsigned long scan;
-+	unsigned long nr_skipped[MAX_NR_ZONES] = { 0, };
- 	LIST_HEAD(pages_skipped);
- 
- 	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
-@@ -1386,6 +1387,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 
- 		if (page_zonenum(page) > sc->reclaim_idx) {
- 			list_move(&page->lru, &pages_skipped);
-+			nr_skipped[page_zonenum(page)]++;
- 			continue;
- 		}
- 
-@@ -1414,8 +1416,17 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 	 * scanning would soon rescan the same pages to skip and put the
- 	 * system at risk of premature OOM.
- 	 */
--	if (!list_empty(&pages_skipped))
-+	if (!list_empty(&pages_skipped)) {
-+		int zid;
-+
- 		list_splice(&pages_skipped, src);
-+		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-+			if (!nr_skipped[zid])
-+				continue;
-+
-+			__count_zid_vm_events(PGSCAN_SKIP, zid, nr_skipped[zid]);
-+		}
-+	}
- 	*nr_scanned = scan;
- 	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan, scan,
- 				    nr_taken, mode, is_file_lru(lru));
-@@ -2684,7 +2695,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 	delayacct_freepages_start();
- 
- 	if (global_reclaim(sc))
--		count_vm_event(ALLOCSTALL);
-+		__count_zid_vm_events(PGSTALL, classzone_idx, 1);
- 
- 	do {
- 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7ae67218d675..db129e751eb9 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -969,6 +969,8 @@ const char * const vmstat_text[] = {
- 	"pswpout",
- 
- 	TEXTS_FOR_ZONES("pgalloc")
-+	TEXTS_FOR_ZONES("pgstall")
-+	TEXTS_FOR_ZONES("pgskip")
- 
- 	"pgfree",
- 	"pgactivate",
-@@ -994,7 +996,6 @@ const char * const vmstat_text[] = {
- 	"kswapd_low_wmark_hit_quickly",
- 	"kswapd_high_wmark_hit_quickly",
- 	"pageoutrun",
--	"allocstall",
- 
- 	"pgrotated",
- 
--- 
-2.6.4
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
