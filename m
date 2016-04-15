@@ -1,59 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D553F6B0005
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 14:35:46 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id zy2so142672343pac.1
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 11:35:46 -0700 (PDT)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id t5si3810470pac.211.2016.04.15.11.35.45
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4629C6B0005
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 14:41:32 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id d68so228787993ywe.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 11:41:32 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l74si34343934qhb.68.2016.04.15.11.41.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 11:35:45 -0700 (PDT)
-Received: by mail-pf0-x22d.google.com with SMTP id 184so59482865pff.0
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 11:35:45 -0700 (PDT)
-From: Yang Shi <yang.shi@linaro.org>
-Subject: [PATCH] mm: thp: correct split_huge_pages file permission
-Date: Fri, 15 Apr 2016 11:10:05 -0700
-Message-Id: <1460743805-2560-1-git-send-email-yang.shi@linaro.org>
+        Fri, 15 Apr 2016 11:41:31 -0700 (PDT)
+Date: Fri, 15 Apr 2016 14:41:29 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH 17/19] dm: get rid of superfluous gfp flags
+In-Reply-To: <20160415130839.GJ32377@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1604151437500.3288@file01.intranet.prod.int.rdu2.redhat.com>
+References: <1460372892-8157-1-git-send-email-mhocko@kernel.org> <1460372892-8157-18-git-send-email-mhocko@kernel.org> <alpine.LRH.2.02.1604150826280.16981@file01.intranet.prod.int.rdu2.redhat.com> <20160415130839.GJ32377@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, hughd@google.com, mgorman@suse.de
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Shaohua Li <shli@kernel.org>
 
-split_huge_pages doesn't support get method at all, so the read permission
-sounds confusing, change the permission to write only.
 
-And, add "\n" to the output of set method to make it more readable.
 
-Signed-off-by: Yang Shi <yang.shi@linaro.org>
----
- mm/huge_memory.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+On Fri, 15 Apr 2016, Michal Hocko wrote:
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 86f9f8b..8adf3c2 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -3454,7 +3454,7 @@ next:
- 		}
- 	}
- 
--	pr_info("%lu of %lu THP split", split, total);
-+	pr_info("%lu of %lu THP split\n", split, total);
- 
- 	return 0;
- }
-@@ -3465,7 +3465,7 @@ static int __init split_huge_pages_debugfs(void)
- {
- 	void *ret;
- 
--	ret = debugfs_create_file("split_huge_pages", 0644, NULL, NULL,
-+	ret = debugfs_create_file("split_huge_pages", 0200, NULL, NULL,
- 			&split_huge_pages_fops);
- 	if (!ret)
- 		pr_warn("Failed to create split_huge_pages in debugfs");
--- 
-2.0.2
+> On Fri 15-04-16 08:29:28, Mikulas Patocka wrote:
+> > 
+> > 
+> > On Mon, 11 Apr 2016, Michal Hocko wrote:
+> > 
+> > > From: Michal Hocko <mhocko@suse.com>
+> > > 
+> > > copy_params seems to be little bit confused about which allocation flags
+> > > to use. It enforces GFP_NOIO even though it uses
+> > > memalloc_noio_{save,restore} which enforces GFP_NOIO at the page
+> > 
+> > memalloc_noio_{save,restore} is used because __vmalloc is flawed and 
+> > doesn't respect GFP_NOIO properly (it doesn't use gfp flags when 
+> > allocating pagetables).
+> 
+> Yes and there are no plans to change __vmalloc to properly propagate gfp
+> flags through the whole call chain and that is why we have
+> memalloc_noio thingy. If that ever changes later the GFP_NOIO can be
+> added in favor of memalloc_noio API. Both are clearly redundant.
+> -- 
+> Michal Hocko
+> SUSE Labs
+
+You could move memalloc_noio_{save,restore} to __vmalloc. Something like
+
+if (!(gfp_mask & __GFP_IO))
+	noio_flag = memalloc_noio_save();
+...
+if (!(gfp_mask & __GFP_IO))
+	memalloc_noio_restore(noio_flag);
+
+That would be better than repeating this hack in every __vmalloc caller 
+that need GFP_NOIO.
+
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
