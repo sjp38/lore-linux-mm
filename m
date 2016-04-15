@@ -1,346 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 611A86B0005
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 13:26:45 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e190so197792372pfe.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 10:26:45 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id y19si3403727pfa.62.2016.04.15.10.26.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 10:26:42 -0700 (PDT)
-Received: by mail-pa0-x234.google.com with SMTP id fs9so38368628pac.2
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 10:26:42 -0700 (PDT)
-From: Thomas Garnier <thgarnie@google.com>
-Subject: [PATCH] mm: SLAB freelist randomization
-Date: Fri, 15 Apr 2016 10:25:59 -0700
-Message-Id: <1460741159-51752-1-git-send-email-thgarnie@google.com>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D49CA6B0005
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 13:37:04 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id zy2so140812730pac.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 10:37:04 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id c84si3251808pfb.8.2016.04.15.10.37.03
+        for <linux-mm@kvack.org>;
+        Fri, 15 Apr 2016 10:37:04 -0700 (PDT)
+From: "Verma, Vishal L" <vishal.l.verma@intel.com>
+Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
+Date: Fri, 15 Apr 2016 17:37:02 +0000
+Message-ID: <1460741821.3012.11.camel@intel.com>
+References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
+	 <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
+	 <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
+	 <1460739288.3012.3.camel@intel.com>
+	 <x49potq6bm2.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <x49potq6bm2.fsf@segfault.boston.devel.redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <CCD91253E6E05545B2738755BAAADF3C@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>
-Cc: gthelen@google.com, labbott@fedoraproject.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Garnier <thgarnie@google.com>
+To: "jmoyer@redhat.com" <jmoyer@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "axboe@fb.com" <axboe@fb.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>
 
-Provide an optional config (CONFIG_FREELIST_RANDOM) to randomize the
-SLAB freelist. The list is randomized during initialization of a new set
-of pages. The order on different freelist sizes is pre-computed at boot
-for performance. This security feature reduces the predictability of the
-kernel SLAB allocator against heap overflows rendering attacks much less
-stable.
-
-For example this attack against SLUB (also applicable against SLAB)
-would be affected:
-https://jon.oberheide.org/blog/2010/09/10/linux-kernel-can-slub-overflow/
-
-Also, since v4.6 the freelist was moved at the end of the SLAB. It means
-a controllable heap is opened to new attacks not yet publicly discussed.
-A kernel heap overflow can be transformed to multiple use-after-free.
-This feature makes this type of attack harder too.
-
-The config option name is not specific to the SLAB as this approach will
-be extended to other allocators like SLUB.
-
-Performance results highlighted no major changes:
-
-Netperf average on 10 runs:
-
-threads,base,change
-16,576943.10,585905.90 (101.55%)
-32,564082.00,569741.20 (101.00%)
-48,558334.30,561851.20 (100.63%)
-64,552025.20,556448.30 (100.80%)
-80,552294.40,551743.10 (99.90%)
-96,552435.30,547529.20 (99.11%)
-112,551320.60,550183.20 (99.79%)
-128,549138.30,550542.70 (100.26%)
-144,549344.50,544529.10 (99.12%)
-160,550360.80,539929.30 (98.10%)
-
-slab_test 1 run on boot. After is faster except for odd result on size
-2048.
-
-Before:
-
-Single thread testing
-=====================
-1. Kmalloc: Repeatedly allocate then free test
-10000 times kmalloc(8) -> 137 cycles kfree -> 126 cycles
-10000 times kmalloc(16) -> 118 cycles kfree -> 119 cycles
-10000 times kmalloc(32) -> 112 cycles kfree -> 119 cycles
-10000 times kmalloc(64) -> 126 cycles kfree -> 123 cycles
-10000 times kmalloc(128) -> 135 cycles kfree -> 131 cycles
-10000 times kmalloc(256) -> 165 cycles kfree -> 104 cycles
-10000 times kmalloc(512) -> 174 cycles kfree -> 126 cycles
-10000 times kmalloc(1024) -> 242 cycles kfree -> 160 cycles
-10000 times kmalloc(2048) -> 478 cycles kfree -> 239 cycles
-10000 times kmalloc(4096) -> 747 cycles kfree -> 364 cycles
-10000 times kmalloc(8192) -> 774 cycles kfree -> 404 cycles
-10000 times kmalloc(16384) -> 849 cycles kfree -> 430 cycles
-2. Kmalloc: alloc/free test
-10000 times kmalloc(8)/kfree -> 118 cycles
-10000 times kmalloc(16)/kfree -> 118 cycles
-10000 times kmalloc(32)/kfree -> 118 cycles
-10000 times kmalloc(64)/kfree -> 121 cycles
-10000 times kmalloc(128)/kfree -> 118 cycles
-10000 times kmalloc(256)/kfree -> 115 cycles
-10000 times kmalloc(512)/kfree -> 115 cycles
-10000 times kmalloc(1024)/kfree -> 115 cycles
-10000 times kmalloc(2048)/kfree -> 115 cycles
-10000 times kmalloc(4096)/kfree -> 115 cycles
-10000 times kmalloc(8192)/kfree -> 115 cycles
-10000 times kmalloc(16384)/kfree -> 115 cycles
-
-After:
-
-Single thread testing
-=====================
-1. Kmalloc: Repeatedly allocate then free test
-10000 times kmalloc(8) -> 99 cycles kfree -> 84 cycles
-10000 times kmalloc(16) -> 88 cycles kfree -> 83 cycles
-10000 times kmalloc(32) -> 90 cycles kfree -> 81 cycles
-10000 times kmalloc(64) -> 107 cycles kfree -> 97 cycles
-10000 times kmalloc(128) -> 134 cycles kfree -> 89 cycles
-10000 times kmalloc(256) -> 145 cycles kfree -> 97 cycles
-10000 times kmalloc(512) -> 177 cycles kfree -> 116 cycles
-10000 times kmalloc(1024) -> 223 cycles kfree -> 151 cycles
-10000 times kmalloc(2048) -> 1429 cycles kfree -> 221 cycles
-10000 times kmalloc(4096) -> 720 cycles kfree -> 348 cycles
-10000 times kmalloc(8192) -> 788 cycles kfree -> 393 cycles
-10000 times kmalloc(16384) -> 867 cycles kfree -> 433 cycles
-2. Kmalloc: alloc/free test
-10000 times kmalloc(8)/kfree -> 115 cycles
-10000 times kmalloc(16)/kfree -> 115 cycles
-10000 times kmalloc(32)/kfree -> 115 cycles
-10000 times kmalloc(64)/kfree -> 120 cycles
-10000 times kmalloc(128)/kfree -> 127 cycles
-10000 times kmalloc(256)/kfree -> 119 cycles
-10000 times kmalloc(512)/kfree -> 112 cycles
-10000 times kmalloc(1024)/kfree -> 112 cycles
-10000 times kmalloc(2048)/kfree -> 112 cycles
-10000 times kmalloc(4096)/kfree -> 112 cycles
-10000 times kmalloc(8192)/kfree -> 112 cycles
-10000 times kmalloc(16384)/kfree -> 112 cycles
-
-Signed-off-by: Thomas Garnier <thgarnie@google.com>
----
-Based on next-20160414
----
- init/Kconfig |   9 ++++
- mm/slab.c    | 158 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 166 insertions(+), 1 deletion(-)
-
-diff --git a/init/Kconfig b/init/Kconfig
-index 0dfd09d..ee35418 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -1742,6 +1742,15 @@ config SLOB
- 
- endchoice
- 
-+config FREELIST_RANDOM
-+	default n
-+	depends on SLAB
-+	bool "SLAB freelist randomization"
-+	help
-+	  Randomizes the freelist order used on creating new SLABs. This
-+	  security feature reduces the predictability of the kernel slab
-+	  allocator against heap overflows.
-+
- config SLUB_CPU_PARTIAL
- 	default y
- 	depends on SLUB && SMP
-diff --git a/mm/slab.c b/mm/slab.c
-index b70aabf..5d8bde2 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1229,6 +1229,61 @@ static void __init set_up_node(struct kmem_cache *cachep, int index)
- 	}
- }
- 
-+#ifdef CONFIG_FREELIST_RANDOM
-+/*
-+ * Master lists are pre-computed random lists
-+ * Lists of different sizes are used to optimize performance on different
-+ * SLAB object sizes per pages.
-+ */
-+static freelist_idx_t master_list_2[2];
-+static freelist_idx_t master_list_4[4];
-+static freelist_idx_t master_list_8[8];
-+static freelist_idx_t master_list_16[16];
-+static freelist_idx_t master_list_32[32];
-+static freelist_idx_t master_list_64[64];
-+static freelist_idx_t master_list_128[128];
-+static freelist_idx_t master_list_256[256];
-+static struct m_list {
-+	size_t count;
-+	freelist_idx_t *list;
-+} master_lists[] = {
-+	{ ARRAY_SIZE(master_list_2), master_list_2 },
-+	{ ARRAY_SIZE(master_list_4), master_list_4 },
-+	{ ARRAY_SIZE(master_list_8), master_list_8 },
-+	{ ARRAY_SIZE(master_list_16), master_list_16 },
-+	{ ARRAY_SIZE(master_list_32), master_list_32 },
-+	{ ARRAY_SIZE(master_list_64), master_list_64 },
-+	{ ARRAY_SIZE(master_list_128), master_list_128 },
-+	{ ARRAY_SIZE(master_list_256), master_list_256 },
-+};
-+
-+static void __init freelist_random_init(void)
-+{
-+	unsigned int seed;
-+	size_t z, i, rand;
-+	struct rnd_state slab_rand;
-+
-+	get_random_bytes_arch(&seed, sizeof(seed));
-+	prandom_seed_state(&slab_rand, seed);
-+
-+	for (z = 0; z < ARRAY_SIZE(master_lists); z++) {
-+		for (i = 0; i < master_lists[z].count; i++)
-+			master_lists[z].list[i] = i;
-+
-+		/* Fisher-Yates shuffle */
-+		for (i = master_lists[z].count - 1; i > 0; i--) {
-+			rand = prandom_u32_state(&slab_rand);
-+			rand %= (i + 1);
-+			swap(master_lists[z].list[i],
-+				master_lists[z].list[rand]);
-+		}
-+	}
-+}
-+#else
-+static inline void __init freelist_random_init(void) { }
-+#endif /* CONFIG_FREELIST_RANDOM */
-+
-+
- /*
-  * Initialisation.  Called after the page allocator have been initialised and
-  * before smp_init().
-@@ -1255,6 +1310,8 @@ void __init kmem_cache_init(void)
- 	if (!slab_max_order_set && totalram_pages > (32 << 20) >> PAGE_SHIFT)
- 		slab_max_order = SLAB_MAX_ORDER_HI;
- 
-+	freelist_random_init();
-+
- 	/* Bootstrap is tricky, because several objects are allocated
- 	 * from caches that do not exist yet:
- 	 * 1) initialize the kmem_cache cache: it contains the struct
-@@ -2442,6 +2499,101 @@ static void cache_init_objs_debug(struct kmem_cache *cachep, struct page *page)
- #endif
- }
- 
-+#ifdef CONFIG_FREELIST_RANDOM
-+enum master_type {
-+	match,
-+	less,
-+	more
-+};
-+
-+struct random_mng {
-+	unsigned int padding;
-+	unsigned int pos;
-+	unsigned int count;
-+	struct m_list master_list;
-+	unsigned int master_count;
-+	enum master_type type;
-+};
-+
-+static void random_mng_initialize(struct random_mng *mng, unsigned int count)
-+{
-+	unsigned int idx;
-+	const unsigned int last_idx = ARRAY_SIZE(master_lists) - 1;
-+
-+	memset(mng, 0, sizeof(*mng));
-+	mng->count = count;
-+	mng->pos = 0;
-+	/* count is >= 2 */
-+	idx = ilog2(count) - 1;
-+	if (idx >= last_idx)
-+		idx = last_idx;
-+	else if (roundup_pow_of_two(idx + 1) != count)
-+		idx++;
-+	mng->master_list = master_lists[idx];
-+	if (mng->master_list.count == mng->count)
-+		mng->type = match;
-+	else if (mng->master_list.count > mng->count)
-+		mng->type = more;
-+	else
-+		mng->type = less;
-+}
-+
-+static freelist_idx_t get_next_entry(struct random_mng *mng)
-+{
-+	if (mng->type == less && mng->pos == mng->master_list.count) {
-+		mng->padding += mng->pos;
-+		mng->pos = 0;
-+	}
-+	BUG_ON(mng->pos >= mng->master_list.count);
-+	return mng->master_list.list[mng->pos++];
-+}
-+
-+static freelist_idx_t next_random_slot(struct random_mng *mng)
-+{
-+	freelist_idx_t cur, entry;
-+
-+	entry = get_next_entry(mng);
-+
-+	if (mng->type != match) {
-+		while ((entry + mng->padding) >= mng->count)
-+			entry = get_next_entry(mng);
-+		cur = entry + mng->padding;
-+		BUG_ON(cur >= mng->count);
-+	} else {
-+		cur = entry;
-+	}
-+
-+	return cur;
-+}
-+
-+static void shuffle_freelist(struct kmem_cache *cachep, struct page *page,
-+			     unsigned int count)
-+{
-+	unsigned int i;
-+	struct random_mng mng;
-+
-+	if (count < 2) {
-+		for (i = 0; i < count; i++)
-+			set_free_obj(page, i, i);
-+		return;
-+	}
-+
-+	/* Last chunk is used already in this case */
-+	if (OBJFREELIST_SLAB(cachep))
-+		count--;
-+
-+	random_mng_initialize(&mng, count);
-+	for (i = 0; i < count; i++)
-+		set_free_obj(page, i, next_random_slot(&mng));
-+
-+	if (OBJFREELIST_SLAB(cachep))
-+		set_free_obj(page, i, i);
-+}
-+#else
-+static inline void shuffle_freelist(struct kmem_cache *cachep,
-+				    struct page *page, unsigned int count) { }
-+#endif /* CONFIG_FREELIST_RANDOM */
-+
- static void cache_init_objs(struct kmem_cache *cachep,
- 			    struct page *page)
- {
-@@ -2464,8 +2616,12 @@ static void cache_init_objs(struct kmem_cache *cachep,
- 			kasan_poison_object_data(cachep, objp);
- 		}
- 
--		set_free_obj(page, i, i);
-+		/* If enabled, initialization is done in shuffle_freelist */
-+		if (!config_enabled(CONFIG_FREELIST_RANDOM))
-+			set_free_obj(page, i, i);
- 	}
-+
-+	shuffle_freelist(cachep, page, cachep->num);
- }
- 
- static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
--- 
-2.8.0.rc3.226.g39d4020
+T24gRnJpLCAyMDE2LTA0LTE1IGF0IDEzOjExIC0wNDAwLCBKZWZmIE1veWVyIHdyb3RlOg0KPiAi
+VmVybWEsIFZpc2hhbCBMIiA8dmlzaGFsLmwudmVybWFAaW50ZWwuY29tPiB3cml0ZXM6DQo+IA0K
+PiA+IA0KPiA+IE9uIEZyaSwgMjAxNi0wNC0xNSBhdCAxMjoxMSAtMDQwMCwgSmVmZiBNb3llciB3
+cm90ZToNCj4gPiA+IA0KPiA+ID4gVmlzaGFsIFZlcm1hIDx2aXNoYWwubC52ZXJtYUBpbnRlbC5j
+b20+IHdyaXRlczoNCj4gPiA+ID4gDQo+ID4gPiA+ICsJaWYgKElTX0RBWChpbm9kZSkpIHsNCj4g
+PiA+ID4gKwkJcmV0ID0gZGF4X2RvX2lvKGlvY2IsIGlub2RlLCBpdGVyLCBvZmZzZXQsDQo+ID4g
+PiA+IGJsa2Rldl9nZXRfYmxvY2ssDQo+ID4gPiA+IMKgCQkJCU5VTEwsIERJT19TS0lQX0RJT19D
+T1VOVCk7DQo+ID4gPiA+IC0JcmV0dXJuIF9fYmxvY2tkZXZfZGlyZWN0X0lPKGlvY2IsIGlub2Rl
+LA0KPiA+ID4gPiBJX0JERVYoaW5vZGUpLA0KPiA+ID4gPiBpdGVyLCBvZmZzZXQsDQo+ID4gPiA+
+ICsJCWlmIChyZXQgPT0gLUVJTyAmJiAoaW92X2l0ZXJfcncoaXRlcikgPT0NCj4gPiA+ID4gV1JJ
+VEUpKQ0KPiA+ID4gPiArCQkJcmV0X3NhdmVkID0gcmV0Ow0KPiA+ID4gPiArCQllbHNlDQo+ID4g
+PiA+ICsJCQlyZXR1cm4gcmV0Ow0KPiA+ID4gPiArCX0NCj4gPiA+ID4gKw0KPiA+ID4gPiArCXJl
+dCA9IF9fYmxvY2tkZXZfZGlyZWN0X0lPKGlvY2IsIGlub2RlLCBJX0JERVYoaW5vZGUpLA0KPiA+
+ID4gPiBpdGVyLCBvZmZzZXQsDQo+ID4gPiA+IMKgCQkJCcKgwqDCoMKgYmxrZGV2X2dldF9ibG9j
+aywgTlVMTCwNCj4gPiA+ID4gTlVMTCwNCj4gPiA+ID4gwqAJCQkJwqDCoMKgwqBESU9fU0tJUF9E
+SU9fQ09VTlQpOw0KPiA+ID4gPiArCWlmIChyZXQgPCAwICYmIHJldF9zYXZlZCkNCj4gPiA+ID4g
+KwkJcmV0dXJuIHJldF9zYXZlZDsNCj4gPiA+ID4gKw0KPiA+ID4gSG1tLCBkaWQgeW91IGp1c3Qg
+YnJlYWsgYXN5bmMgRElPP8KgwqBJIHRoaW5rIHlvdSBkaWQhwqDCoDopDQo+ID4gPiBfX2Jsb2Nr
+ZGV2X2RpcmVjdF9JTyBjYW4gcmV0dXJuIC1FSU9DQlFVRVVFRCwgYW5kIHlvdSd2ZSBub3cNCj4g
+PiA+IHR1cm5lZA0KPiA+ID4gdGhhdA0KPiA+ID4gaW50byAtRUlPLsKgwqBSZWFsbHksIEkgZG9u
+J3Qgc2VlIGEgcmVhc29uIHRvIHNhdmUgdGhhdCBmaXJzdA0KPiA+ID4gLUVJTy7CoMKgVGhlDQo+
+ID4gPiBzYW1lIGFwcGxpZXMgdG8gYWxsIGluc3RhbmNlcyBpbiB0aGlzIHBhdGNoLg0KPiA+IFRo
+ZSByZWFzb24gSSBzYXZlZCBpdCB3YXMgaWYgX19ibG9ja2Rldl9kaXJlY3RfSU8gZmFpbHMgZm9y
+IHNvbWUNCj4gPiByZWFzb24sIHdlIHNob3VsZCByZXR1cm4gdGhlIG9yaWdpbmFsIGNhdXNlIG8g
+dGhlIGVycm9yLCB3aGljaCB3YXMNCj4gPiBhbg0KPiA+IEVJTy4uIGkuZS4gd2Ugc2hvdWxkbid0
+IGJlIGhpZGluZyB0aGUgRUlPIGlmIHRoZSBkaXJlY3RfSU8gZmFpbHMNCj4gPiB3aXRoDQo+ID4g
+c29tZXRoaW5nIGVsc2UuLg0KPiBPSy4NCj4gDQo+ID4gDQo+ID4gQnV0LCBob3cgZG9lcyBfRUlP
+Q0JRVUVVRUQgd29yaz8gTWF5YmUgd2UgbmVlZCBhbiBleGNlcHRpb24gZm9yIGl0Pw0KPiBGb3Ig
+YXN5bmMgZGlyZWN0IEkvTywgb25seSB0aGUgc2V0dXAgcGhhc2Ugb2YgdGhlIEkvTyBpcyBwZXJm
+b3JtZWQNCj4gYW5kDQo+IHRoZW4gd2UgcmV0dXJuIHRvIHRoZSBjYWxsZXIuwqDCoC1FSU9DQlFV
+RVVFRCBzaWduaWZpZXMgdGhpcy4NCj4gDQo+IFlvdSdyZSBoZWFkaW5nIHRvd2FyZHMgY29kZSB0
+aGF0IGxvb2tzIGxpa2UgdGhpczoNCj4gDQo+IMKgwqDCoMKgwqDCoMKgwqBpZiAoSVNfREFYKGlu
+b2RlKSkgew0KPiDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoHJldCA9IGRheF9kb19p
+byhpb2NiLCBpbm9kZSwgaXRlciwgb2Zmc2V0LA0KPiBibGtkZXZfZ2V0X2Jsb2NrLA0KPiDCoMKg
+wqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDC
+oMKgTlVMTCwgRElPX1NLSVBfRElPX0NPVU5UKTsNCj4gwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKg
+wqDCoMKgwqBpZiAocmV0ID09IC1FSU8gJiYgKGlvdl9pdGVyX3J3KGl0ZXIpID09IFdSSVRFKSkN
+Cj4gwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgcmV0X3Nh
+dmVkID0gcmV0Ow0KPiDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoGVsc2UNCj4gwqDC
+oMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgcmV0dXJuIHJldDsN
+Cj4gwqDCoMKgwqDCoMKgwqDCoH0NCj4gDQo+IMKgwqDCoMKgwqDCoMKgwqByZXQgPSBfX2Jsb2Nr
+ZGV2X2RpcmVjdF9JTyhpb2NiLCBpbm9kZSwgSV9CREVWKGlub2RlKSwgaXRlciwNCj4gb2Zmc2V0
+LA0KPiDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKg
+wqDCoMKgwqDCoMKgwqDCoMKgwqBibGtkZXZfZ2V0X2Jsb2NrLCBOVUxMLCBOVUxMLA0KPiDCoMKg
+wqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDCoMKgwqDC
+oMKgwqDCoMKgwqBESU9fU0tJUF9ESU9fQ09VTlQpOw0KPiDCoMKgwqDCoMKgwqDCoMKgaWYgKHJl
+dCA8IDAgJiYgcmV0ICE9IC1FSU9DQlFVRVVFRCAmJiByZXRfc2F2ZWQpDQo+IMKgwqDCoMKgwqDC
+oMKgwqDCoMKgwqDCoMKgwqDCoMKgcmV0dXJuIHJldF9zYXZlZDsNCj4gDQo+IFRoZXJlJ3MgYSBs
+b3Qgb2Ygc3BlY2lhbCBjYXNpbmcgaGVyZSwgc28geW91IG1pZ2h0IGNvbnNpZGVyIGFkZGluZw0K
+PiBjb21tZW50cy4NCg0KQ29ycmVjdCAtIG1heWJlIHdlIHNob3VsZCByZWNvbnNpZGVyIHdyYXBw
+ZXItaXppbmcgdGhpcz8gOikNCg0KVGhhbmtzIGZvciB0aGUgZXhwbGFuYXRpb24gYW5kIGZvciBj
+YXRjaGluZyB0aGlzLiBJJ2xsIGZpeCBpdCBmb3IgdGhlDQpuZXh0IHJldmlzaW9uLg0KDQo+IA0K
+PiBDaGVlcnMsDQo+IEplZmY=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
