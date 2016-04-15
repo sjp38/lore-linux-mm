@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CD71C828E1
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:09:49 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id d19so63969746lfb.0
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:09:49 -0700 (PDT)
-Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
-        by mx.google.com with ESMTPS id i127si10939412wmf.41.2016.04.15.02.09.48
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D26E8828E1
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:09:59 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id q8so63702489lfe.3
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:09:59 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id df10si49487909wjb.224.2016.04.15.02.09.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 02:09:48 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 15 Apr 2016 02:09:58 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 452C41C1A3A
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 10:09:48 +0100 (IST)
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 6408C1DC2A6
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:09:58 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 23/28] mm, page_alloc: Check multiple page fields with a single branch
-Date: Fri, 15 Apr 2016 10:07:50 +0100
-Message-Id: <1460711275-1130-11-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 24/28] mm, page_alloc: Remove unnecessary variable from free_pcppages_bulk
+Date: Fri, 15 Apr 2016 10:07:51 +0100
+Message-Id: <1460711275-1130-12-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
 References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
  <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
@@ -24,123 +24,52 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Every page allocated or freed is checked for sanity to avoid corruptions
-that are difficult to detect later.  A bad page could be due to a number of
-fields. Instead of using multiple branches, this patch combines multiple
-fields into a single branch. A detailed check is only necessary if that
-check fails.
-
-                                           4.6.0-rc2                  4.6.0-rc2
-                                      initonce-v1r20            multcheck-v1r20
-Min      alloc-odr0-1               359.00 (  0.00%)           348.00 (  3.06%)
-Min      alloc-odr0-2               260.00 (  0.00%)           254.00 (  2.31%)
-Min      alloc-odr0-4               214.00 (  0.00%)           213.00 (  0.47%)
-Min      alloc-odr0-8               186.00 (  0.00%)           186.00 (  0.00%)
-Min      alloc-odr0-16              173.00 (  0.00%)           173.00 (  0.00%)
-Min      alloc-odr0-32              165.00 (  0.00%)           166.00 ( -0.61%)
-Min      alloc-odr0-64              162.00 (  0.00%)           162.00 (  0.00%)
-Min      alloc-odr0-128             161.00 (  0.00%)           160.00 (  0.62%)
-Min      alloc-odr0-256             170.00 (  0.00%)           169.00 (  0.59%)
-Min      alloc-odr0-512             181.00 (  0.00%)           180.00 (  0.55%)
-Min      alloc-odr0-1024            190.00 (  0.00%)           188.00 (  1.05%)
-Min      alloc-odr0-2048            196.00 (  0.00%)           194.00 (  1.02%)
-Min      alloc-odr0-4096            202.00 (  0.00%)           199.00 (  1.49%)
-Min      alloc-odr0-8192            205.00 (  0.00%)           202.00 (  1.46%)
-Min      alloc-odr0-16384           205.00 (  0.00%)           203.00 (  0.98%)
-
-Again, the benefit is marginal but avoiding excessive branches is
-important. Ideally the paths would not have to check these conditions at
-all but regrettably abandoning the tests would make use-after-free bugs
-much harder to detect.
+The original count is never reused so it can be removed.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/page_alloc.c | 55 +++++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 43 insertions(+), 12 deletions(-)
+ mm/page_alloc.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bc754d32aed6..3a60579342a5 100644
+index 3a60579342a5..bdcd4087553e 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -784,10 +784,42 @@ static inline void __free_one_page(struct page *page,
- 	zone->free_area[order].nr_free++;
- }
- 
-+/*
-+ * A bad page could be due to a number of fields. Instead of multiple branches,
-+ * try and check multiple fields with one check. The caller must do a detailed
-+ * check if necessary.
-+ */
-+static inline bool page_expected_state(struct page *page,
-+					unsigned long check_flags)
-+{
-+	if (unlikely(atomic_read(&page->_mapcount) != -1))
-+		return false;
-+
-+	if (unlikely((unsigned long)page->mapping |
-+			page_ref_count(page) |
-+#ifdef CONFIG_MEMCG
-+			(unsigned long)page->mem_cgroup |
-+#endif
-+			(page->flags & check_flags)))
-+		return false;
-+
-+	return true;
-+}
-+
- static inline int free_pages_check(struct page *page)
+@@ -855,7 +855,6 @@ static void free_pcppages_bulk(struct zone *zone, int count,
  {
--	const char *bad_reason = NULL;
--	unsigned long bad_flags = 0;
-+	const char *bad_reason;
-+	unsigned long bad_flags;
-+
-+	if (page_expected_state(page, PAGE_FLAGS_CHECK_AT_FREE)) {
-+		page_cpupid_reset_last(page);
-+		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-+		return 0;
-+	}
-+
-+	/* Something has gone sideways, find it */
-+	bad_reason = NULL;
-+	bad_flags = 0;
+ 	int migratetype = 0;
+ 	int batch_free = 0;
+-	int to_free = count;
+ 	unsigned long nr_scanned;
+ 	bool isolated_pageblocks = has_isolate_pageblock(zone);
  
- 	if (unlikely(atomic_read(&page->_mapcount) != -1))
- 		bad_reason = "nonzero mapcount";
-@@ -803,14 +835,8 @@ static inline int free_pages_check(struct page *page)
- 	if (unlikely(page->mem_cgroup))
- 		bad_reason = "page still charged to cgroup";
- #endif
--	if (unlikely(bad_reason)) {
--		bad_page(page, bad_reason, bad_flags);
--		return 1;
--	}
--	page_cpupid_reset_last(page);
--	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
--		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
--	return 0;
-+	bad_page(page, bad_reason, bad_flags);
-+	return 1;
+@@ -864,7 +863,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 	if (nr_scanned)
+ 		__mod_zone_page_state(zone, NR_PAGES_SCANNED, -nr_scanned);
+ 
+-	while (to_free) {
++	while (count) {
+ 		struct page *page;
+ 		struct list_head *list;
+ 
+@@ -884,7 +883,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 
+ 		/* This is the only non-empty list. Free them all. */
+ 		if (batch_free == MIGRATE_PCPTYPES)
+-			batch_free = to_free;
++			batch_free = count;
+ 
+ 		do {
+ 			int mt;	/* migratetype of the to-be-freed page */
+@@ -902,7 +901,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 
+ 			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
+ 			trace_mm_page_pcpu_drain(page, 0, mt);
+-		} while (--to_free && --batch_free && !list_empty(list));
++		} while (--count && --batch_free && !list_empty(list));
+ 	}
+ 	spin_unlock(&zone->lock);
  }
- 
- /*
-@@ -1492,9 +1518,14 @@ static inline void expand(struct zone *zone, struct page *page,
-  */
- static inline int check_new_page(struct page *page)
- {
--	const char *bad_reason = NULL;
--	unsigned long bad_flags = 0;
-+	const char *bad_reason;
-+	unsigned long bad_flags;
-+
-+	if (page_expected_state(page, PAGE_FLAGS_CHECK_AT_PREP|__PG_HWPOISON))
-+		return 0;
- 
-+	bad_reason = NULL;
-+	bad_flags = 0;
- 	if (unlikely(atomic_read(&page->_mapcount) != -1))
- 		bad_reason = "nonzero mapcount";
- 	if (unlikely(page->mapping != NULL))
 -- 
 2.6.4
 
