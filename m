@@ -1,143 +1,214 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B79026B0253
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 12:09:40 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id a140so22282635wma.1
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:09:40 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
-        by mx.google.com with ESMTP id g206si12702669wmg.32.2016.04.15.09.09.39
-        for <linux-mm@kvack.org>;
-        Fri, 15 Apr 2016 09:09:39 -0700 (PDT)
-Date: Fri, 15 Apr 2016 17:09:24 +0100
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: Re: [Intel-gfx] [PATCH v4 1/2] shmem: Support for registration of
- driver/file owner specific ops
-Message-ID: <20160415160924.GQ19990@nuc-i3427.alporthouse.com>
-References: <1459775891-32442-1-git-send-email-chris@chris-wilson.co.uk>
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F01C6B0253
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 12:11:41 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id f185so61278463vkb.3
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:11:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c129si19358991qha.114.2016.04.15.09.11.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Apr 2016 09:11:40 -0700 (PDT)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
+References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
+	<1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
+Date: Fri, 15 Apr 2016 12:11:36 -0400
+In-Reply-To: <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
+	(Vishal Verma's message of "Tue, 29 Mar 2016 19:59:50 -0600")
+Message-ID: <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1459775891-32442-1-git-send-email-chris@chris-wilson.co.uk>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: intel-gfx@lists.freedesktop.org
-Cc: linux-mm@kvack.org, Akash Goel <akash.goel@intel.com>, linux-kernel@vger.linux.org, Hugh Dickins <hughd@google.com>, Sourab Gupta <sourab.gupta@intel.com>
+To: Vishal Verma <vishal.l.verma@intel.com>
+Cc: linux-nvdimm@ml01.01.org, Jens Axboe <axboe@fb.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-block@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
 
-On Mon, Apr 04, 2016 at 02:18:10PM +0100, Chris Wilson wrote:
-> From: Akash Goel <akash.goel@intel.com>
-> 
-> This provides support for the drivers or shmem file owners to register
-> a set of callbacks, which can be invoked from the address space
-> operations methods implemented by shmem.  This allow the file owners to
-> hook into the shmem address space operations to do some extra/custom
-> operations in addition to the default ones.
-> 
-> The private_data field of address_space struct is used to store the
-> pointer to driver specific ops.  Currently only one ops field is defined,
-> which is migratepage, but can be extended on an as-needed basis.
-> 
-> The need for driver specific operations arises since some of the
-> operations (like migratepage) may not be handled completely within shmem,
-> so as to be effective, and would need some driver specific handling also.
-> Specifically, i915.ko would like to participate in migratepage().
-> i915.ko uses shmemfs to provide swappable backing storage for its user
-> objects, but when those objects are in use by the GPU it must pin the
-> entire object until the GPU is idle.  As a result, large chunks of memory
-> can be arbitrarily withdrawn from page migration, resulting in premature
-> out-of-memory due to fragmentation.  However, if i915.ko can receive the
-> migratepage() request, it can then flush the object from the GPU, remove
-> its pin and thus enable the migration.
-> 
-> Since gfx allocations are one of the major consumer of system memory, its
-> imperative to have such a mechanism to effectively deal with
-> fragmentation.  And therefore the need for such a provision for initiating
-> driver specific actions during address space operations.
-> 
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.linux.org
-> Signed-off-by: Sourab Gupta <sourab.gupta@intel.com>
-> Signed-off-by: Akash Goel <akash.goel@intel.com>
-> Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+Vishal Verma <vishal.l.verma@intel.com> writes:
 
-Ping?
+> dax_do_io (called for read() or write() for a dax file system) may fail
+> in the presence of bad blocks or media errors. Since we expect that a
+> write should clear media errors on nvdimms, make dax_do_io fall back to
+> the direct_IO path, which will send down a bio to the driver, which can
+> then attempt to clear the error.
 
-> ---
->  include/linux/shmem_fs.h | 17 +++++++++++++++++
->  mm/shmem.c               | 17 ++++++++++++++++-
->  2 files changed, 33 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-> index 4d4780c00d34..d7925b66c240 100644
-> --- a/include/linux/shmem_fs.h
-> +++ b/include/linux/shmem_fs.h
-> @@ -34,11 +34,28 @@ struct shmem_sb_info {
->  	struct mempolicy *mpol;     /* default memory policy for mappings */
->  };
->  
-> +struct shmem_dev_info {
-> +	void *dev_private_data;
-> +	int (*dev_migratepage)(struct address_space *mapping,
-> +			       struct page *newpage, struct page *page,
-> +			       enum migrate_mode mode, void *dev_priv_data);
-> +};
+[snip]
+
+> +	if (IS_DAX(inode)) {
+> +		ret = dax_do_io(iocb, inode, iter, offset, blkdev_get_block,
+>  				NULL, DIO_SKIP_DIO_COUNT);
+> -	return __blockdev_direct_IO(iocb, inode, I_BDEV(inode), iter, offset,
+> +		if (ret == -EIO && (iov_iter_rw(iter) == WRITE))
+> +			ret_saved = ret;
+> +		else
+> +			return ret;
+> +	}
 > +
->  static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
+> +	ret = __blockdev_direct_IO(iocb, inode, I_BDEV(inode), iter, offset,
+>  				    blkdev_get_block, NULL, NULL,
+>  				    DIO_SKIP_DIO_COUNT);
+> +	if (ret < 0 && ret_saved)
+> +		return ret_saved;
+> +
+
+Hmm, did you just break async DIO?  I think you did!  :)
+__blockdev_direct_IO can return -EIOCBQUEUED, and you've now turned that
+into -EIO.  Really, I don't see a reason to save that first -EIO.  The
+same applies to all instances in this patch.
+
+Cheers,
+Jeff
+
+
+> +	return ret;
+>  }
+>  
+>  int __sync_blockdev(struct block_device *bdev, int wait)
+> diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
+> index 824f249..64792c6 100644
+> --- a/fs/ext2/inode.c
+> +++ b/fs/ext2/inode.c
+> @@ -859,14 +859,22 @@ ext2_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
+>  	struct address_space *mapping = file->f_mapping;
+>  	struct inode *inode = mapping->host;
+>  	size_t count = iov_iter_count(iter);
+> -	ssize_t ret;
+> +	ssize_t ret, ret_saved = 0;
+>  
+> -	if (IS_DAX(inode))
+> -		ret = dax_do_io(iocb, inode, iter, offset, ext2_get_block, NULL,
+> -				DIO_LOCKING);
+> -	else
+> -		ret = blockdev_direct_IO(iocb, inode, iter, offset,
+> -					 ext2_get_block);
+> +	if (IS_DAX(inode)) {
+> +		ret = dax_do_io(iocb, inode, iter, offset, ext2_get_block,
+> +				NULL, DIO_LOCKING | DIO_SKIP_HOLES);
+> +		if (ret == -EIO && iov_iter_rw(iter) == WRITE)
+> +			ret_saved = ret;
+> +		else
+> +			goto out;
+> +	}
+> +
+> +	ret = blockdev_direct_IO(iocb, inode, iter, offset, ext2_get_block);
+> +	if (ret < 0 && ret_saved)
+> +		ret = ret_saved;
+> +
+> + out:
+>  	if (ret < 0 && iov_iter_rw(iter) == WRITE)
+>  		ext2_write_failed(mapping, offset + count);
+>  	return ret;
+> diff --git a/fs/ext4/indirect.c b/fs/ext4/indirect.c
+> index 3027fa6..798f341 100644
+> --- a/fs/ext4/indirect.c
+> +++ b/fs/ext4/indirect.c
+> @@ -716,14 +716,22 @@ retry:
+>  						   NULL, NULL, 0);
+>  		inode_dio_end(inode);
+>  	} else {
+> +		ssize_t ret_saved = 0;
+> +
+>  locked:
+> -		if (IS_DAX(inode))
+> +		if (IS_DAX(inode)) {
+>  			ret = dax_do_io(iocb, inode, iter, offset,
+>  					ext4_dio_get_block, NULL, DIO_LOCKING);
+> -		else
+> -			ret = blockdev_direct_IO(iocb, inode, iter, offset,
+> -						 ext4_dio_get_block);
+> -
+> +			if (ret == -EIO && iov_iter_rw(iter) == WRITE)
+> +				ret_saved = ret;
+> +			else
+> +				goto skip_dio;
+> +		}
+> +		ret = blockdev_direct_IO(iocb, inode, iter, offset,
+> +					 ext4_get_block);
+> +		if (ret < 0 && ret_saved)
+> +			ret = ret_saved;
+> +skip_dio:
+>  		if (unlikely(iov_iter_rw(iter) == WRITE && ret < 0)) {
+>  			loff_t isize = i_size_read(inode);
+>  			loff_t end = offset + count;
+> diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+> index dab84a2..27f07c2 100644
+> --- a/fs/ext4/inode.c
+> +++ b/fs/ext4/inode.c
+> @@ -3341,7 +3341,7 @@ static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 >  {
->  	return container_of(inode, struct shmem_inode_info, vfs_inode);
+>  	struct file *file = iocb->ki_filp;
+>  	struct inode *inode = file->f_mapping->host;
+> -	ssize_t ret;
+> +	ssize_t ret, ret_saved = 0;
+>  	size_t count = iov_iter_count(iter);
+>  	int overwrite = 0;
+>  	get_block_t *get_block_func = NULL;
+> @@ -3401,15 +3401,22 @@ static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
+>  #ifdef CONFIG_EXT4_FS_ENCRYPTION
+>  	BUG_ON(ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode));
+>  #endif
+> -	if (IS_DAX(inode))
+> +	if (IS_DAX(inode)) {
+>  		ret = dax_do_io(iocb, inode, iter, offset, get_block_func,
+>  				ext4_end_io_dio, dio_flags);
+> -	else
+> -		ret = __blockdev_direct_IO(iocb, inode,
+> -					   inode->i_sb->s_bdev, iter, offset,
+> -					   get_block_func,
+> -					   ext4_end_io_dio, NULL, dio_flags);
+> +		if (ret == -EIO && iov_iter_rw(iter) == WRITE)
+> +			ret_saved = ret;
+> +		else
+> +			goto skip_dio;
+> +	}
+>  
+> +	ret = __blockdev_direct_IO(iocb, inode,
+> +				   inode->i_sb->s_bdev, iter, offset,
+> +				   get_block_func,
+> +				   ext4_end_io_dio, NULL, dio_flags);
+> +	if (ret < 0 && ret_saved)
+> +		ret = ret_saved;
+> + skip_dio:
+>  	if (ret > 0 && !overwrite && ext4_test_inode_state(inode,
+>  						EXT4_STATE_DIO_UNWRITTEN)) {
+>  		int err;
+> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+> index d445a64..7cfcf86 100644
+> --- a/fs/xfs/xfs_aops.c
+> +++ b/fs/xfs/xfs_aops.c
+> @@ -1413,6 +1413,7 @@ xfs_vm_direct_IO(
+>  	dio_iodone_t		*endio = NULL;
+>  	int			flags = 0;
+>  	struct block_device	*bdev;
+> +	ssize_t 		ret, ret_saved = 0;
+>  
+>  	if (iov_iter_rw(iter) == WRITE) {
+>  		endio = xfs_end_io_direct_write;
+> @@ -1420,13 +1421,22 @@ xfs_vm_direct_IO(
+>  	}
+>  
+>  	if (IS_DAX(inode)) {
+> -		return dax_do_io(iocb, inode, iter, offset,
+> +		ret = dax_do_io(iocb, inode, iter, offset,
+>  				 xfs_get_blocks_direct, endio, 0);
+> +		if (ret == -EIO && iov_iter_rw(iter) == WRITE)
+> +			ret_saved = ret;
+> +		else
+> +			return ret;
+>  	}
+>  
+>  	bdev = xfs_find_bdev_for_inode(inode);
+> -	return  __blockdev_direct_IO(iocb, inode, bdev, iter, offset,
+> +	ret = __blockdev_direct_IO(iocb, inode, bdev, iter, offset,
+>  			xfs_get_blocks_direct, endio, NULL, flags);
+> +
+> +	if (ret < 0 && ret_saved)
+> +		ret = ret_saved;
+> +
+> +	return ret;
 >  }
 >  
-> +static inline int shmem_set_device_ops(struct address_space *mapping,
-> +				       struct shmem_dev_info *info)
-> +{
-> +	if (mapping->private_data != NULL)
-> +		return -EEXIST;
-> +
-> +	mapping->private_data = info;
-> +	return 0;
-> +}
-> +
 >  /*
->   * Functions in mm/shmem.c called directly from elsewhere:
->   */
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 9428c51ab2d6..6ed953193883 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -947,6 +947,21 @@ redirty:
->  	return 0;
->  }
->  
-> +#ifdef CONFIG_MIGRATION
-> +static int shmem_migratepage(struct address_space *mapping,
-> +			     struct page *newpage, struct page *page,
-> +			     enum migrate_mode mode)
-> +{
-> +	struct shmem_dev_info *dev_info = mapping->private_data;
-> +
-> +	if (dev_info && dev_info->dev_migratepage)
-> +		return dev_info->dev_migratepage(mapping, newpage, page,
-> +				mode, dev_info->dev_private_data);
-> +
-> +	return migrate_page(mapping, newpage, page, mode);
-> +}
-> +#endif
-> +
->  #ifdef CONFIG_NUMA
->  #ifdef CONFIG_TMPFS
->  static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
-> @@ -3161,7 +3176,7 @@ static const struct address_space_operations shmem_aops = {
->  	.write_end	= shmem_write_end,
->  #endif
->  #ifdef CONFIG_MIGRATION
-> -	.migratepage	= migrate_page,
-> +	.migratepage	= shmem_migratepage,
->  #endif
->  	.error_remove_page = generic_error_remove_page,
->  };
-
--- 
-Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
