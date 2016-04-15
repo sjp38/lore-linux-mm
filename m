@@ -1,139 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 64E956B0005
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 12:34:55 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id t184so88462246qkh.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:34:55 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m134si15674216qhb.91.2016.04.15.09.34.54
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B3CC6B0005
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 12:52:49 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id c134so181620243oig.3
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:52:49 -0700 (PDT)
+Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
+        by mx.google.com with ESMTPS id pi20si16867022oeb.54.2016.04.15.09.52.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 09:34:54 -0700 (PDT)
-Date: Fri, 15 Apr 2016 17:34:49 +0100
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: post-copy is broken?
-Message-ID: <20160415163448.GJ2229@work-vm>
-References: <F2CBF3009FA73547804AE4C663CAB28E0417EEE4@shsmsx102.ccr.corp.intel.com>
- <20160413080545.GA2270@work-vm>
- <20160413114103.GB2270@work-vm>
- <20160413125053.GC2270@work-vm>
- <20160413205132.GG26364@redhat.com>
- <20160414123441.GF2252@work-vm>
- <20160414162230.GC9976@redhat.com>
- <20160415125236.GA3376@node.shutemov.name>
- <20160415134233.GG2229@work-vm>
- <20160415152330.GB3376@node.shutemov.name>
+        Fri, 15 Apr 2016 09:52:48 -0700 (PDT)
+Received: by mail-oi0-x232.google.com with SMTP id y204so129667791oie.3
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:52:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160415152330.GB3376@node.shutemov.name>
+In-Reply-To: <1460726412-1724-2-git-send-email-dsafonov@virtuozzo.com>
+References: <1460388169-13340-1-git-send-email-dsafonov@virtuozzo.com>
+ <1460726412-1724-1-git-send-email-dsafonov@virtuozzo.com> <1460726412-1724-2-git-send-email-dsafonov@virtuozzo.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Fri, 15 Apr 2016 09:52:28 -0700
+Message-ID: <CALCETrWsF9ODLog3inw149MQSHo+z2XqhwvHvnQJt+BREJdPfw@mail.gmail.com>
+Subject: Re: [PATCHv3 2/2] x86: rename is_{ia32,x32}_task to in_{ia32,x32}_syscall
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, "Li, Liang Z" <liang.z.li@intel.com>, Amit Shah <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, linux-mm@kvack.org
+To: Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dmitry Safonov <0x7f454c46@gmail.com>
 
-* Kirill A. Shutemov (kirill@shutemov.name) wrote:
-> On Fri, Apr 15, 2016 at 02:42:33PM +0100, Dr. David Alan Gilbert wrote:
-> > * Kirill A. Shutemov (kirill@shutemov.name) wrote:
-> > > On Thu, Apr 14, 2016 at 12:22:30PM -0400, Andrea Arcangeli wrote:
-> > > > Adding linux-mm too,
-> > > > 
-> > > > On Thu, Apr 14, 2016 at 01:34:41PM +0100, Dr. David Alan Gilbert wrote:
-> > > > > * Andrea Arcangeli (aarcange@redhat.com) wrote:
-> > > > > 
-> > > > > > The next suspect is the massive THP refcounting change that went
-> > > > > > upstream recently:
-> > > > > 
-> > > > > > As further debug hint, can you try to disable THP and see if that
-> > > > > > makes the problem go away?
-> > > > > 
-> > > > > Yep, this seems to be the problem (cc'ing in Kirill).
-> > > > > 
-> > > > > 122afea9626ab3f717b250a8dd3d5ebf57cdb56c - works (just before Kirill disables THP)
-> > > > > 61f5d698cc97600e813ca5cf8e449b1ea1c11492 - breaks (when THP is reenabled)
-> > > > > 
-> > > > > It's pretty reliable; as you say disabling THP makes it work again
-> > > > > and putting it back to THP/madvise mode makes it break.  And you need
-> > > > > to test on a machine with some free ram to make sure THP has a chance
-> > > > > to have happened.
-> > > > > 
-> > > > > I'm not sure of all of the rework that happened in that series,
-> > > > > but my reading of it is that splitting of THP pages gets deferred;
-> > > > > so I wonder if when I do the madvise to turn THP off, if it's actually
-> > > > > still got THP pages and thus we end up with a whole THP mapped
-> > > > > when I'm expecting to be userfaulting those pages.
-> > > > 
-> > > > Good thing at least I didn't make UFFDIO_COPY THP aware yet so there's
-> > > > less variables (as no user was interested to handle userfaults at THP
-> > > > granularity yet, and from userland such an improvement would be
-> > > > completely invisible in terms of API, so if an user starts doing that
-> > > > we can just optimize the kernel for it, criu restore could do that as
-> > > > the faults will come from disk-I/O, when network is involved THP
-> > > > userfaults wouldn't have a great tradeoff with regard to the increased
-> > > > fault latency).
-> > > > 
-> > > > I suspect there is an handle_userfault missing somewhere in connection
-> > > > with trans_huge_pmd splits (not anymore THP splits) that you're doing
-> > > > with MADV_DONTNEED to zap those pages in the destination that got
-> > > > redirtied in source during the last precopy stage. Or more simply
-> > > > MADV_DONTNEED isn't zapping all the right ptes after the trans huge
-> > > > pmd got splitted.
-> > > > 
-> > > > The fact the page isn't splitted shouldn't matter too much, all we care
-> > > > about is the pte triggers handle_userfault after MADV_DONTNEED.
-> > > > 
-> > > > The userfaultfd testcase in the kernel isn't exercising this case
-> > > > unfortunately, that should probably be improved too, so there is a
-> > > > simpler way to reproduce than running precopy before postcopy in qemu.
-> > > 
-> > > I've tested current Linus' tree and v4.5 using qemu postcopy test case for
-> > > both x86-64 and i386 and it never failed for me:
-> > > 
-> > > /x86_64/postcopy: first_byte = 7e last_byte = 7d hit_edge = 1 OK
-> > > OK
-> > > /i386/postcopy: first_byte = f6 last_byte = f5 hit_edge = 1 OK
-> > > OK
-> > > 
-> > > I've run it directly, setting relevant QTEST_QEMU_BINARY.
-> > 
-> > Interesting; it's failing reliably for me - but only with a reasonably
-> > freshly booted machine (so that the pages get THPd).
-> 
-> The same here. Freshly booted machine with 64GiB ram. I've checked
-> /proc/vmstat: huge pages were allocated
+On Fri, Apr 15, 2016 at 6:20 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+> Impact: clearify meaning
+>
+> Suggested-by: Andy Lutomirski <luto@amacapital.net>
+> Suggested-by: Ingo Molnar <mingo@kernel.org>
+> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
 
-Thanks for testing.
+Acked-by: Andy Lutomirski <luto@kernel.org>
 
-Damn; this is confusing now.  I've got a RHEL7 box with 4.6.0-rc3 on where it
-works, and a fedora24 VM where it fails (the f24 VM is where I did the bisect
-so it works fine with the older kernel on the f24 userspace in that VM).
+But if you resubmit, please consider making this patch 1 so Ingo can
+apply it directly.
 
-So lets see:
-   works: Kirill's (64GB machine)
-          Dave's RHEL7 host (24GB RAM, dual xeon, RHEL7 userspace and kernel config)
-   fails: Dave's f24 VM (4GB RAM, 4 vcpus VM on my laptop24 userspace and kernel config)
+--Andy
 
-So it's any of userspace, kernel config, machine hardware or hmm.
+> ---
+> v3: initial patch
+>
+>  arch/x86/entry/common.c            | 2 +-
+>  arch/x86/entry/vdso/vma.c          | 2 +-
+>  arch/x86/include/asm/compat.h      | 4 ++--
+>  arch/x86/include/asm/thread_info.h | 2 +-
+>  arch/x86/kernel/process_64.c       | 2 +-
+>  arch/x86/kernel/ptrace.c           | 2 +-
+>  arch/x86/kernel/signal.c           | 2 +-
+>  arch/x86/kernel/uprobes.c          | 2 +-
+>  8 files changed, 9 insertions(+), 9 deletions(-)
+>
+> diff --git a/arch/x86/entry/common.c b/arch/x86/entry/common.c
+> index e79d93d44ecd..ec138e538c44 100644
+> --- a/arch/x86/entry/common.c
+> +++ b/arch/x86/entry/common.c
+> @@ -191,7 +191,7 @@ long syscall_trace_enter_phase2(struct pt_regs *regs, u32 arch,
+>
+>  long syscall_trace_enter(struct pt_regs *regs)
+>  {
+> -       u32 arch = is_ia32_task() ? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64;
+> +       u32 arch = in_ia32_syscall() ? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64;
+>         unsigned long phase1_result = syscall_trace_enter_phase1(regs, arch);
+>
+>         if (phase1_result == 0)
+> diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
+> index 8510b1b55b21..0b861fc274b6 100644
+> --- a/arch/x86/entry/vdso/vma.c
+> +++ b/arch/x86/entry/vdso/vma.c
+> @@ -109,7 +109,7 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
+>         if (image->size != new_size)
+>                 return -EINVAL;
+>
+> -       if (is_ia32_task()) {
+> +       if (in_ia32_syscall()) {
+>                 unsigned long vdso_land = vdso_image_32.sym_int80_landing_pad;
+>                 unsigned long old_land_addr = vdso_land +
+>                         (unsigned long)current->mm->context.vdso;
+> diff --git a/arch/x86/include/asm/compat.h b/arch/x86/include/asm/compat.h
+> index ebb102e1bbc7..5a3b2c119ed0 100644
+> --- a/arch/x86/include/asm/compat.h
+> +++ b/arch/x86/include/asm/compat.h
+> @@ -307,7 +307,7 @@ static inline void __user *arch_compat_alloc_user_space(long len)
+>         return (void __user *)round_down(sp - len, 16);
+>  }
+>
+> -static inline bool is_x32_task(void)
+> +static inline bool in_x32_syscall(void)
+>  {
+>  #ifdef CONFIG_X86_X32_ABI
+>         if (task_pt_regs(current)->orig_ax & __X32_SYSCALL_BIT)
+> @@ -318,7 +318,7 @@ static inline bool is_x32_task(void)
+>
+>  static inline bool in_compat_syscall(void)
+>  {
+> -       return is_ia32_task() || is_x32_task();
+> +       return in_ia32_syscall() || in_x32_syscall();
+>  }
+>  #define in_compat_syscall in_compat_syscall    /* override the generic impl */
+>
+> diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
+> index ffae84df8a93..30c133ac05cd 100644
+> --- a/arch/x86/include/asm/thread_info.h
+> +++ b/arch/x86/include/asm/thread_info.h
+> @@ -255,7 +255,7 @@ static inline bool test_and_clear_restore_sigmask(void)
+>         return true;
+>  }
+>
+> -static inline bool is_ia32_task(void)
+> +static inline bool in_ia32_syscall(void)
+>  {
+>  #ifdef CONFIG_X86_32
+>         return true;
+> diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
+> index 6cbab31ac23a..4a62ec457b56 100644
+> --- a/arch/x86/kernel/process_64.c
+> +++ b/arch/x86/kernel/process_64.c
+> @@ -210,7 +210,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
+>          */
+>         if (clone_flags & CLONE_SETTLS) {
+>  #ifdef CONFIG_IA32_EMULATION
+> -               if (is_ia32_task())
+> +               if (in_ia32_syscall())
+>                         err = do_set_thread_area(p, -1,
+>                                 (struct user_desc __user *)tls, 0);
+>                 else
+> diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
+> index 32e9d9cbb884..0f4d2a5df2dc 100644
+> --- a/arch/x86/kernel/ptrace.c
+> +++ b/arch/x86/kernel/ptrace.c
+> @@ -1266,7 +1266,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
+>                         compat_ulong_t caddr, compat_ulong_t cdata)
+>  {
+>  #ifdef CONFIG_X86_X32_ABI
+> -       if (!is_ia32_task())
+> +       if (!in_ia32_syscall())
+>                 return x32_arch_ptrace(child, request, caddr, cdata);
+>  #endif
+>  #ifdef CONFIG_IA32_EMULATION
+> diff --git a/arch/x86/kernel/signal.c b/arch/x86/kernel/signal.c
+> index 548ddf7d6fd2..aa31265aa61d 100644
+> --- a/arch/x86/kernel/signal.c
+> +++ b/arch/x86/kernel/signal.c
+> @@ -762,7 +762,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
+>  static inline unsigned long get_nr_restart_syscall(const struct pt_regs *regs)
+>  {
+>  #ifdef CONFIG_X86_64
+> -       if (is_ia32_task())
+> +       if (in_ia32_syscall())
+>                 return __NR_ia32_restart_syscall;
+>  #endif
+>  #ifdef CONFIG_X86_X32_ABI
+> diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
+> index bf4db6eaec8f..98b4dc87628b 100644
+> --- a/arch/x86/kernel/uprobes.c
+> +++ b/arch/x86/kernel/uprobes.c
+> @@ -516,7 +516,7 @@ struct uprobe_xol_ops {
+>
+>  static inline int sizeof_long(void)
+>  {
+> -       return is_ia32_task() ? 4 : 8;
+> +       return in_ia32_syscall() ? 4 : 8;
+>  }
+>
+>  static int default_pre_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+> --
+> 2.8.0
+>
 
-My f24 box has transparent_hugepage_madvise, where my rhel7 has transparent_hugepage_always
-(but still works if I flip it to madvise at run time).  I'll try and get the configs
-closer together.
-
-Liang Li: Can you run my test on your setup which fails the migrate and tell
-me what your userspace is?
-
-(If you've not built my test yet, you might find you need to add a :
-   tests/postcopy-test$(EXESUF): tests/postcopy-test.o
-
-  to the tests/Makefile)
 
 
-Dave
-> 
-> -- 
->  Kirill A. Shutemov
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+-- 
+Andy Lutomirski
+AMA Capital Management, LLC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
