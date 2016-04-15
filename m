@@ -1,155 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E6AD6B0253
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 04:42:48 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id q8so63196802lfe.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 01:42:48 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id 140si38962122wmb.5.2016.04.15.01.42.46
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DEF46B007E
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 04:47:24 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id hb4so124080627pac.3
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 01:47:24 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0090.outbound.protection.outlook.com. [104.47.2.90])
+        by mx.google.com with ESMTPS id p9si1354219paa.62.2016.04.15.01.47.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 01:42:46 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id l6so4138007wml.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 01:42:46 -0700 (PDT)
-Date: Fri, 15 Apr 2016 10:42:44 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mmotm woes, mainly compaction
-Message-ID: <20160415084244.GC32377@dhcp22.suse.cz>
-References: <alpine.LSU.2.11.1604120005350.1832@eggly.anvils>
- <20160412121020.GC10771@dhcp22.suse.cz>
- <alpine.LSU.2.11.1604141114290.1086@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 15 Apr 2016 01:47:23 -0700 (PDT)
+Subject: Re: [PATCHv2] x86/vdso: add mremap hook to vm_special_mapping
+References: <1460388169-13340-1-git-send-email-dsafonov@virtuozzo.com>
+ <1460651571-10545-1-git-send-email-dsafonov@virtuozzo.com>
+ <CALCETrUhDvdyJV53Am2sgefyMJmHs5u1voOM2N76Si7BTtJWaQ@mail.gmail.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <5710AA59.1010001@virtuozzo.com>
+Date: Fri, 15 Apr 2016 11:46:17 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1604141114290.1086@eggly.anvils>
+In-Reply-To: <CALCETrUhDvdyJV53Am2sgefyMJmHs5u1voOM2N76Si7BTtJWaQ@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas
+ Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
+ Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dmitry Safonov <0x7f454c46@gmail.com>
 
-On Thu 14-04-16 13:15:51, Hugh Dickins wrote:
-> On Tue, 12 Apr 2016, Michal Hocko wrote:
-[...]
-> > @@ -938,7 +938,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
-> >  		 * the retry loop is too short and in the sync-light case,
-> >  		 * the overhead of stalling is too much
-> >  		 */
-> > -		if (mode != MIGRATE_SYNC) {
-> > +		if (mode < MIGRATE_SYNC) {
-> >  			rc = -EBUSY;
-> >  			goto out_unlock;
-> >  		}
-> 
-> ... saying "if (mode == MIGRATE_ASYNC) {" there, so that
-> MIGRATE_SYNC_LIGHT would proceed to wait_on_page_writeback() when force.
-> 
-> And that patch did not help at all, on either machine: so although
-> pages under writeback had been my suspicion, and motivation for your
-> patch, it just wasn't the issue.
+On 04/15/2016 01:58 AM, Andy Lutomirski wrote:
+> On Thu, Apr 14, 2016 at 9:32 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+>> Add possibility for userspace 32-bit applications to move
+>> vdso mapping. Previously, when userspace app called
+>> mremap for vdso, in return path it would land on previous
+>> address of vdso page, resulting in segmentation violation.
+>> Now it lands fine and returns to userspace with remapped vdso.
+>> This will also fix context.vdso pointer for 64-bit, which does not
+>> affect the user of vdso after mremap by now, but this may change.
+>>
+>> Renamed and moved text_mapping structure declaration inside
+>> map_vdso, as it used only there and now it complement
+>> vvar_mapping variable.
+>>
+>> There is still problem for remapping vdso in 32-bit glibc applications:
+>> linker relocates addresses for syscalls on vdso page, so
+>> you need to relink with the new addresses. Or the next syscall
+>> through glibc may fail:
+>>    Program received signal SIGSEGV, Segmentation fault.
+>>    #0  0xf7fd9b80 in __kernel_vsyscall ()
+>>    #1  0xf7ec8238 in _exit () from /usr/lib32/libc.so.6
+>>
+>> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+>> ---
+>> v2: added __maybe_unused for pt_regs in vdso_mremap
+>>
+>>   arch/x86/entry/vdso/vma.c | 33 ++++++++++++++++++++++++++++-----
+>>   include/linux/mm_types.h  |  3 +++
+>>   mm/mmap.c                 | 10 ++++++++++
+>>   3 files changed, 41 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
+>> index 10f704584922..7e261e2554c8 100644
+>> --- a/arch/x86/entry/vdso/vma.c
+>> +++ b/arch/x86/entry/vdso/vma.c
+>> @@ -12,6 +12,7 @@
+>>   #include <linux/random.h>
+>>   #include <linux/elf.h>
+>>   #include <linux/cpu.h>
+>> +#include <linux/ptrace.h>
+>>   #include <asm/pvclock.h>
+>>   #include <asm/vgtod.h>
+>>   #include <asm/proto.h>
+>> @@ -98,10 +99,26 @@ static int vdso_fault(const struct vm_special_mapping *sm,
+>>          return 0;
+>>   }
+>>
+>> -static const struct vm_special_mapping text_mapping = {
+>> -       .name = "[vdso]",
+>> -       .fault = vdso_fault,
+>> -};
+>> +static int vdso_mremap(const struct vm_special_mapping *sm,
+>> +                     struct vm_area_struct *new_vma)
+>> +{
+>> +       struct pt_regs __maybe_unused *regs = current_pt_regs();
+>> +
+>> +#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
+>> +       /* Fixing userspace landing - look at do_fast_syscall_32 */
+>> +       if (regs->ip == (unsigned long)current->mm->context.vdso +
+>> +                       vdso_image_32.sym_int80_landing_pad
+>> +#ifdef CONFIG_IA32_EMULATION
+>> +               && current_thread_info()->status & TS_COMPAT
+>> +#endif
+> Instead of ifdef, use the (grossly misnamed) is_ia32_task() helper for
+> this, please.
+Thanks, will do
+>
+>> +          )
+>> +               regs->ip = new_vma->vm_start +
+>> +                       vdso_image_32.sym_int80_landing_pad;
+>> +#endif
+>> +       new_vma->vm_mm->context.vdso = (void __user *)new_vma->vm_start;
+> Can you arrange for the mremap call to fail if the old mapping gets
+> split?  This might be as simple as confirming that the new mapping's
+> length is what we expect it to be and, if it isn't, returning -EINVAL.
+Sure.
+>
+> If anyone things that might break some existing application (which is
+> quite unlikely), then we could allow mremap to succeed but skip the
+> part where we change context.vdso and rip.
+>
+>> +
+>> +       return 0;
+>> +}
+>>
+>>   static int vvar_fault(const struct vm_special_mapping *sm,
+>>                        struct vm_area_struct *vma, struct vm_fault *vmf)
+>> @@ -162,6 +179,12 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+>>          struct vm_area_struct *vma;
+>>          unsigned long addr, text_start;
+>>          int ret = 0;
+>> +
+>> +       static const struct vm_special_mapping vdso_mapping = {
+>> +               .name = "[vdso]",
+>> +               .fault = vdso_fault,
+>> +               .mremap = vdso_mremap,
+>> +       };
+> Why did you add this instead of modifying text_mapping?
+I moved text_mapping inside map_vdso function, as it's used
+only there. Then I thought that vdso_mapping is better
+naming for it as it complement vvar_mapping (goes right after).
+If it's necessary, I will preserve naming.
+>
+> --Andy
 
-OK, So it was not the writeback which blocked the compaction. This is
-good to know. But I guess we want to wait for writeback longterm. I kind
-of like the MIGRATE_SYNC vs. MIGRATE_SYNC_WRITEOUT split. I will think
-again whether to add it to the series or not some more.
 
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -3030,8 +3030,8 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
-> >  	 * failure could be caused by weak migration mode.
-> >  	 */
-> >  	if (compaction_failed(compact_result)) {
-> > -		if (*migrate_mode == MIGRATE_ASYNC) {
-> > -			*migrate_mode = MIGRATE_SYNC_LIGHT;
-> > +		if (*migrate_mode < MIGRATE_SYNC) {
-> > +			*migrate_mode++;
-> >  			return true;
-> >  		}
-> >  		return false;
-> 
-> Thanks so much for your followup mail, pointing out that it should say
-> (*migrate_mode)++.  I never noticed that.  So the set of patches I had
-> been testing before was doing something quite random, I don't want to
-> think about exactly what it was doing.  Yet proved useful...
-> 
-> ... because the thing that was really wrong (and I spent far too long
-> studying compaction.c before noticing in page_alloc.c) was this:
-> 
-> 	/*
-> 	 * It can become very expensive to allocate transparent hugepages at
-> 	 * fault, so use asynchronous memory compaction for THP unless it is
-> 	 * khugepaged trying to collapse.
-> 	 */
-> 	if (!is_thp_gfp_mask(gfp_mask) || (current->flags & PF_KTHREAD))
-> 		migration_mode = MIGRATE_SYNC_LIGHT;
-> 
-> Yes, but advancing migration_mode before should_compact_retry() checks
-> whether it was MIGRATE_ASYNC, so eliminating the retry when MIGRATE_ASYNC
-> compaction_failed().  And the bogus *migrate_mode++ code had appeared to
-> work by interposing an additional state for a retry.
-
-Ouch. My http://lkml.kernel.org/r/1459855533-4600-11-git-send-email-mhocko@kernel.org
-has moved the code down after noretry: label for this very reason.
-Andrew has asked about this because it has caused the conflict when
-applying both your and mine patch series but the end results contains
-both the original code and my moved migrate_mode update for the noretry
-path. I have even checked my patch when posted to mm-commit ML but
-failed to notice that the to-be-removed-hunk is still there!
-
-That would mean that there is no change to be done in my original patch,
-just to apply it properly in mmotm tree. I will ask Andrew to drop the
-whole series from the mmotm tree and will repost the whole series again
-sometimes next week. I have done some changes in the patch ordering
-which should make it easier to merge in smaller parts because the core
-part of the change should sit longer in the mmomt before it gets merged.
-
-> So all I had to do to get OOM-free results, on both machines, was to
-> remove those lines quoted above.  Now, no doubt it's wrong (for THP)
-> to remove them completely, but I don't want to second-guess you on
-> where to do the equivalent check: over to you for that.
-
-As I have tried to explain
-http://lkml.kernel.org/r/20160406092841.GE24272@dhcp22.suse.cz moving
-the check down for thp is OK.
- 
-> I'm over-optimistic when I say OOM-free: on the G5 yes; but I did
-> see an order=2 OOM after an hour on the laptop one time, and much
-> sooner when I applied your further three patches (classzone_idx etc),
-
-well, classzone_idx patch is fixing a long term bug where we actually
-never triggered OOM for order != 0. So it might be possible that a
-previously existing issue was just papered over.
-
-> again on the laptop, on one occasion but not another.  Something not
-> quite right, but much easier to live with than before, and will need
-> a separate tedious investigation if it persists.
-
-I really hope I will have some tracepoints ready soon which would help
-to pinpoint what is going on there.
-
-> Earlier on, when all my suspicions were in compaction.c, I did make a
-> couple of probable fixes there, though neither helped out of my OOMs:
-> 
-> At present MIGRATE_SYNC_LIGHT is allowing __isolate_lru_page() to
-> isolate a PageWriteback page, which __unmap_and_move() then rejects
-> with -EBUSY: of course the writeback might complete in between, but
-> that's not what we usually expect, so probably better not to isolate it.
-
-Those two definitely should be in sync.
-
-> And where compact_zone() sets whole_zone, I tried a BUG_ON if
-> compact_scanners_met() already, and hit that as a real possibility
-> (only when compactors competing perhaps): without the BUG_ON, it
-> would proceed to compact_finished() COMPACT_COMPLETE without doing
-> any work at all - and the new should_compact_retry() code is placing
-> more faith in that compact_result than perhaps it deserves.  No need
-> to BUG_ON then, just be stricter about setting whole_zone.
-
-Interesting, I will have to check this closer.
-
-Thanks again!
 -- 
-Michal Hocko
-SUSE Labs
+Regards,
+Dmitry Safonov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
