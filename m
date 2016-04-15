@@ -1,49 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DE0836B025F
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 15:40:44 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id o131so232022176ywc.2
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 12:40:44 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v202si37753491qka.128.2016.04.15.12.40.44
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 73A8D6B0005
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 16:18:40 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id q8so75390385lfe.3
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 13:18:40 -0700 (PDT)
+Received: from mail-lf0-x22d.google.com (mail-lf0-x22d.google.com. [2a00:1450:4010:c07::22d])
+        by mx.google.com with ESMTPS id j207si27074394lfj.27.2016.04.15.13.18.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 12:40:44 -0700 (PDT)
-Date: Fri, 15 Apr 2016 21:40:34 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: FlameGraph of mlx4 early drop with order-0 pages
-Message-ID: <20160415214034.6ffae9ee@redhat.com>
+        Fri, 15 Apr 2016 13:18:39 -0700 (PDT)
+Received: by mail-lf0-x22d.google.com with SMTP id j11so158041617lfb.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 13:18:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Sat, 16 Apr 2016 06:18:38 +1000
+Message-ID: <CAPM=9twrh8wVin=A1Zva3DD0iBmM-G8GjdSnzOD-b0=h4SVxyw@mail.gmail.com>
+Subject: making a COW mapping on the fly from existing vma
+From: Dave Airlie <airlied@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Brenden Blanco <bblanco@plumgrid.com>
-Cc: brouer@redhat.com, tom@herbertland.com, alexei.starovoitov@gmail.com, ogerlitz@mellanox.com, daniel@iogearbox.netbrouer@redhat.com, eric.dumazet@gmail.com, ecree@solarflare.com, john.fastabend@gmail.com, tgraf@suug.ch, johannes@sipsolutions.net, eranlinuxmellanox@gmail.com
+To: LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, dri-devel <dri-devel@lists.freedesktop.org>
 
-Hi Mel,
+This was just a random thought process I was having last night, and
+wondered if it was possible.
 
-I did an experiment that you might find interesting.  Using Brenden's
-early drop with eBPF in the mxl4 driver.  I changed the mlx4 driver to
-use order-0 pages.  It usually use order-3 pages to amortize the cost
-of calling the page allocator (which is problematic for other reasons,
-like memory pin-down, latency spikes and multi CPU scalability)
+We have a scenario with OpenGL where certain APIs hand large amounts
+of data from the user to the API and when you return from the API call
+the user can then free/overwrite/do whatever they want with the data
+they gave you, which pretty much means you have to straight away
+process the data.
 
-With this change I could do around 12Mpps (Mill packet per sec) drops,
-usually does 14.5Mpps (limited due to a HW setup/limit, with idle cycles). 
+Now there have been attempts at threading the GL API, but one thing
+they usually hit is they have to do a lot of unthreaded processing for
+these scenarios, so I was wondering could we do some COW magic with
+the data.
 
-Looking at the perf report as a FlameGraph, the page allocator clearly
-show up as the bottleneck: 
+More than likely the data will be anonymous mappings though maybe some
+filebacked, and my idea would be you'd in the main thread create a new
+readonly VMA from the old pages and set the original mapping to do COW
+on all of its pages. Then the thread would pick up the readonly VMA
+mapping and do whatever background processing it wants while the main
+thread continues happily on its way.
 
-http://people.netfilter.org/hawk/FlameGraph/flamegraph-mlx4-order0-pages-eBPF-XDP-drop.svg
+I'm not sure if anyone who's done glthread has thought around this, or
+if the kernel APIs are in place to do something like this so I just
+thought I'd throw it out there.
 
-Signing off, heading for the plane soon... see you at MM-summit!
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Dave.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
