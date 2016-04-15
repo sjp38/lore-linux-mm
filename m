@@ -1,81 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C7206B007E
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 15:15:51 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id u190so203453454pfb.0
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 12:15:51 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id lq6si5690740pab.140.2016.04.15.12.15.50
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AD286B0253
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 15:17:03 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id h201so188703325oib.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 12:17:03 -0700 (PDT)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id v64si17025363oif.138.2016.04.15.12.17.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 12:15:50 -0700 (PDT)
-Date: Fri, 15 Apr 2016 12:15:49 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 107771] New: Single process tries to use more than 1/2
- physical RAM, OS starts thrashing
-Message-Id: <20160415121549.47e404e3263c71564929884e@linux-foundation.org>
-In-Reply-To: <bug-107771-27@https.bugzilla.kernel.org/>
-References: <bug-107771-27@https.bugzilla.kernel.org/>
+        Fri, 15 Apr 2016 12:17:02 -0700 (PDT)
+Message-ID: <1460747308.4597.9.camel@hpe.com>
+Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Fri, 15 Apr 2016 13:08:28 -0600
+In-Reply-To: <1460746909.4597.7.camel@hpe.com>
+References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
+	 <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
+	 <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
+	 <1460739288.3012.3.camel@intel.com>
+	 <x49potq6bm2.fsf@segfault.boston.devel.redhat.com>
+	 <1460741821.3012.11.camel@intel.com>
+	 <CAPcyv4hemNM4uQYCPBXyH+DWTOLvyBNBeMYstKbPdad_Cw48HQ@mail.gmail.com>
+	 <x49lh4e6928.fsf@segfault.boston.devel.redhat.com>
+	 <CAPcyv4hRQj2ZsFj7Xa_=OwcHrzP9_5yUpt3LQ+bPH4PcLe7UCQ@mail.gmail.com>
+	 <1460746909.4597.7.camel@hpe.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: bugzilla-daemon@bugzilla.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, theosib@gmail.com
+To: Dan Williams <dan.j.williams@intel.com>, Jeff Moyer <jmoyer@redhat.com>
+Cc: "axboe@fb.com" <axboe@fb.com>, "jack@suse.cz" <jack@suse.cz>, "david@fromorbit.com" <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "hch@infradead.org" <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
 
+On Fri, 2016-04-15 at 13:01 -0600, Toshi Kani wrote:
+> On Fri, 2016-04-15 at 11:17 -0700, Dan Williams wrote:
+> > 
+> > On Fri, Apr 15, 2016 at 11:06 AM, Jeff Moyer <jmoyer@redhat.com> wrote:
+> > > 
+> > > Dan Williams <dan.j.williams@intel.com> writes:
+> > > A 
+> > > > > > There's a lot of special casing here, so you might consider
+> > > > > > adding comments.
+> > > > > Correct - maybe we should reconsider wrapper-izing this? :)
+> > > > Another option is just to skip dax_do_io() and this special casing
+> > > > fallback entirely if errors are present.A A I.e. only attempt
+> > > > dax_do_io when: IS_DAX() && gendisk->bb && bb->count == 0.
+> > >
+> > > So, if there's an error anywhere on the device, penalize all I/O (not
+> > > just writes, and not just on sectors that are bad)?A A I'm not sure
+> > > that's a great plan, either.
+> > > 
+> > If errors are rare how much are we actually losing in practice?
+> > Moreover, we're going to do the full badblocks lookup anyway when we
+> > call ->direct_access().A A If we had that information earlier we can
+> > avoid this fallback dance.
+>
+> A system running with DAX may have active data set in NVDIMM lager than
+> RAM size. A In this case, falling back to non-DAX will allocate page cache
+> for the data, which will saturate the system with memory pressure.
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+Oh, sorry, we are still in DIO path. A Falling back to DIO should not cause
+this issue.
 
-This is ... interesting.
-
-On Thu, 12 Nov 2015 18:46:35 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> https://bugzilla.kernel.org/show_bug.cgi?id=107771
-> 
->             Bug ID: 107771
->            Summary: Single process tries to use more than 1/2 physical
->                     RAM, OS starts thrashing
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 4.3.0-040300-generic (Ubuntu)
->           Hardware: All
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Page Allocator
->           Assignee: akpm@linux-foundation.org
->           Reporter: theosib@gmail.com
->         Regression: No
-> 
-> I have a 24-core (48 thread) system with 64GB of RAM.  
-> 
-> When I run multiple processes, I can use all of physical RAM before swapping
-> starts.  However, if I'm running only a *single* process, the system will start
-> swapping after I've exceeded only 1/2 of available physical RAM.  Only after
-> swap fills does it start using more of the physical RAM.  
-> 
-> I can't find any ulimit settings or anything else that would cause this to
-> happen intentionally. 
-> 
-> I had originally filed this against Ubuntu, but I'm now running a more recent
-> kernel, and the problem persists, so I think it's more appropriate to file
-> here.  There are some logs that they had me collect, so if you want to see
-> them, the are here:
-> 
-> https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1513673
-> 
-> I don't recall this problem happening with older kernels (whatever came with
-> Ubuntu 15.04), although I may just not have noticed.  By swapping early, I'm
-> limited by the speed of my SSD, which is moving only about 20MB/sec in each
-> direction, and that makes what I'm running take 10 times as long to complete.
-> 
-> -- 
-> You are receiving this mail because:
-> You are the assignee for the bug.
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
