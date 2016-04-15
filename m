@@ -1,42 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C99F76B0005
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 11:18:26 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id f185so58468038vkb.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 08:18:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a198si12387194qkb.68.2016.04.15.08.18.25
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E9796B0005
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 11:23:34 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id w143so21068034wmw.2
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 08:23:34 -0700 (PDT)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id e72si40617762wmi.80.2016.04.15.08.23.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 08:18:25 -0700 (PDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [PATCH v2 4/5] dax: use sb_issue_zerout instead of calling dax_clear_sectors
-References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
-	<1459303190-20072-5-git-send-email-vishal.l.verma@intel.com>
-Date: Fri, 15 Apr 2016 11:18:22 -0400
-In-Reply-To: <1459303190-20072-5-git-send-email-vishal.l.verma@intel.com>
-	(Vishal Verma's message of "Tue, 29 Mar 2016 19:59:49 -0600")
-Message-ID: <x49y48e6gu9.fsf@segfault.boston.devel.redhat.com>
+        Fri, 15 Apr 2016 08:23:33 -0700 (PDT)
+Received: by mail-wm0-x22a.google.com with SMTP id v188so35996907wme.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 08:23:33 -0700 (PDT)
+Date: Fri, 15 Apr 2016 18:23:30 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: post-copy is broken?
+Message-ID: <20160415152330.GB3376@node.shutemov.name>
+References: <F2CBF3009FA73547804AE4C663CAB28E0417EE92@shsmsx102.ccr.corp.intel.com>
+ <F2CBF3009FA73547804AE4C663CAB28E0417EEE4@shsmsx102.ccr.corp.intel.com>
+ <20160413080545.GA2270@work-vm>
+ <20160413114103.GB2270@work-vm>
+ <20160413125053.GC2270@work-vm>
+ <20160413205132.GG26364@redhat.com>
+ <20160414123441.GF2252@work-vm>
+ <20160414162230.GC9976@redhat.com>
+ <20160415125236.GA3376@node.shutemov.name>
+ <20160415134233.GG2229@work-vm>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160415134233.GG2229@work-vm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vishal Verma <vishal.l.verma@intel.com>
-Cc: linux-nvdimm@ml01.01.org, Jens Axboe <axboe@fb.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-block@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
+To: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, "Li, Liang Z" <liang.z.li@intel.com>, Amit Shah <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, linux-mm@kvack.org
 
-Vishal Verma <vishal.l.verma@intel.com> writes:
+On Fri, Apr 15, 2016 at 02:42:33PM +0100, Dr. David Alan Gilbert wrote:
+> * Kirill A. Shutemov (kirill@shutemov.name) wrote:
+> > On Thu, Apr 14, 2016 at 12:22:30PM -0400, Andrea Arcangeli wrote:
+> > > Adding linux-mm too,
+> > > 
+> > > On Thu, Apr 14, 2016 at 01:34:41PM +0100, Dr. David Alan Gilbert wrote:
+> > > > * Andrea Arcangeli (aarcange@redhat.com) wrote:
+> > > > 
+> > > > > The next suspect is the massive THP refcounting change that went
+> > > > > upstream recently:
+> > > > 
+> > > > > As further debug hint, can you try to disable THP and see if that
+> > > > > makes the problem go away?
+> > > > 
+> > > > Yep, this seems to be the problem (cc'ing in Kirill).
+> > > > 
+> > > > 122afea9626ab3f717b250a8dd3d5ebf57cdb56c - works (just before Kirill disables THP)
+> > > > 61f5d698cc97600e813ca5cf8e449b1ea1c11492 - breaks (when THP is reenabled)
+> > > > 
+> > > > It's pretty reliable; as you say disabling THP makes it work again
+> > > > and putting it back to THP/madvise mode makes it break.  And you need
+> > > > to test on a machine with some free ram to make sure THP has a chance
+> > > > to have happened.
+> > > > 
+> > > > I'm not sure of all of the rework that happened in that series,
+> > > > but my reading of it is that splitting of THP pages gets deferred;
+> > > > so I wonder if when I do the madvise to turn THP off, if it's actually
+> > > > still got THP pages and thus we end up with a whole THP mapped
+> > > > when I'm expecting to be userfaulting those pages.
+> > > 
+> > > Good thing at least I didn't make UFFDIO_COPY THP aware yet so there's
+> > > less variables (as no user was interested to handle userfaults at THP
+> > > granularity yet, and from userland such an improvement would be
+> > > completely invisible in terms of API, so if an user starts doing that
+> > > we can just optimize the kernel for it, criu restore could do that as
+> > > the faults will come from disk-I/O, when network is involved THP
+> > > userfaults wouldn't have a great tradeoff with regard to the increased
+> > > fault latency).
+> > > 
+> > > I suspect there is an handle_userfault missing somewhere in connection
+> > > with trans_huge_pmd splits (not anymore THP splits) that you're doing
+> > > with MADV_DONTNEED to zap those pages in the destination that got
+> > > redirtied in source during the last precopy stage. Or more simply
+> > > MADV_DONTNEED isn't zapping all the right ptes after the trans huge
+> > > pmd got splitted.
+> > > 
+> > > The fact the page isn't splitted shouldn't matter too much, all we care
+> > > about is the pte triggers handle_userfault after MADV_DONTNEED.
+> > > 
+> > > The userfaultfd testcase in the kernel isn't exercising this case
+> > > unfortunately, that should probably be improved too, so there is a
+> > > simpler way to reproduce than running precopy before postcopy in qemu.
+> > 
+> > I've tested current Linus' tree and v4.5 using qemu postcopy test case for
+> > both x86-64 and i386 and it never failed for me:
+> > 
+> > /x86_64/postcopy: first_byte = 7e last_byte = 7d hit_edge = 1 OK
+> > OK
+> > /i386/postcopy: first_byte = f6 last_byte = f5 hit_edge = 1 OK
+> > OK
+> > 
+> > I've run it directly, setting relevant QTEST_QEMU_BINARY.
+> 
+> Interesting; it's failing reliably for me - but only with a reasonably
+> freshly booted machine (so that the pages get THPd).
 
-> From: Matthew Wilcox <matthew.r.wilcox@intel.com>
->
-> dax_clear_sectors() cannot handle poisoned blocks.  These must be
-> zeroed using the BIO interface instead.  Convert ext2 and XFS to use
-> only sb_issue_zerout().
->
-> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> [vishal: Also remove the dax_clear_sectors function entirely]
-> Signed-off-by: Vishal Verma <vishal.l.verma@intel.com>
+The same here. Freshly booted machine with 64GiB ram. I've checked
+/proc/vmstat: huge pages were allocated
 
-Reviewed-by: Jeff Moyer <jmoyer@redhat.com>
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
