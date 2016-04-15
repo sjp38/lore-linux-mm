@@ -1,83 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 93BFF6B0253
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 11:59:10 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id hb4so137400925pac.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 08:59:10 -0700 (PDT)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0148.outbound.protection.outlook.com. [157.55.234.148])
-        by mx.google.com with ESMTPS id z127si3078395pfz.158.2016.04.15.08.59.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 15 Apr 2016 08:59:09 -0700 (PDT)
-Subject: Re: [PATCH v2 2/2] mm, kasan: add a ksize() test
-References: <2126fe9ca8c3a4698c0ad7aae652dce28e261182.1460545373.git.glider@google.com>
- <562d43518232cf7d26297ee004255a083b084071.1460545373.git.glider@google.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <57110FDD.4070900@virtuozzo.com>
-Date: Fri, 15 Apr 2016 18:59:25 +0300
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B79026B0253
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 12:09:40 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id a140so22282635wma.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:09:40 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
+        by mx.google.com with ESMTP id g206si12702669wmg.32.2016.04.15.09.09.39
+        for <linux-mm@kvack.org>;
+        Fri, 15 Apr 2016 09:09:39 -0700 (PDT)
+Date: Fri, 15 Apr 2016 17:09:24 +0100
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [Intel-gfx] [PATCH v4 1/2] shmem: Support for registration of
+ driver/file owner specific ops
+Message-ID: <20160415160924.GQ19990@nuc-i3427.alporthouse.com>
+References: <1459775891-32442-1-git-send-email-chris@chris-wilson.co.uk>
 MIME-Version: 1.0
-In-Reply-To: <562d43518232cf7d26297ee004255a083b084071.1460545373.git.glider@google.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1459775891-32442-1-git-send-email-chris@chris-wilson.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>, adech.fo@gmail.com, dvyukov@google.com, cl@linux.com, akpm@linux-foundation.org, kcc@google.com
-Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: intel-gfx@lists.freedesktop.org
+Cc: linux-mm@kvack.org, Akash Goel <akash.goel@intel.com>, linux-kernel@vger.linux.org, Hugh Dickins <hughd@google.com>, Sourab Gupta <sourab.gupta@intel.com>
 
-
-
-On 04/13/2016 02:20 PM, Alexander Potapenko wrote:
-> Add a test that makes sure ksize() unpoisons the whole chunk.
+On Mon, Apr 04, 2016 at 02:18:10PM +0100, Chris Wilson wrote:
+> From: Akash Goel <akash.goel@intel.com>
 > 
-> Signed-off-by: Alexander Potapenko <glider@google.com>
+> This provides support for the drivers or shmem file owners to register
+> a set of callbacks, which can be invoked from the address space
+> operations methods implemented by shmem.  This allow the file owners to
+> hook into the shmem address space operations to do some extra/custom
+> operations in addition to the default ones.
+> 
+> The private_data field of address_space struct is used to store the
+> pointer to driver specific ops.  Currently only one ops field is defined,
+> which is migratepage, but can be extended on an as-needed basis.
+> 
+> The need for driver specific operations arises since some of the
+> operations (like migratepage) may not be handled completely within shmem,
+> so as to be effective, and would need some driver specific handling also.
+> Specifically, i915.ko would like to participate in migratepage().
+> i915.ko uses shmemfs to provide swappable backing storage for its user
+> objects, but when those objects are in use by the GPU it must pin the
+> entire object until the GPU is idle.  As a result, large chunks of memory
+> can be arbitrarily withdrawn from page migration, resulting in premature
+> out-of-memory due to fragmentation.  However, if i915.ko can receive the
+> migratepage() request, it can then flush the object from the GPU, remove
+> its pin and thus enable the migration.
+> 
+> Since gfx allocations are one of the major consumer of system memory, its
+> imperative to have such a mechanism to effectively deal with
+> fragmentation.  And therefore the need for such a provision for initiating
+> driver specific actions during address space operations.
+> 
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.linux.org
+> Signed-off-by: Sourab Gupta <sourab.gupta@intel.com>
+> Signed-off-by: Akash Goel <akash.goel@intel.com>
+> Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
 
-Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Ping?
 
 > ---
-> v2: - splitted v1 into two patches
-> ---
->  lib/test_kasan.c | 20 ++++++++++++++++++++
->  1 file changed, 20 insertions(+)
+>  include/linux/shmem_fs.h | 17 +++++++++++++++++
+>  mm/shmem.c               | 17 ++++++++++++++++-
+>  2 files changed, 33 insertions(+), 1 deletion(-)
 > 
-> diff --git a/lib/test_kasan.c b/lib/test_kasan.c
-> index 82169fb..48e5a0b 100644
-> --- a/lib/test_kasan.c
-> +++ b/lib/test_kasan.c
-> @@ -344,6 +344,25 @@ static noinline void __init kasan_stack_oob(void)
->  	*(volatile char *)p;
+> diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+> index 4d4780c00d34..d7925b66c240 100644
+> --- a/include/linux/shmem_fs.h
+> +++ b/include/linux/shmem_fs.h
+> @@ -34,11 +34,28 @@ struct shmem_sb_info {
+>  	struct mempolicy *mpol;     /* default memory policy for mappings */
+>  };
+>  
+> +struct shmem_dev_info {
+> +	void *dev_private_data;
+> +	int (*dev_migratepage)(struct address_space *mapping,
+> +			       struct page *newpage, struct page *page,
+> +			       enum migrate_mode mode, void *dev_priv_data);
+> +};
+> +
+>  static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
+>  {
+>  	return container_of(inode, struct shmem_inode_info, vfs_inode);
 >  }
 >  
-> +static noinline void __init ksize_unpoisons_memory(void)
+> +static inline int shmem_set_device_ops(struct address_space *mapping,
+> +				       struct shmem_dev_info *info)
 > +{
-> +	char *ptr;
-> +	size_t size = 123, real_size = size;
+> +	if (mapping->private_data != NULL)
+> +		return -EEXIST;
 > +
-> +	pr_info("ksize() unpoisons the whole allocated chunk\n");
-> +	ptr = kmalloc(size, GFP_KERNEL);
-> +	if (!ptr) {
-> +		pr_err("Allocation failed\n");
-> +		return;
-> +	}
-> +	real_size = ksize(ptr);
-> +	/* This access doesn't trigger an error. */
-> +	ptr[size] = 'x';
-> +	/* This one does. */
-> +	ptr[real_size] = 'y';
-> +	kfree(ptr);
+> +	mapping->private_data = info;
+> +	return 0;
 > +}
 > +
->  static int __init kmalloc_tests_init(void)
->  {
->  	kmalloc_oob_right();
-> @@ -367,6 +386,7 @@ static int __init kmalloc_tests_init(void)
->  	kmem_cache_oob();
->  	kasan_stack_oob();
->  	kasan_global_oob();
-> +	ksize_unpoisons_memory();
->  	return -EAGAIN;
+>  /*
+>   * Functions in mm/shmem.c called directly from elsewhere:
+>   */
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 9428c51ab2d6..6ed953193883 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -947,6 +947,21 @@ redirty:
+>  	return 0;
 >  }
 >  
-> 
+> +#ifdef CONFIG_MIGRATION
+> +static int shmem_migratepage(struct address_space *mapping,
+> +			     struct page *newpage, struct page *page,
+> +			     enum migrate_mode mode)
+> +{
+> +	struct shmem_dev_info *dev_info = mapping->private_data;
+> +
+> +	if (dev_info && dev_info->dev_migratepage)
+> +		return dev_info->dev_migratepage(mapping, newpage, page,
+> +				mode, dev_info->dev_private_data);
+> +
+> +	return migrate_page(mapping, newpage, page, mode);
+> +}
+> +#endif
+> +
+>  #ifdef CONFIG_NUMA
+>  #ifdef CONFIG_TMPFS
+>  static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+> @@ -3161,7 +3176,7 @@ static const struct address_space_operations shmem_aops = {
+>  	.write_end	= shmem_write_end,
+>  #endif
+>  #ifdef CONFIG_MIGRATION
+> -	.migratepage	= migrate_page,
+> +	.migratepage	= shmem_migratepage,
+>  #endif
+>  	.error_remove_page = generic_error_remove_page,
+>  };
+
+-- 
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
