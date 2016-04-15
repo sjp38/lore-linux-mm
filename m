@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 97DEF6B007E
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:09:39 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id a125so13153908wmd.0
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:09:39 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id gg4si49500775wjb.79.2016.04.15.02.09.38
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CD71C828E1
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:09:49 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id d19so63969746lfb.0
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:09:49 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id i127si10939412wmf.41.2016.04.15.02.09.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Apr 2016 02:09:38 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Apr 2016 02:09:48 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 16704F42DC
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:09:38 +0000 (UTC)
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 452C41C1A3A
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 10:09:48 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 22/28] mm, page_alloc: Remove field from alloc_context
-Date: Fri, 15 Apr 2016 10:07:49 +0100
-Message-Id: <1460711275-1130-10-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 23/28] mm, page_alloc: Check multiple page fields with a single branch
+Date: Fri, 15 Apr 2016 10:07:50 +0100
+Message-Id: <1460711275-1130-11-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
 References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
  <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
@@ -24,96 +24,123 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-The classzone_idx can be inferred from preferred_zoneref so remove the
-unnecessary field and save stack space.
+Every page allocated or freed is checked for sanity to avoid corruptions
+that are difficult to detect later.  A bad page could be due to a number of
+fields. Instead of using multiple branches, this patch combines multiple
+fields into a single branch. A detailed check is only necessary if that
+check fails.
+
+                                           4.6.0-rc2                  4.6.0-rc2
+                                      initonce-v1r20            multcheck-v1r20
+Min      alloc-odr0-1               359.00 (  0.00%)           348.00 (  3.06%)
+Min      alloc-odr0-2               260.00 (  0.00%)           254.00 (  2.31%)
+Min      alloc-odr0-4               214.00 (  0.00%)           213.00 (  0.47%)
+Min      alloc-odr0-8               186.00 (  0.00%)           186.00 (  0.00%)
+Min      alloc-odr0-16              173.00 (  0.00%)           173.00 (  0.00%)
+Min      alloc-odr0-32              165.00 (  0.00%)           166.00 ( -0.61%)
+Min      alloc-odr0-64              162.00 (  0.00%)           162.00 (  0.00%)
+Min      alloc-odr0-128             161.00 (  0.00%)           160.00 (  0.62%)
+Min      alloc-odr0-256             170.00 (  0.00%)           169.00 (  0.59%)
+Min      alloc-odr0-512             181.00 (  0.00%)           180.00 (  0.55%)
+Min      alloc-odr0-1024            190.00 (  0.00%)           188.00 (  1.05%)
+Min      alloc-odr0-2048            196.00 (  0.00%)           194.00 (  1.02%)
+Min      alloc-odr0-4096            202.00 (  0.00%)           199.00 (  1.49%)
+Min      alloc-odr0-8192            205.00 (  0.00%)           202.00 (  1.46%)
+Min      alloc-odr0-16384           205.00 (  0.00%)           203.00 (  0.98%)
+
+Again, the benefit is marginal but avoiding excessive branches is
+important. Ideally the paths would not have to check these conditions at
+all but regrettably abandoning the tests would make use-after-free bugs
+much harder to detect.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/compaction.c | 4 ++--
- mm/internal.h   | 3 ++-
- mm/page_alloc.c | 7 +++----
- 3 files changed, 7 insertions(+), 7 deletions(-)
+ mm/page_alloc.c | 55 +++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 43 insertions(+), 12 deletions(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 244bb669b5a6..c2fb3c61f1b6 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1536,7 +1536,7 @@ unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
- 
- 		status = compact_zone_order(zone, order, gfp_mask, mode,
- 				&zone_contended, alloc_flags,
--				ac->classzone_idx);
-+				ac_classzone_idx(ac));
- 		rc = max(status, rc);
- 		/*
- 		 * It takes at least one zone that wasn't lock contended
-@@ -1546,7 +1546,7 @@ unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
- 
- 		/* If a normal allocation would succeed, stop compacting */
- 		if (zone_watermark_ok(zone, order, low_wmark_pages(zone),
--					ac->classzone_idx, alloc_flags)) {
-+					ac_classzone_idx(ac), alloc_flags)) {
- 			/*
- 			 * We think the allocation will succeed in this zone,
- 			 * but it is not certain, hence the false. The caller
-diff --git a/mm/internal.h b/mm/internal.h
-index 4c2396cd514c..3bf62e085b16 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -103,12 +103,13 @@ struct alloc_context {
- 	struct zonelist *zonelist;
- 	nodemask_t *nodemask;
- 	struct zoneref *preferred_zoneref;
--	int classzone_idx;
- 	int migratetype;
- 	enum zone_type high_zoneidx;
- 	bool spread_dirty_pages;
- };
- 
-+#define ac_classzone_idx(ac) zonelist_zone_idx(ac->preferred_zoneref)
-+
- /*
-  * Locate the struct page for both the matching buddy in our
-  * pair (buddy1) and the combined O(n+1) page they form (page).
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 897e9d2a8500..bc754d32aed6 100644
+index bc754d32aed6..3a60579342a5 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2767,7 +2767,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 
- 		mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
- 		if (!zone_watermark_fast(zone, order, mark,
--				       ac->classzone_idx, alloc_flags)) {
-+				       ac_classzone_idx(ac), alloc_flags)) {
- 			int ret;
- 
- 			/* Checked here to keep the fast path fast */
-@@ -2790,7 +2790,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 			default:
- 				/* did we reclaim enough */
- 				if (zone_watermark_ok(zone, order, mark,
--						ac->classzone_idx, alloc_flags))
-+						ac_classzone_idx(ac), alloc_flags))
- 					goto try_this_zone;
- 
- 				continue;
-@@ -3114,7 +3114,7 @@ static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
- 
- 	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist,
- 						ac->high_zoneidx, ac->nodemask)
--		wakeup_kswapd(zone, order, zonelist_zone_idx(ac->preferred_zoneref));
-+		wakeup_kswapd(zone, order, ac_classzone_idx(ac));
+@@ -784,10 +784,42 @@ static inline void __free_one_page(struct page *page,
+ 	zone->free_area[order].nr_free++;
  }
  
- static inline unsigned int
-@@ -3409,7 +3409,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 	/* The preferred zone is used for statistics later */
- 	ac.preferred_zoneref = first_zones_zonelist(ac.zonelist, ac.high_zoneidx,
- 				ac.nodemask);
--	ac.classzone_idx = zonelist_zone_idx(ac.preferred_zoneref);
++/*
++ * A bad page could be due to a number of fields. Instead of multiple branches,
++ * try and check multiple fields with one check. The caller must do a detailed
++ * check if necessary.
++ */
++static inline bool page_expected_state(struct page *page,
++					unsigned long check_flags)
++{
++	if (unlikely(atomic_read(&page->_mapcount) != -1))
++		return false;
++
++	if (unlikely((unsigned long)page->mapping |
++			page_ref_count(page) |
++#ifdef CONFIG_MEMCG
++			(unsigned long)page->mem_cgroup |
++#endif
++			(page->flags & check_flags)))
++		return false;
++
++	return true;
++}
++
+ static inline int free_pages_check(struct page *page)
+ {
+-	const char *bad_reason = NULL;
+-	unsigned long bad_flags = 0;
++	const char *bad_reason;
++	unsigned long bad_flags;
++
++	if (page_expected_state(page, PAGE_FLAGS_CHECK_AT_FREE)) {
++		page_cpupid_reset_last(page);
++		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
++		return 0;
++	}
++
++	/* Something has gone sideways, find it */
++	bad_reason = NULL;
++	bad_flags = 0;
  
- 	/* First allocation attempt */
- 	page = get_page_from_freelist(alloc_mask, order, alloc_flags, &ac);
+ 	if (unlikely(atomic_read(&page->_mapcount) != -1))
+ 		bad_reason = "nonzero mapcount";
+@@ -803,14 +835,8 @@ static inline int free_pages_check(struct page *page)
+ 	if (unlikely(page->mem_cgroup))
+ 		bad_reason = "page still charged to cgroup";
+ #endif
+-	if (unlikely(bad_reason)) {
+-		bad_page(page, bad_reason, bad_flags);
+-		return 1;
+-	}
+-	page_cpupid_reset_last(page);
+-	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
+-		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+-	return 0;
++	bad_page(page, bad_reason, bad_flags);
++	return 1;
+ }
+ 
+ /*
+@@ -1492,9 +1518,14 @@ static inline void expand(struct zone *zone, struct page *page,
+  */
+ static inline int check_new_page(struct page *page)
+ {
+-	const char *bad_reason = NULL;
+-	unsigned long bad_flags = 0;
++	const char *bad_reason;
++	unsigned long bad_flags;
++
++	if (page_expected_state(page, PAGE_FLAGS_CHECK_AT_PREP|__PG_HWPOISON))
++		return 0;
+ 
++	bad_reason = NULL;
++	bad_flags = 0;
+ 	if (unlikely(atomic_read(&page->_mapcount) != -1))
+ 		bad_reason = "nonzero mapcount";
+ 	if (unlikely(page->mapping != NULL))
 -- 
 2.6.4
 
