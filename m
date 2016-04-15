@@ -1,161 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D4626B025E
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:21:26 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id t5so204058920qkc.1
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 06:21:26 -0700 (PDT)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0126.outbound.protection.outlook.com. [157.55.234.126])
-        by mx.google.com with ESMTPS id v9si36449111qhb.70.2016.04.15.06.21.25
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BFD0C6B0261
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:24:54 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id l15so68720804lfg.2
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 06:24:54 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id ji7si50449212wjb.247.2016.04.15.06.24.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 15 Apr 2016 06:21:25 -0700 (PDT)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv3 2/2] x86: rename is_{ia32,x32}_task to in_{ia32,x32}_syscall
-Date: Fri, 15 Apr 2016 16:20:12 +0300
-Message-ID: <1460726412-1724-2-git-send-email-dsafonov@virtuozzo.com>
-In-Reply-To: <1460726412-1724-1-git-send-email-dsafonov@virtuozzo.com>
-References: <1460388169-13340-1-git-send-email-dsafonov@virtuozzo.com>
- <1460726412-1724-1-git-send-email-dsafonov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Apr 2016 06:24:53 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id n3so6239885wmn.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 06:24:53 -0700 (PDT)
+Date: Fri, 15 Apr 2016 15:24:51 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [patch v2] mm, hugetlb_cgroup: round limit_in_bytes down to
+ hugepage size
+Message-ID: <20160415132451.GL32377@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1604051824320.32718@chino.kir.corp.google.com>
+ <5704BA37.2080508@kyup.com>
+ <5704BBBF.8040302@kyup.com>
+ <alpine.DEB.2.10.1604061510040.10401@chino.kir.corp.google.com>
+ <20160407125145.GD32755@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1604141321350.6593@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1604141321350.6593@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: luto@amacapital.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nikolay Borisov <kernel@kyup.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Impact: clearify meaning
+On Thu 14-04-16 13:22:30, David Rientjes wrote:
+> On Thu, 7 Apr 2016, Michal Hocko wrote:
+> 
+> > > +static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
+> > > +				struct hugetlb_cgroup *parent_h_cgroup)
+> > > +{
+> > > +	int idx;
+> > > +
+> > > +	for (idx = 0; idx < HUGE_MAX_HSTATE; idx++) {
+> > > +		struct page_counter *counter = &h_cgroup->hugepage[idx];
+> > > +		struct page_counter *parent = NULL;
+> > > +		unsigned long limit;
+> > > +		int ret;
+> > > +
+> > > +		if (parent_h_cgroup)
+> > > +			parent = &parent_h_cgroup->hugepage[idx];
+> > > +		page_counter_init(counter, parent);
+> > > +
+> > > +		limit = round_down(PAGE_COUNTER_MAX,
+> > > +				   1 << huge_page_order(&hstates[idx]));
+> > > +		ret = page_counter_limit(counter, limit);
+> > > +		VM_BUG_ON(ret);
+> > > +	}
+> > > +}
+> > 
+> > I fail to see the point for this. Why would want to round down
+> > PAGE_COUNTER_MAX? It will never make a real difference. Or am I missing
+> > something?
+> 
+> Did you try the patch?
+> 
+> If we're rounding down the user value, it makes sense to be consistent 
+> with the upper bound default to specify intent.
 
-Suggested-by: Andy Lutomirski <luto@amacapital.net>
-Suggested-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
----
-v3: initial patch
-
- arch/x86/entry/common.c            | 2 +-
- arch/x86/entry/vdso/vma.c          | 2 +-
- arch/x86/include/asm/compat.h      | 4 ++--
- arch/x86/include/asm/thread_info.h | 2 +-
- arch/x86/kernel/process_64.c       | 2 +-
- arch/x86/kernel/ptrace.c           | 2 +-
- arch/x86/kernel/signal.c           | 2 +-
- arch/x86/kernel/uprobes.c          | 2 +-
- 8 files changed, 9 insertions(+), 9 deletions(-)
-
-diff --git a/arch/x86/entry/common.c b/arch/x86/entry/common.c
-index e79d93d44ecd..ec138e538c44 100644
---- a/arch/x86/entry/common.c
-+++ b/arch/x86/entry/common.c
-@@ -191,7 +191,7 @@ long syscall_trace_enter_phase2(struct pt_regs *regs, u32 arch,
- 
- long syscall_trace_enter(struct pt_regs *regs)
- {
--	u32 arch = is_ia32_task() ? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64;
-+	u32 arch = in_ia32_syscall() ? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64;
- 	unsigned long phase1_result = syscall_trace_enter_phase1(regs, arch);
- 
- 	if (phase1_result == 0)
-diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
-index 8510b1b55b21..0b861fc274b6 100644
---- a/arch/x86/entry/vdso/vma.c
-+++ b/arch/x86/entry/vdso/vma.c
-@@ -109,7 +109,7 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
- 	if (image->size != new_size)
- 		return -EINVAL;
- 
--	if (is_ia32_task()) {
-+	if (in_ia32_syscall()) {
- 		unsigned long vdso_land = vdso_image_32.sym_int80_landing_pad;
- 		unsigned long old_land_addr = vdso_land +
- 			(unsigned long)current->mm->context.vdso;
-diff --git a/arch/x86/include/asm/compat.h b/arch/x86/include/asm/compat.h
-index ebb102e1bbc7..5a3b2c119ed0 100644
---- a/arch/x86/include/asm/compat.h
-+++ b/arch/x86/include/asm/compat.h
-@@ -307,7 +307,7 @@ static inline void __user *arch_compat_alloc_user_space(long len)
- 	return (void __user *)round_down(sp - len, 16);
- }
- 
--static inline bool is_x32_task(void)
-+static inline bool in_x32_syscall(void)
- {
- #ifdef CONFIG_X86_X32_ABI
- 	if (task_pt_regs(current)->orig_ax & __X32_SYSCALL_BIT)
-@@ -318,7 +318,7 @@ static inline bool is_x32_task(void)
- 
- static inline bool in_compat_syscall(void)
- {
--	return is_ia32_task() || is_x32_task();
-+	return in_ia32_syscall() || in_x32_syscall();
- }
- #define in_compat_syscall in_compat_syscall	/* override the generic impl */
- 
-diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
-index ffae84df8a93..30c133ac05cd 100644
---- a/arch/x86/include/asm/thread_info.h
-+++ b/arch/x86/include/asm/thread_info.h
-@@ -255,7 +255,7 @@ static inline bool test_and_clear_restore_sigmask(void)
- 	return true;
- }
- 
--static inline bool is_ia32_task(void)
-+static inline bool in_ia32_syscall(void)
- {
- #ifdef CONFIG_X86_32
- 	return true;
-diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
-index 6cbab31ac23a..4a62ec457b56 100644
---- a/arch/x86/kernel/process_64.c
-+++ b/arch/x86/kernel/process_64.c
-@@ -210,7 +210,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
- 	 */
- 	if (clone_flags & CLONE_SETTLS) {
- #ifdef CONFIG_IA32_EMULATION
--		if (is_ia32_task())
-+		if (in_ia32_syscall())
- 			err = do_set_thread_area(p, -1,
- 				(struct user_desc __user *)tls, 0);
- 		else
-diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
-index 32e9d9cbb884..0f4d2a5df2dc 100644
---- a/arch/x86/kernel/ptrace.c
-+++ b/arch/x86/kernel/ptrace.c
-@@ -1266,7 +1266,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
- 			compat_ulong_t caddr, compat_ulong_t cdata)
- {
- #ifdef CONFIG_X86_X32_ABI
--	if (!is_ia32_task())
-+	if (!in_ia32_syscall())
- 		return x32_arch_ptrace(child, request, caddr, cdata);
- #endif
- #ifdef CONFIG_IA32_EMULATION
-diff --git a/arch/x86/kernel/signal.c b/arch/x86/kernel/signal.c
-index 548ddf7d6fd2..aa31265aa61d 100644
---- a/arch/x86/kernel/signal.c
-+++ b/arch/x86/kernel/signal.c
-@@ -762,7 +762,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
- static inline unsigned long get_nr_restart_syscall(const struct pt_regs *regs)
- {
- #ifdef CONFIG_X86_64
--	if (is_ia32_task())
-+	if (in_ia32_syscall())
- 		return __NR_ia32_restart_syscall;
- #endif
- #ifdef CONFIG_X86_X32_ABI
-diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
-index bf4db6eaec8f..98b4dc87628b 100644
---- a/arch/x86/kernel/uprobes.c
-+++ b/arch/x86/kernel/uprobes.c
-@@ -516,7 +516,7 @@ struct uprobe_xol_ops {
- 
- static inline int sizeof_long(void)
- {
--	return is_ia32_task() ? 4 : 8;
-+	return in_ia32_syscall() ? 4 : 8;
- }
- 
- static int default_pre_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+The point I've tried to raise is why do we care and add a code if we can
+never reach that value? Does actually anybody checks for the alignment.
 -- 
-2.8.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
