@@ -1,68 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AD286B0253
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 15:17:03 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id h201so188703325oib.1
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 12:17:03 -0700 (PDT)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id v64si17025363oif.138.2016.04.15.12.17.02
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 72AC06B0253
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 15:31:37 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id h185so221093413vkg.0
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 12:31:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h189si18340496qhd.2.2016.04.15.12.31.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 12:17:02 -0700 (PDT)
-Message-ID: <1460747308.4597.9.camel@hpe.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Fri, 15 Apr 2016 13:08:28 -0600
-In-Reply-To: <1460746909.4597.7.camel@hpe.com>
-References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
-	 <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
-	 <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
-	 <1460739288.3012.3.camel@intel.com>
-	 <x49potq6bm2.fsf@segfault.boston.devel.redhat.com>
-	 <1460741821.3012.11.camel@intel.com>
-	 <CAPcyv4hemNM4uQYCPBXyH+DWTOLvyBNBeMYstKbPdad_Cw48HQ@mail.gmail.com>
-	 <x49lh4e6928.fsf@segfault.boston.devel.redhat.com>
-	 <CAPcyv4hRQj2ZsFj7Xa_=OwcHrzP9_5yUpt3LQ+bPH4PcLe7UCQ@mail.gmail.com>
-	 <1460746909.4597.7.camel@hpe.com>
-Content-Type: text/plain; charset="UTF-8"
+        Fri, 15 Apr 2016 12:31:36 -0700 (PDT)
+Message-ID: <1460748682.25336.41.camel@redhat.com>
+Subject: Re: [Bug 107771] New: Single process tries to use more than 1/2
+ physical RAM, OS starts thrashing
+From: Rik van Riel <riel@redhat.com>
+Date: Fri, 15 Apr 2016 15:31:22 -0400
+In-Reply-To: <20160415121549.47e404e3263c71564929884e@linux-foundation.org>
+References: <bug-107771-27@https.bugzilla.kernel.org/>
+	 <20160415121549.47e404e3263c71564929884e@linux-foundation.org>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-3dBXzDUI2y/coimDsBba"
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, Jeff Moyer <jmoyer@redhat.com>
-Cc: "axboe@fb.com" <axboe@fb.com>, "jack@suse.cz" <jack@suse.cz>, "david@fromorbit.com" <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "hch@infradead.org" <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: bugzilla-daemon@bugzilla.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, theosib@gmail.com
 
-On Fri, 2016-04-15 at 13:01 -0600, Toshi Kani wrote:
-> On Fri, 2016-04-15 at 11:17 -0700, Dan Williams wrote:
-> > 
-> > On Fri, Apr 15, 2016 at 11:06 AM, Jeff Moyer <jmoyer@redhat.com> wrote:
-> > > 
-> > > Dan Williams <dan.j.williams@intel.com> writes:
-> > > A 
-> > > > > > There's a lot of special casing here, so you might consider
-> > > > > > adding comments.
-> > > > > Correct - maybe we should reconsider wrapper-izing this? :)
-> > > > Another option is just to skip dax_do_io() and this special casing
-> > > > fallback entirely if errors are present.A A I.e. only attempt
-> > > > dax_do_io when: IS_DAX() && gendisk->bb && bb->count == 0.
-> > >
-> > > So, if there's an error anywhere on the device, penalize all I/O (not
-> > > just writes, and not just on sectors that are bad)?A A I'm not sure
-> > > that's a great plan, either.
-> > > 
-> > If errors are rare how much are we actually losing in practice?
-> > Moreover, we're going to do the full badblocks lookup anyway when we
-> > call ->direct_access().A A If we had that information earlier we can
-> > avoid this fallback dance.
->
-> A system running with DAX may have active data set in NVDIMM lager than
-> RAM size. A In this case, falling back to non-DAX will allocate page cache
-> for the data, which will saturate the system with memory pressure.
 
-Oh, sorry, we are still in DIO path. A Falling back to DIO should not cause
-this issue.
+--=-3dBXzDUI2y/coimDsBba
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
--Toshi
+On Fri, 2016-04-15 at 12:15 -0700, Andrew Morton wrote:
+> (switched to email.=C2=A0=C2=A0Please respond via emailed reply-to-all, n=
+ot via
+> the
+> bugzilla web interface).
+>=20
+> This is ... interesting.
+
+First things first. What is the value of
+/proc/sys/vm/zone_reclaim?
+
+I am assuming this is a two socket system,
+with two 12-core CPUs. Am I right?
+
+> On Thu, 12 Nov 2015 18:46:35 +0000 bugzilla-
+> daemon@bugzilla.kernel.org wrote:
+>=20
+> >=20
+> > https://bugzilla.kernel.org/show_bug.cgi?id=3D107771
+> >=20
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0Bug ID: 107771
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0Summa=
+ry: Single process tries to use more than 1/2
+> > physical
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0RAM, OS starts thrashing
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0Produ=
+ct: Memory Management
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0Versi=
+on: 2.5
+> > =C2=A0=C2=A0=C2=A0=C2=A0Kernel Version: 4.3.0-040300-generic (Ubuntu)
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0Hardware: A=
+ll
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0OS: Linux
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0Tree: Mainline
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0Status: NEW
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0Severity: n=
+ormal
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0Priority: P=
+1
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0Component: Page A=
+llocator
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0Assignee: a=
+kpm@linux-foundation.org
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0Reporter: t=
+heosib@gmail.com
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0Regression: No
+> >=20
+> > I have a 24-core (48 thread) system with 64GB of RAM.=C2=A0=C2=A0
+> >=20
+> > When I run multiple processes, I can use all of physical RAM before
+> > swapping
+> > starts.=C2=A0=C2=A0However, if I'm running only a *single* process, the
+> > system will start
+> > swapping after I've exceeded only 1/2 of available physical
+> > RAM.=C2=A0=C2=A0Only after
+> > swap fills does it start using more of the physical RAM.=C2=A0=C2=A0
+> >=20
+> > I can't find any ulimit settings or anything else that would cause
+> > this to
+> > happen intentionally.=C2=A0
+> >=20
+> > I had originally filed this against Ubuntu, but I'm now running a
+> > more recent
+> > kernel, and the problem persists, so I think it's more appropriate
+> > to file
+> > here.=C2=A0=C2=A0There are some logs that they had me collect, so if yo=
+u want
+> > to see
+> > them, the are here:
+> >=20
+> > https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1513673
+> >=20
+> > I don't recall this problem happening with older kernels (whatever
+> > came with
+> > Ubuntu 15.04), although I may just not have noticed.=C2=A0=C2=A0By swap=
+ping
+> > early, I'm
+> > limited by the speed of my SSD, which is moving only about 20MB/sec
+> > in each
+> > direction, and that makes what I'm running take 10 times as long to
+> > complete.
+> >=20
+--=20
+All Rights Reversed.
+
+
+--=-3dBXzDUI2y/coimDsBba
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJXEUGLAAoJEM553pKExN6DalEIAJglyPn2Nx+0IzCbjmipdA1J
+uLUjD2aIrBFWlObysRnM0m1NiLCz/luroMn1SHR2EinRDQhXlimt67/Idd3kC5yO
+bW4yS3GgNUYB82pFtkzhViGIfFAjCTWzaiPPkbNSRPpAmbu0GpznEO6Fwc0IIUM4
+F9fhOiCRMiD1SFb4RiotrT7r9ONyCPf2ihGx30HK6Pwkz3i+ZH/Eko/51OE5c55S
+0N4hqOffXssuegD35vfYfuCcyVvWGpgddlUpHYhZJ0mckrtAfS+C0UjXJ+Ag1Qad
+zBEBrij6FeGMuztlKX16ZGLEQgyW0wb1VdhzAjxfgzzyTMOpp944d5PnstCuOc8=
+=Dhd2
+-----END PGP SIGNATURE-----
+
+--=-3dBXzDUI2y/coimDsBba--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
