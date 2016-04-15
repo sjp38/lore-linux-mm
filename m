@@ -1,47 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F4226B0005
-	for <linux-mm@kvack.org>; Thu, 14 Apr 2016 21:25:22 -0400 (EDT)
-Received: by mail-ig0-f197.google.com with SMTP id z8so18515427igl.3
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 18:25:22 -0700 (PDT)
-Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
-        by mx.google.com with ESMTPS id t196si15150750oit.95.2016.04.14.18.25.21
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AE976B0005
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 03:44:26 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id zy2so122428392pac.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 00:44:26 -0700 (PDT)
+Received: from mail-pf0-f193.google.com (mail-pf0-f193.google.com. [209.85.192.193])
+        by mx.google.com with ESMTPS id e83si1019741pfj.74.2016.04.15.00.44.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Apr 2016 18:25:21 -0700 (PDT)
-Received: by mail-oi0-x230.google.com with SMTP id w85so111087460oiw.0
-        for <linux-mm@kvack.org>; Thu, 14 Apr 2016 18:25:21 -0700 (PDT)
+        Fri, 15 Apr 2016 00:44:25 -0700 (PDT)
+Received: by mail-pf0-f193.google.com with SMTP id r187so9232550pfr.2
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 00:44:25 -0700 (PDT)
+Date: Fri, 15 Apr 2016 09:44:21 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 01/19] tree wide: get rid of __GFP_REPEAT for order-0
+ allocations part I
+Message-ID: <20160415074421.GB32377@dhcp22.suse.cz>
+References: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
+ <1460372892-8157-2-git-send-email-mhocko@kernel.org>
+ <alpine.DEB.2.10.1604141255020.6593@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <39499.1460661743@turing-police.cc.vt.edu>
-References: <3689.1460593786@turing-police.cc.vt.edu>
-	<20160414013546.GA9198@js1304-P5Q-DELUXE>
-	<39499.1460661743@turing-police.cc.vt.edu>
-Date: Fri, 15 Apr 2016 10:25:21 +0900
-Message-ID: <CAAmzW4N-QsS-dsooEJ6vsFr8pQbV=bryjvA6prCkAuCvwhxQjQ@mail.gmail.com>
-Subject: Re: linux-next crash during very early boot
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1604141255020.6593@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Valdis.Kletnieks@vt.edu
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org
 
-2016-04-15 4:22 GMT+09:00  <Valdis.Kletnieks@vt.edu>:
-> On Thu, 14 Apr 2016 10:35:47 +0900, Joonsoo Kim said:
->
->> My fault. It should be assgined every time. Please test below patch.
->> I will send it with proper SOB after you confirm the problem disappear.
->> Thanks for report and analysis!
->
-> Still bombs out, sorry.  Will do more debugging this evening if I have
-> a chance - will follow up tomorrow morning US time....
+On Thu 14-04-16 12:56:28, David Rientjes wrote:
+> On Mon, 11 Apr 2016, Michal Hocko wrote:
+> 
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > __GFP_REPEAT has a rather weak semantic but since it has been introduced
+> > around 2.6.12 it has been ignored for low order allocations. Yet we have
+> > the full kernel tree with its usage for apparently order-0 allocations.
+> > This is really confusing because __GFP_REPEAT is explicitly documented
+> > to allow allocation failures which is a weaker semantic than the current
+> > order-0 has (basically nofail).
+> > 
+> > Let's simply drop __GFP_REPEAT from those places. This would allow
+> > to identify place which really need allocator to retry harder and
+> > formulate a more specific semantic for what the flag is supposed to do
+> > actually.
+> > 
+> > Cc: linux-arch@vger.kernel.org
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> 
+> I did exactly this before, and Andrew objected saying that __GFP_REPEAT 
+> may not be needed for the current page allocator's implementation but 
+> could with others and that setting __GFP_REPEAT for an allocation 
+> provided useful information with regards to intent.
 
-Hmm... could you also apply the patch on below link?
-There is another issue from me and fix is there.
+>From what I've seen it was more a copy&paste of the arch code which
+spread out this flag and there was also a misleading usage.
 
-https://lkml.org/lkml/2016/4/10/703
+> At the time, I attempted to eliminate __GFP_REPEAT entirely.
 
-Thanks.
+This is not my plan. I actually want to provide a useful semantic for
+something like this flag - aka try really hard but eventually fail
+for all orders and stop being special only for those that are costly. I
+will call it __GFP_BEST_EFFORT. But I have to clean up the current usage
+first. Costly orders will keep __GFP_REPEAT because the intent is clear
+there. All others will lose the flag and then we can start adding
+__GFP_BEST_EFFORT where it matters also for lower orders.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
