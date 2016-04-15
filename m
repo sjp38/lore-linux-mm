@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 665B8828E1
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:10:10 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w143so13138295wmw.2
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:10:10 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id t5si49486819wjx.56.2016.04.15.02.10.09
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 97A55828E6
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:10:20 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l6so13248767wml.3
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:10:20 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id c202si10934906wme.60.2016.04.15.02.10.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Apr 2016 02:10:09 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Apr 2016 02:10:19 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id CA1F32F80FF
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:10:08 +0000 (UTC)
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 0B1751C1BA6
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 10:10:19 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 25/28] mm, page_alloc: Inline pageblock lookup in page free fast paths
-Date: Fri, 15 Apr 2016 10:07:52 +0100
-Message-Id: <1460711275-1130-13-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 26/28] cpuset: use static key better and convert to new API
+Date: Fri, 15 Apr 2016 10:07:53 +0100
+Message-Id: <1460711275-1130-14-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
 References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
  <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
@@ -24,267 +24,200 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-The function call overhead of get_pfnblock_flags_mask() is measurable in
-the page free paths. This patch uses an inlined version that is faster.
+From: Vlastimil Babka <vbabka@suse.cz>
 
+An important function for cpusets is cpuset_node_allowed(), which optimizes on
+the fact if there's a single root CPU set, it must be trivially allowed. But
+the check "nr_cpusets() <= 1" doesn't use the cpusets_enabled_key static key
+the right way where static keys eliminate branching overhead with jump labels.
+
+This patch converts it so that static key is used properly. It's also switched
+to the new static key API and the checking functions are converted to return
+bool instead of int. We also provide a new variant __cpuset_zone_allowed()
+which expects that the static key check was already done and they key was
+enabled. This is needed for get_page_from_freelist() where we want to also
+avoid the relatively slower check when ALLOC_CPUSET is not set in alloc_flags.
+
+The impact on the page allocator microbenchmark is less than expected but the
+cleanup in itself is worthwhile.
+
+                                           4.6.0-rc2                  4.6.0-rc2
+                                     multcheck-v1r20               cpuset-v1r20
+Min      alloc-odr0-1               348.00 (  0.00%)           348.00 (  0.00%)
+Min      alloc-odr0-2               254.00 (  0.00%)           254.00 (  0.00%)
+Min      alloc-odr0-4               213.00 (  0.00%)           213.00 (  0.00%)
+Min      alloc-odr0-8               186.00 (  0.00%)           183.00 (  1.61%)
+Min      alloc-odr0-16              173.00 (  0.00%)           171.00 (  1.16%)
+Min      alloc-odr0-32              166.00 (  0.00%)           163.00 (  1.81%)
+Min      alloc-odr0-64              162.00 (  0.00%)           159.00 (  1.85%)
+Min      alloc-odr0-128             160.00 (  0.00%)           157.00 (  1.88%)
+Min      alloc-odr0-256             169.00 (  0.00%)           166.00 (  1.78%)
+Min      alloc-odr0-512             180.00 (  0.00%)           180.00 (  0.00%)
+Min      alloc-odr0-1024            188.00 (  0.00%)           187.00 (  0.53%)
+Min      alloc-odr0-2048            194.00 (  0.00%)           193.00 (  0.52%)
+Min      alloc-odr0-4096            199.00 (  0.00%)           198.00 (  0.50%)
+Min      alloc-odr0-8192            202.00 (  0.00%)           201.00 (  0.50%)
+Min      alloc-odr0-16384           203.00 (  0.00%)           202.00 (  0.49%)
+
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- include/linux/mmzone.h |   7 --
- mm/page_alloc.c        | 188 ++++++++++++++++++++++++++-----------------------
- mm/page_owner.c        |   2 +-
- mm/vmstat.c            |   2 +-
- 4 files changed, 102 insertions(+), 97 deletions(-)
+ include/linux/cpuset.h | 42 ++++++++++++++++++++++++++++--------------
+ kernel/cpuset.c        | 14 +++++++-------
+ mm/page_alloc.c        |  2 +-
+ 3 files changed, 36 insertions(+), 22 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index bf153ed097d5..48ee8885aa74 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -85,13 +85,6 @@ extern int page_group_by_mobility_disabled;
- 	get_pfnblock_flags_mask(page, page_to_pfn(page),		\
- 			PB_migrate_end, MIGRATETYPE_MASK)
+diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+index fea160ee5803..054c734d0170 100644
+--- a/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
+@@ -16,26 +16,26 @@
  
--static inline int get_pfnblock_migratetype(struct page *page, unsigned long pfn)
--{
--	BUILD_BUG_ON(PB_migrate_end - PB_migrate != 2);
--	return get_pfnblock_flags_mask(page, pfn, PB_migrate_end,
--					MIGRATETYPE_MASK);
--}
--
- struct free_area {
- 	struct list_head	free_list[MIGRATE_TYPES];
- 	unsigned long		nr_free;
+ #ifdef CONFIG_CPUSETS
+ 
+-extern struct static_key cpusets_enabled_key;
++extern struct static_key_false cpusets_enabled_key;
+ static inline bool cpusets_enabled(void)
+ {
+-	return static_key_false(&cpusets_enabled_key);
++	return static_branch_unlikely(&cpusets_enabled_key);
+ }
+ 
+ static inline int nr_cpusets(void)
+ {
+ 	/* jump label reference count + the top-level cpuset */
+-	return static_key_count(&cpusets_enabled_key) + 1;
++	return static_key_count(&cpusets_enabled_key.key) + 1;
+ }
+ 
+ static inline void cpuset_inc(void)
+ {
+-	static_key_slow_inc(&cpusets_enabled_key);
++	static_branch_inc(&cpusets_enabled_key);
+ }
+ 
+ static inline void cpuset_dec(void)
+ {
+-	static_key_slow_dec(&cpusets_enabled_key);
++	static_branch_dec(&cpusets_enabled_key);
+ }
+ 
+ extern int cpuset_init(void);
+@@ -48,16 +48,25 @@ extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
+ void cpuset_init_current_mems_allowed(void);
+ int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask);
+ 
+-extern int __cpuset_node_allowed(int node, gfp_t gfp_mask);
++extern bool __cpuset_node_allowed(int node, gfp_t gfp_mask);
+ 
+-static inline int cpuset_node_allowed(int node, gfp_t gfp_mask)
++static inline bool cpuset_node_allowed(int node, gfp_t gfp_mask)
+ {
+-	return nr_cpusets() <= 1 || __cpuset_node_allowed(node, gfp_mask);
++	if (cpusets_enabled())
++		return __cpuset_node_allowed(node, gfp_mask);
++	return true;
+ }
+ 
+-static inline int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
++static inline bool __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
+ {
+-	return cpuset_node_allowed(zone_to_nid(z), gfp_mask);
++	return __cpuset_node_allowed(zone_to_nid(z), gfp_mask);
++}
++
++static inline bool cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
++{
++	if (cpusets_enabled())
++		return __cpuset_zone_allowed(z, gfp_mask);
++	return true;
+ }
+ 
+ extern int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
+@@ -174,14 +183,19 @@ static inline int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask)
+ 	return 1;
+ }
+ 
+-static inline int cpuset_node_allowed(int node, gfp_t gfp_mask)
++static inline bool cpuset_node_allowed(int node, gfp_t gfp_mask)
+ {
+-	return 1;
++	return true;
+ }
+ 
+-static inline int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
++static inline bool __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
+ {
+-	return 1;
++	return true;
++}
++
++static inline bool cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
++{
++	return true;
+ }
+ 
+ static inline int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index 00ab5c2b7c5b..37a0b44d101f 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -62,7 +62,7 @@
+ #include <linux/cgroup.h>
+ #include <linux/wait.h>
+ 
+-struct static_key cpusets_enabled_key __read_mostly = STATIC_KEY_INIT_FALSE;
++DEFINE_STATIC_KEY_FALSE(cpusets_enabled_key);
+ 
+ /* See "Frequency meter" comments, below. */
+ 
+@@ -2528,27 +2528,27 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
+  *	GFP_KERNEL   - any node in enclosing hardwalled cpuset ok
+  *	GFP_USER     - only nodes in current tasks mems allowed ok.
+  */
+-int __cpuset_node_allowed(int node, gfp_t gfp_mask)
++bool __cpuset_node_allowed(int node, gfp_t gfp_mask)
+ {
+ 	struct cpuset *cs;		/* current cpuset ancestors */
+ 	int allowed;			/* is allocation in zone z allowed? */
+ 	unsigned long flags;
+ 
+ 	if (in_interrupt())
+-		return 1;
++		return true;
+ 	if (node_isset(node, current->mems_allowed))
+-		return 1;
++		return true;
+ 	/*
+ 	 * Allow tasks that have access to memory reserves because they have
+ 	 * been OOM killed to get memory anywhere.
+ 	 */
+ 	if (unlikely(test_thread_flag(TIF_MEMDIE)))
+-		return 1;
++		return true;
+ 	if (gfp_mask & __GFP_HARDWALL)	/* If hardwall request, stop here */
+-		return 0;
++		return false;
+ 
+ 	if (current->flags & PF_EXITING) /* Let dying task have memory */
+-		return 1;
++		return true;
+ 
+ 	/* Not hardwall and node outside mems_allowed: scan up cpusets */
+ 	spin_lock_irqsave(&callback_lock, flags);
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bdcd4087553e..f038d06192c7 100644
+index f038d06192c7..e63afe07c032 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -352,6 +352,106 @@ static inline bool update_defer_init(pg_data_t *pgdat,
- }
- #endif
+@@ -2847,7 +2847,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
  
-+/* Return a pointer to the bitmap storing bits affecting a block of pages */
-+static inline unsigned long *get_pageblock_bitmap(struct page *page,
-+							unsigned long pfn)
-+{
-+#ifdef CONFIG_SPARSEMEM
-+	return __pfn_to_section(pfn)->pageblock_flags;
-+#else
-+	return page_zone(page)->pageblock_flags;
-+#endif /* CONFIG_SPARSEMEM */
-+}
-+
-+static inline int pfn_to_bitidx(struct page *page, unsigned long pfn)
-+{
-+#ifdef CONFIG_SPARSEMEM
-+	pfn &= (PAGES_PER_SECTION-1);
-+	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
-+#else
-+	pfn = pfn - round_down(page_zone(page)->zone_start_pfn, pageblock_nr_pages);
-+	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
-+#endif /* CONFIG_SPARSEMEM */
-+}
-+
-+/**
-+ * get_pfnblock_flags_mask - Return the requested group of flags for the pageblock_nr_pages block of pages
-+ * @page: The page within the block of interest
-+ * @pfn: The target page frame number
-+ * @end_bitidx: The last bit of interest to retrieve
-+ * @mask: mask of bits that the caller is interested in
-+ *
-+ * Return: pageblock_bits flags
-+ */
-+static __always_inline unsigned long __get_pfnblock_flags_mask(struct page *page,
-+					unsigned long pfn,
-+					unsigned long end_bitidx,
-+					unsigned long mask)
-+{
-+	unsigned long *bitmap;
-+	unsigned long bitidx, word_bitidx;
-+	unsigned long word;
-+
-+	bitmap = get_pageblock_bitmap(page, pfn);
-+	bitidx = pfn_to_bitidx(page, pfn);
-+	word_bitidx = bitidx / BITS_PER_LONG;
-+	bitidx &= (BITS_PER_LONG-1);
-+
-+	word = bitmap[word_bitidx];
-+	bitidx += end_bitidx;
-+	return (word >> (BITS_PER_LONG - bitidx - 1)) & mask;
-+}
-+
-+unsigned long get_pfnblock_flags_mask(struct page *page, unsigned long pfn,
-+					unsigned long end_bitidx,
-+					unsigned long mask)
-+{
-+	return __get_pfnblock_flags_mask(page, pfn, end_bitidx, mask);
-+}
-+
-+static __always_inline int get_pfnblock_migratetype(struct page *page, unsigned long pfn)
-+{
-+	return __get_pfnblock_flags_mask(page, pfn, PB_migrate_end, MIGRATETYPE_MASK);
-+}
-+
-+/**
-+ * set_pfnblock_flags_mask - Set the requested group of flags for a pageblock_nr_pages block of pages
-+ * @page: The page within the block of interest
-+ * @flags: The flags to set
-+ * @pfn: The target page frame number
-+ * @end_bitidx: The last bit of interest
-+ * @mask: mask of bits that the caller is interested in
-+ */
-+void set_pfnblock_flags_mask(struct page *page, unsigned long flags,
-+					unsigned long pfn,
-+					unsigned long end_bitidx,
-+					unsigned long mask)
-+{
-+	unsigned long *bitmap;
-+	unsigned long bitidx, word_bitidx;
-+	unsigned long old_word, word;
-+
-+	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
-+
-+	bitmap = get_pageblock_bitmap(page, pfn);
-+	bitidx = pfn_to_bitidx(page, pfn);
-+	word_bitidx = bitidx / BITS_PER_LONG;
-+	bitidx &= (BITS_PER_LONG-1);
-+
-+	VM_BUG_ON_PAGE(!zone_spans_pfn(page_zone(page), pfn), page);
-+
-+	bitidx += end_bitidx;
-+	mask <<= (BITS_PER_LONG - bitidx - 1);
-+	flags <<= (BITS_PER_LONG - bitidx - 1);
-+
-+	word = READ_ONCE(bitmap[word_bitidx]);
-+	for (;;) {
-+		old_word = cmpxchg(&bitmap[word_bitidx], word, (word & ~mask) | flags);
-+		if (word == old_word)
-+			break;
-+		word = old_word;
-+	}
-+}
- 
- void set_pageblock_migratetype(struct page *page, int migratetype)
- {
-@@ -6801,94 +6901,6 @@ void *__init alloc_large_system_hash(const char *tablename,
- 	return table;
- }
- 
--/* Return a pointer to the bitmap storing bits affecting a block of pages */
--static inline unsigned long *get_pageblock_bitmap(struct page *page,
--							unsigned long pfn)
--{
--#ifdef CONFIG_SPARSEMEM
--	return __pfn_to_section(pfn)->pageblock_flags;
--#else
--	return page_zone(page)->pageblock_flags;
--#endif /* CONFIG_SPARSEMEM */
--}
--
--static inline int pfn_to_bitidx(struct page *page, unsigned long pfn)
--{
--#ifdef CONFIG_SPARSEMEM
--	pfn &= (PAGES_PER_SECTION-1);
--	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
--#else
--	pfn = pfn - round_down(page_zone(page)->zone_start_pfn, pageblock_nr_pages);
--	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
--#endif /* CONFIG_SPARSEMEM */
--}
--
--/**
-- * get_pfnblock_flags_mask - Return the requested group of flags for the pageblock_nr_pages block of pages
-- * @page: The page within the block of interest
-- * @pfn: The target page frame number
-- * @end_bitidx: The last bit of interest to retrieve
-- * @mask: mask of bits that the caller is interested in
-- *
-- * Return: pageblock_bits flags
-- */
--unsigned long get_pfnblock_flags_mask(struct page *page, unsigned long pfn,
--					unsigned long end_bitidx,
--					unsigned long mask)
--{
--	unsigned long *bitmap;
--	unsigned long bitidx, word_bitidx;
--	unsigned long word;
--
--	bitmap = get_pageblock_bitmap(page, pfn);
--	bitidx = pfn_to_bitidx(page, pfn);
--	word_bitidx = bitidx / BITS_PER_LONG;
--	bitidx &= (BITS_PER_LONG-1);
--
--	word = bitmap[word_bitidx];
--	bitidx += end_bitidx;
--	return (word >> (BITS_PER_LONG - bitidx - 1)) & mask;
--}
--
--/**
-- * set_pfnblock_flags_mask - Set the requested group of flags for a pageblock_nr_pages block of pages
-- * @page: The page within the block of interest
-- * @flags: The flags to set
-- * @pfn: The target page frame number
-- * @end_bitidx: The last bit of interest
-- * @mask: mask of bits that the caller is interested in
-- */
--void set_pfnblock_flags_mask(struct page *page, unsigned long flags,
--					unsigned long pfn,
--					unsigned long end_bitidx,
--					unsigned long mask)
--{
--	unsigned long *bitmap;
--	unsigned long bitidx, word_bitidx;
--	unsigned long old_word, word;
--
--	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
--
--	bitmap = get_pageblock_bitmap(page, pfn);
--	bitidx = pfn_to_bitidx(page, pfn);
--	word_bitidx = bitidx / BITS_PER_LONG;
--	bitidx &= (BITS_PER_LONG-1);
--
--	VM_BUG_ON_PAGE(!zone_spans_pfn(page_zone(page), pfn), page);
--
--	bitidx += end_bitidx;
--	mask <<= (BITS_PER_LONG - bitidx - 1);
--	flags <<= (BITS_PER_LONG - bitidx - 1);
--
--	word = READ_ONCE(bitmap[word_bitidx]);
--	for (;;) {
--		old_word = cmpxchg(&bitmap[word_bitidx], word, (word & ~mask) | flags);
--		if (word == old_word)
--			break;
--		word = old_word;
--	}
--}
--
- /*
-  * This function checks whether pageblock includes unmovable pages or not.
-  * If @count is not zero, it is okay to include less @count unmovable pages
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index ac3d8d129974..22630e75c192 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -143,7 +143,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
- 		goto err;
- 
- 	/* Print information relevant to grouping pages by mobility */
--	pageblock_mt = get_pfnblock_migratetype(page, pfn);
-+	pageblock_mt = get_pageblock_migratetype(page);
- 	page_mt  = gfpflags_to_migratetype(page_ext->gfp_mask);
- 	ret += snprintf(kbuf + ret, count - ret,
- 			"PFN %lu type %s Block %lu type %s Flags %#lx(%pGp)\n",
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index a4bda11eac8d..20698fc82354 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1044,7 +1044,7 @@ static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
- 		block_end_pfn = min(block_end_pfn, end_pfn);
- 
- 		page = pfn_to_page(pfn);
--		pageblock_mt = get_pfnblock_migratetype(page, pfn);
-+		pageblock_mt = get_pageblock_migratetype(page);
- 
- 		for (; pfn < block_end_pfn; pfn++) {
- 			if (!pfn_valid_within(pfn))
+ 		if (cpusets_enabled() &&
+ 			(alloc_flags & ALLOC_CPUSET) &&
+-			!cpuset_zone_allowed(zone, gfp_mask))
++			!__cpuset_zone_allowed(zone, gfp_mask))
+ 				continue;
+ 		/*
+ 		 * Distribute pages in proportion to the individual
 -- 
 2.6.4
 
