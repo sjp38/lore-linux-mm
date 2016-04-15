@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6719F828E4
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:15:17 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l6so13352252wml.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:15:17 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id a8si10965544wmi.34.2016.04.15.02.15.16
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BAF57828E4
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 05:15:27 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id k200so64086908lfg.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 02:15:27 -0700 (PDT)
+Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
+        by mx.google.com with ESMTPS id fo20si49538432wjc.21.2016.04.15.02.15.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Apr 2016 02:15:16 -0700 (PDT)
+        Fri, 15 Apr 2016 02:15:26 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 07C432F82F4
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:15:16 +0000 (UTC)
+	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 37511CF51
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 09:15:26 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 09/27] mm, vmscan: By default have direct reclaim only shrink once per node
-Date: Fri, 15 Apr 2016 10:13:15 +0100
-Message-Id: <1460711613-2761-10-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 10/27] mm, vmscan: Clear congestion, dirty and need for compaction on a per-node basis
+Date: Fri, 15 Apr 2016 10:13:16 +0100
+Message-Id: <1460711613-2761-11-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1460711613-2761-1-git-send-email-mgorman@techsingularity.net>
 References: <1460711613-2761-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,65 +23,65 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jesper Dangaard Brouer <brouer@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Direct reclaim iterates over all zones in the zonelist and shrinking them
-but this is in conflict with node-based reclaim. In the default case,
-only shrink once per node.
+Congested and dirty tracking of a node and whether reclaim should stall
+is still based on zone activity. This patch considers whether the kernel
+should stall based on node-based reclaim activity.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/vmscan.c | 23 +++++++++++------------
- 1 file changed, 11 insertions(+), 12 deletions(-)
+ mm/vmscan.c | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ef1cfa835138..f0bb2412fc01 100644
+index f0bb2412fc01..5701f570e4f6 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2545,14 +2545,6 @@ static inline bool compaction_ready(struct zone *zone, int order)
-  * try to reclaim pages from zones which will satisfy the caller's allocation
-  * request.
-  *
-- * We reclaim from a zone even if that zone is over high_wmark_pages(zone).
-- * Because:
-- * a) The caller may be trying to free *extra* pages to satisfy a higher-order
-- *    allocation or
-- * b) The target zone may be at high_wmark_pages(zone) but the lower zones
-- *    must go *over* high_wmark_pages(zone) to satisfy the `incremental min'
-- *    zone defense algorithm.
-- *
-  * If a zone is deemed to be full of pinned pages then just give it a light
-  * scan then give up on it.
-  *
-@@ -2567,6 +2559,7 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc,
- 	unsigned long nr_soft_scanned;
- 	gfp_t orig_mask;
- 	bool reclaimable = false;
-+	pg_data_t *last_pgdat = NULL;
+@@ -3000,7 +3000,17 @@ static bool zone_balanced(struct zone *zone, int order, int classzone_idx)
+ {
+ 	unsigned long mark = high_wmark_pages(zone);
  
- 	/*
- 	 * If the number of buffer_heads in the machine exceeds the maximum
-@@ -2579,11 +2572,17 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc,
- 
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 					classzone_idx, sc->nodemask) {
--		if (!populated_zone(zone)) {
--			sc->reclaim_idx--;
--			classzone_idx--;
-+		BUG_ON(!populated_zone(zone));
+-	return zone_watermark_ok_safe(zone, order, mark, classzone_idx);
++	if (!zone_watermark_ok_safe(zone, order, mark, classzone_idx))
++		return false;
 +
-+		/*
-+		 * Shrink each node in the zonelist once. If the zonelist is
-+		 * ordered by zone (not the default) then a node may be
-+		 * shrunk multiple times but in that case the user prefers
-+		 * lower zones being preserved
-+		 */
-+		if (zone->zone_pgdat == last_pgdat)
- 			continue;
--		}
-+		last_pgdat = zone->zone_pgdat;
++	/*
++	 * If any eligible zone is balanced then the node is not considered
++	 * to be congested or dirty
++	 */
++	clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
++	clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
++
++	return true;
+ }
+ 
+ /*
+@@ -3146,13 +3156,6 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 			if (!zone_balanced(zone, order, 0)) {
+ 				classzone_idx = i;
+ 				break;
+-			} else {
+-				/*
+-				 * If any eligible zone is balanced then the
+-				 * node is not considered congested or dirty.
+-				 */
+-				clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
+-				clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
+ 			}
+ 		}
+ 
+@@ -3211,11 +3214,8 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 			if (!populated_zone(zone))
+ 				continue;
+ 
+-			if (zone_balanced(zone, sc.order, classzone_idx)) {
+-				clear_bit(PGDAT_CONGESTED, &pgdat->flags);
+-				clear_bit(PGDAT_DIRTY, &pgdat->flags);
++			if (zone_balanced(zone, sc.order, classzone_idx))
+ 				goto out;
+-			}
+ 		}
  
  		/*
- 		 * Take care memory controller reclaiming has small influence
 -- 
 2.6.4
 
