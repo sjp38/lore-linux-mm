@@ -1,61 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A8486B0005
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 23:29:29 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id a140so31322467wma.1
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 20:29:29 -0700 (PDT)
-Received: from fiona.linuxhacker.ru (linuxhacker.ru. [217.76.32.60])
-        by mx.google.com with ESMTPS id u194si27920113lfd.134.2016.04.15.20.29.26
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D75C6B0005
+	for <linux-mm@kvack.org>; Sat, 16 Apr 2016 00:55:21 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e190so222338132pfe.3
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 21:55:21 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id kq10si1143505pab.242.2016.04.15.21.55.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 20:29:27 -0700 (PDT)
-From: green@linuxhacker.ru
-Subject: [PATCH] mm: Do not discard partial pages with POSIX_FADV_DONTNEED
-Date: Fri, 15 Apr 2016 23:28:54 -0400
-Message-Id: <1460777334-3484107-1-git-send-email-green@linuxhacker.ru>
+        Fri, 15 Apr 2016 21:55:20 -0700 (PDT)
+Date: Fri, 15 Apr 2016 21:55:19 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 09/10] huge pagecache: mmap_sem is unlocked when
+ truncation splits pmd
+Message-Id: <20160415215519.98f179c7418d4d2e9b316240@linux-foundation.org>
+In-Reply-To: <20160414173922.GE3120@linux.intel.com>
+References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
+	<alpine.LSU.2.11.1604051352540.5965@eggly.anvils>
+	<20160414173922.GE3120@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@fb.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.com>, Oleg Drokin <green@linuxhacker.ru>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Oleg Drokin <green@linuxhacker.ru>
+On Thu, 14 Apr 2016 13:39:22 -0400 Matthew Wilcox <willy@linux.intel.com> wrote:
 
-I noticed that the logic in fadvise64_64 syscall is incorrect
-for partial pages. While first page of the region is correctly skipped
-if it is partial, the last page of the region is mistakenly discarded.
-This leads to problems for applications that read data in
-non-page-aligned chunks discarding already processed data between
-the reads.
+> On Tue, Apr 05, 2016 at 01:55:23PM -0700, Hugh Dickins wrote:
+> > zap_pmd_range()'s CONFIG_DEBUG_VM !rwsem_is_locked(&mmap_sem) BUG()
+> > will be invalid with huge pagecache, in whatever way it is implemented:
+> > truncation of a hugely-mapped file to an unhugely-aligned size would
+> > easily hit it.
+> 
+> We can reproduce this BUG() in the current Linus tree with DAX PMDs.
+> Andrew, can you send this patch to Linus for inclusion in 4.7?
 
-Signed-off-by: Oleg Drokin <green@linuxhacker.ru>
----
- mm/fadvise.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+Wilco, thanks.
 
-diff --git a/mm/fadvise.c b/mm/fadvise.c
-index b8024fa..6c707bf 100644
---- a/mm/fadvise.c
-+++ b/mm/fadvise.c
-@@ -126,6 +126,17 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
- 		 */
- 		start_index = (offset+(PAGE_SIZE-1)) >> PAGE_SHIFT;
- 		end_index = (endbyte >> PAGE_SHIFT);
-+		if ((endbyte & ~PAGE_MASK) != ~PAGE_MASK) {
-+			/* First page is tricky as 0 - 1 = -1, but pgoff_t
-+			 * is unsigned, so the end_index >= start_index
-+			 * check below would be true and we'll discard the whole
-+			 * file cache which is not what was asked.
-+			 */
-+			if (end_index == 0)
-+				break;
-+
-+			end_index--;
-+		}
- 
- 		if (end_index >= start_index) {
- 			unsigned long count = invalidate_mapping_pages(mapping,
--- 
-2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
