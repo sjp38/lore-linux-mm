@@ -1,71 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D53F6B0005
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 22:51:21 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id m2so157140300ioa.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 19:51:21 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id l2si10598502oet.29.2016.04.15.19.51.19
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A8486B0005
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 23:29:29 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id a140so31322467wma.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 20:29:29 -0700 (PDT)
+Received: from fiona.linuxhacker.ru (linuxhacker.ru. [217.76.32.60])
+        by mx.google.com with ESMTPS id u194si27920113lfd.134.2016.04.15.20.29.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Apr 2016 19:51:19 -0700 (PDT)
-Subject: Re: [PATCH 3/3] mm, oom_reaper: clear TIF_MEMDIE for all tasks queued for oom_reaper
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1459951996-12875-1-git-send-email-mhocko@kernel.org>
-	<1459951996-12875-4-git-send-email-mhocko@kernel.org>
-	<201604072055.GAI52128.tHLVOFJOQMFOFS@I-love.SAKURA.ne.jp>
-	<20160408113425.GF29820@dhcp22.suse.cz>
-In-Reply-To: <20160408113425.GF29820@dhcp22.suse.cz>
-Message-Id: <201604161151.ECG35947.FFLtSFVQJOHOOM@I-love.SAKURA.ne.jp>
-Date: Sat, 16 Apr 2016 11:51:11 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Apr 2016 20:29:27 -0700 (PDT)
+From: green@linuxhacker.ru
+Subject: [PATCH] mm: Do not discard partial pages with POSIX_FADV_DONTNEED
+Date: Fri, 15 Apr 2016 23:28:54 -0400
+Message-Id: <1460777334-3484107-1-git-send-email-green@linuxhacker.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
+To: Jens Axboe <axboe@fb.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.com>, Oleg Drokin <green@linuxhacker.ru>
 
-Michal Hocko wrote:
-> On Thu 07-04-16 20:55:34, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > The first obvious one is when the oom victim clears its mm and gets
-> > > stuck later on. oom_reaper would back of on find_lock_task_mm returning
-> > > NULL. We can safely try to clear TIF_MEMDIE in this case because such a
-> > > task would be ignored by the oom killer anyway. The flag would be
-> > > cleared by that time already most of the time anyway.
-> > 
-> > I didn't understand what this wants to tell. The OOM victim will clear
-> > TIF_MEMDIE as soon as it sets current->mm = NULL.
-> 
-> No it clears the flag _after_ it returns from mmput. There is no
-> guarantee it won't get stuck somewhere on the way there - e.g. exit_aio
-> waits for completion and who knows what else might get stuck.
+From: Oleg Drokin <green@linuxhacker.ru>
 
-OK. Then, I think an OOM livelock scenario shown below is possible.
+I noticed that the logic in fadvise64_64 syscall is incorrect
+for partial pages. While first page of the region is correctly skipped
+if it is partial, the last page of the region is mistakenly discarded.
+This leads to problems for applications that read data in
+non-page-aligned chunks discarding already processed data between
+the reads.
 
- (1) First OOM victim (where mm->mm_users == 1) is selected by the first
-     round of out_of_memory() call.
+Signed-off-by: Oleg Drokin <green@linuxhacker.ru>
+---
+ mm/fadvise.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
- (2) The OOM reaper calls atomic_inc_not_zero(&mm->mm_users).
-
- (3) The OOM victim calls mmput() from exit_mm() from do_exit().
-     mmput() returns immediately because atomic_dec_and_test(&mm->mm_users)
-     returns false because of (2).
-
- (4) The OOM reaper reaps memory and then calls mmput().
-     mmput() calls exit_aio() etc. and waits for completion because
-     atomic_dec_and_test(&mm->mm_users) is now true.
-
- (5) Second OOM victim (which is the parent of the first OOM victim)
-     is selected by the next round of out_of_memory() call.
-
- (6) The OOM reaper is waiting for completion of the first OOM victim's
-     memory while the second OOM victim is waiting for the OOM reaper to
-     reap memory.
-
-Where is the guarantee that exit_aio() etc. called from mmput() by the
-OOM reaper does not depend on memory allocation (i.e. the OOM reaper is
-not blocked forever inside __oom_reap_task())?
+diff --git a/mm/fadvise.c b/mm/fadvise.c
+index b8024fa..6c707bf 100644
+--- a/mm/fadvise.c
++++ b/mm/fadvise.c
+@@ -126,6 +126,17 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
+ 		 */
+ 		start_index = (offset+(PAGE_SIZE-1)) >> PAGE_SHIFT;
+ 		end_index = (endbyte >> PAGE_SHIFT);
++		if ((endbyte & ~PAGE_MASK) != ~PAGE_MASK) {
++			/* First page is tricky as 0 - 1 = -1, but pgoff_t
++			 * is unsigned, so the end_index >= start_index
++			 * check below would be true and we'll discard the whole
++			 * file cache which is not what was asked.
++			 */
++			if (end_index == 0)
++				break;
++
++			end_index--;
++		}
+ 
+ 		if (end_index >= start_index) {
+ 			unsigned long count = invalidate_mapping_pages(mapping,
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
