@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 086D6828DF
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 20:24:25 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e190so214542252pfe.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 17:24:25 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id xz4si6983114pab.139.2016.04.15.17.24.16
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 043B0828DF
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 20:24:27 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id dx6so109284561pad.0
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 17:24:26 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id x64si5196980pfi.208.2016.04.15.17.24.17
         for <linux-mm@kvack.org>;
-        Fri, 15 Apr 2016 17:24:16 -0700 (PDT)
+        Fri, 15 Apr 2016 17:24:17 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv7 11/29] thp: skip file huge pmd on copy_huge_pmd()
-Date: Sat, 16 Apr 2016 03:23:42 +0300
-Message-Id: <1460766240-84565-12-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv7 13/29] thp: run vma_adjust_trans_huge() outside i_mmap_rwsem
+Date: Sat, 16 Apr 2016 03:23:44 +0300
+Message-Id: <1460766240-84565-14-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1460766240-84565-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1460766240-84565-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,80 +19,39 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-copy_page_range() has a check for "Don't copy ptes where a page fault
-will fill them correctly." It works on VMA level. We still copy all page
-table entries from private mappings, even if they map page cache.
+vma_addjust_trans_huge() splits pmd if it's crossing VMA boundary.
+During split we munlock the huge page which requires rmap walk.
+rmap wants to take the lock on its own.
 
-We can simplify copy_huge_pmd() a bit by skipping file PMDs.
-
-We don't map file private pages with PMDs, so they only can map page
-cache. It's safe to skip them as they can be re-faulted later.
+Let's move vma_adjust_trans_huge() outside i_mmap_rwsem to fix this.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c | 34 ++++++++++++++++------------------
- 1 file changed, 16 insertions(+), 18 deletions(-)
+ mm/mmap.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 67830a6ed8b0..3a3f9ff45e3f 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1094,14 +1094,15 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	struct page *src_page;
- 	pmd_t pmd;
- 	pgtable_t pgtable = NULL;
--	int ret;
-+	int ret = -ENOMEM;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index bd2e1a533bc1..df3976af9302 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -678,6 +678,8 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		}
+ 	}
  
--	if (!vma_is_dax(vma)) {
--		ret = -ENOMEM;
--		pgtable = pte_alloc_one(dst_mm, addr);
--		if (unlikely(!pgtable))
--			goto out;
--	}
-+	/* Skip if can be re-fill on fault */
-+	if (!vma_is_anonymous(vma))
-+		return 0;
++	vma_adjust_trans_huge(vma, start, end, adjust_next);
 +
-+	pgtable = pte_alloc_one(dst_mm, addr);
-+	if (unlikely(!pgtable))
-+		goto out;
- 
- 	dst_ptl = pmd_lock(dst_mm, dst_pmd);
- 	src_ptl = pmd_lockptr(src_mm, src_pmd);
-@@ -1109,7 +1110,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 
- 	ret = -EAGAIN;
- 	pmd = *src_pmd;
--	if (unlikely(!pmd_trans_huge(pmd) && !pmd_devmap(pmd))) {
-+	if (unlikely(!pmd_trans_huge(pmd))) {
- 		pte_free(dst_mm, pgtable);
- 		goto out_unlock;
- 	}
-@@ -1132,16 +1133,13 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		goto out_unlock;
+ 	if (file) {
+ 		mapping = file->f_mapping;
+ 		root = &mapping->i_mmap;
+@@ -698,8 +700,6 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		}
  	}
  
--	if (!vma_is_dax(vma)) {
--		/* thp accounting separate from pmd_devmap accounting */
--		src_page = pmd_page(pmd);
--		VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
--		get_page(src_page);
--		page_dup_rmap(src_page, true);
--		add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
--		atomic_long_inc(&dst_mm->nr_ptes);
--		pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
--	}
-+	src_page = pmd_page(pmd);
-+	VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
-+	get_page(src_page);
-+	page_dup_rmap(src_page, true);
-+	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
-+	atomic_long_inc(&dst_mm->nr_ptes);
-+	pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
- 
- 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
- 	pmd = pmd_mkold(pmd_wrprotect(pmd));
+-	vma_adjust_trans_huge(vma, start, end, adjust_next);
+-
+ 	anon_vma = vma->anon_vma;
+ 	if (!anon_vma && adjust_next)
+ 		anon_vma = next->anon_vma;
 -- 
 2.8.0.rc3
 
