@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C49D0828DF
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 20:24:48 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e190so214558563pfe.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 17:24:48 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 03FCC828DF
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 20:24:51 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id t124so214834642pfb.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 17:24:50 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id q76si5201007pfa.60.2016.04.15.17.24.37
+        by mx.google.com with ESMTP id q76si5201007pfa.60.2016.04.15.17.24.38
         for <linux-mm@kvack.org>;
         Fri, 15 Apr 2016 17:24:38 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv7 08/29] thp: support file pages in zap_huge_pmd()
-Date: Sat, 16 Apr 2016 03:23:39 +0300
-Message-Id: <1460766240-84565-9-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv7 05/29] rmap: support file thp
+Date: Sat, 16 Apr 2016 03:23:36 +0300
+Message-Id: <1460766240-84565-6-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1460766240-84565-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1460766240-84565-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,43 +19,205 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-split_huge_pmd() for file mappings (and DAX too) is implemented by just
-clearing pmd entry as we can re-fill this area from page cache on pte
-level later.
+Naive approach: on mapping/unmapping the page as compound we update
+->_mapcount on each 4k page. That's not efficient, but it's not obvious
+how we can optimize this. We can look into optimization later.
 
-This means we don't need deposit page tables when file THP is mapped.
-Therefore we shouldn't try to withdraw a page table on zap_huge_pmd()
-file THP PMD.
+PG_double_map optimization doesn't work for file pages since lifecycle
+of file pages is different comparing to anon pages: file page can be
+mapped again at any time.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ include/linux/rmap.h |  2 +-
+ mm/huge_memory.c     | 10 +++++++---
+ mm/memory.c          |  4 ++--
+ mm/migrate.c         |  2 +-
+ mm/rmap.c            | 48 +++++++++++++++++++++++++++++++++++-------------
+ mm/util.c            |  6 ++++++
+ 6 files changed, 52 insertions(+), 20 deletions(-)
 
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 49eb4f8ebac9..5704f101b52e 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -165,7 +165,7 @@ void do_page_add_anon_rmap(struct page *, struct vm_area_struct *,
+ 			   unsigned long, int);
+ void page_add_new_anon_rmap(struct page *, struct vm_area_struct *,
+ 		unsigned long, bool);
+-void page_add_file_rmap(struct page *);
++void page_add_file_rmap(struct page *, bool);
+ void page_remove_rmap(struct page *, bool);
+ 
+ void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index cece53a94192..29ba922a9c26 100644
+index a4014b484737..aab10c81de12 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -1696,10 +1696,16 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		struct page *page = pmd_page(orig_pmd);
- 		page_remove_rmap(page, true);
- 		VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
--		add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
- 		VM_BUG_ON_PAGE(!PageHead(page), page);
--		pte_free(tlb->mm, pgtable_trans_huge_withdraw(tlb->mm, pmd));
--		atomic_long_dec(&tlb->mm->nr_ptes);
-+		if (PageAnon(page)) {
-+			pgtable_t pgtable;
-+			pgtable = pgtable_trans_huge_withdraw(tlb->mm, pmd);
-+			pte_free(tlb->mm, pgtable);
-+			atomic_long_dec(&tlb->mm->nr_ptes);
-+			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
-+		} else {
-+			add_mm_counter(tlb->mm, MM_FILEPAGES, -HPAGE_PMD_NR);
-+		}
- 		spin_unlock(ptl);
- 		tlb_remove_page(tlb, page);
+@@ -3262,18 +3262,22 @@ static void __split_huge_page(struct page *page, struct list_head *list)
+ 
+ int total_mapcount(struct page *page)
+ {
+-	int i, ret;
++	int i, compound, ret;
+ 
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+ 
+ 	if (likely(!PageCompound(page)))
+ 		return atomic_read(&page->_mapcount) + 1;
+ 
+-	ret = compound_mapcount(page);
++	compound = compound_mapcount(page);
+ 	if (PageHuge(page))
+-		return ret;
++		return compound;
++	ret = compound;
+ 	for (i = 0; i < HPAGE_PMD_NR; i++)
+ 		ret += atomic_read(&page[i]._mapcount) + 1;
++	/* File pages has compound_mapcount included in _mapcount */
++	if (!PageAnon(page))
++		return ret - compound * HPAGE_PMD_NR;
+ 	if (PageDoubleMap(page))
+ 		ret -= HPAGE_PMD_NR;
+ 	return ret;
+diff --git a/mm/memory.c b/mm/memory.c
+index c31c52507956..49c55446576a 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1438,7 +1438,7 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+ 	/* Ok, finally just insert the thing.. */
+ 	get_page(page);
+ 	inc_mm_counter_fast(mm, mm_counter_file(page));
+-	page_add_file_rmap(page);
++	page_add_file_rmap(page, false);
+ 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
+ 
+ 	retval = 0;
+@@ -2901,7 +2901,7 @@ int alloc_set_pte(struct fault_env *fe, struct mem_cgroup *memcg,
+ 		lru_cache_add_active_or_unevictable(page, vma);
+ 	} else {
+ 		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
+-		page_add_file_rmap(page);
++		page_add_file_rmap(page, false);
  	}
+ 	set_pte_at(vma->vm_mm, fe->address, fe->pte, entry);
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 3eafd17fb398..b8f8363df8da 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -170,7 +170,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+ 	} else if (PageAnon(new))
+ 		page_add_anon_rmap(new, vma, addr, false);
+ 	else
+-		page_add_file_rmap(new);
++		page_add_file_rmap(new, false);
+ 
+ 	if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
+ 		mlock_vma_page(new);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 7f8652720a25..76d8c9269ac6 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1271,18 +1271,34 @@ void page_add_new_anon_rmap(struct page *page,
+  *
+  * The caller needs to hold the pte lock.
+  */
+-void page_add_file_rmap(struct page *page)
++void page_add_file_rmap(struct page *page, bool compound)
+ {
++	int i, nr = 1;
++
++	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
+ 	lock_page_memcg(page);
+-	if (atomic_inc_and_test(&page->_mapcount)) {
+-		__inc_zone_page_state(page, NR_FILE_MAPPED);
+-		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
++	if (compound && PageTransHuge(page)) {
++		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
++			if (atomic_inc_and_test(&page[i]._mapcount))
++				nr++;
++		}
++		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
++			goto out;
++	} else {
++		if (!atomic_inc_and_test(&page->_mapcount))
++			goto out;
+ 	}
++	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, nr);
++	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
++out:
+ 	unlock_page_memcg(page);
+ }
+ 
+-static void page_remove_file_rmap(struct page *page)
++static void page_remove_file_rmap(struct page *page, bool compound)
+ {
++	int i, nr = 1;
++
++	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
+ 	lock_page_memcg(page);
+ 
+ 	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
+@@ -1293,15 +1309,24 @@ static void page_remove_file_rmap(struct page *page)
+ 	}
+ 
+ 	/* page still mapped by someone else? */
+-	if (!atomic_add_negative(-1, &page->_mapcount))
+-		goto out;
++	if (compound && PageTransHuge(page)) {
++		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
++			if (atomic_add_negative(-1, &page[i]._mapcount))
++				nr++;
++		}
++		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
++			goto out;
++	} else {
++		if (!atomic_add_negative(-1, &page->_mapcount))
++			goto out;
++	}
+ 
+ 	/*
+ 	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
+ 	 * these counters are not modified in interrupt context, and
+ 	 * pte lock(a spinlock) is held, which implies preemption disabled.
+ 	 */
+-	__dec_zone_page_state(page, NR_FILE_MAPPED);
++	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, -nr);
+ 	mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+ 
+ 	if (unlikely(PageMlocked(page)))
+@@ -1357,11 +1382,8 @@ static void page_remove_anon_compound_rmap(struct page *page)
+  */
+ void page_remove_rmap(struct page *page, bool compound)
+ {
+-	if (!PageAnon(page)) {
+-		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
+-		page_remove_file_rmap(page);
+-		return;
+-	}
++	if (!PageAnon(page))
++		return page_remove_file_rmap(page, compound);
+ 
+ 	if (compound)
+ 		return page_remove_anon_compound_rmap(page);
+diff --git a/mm/util.c b/mm/util.c
+index 6cc81e7b8705..b7ac1d708cb0 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -386,6 +386,12 @@ int __page_mapcount(struct page *page)
+ 	int ret;
+ 
+ 	ret = atomic_read(&page->_mapcount) + 1;
++	/*
++	 * For file THP page->_mapcount contains total number of mapping
++	 * of the page: no need to look into compound_mapcount.
++	 */
++	if (!PageAnon(page) && !PageHuge(page))
++		return ret;
+ 	page = compound_head(page);
+ 	ret += atomic_read(compound_mapcount_ptr(page)) + 1;
+ 	if (PageDoubleMap(page))
 -- 
 2.8.0.rc3
 
