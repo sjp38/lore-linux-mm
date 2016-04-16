@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 386FE828DF
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 20:24:57 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id t124so214838430pfb.1
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 17:24:57 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id r7si5186398pfa.99.2016.04.15.17.24.39
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3835C6B007E
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 20:30:32 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id vv3so153457223pab.2
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 17:30:32 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id o129si5201094pfo.19.2016.04.15.17.24.21
         for <linux-mm@kvack.org>;
-        Fri, 15 Apr 2016 17:24:39 -0700 (PDT)
+        Fri, 15 Apr 2016 17:24:21 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv7 19/29] filemap: prepare find and delete operations for huge pages
-Date: Sat, 16 Apr 2016 03:23:50 +0300
-Message-Id: <1460766240-84565-20-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv7 26/29] thp: update Documentation/vm/transhuge.txt
+Date: Sat, 16 Apr 2016 03:23:57 +0300
+Message-Id: <1460766240-84565-27-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1460766240-84565-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1460766240-84565-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,392 +19,227 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For now, we would have HPAGE_PMD_NR entries in radix tree for every huge
-page. That's suboptimal and it will be changed to use Matthew's
-multi-order entries later.
-
-'add' operation is not changed, because we don't need it to implement
-hugetmpfs: shmem uses its own implementation.
+Add info about tmpfs/shmem with huge pages.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c | 187 ++++++++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 134 insertions(+), 53 deletions(-)
+ Documentation/vm/transhuge.txt | 130 +++++++++++++++++++++++++++++------------
+ 1 file changed, 93 insertions(+), 37 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 7e982835d4ec..bf29ab4f87dc 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -110,43 +110,18 @@
-  *   ->tasklist_lock            (memory_failure, collect_procs_ao)
-  */
+diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
+index d9cb65cf5cfd..96a49f123cac 100644
+--- a/Documentation/vm/transhuge.txt
++++ b/Documentation/vm/transhuge.txt
+@@ -9,8 +9,8 @@ using huge pages for the backing of virtual memory with huge pages
+ that supports the automatic promotion and demotion of page sizes and
+ without the shortcomings of hugetlbfs.
  
--static void page_cache_tree_delete(struct address_space *mapping,
--				   struct page *page, void *shadow)
-+static void __page_cache_tree_delete(struct address_space *mapping,
-+		struct radix_tree_node *node, void **slot, unsigned long index,
-+		void *shadow)
- {
--	struct radix_tree_node *node;
--	unsigned long index;
--	unsigned int offset;
- 	unsigned int tag;
--	void **slot;
+-Currently it only works for anonymous memory mappings but in the
+-future it can expand over the pagecache layer starting with tmpfs.
++Currently it only works for anonymous memory mappings and tmpfs/shmem.
++But in the future it can expand to other filesystems.
+ 
+ The reason applications are running faster is because of two
+ factors. The first factor is almost completely irrelevant and it's not
+@@ -48,7 +48,7 @@ miss is going to run faster.
+ - if some task quits and more hugepages become available (either
+   immediately in the buddy or through the VM), guest physical memory
+   backed by regular pages should be relocated on hugepages
+-  automatically (with khugepaged)
++  automatically (with khugepaged, limited to anonymous huge pages for now)
+ 
+ - it doesn't require memory reservation and in turn it uses hugepages
+   whenever possible (the only possible reservation here is kernelcore=
+@@ -57,10 +57,6 @@ miss is going to run faster.
+   feature that applies to all dynamic high order allocations in the
+   kernel)
+ 
+-- this initial support only offers the feature in the anonymous memory
+-  regions but it'd be ideal to move it to tmpfs and the pagecache
+-  later
 -
--	VM_BUG_ON(!PageLocked(page));
+ Transparent Hugepage Support maximizes the usefulness of free memory
+ if compared to the reservation approach of hugetlbfs by allowing all
+ unused memory to be used as cache or other movable (or even unmovable
+@@ -94,21 +90,21 @@ madvise(MADV_HUGEPAGE) on their critical mmapped regions.
  
--	__radix_tree_lookup(&mapping->page_tree, page->index, &node, &slot);
--
--	if (shadow) {
--		mapping->nrexceptional++;
--		/*
--		 * Make sure the nrexceptional update is committed before
--		 * the nrpages update so that final truncate racing
--		 * with reclaim does not see both counters 0 at the
--		 * same time and miss a shadow entry.
--		 */
--		smp_wmb();
--	}
--	mapping->nrpages--;
--
--	if (!node) {
--		/* Clear direct pointer tags in root node */
--		mapping->page_tree.gfp_mask &= __GFP_BITS_MASK;
--		radix_tree_replace_slot(slot, shadow);
--		return;
--	}
-+	VM_BUG_ON(node == NULL);
-+	VM_BUG_ON(*slot == NULL);
+ == sysfs ==
  
- 	/* Clear tree tags for the removed page */
--	index = page->index;
--	offset = index & RADIX_TREE_MAP_MASK;
- 	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
--		if (test_bit(offset, node->tags[tag]))
-+		if (test_bit(index & RADIX_TREE_MAP_MASK, node->tags[tag]))
- 			radix_tree_tag_clear(&mapping->page_tree, index, tag);
- 	}
+-Transparent Hugepage Support can be entirely disabled (mostly for
+-debugging purposes) or only enabled inside MADV_HUGEPAGE regions (to
+-avoid the risk of consuming more memory resources) or enabled system
+-wide. This can be achieved with one of:
++Transparent Hugepage Support for anonymous memory can be entirely disabled
++(mostly for debugging purposes) or only enabled inside MADV_HUGEPAGE
++regions (to avoid the risk of consuming more memory resources) or enabled
++system wide. This can be achieved with one of:
  
-@@ -173,6 +148,54 @@ static void page_cache_tree_delete(struct address_space *mapping,
- 	}
- }
+ echo always >/sys/kernel/mm/transparent_hugepage/enabled
+ echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
+ echo never >/sys/kernel/mm/transparent_hugepage/enabled
  
-+static void page_cache_tree_delete(struct address_space *mapping,
-+				   struct page *page, void *shadow)
-+{
-+	struct radix_tree_node *node;
-+	unsigned long index;
-+	void **slot;
-+	int i, nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
+ It's also possible to limit defrag efforts in the VM to generate
+-hugepages in case they're not immediately free to madvise regions or
+-to never try to defrag memory and simply fallback to regular pages
+-unless hugepages are immediately available. Clearly if we spend CPU
+-time to defrag memory, we would expect to gain even more by the fact
+-we use hugepages later instead of regular pages. This isn't always
++anonymous hugepages in case they're not immediately free to madvise
++regions or to never try to defrag memory and simply fallback to regular
++pages unless hugepages are immediately available. Clearly if we spend CPU
++time to defrag memory, we would expect to gain even more by the fact we
++use hugepages later instead of regular pages. This isn't always
+ guaranteed, but it may be more likely in case the allocation is for a
+ MADV_HUGEPAGE region.
+ 
+@@ -133,9 +129,9 @@ that are have used madvise(MADV_HUGEPAGE). This is the default behaviour.
+ 
+ "never" should be self-explanatory.
+ 
+-By default kernel tries to use huge zero page on read page fault.
+-It's possible to disable huge zero page by writing 0 or enable it
+-back by writing 1:
++By default kernel tries to use huge zero page on read page fault to
++anonymous mapping. It's possible to disable huge zero page by writing 0
++or enable it back by writing 1:
+ 
+ echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
+ echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
+@@ -204,21 +200,67 @@ Support by passing the parameter "transparent_hugepage=always" or
+ "transparent_hugepage=madvise" or "transparent_hugepage=never"
+ (without "") to the kernel command line.
+ 
++== Hugepages in tmpfs/shmem ==
 +
-+	VM_BUG_ON_PAGE(!PageLocked(page), page);
-+	VM_BUG_ON_PAGE(PageTail(page), page);
++You can control hugepage allocation policy in tmpfs with mount option
++"huge=". It can have following values:
 +
-+	__radix_tree_lookup(&mapping->page_tree, page->index, &node, &slot);
++  - "always":
++    Attempt to allocate huge pages every time we need a new page;
 +
-+	if (shadow) {
-+		mapping->nrexceptional += nr;
-+		/*
-+		 * Make sure the nrexceptional update is committed before
-+		 * the nrpages update so that final truncate racing
-+		 * with reclaim does not see both counters 0 at the
-+		 * same time and miss a shadow entry.
-+		 */
-+		smp_wmb();
-+	}
-+	mapping->nrpages -= nr;
++  - "never":
++    Do not allocate huge pages;
 +
-+	if (!node) {
-+		/* Clear direct pointer tags in root node */
-+		mapping->page_tree.gfp_mask &= __GFP_BITS_MASK;
-+		VM_BUG_ON(nr != 1);
-+		radix_tree_replace_slot(slot, shadow);
-+		return;
-+	}
++  - "within_size":
++    Only allocate huge page if it will be fully within i_size.
++    Also respect fadvise()/madvise() hints;
 +
-+	index = page->index;
-+	VM_BUG_ON_PAGE(index & (nr - 1), page);
-+	for (i = 0; i < nr; i++) {
-+		/* Cross node border */
-+		if (i && ((index + i) & RADIX_TREE_MAP_MASK) == 0) {
-+			__radix_tree_lookup(&mapping->page_tree,
-+					page->index + i, &node, &slot);
-+		}
++  - "advise:
++    Only allocate huge pages if requested with fadvise()/madvise();
 +
-+		__page_cache_tree_delete(mapping, node,
-+				slot + (i & RADIX_TREE_MAP_MASK), index + i,
-+				shadow);
-+	}
-+}
++The default policy is "never".
 +
- /*
-  * Delete a page from the page cache and free it. Caller has to make
-  * sure the page is locked and that nobody else uses it - or that usage
-@@ -181,6 +204,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
- void __delete_from_page_cache(struct page *page, void *shadow)
- {
- 	struct address_space *mapping = page->mapping;
-+	int nr = hpage_nr_pages(page);
- 
- 	trace_mm_filemap_delete_from_page_cache(page);
- 	/*
-@@ -193,6 +217,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 	else
- 		cleancache_invalidate_page(mapping, page);
- 
-+	VM_BUG_ON_PAGE(PageTail(page), page);
- 	VM_BUG_ON_PAGE(page_mapped(page), page);
- 	if (!IS_ENABLED(CONFIG_DEBUG_VM) && unlikely(page_mapped(page))) {
- 		int mapcount;
-@@ -224,9 +249,9 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 
- 	/* hugetlb pages do not participate in page cache accounting. */
- 	if (!PageHuge(page))
--		__dec_zone_page_state(page, NR_FILE_PAGES);
-+		__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, -nr);
- 	if (PageSwapBacked(page))
--		__dec_zone_page_state(page, NR_SHMEM);
-+		__mod_zone_page_state(page_zone(page), NR_SHMEM, -nr);
- 
- 	/*
- 	 * At this point page must be either written or cleaned by truncate.
-@@ -250,9 +275,8 @@ void __delete_from_page_cache(struct page *page, void *shadow)
-  */
- void delete_from_page_cache(struct page *page)
- {
--	struct address_space *mapping = page->mapping;
-+	struct address_space *mapping = page_mapping(page);
- 	unsigned long flags;
--
- 	void (*freepage)(struct page *);
- 
- 	BUG_ON(!PageLocked(page));
-@@ -265,7 +289,13 @@ void delete_from_page_cache(struct page *page)
- 
- 	if (freepage)
- 		freepage(page);
--	put_page(page);
++"mount -o remount,huge= /mountpoint" works fine after mount: remounting
++huge=never will not attempt to break up huge pages at all, just stop more
++from being allocated.
 +
-+	if (PageTransHuge(page) && !PageHuge(page)) {
-+		page_ref_sub(page, HPAGE_PMD_NR);
-+		VM_BUG_ON_PAGE(page_count(page) <= 0, page);
-+	} else {
-+		put_page(page);
-+	}
- }
- EXPORT_SYMBOL(delete_from_page_cache);
- 
-@@ -1054,7 +1084,7 @@ EXPORT_SYMBOL(page_cache_prev_hole);
- struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
- {
- 	void **pagep;
--	struct page *page;
-+	struct page *head, *page;
- 
- 	rcu_read_lock();
- repeat:
-@@ -1074,9 +1104,17 @@ repeat:
- 			 */
- 			goto out;
- 		}
--		if (!page_cache_get_speculative(page))
++There's also sysfs knob to control hugepage allocation policy for internal
++shmem mount: /sys/kernel/mm/transparent_hugepage/shmem_enabled. The mount
++is used for SysV SHM, memfds, shared anonymous mmaps (of /dev/zero or
++MAP_ANONYMOUS), GPU drivers' DRM objects, Ashmem.
 +
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
- 			goto repeat;
- 
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
-+			goto repeat;
-+		}
++In addition to policies listed above, shmem_enabled allows two further
++values:
 +
- 		/*
- 		 * Has the page moved?
- 		 * This is part of the lockless pagecache protocol. See
-@@ -1119,12 +1157,12 @@ repeat:
- 	if (page && !radix_tree_exception(page)) {
- 		lock_page(page);
- 		/* Has the page been truncated? */
--		if (unlikely(page->mapping != mapping)) {
-+		if (unlikely(page_mapping(page) != mapping)) {
- 			unlock_page(page);
- 			put_page(page);
- 			goto repeat;
- 		}
--		VM_BUG_ON_PAGE(page->index != offset, page);
-+		VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
- 	}
- 	return page;
- }
-@@ -1256,7 +1294,7 @@ unsigned find_get_entries(struct address_space *mapping,
- 
- 	rcu_read_lock();
- 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
-@@ -1273,8 +1311,16 @@ repeat:
- 			 */
- 			goto export;
- 		}
--		if (!page_cache_get_speculative(page))
++  - "deny":
++    For use in emergencies, to force the huge option off from
++    all mounts;
++  - "force":
++    Force the huge option on for all - very useful for testing;
 +
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
-+			goto repeat;
+ == Need of application restart ==
+ 
+-The transparent_hugepage/enabled values only affect future
+-behavior. So to make them effective you need to restart any
+-application that could have been using hugepages. This also applies to
+-the regions registered in khugepaged.
++The transparent_hugepage/enabled values and tmpfs mount option only affect
++future behavior. So to make them effective you need to restart any
++application that could have been using hugepages. This also applies to the
++regions registered in khugepaged.
+ 
+ == Monitoring usage ==
+ 
+-The number of transparent huge pages currently used by the system is
+-available by reading the AnonHugePages field in /proc/meminfo. To
+-identify what applications are using transparent huge pages, it is
+-necessary to read /proc/PID/smaps and count the AnonHugePages fields
+-for each mapping. Note that reading the smaps file is expensive and
+-reading it frequently will incur overhead.
++The number of anonymous transparent huge pages currently used by the
++system is available by reading the AnonHugePages field in /proc/meminfo.
++To identify what applications are using anonymous transparent huge pages,
++it is necessary to read /proc/PID/smaps and count the AnonHugePages fields
++for each mapping.
 +
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
- 			goto repeat;
-+		}
- 
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
-@@ -1319,7 +1365,7 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
- 
- 	rcu_read_lock();
- 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
-@@ -1338,9 +1384,16 @@ repeat:
- 			continue;
- 		}
- 
--		if (!page_cache_get_speculative(page))
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
- 			goto repeat;
- 
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
-+			goto repeat;
-+		}
++The number of file transparent huge pages mapped to userspace is available
++by reading the FileHugeMapped field in /proc/meminfo.  To identify what
++applications are mapping file  transparent huge pages, it is necessary
++to read /proc/PID/smaps and count the FileHugeMapped fields for each
++mapping.
 +
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
- 			put_page(page);
-@@ -1380,7 +1433,7 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
++Note that reading the smaps file is expensive and reading it
++frequently will incur overhead.
  
- 	rcu_read_lock();
- 	radix_tree_for_each_contig(slot, &mapping->page_tree, &iter, index) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		/* The hole, there no reason to continue */
-@@ -1400,8 +1453,14 @@ repeat:
- 			break;
- 		}
+ There are a number of counters in /proc/vmstat that may be used to
+ monitor how successfully the system is providing huge pages for use.
+@@ -238,6 +280,12 @@ thp_collapse_alloc_failed is incremented if khugepaged found a range
+ 	of pages that should be collapsed into one huge page but failed
+ 	the allocation.
  
--		if (!page_cache_get_speculative(page))
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
- 			goto repeat;
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
-+			goto repeat;
-+		}
- 
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
-@@ -1414,7 +1473,7 @@ repeat:
- 		 * otherwise we can get both false positives and false
- 		 * negatives, which is just confusing to the caller.
- 		 */
--		if (page->mapping == NULL || page->index != iter.index) {
-+		if (page->mapping == NULL || page_to_pgoff(page) != iter.index) {
- 			put_page(page);
- 			break;
- 		}
-@@ -1452,7 +1511,7 @@ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
- 	rcu_read_lock();
- 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
- 				   &iter, *index, tag) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
-@@ -1477,8 +1536,15 @@ repeat:
- 			continue;
- 		}
- 
--		if (!page_cache_get_speculative(page))
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
-+			goto repeat;
++thp_file_alloc is incremented every time a file huge page is successfully
++i	allocated.
 +
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
- 			goto repeat;
-+		}
- 
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
-@@ -1526,7 +1592,7 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
- 	rcu_read_lock();
- 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
- 				   &iter, start, tag) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
-@@ -1544,9 +1610,17 @@ repeat:
- 			 */
- 			goto export;
- 		}
--		if (!page_cache_get_speculative(page))
++thp_file_mapped is incremented every time a file huge page is mapped into
++	user address space.
 +
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
- 			goto repeat;
+ thp_split_page is incremented every time a huge page is split into base
+ 	pages. This can happen for a variety of reasons but a common
+ 	reason is that a huge page is old and is being reclaimed.
+@@ -403,19 +451,27 @@ pages:
+     on relevant sub-page of the compound page.
  
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
-+			goto repeat;
-+		}
+   - map/unmap of the whole compound page accounted in compound_mapcount
+-    (stored in first tail page).
++    (stored in first tail page). For file huge pages, we also increment
++    ->_mapcount of all sub-pages in order to have race-free detection of
++    last unmap of subpages.
+ 
+-PageDoubleMap() indicates that ->_mapcount in all subpages is offset up by one.
+-This additional reference is required to get race-free detection of unmap of
+-subpages when we have them mapped with both PMDs and PTEs.
++PageDoubleMap() indicates that the page is *possibly* mapped with PTEs.
 +
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
- 			put_page(page);
-@@ -2140,7 +2214,7 @@ void filemap_map_pages(struct fault_env *fe,
- 	struct address_space *mapping = file->f_mapping;
- 	pgoff_t last_pgoff = start_pgoff;
- 	loff_t size;
--	struct page *page;
-+	struct page *head, *page;
++For anonymous pages PageDoubleMap() also indicates ->_mapcount in all
++subpages is offset up by one. This additional reference is required to
++get race-free detection of unmap of subpages when we have them mapped with
++both PMDs and PTEs.
  
- 	rcu_read_lock();
- 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter,
-@@ -2159,8 +2233,15 @@ repeat:
- 			goto next;
- 		}
+ This is optimization required to lower overhead of per-subpage mapcount
+ tracking. The alternative is alter ->_mapcount in all subpages on each
+ map/unmap of the whole compound page.
  
--		if (!page_cache_get_speculative(page))
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
-+			goto repeat;
+-We set PG_double_map when a PMD of the page got split for the first time,
+-but still have PMD mapping. The addtional references go away with last
+-compound_mapcount.
++For anonymous pages, we set PG_double_map when a PMD of the page got split
++for the first time, but still have PMD mapping. The additional references
++go away with last compound_mapcount.
 +
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(page);
- 			goto repeat;
-+		}
++File pages get PG_double_map set on first map of the page with PTE and
++goes away when the page gets evicted from page cache.
  
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
+ split_huge_page internally has to distribute the refcounts in the head
+ page to the tail pages before clearing all PG_head/tail bits from the page
+@@ -427,7 +483,7 @@ sum of mapcount of all sub-pages plus one (split_huge_page caller must
+ have reference for head page).
+ 
+ split_huge_page uses migration entries to stabilize page->_count and
+-page->_mapcount.
++page->_mapcount of anonymous pages. File pages just got unmapped.
+ 
+ We safe against physical memory scanners too: the only legitimate way
+ scanner can get reference to a page is get_page_unless_zero().
 -- 
 2.8.0.rc3
 
