@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CE324828DF
-	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 20:24:44 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id dx6so109292467pad.0
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 17:24:44 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id y26si5193089pfi.70.2016.04.15.17.24.20
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A1AE6828DF
+	for <linux-mm@kvack.org>; Fri, 15 Apr 2016 20:24:46 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id vv3so153338567pab.2
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 17:24:46 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id q76si5201007pfa.60.2016.04.15.17.24.37
         for <linux-mm@kvack.org>;
-        Fri, 15 Apr 2016 17:24:20 -0700 (PDT)
+        Fri, 15 Apr 2016 17:24:37 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv7 22/29] shmem: prepare huge= mount option and sysfs knob
-Date: Sat, 16 Apr 2016 03:23:53 +0300
-Message-Id: <1460766240-84565-23-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv7 09/29] thp: handle file pages in split_huge_pmd()
+Date: Sat, 16 Apr 2016 03:23:40 +0300
+Message-Id: <1460766240-84565-10-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1460766240-84565-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1460766240-84565-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,316 +19,37 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This patch adds new mount option "huge=". It can have following values:
-
-  - "always":
-	Attempt to allocate huge pages every time we need a new page;
-
-  - "never":
-	Do not allocate huge pages;
-
-  - "within_size":
-	Only allocate huge page if it will be fully within i_size.
-	Also respect fadvise()/madvise() hints;
-
-  - "advise:
-	Only allocate huge pages if requested with fadvise()/madvise();
-
-Default is "never" for now.
-
-"mount -o remount,huge= /mountpoint" works fine after mount: remounting
-huge=never will not attempt to break up huge pages at all, just stop
-more from being allocated.
-
-No new config option: put this under CONFIG_TRANSPARENT_HUGEPAGE,
-which is the appropriate option to protect those who don't want
-the new bloat, and with which we shall share some pmd code.
-
-Prohibit the option when !CONFIG_TRANSPARENT_HUGEPAGE, just as mpol is
-invalid without CONFIG_NUMA (was hidden in mpol_parse_str(): make it
-explicit).
-
-Allow enabling THP only if the machine has_transparent_hugepage().
-
-But what about Shmem with no user-visible mount?  SysV SHM, memfds,
-shared anonymous mmaps (of /dev/zero or MAP_ANONYMOUS), GPU drivers'
-DRM objects, Ashmem.  Though unlikely to suit all usages, provide
-sysfs knob /sys/kernel/mm/transparent_hugepage/shmem_enabled to
-experiment with huge on those.
-
-And allow shmem_enabled two further values:
-
-  - "deny":
-	For use in emergencies, to force the huge option off from
-	all mounts;
-  - "force":
-	Force the huge option on for all - very useful for testing;
-
-Based on patch by Hugh Dickins.
+Splitting THP PMD is simple: just unmap it as in DAX case.
+Unlike DAX, we also remove the page from rmap and drop reference.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/huge_mm.h  |   2 +
- include/linux/shmem_fs.h |   3 +-
- mm/huge_memory.c         |   3 +
- mm/shmem.c               | 161 +++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 168 insertions(+), 1 deletion(-)
+ mm/huge_memory.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 95f83770443c..278ade85e224 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -41,6 +41,8 @@ enum transparent_hugepage_flag {
- #endif
- };
- 
-+extern struct kobj_attribute shmem_enabled_attr;
-+
- #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
- #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
- 
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 4d4780c00d34..466f18c73a49 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -28,9 +28,10 @@ struct shmem_sb_info {
- 	unsigned long max_inodes;   /* How many inodes are allowed */
- 	unsigned long free_inodes;  /* How many are left for allocation */
- 	spinlock_t stat_lock;	    /* Serialize shmem_sb_info changes */
-+	umode_t mode;		    /* Mount mode for root directory */
-+	unsigned char huge;	    /* Whether to try for hugepages */
- 	kuid_t uid;		    /* Mount uid for root directory */
- 	kgid_t gid;		    /* Mount gid for root directory */
--	umode_t mode;		    /* Mount mode for root directory */
- 	struct mempolicy *mpol;     /* default memory policy for mappings */
- };
- 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 61f1651bf02f..8fd0321073fa 100644
+index 29ba922a9c26..67830a6ed8b0 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -442,6 +442,9 @@ static struct attribute *hugepage_attr[] = {
- 	&enabled_attr.attr,
- 	&defrag_attr.attr,
- 	&use_zero_page_attr.attr,
-+#ifdef CONFIG_SHMEM
-+	&shmem_enabled_attr.attr,
-+#endif
- #ifdef CONFIG_DEBUG_VM
- 	&debug_cow_attr.attr,
- #endif
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 5f3b9af0d495..3a6349e9c186 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -289,6 +289,87 @@ static bool shmem_confirm_swap(struct address_space *mapping,
- }
+@@ -2940,10 +2940,16 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
  
- /*
-+ * Definitions for "huge tmpfs": tmpfs mounted with the huge= option
-+ *
-+ * SHMEM_HUGE_NEVER:
-+ *	disables huge pages for the mount;
-+ * SHMEM_HUGE_ALWAYS:
-+ *	enables huge pages for the mount;
-+ * SHMEM_HUGE_WITHIN_SIZE:
-+ *	only allocate huge pages if the page will be fully within i_size,
-+ *	also respect fadvise()/madvise() hints;
-+ * SHMEM_HUGE_ADVISE:
-+ *	only allocate huge pages if requested with fadvise()/madvise();
-+ */
-+
-+#define SHMEM_HUGE_NEVER	0
-+#define SHMEM_HUGE_ALWAYS	1
-+#define SHMEM_HUGE_WITHIN_SIZE	2
-+#define SHMEM_HUGE_ADVISE	3
-+
-+/*
-+ * Special values.
-+ * Only can be set via /sys/kernel/mm/transparent_hugepage/shmem_enabled:
-+ *
-+ * SHMEM_HUGE_DENY:
-+ *	disables huge on shm_mnt and all mounts, for emergency use;
-+ * SHMEM_HUGE_FORCE:
-+ *	enables huge on shm_mnt and all mounts, w/o needing option, for testing;
-+ *
-+ */
-+#define SHMEM_HUGE_DENY		(-1)
-+#define SHMEM_HUGE_FORCE	(-2)
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+/* ifdef here to avoid bloating shmem.o when not necessary */
-+
-+int shmem_huge __read_mostly;
-+
-+static int shmem_parse_huge(const char *str)
-+{
-+	if (!strcmp(str, "never"))
-+		return SHMEM_HUGE_NEVER;
-+	if (!strcmp(str, "always"))
-+		return SHMEM_HUGE_ALWAYS;
-+	if (!strcmp(str, "within_size"))
-+		return SHMEM_HUGE_WITHIN_SIZE;
-+	if (!strcmp(str, "advise"))
-+		return SHMEM_HUGE_ADVISE;
-+	if (!strcmp(str, "deny"))
-+		return SHMEM_HUGE_DENY;
-+	if (!strcmp(str, "force"))
-+		return SHMEM_HUGE_FORCE;
-+	return -EINVAL;
-+}
-+
-+static const char *shmem_format_huge(int huge)
-+{
-+	switch (huge) {
-+	case SHMEM_HUGE_NEVER:
-+		return "never";
-+	case SHMEM_HUGE_ALWAYS:
-+		return "always";
-+	case SHMEM_HUGE_WITHIN_SIZE:
-+		return "within_size";
-+	case SHMEM_HUGE_ADVISE:
-+		return "advise";
-+	case SHMEM_HUGE_DENY:
-+		return "deny";
-+	case SHMEM_HUGE_FORCE:
-+		return "force";
-+	default:
-+		VM_BUG_ON(1);
-+		return "bad_val";
-+	}
-+}
-+
-+#else /* !CONFIG_TRANSPARENT_HUGEPAGE */
-+
-+#define shmem_huge SHMEM_HUGE_DENY
-+
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+
-+/*
-  * Like add_to_page_cache_locked, but error if expected item has gone.
-  */
- static int shmem_add_to_page_cache(struct page *page,
-@@ -2857,11 +2938,24 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
- 			sbinfo->gid = make_kgid(current_user_ns(), gid);
- 			if (!gid_valid(sbinfo->gid))
- 				goto bad_val;
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		} else if (!strcmp(this_char, "huge")) {
-+			int huge;
-+			huge = shmem_parse_huge(value);
-+			if (huge < 0)
-+				goto bad_val;
-+			if (!has_transparent_hugepage() &&
-+					huge != SHMEM_HUGE_NEVER)
-+				goto bad_val;
-+			sbinfo->huge = huge;
-+#endif
-+#ifdef CONFIG_NUMA
- 		} else if (!strcmp(this_char,"mpol")) {
- 			mpol_put(mpol);
- 			mpol = NULL;
- 			if (mpol_parse_str(value, &mpol))
- 				goto bad_val;
-+#endif
- 		} else {
- 			pr_err("tmpfs: Bad mount option %s\n", this_char);
- 			goto error;
-@@ -2907,6 +3001,7 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
- 		goto out;
+ 	count_vm_event(THP_SPLIT_PMD);
  
- 	error = 0;
-+	sbinfo->huge = config.huge;
- 	sbinfo->max_blocks  = config.max_blocks;
- 	sbinfo->max_inodes  = config.max_inodes;
- 	sbinfo->free_inodes = config.max_inodes - inodes;
-@@ -2940,6 +3035,11 @@ static int shmem_show_options(struct seq_file *seq, struct dentry *root)
- 	if (!gid_eq(sbinfo->gid, GLOBAL_ROOT_GID))
- 		seq_printf(seq, ",gid=%u",
- 				from_kgid_munged(&init_user_ns, sbinfo->gid));
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	/* Rightly or wrongly, show huge mount option unmasked by shmem_huge */
-+	if (sbinfo->huge)
-+		seq_printf(seq, ",huge=%s", shmem_format_huge(sbinfo->huge));
-+#endif
- 	shmem_show_mpol(seq, sbinfo->mpol);
- 	return 0;
- }
-@@ -3278,6 +3378,13 @@ int __init shmem_init(void)
- 		pr_err("Could not kern_mount tmpfs\n");
- 		goto out1;
- 	}
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	if (has_transparent_hugepage() && shmem_huge < SHMEM_HUGE_DENY)
-+		SHMEM_SB(shm_mnt->mnt_sb)->huge = shmem_huge;
-+	else
-+		shmem_huge = 0; /* just in case it was patched */
-+#endif
- 	return 0;
- 
- out1:
-@@ -3289,6 +3396,60 @@ out3:
- 	return error;
- }
- 
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && defined(CONFIG_SYSFS)
-+static ssize_t shmem_enabled_show(struct kobject *kobj,
-+		struct kobj_attribute *attr, char *buf)
-+{
-+	int values[] = {
-+		SHMEM_HUGE_ALWAYS,
-+		SHMEM_HUGE_WITHIN_SIZE,
-+		SHMEM_HUGE_ADVISE,
-+		SHMEM_HUGE_NEVER,
-+		SHMEM_HUGE_DENY,
-+		SHMEM_HUGE_FORCE,
-+	};
-+	int i, count;
-+
-+	for (i = 0, count = 0; i < ARRAY_SIZE(values); i++) {
-+		const char *fmt = shmem_huge == values[i] ? "[%s] " : "%s ";
-+
-+		count += sprintf(buf + count, fmt,
-+				shmem_format_huge(values[i]));
-+	}
-+	buf[count - 1] = '\n';
-+	return count;
-+}
-+
-+static ssize_t shmem_enabled_store(struct kobject *kobj,
-+		struct kobj_attribute *attr, const char *buf, size_t count)
-+{
-+	char tmp[16];
-+	int huge;
-+
-+	if (count + 1 > sizeof(tmp))
-+		return -EINVAL;
-+	memcpy(tmp, buf, count);
-+	tmp[count] = '\0';
-+	if (count && tmp[count - 1] == '\n')
-+		tmp[count - 1] = '\0';
-+
-+	huge = shmem_parse_huge(tmp);
-+	if (huge == -EINVAL)
-+		return -EINVAL;
-+	if (!has_transparent_hugepage() &&
-+			huge != SHMEM_HUGE_NEVER && huge != SHMEM_HUGE_DENY)
-+		return -EINVAL;
-+
-+	shmem_huge = huge;
-+	if (shmem_huge < SHMEM_HUGE_DENY)
-+		SHMEM_SB(shm_mnt->mnt_sb)->huge = shmem_huge;
-+	return count;
-+}
-+
-+struct kobj_attribute shmem_enabled_attr =
-+	__ATTR(shmem_enabled, 0644, shmem_enabled_show, shmem_enabled_store);
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE && CONFIG_SYSFS */
-+
- #else /* !CONFIG_SHMEM */
- 
- /*
+-	if (vma_is_dax(vma)) {
+-		pmd_t _pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
++	if (!vma_is_anonymous(vma)) {
++		_pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
+ 		if (is_huge_zero_pmd(_pmd))
+ 			put_huge_zero_page();
++		if (vma_is_dax(vma))
++			return;
++		page = pmd_page(_pmd);
++		page_remove_rmap(page, true);
++		put_page(page);
++		add_mm_counter(mm, MM_FILEPAGES, -HPAGE_PMD_NR);
+ 		return;
+ 	} else if (is_huge_zero_pmd(*pmd)) {
+ 		return __split_huge_zero_page_pmd(vma, haddr, pmd);
 -- 
 2.8.0.rc3
 
