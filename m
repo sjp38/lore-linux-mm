@@ -1,44 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D75C6B0005
-	for <linux-mm@kvack.org>; Sat, 16 Apr 2016 00:55:21 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e190so222338132pfe.3
-        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 21:55:21 -0700 (PDT)
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 64AE06B0005
+	for <linux-mm@kvack.org>; Sat, 16 Apr 2016 01:05:33 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id zy2so158253558pac.1
+        for <linux-mm@kvack.org>; Fri, 15 Apr 2016 22:05:33 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id kq10si1143505pab.242.2016.04.15.21.55.20
+        by mx.google.com with ESMTPS id b200si7654446pfb.63.2016.04.15.22.05.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Apr 2016 21:55:20 -0700 (PDT)
-Date: Fri, 15 Apr 2016 21:55:19 -0700
+        Fri, 15 Apr 2016 22:05:32 -0700 (PDT)
+Date: Fri, 15 Apr 2016 22:05:31 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 09/10] huge pagecache: mmap_sem is unlocked when
- truncation splits pmd
-Message-Id: <20160415215519.98f179c7418d4d2e9b316240@linux-foundation.org>
-In-Reply-To: <20160414173922.GE3120@linux.intel.com>
-References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
-	<alpine.LSU.2.11.1604051352540.5965@eggly.anvils>
-	<20160414173922.GE3120@linux.intel.com>
+Subject: Re: [PATCH v3 0/2] Align mmap address for DAX pmd mappings
+Message-Id: <20160415220531.c7b55adb5b26eb749fae3186@linux-foundation.org>
+In-Reply-To: <1460652511-19636-1-git-send-email-toshi.kani@hpe.com>
+References: <1460652511-19636-1-git-send-email-toshi.kani@hpe.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: dan.j.williams@intel.com, viro@zeniv.linux.org.uk, willy@linux.intel.com, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com, david@fromorbit.com, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, linux-nvdimm@ml01.01.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 14 Apr 2016 13:39:22 -0400 Matthew Wilcox <willy@linux.intel.com> wrote:
+On Thu, 14 Apr 2016 10:48:29 -0600 Toshi Kani <toshi.kani@hpe.com> wrote:
 
-> On Tue, Apr 05, 2016 at 01:55:23PM -0700, Hugh Dickins wrote:
-> > zap_pmd_range()'s CONFIG_DEBUG_VM !rwsem_is_locked(&mmap_sem) BUG()
-> > will be invalid with huge pagecache, in whatever way it is implemented:
-> > truncation of a hugely-mapped file to an unhugely-aligned size would
-> > easily hit it.
+> When CONFIG_FS_DAX_PMD is set, DAX supports mmap() using pmd page
+> size.  This feature relies on both mmap virtual address and FS
+> block (i.e. physical address) to be aligned by the pmd page size.
+> Users can use mkfs options to specify FS to align block allocations.
+> However, aligning mmap address requires code changes to existing
+> applications for providing a pmd-aligned address to mmap().
 > 
-> We can reproduce this BUG() in the current Linus tree with DAX PMDs.
-> Andrew, can you send this patch to Linus for inclusion in 4.7?
+> For instance, fio with "ioengine=mmap" performs I/Os with mmap() [1].
+> It calls mmap() with a NULL address, which needs to be changed to
+> provide a pmd-aligned address for testing with DAX pmd mappings.
+> Changing all applications that call mmap() with NULL is undesirable.
+> 
+> This patch-set extends filesystems to align an mmap address for
+> a DAX file so that unmodified applications can use DAX pmd mappings.
 
-Wilco, thanks.
+Matthew sounded unconvinced about the need for this patchset, but I
+must say that
 
+: The point is that we do not need to modify existing applications for using
+: DAX PMD mappings.
+: 
+: For instance, fio with "ioengine=mmap" performs I/Os with mmap(). 
+: https://github.com/caius/fio/blob/master/engines/mmap.c
+: 
+: With this change, unmodified fio can be used for testing with DAX PMD
+: mappings.  There are many examples like this, and I do not think we want
+: to modify all applications that we want to evaluate/test with.
+
+sounds pretty convincing?
+
+
+And if we go ahead with this, it looks like 4.7 material to me - it
+affects ABI and we want to get that stabilized asap.  What do people
+think?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
