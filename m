@@ -1,72 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F79C6B007E
-	for <linux-mm@kvack.org>; Sat, 16 Apr 2016 21:21:47 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id dx6so142736425pad.0
-        for <linux-mm@kvack.org>; Sat, 16 Apr 2016 18:21:47 -0700 (PDT)
-Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
-        by mx.google.com with ESMTPS id yt2si4014051pab.188.2016.04.16.18.21.46
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EB2F6B007E
+	for <linux-mm@kvack.org>; Sat, 16 Apr 2016 21:49:38 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e190so260944513pfe.3
+        for <linux-mm@kvack.org>; Sat, 16 Apr 2016 18:49:38 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id s202si12171120pfs.76.2016.04.16.18.49.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 16 Apr 2016 18:21:46 -0700 (PDT)
-Received: by mail-pf0-x232.google.com with SMTP id 184so69099880pff.0
-        for <linux-mm@kvack.org>; Sat, 16 Apr 2016 18:21:46 -0700 (PDT)
-Date: Sat, 16 Apr 2016 18:21:37 -0700 (PDT)
+        Sat, 16 Apr 2016 18:49:37 -0700 (PDT)
+Received: by mail-pa0-x229.google.com with SMTP id r5so12307390pag.1
+        for <linux-mm@kvack.org>; Sat, 16 Apr 2016 18:49:37 -0700 (PDT)
+Date: Sat, 16 Apr 2016 18:49:28 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH mmotm 5/5] huge tmpfs: add shmem_pmd_fault()
-In-Reply-To: <20160417004626.GA5169@node.shutemov.name>
-Message-ID: <alpine.LSU.2.11.1604161801030.1675@eggly.anvils>
-References: <alpine.LSU.2.11.1604161621310.1907@eggly.anvils> <alpine.LSU.2.11.1604161638230.1907@eggly.anvils> <20160417004626.GA5169@node.shutemov.name>
+Subject: Re: [PATCH 09/31] huge tmpfs: avoid premature exposure of new
+ pagetable
+In-Reply-To: <20160411115422.GF22996@node.shutemov.name>
+Message-ID: <alpine.LSU.2.11.1604161830510.1896@eggly.anvils>
+References: <alpine.LSU.2.11.1604051403210.5965@eggly.anvils> <alpine.LSU.2.11.1604051423160.5965@eggly.anvils> <20160411115422.GF22996@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, kernel test robot <xiaolong.ye@intel.com>, Xiong Zhou <jencce.kernel@gmail.com>, Matthew Wilcox <willy@linux.intel.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, 17 Apr 2016, Kirill A. Shutemov wrote:
-> On Sat, Apr 16, 2016 at 04:41:33PM -0700, Hugh Dickins wrote:
-> > The pmd_fault() method gives the filesystem an opportunity to place
-> > a trans huge pmd entry at *pmd, before any pagetable is exposed (and
-> > an opportunity to split it on COW fault): now use it for huge tmpfs.
+On Mon, 11 Apr 2016, Kirill A. Shutemov wrote:
+> On Tue, Apr 05, 2016 at 02:24:23PM -0700, Hugh Dickins wrote:
 > > 
-> > This patch is a little raw: with more time before LSF/MM, I would
-> > probably want to dress it up better - the shmem_mapping() calls look
-> > a bit ugly; it's odd to want FAULT_FLAG_MAY_HUGE and VM_FAULT_HUGE just
-> > for a private conversation between shmem_fault() and shmem_pmd_fault();
-> > and there might be a better distribution of work between those two, but
-> > prising apart that series of huge tests is not to be done in a hurry.
+> > That itself is not a problem on x86_64, but there's plenty more:
+> > how about those places which use pte_offset_map_lock() - if that
+> > spinlock is in the struct page of a pagetable, which has been
+> > deposited and might be withdrawn and freed at any moment (being
+> > on a list unattached to the allocating pmd in the case of x86),
+> > taking the spinlock might corrupt someone else's struct page.
 > > 
-> > Good for now, presents the new way, but might be improved later.
-> > 
-> > This patch still leaves the huge tmpfs map_team_by_pmd() allocating a
-> > pagetable while holding page lock, but other filesystems are no longer
-> > doing so; and we've not yet settled whether huge tmpfs should (like anon
-> > THP) or should not (like DAX) participate in deposit/withdraw protocol.
-> > 
-> > Signed-off-by: Hugh Dickins <hughd@google.com>
+> > Because THP has departed from the earlier rules (when pagetable
+> > was only freed under exclusive mmap_sem, or at exit_mmap, after
+> > removing all affected vmas from the rmap list): zap_huge_pmd()
+> > does pte_free() even when serving MADV_DONTNEED under down_read
+> > of mmap_sem.
 > 
-> Just for record: I don't like ->pmd_fault() approach because it results in
-> two requests to file system (two shmem_fault() in this case) if we don't
-> have a huge page to map: one for huge page (failed) and then one for small.
-> I think this case should be rather common: all mounts without huge pages
-> enabled. I expect performance regression from this too.
+> Emm.. The pte table freed from zap_huge_pmd() is from deposit. It wasn't
+> linked into process' page table tree. So I don't see how THP has departed
+> from the rules.
 
-Yes, I did consider that when making the switchover.  But it's only
-when pmd_none(*pmd), not the other 511 times; and the caches have been
-primed for the pte fallback.  So I didn't expect it to matter, and to be
-outweighed by having map_pages() back in its old position.  Ah, you'll
-point out that map_pages() makes it a smaller ratio than 511:1.
+That's true at the time that it is freed: but my point was, that we
+don't know the past history of that pagetable, which might have been
+linked in and contained visible ptes very recently, without sufficient
+barriers in between.  And in the x86 case (perhaps any non-powerpc
+case), there's no logical association between the pagetable freed
+and the place that it's freed from.
 
-But if someone speeds up pmd_fault(), or replaces it by a better strategy,
-so much the better - I found it a little odd, doing two very different
-things, one of which (splitting) must be done in a non-fault context too.
+Now, I've certainly not paged back in all the anxieties I had, and
+avenues I'd gone down, at the time that I first wrote that comment:
+it's quite possible that they were self-inflicted issues, and
+perhaps remnants of earlier ways in which I'd tried ordering it.
+I'm sure that I never reached any "hey, anon THP has got this wrong"
+conclusion, merely doubts, and surprise that it could free a
+pagetable there.
 
-Anyway, I await judgement from the robot.
+But it looks as if all these ruminations here will vanish with the
+revert of the patch.  Though one day I'll probably be worrying
+about it again, when I try to remove the need for mmap_sem
+protection around recovery's remap_team_by_pmd().
 
-And note your point about regressing mounts without huge pages enabled:
-maybe I should add an early VM_FAULT_FALLBACK for that case, or perhaps
-it will end up in the vma flags instead of my shmem_mapping() check.
+> > do_fault_around() presents one last problem: it wants pagetable to
+> > have been allocated, but was being called by do_read_fault() before
+> > __do_fault().  I see no disadvantage to moving it after, allowing huge
+> > pmd to be chosen first; but Kirill reports additional radix-tree lookup
+> > in hot pagecache case when he implemented faultaround: needs further
+> > investigation.
+> 
+> In my implementation faultaround can establish PMD mappings. So there's no
+> disadvantage to call faultaround first.
+> 
+> And if faultaround happened to solve the page fault we don't need to do
+> usual ->fault lookup.
+
+Sounds good, though not something I'll be looking to add in myself:
+feel free to add it, but maybe it fits easier with compound pages.
 
 Hugh
 
