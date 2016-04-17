@@ -1,92 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CB7756B007E
-	for <linux-mm@kvack.org>; Sun, 17 Apr 2016 10:58:41 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id zy2so202509772pac.1
-        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 07:58:41 -0700 (PDT)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id r6si2644628pai.159.2016.04.17.07.58.40
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D7B96B007E
+	for <linux-mm@kvack.org>; Sun, 17 Apr 2016 13:24:45 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id o131so326973094ywc.2
+        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 10:24:45 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g6si20390128qkb.57.2016.04.17.10.24.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Apr 2016 07:58:41 -0700 (PDT)
-Received: by mail-pa0-x244.google.com with SMTP id hb4so13950416pac.1
-        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 07:58:40 -0700 (PDT)
-Date: Mon, 18 Apr 2016 00:56:21 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v3 08/16] zsmalloc: squeeze freelist into page->mapping
-Message-ID: <20160417155621.GE575@swordfish>
-References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
- <1459321935-3655-9-git-send-email-minchan@kernel.org>
+        Sun, 17 Apr 2016 10:24:44 -0700 (PDT)
+Date: Sun, 17 Apr 2016 19:24:32 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: FlameGraph of mlx4 early drop with order-0 pages
+Message-ID: <20160417192432.70c893fc@redhat.com>
+In-Reply-To: <20160417132357.GB11792@techsingularity.net>
+References: <20160415214034.6ffae9ee@redhat.com>
+	<20160417132357.GB11792@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1459321935-3655-9-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-mm <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Brenden Blanco <bblanco@plumgrid.com>, tom@herbertland.com, alexei.starovoitov@gmail.com, ogerlitz@mellanox.com, daniel@iogearbox.net, eric.dumazet@gmail.com, ecree@solarflare.com, john.fastabend@gmail.com, tgraf@suug.ch, johannes@sipsolutions.net, brouer@redhat.com
 
-Hello,
+On Sun, 17 Apr 2016 14:23:57 +0100
+Mel Gorman <mgorman@techsingularity.net> wrote:
 
-On (03/30/16 16:12), Minchan Kim wrote:
-[..]
-> +static void objidx_to_page_and_offset(struct size_class *class,
-> +				struct page *first_page,
-> +				unsigned long obj_idx,
-> +				struct page **obj_page,
-> +				unsigned long *offset_in_page)
->  {
-> -	unsigned long obj;
-> +	int i;
-> +	unsigned long offset;
-> +	struct page *cursor;
-> +	int nr_page;
->  
-> -	if (!page) {
-> -		VM_BUG_ON(obj_idx);
-> -		return NULL;
-> -	}
-> +	offset = obj_idx * class->size;
+> > Signing off, heading for the plane soon... see you at MM-summit!  
+> 
+> Indeed and we'll slap some sort of plan together. If there is a slot free,
+> we might spend 15-30 minutes on it. Failing that, we'll grab a table
+> somewhere. We'll see how far we can get before considering a page-recycle
+> layer that preserves cache coherent state.
 
-so we already know the `offset' before we call objidx_to_page_and_offset(),
-thus we can drop `struct size_class *class' and `obj_idx', and pass
-`long obj_offset'  (which is `obj_idx * class->size') instead, right?
+We have a plenum slot tomorrow between 16:00-16:30, called "Generic
+Page Pool Facility".
 
-we also _may be_ can return `cursor' from the function.
+I'm at the Marriott now. I'm wearing my Red Hat/fedora, so I should be
+easy to spot... ;-)
 
-static struct page *objidx_to_page_and_offset(struct page *first_page,
-					unsigned long obj_offset,
-					unsigned long *offset_in_page);
-
-this can save ~20 instructions, which is not so terrible for a hot path
-like obj_malloc(). what do you think?
-
-well, seems that `unsigned long *offset_in_page' can be calculated
-outside of this function too, it's basically
-
-	*offset_in_page = (obj_idx * class->size) & ~PAGE_MASK;
-
-so we don't need to supply it to this function, nor modify it there.
-which can save ~40 instructions on my system. does this sound silly?
-
-	-ss
-
-> +	cursor = first_page;
-> +	nr_page = offset >> PAGE_SHIFT;
->  
-> -	obj = page_to_pfn(page) << OBJ_INDEX_BITS;
-> -	obj |= ((obj_idx) & OBJ_INDEX_MASK);
-> -	obj <<= OBJ_TAG_BITS;
-> +	*offset_in_page = offset & ~PAGE_MASK;
-> +
-> +	for (i = 0; i < nr_page; i++)
-> +		cursor = get_next_page(cursor);
->  
-> -	return (void *)obj;
-> +	*obj_page = cursor;
->  }
-
-	-ss
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
