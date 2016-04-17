@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D3306B007E
-	for <linux-mm@kvack.org>; Sun, 17 Apr 2016 05:55:01 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id t5so298137760qkc.1
-        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 02:55:01 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id k88si2993257uak.82.2016.04.17.02.54.59
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CD7596B007E
+	for <linux-mm@kvack.org>; Sun, 17 Apr 2016 06:04:17 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id hb4so195832586pac.3
+        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 03:04:17 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id te8si5092033pac.27.2016.04.17.03.04.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Apr 2016 02:55:00 -0700 (PDT)
+        Sun, 17 Apr 2016 03:04:17 -0700 (PDT)
 From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [added to the 4.1 stable tree] sched: Fix crash in sched_init_numa()
-Date: Sun, 17 Apr 2016 05:50:09 -0400
-Message-Id: <1460886804-19372-10-git-send-email-sasha.levin@oracle.com>
-In-Reply-To: <1460886804-19372-1-git-send-email-sasha.levin@oracle.com>
-References: <1460886804-19372-1-git-send-email-sasha.levin@oracle.com>
+Subject: [added to the 3.18 stable tree] sched: Fix crash in sched_init_numa()
+Date: Sun, 17 Apr 2016 06:00:17 -0400
+Message-Id: <1460887352-20128-32-git-send-email-sasha.levin@oracle.com>
+In-Reply-To: <1460887352-20128-1-git-send-email-sasha.levin@oracle.com>
+References: <1460887352-20128-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: stable@vger.kernel.org, stable-commits@vger.kernel.org
@@ -22,7 +22,7 @@ Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, gkurz@linux.vnet.ibm.co
 
 From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
 
-This patch has been added to the 4.1 stable tree. If you have any
+This patch has been added to the 3.18 stable tree. If you have any
 objections, please let us know.
 
 ===============
@@ -65,10 +65,10 @@ Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 4d870eb..3b0f4c0 100644
+index d650e1e..4317f01 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -6480,7 +6480,7 @@ static void sched_init_numa(void)
+@@ -6416,7 +6416,7 @@ static void sched_init_numa(void)
  
  			sched_domains_numa_masks[i][j] = mask;
  
