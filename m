@@ -1,80 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EEC596B025F
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 12:05:10 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id l15so118936943lfg.2
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 09:05:10 -0700 (PDT)
-Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
-        by mx.google.com with ESMTPS id a131si55556338wme.68.2016.04.18.09.05.09
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C50DE6B007E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 12:07:50 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id g185so416160634ioa.2
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 09:07:50 -0700 (PDT)
+Received: from mail-io0-x231.google.com (mail-io0-x231.google.com. [2607:f8b0:4001:c06::231])
+        by mx.google.com with ESMTPS id vv1si24976306igb.11.2016.04.18.09.07.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Apr 2016 09:05:09 -0700 (PDT)
-Received: by mail-wm0-x235.google.com with SMTP id n3so132001712wmn.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 09:05:09 -0700 (PDT)
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Subject: [PATCH resend 3/3] mm: replace open coded page to virt conversion with page_to_virt()
-Date: Mon, 18 Apr 2016 18:04:57 +0200
-Message-Id: <1460995497-24312-4-git-send-email-ard.biesheuvel@linaro.org>
+        Mon, 18 Apr 2016 09:07:48 -0700 (PDT)
+Received: by mail-io0-x231.google.com with SMTP id u185so199254898iod.3
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 09:07:48 -0700 (PDT)
+MIME-Version: 1.0
 In-Reply-To: <1460995497-24312-1-git-send-email-ard.biesheuvel@linaro.org>
 References: <1460995497-24312-1-git-send-email-ard.biesheuvel@linaro.org>
+Date: Mon, 18 Apr 2016 18:07:48 +0200
+Message-ID: <CAKv+Gu95yDmAYATWRBY27PRHxX9L4YJxgxKf0UCZ-QbkEQfaNQ@mail.gmail.com>
+Subject: Re: [PATCH resend 0/3] mm: allow arch to override lowmem_page_address
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, lftan@altera.com, jonas@southpole.se
-Cc: will.deacon@arm.com, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, lftan@altera.com, Jonas Bonn <jonas@southpole.se>
+Cc: Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-The open coded conversion from struct page address to virtual address in
-lowmem_page_address() involves an intermediate conversion step to pfn
-number/physical address. Since the placement of the struct page array
-relative to the linear mapping may be completely independent from the
-placement of physical RAM (as is that case for arm64 after commit
-dfd55ad85e 'arm64: vmemmap: use virtual projection of linear region'),
-the conversion to physical address and back again should factor out of
-the equation, but unfortunately, the shifting and pointer arithmetic
-involved prevent this from happening, and the resulting calculation
-essentially subtracts the address of the start of physical memory and
-adds it back again, in a way that prevents the compiler from optimizing
-it away.
+On 18 April 2016 at 18:04, Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
+> These patches allow the arch to define the page_to_virt() conversion that
+> is used in lowmem_page_address(). This is desirable for arm64, where this
+> conversion is trivial when CONFIG_SPARSEMEM_VMEMMAP is enabled, while
+> breaking it up into __va(PFN_PHYS(page_to_pfn(page))), as is done currently
+> in lowmem_page_address(), will force the use of a virt-to-phys() conversion
+> and back again, which always involves a memory access on arm64, since the
+> start of physical memory is not a compile time constant.
+>
+> I have split off these patches from my series 'arm64: optimize virt_to_page
+> and page_address' which I sent out 3 weeks ago, and resending them in the
+> hope that they can be picked up (with Will's ack on #3) to be merged via
+> the mm tree.
+>
+> I have cc'ed the nios2 and openrisc maintainers on previous versions, and
+> cc'ing them again now. I have dropped both of the arch specific mailing
+> lists, since one is defunct and the other is subscriber only.
+>
+> Andrew, is this something you would be pulling to pick up (assuming that you
 
-Since the start of physical memory is not a build time constant on arm64,
-the resulting conversion involves an unnecessary memory access, which
-we would like to get rid of. So replace the open coded conversion with
-a call to page_to_virt(), and use the open coded conversion as its
-default definition, to be overriden by the architecture, if desired.
-The existing arch specific definitions of page_to_virt are all equivalent
-to this default definition, so by itself this patch is a no-op.
+s/pulling/willing/
 
-Acked-by: Will Deacon <will.deacon@arm.com>
-Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
----
- include/linux/mm.h | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a55e5be0894f..7d66dbba220f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -72,6 +72,10 @@ extern int mmap_rnd_compat_bits __read_mostly;
- #define __pa_symbol(x)  __pa(RELOC_HIDE((unsigned long)(x), 0))
- #endif
- 
-+#ifndef page_to_virt
-+#define page_to_virt(x)	__va(PFN_PHYS(page_to_pfn(x)))
-+#endif
-+
- /*
-  * To prevent common memory management code establishing
-  * a zero page mapping on a read fault.
-@@ -948,7 +952,7 @@ static inline struct mem_cgroup *page_memcg(struct page *page)
- 
- static __always_inline void *lowmem_page_address(const struct page *page)
- {
--	return __va(PFN_PHYS(page_to_pfn(page)));
-+	return page_to_virt(page);
- }
- 
- #if defined(CONFIG_HIGHMEM) && !defined(WANT_PAGE_VIRTUAL)
--- 
-2.5.0
+> agree with the contents)? Thanks.
+>
+> Ard Biesheuvel (3):
+>   nios2: use correct void* return type for page_to_virt()
+>   openrisc: drop wrongly typed definition of page_to_virt()
+>   mm: replace open coded page to virt conversion with page_to_virt()
+>
+>  arch/nios2/include/asm/io.h      | 1 -
+>  arch/nios2/include/asm/page.h    | 2 +-
+>  arch/nios2/include/asm/pgtable.h | 2 +-
+>  arch/openrisc/include/asm/page.h | 2 --
+>  include/linux/mm.h               | 6 +++++-
+>  5 files changed, 7 insertions(+), 6 deletions(-)
+>
+> --
+> 2.5.0
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
