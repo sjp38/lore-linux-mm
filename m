@@ -1,70 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DB226B025E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 17:24:01 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id u190so352124147pfb.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:24:01 -0700 (PDT)
-Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
-        by mx.google.com with ESMTPS id 136si9631038pfw.92.2016.04.18.14.24.00
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BF796B025F
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 17:35:52 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id k200so124440124lfg.1
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:35:52 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x5si67202337wjf.206.2016.04.18.14.35.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Apr 2016 14:24:00 -0700 (PDT)
-Received: by mail-pf0-x235.google.com with SMTP id e128so84389421pfe.3
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:24:00 -0700 (PDT)
-Date: Mon, 18 Apr 2016 14:23:58 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2] mm, hugetlb_cgroup: round limit_in_bytes down to
- hugepage size
-In-Reply-To: <20160415132451.GL32377@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1604181422220.23710@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1604051824320.32718@chino.kir.corp.google.com> <5704BA37.2080508@kyup.com> <5704BBBF.8040302@kyup.com> <alpine.DEB.2.10.1604061510040.10401@chino.kir.corp.google.com> <20160407125145.GD32755@dhcp22.suse.cz>
- <alpine.DEB.2.10.1604141321350.6593@chino.kir.corp.google.com> <20160415132451.GL32377@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 18 Apr 2016 14:35:50 -0700 (PDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [RFC v3] [PATCH 0/18] DAX page fault locking
+Date: Mon, 18 Apr 2016 23:35:23 +0200
+Message-Id: <1461015341-20153-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nikolay Borisov <kernel@kyup.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-fsdevel@vger.kernel.org
+Cc: linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>, Jan Kara <jack@suse.cz>
 
-On Fri, 15 Apr 2016, Michal Hocko wrote:
+Hello,
 
-> > > > +static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
-> > > > +				struct hugetlb_cgroup *parent_h_cgroup)
-> > > > +{
-> > > > +	int idx;
-> > > > +
-> > > > +	for (idx = 0; idx < HUGE_MAX_HSTATE; idx++) {
-> > > > +		struct page_counter *counter = &h_cgroup->hugepage[idx];
-> > > > +		struct page_counter *parent = NULL;
-> > > > +		unsigned long limit;
-> > > > +		int ret;
-> > > > +
-> > > > +		if (parent_h_cgroup)
-> > > > +			parent = &parent_h_cgroup->hugepage[idx];
-> > > > +		page_counter_init(counter, parent);
-> > > > +
-> > > > +		limit = round_down(PAGE_COUNTER_MAX,
-> > > > +				   1 << huge_page_order(&hstates[idx]));
-> > > > +		ret = page_counter_limit(counter, limit);
-> > > > +		VM_BUG_ON(ret);
-> > > > +	}
-> > > > +}
-> > > 
-> > > I fail to see the point for this. Why would want to round down
-> > > PAGE_COUNTER_MAX? It will never make a real difference. Or am I missing
-> > > something?
-> > 
-> > Did you try the patch?
-> > 
-> > If we're rounding down the user value, it makes sense to be consistent 
-> > with the upper bound default to specify intent.
-> 
-> The point I've tried to raise is why do we care and add a code if we can
-> never reach that value? Does actually anybody checks for the alignment.
+this is my third attempt at DAX page fault locking rewrite. The patch set has
+passed xfstests both with and without DAX mount option on ext4 and xfs for
+me and also additional page fault beating using the new page fault stress
+tests I have added to xfstests. So I'd be grateful if you guys could have a
+closer look at the patches so that they can be merged. Thanks.
 
-If the user modifies the value successfully, it can never be restored to 
-the default since the write handler rounds down.  It's a matter of 
-consistency for a long-term maintainable kernel and prevents bug reports.
+Changes since v2:
+- lot of additional ext4 fixes and cleanups
+- make PMD page faults depend on CONFIG_BROKEN instead of #if 0
+- fixed page reference leak when replacing hole page with a pfn
+- added some reviewed-by tags
+- rebased on top of current Linus' tree
+
+Changes since v1:
+- handle wakeups of exclusive waiters properly
+- fix cow fault races
+- other minor stuff
+
+General description
+
+The basic idea is that we use a bit in an exceptional radix tree entry as
+a lock bit and use it similarly to how page lock is used for normal faults.
+That way we fix races between hole instantiation and read faults of the
+same index. For now I have disabled PMD faults since there the issues with
+page fault locking are even worse. Now that Matthew's multi-order radix tree
+has landed, I can have a look into using that for proper locking of PMD faults
+but first I want normal pages sorted out.
+
+In the end I have decided to implement the bit locking directly in the DAX
+code. Originally I was thinking we could provide something generic directly
+in the radix tree code but the functions DAX needs are rather specific.
+Maybe someone else will have a good idea how to distill some generally useful
+functions out of what I've implemented for DAX but for now I didn't bother
+with that.
+
+								Honza
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
