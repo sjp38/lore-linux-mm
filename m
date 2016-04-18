@@ -1,116 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 022A86B007E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 11:37:28 -0400 (EDT)
-Received: by mail-ig0-f199.google.com with SMTP id b8so167558583igv.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 08:37:27 -0700 (PDT)
-Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
-        by mx.google.com with ESMTPS id e10si16216542oih.69.2016.04.18.08.37.26
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C3926B007E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 11:59:59 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id o126so415990224iod.1
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 08:59:59 -0700 (PDT)
+Received: from mail-ob0-x233.google.com (mail-ob0-x233.google.com. [2607:f8b0:4003:c01::233])
+        by mx.google.com with ESMTPS id m27si5016385otd.12.2016.04.18.08.59.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Apr 2016 08:37:26 -0700 (PDT)
-Received: by mail-oi0-x22d.google.com with SMTP id r78so52487960oie.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 08:37:26 -0700 (PDT)
+        Mon, 18 Apr 2016 08:59:58 -0700 (PDT)
+Received: by mail-ob0-x233.google.com with SMTP id n10so35958844obb.2
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 08:59:58 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <5714C299.5060307@virtuozzo.com>
-References: <1460388169-13340-1-git-send-email-dsafonov@virtuozzo.com>
- <1460729545-5666-1-git-send-email-dsafonov@virtuozzo.com> <CALCETrXQHuSKejXtsGnpm455Z39TVn6jsaUd_T_F=b3Rtmki5Q@mail.gmail.com>
- <5714C299.5060307@virtuozzo.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 18 Apr 2016 08:37:06 -0700
-Message-ID: <CALCETrXYWBqeyeX5ZZBhsNGhdEY6FNWmVM85NWJm8VOnEOFuLw@mail.gmail.com>
-Subject: Re: [PATCHv4 1/2] x86/vdso: add mremap hook to vm_special_mapping
+In-Reply-To: <CAJcbSZFoVjdcfKjoajL8mmSfz=BPRALx7=0gw3faE2o-hu1RqQ@mail.gmail.com>
+References: <1460741159-51752-1-git-send-email-thgarnie@google.com>
+	<20160415150026.65abbdd5b2ef741cd070c769@linux-foundation.org>
+	<1460759160.19090.50.camel@perches.com>
+	<CAJcbSZFoVjdcfKjoajL8mmSfz=BPRALx7=0gw3faE2o-hu1RqQ@mail.gmail.com>
+Date: Mon, 18 Apr 2016 08:59:57 -0700
+Message-ID: <CAJcbSZGLABr5xEFeopKTj34bL2P-ss=rChs+AYAP_49r1r0NfA@mail.gmail.com>
+Subject: Re: [PATCH] mm: SLAB freelist randomization
+From: Thomas Garnier <thgarnie@google.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Dmitry Safonov <0x7f454c46@gmail.com>, Ingo Molnar <mingo@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
+To: Joe Perches <joe@perches.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Kees Cook <keescook@chromium.org>, Greg Thelen <gthelen@google.com>, Laura Abbott <labbott@fedoraproject.org>, kernel-hardening@lists.openwall.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Apr 18, 2016 4:19 AM, "Dmitry Safonov" <dsafonov@virtuozzo.com> wrote:
+I will send the next version today. Note that I get_random_bytes_arch
+is used because at that stage we have 0 bits of entropy. It seemed
+like a better idea to use the arch version that will fallback on
+get_random_bytes sub API in the worse case.
+
+On Fri, Apr 15, 2016 at 3:47 PM, Thomas Garnier <thgarnie@google.com> wrote:
+> Thanks for the comments. I will address them in a v2 early next week.
 >
-> On 04/15/2016 07:58 PM, Andy Lutomirski wrote:
+> If anyone has other comments, please let me know.
+>
+> Thomas
+>
+> On Fri, Apr 15, 2016 at 3:26 PM, Joe Perches <joe@perches.com> wrote:
+>> On Fri, 2016-04-15 at 15:00 -0700, Andrew Morton wrote:
+>>> On Fri, 15 Apr 2016 10:25:59 -0700 Thomas Garnier <thgarnie@google.com> wrote:
+>>> > Provide an optional config (CONFIG_FREELIST_RANDOM) to randomize the
+>>> > SLAB freelist. The list is randomized during initialization of a new set
+>>> > of pages. The order on different freelist sizes is pre-computed at boot
+>>> > for performance. This security feature reduces the predictability of the
+>>> > kernel SLAB allocator against heap overflows rendering attacks much less
+>>> > stable.
 >>
->> A couple minor things:
+>> trivia:
 >>
->>   - You're looking at both new_vma->vm_mm and current->mm.  Is there a
->> reason for that?  If they're different, I'd be quite surprised, but
->> maybe it would make sense to check.
->
->
-> Ok, will add a check.
->
->
->>   - On second thought, the is_ia32_task() check is a little weird given
->> that you're planning on making the vdso image type.  It might make
->> sense to change that to in_ia32_syscall() && image == &vdso_image_32.
->
->
-> Yes, we might be there remapping vdso_image_64 through int80, where
-> we shouldn't change landing. Thanks, will add a check.
->
->
->> Other than that, looks good to me.
+>>> > @@ -1229,6 +1229,61 @@ static void __init set_up_node(struct kmem_cache *cachep, int index)
+>> []
+>>> > + */
+>>> > +static freelist_idx_t master_list_2[2];
+>>> > +static freelist_idx_t master_list_4[4];
+>>> > +static freelist_idx_t master_list_8[8];
+>>> > +static freelist_idx_t master_list_16[16];
+>>> > +static freelist_idx_t master_list_32[32];
+>>> > +static freelist_idx_t master_list_64[64];
+>>> > +static freelist_idx_t master_list_128[128];
+>>> > +static freelist_idx_t master_list_256[256];
+>>> > +static struct m_list {
+>>> > +   size_t count;
+>>> > +   freelist_idx_t *list;
+>>> > +} master_lists[] = {
+>>> > +   { ARRAY_SIZE(master_list_2), master_list_2 },
+>>> > +   { ARRAY_SIZE(master_list_4), master_list_4 },
+>>> > +   { ARRAY_SIZE(master_list_8), master_list_8 },
+>>> > +   { ARRAY_SIZE(master_list_16), master_list_16 },
+>>> > +   { ARRAY_SIZE(master_list_32), master_list_32 },
+>>> > +   { ARRAY_SIZE(master_list_64), master_list_64 },
+>>> > +   { ARRAY_SIZE(master_list_128), master_list_128 },
+>>> > +   { ARRAY_SIZE(master_list_256), master_list_256 },
+>>> > +};
 >>
->> You could add a really simple test case to selftests/x86:
+>> static const struct m_list?
 >>
->> mremap(the vdso, somewhere else);
->> asm volatile ("int $0x80" : : "a" (__NR_exit), "b" (0));
->>
->> That'll segfault if this fails and it'll work and return 0 if it works.
->
->
-> Will add - for now I have tested this with kind the same program.
->
->
->> FWIW, there's one respect in which this code could be problematic down
->> the road: if syscalls ever start needing the vvar page, then this gets
->> awkward because you can't remap both at once.  Also, this is
->> fundamentally racy if multiple threads try to use it (but there's
->> nothing whatsoever the kernel could do about that).  In general, once
->> the call to change and relocate the vdso gets written, CRIU should
->> probably prefer to use it over mremap.
->
->
-> Yes, but from my point of view, for the other reasons:
-> - on restore stage of CRIU, restorer maps VMAs that were dumped
-> on dump stage.
-> - this is done in one thread, as other threads may need those VMAs
-> to funciton.
-> - one of vmas, being restored is vDSO (which also was dumped), so
-> there is image for this blob.
->
-> So, ideally, I even would not need such API to remap blobs
-> from 64 to 32 (or backwards).
-
-If I'm understanding you right, this won't work reliably.  The kernel
-makes no promise that one kernel's vdso is compatible with another
-kernel.  In fact, the internal interfaces have changed several times
-and are changing again in 4.6.
-
-You also need to put vvar at the correct offset from the text, and
-vvar can't be dumped and restores at all, since the whole point is
-that it changes at runtime.
-
-> This is ideally for other applications
-> that switches their mode. For CRIU *ideally* I do not need it, as
-> I have this vma's image dumped before - I only need remap to
-> fix contex.vdso pointer for proper landing and I'm doing it in
-> one thread.
->
-> But, in the practice, one may migrate application from one
-> kernel to another. And for different kernel versions, there may
-> be different vDSO entries. For now (before compatible C/R)
-> we have checked if vDSO differ and if so, examine this different
-> vDSO symbols and add jump trampolines on places where
-> were entries in previous vDSO to a new one.
-> So, this is also true for 32-bit vDSO blob. That's why I need
-> this API for CRIU.
-
-Understood.
-
-I like the mremap support regardless of whether CRIU ends up using it long-term.
-
---Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
