@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DD44F6B0267
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 17:36:07 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id q8so124164625lfe.3
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:36:07 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E20F56B0268
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 17:36:09 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id w143so200724wmw.2
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:36:09 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t197si780116wmd.52.2016.04.18.14.35.52
+        by mx.google.com with ESMTPS id c76si790049wmh.32.2016.04.18.14.35.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Mon, 18 Apr 2016 14:35:52 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 06/18] dax: Remove dead zeroing code from fault handlers
-Date: Mon, 18 Apr 2016 23:35:29 +0200
-Message-Id: <1461015341-20153-7-git-send-email-jack@suse.cz>
+Subject: [PATCH 09/18] dax: Remove zeroing from dax_io()
+Date: Mon, 18 Apr 2016 23:35:32 +0200
+Message-Id: <1461015341-20153-10-git-send-email-jack@suse.cz>
 In-Reply-To: <1461015341-20153-1-git-send-email-jack@suse.cz>
 References: <1461015341-20153-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,73 +20,83 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
 Cc: linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>, Jan Kara <jack@suse.cz>
 
-Now that all filesystems zero out blocks allocated for a fault handler,
-we can just remove the zeroing from the handler itself. Also add checks
-that no filesystem returns to us unwritten or new buffer.
+All the filesystems are now zeroing blocks themselves for DAX IO to avoid
+races between dax_io() and dax_fault(). Remove the zeroing code from
+dax_io() and add warning to catch the case when somebody unexpectedly
+returns new or unwritten buffer.
 
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/dax.c | 19 +++----------------
- 1 file changed, 3 insertions(+), 16 deletions(-)
+ fs/dax.c | 28 ++++++++++------------------
+ 1 file changed, 10 insertions(+), 18 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index c5ccf745d279..ccb8bc399d78 100644
+index ccb8bc399d78..7c0036dd1570 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -587,11 +587,6 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
- 		error = PTR_ERR(dax.addr);
- 		goto out;
- 	}
+@@ -119,18 +119,6 @@ int dax_clear_sectors(struct block_device *bdev, sector_t _sector, long _size)
+ }
+ EXPORT_SYMBOL_GPL(dax_clear_sectors);
+ 
+-/* the clear_pmem() calls are ordered by a wmb_pmem() in the caller */
+-static void dax_new_buf(void __pmem *addr, unsigned size, unsigned first,
+-		loff_t pos, loff_t end)
+-{
+-	loff_t final = end - pos + first; /* The final byte of the buffer */
 -
--	if (buffer_unwritten(bh) || buffer_new(bh)) {
--		clear_pmem(dax.addr, PAGE_SIZE);
--		wmb_pmem();
--	}
- 	dax_unmap_atomic(bdev, &dax);
- 
- 	error = dax_radix_entry(mapping, vmf->pgoff, dax.sector, false,
-@@ -670,7 +665,7 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	if (error)
- 		goto unlock_page;
- 
--	if (!buffer_mapped(&bh) && !buffer_unwritten(&bh) && !vmf->cow_page) {
-+	if (!buffer_mapped(&bh) && !vmf->cow_page) {
- 		if (vmf->flags & FAULT_FLAG_WRITE) {
- 			error = get_block(inode, block, &bh, 1);
- 			count_vm_event(PGMAJFAULT);
-@@ -722,7 +717,7 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	}
- 
- 	/* Filesystem should not return unwritten buffers to us! */
--	WARN_ON_ONCE(buffer_unwritten(&bh));
-+	WARN_ON_ONCE(buffer_unwritten(&bh) || buffer_new(&bh));
- 	error = dax_insert_mapping(inode, &bh, vma, vmf);
- 
-  out:
-@@ -854,7 +849,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 		if (get_block(inode, block, &bh, 1) != 0)
- 			return VM_FAULT_SIGBUS;
- 		alloc = true;
--		WARN_ON_ONCE(buffer_unwritten(&bh));
-+		WARN_ON_ONCE(buffer_unwritten(&bh) || buffer_new(&bh));
- 	}
- 
- 	bdev = bh.b_bdev;
-@@ -953,14 +948,6 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 			dax_pmd_dbg(&bh, address, "pfn not in memmap");
- 			goto fallback;
- 		}
+-	if (first > 0)
+-		clear_pmem(addr, first);
+-	if (final < size)
+-		clear_pmem(addr + final, size - final);
+-}
 -
--		if (buffer_unwritten(&bh) || buffer_new(&bh)) {
--			clear_pmem(dax.addr, PMD_SIZE);
--			wmb_pmem();
--			count_vm_event(PGMAJFAULT);
--			mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
--			result |= VM_FAULT_MAJOR;
--		}
- 		dax_unmap_atomic(bdev, &dax);
+ static bool buffer_written(struct buffer_head *bh)
+ {
+ 	return buffer_mapped(bh) && !buffer_unwritten(bh);
+@@ -169,6 +157,9 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
+ 	struct blk_dax_ctl dax = {
+ 		.addr = (void __pmem *) ERR_PTR(-EIO),
+ 	};
++	unsigned blkbits = inode->i_blkbits;
++	sector_t file_blks = (i_size_read(inode) + (1 << blkbits) - 1)
++								>> blkbits;
  
- 		/*
+ 	if (rw == READ)
+ 		end = min(end, i_size_read(inode));
+@@ -176,7 +167,6 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
+ 	while (pos < end) {
+ 		size_t len;
+ 		if (pos == max) {
+-			unsigned blkbits = inode->i_blkbits;
+ 			long page = pos >> PAGE_SHIFT;
+ 			sector_t block = page << (PAGE_SHIFT - blkbits);
+ 			unsigned first = pos - (block << blkbits);
+@@ -192,6 +182,13 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
+ 					bh->b_size = 1 << blkbits;
+ 				bh_max = pos - first + bh->b_size;
+ 				bdev = bh->b_bdev;
++				/*
++				 * We allow uninitialized buffers for writes
++				 * beyond EOF as those cannot race with faults
++				 */
++				WARN_ON_ONCE(
++					(buffer_new(bh) && block < file_blks) ||
++					(rw == WRITE && buffer_unwritten(bh)));
+ 			} else {
+ 				unsigned done = bh->b_size -
+ 						(bh_max - (pos - first));
+@@ -211,11 +208,6 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
+ 					rc = map_len;
+ 					break;
+ 				}
+-				if (buffer_unwritten(bh) || buffer_new(bh)) {
+-					dax_new_buf(dax.addr, map_len, first,
+-							pos, end);
+-					need_wmb = true;
+-				}
+ 				dax.addr += first;
+ 				size = map_len - first;
+ 			}
 -- 
 2.6.6
 
