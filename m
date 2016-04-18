@@ -1,61 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BF796B025F
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CBB8F6B0260
 	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 17:35:52 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id k200so124440124lfg.1
+Received: by mail-wm0-f71.google.com with SMTP id a125so248167wmd.0
         for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:35:52 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x5si67202337wjf.206.2016.04.18.14.35.50
+        by mx.google.com with ESMTPS id j89si806942wmi.13.2016.04.18.14.35.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Mon, 18 Apr 2016 14:35:50 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [RFC v3] [PATCH 0/18] DAX page fault locking
-Date: Mon, 18 Apr 2016 23:35:23 +0200
-Message-Id: <1461015341-20153-1-git-send-email-jack@suse.cz>
+Subject: [PATCH 02/18] ext4: Fix race in transient ENOSPC detection
+Date: Mon, 18 Apr 2016 23:35:25 +0200
+Message-Id: <1461015341-20153-3-git-send-email-jack@suse.cz>
+In-Reply-To: <1461015341-20153-1-git-send-email-jack@suse.cz>
+References: <1461015341-20153-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
 Cc: linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>, Jan Kara <jack@suse.cz>
 
-Hello,
+When there are blocks to free in the running transaction, block
+allocator can return ENOSPC although the filesystem has some blocks to
+free. We use ext4_should_retry_alloc() to force commit of the current
+transaction and return whether anything was committed so that it makes
+sense to retry the allocation. However the transaction may get committed
+after block allocation fails but before we call
+ext4_should_retry_alloc(). So ext4_should_retry_alloc() returns false
+because there is nothing to commit and we wrongly return ENOSPC.
 
-this is my third attempt at DAX page fault locking rewrite. The patch set has
-passed xfstests both with and without DAX mount option on ext4 and xfs for
-me and also additional page fault beating using the new page fault stress
-tests I have added to xfstests. So I'd be grateful if you guys could have a
-closer look at the patches so that they can be merged. Thanks.
+Fix the race by unconditionally returning 1 from ext4_should_retry_alloc()
+when we tried to commit a transaction. This should not add any
+unnecessary retries since we had a transaction running a while ago when
+trying to allocate blocks and we want to retry the allocation once that
+transaction has committed anyway.
 
-Changes since v2:
-- lot of additional ext4 fixes and cleanups
-- make PMD page faults depend on CONFIG_BROKEN instead of #if 0
-- fixed page reference leak when replacing hole page with a pfn
-- added some reviewed-by tags
-- rebased on top of current Linus' tree
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ fs/ext4/balloc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-Changes since v1:
-- handle wakeups of exclusive waiters properly
-- fix cow fault races
-- other minor stuff
-
-General description
-
-The basic idea is that we use a bit in an exceptional radix tree entry as
-a lock bit and use it similarly to how page lock is used for normal faults.
-That way we fix races between hole instantiation and read faults of the
-same index. For now I have disabled PMD faults since there the issues with
-page fault locking are even worse. Now that Matthew's multi-order radix tree
-has landed, I can have a look into using that for proper locking of PMD faults
-but first I want normal pages sorted out.
-
-In the end I have decided to implement the bit locking directly in the DAX
-code. Originally I was thinking we could provide something generic directly
-in the radix tree code but the functions DAX needs are rather specific.
-Maybe someone else will have a good idea how to distill some generally useful
-functions out of what I've implemented for DAX but for now I didn't bother
-with that.
-
-								Honza
+diff --git a/fs/ext4/balloc.c b/fs/ext4/balloc.c
+index fe1f50fe764f..3020fd70c392 100644
+--- a/fs/ext4/balloc.c
++++ b/fs/ext4/balloc.c
+@@ -610,7 +610,8 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
+ 
+ 	jbd_debug(1, "%s: retrying operation after ENOSPC\n", sb->s_id);
+ 
+-	return jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal);
++	jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal);
++	return 1;
+ }
+ 
+ /*
+-- 
+2.6.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
