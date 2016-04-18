@@ -1,144 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 993C36B0260
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 09:45:01 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id dx6so192526673pad.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 06:45:01 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0101.outbound.protection.outlook.com. [157.56.112.101])
-        by mx.google.com with ESMTPS id i10si3684448paz.90.2016.04.18.06.44.58
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2535D6B007E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 09:58:21 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id c20so329529951pfc.2
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 06:58:21 -0700 (PDT)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id p126si5492591pfb.228.2016.04.18.06.58.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 18 Apr 2016 06:44:58 -0700 (PDT)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv5 3/3] selftest/x86: add mremap vdso 32-bit test
-Date: Mon, 18 Apr 2016 16:43:45 +0300
-Message-ID: <1460987025-30360-3-git-send-email-dsafonov@virtuozzo.com>
-In-Reply-To: <1460987025-30360-1-git-send-email-dsafonov@virtuozzo.com>
-References: <1460388169-13340-1-git-send-email-dsafonov@virtuozzo.com>
- <1460987025-30360-1-git-send-email-dsafonov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Apr 2016 06:58:19 -0700 (PDT)
+Received: by mail-pf0-x22b.google.com with SMTP id c20so81177037pfc.1
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 06:58:19 -0700 (PDT)
+Date: Mon, 18 Apr 2016 15:58:06 +0200
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: making a COW mapping on the fly from existing vma
+Message-ID: <20160418135805.GA9238@gmail.com>
+References: <CAPM=9twrh8wVin=A1Zva3DD0iBmM-G8GjdSnzOD-b0=h4SVxyw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPM=9twrh8wVin=A1Zva3DD0iBmM-G8GjdSnzOD-b0=h4SVxyw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: luto@amacapital.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Shuah Khan <shuahkh@osg.samsung.com>, linux-kselftest@vger.kernel.org
+To: Dave Airlie <airlied@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, dri-devel <dri-devel@lists.freedesktop.org>
 
-Should print on success:
-[root@localhost ~]# ./test_mremap_vdso_32
-	AT_SYSINFO_EHDR is 0xf773f000
-[NOTE]	Moving vDSO: [f773f000, f7740000] -> [a000000, a001000]
-[OK]
-Or segfault if landing was bad (before patches):
-[root@localhost ~]# ./test_mremap_vdso_32
-	AT_SYSINFO_EHDR is 0xf774f000
-[NOTE]	Moving vDSO: [f774f000, f7750000] -> [a000000, a001000]
-Segmentation fault (core dumped)
+On Sat, Apr 16, 2016 at 06:18:38AM +1000, Dave Airlie wrote:
+> This was just a random thought process I was having last night, and
+> wondered if it was possible.
+> 
+> We have a scenario with OpenGL where certain APIs hand large amounts
+> of data from the user to the API and when you return from the API call
+> the user can then free/overwrite/do whatever they want with the data
+> they gave you, which pretty much means you have to straight away
+> process the data.
+> 
+> Now there have been attempts at threading the GL API, but one thing
+> they usually hit is they have to do a lot of unthreaded processing for
+> these scenarios, so I was wondering could we do some COW magic with
+> the data.
+> 
+> More than likely the data will be anonymous mappings though maybe some
+> filebacked, and my idea would be you'd in the main thread create a new
+> readonly VMA from the old pages and set the original mapping to do COW
+> on all of its pages. Then the thread would pick up the readonly VMA
+> mapping and do whatever background processing it wants while the main
+> thread continues happily on its way.
+> 
+> I'm not sure if anyone who's done glthread has thought around this, or
+> if the kernel APIs are in place to do something like this so I just
+> thought I'd throw it out there.
+> 
 
-Cc: Shuah Khan <shuahkh@osg.samsung.com>
-Cc: linux-kselftest@vger.kernel.org
-Suggested-by: Andy Lutomirski <luto@kernel.org>
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
----
-v5: initial version
+So iirc, i discussed doing that with Thomas while upstreaming ttm, a long
+time ago in a far far away universe. There is 2 issues, for file back page
+we just do not have any infrastructure to write protect a valid & uptodate
+page. Even if we did, such file back page might be map so many times that
+the cost of walking all the mapping and tlb flushing might be worse then
+doing just memcpy. Finaly handling things like write() syscall would also
+be problematic and require major code overhaul (especialy if we consider
+direct io). So for file back page i would say this is a no go, unless i
+am unaware of some magic kernel infrastructure that just do that already.
 
- tools/testing/selftests/x86/Makefile           |  2 +-
- tools/testing/selftests/x86/test_mremap_vdso.c | 72 ++++++++++++++++++++++++++
- 2 files changed, 73 insertions(+), 1 deletion(-)
- create mode 100644 tools/testing/selftests/x86/test_mremap_vdso.c
+For anonymous memory issue mostly revolve around tlb flush, if we are
+talking about few pages then you very likely better of doing memcpy. So
+it would need some heuristic for that. That being said, the reason why i
+never tried to implement it in the end is because you end up to defer the
+memcpy. So the application still pay the memcpy cost, you can not expect
+userspace free to do an munmap() after uploading texture. So i am not sure
+it is worth doing. One thing that might make sense is some new madvise
+kind of like MADV_DONTNEED, maybe MADV_STEAL or MADV_GIFT which would mean
+that memory with that flag can be steal and replace by zero page. I know
+this sounds like splice(SPLICE_F_MOVE) but we can not use splice here
+because we can not change the OpenGL API.
 
-diff --git a/tools/testing/selftests/x86/Makefile b/tools/testing/selftests/x86/Makefile
-index b47ebd170690..c7162b511ab0 100644
---- a/tools/testing/selftests/x86/Makefile
-+++ b/tools/testing/selftests/x86/Makefile
-@@ -7,7 +7,7 @@ include ../lib.mk
- TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs syscall_nt ptrace_syscall \
- 			check_initial_reg_state sigreturn ldt_gdt iopl
- TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault test_syscall_vdso unwind_vdso \
--			test_FCMOV test_FCOMI test_FISTTP \
-+			test_FCMOV test_FCOMI test_FISTTP test_mremap_vdso \
- 			vdso_restorer
- 
- TARGETS_C_32BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_32BIT_ONLY)
-diff --git a/tools/testing/selftests/x86/test_mremap_vdso.c b/tools/testing/selftests/x86/test_mremap_vdso.c
-new file mode 100644
-index 000000000000..a470790e2118
---- /dev/null
-+++ b/tools/testing/selftests/x86/test_mremap_vdso.c
-@@ -0,0 +1,72 @@
-+/*
-+ * 32-bit test to check vdso mremap.
-+ *
-+ * Copyright (c) 2016 Dmitry Safonov
-+ * Suggested-by: Andrew Lutomirski
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms and conditions of the GNU General Public License,
-+ * version 2, as published by the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope it will be useful, but
-+ * WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * General Public License for more details.
-+ */
-+/*
-+ * Can be built statically:
-+ * gcc -Os -Wall -static -m32 test_mremap_vdso.c
-+ */
-+#define _GNU_SOURCE
-+#include <stdio.h>
-+#include <errno.h>
-+#include <unistd.h>
-+#include <string.h>
-+
-+#include <sys/mman.h>
-+#include <sys/auxv.h>
-+#include <sys/syscall.h>
-+
-+#if !defined(__i386__)
-+int main(int argc, char **argv, char **envp)
-+{
-+	printf("[SKIP]\tNot a 32-bit x86 userspace\n");
-+	return 0;
-+}
-+#else
-+
-+#define PAGE_SIZE	4096
-+#define VDSO_SIZE	PAGE_SIZE
-+
-+int main(int argc, char **argv, char **envp)
-+{
-+	unsigned long vdso_addr, dest_addr;
-+	void *new_addr;
-+	const char *ok_string = "[OK]\n";
-+
-+	vdso_addr = getauxval(AT_SYSINFO_EHDR);
-+	printf("\tAT_SYSINFO_EHDR is 0x%lx\n", vdso_addr);
-+	if (!vdso_addr || vdso_addr == -ENOENT) {
-+		printf("[FAIL]\tgetauxval failed\n");
-+		return 1;
-+	}
-+
-+	/* to low for stack, to high for lib/data/code mappings */
-+	dest_addr = 0x0a000000;
-+	printf("[NOTE]\tMoving vDSO: [%lx, %lx] -> [%lx, %lx]\n",
-+		vdso_addr, vdso_addr + VDSO_SIZE,
-+		dest_addr, dest_addr + VDSO_SIZE);
-+	new_addr = mremap((void *)vdso_addr, VDSO_SIZE, VDSO_SIZE,
-+			MREMAP_FIXED|MREMAP_MAYMOVE, dest_addr);
-+	if ((unsigned long)new_addr == (unsigned long)-1) {
-+		printf("[FAIL]\tmremap failed (%d): %m\n", errno);
-+		return 1;
-+	}
-+
-+	asm volatile ("int $0x80" : : "a" (__NR_write), "b" (STDOUT_FILENO),
-+			"c" (ok_string), "d" (strlen(ok_string)));
-+	asm volatile ("int $0x80" : : "a" (__NR_exit), "b" (0));
-+
-+	return 0;
-+}
-+#endif
--- 
-2.8.0
+So we could add a new get_user_pages_steal or get_user_pages_cow, and
+probably best to implement the latter first and see if it already helps
+with real world apps but i have my doubts.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
