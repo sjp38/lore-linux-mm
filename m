@@ -1,112 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D59A6B007E
-	for <linux-mm@kvack.org>; Sun, 17 Apr 2016 21:02:39 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id zy2so216674254pac.1
-        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 18:02:39 -0700 (PDT)
-Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
-        by mx.google.com with ESMTPS id u4si1842930par.185.2016.04.17.18.02.38
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 949446B007E
+	for <linux-mm@kvack.org>; Sun, 17 Apr 2016 22:50:10 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id k200so104315957lfg.1
+        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 19:50:10 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id i9si28611309wjn.237.2016.04.17.19.50.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Apr 2016 18:02:38 -0700 (PDT)
-Received: by mail-pa0-x242.google.com with SMTP id vv3so14698752pab.0
-        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 18:02:38 -0700 (PDT)
-Date: Mon, 18 Apr 2016 10:04:08 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v3 11/16] zsmalloc: separate free_zspage from
- putback_zspage
-Message-ID: <20160418010408.GB5882@swordfish>
-References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
- <1459321935-3655-12-git-send-email-minchan@kernel.org>
+        Sun, 17 Apr 2016 19:50:09 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id a140so20893308wma.2
+        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 19:50:08 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1459321935-3655-12-git-send-email-minchan@kernel.org>
+In-Reply-To: <alpine.LSU.2.11.1604150104350.5801@eggly.anvils>
+References: <CADJHv_sawA8SXviUX6My5MKeqWMLbWLG=DrM7RCgrjkjGj2f5Q@mail.gmail.com>
+	<alpine.LSU.2.11.1604150104350.5801@eggly.anvils>
+Date: Mon, 18 Apr 2016 10:50:08 +0800
+Message-ID: <CADJHv_ts7_Qu8oZ=kCbYPOR7NzbMFJxze31b9EdFj9gqWrRhEA@mail.gmail.com>
+Subject: Re: binary execution from DAX mount hang since next-20160407
+From: Xiong Zhou <jencce.kernel@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linux-Next <linux-next@vger.kernel.org>, linux-nvdimm@lists.01.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-Fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
 
-Hello Minchan,
+On Fri, Apr 15, 2016 at 4:38 PM, Hugh Dickins <hughd@google.com> wrote:
+> On Fri, 15 Apr 2016, Xiong Zhou wrote:
+>
+>> Hi, all
+>>
+>> Since tag next-20160407 in linux-next repo, executing binary
+>> from/in DAX mount hangs.
+>>
+>> It does not hang if mount without dax option.
+>> It hangs with both xfs and ext4.
+>> It does not hang if execute from a -t tmpfs mount.
+>> It does not hang on next-20160406 and still hangs on 0414 tree.
+>>
+>> # ps -axjf
+>> ...
+>> S+       0   0:00  |       \_ sh -x thl.sh
+>> R+       0  42:33  |           \_ [hl]
+>> ..
+>> # cat thl.sh
+>> mkfs.ext4 /dev/pmem0
+>> mount -o dax /dev/pmem0 /daxmnt
+>> cp hl /daxmnt
+>> /daxmnt/hl
+>> # cat hl.c
+>> void main()
+>> {
+>>         printf("ok\n");
+>> }
+>> # cc hl.c -o hl
+>>
+>> Bisecting commits between 0406 and 0407 tag, points to this:
+>>
+>> d7c7d56ca61aec18e5e0cb3a64e50073c42195f7 is the first bad commit
+>> commit d7c7d56ca61aec18e5e0cb3a64e50073c42195f7
+>> Author: Hugh Dickins <hughd@google.com>
+>> Date:   Thu Apr 7 14:00:12 2016 +1000
+>>
+>>     huge tmpfs: avoid premature exposure of new pagetable
+>>
+>> Bisect log and config are attatched.
+>
+> Excellent and very helpful bug report: thank you very much for taking
+> the trouble to make such a good report.
+>
+> I see why this happens now: I've not been paying enough attention
+> to the DAX changes.
+>
+> The fix requires a repositioning of where I allocate the new page
+> table: which is a change we knew we had to make for other reasons,
+> but it did not appear to be a high priority compared with other things
+> - until your bug report showing that I have broken DAX rather badly.
+>
+> In return for your excellent bug report, I can immediately offer
+> the most shameful patch I have ever posted: which has the virtue of
+> simplicity, and will work so long as you have plenty of free memory;
+> but might deadlock if it has to go into page reclaim (or maybe not:
+> perhaps the DAXness would leave it as merely a lockdep violation).
+>
+> Maybe not so much worse than the current hang, but still shameful:
+> I'm appending it here just in case you're in a hurry to see your "ok"
+> program working on DAX; but I think I'd better rearrange priorities
+> and try to provide a proper fix as soon as possible.
 
-On (03/30/16 16:12), Minchan Kim wrote:
-[..]
-> @@ -1835,23 +1827,31 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
->  			if (!migrate_zspage(pool, class, &cc))
->  				break;
->  
-> -			putback_zspage(pool, class, dst_page);
-> +			VM_BUG_ON_PAGE(putback_zspage(pool, class,
-> +				dst_page) == ZS_EMPTY, dst_page);
+No hurry, :)  Take your time.
 
-can this VM_BUG_ON_PAGE() condition ever be true?
-
->  		}
->  		/* Stop if we couldn't find slot */
->  		if (dst_page == NULL)
->  			break;
-> -		putback_zspage(pool, class, dst_page);
-> -		if (putback_zspage(pool, class, src_page) == ZS_EMPTY)
-> +		VM_BUG_ON_PAGE(putback_zspage(pool, class,
-> +				dst_page) == ZS_EMPTY, dst_page);
-
-hm... this VM_BUG_ON_PAGE(dst_page) is sort of confusing. under what
-circumstances it can be true?
-
-a minor nit, it took me some time (need some coffee I guess) to
-correctly parse this macro wrapper
-
-		VM_BUG_ON_PAGE(putback_zspage(pool, class,
-			dst_page) == ZS_EMPTY, dst_page);
-
-may be do it like:
-		fullness = putback_zspage(pool, class, dst_page);
-		VM_BUG_ON_PAGE(fullness == ZS_EMPTY, dst_page);
-
-
-well, if we want to VM_BUG_ON_PAGE() at all. there haven't been any
-problems with compaction, is there any specific reason these macros
-were added?
-
-
-
-> +		if (putback_zspage(pool, class, src_page) == ZS_EMPTY) {
->  			pool->stats.pages_compacted += class->pages_per_zspage;
-> -		spin_unlock(&class->lock);
-> +			spin_unlock(&class->lock);
-> +			free_zspage(pool, class, src_page);
-
-do we really need to free_zspage() out of class->lock?
-wouldn't something like this
-
-		if (putback_zspage(pool, class, src_page) == ZS_EMPTY) {
-			pool->stats.pages_compacted += class->pages_per_zspage;
-			free_zspage(pool, class, src_page);
-		}
-		spin_unlock(&class->lock);
-
-be simpler?
-
-besides, free_zspage() now updates class stats out of class lock,
-not critical but still.
-
-	-ss
-
-> +		} else {
-> +			spin_unlock(&class->lock);
-> +		}
+>
+> Never-to-be-Signed-off-by: an anonymous hacker
+>
+> --- 4.6-rc2-mm1/mm/memory.c     2016-04-10 10:12:06.167769232 -0700
+> +++ linux/mm/memory.c   2016-04-15 00:54:06.427085026 -0700
+> @@ -2874,7 +2874,7 @@ static int __do_fault(struct vm_area_str
+>                 ret = VM_FAULT_HWPOISON;
+>                 goto err;
+>         }
+> -
+> + out:
+>         /*
+>          * Use pte_alloc instead of pte_alloc_map, because we can't
+>          * run pte_offset_map on the pmd, if an huge pmd could
+> @@ -2892,7 +2892,7 @@ static int __do_fault(struct vm_area_str
+>                 ret = VM_FAULT_NOPAGE;
+>                 goto err;
+>         }
+> - out:
 > +
->  		cond_resched();
->  		spin_lock(&class->lock);
->  	}
->  
->  	if (src_page)
-> -		putback_zspage(pool, class, src_page);
-> +		VM_BUG_ON_PAGE(putback_zspage(pool, class,
-> +				src_page) == ZS_EMPTY, src_page);
->  
->  	spin_unlock(&class->lock);
->  }
+>         *page = vmf.page;
+>         return ret;
+>  err:
+
+Yes, "ok" is printed ok!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
