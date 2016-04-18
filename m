@@ -1,189 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 78F626B007E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 10:24:34 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id t124so331357716pfb.1
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 07:24:34 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0115.outbound.protection.outlook.com. [104.47.1.115])
-        by mx.google.com with ESMTPS id s63si1886135pfs.86.2016.04.18.07.24.32
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 30ED36B025E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 10:45:00 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id g185so411096268ioa.2
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 07:45:00 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 197si21904984ion.193.2016.04.18.07.44.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 18 Apr 2016 07:24:33 -0700 (PDT)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv7 2/3] x86/vdso: add mremap hook to vm_special_mapping
-Date: Mon, 18 Apr 2016 17:23:22 +0300
-Message-ID: <1460989402-5468-1-git-send-email-dsafonov@virtuozzo.com>
-In-Reply-To: <1460987025-30360-2-git-send-email-dsafonov@virtuozzo.com>
-References: <1460987025-30360-2-git-send-email-dsafonov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Apr 2016 07:44:58 -0700 (PDT)
+From: Sasha Levin <sasha.levin@oracle.com>
+Subject: mm: NULL ptr deref in free_pages_and_swap_cache
+Message-ID: <5714F2C4.9010104@oracle.com>
+Date: Mon, 18 Apr 2016 10:44:20 -0400
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: luto@amacapital.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>
+To: Michal Hocko <mhocko@suse.cz>, Peter Zijlstra <peterz@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>
 
-Add possibility for userspace 32-bit applications to move
-vdso mapping. Previously, when userspace app called
-mremap for vdso, in return path it would land on previous
-address of vdso page, resulting in segmentation violation.
-Now it lands fine and returns to userspace with remapped vdso.
-This will also fix context.vdso pointer for 64-bit, which does not
-affect the user of vdso after mremap by now, but this may change.
+Hi all,
 
-As suggested by Andy, return EINVAL for mremap that splits vdso image.
+I've hit the following while fuzzing with syzkaller inside a KVM tools guest
+running the latest -next kernel:
 
-Renamed and moved text_mapping structure declaration inside
-map_vdso, as it used only there and now it complement
-vvar_mapping variable.
+[  326.963405] general protection fault: 0000 [#1] PREEMPT SMP KASAN
+[  326.963416] Modules linked in:
+[  326.963430] CPU: 0 PID: 10488 Comm: syz-executor Not tainted 4.6.0-rc3-next-20160412-sasha-00023-g0b02d6d-dirty #2998
+[  326.963437] task: ffff8800b6f91000 ti: ffff8801b5de0000 task.ti: ffff8801b5de0000
+[  326.963501] RIP: free_pages_and_swap_cache (./arch/x86/include/asm/bitops.h:311 (discriminator 3) include/linux/page-flags.h:320 (discriminator 3) mm/swap_state.c:242 (discriminator 3) mm/swap_state.c:269 (discriminator 3))
+[  326.963505] RSP: 0018:ffff8801b5de7878  EFLAGS: 00010202
+[  326.963510] RAX: 00000000000015b0 RBX: 0000000000000003 RCX: 0000000000000000
+[  326.963514] RDX: 0000000000000001 RSI: 0000000000000000 RDI: ffffffffb989fa00
+[  326.963519] RBP: ffff8801b5de78b0 R08: 0000000000000000 R09: fffffffffffffff4
+[  326.963524] R10: 000000000014000a R11: ffffffffaa24a300 R12: dffffc0000000000
+[  326.963532] R13: 000000000000ad80 R14: ffff8800b5eef010 R15: 000000000000ad80
+[  326.963539] FS:  00007f01f5466700(0000) GS:ffff8801d4200000(0000) knlGS:0000000000000000
+[  326.963544] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  326.963549] CR2: 0000000000811000 CR3: 00000001b3c49000 CR4: 00000000000406f0
+[  326.963556] Stack:
+[  326.963566]  ffff8801b5de7958 000001fe3911bddd ffff8800b5eef000 dffffc0000000000
+[  326.963574]  ffff8800b5eef008 ffff8801b5de7958 00000000000001fe ffff8801b5de78f0
+[  326.963582]  ffffffffa06d6ce7 ffff8801b5de7980 ffff8801b5bcc828 dffffc0000000000
+[  326.963583] Call Trace:
+[  326.963596] tlb_flush_mmu_free (mm/memory.c:259 (discriminator 4))
+[  326.963604] tlb_finish_mmu (mm/memory.c:283)
+[  326.963613] exit_mmap (mm/mmap.c:2730)
+[  326.963649] mmput (include/linux/compiler.h:222 kernel/fork.c:748 kernel/fork.c:715)
+[  326.963687] do_exit (./arch/x86/include/asm/bitops.h:311 include/linux/thread_info.h:92 kernel/exit.c:437 kernel/exit.c:735)
+[  326.963712] do_group_exit (kernel/exit.c:862)
+[  326.963720] get_signal (kernel/signal.c:2307)
+[  326.963735] do_signal (arch/x86/kernel/signal.c:784)
+[  326.963859] exit_to_usermode_loop (arch/x86/entry/common.c:231)
+[  326.963868] syscall_return_slowpath (arch/x86/entry/common.c:274 arch/x86/entry/common.c:329)
+[  326.963877] ret_from_fork (arch/x86/entry/entry_64.S:404)
+[ 326.963953] Code: 00 74 08 4c 89 ff e8 c5 88 05 00 4d 8b 2f 4d 85 ed 4d 89 ef 75 0e 31 f6 48 c7 c7 c0 58 56 ae e8 58 c6 99 01 4c 89 e8 48 c1 e8 03 <42> 80 3c 20 00 74 08 4c 89 ef e8 96 88 05 00 49 8b 45 00 f6 c4
+All code
+========
+   0:   00 74 08 4c             add    %dh,0x4c(%rax,%rcx,1)
+   4:   89 ff                   mov    %edi,%edi
+   6:   e8 c5 88 05 00          callq  0x588d0
+   b:   4d 8b 2f                mov    (%r15),%r13
+   e:   4d 85 ed                test   %r13,%r13
+  11:   4d 89 ef                mov    %r13,%r15
+  14:   75 0e                   jne    0x24
+  16:   31 f6                   xor    %esi,%esi
+  18:   48 c7 c7 c0 58 56 ae    mov    $0xffffffffae5658c0,%rdi
+  1f:   e8 58 c6 99 01          callq  0x199c67c
+  24:   4c 89 e8                mov    %r13,%rax
+  27:   48 c1 e8 03             shr    $0x3,%rax
+  2b:*  42 80 3c 20 00          cmpb   $0x0,(%rax,%r12,1)               <-- trapping instruction
+  30:   74 08                   je     0x3a
+  32:   4c 89 ef                mov    %r13,%rdi
+  35:   e8 96 88 05 00          callq  0x588d0
+  3a:   49 8b 45 00             mov    0x0(%r13),%rax
+  3e:   f6 c4 00                test   $0x0,%ah
 
-There is still problem for remapping vdso in glibc applications:
-linker relocates addresses for syscalls on vdso page, so
-you need to relink with the new addresses. Or the next syscall
-through glibc may fail:
-  Program received signal SIGSEGV, Segmentation fault.
-  #0  0xf7fd9b80 in __kernel_vsyscall ()
-  #1  0xf7ec8238 in _exit () from /usr/lib32/libc.so.6
-
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
----
-v7: that's just not my day: add new_vma parameter to vdso_fix_landing
-    sorry for the noise
-v6: moved vdso_image_32 check and fixup code into vdso_fix_landing function
-    with ifdefs around
-v5: as Andy suggested, add a check that new_vma->vm_mm and current->mm are
-    the same, also check not only in_ia32_syscall() but image == &vdso_image_32
-v4: drop __maybe_unused & use image from mm->context instead vdso_image_32
-v3: as Andy suggested, return EINVAL in case of splitting vdso blob on mremap;
-    used is_ia32_task instead of ifdefs 
-v2: added __maybe_unused for pt_regs in vdso_mremap
-
- arch/x86/entry/vdso/vma.c | 50 ++++++++++++++++++++++++++++++++++++++++++-----
- include/linux/mm_types.h  |  3 +++
- mm/mmap.c                 | 10 ++++++++++
- 3 files changed, 58 insertions(+), 5 deletions(-)
-
-diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
-index 10f704584922..d94291a19b6e 100644
---- a/arch/x86/entry/vdso/vma.c
-+++ b/arch/x86/entry/vdso/vma.c
-@@ -12,6 +12,7 @@
- #include <linux/random.h>
- #include <linux/elf.h>
- #include <linux/cpu.h>
-+#include <linux/ptrace.h>
- #include <asm/pvclock.h>
- #include <asm/vgtod.h>
- #include <asm/proto.h>
-@@ -98,10 +99,43 @@ static int vdso_fault(const struct vm_special_mapping *sm,
- 	return 0;
- }
- 
--static const struct vm_special_mapping text_mapping = {
--	.name = "[vdso]",
--	.fault = vdso_fault,
--};
-+#if defined CONFIG_X86_32 || defined CONFIG_COMPAT
-+static void vdso_fix_landing(const struct vdso_image *image,
-+		struct vm_area_struct *new_vma)
-+{
-+	if (in_ia32_syscall() && image == &vdso_image_32) {
-+		struct pt_regs *regs = current_pt_regs();
-+		unsigned long vdso_land = image->sym_int80_landing_pad;
-+		unsigned long old_land_addr = vdso_land +
-+			(unsigned long)current->mm->context.vdso;
-+
-+		/* Fixing userspace landing - look at do_fast_syscall_32 */
-+		if (regs->ip == old_land_addr)
-+			regs->ip = new_vma->vm_start + vdso_land;
-+	}
-+}
-+#else
-+static void vdso_fix_landing(const struct vdso_image *image,
-+		struct vm_area_struct *new_vma) {}
-+#endif
-+
-+static int vdso_mremap(const struct vm_special_mapping *sm,
-+		struct vm_area_struct *new_vma)
-+{
-+	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
-+	const struct vdso_image *image = current->mm->context.vdso_image;
-+
-+	if (image->size != new_size)
-+		return -EINVAL;
-+
-+	if (current->mm != new_vma->vm_mm)
-+		return -EFAULT;
-+
-+	vdso_fix_landing(image, new_vma);
-+	current->mm->context.vdso = (void __user *)new_vma->vm_start;
-+
-+	return 0;
-+}
- 
- static int vvar_fault(const struct vm_special_mapping *sm,
- 		      struct vm_area_struct *vma, struct vm_fault *vmf)
-@@ -162,6 +196,12 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
- 	struct vm_area_struct *vma;
- 	unsigned long addr, text_start;
- 	int ret = 0;
-+
-+	static const struct vm_special_mapping vdso_mapping = {
-+		.name = "[vdso]",
-+		.fault = vdso_fault,
-+		.mremap = vdso_mremap,
-+	};
- 	static const struct vm_special_mapping vvar_mapping = {
- 		.name = "[vvar]",
- 		.fault = vvar_fault,
-@@ -195,7 +235,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
- 				       image->size,
- 				       VM_READ|VM_EXEC|
- 				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
--				       &text_mapping);
-+				       &vdso_mapping);
- 
- 	if (IS_ERR(vma)) {
- 		ret = PTR_ERR(vma);
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index c2d75b4fa86c..4d16ab9287af 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -586,6 +586,9 @@ struct vm_special_mapping {
- 	int (*fault)(const struct vm_special_mapping *sm,
- 		     struct vm_area_struct *vma,
- 		     struct vm_fault *vmf);
-+
-+	int (*mremap)(const struct vm_special_mapping *sm,
-+		     struct vm_area_struct *new_vma);
- };
- 
- enum tlb_flush_reason {
-diff --git a/mm/mmap.c b/mm/mmap.c
-index bd2e1a533bc1..ba71658dd1a1 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2930,9 +2930,19 @@ static const char *special_mapping_name(struct vm_area_struct *vma)
- 	return ((struct vm_special_mapping *)vma->vm_private_data)->name;
- }
- 
-+static int special_mapping_mremap(struct vm_area_struct *new_vma)
-+{
-+	struct vm_special_mapping *sm = new_vma->vm_private_data;
-+
-+	if (sm->mremap)
-+		return sm->mremap(sm, new_vma);
-+	return 0;
-+}
-+
- static const struct vm_operations_struct special_mapping_vmops = {
- 	.close = special_mapping_close,
- 	.fault = special_mapping_fault,
-+	.mremap = special_mapping_mremap,
- 	.name = special_mapping_name,
- };
- 
--- 
-2.8.0
+Code starting with the faulting instruction
+===========================================
+   0:   42 80 3c 20 00          cmpb   $0x0,(%rax,%r12,1)
+   5:   74 08                   je     0xf
+   7:   4c 89 ef                mov    %r13,%rdi
+   a:   e8 96 88 05 00          callq  0x588a5
+   f:   49 8b 45 00             mov    0x0(%r13),%rax
+  13:   f6 c4 00                test   $0x0,%ah
+[  326.963963] RIP free_pages_and_swap_cache (./arch/x86/include/asm/bitops.h:311 (discriminator 3) include/linux/page-flags.h:320 (discriminator 3) mm/swap_state.c:242 (discriminator 3) mm/swap_state.c:269 (discriminator 3))
+[  326.963965]  RSP <ffff8801b5de7878>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
