@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C52746B007E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 13:00:51 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u190so339326843pfb.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 10:00:51 -0700 (PDT)
-Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
-        by mx.google.com with ESMTPS id e3si6385889pas.186.2016.04.18.10.00.50
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 62B6D6B007E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 13:15:03 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id t124so340218185pfb.1
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 10:15:03 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id o65si10044428pfo.226.2016.04.18.10.15.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Apr 2016 10:00:50 -0700 (PDT)
-Received: by mail-pf0-x234.google.com with SMTP id e128so82436783pfe.3
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 10:00:50 -0700 (PDT)
+        Mon, 18 Apr 2016 10:15:02 -0700 (PDT)
+Received: by mail-pa0-x231.google.com with SMTP id er2so52255459pad.3
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 10:15:02 -0700 (PDT)
 From: Thomas Garnier <thgarnie@google.com>
 Subject: [PATCH v2] mm: SLAB freelist randomization
-Date: Mon, 18 Apr 2016 10:00:22 -0700
-Message-Id: <1460998822-20743-1-git-send-email-thgarnie@google.com>
+Date: Mon, 18 Apr 2016 10:14:39 -0700
+Message-Id: <1460999679-30805-1-git-send-email-thgarnie@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>
