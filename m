@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CBB8F6B0260
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 17:35:52 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id a125so248167wmd.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:35:52 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C17CC6B0261
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 17:35:54 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id a140so220459wma.1
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:35:54 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j89si806942wmi.13.2016.04.18.14.35.50
+        by mx.google.com with ESMTPS id t130si773074wme.63.2016.04.18.14.35.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Mon, 18 Apr 2016 14:35:50 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 02/18] ext4: Fix race in transient ENOSPC detection
-Date: Mon, 18 Apr 2016 23:35:25 +0200
-Message-Id: <1461015341-20153-3-git-send-email-jack@suse.cz>
+Subject: [PATCH 01/18] ext4: Handle transient ENOSPC properly for DAX
+Date: Mon, 18 Apr 2016 23:35:24 +0200
+Message-Id: <1461015341-20153-2-git-send-email-jack@suse.cz>
 In-Reply-To: <1461015341-20153-1-git-send-email-jack@suse.cz>
 References: <1461015341-20153-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,40 +20,112 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
 Cc: linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>, Jan Kara <jack@suse.cz>
 
-When there are blocks to free in the running transaction, block
-allocator can return ENOSPC although the filesystem has some blocks to
-free. We use ext4_should_retry_alloc() to force commit of the current
-transaction and return whether anything was committed so that it makes
-sense to retry the allocation. However the transaction may get committed
-after block allocation fails but before we call
-ext4_should_retry_alloc(). So ext4_should_retry_alloc() returns false
-because there is nothing to commit and we wrongly return ENOSPC.
-
-Fix the race by unconditionally returning 1 from ext4_should_retry_alloc()
-when we tried to commit a transaction. This should not add any
-unnecessary retries since we had a transaction running a while ago when
-trying to allocate blocks and we want to retry the allocation once that
-transaction has committed anyway.
+ext4_dax_get_blocks() was accidentally omitted fixing get blocks
+handlers to properly handle transient ENOSPC errors. Fix it now to use
+ext4_get_blocks_trans() helper which takes care of these errors.
 
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/ext4/balloc.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ fs/ext4/inode.c | 75 +++++++++++++++------------------------------------------
+ 1 file changed, 20 insertions(+), 55 deletions(-)
 
-diff --git a/fs/ext4/balloc.c b/fs/ext4/balloc.c
-index fe1f50fe764f..3020fd70c392 100644
---- a/fs/ext4/balloc.c
-+++ b/fs/ext4/balloc.c
-@@ -610,7 +610,8 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index 981a1fc30eaa..3e0c06028668 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -3218,72 +3218,37 @@ static int ext4_releasepage(struct page *page, gfp_t wait)
+ int ext4_dax_mmap_get_block(struct inode *inode, sector_t iblock,
+ 			    struct buffer_head *bh_result, int create)
+ {
+-	int ret, err;
+-	int credits;
+-	struct ext4_map_blocks map;
+-	handle_t *handle = NULL;
+-	int flags = 0;
++	int ret;
  
- 	jbd_debug(1, "%s: retrying operation after ENOSPC\n", sb->s_id);
+ 	ext4_debug("ext4_dax_mmap_get_block: inode %lu, create flag %d\n",
+ 		   inode->i_ino, create);
+-	map.m_lblk = iblock;
+-	map.m_len = bh_result->b_size >> inode->i_blkbits;
+-	credits = ext4_chunk_trans_blocks(inode, map.m_len);
+-	if (create) {
+-		flags |= EXT4_GET_BLOCKS_PRE_IO | EXT4_GET_BLOCKS_CREATE_ZERO;
+-		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS, credits);
+-		if (IS_ERR(handle)) {
+-			ret = PTR_ERR(handle);
+-			return ret;
+-		}
+-	}
++	if (!create)
++		return _ext4_get_block(inode, iblock, bh_result, 0);
  
--	return jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal);
-+	jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal);
-+	return 1;
+-	ret = ext4_map_blocks(handle, inode, &map, flags);
+-	if (create) {
+-		err = ext4_journal_stop(handle);
+-		if (ret >= 0 && err < 0)
+-			ret = err;
+-	}
+-	if (ret <= 0)
+-		goto out;
+-	if (map.m_flags & EXT4_MAP_UNWRITTEN) {
+-		int err2;
++	ret = ext4_get_block_trans(inode, iblock, bh_result,
++				   EXT4_GET_BLOCKS_PRE_IO |
++				   EXT4_GET_BLOCKS_CREATE_ZERO);
++	if (ret < 0)
++		return ret;
+ 
++	if (buffer_unwritten(bh_result)) {
+ 		/*
+ 		 * We are protected by i_mmap_sem so we know block cannot go
+ 		 * away from under us even though we dropped i_data_sem.
+ 		 * Convert extent to written and write zeros there.
+-		 *
+-		 * Note: We may get here even when create == 0.
+ 		 */
+-		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS, credits);
+-		if (IS_ERR(handle)) {
+-			ret = PTR_ERR(handle);
+-			goto out;
+-		}
+-
+-		err = ext4_map_blocks(handle, inode, &map,
+-		      EXT4_GET_BLOCKS_CONVERT | EXT4_GET_BLOCKS_CREATE_ZERO);
+-		if (err < 0)
+-			ret = err;
+-		err2 = ext4_journal_stop(handle);
+-		if (err2 < 0 && ret > 0)
+-			ret = err2;
+-	}
+-out:
+-	WARN_ON_ONCE(ret == 0 && create);
+-	if (ret > 0) {
+-		map_bh(bh_result, inode->i_sb, map.m_pblk);
+-		/*
+-		 * At least for now we have to clear BH_New so that DAX code
+-		 * doesn't attempt to zero blocks again in a racy way.
+-		 */
+-		map.m_flags &= ~EXT4_MAP_NEW;
+-		ext4_update_bh_state(bh_result, map.m_flags);
+-		bh_result->b_size = map.m_len << inode->i_blkbits;
+-		ret = 0;
++		ret = ext4_get_block_trans(inode, iblock, bh_result,
++					   EXT4_GET_BLOCKS_CONVERT |
++					   EXT4_GET_BLOCKS_CREATE_ZERO);
++		if (ret < 0)
++			return ret;
+ 	}
+-	return ret;
++	/*
++	 * At least for now we have to clear BH_New so that DAX code
++	 * doesn't attempt to zero blocks again in a racy way.
++	 */
++	clear_buffer_new(bh_result);
++	return 0;
  }
+ #endif
  
- /*
 -- 
 2.6.6
 
