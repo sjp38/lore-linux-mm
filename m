@@ -1,58 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F3DE16B007E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:42:03 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u190so344444668pfb.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 11:42:03 -0700 (PDT)
-Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
-        by mx.google.com with ESMTPS id l28si8988319pfb.246.2016.04.18.11.42.02
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 24D5C6B007E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 15:14:26 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l6so77747370wml.3
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 12:14:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d203si259470wmf.56.2016.04.18.12.14.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Apr 2016 11:42:02 -0700 (PDT)
-Received: by mail-pf0-x233.google.com with SMTP id 184so83848790pff.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 11:42:02 -0700 (PDT)
-From: Yang Shi <yang.shi@linaro.org>
-Subject: [PATCH] arm64: Kconfig: remove redundant HAVE_ARCH_TRANSPARENT_HUGEPAGE definition
-Date: Mon, 18 Apr 2016 11:16:14 -0700
-Message-Id: <1461003374-5412-1-git-send-email-yang.shi@linaro.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 18 Apr 2016 12:14:24 -0700 (PDT)
+Subject: Re: mmotm woes, mainly compaction
+References: <alpine.LSU.2.11.1604120005350.1832@eggly.anvils>
+ <20160412121020.GC10771@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1604141114290.1086@eggly.anvils> <571026CA.6000708@suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <57153205.4050406@suse.cz>
+Date: Mon, 18 Apr 2016 15:14:13 -0400
+MIME-Version: 1.0
+In-Reply-To: <571026CA.6000708@suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: will.deacon@arm.com, catalin.marinas@arm.com
-Cc: kirill.shutemov@linux.intel.com, hughd@google.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org
+To: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-HAVE_ARCH_TRANSPARENT_HUGEPAGE has been defined in arch/Kconfig already,
-the ARM64 version is identical with it and the default value is Y. So remove
-the redundant definition and just select it under CONFIG_ARM64.
+On 04/14/2016 07:24 PM, Vlastimil Babka wrote:
+>> > @@ -1459,8 +1459,8 @@ static enum compact_result compact_zone(
+>> >   		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
+>> >   	}
+>> >
+>> > -	if (cc->migrate_pfn == start_pfn)
+>> > -		cc->whole_zone = true;
+>> > +	cc->whole_zone = cc->migrate_pfn == start_pfn &&
+>> > +			cc->free_pfn == pageblock_start_pfn(end_pfn - 1);
+>> >
+>> >   	cc->last_migrated_pfn = 0;
+> This would be for Michal, but I agree.
 
-Signed-off-by: Yang Shi <yang.shi@linaro.org>
----
- arch/arm64/Kconfig | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
-
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index e5de825..496c1b4 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -98,6 +98,7 @@ config ARM64
- 	select SYSCTL_EXCEPTION_TRACE
- 	select HAVE_CONTEXT_TRACKING
- 	select HAVE_ARM_SMCCC
-+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
- 	help
- 	  ARM 64-bit (AArch64) Linux support.
- 
-@@ -580,9 +581,6 @@ config SYS_SUPPORTS_HUGETLBFS
- config ARCH_WANT_HUGE_PMD_SHARE
- 	def_bool y if ARM64_4K_PAGES || (ARM64_16K_PAGES && !ARM64_VA_BITS_36)
- 
--config HAVE_ARCH_TRANSPARENT_HUGEPAGE
--	def_bool y
--
- config ARCH_HAS_CACHE_LINE_SIZE
- 	def_bool y
- 
--- 
-2.0.2
+So there's an alternative here that wouldn't have the danger of missing
+cc->whole_zone multiple time due to races. When resetting either one
+scanner to zone boundary, reset the other as well (and set
+cc->whole_zone). I think the situations, where not doing that have any
+(performance) advantage, are rare.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
