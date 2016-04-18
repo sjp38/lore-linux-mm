@@ -1,118 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E71276B007E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 08:00:10 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id m2so280588975ioa.3
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 05:00:10 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id ax6si14126312oec.30.2016.04.18.05.00.09
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 318BA6B007E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 09:23:46 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id t184so230187220qkh.3
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 06:23:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w126si47206616qka.99.2016.04.18.06.23.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Apr 2016 05:00:09 -0700 (PDT)
-Subject: Re: [PATCH 3/3] mm, oom_reaper: clear TIF_MEMDIE for all tasks queued for oom_reaper
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1459951996-12875-4-git-send-email-mhocko@kernel.org>
-	<201604072055.GAI52128.tHLVOFJOQMFOFS@I-love.SAKURA.ne.jp>
-	<20160408113425.GF29820@dhcp22.suse.cz>
-	<201604161151.ECG35947.FFLtSFVQJOHOOM@I-love.SAKURA.ne.jp>
-	<20160417115422.GA21757@dhcp22.suse.cz>
-In-Reply-To: <20160417115422.GA21757@dhcp22.suse.cz>
-Message-Id: <201604182059.JFB76917.OFJMHFLSOtQVFO@I-love.SAKURA.ne.jp>
-Date: Mon, 18 Apr 2016 20:59:51 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Apr 2016 06:23:45 -0700 (PDT)
+Date: Mon, 18 Apr 2016 14:23:39 +0100
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: post-copy is broken?
+Message-ID: <20160418132338.GG2222@work-vm>
+References: <20160414162230.GC9976@redhat.com>
+ <20160415125236.GA3376@node.shutemov.name>
+ <20160415134233.GG2229@work-vm>
+ <20160415152330.GB3376@node.shutemov.name>
+ <20160415163448.GJ2229@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E04181101@shsmsx102.ccr.corp.intel.com>
+ <20160418095528.GD2222@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E0418115C@shsmsx102.ccr.corp.intel.com>
+ <20160418101555.GE2222@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E041813A6@shsmsx102.ccr.corp.intel.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E041813A6@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
+To: "Li, Liang Z" <liang.z.li@intel.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, Amit Shah <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Michal Hocko wrote:
-> On Sat 16-04-16 11:51:11, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Thu 07-04-16 20:55:34, Tetsuo Handa wrote:
-> > > > Michal Hocko wrote:
-> > > > > The first obvious one is when the oom victim clears its mm and gets
-> > > > > stuck later on. oom_reaper would back of on find_lock_task_mm returning
-> > > > > NULL. We can safely try to clear TIF_MEMDIE in this case because such a
-> > > > > task would be ignored by the oom killer anyway. The flag would be
-> > > > > cleared by that time already most of the time anyway.
-> > > > 
-> > > > I didn't understand what this wants to tell. The OOM victim will clear
-> > > > TIF_MEMDIE as soon as it sets current->mm = NULL.
-> > > 
-> > > No it clears the flag _after_ it returns from mmput. There is no
-> > > guarantee it won't get stuck somewhere on the way there - e.g. exit_aio
-> > > waits for completion and who knows what else might get stuck.
+* Li, Liang Z (liang.z.li@intel.com) wrote:
+> > > > > > > > Interesting; it's failing reliably for me - but only with a
+> > > > > > > > reasonably freshly booted machine (so that the pages get THPd).
+> > > > > > >
+> > > > > > > The same here. Freshly booted machine with 64GiB ram. I've
+> > > > > > > checked
+> > > > > > > /proc/vmstat: huge pages were allocated
+> > > > > >
+> > > > > > Thanks for testing.
+> > > > > >
+> > > > > > Damn; this is confusing now.  I've got a RHEL7 box with
+> > > > > > 4.6.0-rc3 on where it works, and a fedora24 VM where it fails
+> > > > > > (the f24 VM is where I did the bisect so it works fine with the
+> > > > > > older kernel on the f24
+> > > > userspace in that VM).
+> > > > > >
+> > > > > > So lets see:
+> > > > > >    works: Kirill's (64GB machine)
+> > > > > >           Dave's RHEL7 host (24GB RAM, dual xeon, RHEL7
+> > > > > > userspace and kernel
+> > > > > > config)
+> > > > > >    fails: Dave's f24 VM (4GB RAM, 4 vcpus VM on my laptop24
+> > > > > > userspace and kernel config)
+> > > > > >
+> > > > > > So it's any of userspace, kernel config, machine hardware or hmm.
+> > > > > >
+> > > > > > My f24 box has transparent_hugepage_madvise, where my rhel7 has
+> > > > > > transparent_hugepage_always (but still works if I flip it to
+> > > > > > madvise at run time).  I'll try and get the configs closer together.
+> > > > > >
+> > > > > > Liang Li: Can you run my test on your setup which fails the
+> > > > > > migrate and tell me what your userspace is?
+> > > > > >
+> > > > > > (If you've not built my test yet, you might find you need to add a :
+> > > > > >    tests/postcopy-test$(EXESUF): tests/postcopy-test.o
+> > > > > >
+> > > > > >   to the tests/Makefile)
+> > > > > >
+> > > > >
+> > > > > Hi Dave,
+> > > > >
+> > > > >   How to build and run you test? I didn't do that before.
+> > > >
+> > > > Apply the code in:
+> > > > http://lists.gnu.org/archive/html/qemu-devel/2016-04/msg02138.html
+> > > >
+> > > > fix the:
+> > > > +            if ( ((b + 1) % 255) == last_byte && !hit_edge) {
+> > > > to:
+> > > > +            if ( ((b + 1) % 256) == last_byte && !hit_edge) {
+> > > >
+> > > > to tests/Makefile
+> > > >    tests/postcopy-test$(EXESUF): tests/postcopy-test.o
+> > > >
+> > > > and do a:
+> > > >     make check
+> > > >
+> > > > in qemu.
+> > > > Then you can rerun the test with:
+> > > >     QTEST_QEMU_BINARY=path/to/qemu-system-
+> > x86_64 ./tests/postcopy-
+> > > > test
+> > > >
+> > > > if it works, reboot and check it still works from a fresh boot.
+> > > >
+> > > > Can you describe the system which your full test failed on? What
+> > > > distro on the host? What type of host was it tested on?
+> > > >
+> > > > Dave
+> > > >
+> > >
+> > >
+> > > Thanks, Dave
+> > >
+> > > The host is CenOS7, its original kernel is 3.10.0-327.el7.x86_64
+> > > (CentOS 7.1?), The hardware platform is HSW-EP with 64GB RAM.
 > > 
-> > OK. Then, I think an OOM livelock scenario shown below is possible.
+> > OK, so your test fails on real hardware; my guess is that my test will work on
+> > there.
+> > Can you try your test with THP disabled on the host:
 > > 
-> >  (1) First OOM victim (where mm->mm_users == 1) is selected by the first
-> >      round of out_of_memory() call.
+> > echo never > /sys/kernel/mm/transparent_hugepage/enabled
 > > 
-> >  (2) The OOM reaper calls atomic_inc_not_zero(&mm->mm_users).
-> > 
-> >  (3) The OOM victim calls mmput() from exit_mm() from do_exit().
-> >      mmput() returns immediately because atomic_dec_and_test(&mm->mm_users)
-> >      returns false because of (2).
-> > 
-> >  (4) The OOM reaper reaps memory and then calls mmput().
-> >      mmput() calls exit_aio() etc. and waits for completion because
-> >      atomic_dec_and_test(&mm->mm_users) is now true.
-> > 
-> >  (5) Second OOM victim (which is the parent of the first OOM victim)
-> >      is selected by the next round of out_of_memory() call.
-> > 
-> >  (6) The OOM reaper is waiting for completion of the first OOM victim's
-> >      memory while the second OOM victim is waiting for the OOM reaper to
-> >      reap memory.
-> > 
-> > Where is the guarantee that exit_aio() etc. called from mmput() by the
-> > OOM reaper does not depend on memory allocation (i.e. the OOM reaper is
-> > not blocked forever inside __oom_reap_task())?
 > 
-> You should realize that the mmput is called _after_ we have reclaimed
-> victim's address space. So there should be some memory freed by that
-> time which reduce the likelyhood of a lockup due to memory allocation
-> request if it is really needed for exit_aio.
+> If the THP is disabled, no fails.
+> And your test was always passed, even when  real post-copy was failed. 
+> 
+> In my env, the output of 
+> 'cat /sys/kernel/mm/transparent_hugepage/enabled'  is:
+> 
+>  [always] ...
 
-Not always true. mmput() is called when down_read_trylock(&mm->mmap_sem) failed.
-It is possible that the OOM victim was about to call up_write(&mm->mmap_sem) when
-down_read_trylock(&mm->mmap_sem) failed, and it is possible that the OOM victim
-runs until returning from mmput() from exit_mm() from do_exit() when the OOM
-reaper was preempted between down_read_trylock(&mm->mmap_sem) and mmput().
-Under such race, the OOM reaper will call mmput() without reclaiming the OOM
-victim's address space.
+OK, I can't get my test to fail on real hardware - only in a VM; but my
+suspicion is we're looking at the same bug; both of them it goes away
+if we disable THP, both of them work on 4.4.x and fail on 4.5.x.
+I'd love to be able to find a nice easy test to be able to give to Andrea
+and Kirill
+
+I've also just confirmed that running (in a VM) a fedora-24 4.5.0 kernel
+with a fedora-23 userspace (qemu built under f23) still fails with my test.
+So the problem there is definitely triggered by the newer kernel not
+the newer userspace.
+
+Dave
 
 > 
-> But you have a good point here. We want to strive for robustness of
-> oom_reaper as much as possible. We have dropped the munlock patch because
-> of the robustness so I guess we want this to be fixed as well. The
-> reason for blocking might be different from memory pressure I guess.
-
-The reality of race/dependency is more complicated than we can imagine.
-
+> Liang
 > 
-> Here is what should work - I have only compile tested it. I will prepare
-> the proper patch later this week with other oom reaper patches or after
-> I come back from LSF/MM.
-
-Excuse me, but is system_wq suitable for queuing operations which may take
-unpredictable duration to flush?
-
-  system_wq is the one used by schedule[_delayed]_work[_on]().
-  Multi-CPU multi-threaded.  There are users which expect relatively
-  short queue flush time.  Don't queue works which can run for too
-  long.
-
-Many users including SysRq-f depend on system_wq being flushed shortly. We
-haven't guaranteed that SysRq-f can always fire and select a different OOM
-victim, but you proposed always clearing TIF_MEMDIE without thinking the
-possibility of the OOM victim with mmap_sem held for write being stuck at
-unkillable wait.
-
-I wonder about your definition of "robustness". You are almost always missing
-the worst scenario. You are trying to manage OOM without defining default:
-label in a switch statement. I don't think your approach is robust.
+> > Dave
+> > 
+> > >
+> > >
+> > > > >
+> > > > > Thanks!
+> > > > > Liang
+> > > > >
+> > > > > >
+> > > > > > Dave
+> > > > > > >
+> > > > > > > --
+> > > > > > >  Kirill A. Shutemov
+> > > > > > --
+> > > > > > Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+> > > > --
+> > > > Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+> > --
+> > Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+--
+Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
