@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 33B5E6B0268
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 17:36:12 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l6so172843wml.3
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:36:12 -0700 (PDT)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 926D06B0268
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 17:36:14 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id l15so124677951lfg.2
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:36:14 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lh10si15063323wjc.245.2016.04.18.14.35.52
+        by mx.google.com with ESMTPS id 81si771366wmq.69.2016.04.18.14.35.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Mon, 18 Apr 2016 14:35:52 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 08/18] ext4: Pre-zero allocated blocks for DAX IO
-Date: Mon, 18 Apr 2016 23:35:31 +0200
-Message-Id: <1461015341-20153-9-git-send-email-jack@suse.cz>
+Subject: [PATCH 12/18] dax: Remove redundant inode size checks
+Date: Mon, 18 Apr 2016 23:35:35 +0200
+Message-Id: <1461015341-20153-13-git-send-email-jack@suse.cz>
 In-Reply-To: <1461015341-20153-1-git-send-email-jack@suse.cz>
 References: <1461015341-20153-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,175 +20,129 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
 Cc: linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>, Jan Kara <jack@suse.cz>
 
-Currently ext4 treats DAX IO the same way as direct IO. I.e., it
-allocates unwritten extents before IO is done and converts unwritten
-extents afterwards. However this way DAX IO can race with page fault to
-the same area:
+Callers of dax fault handlers must make sure these calls cannot race
+with truncate. Thus it is enough to check inode size when entering the
+function and we don't have to recheck it again later in the handler.
+Note that inode size itself can be decreased while the fault handler
+runs but filesystem locking prevents against any radix tree or block
+mapping information changes resulting from the truncate and that is what
+we really care about.
 
-ext4_ext_direct_IO()				dax_fault()
-  dax_io()
-    get_block() - allocates unwritten extent
-    copy_from_iter_pmem()
-						  get_block() - converts
-						    unwritten block to
-						    written and zeroes it
-						    out
-  ext4_convert_unwritten_extents()
-
-So data written with DAX IO gets lost. Similarly dax_new_buf() called
-from dax_io() can overwrite data that has been already written to the
-block via mmap.
-
-Fix the problem by using pre-zeroed blocks for DAX IO the same way as we
-use them for DAX mmap. The downside of this solution is that every
-allocating write writes each block twice (once zeros, once data). Fixing
-the race with locking is possible as well however we would need to
-lock-out faults for the whole range written to by DAX IO. And that is
-not easy to do without locking-out faults for the whole file which seems
-too aggressive.
-
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/ext4/ext4.h  | 11 +++++++++--
- fs/ext4/file.c  |  4 ++--
- fs/ext4/inode.c | 42 +++++++++++++++++++++++++++++++++---------
- 3 files changed, 44 insertions(+), 13 deletions(-)
+ fs/dax.c | 60 +-----------------------------------------------------------
+ 1 file changed, 1 insertion(+), 59 deletions(-)
 
-diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
-index 35792b430fb6..173da8faff81 100644
---- a/fs/ext4/ext4.h
-+++ b/fs/ext4/ext4.h
-@@ -2521,8 +2521,8 @@ struct buffer_head *ext4_getblk(handle_t *, struct inode *, ext4_lblk_t, int);
- struct buffer_head *ext4_bread(handle_t *, struct inode *, ext4_lblk_t, int);
- int ext4_get_block_unwritten(struct inode *inode, sector_t iblock,
- 			     struct buffer_head *bh_result, int create);
--int ext4_dax_mmap_get_block(struct inode *inode, sector_t iblock,
--			    struct buffer_head *bh_result, int create);
-+int ext4_dax_get_block(struct inode *inode, sector_t iblock,
-+		       struct buffer_head *bh_result, int create);
- int ext4_get_block(struct inode *inode, sector_t iblock,
- 		   struct buffer_head *bh_result, int create);
- int ext4_dio_get_block(struct inode *inode, sector_t iblock,
-@@ -3328,6 +3328,13 @@ static inline void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
- 	}
- }
- 
-+static inline bool ext4_aligned_io(struct inode *inode, loff_t off, loff_t len)
-+{
-+	int blksize = 1 << inode->i_blkbits;
-+
-+	return IS_ALIGNED(off, blksize) && IS_ALIGNED(off + len, blksize);
-+}
-+
- #endif	/* __KERNEL__ */
- 
- #define EFSBADCRC	EBADMSG		/* Bad CRC detected */
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index b3a9c6eeadbc..2e9aa49a95fa 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -207,7 +207,7 @@ static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	if (IS_ERR(handle))
- 		result = VM_FAULT_SIGBUS;
- 	else
--		result = __dax_fault(vma, vmf, ext4_dax_mmap_get_block);
-+		result = __dax_fault(vma, vmf, ext4_dax_get_block);
- 
- 	if (write) {
- 		if (!IS_ERR(handle))
-@@ -243,7 +243,7 @@ static int ext4_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
- 		result = VM_FAULT_SIGBUS;
- 	else
- 		result = __dax_pmd_fault(vma, addr, pmd, flags,
--				ext4_dax_mmap_get_block);
-+				ext4_dax_get_block);
- 
- 	if (write) {
- 		if (!IS_ERR(handle))
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 23fd0e0a9223..6d5d5c1db293 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -3215,12 +3215,17 @@ static int ext4_releasepage(struct page *page, gfp_t wait)
- }
- 
- #ifdef CONFIG_FS_DAX
--int ext4_dax_mmap_get_block(struct inode *inode, sector_t iblock,
--			    struct buffer_head *bh_result, int create)
-+/*
-+ * Get block function for DAX IO and mmap faults. It takes care of converting
-+ * unwritten extents to written ones and initializes new / converted blocks
-+ * to zeros.
-+ */
-+int ext4_dax_get_block(struct inode *inode, sector_t iblock,
-+		       struct buffer_head *bh_result, int create)
+diff --git a/fs/dax.c b/fs/dax.c
+index 42bf65b4e752..d7addfab2094 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -305,20 +305,11 @@ EXPORT_SYMBOL_GPL(dax_do_io);
+ static int dax_load_hole(struct address_space *mapping, struct page *page,
+ 							struct vm_fault *vmf)
  {
- 	int ret;
+-	unsigned long size;
+-	struct inode *inode = mapping->host;
+ 	if (!page)
+ 		page = find_or_create_page(mapping, vmf->pgoff,
+ 						GFP_KERNEL | __GFP_ZERO);
+ 	if (!page)
+ 		return VM_FAULT_OOM;
+-	/* Recheck i_size under page lock to avoid truncate race */
+-	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+-	if (vmf->pgoff >= size) {
+-		unlock_page(page);
+-		put_page(page);
+-		return VM_FAULT_SIGBUS;
+-	}
  
--	ext4_debug("ext4_dax_mmap_get_block: inode %lu, create flag %d\n",
-+	ext4_debug("ext4_dax_get_block: inode %lu, create flag %d\n",
- 		   inode->i_ino, create);
- 	if (!create)
- 		return _ext4_get_block(inode, iblock, bh_result, 0);
-@@ -3233,9 +3238,9 @@ int ext4_dax_mmap_get_block(struct inode *inode, sector_t iblock,
+ 	vmf->page = page;
+ 	return VM_FAULT_LOCKED;
+@@ -549,24 +540,10 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
+ 		.sector = to_sector(bh, inode),
+ 		.size = bh->b_size,
+ 	};
+-	pgoff_t size;
+ 	int error;
  
- 	if (buffer_unwritten(bh_result)) {
- 		/*
--		 * We are protected by i_mmap_sem so we know block cannot go
--		 * away from under us even though we dropped i_data_sem.
--		 * Convert extent to written and write zeros there.
-+		 * We are protected by i_mmap_sem or i_mutex so we know block
-+		 * cannot go away from under us even though we dropped
-+		 * i_data_sem. Convert extent to written and write zeros there.
- 		 */
- 		ret = ext4_get_block_trans(inode, iblock, bh_result,
- 					   EXT4_GET_BLOCKS_CONVERT |
-@@ -3250,6 +3255,14 @@ int ext4_dax_mmap_get_block(struct inode *inode, sector_t iblock,
- 	clear_buffer_new(bh_result);
- 	return 0;
- }
-+#else
-+/* Just define empty function, it will never get called. */
-+int ext4_dax_get_block(struct inode *inode, sector_t iblock,
-+		       struct buffer_head *bh_result, int create)
-+{
-+	BUG();
-+	return 0;
-+}
- #endif
+ 	i_mmap_lock_read(mapping);
  
- static int ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
-@@ -3371,8 +3384,20 @@ static ssize_t ext4_direct_IO_write(struct kiocb *iocb, struct iov_iter *iter,
- 	iocb->private = NULL;
- 	if (overwrite)
- 		get_block_func = ext4_dio_get_block_overwrite;
--	else if (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) ||
--		 round_down(offset, 1 << inode->i_blkbits) >= inode->i_size) {
-+	else if (IS_DAX(inode)) {
-+		/*
-+		 * We can avoid zeroing for aligned DAX writes beyond EOF. Other
-+		 * writes need zeroing either because they can race with page
-+		 * faults or because they use partial blocks.
-+		 */
-+		if (round_down(offset, 1<<inode->i_blkbits) >= inode->i_size &&
-+		    ext4_aligned_io(inode, offset, count))
-+			get_block_func = ext4_dio_get_block;
-+		else
-+			get_block_func = ext4_dax_get_block;
-+		dio_flags = DIO_LOCKING;
-+	} else if (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) ||
-+		   round_down(offset, 1 << inode->i_blkbits) >= inode->i_size) {
- 		get_block_func = ext4_dio_get_block;
- 		dio_flags = DIO_LOCKING | DIO_SKIP_HOLES;
- 	} else if (is_sync_kiocb(iocb)) {
-@@ -3386,7 +3411,6 @@ static ssize_t ext4_direct_IO_write(struct kiocb *iocb, struct iov_iter *iter,
- 	BUG_ON(ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode));
- #endif
- 	if (IS_DAX(inode)) {
--		dio_flags &= ~DIO_SKIP_HOLES;
- 		ret = dax_do_io(iocb, inode, iter, offset, get_block_func,
- 				ext4_end_io_dio, dio_flags);
- 	} else
+-	/*
+-	 * Check truncate didn't happen while we were allocating a block.
+-	 * If it did, this block may or may not be still allocated to the
+-	 * file.  We can't tell the filesystem to free it because we can't
+-	 * take i_mutex here.  In the worst case, the file still has blocks
+-	 * allocated past the end of the file.
+-	 */
+-	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+-	if (unlikely(vmf->pgoff >= size)) {
+-		error = -EIO;
+-		goto out;
+-	}
+-
+ 	if (dax_map_atomic(bdev, &dax) < 0) {
+ 		error = PTR_ERR(dax.addr);
+ 		goto out;
+@@ -632,15 +609,6 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 			put_page(page);
+ 			goto repeat;
+ 		}
+-		size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+-		if (unlikely(vmf->pgoff >= size)) {
+-			/*
+-			 * We have a struct page covering a hole in the file
+-			 * from a read fault and we've raced with a truncate
+-			 */
+-			error = -EIO;
+-			goto unlock_page;
+-		}
+ 	}
+ 
+ 	error = get_block(inode, block, &bh, 0);
+@@ -673,17 +641,8 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 		if (error)
+ 			goto unlock_page;
+ 		vmf->page = page;
+-		if (!page) {
++		if (!page)
+ 			i_mmap_lock_read(mapping);
+-			/* Check we didn't race with truncate */
+-			size = (i_size_read(inode) + PAGE_SIZE - 1) >>
+-								PAGE_SHIFT;
+-			if (vmf->pgoff >= size) {
+-				i_mmap_unlock_read(mapping);
+-				error = -EIO;
+-				goto out;
+-			}
+-		}
+ 		return VM_FAULT_LOCKED;
+ 	}
+ 
+@@ -861,23 +820,6 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 
+ 	i_mmap_lock_read(mapping);
+ 
+-	/*
+-	 * If a truncate happened while we were allocating blocks, we may
+-	 * leave blocks allocated to the file that are beyond EOF.  We can't
+-	 * take i_mutex here, so just leave them hanging; they'll be freed
+-	 * when the file is deleted.
+-	 */
+-	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+-	if (pgoff >= size) {
+-		result = VM_FAULT_SIGBUS;
+-		goto out;
+-	}
+-	if ((pgoff | PG_PMD_COLOUR) >= size) {
+-		dax_pmd_dbg(&bh, address,
+-				"offset + huge page size > file size");
+-		goto fallback;
+-	}
+-
+ 	if (!write && !buffer_mapped(&bh)) {
+ 		spinlock_t *ptl;
+ 		pmd_t entry;
 -- 
 2.6.6
 
