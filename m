@@ -1,166 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 318BA6B007E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 09:23:46 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id t184so230187220qkh.3
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 06:23:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w126si47206616qka.99.2016.04.18.06.23.45
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B4E246B025E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 09:44:58 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id t124so329321834pfb.1
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 06:44:58 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0101.outbound.protection.outlook.com. [157.56.112.101])
+        by mx.google.com with ESMTPS id i10si3684448paz.90.2016.04.18.06.44.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Apr 2016 06:23:45 -0700 (PDT)
-Date: Mon, 18 Apr 2016 14:23:39 +0100
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: post-copy is broken?
-Message-ID: <20160418132338.GG2222@work-vm>
-References: <20160414162230.GC9976@redhat.com>
- <20160415125236.GA3376@node.shutemov.name>
- <20160415134233.GG2229@work-vm>
- <20160415152330.GB3376@node.shutemov.name>
- <20160415163448.GJ2229@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E04181101@shsmsx102.ccr.corp.intel.com>
- <20160418095528.GD2222@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E0418115C@shsmsx102.ccr.corp.intel.com>
- <20160418101555.GE2222@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E041813A6@shsmsx102.ccr.corp.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 18 Apr 2016 06:44:57 -0700 (PDT)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCHv5 1/3] x86: rename is_{ia32,x32}_task to in_{ia32,x32}_syscall
+Date: Mon, 18 Apr 2016 16:43:43 +0300
+Message-ID: <1460987025-30360-1-git-send-email-dsafonov@virtuozzo.com>
+In-Reply-To: <1460388169-13340-1-git-send-email-dsafonov@virtuozzo.com>
+References: <1460388169-13340-1-git-send-email-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E041813A6@shsmsx102.ccr.corp.intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li, Liang Z" <liang.z.li@intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, Amit Shah <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: luto@amacapital.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>
 
-* Li, Liang Z (liang.z.li@intel.com) wrote:
-> > > > > > > > Interesting; it's failing reliably for me - but only with a
-> > > > > > > > reasonably freshly booted machine (so that the pages get THPd).
-> > > > > > >
-> > > > > > > The same here. Freshly booted machine with 64GiB ram. I've
-> > > > > > > checked
-> > > > > > > /proc/vmstat: huge pages were allocated
-> > > > > >
-> > > > > > Thanks for testing.
-> > > > > >
-> > > > > > Damn; this is confusing now.  I've got a RHEL7 box with
-> > > > > > 4.6.0-rc3 on where it works, and a fedora24 VM where it fails
-> > > > > > (the f24 VM is where I did the bisect so it works fine with the
-> > > > > > older kernel on the f24
-> > > > userspace in that VM).
-> > > > > >
-> > > > > > So lets see:
-> > > > > >    works: Kirill's (64GB machine)
-> > > > > >           Dave's RHEL7 host (24GB RAM, dual xeon, RHEL7
-> > > > > > userspace and kernel
-> > > > > > config)
-> > > > > >    fails: Dave's f24 VM (4GB RAM, 4 vcpus VM on my laptop24
-> > > > > > userspace and kernel config)
-> > > > > >
-> > > > > > So it's any of userspace, kernel config, machine hardware or hmm.
-> > > > > >
-> > > > > > My f24 box has transparent_hugepage_madvise, where my rhel7 has
-> > > > > > transparent_hugepage_always (but still works if I flip it to
-> > > > > > madvise at run time).  I'll try and get the configs closer together.
-> > > > > >
-> > > > > > Liang Li: Can you run my test on your setup which fails the
-> > > > > > migrate and tell me what your userspace is?
-> > > > > >
-> > > > > > (If you've not built my test yet, you might find you need to add a :
-> > > > > >    tests/postcopy-test$(EXESUF): tests/postcopy-test.o
-> > > > > >
-> > > > > >   to the tests/Makefile)
-> > > > > >
-> > > > >
-> > > > > Hi Dave,
-> > > > >
-> > > > >   How to build and run you test? I didn't do that before.
-> > > >
-> > > > Apply the code in:
-> > > > http://lists.gnu.org/archive/html/qemu-devel/2016-04/msg02138.html
-> > > >
-> > > > fix the:
-> > > > +            if ( ((b + 1) % 255) == last_byte && !hit_edge) {
-> > > > to:
-> > > > +            if ( ((b + 1) % 256) == last_byte && !hit_edge) {
-> > > >
-> > > > to tests/Makefile
-> > > >    tests/postcopy-test$(EXESUF): tests/postcopy-test.o
-> > > >
-> > > > and do a:
-> > > >     make check
-> > > >
-> > > > in qemu.
-> > > > Then you can rerun the test with:
-> > > >     QTEST_QEMU_BINARY=path/to/qemu-system-
-> > x86_64 ./tests/postcopy-
-> > > > test
-> > > >
-> > > > if it works, reboot and check it still works from a fresh boot.
-> > > >
-> > > > Can you describe the system which your full test failed on? What
-> > > > distro on the host? What type of host was it tested on?
-> > > >
-> > > > Dave
-> > > >
-> > >
-> > >
-> > > Thanks, Dave
-> > >
-> > > The host is CenOS7, its original kernel is 3.10.0-327.el7.x86_64
-> > > (CentOS 7.1?), The hardware platform is HSW-EP with 64GB RAM.
-> > 
-> > OK, so your test fails on real hardware; my guess is that my test will work on
-> > there.
-> > Can you try your test with THP disabled on the host:
-> > 
-> > echo never > /sys/kernel/mm/transparent_hugepage/enabled
-> > 
-> 
-> If the THP is disabled, no fails.
-> And your test was always passed, even when  real post-copy was failed. 
-> 
-> In my env, the output of 
-> 'cat /sys/kernel/mm/transparent_hugepage/enabled'  is:
-> 
->  [always] ...
+Impact: clearify meaning
 
-OK, I can't get my test to fail on real hardware - only in a VM; but my
-suspicion is we're looking at the same bug; both of them it goes away
-if we disable THP, both of them work on 4.4.x and fail on 4.5.x.
-I'd love to be able to find a nice easy test to be able to give to Andrea
-and Kirill
+Suggested-by: Andy Lutomirski <luto@amacapital.net>
+Suggested-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+Acked-by: Andy Lutomirski <luto@kernel.org>
+---
+v3: initial patch
 
-I've also just confirmed that running (in a VM) a fedora-24 4.5.0 kernel
-with a fedora-23 userspace (qemu built under f23) still fails with my test.
-So the problem there is definitely triggered by the newer kernel not
-the newer userspace.
+ arch/x86/entry/common.c            | 2 +-
+ arch/x86/include/asm/compat.h      | 4 ++--
+ arch/x86/include/asm/thread_info.h | 2 +-
+ arch/x86/kernel/process_64.c       | 2 +-
+ arch/x86/kernel/ptrace.c           | 2 +-
+ arch/x86/kernel/signal.c           | 2 +-
+ arch/x86/kernel/uprobes.c          | 2 +-
+ 7 files changed, 8 insertions(+), 8 deletions(-)
 
-Dave
-
-> 
-> Liang
-> 
-> > Dave
-> > 
-> > >
-> > >
-> > > > >
-> > > > > Thanks!
-> > > > > Liang
-> > > > >
-> > > > > >
-> > > > > > Dave
-> > > > > > >
-> > > > > > > --
-> > > > > > >  Kirill A. Shutemov
-> > > > > > --
-> > > > > > Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
-> > > > --
-> > > > Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
-> > --
-> > Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+diff --git a/arch/x86/entry/common.c b/arch/x86/entry/common.c
+index e79d93d44ecd..ec138e538c44 100644
+--- a/arch/x86/entry/common.c
++++ b/arch/x86/entry/common.c
+@@ -191,7 +191,7 @@ long syscall_trace_enter_phase2(struct pt_regs *regs, u32 arch,
+ 
+ long syscall_trace_enter(struct pt_regs *regs)
+ {
+-	u32 arch = is_ia32_task() ? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64;
++	u32 arch = in_ia32_syscall() ? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64;
+ 	unsigned long phase1_result = syscall_trace_enter_phase1(regs, arch);
+ 
+ 	if (phase1_result == 0)
+diff --git a/arch/x86/include/asm/compat.h b/arch/x86/include/asm/compat.h
+index ebb102e1bbc7..5a3b2c119ed0 100644
+--- a/arch/x86/include/asm/compat.h
++++ b/arch/x86/include/asm/compat.h
+@@ -307,7 +307,7 @@ static inline void __user *arch_compat_alloc_user_space(long len)
+ 	return (void __user *)round_down(sp - len, 16);
+ }
+ 
+-static inline bool is_x32_task(void)
++static inline bool in_x32_syscall(void)
+ {
+ #ifdef CONFIG_X86_X32_ABI
+ 	if (task_pt_regs(current)->orig_ax & __X32_SYSCALL_BIT)
+@@ -318,7 +318,7 @@ static inline bool is_x32_task(void)
+ 
+ static inline bool in_compat_syscall(void)
+ {
+-	return is_ia32_task() || is_x32_task();
++	return in_ia32_syscall() || in_x32_syscall();
+ }
+ #define in_compat_syscall in_compat_syscall	/* override the generic impl */
+ 
+diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
+index ffae84df8a93..30c133ac05cd 100644
+--- a/arch/x86/include/asm/thread_info.h
++++ b/arch/x86/include/asm/thread_info.h
+@@ -255,7 +255,7 @@ static inline bool test_and_clear_restore_sigmask(void)
+ 	return true;
+ }
+ 
+-static inline bool is_ia32_task(void)
++static inline bool in_ia32_syscall(void)
+ {
+ #ifdef CONFIG_X86_32
+ 	return true;
+diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
+index 6cbab31ac23a..4a62ec457b56 100644
+--- a/arch/x86/kernel/process_64.c
++++ b/arch/x86/kernel/process_64.c
+@@ -210,7 +210,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
+ 	 */
+ 	if (clone_flags & CLONE_SETTLS) {
+ #ifdef CONFIG_IA32_EMULATION
+-		if (is_ia32_task())
++		if (in_ia32_syscall())
+ 			err = do_set_thread_area(p, -1,
+ 				(struct user_desc __user *)tls, 0);
+ 		else
+diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
+index 32e9d9cbb884..0f4d2a5df2dc 100644
+--- a/arch/x86/kernel/ptrace.c
++++ b/arch/x86/kernel/ptrace.c
+@@ -1266,7 +1266,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
+ 			compat_ulong_t caddr, compat_ulong_t cdata)
+ {
+ #ifdef CONFIG_X86_X32_ABI
+-	if (!is_ia32_task())
++	if (!in_ia32_syscall())
+ 		return x32_arch_ptrace(child, request, caddr, cdata);
+ #endif
+ #ifdef CONFIG_IA32_EMULATION
+diff --git a/arch/x86/kernel/signal.c b/arch/x86/kernel/signal.c
+index 548ddf7d6fd2..aa31265aa61d 100644
+--- a/arch/x86/kernel/signal.c
++++ b/arch/x86/kernel/signal.c
+@@ -762,7 +762,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
+ static inline unsigned long get_nr_restart_syscall(const struct pt_regs *regs)
+ {
+ #ifdef CONFIG_X86_64
+-	if (is_ia32_task())
++	if (in_ia32_syscall())
+ 		return __NR_ia32_restart_syscall;
+ #endif
+ #ifdef CONFIG_X86_X32_ABI
+diff --git a/arch/x86/kernel/uprobes.c b/arch/x86/kernel/uprobes.c
+index bf4db6eaec8f..98b4dc87628b 100644
+--- a/arch/x86/kernel/uprobes.c
++++ b/arch/x86/kernel/uprobes.c
+@@ -516,7 +516,7 @@ struct uprobe_xol_ops {
+ 
+ static inline int sizeof_long(void)
+ {
+-	return is_ia32_task() ? 4 : 8;
++	return in_ia32_syscall() ? 4 : 8;
+ }
+ 
+ static int default_pre_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
+-- 
+2.8.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
