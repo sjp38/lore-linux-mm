@@ -1,85 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 442256B007E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 16:47:16 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id d19so123899101lfb.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 13:47:16 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k11si567342wmg.101.2016.04.18.13.47.14
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DB226B025E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 17:24:01 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id u190so352124147pfb.0
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:24:01 -0700 (PDT)
+Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
+        by mx.google.com with ESMTPS id 136si9631038pfw.92.2016.04.18.14.24.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Apr 2016 13:47:14 -0700 (PDT)
-Date: Mon, 18 Apr 2016 22:47:08 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3 1/2] dax: add dax_get_unmapped_area for pmd mappings
-Message-ID: <20160418204708.GB17889@quack2.suse.cz>
-References: <1460652511-19636-1-git-send-email-toshi.kani@hpe.com>
- <1460652511-19636-2-git-send-email-toshi.kani@hpe.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Apr 2016 14:24:00 -0700 (PDT)
+Received: by mail-pf0-x235.google.com with SMTP id e128so84389421pfe.3
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:24:00 -0700 (PDT)
+Date: Mon, 18 Apr 2016 14:23:58 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] mm, hugetlb_cgroup: round limit_in_bytes down to
+ hugepage size
+In-Reply-To: <20160415132451.GL32377@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1604181422220.23710@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1604051824320.32718@chino.kir.corp.google.com> <5704BA37.2080508@kyup.com> <5704BBBF.8040302@kyup.com> <alpine.DEB.2.10.1604061510040.10401@chino.kir.corp.google.com> <20160407125145.GD32755@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1604141321350.6593@chino.kir.corp.google.com> <20160415132451.GL32377@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1460652511-19636-2-git-send-email-toshi.kani@hpe.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>
-Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, viro@zeniv.linux.org.uk, willy@linux.intel.com, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com, david@fromorbit.com, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nikolay Borisov <kernel@kyup.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 14-04-16 10:48:30, Toshi Kani wrote:
-> +
-> +/**
-> + * dax_get_unmapped_area - handle get_unmapped_area for a DAX file
-> + * @filp: The file being mmap'd, if not NULL
-> + * @addr: The mmap address. If NULL, the kernel assigns the address
-> + * @len: The mmap size in bytes
-> + * @pgoff: The page offset in the file where the mapping starts from.
-> + * @flags: The mmap flags
-> + *
-> + * This function can be called by a filesystem for get_unmapped_area().
-> + * When a target file is a DAX file, it aligns the mmap address at the
-> + * beginning of the file by the pmd size.
-> + */
-> +unsigned long dax_get_unmapped_area(struct file *filp, unsigned long addr,
-> +		unsigned long len, unsigned long pgoff, unsigned long flags)
-> +{
-> +	unsigned long off, off_end, off_pmd, len_pmd, addr_pmd;
+On Fri, 15 Apr 2016, Michal Hocko wrote:
 
-I think we need to use 'loff_t' for the offsets for things to work on
-32-bits.
+> > > > +static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
+> > > > +				struct hugetlb_cgroup *parent_h_cgroup)
+> > > > +{
+> > > > +	int idx;
+> > > > +
+> > > > +	for (idx = 0; idx < HUGE_MAX_HSTATE; idx++) {
+> > > > +		struct page_counter *counter = &h_cgroup->hugepage[idx];
+> > > > +		struct page_counter *parent = NULL;
+> > > > +		unsigned long limit;
+> > > > +		int ret;
+> > > > +
+> > > > +		if (parent_h_cgroup)
+> > > > +			parent = &parent_h_cgroup->hugepage[idx];
+> > > > +		page_counter_init(counter, parent);
+> > > > +
+> > > > +		limit = round_down(PAGE_COUNTER_MAX,
+> > > > +				   1 << huge_page_order(&hstates[idx]));
+> > > > +		ret = page_counter_limit(counter, limit);
+> > > > +		VM_BUG_ON(ret);
+> > > > +	}
+> > > > +}
+> > > 
+> > > I fail to see the point for this. Why would want to round down
+> > > PAGE_COUNTER_MAX? It will never make a real difference. Or am I missing
+> > > something?
+> > 
+> > Did you try the patch?
+> > 
+> > If we're rounding down the user value, it makes sense to be consistent 
+> > with the upper bound default to specify intent.
+> 
+> The point I've tried to raise is why do we care and add a code if we can
+> never reach that value? Does actually anybody checks for the alignment.
 
-> +	if (!IS_ENABLED(CONFIG_FS_DAX_PMD) ||
-> +	    !filp || addr || !IS_DAX(filp->f_mapping->host))
-> +		goto out;
-> +
-> +	off = pgoff << PAGE_SHIFT;
-
-And here we need to type to loff_t before the shift...
-
-> +	off_end = off + len;
-> +	off_pmd = round_up(off, PMD_SIZE);  /* pmd-aligned offset */
-> +
-> +	if ((off_end <= off_pmd) || ((off_end - off_pmd) < PMD_SIZE))
-
-None of these parenthesis is actually needed (and IMHO they make the code
-less readable, not more).
-
-> +		goto out;
-> +
-> +	len_pmd = len + PMD_SIZE;
-> +	if ((off + len_pmd) < off)
-> +		goto out;
-> +
-> +	addr_pmd = current->mm->get_unmapped_area(filp, addr, len_pmd,
-> +						  pgoff, flags);
-> +	if (!IS_ERR_VALUE(addr_pmd)) {
-> +		addr_pmd += (off - addr_pmd) & (PMD_SIZE - 1);
-> +		return addr_pmd;
-
-Otherwise the patch looks good to me.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+If the user modifies the value successfully, it can never be restored to 
+the default since the write handler rounds down.  It's a matter of 
+consistency for a long-term maintainable kernel and prevents bug reports.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
