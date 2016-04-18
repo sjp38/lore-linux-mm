@@ -1,102 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7445E6B007E
-	for <linux-mm@kvack.org>; Sun, 17 Apr 2016 15:14:45 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id a140so53318627wma.1
-        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 12:14:45 -0700 (PDT)
-Received: from mail-lf0-x234.google.com (mail-lf0-x234.google.com. [2a00:1450:4010:c07::234])
-        by mx.google.com with ESMTPS id q7si2600549lfd.191.2016.04.17.12.14.44
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B1916B007E
+	for <linux-mm@kvack.org>; Sun, 17 Apr 2016 20:31:36 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e190so301488636pfe.3
+        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 17:31:36 -0700 (PDT)
+Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
+        by mx.google.com with ESMTPS id 25si1653285pfh.120.2016.04.17.17.31.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Apr 2016 12:14:44 -0700 (PDT)
-Received: by mail-lf0-x234.google.com with SMTP id g184so195294991lfb.3
-        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 12:14:44 -0700 (PDT)
-From: Alexander Kuleshov <kuleshovmail@gmail.com>
-Subject: [PATCH] mm/memblock: move memblock_{add,reserve}_region into memblock_{add,reserve}
-Date: Mon, 18 Apr 2016 01:14:36 +0600
-Message-Id: <1460920476-14320-1-git-send-email-kuleshovmail@gmail.com>
+        Sun, 17 Apr 2016 17:31:35 -0700 (PDT)
+Received: by mail-pa0-x242.google.com with SMTP id hb4so14714310pac.1
+        for <linux-mm@kvack.org>; Sun, 17 Apr 2016 17:31:35 -0700 (PDT)
+Date: Mon, 18 Apr 2016 09:33:05 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v3 10/16] zsmalloc: factor page chain functionality out
+Message-ID: <20160418003305.GA5882@swordfish>
+References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
+ <1459321935-3655-11-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1459321935-3655-11-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Tony Luck <tony.luck@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Gibson <david@gibson.dropbear.id.au>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 0xAX <kuleshovmail@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jlayton@poochiereds.net, bfields@fieldses.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, koct9i@gmail.com, aquini@redhat.com, virtualization@lists.linux-foundation.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Rik van Riel <riel@redhat.com>, rknize@motorola.com, Gioh Kim <gi-oh.kim@profitbricks.com>, Sangseok Lee <sangseok.lee@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Al Viro <viro@ZenIV.linux.org.uk>, YiPing Xu <xuyiping@hisilicon.com>
 
-From: 0xAX <kuleshovmail@gmail.com>
+Hello,
 
-The memblock_add_region() and memblock_reserve_region do not nothing specific
-before the call of the memblock_add_range(), only print debug output.
+On (03/30/16 16:12), Minchan Kim wrote:
+> @@ -1421,7 +1434,6 @@ static unsigned long obj_malloc(struct size_class *class,
+>  	unsigned long m_offset;
+>  	void *vaddr;
+>  
+> -	handle |= OBJ_ALLOCATED_TAG;
 
-We can do the same in the memblock_add() and memblock_reserve() since both
-memblock_add_region() and memblock_reserve_region are not used by anybody
-outside of memblock.c and the memblock_{add,reserve}() have the same set of
-flags and nids.
+a nitpick, why did you replace this ALLOCATED_TAG assignment
+with 2 'handle | OBJ_ALLOCATED_TAG'?
 
-Since the memblock_add_region() and memblock_reserve_region() anyway will be
-inlined, there will not be functional changes, but will improve code readability
-a little.
+	-ss
 
-Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
----
- mm/memblock.c | 28 ++++++----------------------
- 1 file changed, 6 insertions(+), 22 deletions(-)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index b570ddd..3b93daa 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -606,22 +606,14 @@ int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
- 	return memblock_add_range(&memblock.memory, base, size, nid, 0);
- }
- 
--static int __init_memblock memblock_add_region(phys_addr_t base,
--						phys_addr_t size,
--						int nid,
--						unsigned long flags)
-+int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
- {
- 	memblock_dbg("memblock_add: [%#016llx-%#016llx] flags %#02lx %pF\n",
- 		     (unsigned long long)base,
- 		     (unsigned long long)base + size - 1,
--		     flags, (void *)_RET_IP_);
--
--	return memblock_add_range(&memblock.memory, base, size, nid, flags);
--}
-+		     0UL, (void *)_RET_IP_);
- 
--int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
--{
--	return memblock_add_region(base, size, MAX_NUMNODES, 0);
-+	return memblock_add_range(&memblock.memory, base, size, MAX_NUMNODES, 0);
- }
- 
- /**
-@@ -732,22 +724,14 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
- 	return memblock_remove_range(&memblock.reserved, base, size);
- }
- 
--static int __init_memblock memblock_reserve_region(phys_addr_t base,
--						   phys_addr_t size,
--						   int nid,
--						   unsigned long flags)
-+int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
- {
- 	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] flags %#02lx %pF\n",
- 		     (unsigned long long)base,
- 		     (unsigned long long)base + size - 1,
--		     flags, (void *)_RET_IP_);
--
--	return memblock_add_range(&memblock.reserved, base, size, nid, flags);
--}
-+		     0UL, (void *)_RET_IP_);
- 
--int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
--{
--	return memblock_reserve_region(base, size, MAX_NUMNODES, 0);
-+	return memblock_add_range(&memblock.reserved, base, size, MAX_NUMNODES, 0);
- }
- 
- /**
--- 
-2.8.0.rc3.212.g1f992f2.dirty
+>  	obj = get_freeobj(first_page);
+>  	objidx_to_page_and_offset(class, first_page, obj,
+>  				&m_page, &m_offset);
+> @@ -1431,10 +1443,10 @@ static unsigned long obj_malloc(struct size_class *class,
+>  	set_freeobj(first_page, link->next >> OBJ_ALLOCATED_TAG);
+>  	if (!class->huge)
+>  		/* record handle in the header of allocated chunk */
+> -		link->handle = handle;
+> +		link->handle = handle | OBJ_ALLOCATED_TAG;
+>  	else
+>  		/* record handle in first_page->private */
+> -		set_page_private(first_page, handle);
+> +		set_page_private(first_page, handle | OBJ_ALLOCATED_TAG);
+>  	kunmap_atomic(vaddr);
+>  	mod_zspage_inuse(first_page, 1);
+>  	zs_stat_inc(class, OBJ_USED, 1);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
