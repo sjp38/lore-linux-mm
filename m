@@ -1,60 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A14E26B007E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 04:52:24 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c20so317565038pfc.2
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 01:52:24 -0700 (PDT)
-Received: from e28smtp08.in.ibm.com (e28smtp08.in.ibm.com. [125.16.236.8])
-        by mx.google.com with ESMTPS id uy10si4283524pac.210.2016.04.18.01.52.23
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 195046B007E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 05:41:03 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id h185so342542820vkg.0
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 02:41:03 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f6si46501595qhd.112.2016.04.18.02.41.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Apr 2016 01:52:23 -0700 (PDT)
-Received: from localhost
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 18 Apr 2016 14:22:21 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay07.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u3I8qIOp36700364
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:22:18 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u3I8qGIO013024
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:22:18 +0530
-Message-ID: <5714A040.9090903@linux.vnet.ibm.com>
-Date: Mon, 18 Apr 2016 14:22:16 +0530
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Apr 2016 02:41:02 -0700 (PDT)
+Date: Mon, 18 Apr 2016 10:40:57 +0100
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: post-copy is broken?
+Message-ID: <20160418094056.GB2222@work-vm>
+References: <20160413080545.GA2270@work-vm>
+ <20160413114103.GB2270@work-vm>
+ <20160413125053.GC2270@work-vm>
+ <20160413205132.GG26364@redhat.com>
+ <20160414123441.GF2252@work-vm>
+ <20160414162230.GC9976@redhat.com>
+ <20160415125236.GA3376@node.shutemov.name>
+ <20160415134233.GG2229@work-vm>
+ <20160415152330.GB3376@node.shutemov.name>
+ <20160415221943.GJ9976@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/10] Enable HugeTLB page migration on POWER
-References: <1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com>
-In-Reply-To: <1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160415221943.GJ9976@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
-Cc: hughd@google.com, dave.hansen@intel.com, aneesh.kumar@linux.vnet.ibm.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, kirill.shutemov@linux.intel.com, "Li, Liang Z" <liang.z.li@intel.com>, Amit Shah <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, linux-mm@kvack.org
 
-On 04/07/2016 11:07 AM, Anshuman Khandual wrote:
-> This patch series enables HugeTLB page migration on POWER platform.
-> This series has some core VM changes (patch 1, 2, 3) and some powerpc
-> specific changes (patch 4, 5, 6, 7, 8, 9, 10). Comments, suggestions
-> and inputs are welcome.
+* Andrea Arcangeli (aarcange@redhat.com) wrote:
+> On Fri, Apr 15, 2016 at 06:23:30PM +0300, Kirill A. Shutemov wrote:
+> > The same here. Freshly booted machine with 64GiB ram. I've checked
+> > /proc/vmstat: huge pages were allocated
 > 
-> Anshuman Khandual (10):
->   mm/mmap: Replace SHM_HUGE_MASK with MAP_HUGE_MASK inside mmap_pgoff
->   mm/hugetlb: Add PGD based implementation awareness
->   mm/hugetlb: Protect follow_huge_(pud|pgd) functions from race
+> I tried the test in a loop and I can't reproduce it here.
+> 
+> Tested with gcc 4.9.3 and glibc 2.21 and glibc 2.22 so far,
+> qemu&kernel/KVM latest upstream (4.6-rc3..).
+> 
+> You can run this in between each invocation to guarantee all memory is
+> backed by THP (no need of reboot):
+> 
+> # echo 3 >/proc/sys/vm/drop_caches
+> # echo >/proc/sys/vm/compact_memory
+> 
+> 4.5 kernel built with gcc 5.3.1 run on a older userland worked fine
+> too.
+> 
+> Next thing to test would be if there's something wrong with qemu built
+> with gcc 5.3.1 if run on top of a 4.4 kernel?
 
-Hugh/Mel/Naoya/Andrew,
+It's also working for me on f24 (4.5.0-320 packaged kernel) on a real machine;
+so we currently have two sets that break:
 
-Andrew had already reviewed the changes in the first two patches during
-the RFC phase and was okay with them. Could you please review the third
-patch here as well and let me know your inputs/suggestions. Currently
-the third patch has got build failures on SPARC and S390 platforms
-(details of which are on the thread with possible fixes). Thank you.
+   a) Liang Li's setup (that breaks with the migrate of a real VM but I don't
+                        think we have any details of the setup);
+                        works with 4.4.x breaks with 4.5.x
 
+   b) f24 nested with my test, with THP enabled after Kirill's changes.
 
+Dave
 
-	
+--
+Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
