@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A130C6B007E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 10:18:59 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id hb4so237096587pac.3
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 07:18:59 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0142.outbound.protection.outlook.com. [157.56.112.142])
-        by mx.google.com with ESMTPS id 81si9420694pfy.28.2016.04.18.07.18.57
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 78F626B007E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 10:24:34 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id t124so331357716pfb.1
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 07:24:34 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0115.outbound.protection.outlook.com. [104.47.1.115])
+        by mx.google.com with ESMTPS id s63si1886135pfs.86.2016.04.18.07.24.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 18 Apr 2016 07:18:58 -0700 (PDT)
+        Mon, 18 Apr 2016 07:24:33 -0700 (PDT)
 From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv6 2/3] x86/vdso: add mremap hook to vm_special_mapping
-Date: Mon, 18 Apr 2016 17:17:49 +0300
-Message-ID: <1460989069-2690-1-git-send-email-dsafonov@virtuozzo.com>
+Subject: [PATCHv7 2/3] x86/vdso: add mremap hook to vm_special_mapping
+Date: Mon, 18 Apr 2016 17:23:22 +0300
+Message-ID: <1460989402-5468-1-git-send-email-dsafonov@virtuozzo.com>
 In-Reply-To: <1460987025-30360-2-git-send-email-dsafonov@virtuozzo.com>
 References: <1460987025-30360-2-git-send-email-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
@@ -46,6 +46,8 @@ through glibc may fail:
 
 Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
 ---
+v7: that's just not my day: add new_vma parameter to vdso_fix_landing
+    sorry for the noise
 v6: moved vdso_image_32 check and fixup code into vdso_fix_landing function
     with ifdefs around
 v5: as Andy suggested, add a check that new_vma->vm_mm and current->mm are
@@ -55,13 +57,13 @@ v3: as Andy suggested, return EINVAL in case of splitting vdso blob on mremap;
     used is_ia32_task instead of ifdefs 
 v2: added __maybe_unused for pt_regs in vdso_mremap
 
- arch/x86/entry/vdso/vma.c | 49 ++++++++++++++++++++++++++++++++++++++++++-----
+ arch/x86/entry/vdso/vma.c | 50 ++++++++++++++++++++++++++++++++++++++++++-----
  include/linux/mm_types.h  |  3 +++
  mm/mmap.c                 | 10 ++++++++++
- 3 files changed, 57 insertions(+), 5 deletions(-)
+ 3 files changed, 58 insertions(+), 5 deletions(-)
 
 diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
-index 10f704584922..3385586f86a6 100644
+index 10f704584922..d94291a19b6e 100644
 --- a/arch/x86/entry/vdso/vma.c
 +++ b/arch/x86/entry/vdso/vma.c
 @@ -12,6 +12,7 @@
@@ -72,7 +74,7 @@ index 10f704584922..3385586f86a6 100644
  #include <asm/pvclock.h>
  #include <asm/vgtod.h>
  #include <asm/proto.h>
-@@ -98,10 +99,42 @@ static int vdso_fault(const struct vm_special_mapping *sm,
+@@ -98,10 +99,43 @@ static int vdso_fault(const struct vm_special_mapping *sm,
  	return 0;
  }
  
@@ -96,7 +98,8 @@ index 10f704584922..3385586f86a6 100644
 +	}
 +}
 +#else
-+static void vdso_fix_landing(const struct vdso_image *image) {}
++static void vdso_fix_landing(const struct vdso_image *image,
++		struct vm_area_struct *new_vma) {}
 +#endif
 +
 +static int vdso_mremap(const struct vm_special_mapping *sm,
@@ -119,7 +122,7 @@ index 10f704584922..3385586f86a6 100644
  
  static int vvar_fault(const struct vm_special_mapping *sm,
  		      struct vm_area_struct *vma, struct vm_fault *vmf)
-@@ -162,6 +195,12 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+@@ -162,6 +196,12 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
  	struct vm_area_struct *vma;
  	unsigned long addr, text_start;
  	int ret = 0;
@@ -132,7 +135,7 @@ index 10f704584922..3385586f86a6 100644
  	static const struct vm_special_mapping vvar_mapping = {
  		.name = "[vvar]",
  		.fault = vvar_fault,
-@@ -195,7 +234,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+@@ -195,7 +235,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
  				       image->size,
  				       VM_READ|VM_EXEC|
  				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
