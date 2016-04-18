@@ -1,111 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f197.google.com (mail-ob0-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7779F6B007E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 04:11:27 -0400 (EDT)
-Received: by mail-ob0-f197.google.com with SMTP id js7so161486310obc.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 01:11:27 -0700 (PDT)
-Received: from mail-ig0-x22a.google.com (mail-ig0-x22a.google.com. [2607:f8b0:4001:c05::22a])
-        by mx.google.com with ESMTPS id e10si21282997iof.34.2016.04.18.01.11.26
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E85F6B007E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 04:42:32 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id th5so163149613obc.1
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 01:42:32 -0700 (PDT)
+Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com. [125.16.236.6])
+        by mx.google.com with ESMTPS id g130si20154179ioa.170.2016.04.18.01.42.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Apr 2016 01:11:26 -0700 (PDT)
-Received: by mail-ig0-x22a.google.com with SMTP id g8so73601353igr.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 01:11:26 -0700 (PDT)
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 18 Apr 2016 01:42:31 -0700 (PDT)
+Received: from localhost
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 18 Apr 2016 14:12:28 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u3I8gKMV8257948
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 14:12:21 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u3IEAMUw030859
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 19:40:24 +0530
+Message-ID: <57149DE9.9060600@linux.vnet.ibm.com>
+Date: Mon, 18 Apr 2016 14:12:17 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1460920476-14320-1-git-send-email-kuleshovmail@gmail.com>
-References: <1460920476-14320-1-git-send-email-kuleshovmail@gmail.com>
-Date: Mon, 18 Apr 2016 10:11:26 +0200
-Message-ID: <CAKv+Gu-F8bJfg9zpa5oFMT6tj2Wd1mBx8O-ag1asav_HsR0tfw@mail.gmail.com>
-Subject: Re: [PATCH] mm/memblock: move memblock_{add,reserve}_region into memblock_{add,reserve}
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 03/10] mm/hugetlb: Protect follow_huge_(pud|pgd) functions
+ from race
+References: <201604071708.osnfXWQP%fengguang.wu@intel.com> <570B3E51.2090308@linux.vnet.ibm.com>
+In-Reply-To: <570B3E51.2090308@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Kuleshov <kuleshovmail@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Tony Luck <tony.luck@intel.com>, Tang Chen <tangchen@cn.fujitsu.com>, David Gibson <david@gibson.dropbear.id.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: kbuild test robot <lkp@intel.com>
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, hughd@google.com, linux-kernel@vger.kernel.org, dave.hansen@intel.com, kbuild-all@01.org, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com, mgorman@techsingularity.net, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com
 
-On 17 April 2016 at 21:14, Alexander Kuleshov <kuleshovmail@gmail.com> wrote:
-> From: 0xAX <kuleshovmail@gmail.com>
->
-> The memblock_add_region() and memblock_reserve_region do not nothing specific
-> before the call of the memblock_add_range(), only print debug output.
->
-> We can do the same in the memblock_add() and memblock_reserve() since both
-> memblock_add_region() and memblock_reserve_region are not used by anybody
-> outside of memblock.c and the memblock_{add,reserve}() have the same set of
-> flags and nids.
->
-> Since the memblock_add_region() and memblock_reserve_region() anyway will be
-> inlined, there will not be functional changes, but will improve code readability
-> a little.
->
-> Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
+On 04/11/2016 11:34 AM, Anshuman Khandual wrote:
+> On 04/07/2016 03:04 PM, kbuild test robot wrote:
+>> > All errors (new ones prefixed by >>):
+>> > 
+>> >    mm/hugetlb.c: In function 'follow_huge_pud':
+>>>>>> >>> >> mm/hugetlb.c:4360:3: error: implicit declaration of function 'pud_page' [-Werror=implicit-function-declaration]
+>> >       page = pud_page(*pud) + ((address & ~PUD_MASK) >> PAGE_SHIFT);
+>> >       ^
+>> >    mm/hugetlb.c:4360:8: warning: assignment makes pointer from integer without a cast
+>> >       page = pud_page(*pud) + ((address & ~PUD_MASK) >> PAGE_SHIFT);
+>> >            ^
+>> >    mm/hugetlb.c: In function 'follow_huge_pgd':
+>> >    mm/hugetlb.c:4395:3: error: implicit declaration of function 'pgd_page' [-Werror=implicit-function-declaration]
+>> >       page = pgd_page(*pgd) + ((address & ~PGDIR_MASK) >> PAGE_SHIFT);
+> Both the build errors here are because of the fact that pgd_page() is
+> not available for some platforms and config options. It got missed as
+> I ran only powerpc config options for build test purpose. My bad, will
+> fix it.
 
-Acked-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+The following change seems to fix the build problem on S390 but will
+require some inputs from S390 maintainers regarding the functional
+correctness of the patch.
 
-> ---
->  mm/memblock.c | 28 ++++++----------------------
->  1 file changed, 6 insertions(+), 22 deletions(-)
->
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index b570ddd..3b93daa 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -606,22 +606,14 @@ int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
->         return memblock_add_range(&memblock.memory, base, size, nid, 0);
->  }
->
-> -static int __init_memblock memblock_add_region(phys_addr_t base,
-> -                                               phys_addr_t size,
-> -                                               int nid,
-> -                                               unsigned long flags)
-> +int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
->  {
->         memblock_dbg("memblock_add: [%#016llx-%#016llx] flags %#02lx %pF\n",
->                      (unsigned long long)base,
->                      (unsigned long long)base + size - 1,
-> -                    flags, (void *)_RET_IP_);
-> -
-> -       return memblock_add_range(&memblock.memory, base, size, nid, flags);
-> -}
-> +                    0UL, (void *)_RET_IP_);
->
-> -int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
-> -{
-> -       return memblock_add_region(base, size, MAX_NUMNODES, 0);
-> +       return memblock_add_range(&memblock.memory, base, size, MAX_NUMNODES, 0);
->  }
->
->  /**
-> @@ -732,22 +724,14 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
->         return memblock_remove_range(&memblock.reserved, base, size);
->  }
->
-> -static int __init_memblock memblock_reserve_region(phys_addr_t base,
-> -                                                  phys_addr_t size,
-> -                                                  int nid,
-> -                                                  unsigned long flags)
-> +int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
->  {
->         memblock_dbg("memblock_reserve: [%#016llx-%#016llx] flags %#02lx %pF\n",
->                      (unsigned long long)base,
->                      (unsigned long long)base + size - 1,
-> -                    flags, (void *)_RET_IP_);
-> -
-> -       return memblock_add_range(&memblock.reserved, base, size, nid, flags);
-> -}
-> +                    0UL, (void *)_RET_IP_);
->
-> -int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
-> -{
-> -       return memblock_reserve_region(base, size, MAX_NUMNODES, 0);
-> +       return memblock_add_range(&memblock.reserved, base, size, MAX_NUMNODES, 0);
->  }
->
->  /**
-> --
-> 2.8.0.rc3.212.g1f992f2.dirty
->
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index 2f66645..834a8a6 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -963,6 +963,8 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
+ #define pte_page(x) pfn_to_page(pte_pfn(x))
+ 
+ #define pmd_page(pmd) pfn_to_page(pmd_pfn(pmd))
++#define pud_page(pud) pud_val(pud)
++#define pgd_page(pgd) pgd_val(pgd)
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
