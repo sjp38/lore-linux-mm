@@ -1,365 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 62B6D6B007E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 13:15:03 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id t124so340218185pfb.1
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 10:15:03 -0700 (PDT)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id o65si10044428pfo.226.2016.04.18.10.15.02
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 925F16B007E
+	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 13:18:21 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id x6so365604575vkf.1
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 10:18:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s84si15034406qks.95.2016.04.18.10.18.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Apr 2016 10:15:02 -0700 (PDT)
-Received: by mail-pa0-x231.google.com with SMTP id er2so52255459pad.3
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 10:15:02 -0700 (PDT)
-From: Thomas Garnier <thgarnie@google.com>
-Subject: [PATCH v2] mm: SLAB freelist randomization
-Date: Mon, 18 Apr 2016 10:14:39 -0700
-Message-Id: <1460999679-30805-1-git-send-email-thgarnie@google.com>
+        Mon, 18 Apr 2016 10:18:20 -0700 (PDT)
+Date: Mon, 18 Apr 2016 18:18:15 +0100
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: post-copy is broken?
+Message-ID: <20160418171814.GH2222@work-vm>
+References: <20160415125236.GA3376@node.shutemov.name>
+ <20160415134233.GG2229@work-vm>
+ <20160415152330.GB3376@node.shutemov.name>
+ <20160415163448.GJ2229@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E04181101@shsmsx102.ccr.corp.intel.com>
+ <20160418095528.GD2222@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E0418115C@shsmsx102.ccr.corp.intel.com>
+ <20160418101555.GE2222@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E041813A6@shsmsx102.ccr.corp.intel.com>
+ <20160418132338.GG2222@work-vm>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160418132338.GG2222@work-vm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>
-Cc: gthelen@google.com, labbott@fedoraproject.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Garnier <thgarnie@google.com>
+To: "Li, Liang Z" <liang.z.li@intel.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, Amit Shah <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Provides an optional config (CONFIG_FREELIST_RANDOM) to randomize the
-SLAB freelist. The list is randomized during initialization of a new set
-of pages. The order on different freelist sizes is pre-computed at boot
-for performance. This security feature reduces the predictability of the
-kernel SLAB allocator against heap overflows rendering attacks much less
-stable.
+* Dr. David Alan Gilbert (dgilbert@redhat.com) wrote:
+> * Li, Liang Z (liang.z.li@intel.com) wrote:
+> > > > > > > > > Interesting; it's failing reliably for me - but only with a
+> > > > > > > > > reasonably freshly booted machine (so that the pages get THPd).
+> > > > > > > >
+> > > > > > > > The same here. Freshly booted machine with 64GiB ram. I've
+> > > > > > > > checked
+> > > > > > > > /proc/vmstat: huge pages were allocated
+> > > > > > >
+> > > > > > > Thanks for testing.
+> > > > > > >
+> > > > > > > Damn; this is confusing now.  I've got a RHEL7 box with
+> > > > > > > 4.6.0-rc3 on where it works, and a fedora24 VM where it fails
+> > > > > > > (the f24 VM is where I did the bisect so it works fine with the
+> > > > > > > older kernel on the f24
+> > > > > userspace in that VM).
+> > > > > > >
+> > > > > > > So lets see:
+> > > > > > >    works: Kirill's (64GB machine)
+> > > > > > >           Dave's RHEL7 host (24GB RAM, dual xeon, RHEL7
+> > > > > > > userspace and kernel
+> > > > > > > config)
+> > > > > > >    fails: Dave's f24 VM (4GB RAM, 4 vcpus VM on my laptop24
+> > > > > > > userspace and kernel config)
+> > > > > > >
+> > > > > > > So it's any of userspace, kernel config, machine hardware or hmm.
+> > > > > > >
+> > > > > > > My f24 box has transparent_hugepage_madvise, where my rhel7 has
+> > > > > > > transparent_hugepage_always (but still works if I flip it to
+> > > > > > > madvise at run time).  I'll try and get the configs closer together.
+> > > > > > >
+> > > > > > > Liang Li: Can you run my test on your setup which fails the
+> > > > > > > migrate and tell me what your userspace is?
+> > > > > > >
+> > > > > > > (If you've not built my test yet, you might find you need to add a :
+> > > > > > >    tests/postcopy-test$(EXESUF): tests/postcopy-test.o
+> > > > > > >
+> > > > > > >   to the tests/Makefile)
+> > > > > > >
+> > > > > >
+> > > > > > Hi Dave,
+> > > > > >
+> > > > > >   How to build and run you test? I didn't do that before.
+> > > > >
+> > > > > Apply the code in:
+> > > > > http://lists.gnu.org/archive/html/qemu-devel/2016-04/msg02138.html
+> > > > >
+> > > > > fix the:
+> > > > > +            if ( ((b + 1) % 255) == last_byte && !hit_edge) {
+> > > > > to:
+> > > > > +            if ( ((b + 1) % 256) == last_byte && !hit_edge) {
+> > > > >
+> > > > > to tests/Makefile
+> > > > >    tests/postcopy-test$(EXESUF): tests/postcopy-test.o
+> > > > >
+> > > > > and do a:
+> > > > >     make check
+> > > > >
+> > > > > in qemu.
+> > > > > Then you can rerun the test with:
+> > > > >     QTEST_QEMU_BINARY=path/to/qemu-system-
+> > > x86_64 ./tests/postcopy-
+> > > > > test
+> > > > >
+> > > > > if it works, reboot and check it still works from a fresh boot.
+> > > > >
+> > > > > Can you describe the system which your full test failed on? What
+> > > > > distro on the host? What type of host was it tested on?
+> > > > >
+> > > > > Dave
+> > > > >
+> > > >
+> > > >
+> > > > Thanks, Dave
+> > > >
+> > > > The host is CenOS7, its original kernel is 3.10.0-327.el7.x86_64
+> > > > (CentOS 7.1?), The hardware platform is HSW-EP with 64GB RAM.
+> > > 
+> > > OK, so your test fails on real hardware; my guess is that my test will work on
+> > > there.
+> > > Can you try your test with THP disabled on the host:
+> > > 
+> > > echo never > /sys/kernel/mm/transparent_hugepage/enabled
+> > > 
+> > 
+> > If the THP is disabled, no fails.
+> > And your test was always passed, even when  real post-copy was failed. 
+> > 
+> > In my env, the output of 
+> > 'cat /sys/kernel/mm/transparent_hugepage/enabled'  is:
+> > 
+> >  [always] ...
+> 
+> OK, I can't get my test to fail on real hardware - only in a VM; but my
+> suspicion is we're looking at the same bug; both of them it goes away
+> if we disable THP, both of them work on 4.4.x and fail on 4.5.x.
+> I'd love to be able to find a nice easy test to be able to give to Andrea
+> and Kirill
+> 
+> I've also just confirmed that running (in a VM) a fedora-24 4.5.0 kernel
+> with a fedora-23 userspace (qemu built under f23) still fails with my test.
+> So the problem there is definitely triggered by the newer kernel not
+> the newer userspace.
 
-For example this attack against SLUB (also applicable against SLAB)
-would be affected:
-https://jon.oberheide.org/blog/2010/09/10/linux-kernel-can-slub-overflow/
+OK, some more results - I *can* get it to fail on real hardware - it's just
+really really rare, and the failure is slightly different than in the nest.
 
-Also, since v4.6 the freelist was moved at the end of the SLAB. It means
-a controllable heap is opened to new attacks not yet publicly discussed.
-A kernel heap overflow can be transformed to multiple use-after-free.
-This feature makes this type of attack harder too.
+I'm using the following magic:
+count=0; while true; do count=$(($count+1)); echo 3 >/proc/sys/vm/drop_caches; echo >/proc/sys/vm/compact_memory; echo "Iteration $count"; QTEST_QEMU_BINARY=./bin/qemu-system-x86_64 ./tests/postcopy-test || break; done
 
-To generate entropy, we use get_random_bytes_arch because 0 bits of
-entropy is available at that boot stage. In the worse case this function
-will fallback to the get_random_bytes sub API.
+I've had about 4 failures out of about 5000 runs (ouch);
 
-The config option name is not specific to the SLAB as this approach will
-be extended to other allocators like SLUB.
+On the real hardware the failure addresses are always 2MB aligned, even though
+other than the start address, everything in the test is 4K page based - so again
+this is pointing the finger at THP:
 
-Performance results highlighted no major changes:
+/x86_64/postcopy: Memory content inconsistency at 4200000 first_byte = 48 last_byte = 47 current = 1 hit_edge = 1
+postcopy-test: /root/git/qemu/tests/postcopy-test.c:274: check_guests_ram: Assertion `0' failed.
+/x86_64/postcopy: Memory content inconsistency at 4200000 first_byte = e last_byte = d current = 9b hit_edge = 1
+postcopy-test: /root/git/qemu/tests/postcopy-test.c:274: check_guests_ram: Assertion `0' failed.
+/x86_64/postcopy: Memory content inconsistency at 4800000 first_byte = 19 last_byte = 18 current = 1 hit_edge = 1
+postcopy-test: /root/git/qemu/tests/postcopy-test.c:274: check_guests_ram: Assertion `0' failed.
+/x86_64/postcopy: Memory content inconsistency at 5e00000 first_byte = d6 last_byte = d5 current = 1 hit_edge = 1
+postcopy-test: /root/git/qemu/tests/postcopy-test.c:274: check_guests_ram: Assertion `0' failed.
 
-Netperf average on 10 runs:
+(My test host for the real hardware is 2x E5-2640 v3 running fedora 24)
 
-threads,base,change
-16,576943.10,585905.90 (101.55%)
-32,564082.00,569741.20 (101.00%)
-48,558334.30,561851.20 (100.63%)
-64,552025.20,556448.30 (100.80%)
-80,552294.40,551743.10 (99.90%)
-96,552435.30,547529.20 (99.11%)
-112,551320.60,550183.20 (99.79%)
-128,549138.30,550542.70 (100.26%)
-144,549344.50,544529.10 (99.12%)
-160,550360.80,539929.30 (98.10%)
+where as in the VM I'm seeing immediate failures with addresses just on any 4k alignment.
 
-slab_test 1 run on boot. After is faster except for odd result on size
-2048.
+You can run a couple in parallel; but if your load is too high the test will fail with an
+assertion (postcopy-test.c:196 ...(qdict_haskey(rsp, "return")) - but that's
+my test - so don't worry if you hit that; decreasing the migrate_speed_set value should
+avoid that if you're hitting it repeatedly.
 
-Before:
+(Could this be something like a missing TLB flush?)
 
-Single thread testing
-=====================
-1. Kmalloc: Repeatedly allocate then free test
-10000 times kmalloc(8) -> 137 cycles kfree -> 126 cycles
-10000 times kmalloc(16) -> 118 cycles kfree -> 119 cycles
-10000 times kmalloc(32) -> 112 cycles kfree -> 119 cycles
-10000 times kmalloc(64) -> 126 cycles kfree -> 123 cycles
-10000 times kmalloc(128) -> 135 cycles kfree -> 131 cycles
-10000 times kmalloc(256) -> 165 cycles kfree -> 104 cycles
-10000 times kmalloc(512) -> 174 cycles kfree -> 126 cycles
-10000 times kmalloc(1024) -> 242 cycles kfree -> 160 cycles
-10000 times kmalloc(2048) -> 478 cycles kfree -> 239 cycles
-10000 times kmalloc(4096) -> 747 cycles kfree -> 364 cycles
-10000 times kmalloc(8192) -> 774 cycles kfree -> 404 cycles
-10000 times kmalloc(16384) -> 849 cycles kfree -> 430 cycles
-2. Kmalloc: alloc/free test
-10000 times kmalloc(8)/kfree -> 118 cycles
-10000 times kmalloc(16)/kfree -> 118 cycles
-10000 times kmalloc(32)/kfree -> 118 cycles
-10000 times kmalloc(64)/kfree -> 121 cycles
-10000 times kmalloc(128)/kfree -> 118 cycles
-10000 times kmalloc(256)/kfree -> 115 cycles
-10000 times kmalloc(512)/kfree -> 115 cycles
-10000 times kmalloc(1024)/kfree -> 115 cycles
-10000 times kmalloc(2048)/kfree -> 115 cycles
-10000 times kmalloc(4096)/kfree -> 115 cycles
-10000 times kmalloc(8192)/kfree -> 115 cycles
-10000 times kmalloc(16384)/kfree -> 115 cycles
+Dave
 
-After:
 
-Single thread testing
-=====================
-1. Kmalloc: Repeatedly allocate then free test
-10000 times kmalloc(8) -> 99 cycles kfree -> 84 cycles
-10000 times kmalloc(16) -> 88 cycles kfree -> 83 cycles
-10000 times kmalloc(32) -> 90 cycles kfree -> 81 cycles
-10000 times kmalloc(64) -> 107 cycles kfree -> 97 cycles
-10000 times kmalloc(128) -> 134 cycles kfree -> 89 cycles
-10000 times kmalloc(256) -> 145 cycles kfree -> 97 cycles
-10000 times kmalloc(512) -> 177 cycles kfree -> 116 cycles
-10000 times kmalloc(1024) -> 223 cycles kfree -> 151 cycles
-10000 times kmalloc(2048) -> 1429 cycles kfree -> 221 cycles
-10000 times kmalloc(4096) -> 720 cycles kfree -> 348 cycles
-10000 times kmalloc(8192) -> 788 cycles kfree -> 393 cycles
-10000 times kmalloc(16384) -> 867 cycles kfree -> 433 cycles
-2. Kmalloc: alloc/free test
-10000 times kmalloc(8)/kfree -> 115 cycles
-10000 times kmalloc(16)/kfree -> 115 cycles
-10000 times kmalloc(32)/kfree -> 115 cycles
-10000 times kmalloc(64)/kfree -> 120 cycles
-10000 times kmalloc(128)/kfree -> 127 cycles
-10000 times kmalloc(256)/kfree -> 119 cycles
-10000 times kmalloc(512)/kfree -> 112 cycles
-10000 times kmalloc(1024)/kfree -> 112 cycles
-10000 times kmalloc(2048)/kfree -> 112 cycles
-10000 times kmalloc(4096)/kfree -> 112 cycles
-10000 times kmalloc(8192)/kfree -> 112 cycles
-10000 times kmalloc(16384)/kfree -> 112 cycles
-
-Signed-off-by: Thomas Garnier <thgarnie@google.com>
----
-Based on next-20160418
----
- init/Kconfig |   9 ++++
- mm/slab.c    | 166 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 174 insertions(+), 1 deletion(-)
-
-diff --git a/init/Kconfig b/init/Kconfig
-index 0dfd09d..ee35418 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -1742,6 +1742,15 @@ config SLOB
- 
- endchoice
- 
-+config FREELIST_RANDOM
-+	default n
-+	depends on SLAB
-+	bool "SLAB freelist randomization"
-+	help
-+	  Randomizes the freelist order used on creating new SLABs. This
-+	  security feature reduces the predictability of the kernel slab
-+	  allocator against heap overflows.
-+
- config SLUB_CPU_PARTIAL
- 	default y
- 	depends on SLUB && SMP
-diff --git a/mm/slab.c b/mm/slab.c
-index b70aabf..8371d80 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -116,6 +116,7 @@
- #include	<linux/kmemcheck.h>
- #include	<linux/memory.h>
- #include	<linux/prefetch.h>
-+#include	<linux/log2.h>
- 
- #include	<net/sock.h>
- 
-@@ -1229,6 +1230,62 @@ static void __init set_up_node(struct kmem_cache *cachep, int index)
- 	}
- }
- 
-+#ifdef CONFIG_FREELIST_RANDOM
-+/*
-+ * Master lists are pre-computed random lists
-+ * Lists of different sizes are used to optimize performance on SLABS with
-+ * different object counts.
-+ */
-+static freelist_idx_t master_list_2[2];
-+static freelist_idx_t master_list_4[4];
-+static freelist_idx_t master_list_8[8];
-+static freelist_idx_t master_list_16[16];
-+static freelist_idx_t master_list_32[32];
-+static freelist_idx_t master_list_64[64];
-+static freelist_idx_t master_list_128[128];
-+static freelist_idx_t master_list_256[256];
-+const static struct m_list {
-+	size_t count;
-+	freelist_idx_t *list;
-+} master_lists[] = {
-+	{ ARRAY_SIZE(master_list_2), master_list_2 },
-+	{ ARRAY_SIZE(master_list_4), master_list_4 },
-+	{ ARRAY_SIZE(master_list_8), master_list_8 },
-+	{ ARRAY_SIZE(master_list_16), master_list_16 },
-+	{ ARRAY_SIZE(master_list_32), master_list_32 },
-+	{ ARRAY_SIZE(master_list_64), master_list_64 },
-+	{ ARRAY_SIZE(master_list_128), master_list_128 },
-+	{ ARRAY_SIZE(master_list_256), master_list_256 },
-+};
-+
-+/* Pre-compute the Freelist master lists at boot */
-+static void __init freelist_random_init(void)
-+{
-+	unsigned int seed;
-+	size_t z, i, rand;
-+	struct rnd_state slab_rand;
-+
-+	get_random_bytes_arch(&seed, sizeof(seed));
-+	prandom_seed_state(&slab_rand, seed);
-+
-+	for (z = 0; z < ARRAY_SIZE(master_lists); z++) {
-+		for (i = 0; i < master_lists[z].count; i++)
-+			master_lists[z].list[i] = i;
-+
-+		/* Fisher-Yates shuffle */
-+		for (i = master_lists[z].count - 1; i > 0; i--) {
-+			rand = prandom_u32_state(&slab_rand);
-+			rand %= (i + 1);
-+			swap(master_lists[z].list[i],
-+				master_lists[z].list[rand]);
-+		}
-+	}
-+}
-+#else
-+static inline void __init freelist_random_init(void) { }
-+#endif /* CONFIG_FREELIST_RANDOM */
-+
-+
- /*
-  * Initialisation.  Called after the page allocator have been initialised and
-  * before smp_init().
-@@ -1255,6 +1312,8 @@ void __init kmem_cache_init(void)
- 	if (!slab_max_order_set && totalram_pages > (32 << 20) >> PAGE_SHIFT)
- 		slab_max_order = SLAB_MAX_ORDER_HI;
- 
-+	freelist_random_init();
-+
- 	/* Bootstrap is tricky, because several objects are allocated
- 	 * from caches that do not exist yet:
- 	 * 1) initialize the kmem_cache cache: it contains the struct
-@@ -2442,6 +2501,107 @@ static void cache_init_objs_debug(struct kmem_cache *cachep, struct page *page)
- #endif
- }
- 
-+#ifdef CONFIG_FREELIST_RANDOM
-+/* Identify if the target freelist matches the pre-computed list */
-+enum master_type {
-+	match,
-+	less,
-+	more
-+};
-+
-+/* Hold information during a freelist initialization */
-+struct freelist_init_state {
-+	unsigned int padding;
-+	unsigned int pos;
-+	unsigned int count;
-+	struct m_list master_list;
-+	unsigned int master_count;
-+	enum master_type type;
-+};
-+
-+/* Select the right pre-computed master list and initialize state */
-+static void freelist_state_initialize(struct freelist_init_state *state,
-+				      unsigned int count)
-+{
-+	unsigned int idx;
-+	const unsigned int last_idx = ARRAY_SIZE(master_lists) - 1;
-+
-+	memset(state, 0, sizeof(*state));
-+	state->count = count;
-+	state->pos = 0;
-+	/* count is always >= 2 */
-+	idx = ilog2(count) - 1;
-+	if (idx >= last_idx)
-+		idx = last_idx;
-+	else if (roundup_pow_of_two(idx + 1) != count)
-+		idx++;
-+	state->master_list = master_lists[idx];
-+	if (state->master_list.count == state->count)
-+		state->type = match;
-+	else if (state->master_list.count > state->count)
-+		state->type = more;
-+	else
-+		state->type = less;
-+}
-+
-+/* Get the next entry on the master list depending on the target list size */
-+static freelist_idx_t get_next_entry(struct freelist_init_state *state)
-+{
-+	if (state->type == less && state->pos == state->master_list.count) {
-+		state->padding += state->pos;
-+		state->pos = 0;
-+	}
-+	BUG_ON(state->pos >= state->master_list.count);
-+	return state->master_list.list[state->pos++];
-+}
-+
-+static freelist_idx_t next_random_slot(struct freelist_init_state *state)
-+{
-+	freelist_idx_t cur, entry;
-+
-+	entry = get_next_entry(state);
-+
-+	if (state->type != match) {
-+		while ((entry + state->padding) >= state->count)
-+			entry = get_next_entry(state);
-+		cur = entry + state->padding;
-+		BUG_ON(cur >= state->count);
-+	} else {
-+		cur = entry;
-+	}
-+
-+	return cur;
-+}
-+
-+/* Shuffle the freelist initialization state based on pre-computed lists */
-+static void shuffle_freelist(struct kmem_cache *cachep, struct page *page,
-+			     unsigned int count)
-+{
-+	unsigned int i;
-+	struct freelist_init_state state;
-+
-+	if (count < 2) {
-+		for (i = 0; i < count; i++)
-+			set_free_obj(page, i, i);
-+		return;
-+	}
-+
-+	/* Last chunk is used already in this case */
-+	if (OBJFREELIST_SLAB(cachep))
-+		count--;
-+
-+	freelist_state_initialize(&state, count);
-+	for (i = 0; i < count; i++)
-+		set_free_obj(page, i, next_random_slot(&state));
-+
-+	if (OBJFREELIST_SLAB(cachep))
-+		set_free_obj(page, i, i);
-+}
-+#else
-+static inline void shuffle_freelist(struct kmem_cache *cachep,
-+				    struct page *page, unsigned int count) { }
-+#endif /* CONFIG_FREELIST_RANDOM */
-+
- static void cache_init_objs(struct kmem_cache *cachep,
- 			    struct page *page)
- {
-@@ -2464,8 +2624,12 @@ static void cache_init_objs(struct kmem_cache *cachep,
- 			kasan_poison_object_data(cachep, objp);
- 		}
- 
--		set_free_obj(page, i, i);
-+		/* If enabled, initialization is done in shuffle_freelist */
-+		if (!config_enabled(CONFIG_FREELIST_RANDOM))
-+			set_free_obj(page, i, i);
- 	}
-+
-+	shuffle_freelist(cachep, page, cachep->num);
- }
- 
- static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
--- 
-2.8.0.rc3.226.g39d4020
+> 
+> Dave
+> 
+> > 
+> > Liang
+> > 
+> > > Dave
+> > > 
+> > > >
+> > > >
+> > > > > >
+> > > > > > Thanks!
+> > > > > > Liang
+> > > > > >
+> > > > > > >
+> > > > > > > Dave
+> > > > > > > >
+> > > > > > > > --
+> > > > > > > >  Kirill A. Shutemov
+> > > > > > > --
+> > > > > > > Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+> > > > > --
+> > > > > Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+> > > --
+> > > Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+> --
+> Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+--
+Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
