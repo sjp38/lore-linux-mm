@@ -1,78 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 44C176B0253
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 11:08:01 -0400 (EDT)
-Received: by mail-ob0-f198.google.com with SMTP id js7so38594389obc.0
-        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 08:08:01 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id l2si5444709obh.64.2016.04.19.08.07.59
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5897C6B007E
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 11:19:20 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e190so34618118pfe.3
+        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 08:19:20 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id d68si9029630pfc.68.2016.04.19.08.19.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Apr 2016 08:08:00 -0700 (PDT)
-Subject: Re: [PATCH 3/3] mm, oom_reaper: clear TIF_MEMDIE for all tasks queued for oom_reaper
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160408113425.GF29820@dhcp22.suse.cz>
-	<201604161151.ECG35947.FFLtSFVQJOHOOM@I-love.SAKURA.ne.jp>
-	<20160417115422.GA21757@dhcp22.suse.cz>
-	<201604182059.JFB76917.OFJMHFLSOtQVFO@I-love.SAKURA.ne.jp>
-	<20160419141722.GB4126@dhcp22.suse.cz>
-In-Reply-To: <20160419141722.GB4126@dhcp22.suse.cz>
-Message-Id: <201604200007.IFD52169.FLSOOVQHJOFFtM@I-love.SAKURA.ne.jp>
-Date: Wed, 20 Apr 2016 00:07:50 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Apr 2016 08:19:19 -0700 (PDT)
+Received: by mail-pa0-x231.google.com with SMTP id fs9so7658480pac.2
+        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 08:19:19 -0700 (PDT)
+Date: Tue, 19 Apr 2016 11:19:04 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [PATCH 17/18] dax: Use radix tree entry lock to protect cow
+ faults
+Message-ID: <20160419151904.GA17318@gmail.com>
+References: <1461015341-20153-1-git-send-email-jack@suse.cz>
+ <1461015341-20153-18-git-send-email-jack@suse.cz>
+ <20160419114609.GA13932@gmail.com>
+ <20160419143343.GC22413@quack2.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20160419143343.GC22413@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>
 
-Michal Hocko wrote:
-> On Mon 18-04-16 20:59:51, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > Here is what should work - I have only compile tested it. I will prepare
-> > > the proper patch later this week with other oom reaper patches or after
-> > > I come back from LSF/MM.
+On Tue, Apr 19, 2016 at 04:33:43PM +0200, Jan Kara wrote:
+> On Tue 19-04-16 07:46:09, Jerome Glisse wrote:
+> > On Mon, Apr 18, 2016 at 11:35:40PM +0200, Jan Kara wrote:
+> > > diff --git a/mm/memory.c b/mm/memory.c
+> > > index 93897f23cc11..f09cdb8d48fa 100644
+> > > --- a/mm/memory.c
+> > > +++ b/mm/memory.c
+> > > @@ -63,6 +63,7 @@
+> > >  #include <linux/dma-debug.h>
+> > >  #include <linux/debugfs.h>
+> > >  #include <linux/userfaultfd_k.h>
+> > > +#include <linux/dax.h>
+> > >  
+> > >  #include <asm/io.h>
+> > >  #include <asm/mmu_context.h>
+> > > @@ -2785,7 +2786,8 @@ oom:
+> > >   */
+> > >  static int __do_fault(struct vm_area_struct *vma, unsigned long address,
+> > >  			pgoff_t pgoff, unsigned int flags,
+> > > -			struct page *cow_page, struct page **page)
+> > > +			struct page *cow_page, struct page **page,
+> > > +			void **entry)
+> > >  {
+> > >  	struct vm_fault vmf;
+> > >  	int ret;
+> > > @@ -2800,8 +2802,10 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
+> > >  	ret = vma->vm_ops->fault(vma, &vmf);
+> > >  	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+> > >  		return ret;
+> > > -	if (!vmf.page)
+> > > -		goto out;
 > > 
-> > Excuse me, but is system_wq suitable for queuing operations which may take
-> > unpredictable duration to flush?
-> > 
-> >   system_wq is the one used by schedule[_delayed]_work[_on]().
-> >   Multi-CPU multi-threaded.  There are users which expect relatively
-> >   short queue flush time.  Don't queue works which can run for too
-> >   long.
+> > Removing the above sounds seriously bogus to me as it means that below
+> > if (unlikely(PageHWPoison(vmf.page))) could dereference a NULL pointer.
 > 
-> An alternative would be using a dedicated WQ with WQ_MEM_RECLAIM which I
-> am not really sure would be justified considering we are talking about a
-> highly unlikely event. You do not want to consume resources permanently
-> for an eventual and not fatal event.
-
-Yes, the reason SysRq-f is still not using a dedicated WQ with WQ_MEM_RECLAIM
-will be the same.
-
+> If you do not return a valid page, you must return appropriate return code
+> from the ->fault handler. That being VM_FAULT_NOPAGE, VM_FAULT_DAX_LOCKED,
+> or some error. That has always been the case except for DAX abuse which was
+> added by commit 2e4cdab0584f "mm: allow page fault handlers to perform the
+> COW" about an year ago. And my patch fixes this abuse.
 > 
-> > We
-> > haven't guaranteed that SysRq-f can always fire and select a different OOM
-> > victim, but you proposed always clearing TIF_MEMDIE without thinking the
-> > possibility of the OOM victim with mmap_sem held for write being stuck at
-> > unkillable wait.
-> > 
-> > I wonder about your definition of "robustness". You are almost always missing
-> > the worst scenario. You are trying to manage OOM without defining default:
-> > label in a switch statement. I don't think your approach is robust.
+> I'm not aware of any other code that would start abusing the return value
+> from the ->fault handler. If some such code indeed got merged during the
+> last year, it should be fixed as well.
 > 
-> I am trying to be as robust as it is viable. You have to realize we are
-> in the catastrophic path already and there is simply no deterministic
-> way out.
 
-I know we are talking about the catastrophic situation. Since you insist on
-deterministic approach, we are struggling so much.
-If you tolerate
-http://lkml.kernel.org/r/201604152111.JBD95763.LMFOOHQOtFSFJV@I-love.SAKURA.ne.jp
-approach as the fastpath (deterministic but could fail) and
-http://lkml.kernel.org/r/201604200006.FBG45192.SOHFQJFOOLFMtV@I-love.SAKURA.ne.jp
-approach as the slowpath (non-deterministic but never fail), we don't need to
-use a dedicated WQ with WQ_MEM_RECLAIM for avoiding this mmput() trap and the
-SysRq-f trap. What a simple answer. ;-)
+Ok my bad i missed that.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
