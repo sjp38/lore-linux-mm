@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C36016B0253
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 10:43:47 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u190so32781835pfb.0
-        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 07:43:47 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id k74si14386555pfb.30.2016.04.19.07.43.46
-        for <linux-mm@kvack.org>;
-        Tue, 19 Apr 2016 07:43:46 -0700 (PDT)
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E8A76B025E
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 10:43:55 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id vv3so23721346pab.2
+        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 07:43:55 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id tt4si12421782pab.239.2016.04.19.07.43.54
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Apr 2016 07:43:54 -0700 (PDT)
 From: Liang Li <liang.z.li@intel.com>
-Subject: [PATCH kernel 1/2] mm: add the related functions to build the free page bitmap
-Date: Tue, 19 Apr 2016 22:34:33 +0800
-Message-Id: <1461076474-3864-2-git-send-email-liang.z.li@intel.com>
+Subject: [PATCH kernel 2/2] virtio-balloon: extend balloon driver to support the new feature
+Date: Tue, 19 Apr 2016 22:34:34 +0800
+Message-Id: <1461076474-3864-3-git-send-email-liang.z.li@intel.com>
 In-Reply-To: <1461076474-3864-1-git-send-email-liang.z.li@intel.com>
 References: <1461076474-3864-1-git-send-email-liang.z.li@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,131 +20,197 @@ List-ID: <linux-mm.kvack.org>
 To: mst@redhat.com, viro@zeniv.linux.org.uk, linux-kernel@vger.kernel.org, quintela@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, dgilbert@redhat.com
 Cc: linux-mm@kvack.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, agraf@suse.de, borntraeger@de.ibm.com, Liang Li <liang.z.li@intel.com>
 
-The free page bitmap will be sent to QEMU through virtio interface
-and used for live migration optimization.
-Drop the cache before building the free page bitmap can get more
-free pages. Whether dropping the cache is decided by user.
+Extend the virtio balloon to support the new feature
+VIRTIO_BALLOON_F_GET_FREE_PAGES, so that we can use it to send
+the free page bitmap from guest to QEMU, the free page bitmap will
+be used for live migration optimization.
 
 Signed-off-by: Liang Li <liang.z.li@intel.com>
 ---
- fs/drop_caches.c   | 22 ++++++++++++++--------
- include/linux/fs.h |  1 +
- mm/page_alloc.c    | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 61 insertions(+), 8 deletions(-)
+ drivers/virtio/virtio_balloon.c     | 100 ++++++++++++++++++++++++++++++++++--
+ include/uapi/linux/virtio_balloon.h |   1 +
+ 2 files changed, 96 insertions(+), 5 deletions(-)
 
-diff --git a/fs/drop_caches.c b/fs/drop_caches.c
-index d72d52b..f488086 100644
---- a/fs/drop_caches.c
-+++ b/fs/drop_caches.c
-@@ -50,14 +50,8 @@ int drop_caches_sysctl_handler(struct ctl_table *table, int write,
- 	if (write) {
- 		static int stfu;
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 7b6d74f..cf17694 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -45,9 +45,17 @@ static int oom_pages = OOM_VBALLOON_DEFAULT_PAGES;
+ module_param(oom_pages, int, S_IRUSR | S_IWUSR);
+ MODULE_PARM_DESC(oom_pages, "pages to free on OOM");
  
--		if (sysctl_drop_caches & 1) {
--			iterate_supers(drop_pagecache_sb, NULL);
--			count_vm_event(DROP_PAGECACHE);
--		}
--		if (sysctl_drop_caches & 2) {
--			drop_slab();
--			count_vm_event(DROP_SLAB);
--		}
-+		drop_cache(sysctl_drop_caches);
++extern void get_free_pages(unsigned long *free_page_bitmap,
++				unsigned long len, int drop);
++extern unsigned long get_max_pfn(void);
 +
- 		if (!stfu) {
- 			pr_info("%s (%d): drop_caches: %d\n",
- 				current->comm, task_pid_nr(current),
-@@ -67,3 +61,15 @@ int drop_caches_sysctl_handler(struct ctl_table *table, int write,
- 	}
- 	return 0;
- }
++struct cache_drop_ctrl {
++	u64 ctrl;
++};
 +
-+void drop_cache(int drop_ctl)
-+{
-+	if (drop_ctl & 1) {
-+		iterate_supers(drop_pagecache_sb, NULL);
-+		count_vm_event(DROP_PAGECACHE);
-+	}
-+	if (drop_ctl & 2) {
-+		drop_slab();
-+		count_vm_event(DROP_SLAB);
-+	}
-+}
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 70e61b5..b8a0bc0 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2864,6 +2864,7 @@ extern void drop_super(struct super_block *sb);
- extern void iterate_supers(void (*)(struct super_block *, void *), void *);
- extern void iterate_supers_type(struct file_system_type *,
- 			        void (*)(struct super_block *, void *), void *);
-+extern void drop_cache(int drop_ctl);
+ struct virtio_balloon {
+ 	struct virtio_device *vdev;
+-	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq;
++	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_pages_vq;
  
- extern int dcache_dir_open(struct inode *, struct file *);
- extern int dcache_dir_close(struct inode *, struct file *);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 59de90d..4799983 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -63,6 +63,7 @@
- #include <linux/sched/rt.h>
- #include <linux/page_owner.h>
- #include <linux/kthread.h>
-+#include <linux/fs.h>
+ 	/* The balloon servicing is delegated to a freezable workqueue. */
+ 	struct work_struct update_balloon_stats_work;
+@@ -77,6 +85,10 @@ struct virtio_balloon {
+ 	unsigned int num_pfns;
+ 	u32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
  
- #include <asm/sections.h>
- #include <asm/tlbflush.h>
-@@ -4029,6 +4030,51 @@ void show_free_areas(unsigned int filter)
- 	show_swap_cache_info();
++	unsigned long *free_pages;
++	unsigned long bmap_len;
++	struct cache_drop_ctrl cache_drop;
++
+ 	/* Memory statistics */
+ 	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
+ 
+@@ -256,6 +268,64 @@ static void update_balloon_stats(struct virtio_balloon *vb)
+ 				pages_to_bytes(available));
  }
  
-+static void mark_free_pages_bitmap(struct zone *zone,
-+		unsigned long *bitmap, unsigned long len)
++static void update_free_pages_stats(struct virtio_balloon *vb)
 +{
-+	unsigned long pfn, flags, i, limit;
-+	unsigned int order, t;
-+	struct list_head *curr;
++	unsigned long bitmap_bytes, max_pfn;
 +
-+	if (zone_is_empty(zone))
-+		return;
++	max_pfn = get_max_pfn();
++	bitmap_bytes = ALIGN(max_pfn, BITS_PER_LONG) / 8;
 +
-+	spin_lock_irqsave(&zone->lock, flags);
-+
-+	limit = min(len, max_pfn);
-+	for_each_migratetype_order(order, t) {
-+		list_for_each(curr, &zone->free_area[order].free_list[t]) {
-+			pfn = page_to_pfn(list_entry(curr, struct page, lru));
-+			for (i = 0; i < (1UL << order); i++) {
-+				if ((pfn + i) < limit)
-+					set_bit_le(pfn + i, bitmap);
-+				else
-+					break;
-+			}
++	if (!vb->free_pages)
++		vb->free_pages = kzalloc(bitmap_bytes, GFP_KERNEL);
++	else {
++		if (bitmap_bytes < vb->bmap_len)
++			memset(vb->free_pages, 0, bitmap_bytes);
++		else {
++			kfree(vb->free_pages);
++			vb->free_pages = kzalloc(bitmap_bytes, GFP_KERNEL);
 +		}
 +	}
++	if (!vb->free_pages) {
++		vb->bmap_len = 0;
++		return;
++	}
 +
-+	spin_unlock_irqrestore(&zone->lock, flags);
++	vb->bmap_len = bitmap_bytes;
++	get_free_pages(vb->free_pages, max_pfn, vb->cache_drop.ctrl);
 +}
 +
-+unsigned long get_max_pfn(void)
++static void free_pages_handle_rq(struct virtio_balloon *vb)
 +{
-+	return max_pfn;
-+}
-+EXPORT_SYMBOL(get_max_pfn);
++	struct virtqueue *vq;
++	struct scatterlist sg[2];
++	unsigned int len;
++	struct cache_drop_ctl *ptr_cache_drop;
++	struct scatterlist sg_in;
 +
-+void get_free_pages(unsigned long *bitmap, unsigned long len, int drop)
++	vq = vb->free_pages_vq;
++	ptr_cache_drop = virtqueue_get_buf(vq, &len);
++
++	if (!ptr_cache_drop || len != sizeof(vb->cache_drop))
++		return;
++	update_free_pages_stats(vb);
++	sg_init_table(sg, 2);
++	sg_set_buf(&sg[0], &(vb->bmap_len), sizeof(vb->bmap_len));
++	sg_set_buf(&sg[1], vb->free_pages, vb->bmap_len);
++
++	sg_init_one(&sg_in, &vb->cache_drop, sizeof(vb->cache_drop));
++
++	virtqueue_add_outbuf(vq, &sg[0], 2, vb, GFP_KERNEL);
++	virtqueue_add_inbuf(vq, &sg_in, 1, &vb->cache_drop, GFP_KERNEL);
++	virtqueue_kick(vq);
++}
++
++static void free_pages_rq(struct virtqueue *vq)
 +{
-+	struct zone *zone;
++	struct virtio_balloon *vb = vq->vdev->priv;
 +
-+	drop_cache(drop);
-+
-+	for_each_populated_zone(zone)
-+		mark_free_pages_bitmap(zone, bitmap, len);
++	free_pages_handle_rq(vb);
 +}
-+EXPORT_SYMBOL(get_free_pages);
 +
- static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+ /*
+  * While most virtqueues communicate guest-initiated requests to the hypervisor,
+  * the stats queue operates in reverse.  The driver initializes the virtqueue
+@@ -392,16 +462,22 @@ static void update_balloon_size_func(struct work_struct *work)
+ 
+ static int init_vqs(struct virtio_balloon *vb)
  {
- 	zoneref->zone = zone;
+-	struct virtqueue *vqs[3];
+-	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
+-	static const char * const names[] = { "inflate", "deflate", "stats" };
++	struct virtqueue *vqs[4];
++	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack,
++					 stats_request, free_pages_rq };
++	const char *names[] = { "inflate", "deflate", "stats", "free_pages" };
+ 	int err, nvqs;
+ 
+ 	/*
+ 	 * We expect two virtqueues: inflate and deflate, and
+ 	 * optionally stat.
+ 	 */
+-	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_GET_FREE_PAGES))
++		nvqs = 4;
++	else
++		nvqs = virtio_has_feature(vb->vdev,
++					  VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
++
+ 	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names);
+ 	if (err)
+ 		return err;
+@@ -422,6 +498,16 @@ static int init_vqs(struct virtio_balloon *vb)
+ 			BUG();
+ 		virtqueue_kick(vb->stats_vq);
+ 	}
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_GET_FREE_PAGES)) {
++		struct scatterlist sg_in;
++
++		vb->free_pages_vq = vqs[3];
++		sg_init_one(&sg_in, &vb->cache_drop, sizeof(vb->cache_drop));
++		if (virtqueue_add_inbuf(vb->free_pages_vq, &sg_in, 1,
++		    &vb->cache_drop, GFP_KERNEL) < 0)
++			BUG();
++		virtqueue_kick(vb->free_pages_vq);
++	}
+ 	return 0;
+ }
+ 
+@@ -505,6 +591,8 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 		goto out;
+ 	}
+ 
++	vb->bmap_len = 0;
++	vb->free_pages = NULL;
+ 	INIT_WORK(&vb->update_balloon_stats_work, update_balloon_stats_func);
+ 	INIT_WORK(&vb->update_balloon_size_work, update_balloon_size_func);
+ 	spin_lock_init(&vb->stop_update_lock);
+@@ -567,6 +655,7 @@ static void virtballoon_remove(struct virtio_device *vdev)
+ 	cancel_work_sync(&vb->update_balloon_stats_work);
+ 
+ 	remove_common(vb);
++	kfree(vb->free_pages);
+ 	kfree(vb);
+ }
+ 
+@@ -605,6 +694,7 @@ static unsigned int features[] = {
+ 	VIRTIO_BALLOON_F_MUST_TELL_HOST,
+ 	VIRTIO_BALLOON_F_STATS_VQ,
+ 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
++	VIRTIO_BALLOON_F_GET_FREE_PAGES,
+ };
+ 
+ static struct virtio_driver virtio_balloon_driver = {
+diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+index 343d7dd..2b41e4f 100644
+--- a/include/uapi/linux/virtio_balloon.h
++++ b/include/uapi/linux/virtio_balloon.h
+@@ -34,6 +34,7 @@
+ #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
+ #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
+ #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
++#define VIRTIO_BALLOON_F_GET_FREE_PAGES	3 /* Get free page bitmap */
+ 
+ /* Size of a PFN in the balloon interface. */
+ #define VIRTIO_BALLOON_PFN_SHIFT 12
 -- 
 1.8.3.1
 
