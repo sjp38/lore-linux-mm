@@ -1,87 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B86A6B007E
-	for <linux-mm@kvack.org>; Mon, 18 Apr 2016 22:36:58 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id dx6so4491906pad.0
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 19:36:58 -0700 (PDT)
-Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
-        by mx.google.com with ESMTPS id r123si6820350pfr.154.2016.04.18.19.36.57
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4011F6B007E
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 01:54:34 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id q8so4419554lfe.3
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 22:54:34 -0700 (PDT)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id ez7si68802735wjd.197.2016.04.18.22.54.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Apr 2016 19:36:57 -0700 (PDT)
-Subject: Re: [PATCH v3 1/2] dax: add dax_get_unmapped_area for pmd mappings
-References: <1460652511-19636-1-git-send-email-toshi.kani@hpe.com>
- <1460652511-19636-2-git-send-email-toshi.kani@hpe.com>
- <20160418204708.GB17889@quack2.suse.cz>
-From: Toshi Kani <toshi.kani@hpe.com>
-Message-ID: <571599BE.7090202@hpe.com>
-Date: Mon, 18 Apr 2016 22:36:46 -0400
+        Mon, 18 Apr 2016 22:54:32 -0700 (PDT)
+Received: by mail-wm0-x22f.google.com with SMTP id u206so10461497wme.1
+        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 22:54:32 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160418204708.GB17889@quack2.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160418231551.GA18493@hori1.linux.bs1.fc.nec.co.jp>
+References: <146097982568.15733.13924990169211134049.stgit@buzz>
+	<20160418231551.GA18493@hori1.linux.bs1.fc.nec.co.jp>
+Date: Tue, 19 Apr 2016 08:54:32 +0300
+Message-ID: <CALYGNiMHihSgodPCOxMx4y-Nk8xuv8JD33-4GQzfMgk-_78xpQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/memory-failure: fix race with compound page split/merge
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "willy@linux.intel.com" <willy@linux.intel.com>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "david@fromorbit.com" <david@fromorbit.com>, "tytso@mit.edu" <tytso@mit.edu>, "adilger.kernel@dilger.ca" <adilger.kernel@dilger.ca>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 4/18/2016 4:47 PM, Jan Kara wrote:
-> On Thu 14-04-16 10:48:30, Toshi Kani wrote:
+On Tue, Apr 19, 2016 at 2:15 AM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> # CCed Andrew,
+>
+> On Mon, Apr 18, 2016 at 02:43:45PM +0300, Konstantin Khlebnikov wrote:
+>> Get_hwpoison_page() must recheck relation between head and tail pages.
+>>
+>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+>
+> Looks good to me. Without this recheck, the race causes kernel to pin
+> an irrelevant page, and finally makes kernel crash for refcount mismcach...
+
+Yep. I seen that a lot. Unfortunately that was in 3.18 branch and
+it'll took several months to verify this fix.
+This code and page reference counting overall have changed
+significantly since then, so probably here is more bugs.
+For example, I'm not sure about races with atomic set for page
+reference counting,
+I've found and removed couple in mellanox driver but there're more in
+mm and net.
+
+>
+> Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>
+>> ---
+>>  mm/memory-failure.c |   10 +++++++++-
+>>  1 file changed, 9 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+>> index 78f5f2641b91..ca5acee53b7a 100644
+>> --- a/mm/memory-failure.c
+>> +++ b/mm/memory-failure.c
+>> @@ -888,7 +888,15 @@ int get_hwpoison_page(struct page *page)
+>>               }
+>>       }
+>>
+>> -     return get_page_unless_zero(head);
+>> +     if (get_page_unless_zero(head)) {
+>> +             if (head == compound_head(page))
+>> +                     return 1;
 >> +
->> +/**
->> + * dax_get_unmapped_area - handle get_unmapped_area for a DAX file
->> + * @filp: The file being mmap'd, if not NULL
->> + * @addr: The mmap address. If NULL, the kernel assigns the address
->> + * @len: The mmap size in bytes
->> + * @pgoff: The page offset in the file where the mapping starts from.
->> + * @flags: The mmap flags
->> + *
->> + * This function can be called by a filesystem for get_unmapped_area().
->> + * When a target file is a DAX file, it aligns the mmap address at the
->> + * beginning of the file by the pmd size.
->> + */
->> +unsigned long dax_get_unmapped_area(struct file *filp, unsigned long addr,
->> +		unsigned long len, unsigned long pgoff, unsigned long flags)
->> +{
->> +	unsigned long off, off_end, off_pmd, len_pmd, addr_pmd;
-> I think we need to use 'loff_t' for the offsets for things to work on
-> 32-bits.
-
-Agreed. Will change to loff_t.
-
->> +	if (!IS_ENABLED(CONFIG_FS_DAX_PMD) ||
->> +	    !filp || addr || !IS_DAX(filp->f_mapping->host))
->> +		goto out;
+>> +             pr_info("MCE: %#lx cannot catch tail\n", page_to_pfn(page));
+>
+> Recently Chen Yucong replaced the label "MCE:" with "Memory failure:",
+> but the resolution is trivial, I think.
+>
+> Thanks,
+> Naoya Horiguchi
+>
+>> +             put_page(head);
+>> +     }
 >> +
->> +	off = pgoff << PAGE_SHIFT;
-> And here we need to type to loff_t before the shift...
-
-Right.
-
->> +	off_end = off + len;
->> +	off_pmd = round_up(off, PMD_SIZE);  /* pmd-aligned offset */
->> +
->> +	if ((off_end <= off_pmd) || ((off_end - off_pmd) < PMD_SIZE))
-> None of these parenthesis is actually needed (and IMHO they make the code
-> less readable, not more).
-
-OK.  Will remove the parenthesis.
-
->> +		goto out;
->> +
->> +	len_pmd = len + PMD_SIZE;
->> +	if ((off + len_pmd) < off)
->> +		goto out;
->> +
->> +	addr_pmd = current->mm->get_unmapped_area(filp, addr, len_pmd,
->> +						  pgoff, flags);
->> +	if (!IS_ERR_VALUE(addr_pmd)) {
->> +		addr_pmd += (off - addr_pmd) & (PMD_SIZE - 1);
->> +		return addr_pmd;
-> Otherwise the patch looks good to me.
-
-Great. Thanks Jan!
--Toshi
+>> +     return 0;
+>>  }
+>>  EXPORT_SYMBOL_GPL(get_hwpoison_page);
+>>
+>>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a hrefmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
