@@ -1,99 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 354AC6B007E
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 19:43:30 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u190so56769279pfb.0
-        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 16:43:30 -0700 (PDT)
-Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
-        by mx.google.com with ESMTPS id kg11si14630898pab.171.2016.04.19.16.43.29
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E9A46B0253
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 19:48:50 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id zy2so41561175pac.1
+        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 16:48:50 -0700 (PDT)
+Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
+        by mx.google.com with ESMTPS id v11si14667804par.167.2016.04.19.16.48.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Apr 2016 16:43:29 -0700 (PDT)
-Received: by mail-pf0-x22c.google.com with SMTP id c20so11503659pfc.1
-        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 16:43:29 -0700 (PDT)
+        Tue, 19 Apr 2016 16:48:49 -0700 (PDT)
+Received: by mail-pf0-x229.google.com with SMTP id c20so11542691pfc.1
+        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 16:48:49 -0700 (PDT)
+Subject: Re: [PATCHv7 00/29] THP-enabled tmpfs/shmem using compound pages
+References: <1460766240-84565-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <571565F0.9070203@linaro.org> <20160419165024.GB24312@redhat.com>
 From: "Shi, Yang" <yang.shi@linaro.org>
-Subject: [BUG linux-next] Kernel panic found with linux-next-20160414
-Message-ID: <5716C29F.1090205@linaro.org>
-Date: Tue, 19 Apr 2016 16:43:27 -0700
+Message-ID: <5716C3DF.5060002@linaro.org>
+Date: Tue, 19 Apr 2016 16:48:47 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20160419165024.GB24312@redhat.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, sfr@canb.auug.org.au, Hugh Dickins <hughd@google.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, yang.shi@linaro.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Hi folks,
+On 4/19/2016 9:50 AM, Andrea Arcangeli wrote:
+> Hello,
+>
+> On Mon, Apr 18, 2016 at 03:55:44PM -0700, Shi, Yang wrote:
+>> Hi Kirill,
+>>
+>> Finally, I got some time to look into and try yours and Hugh's patches,
+>> got two problems.
+>
+> One thing that come to mind to test is this: qemu with -machine
+> accel=kvm -mem-path=/dev/shm/,share=on .
 
-When I ran ltp on linux-next-20160414 on my ARM64 machine, I got the 
-below kernel panic:
+Thanks for the suggestion, I will definitely have a try with KVM.
 
-Unable to handle kernel paging request at virtual address ffffffc007846000
-pgd = ffffffc01e21d000
-[ffffffc007846000] *pgd=0000000000000000, *pud=0000000000000000
-Internal error: Oops: 96000047 [#11] PREEMPT SMP
-Modules linked in: loop
-CPU: 7 PID: 274 Comm: systemd-journal Tainted: G      D 
-4.6.0-rc3-next-20160414-WR8.0.0.0_standard+ #9
-Hardware name: Freescale Layerscape 2085a RDB Board (DT)
-task: ffffffc01e3fcf80 ti: ffffffc01ea8c000 task.ti: ffffffc01ea8c000
-PC is at copy_page+0x38/0x120
-LR is at migrate_page_copy+0x604/0x1660
-pc : [<ffffff9008ff2318>] lr : [<ffffff900867cdac>] pstate: 20000145
-sp : ffffffc01ea8ecd0
-x29: ffffffc01ea8ecd0 x28: 0000000000000000
-x27: 1ffffff7b80240f8 x26: ffffffc018196f20
-x25: ffffffbdc01e1180 x24: ffffffbdc01e1180
-x23: 0000000000000000 x22: ffffffc01e3fcf80
-x21: ffffffc00481f000 x20: ffffff900a31d000
-x19: ffffffbdc01207c0 x18: 0000000000000f00
-x17: 0000000000000000 x16: 0000000000000000
-x15: 0000000000000000 x14: 0000000000000000
-x13: 0000000000000000 x12: 0000000000000000
-x11: 0000000000000000 x10: 0000000000000000
-x9 : 0000000000000000 x8 : 0000000000000000
-x7 : 0000000000000000 x6 : 0000000000000000
-x5 : 0000000000000000 x4 : 0000000000000000
-x3 : 0000000000000000 x2 : 0000000000000000
-x1 : ffffffc00481f080 x0 : ffffffc007846000
+It would be better if Kirill and Hugh could share what benchmark they 
+ran and how much they got improved since my test case is very simple and 
+may just cover a small part of it.
 
-Call trace:
-Exception stack(0xffffffc021fc2ed0 to 0xffffffc021fc2ff0)
-2ec0:                                   ffffffbdc00887c0 ffffff900a31d000
-2ee0: ffffffc021fc30f0 ffffff9008ff2318 0000000020000145 0000000000000025
-2f00: ffffffbdc025a280 ffffffc020adc4c0 0000000041b58ab3 ffffff900a085fd0
-2f20: ffffff9008200658 0000000000000000 0000000000000000 ffffffbdc00887c0
-2f40: ffffff900b0f1320 ffffffc021fc3078 0000000041b58ab3 ffffff900a0864f8
-2f60: ffffff9008210010 ffffffc021fb8960 ffffff900867bacc 1ffffff8043f712d
-2f80: ffffffc021fc2fb0 ffffff9008210564 ffffffc021fc3070 ffffffc021fb8940
-2fa0: 0000000008221f78 ffffff900862f9c8 ffffffc021fc2fe0 ffffff9008215dc8
-2fc0: 1ffffff8043f8602 ffffffc021fc0000 ffffffc00968a000 ffffffc00221f080
-2fe0: f9407e11d00001f0 d61f02209103e210
-[<ffffff9008ff2318>] copy_page+0x38/0x120
-[<ffffff900867de7c>] migrate_page+0x74/0x98
-[<ffffff90089ba418>] nfs_migrate_page+0x58/0x80
-[<ffffff900867dffc>] move_to_new_page+0x15c/0x4d8
-[<ffffff900867eec8>] migrate_pages+0x7c8/0x11f0
-[<ffffff90085f8724>] compact_zone+0xdfc/0x2570
-[<ffffff90085f9f78>] compact_zone_order+0xe0/0x170
-[<ffffff90085fb688>] try_to_compact_pages+0x2e8/0x8f8
-[<ffffff90085913a0>] __alloc_pages_direct_compact+0x100/0x540
-[<ffffff9008592420>] __alloc_pages_nodemask+0xc40/0x1c58
-[<ffffff90086887e8>] khugepaged+0x468/0x19c8
-[<ffffff9008301700>] kthread+0x248/0x2c0
-[<ffffff9008206610>] ret_from_fork+0x10/0x40
-Code: d281f012 91020021 f1020252 d503201f (a8000c02)
-
-
-I did some initial investigation and found it is caused by 
-DEBUG_PAGEALLOC and CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT. And, mainline 
-4.6-rc3 works well.
-
-It should be not arch specific although I got it caught on ARM64. I 
-suspect this might be caused by Hugh's huge tmpfs patches.
-
-Thanks,
 Yang
+
+>
+> The THP Compound approach in tmpfs may just happen to work already
+> with KVM (or at worst it'd require minor adjustments) because it uses
+> the exact same model KVM is already aware about from THP in anonymous
+> memory, example from arch/x86/kvm/mmu.c:
+>
+> static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
+> 					gfn_t *gfnp, kvm_pfn_t *pfnp,
+> 					int *levelp)
+> {
+> 	kvm_pfn_t pfn = *pfnp;
+> 	gfn_t gfn = *gfnp;
+> 	int level = *levelp;
+>
+> 	/*
+> 	 * Check if it's a transparent hugepage. If this would be an
+> 	 * hugetlbfs page, level wouldn't be set to
+> 	 * PT_PAGE_TABLE_LEVEL and there would be no adjustment done
+> 	 * here.
+> 	 */
+> 	if (!is_error_noslot_pfn(pfn) && !kvm_is_reserved_pfn(pfn) &&
+> 	    level == PT_PAGE_TABLE_LEVEL &&
+> 	    PageTransCompound(pfn_to_page(pfn)) &&
+> 	    !mmu_gfn_lpage_is_disallowed(vcpu, gfn, PT_DIRECTORY_LEVEL)) {
+>
+> Not using two different models between THP in tmpfs and THP in anon is
+> essential not just to significantly reduce the size of the kernel
+> code, but also because THP knowledge can't be self contained in the
+> mm/shmem.c file. Having to support two different models would
+> complicate things for secondary MMU drivers (i.e. mmu notifer users)
+> like KVM who also need to create huge mapping in the shadow pagetable
+> layer in arch/x86/kvm if the primary MMU allows for it.
+>
+>> x86-64 and ARM64 with yours and Hugh's patches (linux-next tree), I got
+>> the program execution time reduced by ~12% on x86-64, it looks very
+>> impressive.
+>
+> Agreed, both patchset are impressive works and achieving amazing
+> results!
+>
+> My view is that in terms of long-lived computation from userland point
+> of view, both models are malleable enough and could achieve everything
+> we need in the end, but as far as the overall kernel efficiency is
+> concerned the compound model will always retain a slight advantage in
+> performance by leveraging a native THP compound refcounting that
+> requires just one atomic_inc/dec per THP mapcount instead of 512 of
+> them. Other advantages of the compound model is that it's half in code
+> size despite already including khugepaged (i.e. the same
+> split_huge_page works for both tmpfs and anon) and like said above it
+> won't introduce much complications for drivers like KVM as the model
+> didn't change.
+>
+> Thanks,
+> Andrea
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
