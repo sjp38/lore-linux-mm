@@ -1,34 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E19046B007E
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 06:57:02 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id l15so10360940lfg.2
-        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 03:57:02 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.130])
-        by mx.google.com with ESMTPS id qr6si25815917wjc.243.2016.04.19.03.57.01
+Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C1126B007E
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 07:13:57 -0400 (EDT)
+Received: by mail-ob0-f199.google.com with SMTP id js7so27142049obc.0
+        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 04:13:57 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id l190si23270240oib.51.2016.04.19.04.13.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Apr 2016 03:57:01 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH] arch/defconfig: remove CONFIG_RESOURCE_COUNTERS
-Date: Tue, 19 Apr 2016 12:56:55 +0200
-Message-ID: <4214150.v1WFzl5UmK@wuerfel>
-In-Reply-To: <146105442758.18940.2792564159961963110.stgit@zurg>
-References: <146105442758.18940.2792564159961963110.stgit@zurg>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Apr 2016 04:13:56 -0700 (PDT)
+Message-ID: <571612DE.8020908@huawei.com>
+Date: Tue, 19 Apr 2016 19:13:34 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Subject: mce: a question about memory_failure_early_kill in memory_failure()
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>, x86@kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, linux-mips@linux-mips.org, linux-am33-list@redhat.com, linux-sh@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+To: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>
 
-On Tuesday 19 April 2016 11:27:07 Konstantin Khlebnikov wrote:
-> This option replaced by PAGE_COUNTER which is selected by MEMCG.
-> 
-> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
-> 
-Acked-by: Arnd Bergmann <arnd@arndb.de>
+/proc/sys/vm/memory_failure_early_kill
+
+1: means kill all processes that have the corrupted and not reloadable page mapped.
+0: means only unmap the corrupted page from all processes and only kill a process
+who tries to access it.
+
+If set memory_failure_early_kill to 0, and memory_failure() has been called.
+memory_failure()
+	hwpoison_user_mappings()
+		collect_procs()  // the task(with no PF_MCE_PROCESS flag) is not in the tokill list
+			try_to_unmap()
+
+If the task access the memory, there will be a page fault,
+so the task can not access the original page again, right?
+
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
