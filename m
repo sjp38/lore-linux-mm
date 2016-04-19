@@ -1,58 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D11006B0260
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 12:11:57 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id zy2so26842618pac.1
-        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 09:11:57 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id h186si17482909pfb.59.2016.04.19.09.11.56
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FD346B0260
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 12:15:06 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id o131so44815502ywc.2
+        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 09:15:06 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u11si5797736qhu.103.2016.04.19.09.15.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Apr 2016 09:11:56 -0700 (PDT)
-Received: by mail-pa0-x235.google.com with SMTP id er2so8009609pad.3
-        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 09:11:56 -0700 (PDT)
-Subject: Re: [PATCHv7 00/29] THP-enabled tmpfs/shmem using compound pages
-References: <1460766240-84565-1-git-send-email-kirill.shutemov@linux.intel.com>
- <571565F0.9070203@linaro.org> <571641AC.1050801@redhat.com>
-From: "Shi, Yang" <yang.shi@linaro.org>
-Message-ID: <571658CB.9080205@linaro.org>
-Date: Tue, 19 Apr 2016 09:11:55 -0700
+        Tue, 19 Apr 2016 09:15:05 -0700 (PDT)
+Date: Tue, 19 Apr 2016 19:15:00 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH kernel 1/2] mm: add the related functions to build the
+ free page bitmap
+Message-ID: <20160419191111-mutt-send-email-mst@redhat.com>
+References: <1461076474-3864-1-git-send-email-liang.z.li@intel.com>
+ <1461076474-3864-2-git-send-email-liang.z.li@intel.com>
+ <1461077659.3200.8.camel@redhat.com>
+ <F2CBF3009FA73547804AE4C663CAB28E04182594@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <571641AC.1050801@redhat.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E04182594@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: "Li, Liang Z" <liang.z.li@intel.com>
+Cc: Rik van Riel <riel@redhat.com>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "quintela@redhat.com" <quintela@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "agraf@suse.de" <agraf@suse.de>, "borntraeger@de.ibm.com" <borntraeger@de.ibm.com>
 
-On 4/19/2016 7:33 AM, Jerome Marchand wrote:
-> On 04/19/2016 12:55 AM, Shi, Yang wrote:
->> 2. I ran my THP test (generated a program with 4MB text section) on both
->> x86-64 and ARM64 with yours and Hugh's patches (linux-next tree), I got
->> the program execution time reduced by ~12% on x86-64, it looks very
->> impressive.
->>
->> But, on ARM64, there is just ~3% change, and sometimes huge tmpfs may
->> show even worse data than non-hugepage.
->>
->> Both yours and Hugh's patches has the same behavior.
->>
->> Any idea?
->
-> Just a shot in the dark, but what page size do you use? If you use 4k
-> pages, then hugepage size should be the same as on x86 and a similar
+On Tue, Apr 19, 2016 at 03:02:09PM +0000, Li, Liang Z wrote:
+> > On Tue, 2016-04-19 at 22:34 +0800, Liang Li wrote:
+> > > The free page bitmap will be sent to QEMU through virtio interface and
+> > > used for live migration optimization.
+> > > Drop the cache before building the free page bitmap can get more free
+> > > pages. Whether dropping the cache is decided by user.
+> > >
+> > 
+> > How do you prevent the guest from using those recently-freed pages for
+> > something else, between when you build the bitmap and the live migration
+> > completes?
+> 
+> Because the dirty page logging is enabled before building the bitmap, there is no need
+> to prevent the guest from using the recently-freed pages ...
+> 
+> Liang
 
-I do use 4K pages for both x86-64 and ARM64 in my testing.
+Well one point of telling host that page is free is so that
+it can mark it clean even if it was dirty previously.
+So I think you must pass the pages to guest under the lock.
+This will allow host optimizations such as marking these
+pages MADV_DONTNEED or MADV_FREE.
+Otherwise it's all too tied up to a specific usecase -
+you aren't telling host that a page is free, you are telling it
+that a page was free in the past.
 
-Thanks,
-Yang
-
-> behavior could be expected. Otherwise, hugepages would be too big to be
-> taken advantage of by your test program.
->
-> Jerome
->
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
