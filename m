@@ -1,432 +1,415 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 653446B007E
-	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 02:14:32 -0400 (EDT)
-Received: by mail-ob0-f198.google.com with SMTP id th5so13039803obc.1
-        for <linux-mm@kvack.org>; Mon, 18 Apr 2016 23:14:32 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id x7si2590296igg.75.2016.04.18.23.14.30
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CFB826B007E
+	for <linux-mm@kvack.org>; Tue, 19 Apr 2016 03:12:18 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id vv3so10680211pab.2
+        for <linux-mm@kvack.org>; Tue, 19 Apr 2016 00:12:18 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id p2si12371378pav.7.2016.04.19.00.12.16
         for <linux-mm@kvack.org>;
-        Mon, 18 Apr 2016 23:14:31 -0700 (PDT)
-Date: Tue, 19 Apr 2016 15:15:29 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v3 13/16] zsmalloc: migrate head page of zspage
-Message-ID: <20160419061529.GA12910@bbox>
-References: <1459321935-3655-1-git-send-email-minchan@kernel.org>
- <1459321935-3655-14-git-send-email-minchan@kernel.org>
- <5715CB70.70606@samsung.com>
+        Tue, 19 Apr 2016 00:12:17 -0700 (PDT)
+Date: Tue, 19 Apr 2016 16:15:29 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2] mm: SLAB freelist randomization
+Message-ID: <20160419071528.GA1624@js1304-P5Q-DELUXE>
+References: <1460999679-30805-1-git-send-email-thgarnie@google.com>
 MIME-Version: 1.0
-In-Reply-To: <5715CB70.70606@samsung.com>
-Content-Type: text/plain; charset="utf-8"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1460999679-30805-1-git-send-email-thgarnie@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chulmin Kim <cmlaika.kim@samsung.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, s.suk@samsung.com, sunae.seo@samsung.com
+To: Thomas Garnier <thgarnie@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, gthelen@google.com, labbott@fedoraproject.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello Chulmin,
+On Mon, Apr 18, 2016 at 10:14:39AM -0700, Thomas Garnier wrote:
+> Provides an optional config (CONFIG_FREELIST_RANDOM) to randomize the
+> SLAB freelist. The list is randomized during initialization of a new set
+> of pages. The order on different freelist sizes is pre-computed at boot
+> for performance. This security feature reduces the predictability of the
+> kernel SLAB allocator against heap overflows rendering attacks much less
+> stable.
 
-On Tue, Apr 19, 2016 at 03:08:48PM +0900, Chulmin Kim wrote:
-> On 2016=EB=85=84 03=EC=9B=94 30=EC=9D=BC 16:12, Minchan Kim wrote:
-> >This patch introduces run-time migration feature for zspage.
-> >To begin with, it supports only head page migration for
-> >easy review(later patches will support tail page migration).
-> >
-> >For migration, it supports three functions
-> >
-> >* zs=5Fpage=5Fisolate
-> >
-> >It isolates a zspage which includes a subpage VM want to migrate
-> >from class so anyone cannot allocate new object from the zspage.
-> >IOW, allocation freeze
-> >
-> >* zs=5Fpage=5Fmigrate
-> >
-> >First of all, it freezes zspage to prevent zspage destrunction
-> >so anyone cannot free object. Then, It copies content from oldpage
-> >to newpage and create new page-chain with new page.
-> >If it was successful, drop the refcount of old page to free
-> >and putback new zspage to right data structure of zsmalloc.
-> >Lastly, unfreeze zspages so we allows object allocation/free
-> >from now on.
-> >
-> >* zs=5Fpage=5Fputback
-> >
-> >It returns isolated zspage to right fullness=5Fgroup list
-> >if it fails to migrate a page.
-> >
-> >NOTE: A hurdle to support migration is that destroying zspage
-> >while migration is going on. Once a zspage is isolated,
-> >anyone cannot allocate object from the zspage but can deallocate
-> >object freely so a zspage could be destroyed until all of objects
-> >in zspage are freezed to prevent deallocation. The problem is
-> >large window betwwen zs=5Fpage=5Fisolate and freeze=5Fzspage
-> >in zs=5Fpage=5Fmigrate so the zspage could be destroyed.
-> >
-> >A easy approach to solve the problem is that object freezing
-> >in zs=5Fpage=5Fisolate but it has a drawback that any object cannot
-> >be deallocated until migration fails after isolation. However,
-> >There is large time gab between isolation and migration so
-> >any object freeing in other CPU should spin by pin=5Ftag which
-> >would cause big latency. So, this patch introduces lock=5Fzspage
-> >which holds PG=5Flock of all pages in a zspage right before
-> >freeing the zspage. VM migration locks the page, too right
-> >before calling ->migratepage so such race doesn't exist any more.
-> >
-> >Signed-off-by: Minchan Kim <minchan@kernel.org>
-> >---
-> >  include/uapi/linux/magic.h |   1 +
-> >  mm/zsmalloc.c              | 332 +++++++++++++++++++++++++++++++++++++=
-++++++--
-> >  2 files changed, 318 insertions(+), 15 deletions(-)
-> >
-> >diff --git a/include/uapi/linux/magic.h b/include/uapi/linux/magic.h
-> >index e1fbe72c39c0..93b1affe4801 100644
-> >--- a/include/uapi/linux/magic.h
-> >+++ b/include/uapi/linux/magic.h
-> >@@ -79,5 +79,6 @@
-> >  #define NSFS=5FMAGIC		0x6e736673
-> >  #define BPF=5FFS=5FMAGIC		0xcafe4a11
-> >  #define BALLOON=5FKVM=5FMAGIC	0x13661366
-> >+#define ZSMALLOC=5FMAGIC		0x58295829
-> >
-> >  #endif /* =5F=5FLINUX=5FMAGIC=5FH=5F=5F */
-> >diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> >index ac8ca7b10720..f6c9138c3be0 100644
-> >--- a/mm/zsmalloc.c
-> >+++ b/mm/zsmalloc.c
-> >@@ -56,6 +56,8 @@
-> >  #include <linux/debugfs.h>
-> >  #include <linux/zsmalloc.h>
-> >  #include <linux/zpool.h>
-> >+#include <linux/mount.h>
-> >+#include <linux/migrate.h>
-> >
-> >  /*
-> >   * This must be power of 2 and greater than of equal to sizeof(link=5F=
-free).
-> >@@ -182,6 +184,8 @@ struct zs=5Fsize=5Fstat {
-> >  static struct dentry *zs=5Fstat=5Froot;
-> >  #endif
-> >
-> >+static struct vfsmount *zsmalloc=5Fmnt;
-> >+
-> >  /*
-> >   * number of size=5Fclasses
-> >   */
-> >@@ -263,6 +267,7 @@ struct zs=5Fpool {
-> >  #ifdef CONFIG=5FZSMALLOC=5FSTAT
-> >  	struct dentry *stat=5Fdentry;
-> >  #endif
-> >+	struct inode *inode;
-> >  };
-> >
-> >  struct zs=5Fmeta {
-> >@@ -412,6 +417,29 @@ static int is=5Flast=5Fpage(struct page *page)
-> >  	return PagePrivate2(page);
-> >  }
-> >
-> >+/*
-> >+ * Indicate that whether zspage is isolated for page migration.
-> >+ * Protected by size=5Fclass lock
-> >+ */
-> >+static void SetZsPageIsolate(struct page *first=5Fpage)
-> >+{
-> >+	VM=5FBUG=5FON=5FPAGE(!is=5Ffirst=5Fpage(first=5Fpage), first=5Fpage);
-> >+	SetPageUptodate(first=5Fpage);
-> >+}
-> >+
-> >+static int ZsPageIsolate(struct page *first=5Fpage)
-> >+{
-> >+	VM=5FBUG=5FON=5FPAGE(!is=5Ffirst=5Fpage(first=5Fpage), first=5Fpage);
-> >+
-> >+	return PageUptodate(first=5Fpage);
-> >+}
-> >+
-> >+static void ClearZsPageIsolate(struct page *first=5Fpage)
-> >+{
-> >+	VM=5FBUG=5FON=5FPAGE(!is=5Ffirst=5Fpage(first=5Fpage), first=5Fpage);
-> >+	ClearPageUptodate(first=5Fpage);
-> >+}
-> >+
-> >  static int get=5Fzspage=5Finuse(struct page *first=5Fpage)
-> >  {
-> >  	struct zs=5Fmeta *m;
-> >@@ -783,8 +811,11 @@ static enum fullness=5Fgroup fix=5Ffullness=5Fgroup=
-(struct size=5Fclass *class,
-> >  	if (newfg =3D=3D currfg)
-> >  		goto out;
-> >
-> >-	remove=5Fzspage(class, currfg, first=5Fpage);
-> >-	insert=5Fzspage(class, newfg, first=5Fpage);
-> >+	/* Later, putback will insert page to right list */
-> >+	if (!ZsPageIsolate(first=5Fpage)) {
-> >+		remove=5Fzspage(class, currfg, first=5Fpage);
-> >+		insert=5Fzspage(class, newfg, first=5Fpage);
-> >+	}
-> >  	set=5Fzspage=5Fmapping(first=5Fpage, class=5Fidx, newfg);
-> >
-> >  out:
-> >@@ -950,12 +981,31 @@ static void unpin=5Ftag(unsigned long handle)
-> >
-> >  static void reset=5Fpage(struct page *page)
-> >  {
-> >+	if (!PageIsolated(page))
-> >+		=5F=5FClearPageMovable(page);
-> >+	ClearPageIsolated(page);
-> >  	clear=5Fbit(PG=5Fprivate, &page->flags);
-> >  	clear=5Fbit(PG=5Fprivate=5F2, &page->flags);
-> >  	set=5Fpage=5Fprivate(page, 0);
-> >  	page->freelist =3D NULL;
-> >  }
-> >
-> >+/**
-> >+ * lock=5Fzspage - lock all pages in the zspage
-> >+ * @first=5Fpage: head page of the zspage
-> >+ *
-> >+ * To prevent destroy during migration, zspage freeing should
-> >+ * hold locks of all pages in a zspage
-> >+ */
-> >+void lock=5Fzspage(struct page *first=5Fpage)
-> >+{
-> >+	struct page *cursor =3D first=5Fpage;
-> >+
-> >+	do {
-> >+		while (!trylock=5Fpage(cursor));
-> >+	} while ((cursor =3D get=5Fnext=5Fpage(cursor)) !=3D NULL);
-> >+}
-> >+
-> >  static void free=5Fzspage(struct zs=5Fpool *pool, struct page *first=
-=5Fpage)
-> >  {
-> >  	struct page *nextp, *tmp, *head=5Fextra;
-> >@@ -963,26 +1013,31 @@ static void free=5Fzspage(struct zs=5Fpool *pool,=
- struct page *first=5Fpage)
-> >  	VM=5FBUG=5FON=5FPAGE(!is=5Ffirst=5Fpage(first=5Fpage), first=5Fpage);
-> >  	VM=5FBUG=5FON=5FPAGE(get=5Fzspage=5Finuse(first=5Fpage), first=5Fpage=
-);
-> >
-> >+	lock=5Fzspage(first=5Fpage);
-> >  	head=5Fextra =3D (struct page *)page=5Fprivate(first=5Fpage);
-> >
-> >-	reset=5Fpage(first=5Fpage);
-> >-	=5F=5Ffree=5Fpage(first=5Fpage);
-> >-
-> >  	/* zspage with only 1 system page */
-> >  	if (!head=5Fextra)
-> >-		return;
-> >+		goto out;
-> >
-> >  	list=5Ffor=5Feach=5Fentry=5Fsafe(nextp, tmp, &head=5Fextra->lru, lru)=
- {
-> >  		list=5Fdel(&nextp->lru);
-> >  		reset=5Fpage(nextp);
-> >-		=5F=5Ffree=5Fpage(nextp);
-> >+		unlock=5Fpage(nextp);
-> >+		put=5Fpage(nextp);
-> >  	}
-> >  	reset=5Fpage(head=5Fextra);
-> >-	=5F=5Ffree=5Fpage(head=5Fextra);
-> >+	unlock=5Fpage(head=5Fextra);
-> >+	put=5Fpage(head=5Fextra);
-> >+out:
-> >+	reset=5Fpage(first=5Fpage);
-> >+	unlock=5Fpage(first=5Fpage);
-> >+	put=5Fpage(first=5Fpage);
-> >  }
-> >
-> >  /* Initialize a newly allocated zspage */
-> >-static void init=5Fzspage(struct size=5Fclass *class, struct page *firs=
-t=5Fpage)
-> >+static void init=5Fzspage(struct size=5Fclass *class, struct page *firs=
-t=5Fpage,
-> >+			struct address=5Fspace *mapping)
-> >  {
-> >  	int freeobj =3D 1;
-> >  	unsigned long off =3D 0;
-> >@@ -991,6 +1046,9 @@ static void init=5Fzspage(struct size=5Fclass *clas=
-s, struct page *first=5Fpage)
-> >  	first=5Fpage->freelist =3D NULL;
-> >  	INIT=5FLIST=5FHEAD(&first=5Fpage->lru);
-> >  	set=5Fzspage=5Finuse(first=5Fpage, 0);
-> >+	BUG=5FON(!trylock=5Fpage(first=5Fpage));
-> >+	=5F=5FSetPageMovable(first=5Fpage, mapping);
-> >+	unlock=5Fpage(first=5Fpage);
-> >
-> >  	while (page) {
-> >  		struct page *next=5Fpage;
-> >@@ -1065,10 +1123,45 @@ static void create=5Fpage=5Fchain(struct page *p=
-ages[], int nr=5Fpages)
-> >  	}
-> >  }
-> >
-> >+static void replace=5Fsub=5Fpage(struct size=5Fclass *class, struct pag=
-e *first=5Fpage,
-> >+		struct page *newpage, struct page *oldpage)
-> >+{
-> >+	struct page *page;
-> >+	struct page *pages[ZS=5FMAX=5FPAGES=5FPER=5FZSPAGE] =3D {NULL,};
-> >+	int idx =3D 0;
-> >+
-> >+	page =3D first=5Fpage;
-> >+	do {
-> >+		if (page =3D=3D oldpage)
-> >+			pages[idx] =3D newpage;
-> >+		else
-> >+			pages[idx] =3D page;
-> >+		idx++;
-> >+	} while ((page =3D get=5Fnext=5Fpage(page)) !=3D NULL);
-> >+
-> >+	create=5Fpage=5Fchain(pages, class->pages=5Fper=5Fzspage);
-> >+
-> >+	if (is=5Ffirst=5Fpage(oldpage)) {
-> >+		enum fullness=5Fgroup fg;
-> >+		int class=5Fidx;
-> >+
-> >+		SetZsPageIsolate(newpage);
-> >+		get=5Fzspage=5Fmapping(oldpage, &class=5Fidx, &fg);
-> >+		set=5Fzspage=5Fmapping(newpage, class=5Fidx, fg);
-> >+		set=5Ffreeobj(newpage, get=5Ffreeobj(oldpage));
-> >+		set=5Fzspage=5Finuse(newpage, get=5Fzspage=5Finuse(oldpage));
-> >+		if (class->huge)
-> >+			set=5Fpage=5Fprivate(newpage,  page=5Fprivate(oldpage));
-> >+	}
-> >+
-> >+	=5F=5FSetPageMovable(newpage, oldpage->mapping);
-> >+}
-> >+
-> >  /*
-> >   * Allocate a zspage for the given size class
-> >   */
-> >-static struct page *alloc=5Fzspage(struct size=5Fclass *class, gfp=5Ft =
-flags)
-> >+static struct page *alloc=5Fzspage(struct zs=5Fpool *pool,
-> >+				struct size=5Fclass *class)
-> >  {
-> >  	int i;
-> >  	struct page *first=5Fpage =3D NULL;
-> >@@ -1088,7 +1181,7 @@ static struct page *alloc=5Fzspage(struct size=5Fc=
-lass *class, gfp=5Ft flags)
-> >  	for (i =3D 0; i < class->pages=5Fper=5Fzspage; i++) {
-> >  		struct page *page;
-> >
-> >-		page =3D alloc=5Fpage(flags);
-> >+		page =3D alloc=5Fpage(pool->flags);
-> >  		if (!page) {
-> >  			while (--i >=3D 0)
-> >  				=5F=5Ffree=5Fpage(pages[i]);
-> >@@ -1100,7 +1193,7 @@ static struct page *alloc=5Fzspage(struct size=5Fc=
-lass *class, gfp=5Ft flags)
-> >
-> >  	create=5Fpage=5Fchain(pages, class->pages=5Fper=5Fzspage);
-> >  	first=5Fpage =3D pages[0];
-> >-	init=5Fzspage(class, first=5Fpage);
-> >+	init=5Fzspage(class, first=5Fpage, pool->inode->i=5Fmapping);
-> >
-> >  	return first=5Fpage;
-> >  }
-> >@@ -1499,7 +1592,7 @@ unsigned long zs=5Fmalloc(struct zs=5Fpool *pool, =
-size=5Ft size)
-> >
-> >  	if (!first=5Fpage) {
-> >  		spin=5Funlock(&class->lock);
-> >-		first=5Fpage =3D alloc=5Fzspage(class, pool->flags);
-> >+		first=5Fpage =3D alloc=5Fzspage(pool, class);
-> >  		if (unlikely(!first=5Fpage)) {
-> >  			free=5Fhandle(pool, handle);
-> >  			return 0;
-> >@@ -1559,6 +1652,7 @@ void zs=5Ffree(struct zs=5Fpool *pool, unsigned lo=
-ng handle)
-> >  	if (unlikely(!handle))
-> >  		return;
-> >
-> >+	/* Once handle is pinned, page|object migration cannot work */
-> >  	pin=5Ftag(handle);
-> >  	obj =3D handle=5Fto=5Fobj(handle);
-> >  	obj=5Fto=5Flocation(obj, &f=5Fpage, &f=5Fobjidx);
-> >@@ -1714,6 +1808,9 @@ static enum fullness=5Fgroup putback=5Fzspage(stru=
-ct size=5Fclass *class,
-> >  {
-> >  	enum fullness=5Fgroup fullness;
-> >
-> >+	VM=5FBUG=5FON=5FPAGE(!list=5Fempty(&first=5Fpage->lru), first=5Fpage);
-> >+	VM=5FBUG=5FON=5FPAGE(ZsPageIsolate(first=5Fpage), first=5Fpage);
-> >+
-> >  	fullness =3D get=5Ffullness=5Fgroup(class, first=5Fpage);
-> >  	insert=5Fzspage(class, fullness, first=5Fpage);
-> >  	set=5Fzspage=5Fmapping(first=5Fpage, class->index, fullness);
-> >@@ -2059,6 +2156,173 @@ static int zs=5Fregister=5Fshrinker(struct zs=5F=
-pool *pool)
-> >  	return register=5Fshrinker(&pool->shrinker);
-> >  }
-> >
-> >+bool zs=5Fpage=5Fisolate(struct page *page, isolate=5Fmode=5Ft mode)
-> >+{
-> >+	struct zs=5Fpool *pool;
-> >+	struct size=5Fclass *class;
-> >+	int class=5Fidx;
-> >+	enum fullness=5Fgroup fullness;
-> >+	struct page *first=5Fpage;
-> >+
-> >+	/*
-> >+	 * The page is locked so it couldn't be destroyed.
-> >+	 * For detail, look at lock=5Fzspage in free=5Fzspage.
-> >+	 */
-> >+	VM=5FBUG=5FON=5FPAGE(!PageLocked(page), page);
-> >+	VM=5FBUG=5FON=5FPAGE(PageIsolated(page), page);
-> >+	/*
-> >+	 * In this implementation, it allows only first page migration.
-> >+	 */
-> >+	VM=5FBUG=5FON=5FPAGE(!is=5Ffirst=5Fpage(page), page);
-> >+	first=5Fpage =3D page;
-> >+
-> >+	/*
-> >+	 * Without class lock, fullness is meaningless while constant
-> >+	 * class=5Fidx is okay. We will get it under class lock at below,
-> >+	 * again.
-> >+	 */
-> >+	get=5Fzspage=5Fmapping(first=5Fpage, &class=5Fidx, &fullness);
-> >+	pool =3D page->mapping->private=5Fdata;
-> >+	class =3D pool->size=5Fclass[class=5Fidx];
-> >+
-> >+	if (!spin=5Ftrylock(&class->lock))
-> >+		return false;
-> >+
-> >+	get=5Fzspage=5Fmapping(first=5Fpage, &class=5Fidx, &fullness);
-> >+	remove=5Fzspage(class, fullness, first=5Fpage);
-> >+	SetZsPageIsolate(first=5Fpage);
-> >+	SetPageIsolated(page);
-> >+	spin=5Funlock(&class->lock);
-> >+
-> >+	return true;
-> >+}
->=20
-> Hello, Minchan.
->=20
-> We found another race condition.
->=20
-> When there is alloc=5Fzspage(), which is not protected by any lock, in-fl=
-ight,
-> a migrate context can isolate the zs subpage which is being
-> initiated by alloc=5Fzspage().
->=20
-> We detected VM=5FBUG=5FON during remove=5Fzspage() above in consequence of
-> "page->index" being set to NULL wrongly. (seems uninitialized yet)
->=20
-> Though it is a real problem,
-> as this race issue is somewhat similar with the one we detected last time,
-> this seems to be fixed in the next version hopefully.
->=20
-> I report this just for note.
+I'm not familiar on security but it doesn't look much secure than
+before. Is there any other way to generate different sequence of freelist
+for each new set of pages? Current approach using pre-computed array will
+generate same sequence of freelist for all new set of pages having same size
+class. Is it sufficient?
 
+> For example this attack against SLUB (also applicable against SLAB)
+> would be affected:
+> https://jon.oberheide.org/blog/2010/09/10/linux-kernel-can-slub-overflow/
+> 
+> Also, since v4.6 the freelist was moved at the end of the SLAB. It means
+> a controllable heap is opened to new attacks not yet publicly discussed.
+> A kernel heap overflow can be transformed to multiple use-after-free.
+> This feature makes this type of attack harder too.
+> 
+> To generate entropy, we use get_random_bytes_arch because 0 bits of
+> entropy is available at that boot stage. In the worse case this function
+> will fallback to the get_random_bytes sub API.
+> 
+> The config option name is not specific to the SLAB as this approach will
+> be extended to other allocators like SLUB.
 
-I found problem you reported and already fixed it in my WIP version.
-With your report, I am convinced my analysis was right, too. :)
+If this feature will be applied to the SLUB, it's better to put common
+code to mm/slab_common.c.
 
-Thanks for the analysis and reporting.
-I really apprecaite your help, Chulmin!
-=20
+> 
+> Performance results highlighted no major changes:
+> 
+> Netperf average on 10 runs:
+> 
+> threads,base,change
+> 16,576943.10,585905.90 (101.55%)
+> 32,564082.00,569741.20 (101.00%)
+> 48,558334.30,561851.20 (100.63%)
+> 64,552025.20,556448.30 (100.80%)
+> 80,552294.40,551743.10 (99.90%)
+> 96,552435.30,547529.20 (99.11%)
+> 112,551320.60,550183.20 (99.79%)
+> 128,549138.30,550542.70 (100.26%)
+> 144,549344.50,544529.10 (99.12%)
+> 160,550360.80,539929.30 (98.10%)
+> 
+> slab_test 1 run on boot. After is faster except for odd result on size
+> 2048.
+
+Hmm... It's odd result. It adds more logic and it should
+decrease performance. I guess it would be experimental error but
+do you have any analysis about this result?
+
+> 
+> Before:
+> 
+> Single thread testing
+> =====================
+> 1. Kmalloc: Repeatedly allocate then free test
+> 10000 times kmalloc(8) -> 137 cycles kfree -> 126 cycles
+> 10000 times kmalloc(16) -> 118 cycles kfree -> 119 cycles
+> 10000 times kmalloc(32) -> 112 cycles kfree -> 119 cycles
+> 10000 times kmalloc(64) -> 126 cycles kfree -> 123 cycles
+> 10000 times kmalloc(128) -> 135 cycles kfree -> 131 cycles
+> 10000 times kmalloc(256) -> 165 cycles kfree -> 104 cycles
+> 10000 times kmalloc(512) -> 174 cycles kfree -> 126 cycles
+> 10000 times kmalloc(1024) -> 242 cycles kfree -> 160 cycles
+> 10000 times kmalloc(2048) -> 478 cycles kfree -> 239 cycles
+> 10000 times kmalloc(4096) -> 747 cycles kfree -> 364 cycles
+> 10000 times kmalloc(8192) -> 774 cycles kfree -> 404 cycles
+> 10000 times kmalloc(16384) -> 849 cycles kfree -> 430 cycles
+> 2. Kmalloc: alloc/free test
+> 10000 times kmalloc(8)/kfree -> 118 cycles
+> 10000 times kmalloc(16)/kfree -> 118 cycles
+> 10000 times kmalloc(32)/kfree -> 118 cycles
+> 10000 times kmalloc(64)/kfree -> 121 cycles
+> 10000 times kmalloc(128)/kfree -> 118 cycles
+> 10000 times kmalloc(256)/kfree -> 115 cycles
+> 10000 times kmalloc(512)/kfree -> 115 cycles
+> 10000 times kmalloc(1024)/kfree -> 115 cycles
+> 10000 times kmalloc(2048)/kfree -> 115 cycles
+> 10000 times kmalloc(4096)/kfree -> 115 cycles
+> 10000 times kmalloc(8192)/kfree -> 115 cycles
+> 10000 times kmalloc(16384)/kfree -> 115 cycles
+> 
+> After:
+> 
+> Single thread testing
+> =====================
+> 1. Kmalloc: Repeatedly allocate then free test
+> 10000 times kmalloc(8) -> 99 cycles kfree -> 84 cycles
+> 10000 times kmalloc(16) -> 88 cycles kfree -> 83 cycles
+> 10000 times kmalloc(32) -> 90 cycles kfree -> 81 cycles
+> 10000 times kmalloc(64) -> 107 cycles kfree -> 97 cycles
+> 10000 times kmalloc(128) -> 134 cycles kfree -> 89 cycles
+> 10000 times kmalloc(256) -> 145 cycles kfree -> 97 cycles
+> 10000 times kmalloc(512) -> 177 cycles kfree -> 116 cycles
+> 10000 times kmalloc(1024) -> 223 cycles kfree -> 151 cycles
+> 10000 times kmalloc(2048) -> 1429 cycles kfree -> 221 cycles
+> 10000 times kmalloc(4096) -> 720 cycles kfree -> 348 cycles
+> 10000 times kmalloc(8192) -> 788 cycles kfree -> 393 cycles
+> 10000 times kmalloc(16384) -> 867 cycles kfree -> 433 cycles
+> 2. Kmalloc: alloc/free test
+> 10000 times kmalloc(8)/kfree -> 115 cycles
+> 10000 times kmalloc(16)/kfree -> 115 cycles
+> 10000 times kmalloc(32)/kfree -> 115 cycles
+> 10000 times kmalloc(64)/kfree -> 120 cycles
+> 10000 times kmalloc(128)/kfree -> 127 cycles
+> 10000 times kmalloc(256)/kfree -> 119 cycles
+> 10000 times kmalloc(512)/kfree -> 112 cycles
+> 10000 times kmalloc(1024)/kfree -> 112 cycles
+> 10000 times kmalloc(2048)/kfree -> 112 cycles
+> 10000 times kmalloc(4096)/kfree -> 112 cycles
+> 10000 times kmalloc(8192)/kfree -> 112 cycles
+> 10000 times kmalloc(16384)/kfree -> 112 cycles
+> 
+> Signed-off-by: Thomas Garnier <thgarnie@google.com>
+> ---
+> Based on next-20160418
+> ---
+>  init/Kconfig |   9 ++++
+>  mm/slab.c    | 166 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+>  2 files changed, 174 insertions(+), 1 deletion(-)
+> 
+> diff --git a/init/Kconfig b/init/Kconfig
+> index 0dfd09d..ee35418 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -1742,6 +1742,15 @@ config SLOB
+>  
+>  endchoice
+>  
+> +config FREELIST_RANDOM
+> +	default n
+> +	depends on SLAB
+> +	bool "SLAB freelist randomization"
+> +	help
+> +	  Randomizes the freelist order used on creating new SLABs. This
+> +	  security feature reduces the predictability of the kernel slab
+> +	  allocator against heap overflows.
+> +
+>  config SLUB_CPU_PARTIAL
+>  	default y
+>  	depends on SLUB && SMP
+> diff --git a/mm/slab.c b/mm/slab.c
+> index b70aabf..8371d80 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -116,6 +116,7 @@
+>  #include	<linux/kmemcheck.h>
+>  #include	<linux/memory.h>
+>  #include	<linux/prefetch.h>
+> +#include	<linux/log2.h>
+>  
+>  #include	<net/sock.h>
+>  
+> @@ -1229,6 +1230,62 @@ static void __init set_up_node(struct kmem_cache *cachep, int index)
+>  	}
+>  }
+>  
+> +#ifdef CONFIG_FREELIST_RANDOM
+> +/*
+> + * Master lists are pre-computed random lists
+> + * Lists of different sizes are used to optimize performance on SLABS with
+> + * different object counts.
+> + */
+
+If it is for optimization, it would be one option to have separate
+random list for each kmem_cache. It would consume more memory but it
+would be marginal. And, it provides more un-predictability and it can
+give better performance because we don't need state->type (more, less)
+and special handling related for it.
+
+> +static freelist_idx_t master_list_2[2];
+> +static freelist_idx_t master_list_4[4];
+> +static freelist_idx_t master_list_8[8];
+> +static freelist_idx_t master_list_16[16];
+> +static freelist_idx_t master_list_32[32];
+> +static freelist_idx_t master_list_64[64];
+> +static freelist_idx_t master_list_128[128];
+> +static freelist_idx_t master_list_256[256];
+> +const static struct m_list {
+> +	size_t count;
+> +	freelist_idx_t *list;
+> +} master_lists[] = {
+> +	{ ARRAY_SIZE(master_list_2), master_list_2 },
+> +	{ ARRAY_SIZE(master_list_4), master_list_4 },
+> +	{ ARRAY_SIZE(master_list_8), master_list_8 },
+> +	{ ARRAY_SIZE(master_list_16), master_list_16 },
+> +	{ ARRAY_SIZE(master_list_32), master_list_32 },
+> +	{ ARRAY_SIZE(master_list_64), master_list_64 },
+> +	{ ARRAY_SIZE(master_list_128), master_list_128 },
+> +	{ ARRAY_SIZE(master_list_256), master_list_256 },
+> +};
+> +
+> +/* Pre-compute the Freelist master lists at boot */
+> +static void __init freelist_random_init(void)
+> +{
+> +	unsigned int seed;
+> +	size_t z, i, rand;
+> +	struct rnd_state slab_rand;
+> +
+> +	get_random_bytes_arch(&seed, sizeof(seed));
+> +	prandom_seed_state(&slab_rand, seed);
+> +
+> +	for (z = 0; z < ARRAY_SIZE(master_lists); z++) {
+> +		for (i = 0; i < master_lists[z].count; i++)
+> +			master_lists[z].list[i] = i;
+> +
+> +		/* Fisher-Yates shuffle */
+> +		for (i = master_lists[z].count - 1; i > 0; i--) {
+> +			rand = prandom_u32_state(&slab_rand);
+> +			rand %= (i + 1);
+> +			swap(master_lists[z].list[i],
+> +				master_lists[z].list[rand]);
+> +		}
+> +	}
+> +}
+> +#else
+> +static inline void __init freelist_random_init(void) { }
+> +#endif /* CONFIG_FREELIST_RANDOM */
+> +
+> +
+>  /*
+>   * Initialisation.  Called after the page allocator have been initialised and
+>   * before smp_init().
+> @@ -1255,6 +1312,8 @@ void __init kmem_cache_init(void)
+>  	if (!slab_max_order_set && totalram_pages > (32 << 20) >> PAGE_SHIFT)
+>  		slab_max_order = SLAB_MAX_ORDER_HI;
+>  
+> +	freelist_random_init();
+> +
+>  	/* Bootstrap is tricky, because several objects are allocated
+>  	 * from caches that do not exist yet:
+>  	 * 1) initialize the kmem_cache cache: it contains the struct
+> @@ -2442,6 +2501,107 @@ static void cache_init_objs_debug(struct kmem_cache *cachep, struct page *page)
+>  #endif
+>  }
+>  
+> +#ifdef CONFIG_FREELIST_RANDOM
+> +/* Identify if the target freelist matches the pre-computed list */
+> +enum master_type {
+> +	match,
+> +	less,
+> +	more
+> +};
+> +
+> +/* Hold information during a freelist initialization */
+> +struct freelist_init_state {
+> +	unsigned int padding;
+> +	unsigned int pos;
+> +	unsigned int count;
+> +	struct m_list master_list;
+> +	unsigned int master_count;
+> +	enum master_type type;
+> +};
+> +
+> +/* Select the right pre-computed master list and initialize state */
+> +static void freelist_state_initialize(struct freelist_init_state *state,
+> +				      unsigned int count)
+> +{
+> +	unsigned int idx;
+> +	const unsigned int last_idx = ARRAY_SIZE(master_lists) - 1;
+> +
+> +	memset(state, 0, sizeof(*state));
+> +	state->count = count;
+> +	state->pos = 0;
+
+Using pos = 0 here looks not good in terms of security. In this case,
+every new page having same size class have same sequence of freelist since boot.
+
+How about using random value to set pos? It provides some more randomness
+with minimal overhead.
+
+> +	/* count is always >= 2 */
+> +	idx = ilog2(count) - 1;
+> +	if (idx >= last_idx)
+> +		idx = last_idx;
+> +	else if (roundup_pow_of_two(idx + 1) != count)
+> +		idx++;
+> +	state->master_list = master_lists[idx];
+> +	if (state->master_list.count == state->count)
+> +		state->type = match;
+> +	else if (state->master_list.count > state->count)
+> +		state->type = more;
+> +	else
+> +		state->type = less;
+> +}
+> +
+> +/* Get the next entry on the master list depending on the target list size */
+> +static freelist_idx_t get_next_entry(struct freelist_init_state *state)
+> +{
+> +	if (state->type == less && state->pos == state->master_list.count) {
+> +		state->padding += state->pos;
+> +		state->pos = 0;
+> +	}
+> +	BUG_ON(state->pos >= state->master_list.count);
+> +	return state->master_list.list[state->pos++];
+> +}
+> +
+> +static freelist_idx_t next_random_slot(struct freelist_init_state *state)
+> +{
+> +	freelist_idx_t cur, entry;
+> +
+> +	entry = get_next_entry(state);
+> +
+> +	if (state->type != match) {
+> +		while ((entry + state->padding) >= state->count)
+> +			entry = get_next_entry(state);
+> +		cur = entry + state->padding;
+> +		BUG_ON(cur >= state->count);
+> +	} else {
+> +		cur = entry;
+> +	}
+> +
+> +	return cur;
+> +}
+> +
+> +/* Shuffle the freelist initialization state based on pre-computed lists */
+> +static void shuffle_freelist(struct kmem_cache *cachep, struct page *page,
+> +			     unsigned int count)
+> +{
+> +	unsigned int i;
+> +	struct freelist_init_state state;
+> +
+> +	if (count < 2) {
+> +		for (i = 0; i < count; i++)
+> +			set_free_obj(page, i, i);
+> +		return;
+> +	}
+> +
+> +	/* Last chunk is used already in this case */
+> +	if (OBJFREELIST_SLAB(cachep))
+> +		count--;
+> +
+> +	freelist_state_initialize(&state, count);
+> +	for (i = 0; i < count; i++)
+> +		set_free_obj(page, i, next_random_slot(&state));
+> +
+> +	if (OBJFREELIST_SLAB(cachep))
+> +		set_free_obj(page, i, i);
+
+Please consider last object of OBJFREELIST_SLAB cache, too.
+
+freelist_state_init()
+last_obj = next_randome_slot()
+page->freelist = XXX
+for (i = 0; i < count - 1; i++)
+        set_free_obj()
+set_free_obj(last_obj);
+
+Thanks.
+
+> +}
+> +#else
+> +static inline void shuffle_freelist(struct kmem_cache *cachep,
+> +				    struct page *page, unsigned int count) { }
+> +#endif /* CONFIG_FREELIST_RANDOM */
+> +
+>  static void cache_init_objs(struct kmem_cache *cachep,
+>  			    struct page *page)
+>  {
+> @@ -2464,8 +2624,12 @@ static void cache_init_objs(struct kmem_cache *cachep,
+>  			kasan_poison_object_data(cachep, objp);
+>  		}
+>  
+> -		set_free_obj(page, i, i);
+> +		/* If enabled, initialization is done in shuffle_freelist */
+> +		if (!config_enabled(CONFIG_FREELIST_RANDOM))
+> +			set_free_obj(page, i, i);
+>  	}
+> +
+> +	shuffle_freelist(cachep, page, cachep->num);
+>  }
+>  
+>  static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
+> -- 
+> 2.8.0.rc3.226.g39d4020
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
