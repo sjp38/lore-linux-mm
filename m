@@ -1,36 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 674B06B025E
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 03:42:33 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e190so72914047pfe.3
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 00:42:33 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l27si18826291pfj.18.2016.04.20.00.42.30
-        for <linux-mm@kvack.org>;
-        Wed, 20 Apr 2016 00:42:30 -0700 (PDT)
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3772C6B0260
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 04:01:20 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id e185so77149999vkb.2
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 01:01:20 -0700 (PDT)
+Received: from mail-qg0-x236.google.com (mail-qg0-x236.google.com. [2607:f8b0:400d:c04::236])
+        by mx.google.com with ESMTPS id k66si3264513qhc.64.2016.04.20.01.01.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Apr 2016 01:01:19 -0700 (PDT)
+Received: by mail-qg0-x236.google.com with SMTP id f52so23854573qga.3
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 01:01:19 -0700 (PDT)
+Date: Wed, 20 Apr 2016 01:01:12 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
 Subject: Re: [BUG linux-next] Kernel panic found with linux-next-20160414
-References: <5716C29F.1090205@linaro.org>
-From: Vladimir Murzin <vladimir.murzin@arm.com>
-Message-ID: <571732CB.8010206@arm.com>
-Date: Wed, 20 Apr 2016 08:42:03 +0100
-MIME-Version: 1.0
 In-Reply-To: <5716C29F.1090205@linaro.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Message-ID: <alpine.LSU.2.11.1604200041460.3009@eggly.anvils>
+References: <5716C29F.1090205@linaro.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Shi, Yang" <yang.shi@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, sfr@canb.auug.org.au, Hugh Dickins <hughd@google.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: "Shi, Yang" <yang.shi@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, sfr@canb.auug.org.au, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-CC LAKML in case somebody hit the same panic there.
-
-Vladimir
-
-On 20/04/16 00:43, Shi, Yang wrote:
+On Tue, 19 Apr 2016, Shi, Yang wrote:
 > Hi folks,
 > 
-> When I ran ltp on linux-next-20160414 on my ARM64 machine, I got the
-> below kernel panic:
+> When I ran ltp on linux-next-20160414 on my ARM64 machine, I got the below
+> kernel panic:
 > 
 > Unable to handle kernel paging request at virtual address ffffffc007846000
 > pgd = ffffffc01e21d000
@@ -89,23 +87,28 @@ On 20/04/16 00:43, Shi, Yang wrote:
 > Code: d281f012 91020021 f1020252 d503201f (a8000c02)
 > 
 > 
-> I did some initial investigation and found it is caused by
-> DEBUG_PAGEALLOC and CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT. And, mainline
-> 4.6-rc3 works well.
+> I did some initial investigation and found it is caused by DEBUG_PAGEALLOC
+> and CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT. And, mainline 4.6-rc3 works well.
 > 
-> It should be not arch specific although I got it caught on ARM64. I
-> suspect this might be caused by Hugh's huge tmpfs patches.
-> 
-> Thanks,
-> Yang
-> 
-> -- 
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
+> It should be not arch specific although I got it caught on ARM64. I suspect
+> this might be caused by Hugh's huge tmpfs patches.
+
+Thanks for testing.  It might be caused by my patches, but I don't think
+that's very likely.  This is page migraton for compaction, in the service
+of anon THP's khugepaged; and I wonder if you were even exercising huge
+tmpfs when running LTP here (it certainly can be done: I like to mount a
+huge tmpfs on /opt/ltp and install there, with shmem_huge 2 so any other
+tmpfs mounts are also huge).
+
+There are compaction changes in linux-next too, but I don't see any
+reason why they'd cause this.  I don't know arm64 traces enough to know
+whether it's the source page or the destination page for the copy, but
+it looks as if it has been freed (and DEBUG_PAGEALLOC unmapped) before
+reaching migration's copy.
+
+Needs more debugging, I'm afraid: is it reproducible?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
