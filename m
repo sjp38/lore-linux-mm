@@ -1,94 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 417C282963
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 19:01:42 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e190so114040967pfe.3
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 16:01:42 -0700 (PDT)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id u79si20199140pfa.232.2016.04.20.16.01.41
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C1CF82963
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 19:17:23 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id vv3so85103864pab.2
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 16:17:23 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id p20si22612100pfa.90.2016.04.20.16.17.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Apr 2016 16:01:41 -0700 (PDT)
-Received: by mail-pf0-x22b.google.com with SMTP id 184so23019025pff.0
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 16:01:41 -0700 (PDT)
-From: "Shi, Yang" <yang.shi@linaro.org>
-Subject: [BUG] set_pte_at: racy dirty state clearing warning
-Message-ID: <57180A53.3000207@linaro.org>
-Date: Wed, 20 Apr 2016 16:01:39 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 20 Apr 2016 16:17:22 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: mce: a question about memory_failure_early_kill in
+ memory_failure()
+Date: Wed, 20 Apr 2016 23:15:06 +0000
+Message-ID: <20160420231506.GA18729@hori1.linux.bs1.fc.nec.co.jp>
+References: <571612DE.8020908@huawei.com>
+ <20160420070735.GA10125@hori1.linux.bs1.fc.nec.co.jp>
+ <57175F30.6050300@huawei.com> <571760F3.2040305@huawei.com>
+In-Reply-To: <571760F3.2040305@huawei.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <E573CA58F5DCFF42B55D91F321DCF0B6@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Will and Catalin,
+On Wed, Apr 20, 2016 at 06:58:59PM +0800, Xishi Qiu wrote:
+> On 2016/4/20 18:51, Xishi Qiu wrote:
+>=20
+> > On 2016/4/20 15:07, Naoya Horiguchi wrote:
+> >=20
+> >> On Tue, Apr 19, 2016 at 07:13:34PM +0800, Xishi Qiu wrote:
+> >>> /proc/sys/vm/memory_failure_early_kill
+> >>>
+> >>> 1: means kill all processes that have the corrupted and not reloadabl=
+e page mapped.
+> >>> 0: means only unmap the corrupted page from all processes and only ki=
+ll a process
+> >>> who tries to access it.
+> >>>
+> >>> If set memory_failure_early_kill to 0, and memory_failure() has been =
+called.
+> >>> memory_failure()
+> >>> 	hwpoison_user_mappings()
+> >>> 		collect_procs()  // the task(with no PF_MCE_PROCESS flag) is not in=
+ the tokill list
+> >>> 			try_to_unmap()
+> >>>
+> >>> If the task access the memory, there will be a page fault,
+> >>> so the task can not access the original page again, right?
+> >>
+> >> Yes, right. That's the behavior in default "late kill" case.
+> >>
+> >=20
+> > Hi Naoya,
+> >=20
+> > Thanks for your reply, my confusion is that after try_to_unmap(), there=
+ will be a
+> > page fault if the task access the memory, and we will alloc a new page =
+for it.
 
-When I enable memory comact via
+When try_to_unmap() is called for PageHWPoison(page) without TTU_IGNORE_HWP=
+OISON,
+page table entries mapping the error page are replaced with hwpoison entrie=
+s,
+which changes the bahavior of a subsequent page fault. Then, the page fault=
+ will
+fail with VM_FAULT_HWPOISON, so finally the process will be killed without =
+allocating
+a new page.
 
-# echo 1 > /proc/sys/vm/compact_memory
+>=20
+> Hi Naoya,
+>=20
+> If we alloc a new page, the task won't access the poisioned page again, s=
+o it won't be
+> killed by mce(late kill), right?
 
-I got the below WARNING:
+Allocating a new page for virtual address affected by memory error is dange=
+rous
+because if the error page was dirty (or anonymous as you mentioned), the da=
+ta
+is lost and new page allocation means that the data lost is ignored. The fi=
+rst
+priority of hwpoison mechanism is to avoid consuming corrupted data.
 
-set_pte_at: racy dirty state clearing: 0x0068000099371bd3 -> 
-0x0068000099371fd3
-------------[ cut here ]------------
-WARNING: CPU: 5 PID: 294 at ./arch/arm64/include/asm/pgtable.h:227 
-ptep_set_access_flags+0x138/0x1b8
-Modules linked in:
+> If the poisioned page is anon, we will lost data, right?
 
-CPU: 5 PID: 294 Comm: systemd-journal Not tainted 
-4.6.0-rc3-next-20160414 #13
-Hardware name: Freescale Layerscape 2085a RDB Board (DT)
-task: ffff80001e4f8080 ti: ffff80001e8b4000 task.ti: ffff80001e8b4000
-PC is at ptep_set_access_flags+0x138/0x1b8
-LR is at ptep_set_access_flags+0x138/0x1b8
-pc : [<ffff200008497b70>] lr : [<ffff200008497b70>] pstate: 20000145
-sp : ffff80001e8b7bc0
-x29: ffff80001e8b7bc0 x28: ffff80001e843ac8
-x27: 0000000000000040 x26: ffff80001e9ae0d8
-x25: ffff200009901000 x24: ffff80001f32a938
-x23: 0000000000000001 x22: ffff80001e9ae088
-x21: 0000ffff7eb59000 x20: ffff80001e843ac8
-x19: 0068000099371fd3 x18: fffffffffffffe09
-x17: 0000ffff7ea48c88 x16: 0000aaaacb5afb20
-x15: 003b9aca00000000 x14: 307830203e2d2033
-x13: 6462313733393930 x12: 3030303836303078
-x11: 30203a676e697261 x10: 656c632065746174
-x9 : 7320797472696420 x8 : 79636172203a7461
-x7 : 5f6574705f746573 x6 : ffff200008300ab8
-x5 : 0000000000000003 x4 : 0000000000000000
-x3 : 0000000000000003 x2 : ffff100003d16f64
-x1 : dfff200000000000 x0 : 000000000000004f
+Yes, that's the idea.
 
----[ end trace d75cd9bb88364c80 ]---
-Call trace:
-Exception stack(0xffff80001e8b79a0 to 0xffff80001e8b7ac0)
-79a0: 0068000099371fd3 ffff80001e843ac8 ffff80001e8b7bc0 ffff200008497b70
-79c0: 0000000020000145 000000000000003d ffff200009901000 ffff200008301558
-79e0: 0000000041b58ab3 ffff2000096870d0 ffff200008200668 ffff2000092b0e40
-7a00: 0000000000000001 ffff80001f32a938 ffff200009901000 ffff80001e9ae0d8
-7a20: 0000000000000040 ffff80001e843ac8 ffff200009901000 ffff80001e9ae0d8
-7a40: ffff20000a9dcf60 0000000000000000 000000000a6d9320 ffff200000000000
-7a60: ffff80001e8b7bc0 ffff80001e8b7bc0 ffff80001e8b7b80 00000000ffffffc8
-7a80: ffff80001e8b7ad0 ffff200008415418 ffff80001e8b4000 1ffff00003d16f64
-7aa0: 000000000000004f dfff200000000000 ffff100003d16f64 0000000000000003
-[<ffff200008497b70>] ptep_set_access_flags+0x138/0x1b8
-[<ffff20000847f564>] handle_mm_fault+0xa24/0xfa0
-[<ffff20000821e7dc>] do_page_fault+0x3d4/0x4c0
-[<ffff20000820045c>] do_mem_abort+0xac/0x140
+>=20
+> > So how the hardware(mce) know this page fault is relate to the poisione=
+d page which
+> > is unmapped from the task?=20
+> >=20
+> > Will we record something in pte when after try_to_unmap() in memory_fai=
+lure()?
 
-
-My kernel has ARM64_HW_AFDBM enabled, but LS2085 is not ARMv8.1.
-
-The code shows it just check if ARM64_HW_AFDBM is enabled or not, but 
-doesn't check if the CPU really has such capability.
-
-So, it might be better to have the capability checked runtime?
+As mentioned above, hwpoison entry does this job.
 
 Thanks,
-Yang
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
