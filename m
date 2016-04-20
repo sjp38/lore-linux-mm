@@ -1,200 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F8C96B027C
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:23:52 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 203so20025452pfy.2
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 09:23:52 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0108.outbound.protection.outlook.com. [104.47.0.108])
-        by mx.google.com with ESMTPS id pt18si17319373pab.194.2016.04.20.09.23.50
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EF9A6B027E
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:46:33 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id t184so104803745qkh.3
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 09:46:33 -0700 (PDT)
+Received: from mail-yw0-x244.google.com (mail-yw0-x244.google.com. [2607:f8b0:4002:c05::244])
+        by mx.google.com with ESMTPS id v84si1803974ywa.268.2016.04.20.09.46.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 20 Apr 2016 09:23:51 -0700 (PDT)
-Subject: Re: [PATCHv7 2/3] x86/vdso: add mremap hook to vm_special_mapping
-References: <1460987025-30360-2-git-send-email-dsafonov@virtuozzo.com>
- <1460989402-5468-1-git-send-email-dsafonov@virtuozzo.com>
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <5717ACD7.6080909@virtuozzo.com>
-Date: Wed, 20 Apr 2016 19:22:47 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Apr 2016 09:46:32 -0700 (PDT)
+Received: by mail-yw0-x244.google.com with SMTP id u62so7497543ywe.3
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 09:46:32 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1460989402-5468-1-git-send-email-dsafonov@virtuozzo.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160419173833.GB15167@techsingularity.net>
+References: <1460928725-18741-1-git-send-email-saeedm@mellanox.com>
+ <1460928725-18741-6-git-send-email-saeedm@mellanox.com> <1460939371.10638.97.camel@edumazet-glaptop3.roam.corp.google.com>
+ <1460983695.10638.113.camel@edumazet-glaptop3.roam.corp.google.com>
+ <CALzJLG_W9SkgMBQp86P0WDknw4Kc=DCBrvpPemAUbRX=r4r8Yg@mail.gmail.com>
+ <1460989033.10638.120.camel@edumazet-glaptop3.roam.corp.google.com>
+ <20160419182532.423d3c05@redhat.com> <20160419173833.GB15167@techsingularity.net>
+From: Saeed Mahameed <saeedm@dev.mellanox.co.il>
+Date: Wed, 20 Apr 2016 19:46:12 +0300
+Message-ID: <CALzJLG-XwPv_V51nHBxQQcsiWG20sHj0OvVacc0eVLhoQF2c8g@mail.gmail.com>
+Subject: Re: [PATCH net-next V2 05/11] net/mlx5e: Support RX multi-packet WQE
+ (Striding RQ)
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: luto@amacapital.net
-Cc: linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Saeed Mahameed <saeedm@mellanox.com>, "David S. Miller" <davem@davemloft.net>, Linux Netdev List <netdev@vger.kernel.org>, Or Gerlitz <ogerlitz@mellanox.com>, Tal Alon <talal@mellanox.com>, Tariq Toukan <tariqt@mellanox.com>, Eran Ben Elisha <eranbe@mellanox.com>, Achiad Shochat <achiad@mellanox.com>, linux-mm <linux-mm@kvack.org>
 
-On 04/18/2016 05:23 PM, Dmitry Safonov wrote:
-> Add possibility for userspace 32-bit applications to move
-> vdso mapping. Previously, when userspace app called
-> mremap for vdso, in return path it would land on previous
-> address of vdso page, resulting in segmentation violation.
-> Now it lands fine and returns to userspace with remapped vdso.
-> This will also fix context.vdso pointer for 64-bit, which does not
-> affect the user of vdso after mremap by now, but this may change.
+On Tue, Apr 19, 2016 at 8:39 PM, Mel Gorman <mgorman@techsingularity.net> wrote:
+> On Tue, Apr 19, 2016 at 06:25:32PM +0200, Jesper Dangaard Brouer wrote:
+>> On Mon, 18 Apr 2016 07:17:13 -0700
+>> Eric Dumazet <eric.dumazet@gmail.com> wrote:
+>>
 >
-> As suggested by Andy, return EINVAL for mremap that splits vdso image.
+> alloc_pages_exact()
 >
-> Renamed and moved text_mapping structure declaration inside
-> map_vdso, as it used only there and now it complement
-> vvar_mapping variable.
->
-> There is still problem for remapping vdso in glibc applications:
-> linker relocates addresses for syscalls on vdso page, so
-> you need to relink with the new addresses. Or the next syscall
-> through glibc may fail:
->    Program received signal SIGSEGV, Segmentation fault.
->    #0  0xf7fd9b80 in __kernel_vsyscall ()
->    #1  0xf7ec8238 in _exit () from /usr/lib32/libc.so.6
->
-> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
 
-Andy, can I have an ack from you for this version?
-If it looks fine for you, of course.
-And for v5 test (3/3 patch)? (I did not resed it, as it hasn't changed)
+We want to allocate 32 order-0 physically contiguous pages and to free
+each one of them individually.
+the documentation states "Memory allocated by this function must be
+released by free_pages_exact()"
 
-> ---
-> v7: that's just not my day: add new_vma parameter to vdso_fix_landing
->      sorry for the noise
-> v6: moved vdso_image_32 check and fixup code into vdso_fix_landing function
->      with ifdefs around
-> v5: as Andy suggested, add a check that new_vma->vm_mm and current->mm are
->      the same, also check not only in_ia32_syscall() but image == &vdso_image_32
-> v4: drop __maybe_unused & use image from mm->context instead vdso_image_32
-> v3: as Andy suggested, return EINVAL in case of splitting vdso blob on mremap;
->      used is_ia32_task instead of ifdefs
-> v2: added __maybe_unused for pt_regs in vdso_mremap
+Also it returns a pointer to the memory and we need pointers to pages.
+
+>> > > allocates many physically contiguous pages with order0 ! so we assume
+>> > > it is ok to use split_page.
+>> >
+>> > Note: I have no idea of split_page() performance :
+>>
+>> Maybe Mel knows?
 >
->   arch/x86/entry/vdso/vma.c | 50 ++++++++++++++++++++++++++++++++++++++++++-----
->   include/linux/mm_types.h  |  3 +++
->   mm/mmap.c                 | 10 ++++++++++
->   3 files changed, 58 insertions(+), 5 deletions(-)
+> Irrelevant in comparison to the cost of allocating an order-5 pages if
+> one is not already available.
 >
-> diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
-> index 10f704584922..d94291a19b6e 100644
-> --- a/arch/x86/entry/vdso/vma.c
-> +++ b/arch/x86/entry/vdso/vma.c
-> @@ -12,6 +12,7 @@
->   #include <linux/random.h>
->   #include <linux/elf.h>
->   #include <linux/cpu.h>
-> +#include <linux/ptrace.h>
->   #include <asm/pvclock.h>
->   #include <asm/vgtod.h>
->   #include <asm/proto.h>
-> @@ -98,10 +99,43 @@ static int vdso_fault(const struct vm_special_mapping *sm,
->   	return 0;
->   }
->   
-> -static const struct vm_special_mapping text_mapping = {
-> -	.name = "[vdso]",
-> -	.fault = vdso_fault,
-> -};
-> +#if defined CONFIG_X86_32 || defined CONFIG_COMPAT
-> +static void vdso_fix_landing(const struct vdso_image *image,
-> +		struct vm_area_struct *new_vma)
-> +{
-> +	if (in_ia32_syscall() && image == &vdso_image_32) {
-> +		struct pt_regs *regs = current_pt_regs();
-> +		unsigned long vdso_land = image->sym_int80_landing_pad;
-> +		unsigned long old_land_addr = vdso_land +
-> +			(unsigned long)current->mm->context.vdso;
-> +
-> +		/* Fixing userspace landing - look at do_fast_syscall_32 */
-> +		if (regs->ip == old_land_addr)
-> +			regs->ip = new_vma->vm_start + vdso_land;
-> +	}
-> +}
-> +#else
-> +static void vdso_fix_landing(const struct vdso_image *image,
-> +		struct vm_area_struct *new_vma) {}
-> +#endif
-> +
-> +static int vdso_mremap(const struct vm_special_mapping *sm,
-> +		struct vm_area_struct *new_vma)
-> +{
-> +	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
-> +	const struct vdso_image *image = current->mm->context.vdso_image;
-> +
-> +	if (image->size != new_size)
-> +		return -EINVAL;
-> +
-> +	if (current->mm != new_vma->vm_mm)
-> +		return -EFAULT;
-> +
-> +	vdso_fix_landing(image, new_vma);
-> +	current->mm->context.vdso = (void __user *)new_vma->vm_start;
-> +
-> +	return 0;
-> +}
->   
->   static int vvar_fault(const struct vm_special_mapping *sm,
->   		      struct vm_area_struct *vma, struct vm_fault *vmf)
-> @@ -162,6 +196,12 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
->   	struct vm_area_struct *vma;
->   	unsigned long addr, text_start;
->   	int ret = 0;
-> +
-> +	static const struct vm_special_mapping vdso_mapping = {
-> +		.name = "[vdso]",
-> +		.fault = vdso_fault,
-> +		.mremap = vdso_mremap,
-> +	};
->   	static const struct vm_special_mapping vvar_mapping = {
->   		.name = "[vvar]",
->   		.fault = vvar_fault,
-> @@ -195,7 +235,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
->   				       image->size,
->   				       VM_READ|VM_EXEC|
->   				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-> -				       &text_mapping);
-> +				       &vdso_mapping);
->   
->   	if (IS_ERR(vma)) {
->   		ret = PTR_ERR(vma);
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index c2d75b4fa86c..4d16ab9287af 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -586,6 +586,9 @@ struct vm_special_mapping {
->   	int (*fault)(const struct vm_special_mapping *sm,
->   		     struct vm_area_struct *vma,
->   		     struct vm_fault *vmf);
-> +
-> +	int (*mremap)(const struct vm_special_mapping *sm,
-> +		     struct vm_area_struct *new_vma);
->   };
->   
->   enum tlb_flush_reason {
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index bd2e1a533bc1..ba71658dd1a1 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2930,9 +2930,19 @@ static const char *special_mapping_name(struct vm_area_struct *vma)
->   	return ((struct vm_special_mapping *)vma->vm_private_data)->name;
->   }
->   
-> +static int special_mapping_mremap(struct vm_area_struct *new_vma)
-> +{
-> +	struct vm_special_mapping *sm = new_vma->vm_private_data;
-> +
-> +	if (sm->mremap)
-> +		return sm->mremap(sm, new_vma);
-> +	return 0;
-> +}
-> +
->   static const struct vm_operations_struct special_mapping_vmops = {
->   	.close = special_mapping_close,
->   	.fault = special_mapping_fault,
-> +	.mremap = special_mapping_mremap,
->   	.name = special_mapping_name,
->   };
->   
 
-
--- 
-Regards,
-Dmitry Safonov
+we still allocate order-5 pages but now we split them to 32 order-0 pages.
+the split adds extra few cpu cycles but it is lookless and
+straightforward, and it does the job in terms of better memory
+utilization.
+now in scenarios where small packets can hold a ref on pages for too
+long they would hold a ref on order-0 pages rather than order-5.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
