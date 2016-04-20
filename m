@@ -1,66 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E83D6B026E
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 06:53:43 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id wy10so7888805lbb.3
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 03:53:43 -0700 (PDT)
-Received: from fnsib-smtp07.srv.cat (fnsib-smtp07.srv.cat. [46.16.61.67])
-        by mx.google.com with ESMTPS id w2si9372091wma.29.2016.04.20.03.53.41
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Apr 2016 03:53:41 -0700 (PDT)
-Received: from vostok.local (cliente152.wlan.uam.es [150.244.199.152])
-	by fnsib-smtp07.srv.cat (Postfix) with ESMTPA id 3FC34811F
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:53:39 +0200 (CEST)
-Date: Wed, 20 Apr 2016 12:53:33 +0200
-From: =?utf-8?Q?Guillermo_Juli=C3=A1n_Moreno?=
- <guillermo.julian@naudit.es>
-Message-ID: <etPan.57175fb3.7a271c6b.2bd@naudit.es>
-Subject: [PATCH] mm: fix overflow in vm_map_ram
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F7D26B0270
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 06:55:40 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id e185so83917945vkb.2
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 03:55:40 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTP id q66si4129622qgd.93.2016.04.20.03.55.37
+        for <linux-mm@kvack.org>;
+        Wed, 20 Apr 2016 03:55:39 -0700 (PDT)
+Message-ID: <57175F30.6050300@huawei.com>
+Date: Wed, 20 Apr 2016 18:51:28 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+Subject: Re: mce: a question about memory_failure_early_kill in memory_failure()
+References: <571612DE.8020908@huawei.com> <20160420070735.GA10125@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20160420070735.GA10125@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+
+On 2016/4/20 15:07, Naoya Horiguchi wrote:
+
+> On Tue, Apr 19, 2016 at 07:13:34PM +0800, Xishi Qiu wrote:
+>> /proc/sys/vm/memory_failure_early_kill
+>>
+>> 1: means kill all processes that have the corrupted and not reloadable page mapped.
+>> 0: means only unmap the corrupted page from all processes and only kill a process
+>> who tries to access it.
+>>
+>> If set memory_failure_early_kill to 0, and memory_failure() has been called.
+>> memory_failure()
+>> 	hwpoison_user_mappings()
+>> 		collect_procs()  // the task(with no PF_MCE_PROCESS flag) is not in the tokill list
+>> 			try_to_unmap()
+>>
+>> If the task access the memory, there will be a page fault,
+>> so the task can not access the original page again, right?
+> 
+> Yes, right. That's the behavior in default "late kill" case.
+> 
+
+Hi Naoya,
+
+Thanks for your reply, my confusion is that after try_to_unmap(), there will be a
+page fault if the task access the memory, and we will alloc a new page for it.
+
+So how the hardware(mce) know this page fault is relate to the poisioned page which
+is unmapped from the task? 
+
+Will we record something in pte when after try_to_unmap() in memory_failure()?
+
+Thanks,
+Xishi Qiu
+
+> I'm guessing that you might have a more specific problem around this code.
+> If so, please feel free to ask with detail.
+> 
+> Thanks,
+> Naoya Horiguchi
+> 
 
 
-When remapping pages accounting for 4G or more memory space, the
-operation 'count << PAGE=5FSHI=46T' overflows as it is performed on an
-integer. Solution: cast before doing the bitshift.
-
-Signed-off-by: Guillermo Juli=C3=A1n <guillermo.julian=40naudit.es>
----
-mm/vmalloc.c =7C 4 ++--
-1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c =20
-index ae7d20b..97257e4 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-=40=40 -1114,7 +1114,7 =40=40 EXPORT=5FSYMBOL(vm=5Funmap=5Fram);
-*/
-void *vm=5Fmap=5Fram(struct page **pages, unsigned int count, int node, p=
-gprot=5Ft prot)
-=7B
-- unsigned long size =3D count << PAGE=5FSHI=46T;
-+ unsigned long size =3D ((unsigned long) count) << PAGE=5FSHI=46T;
-unsigned long addr;
-void *mem;
-
-=40=40 -1484,7 +1484,7 =40=40 static void =5F=5Fvunmap(const void *addr, =
-int deallocate=5Fpages) =20
-kfree(area);
-return;
-=7D
--
-+
-/**
-* vfree - release memory allocated by vmalloc()
-* =40addr: memory base address
---
-1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
