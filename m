@@ -1,72 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BA736B029F
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 17:35:55 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id xm6so39971788pab.3
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 14:35:55 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id vh16si18574311pab.164.2016.04.20.14.35.54
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 417C282963
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 19:01:42 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e190so114040967pfe.3
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 16:01:42 -0700 (PDT)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id u79si20199140pfa.232.2016.04.20.16.01.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Apr 2016 14:35:54 -0700 (PDT)
-Received: by mail-pa0-x22a.google.com with SMTP id r5so19518817pag.1
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 14:35:54 -0700 (PDT)
-Date: Wed, 20 Apr 2016 14:35:52 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 0/2] memory_hotplug: introduce config and command line
- options to set the default onlining policy
-In-Reply-To: <87zisq2h0o.fsf@vitty.brq.redhat.com>
-Message-ID: <alpine.DEB.2.10.1604201430280.4829@chino.kir.corp.google.com>
-References: <1459950312-25504-1-git-send-email-vkuznets@redhat.com> <20160406115334.82af80e922f8b3eec6336a8b@linux-foundation.org> <alpine.DEB.2.10.1604061512460.10401@chino.kir.corp.google.com> <87y48phkk2.fsf@vitty.brq.redhat.com>
- <alpine.DEB.2.10.1604181437220.10562@chino.kir.corp.google.com> <87zisq2h0o.fsf@vitty.brq.redhat.com>
+        Wed, 20 Apr 2016 16:01:41 -0700 (PDT)
+Received: by mail-pf0-x22b.google.com with SMTP id 184so23019025pff.0
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 16:01:41 -0700 (PDT)
+From: "Shi, Yang" <yang.shi@linaro.org>
+Subject: [BUG] set_pte_at: racy dirty state clearing warning
+Message-ID: <57180A53.3000207@linaro.org>
+Date: Wed, 20 Apr 2016 16:01:39 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, David Vrabel <david.vrabel@citrix.com>, Igor Mammedov <imammedo@redhat.com>, Lennart Poettering <lennart@poettering.net>
+To: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Tue, 19 Apr 2016, Vitaly Kuznetsov wrote:
+Hi Will and Catalin,
 
-> > I'd personally disagree that we need more and more config options to take 
-> > care of something that an initscript can easily do and most distros 
-> > already have their own initscripts that this can be added to.  I don't see 
-> > anything that the config option adds.
-> 
-> Yes, but why does every distro need to solve the exact same issue by 
-> a distro-specific init script when we can allow setting reasonable
-> default in kernel?
-> 
+When I enable memory comact via
 
-No, only distros that want to change the long-standing default which is 
-"offline" since they apparently aren't worried about breaking existing 
-userspace.
+# echo 1 > /proc/sys/vm/compact_memory
 
-Changing defaults is always risky business in the kernel, especially when 
-it's long standing.  If the default behavior is changeable, userspace 
-needs to start testing for that and acting accordingly if it actually 
-wants to default to offline (and there are existing tools that suppose the 
-long-standing default).  The end result is that the kernel default doesn't 
-matter anymore, we've just pushed it to userspace to either online or 
-offline at the time of hotplug.
+I got the below WARNING:
 
-> If the config option itself is a problem (though I don't understand why)
-> we can get rid of it making the default 'online' and keeping the command
-> line parameter to disable it for cases when something goes wrong but why
-> not leave an option for those who want it the other way around?
-> 
+set_pte_at: racy dirty state clearing: 0x0068000099371bd3 -> 
+0x0068000099371fd3
+------------[ cut here ]------------
+WARNING: CPU: 5 PID: 294 at ./arch/arm64/include/asm/pgtable.h:227 
+ptep_set_access_flags+0x138/0x1b8
+Modules linked in:
 
-That could break existing userspace that assumes the default is offline; 
-if users are currently hotadding memory and then onlining it when needed 
-rather than immediately, they break.  So that's not a possibility.
+CPU: 5 PID: 294 Comm: systemd-journal Not tainted 
+4.6.0-rc3-next-20160414 #13
+Hardware name: Freescale Layerscape 2085a RDB Board (DT)
+task: ffff80001e4f8080 ti: ffff80001e8b4000 task.ti: ffff80001e8b4000
+PC is at ptep_set_access_flags+0x138/0x1b8
+LR is at ptep_set_access_flags+0x138/0x1b8
+pc : [<ffff200008497b70>] lr : [<ffff200008497b70>] pstate: 20000145
+sp : ffff80001e8b7bc0
+x29: ffff80001e8b7bc0 x28: ffff80001e843ac8
+x27: 0000000000000040 x26: ffff80001e9ae0d8
+x25: ffff200009901000 x24: ffff80001f32a938
+x23: 0000000000000001 x22: ffff80001e9ae088
+x21: 0000ffff7eb59000 x20: ffff80001e843ac8
+x19: 0068000099371fd3 x18: fffffffffffffe09
+x17: 0000ffff7ea48c88 x16: 0000aaaacb5afb20
+x15: 003b9aca00000000 x14: 307830203e2d2033
+x13: 6462313733393930 x12: 3030303836303078
+x11: 30203a676e697261 x10: 656c632065746174
+x9 : 7320797472696420 x8 : 79636172203a7461
+x7 : 5f6574705f746573 x6 : ffff200008300ab8
+x5 : 0000000000000003 x4 : 0000000000000000
+x3 : 0000000000000003 x2 : ffff100003d16f64
+x1 : dfff200000000000 x0 : 000000000000004f
 
-> Other than the above, let's imagine a 'unikernel' scenario when there
-> are no initscripts and we're in a virtualized environment. We may want to
-> have memory hotplug there too, but where would we put the 'onlining'
-> logic? In every userspace we want to run? This doesn't sound right.
-> 
+---[ end trace d75cd9bb88364c80 ]---
+Call trace:
+Exception stack(0xffff80001e8b79a0 to 0xffff80001e8b7ac0)
+79a0: 0068000099371fd3 ffff80001e843ac8 ffff80001e8b7bc0 ffff200008497b70
+79c0: 0000000020000145 000000000000003d ffff200009901000 ffff200008301558
+79e0: 0000000041b58ab3 ffff2000096870d0 ffff200008200668 ffff2000092b0e40
+7a00: 0000000000000001 ffff80001f32a938 ffff200009901000 ffff80001e9ae0d8
+7a20: 0000000000000040 ffff80001e843ac8 ffff200009901000 ffff80001e9ae0d8
+7a40: ffff20000a9dcf60 0000000000000000 000000000a6d9320 ffff200000000000
+7a60: ffff80001e8b7bc0 ffff80001e8b7bc0 ffff80001e8b7b80 00000000ffffffc8
+7a80: ffff80001e8b7ad0 ffff200008415418 ffff80001e8b4000 1ffff00003d16f64
+7aa0: 000000000000004f dfff200000000000 ffff100003d16f64 0000000000000003
+[<ffff200008497b70>] ptep_set_access_flags+0x138/0x1b8
+[<ffff20000847f564>] handle_mm_fault+0xa24/0xfa0
+[<ffff20000821e7dc>] do_page_fault+0x3d4/0x4c0
+[<ffff20000820045c>] do_mem_abort+0xac/0x140
 
-Nobody is resisting hotplug notifiers.
+
+My kernel has ARM64_HW_AFDBM enabled, but LS2085 is not ARMv8.1.
+
+The code shows it just check if ARM64_HW_AFDBM is enabled or not, but 
+doesn't check if the CPU really has such capability.
+
+So, it might be better to have the capability checked runtime?
+
+Thanks,
+Yang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
