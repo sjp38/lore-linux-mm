@@ -1,82 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 536A96B0261
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 04:10:31 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u190so74244870pfb.0
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 01:10:31 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id u184si4209166pfu.78.2016.04.20.01.10.29
-        for <linux-mm@kvack.org>;
-        Wed, 20 Apr 2016 01:10:30 -0700 (PDT)
-Date: Wed, 20 Apr 2016 17:13:45 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: linux-next crash during very early boot
-Message-ID: <20160420081345.GC7071@js1304-P5Q-DELUXE>
-References: <3689.1460593786@turing-police.cc.vt.edu>
- <20160414013546.GA9198@js1304-P5Q-DELUXE>
- <58269.1460729433@turing-police.cc.vt.edu>
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 43E696B0266
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 04:31:46 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id v81so81166662ywa.1
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 01:31:46 -0700 (PDT)
+Received: from mail-qg0-x22b.google.com (mail-qg0-x22b.google.com. [2607:f8b0:400d:c04::22b])
+        by mx.google.com with ESMTPS id o66si54662863qgd.91.2016.04.20.01.31.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Apr 2016 01:31:45 -0700 (PDT)
+Received: by mail-qg0-x22b.google.com with SMTP id f74so21470594qge.2
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 01:31:45 -0700 (PDT)
+Date: Wed, 20 Apr 2016 01:31:42 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCHv7 00/29] THP-enabled tmpfs/shmem using compound pages
+In-Reply-To: <571565F0.9070203@linaro.org>
+Message-ID: <alpine.LSU.2.11.1604200114440.3009@eggly.anvils>
+References: <1460766240-84565-1-git-send-email-kirill.shutemov@linux.intel.com> <571565F0.9070203@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <58269.1460729433@turing-police.cc.vt.edu>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Valdis.Kletnieks@vt.edu
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Shi, Yang" <yang.shi@linaro.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-On Fri, Apr 15, 2016 at 10:10:33AM -0400, Valdis.Kletnieks@vt.edu wrote:
-> On Thu, 14 Apr 2016 10:35:47 +0900, Joonsoo Kim said:
-> > On Wed, Apr 13, 2016 at 08:29:46PM -0400, Valdis Kletnieks wrote:
-> > > I'm seeing my laptop crash/wedge up/something during very early
-> > > boot - before it can write anything to the console.  Nothing in pstore,
-> > > need to hold down the power button for 6 seconds and reboot.
-> > >
-> > > git bisect points at:
-> > >
-> > > commit 7a6bacb133752beacb76775797fd550417e9d3a2
-> > > Author: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > > Date:   Thu Apr 7 13:59:39 2016 +1000
-> > >
-> > >     mm/slab: factor out kmem_cache_node initialization code
-> > >
-> > >     It can be reused on other place, so factor out it.  Following patch wil
-> l
-> > >     use it.
-> > >
-> > >
-> > > Not sure what the problem is - the logic *looks* ok at first read.  The
-> > > patch *does* remove a spin_lock_irq() - but I find it difficult to
-> > > believe that with it gone, my laptop is able to hit the race condition
-> > > the spinlock protects against *every single boot*.
-> > >
-> > > The only other thing I see is that n->free_limit used to be assigned
-> > > every time, and now it's only assigned at initial creation.
-> >
-> > Hello,
-> >
-> > My fault. It should be assgined every time. Please test below patch.
-> > I will send it with proper SOB after you confirm the problem disappear.
-> > Thanks for report and analysis!
+On Mon, 18 Apr 2016, Shi, Yang wrote:
+
+> Hi Kirill,
 > 
-> Following up - I verified that it was your patch series and not a bad bisect
-> by starting with a clean next-20160413 and reverting that series - and the
-> resulting kernel boots fine.
+> Finally, I got some time to look into and try yours and Hugh's patches, got
+
+Thank you.
+
+> two problems.
 > 
-> Will take a closer look at your fix patch and figure out what's still changed
-> afterwards - there's obviously some small semantic change that actually
-> matters, but we're not spotting it yet...
+> 1. A quick boot up test on my ARM64 machine with your v7 tree shows some
+> unexpected error:
+> 
+> systemd-journald[285]: Failed to save stream data
+> /run/systemd/journal/streams/8:16863: No space left on device
+> systemd-journald[285]: Failed to save stream data
+> /run/systemd/journal/streams/8:16865: No space left on device
+>          Starting DNS forwarder and DHCP server.systemd-journald[285]: Failed
+> to save stream data /run/systemd/journal/streams/8:16867: No space left on
+> device
+> ..
+> systemd-journald[285]: Failed to save stream data
+> /run/systemd/journal/streams/8:16869: No space left on device
+>          Starting Postfix Mail Transport Agent...
+> systemd-journald[285]: Failed to save stream data
+> /run/systemd/journal/streams/8:16871: No space left on device
+>          Starting Berkeley Internet Name Domain (DNS)...
+>          Starting Wait for Network to be Configured...
+> systemd-journald[285]: Failed to save stream data
+> /run/systemd/journal/streams/8:2422: No space left on device
+> [  OK  ] Started /etc/rc.local Compatibility.
+> [FAILED] Failed to start DNS forwarder and DHCP server.
+> See 'systemctl status dnsmasq.service' for details.
+> systemd-journald[285]: Failed to save stream data
+> /run/systemd/journal/streams/8:2425: No space left on device
+> [  OK  ] Started Serial Getty on ttyS1.
+> [  OK  ] Started Serial Getty on ttyS0.
+> [  OK  ] Started Getty on tty1.
+> systemd-journald[285]: Failed to save stream data
+> /run/systemd/journal/streams/8:2433: No space left on device
+> [FAILED] Failed to start Berkeley Internet Name Domain (DNS).
+> See 'systemctl status named.service' for details.
 
-Hello,
+Expected behaviour: that is a significant limitation of Kirill's current
+implementation.  We have agreed at LSF/MM that he will fix that before
+his patchset goes further.  (And different changes needed in my patchset.)
 
-Do you try to test the patch in following link on top of my fix for "mm/slab:
-factor out kmem_cache_node initialization code"?
+> 
+> 
+> The /run dir is mounted as tmpfs.
+> 
+> x86 boot doesn't get such error. And, Hugh's patches don't have such problem.
+> 
+> 2. I ran my THP test (generated a program with 4MB text section) on both
+> x86-64 and ARM64 with yours and Hugh's patches (linux-next tree), I got the
+> program execution time reduced by ~12% on x86-64, it looks very impressive.
 
-https://lkml.org/lkml/2016/4/10/703
+12% sounds about right for x86.  Some loads have been seen to benefit 17%.
 
-I mentioned it in another thread but you didn't reply it so I'm
-curious.
+> 
+> But, on ARM64, there is just ~3% change, and sometimes huge tmpfs may show
+> even worse data than non-hugepage.
+> 
+> Both yours and Hugh's patches has the same behavior.
+> 
+> Any idea?
 
-Thanks.
+... and in a later posting..,
+
+> 
+> It would be better if Kirill and Hugh could share what benchmark they ran and
+> how much they got improved since my test case is very simple and may just
+> cover a small part of it.
+
+Sorry, I've not run any benchmark myself (prefer to let others get more
+objective results), nor run on arm64.  I have no idea what to expect on
+arm64 - you need to ask the arm64 guys what hugepage advantage they see
+with anon THP or hugetlbfs (and probably need to tell them what machine
+you're running on): then expect a similar advantage from either Kirill's
+or my huge tmpfs patchset.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
