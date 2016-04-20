@@ -1,85 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 046FD6B0272
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 07:05:36 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id dx6so59523147pad.0
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 04:05:35 -0700 (PDT)
-Received: from szxga01-in.huawei.com ([58.251.152.64])
-        by mx.google.com with ESMTPS id zm6si1615622pab.108.2016.04.20.04.05.32
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EF2F36B0274
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 08:38:16 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w143so34038315wmw.2
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 05:38:16 -0700 (PDT)
+Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
+        by mx.google.com with ESMTPS id qa9si5825564wjc.112.2016.04.20.05.38.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Apr 2016 04:05:35 -0700 (PDT)
-Message-ID: <571760F3.2040305@huawei.com>
-Date: Wed, 20 Apr 2016 18:58:59 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Apr 2016 05:38:15 -0700 (PDT)
+Received: by mail-wm0-x22d.google.com with SMTP id e201so48954416wme.0
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 05:38:14 -0700 (PDT)
+Date: Wed, 20 Apr 2016 14:38:11 +0200
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [Intel-gfx] [PATCH v4 1/2] shmem: Support for registration of
+ driver/file owner specific ops
+Message-ID: <20160420123811.GT2510@phenom.ffwll.local>
+References: <1459775891-32442-1-git-send-email-chris@chris-wilson.co.uk>
+ <20160415160924.GQ19990@nuc-i3427.alporthouse.com>
 MIME-Version: 1.0
-Subject: Re: mce: a question about memory_failure_early_kill in memory_failure()
-References: <571612DE.8020908@huawei.com> <20160420070735.GA10125@hori1.linux.bs1.fc.nec.co.jp> <57175F30.6050300@huawei.com>
-In-Reply-To: <57175F30.6050300@huawei.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160415160924.GQ19990@nuc-i3427.alporthouse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Chris Wilson <chris@chris-wilson.co.uk>, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Akash Goel <akash.goel@intel.com>, linux-kernel@vger.linux.org, Hugh Dickins <hughd@google.com>, Sourab Gupta <sourab.gupta@intel.com>
 
-On 2016/4/20 18:51, Xishi Qiu wrote:
+On Fri, Apr 15, 2016 at 05:09:24PM +0100, Chris Wilson wrote:
+> On Mon, Apr 04, 2016 at 02:18:10PM +0100, Chris Wilson wrote:
+> > From: Akash Goel <akash.goel@intel.com>
+> > 
+> > This provides support for the drivers or shmem file owners to register
+> > a set of callbacks, which can be invoked from the address space
+> > operations methods implemented by shmem.  This allow the file owners to
+> > hook into the shmem address space operations to do some extra/custom
+> > operations in addition to the default ones.
+> > 
+> > The private_data field of address_space struct is used to store the
+> > pointer to driver specific ops.  Currently only one ops field is defined,
+> > which is migratepage, but can be extended on an as-needed basis.
+> > 
+> > The need for driver specific operations arises since some of the
+> > operations (like migratepage) may not be handled completely within shmem,
+> > so as to be effective, and would need some driver specific handling also.
+> > Specifically, i915.ko would like to participate in migratepage().
+> > i915.ko uses shmemfs to provide swappable backing storage for its user
+> > objects, but when those objects are in use by the GPU it must pin the
+> > entire object until the GPU is idle.  As a result, large chunks of memory
+> > can be arbitrarily withdrawn from page migration, resulting in premature
+> > out-of-memory due to fragmentation.  However, if i915.ko can receive the
+> > migratepage() request, it can then flush the object from the GPU, remove
+> > its pin and thus enable the migration.
+> > 
+> > Since gfx allocations are one of the major consumer of system memory, its
+> > imperative to have such a mechanism to effectively deal with
+> > fragmentation.  And therefore the need for such a provision for initiating
+> > driver specific actions during address space operations.
+> > 
+> > Cc: Hugh Dickins <hughd@google.com>
+> > Cc: linux-mm@kvack.org
+> > Cc: linux-kernel@vger.linux.org
+> > Signed-off-by: Sourab Gupta <sourab.gupta@intel.com>
+> > Signed-off-by: Akash Goel <akash.goel@intel.com>
+> > Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+> 
+> Ping?
 
-> On 2016/4/20 15:07, Naoya Horiguchi wrote:
-> 
->> On Tue, Apr 19, 2016 at 07:13:34PM +0800, Xishi Qiu wrote:
->>> /proc/sys/vm/memory_failure_early_kill
->>>
->>> 1: means kill all processes that have the corrupted and not reloadable page mapped.
->>> 0: means only unmap the corrupted page from all processes and only kill a process
->>> who tries to access it.
->>>
->>> If set memory_failure_early_kill to 0, and memory_failure() has been called.
->>> memory_failure()
->>> 	hwpoison_user_mappings()
->>> 		collect_procs()  // the task(with no PF_MCE_PROCESS flag) is not in the tokill list
->>> 			try_to_unmap()
->>>
->>> If the task access the memory, there will be a page fault,
->>> so the task can not access the original page again, right?
->>
->> Yes, right. That's the behavior in default "late kill" case.
->>
-> 
-> Hi Naoya,
-> 
-> Thanks for your reply, my confusion is that after try_to_unmap(), there will be a
-> page fault if the task access the memory, and we will alloc a new page for it.
-> 
+This addresses a long-standing issue we have in i915 gem of essentially
+pinning way to much memory as unmoveable. Would be nice to get this
+merged. It also does seem to fix some real-world issues we're seeing
+(linked from the i915 patch).
 
-Hi Naoya,
+Can I have acks/reviews from -mm folks to get this in through drm trees
+please?
 
-If we alloc a new page, the task won't access the poisioned page again, so it won't be
-killed by mce(late kill), right?
-If the poisioned page is anon, we will lost data, right?
+Thanks, Daniel
 
-Thanks,
-Xishi Qiu
-
-> So how the hardware(mce) know this page fault is relate to the poisioned page which
-> is unmapped from the task? 
 > 
-> Will we record something in pte when after try_to_unmap() in memory_failure()?
+> > ---
+> >  include/linux/shmem_fs.h | 17 +++++++++++++++++
+> >  mm/shmem.c               | 17 ++++++++++++++++-
+> >  2 files changed, 33 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+> > index 4d4780c00d34..d7925b66c240 100644
+> > --- a/include/linux/shmem_fs.h
+> > +++ b/include/linux/shmem_fs.h
+> > @@ -34,11 +34,28 @@ struct shmem_sb_info {
+> >  	struct mempolicy *mpol;     /* default memory policy for mappings */
+> >  };
+> >  
+> > +struct shmem_dev_info {
+> > +	void *dev_private_data;
+> > +	int (*dev_migratepage)(struct address_space *mapping,
+> > +			       struct page *newpage, struct page *page,
+> > +			       enum migrate_mode mode, void *dev_priv_data);
+> > +};
+> > +
+> >  static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
+> >  {
+> >  	return container_of(inode, struct shmem_inode_info, vfs_inode);
+> >  }
+> >  
+> > +static inline int shmem_set_device_ops(struct address_space *mapping,
+> > +				       struct shmem_dev_info *info)
+> > +{
+> > +	if (mapping->private_data != NULL)
+> > +		return -EEXIST;
+> > +
+> > +	mapping->private_data = info;
+> > +	return 0;
+> > +}
+> > +
+> >  /*
+> >   * Functions in mm/shmem.c called directly from elsewhere:
+> >   */
+> > diff --git a/mm/shmem.c b/mm/shmem.c
+> > index 9428c51ab2d6..6ed953193883 100644
+> > --- a/mm/shmem.c
+> > +++ b/mm/shmem.c
+> > @@ -947,6 +947,21 @@ redirty:
+> >  	return 0;
+> >  }
+> >  
+> > +#ifdef CONFIG_MIGRATION
+> > +static int shmem_migratepage(struct address_space *mapping,
+> > +			     struct page *newpage, struct page *page,
+> > +			     enum migrate_mode mode)
+> > +{
+> > +	struct shmem_dev_info *dev_info = mapping->private_data;
+> > +
+> > +	if (dev_info && dev_info->dev_migratepage)
+> > +		return dev_info->dev_migratepage(mapping, newpage, page,
+> > +				mode, dev_info->dev_private_data);
+> > +
+> > +	return migrate_page(mapping, newpage, page, mode);
+> > +}
+> > +#endif
+> > +
+> >  #ifdef CONFIG_NUMA
+> >  #ifdef CONFIG_TMPFS
+> >  static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+> > @@ -3161,7 +3176,7 @@ static const struct address_space_operations shmem_aops = {
+> >  	.write_end	= shmem_write_end,
+> >  #endif
+> >  #ifdef CONFIG_MIGRATION
+> > -	.migratepage	= migrate_page,
+> > +	.migratepage	= shmem_migratepage,
+> >  #endif
+> >  	.error_remove_page = generic_error_remove_page,
+> >  };
 > 
-> Thanks,
-> Xishi Qiu
+> -- 
+> Chris Wilson, Intel Open Source Technology Centre
 > 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
->> I'm guessing that you might have a more specific problem around this code.
->> If so, please feel free to ask with detail.
->>
->> Thanks,
->> Naoya Horiguchi
->>
-> 
-> 
-
-
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
