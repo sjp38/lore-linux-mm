@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 564F1828E8
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 15:47:51 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id t124so105987803pfb.1
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:51 -0700 (PDT)
-Received: from mail-pf0-f171.google.com (mail-pf0-f171.google.com. [209.85.192.171])
-        by mx.google.com with ESMTPS id 65si19416309pfk.202.2016.04.20.12.47.50
+	by kanga.kvack.org (Postfix) with ESMTP id 59858828E8
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 15:47:53 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id t124so105989035pfb.1
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:53 -0700 (PDT)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com. [209.85.220.49])
+        by mx.google.com with ESMTPS id xs13si2852105pac.140.2016.04.20.12.47.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Apr 2016 12:47:50 -0700 (PDT)
-Received: by mail-pf0-f171.google.com with SMTP id e128so21294390pfe.3
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:50 -0700 (PDT)
+        Wed, 20 Apr 2016 12:47:52 -0700 (PDT)
+Received: by mail-pa0-f49.google.com with SMTP id zm5so20827648pac.0
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:52 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 06/14] mm, compaction: Update compaction_result ordering
-Date: Wed, 20 Apr 2016 15:47:19 -0400
-Message-Id: <1461181647-8039-7-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 07/14] mm, compaction: Simplify __alloc_pages_direct_compact feedback interface
+Date: Wed, 20 Apr 2016 15:47:20 -0400
+Message-Id: <1461181647-8039-8-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
 References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,82 +24,160 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpx
 
 From: Michal Hocko <mhocko@suse.com>
 
-compaction_result will be used as the primary feedback channel for
-compaction users. At the same time try_to_compact_pages (and potentially
-others) assume a certain ordering where a more specific feedback takes
-precendence. This gets a bit awkward when we have conflicting feedback
-from different zones. E.g one returing COMPACT_COMPLETE meaning the full
-zone has been scanned without any outcome while other returns with
-COMPACT_PARTIAL aka made some progress. The caller should get
-COMPACT_PARTIAL because that means that the compaction still can make
-some progress. The same applies for COMPACT_PARTIAL vs.
-COMPACT_PARTIAL_SKIPPED. Reorder PARTIAL to be the largest one so the
-larger the value is the more progress we have done.
+__alloc_pages_direct_compact communicates potential back off by two
+variables:
+	- deferred_compaction tells that the compaction returned
+	  COMPACT_DEFERRED
+	- contended_compaction is set when there is a contention on
+	  zone->lock resp. zone->lru_lock locks
+
+__alloc_pages_slowpath then backs of for THP allocation requests to
+prevent from long stalls. This is rather messy and it would be much
+cleaner to return a single compact result value and hide all the nasty
+details into __alloc_pages_direct_compact.
+
+This patch shouldn't introduce any functional changes.
 
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/compaction.h | 26 ++++++++++++++++----------
- 1 file changed, 16 insertions(+), 10 deletions(-)
+ mm/page_alloc.c | 67 ++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 31 insertions(+), 36 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 7c4de92d12cc..a7b9091ff349 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -4,6 +4,8 @@
- /* Return values for compact_zone() and try_to_compact_pages() */
- /* When adding new states, please adjust include/trace/events/compaction.h */
- enum compact_result {
-+	/* For more detailed tracepoint output - internal to compaction */
-+	COMPACT_NOT_SUITABLE_ZONE,
- 	/*
- 	 * compaction didn't start as it was not possible or direct reclaim
- 	 * was more suitable
-@@ -11,30 +13,34 @@ enum compact_result {
- 	COMPACT_SKIPPED,
- 	/* compaction didn't start as it was deferred due to past failures */
- 	COMPACT_DEFERRED,
-+
- 	/* compaction not active last round */
- 	COMPACT_INACTIVE = COMPACT_DEFERRED,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 06af8a757d52..350d13f3709b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2944,29 +2944,21 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ static struct page *
+ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 		int alloc_flags, const struct alloc_context *ac,
+-		enum migrate_mode mode, int *contended_compaction,
+-		bool *deferred_compaction)
++		enum migrate_mode mode, enum compact_result *compact_result)
+ {
+-	enum compact_result compact_result;
+ 	struct page *page;
++	int contended_compaction;
  
-+	/* For more detailed tracepoint output - internal to compaction */
-+	COMPACT_NO_SUITABLE_PAGE,
- 	/* compaction should continue to another pageblock */
- 	COMPACT_CONTINUE,
-+
- 	/*
--	 * direct compaction partially compacted a zone and there are suitable
--	 * pages
-+	 * The full zone was compacted scanned but wasn't successfull to compact
-+	 * suitable pages.
- 	 */
--	COMPACT_PARTIAL,
-+	COMPACT_COMPLETE,
- 	/*
- 	 * direct compaction has scanned part of the zone but wasn't successfull
- 	 * to compact suitable pages.
- 	 */
- 	COMPACT_PARTIAL_SKIPPED,
-+
-+	/* compaction terminated prematurely due to lock contentions */
-+	COMPACT_CONTENDED,
-+
- 	/*
--	 * The full zone was compacted scanned but wasn't successfull to compact
--	 * suitable pages.
-+	 * direct compaction partially compacted a zone and there might be
-+	 * suitable pages
- 	 */
--	COMPACT_COMPLETE,
--	/* For more detailed tracepoint output */
--	COMPACT_NO_SUITABLE_PAGE,
--	COMPACT_NOT_SUITABLE_ZONE,
--	COMPACT_CONTENDED,
-+	COMPACT_PARTIAL,
- };
+ 	if (!order)
+ 		return NULL;
  
- /* Used to signal whether compaction detected need_sched() or lock contention */
+ 	current->flags |= PF_MEMALLOC;
+-	compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
+-						mode, contended_compaction);
++	*compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
++						mode, &contended_compaction);
+ 	current->flags &= ~PF_MEMALLOC;
+ 
+-	switch (compact_result) {
+-	case COMPACT_DEFERRED:
+-		*deferred_compaction = true;
+-		/* fall-through */
+-	case COMPACT_SKIPPED:
++	if (*compact_result <= COMPACT_INACTIVE)
+ 		return NULL;
+-	default:
+-		break;
+-	}
+ 
+ 	/*
+ 	 * At least in one zone compaction wasn't deferred or skipped, so let's
+@@ -2992,6 +2984,24 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	count_vm_event(COMPACTFAIL);
+ 
++	/*
++	 * In all zones where compaction was attempted (and not
++	 * deferred or skipped), lock contention has been detected.
++	 * For THP allocation we do not want to disrupt the others
++	 * so we fallback to base pages instead.
++	 */
++	if (contended_compaction == COMPACT_CONTENDED_LOCK)
++		*compact_result = COMPACT_CONTENDED;
++
++	/*
++	 * If compaction was aborted due to need_resched(), we do not
++	 * want to further increase allocation latency, unless it is
++	 * khugepaged trying to collapse.
++	 */
++	if (contended_compaction == COMPACT_CONTENDED_SCHED
++		&& !(current->flags & PF_KTHREAD))
++		*compact_result = COMPACT_CONTENDED;
++
+ 	cond_resched();
+ 
+ 	return NULL;
+@@ -3000,8 +3010,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ static inline struct page *
+ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 		int alloc_flags, const struct alloc_context *ac,
+-		enum migrate_mode mode, int *contended_compaction,
+-		bool *deferred_compaction)
++		enum migrate_mode mode, enum compact_result *compact_result)
+ {
+ 	return NULL;
+ }
+@@ -3146,8 +3155,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	unsigned long pages_reclaimed = 0;
+ 	unsigned long did_some_progress;
+ 	enum migrate_mode migration_mode = MIGRATE_ASYNC;
+-	bool deferred_compaction = false;
+-	int contended_compaction = COMPACT_CONTENDED_NONE;
++	enum compact_result compact_result;
+ 
+ 	/*
+ 	 * In the slowpath, we sanity check order to avoid ever trying to
+@@ -3245,8 +3253,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags, ac,
+ 					migration_mode,
+-					&contended_compaction,
+-					&deferred_compaction);
++					&compact_result);
+ 	if (page)
+ 		goto got_pg;
+ 
+@@ -3259,25 +3266,14 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		 * to heavily disrupt the system, so we fail the allocation
+ 		 * instead of entering direct reclaim.
+ 		 */
+-		if (deferred_compaction)
+-			goto nopage;
+-
+-		/*
+-		 * In all zones where compaction was attempted (and not
+-		 * deferred or skipped), lock contention has been detected.
+-		 * For THP allocation we do not want to disrupt the others
+-		 * so we fallback to base pages instead.
+-		 */
+-		if (contended_compaction == COMPACT_CONTENDED_LOCK)
++		if (compact_result == COMPACT_DEFERRED)
+ 			goto nopage;
+ 
+ 		/*
+-		 * If compaction was aborted due to need_resched(), we do not
+-		 * want to further increase allocation latency, unless it is
+-		 * khugepaged trying to collapse.
++		 * Compaction is contended so rather back off than cause
++		 * excessive stalls.
+ 		 */
+-		if (contended_compaction == COMPACT_CONTENDED_SCHED
+-			&& !(current->flags & PF_KTHREAD))
++		if(compact_result == COMPACT_CONTENDED)
+ 			goto nopage;
+ 	}
+ 
+@@ -3325,8 +3321,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags,
+ 					    ac, migration_mode,
+-					    &contended_compaction,
+-					    &deferred_compaction);
++					    &compact_result);
+ 	if (page)
+ 		goto got_pg;
+ nopage:
 -- 
 2.8.0.rc3
 
