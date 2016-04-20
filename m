@@ -1,58 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 249266B007E
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 03:08:14 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id zy2so52711378pac.1
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 00:08:14 -0700 (PDT)
-Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id h124si12678506pfb.179.2016.04.20.00.08.10
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Apr 2016 00:08:10 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: mce: a question about memory_failure_early_kill in
- memory_failure()
-Date: Wed, 20 Apr 2016 07:07:35 +0000
-Message-ID: <20160420070735.GA10125@hori1.linux.bs1.fc.nec.co.jp>
-References: <571612DE.8020908@huawei.com>
-In-Reply-To: <571612DE.8020908@huawei.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <6DA2EE554D16DD44933968A549DFD0EF@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 674B06B025E
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 03:42:33 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e190so72914047pfe.3
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 00:42:33 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id l27si18826291pfj.18.2016.04.20.00.42.30
+        for <linux-mm@kvack.org>;
+        Wed, 20 Apr 2016 00:42:30 -0700 (PDT)
+Subject: Re: [BUG linux-next] Kernel panic found with linux-next-20160414
+References: <5716C29F.1090205@linaro.org>
+From: Vladimir Murzin <vladimir.murzin@arm.com>
+Message-ID: <571732CB.8010206@arm.com>
+Date: Wed, 20 Apr 2016 08:42:03 +0100
 MIME-Version: 1.0
+In-Reply-To: <5716C29F.1090205@linaro.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Shi, Yang" <yang.shi@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, sfr@canb.auug.org.au, Hugh Dickins <hughd@google.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Tue, Apr 19, 2016 at 07:13:34PM +0800, Xishi Qiu wrote:
-> /proc/sys/vm/memory_failure_early_kill
->=20
-> 1: means kill all processes that have the corrupted and not reloadable pa=
-ge mapped.
-> 0: means only unmap the corrupted page from all processes and only kill a=
- process
-> who tries to access it.
->=20
-> If set memory_failure_early_kill to 0, and memory_failure() has been call=
-ed.
-> memory_failure()
-> 	hwpoison_user_mappings()
-> 		collect_procs()  // the task(with no PF_MCE_PROCESS flag) is not in the=
- tokill list
-> 			try_to_unmap()
->=20
-> If the task access the memory, there will be a page fault,
-> so the task can not access the original page again, right?
+CC LAKML in case somebody hit the same panic there.
 
-Yes, right. That's the behavior in default "late kill" case.
+Vladimir
 
-I'm guessing that you might have a more specific problem around this code.
-If so, please feel free to ask with detail.
-
-Thanks,
-Naoya Horiguchi=
+On 20/04/16 00:43, Shi, Yang wrote:
+> Hi folks,
+> 
+> When I ran ltp on linux-next-20160414 on my ARM64 machine, I got the
+> below kernel panic:
+> 
+> Unable to handle kernel paging request at virtual address ffffffc007846000
+> pgd = ffffffc01e21d000
+> [ffffffc007846000] *pgd=0000000000000000, *pud=0000000000000000
+> Internal error: Oops: 96000047 [#11] PREEMPT SMP
+> Modules linked in: loop
+> CPU: 7 PID: 274 Comm: systemd-journal Tainted: G      D
+> 4.6.0-rc3-next-20160414-WR8.0.0.0_standard+ #9
+> Hardware name: Freescale Layerscape 2085a RDB Board (DT)
+> task: ffffffc01e3fcf80 ti: ffffffc01ea8c000 task.ti: ffffffc01ea8c000
+> PC is at copy_page+0x38/0x120
+> LR is at migrate_page_copy+0x604/0x1660
+> pc : [<ffffff9008ff2318>] lr : [<ffffff900867cdac>] pstate: 20000145
+> sp : ffffffc01ea8ecd0
+> x29: ffffffc01ea8ecd0 x28: 0000000000000000
+> x27: 1ffffff7b80240f8 x26: ffffffc018196f20
+> x25: ffffffbdc01e1180 x24: ffffffbdc01e1180
+> x23: 0000000000000000 x22: ffffffc01e3fcf80
+> x21: ffffffc00481f000 x20: ffffff900a31d000
+> x19: ffffffbdc01207c0 x18: 0000000000000f00
+> x17: 0000000000000000 x16: 0000000000000000
+> x15: 0000000000000000 x14: 0000000000000000
+> x13: 0000000000000000 x12: 0000000000000000
+> x11: 0000000000000000 x10: 0000000000000000
+> x9 : 0000000000000000 x8 : 0000000000000000
+> x7 : 0000000000000000 x6 : 0000000000000000
+> x5 : 0000000000000000 x4 : 0000000000000000
+> x3 : 0000000000000000 x2 : 0000000000000000
+> x1 : ffffffc00481f080 x0 : ffffffc007846000
+> 
+> Call trace:
+> Exception stack(0xffffffc021fc2ed0 to 0xffffffc021fc2ff0)
+> 2ec0:                                   ffffffbdc00887c0 ffffff900a31d000
+> 2ee0: ffffffc021fc30f0 ffffff9008ff2318 0000000020000145 0000000000000025
+> 2f00: ffffffbdc025a280 ffffffc020adc4c0 0000000041b58ab3 ffffff900a085fd0
+> 2f20: ffffff9008200658 0000000000000000 0000000000000000 ffffffbdc00887c0
+> 2f40: ffffff900b0f1320 ffffffc021fc3078 0000000041b58ab3 ffffff900a0864f8
+> 2f60: ffffff9008210010 ffffffc021fb8960 ffffff900867bacc 1ffffff8043f712d
+> 2f80: ffffffc021fc2fb0 ffffff9008210564 ffffffc021fc3070 ffffffc021fb8940
+> 2fa0: 0000000008221f78 ffffff900862f9c8 ffffffc021fc2fe0 ffffff9008215dc8
+> 2fc0: 1ffffff8043f8602 ffffffc021fc0000 ffffffc00968a000 ffffffc00221f080
+> 2fe0: f9407e11d00001f0 d61f02209103e210
+> [<ffffff9008ff2318>] copy_page+0x38/0x120
+> [<ffffff900867de7c>] migrate_page+0x74/0x98
+> [<ffffff90089ba418>] nfs_migrate_page+0x58/0x80
+> [<ffffff900867dffc>] move_to_new_page+0x15c/0x4d8
+> [<ffffff900867eec8>] migrate_pages+0x7c8/0x11f0
+> [<ffffff90085f8724>] compact_zone+0xdfc/0x2570
+> [<ffffff90085f9f78>] compact_zone_order+0xe0/0x170
+> [<ffffff90085fb688>] try_to_compact_pages+0x2e8/0x8f8
+> [<ffffff90085913a0>] __alloc_pages_direct_compact+0x100/0x540
+> [<ffffff9008592420>] __alloc_pages_nodemask+0xc40/0x1c58
+> [<ffffff90086887e8>] khugepaged+0x468/0x19c8
+> [<ffffff9008301700>] kthread+0x248/0x2c0
+> [<ffffff9008206610>] ret_from_fork+0x10/0x40
+> Code: d281f012 91020021 f1020252 d503201f (a8000c02)
+> 
+> 
+> I did some initial investigation and found it is caused by
+> DEBUG_PAGEALLOC and CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT. And, mainline
+> 4.6-rc3 works well.
+> 
+> It should be not arch specific although I got it caught on ARM64. I
+> suspect this might be caused by Hugh's huge tmpfs patches.
+> 
+> Thanks,
+> Yang
+> 
+> -- 
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
