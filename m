@@ -1,39 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D5FA16B026B
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 14:05:48 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id o131so120860403ywc.2
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 11:05:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v39si738868qge.105.2016.04.20.11.05.47
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CDF02828DF
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 14:50:50 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id u190so102984739pfb.0
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 11:50:50 -0700 (PDT)
+Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
+        by mx.google.com with ESMTPS id y2si19795785pal.92.2016.04.20.11.50.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Apr 2016 11:05:48 -0700 (PDT)
-Message-ID: <1461175544.3200.20.camel@redhat.com>
-Subject: Re: [PATCH 4.6] mm: wake kcompactd before kswapd's short sleep
-From: Rik van Riel <riel@redhat.com>
-Date: Wed, 20 Apr 2016 14:05:44 -0400
-In-Reply-To: <1461098191-29304-1-git-send-email-vbabka@suse.cz>
-References: <1461098191-29304-1-git-send-email-vbabka@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Wed, 20 Apr 2016 11:50:49 -0700 (PDT)
+Received: by mail-pf0-x229.google.com with SMTP id e128so20865845pfe.3
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 11:50:49 -0700 (PDT)
+From: Yang Shi <yang.shi@linaro.org>
+Subject: [PATCH] mm: move huge_pmd_set_accessed out of huge_memory.c
+Date: Wed, 20 Apr 2016 11:24:58 -0700
+Message-Id: <1461176698-9714-1-git-send-email-yang.shi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, hughd@google.com, mgorman@suse.de
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org
 
-On Tue, 2016-04-19 at 22:36 +0200, Vlastimil Babka wrote:
-> When kswapd goes to sleep it checks if the node is balanced and at
-> first it
-> sleeps only for HZ/10 time, then rechecks if the node is still
-> balanced and
-> nobody has woken it during the initial sleep. Only then it goes fully
-> sleep
-> until an allocation slowpath wakes it up again.
-> 
+huge_pmd_set_accessed is only called by __handle_mm_fault from memory.c,
+move the definition to memory.c and make it static like create_huge_pmd and
+wp_huge_pmd.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Yang Shi <yang.shi@linaro.org>
+---
+ include/linux/huge_mm.h |  4 ----
+ mm/huge_memory.c        | 23 -----------------------
+ mm/memory.c             | 23 +++++++++++++++++++++++
+ 3 files changed, 23 insertions(+), 27 deletions(-)
+
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 7008623..c218ab7b 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -8,10 +8,6 @@ extern int do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ extern int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 			 pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
+ 			 struct vm_area_struct *vma);
+-extern void huge_pmd_set_accessed(struct mm_struct *mm,
+-				  struct vm_area_struct *vma,
+-				  unsigned long address, pmd_t *pmd,
+-				  pmd_t orig_pmd, int dirty);
+ extern int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			       unsigned long address, pmd_t *pmd,
+ 			       pmd_t orig_pmd);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index fecbbc5..6c14cb6 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1137,29 +1137,6 @@ out:
+ 	return ret;
+ }
+ 
+-void huge_pmd_set_accessed(struct mm_struct *mm,
+-			   struct vm_area_struct *vma,
+-			   unsigned long address,
+-			   pmd_t *pmd, pmd_t orig_pmd,
+-			   int dirty)
+-{
+-	spinlock_t *ptl;
+-	pmd_t entry;
+-	unsigned long haddr;
+-
+-	ptl = pmd_lock(mm, pmd);
+-	if (unlikely(!pmd_same(*pmd, orig_pmd)))
+-		goto unlock;
+-
+-	entry = pmd_mkyoung(orig_pmd);
+-	haddr = address & HPAGE_PMD_MASK;
+-	if (pmdp_set_access_flags(vma, haddr, pmd, entry, dirty))
+-		update_mmu_cache_pmd(vma, address, pmd);
+-
+-unlock:
+-	spin_unlock(ptl);
+-}
+-
+ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
+ 					struct vm_area_struct *vma,
+ 					unsigned long address,
+diff --git a/mm/memory.c b/mm/memory.c
+index 93897f2..6ced4eb 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3287,6 +3287,29 @@ static int wp_huge_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	return VM_FAULT_FALLBACK;
+ }
+ 
++static void huge_pmd_set_accessed(struct mm_struct *mm,
++				  struct vm_area_struct *vma,
++				  unsigned long address,
++				  pmd_t *pmd, pmd_t orig_pmd,
++				  int dirty)
++{
++	spinlock_t *ptl;
++	pmd_t entry;
++	unsigned long haddr;
++
++	ptl = pmd_lock(mm, pmd);
++	if (unlikely(!pmd_same(*pmd, orig_pmd)))
++		goto unlock;
++
++	entry = pmd_mkyoung(orig_pmd);
++	haddr = address & HPAGE_PMD_MASK;
++	if (pmdp_set_access_flags(vma, haddr, pmd, entry, dirty))
++		update_mmu_cache_pmd(vma, address, pmd);
++
++unlock:
++	spin_unlock(ptl);
++}
++
+ /*
+  * These routines also need to handle stuff like marking pages dirty
+  * and/or accessed for architectures that don't do it in hardware (most
+-- 
+2.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
