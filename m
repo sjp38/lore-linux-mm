@@ -1,305 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B1389828E8
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 15:21:33 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id t124so104853649pfb.1
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:21:33 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id f22si19303136pfj.46.2016.04.20.12.21.32
-        for <linux-mm@kvack.org>;
-        Wed, 20 Apr 2016 12:21:32 -0700 (PDT)
-Date: Thu, 21 Apr 2016 03:20:45 +0800
-From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH] mm: move huge_pmd_set_accessed out of huge_memory.c
-Message-ID: <201604210338.WDpMByfG%fengguang.wu@intel.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="yrj/dFKFPuw6o+aM"
-Content-Disposition: inline
-In-Reply-To: <1461176698-9714-1-git-send-email-yang.shi@linaro.org>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 357B26B027B
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 15:47:40 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id zy2so78062921pac.1
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:40 -0700 (PDT)
+Received: from mail-pf0-f182.google.com (mail-pf0-f182.google.com. [209.85.192.182])
+        by mx.google.com with ESMTPS id ot4si18106316pab.169.2016.04.20.12.47.37
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Apr 2016 12:47:37 -0700 (PDT)
+Received: by mail-pf0-f182.google.com with SMTP id y69so5177787pfb.1
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:37 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0.14] oom detection rework v6
+Date: Wed, 20 Apr 2016 15:47:13 -0400
+Message-Id: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linaro.org>
-Cc: kbuild-all@01.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, hughd@google.com, mgorman@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
-
-
---yrj/dFKFPuw6o+aM
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
 Hi,
 
-[auto build test ERROR on v4.6-rc4]
-[also build test ERROR on next-20160420]
-[if your patch is applied to the wrong git tree, please drop us a note to help improving the system]
+This is v6 of the series. The previous version was posted [1]. The
+code hasn't changed much since then. I have found one old standing
+bug (patch 1) which just got much more severe and visible with this
+series. Other than that I have reorganized the series and put the
+compaction feedback abstraction to the front just in case we find out
+that parts of the series would have to be reverted later on for some
+reason. The premature oom killer invocation reported by Hugh [2] seems
+to be addressed.
 
-url:    https://github.com/0day-ci/linux/commits/Yang-Shi/mm-move-huge_pmd_set_accessed-out-of-huge_memory-c/20160421-025318
-config: avr32-atngw100_defconfig (attached as .config)
-reproduce:
-        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        # save the attached .config to linux build tree
-        make.cross ARCH=avr32 
+We have discussed this series at LSF/MM summit in Raleigh and there
+didn't seem to be any concerns/objections to go on with the patch set
+and target it for the next merge window. 
 
-All errors (new ones prefixed by >>):
+Motivation:
+As pointed by Linus [3][4] relying on zone_reclaimable as a way to
+communicate the reclaim progress is rater dubious. I tend to agree,
+not only it is really obscure, it is not hard to imagine cases where a
+single page freed in the loop keeps all the reclaimers looping without
+getting any progress because their gfp_mask wouldn't allow to get that
+page anyway (e.g. single GFP_ATOMIC alloc and free loop). This is rather
+rare so it doesn't happen in the practice but the current logic which we
+have is rather obscure and hard to follow a also non-deterministic.
 
-   mm/memory.c: In function 'huge_pmd_set_accessed':
-   mm/memory.c:3304: error: implicit declaration of function 'pmd_mkyoung'
->> mm/memory.c:3304: error: incompatible types in assignment
-   mm/memory.c:3307: error: implicit declaration of function 'update_mmu_cache_pmd'
+This is an attempt to make the OOM detection more deterministic and
+easier to follow because each reclaimer basically tracks its own
+progress which is implemented at the page allocator layer rather spread
+out between the allocator and the reclaim. The more on the implementation
+is described in the first patch.
 
-vim +3304 mm/memory.c
+I have tested several different scenarios but it should be clear that
+testing OOM killer is quite hard to be representative. There is usually
+a tiny gap between almost OOM and full blown OOM which is often time
+sensitive. Anyway, I have tested the following 2 scenarios and I would
+appreciate if there are more to test.
 
-  3298		unsigned long haddr;
-  3299	
-  3300		ptl = pmd_lock(mm, pmd);
-  3301		if (unlikely(!pmd_same(*pmd, orig_pmd)))
-  3302			goto unlock;
-  3303	
-> 3304		entry = pmd_mkyoung(orig_pmd);
-  3305		haddr = address & HPAGE_PMD_MASK;
-  3306		if (pmdp_set_access_flags(vma, haddr, pmd, entry, dirty))
-  3307			update_mmu_cache_pmd(vma, address, pmd);
+Testing environment: a virtual machine with 2G of RAM and 2CPUs without
+any swap to make the OOM more deterministic.
 
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+1) 2 writers (each doing dd with 4M blocks to an xfs partition with 1G
+   file size, removes the files and starts over again) running in
+   parallel for 10s to build up a lot of dirty pages when 100 parallel
+   mem_eaters (anon private populated mmap which waits until it gets
+   signal) with 80M each.
 
---yrj/dFKFPuw6o+aM
-Content-Type: application/octet-stream
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
+   This causes an OOM flood of course and I have compared both patched
+   and unpatched kernels. The test is considered finished after there
+   are no OOM conditions detected. This should tell us whether there are
+   any excessive kills or some of them premature (e.g. due to dirty pages):
 
-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
+I have performed two runs this time each after a fresh boot.
 
---yrj/dFKFPuw6o+aM--
+* base kernel
+$ grep "Out of memory:" base-oom-run1.log | wc -l
+78
+$ grep "Out of memory:" base-oom-run2.log | wc -l
+78
+
+$ grep "Kill process" base-oom-run1.log | tail -n1
+[   91.391203] Out of memory: Kill process 3061 (mem_eater) score 39 or sacrifice child
+$ grep "Kill process" base-oom-run2.log | tail -n1
+[   82.141919] Out of memory: Kill process 3086 (mem_eater) score 39 or sacrifice child
+
+$ grep "DMA32 free:" base-oom-run1.log | sed 's@.*free:\([0-9]*\)kB.*@\1@' | calc_min_max.awk 
+min: 5376.00 max: 6776.00 avg: 5530.75 std: 166.50 nr: 61
+$ grep "DMA32 free:" base-oom-run2.log | sed 's@.*free:\([0-9]*\)kB.*@\1@' | calc_min_max.awk 
+min: 5416.00 max: 5608.00 avg: 5514.15 std: 42.94 nr: 52
+
+$ grep "DMA32.*all_unreclaimable? no" base-oom-run1.log | wc -l
+1
+$ grep "DMA32.*all_unreclaimable? no" base-oom-run2.log | wc -l
+3
+
+* patched kernel
+$ grep "Out of memory:" patched-oom-run1.log | wc -l
+78
+miso@tiehlicka /mnt/share/devel/miso/kvm $ grep "Out of memory:" patched-oom-run2.log | wc -l
+77
+
+e grep "Kill process" patched-oom-run1.log | tail -n1
+[  497.317732] Out of memory: Kill process 3108 (mem_eater) score 39 or sacrifice child
+$ grep "Kill process" patched-oom-run2.log | tail -n1
+[  316.169920] Out of memory: Kill process 3093 (mem_eater) score 39 or sacrifice child
+
+$ grep "DMA32 free:" patched-oom-run1.log | sed 's@.*free:\([0-9]*\)kB.*@\1@' | calc_min_max.awk 
+min: 5420.00 max: 5808.00 avg: 5513.90 std: 60.45 nr: 78
+$ grep "DMA32 free:" patched-oom-run2.log | sed 's@.*free:\([0-9]*\)kB.*@\1@' | calc_min_max.awk 
+min: 5380.00 max: 6384.00 avg: 5520.94 std: 136.84 nr: 77
+
+e grep "DMA32.*all_unreclaimable? no" patched-oom-run1.log | wc -l
+2
+$ grep "DMA32.*all_unreclaimable? no" patched-oom-run2.log | wc -l
+3
+
+The patched kernel run noticeably longer while invoking OOM killer same
+number of times. This means that the original implementation is much
+more aggressive and triggers the OOM killer sooner. free pages stats
+show that neither kernels went OOM too early most of the time, though. I
+guess the difference is in the backoff when retries without any progress
+do sleep for a while if there is memory under writeback or dirty which
+is highly likely considering the parallel IO.
+Both kernels have seen races where zone wasn't marked unreclaimable
+and we still hit the OOM killer. This is most likely a race where
+a task managed to exit between the last allocation attempt and the oom
+killer invocation.
+
+2) 2 writers again with 10s of run and then 10 mem_eaters to consume as much
+   memory as possible without triggering the OOM killer. This required a lot
+   of tuning but I've considered 3 consecutive runs in three different boots
+   without OOM as a success.
+
+* base kernel
+size=$(awk '/MemFree/{printf "%dK", ($2/10)-(16*1024)}' /proc/meminfo)
+
+* patched kernel
+size=$(awk '/MemFree/{printf "%dK", ($2/10)-(12*1024)}' /proc/meminfo)
+
+That means 40M more memory was usable without triggering OOM killer. The
+base kernel sometimes managed to handle the same as patched but it
+wasn't consistent and failed in at least on of the 3 runs. This seems
+like a minor improvement.
+
+I was testing also GPF_REPEAT costly requests (hughetlb) with fragmented
+memory and under memory pressure. The results are in patch 11 where the
+logic is implemented. In short I can see huge improvement there.
+
+I am certainly interested in other usecases as well as well as any
+feedback. Especially those which require higher order requests.
+
+* Changes since v5
+- added "vmscan: consider classzone_idx in compaction_ready"
+- added "mm, oom, compaction: prevent from should_compact_retry looping
+  for ever for costly orders"
+- acked-bys from Vlastimil
+- integrated feedback from review
+* Changes since v4
+- dropped __GFP_REPEAT for costly allocation as it is now replaced by
+  the compaction based feedback logic
+- !costly high order requests are retried based on the compaction feedback
+- compaction feedback has been tweaked to give us an useful information
+  to make decisions in the page allocator
+- rebased on the current mmotm-2016-04-01-16-24 with the previous version
+  of the rework reverted
+
+* Changes since v3
+- factor out the new heuristic into its own function as suggested by
+  Johannes (no functional changes)
+
+* Changes since v2
+- rebased on top of mmotm-2015-11-25-17-08 which includes
+  wait_iff_congested related changes which needed refresh in
+  patch#1 and patch#2
+- use zone_page_state_snapshot for NR_FREE_PAGES per David
+- shrink_zones doesn't need to return anything per David
+- retested because the major kernel version has changed since
+  the last time (4.2 -> 4.3 based kernel + mmotm patches)
+
+* Changes since v1
+- backoff calculation was de-obfuscated by using DIV_ROUND_UP
+- __GFP_NOFAIL high order migh fail fixed - theoretical bug
+
+[1] http://lkml.kernel.org/r/1459855533-4600-1-git-send-email-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/alpine.LSU.2.11.1602241832160.15564@eggly.anvils
+[3] http://lkml.kernel.org/r/CA+55aFwapaED7JV6zm-NVkP-jKie+eQ1vDXWrKD=SkbshZSgmw@mail.gmail.com
+[4] http://lkml.kernel.org/r/CA+55aFxwg=vS2nrXsQhAUzPQDGb8aQpZi0M7UUh21ftBo-z46Q@mail.gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
