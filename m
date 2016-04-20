@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E412828E8
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 15:47:46 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id u190so105904143pfb.0
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:46 -0700 (PDT)
-Received: from mail-pf0-f176.google.com (mail-pf0-f176.google.com. [209.85.192.176])
-        by mx.google.com with ESMTPS id 190si19396303pfv.7.2016.04.20.12.47.45
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CEEB828E8
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 15:47:49 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 203so29051167pfy.2
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:49 -0700 (PDT)
+Received: from mail-pf0-f175.google.com (mail-pf0-f175.google.com. [209.85.192.175])
+        by mx.google.com with ESMTPS id r123si17553948pfr.154.2016.04.20.12.47.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Apr 2016 12:47:45 -0700 (PDT)
-Received: by mail-pf0-f176.google.com with SMTP id e128so21293886pfe.3
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:45 -0700 (PDT)
+        Wed, 20 Apr 2016 12:47:48 -0700 (PDT)
+Received: by mail-pf0-f175.google.com with SMTP id n1so21476066pfn.2
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:48 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 04/14] mm, compaction: distinguish COMPACT_DEFERRED from COMPACT_SKIPPED
-Date: Wed, 20 Apr 2016 15:47:17 -0400
-Message-Id: <1461181647-8039-5-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 05/14] mm, compaction: distinguish between full and partial COMPACT_COMPLETE
+Date: Wed, 20 Apr 2016 15:47:18 -0400
+Message-Id: <1461181647-8039-6-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
 References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,97 +24,123 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpx
 
 From: Michal Hocko <mhocko@suse.com>
 
-try_to_compact_pages can currently return COMPACT_SKIPPED even when the
-compaction is defered for some zone just because zone DMA is skipped
-in 99% of cases due to watermark checks. This makes COMPACT_DEFERRED
-basically unusable for the page allocator as a feedback mechanism.
+COMPACT_COMPLETE now means that compaction and free scanner met. This is
+not very useful information if somebody just wants to use this feedback
+and make any decisions based on that. The current caller might be a poor
+guy who just happened to scan tiny portion of the zone and that could be
+the reason no suitable pages were compacted. Make sure we distinguish
+the full and partial zone walks.
 
-Make sure we distinguish those two states properly and switch their
-ordering in the enum. This would mean that the COMPACT_SKIPPED will be
-returned only when all eligible zones are skipped.
+Consumers should treat COMPACT_PARTIAL_SKIPPED as a potential success
+and be optimistic in retrying.
 
-As a result COMPACT_DEFERRED handling for THP in __alloc_pages_slowpath
-will be more precise and we would bail out rather than reclaim.
+The existing users of COMPACT_COMPLETE are conservatively changed to
+use COMPACT_PARTIAL_SKIPPED as well but some of them should be probably
+reconsidered and only defer the compaction only for COMPACT_COMPLETE
+with the new semantic.
+
+This patch shouldn't introduce any functional changes.
 
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/compaction.h        | 7 +++++--
- include/trace/events/compaction.h | 2 +-
- mm/compaction.c                   | 8 +++++---
- 3 files changed, 11 insertions(+), 6 deletions(-)
+ include/linux/compaction.h        | 10 +++++++++-
+ include/trace/events/compaction.h |  1 +
+ mm/compaction.c                   | 14 +++++++++++---
+ mm/internal.h                     |  1 +
+ 4 files changed, 22 insertions(+), 4 deletions(-)
 
 diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 4458fd94170f..7e177d111c39 100644
+index 7e177d111c39..7c4de92d12cc 100644
 --- a/include/linux/compaction.h
 +++ b/include/linux/compaction.h
-@@ -4,13 +4,16 @@
- /* Return values for compact_zone() and try_to_compact_pages() */
- /* When adding new states, please adjust include/trace/events/compaction.h */
- enum compact_result {
--	/* compaction didn't start as it was deferred due to past failures */
--	COMPACT_DEFERRED,
- 	/*
- 	 * compaction didn't start as it was not possible or direct reclaim
- 	 * was more suitable
+@@ -21,7 +21,15 @@ enum compact_result {
+ 	 * pages
  	 */
- 	COMPACT_SKIPPED,
-+	/* compaction didn't start as it was deferred due to past failures */
-+	COMPACT_DEFERRED,
-+	/* compaction not active last round */
-+	COMPACT_INACTIVE = COMPACT_DEFERRED,
-+
- 	/* compaction should continue to another pageblock */
- 	COMPACT_CONTINUE,
- 	/*
+ 	COMPACT_PARTIAL,
+-	/* The full zone was compacted */
++	/*
++	 * direct compaction has scanned part of the zone but wasn't successfull
++	 * to compact suitable pages.
++	 */
++	COMPACT_PARTIAL_SKIPPED,
++	/*
++	 * The full zone was compacted scanned but wasn't successfull to compact
++	 * suitable pages.
++	 */
+ 	COMPACT_COMPLETE,
+ 	/* For more detailed tracepoint output */
+ 	COMPACT_NO_SUITABLE_PAGE,
 diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-index e215bf68f521..6ba16c86d7db 100644
+index 6ba16c86d7db..36e2d6fb1360 100644
 --- a/include/trace/events/compaction.h
 +++ b/include/trace/events/compaction.h
-@@ -10,8 +10,8 @@
- #include <trace/events/mmflags.h>
- 
- #define COMPACTION_STATUS					\
--	EM( COMPACT_DEFERRED,		"deferred")		\
- 	EM( COMPACT_SKIPPED,		"skipped")		\
-+	EM( COMPACT_DEFERRED,		"deferred")		\
+@@ -14,6 +14,7 @@
+ 	EM( COMPACT_DEFERRED,		"deferred")		\
  	EM( COMPACT_CONTINUE,		"continue")		\
  	EM( COMPACT_PARTIAL,		"partial")		\
++	EM( COMPACT_PARTIAL_SKIPPED,	"partial_skipped")	\
  	EM( COMPACT_COMPLETE,		"complete")		\
+ 	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
+ 	EM( COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")	\
 diff --git a/mm/compaction.c b/mm/compaction.c
-index b06de27b7f72..13709e33a2fc 100644
+index 13709e33a2fc..e2e487cea5ea 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1637,7 +1637,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
- 	int may_perform_io = gfp_mask & __GFP_IO;
- 	struct zoneref *z;
- 	struct zone *zone;
--	enum compact_result rc = COMPACT_DEFERRED;
-+	enum compact_result rc = COMPACT_SKIPPED;
- 	int all_zones_contended = COMPACT_CONTENDED_LOCK; /* init for &= op */
+@@ -1304,7 +1304,10 @@ static enum compact_result __compact_finished(struct zone *zone, struct compact_
+ 		if (cc->direct_compaction)
+ 			zone->compact_blockskip_flush = true;
  
- 	*contended = COMPACT_CONTENDED_NONE;
-@@ -1654,8 +1654,10 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
- 		enum compact_result status;
- 		int zone_contended;
+-		return COMPACT_COMPLETE;
++		if (cc->whole_zone)
++			return COMPACT_COMPLETE;
++		else
++			return COMPACT_PARTIAL_SKIPPED;
+ 	}
  
--		if (compaction_deferred(zone, order))
-+		if (compaction_deferred(zone, order)) {
-+			rc = max_t(enum compact_result, COMPACT_DEFERRED, rc);
- 			continue;
-+		}
+ 	if (is_via_compact_memory(cc->order))
+@@ -1463,6 +1466,10 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+ 		zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
+ 		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
+ 	}
++
++	if (cc->migrate_pfn == start_pfn)
++		cc->whole_zone = true;
++
+ 	cc->last_migrated_pfn = 0;
  
- 		status = compact_zone_order(zone, order, gfp_mask, mode,
- 				&zone_contended, alloc_flags,
-@@ -1726,7 +1728,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
- 	 * If at least one zone wasn't deferred or skipped, we report if all
- 	 * zones that were tried were lock contended.
- 	 */
--	if (rc > COMPACT_SKIPPED && all_zones_contended)
-+	if (rc > COMPACT_INACTIVE && all_zones_contended)
- 		*contended = COMPACT_CONTENDED_LOCK;
+ 	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
+@@ -1693,7 +1700,8 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 			goto break_loop;
+ 		}
  
- 	return rc;
+-		if (mode != MIGRATE_ASYNC && status == COMPACT_COMPLETE) {
++		if (mode != MIGRATE_ASYNC && (status == COMPACT_COMPLETE ||
++					status == COMPACT_PARTIAL_SKIPPED)) {
+ 			/*
+ 			 * We think that allocation won't succeed in this zone
+ 			 * so we defer compaction there. If it ends up
+@@ -1939,7 +1947,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 						cc.classzone_idx, 0)) {
+ 			success = true;
+ 			compaction_defer_reset(zone, cc.order, false);
+-		} else if (status == COMPACT_COMPLETE) {
++		} else if (status == COMPACT_PARTIAL_SKIPPED || status == COMPACT_COMPLETE) {
+ 			/*
+ 			 * We use sync migration mode here, so we defer like
+ 			 * sync direct compaction does.
+diff --git a/mm/internal.h b/mm/internal.h
+index e9aacea1a0d1..4423dfe69382 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -182,6 +182,7 @@ struct compact_control {
+ 	enum migrate_mode mode;		/* Async or sync migration mode */
+ 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
+ 	bool direct_compaction;		/* False from kcompactd or /proc/... */
++	bool whole_zone;		/* Whole zone has been scanned */
+ 	int order;			/* order a direct compactor needs */
+ 	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
+ 	const int alloc_flags;		/* alloc flags of a direct compactor */
 -- 
 2.8.0.rc3
 
