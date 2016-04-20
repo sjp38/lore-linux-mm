@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 02A7D6B027F
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 15:47:41 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id t124so105982100pfb.1
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:40 -0700 (PDT)
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com. [209.85.220.47])
-        by mx.google.com with ESMTPS id p17si5964266pfj.192.2016.04.20.12.47.39
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 120C66B0280
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 15:47:43 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id u190so105902092pfb.0
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:43 -0700 (PDT)
+Received: from mail-pf0-f177.google.com (mail-pf0-f177.google.com. [209.85.192.177])
+        by mx.google.com with ESMTPS id m17si21793705pfj.147.2016.04.20.12.47.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Apr 2016 12:47:39 -0700 (PDT)
-Received: by mail-pa0-f47.google.com with SMTP id zm5so20826175pac.0
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:39 -0700 (PDT)
+        Wed, 20 Apr 2016 12:47:41 -0700 (PDT)
+Received: by mail-pf0-f177.google.com with SMTP id e128so21293463pfe.3
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:41 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 01/14] vmscan: consider classzone_idx in compaction_ready
-Date: Wed, 20 Apr 2016 15:47:14 -0400
-Message-Id: <1461181647-8039-2-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 02/14] mm, compaction: change COMPACT_ constants into enum
+Date: Wed, 20 Apr 2016 15:47:15 -0400
+Message-Id: <1461181647-8039-3-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
 References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,75 +24,220 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpx
 
 From: Michal Hocko <mhocko@suse.com>
 
-while playing with the oom detection rework [1] I have noticed
-that my heavy order-9 (hugetlb) load close to OOM ended up in an
-endless loop where the reclaim hasn't made any progress but
-did_some_progress didn't reflect that and compaction_suitable
-was backing off because no zone is above low wmark + 1 << order.
+compaction code is doing weird dances between
+COMPACT_FOO -> int -> unsigned long
 
-It turned out that this is in fact an old standing bug in compaction_ready
-which ignores the requested_highidx and did the watermark check for
-0 classzone_idx. This succeeds for zone DMA most of the time as the zone
-is mostly unused because of lowmem protection. This also means that the
-OOM killer wouldn't be triggered for higher order requests even when
-there is no reclaim progress and we essentially rely on order-0 request
-to find this out. This has been broken in one way or another since
-fe4b1b244bdb ("mm: vmscan: when reclaiming for compaction, ensure there
-are sufficient free pages available") but only since 7335084d446b ("mm:
-vmscan: do not OOM if aborting reclaim to start compaction") we are not
-invoking the OOM killer based on the wrong calculation.
+but there doesn't seem to be any reason for that. All functions which
+return/use one of those constants are not expecting any other value
+so it really makes sense to define an enum for them and make it clear
+that no other values are expected.
 
-Propagate requested_highidx down to compaction_ready and use it for both
-the watermak check and compaction_suitable to fix this issue.
+This is a pure cleanup and shouldn't introduce any functional changes.
 
-[1] http://lkml.kernel.org/r/1459855533-4600-1-git-send-email-mhocko@kernel.org
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 ---
- mm/vmscan.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ include/linux/compaction.h | 45 +++++++++++++++++++++++++++------------------
+ mm/compaction.c            | 27 ++++++++++++++-------------
+ mm/page_alloc.c            |  2 +-
+ 3 files changed, 42 insertions(+), 32 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c839adc13efd..3e6347e2a5fc 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2482,7 +2482,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
-  * Returns true if compaction should go ahead for a high-order request, or
-  * the high-order allocation would succeed without compaction.
-  */
--static inline bool compaction_ready(struct zone *zone, int order)
-+static inline bool compaction_ready(struct zone *zone, int order, int classzone_idx)
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index d7c8de583a23..4458fd94170f 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -2,21 +2,29 @@
+ #define _LINUX_COMPACTION_H
+ 
+ /* Return values for compact_zone() and try_to_compact_pages() */
+-/* compaction didn't start as it was deferred due to past failures */
+-#define COMPACT_DEFERRED	0
+-/* compaction didn't start as it was not possible or direct reclaim was more suitable */
+-#define COMPACT_SKIPPED		1
+-/* compaction should continue to another pageblock */
+-#define COMPACT_CONTINUE	2
+-/* direct compaction partially compacted a zone and there are suitable pages */
+-#define COMPACT_PARTIAL		3
+-/* The full zone was compacted */
+-#define COMPACT_COMPLETE	4
+-/* For more detailed tracepoint output */
+-#define COMPACT_NO_SUITABLE_PAGE	5
+-#define COMPACT_NOT_SUITABLE_ZONE	6
+-#define COMPACT_CONTENDED		7
+ /* When adding new states, please adjust include/trace/events/compaction.h */
++enum compact_result {
++	/* compaction didn't start as it was deferred due to past failures */
++	COMPACT_DEFERRED,
++	/*
++	 * compaction didn't start as it was not possible or direct reclaim
++	 * was more suitable
++	 */
++	COMPACT_SKIPPED,
++	/* compaction should continue to another pageblock */
++	COMPACT_CONTINUE,
++	/*
++	 * direct compaction partially compacted a zone and there are suitable
++	 * pages
++	 */
++	COMPACT_PARTIAL,
++	/* The full zone was compacted */
++	COMPACT_COMPLETE,
++	/* For more detailed tracepoint output */
++	COMPACT_NO_SUITABLE_PAGE,
++	COMPACT_NOT_SUITABLE_ZONE,
++	COMPACT_CONTENDED,
++};
+ 
+ /* Used to signal whether compaction detected need_sched() or lock contention */
+ /* No contention detected */
+@@ -38,12 +46,13 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
+ extern int sysctl_compact_unevictable_allowed;
+ 
+ extern int fragmentation_index(struct zone *zone, unsigned int order);
+-extern unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
++extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
++			unsigned int order,
+ 			int alloc_flags, const struct alloc_context *ac,
+ 			enum migrate_mode mode, int *contended);
+ extern void compact_pgdat(pg_data_t *pgdat, int order);
+ extern void reset_isolation_suitable(pg_data_t *pgdat);
+-extern unsigned long compaction_suitable(struct zone *zone, int order,
++extern enum compact_result compaction_suitable(struct zone *zone, int order,
+ 					int alloc_flags, int classzone_idx);
+ 
+ extern void defer_compaction(struct zone *zone, int order);
+@@ -57,7 +66,7 @@ extern void kcompactd_stop(int nid);
+ extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx);
+ 
+ #else
+-static inline unsigned long try_to_compact_pages(gfp_t gfp_mask,
++static inline enum compact_result try_to_compact_pages(gfp_t gfp_mask,
+ 			unsigned int order, int alloc_flags,
+ 			const struct alloc_context *ac,
+ 			enum migrate_mode mode, int *contended)
+@@ -73,7 +82,7 @@ static inline void reset_isolation_suitable(pg_data_t *pgdat)
  {
- 	unsigned long balance_gap, watermark;
- 	bool watermark_ok;
-@@ -2496,7 +2496,7 @@ static inline bool compaction_ready(struct zone *zone, int order)
- 	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
- 			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
- 	watermark = high_wmark_pages(zone) + balance_gap + (2UL << order);
--	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, 0);
-+	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, classzone_idx);
+ }
  
- 	/*
- 	 * If compaction is deferred, reclaim up to a point where
-@@ -2509,7 +2509,7 @@ static inline bool compaction_ready(struct zone *zone, int order)
- 	 * If compaction is not ready to start and allocation is not likely
- 	 * to succeed without it, then keep reclaiming.
- 	 */
--	if (compaction_suitable(zone, order, 0, 0) == COMPACT_SKIPPED)
-+	if (compaction_suitable(zone, order, 0, classzone_idx) == COMPACT_SKIPPED)
- 		return false;
+-static inline unsigned long compaction_suitable(struct zone *zone, int order,
++static inline enum compact_result compaction_suitable(struct zone *zone, int order,
+ 					int alloc_flags, int classzone_idx)
+ {
+ 	return COMPACT_SKIPPED;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 8cc495042303..8ae7b1c46c72 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1281,7 +1281,7 @@ static inline bool is_via_compact_memory(int order)
+ 	return order == -1;
+ }
  
- 	return watermark_ok;
-@@ -2589,7 +2589,7 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 			if (IS_ENABLED(CONFIG_COMPACTION) &&
- 			    sc->order > PAGE_ALLOC_COSTLY_ORDER &&
- 			    zonelist_zone_idx(z) <= requested_highidx &&
--			    compaction_ready(zone, sc->order)) {
-+			    compaction_ready(zone, sc->order, requested_highidx)) {
- 				sc->compaction_ready = true;
- 				continue;
- 			}
+-static int __compact_finished(struct zone *zone, struct compact_control *cc,
++static enum compact_result __compact_finished(struct zone *zone, struct compact_control *cc,
+ 			    const int migratetype)
+ {
+ 	unsigned int order;
+@@ -1344,8 +1344,9 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
+ 	return COMPACT_NO_SUITABLE_PAGE;
+ }
+ 
+-static int compact_finished(struct zone *zone, struct compact_control *cc,
+-			    const int migratetype)
++static enum compact_result compact_finished(struct zone *zone,
++			struct compact_control *cc,
++			const int migratetype)
+ {
+ 	int ret;
+ 
+@@ -1364,7 +1365,7 @@ static int compact_finished(struct zone *zone, struct compact_control *cc,
+  *   COMPACT_PARTIAL  - If the allocation would succeed without compaction
+  *   COMPACT_CONTINUE - If compaction should run now
+  */
+-static unsigned long __compaction_suitable(struct zone *zone, int order,
++static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 					int alloc_flags, int classzone_idx)
+ {
+ 	int fragindex;
+@@ -1409,10 +1410,10 @@ static unsigned long __compaction_suitable(struct zone *zone, int order,
+ 	return COMPACT_CONTINUE;
+ }
+ 
+-unsigned long compaction_suitable(struct zone *zone, int order,
++enum compact_result compaction_suitable(struct zone *zone, int order,
+ 					int alloc_flags, int classzone_idx)
+ {
+-	unsigned long ret;
++	enum compact_result ret;
+ 
+ 	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx);
+ 	trace_mm_compaction_suitable(zone, order, ret);
+@@ -1422,9 +1423,9 @@ unsigned long compaction_suitable(struct zone *zone, int order,
+ 	return ret;
+ }
+ 
+-static int compact_zone(struct zone *zone, struct compact_control *cc)
++static enum compact_result compact_zone(struct zone *zone, struct compact_control *cc)
+ {
+-	int ret;
++	enum compact_result ret;
+ 	unsigned long start_pfn = zone->zone_start_pfn;
+ 	unsigned long end_pfn = zone_end_pfn(zone);
+ 	const int migratetype = gfpflags_to_migratetype(cc->gfp_mask);
+@@ -1588,11 +1589,11 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 	return ret;
+ }
+ 
+-static unsigned long compact_zone_order(struct zone *zone, int order,
++static enum compact_result compact_zone_order(struct zone *zone, int order,
+ 		gfp_t gfp_mask, enum migrate_mode mode, int *contended,
+ 		int alloc_flags, int classzone_idx)
+ {
+-	unsigned long ret;
++	enum compact_result ret;
+ 	struct compact_control cc = {
+ 		.nr_freepages = 0,
+ 		.nr_migratepages = 0,
+@@ -1631,7 +1632,7 @@ int sysctl_extfrag_threshold = 500;
+  *
+  * This is the main entry point for direct page compaction.
+  */
+-unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
++enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 			int alloc_flags, const struct alloc_context *ac,
+ 			enum migrate_mode mode, int *contended)
+ {
+@@ -1639,7 +1640,7 @@ unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 	int may_perform_io = gfp_mask & __GFP_IO;
+ 	struct zoneref *z;
+ 	struct zone *zone;
+-	int rc = COMPACT_DEFERRED;
++	enum compact_result rc = COMPACT_DEFERRED;
+ 	int all_zones_contended = COMPACT_CONTENDED_LOCK; /* init for &= op */
+ 
+ 	*contended = COMPACT_CONTENDED_NONE;
+@@ -1653,7 +1654,7 @@ unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 	/* Compact each zone in the list */
+ 	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
+ 								ac->nodemask) {
+-		int status;
++		enum compact_result status;
+ 		int zone_contended;
+ 
+ 		if (compaction_deferred(zone, order))
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c4efafc38273..06af8a757d52 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2947,7 +2947,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 		enum migrate_mode mode, int *contended_compaction,
+ 		bool *deferred_compaction)
+ {
+-	unsigned long compact_result;
++	enum compact_result compact_result;
+ 	struct page *page;
+ 
+ 	if (!order)
 -- 
 2.8.0.rc3
 
