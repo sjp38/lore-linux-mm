@@ -1,134 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E0A76B027A
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:11:56 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id zy2so70008999pac.1
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 09:11:56 -0700 (PDT)
-Received: from mail-pf0-x22f.google.com (mail-pf0-x22f.google.com. [2607:f8b0:400e:c00::22f])
-        by mx.google.com with ESMTPS id h10si8075420paw.142.2016.04.20.09.11.51
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F8C96B027C
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:23:52 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 203so20025452pfy.2
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 09:23:52 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0108.outbound.protection.outlook.com. [104.47.0.108])
+        by mx.google.com with ESMTPS id pt18si17319373pab.194.2016.04.20.09.23.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Apr 2016 09:11:52 -0700 (PDT)
-Received: by mail-pf0-x22f.google.com with SMTP id 184so19878341pff.0
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 09:11:51 -0700 (PDT)
-Subject: Re: [BUG linux-next] Kernel panic found with linux-next-20160414
-References: <5716C29F.1090205@linaro.org>
- <alpine.LSU.2.11.1604200041460.3009@eggly.anvils>
-From: "Shi, Yang" <yang.shi@linaro.org>
-Message-ID: <5717AA46.5020905@linaro.org>
-Date: Wed, 20 Apr 2016 09:11:50 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 20 Apr 2016 09:23:51 -0700 (PDT)
+Subject: Re: [PATCHv7 2/3] x86/vdso: add mremap hook to vm_special_mapping
+References: <1460987025-30360-2-git-send-email-dsafonov@virtuozzo.com>
+ <1460989402-5468-1-git-send-email-dsafonov@virtuozzo.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <5717ACD7.6080909@virtuozzo.com>
+Date: Wed, 20 Apr 2016 19:22:47 +0300
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1604200041460.3009@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <1460989402-5468-1-git-send-email-dsafonov@virtuozzo.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, sfr@canb.auug.org.au, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: luto@amacapital.net
+Cc: linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com
 
-On 4/20/2016 1:01 AM, Hugh Dickins wrote:
-> On Tue, 19 Apr 2016, Shi, Yang wrote:
->> Hi folks,
->>
->> When I ran ltp on linux-next-20160414 on my ARM64 machine, I got the below
->> kernel panic:
->>
->> Unable to handle kernel paging request at virtual address ffffffc007846000
->> pgd = ffffffc01e21d000
->> [ffffffc007846000] *pgd=0000000000000000, *pud=0000000000000000
->> Internal error: Oops: 96000047 [#11] PREEMPT SMP
->> Modules linked in: loop
->> CPU: 7 PID: 274 Comm: systemd-journal Tainted: G      D
->> 4.6.0-rc3-next-20160414-WR8.0.0.0_standard+ #9
->> Hardware name: Freescale Layerscape 2085a RDB Board (DT)
->> task: ffffffc01e3fcf80 ti: ffffffc01ea8c000 task.ti: ffffffc01ea8c000
->> PC is at copy_page+0x38/0x120
->> LR is at migrate_page_copy+0x604/0x1660
->> pc : [<ffffff9008ff2318>] lr : [<ffffff900867cdac>] pstate: 20000145
->> sp : ffffffc01ea8ecd0
->> x29: ffffffc01ea8ecd0 x28: 0000000000000000
->> x27: 1ffffff7b80240f8 x26: ffffffc018196f20
->> x25: ffffffbdc01e1180 x24: ffffffbdc01e1180
->> x23: 0000000000000000 x22: ffffffc01e3fcf80
->> x21: ffffffc00481f000 x20: ffffff900a31d000
->> x19: ffffffbdc01207c0 x18: 0000000000000f00
->> x17: 0000000000000000 x16: 0000000000000000
->> x15: 0000000000000000 x14: 0000000000000000
->> x13: 0000000000000000 x12: 0000000000000000
->> x11: 0000000000000000 x10: 0000000000000000
->> x9 : 0000000000000000 x8 : 0000000000000000
->> x7 : 0000000000000000 x6 : 0000000000000000
->> x5 : 0000000000000000 x4 : 0000000000000000
->> x3 : 0000000000000000 x2 : 0000000000000000
->> x1 : ffffffc00481f080 x0 : ffffffc007846000
->>
->> Call trace:
->> Exception stack(0xffffffc021fc2ed0 to 0xffffffc021fc2ff0)
->> 2ec0:                                   ffffffbdc00887c0 ffffff900a31d000
->> 2ee0: ffffffc021fc30f0 ffffff9008ff2318 0000000020000145 0000000000000025
->> 2f00: ffffffbdc025a280 ffffffc020adc4c0 0000000041b58ab3 ffffff900a085fd0
->> 2f20: ffffff9008200658 0000000000000000 0000000000000000 ffffffbdc00887c0
->> 2f40: ffffff900b0f1320 ffffffc021fc3078 0000000041b58ab3 ffffff900a0864f8
->> 2f60: ffffff9008210010 ffffffc021fb8960 ffffff900867bacc 1ffffff8043f712d
->> 2f80: ffffffc021fc2fb0 ffffff9008210564 ffffffc021fc3070 ffffffc021fb8940
->> 2fa0: 0000000008221f78 ffffff900862f9c8 ffffffc021fc2fe0 ffffff9008215dc8
->> 2fc0: 1ffffff8043f8602 ffffffc021fc0000 ffffffc00968a000 ffffffc00221f080
->> 2fe0: f9407e11d00001f0 d61f02209103e210
->> [<ffffff9008ff2318>] copy_page+0x38/0x120
->> [<ffffff900867de7c>] migrate_page+0x74/0x98
->> [<ffffff90089ba418>] nfs_migrate_page+0x58/0x80
->> [<ffffff900867dffc>] move_to_new_page+0x15c/0x4d8
->> [<ffffff900867eec8>] migrate_pages+0x7c8/0x11f0
->> [<ffffff90085f8724>] compact_zone+0xdfc/0x2570
->> [<ffffff90085f9f78>] compact_zone_order+0xe0/0x170
->> [<ffffff90085fb688>] try_to_compact_pages+0x2e8/0x8f8
->> [<ffffff90085913a0>] __alloc_pages_direct_compact+0x100/0x540
->> [<ffffff9008592420>] __alloc_pages_nodemask+0xc40/0x1c58
->> [<ffffff90086887e8>] khugepaged+0x468/0x19c8
->> [<ffffff9008301700>] kthread+0x248/0x2c0
->> [<ffffff9008206610>] ret_from_fork+0x10/0x40
->> Code: d281f012 91020021 f1020252 d503201f (a8000c02)
->>
->>
->> I did some initial investigation and found it is caused by DEBUG_PAGEALLOC
->> and CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT. And, mainline 4.6-rc3 works well.
->>
->> It should be not arch specific although I got it caught on ARM64. I suspect
->> this might be caused by Hugh's huge tmpfs patches.
+On 04/18/2016 05:23 PM, Dmitry Safonov wrote:
+> Add possibility for userspace 32-bit applications to move
+> vdso mapping. Previously, when userspace app called
+> mremap for vdso, in return path it would land on previous
+> address of vdso page, resulting in segmentation violation.
+> Now it lands fine and returns to userspace with remapped vdso.
+> This will also fix context.vdso pointer for 64-bit, which does not
+> affect the user of vdso after mremap by now, but this may change.
 >
-> Thanks for testing.  It might be caused by my patches, but I don't think
-> that's very likely.  This is page migraton for compaction, in the service
-> of anon THP's khugepaged; and I wonder if you were even exercising huge
-> tmpfs when running LTP here (it certainly can be done: I like to mount a
-> huge tmpfs on /opt/ltp and install there, with shmem_huge 2 so any other
-> tmpfs mounts are also huge).
-
-Some further investigation shows I got the panic even though I don't 
-have tmpfs mounted with huge=1 or set shmem_huge to 2.
-
+> As suggested by Andy, return EINVAL for mremap that splits vdso image.
 >
-> There are compaction changes in linux-next too, but I don't see any
-> reason why they'd cause this.  I don't know arm64 traces enough to know
-> whether it's the source page or the destination page for the copy, but
-> it looks as if it has been freed (and DEBUG_PAGEALLOC unmapped) before
-> reaching migration's copy.
-
-The fault address is passed by x0, which is dest in the implementation 
-of copy_page, so it is the destination page.
-
+> Renamed and moved text_mapping structure declaration inside
+> map_vdso, as it used only there and now it complement
+> vvar_mapping variable.
 >
-> Needs more debugging, I'm afraid: is it reproducible?
-
-Yes, as long as I enable those two PAGEALLOC debug options, I can get 
-the panic once I run ltp. But, it is not caused any specific ltp test 
-case directly, the panic happens randomly during ltp is running.
-
-Thanks,
-Yang
-
+> There is still problem for remapping vdso in glibc applications:
+> linker relocates addresses for syscalls on vdso page, so
+> you need to relink with the new addresses. Or the next syscall
+> through glibc may fail:
+>    Program received signal SIGSEGV, Segmentation fault.
+>    #0  0xf7fd9b80 in __kernel_vsyscall ()
+>    #1  0xf7ec8238 in _exit () from /usr/lib32/libc.so.6
 >
-> Hugh
+> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+
+Andy, can I have an ack from you for this version?
+If it looks fine for you, of course.
+And for v5 test (3/3 patch)? (I did not resed it, as it hasn't changed)
+
+> ---
+> v7: that's just not my day: add new_vma parameter to vdso_fix_landing
+>      sorry for the noise
+> v6: moved vdso_image_32 check and fixup code into vdso_fix_landing function
+>      with ifdefs around
+> v5: as Andy suggested, add a check that new_vma->vm_mm and current->mm are
+>      the same, also check not only in_ia32_syscall() but image == &vdso_image_32
+> v4: drop __maybe_unused & use image from mm->context instead vdso_image_32
+> v3: as Andy suggested, return EINVAL in case of splitting vdso blob on mremap;
+>      used is_ia32_task instead of ifdefs
+> v2: added __maybe_unused for pt_regs in vdso_mremap
 >
+>   arch/x86/entry/vdso/vma.c | 50 ++++++++++++++++++++++++++++++++++++++++++-----
+>   include/linux/mm_types.h  |  3 +++
+>   mm/mmap.c                 | 10 ++++++++++
+>   3 files changed, 58 insertions(+), 5 deletions(-)
+>
+> diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
+> index 10f704584922..d94291a19b6e 100644
+> --- a/arch/x86/entry/vdso/vma.c
+> +++ b/arch/x86/entry/vdso/vma.c
+> @@ -12,6 +12,7 @@
+>   #include <linux/random.h>
+>   #include <linux/elf.h>
+>   #include <linux/cpu.h>
+> +#include <linux/ptrace.h>
+>   #include <asm/pvclock.h>
+>   #include <asm/vgtod.h>
+>   #include <asm/proto.h>
+> @@ -98,10 +99,43 @@ static int vdso_fault(const struct vm_special_mapping *sm,
+>   	return 0;
+>   }
+>   
+> -static const struct vm_special_mapping text_mapping = {
+> -	.name = "[vdso]",
+> -	.fault = vdso_fault,
+> -};
+> +#if defined CONFIG_X86_32 || defined CONFIG_COMPAT
+> +static void vdso_fix_landing(const struct vdso_image *image,
+> +		struct vm_area_struct *new_vma)
+> +{
+> +	if (in_ia32_syscall() && image == &vdso_image_32) {
+> +		struct pt_regs *regs = current_pt_regs();
+> +		unsigned long vdso_land = image->sym_int80_landing_pad;
+> +		unsigned long old_land_addr = vdso_land +
+> +			(unsigned long)current->mm->context.vdso;
+> +
+> +		/* Fixing userspace landing - look at do_fast_syscall_32 */
+> +		if (regs->ip == old_land_addr)
+> +			regs->ip = new_vma->vm_start + vdso_land;
+> +	}
+> +}
+> +#else
+> +static void vdso_fix_landing(const struct vdso_image *image,
+> +		struct vm_area_struct *new_vma) {}
+> +#endif
+> +
+> +static int vdso_mremap(const struct vm_special_mapping *sm,
+> +		struct vm_area_struct *new_vma)
+> +{
+> +	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
+> +	const struct vdso_image *image = current->mm->context.vdso_image;
+> +
+> +	if (image->size != new_size)
+> +		return -EINVAL;
+> +
+> +	if (current->mm != new_vma->vm_mm)
+> +		return -EFAULT;
+> +
+> +	vdso_fix_landing(image, new_vma);
+> +	current->mm->context.vdso = (void __user *)new_vma->vm_start;
+> +
+> +	return 0;
+> +}
+>   
+>   static int vvar_fault(const struct vm_special_mapping *sm,
+>   		      struct vm_area_struct *vma, struct vm_fault *vmf)
+> @@ -162,6 +196,12 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+>   	struct vm_area_struct *vma;
+>   	unsigned long addr, text_start;
+>   	int ret = 0;
+> +
+> +	static const struct vm_special_mapping vdso_mapping = {
+> +		.name = "[vdso]",
+> +		.fault = vdso_fault,
+> +		.mremap = vdso_mremap,
+> +	};
+>   	static const struct vm_special_mapping vvar_mapping = {
+>   		.name = "[vvar]",
+>   		.fault = vvar_fault,
+> @@ -195,7 +235,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+>   				       image->size,
+>   				       VM_READ|VM_EXEC|
+>   				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+> -				       &text_mapping);
+> +				       &vdso_mapping);
+>   
+>   	if (IS_ERR(vma)) {
+>   		ret = PTR_ERR(vma);
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index c2d75b4fa86c..4d16ab9287af 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -586,6 +586,9 @@ struct vm_special_mapping {
+>   	int (*fault)(const struct vm_special_mapping *sm,
+>   		     struct vm_area_struct *vma,
+>   		     struct vm_fault *vmf);
+> +
+> +	int (*mremap)(const struct vm_special_mapping *sm,
+> +		     struct vm_area_struct *new_vma);
+>   };
+>   
+>   enum tlb_flush_reason {
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index bd2e1a533bc1..ba71658dd1a1 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2930,9 +2930,19 @@ static const char *special_mapping_name(struct vm_area_struct *vma)
+>   	return ((struct vm_special_mapping *)vma->vm_private_data)->name;
+>   }
+>   
+> +static int special_mapping_mremap(struct vm_area_struct *new_vma)
+> +{
+> +	struct vm_special_mapping *sm = new_vma->vm_private_data;
+> +
+> +	if (sm->mremap)
+> +		return sm->mremap(sm, new_vma);
+> +	return 0;
+> +}
+> +
+>   static const struct vm_operations_struct special_mapping_vmops = {
+>   	.close = special_mapping_close,
+>   	.fault = special_mapping_fault,
+> +	.mremap = special_mapping_mremap,
+>   	.name = special_mapping_name,
+>   };
+>   
+
+
+-- 
+Regards,
+Dmitry Safonov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
