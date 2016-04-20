@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 85C5D828E8
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 15:47:55 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id xm6so36748790pab.3
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:55 -0700 (PDT)
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com. [209.85.220.42])
-        by mx.google.com with ESMTPS id z73si1184190pfa.225.2016.04.20.12.47.54
+	by kanga.kvack.org (Postfix) with ESMTP id 549FC828E8
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 15:47:58 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id zy2so78069944pac.1
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:58 -0700 (PDT)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com. [209.85.220.52])
+        by mx.google.com with ESMTPS id x64si19439224pfi.208.2016.04.20.12.47.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Apr 2016 12:47:54 -0700 (PDT)
-Received: by mail-pa0-f42.google.com with SMTP id er2so20774061pad.3
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:54 -0700 (PDT)
+        Wed, 20 Apr 2016 12:47:57 -0700 (PDT)
+Received: by mail-pa0-f52.google.com with SMTP id er2so20774337pad.3
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 12:47:57 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 08/14] mm, compaction: Abstract compaction feedback to helpers
-Date: Wed, 20 Apr 2016 15:47:21 -0400
-Message-Id: <1461181647-8039-9-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 09/14] mm: use compaction feedback for thp backoff conditions
+Date: Wed, 20 Apr 2016 15:47:22 -0400
+Message-Id: <1461181647-8039-10-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
 References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,126 +24,76 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpx
 
 From: Michal Hocko <mhocko@suse.com>
 
-Compaction can provide a wild variation of feedback to the caller. Many
-of them are implementation specific and the caller of the compaction
-(especially the page allocator) shouldn't be bound to specifics of the
-current implementation.
+THP requests skip the direct reclaim if the compaction is either
+deferred or contended to reduce stalls which wouldn't help the
+allocation success anyway. These checks are ignoring other potential
+feedback modes which we have available now.
 
-This patch abstracts the feedback into three basic types:
-	- compaction_made_progress - compaction was active and made some
-	  progress.
-	- compaction_failed - compaction failed and further attempts to
-	  invoke it would most probably fail and therefore it is not
-	  worth retrying
-	- compaction_withdrawn - compaction wasn't invoked for an
-          implementation specific reasons. In the current implementation
-          it means that the compaction was deferred, contended or the
-          page scanners met too early without any progress. Retrying is
-          still worthwhile.
+It clearly doesn't make much sense to go and reclaim few pages if the
+previous compaction has failed.
 
-[vbabka@suse.cz: do not change thp back off behavior]
+We can also simplify the check by using compaction_withdrawn which
+checks for both COMPACT_CONTENDED and COMPACT_DEFERRED. This check
+is however covering more reasons why the compaction was withdrawn.
+None of them should be a problem for the THP case though.
+
+It is safe to back of if we see COMPACT_SKIPPED because that means
+that compaction_suitable failed and a single round of the reclaim is
+unlikely to make any difference here. We would have to be close to
+the low watermark to reclaim enough and even then there is no guarantee
+that the compaction would make any progress while the direct reclaim
+would have caused the stall.
+
+COMPACT_PARTIAL_SKIPPED is slightly different because that means that we
+have only seen a part of the zone so a retry would make some sense. But
+it would be a compaction retry not a reclaim retry to perform. We are
+not doing that and that might indeed lead to situations where THP fails
+but this should happen only rarely and it would be really hard to
+measure.
+
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/compaction.h | 79 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 79 insertions(+)
+ mm/page_alloc.c | 27 ++++++++-------------------
+ 1 file changed, 8 insertions(+), 19 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index a7b9091ff349..a002ca55c513 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -78,6 +78,70 @@ extern void compaction_defer_reset(struct zone *zone, int order,
- 				bool alloc_success);
- extern bool compaction_restarting(struct zone *zone, int order);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 350d13f3709b..d551fe326c33 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3257,25 +3257,14 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	if (page)
+ 		goto got_pg;
  
-+/* Compaction has made some progress and retrying makes sense */
-+static inline bool compaction_made_progress(enum compact_result result)
-+{
+-	/* Checks for THP-specific high-order allocations */
+-	if (is_thp_gfp_mask(gfp_mask)) {
+-		/*
+-		 * If compaction is deferred for high-order allocations, it is
+-		 * because sync compaction recently failed. If this is the case
+-		 * and the caller requested a THP allocation, we do not want
+-		 * to heavily disrupt the system, so we fail the allocation
+-		 * instead of entering direct reclaim.
+-		 */
+-		if (compact_result == COMPACT_DEFERRED)
+-			goto nopage;
+-
+-		/*
+-		 * Compaction is contended so rather back off than cause
+-		 * excessive stalls.
+-		 */
+-		if(compact_result == COMPACT_CONTENDED)
+-			goto nopage;
+-	}
 +	/*
-+	 * Even though this might sound confusing this in fact tells us
-+	 * that the compaction successfully isolated and migrated some
-+	 * pageblocks.
++	 * Checks for THP-specific high-order allocations and back off
++	 * if the the compaction backed off or failed
 +	 */
-+	if (result == COMPACT_PARTIAL)
-+		return true;
-+
-+	return false;
-+}
-+
-+/* Compaction has failed and it doesn't make much sense to keep retrying. */
-+static inline bool compaction_failed(enum compact_result result)
-+{
-+	/* All zones where scanned completely and still not result. */
-+	if (result == COMPACT_COMPLETE)
-+		return true;
-+
-+	return false;
-+}
-+
-+/*
-+ * Compaction  has backed off for some reason. It might be throttling or
-+ * lock contention. Retrying is still worthwhile.
-+ */
-+static inline bool compaction_withdrawn(enum compact_result result)
-+{
-+	/*
-+	 * Compaction backed off due to watermark checks for order-0
-+	 * so the regular reclaim has to try harder and reclaim something.
-+	 */
-+	if (result == COMPACT_SKIPPED)
-+		return true;
-+
-+	/*
-+	 * If compaction is deferred for high-order allocations, it is
-+	 * because sync compaction recently failed. If this is the case
-+	 * and the caller requested a THP allocation, we do not want
-+	 * to heavily disrupt the system, so we fail the allocation
-+	 * instead of entering direct reclaim.
-+	 */
-+	if (result == COMPACT_DEFERRED)
-+		return true;
-+
-+	/*
-+	 * If compaction in async mode encounters contention or blocks higher
-+	 * priority task we back off early rather than cause stalls.
-+	 */
-+	if (result == COMPACT_CONTENDED)
-+		return true;
-+
-+	/*
-+	 * Page scanners have met but we haven't scanned full zones so this
-+	 * is a back off in fact.
-+	 */
-+	if (result == COMPACT_PARTIAL_SKIPPED)
-+		return true;
-+
-+	return false;
-+}
-+
- extern int kcompactd_run(int nid);
- extern void kcompactd_stop(int nid);
- extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx);
-@@ -114,6 +178,21 @@ static inline bool compaction_deferred(struct zone *zone, int order)
- 	return true;
- }
++	if (is_thp_gfp_mask(gfp_mask) &&
++			(compaction_withdrawn(compact_result) ||
++			 compaction_failed(compact_result)))
++		goto nopage;
  
-+static inline bool compaction_made_progress(enum compact_result result)
-+{
-+	return false;
-+}
-+
-+static inline bool compaction_failed(enum compact_result result)
-+{
-+	return false;
-+}
-+
-+static inline bool compaction_withdrawn(enum compact_result result)
-+{
-+	return true;
-+}
-+
- static inline int kcompactd_run(int nid)
- {
- 	return 0;
+ 	/*
+ 	 * It can become very expensive to allocate transparent hugepages at
 -- 
 2.8.0.rc3
 
