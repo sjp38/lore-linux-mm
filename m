@@ -1,100 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ABEAB828E1
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 13:28:01 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id t5so107517977qkc.1
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 10:28:01 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v2si4835759qhc.83.2016.04.20.10.28.00
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 456C5828E1
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 13:42:37 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id zy2so73463961pac.1
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 10:42:37 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id 191si21326887pfc.127.2016.04.20.10.42.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Apr 2016 10:28:00 -0700 (PDT)
-Date: Wed, 20 Apr 2016 18:27:55 +0100
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: post-copy is broken?
-Message-ID: <20160420172754.GJ2263@work-vm>
-References: <20160414162230.GC9976@redhat.com>
- <20160415125236.GA3376@node.shutemov.name>
- <20160415134233.GG2229@work-vm>
- <20160415152330.GB3376@node.shutemov.name>
- <20160415163448.GJ2229@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E04181101@shsmsx102.ccr.corp.intel.com>
- <20160418095528.GD2222@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E0418115C@shsmsx102.ccr.corp.intel.com>
- <20160418101555.GE2222@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E041813A6@shsmsx102.ccr.corp.intel.com>
+        Wed, 20 Apr 2016 10:42:33 -0700 (PDT)
+Received: by mail-pa0-x235.google.com with SMTP id er2so19859198pad.3
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 10:42:33 -0700 (PDT)
+From: "Shi, Yang" <yang.shi@linaro.org>
+Subject: [BUG linux-next] KASAN bug is raised on linux-next-20160414 with huge
+ tmpfs on
+Message-ID: <5717BF85.1090800@linaro.org>
+Date: Wed, 20 Apr 2016 10:42:29 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E041813A6@shsmsx102.ccr.corp.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li, Liang Z" <liang.z.li@intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, Amit Shah <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: akpm@linux-foundation.org, sfr@canb.auug.org.au, hughd@google.com, aryabinin@virtuozzo.com, trond.myklebust@primarydata.com, anna.schumaker@netapp.com
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-nfs@vger.kernel.org, yang.shi@linaro.org
 
+Hi folks,
 
-Hi,
-  Just a follow up with a little more debug;
+When I run the below test on my ARM64 machine with NFS mounted rootfs, I 
+got KASAN bug report. The test runs well if mnt is not mounted with 
+"huge=1".
 
-I modified the test so it doesn't quit after the first miscomparison (see
-diff below), and looking on the failures on real hardware I've seen:
+# mount -t tmpfs -o huge=1 tmpfs /mnt
+# cp -a /opt/ltp /mnt/
 
-/x86_64/postcopy: Memory content inconsistency at 3800000 first_byte = 30 last_byte = 30 current = 10 hit_edge = 0
-                  Memory content inconsistency at 38fe000 first_byte = 30 last_byte = 10 current = 30 hit_edge = 0
+BUG: KASAN: use-after-free in nfs_readdir+0x2c4/0x848 at addr 
+ffff80000b7f4000
+Read of size 4 by task crond/446
+page:ffff7bffc02dfd00 count:2 mapcount:0 mapping:ffff80001c2cae98 index:0x0
+flags: 0x6c(referenced|uptodate|lru|active)
+page dumped because: kasan: bad access detected
+page->mem_cgroup:ffff80002402da80
+CPU: 0 PID: 446 Comm: crond Tainted: G        W 
+4.6.0-rc3-next-20160414-WR8.0.0.0_standard+ #13
+Hardware name: Freescale Layerscape 2085a RDB Board (DT)
+Call trace:
+[<ffff20000820bc90>] dump_backtrace+0x0/0x2b8
+[<ffff20000820bf6c>] show_stack+0x24/0x30
+[<ffff200008a28928>] dump_stack+0xb0/0xe8
+[<ffff2000084c2cf0>] kasan_report_error+0x518/0x5c0
+[<ffff2000084c32c0>] kasan_report+0x60/0x70
+[<ffff2000084c1854>] __asan_load4+0x64/0x80
+[<ffff20000868e1dc>] nfs_readdir+0x2c4/0x848
+[<ffff2000085189d8>] iterate_dir+0x120/0x1d8
+[<ffff2000085190dc>] SyS_getdents64+0xdc/0x170
+[<ffff200008204ee0>] __sys_trace_return+0x0/0x4
+Memory state around the buggy address:
+  ffff80000b7f3f00: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+  ffff80000b7f3f80: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+ >ffff80000b7f4000: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+                    ^
+  ffff80000b7f4080: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+  ffff80000b7f4100: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
 
-and then another time:
-/x86_64/postcopy: Memory content inconsistency at 4c00000 first_byte = 9a last_byte = 99 current = 1 hit_edge = 1
-                  Memory content inconsistency at 4cec000 first_byte = 9a last_byte = 1 current = 99 hit_edge = 1
+BUG: KASAN: use-after-free in nfs_do_filldir+0x88/0x298 at addr 
+ffff80000b7f4000
+Read of size 4 by task crond/446
+page:ffff7bffc02dfd00 count:2 mapcount:0 mapping:ffff80001c2cae98 index:0x0
+flags: 0x6c(referenced|uptodate|lru|active)
+page dumped because: kasan: bad access detected
+page->mem_cgroup:ffff80002402da80
+CPU: 0 PID: 446 Comm: crond Tainted: G    B   W 
+4.6.0-rc3-next-20160414-WR8.0.0.0_standard+ #13
+Hardware name: Freescale Layerscape 2085a RDB Board (DT)
+Call trace:
+[<ffff20000820bc90>] dump_backtrace+0x0/0x2b8
+[<ffff20000820bf6c>] show_stack+0x24/0x30
+[<ffff200008a28928>] dump_stack+0xb0/0xe8
+[<ffff2000084c2cf0>] kasan_report_error+0x518/0x5c0
+[<ffff2000084c32c0>] kasan_report+0x60/0x70
+[<ffff2000084c1854>] __asan_load4+0x64/0x80
+[<ffff20000868cb98>] nfs_do_filldir+0x88/0x298
+[<ffff20000868e3a0>] nfs_readdir+0x488/0x848
+[<ffff2000085189d8>] iterate_dir+0x120/0x1d8
+[<ffff2000085190dc>] SyS_getdents64+0xdc/0x170
+[<ffff200008204ee0>] __sys_trace_return+0x0/0x4
+Memory state around the buggy address:
+  ffff80000b7f3f00: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+  ffff80000b7f3f80: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+ >ffff80000b7f4000: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+                    ^
+  ffff80000b7f4080: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+  ffff80000b7f4100: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
 
-so in both cases what we're seeing there is starting on a 2M page boundary, a page
-that is read on the destination as zero instead of getting the migrated value -
-but somewhere later in the page it starts behaving. (in the first example the counter
-had reached 0x30 - except for those pages which hadn't been transferred where
-the counter is much lower at 0x10).
-
-Testing it in my VM, I added some debug for where I'd been doing an madvise DONTNEED
-previously:
-
-ram_discard_range: pc.ram:0xf51000 for 42094592
-ram_discard_range: pc.ram:0x5259000 for 18509824
-Memory content inconsistency at f51000 first_byte = 6d last_byte = 6d current = 9e hit_edge = 0
-Memory content inconsistency at 1000000 first_byte = 6d last_byte = 9e current = 6d hit_edge = 0
-
-   So that's saying that from f51000..1000000 it was wrong - so not just one page, but upto the THP edge.
-(It then got back to the right value - 6d - on the page edge).  Note how the start corresponds
-to the address I'd previously done a discard on, but not the whole discard range - just
-upto the THP page boundary.  Nothing in my userspace code knows about THP
-(other than turning it off).
-
-Dave
-
-
-
-@@ -251,6 +251,7 @@ static void check_guests_ram(void)
-     uint8_t first_byte;
-     uint8_t last_byte;
-     bool hit_edge = false;
-+    bool bad = false;
- 
-     qtest_memread(global_qtest, start_address, &first_byte, 1);
-     last_byte = first_byte;
-@@ -271,11 +272,12 @@ static void check_guests_ram(void)
-                                 " first_byte = %x last_byte = %x current = %x"
-                                 " hit_edge = %x\n",
-                                 address, first_byte, last_byte, b, hit_edge);
--                assert(0);
-+                bad = true;
-             }
-         }
-         last_byte = b;
-     }
-+    assert(!bad);
-     fprintf(stderr, "first_byte = %x last_byte = %x hit_edge = %x OK\n",
-                     first_byte, last_byte, hit_edge);
- }
-
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+Thanks,
+Yang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
