@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BAC56B0299
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 03:06:15 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id zy2so97515448pac.1
-        for <linux-mm@kvack.org>; Thu, 21 Apr 2016 00:06:15 -0700 (PDT)
-Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
-        by mx.google.com with ESMTP id zp15si1891608pab.241.2016.04.21.00.06.13
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C27906B029C
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 03:09:16 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id s2so174149007iod.0
+        for <linux-mm@kvack.org>; Thu, 21 Apr 2016 00:09:16 -0700 (PDT)
+Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
+        by mx.google.com with ESMTP id vk8si2000314igb.26.2016.04.21.00.09.14
         for <linux-mm@kvack.org>;
-        Thu, 21 Apr 2016 00:06:14 -0700 (PDT)
+        Thu, 21 Apr 2016 00:09:16 -0700 (PDT)
 Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
 From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1461181647-8039-1-git-send-email-mhocko@kernel.org> <1461181647-8039-10-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1461181647-8039-10-git-send-email-mhocko@kernel.org>
-Subject: Re: [PATCH 09/14] mm: use compaction feedback for thp backoff conditions
-Date: Thu, 21 Apr 2016 15:05:52 +0800
-Message-ID: <02d401d19b9c$3e6a6aa0$bb3f3fe0$@alibaba-inc.com>
+References: <1461181647-8039-1-git-send-email-mhocko@kernel.org> <1461181647-8039-5-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1461181647-8039-5-git-send-email-mhocko@kernel.org>
+Subject: Re: [PATCH 04/14] mm, compaction: distinguish COMPACT_DEFERRED from COMPACT_SKIPPED
+Date: Thu, 21 Apr 2016 15:08:55 +0800
+Message-ID: <02d501d19b9c$ab7fd4e0$027f7ea0$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
@@ -28,85 +28,100 @@ Cc: 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Johannes Weiner' <hannes@
 > 
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> THP requests skip the direct reclaim if the compaction is either
-> deferred or contended to reduce stalls which wouldn't help the
-> allocation success anyway. These checks are ignoring other potential
-> feedback modes which we have available now.
+> try_to_compact_pages can currently return COMPACT_SKIPPED even when the
+> compaction is defered for some zone just because zone DMA is skipped
+> in 99% of cases due to watermark checks. This makes COMPACT_DEFERRED
+> basically unusable for the page allocator as a feedback mechanism.
 > 
-> It clearly doesn't make much sense to go and reclaim few pages if the
-> previous compaction has failed.
+> Make sure we distinguish those two states properly and switch their
+> ordering in the enum. This would mean that the COMPACT_SKIPPED will be
+> returned only when all eligible zones are skipped.
 > 
-> We can also simplify the check by using compaction_withdrawn which
-> checks for both COMPACT_CONTENDED and COMPACT_DEFERRED. This check
-> is however covering more reasons why the compaction was withdrawn.
-> None of them should be a problem for the THP case though.
+> As a result COMPACT_DEFERRED handling for THP in __alloc_pages_slowpath
+> will be more precise and we would bail out rather than reclaim.
 > 
-> It is safe to back of if we see COMPACT_SKIPPED because that means
-> that compaction_suitable failed and a single round of the reclaim is
-> unlikely to make any difference here. We would have to be close to
-> the low watermark to reclaim enough and even then there is no guarantee
-> that the compaction would make any progress while the direct reclaim
-> would have caused the stall.
-> 
-> COMPACT_PARTIAL_SKIPPED is slightly different because that means that we
-> have only seen a part of the zone so a retry would make some sense. But
-> it would be a compaction retry not a reclaim retry to perform. We are
-> not doing that and that might indeed lead to situations where THP fails
-> but this should happen only rarely and it would be really hard to
-> measure.
-> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > ---
 
 Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
->  mm/page_alloc.c | 27 ++++++++-------------------
->  1 file changed, 8 insertions(+), 19 deletions(-)
+>  include/linux/compaction.h        | 7 +++++--
+>  include/trace/events/compaction.h | 2 +-
+>  mm/compaction.c                   | 8 +++++---
+>  3 files changed, 11 insertions(+), 6 deletions(-)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 350d13f3709b..d551fe326c33 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3257,25 +3257,14 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	if (page)
->  		goto got_pg;
-> 
-> -	/* Checks for THP-specific high-order allocations */
-> -	if (is_thp_gfp_mask(gfp_mask)) {
-> -		/*
-> -		 * If compaction is deferred for high-order allocations, it is
-> -		 * because sync compaction recently failed. If this is the case
-> -		 * and the caller requested a THP allocation, we do not want
-> -		 * to heavily disrupt the system, so we fail the allocation
-> -		 * instead of entering direct reclaim.
-> -		 */
-> -		if (compact_result == COMPACT_DEFERRED)
-> -			goto nopage;
-> -
-> -		/*
-> -		 * Compaction is contended so rather back off than cause
-> -		 * excessive stalls.
-> -		 */
-> -		if(compact_result == COMPACT_CONTENDED)
-> -			goto nopage;
-> -	}
-> +	/*
-> +	 * Checks for THP-specific high-order allocations and back off
-> +	 * if the the compaction backed off or failed
-> +	 */
-
-Alternatively,
-	/*
-	 * Check THP allocations and back off
-	 * if the compaction bailed out or failed
-	 */
-> +	if (is_thp_gfp_mask(gfp_mask) &&
-> +			(compaction_withdrawn(compact_result) ||
-> +			 compaction_failed(compact_result)))
-> +		goto nopage;
-> 
+> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> index 4458fd94170f..7e177d111c39 100644
+> --- a/include/linux/compaction.h
+> +++ b/include/linux/compaction.h
+> @@ -4,13 +4,16 @@
+>  /* Return values for compact_zone() and try_to_compact_pages() */
+>  /* When adding new states, please adjust include/trace/events/compaction.h */
+>  enum compact_result {
+> -	/* compaction didn't start as it was deferred due to past failures */
+> -	COMPACT_DEFERRED,
 >  	/*
->  	 * It can become very expensive to allocate transparent hugepages at
+>  	 * compaction didn't start as it was not possible or direct reclaim
+>  	 * was more suitable
+>  	 */
+>  	COMPACT_SKIPPED,
+> +	/* compaction didn't start as it was deferred due to past failures */
+> +	COMPACT_DEFERRED,
+> +	/* compaction not active last round */
+> +	COMPACT_INACTIVE = COMPACT_DEFERRED,
+> +
+>  	/* compaction should continue to another pageblock */
+>  	COMPACT_CONTINUE,
+>  	/*
+> diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+> index e215bf68f521..6ba16c86d7db 100644
+> --- a/include/trace/events/compaction.h
+> +++ b/include/trace/events/compaction.h
+> @@ -10,8 +10,8 @@
+>  #include <trace/events/mmflags.h>
+> 
+>  #define COMPACTION_STATUS					\
+> -	EM( COMPACT_DEFERRED,		"deferred")		\
+>  	EM( COMPACT_SKIPPED,		"skipped")		\
+> +	EM( COMPACT_DEFERRED,		"deferred")		\
+>  	EM( COMPACT_CONTINUE,		"continue")		\
+>  	EM( COMPACT_PARTIAL,		"partial")		\
+>  	EM( COMPACT_COMPLETE,		"complete")		\
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index b06de27b7f72..13709e33a2fc 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1637,7 +1637,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+>  	int may_perform_io = gfp_mask & __GFP_IO;
+>  	struct zoneref *z;
+>  	struct zone *zone;
+> -	enum compact_result rc = COMPACT_DEFERRED;
+> +	enum compact_result rc = COMPACT_SKIPPED;
+>  	int all_zones_contended = COMPACT_CONTENDED_LOCK; /* init for &= op */
+> 
+>  	*contended = COMPACT_CONTENDED_NONE;
+> @@ -1654,8 +1654,10 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+>  		enum compact_result status;
+>  		int zone_contended;
+> 
+> -		if (compaction_deferred(zone, order))
+> +		if (compaction_deferred(zone, order)) {
+> +			rc = max_t(enum compact_result, COMPACT_DEFERRED, rc);
+>  			continue;
+> +		}
+> 
+>  		status = compact_zone_order(zone, order, gfp_mask, mode,
+>  				&zone_contended, alloc_flags,
+> @@ -1726,7 +1728,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+>  	 * If at least one zone wasn't deferred or skipped, we report if all
+>  	 * zones that were tried were lock contended.
+>  	 */
+> -	if (rc > COMPACT_SKIPPED && all_zones_contended)
+> +	if (rc > COMPACT_INACTIVE && all_zones_contended)
+>  		*contended = COMPACT_CONTENDED_LOCK;
+> 
+>  	return rc;
 > --
 > 2.8.0.rc3
 
