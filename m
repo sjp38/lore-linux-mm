@@ -1,68 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C94D16B028A
-	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 19:56:36 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id f83so113817565iod.1
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 16:56:36 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id cs2si310365igb.34.2016.04.20.16.56.35
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EAC2A828E8
+	for <linux-mm@kvack.org>; Wed, 20 Apr 2016 23:10:34 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e190so123417993pfe.3
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 20:10:34 -0700 (PDT)
+Received: from g1t5424.austin.hp.com (g1t5424.austin.hp.com. [15.216.225.54])
+        by mx.google.com with ESMTPS id ur6si725418pac.226.2016.04.20.20.10.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Apr 2016 16:56:36 -0700 (PDT)
-Date: Thu, 21 Apr 2016 09:56:33 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [PATCH mmotm 5/5] huge tmpfs: add shmem_pmd_fault()
-Message-ID: <20160421095633.3969f31d@canb.auug.org.au>
-In-Reply-To: <alpine.LSU.2.11.1604161638230.1907@eggly.anvils>
-References: <alpine.LSU.2.11.1604161621310.1907@eggly.anvils>
-	<alpine.LSU.2.11.1604161638230.1907@eggly.anvils>
+        Wed, 20 Apr 2016 20:10:31 -0700 (PDT)
+Subject: Re: [PATCH v3 0/2] Align mmap address for DAX pmd mappings
+References: <1460652511-19636-1-git-send-email-toshi.kani@hpe.com>
+ <20160415220531.c7b55adb5b26eb749fae3186@linux-foundation.org>
+ <20160418202610.GA17889@quack2.suse.cz>
+ <20160419182347.GA29068@linux.intel.com>
+From: Toshi Kani <toshi.kani@hpe.com>
+Message-ID: <571844A1.5080703@hpe.com>
+Date: Wed, 20 Apr 2016 23:10:25 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20160419182347.GA29068@linux.intel.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, kernel test robot <xiaolong.ye@intel.com>, Xiong Zhou <jencce.kernel@gmail.com>, Matthew Wilcox <willy@linux.intel.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@linux.intel.com>, Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, dan.j.williams@intel.com, viro@zeniv.linux.org.uk, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com, david@fromorbit.com, tytso@mit.edu, adilger.kernel@dilger.ca, linux-nvdimm@ml01.01.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Hugh,
-
-On Sat, 16 Apr 2016 16:41:33 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
+On 4/19/2016 2:23 PM, Matthew Wilcox wrote:
+> On Mon, Apr 18, 2016 at 10:26:10PM +0200, Jan Kara wrote:
+>> On Fri 15-04-16 22:05:31, Andrew Morton wrote:
+>>> On Thu, 14 Apr 2016 10:48:29 -0600 Toshi Kani <toshi.kani@hpe.com> wrote:
+>>>
+>>>> When CONFIG_FS_DAX_PMD is set, DAX supports mmap() using pmd page
+>>>> size.  This feature relies on both mmap virtual address and FS
+>>>> block (i.e. physical address) to be aligned by the pmd page size.
+>>>> Users can use mkfs options to specify FS to align block allocations.
+>>>> However, aligning mmap address requires code changes to existing
+>>>> applications for providing a pmd-aligned address to mmap().
+>>>>
+>>>> For instance, fio with "ioengine=mmap" performs I/Os with mmap() [1].
+>>>> It calls mmap() with a NULL address, which needs to be changed to
+>>>> provide a pmd-aligned address for testing with DAX pmd mappings.
+>>>> Changing all applications that call mmap() with NULL is undesirable.
+>>>>
+>>>> This patch-set extends filesystems to align an mmap address for
+>>>> a DAX file so that unmodified applications can use DAX pmd mappings.
+>>> Matthew sounded unconvinced about the need for this patchset, but I
+>>> must say that
+>>>
+>>> : The point is that we do not need to modify existing applications for using
+>>> : DAX PMD mappings.
+>>> :
+>>> : For instance, fio with "ioengine=mmap" performs I/Os with mmap().
+>>> : https://github.com/caius/fio/blob/master/engines/mmap.c
+>>> :
+>>> : With this change, unmodified fio can be used for testing with DAX PMD
+>>> : mappings.  There are many examples like this, and I do not think we want
+>>> : to modify all applications that we want to evaluate/test with.
+>>>
+>>> sounds pretty convincing?
+>>>
+>>>
+>>> And if we go ahead with this, it looks like 4.7 material to me - it
+>>> affects ABI and we want to get that stabilized asap.  What do people
+>>> think?
+>> So I think Mathew didn't question the patch set as a whole. I think we all
+>> agree that we should align the virtual address we map to so that PMD
+>> mappings can be used. What Mathew was questioning was whether we really
+>> need to play tricks when logical offset in the file where mmap is starting
+>> is not aligned (and similarly for map length). Whether allowing PMD
+>> mappings for unaligned file offsets is worth the complication is IMO a
+>> valid question.
+> I was questioning the approach as a whole ... since we have userspace
+> already doing this in the form of NVML, do we really need the kernel to
+> do this for us?
 >
-> The pmd_fault() method gives the filesystem an opportunity to place
-> a trans huge pmd entry at *pmd, before any pagetable is exposed (and
-> an opportunity to split it on COW fault): now use it for huge tmpfs.
-> 
-> This patch is a little raw: with more time before LSF/MM, I would
-> probably want to dress it up better - the shmem_mapping() calls look
-> a bit ugly; it's odd to want FAULT_FLAG_MAY_HUGE and VM_FAULT_HUGE just
-> for a private conversation between shmem_fault() and shmem_pmd_fault();
-> and there might be a better distribution of work between those two, but
-> prising apart that series of huge tests is not to be done in a hurry.
-> 
-> Good for now, presents the new way, but might be improved later.
-> 
-> This patch still leaves the huge tmpfs map_team_by_pmd() allocating a
-> pagetable while holding page lock, but other filesystems are no longer
-> doing so; and we've not yet settled whether huge tmpfs should (like anon
-> THP) or should not (like DAX) participate in deposit/withdraw protocol.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
-> I've been testing with this applied on top of mmotm plus 1-4/5,
-> but I suppose the right place for it is immediately after
-> huge-tmpfs-map-shmem-by-huge-page-pmd-or-by-page-team-ptes.patch
-> with a view to perhaps merging it into that in the future.
-> 
->  mm/huge_memory.c |    4 ++--
->  mm/memory.c      |   13 +++++++++----
->  mm/shmem.c       |   33 +++++++++++++++++++++++++++++++++
->  3 files changed, 44 insertions(+), 6 deletions(-)
+> Now, a further wrinkle.  We have two competing patch sets (from Kirill
+> and Hugh) which are going to give us THP for page cache filesystems.
+> I would suggest that this is not DAX functionality but rather VFS
+> functionality to opportunistically align all mmaps on files which are
+> reasonably likely to be able to use THP.
+>
+> I hadn't thought about this until earlier today, and I'm sorry I didn't
+> raise it further.  Perhaps we can do a lightning session on this later
+> today at LSFMM since all six (Toshi, Andrew, Jan, Hugh, Kirill and myself)
+> are here.
 
-I added this to the end of mmotm in linux-next today.
+How about moving the function (as is) to mm/huge_memory.c, rename it to
+get_hugepage_unmapped_area(), which is defined to NULL in huge_mm.h
+when TRANSPARENT_HUGEPAGE is unset?
 
--- 
-Cheers,
-Stephen Rothwell
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
