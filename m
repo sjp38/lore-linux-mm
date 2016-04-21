@@ -1,334 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C00E82F6B
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 04:14:20 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id f63so115606339oig.1
-        for <linux-mm@kvack.org>; Thu, 21 Apr 2016 01:14:20 -0700 (PDT)
-Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
-        by mx.google.com with ESMTP id 41si2288573iot.146.2016.04.21.01.14.17
-        for <linux-mm@kvack.org>;
-        Thu, 21 Apr 2016 01:14:19 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1461181647-8039-1-git-send-email-mhocko@kernel.org> <1461181647-8039-14-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1461181647-8039-14-git-send-email-mhocko@kernel.org>
-Subject: Re: [PATCH 13/14] mm: consider compaction feedback also for costly allocation
-Date: Thu, 21 Apr 2016 16:13:56 +0800
-Message-ID: <02f201d19ba5$c0c7e550$4257aff0$@alibaba-inc.com>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2296382F6B
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 04:22:20 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id dx6so99766341pad.0
+        for <linux-mm@kvack.org>; Thu, 21 Apr 2016 01:22:20 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id l74si20913931pfb.194.2016.04.21.01.21.55
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Apr 2016 01:22:19 -0700 (PDT)
+Message-ID: <57188D3B.6080807@huawei.com>
+Date: Thu, 21 Apr 2016 16:20:11 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Subject: Re: mce: a question about memory_failure_early_kill in memory_failure()
+References: <571612DE.8020908@huawei.com> <20160420070735.GA10125@hori1.linux.bs1.fc.nec.co.jp> <57175F30.6050300@huawei.com> <571760F3.2040305@huawei.com> <20160420231506.GA18729@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20160420231506.GA18729@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Hocko' <mhocko@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'Joonsoo Kim' <js1304@gmail.com>, 'Vlastimil Babka' <vbabka@suse.cz>, linux-mm@kvack.org, 'LKML' <linux-kernel@vger.kernel.org>, 'Michal Hocko' <mhocko@suse.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hanjun Guo <guohanjun@huawei.com>
 
-> 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> PAGE_ALLOC_COSTLY_ORDER retry logic is mostly handled inside
-> should_reclaim_retry currently where we decide to not retry after at
-> least order worth of pages were reclaimed or the watermark check for at
-> least one zone would succeed after reclaiming all pages if the reclaim
-> hasn't made any progress. Compaction feedback is mostly ignored and we
-> just try to make sure that the compaction did at least something before
-> giving up.
-> 
-> The first condition was added by a41f24ea9fd6 ("page allocator: smarter
-> retry of costly-order allocations) and it assumed that lumpy reclaim
-> could have created a page of the sufficient order. Lumpy reclaim,
-> has been removed quite some time ago so the assumption doesn't hold
-> anymore. Remove the check for the number of reclaimed pages and rely
-> on the compaction feedback solely. should_reclaim_retry now only
-> makes sure that we keep retrying reclaim for high order pages only
-> if they are hidden by watermaks so order-0 reclaim makes really sense.
-> 
-> should_compact_retry now keeps retrying even for the costly allocations.
-> The number of retries is reduced wrt. !costly requests because they are
-> less important and harder to grant and so their pressure shouldn't cause
-> contention for other requests or cause an over reclaim. We also do not
-> reset no_progress_loops for costly request to make sure we do not keep
-> reclaiming too agressively.
-> 
-> This has been tested by running a process which fragments memory:
-> 	- compact memory
-> 	- mmap large portion of the memory (1920M on 2GRAM machine with 2G
-> 	  of swapspace)
-> 	- MADV_DONTNEED single page in PAGE_SIZE*((1UL<<MAX_ORDER)-1)
-> 	  steps until certain amount of memory is freed (250M in my test)
-> 	  and reduce the step to (step / 2) + 1 after reaching the end of
-> 	  the mapping
-> 	- then run a script which populates the page cache 2G (MemTotal)
-> 	  from /dev/zero to a new file
-> And then tries to allocate
-> nr_hugepages=$(awk '/MemAvailable/{printf "%d\n", $2/(2*1024)}' /proc/meminfo)
-> huge pages.
-> 
-> root@test1:~# echo 1 > /proc/sys/vm/overcommit_memory;echo 1 > /proc/sys/vm/compact_memory; ./fragment-mem-and-run
-> /root/alloc_hugepages.sh 1920M 250M
-> Node 0, zone      DMA     31     28     31     10      2      0      2      1      2      3      1
-> Node 0, zone    DMA32    437    319    171     50     28     25     20     16     16     14    437
-> 
-> * This is the /proc/buddyinfo after the compaction
-> 
-> Done fragmenting. size=2013265920 freed=262144000
-> Node 0, zone      DMA    165     48      3      1      2      0      2      2      2      2      0
-> Node 0, zone    DMA32  35109  14575    185     51     41     12      6      0      0      0      0
-> 
-> * /proc/buddyinfo after memory got fragmented
-> 
-> Executing "/root/alloc_hugepages.sh"
-> Eating some pagecache
-> 508623+0 records in
-> 508623+0 records out
-> 2083319808 bytes (2.1 GB) copied, 11.7292 s, 178 MB/s
-> Node 0, zone      DMA      3      5      3      1      2      0      2      2      2      2      0
-> Node 0, zone    DMA32    111    344    153     20     24     10      3      0      0      0      0
-> 
-> * /proc/buddyinfo after page cache got eaten
-> 
-> Trying to allocate 129
-> 129
-> 
-> * 129 hugepages requested and all of them granted.
-> 
-> Node 0, zone      DMA      3      5      3      1      2      0      2      2      2      2      0
-> Node 0, zone    DMA32    127     97     30     99     11      6      2      1      4      0      0
-> 
-> * /proc/buddyinfo after hugetlb allocation.
-> 
-> 10 runs will behave as follows:
-> Trying to allocate 130
-> 130
-> --
-> Trying to allocate 129
-> 129
-> --
-> Trying to allocate 128
-> 128
-> --
-> Trying to allocate 129
-> 129
-> --
-> Trying to allocate 128
-> 128
-> --
-> Trying to allocate 129
-> 129
-> --
-> Trying to allocate 132
-> 132
-> --
-> Trying to allocate 129
-> 129
-> --
-> Trying to allocate 128
-> 128
-> --
-> Trying to allocate 129
-> 129
-> 
-> So basically 100% success for all 10 attempts.
-> Without the patch numbers looked much worse:
-> Trying to allocate 128
-> 12
-> --
-> Trying to allocate 129
-> 14
-> --
-> Trying to allocate 129
-> 7
-> --
-> Trying to allocate 129
-> 16
-> --
-> Trying to allocate 129
-> 30
-> --
-> Trying to allocate 129
-> 38
-> --
-> Trying to allocate 129
-> 19
-> --
-> Trying to allocate 129
-> 37
-> --
-> Trying to allocate 129
-> 28
-> --
-> Trying to allocate 129
-> 37
-> 
-> Just for completness the base kernel without oom detection rework looks
-> as follows:
-> Trying to allocate 127
-> 30
-> --
-> Trying to allocate 129
-> 12
-> --
-> Trying to allocate 129
-> 52
-> --
-> Trying to allocate 128
-> 32
-> --
-> Trying to allocate 129
-> 12
-> --
-> Trying to allocate 129
-> 10
-> --
-> Trying to allocate 129
-> 32
-> --
-> Trying to allocate 128
-> 14
-> --
-> Trying to allocate 128
-> 16
-> --
-> Trying to allocate 129
-> 8
-> 
-> As we can see the success rate is much more volatile and smaller without
-> this patch. So the patch not only makes the retry logic for costly
-> requests more sensible the success rate is even higher.
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
+On 2016/4/21 7:15, Naoya Horiguchi wrote:
 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> On Wed, Apr 20, 2016 at 06:58:59PM +0800, Xishi Qiu wrote:
+>> On 2016/4/20 18:51, Xishi Qiu wrote:
+>>
+>>> On 2016/4/20 15:07, Naoya Horiguchi wrote:
+>>>
+>>>> On Tue, Apr 19, 2016 at 07:13:34PM +0800, Xishi Qiu wrote:
+>>>>> /proc/sys/vm/memory_failure_early_kill
+>>>>>
+>>>>> 1: means kill all processes that have the corrupted and not reloadable page mapped.
+>>>>> 0: means only unmap the corrupted page from all processes and only kill a process
+>>>>> who tries to access it.
+>>>>>
+>>>>> If set memory_failure_early_kill to 0, and memory_failure() has been called.
+>>>>> memory_failure()
+>>>>> 	hwpoison_user_mappings()
+>>>>> 		collect_procs()  // the task(with no PF_MCE_PROCESS flag) is not in the tokill list
+>>>>> 			try_to_unmap()
+>>>>>
+>>>>> If the task access the memory, there will be a page fault,
+>>>>> so the task can not access the original page again, right?
+>>>>
+>>>> Yes, right. That's the behavior in default "late kill" case.
+>>>>
+>>>
+>>> Hi Naoya,
+>>>
+>>> Thanks for your reply, my confusion is that after try_to_unmap(), there will be a
+>>> page fault if the task access the memory, and we will alloc a new page for it.
+> 
+> When try_to_unmap() is called for PageHWPoison(page) without TTU_IGNORE_HWPOISON,
+> page table entries mapping the error page are replaced with hwpoison entries,
+> which changes the bahavior of a subsequent page fault. Then, the page fault will
+> fail with VM_FAULT_HWPOISON, so finally the process will be killed without allocating
+> a new page.
+> 
 
->  mm/page_alloc.c | 63 +++++++++++++++++++++++++++++----------------------------
->  1 file changed, 32 insertions(+), 31 deletions(-)
+Hi Naoya,
+
+One more question, can we add some code like x86(do_page_fault() -> mm_fault_error()),
+then this new arch(e.g. arm64) could support late kill too?
+
+I mean can we add config to support soft_offline_page/hard_offline_page on arm64?
+
+Thanks,
+Xishi Qiu
+
+>>
+>> Hi Naoya,
+>>
+>> If we alloc a new page, the task won't access the poisioned page again, so it won't be
+>> killed by mce(late kill), right?
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index bb4df1be0d43..d5a938f12554 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3019,6 +3019,8 @@ should_compact_retry(unsigned int order, enum compact_result compact_result,
->  		     enum migrate_mode *migrate_mode,
->  		     int compaction_retries)
->  {
-> +	int max_retries = MAX_COMPACT_RETRIES;
-> +
->  	if (!order)
->  		return false;
+> Allocating a new page for virtual address affected by memory error is dangerous
+> because if the error page was dirty (or anonymous as you mentioned), the data
+> is lost and new page allocation means that the data lost is ignored. The first
+> priority of hwpoison mechanism is to avoid consuming corrupted data.
 > 
-> @@ -3036,17 +3038,24 @@ should_compact_retry(unsigned int order, enum compact_result compact_result,
->  	}
+>> If the poisioned page is anon, we will lost data, right?
 > 
->  	/*
-> -	 * !costly allocations are really important and we have to make sure
-> -	 * the compaction wasn't deferred or didn't bail out early due to locks
-> -	 * contention before we go OOM. Still cap the reclaim retry loops with
-> -	 * progress to prevent from looping forever and potential trashing.
-> +	 * make sure the compaction wasn't deferred or didn't bail out early
-> +	 * due to locks contention before we declare that we should give up.
->  	 */
-> -	if (order <= PAGE_ALLOC_COSTLY_ORDER) {
-> -		if (compaction_withdrawn(compact_result))
-> -			return true;
-> -		if (compaction_retries <= MAX_COMPACT_RETRIES)
-> -			return true;
-> -	}
-> +	if (compaction_withdrawn(compact_result))
-> +		return true;
-> +
-> +	/*
-> +	 * !costly requests are much more important than __GFP_REPEAT
-> +	 * costly ones because they are de facto nofail and invoke OOM
-> +	 * killer to move on while costly can fail and users are ready
-> +	 * to cope with that. 1/4 retries is rather arbitrary but we
-> +	 * would need much more detailed feedback from compaction to
-> +	 * make a better decision.
-> +	 */
-> +	if (order > PAGE_ALLOC_COSTLY_ORDER)
-> +		max_retries /= 4;
-> +	if (compaction_retries <= max_retries)
-> +		return true;
+> Yes, that's the idea.
 > 
->  	return false;
->  }
-> @@ -3207,18 +3216,17 @@ static inline bool is_thp_gfp_mask(gfp_t gfp_mask)
->   * Checks whether it makes sense to retry the reclaim to make a forward progress
->   * for the given allocation request.
->   * The reclaim feedback represented by did_some_progress (any progress during
-> - * the last reclaim round), pages_reclaimed (cumulative number of reclaimed
-> - * pages) and no_progress_loops (number of reclaim rounds without any progress
-> - * in a row) is considered as well as the reclaimable pages on the applicable
-> - * zone list (with a backoff mechanism which is a function of no_progress_loops).
-> + * the last reclaim round) and no_progress_loops (number of reclaim rounds without
-> + * any progress in a row) is considered as well as the reclaimable pages on the
-> + * applicable zone list (with a backoff mechanism which is a function of
-> + * no_progress_loops).
->   *
->   * Returns true if a retry is viable or false to enter the oom path.
->   */
->  static inline bool
->  should_reclaim_retry(gfp_t gfp_mask, unsigned order,
->  		     struct alloc_context *ac, int alloc_flags,
-> -		     bool did_some_progress, unsigned long pages_reclaimed,
-> -		     int no_progress_loops)
-> +		     bool did_some_progress, int no_progress_loops)
->  {
->  	struct zone *zone;
->  	struct zoneref *z;
-> @@ -3230,14 +3238,6 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
->  	if (no_progress_loops > MAX_RECLAIM_RETRIES)
->  		return false;
+>>
+>>> So how the hardware(mce) know this page fault is relate to the poisioned page which
+>>> is unmapped from the task? 
+>>>
+>>> Will we record something in pte when after try_to_unmap() in memory_failure()?
 > 
-> -	if (order > PAGE_ALLOC_COSTLY_ORDER) {
-> -		if (pages_reclaimed >= (1<<order))
-> -			return false;
-> -
-> -		if (did_some_progress)
-> -			return true;
-> -	}
-> -
->  	/*
->  	 * Keep reclaiming pages while there is a chance this will lead somewhere.
->  	 * If none of the target zones can satisfy our allocation request even
-> @@ -3308,7 +3308,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	bool can_direct_reclaim = gfp_mask & __GFP_DIRECT_RECLAIM;
->  	struct page *page = NULL;
->  	int alloc_flags;
-> -	unsigned long pages_reclaimed = 0;
->  	unsigned long did_some_progress;
->  	enum migrate_mode migration_mode = MIGRATE_ASYNC;
->  	enum compact_result compact_result;
-> @@ -3444,16 +3443,18 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
->  		goto noretry;
+> As mentioned above, hwpoison entry does this job.
 > 
-> -	if (did_some_progress) {
-> +	/*
-> +	 * Costly allocations might have made a progress but this doesn't mean
-> +	 * their order will become available due to high fragmentation so
-> +	 * always increment the no progress counter for them
-> +	 */
-> +	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
->  		no_progress_loops = 0;
-> -		pages_reclaimed += did_some_progress;
-> -	} else {
-> +	else
->  		no_progress_loops++;
-> -	}
+> Thanks,
+> Naoya Horiguchi
+> .
 > 
->  	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
-> -				 did_some_progress > 0, pages_reclaimed,
-> -				 no_progress_loops))
-> +				 did_some_progress > 0, no_progress_loops))
->  		goto retry;
-> 
->  	/*
-> --
-> 2.8.0.rc3
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
