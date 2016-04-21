@@ -1,76 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 487FB6B0297
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 03:05:56 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id vv3so97863262pab.2
-        for <linux-mm@kvack.org>; Thu, 21 Apr 2016 00:05:56 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id rl12si1995338pab.36.2016.04.21.00.05.55
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BAC56B0299
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 03:06:15 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id zy2so97515448pac.1
+        for <linux-mm@kvack.org>; Thu, 21 Apr 2016 00:06:15 -0700 (PDT)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTP id zp15si1891608pab.241.2016.04.21.00.06.13
         for <linux-mm@kvack.org>;
-        Thu, 21 Apr 2016 00:05:55 -0700 (PDT)
-Date: Thu, 21 Apr 2016 03:06:25 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v3 0/2] Align mmap address for DAX pmd mappings
-Message-ID: <20160421070625.GB29068@linux.intel.com>
-References: <1460652511-19636-1-git-send-email-toshi.kani@hpe.com>
- <20160415220531.c7b55adb5b26eb749fae3186@linux-foundation.org>
- <20160418202610.GA17889@quack2.suse.cz>
- <20160419182347.GA29068@linux.intel.com>
- <571844A1.5080703@hpe.com>
+        Thu, 21 Apr 2016 00:06:14 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1461181647-8039-1-git-send-email-mhocko@kernel.org> <1461181647-8039-10-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1461181647-8039-10-git-send-email-mhocko@kernel.org>
+Subject: Re: [PATCH 09/14] mm: use compaction feedback for thp backoff conditions
+Date: Thu, 21 Apr 2016 15:05:52 +0800
+Message-ID: <02d401d19b9c$3e6a6aa0$bb3f3fe0$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <571844A1.5080703@hpe.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hpe.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, dan.j.williams@intel.com, viro@zeniv.linux.org.uk, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com, david@fromorbit.com, tytso@mit.edu, adilger.kernel@dilger.ca, linux-nvdimm@ml01.01.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Michal Hocko' <mhocko@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'Joonsoo Kim' <js1304@gmail.com>, 'Vlastimil Babka' <vbabka@suse.cz>, linux-mm@kvack.org, 'LKML' <linux-kernel@vger.kernel.org>, 'Michal Hocko' <mhocko@suse.com>
 
-On Wed, Apr 20, 2016 at 11:10:25PM -0400, Toshi Kani wrote:
-> How about moving the function (as is) to mm/huge_memory.c, rename it to
-> get_hugepage_unmapped_area(), which is defined to NULL in huge_mm.h
-> when TRANSPARENT_HUGEPAGE is unset?
+> 
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> THP requests skip the direct reclaim if the compaction is either
+> deferred or contended to reduce stalls which wouldn't help the
+> allocation success anyway. These checks are ignoring other potential
+> feedback modes which we have available now.
+> 
+> It clearly doesn't make much sense to go and reclaim few pages if the
+> previous compaction has failed.
+> 
+> We can also simplify the check by using compaction_withdrawn which
+> checks for both COMPACT_CONTENDED and COMPACT_DEFERRED. This check
+> is however covering more reasons why the compaction was withdrawn.
+> None of them should be a problem for the THP case though.
+> 
+> It is safe to back of if we see COMPACT_SKIPPED because that means
+> that compaction_suitable failed and a single round of the reclaim is
+> unlikely to make any difference here. We would have to be close to
+> the low watermark to reclaim enough and even then there is no guarantee
+> that the compaction would make any progress while the direct reclaim
+> would have caused the stall.
+> 
+> COMPACT_PARTIAL_SKIPPED is slightly different because that means that we
+> have only seen a part of the zone so a retry would make some sense. But
+> it would be a compaction retry not a reclaim retry to perform. We are
+> not doing that and that might indeed lead to situations where THP fails
+> but this should happen only rarely and it would be really hard to
+> measure.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
 
-Great idea.  Perhaps it should look something like this?
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
-unsigned long thp_get_unmapped_area(struct file *filp, unsigned long addr,
-                unsigned long len, unsigned long pgoff, unsigned long flags)
-{
-        loff_t off, off_end, off_pmd;
-        unsigned long len_pmd, addr_pmd;
+>  mm/page_alloc.c | 27 ++++++++-------------------
+>  1 file changed, 8 insertions(+), 19 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 350d13f3709b..d551fe326c33 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3257,25 +3257,14 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	if (page)
+>  		goto got_pg;
+> 
+> -	/* Checks for THP-specific high-order allocations */
+> -	if (is_thp_gfp_mask(gfp_mask)) {
+> -		/*
+> -		 * If compaction is deferred for high-order allocations, it is
+> -		 * because sync compaction recently failed. If this is the case
+> -		 * and the caller requested a THP allocation, we do not want
+> -		 * to heavily disrupt the system, so we fail the allocation
+> -		 * instead of entering direct reclaim.
+> -		 */
+> -		if (compact_result == COMPACT_DEFERRED)
+> -			goto nopage;
+> -
+> -		/*
+> -		 * Compaction is contended so rather back off than cause
+> -		 * excessive stalls.
+> -		 */
+> -		if(compact_result == COMPACT_CONTENDED)
+> -			goto nopage;
+> -	}
+> +	/*
+> +	 * Checks for THP-specific high-order allocations and back off
+> +	 * if the the compaction backed off or failed
+> +	 */
 
-        if (addr)
-                goto out;
-        if (IS_DAX(filp->f_mapping->host) && !IS_ENABLED(CONFIG_FS_DAX_PMD))
-                goto out;
-        /* Kirill, please fill in the right condition here for THP pagecache */
-
-        off = (loff_t)pgoff << PAGE_SHIFT;
-        off_end = off + len;
-        off_pmd = round_up(off, PMD_SIZE);      /* pmd-aligned start offset */
-
-        if ((off_end <= off_pmd) || ((off_end - off_pmd) < PMD_SIZE))
-                goto out;
-
-        len_pmd = len + PMD_SIZE;
-        if ((off + len_pmd) < off)
-                goto out;
-
-        addr_pmd = current->mm->get_unmapped_area(filp, NULL, len_pmd,
-                                                pgoff, flags);
-        if (!IS_ERR_VALUE(addr_pmd)) {
-                addr_pmd += (off - addr_pmd) & (PMD_SIZE - 1);
-                return addr_pmd;
-        }
- out:
-        return current->mm->get_unmapped_area(filp, addr, len, pgoff, flags);
-}
-
- - I deleted the check for filp == NULL.  It can't be NULL ... this is a
-   file_operation ;-)
- - Why is len_pmd len + PMD_SIZE instead of round_up(len, PMD_SIZE)?
- - I'm still in two minds about passing 'addr' to the first call to
-   get_unmapped_area() instead of NULL.
+Alternatively,
+	/*
+	 * Check THP allocations and back off
+	 * if the compaction bailed out or failed
+	 */
+> +	if (is_thp_gfp_mask(gfp_mask) &&
+> +			(compaction_withdrawn(compact_result) ||
+> +			 compaction_failed(compact_result)))
+> +		goto nopage;
+> 
+>  	/*
+>  	 * It can become very expensive to allocate transparent hugepages at
+> --
+> 2.8.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
