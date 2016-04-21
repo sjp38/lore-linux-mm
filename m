@@ -1,51 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 91C9D6B028F
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 02:36:08 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e190so130781470pfe.3
-        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 23:36:08 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id pt18si1781766pab.194.2016.04.20.23.36.07
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Apr 2016 23:36:07 -0700 (PDT)
-Message-ID: <1461220562.3245.3.camel@ellerman.id.au>
-Subject: Re: [PATCH] powerpc/mm: Always use STRICT_MM_TYPECHECKS
-From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Thu, 21 Apr 2016 16:36:02 +1000
-In-Reply-To: <571853FA.5080901@gmail.com>
-References: <1461209879-15044-1-git-send-email-mpe@ellerman.id.au>
-	 <571853FA.5080901@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AC8B783090
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 02:39:32 -0400 (EDT)
+Received: by mail-ig0-f197.google.com with SMTP id sn9so115845678igc.0
+        for <linux-mm@kvack.org>; Wed, 20 Apr 2016 23:39:32 -0700 (PDT)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTP id o5si14841044igv.75.2016.04.20.23.39.30
+        for <linux-mm@kvack.org>;
+        Wed, 20 Apr 2016 23:39:31 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1461181647-8039-1-git-send-email-mhocko@kernel.org> <1461181647-8039-6-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1461181647-8039-6-git-send-email-mhocko@kernel.org>
+Subject: Re: [PATCH 05/14] mm, compaction: distinguish between full and partial COMPACT_COMPLETE
+Date: Thu, 21 Apr 2016 14:39:09 +0800
+Message-ID: <02cb01d19b98$82e9cdf0$88bd69d0$@alibaba-inc.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>, linuxppc-dev@ozlabs.org
-Cc: Paul Mackerras <paulus@samba.org>, aneesh.kumar@linux.vnet.ibm.com, linux-mm@kvack.org
+To: 'Michal Hocko' <mhocko@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: 'Linus Torvalds' <torvalds@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'David Rientjes' <rientjes@google.com>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'Joonsoo Kim' <js1304@gmail.com>, 'Vlastimil Babka' <vbabka@suse.cz>, linux-mm@kvack.org, 'LKML' <linux-kernel@vger.kernel.org>, 'Michal Hocko' <mhocko@suse.com>
 
-On Thu, 2016-04-21 at 14:15 +1000, Balbir Singh wrote:
 > 
-> On 21/04/16 13:37, Michael Ellerman wrote:
-
-> > Testing done by Paul Mackerras has shown that with a modern compiler
-> > there is no negative effect on code generation from enabling
-> > STRICT_MM_TYPECHECKS.
-> > 
-> > So remove the option, and always use the strict type definitions.
-> > 
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Should we wait for Aneesh's patches before merging this in.
+> COMPACT_COMPLETE now means that compaction and free scanner met. This is
+> not very useful information if somebody just wants to use this feedback
+> and make any decisions based on that. The current caller might be a poor
+> guy who just happened to scan tiny portion of the zone and that could be
+> the reason no suitable pages were compacted. Make sure we distinguish
+> the full and partial zone walks.
+> 
+> Consumers should treat COMPACT_PARTIAL_SKIPPED as a potential success
+> and be optimistic in retrying.
+> 
+> The existing users of COMPACT_COMPLETE are conservatively changed to
+> use COMPACT_PARTIAL_SKIPPED as well but some of them should be probably
+> reconsidered and only defer the compaction only for COMPACT_COMPLETE
+> with the new semantic.
+> 
+> This patch shouldn't introduce any functional changes.
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
 
-Preferably not.
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
-I've already rebased his patches on top of this, it's trivial, it's just
-removing code.
-
-It also makes some things we might want to do as part of his series easier
-(like adding a raw accessor to get the __be64 pmd/pte val).
-
-cheers
+>  include/linux/compaction.h        | 10 +++++++++-
+>  include/trace/events/compaction.h |  1 +
+>  mm/compaction.c                   | 14 +++++++++++---
+>  mm/internal.h                     |  1 +
+>  4 files changed, 22 insertions(+), 4 deletions(-)
+> 
+> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> index 7e177d111c39..7c4de92d12cc 100644
+> --- a/include/linux/compaction.h
+> +++ b/include/linux/compaction.h
+> @@ -21,7 +21,15 @@ enum compact_result {
+>  	 * pages
+>  	 */
+>  	COMPACT_PARTIAL,
+> -	/* The full zone was compacted */
+> +	/*
+> +	 * direct compaction has scanned part of the zone but wasn't successfull
+> +	 * to compact suitable pages.
+> +	 */
+> +	COMPACT_PARTIAL_SKIPPED,
+> +	/*
+> +	 * The full zone was compacted scanned but wasn't successfull to compact
+> +	 * suitable pages.
+> +	 */
+>  	COMPACT_COMPLETE,
+>  	/* For more detailed tracepoint output */
+>  	COMPACT_NO_SUITABLE_PAGE,
+> diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+> index 6ba16c86d7db..36e2d6fb1360 100644
+> --- a/include/trace/events/compaction.h
+> +++ b/include/trace/events/compaction.h
+> @@ -14,6 +14,7 @@
+>  	EM( COMPACT_DEFERRED,		"deferred")		\
+>  	EM( COMPACT_CONTINUE,		"continue")		\
+>  	EM( COMPACT_PARTIAL,		"partial")		\
+> +	EM( COMPACT_PARTIAL_SKIPPED,	"partial_skipped")	\
+>  	EM( COMPACT_COMPLETE,		"complete")		\
+>  	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
+>  	EM( COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")	\
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 13709e33a2fc..e2e487cea5ea 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1304,7 +1304,10 @@ static enum compact_result __compact_finished(struct zone *zone, struct compact_
+>  		if (cc->direct_compaction)
+>  			zone->compact_blockskip_flush = true;
+> 
+> -		return COMPACT_COMPLETE;
+> +		if (cc->whole_zone)
+> +			return COMPACT_COMPLETE;
+> +		else
+> +			return COMPACT_PARTIAL_SKIPPED;
+>  	}
+> 
+>  	if (is_via_compact_memory(cc->order))
+> @@ -1463,6 +1466,10 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+>  		zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
+>  		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
+>  	}
+> +
+> +	if (cc->migrate_pfn == start_pfn)
+> +		cc->whole_zone = true;
+> +
+>  	cc->last_migrated_pfn = 0;
+> 
+>  	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
+> @@ -1693,7 +1700,8 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+>  			goto break_loop;
+>  		}
+> 
+> -		if (mode != MIGRATE_ASYNC && status == COMPACT_COMPLETE) {
+> +		if (mode != MIGRATE_ASYNC && (status == COMPACT_COMPLETE ||
+> +					status == COMPACT_PARTIAL_SKIPPED)) {
+>  			/*
+>  			 * We think that allocation won't succeed in this zone
+>  			 * so we defer compaction there. If it ends up
+> @@ -1939,7 +1947,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+>  						cc.classzone_idx, 0)) {
+>  			success = true;
+>  			compaction_defer_reset(zone, cc.order, false);
+> -		} else if (status == COMPACT_COMPLETE) {
+> +		} else if (status == COMPACT_PARTIAL_SKIPPED || status == COMPACT_COMPLETE) {
+>  			/*
+>  			 * We use sync migration mode here, so we defer like
+>  			 * sync direct compaction does.
+> diff --git a/mm/internal.h b/mm/internal.h
+> index e9aacea1a0d1..4423dfe69382 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -182,6 +182,7 @@ struct compact_control {
+>  	enum migrate_mode mode;		/* Async or sync migration mode */
+>  	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
+>  	bool direct_compaction;		/* False from kcompactd or /proc/... */
+> +	bool whole_zone;		/* Whole zone has been scanned */
+>  	int order;			/* order a direct compactor needs */
+>  	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
+>  	const int alloc_flags;		/* alloc flags of a direct compactor */
+> --
+> 2.8.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
