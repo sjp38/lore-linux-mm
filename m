@@ -1,88 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E2BB830A3
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 16:21:54 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id f185so179894552vkb.3
-        for <linux-mm@kvack.org>; Thu, 21 Apr 2016 13:21:54 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id u141si701094vkd.163.2016.04.21.13.21.53
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 847AC6B02A9
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 17:15:26 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id xm6so79625554pab.3
+        for <linux-mm@kvack.org>; Thu, 21 Apr 2016 14:15:26 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ta4si3145788pac.193.2016.04.21.14.15.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Apr 2016 13:21:53 -0700 (PDT)
-Subject: Re: [PATCH v3 0/2] Align mmap address for DAX pmd mappings
-References: <1460652511-19636-1-git-send-email-toshi.kani@hpe.com>
- <20160415220531.c7b55adb5b26eb749fae3186@linux-foundation.org>
- <20160418202610.GA17889@quack2.suse.cz>
- <20160419182347.GA29068@linux.intel.com> <571844A1.5080703@hpe.com>
- <20160421070625.GB29068@linux.intel.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <57193658.9020803@oracle.com>
-Date: Thu, 21 Apr 2016 13:21:44 -0700
-MIME-Version: 1.0
-In-Reply-To: <20160421070625.GB29068@linux.intel.com>
-Content-Type: text/plain; charset=windows-1252
+        Thu, 21 Apr 2016 14:15:23 -0700 (PDT)
+Received: from akpm3.mtv.corp.google.com (unknown [104.132.1.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 6B9B4F34
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 21:15:23 +0000 (UTC)
+Date: Thu, 21 Apr 2016 14:15:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: fs/exec.c: fix minor memory leak
+Message-Id: <20160421141523.d5a96fd694dd8681be5b1d36@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>, Toshi Kani <toshi.kani@hpe.com>
-Cc: Jan Kara <jack@suse.cz>, linux-nvdimm@ml01.01.org, david@fromorbit.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, adilger.kernel@dilger.ca, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, tytso@mit.edu, Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com
+To: linux-mm@kvack.org
 
-On 04/21/2016 12:06 AM, Matthew Wilcox wrote:
-> On Wed, Apr 20, 2016 at 11:10:25PM -0400, Toshi Kani wrote:
->> How about moving the function (as is) to mm/huge_memory.c, rename it to
->> get_hugepage_unmapped_area(), which is defined to NULL in huge_mm.h
->> when TRANSPARENT_HUGEPAGE is unset?
-> 
-> Great idea.  Perhaps it should look something like this?
-> 
-> unsigned long thp_get_unmapped_area(struct file *filp, unsigned long addr,
->                 unsigned long len, unsigned long pgoff, unsigned long flags)
-> {
 
-Might want to keep the future possibility of PUD_SIZE THP in mind?
--- 
-Mike Kravetz
+Could someone please double-check this?
 
->         loff_t off, off_end, off_pmd;
->         unsigned long len_pmd, addr_pmd;
-> 
->         if (addr)
->                 goto out;
->         if (IS_DAX(filp->f_mapping->host) && !IS_ENABLED(CONFIG_FS_DAX_PMD))
->                 goto out;
->         /* Kirill, please fill in the right condition here for THP pagecache */
-> 
->         off = (loff_t)pgoff << PAGE_SHIFT;
->         off_end = off + len;
->         off_pmd = round_up(off, PMD_SIZE);      /* pmd-aligned start offset */
-> 
->         if ((off_end <= off_pmd) || ((off_end - off_pmd) < PMD_SIZE))
->                 goto out;
-> 
->         len_pmd = len + PMD_SIZE;
->         if ((off + len_pmd) < off)
->                 goto out;
-> 
->         addr_pmd = current->mm->get_unmapped_area(filp, NULL, len_pmd,
->                                                 pgoff, flags);
->         if (!IS_ERR_VALUE(addr_pmd)) {
->                 addr_pmd += (off - addr_pmd) & (PMD_SIZE - 1);
->                 return addr_pmd;
->         }
->  out:
->         return current->mm->get_unmapped_area(filp, addr, len, pgoff, flags);
-> }
-> 
->  - I deleted the check for filp == NULL.  It can't be NULL ... this is a
->    file_operation ;-)
->  - Why is len_pmd len + PMD_SIZE instead of round_up(len, PMD_SIZE)?
->  - I'm still in two minds about passing 'addr' to the first call to
->    get_unmapped_area() instead of NULL.
-> _______________________________________________
-> Linux-nvdimm mailing list
-> Linux-nvdimm@lists.01.org
-> https://lists.01.org/mailman/listinfo/linux-nvdimm
-> 
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: fs/exec.c: fix minor memory leak
+
+When the to-be-removed argument's trailing '\0' is the final byte in the
+page, remove_arg_zero()'s logic will avoid freeing the page, will break
+from the loop and will then advance bprm->p to point at the first byte in
+the next page.  Net result: the final page for the zeroeth argument is
+unfreed.
+
+It isn't a very important leak - that page will be freed later by the
+bprm-wide sweep in free_arg_pages().
+
+Fixes: https://bugzilla.kernel.org/show_bug.cgi?id=116841
+Reported by: hujunjie <jj.net@163.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ fs/exec.c |    9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff -puN fs/exec.c~fs-execc-fix-minor-memory-leak fs/exec.c
+--- a/fs/exec.c~fs-execc-fix-minor-memory-leak
++++ a/fs/exec.c
+@@ -1482,8 +1482,15 @@ int remove_arg_zero(struct linux_binprm
+ 		kunmap_atomic(kaddr);
+ 		put_arg_page(page);
+ 
+-		if (offset == PAGE_SIZE)
++		if (offset == PAGE_SIZE) {
+ 			free_arg_page(bprm, (bprm->p >> PAGE_SHIFT) - 1);
++		} else if (offset == PAGE_SIZE - 1) {
++			/*
++			 * The trailing '\0' is the last byte in a page - we're
++			 * about to advance past that byte so free its page now
++			 */
++			free_arg_page(bprm, (bprm->p >> PAGE_SHIFT));
++		}
+ 	} while (offset == PAGE_SIZE);
+ 
+ 	bprm->p++;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
