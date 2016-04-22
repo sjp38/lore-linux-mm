@@ -1,180 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EC5886B007E
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2016 07:35:33 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id m2so262752797ioa.3
-        for <linux-mm@kvack.org>; Fri, 22 Apr 2016 04:35:33 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0107.outbound.protection.outlook.com. [157.56.112.107])
-        by mx.google.com with ESMTPS id t59si2619145ota.67.2016.04.22.04.35.32
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A7A096B007E
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2016 08:47:34 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id k200so63431785lfg.1
+        for <linux-mm@kvack.org>; Fri, 22 Apr 2016 05:47:34 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id z193si3642256wme.98.2016.04.22.05.47.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 22 Apr 2016 04:35:32 -0700 (PDT)
-Subject: Re: [PATCHv5 3/3] selftest/x86: add mremap vdso 32-bit test
-References: <1460388169-13340-1-git-send-email-dsafonov@virtuozzo.com>
- <1460987025-30360-1-git-send-email-dsafonov@virtuozzo.com>
- <1460987025-30360-3-git-send-email-dsafonov@virtuozzo.com>
- <CALCETrWQcokGjFb81wzfcOdHFDaHakwwwMFi5uF_5zeF6Hp9yw@mail.gmail.com>
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <571A0C3F.8090807@virtuozzo.com>
-Date: Fri, 22 Apr 2016 14:34:23 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Apr 2016 05:47:33 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id w143so3001641wmw.3
+        for <linux-mm@kvack.org>; Fri, 22 Apr 2016 05:47:32 -0700 (PDT)
+Date: Fri, 22 Apr 2016 14:47:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 17/19] dm: get rid of superfluous gfp flags
+Message-ID: <20160422124730.GA11733@dhcp22.suse.cz>
+References: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
+ <1460372892-8157-18-git-send-email-mhocko@kernel.org>
+ <alpine.LRH.2.02.1604150826280.16981@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160415130839.GJ32377@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1604151437500.3288@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160416203135.GC15128@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrWQcokGjFb81wzfcOdHFDaHakwwwMFi5uF_5zeF6Hp9yw@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160416203135.GC15128@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
- Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Shuah Khan <shuahkh@osg.samsung.com>, linux-kselftest@vger.kernel.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Shaohua Li <shli@kernel.org>
 
-On 04/21/2016 11:01 PM, Andy Lutomirski wrote:
-> On Mon, Apr 18, 2016 at 6:43 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
->> Should print on success:
->> [root@localhost ~]# ./test_mremap_vdso_32
->>          AT_SYSINFO_EHDR is 0xf773f000
->> [NOTE]  Moving vDSO: [f773f000, f7740000] -> [a000000, a001000]
->> [OK]
->> Or segfault if landing was bad (before patches):
->> [root@localhost ~]# ./test_mremap_vdso_32
->>          AT_SYSINFO_EHDR is 0xf774f000
->> [NOTE]  Moving vDSO: [f774f000, f7750000] -> [a000000, a001000]
->> Segmentation fault (core dumped)
->>
->> Cc: Shuah Khan <shuahkh@osg.samsung.com>
->> Cc: linux-kselftest@vger.kernel.org
->> Suggested-by: Andy Lutomirski <luto@kernel.org>
->> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
->> ---
->> v5: initial version
->>
->>   tools/testing/selftests/x86/Makefile           |  2 +-
->>   tools/testing/selftests/x86/test_mremap_vdso.c | 72 ++++++++++++++++++++++++++
->>   2 files changed, 73 insertions(+), 1 deletion(-)
->>   create mode 100644 tools/testing/selftests/x86/test_mremap_vdso.c
->>
->> diff --git a/tools/testing/selftests/x86/Makefile b/tools/testing/selftests/x86/Makefile
->> index b47ebd170690..c7162b511ab0 100644
->> --- a/tools/testing/selftests/x86/Makefile
->> +++ b/tools/testing/selftests/x86/Makefile
->> @@ -7,7 +7,7 @@ include ../lib.mk
->>   TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs syscall_nt ptrace_syscall \
->>                          check_initial_reg_state sigreturn ldt_gdt iopl
->>   TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault test_syscall_vdso unwind_vdso \
->> -                       test_FCMOV test_FCOMI test_FISTTP \
->> +                       test_FCMOV test_FCOMI test_FISTTP test_mremap_vdso \
->>                          vdso_restorer
->>
->>   TARGETS_C_32BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_32BIT_ONLY)
->> diff --git a/tools/testing/selftests/x86/test_mremap_vdso.c b/tools/testing/selftests/x86/test_mremap_vdso.c
->> new file mode 100644
->> index 000000000000..a470790e2118
->> --- /dev/null
->> +++ b/tools/testing/selftests/x86/test_mremap_vdso.c
->> @@ -0,0 +1,72 @@
->> +/*
->> + * 32-bit test to check vdso mremap.
->> + *
->> + * Copyright (c) 2016 Dmitry Safonov
->> + * Suggested-by: Andrew Lutomirski
->> + *
->> + * This program is free software; you can redistribute it and/or modify
->> + * it under the terms and conditions of the GNU General Public License,
->> + * version 2, as published by the Free Software Foundation.
->> + *
->> + * This program is distributed in the hope it will be useful, but
->> + * WITHOUT ANY WARRANTY; without even the implied warranty of
->> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
->> + * General Public License for more details.
->> + */
->> +/*
->> + * Can be built statically:
->> + * gcc -Os -Wall -static -m32 test_mremap_vdso.c
->> + */
->> +#define _GNU_SOURCE
->> +#include <stdio.h>
->> +#include <errno.h>
->> +#include <unistd.h>
->> +#include <string.h>
->> +
->> +#include <sys/mman.h>
->> +#include <sys/auxv.h>
->> +#include <sys/syscall.h>
->> +
->> +#if !defined(__i386__)
->> +int main(int argc, char **argv, char **envp)
->> +{
->> +       printf("[SKIP]\tNot a 32-bit x86 userspace\n");
->> +       return 0;
-> What's wrong with testing on 64-bit systems?
+On Sat 16-04-16 16:31:35, Michal Hocko wrote:
+> On Fri 15-04-16 14:41:29, Mikulas Patocka wrote:
+> > 
+> > 
+> > On Fri, 15 Apr 2016, Michal Hocko wrote:
+> > 
+> > > On Fri 15-04-16 08:29:28, Mikulas Patocka wrote:
+> > > > 
+> > > > 
+> > > > On Mon, 11 Apr 2016, Michal Hocko wrote:
+> > > > 
+> > > > > From: Michal Hocko <mhocko@suse.com>
+> > > > > 
+> > > > > copy_params seems to be little bit confused about which allocation flags
+> > > > > to use. It enforces GFP_NOIO even though it uses
+> > > > > memalloc_noio_{save,restore} which enforces GFP_NOIO at the page
+> > > > 
+> > > > memalloc_noio_{save,restore} is used because __vmalloc is flawed and 
+> > > > doesn't respect GFP_NOIO properly (it doesn't use gfp flags when 
+> > > > allocating pagetables).
+> > > 
+> > > Yes and there are no plans to change __vmalloc to properly propagate gfp
+> > > flags through the whole call chain and that is why we have
+> > > memalloc_noio thingy. If that ever changes later the GFP_NOIO can be
+> > > added in favor of memalloc_noio API. Both are clearly redundant.
+> > > -- 
+> > > Michal Hocko
+> > > SUSE Labs
+> > 
+> > You could move memalloc_noio_{save,restore} to __vmalloc. Something like
+> > 
+> > if (!(gfp_mask & __GFP_IO))
+> > 	noio_flag = memalloc_noio_save();
+> > ...
+> > if (!(gfp_mask & __GFP_IO))
+> > 	memalloc_noio_restore(noio_flag);
+> > 
+> > That would be better than repeating this hack in every __vmalloc caller 
+> > that need GFP_NOIO.
+> 
+> It is not my intention to change __vmalloc behavior. If you strongly
+> oppose the GFP_NOIO change I can drop it from the patch. It is
+> __GFP_REPEAT which I am after.
 
-Ok, will drop this.
+I am dropping the GFP_NOIO part for this patch but now that I am looking
+into the code more closely I completely fail why it is needed in the
+first place.
 
->> +}
->> +#else
->> +
->> +#define PAGE_SIZE      4096
->> +#define VDSO_SIZE      PAGE_SIZE
-> The vdso is frequently bigger than a page.
-
-Ok, will enlarge this. Are two pages big enough?
-
->> +
->> +int main(int argc, char **argv, char **envp)
->> +{
->> +       unsigned long vdso_addr, dest_addr;
->> +       void *new_addr;
->> +       const char *ok_string = "[OK]\n";
->> +
->> +       vdso_addr = getauxval(AT_SYSINFO_EHDR);
->> +       printf("\tAT_SYSINFO_EHDR is 0x%lx\n", vdso_addr);
->> +       if (!vdso_addr || vdso_addr == -ENOENT) {
->> +               printf("[FAIL]\tgetauxval failed\n");
->> +               return 1;
-> Let's make this [WARN] and return 0.  The vdso is optional, and
-> getauxval is missing on many systems.
-
-Ok
-
->> +       }
->> +
->> +       /* to low for stack, to high for lib/data/code mappings */
->> +       dest_addr = 0x0a000000;
-> This could be make reliable -- map a big enough area PROT_NONE and use
-> that address.
-
-Oh, that's good, will do.
-
->> +       printf("[NOTE]\tMoving vDSO: [%lx, %lx] -> [%lx, %lx]\n",
->> +               vdso_addr, vdso_addr + VDSO_SIZE,
->> +               dest_addr, dest_addr + VDSO_SIZE);
-> fflush(stdout), please, for the benefit of test harnesses that use pipes.
-
-Will add.
-
->> +       new_addr = mremap((void *)vdso_addr, VDSO_SIZE, VDSO_SIZE,
->> +                       MREMAP_FIXED|MREMAP_MAYMOVE, dest_addr);
->> +       if ((unsigned long)new_addr == (unsigned long)-1) {
->> +               printf("[FAIL]\tmremap failed (%d): %m\n", errno);
->> +               return 1;
->> +       }
->> +
->> +       asm volatile ("int $0x80" : : "a" (__NR_write), "b" (STDOUT_FILENO),
->> +                       "c" (ok_string), "d" (strlen(ok_string)));
->> +       asm volatile ("int $0x80" : : "a" (__NR_exit), "b" (0));
->> +
->> +       return 0;
->> +}
->> +#endif
->> --
->> 2.8.0
->>
->
->
-
-
+copy_params seems to be called only from the ioctl context which doesn't
+hold any locks which would lockup during the direct reclaim AFAICS. The
+git log shows that the code has used PF_MEMALLOC before which is even
+bigger mystery to me. Could you please clarify why this is GFP_NOIO
+restricted context? Maybe it needed to be in the past but I do not see
+any reason for it to be now so unless I am missing something the
+GFP_KERNEL should be perfectly OK. Also note that GFP_NOIO wouldn't work
+properly because there are copy_from_user calls in the same path which
+could page fault and do GFP_KERNEL allocations anyway. I can send follow
+up cleanups unless I am missing something subtle here.
 -- 
-Regards,
-Dmitry Safonov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
