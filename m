@@ -1,56 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A8B45830A8
-	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 19:51:39 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id xm6so83559761pab.3
-        for <linux-mm@kvack.org>; Thu, 21 Apr 2016 16:51:39 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B557E830A8
+	for <linux-mm@kvack.org>; Thu, 21 Apr 2016 20:01:52 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 203so92325760pfy.2
+        for <linux-mm@kvack.org>; Thu, 21 Apr 2016 17:01:52 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id e184si3208481pfe.83.2016.04.21.16.51.38
+        by mx.google.com with ESMTPS id e6si3250012pfa.118.2016.04.21.17.01.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Apr 2016 16:51:38 -0700 (PDT)
-Date: Thu, 21 Apr 2016 16:51:38 -0700
+        Thu, 21 Apr 2016 17:01:51 -0700 (PDT)
+Date: Thu, 21 Apr 2016 17:01:50 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH resend 0/3] mm: allow arch to override
- lowmem_page_address
-Message-Id: <20160421165138.a57be293ec370d5ea014e1ae@linux-foundation.org>
-In-Reply-To: <1460995497-24312-1-git-send-email-ard.biesheuvel@linaro.org>
-References: <1460995497-24312-1-git-send-email-ard.biesheuvel@linaro.org>
+Subject: Re: [PATCH] mm: make fault_around_bytes configurable
+Message-Id: <20160421170150.b492ffe35d073270b53f0e4d@linux-foundation.org>
+In-Reply-To: <1460992636-711-1-git-send-email-vinmenon@codeaurora.org>
+References: <1460992636-711-1-git-send-email-vinmenon@codeaurora.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lftan@altera.com, jonas@southpole.se, will.deacon@arm.com
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, mgorman@suse.de, vbabka@suse.cz, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, hughd@google.com
 
-On Mon, 18 Apr 2016 18:04:54 +0200 Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
+On Mon, 18 Apr 2016 20:47:16 +0530 Vinayak Menon <vinmenon@codeaurora.org> wrote:
 
-> These patches allow the arch to define the page_to_virt() conversion that
-> is used in lowmem_page_address(). This is desirable for arm64, where this
-> conversion is trivial when CONFIG_SPARSEMEM_VMEMMAP is enabled, while
-> breaking it up into __va(PFN_PHYS(page_to_pfn(page))), as is done currently
-> in lowmem_page_address(), will force the use of a virt-to-phys() conversion
-> and back again, which always involves a memory access on arm64, since the
-> start of physical memory is not a compile time constant.
+> Mapping pages around fault is found to cause performance degradation
+> in certain use cases. The test performed here is launch of 10 apps
+> one by one, doing something with the app each time, and then repeating
+> the same sequence once more, on an ARM 64-bit Android device with 2GB
+> of RAM. The time taken to launch the apps is found to be better when
+> fault around feature is disabled by setting fault_around_bytes to page
+> size (4096 in this case).
+
+Well that's one workload, and a somewhat strange one.  What is the
+effect on other workloads (of which there are a lot!).
+
+> The tests were done on 3.18 kernel. 4 extra vmstat counters were added
+> for debugging. pgpgoutclean accounts the clean pages reclaimed via
+> __delete_from_page_cache. pageref_activate, pageref_activate_vm_exec,
+> and pageref_keep accounts the mapped file pages activated and retained
+> by page_check_references.
 > 
-> I have split off these patches from my series 'arm64: optimize virt_to_page
-> and page_address' which I sent out 3 weeks ago, and resending them in the
-> hope that they can be picked up (with Will's ack on #3) to be merged via
-> the mm tree.
+> === Without swap ===
+>                           3.18             3.18-fault_around_bytes=4096
+> -----------------------------------------------------------------------
+> workingset_refault        691100           664339
+> workingset_activate       210379           179139
+> pgpgin                    4676096          4492780
+> pgpgout                   163967           96711
+> pgpgoutclean              1090664          990659
+> pgalloc_dma               3463111          3328299
+> pgfree                    3502365          3363866
+> pgactivate                568134           238570
+> pgdeactivate              752260           392138
+> pageref_activate          315078           121705
+> pageref_activate_vm_exec  162940           55815
+> pageref_keep              141354           51011
+> pgmajfault                24863            23633
+> pgrefill_dma              1116370          544042
+> pgscan_kswapd_dma         1735186          1234622
+> pgsteal_kswapd_dma        1121769          1005725
+> pgscan_direct_dma         12966            1090
+> pgsteal_direct_dma        6209             967
+> slabs_scanned             1539849          977351
+> pageoutrun                1260             1333
+> allocstall                47               7
 > 
-> I have cc'ed the nios2 and openrisc maintainers on previous versions, and
-> cc'ing them again now. I have dropped both of the arch specific mailing
-> lists, since one is defunct and the other is subscriber only.
+> === With swap ===
+>                           3.18             3.18-fault_around_bytes=4096
+> -----------------------------------------------------------------------
+> workingset_refault        597687           878109
+> workingset_activate       167169           254037
+> pgpgin                    4035424          5157348
+> pgpgout                   162151           85231
+> pgpgoutclean              928587           1225029
+> pswpin                    46033            17100
+> pswpout                   237952           127686
+> pgalloc_dma               3305034          3542614
+> pgfree                    3354989          3592132
+> pgactivate                626468           355275
+> pgdeactivate              990205           771902
+> pageref_activate          294780           157106
+> pageref_activate_vm_exec  141722           63469
+> pageref_keep              121931           63028
+> pgmajfault                67818            45643
+> pgrefill_dma              1324023          977192
+> pgscan_kswapd_dma         1825267          1720322
+> pgsteal_kswapd_dma        1181882          1365500
+> pgscan_direct_dma         41957            9622
+> pgsteal_direct_dma        25136            6759
+> slabs_scanned             689575           542705
+> pageoutrun                1234             1538
+> allocstall                110              26
 > 
-> Andrew, is this something you would be pulling to pick up (assuming that you
-> agree with the contents)? Thanks.
+> Looks like with fault_around, there is more pressure on reclaim because
+> of the presence of more mapped pages, resulting in more IO activity,
+> more faults, more swapping, and allocstalls.
 
-Looks OK to me and apart from the trivial openrisc/nios2 changes it's
-obviously a no-op for all-but-arm.  So I suggest you include these
-patches in the appropriate arm tree.
+A few of those things did get a bit worse?
 
-Acked-by: Andrew Morton <akpm@linux-foundation.org>
+Do you have any data on actual wall-time changes?  How much faster do
+things become with the patch?  If it is "0.1%" then I'd say "umm, no".
+
+> Make fault_around_bytes configurable so that it can be tuned to avoid
+> performance degradation.
+
+It sounds like we need to be smarter about auto-tuning this thing. 
+Maybe the refault code could be taught to provide the feedback path but
+that sounds hard.
+
+Still.  I do think it would be better to make this configurable at
+runtime.  Move the existing debugfs tunable into /proc/sys/vm (and
+document it!).  I do dislkie adding even more tunables but this one
+does make sense.  People will want to run their workloads with various
+values until they find the peak throughput, and requiring a kernel
+rebuild for that is a huge pain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
