@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 744C46B007E
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2016 17:33:01 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id zy2so171100861pac.1
-        for <linux-mm@kvack.org>; Fri, 22 Apr 2016 14:33:01 -0700 (PDT)
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CB81E6B007E
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2016 17:50:00 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id vv3so171929362pab.2
+        for <linux-mm@kvack.org>; Fri, 22 Apr 2016 14:50:00 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y126si8819776pfy.49.2016.04.22.14.33.00
+        by mx.google.com with ESMTPS id j25si8891389pfj.97.2016.04.22.14.49.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Apr 2016 14:33:00 -0700 (PDT)
-Date: Fri, 22 Apr 2016 14:32:59 -0700
+        Fri, 22 Apr 2016 14:50:00 -0700 (PDT)
+Date: Fri, 22 Apr 2016 14:49:57 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 1/2] mm, kasan: don't call kasan_krealloc() from
- ksize().
-Message-Id: <20160422143259.b2d2c253da7ea6fa4b425269@linux-foundation.org>
-In-Reply-To: <2126fe9ca8c3a4698c0ad7aae652dce28e261182.1460545373.git.glider@google.com>
-References: <2126fe9ca8c3a4698c0ad7aae652dce28e261182.1460545373.git.glider@google.com>
+Subject: Re: [PATCH] mm/vmalloc: Keep a separate lazy-free list
+Message-Id: <20160422144957.64619ee9b19991e4fdf89668@linux-foundation.org>
+In-Reply-To: <20160415111431.GL19990@nuc-i3427.alporthouse.com>
+References: <1460444239-22475-1-git-send-email-chris@chris-wilson.co.uk>
+	<CACZ9PQV+H+i11E-GEfFeMD3cXWXOF1yPGJH8j7BLXQVqFB3oGw@mail.gmail.com>
+	<20160414134926.GD19990@nuc-i3427.alporthouse.com>
+	<CACZ9PQXCHRC5bFqQKmtOv+GyuEmEaXDVPJdQhBt0sXPfomFTNw@mail.gmail.com>
+	<20160415111431.GL19990@nuc-i3427.alporthouse.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: adech.fo@gmail.com, dvyukov@google.com, cl@linux.com, ryabinin.a.a@gmail.com, kcc@google.com, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Roman Peniaev <r.peniaev@gmail.com>, intel-gfx@lists.freedesktop.org, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Tvrtko Ursulin <tvrtko.ursulin@linux.intel.com>, Daniel Vetter <daniel.vetter@ffwll.ch>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Toshi Kani <toshi.kani@hp.com>, Shawn Lin <shawn.lin@rock-chips.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, 13 Apr 2016 13:20:09 +0200 Alexander Potapenko <glider@google.com> wrote:
+On Fri, 15 Apr 2016 12:14:31 +0100 Chris Wilson <chris@chris-wilson.co.uk> wrote:
 
-> Instead of calling kasan_krealloc(), which replaces the memory allocation
-> stack ID (if stack depot is used), just unpoison the whole memory chunk.
+> > > purge_fragmented_blocks() manages per-cpu lists, so that looks safe
+> > > under its own rcu_read_lock.
+> > >
+> > > Yes, it looks feasible to remove the purge_lock if we can relax sync.
+> > 
+> > what is still left is waiting on vmap_area_lock for !sync mode.
+> > but probably is not that bad.
+> 
+> Ok, that's bit beyond my comfort zone with a patch to change the free
+> list handling. I'll chicken out for the time being, atm I am more
+> concerned that i915.ko may call set_page_wb() frequently on individual
+> pages.
 
-I don't understand why these two patches exist.  Bugfix?  Cleanup? 
-Optimization?
+Nick Piggin's vmap rewrite.  20x (or more) faster. 
+https://lwn.net/Articles/285341/
 
-
-I had to change kmalloc_tests_init() a bit due to
-mm-kasan-initial-memory-quarantine-implementation.patch:
-
-        kasan_stack_oob();
-        kasan_global_oob();
- #ifdef CONFIG_SLAB
-        kasan_quarantine_cache();
- #endif
-+       ksize_unpoisons_memory();
-        return -EAGAIN;
- }
-
-Please check.
+10 years ago, never finished.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
