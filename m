@@ -1,210 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 69BF66B007E
-	for <linux-mm@kvack.org>; Fri, 22 Apr 2016 06:46:48 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id m2so260378756ioa.3
-        for <linux-mm@kvack.org>; Fri, 22 Apr 2016 03:46:48 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0132.outbound.protection.outlook.com. [104.47.0.132])
-        by mx.google.com with ESMTPS id c93si2526998otb.22.2016.04.22.03.46.46
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EC5886B007E
+	for <linux-mm@kvack.org>; Fri, 22 Apr 2016 07:35:33 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id m2so262752797ioa.3
+        for <linux-mm@kvack.org>; Fri, 22 Apr 2016 04:35:33 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0107.outbound.protection.outlook.com. [157.56.112.107])
+        by mx.google.com with ESMTPS id t59si2619145ota.67.2016.04.22.04.35.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 22 Apr 2016 03:46:47 -0700 (PDT)
-Subject: Re: [PATCHv7 2/3] x86/vdso: add mremap hook to vm_special_mapping
-References: <1460987025-30360-2-git-send-email-dsafonov@virtuozzo.com>
- <1460989402-5468-1-git-send-email-dsafonov@virtuozzo.com>
- <CALCETrXYrphfSZN9sWbqaksi=fHgZ5P8gptvv-soeFekSeqZ_w@mail.gmail.com>
+        Fri, 22 Apr 2016 04:35:32 -0700 (PDT)
+Subject: Re: [PATCHv5 3/3] selftest/x86: add mremap vdso 32-bit test
+References: <1460388169-13340-1-git-send-email-dsafonov@virtuozzo.com>
+ <1460987025-30360-1-git-send-email-dsafonov@virtuozzo.com>
+ <1460987025-30360-3-git-send-email-dsafonov@virtuozzo.com>
+ <CALCETrWQcokGjFb81wzfcOdHFDaHakwwwMFi5uF_5zeF6Hp9yw@mail.gmail.com>
 From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <571A00CF.1020600@virtuozzo.com>
-Date: Fri, 22 Apr 2016 13:45:35 +0300
+Message-ID: <571A0C3F.8090807@virtuozzo.com>
+Date: Fri, 22 Apr 2016 14:34:23 +0300
 MIME-Version: 1.0
-In-Reply-To: <CALCETrXYrphfSZN9sWbqaksi=fHgZ5P8gptvv-soeFekSeqZ_w@mail.gmail.com>
+In-Reply-To: <CALCETrWQcokGjFb81wzfcOdHFDaHakwwwMFi5uF_5zeF6Hp9yw@mail.gmail.com>
 Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andy Lutomirski <luto@amacapital.net>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
- Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dmitry Safonov <0x7f454c46@gmail.com>
+ Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Shuah Khan <shuahkh@osg.samsung.com>, linux-kselftest@vger.kernel.org
 
-On 04/21/2016 10:52 PM, Andy Lutomirski wrote:
-> On Mon, Apr 18, 2016 at 7:23 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
->> Add possibility for userspace 32-bit applications to move
->> vdso mapping. Previously, when userspace app called
->> mremap for vdso, in return path it would land on previous
->> address of vdso page, resulting in segmentation violation.
->> Now it lands fine and returns to userspace with remapped vdso.
->> This will also fix context.vdso pointer for 64-bit, which does not
->> affect the user of vdso after mremap by now, but this may change.
+On 04/21/2016 11:01 PM, Andy Lutomirski wrote:
+> On Mon, Apr 18, 2016 at 6:43 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+>> Should print on success:
+>> [root@localhost ~]# ./test_mremap_vdso_32
+>>          AT_SYSINFO_EHDR is 0xf773f000
+>> [NOTE]  Moving vDSO: [f773f000, f7740000] -> [a000000, a001000]
+>> [OK]
+>> Or segfault if landing was bad (before patches):
+>> [root@localhost ~]# ./test_mremap_vdso_32
+>>          AT_SYSINFO_EHDR is 0xf774f000
+>> [NOTE]  Moving vDSO: [f774f000, f7750000] -> [a000000, a001000]
+>> Segmentation fault (core dumped)
 >>
->> As suggested by Andy, return EINVAL for mremap that splits vdso image.
->>
->> Renamed and moved text_mapping structure declaration inside
->> map_vdso, as it used only there and now it complement
->> vvar_mapping variable.
->>
->> There is still problem for remapping vdso in glibc applications:
->> linker relocates addresses for syscalls on vdso page, so
->> you need to relink with the new addresses. Or the next syscall
->> through glibc may fail:
->>    Program received signal SIGSEGV, Segmentation fault.
->>    #0  0xf7fd9b80 in __kernel_vsyscall ()
->>    #1  0xf7ec8238 in _exit () from /usr/lib32/libc.so.6
->>
+>> Cc: Shuah Khan <shuahkh@osg.samsung.com>
+>> Cc: linux-kselftest@vger.kernel.org
+>> Suggested-by: Andy Lutomirski <luto@kernel.org>
 >> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
 >> ---
->> v7: that's just not my day: add new_vma parameter to vdso_fix_landing
->>      sorry for the noise
->> v6: moved vdso_image_32 check and fixup code into vdso_fix_landing function
->>      with ifdefs around
->> v5: as Andy suggested, add a check that new_vma->vm_mm and current->mm are
->>      the same, also check not only in_ia32_syscall() but image == &vdso_image_32
->> v4: drop __maybe_unused & use image from mm->context instead vdso_image_32
->> v3: as Andy suggested, return EINVAL in case of splitting vdso blob on mremap;
->>      used is_ia32_task instead of ifdefs
->> v2: added __maybe_unused for pt_regs in vdso_mremap
+>> v5: initial version
 >>
->>   arch/x86/entry/vdso/vma.c | 50 ++++++++++++++++++++++++++++++++++++++++++-----
->>   include/linux/mm_types.h  |  3 +++
->>   mm/mmap.c                 | 10 ++++++++++
->>   3 files changed, 58 insertions(+), 5 deletions(-)
+>>   tools/testing/selftests/x86/Makefile           |  2 +-
+>>   tools/testing/selftests/x86/test_mremap_vdso.c | 72 ++++++++++++++++++++++++++
+>>   2 files changed, 73 insertions(+), 1 deletion(-)
+>>   create mode 100644 tools/testing/selftests/x86/test_mremap_vdso.c
 >>
->> diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
->> index 10f704584922..d94291a19b6e 100644
->> --- a/arch/x86/entry/vdso/vma.c
->> +++ b/arch/x86/entry/vdso/vma.c
->> @@ -12,6 +12,7 @@
->>   #include <linux/random.h>
->>   #include <linux/elf.h>
->>   #include <linux/cpu.h>
->> +#include <linux/ptrace.h>
->>   #include <asm/pvclock.h>
->>   #include <asm/vgtod.h>
->>   #include <asm/proto.h>
->> @@ -98,10 +99,43 @@ static int vdso_fault(const struct vm_special_mapping *sm,
->>          return 0;
->>   }
+>> diff --git a/tools/testing/selftests/x86/Makefile b/tools/testing/selftests/x86/Makefile
+>> index b47ebd170690..c7162b511ab0 100644
+>> --- a/tools/testing/selftests/x86/Makefile
+>> +++ b/tools/testing/selftests/x86/Makefile
+>> @@ -7,7 +7,7 @@ include ../lib.mk
+>>   TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs syscall_nt ptrace_syscall \
+>>                          check_initial_reg_state sigreturn ldt_gdt iopl
+>>   TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault test_syscall_vdso unwind_vdso \
+>> -                       test_FCMOV test_FCOMI test_FISTTP \
+>> +                       test_FCMOV test_FCOMI test_FISTTP test_mremap_vdso \
+>>                          vdso_restorer
 >>
->> -static const struct vm_special_mapping text_mapping = {
->> -       .name = "[vdso]",
->> -       .fault = vdso_fault,
->> -};
->> +#if defined CONFIG_X86_32 || defined CONFIG_COMPAT
-> I think you mean defined(CONFIG_IA32_EMULATION).  IIRC CONFIG_COMPAT
-> is set for X32, !IA32 kernels, too.
-
-Sure, I just copied it from vdso_image_32 declaration.
-Should it be there CONFIG_IA32_EMULATION there instead of
-CONFIG_COMPAT? Or I miss something?
-
->> +static void vdso_fix_landing(const struct vdso_image *image,
->> +               struct vm_area_struct *new_vma)
->> +{
->> +       if (in_ia32_syscall() && image == &vdso_image_32) {
->> +               struct pt_regs *regs = current_pt_regs();
->> +               unsigned long vdso_land = image->sym_int80_landing_pad;
->> +               unsigned long old_land_addr = vdso_land +
->> +                       (unsigned long)current->mm->context.vdso;
+>>   TARGETS_C_32BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_32BIT_ONLY)
+>> diff --git a/tools/testing/selftests/x86/test_mremap_vdso.c b/tools/testing/selftests/x86/test_mremap_vdso.c
+>> new file mode 100644
+>> index 000000000000..a470790e2118
+>> --- /dev/null
+>> +++ b/tools/testing/selftests/x86/test_mremap_vdso.c
+>> @@ -0,0 +1,72 @@
+>> +/*
+>> + * 32-bit test to check vdso mremap.
+>> + *
+>> + * Copyright (c) 2016 Dmitry Safonov
+>> + * Suggested-by: Andrew Lutomirski
+>> + *
+>> + * This program is free software; you can redistribute it and/or modify
+>> + * it under the terms and conditions of the GNU General Public License,
+>> + * version 2, as published by the Free Software Foundation.
+>> + *
+>> + * This program is distributed in the hope it will be useful, but
+>> + * WITHOUT ANY WARRANTY; without even the implied warranty of
+>> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+>> + * General Public License for more details.
+>> + */
+>> +/*
+>> + * Can be built statically:
+>> + * gcc -Os -Wall -static -m32 test_mremap_vdso.c
+>> + */
+>> +#define _GNU_SOURCE
+>> +#include <stdio.h>
+>> +#include <errno.h>
+>> +#include <unistd.h>
+>> +#include <string.h>
 >> +
->> +               /* Fixing userspace landing - look at do_fast_syscall_32 */
->> +               if (regs->ip == old_land_addr)
->> +                       regs->ip = new_vma->vm_start + vdso_land;
->> +       }
+>> +#include <sys/mman.h>
+>> +#include <sys/auxv.h>
+>> +#include <sys/syscall.h>
+>> +
+>> +#if !defined(__i386__)
+>> +int main(int argc, char **argv, char **envp)
+>> +{
+>> +       printf("[SKIP]\tNot a 32-bit x86 userspace\n");
+>> +       return 0;
+> What's wrong with testing on 64-bit systems?
+
+Ok, will drop this.
+
 >> +}
 >> +#else
->> +static void vdso_fix_landing(const struct vdso_image *image,
->> +               struct vm_area_struct *new_vma) {}
+>> +
+>> +#define PAGE_SIZE      4096
+>> +#define VDSO_SIZE      PAGE_SIZE
+> The vdso is frequently bigger than a page.
+
+Ok, will enlarge this. Are two pages big enough?
+
+>> +
+>> +int main(int argc, char **argv, char **envp)
+>> +{
+>> +       unsigned long vdso_addr, dest_addr;
+>> +       void *new_addr;
+>> +       const char *ok_string = "[OK]\n";
+>> +
+>> +       vdso_addr = getauxval(AT_SYSINFO_EHDR);
+>> +       printf("\tAT_SYSINFO_EHDR is 0x%lx\n", vdso_addr);
+>> +       if (!vdso_addr || vdso_addr == -ENOENT) {
+>> +               printf("[FAIL]\tgetauxval failed\n");
+>> +               return 1;
+> Let's make this [WARN] and return 0.  The vdso is optional, and
+> getauxval is missing on many systems.
+
+Ok
+
+>> +       }
+>> +
+>> +       /* to low for stack, to high for lib/data/code mappings */
+>> +       dest_addr = 0x0a000000;
+> This could be make reliable -- map a big enough area PROT_NONE and use
+> that address.
+
+Oh, that's good, will do.
+
+>> +       printf("[NOTE]\tMoving vDSO: [%lx, %lx] -> [%lx, %lx]\n",
+>> +               vdso_addr, vdso_addr + VDSO_SIZE,
+>> +               dest_addr, dest_addr + VDSO_SIZE);
+> fflush(stdout), please, for the benefit of test harnesses that use pipes.
+
+Will add.
+
+>> +       new_addr = mremap((void *)vdso_addr, VDSO_SIZE, VDSO_SIZE,
+>> +                       MREMAP_FIXED|MREMAP_MAYMOVE, dest_addr);
+>> +       if ((unsigned long)new_addr == (unsigned long)-1) {
+>> +               printf("[FAIL]\tmremap failed (%d): %m\n", errno);
+>> +               return 1;
+>> +       }
+>> +
+>> +       asm volatile ("int $0x80" : : "a" (__NR_write), "b" (STDOUT_FILENO),
+>> +                       "c" (ok_string), "d" (strlen(ok_string)));
+>> +       asm volatile ("int $0x80" : : "a" (__NR_exit), "b" (0));
+>> +
+>> +       return 0;
+>> +}
 >> +#endif
-> You could also define the function regardless and simply ifdef out the
-> body, thus saving a few lines of code.
-
-Yep, will do.
-
->> +
->> +static int vdso_mremap(const struct vm_special_mapping *sm,
->> +               struct vm_area_struct *new_vma)
->> +{
->> +       unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
->> +       const struct vdso_image *image = current->mm->context.vdso_image;
->> +
->> +       if (image->size != new_size)
->> +               return -EINVAL;
->> +
->> +       if (current->mm != new_vma->vm_mm)
->> +               return -EFAULT;
-> Can you make that if (WARN_ON_ONCE(current->mm != new_vma->vm_mm))?
-> It should be impossible.
-
-Sure.
-
->> +
->> +       vdso_fix_landing(image, new_vma);
->> +       current->mm->context.vdso = (void __user *)new_vma->vm_start;
->> +
->> +       return 0;
->> +}
->>
->>   static int vvar_fault(const struct vm_special_mapping *sm,
->>                        struct vm_area_struct *vma, struct vm_fault *vmf)
->> @@ -162,6 +196,12 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
->>          struct vm_area_struct *vma;
->>          unsigned long addr, text_start;
->>          int ret = 0;
->> +
->> +       static const struct vm_special_mapping vdso_mapping = {
->> +               .name = "[vdso]",
->> +               .fault = vdso_fault,
->> +               .mremap = vdso_mremap,
->> +       };
->>          static const struct vm_special_mapping vvar_mapping = {
->>                  .name = "[vvar]",
->>                  .fault = vvar_fault,
->> @@ -195,7 +235,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
->>                                         image->size,
->>                                         VM_READ|VM_EXEC|
->>                                         VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
->> -                                      &text_mapping);
->> +                                      &vdso_mapping);
->>
->>          if (IS_ERR(vma)) {
->>                  ret = PTR_ERR(vma);
->> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
->> index c2d75b4fa86c..4d16ab9287af 100644
->> --- a/include/linux/mm_types.h
->> +++ b/include/linux/mm_types.h
->> @@ -586,6 +586,9 @@ struct vm_special_mapping {
->>          int (*fault)(const struct vm_special_mapping *sm,
->>                       struct vm_area_struct *vma,
->>                       struct vm_fault *vmf);
->> +
->> +       int (*mremap)(const struct vm_special_mapping *sm,
->> +                    struct vm_area_struct *new_vma);
->>   };
->>
->>   enum tlb_flush_reason {
->> diff --git a/mm/mmap.c b/mm/mmap.c
->> index bd2e1a533bc1..ba71658dd1a1 100644
->> --- a/mm/mmap.c
->> +++ b/mm/mmap.c
->> @@ -2930,9 +2930,19 @@ static const char *special_mapping_name(struct vm_area_struct *vma)
->>          return ((struct vm_special_mapping *)vma->vm_private_data)->name;
->>   }
->>
->> +static int special_mapping_mremap(struct vm_area_struct *new_vma)
->> +{
->> +       struct vm_special_mapping *sm = new_vma->vm_private_data;
->> +
->> +       if (sm->mremap)
->> +               return sm->mremap(sm, new_vma);
->> +       return 0;
->> +}
->> +
->>   static const struct vm_operations_struct special_mapping_vmops = {
->>          .close = special_mapping_close,
->>          .fault = special_mapping_fault,
->> +       .mremap = special_mapping_mremap,
->>          .name = special_mapping_name,
->>   };
->>
 >> --
 >> 2.8.0
 >>
