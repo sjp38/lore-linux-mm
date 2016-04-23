@@ -1,58 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 58FF66B0005
-	for <linux-mm@kvack.org>; Sat, 23 Apr 2016 14:08:40 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b203so5960399pfb.1
-        for <linux-mm@kvack.org>; Sat, 23 Apr 2016 11:08:40 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id fb1si5397341pab.89.2016.04.23.11.08.39
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 27A8D6B0005
+	for <linux-mm@kvack.org>; Sat, 23 Apr 2016 15:13:58 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id zy2so205373804pac.1
+        for <linux-mm@kvack.org>; Sat, 23 Apr 2016 12:13:58 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id k74si14814729pfb.30.2016.04.23.12.13.57
         for <linux-mm@kvack.org>;
-        Sat, 23 Apr 2016 11:08:39 -0700 (PDT)
-From: "Verma, Vishal L" <vishal.l.verma@intel.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-Date: Sat, 23 Apr 2016 18:08:37 +0000
-Message-ID: <1461434916.3695.7.camel@intel.com>
-References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
-	 <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
-	 <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
-	 <20160420205923.GA24797@infradead.org>
-In-Reply-To: <20160420205923.GA24797@infradead.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <627BD94691203943AE9F3F8DCFC1876B@intel.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        Sat, 23 Apr 2016 12:13:57 -0700 (PDT)
+From: Vishal Verma <vishal.l.verma@intel.com>
+Subject: [PATCH v3 0/7] dax: handling media errors
+Date: Sat, 23 Apr 2016 13:13:35 -0600
+Message-Id: <1461438822-3592-1-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "hch@infradead.org" <hch@infradead.org>, "jmoyer@redhat.com" <jmoyer@redhat.com>
-Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>
+To: linux-nvdimm@lists.01.org
+Cc: Vishal Verma <vishal.l.verma@intel.com>, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-T24gV2VkLCAyMDE2LTA0LTIwIGF0IDEzOjU5IC0wNzAwLCBDaHJpc3RvcGggSGVsbHdpZyB3cm90
-ZToNCj4gT24gRnJpLCBBcHIgMTUsIDIwMTYgYXQgMTI6MTE6MzZQTSAtMDQwMCwgSmVmZiBNb3ll
-ciB3cm90ZToNCj4gPiANCj4gPiA+IA0KPiA+ID4gKwlpZiAoSVNfREFYKGlub2RlKSkgew0KPiA+
-ID4gKwkJcmV0ID0gZGF4X2RvX2lvKGlvY2IsIGlub2RlLCBpdGVyLCBvZmZzZXQsDQo+ID4gPiBi
-bGtkZXZfZ2V0X2Jsb2NrLA0KPiA+ID4gwqAJCQkJTlVMTCwgRElPX1NLSVBfRElPX0NPVU5UKTsN
-Cj4gPiA+ICsJCWlmIChyZXQgPT0gLUVJTyAmJiAoaW92X2l0ZXJfcncoaXRlcikgPT0gV1JJVEUp
-KQ0KPiA+ID4gKwkJCXJldF9zYXZlZCA9IHJldDsNCj4gPiA+ICsJCWVsc2UNCj4gPiA+ICsJCQly
-ZXR1cm4gcmV0Ow0KPiA+ID4gKwl9DQo+ID4gPiArDQo+ID4gPiArCXJldCA9IF9fYmxvY2tkZXZf
-ZGlyZWN0X0lPKGlvY2IsIGlub2RlLCBJX0JERVYoaW5vZGUpLA0KPiA+ID4gaXRlciwgb2Zmc2V0
-LA0KPiA+ID4gwqAJCQkJwqDCoMKgwqBibGtkZXZfZ2V0X2Jsb2NrLCBOVUxMLA0KPiA+ID4gTlVM
-TCwNCj4gPiA+IMKgCQkJCcKgwqDCoMKgRElPX1NLSVBfRElPX0NPVU5UKTsNCj4gPiA+ICsJaWYg
-KHJldCA8IDAgJiYgcmV0X3NhdmVkKQ0KPiA+ID4gKwkJcmV0dXJuIHJldF9zYXZlZDsNCj4gPiA+
-ICsNCj4gPiBIbW0sIGRpZCB5b3UganVzdCBicmVhayBhc3luYyBESU8/wqDCoEkgdGhpbmsgeW91
-IGRpZCHCoMKgOikNCj4gPiBfX2Jsb2NrZGV2X2RpcmVjdF9JTyBjYW4gcmV0dXJuIC1FSU9DQlFV
-RVVFRCwgYW5kIHlvdSd2ZSBub3cgdHVybmVkDQo+ID4gdGhhdA0KPiA+IGludG8gLUVJTy7CoMKg
-UmVhbGx5LCBJIGRvbid0IHNlZSBhIHJlYXNvbiB0byBzYXZlIHRoYXQgZmlyc3QNCj4gPiAtRUlP
-LsKgwqBUaGUNCj4gPiBzYW1lIGFwcGxpZXMgdG8gYWxsIGluc3RhbmNlcyBpbiB0aGlzIHBhdGNo
-Lg0KPiBZZXMsIHRoZXJlIGlzIG5vIHBvaW50IGluIHNhdmluZyB0aGUgZWFybGllciBlcnJvciAt
-IGp1c3QgcmV0dXJuIHRoZQ0KPiBzZWNvbmQgZXJyb3IgYWxsIHRoZSB0aW1lLg0KDQpJcyBpdCBv
-ayB0byBkbyB0aGF0Pw0KDQpkaXJlY3RfSU8gbWlnaHQgZmFpbCB3aXRoIC1FSU5WQUwgZHVlIHRv
-IG1pc2FsaWdubWVudCwgb3IgLUVOT01FTSBkdWUNCnRvIHNvbWUgYWxsb2NhdGlvbiBmYWlsaW5n
-LCBhbmQgSSB0aG91Z2h0IHdlIHNob3VsZCByZXR1cm4gdGhlIG9yaWdpbmFsDQotRUlPIGluIHN1
-Y2ggY2FzZXMgc28gdGhhdCB0aGUgYXBwbGljYXRpb24gZG9lc24ndCBsb3NlIHRoZSBpbmZvcm1h
-dGlvbg0KdGhhdCB0aGUgYmFkIGJsb2NrIGlzIGFjdHVhbGx5IGNhdXNpbmcgdGhlIGVycm9yLg0K
-DQo+IA0KPiBFLmcuDQo+IA0KPiAJcmV0ID0gZGF4X2lvKCk7DQo+IAlpZiAoZGF4X25lZWRfZGlv
-X3JldHJ5KHJldCkpDQo+IAkJcmV0ID0gZGlyZWN0X0lPKCk7DQo+IA==
+Until now, dax has been disabled if media errors were found on
+any device. This series attempts to address that.
+
+The first three patches from Dan re-enable dax even when media
+errors are present.
+
+The fourth patch from Matthew removes the
+zeroout path from dax entirely, making zeroout operations always
+go through the driver (The motivation is that if a backing device
+has media errors, and we create a sparse file on it, we don't
+want the initial zeroing to happen via dax, we want to give the
+block driver a chance to clear the errors).
+
+The fifth patch changes the behaviour of dax_do_io by adding a
+wrapper around it that is passed all the arguments also needed by
+__blockdev_do_direct_IO. If (the new) __dax_do_io fails with -EIO
+due to a bad block, we simply retry with the direct_IO path which
+forces the IO to go through the block driver, and can attempt to
+clear the error.
+
+Patch 6 reduces our calls to clear_pmem from dax in the
+truncate/hole-punch cases. We check if the range being truncated
+is sector aligned/sized, and if so, send blkdev_issue_zeroout
+instead of clear_pmem so that errors can be handled better by
+the driver.
+
+Patch 7 fixes a redundant comment in DAX and is mostly unrelated
+to the rest of this series.
+
+This series also depends on/is based on Jan Kara's DAX Locking
+fixes series [1].
+
+
+[1]: http://www.spinics.net/lists/linux-mm/msg105819.html
+
+v3:
+ - Wrapper-ize the direct_IO fallback again and make an exception
+   for -EIOCBQUEUED (Jeff, Dan)
+ - Reduce clear_pmem usage in DAX to the minimum
+
+Dan Williams (3):
+  block, dax: pass blk_dax_ctl through to drivers
+  dax: fallback from pmd to pte on error
+  dax: enable dax in the presence of known media errors (badblocks)
+
+Matthew Wilcox (1):
+  dax: use sb_issue_zerout instead of calling dax_clear_sectors
+
+Vishal Verma (3):
+  dax: handle media errors in dax_do_io
+  dax: for truncate/hole-punch, do zeroing through the driver if
+    possible
+  dax: fix a comment in dax_zero_page_range and dax_truncate_page
+
+ arch/powerpc/sysdev/axonram.c | 10 +++---
+ block/ioctl.c                 |  9 -----
+ drivers/block/brd.c           |  9 ++---
+ drivers/nvdimm/pmem.c         | 17 +++++++---
+ drivers/s390/block/dcssblk.c  | 12 +++----
+ fs/block_dev.c                |  7 ++--
+ fs/dax.c                      | 78 +++++++++++++++----------------------------
+ fs/ext2/inode.c               | 12 +++----
+ fs/ext4/inode.c               |  5 +--
+ fs/xfs/xfs_aops.c             |  8 ++---
+ fs/xfs/xfs_bmap_util.c        | 15 +++------
+ include/linux/blkdev.h        |  3 +-
+ include/linux/dax.h           | 31 ++++++++++++++++-
+ 13 files changed, 108 insertions(+), 108 deletions(-)
+
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
