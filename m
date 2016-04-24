@@ -1,78 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A1D496B0005
-	for <linux-mm@kvack.org>; Sun, 24 Apr 2016 14:49:21 -0400 (EDT)
-Received: by mail-ig0-f197.google.com with SMTP id fn8so159736576igb.1
-        for <linux-mm@kvack.org>; Sun, 24 Apr 2016 11:49:21 -0700 (PDT)
-Received: from mail-io0-x242.google.com (mail-io0-x242.google.com. [2607:f8b0:4001:c06::242])
-        by mx.google.com with ESMTPS id l132si8316762ioa.213.2016.04.24.11.49.20
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 282076B007E
+	for <linux-mm@kvack.org>; Sun, 24 Apr 2016 16:29:14 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r12so31936149wme.0
+        for <linux-mm@kvack.org>; Sun, 24 Apr 2016 13:29:14 -0700 (PDT)
+Received: from mail-lf0-x22e.google.com (mail-lf0-x22e.google.com. [2a00:1450:4010:c07::22e])
+        by mx.google.com with ESMTPS id l6si10666942lbc.86.2016.04.24.13.29.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 24 Apr 2016 11:49:20 -0700 (PDT)
-Received: by mail-io0-x242.google.com with SMTP id u185so21288285iod.2
-        for <linux-mm@kvack.org>; Sun, 24 Apr 2016 11:49:20 -0700 (PDT)
+        Sun, 24 Apr 2016 13:29:12 -0700 (PDT)
+Received: by mail-lf0-x22e.google.com with SMTP id u64so6550368lff.3
+        for <linux-mm@kvack.org>; Sun, 24 Apr 2016 13:29:12 -0700 (PDT)
+Subject: [PATCH v2] mm: enable RLIMIT_DATA by default with workaround for
+ valgrind
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Date: Sun, 24 Apr 2016 23:29:09 +0300
+Message-ID: <146152974907.13871.12611587818290919394.stgit@zurg>
 MIME-Version: 1.0
-In-Reply-To: <146148524340.530.2185181436065386014.stgit@zurg>
-References: <146148524340.530.2185181436065386014.stgit@zurg>
-Date: Sun, 24 Apr 2016 11:49:20 -0700
-Message-ID: <CA+55aFzPY23bL7oRaH8=C=CQ5egcWCEwieD5rhm5xV=Rv7T7RQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: enable RLIMIT_DATA by default with workaround for valgrind
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Christian Borntraeger <borntraeger@de.ibm.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>, Christian Borntraeger <borntraeger@de.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Sun, Apr 24, 2016 at 1:07 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->
-> This patch checks current usage also against rlim_max if rlim_cur is zero.
-> Size of brk is still checked against rlim_cur, so this part is completely
-> compatible - zero rlim_cur forbids brk() but allows private mmap().
+Since commit 84638335900f ("mm: rework virtual memory accounting")
+RLIMIT_DATA limits both brk() and private mmap() but this's disabled by
+default because of incompatibility with older versions of valgrind.
 
-The logic looks reasonable to me. My first reaction was that "but then
-any process can set the limit to zero, and actually increase limits",
-but witht he hard limit always being checked that's ok - the process
-could have just set the soft limit to the hard limit instead.
+Valgrind always set limit to zero and fails if RLIMIT_DATA is enabled.
+Fortunately it changes only rlim_cur and keeps rlim_max for reverting
+limit back when needed.
 
-The only part I don't like in that patch is the disgusting line breaking.
+This patch checks current usage also against rlim_max if rlim_cur is zero.
+This is safe because task anyway can increase rlim_cur up to rlim_max.
+Size of brk is still checked against rlim_cur, so this part is completely
+compatible - zero rlim_cur forbids brk() but allows private mmap().
 
-Breaking lines in the middle of a comparison is just nasty and wrong.
-That code should have been written as
+v2: tweak line breaking and keep warn-once warning
 
-        if (rlimit(RLIMIT_DATA) != 0)
-                return false;
-        return mm->data_vm + npages <= rlimit_max(RLIMIT_DATA) >> PAGE_SHIFT;
+Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+Link: http://lkml.kernel.org/r/56A28613.5070104@de.ibm.com
+---
+ mm/mmap.c |   12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
 
-or something like that. Since you removed the pr_warn_once(), you
-should remove ignore_rlimit_data too.
-
-Alternatively, if you want to keep ignore_rlimit_data, then you should
-have kept the warning too. Making the actual rlimit data check an
-inline helper function and having the ignore_rlimit_data check (and
-printout) in the caller would make it pretty.
-
-Because breaking lines in the middle of an actual expression is just
-completely wrong. It's much worse than having a long line.
-
-(The exception to that "middle of an expression" is breaking lines at
-logical expression boundaries: things like adding up several
-independent expressions, and having it be
-
-     sum = a +
-           b +
-           c;
-
-or be something like
-
-     if (a ||
-        b ||
-        c)
-            do_something():
-
-where 'a', 'b' and 'c' are complex but fairly independent expressions).
-
-                  Linus
+diff --git a/mm/mmap.c b/mm/mmap.c
+index bd2e1a533bc1..dae8283b749d 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -70,7 +70,7 @@ const int mmap_rnd_compat_bits_max = CONFIG_ARCH_MMAP_RND_COMPAT_BITS_MAX;
+ int mmap_rnd_compat_bits __read_mostly = CONFIG_ARCH_MMAP_RND_COMPAT_BITS;
+ #endif
+ 
+-static bool ignore_rlimit_data = true;
++static bool ignore_rlimit_data;
+ core_param(ignore_rlimit_data, ignore_rlimit_data, bool, 0644);
+ 
+ static void unmap_region(struct mm_struct *mm,
+@@ -2891,13 +2891,17 @@ bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
+ 
+ 	if (is_data_mapping(flags) &&
+ 	    mm->data_vm + npages > rlimit(RLIMIT_DATA) >> PAGE_SHIFT) {
+-		if (ignore_rlimit_data)
+-			pr_warn_once("%s (%d): VmData %lu exceed data ulimit %lu. Will be forbidden soon.\n",
++		/* Workaround for Valgrind */
++		if (rlimit(RLIMIT_DATA) == 0 &&
++		    mm->data_vm + npages <= rlimit_max(RLIMIT_DATA) >> PAGE_SHIFT)
++			return true;
++		if (!ignore_rlimit_data) {
++			pr_warn_once("%s (%d): VmData %lu exceed data ulimit %lu. Update limits or use boot option ignore_rlimit_data.\n",
+ 				     current->comm, current->pid,
+ 				     (mm->data_vm + npages) << PAGE_SHIFT,
+ 				     rlimit(RLIMIT_DATA));
+-		else
+ 			return false;
++		}
+ 	}
+ 
+ 	return true;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
