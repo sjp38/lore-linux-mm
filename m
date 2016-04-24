@@ -1,63 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D7D156B0005
-	for <linux-mm@kvack.org>; Sun, 24 Apr 2016 10:19:12 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b203so39218304pfb.1
-        for <linux-mm@kvack.org>; Sun, 24 Apr 2016 07:19:12 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id n5si8494700pax.112.2016.04.24.07.19.11
+Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A1D496B0005
+	for <linux-mm@kvack.org>; Sun, 24 Apr 2016 14:49:21 -0400 (EDT)
+Received: by mail-ig0-f197.google.com with SMTP id fn8so159736576igb.1
+        for <linux-mm@kvack.org>; Sun, 24 Apr 2016 11:49:21 -0700 (PDT)
+Received: from mail-io0-x242.google.com (mail-io0-x242.google.com. [2607:f8b0:4001:c06::242])
+        by mx.google.com with ESMTPS id l132si8316762ioa.213.2016.04.24.11.49.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 24 Apr 2016 07:19:11 -0700 (PDT)
-Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timeout.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160419200752.GA10437@dhcp22.suse.cz>
-	<201604200655.HDH86486.HOStQFJFLOMFOV@I-love.SAKURA.ne.jp>
-	<20160420144758.GA7950@dhcp22.suse.cz>
-	<201604212049.GFE34338.OQFOJSMOHFFLVt@I-love.SAKURA.ne.jp>
-	<20160421130750.GA18427@dhcp22.suse.cz>
-In-Reply-To: <20160421130750.GA18427@dhcp22.suse.cz>
-Message-Id: <201604242319.GAF12996.tOJMOQFLFVOHSF@I-love.SAKURA.ne.jp>
-Date: Sun, 24 Apr 2016 23:19:03 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 24 Apr 2016 11:49:20 -0700 (PDT)
+Received: by mail-io0-x242.google.com with SMTP id u185so21288285iod.2
+        for <linux-mm@kvack.org>; Sun, 24 Apr 2016 11:49:20 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <146148524340.530.2185181436065386014.stgit@zurg>
+References: <146148524340.530.2185181436065386014.stgit@zurg>
+Date: Sun, 24 Apr 2016 11:49:20 -0700
+Message-ID: <CA+55aFzPY23bL7oRaH8=C=CQ5egcWCEwieD5rhm5xV=Rv7T7RQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: enable RLIMIT_DATA by default with workaround for valgrind
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Christian Borntraeger <borntraeger@de.ibm.com>
 
-Michal Hocko wrote:
-> I have seen that patch. I didn't get to review it properly yet as I am
-> still travelling. From a quick view I think it is conflating two things
-> together. I could see arguments for the panic part but I do not consider
-> the move-to-kill-another timeout as justified. I would have to see a
-> clear indication this is actually useful for real life usecases.
+On Sun, Apr 24, 2016 at 1:07 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+>
+> This patch checks current usage also against rlim_max if rlim_cur is zero.
+> Size of brk is still checked against rlim_cur, so this part is completely
+> compatible - zero rlim_cur forbids brk() but allows private mmap().
 
-You admit that it is possible that the TIF_MEMDIE thread is blocked at
-unkillable wait (due to memory allocation requests by somebody else) but
-the OOM reaper cannot reap the victim's memory (due to holding the mmap_sem
-for write), don't you?
+The logic looks reasonable to me. My first reaction was that "but then
+any process can set the limit to zero, and actually increase limits",
+but witht he hard limit always being checked that's ok - the process
+could have just set the soft limit to the hard limit instead.
 
-Then, I think this patch makes little sense unless accompanied with the
-move-to-kill-another timeout. If the OOM reaper failed to reap the victim's
-memory, the OOM reaper simply clears TIF_MEMDIE from the victim thread. But
-since nothing has changed (i.e. the victim continues waiting, and the victim's
-memory is not reclaimed, and the victim's oom_score_adj is not updated to
-OOM_SCORE_ADJ_MIN), the OOM killer will select that same victim again.
-This forms an infinite loop. You will want to call panic() as soon as the OOM
-reaper failed to reap the victim's memory (than waiting for the panic timeout).
+The only part I don't like in that patch is the disgusting line breaking.
 
-For both system operators at customer's companies and staffs at support center,
-avoiding hangup (due to OOM livelock) and panic (due to the OOM panic timeout)
-eliminates a lot of overhead. This is a practical benefit for them.
+Breaking lines in the middle of a comparison is just nasty and wrong.
+That code should have been written as
 
-I also think that the purpose of killing only one task at a time than calling
-panic() is to save as much work as possible. Therefore, I can't understand why
-you don't think that killing only another task via the move-to-kill-another
-timeout is a useful real life usecase.
+        if (rlimit(RLIMIT_DATA) != 0)
+                return false;
+        return mm->data_vm + npages <= rlimit_max(RLIMIT_DATA) >> PAGE_SHIFT;
 
-panic on timeout is a practical benefit for you, but giving several chances
-on timeout is a practical benefit for someone you don't know.
+or something like that. Since you removed the pr_warn_once(), you
+should remove ignore_rlimit_data too.
+
+Alternatively, if you want to keep ignore_rlimit_data, then you should
+have kept the warning too. Making the actual rlimit data check an
+inline helper function and having the ignore_rlimit_data check (and
+printout) in the caller would make it pretty.
+
+Because breaking lines in the middle of an actual expression is just
+completely wrong. It's much worse than having a long line.
+
+(The exception to that "middle of an expression" is breaking lines at
+logical expression boundaries: things like adding up several
+independent expressions, and having it be
+
+     sum = a +
+           b +
+           c;
+
+or be something like
+
+     if (a ||
+        b ||
+        c)
+            do_something():
+
+where 'a', 'b' and 'c' are complex but fairly independent expressions).
+
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
