@@ -1,108 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D2CF6B0005
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 19:43:15 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id x67so143411516oix.2
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 16:43:15 -0700 (PDT)
-Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
-        by mx.google.com with ESMTPS id a8si555371obj.22.2016.04.25.16.43.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Apr 2016 16:43:14 -0700 (PDT)
-Received: by mail-oi0-x22d.google.com with SMTP id r78so194157474oie.0
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 16:43:14 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160425232552.GD18496@dastard>
-References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
-	<1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
-	<x49twj26edj.fsf@segfault.boston.devel.redhat.com>
-	<20160420205923.GA24797@infradead.org>
-	<1461434916.3695.7.camel@intel.com>
-	<20160425083114.GA27556@infradead.org>
-	<1461604476.3106.12.camel@intel.com>
-	<20160425232552.GD18496@dastard>
-Date: Mon, 25 Apr 2016 16:43:14 -0700
-Message-ID: <CAPcyv4i6iwm1iY2mQ5yRbYfRexQroUX_R0B-db4ROU837fratw@mail.gmail.com>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 09D616B0005
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 19:53:16 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id zy2so294420806pac.1
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 16:53:16 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id q81si800975pfa.134.2016.04.25.16.53.14
+        for <linux-mm@kvack.org>;
+        Mon, 25 Apr 2016 16:53:15 -0700 (PDT)
+From: "Verma, Vishal L" <vishal.l.verma@intel.com>
 Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Date: Mon, 25 Apr 2016 23:53:13 +0000
+Message-ID: <1461628381.1421.24.camel@intel.com>
+References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
+	 <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
+	 <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
+	 <20160420205923.GA24797@infradead.org> <1461434916.3695.7.camel@intel.com>
+	 <20160425083114.GA27556@infradead.org> <1461604476.3106.12.camel@intel.com>
+	 <20160425232552.GD18496@dastard>
+In-Reply-To: <20160425232552.GD18496@dastard>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <7502BB94DF2B3F4BBDDD7D995E54F60F@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: "Verma, Vishal L" <vishal.l.verma@intel.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "jack@suse.cz" <jack@suse.cz>, "axboe@fb.com" <axboe@fb.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "hch@infradead.org" <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>
+To: "david@fromorbit.com" <david@fromorbit.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "jmoyer@redhat.com" <jmoyer@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew
+ R" <matthew.r.wilcox@intel.com>, "jack@suse.cz" <jack@suse.cz>
 
-On Mon, Apr 25, 2016 at 4:25 PM, Dave Chinner <david@fromorbit.com> wrote:
-> On Mon, Apr 25, 2016 at 05:14:36PM +0000, Verma, Vishal L wrote:
->> On Mon, 2016-04-25 at 01:31 -0700, hch@infradead.org wrote:
->> > On Sat, Apr 23, 2016 at 06:08:37PM +0000, Verma, Vishal L wrote:
->> > >
->> > > direct_IO might fail with -EINVAL due to misalignment, or -ENOMEM
->> > > due
->> > > to some allocation failing, and I thought we should return the
->> > > original
->> > > -EIO in such cases so that the application doesn't lose the
->> > > information
->> > > that the bad block is actually causing the error.
->> > EINVAL is a concern here.  Not due to the right error reported, but
->> > because it means your current scheme is fundamentally broken - we
->> > need to support I/O at any alignment for DAX I/O, and not fail due to
->> > alignbment concernes for a highly specific degraded case.
->> >
->> > I think this whole series need to go back to the drawing board as I
->> > don't think it can actually rely on using direct I/O as the EIO
->> > fallback.
->> >
->> Agreed that DAX I/O can happen with any size/alignment, but how else do
->> we send an IO through the driver without alignment restrictions? Also,
->> the granularity at which we store badblocks is 512B sectors, so it
->> seems natural that to clear such a sector, you'd expect to send a write
->> to the whole sector.
->>
->> The expected usage flow is:
->>
->> - Application hits EIO doing dax_IO or load/store io
->>
->> - It checks badblocks and discovers it's files have lost data
->
-> Lots of hand-waving here. How does the application map a bad
-> "sector" to a file without scanning the entire filesystem to find
-> the owner of the bad sector?
->
->> - It write()s those sectors (possibly converted to file offsets using
->> fiemap)
->>     * This triggers the fallback path, but if the application is doing
->> this level of recovery, it will know the sector is bad, and write the
->> entire sector
->
-> Where does the application find the data that was lost to be able to
-> rewrite it?
->
->> - Or it replaces the entire file from backup also using write() (not
->> mmap+stores)
->>     * This just frees the fs block, and the next time the block is
->> reallocated by the fs, it will likely be zeroed first, and that will be
->> done through the driver and will clear errors
->
-> There's an implicit assumption that applications will keep redundant
-> copies of their data at the /application layer/ and be able to
-> automatically repair it? And then there's the implicit assumption
-> that it will unlink and free the entire file before writing a new
-> copy, and that then assumes the the filesystem will zero blocks if
-> they get reused to clear errors on that LBA sector mapping before
-> they are accessible again to userspace..
->
-> It seems to me that there are a number of assumptions being made
-> across multiple layers here. Maybe I've missed something - can you
-> point me to the design/architecture description so I can see how
-> "app does data recovery itself" dance is supposed to work?
->
-
-Maybe I missed something, but all these assumptions are already
-present for typical block devices, i.e. sectors may go bad and a write
-may make the sector usable again.  This patch series is extending that
-out to the DAX-mmap case, but it's the same principle of "write to
-clear error" that we live with in the block-I/O path.  What
-clarification are you looking for beyond that point?
+T24gVHVlLCAyMDE2LTA0LTI2IGF0IDA5OjI1ICsxMDAwLCBEYXZlIENoaW5uZXIgd3JvdGU6DQo+
+wqANCjw+DQoNCj4gPiANCj4gPiAtIEl0IGNoZWNrcyBiYWRibG9ja3MgYW5kIGRpc2NvdmVycyBp
+dCdzIGZpbGVzIGhhdmUgbG9zdCBkYXRhDQo+IExvdHMgb2YgaGFuZC13YXZpbmcgaGVyZS4gSG93
+IGRvZXMgdGhlIGFwcGxpY2F0aW9uIG1hcCBhIGJhZA0KPiAic2VjdG9yIiB0byBhIGZpbGUgd2l0
+aG91dCBzY2FubmluZyB0aGUgZW50aXJlIGZpbGVzeXN0ZW0gdG8gZmluZA0KPiB0aGUgb3duZXIg
+b2YgdGhlIGJhZCBzZWN0b3I/DQoNClllcyB0aGlzIHdhcyBoYW5kLXdhdmV5LCBidXQgd2UgdGFs
+a2VkIGFib3V0IHRoaXMgYSBiaXQgYXQgTFNGLi4NClRoZSBpZGVhIGlzIHRoYXQgYSBwZXItYmxv
+Y2stZGV2aWNlIGJhZGJsb2NrcyBsaXN0IGlzIGF2YWlsYWJsZSBhdA0KL3N5cy9ibG9jay88cG1l
+bVg+L2JhZGJsb2Nrcy4gVGhlIGFwcGxpY2F0aW9uIChvciBhIHN1aXRhYmxlIHlldC10by1iZS0N
+CndyaXR0ZW4gbGlicmFyeSBmdW5jdGlvbikgZG9lcyBhIGZpZW1hcCB0byBmaWd1cmUgb3V0IHRo
+ZSBzZWN0b3JzIGl0cw0KZmlsZXMgYXJlIHVzaW5nLCBhbmQgY29ycmVsYXRlcyB0aGUgdHdvIGxp
+c3RzLg0KV2UgY2FuIGFsc28gbG9vayBpbnRvIHByb3ZpZGluZyBhbiBlYXNpZXItdG8tdXNlIGlu
+dGVyZmFjZSBmcm9tIHRoZQ0Ka2VybmVsLCBpbiB0aGUgZm9ybSBvZiBhbiBmaWVtYXAgZmxhZyB0
+byByZXBvcnQgb25seSB0aGUgYmFkIHNlY3RvcnMsIG9yDQphIFNFRUtfQkFEIGZsYWcuLg0KVGhl
+IGFwcGxpY2F0aW9uIGRvZXNuJ3QgaGF2ZSB0byBzY2FuIHRoZSBlbnRpcmUgZmlsZXN5c3RlbSwg
+YnV0DQpwcmVzdW1hYmx5IGl0IGtub3dzIHdoYXQgZmlsZXMgaXQgJ293bnMnLCBhbmQgZG9lcyBh
+IGZpZW1hcCBmb3IgdGhvc2UuDQoNCj4gDQo+ID4gDQo+ID4gLSBJdCB3cml0ZSgpcyB0aG9zZSBz
+ZWN0b3JzIChwb3NzaWJseSBjb252ZXJ0ZWQgdG8gZmlsZSBvZmZzZXRzDQo+ID4gdXNpbmcNCj4g
+PiBmaWVtYXApDQo+ID4gwqAgwqAgKiBUaGlzIHRyaWdnZXJzIHRoZSBmYWxsYmFjayBwYXRoLCBi
+dXQgaWYgdGhlIGFwcGxpY2F0aW9uIGlzDQo+ID4gZG9pbmcNCj4gPiB0aGlzIGxldmVsIG9mIHJl
+Y292ZXJ5LCBpdCB3aWxsIGtub3cgdGhlIHNlY3RvciBpcyBiYWQsIGFuZCB3cml0ZQ0KPiA+IHRo
+ZQ0KPiA+IGVudGlyZSBzZWN0b3INCj4gV2hlcmUgZG9lcyB0aGUgYXBwbGljYXRpb24gZmluZCB0
+aGUgZGF0YSB0aGF0IHdhcyBsb3N0IHRvIGJlIGFibGUgdG8NCj4gcmV3cml0ZSBpdD8NCg0KVGhl
+IGRhdGEgdGhhdCB3YXMgbG9zdCBpcyBnb25lIC0tIHRoaXMgYXNzdW1lcyB0aGUgYXBwbGljYXRp
+b24gaGFzIHNvbWUNCmFiaWxpdHkgdG8gcmVjb3ZlciB1c2luZyBhIGpvdXJuYWwvbG9nIG9yIG90
+aGVyIHJlZHVuZGFuY3kgLSB5ZXMsIGF0IHRoZQ0KYXBwbGljYXRpb24gbGF5ZXIuIElmIGl0IGRv
+ZXNuJ3QgaGF2ZSB0aGlzIHNvcnQgb2YgY2FwYWJpbGl0eSwgdGhlIG9ubHkNCm9wdGlvbiBpcyB0
+byByZXN0b3JlIGZpbGVzIGZyb20gYSBiYWNrdXAvbWlycm9yLg0KDQo+IA0KPiA+IA0KPiA+IC0g
+T3IgaXQgcmVwbGFjZXMgdGhlIGVudGlyZSBmaWxlIGZyb20gYmFja3VwIGFsc28gdXNpbmcgd3Jp
+dGUoKSAobm90DQo+ID4gbW1hcCtzdG9yZXMpDQo+ID4gwqAgwqAgKiBUaGlzIGp1c3QgZnJlZXMg
+dGhlIGZzIGJsb2NrLCBhbmQgdGhlIG5leHQgdGltZSB0aGUgYmxvY2sgaXMNCj4gPiByZWFsbG9j
+YXRlZCBieSB0aGUgZnMsIGl0IHdpbGwgbGlrZWx5IGJlIHplcm9lZCBmaXJzdCwgYW5kIHRoYXQg
+d2lsbA0KPiA+IGJlDQo+ID4gZG9uZSB0aHJvdWdoIHRoZSBkcml2ZXIgYW5kIHdpbGwgY2xlYXIg
+ZXJyb3JzDQo+IFRoZXJlJ3MgYW4gaW1wbGljaXQgYXNzdW1wdGlvbiB0aGF0IGFwcGxpY2F0aW9u
+cyB3aWxsIGtlZXAgcmVkdW5kYW50DQo+IGNvcGllcyBvZiB0aGVpciBkYXRhIGF0IHRoZSAvYXBw
+bGljYXRpb24gbGF5ZXIvIGFuZCBiZSBhYmxlIHRvDQo+IGF1dG9tYXRpY2FsbHkgcmVwYWlyIGl0
+PyBBbmQgdGhlbiB0aGVyZSdzIHRoZSBpbXBsaWNpdCBhc3N1bXB0aW9uDQo+IHRoYXQgaXQgd2ls
+bCB1bmxpbmsgYW5kIGZyZWUgdGhlIGVudGlyZSBmaWxlIGJlZm9yZSB3cml0aW5nIGEgbmV3DQo+
+IGNvcHksIGFuZCB0aGF0IHRoZW4gYXNzdW1lcyB0aGUgdGhlIGZpbGVzeXN0ZW0gd2lsbCB6ZXJv
+IGJsb2NrcyBpZg0KPiB0aGV5IGdldCByZXVzZWQgdG8gY2xlYXIgZXJyb3JzIG9uIHRoYXQgTEJB
+IHNlY3RvciBtYXBwaW5nIGJlZm9yZQ0KPiB0aGV5IGFyZSBhY2Nlc3NpYmxlIGFnYWluIHRvIHVz
+ZXJzcGFjZS4uDQo+IA0KPiBJdCBzZWVtcyB0byBtZSB0aGF0IHRoZXJlIGFyZSBhIG51bWJlciBv
+ZiBhc3N1bXB0aW9ucyBiZWluZyBtYWRlDQo+IGFjcm9zcyBtdWx0aXBsZSBsYXllcnMgaGVyZS4g
+TWF5YmUgSSd2ZSBtaXNzZWQgc29tZXRoaW5nIC0gY2FuIHlvdQ0KPiBwb2ludCBtZSB0byB0aGUg
+ZGVzaWduL2FyY2hpdGVjdHVyZSBkZXNjcmlwdGlvbiBzbyBJIGNhbiBzZWUgaG93DQo+ICJhcHAg
+ZG9lcyBkYXRhIHJlY292ZXJ5IGl0c2VsZiIgZGFuY2UgaXMgc3VwcG9zZWQgdG8gd29yaz8NCg0K
+VGhlcmUgaXNuJ3QgYSBkb2N1bWVudCBvdGhlciB0aGFuIHRoZSBmbG93IGluIG15IGhlYWQgOikg
+LSBidXQgbWF5YmUgSQ0KY291bGQgd3JpdGUgb25lIHVwLi4NCkkgd2Fzbid0IHRoaW5raW5nIHRo
+ZSBhcHBsaWNhdGlvbiBpdHNlbGYgbWFpbnRhaW5zIGFuZCByZXN0b3JlcyBmcm9tDQpiYWNrdXAg
+Y29weSBvZiB0aGUgZmlsZS4uIFRoZSBhcHBsaWNhdGlvbiBoaXRzIGVpdGhlciBhIFNJR0JVUyBv
+ciBFSU8NCmRlcGVuZGluZyBvbiBob3cgaXQgYWNjZXNzZXMgdGhlIGRhdGEsIGFuZCBjcmFzaGVz
+IG9yIHJhaXNlcyBzb21lIGFsYXJtLg0KVGhlIHJlY292ZXJ5IGlzIHRoZW4gZG9uZSBvdXQtb2Yt
+YmFuZCwgYnkgYSBzeXNhZG1pbiBvciBzdWNoIChpLmUuDQpkZWxldGUgdGhlIGZpbGUsIHJlcGxh
+Y2Ugd2l0aCBhIGtub3duIGdvb2QgY29weSwgcmVzdGFydCBhcHBsaWNhdGlvbikuDQoNClRvIHN1
+bW1hcml6ZSwgdGhlIHR3byBjYXNlcyB3ZSB3YW50IHRvIGhhbmRsZSBhcmU6DQoxLiBBcHBsaWNh
+dGlvbiBoYXMgaW5idWlsdCByZWNvdmVyeToNCsKgIC0gaGl0cyBiYWRibG9jaw0KwqAgLSBmaWd1
+cmVzIG91dCBpdCBpcyBhYmxlIHRvIHJlY292ZXIgdGhlIGRhdGENCsKgIC0gaGFuZGxlcyBTSUdC
+VVMgb3IgRUlPDQrCoCAtIGRvZXMgYSAoc2VjdG9yIGFsaWduZWQpIHdyaXRlKCkgdG8gcmVzdG9y
+ZSB0aGUgZGF0YQ0KMi4gQXBwbGljYXRpb24gZG9lc24ndCBoYXZlIGFueSBpbmJ1aWx0IHJlY292
+ZXJ5IG1lY2hhbmlzbQ0KwqAgLSBoaXRzIGJhZGJsb2NrDQrCoCAtIGdldHMgU0lHQlVTIChvciBF
+SU8pIGFuZCBjcmFzaGVzDQrCoCAtIFN5c2FkbWluIHJlc3RvcmVzIGZpbGUgZnJvbSBiYWNrdXAN
+Cg0KQ2FzZSAxIGlzIGhhbmRsZWQgYnkgZWl0aGVyIGEgZmFsbGJhY2sgdG8gZGlyZWN0X0lPIGZy
+b20gZGF4X2RvX2lvLCBvcg0KYWx3YXlzIF9hY3R1YWxseV8gZG9pbmcgZGlyZWN0X0lPIHdoZW4g
+d2UncmUgb3BlbmVkIHdpdGggT19ESVJFQ1QgaW4NCnNwaXRlIG9mIGRheCAod2hhdCBEYW4gc3Vn
+Z2VzdGVkKS4gQ3VycmVudGx5IGlmIHdlJ3JlIG1vdW50ZWQgd2l0aCBkYXgsDQphbGwgSU8gT19E
+SVJFQ1Qgb3Igb3RoZXJ3aXNlIHdpbGwgZ28gdGhyb3VnaCBkYXhfZG9faW8uDQpDYXNlIDIgaXMg
+aGFuZGxlZCBieSBwYXRjaCA0IG9mIHRoZSBzZXJpZXM6DQrCoCDCoCBkYXg6IHVzZSBzYl9pc3N1
+ZV96ZXJvdXQgaW5zdGVhZCBvZiBjYWxsaW5nIGRheF9jbGVhcl9zZWN0b3JzDQoNCj4gDQo+IENo
+ZWVycywNCj4gDQo+IERhdmUu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
