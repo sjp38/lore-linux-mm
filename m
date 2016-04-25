@@ -1,159 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B2A66B0262
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 01:21:35 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e190so345373290pfe.3
-        for <linux-mm@kvack.org>; Sun, 24 Apr 2016 22:21:35 -0700 (PDT)
-Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
-        by mx.google.com with ESMTPS id zu5si4690637pac.175.2016.04.24.22.21.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 24 Apr 2016 22:21:34 -0700 (PDT)
-Received: by mail-pf0-x22c.google.com with SMTP id n1so63404785pfn.2
-        for <linux-mm@kvack.org>; Sun, 24 Apr 2016 22:21:34 -0700 (PDT)
-From: js1304@gmail.com
-Subject: [PATCH v2 6/6] mm/cma: remove per zone CMA stat
-Date: Mon, 25 Apr 2016 14:21:10 +0900
-Message-Id: <1461561670-28012-7-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1461561670-28012-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 93BD26B007E
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 01:33:23 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id dx6so256454818pad.0
+        for <linux-mm@kvack.org>; Sun, 24 Apr 2016 22:33:23 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id p9si4743618paa.62.2016.04.24.22.33.21
+        for <linux-mm@kvack.org>;
+        Sun, 24 Apr 2016 22:33:22 -0700 (PDT)
+Date: Mon, 25 Apr 2016 14:36:54 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 0/6] Introduce ZONE_CMA
+Message-ID: <20160425053653.GA25662@js1304-P5Q-DELUXE>
 References: <1461561670-28012-1-git-send-email-iamjoonsoo.kim@lge.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1461561670-28012-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Mon, Apr 25, 2016 at 02:21:04PM +0900, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> Hello,
+> 
+> Changes from v1
+> o Separate some patches which deserve to submit independently
+> o Modify description to reflect current kernel state
+> (e.g. high-order watermark problem disappeared by Mel's work)
+> o Don't increase SECTION_SIZE_BITS to make a room in page flags
+> (detailed reason is on the patch that adds ZONE_CMA)
+> o Adjust ZONE_CMA population code
+> 
+> This series try to solve problems of current CMA implementation.
+> 
+> CMA is introduced to provide physically contiguous pages at runtime
+> without exclusive reserved memory area. But, current implementation
+> works like as previous reserved memory approach, because freepages
+> on CMA region are used only if there is no movable freepage. In other
+> words, freepages on CMA region are only used as fallback. In that
+> situation where freepages on CMA region are used as fallback, kswapd
+> would be woken up easily since there is no unmovable and reclaimable
+> freepage, too. If kswapd starts to reclaim memory, fallback allocation
+> to MIGRATE_CMA doesn't occur any more since movable freepages are
+> already refilled by kswapd and then most of freepage on CMA are left
+> to be in free. This situation looks like exclusive reserved memory case.
+> 
+> In my experiment, I found that if system memory has 1024 MB memory and
+> 512 MB is reserved for CMA, kswapd is mostly woken up when roughly 512 MB
+> free memory is left. Detailed reason is that for keeping enough free
+> memory for unmovable and reclaimable allocation, kswapd uses below
+> equation when calculating free memory and it easily go under the watermark.
+> 
+> Free memory for unmovable and reclaimable = Free total - Free CMA pages
+> 
+> This is derivated from the property of CMA freepage that CMA freepage
+> can't be used for unmovable and reclaimable allocation.
+> 
+> Anyway, in this case, kswapd are woken up when (FreeTotal - FreeCMA)
+> is lower than low watermark and tries to make free memory until
+> (FreeTotal - FreeCMA) is higher than high watermark. That results
+> in that FreeTotal is moving around 512MB boundary consistently. It
+> then means that we can't utilize full memory capacity.
+> 
+> To fix this problem, I submitted some patches [1] about 10 months ago,
+> but, found some more problems to be fixed before solving this problem.
+> It requires many hooks in allocator hotpath so some developers doesn't
+> like it. Instead, some of them suggest different approach [2] to fix
+> all the problems related to CMA, that is, introducing a new zone to deal
+> with free CMA pages. I agree that it is the best way to go so implement
+> here. Although properties of ZONE_MOVABLE and ZONE_CMA is similar, I
+> decide to add a new zone rather than piggyback on ZONE_MOVABLE since
+> they have some differences. First, reserved CMA pages should not be
+> offlined. If freepage for CMA is managed by ZONE_MOVABLE, we need to keep
+> MIGRATE_CMA migratetype and insert many hooks on memory hotplug code
+> to distiguish hotpluggable memory and reserved memory for CMA in the same
+> zone. It would make memory hotplug code which is already complicated
+> more complicated. Second, cma_alloc() can be called more frequently
+> than memory hotplug operation and possibly we need to control
+> allocation rate of ZONE_CMA to optimize latency in the future.
+> In this case, separate zone approach is easy to modify. Third, I'd
+> like to see statistics for CMA, separately. Sometimes, we need to debug
+> why cma_alloc() is failed and separate statistics would be more helpful
+> in this situtaion.
+> 
+> Anyway, this patchset solves four problems related to CMA implementation.
+> 
+> 1) Utilization problem
+> As mentioned above, we can't utilize full memory capacity due to the
+> limitation of CMA freepage and fallback policy. This patchset implements
+> a new zone for CMA and uses it for GFP_HIGHUSER_MOVABLE request. This
+> typed allocation is used for page cache and anonymous pages which
+> occupies most of memory usage in normal case so we can utilize full
+> memory capacity. Below is the experiment result about this problem.
+> 
+> 8 CPUs, 1024 MB, VIRTUAL MACHINE
+> make -j16
+> 
+> <Before this series>
+> CMA reserve:            0 MB            512 MB
+> Elapsed-time:           92.4		186.5
+> pswpin:                 82		18647
+> pswpout:                160		69839
+> 
+> <After this series>
+> CMA reserve:            0 MB            512 MB
+> Elapsed-time:           93.1		93.4
+> pswpin:                 84		46
+> pswpout:                183		92
+> 
+> FYI, there is another attempt [3] trying to solve this problem in lkml.
+> And, as far as I know, Qualcomm also has out-of-tree solution for this
+> problem.
+> 
+> 2) Reclaim problem
+> Currently, there is no logic to distinguish CMA pages in reclaim path.
+> If reclaim is initiated for unmovable and reclaimable allocation,
+> reclaiming CMA pages doesn't help to satisfy the request and reclaiming
+> CMA page is just waste. By managing CMA pages in the new zone, we can
+> skip to reclaim ZONE_CMA completely if it is unnecessary.
+> 
+> 3) Atomic allocation failure problem
+> Kswapd isn't started to reclaim pages when allocation request is movable
+> type and there is enough free page in the CMA region. After bunch of
+> consecutive movable allocation requests, free pages in ordinary region
+> (not CMA region) would be exhausted without waking up kswapd. At that time,
+> if atomic unmovable allocation comes, it can't be successful since there
+> is not enough page in ordinary region. This problem is reported
+> by Aneesh [4] and can be solved by this patchset.
+> 
+> 4) Inefficiently work of compaction
+> Usual high-order allocation request is unmovable type and it cannot
+> be serviced from CMA area. In compaction, migration scanner doesn't
+> distinguish migratable pages on the CMA area and do migration.
+> In this case, even if we make high-order page on that region, it
+> cannot be used due to type mismatch. This patch will solve this problem
+> by separating CMA pages from ordinary zones.
+> 
+> I passed boot test on x86_64, x86_32, arm and arm64. I did some stress
+> tests on x86_64 and x86_32 and there is no problem. Feel free to enjoy
+> and please give me a feedback. :)
+> 
+> This patchset is based on linux-next-20160413.
+> 
+> Thanks.
+> 
+> [1] https://lkml.org/lkml/2014/5/28/64
+> [2] https://lkml.org/lkml/2014/11/4/55
+> [3] https://lkml.org/lkml/2014/10/15/623
+> [4] http://www.spinics.net/lists/linux-mm/msg100562.html
+> 
+> Joonsoo Kim (6):
+>   mm/page_alloc: recalculate some of zone threshold when on/offline
+>     memory
+>   mm/cma: introduce new zone, ZONE_CMA
+>   mm/cma: populate ZONE_CMA
+>   mm/cma: remove ALLOC_CMA
+>   mm/cma: remove MIGRATE_CMA
+>   mm/cma: remove per zone CMA stat
+> 
+>  arch/x86/mm/highmem_32.c          |   8 ++
+>  fs/proc/meminfo.c                 |   2 +-
+>  include/linux/cma.h               |   6 +
+>  include/linux/gfp.h               |  32 +++---
+>  include/linux/memory_hotplug.h    |   3 -
+>  include/linux/mempolicy.h         |   2 +-
+>  include/linux/mmzone.h            |  54 +++++----
+>  include/linux/vm_event_item.h     |  10 +-
+>  include/linux/vmstat.h            |   8 --
+>  include/trace/events/compaction.h |  10 +-
+>  kernel/power/snapshot.c           |   8 ++
+>  mm/cma.c                          |  58 +++++++++-
+>  mm/compaction.c                   |  10 +-
+>  mm/hugetlb.c                      |   2 +-
+>  mm/internal.h                     |   6 +-
+>  mm/memory_hotplug.c               |   3 +
+>  mm/page_alloc.c                   | 236 ++++++++++++++++++++++----------------
+>  mm/page_isolation.c               |   5 +-
+>  mm/vmstat.c                       |  15 ++-
+>  19 files changed, 303 insertions(+), 175 deletions(-)
 
-Now, all reserved pages for CMA region are belong to the ZONE_CMA
-so we don't need to maintain CMA stat in other zones. Remove it.
+Hello, Mel and Aneesh.
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- fs/proc/meminfo.c      |  2 +-
- include/linux/cma.h    |  6 ++++++
- include/linux/mmzone.h |  1 -
- mm/cma.c               | 15 +++++++++++++++
- mm/page_alloc.c        |  5 ++---
- mm/vmstat.c            |  1 -
- 6 files changed, 24 insertions(+), 6 deletions(-)
+I read the summary of the LSF/MM in LWN.net and Rik's summary e-mail
+and it looks like there is a disagreement on ZONE_CMA approach and
+I'd like to talk about it in this mail.
 
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index ae5cc52..51449d0 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -172,7 +172,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- #endif
- #ifdef CONFIG_CMA
- 		, K(totalcma_pages)
--		, K(global_page_state(NR_FREE_CMA_PAGES))
-+		, K(cma_get_free())
- #endif
- 		);
- 
-diff --git a/include/linux/cma.h b/include/linux/cma.h
-index 29f9e77..816290c 100644
---- a/include/linux/cma.h
-+++ b/include/linux/cma.h
-@@ -28,4 +28,10 @@ extern int cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
- 					struct cma **res_cma);
- extern struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align);
- extern bool cma_release(struct cma *cma, const struct page *pages, unsigned int count);
-+
-+#ifdef CONFIG_CMA
-+extern unsigned long cma_get_free(void);
-+#else
-+static inline unsigned long cma_get_free(void) { return 0; }
-+#endif
- #endif
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 75b41c5..3996a7c 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -140,7 +140,6 @@ enum zone_stat_item {
- 	NR_SHMEM_HUGEPAGES,	/* transparent shmem huge pages */
- 	NR_SHMEM_PMDMAPPED,	/* shmem huge pages currently mapped hugely */
- 	NR_SHMEM_FREEHOLES,	/* unused memory of high-order allocations */
--	NR_FREE_CMA_PAGES,
- 	NR_VM_ZONE_STAT_ITEMS };
- 
- /*
-diff --git a/mm/cma.c b/mm/cma.c
-index bd436e4..6dbddf2 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -54,6 +54,21 @@ unsigned long cma_get_size(const struct cma *cma)
- 	return cma->count << PAGE_SHIFT;
- }
- 
-+unsigned long cma_get_free(void)
-+{
-+	struct zone *zone;
-+	unsigned long freecma = 0;
-+
-+	for_each_populated_zone(zone) {
-+		if (!is_zone_cma(zone))
-+			continue;
-+
-+		freecma += zone_page_state(zone, NR_FREE_PAGES);
-+	}
-+
-+	return freecma;
-+}
-+
- static unsigned long cma_bitmap_aligned_mask(const struct cma *cma,
- 					     int align_order)
- {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 51b2b0c..570edad 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -63,6 +63,7 @@
- #include <linux/sched/rt.h>
- #include <linux/page_owner.h>
- #include <linux/kthread.h>
-+#include <linux/cma.h>
- 
- #include <asm/sections.h>
- #include <asm/tlbflush.h>
-@@ -4107,7 +4108,7 @@ void show_free_areas(unsigned int filter)
- 		global_page_state(NR_SHMEM_FREEHOLES),
- 		global_page_state(NR_FREE_PAGES),
- 		free_pcp,
--		global_page_state(NR_FREE_CMA_PAGES));
-+		cma_get_free());
- 
- 	for_each_populated_zone(zone) {
- 		int i;
-@@ -4150,7 +4151,6 @@ void show_free_areas(unsigned int filter)
- 			" bounce:%lukB"
- 			" free_pcp:%lukB"
- 			" local_pcp:%ukB"
--			" free_cma:%lukB"
- 			" writeback_tmp:%lukB"
- 			" pages_scanned:%lu"
- 			" all_unreclaimable? %s"
-@@ -4188,7 +4188,6 @@ void show_free_areas(unsigned int filter)
- 			K(zone_page_state(zone, NR_BOUNCE)),
- 			K(free_pcp),
- 			K(this_cpu_read(zone->pageset->pcp.count)),
--			K(zone_page_state(zone, NR_FREE_CMA_PAGES)),
- 			K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
- 			K(zone_page_state(zone, NR_PAGES_SCANNED)),
- 			(!zone_reclaimable(zone) ? "yes" : "no")
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 39a0c3c..81acdae 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -766,7 +766,6 @@ const char * const vmstat_text[] = {
- 	"nr_shmem_hugepages",
- 	"nr_shmem_pmdmapped",
- 	"nr_shmem_freeholes",
--	"nr_free_cma",
- 
- 	/* enum writeback_stat_item counters */
- 	"nr_dirty_threshold",
--- 
-1.9.1
+I'd like to object Aneesh's statement that using ZONE_CMA just replaces
+one set of problems with another (mentioned in LWN.net). The fact
+that pages under I/O cannot be moved is also the problem of all CMA
+approaches. It is just separate issue and should not affect the decision
+on ZONE_CMA. It would be solved by migration before I/O and pinning.
+And, mlocked pages in CMA area can be moved. THP pages aren't moved
+in current implementation but it can be solved by linear/lumpy reclaim
+mentioned in that discussion. It is also the problem of all the approaches
+so should not affect the decision on ZONE_CMA.
+
+What we should consider is what is the best approach to solve other issues
+that comes from the fact that pages with different characteristic are
+in the same zone. One of the problem is a watermark check. Many MM logic
+based on watermark check to decide something. If there are free pages with
+different characteristic that is not compatible with other migratetypes,
+output of watermark check would cause the problem. We distinguished
+allocation type and adjusted watermark check through ALLOC_CMA flag but
+using it is not so simple and is fragile. Consider about the compaction
+code. There is a checks that there are enough order-0 freepage in the zone
+to check that compaction could work, before entering the compaction.
+In this case, we could add up CMA freepages even if alloc_flags doesn't
+have ALLOC_CMA because we can utilize CMA freepages as a freepage.
+But, in reality, we missed it. We might fix those cases one by one but
+it's seems to be really error-prone to me. Until recent date, high order
+freepage counting problem was there, too. It partially disappeared
+by Mel's MIGRATE_HIGHATOMIC work, but still remain for ALLOC_HARDER
+request. (We cannot know how many high order freepages are on normal area
+and CMA area.) That problem also shows that it's very fragile design
+that non-compatible types of pages are in the same zone.
+
+ZONE_CMA separates those pages to a new zone so there is no problem
+mentioned in the above. There are other issues about freepage utilization
+and reclaim efficiency in current kernel code and those also could be solved
+by ZONE_CMA approach. Without a new zone, it need more hooks on core MM code
+and it is uncomfortable to the developers who doesn't use the CMA.
+New zone would be a necessary evil in this situation.
+
+I don't think another migratetype, sticky MIGRATE_MOVABLE,
+is the right solution here. We already uses MIGRATE_CMA for that purpose
+and it is proved that it doesn't work well.
+
+If someone still disagree with ZONE_CMA approach, please let me know
+what is the problem of this approach and how to solve these real problems
+in more detail.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
