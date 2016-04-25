@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FC856B025E
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 09:34:42 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id t7so71643895lbn.0
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 06:34:42 -0700 (PDT)
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C075B6B0253
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 09:35:56 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id d19so97900763lfb.0
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 06:35:56 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v131si19391371wme.78.2016.04.25.06.34.40
+        by mx.google.com with ESMTPS id 191si19398782wmk.101.2016.04.25.06.35.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Apr 2016 06:34:40 -0700 (PDT)
+        Mon, 25 Apr 2016 06:35:55 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
 Subject: [PATCH 0/3] mainline and mmotm compaction fixes
-Date: Mon, 25 Apr 2016 15:34:26 +0200
-Message-Id: <1461591269-28615-1-git-send-email-vbabka@suse.cz>
+Date: Mon, 25 Apr 2016 15:35:47 +0200
+Message-Id: <1461591350-28700-1-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1461591269-28615-1-git-send-email-vbabka@suse.cz>
+References: <1461591269-28615-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
