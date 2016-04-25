@@ -1,67 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D33046B025E
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 03:28:50 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id s63so36661548wme.2
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 00:28:50 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z189si9041394wmg.33.2016.04.25.00.28.49
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 86A846B007E
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 04:31:19 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id dx6so261586193pad.0
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 01:31:19 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id u86si5506923pfa.250.2016.04.25.01.31.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Apr 2016 00:28:49 -0700 (PDT)
-Subject: Re: [PATCH v2] z3fold: the 3-fold allocator for compressed pages
-References: <5715FEFD.9010001@gmail.com>
- <20160421162210.f4a50b74bc6ce886ac8c8e4e@linux-foundation.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <571DC72F.3030503@suse.cz>
-Date: Mon, 25 Apr 2016 09:28:47 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Apr 2016 01:31:18 -0700 (PDT)
+Date: Mon, 25 Apr 2016 01:31:14 -0700
+From: "hch@infradead.org" <hch@infradead.org>
+Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
+Message-ID: <20160425083114.GA27556@infradead.org>
+References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
+ <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
+ <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
+ <20160420205923.GA24797@infradead.org>
+ <1461434916.3695.7.camel@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20160421162210.f4a50b74bc6ce886ac8c8e4e@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1461434916.3695.7.camel@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vitaly Wool <vitalywool@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>
+To: "Verma, Vishal L" <vishal.l.verma@intel.com>
+Cc: "hch@infradead.org" <hch@infradead.org>, "jmoyer@redhat.com" <jmoyer@redhat.com>, "axboe@fb.com" <axboe@fb.com>, "jack@suse.cz" <jack@suse.cz>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "david@fromorbit.com" <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>
 
-On 04/22/2016 01:22 AM, Andrew Morton wrote:
-> On Tue, 19 Apr 2016 11:48:45 +0200 Vitaly Wool <vitalywool@gmail.com> wrote:
->
->> This patch introduces z3fold, a special purpose allocator for storing
->> compressed pages. It is designed to store up to three compressed pages per
->> physical page. It is a ZBUD derivative which allows for higher compression
->> ratio keeping the simplicity and determinism of its predecessor.
->>
->> The main differences between z3fold and zbud are:
->> * unlike zbud, z3fold allows for up to PAGE_SIZE allocations
->> * z3fold can hold up to 3 compressed pages in its page
->>
->> This patch comes as a follow-up to the discussions at the Embedded Linux
->> Conference in San-Diego related to the talk [1]. The outcome of these
->> discussions was that it would be good to have a compressed page allocator
->> as stable and deterministic as zbud with with higher compression ratio.
->>
->> To keep the determinism and simplicity, z3fold, just like zbud, always
->> stores an integral number of compressed pages per page, but it can store
->> up to 3 pages unlike zbud which can store at most 2. Therefore the
->> compression ratio goes to around 2.5x while zbud's one is around 1.7x.
->>
->> The patch is based on the latest linux.git tree.
->>
->> This version of the patch has updates related to various concurrency fixes
->> made after intensive testing on SMP/HMP platforms.
->>
->> [1]https://openiotelc2016.sched.org/event/6DAC/swapping-and-embedded-compression-relieves-the-pressure-vitaly-wool-softprise-consulting-ou
->>
->
-> So...  why don't we just replace zbud with z3fold?  (Update the changelog
-> to answer this rather obvious question, please!)
+On Sat, Apr 23, 2016 at 06:08:37PM +0000, Verma, Vishal L wrote:
+> direct_IO might fail with -EINVAL due to misalignment, or -ENOMEM due
+> to some allocation failing, and I thought we should return the original
+> -EIO in such cases so that the application doesn't lose the information
+> that the bad block is actually causing the error.
 
-There was discussion between Seth and Vitaly on v1. Without me knowing 
-the details myself, it looked like Seth's objections were addressed, but 
-then the thread died. I think there should first be a more clear answer 
-from Seth whether z3fold really looks like a clear win (i.e. not 
-workload-dependent) over zbud, in which case zbud could be extended?
+EINVAL is a concern here.  Not due to the right error reported, but
+because it means your current scheme is fundamentally broken - we
+need to support I/O at any alignment for DAX I/O, and not fail due to
+alignbment concernes for a highly specific degraded case.
+
+I think this whole series need to go back to the drawing board as I
+don't think it can actually rely on using direct I/O as the EIO
+fallback.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
