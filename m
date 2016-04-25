@@ -1,83 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AD8496B0005
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 17:52:25 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e190so393219501pfe.3
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:52:25 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id xg8si204191pab.1.2016.04.25.14.52.24
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0240F6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 18:18:21 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id u190so394627961pfb.0
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 15:18:20 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id a141si366009pfa.80.2016.04.25.15.18.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Apr 2016 14:52:24 -0700 (PDT)
-Date: Mon, 25 Apr 2016 14:52:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch v2] mm, hugetlb_cgroup: round limit_in_bytes down to
- hugepage size
-Message-Id: <20160425145223.22617d4c1f12b0f7f4702988@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.10.1604181422220.23710@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1604051824320.32718@chino.kir.corp.google.com>
-	<5704BA37.2080508@kyup.com>
-	<5704BBBF.8040302@kyup.com>
-	<alpine.DEB.2.10.1604061510040.10401@chino.kir.corp.google.com>
-	<20160407125145.GD32755@dhcp22.suse.cz>
-	<alpine.DEB.2.10.1604141321350.6593@chino.kir.corp.google.com>
-	<20160415132451.GL32377@dhcp22.suse.cz>
-	<alpine.DEB.2.10.1604181422220.23710@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 25 Apr 2016 15:18:20 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id y69so52259624pfb.1
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 15:18:20 -0700 (PDT)
+Date: Mon, 25 Apr 2016 15:18:16 -0700
+From: Yu Zhao <yuzhao@google.com>
+Subject: Re: [PATCH] mm/zpool: use workqueue for zpool_destroy
+Message-ID: <20160425221816.GA1254@google.com>
+References: <CALZtONCDqBjL9TFmUEwuHaNU3n55k0VwbYWqW-9dODuNWyzkLQ@mail.gmail.com>
+ <1461619210-10057-1-git-send-email-ddstreet@ieee.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1461619210-10057-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Nikolay Borisov <kernel@kyup.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <dan.streetman@canonical.com>
 
-On Mon, 18 Apr 2016 14:23:58 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-
-> On Fri, 15 Apr 2016, Michal Hocko wrote:
+On Mon, Apr 25, 2016 at 05:20:10PM -0400, Dan Streetman wrote:
+> Add a work_struct to struct zpool, and change zpool_destroy_pool to
+> defer calling the pool implementation destroy.
 > 
-> > > > > +static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
-> > > > > +				struct hugetlb_cgroup *parent_h_cgroup)
-> > > > > +{
-> > > > > +	int idx;
-> > > > > +
-> > > > > +	for (idx = 0; idx < HUGE_MAX_HSTATE; idx++) {
-> > > > > +		struct page_counter *counter = &h_cgroup->hugepage[idx];
-> > > > > +		struct page_counter *parent = NULL;
-> > > > > +		unsigned long limit;
-> > > > > +		int ret;
-> > > > > +
-> > > > > +		if (parent_h_cgroup)
-> > > > > +			parent = &parent_h_cgroup->hugepage[idx];
-> > > > > +		page_counter_init(counter, parent);
-> > > > > +
-> > > > > +		limit = round_down(PAGE_COUNTER_MAX,
-> > > > > +				   1 << huge_page_order(&hstates[idx]));
-> > > > > +		ret = page_counter_limit(counter, limit);
-> > > > > +		VM_BUG_ON(ret);
-> > > > > +	}
-> > > > > +}
-> > > > 
-> > > > I fail to see the point for this. Why would want to round down
-> > > > PAGE_COUNTER_MAX? It will never make a real difference. Or am I missing
-> > > > something?
-> > > 
-> > > Did you try the patch?
-> > > 
-> > > If we're rounding down the user value, it makes sense to be consistent 
-> > > with the upper bound default to specify intent.
-> > 
-> > The point I've tried to raise is why do we care and add a code if we can
-> > never reach that value? Does actually anybody checks for the alignment.
+> The zsmalloc pool destroy function, which is one of the zpool
+> implementations, may sleep during destruction of the pool.  However
+> zswap, which uses zpool, may call zpool_destroy_pool from atomic
+> context.  So we need to defer the call to the zpool implementation
+> to destroy the pool.
 > 
-> If the user modifies the value successfully, it can never be restored to 
-> the default since the write handler rounds down.  It's a matter of 
-> consistency for a long-term maintainable kernel and prevents bug reports.
+> This is essentially the same as Yu Zhao's proposed patch to zsmalloc,
+> but moved to zpool.
 
-Can we please get the above reasoning into the changelog?
+Thanks, Dan. Sergey also mentioned another call path that triggers the
+same problem (BUG: scheduling while atomic):
+  rcu_process_callbacks()
+          __zswap_pool_release()
+                  zswap_pool_destroy()
+                          zswap_cpu_comp_destroy()
+                                  cpu_notifier_register_begin()
+                                          mutex_lock(&cpu_add_remove_lock);
+So I was thinking zswap_pool_destroy() might be done in workqueue in zswap.c.
+This way we fix both call paths.
 
-Also, the runtime effects of the patch are unclear - "not possible to
-charge partial hugepages" sounds serious, but there's no cc:stable. 
-Some clarification there also please.
+Or you have another patch to fix the second call path?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
