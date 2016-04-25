@@ -1,98 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 36C9E6B0005
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 17:22:38 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id n83so3529279qkn.0
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:22:38 -0700 (PDT)
-Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
-        by mx.google.com with ESMTPS id b39si11624362qkh.202.2016.04.25.14.22.36
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FA896B0005
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 17:31:04 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 203so279779559pfy.2
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:31:04 -0700 (PDT)
+Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
+        by mx.google.com with ESMTPS id z62si162567pfi.48.2016.04.25.14.30.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Apr 2016 14:22:37 -0700 (PDT)
-Received: by mail-qk0-x243.google.com with SMTP id q184so11411792qkf.0
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:22:36 -0700 (PDT)
-From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH] mm/zpool: use workqueue for zpool_destroy
-Date: Mon, 25 Apr 2016 17:20:10 -0400
-Message-Id: <1461619210-10057-1-git-send-email-ddstreet@ieee.org>
-In-Reply-To: <CALZtONCDqBjL9TFmUEwuHaNU3n55k0VwbYWqW-9dODuNWyzkLQ@mail.gmail.com>
-References: <CALZtONCDqBjL9TFmUEwuHaNU3n55k0VwbYWqW-9dODuNWyzkLQ@mail.gmail.com>
+        Mon, 25 Apr 2016 14:30:58 -0700 (PDT)
+Received: by mail-pf0-x235.google.com with SMTP id 206so22463116pfu.0
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:30:58 -0700 (PDT)
+Date: Mon, 25 Apr 2016 14:30:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] mm, hugetlb_cgroup: round limit_in_bytes down to
+ hugepage size
+In-Reply-To: <alpine.DEB.2.10.1604061510040.10401@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1604251430280.14793@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1604051824320.32718@chino.kir.corp.google.com> <5704BA37.2080508@kyup.com> <5704BBBF.8040302@kyup.com> <alpine.DEB.2.10.1604061510040.10401@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu Zhao <yuzhao@google.com>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@redhat.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <ddstreet@ieee.org>, Dan Streetman <dan.streetman@canonical.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Nikolay Borisov <kernel@kyup.com>
+Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Add a work_struct to struct zpool, and change zpool_destroy_pool to
-defer calling the pool implementation destroy.
+On Wed, 6 Apr 2016, David Rientjes wrote:
 
-The zsmalloc pool destroy function, which is one of the zpool
-implementations, may sleep during destruction of the pool.  However
-zswap, which uses zpool, may call zpool_destroy_pool from atomic
-context.  So we need to defer the call to the zpool implementation
-to destroy the pool.
+> The page_counter rounds limits down to page size values.  This makes
+> sense, except in the case of hugetlb_cgroup where it's not possible to
+> charge partial hugepages.
+> 
+> Round the hugetlb_cgroup limit down to hugepage size.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-This is essentially the same as Yu Zhao's proposed patch to zsmalloc,
-but moved to zpool.
+May this be merged into -mm?
 
-Reported-by: Yu Zhao <yuzhao@google.com>
-Signed-off-by: Dan Streetman <ddstreet@ieee.org>
-Cc: Dan Streetman <dan.streetman@canonical.com>
----
- mm/zpool.c | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
-
-diff --git a/mm/zpool.c b/mm/zpool.c
-index fd3ff71..ea12069 100644
---- a/mm/zpool.c
-+++ b/mm/zpool.c
-@@ -23,6 +23,7 @@ struct zpool {
- 	const struct zpool_ops *ops;
- 
- 	struct list_head list;
-+	struct work_struct work;
- };
- 
- static LIST_HEAD(drivers_head);
-@@ -197,6 +198,15 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
- 	return zpool;
- }
- 
-+static void zpool_destroy_pool_work(struct work_struct *work)
-+{
-+	struct zpool *zpool = container_of(work, struct zpool, work);
-+
-+	zpool->driver->destroy(zpool->pool);
-+	zpool_put_driver(zpool->driver);
-+	kfree(zpool);
-+}
-+
- /**
-  * zpool_destroy_pool() - Destroy a zpool
-  * @pool	The zpool to destroy.
-@@ -204,7 +214,8 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
-  * Implementations must guarantee this to be thread-safe,
-  * however only when destroying different pools.  The same
-  * pool should only be destroyed once, and should not be used
-- * after it is destroyed.
-+ * after it is destroyed.  This defers calling the implementation
-+ * to a workqueue, so the implementation may sleep.
-  *
-  * This destroys an existing zpool.  The zpool should not be in use.
-  */
-@@ -215,9 +226,8 @@ void zpool_destroy_pool(struct zpool *zpool)
- 	spin_lock(&pools_lock);
- 	list_del(&zpool->list);
- 	spin_unlock(&pools_lock);
--	zpool->driver->destroy(zpool->pool);
--	zpool_put_driver(zpool->driver);
--	kfree(zpool);
-+	INIT_WORK(&zpool->work, zpool_destroy_pool_work);
-+	schedule_work(&zpool->work);
- }
- 
- /**
--- 
-2.7.4
+> ---
+>  mm/hugetlb_cgroup.c | 35 ++++++++++++++++++++++++++---------
+>  1 file changed, 26 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+> --- a/mm/hugetlb_cgroup.c
+> +++ b/mm/hugetlb_cgroup.c
+> @@ -67,26 +67,42 @@ static inline bool hugetlb_cgroup_have_usage(struct hugetlb_cgroup *h_cg)
+>  	return false;
+>  }
+>  
+> +static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
+> +				struct hugetlb_cgroup *parent_h_cgroup)
+> +{
+> +	int idx;
+> +
+> +	for (idx = 0; idx < HUGE_MAX_HSTATE; idx++) {
+> +		struct page_counter *counter = &h_cgroup->hugepage[idx];
+> +		struct page_counter *parent = NULL;
+> +		unsigned long limit;
+> +		int ret;
+> +
+> +		if (parent_h_cgroup)
+> +			parent = &parent_h_cgroup->hugepage[idx];
+> +		page_counter_init(counter, parent);
+> +
+> +		limit = round_down(PAGE_COUNTER_MAX,
+> +				   1 << huge_page_order(&hstates[idx]));
+> +		ret = page_counter_limit(counter, limit);
+> +		VM_BUG_ON(ret);
+> +	}
+> +}
+> +
+>  static struct cgroup_subsys_state *
+>  hugetlb_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+>  {
+>  	struct hugetlb_cgroup *parent_h_cgroup = hugetlb_cgroup_from_css(parent_css);
+>  	struct hugetlb_cgroup *h_cgroup;
+> -	int idx;
+>  
+>  	h_cgroup = kzalloc(sizeof(*h_cgroup), GFP_KERNEL);
+>  	if (!h_cgroup)
+>  		return ERR_PTR(-ENOMEM);
+>  
+> -	if (parent_h_cgroup) {
+> -		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
+> -			page_counter_init(&h_cgroup->hugepage[idx],
+> -					  &parent_h_cgroup->hugepage[idx]);
+> -	} else {
+> +	if (!parent_h_cgroup)
+>  		root_h_cgroup = h_cgroup;
+> -		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
+> -			page_counter_init(&h_cgroup->hugepage[idx], NULL);
+> -	}
+> +
+> +	hugetlb_cgroup_init(h_cgroup, parent_h_cgroup);
+>  	return &h_cgroup->css;
+>  }
+>  
+> @@ -285,6 +301,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
+>  		return ret;
+>  
+>  	idx = MEMFILE_IDX(of_cft(of)->private);
+> +	nr_pages = round_down(nr_pages, 1 << huge_page_order(&hstates[idx]));
+>  
+>  	switch (MEMFILE_ATTR(of_cft(of)->private)) {
+>  	case RES_LIMIT:
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
