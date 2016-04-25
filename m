@@ -1,71 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7170A6B007E
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 13:14:39 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e190so379998586pfe.3
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 10:14:39 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id n3si7667470pfb.123.2016.04.25.10.14.38
-        for <linux-mm@kvack.org>;
-        Mon, 25 Apr 2016 10:14:38 -0700 (PDT)
-From: "Verma, Vishal L" <vishal.l.verma@intel.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-Date: Mon, 25 Apr 2016 17:14:36 +0000
-Message-ID: <1461604476.3106.12.camel@intel.com>
-References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
-	 <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
-	 <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
-	 <20160420205923.GA24797@infradead.org> <1461434916.3695.7.camel@intel.com>
-	 <20160425083114.GA27556@infradead.org>
-In-Reply-To: <20160425083114.GA27556@infradead.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <80F5C603E926CF47BF71F79A2B125709@intel.com>
-Content-Transfer-Encoding: base64
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EE7846B007E
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 13:21:45 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id k129so100203157iof.0
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 10:21:45 -0700 (PDT)
+Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
+        by mx.google.com with ESMTPS id w6si2974043otb.155.2016.04.25.10.21.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Apr 2016 10:21:45 -0700 (PDT)
+Received: by mail-oi0-x22a.google.com with SMTP id r78so183828942oie.0
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 10:21:45 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <1461604476.3106.12.camel@intel.com>
+References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
+	<1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
+	<x49twj26edj.fsf@segfault.boston.devel.redhat.com>
+	<20160420205923.GA24797@infradead.org>
+	<1461434916.3695.7.camel@intel.com>
+	<20160425083114.GA27556@infradead.org>
+	<1461604476.3106.12.camel@intel.com>
+Date: Mon, 25 Apr 2016 10:21:44 -0700
+Message-ID: <CAPcyv4ijf=LDLytVRn_UptVVi5G=7r9bkTkkJHYgBF78tffh9w@mail.gmail.com>
+Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "hch@infradead.org" <hch@infradead.org>
-Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "jmoyer@redhat.com" <jmoyer@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>
+To: "Verma, Vishal L" <vishal.l.verma@intel.com>
+Cc: "hch@infradead.org" <hch@infradead.org>, "axboe@fb.com" <axboe@fb.com>, "jack@suse.cz" <jack@suse.cz>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "david@fromorbit.com" <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>
 
-T24gTW9uLCAyMDE2LTA0LTI1IGF0IDAxOjMxIC0wNzAwLCBoY2hAaW5mcmFkZWFkLm9yZyB3cm90
-ZToNCj4gT24gU2F0LCBBcHIgMjMsIDIwMTYgYXQgMDY6MDg6MzdQTSArMDAwMCwgVmVybWEsIFZp
-c2hhbCBMIHdyb3RlOg0KPiA+IA0KPiA+IGRpcmVjdF9JTyBtaWdodCBmYWlsIHdpdGggLUVJTlZB
-TCBkdWUgdG8gbWlzYWxpZ25tZW50LCBvciAtRU5PTUVNDQo+ID4gZHVlDQo+ID4gdG8gc29tZSBh
-bGxvY2F0aW9uIGZhaWxpbmcsIGFuZCBJIHRob3VnaHQgd2Ugc2hvdWxkIHJldHVybiB0aGUNCj4g
-PiBvcmlnaW5hbA0KPiA+IC1FSU8gaW4gc3VjaCBjYXNlcyBzbyB0aGF0IHRoZSBhcHBsaWNhdGlv
-biBkb2Vzbid0IGxvc2UgdGhlDQo+ID4gaW5mb3JtYXRpb24NCj4gPiB0aGF0IHRoZSBiYWQgYmxv
-Y2sgaXMgYWN0dWFsbHkgY2F1c2luZyB0aGUgZXJyb3IuDQo+IEVJTlZBTCBpcyBhIGNvbmNlcm4g
-aGVyZS7CoMKgTm90IGR1ZSB0byB0aGUgcmlnaHQgZXJyb3IgcmVwb3J0ZWQsIGJ1dA0KPiBiZWNh
-dXNlIGl0IG1lYW5zIHlvdXIgY3VycmVudCBzY2hlbWUgaXMgZnVuZGFtZW50YWxseSBicm9rZW4g
-LSB3ZQ0KPiBuZWVkIHRvIHN1cHBvcnQgSS9PIGF0IGFueSBhbGlnbm1lbnQgZm9yIERBWCBJL08s
-IGFuZCBub3QgZmFpbCBkdWUgdG8NCj4gYWxpZ25ibWVudCBjb25jZXJuZXMgZm9yIGEgaGlnaGx5
-IHNwZWNpZmljIGRlZ3JhZGVkIGNhc2UuDQo+IA0KPiBJIHRoaW5rIHRoaXMgd2hvbGUgc2VyaWVz
-IG5lZWQgdG8gZ28gYmFjayB0byB0aGUgZHJhd2luZyBib2FyZCBhcyBJDQo+IGRvbid0IHRoaW5r
-IGl0IGNhbiBhY3R1YWxseSByZWx5IG9uIHVzaW5nIGRpcmVjdCBJL08gYXMgdGhlIEVJTw0KPiBm
-YWxsYmFjay4NCj4gDQpBZ3JlZWQgdGhhdCBEQVggSS9PIGNhbiBoYXBwZW4gd2l0aCBhbnkgc2l6
-ZS9hbGlnbm1lbnQsIGJ1dCBob3cgZWxzZSBkbw0Kd2Ugc2VuZCBhbiBJTyB0aHJvdWdoIHRoZSBk
-cml2ZXIgd2l0aG91dCBhbGlnbm1lbnQgcmVzdHJpY3Rpb25zPyBBbHNvLA0KdGhlIGdyYW51bGFy
-aXR5IGF0IHdoaWNoIHdlIHN0b3JlIGJhZGJsb2NrcyBpcyA1MTJCIHNlY3RvcnMsIHNvIGl0DQpz
-ZWVtcyBuYXR1cmFsIHRoYXQgdG8gY2xlYXIgc3VjaCBhIHNlY3RvciwgeW91J2QgZXhwZWN0IHRv
-IHNlbmQgYSB3cml0ZQ0KdG8gdGhlIHdob2xlIHNlY3Rvci4NCg0KVGhlIGV4cGVjdGVkIHVzYWdl
-IGZsb3cgaXM6DQoNCi0gQXBwbGljYXRpb24gaGl0cyBFSU8gZG9pbmcgZGF4X0lPIG9yIGxvYWQv
-c3RvcmUgaW8NCg0KLSBJdCBjaGVja3MgYmFkYmxvY2tzIGFuZCBkaXNjb3ZlcnMgaXQncyBmaWxl
-cyBoYXZlIGxvc3QgZGF0YQ0KDQotIEl0IHdyaXRlKClzIHRob3NlIHNlY3RvcnMgKHBvc3NpYmx5
-IGNvbnZlcnRlZCB0byBmaWxlIG9mZnNldHMgdXNpbmcNCmZpZW1hcCkNCsKgIMKgICogVGhpcyB0
-cmlnZ2VycyB0aGUgZmFsbGJhY2sgcGF0aCwgYnV0IGlmIHRoZSBhcHBsaWNhdGlvbiBpcyBkb2lu
-Zw0KdGhpcyBsZXZlbCBvZiByZWNvdmVyeSwgaXQgd2lsbCBrbm93IHRoZSBzZWN0b3IgaXMgYmFk
-LCBhbmQgd3JpdGUgdGhlDQplbnRpcmUgc2VjdG9yDQoNCi0gT3IgaXQgcmVwbGFjZXMgdGhlIGVu
-dGlyZSBmaWxlIGZyb20gYmFja3VwIGFsc28gdXNpbmcgd3JpdGUoKSAobm90DQptbWFwK3N0b3Jl
-cykNCsKgIMKgICogVGhpcyBqdXN0IGZyZWVzIHRoZSBmcyBibG9jaywgYW5kIHRoZSBuZXh0IHRp
-bWUgdGhlIGJsb2NrIGlzDQpyZWFsbG9jYXRlZCBieSB0aGUgZnMsIGl0IHdpbGwgbGlrZWx5IGJl
-IHplcm9lZCBmaXJzdCwgYW5kIHRoYXQgd2lsbCBiZQ0KZG9uZSB0aHJvdWdoIHRoZSBkcml2ZXIg
-YW5kIHdpbGwgY2xlYXIgZXJyb3JzDQoNCg0KSSB0aGluayBpZiB3ZSB3YW50IHRvIGtlZXAgYWxs
-b3dpbmcgYXJiaXRyYXJ5IGFsaWdubWVudHMgZm9yIHRoZQ0KZGF4X2RvX2lvIHBhdGgsIHdlJ2Qg
-bmVlZDoNCjEuIFRvIHJlcHJlc2VudCBiYWRibG9ja3MgYXQgYSBmaW5lciBncmFudWxhcml0eSAo
-bGlrZWx5IGNhY2hlIGxpbmVzKQ0KMi4gVG8gYWxsb3cgdGhlIGRyaXZlciB0byBkbyBJTyB0byBh
-ICpibG9jayBkZXZpY2UqIGF0IHN1Yi1zZWN0b3INCmdyYW51bGFyaXR5DQoNCkNhbiB3ZSBkbyB0
-aGF0Pw==
+On Mon, Apr 25, 2016 at 10:14 AM, Verma, Vishal L
+<vishal.l.verma@intel.com> wrote:
+> On Mon, 2016-04-25 at 01:31 -0700, hch@infradead.org wrote:
+>> On Sat, Apr 23, 2016 at 06:08:37PM +0000, Verma, Vishal L wrote:
+>> >
+>> > direct_IO might fail with -EINVAL due to misalignment, or -ENOMEM
+>> > due
+>> > to some allocation failing, and I thought we should return the
+>> > original
+>> > -EIO in such cases so that the application doesn't lose the
+>> > information
+>> > that the bad block is actually causing the error.
+>> EINVAL is a concern here.  Not due to the right error reported, but
+>> because it means your current scheme is fundamentally broken - we
+>> need to support I/O at any alignment for DAX I/O, and not fail due to
+>> alignbment concernes for a highly specific degraded case.
+>>
+>> I think this whole series need to go back to the drawing board as I
+>> don't think it can actually rely on using direct I/O as the EIO
+>> fallback.
+>>
+> Agreed that DAX I/O can happen with any size/alignment, but how else do
+> we send an IO through the driver without alignment restrictions? Also,
+> the granularity at which we store badblocks is 512B sectors, so it
+> seems natural that to clear such a sector, you'd expect to send a write
+> to the whole sector.
+>
+> The expected usage flow is:
+>
+> - Application hits EIO doing dax_IO or load/store io
+>
+> - It checks badblocks and discovers it's files have lost data
+>
+> - It write()s those sectors (possibly converted to file offsets using
+> fiemap)
+>     * This triggers the fallback path, but if the application is doing
+> this level of recovery, it will know the sector is bad, and write the
+> entire sector
+>
+> - Or it replaces the entire file from backup also using write() (not
+> mmap+stores)
+>     * This just frees the fs block, and the next time the block is
+> reallocated by the fs, it will likely be zeroed first, and that will be
+> done through the driver and will clear errors
+>
+>
+> I think if we want to keep allowing arbitrary alignments for the
+> dax_do_io path, we'd need:
+> 1. To represent badblocks at a finer granularity (likely cache lines)
+> 2. To allow the driver to do IO to a *block device* at sub-sector
+> granularity
+
+3. Arrange for O_DIRECT to bypass dax_do_io(), and leave the
+optimization only for the dax "buffered I/O" case.
+
+4. Skip dax_do_io() entirely in the presence of errors
+
+I think 3 is the most closely aligned with the typical block device
+model.  In the typical case a buffered write may fail due to a
+badblock read when filling the page cache, but an O_DIRECT write would
+bypass the page cache and potentially clear the error / cause the
+block to be reallocated internally to the drive.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
