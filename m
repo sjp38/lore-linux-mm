@@ -1,54 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 33E6F6B007E
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 11:32:13 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id n83so279180378qkn.0
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 08:32:13 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c70si5759321qka.36.2016.04.25.08.32.12
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A0CF96B007E
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 12:15:06 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id n2so243586341obo.1
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 09:15:06 -0700 (PDT)
+Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
+        by mx.google.com with ESMTPS id i65si24433984ioi.135.2016.04.25.09.15.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Apr 2016 08:32:12 -0700 (PDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
-	<1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
-	<x49twj26edj.fsf@segfault.boston.devel.redhat.com>
-	<20160420205923.GA24797@infradead.org>
-	<1461434916.3695.7.camel@intel.com>
-	<20160425083114.GA27556@infradead.org>
-Date: Mon, 25 Apr 2016 11:32:08 -0400
-In-Reply-To: <20160425083114.GA27556@infradead.org> (hch@infradead.org's
-	message of "Mon, 25 Apr 2016 01:31:14 -0700")
-Message-ID: <x49r3dt7lhj.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Mon, 25 Apr 2016 09:15:05 -0700 (PDT)
+Message-ID: <1461600377.8149.76.camel@hpe.com>
+Subject: Re: [PATCH v4 1/2] thp, dax: add thp_get_unmapped_area for pmd
+ mappings
+From: Toshi Kani <toshi.kani@hpe.com>
+Date: Mon, 25 Apr 2016 10:06:17 -0600
+In-Reply-To: <20160424225057.GA6670@node.shutemov.name>
+References: <1461370883-7664-1-git-send-email-toshi.kani@hpe.com>
+	 <1461370883-7664-2-git-send-email-toshi.kani@hpe.com>
+	 <20160424225057.GA6670@node.shutemov.name>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "hch@infradead.org" <hch@infradead.org>
-Cc: "Verma, Vishal L" <vishal.l.verma@intel.com>, "axboe@fb.com" <axboe@fb.com>, "jack@suse.cz" <jack@suse.cz>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "david@fromorbit.com" <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, viro@zeniv.linux.org.uk, willy@linux.intel.com, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com, david@fromorbit.com, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, mike.kravetz@oracle.com, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-"hch@infradead.org" <hch@infradead.org> writes:
-
-> On Sat, Apr 23, 2016 at 06:08:37PM +0000, Verma, Vishal L wrote:
->> direct_IO might fail with -EINVAL due to misalignment, or -ENOMEM due
->> to some allocation failing, and I thought we should return the original
->> -EIO in such cases so that the application doesn't lose the information
->> that the bad block is actually causing the error.
+On Mon, 2016-04-25 at 01:50 +0300, Kirill A. Shutemov wrote:
+> On Fri, Apr 22, 2016 at 06:21:22PM -0600, Toshi Kani wrote:
+> > 
+A :
+> > +unsigned long __thp_get_unmapped_area(struct file *filp, unsigned long
+> > len,
+> > +		loff_t off, unsigned long flags, unsigned long size)
+> > +{
+> > +	unsigned long addr;
+> > +	loff_t off_end = off + len;
+> > +	loff_t off_align = round_up(off, size);
+> > +	unsigned long len_pad;
+> > +
+> > +	if (off_end <= off_align || (off_end - off_align) < size)
+> > +		return 0;
+> > +
+> > +	len_pad = len + size;
+> > +	if (len_pad < len || (off + len_pad) < off)
+> > +		return 0;
+> > +
+> > +	addr = current->mm->get_unmapped_area(filp, 0, len_pad,
+> > +					A A A A A A off >> PAGE_SHIFT,
+> > flags);
+> > +	if (IS_ERR_VALUE(addr))
+> > +		return 0;
+> > +
+> > +	addr += (off - addr) & (size - 1);
+> > +	return addr;
 >
-> EINVAL is a concern here.  Not due to the right error reported, but
-> because it means your current scheme is fundamentally broken - we
-> need to support I/O at any alignment for DAX I/O, and not fail due to
-> alignbment concernes for a highly specific degraded case.
+> Hugh has more sanity checks before and after call to get_unmapped_area().
+> Please, consider borrowing them.
+
+This function only checks if the request is qualified for THP mappings. It
+tries not to step into the implementation of the allocation code current-
+>mm->get_unmapped_area(), such asA arch_get_unmapped_area_topdown() on x86.
+
+Let me walk thru Hugh's checks to make sure I am not missing something:
+
+---(Hugh's checks)---
+| +	if (len > TASK_SIZE)
+| +		return -ENOMEM;
+
+This check is made by arch_get_unmapped_area_topdown().
+
+| +
+| +	get_area = current->mm->get_unmapped_area;
+| +	addr = get_area(file, uaddr, len, pgoff, flags);
+| +
+| +	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+| +		return addr;
+
+thp_get_unmapped_area() is defined to NULL in this case.
+
+| +	if (IS_ERR_VALUE(addr))
+| +		return addr;
+
+Checked in my patch.
+
+| +	if (addr & ~PAGE_MASK)
+| +		return addr;
+
+arch_get_unmapped_area_topdown() aligns 'addr' unless MAP_FIXED is set. No
+need to check in this func.
+
+| +	if (addr > TASK_SIZE - len)
+| +		return addr;
+
+The allocation code needs to assure this case.
+
+| +	if (shmem_huge == SHMEM_HUGE_DENY)
+| +		return addr;
+
+This check is specific to Hugh's patch.
+
+| +	if (len < HPAGE_PMD_SIZE)
+| +		return addr;
+
+Checked in my patch.
+
+| +	if (flags & MAP_FIXED)
+| +		return addr;
+
+Checked by arch_get_unmapped_area_topdown().
+
+| +	/*
+| +	A * Our priority is to support MAP_SHARED mapped hugely;
+| +	A * and support MAP_PRIVATE mapped hugely too, until it is COWed.
+| +	A * But if caller specified an address hint, respect that as
+before.
+| +	A */
+| +	if (uaddr)
+| +		return addr;
+
+Checked in my patch.
+
+(cut)
+
+| +	offset = (pgoff << PAGE_SHIFT) & (HPAGE_PMD_SIZE-1);
+| +	if (offset && offset + len < 2 * HPAGE_PMD_SIZE)
+| +		return addr;
+
+Checked in my patch.
+
+| +	if ((addr & (HPAGE_PMD_SIZE-1)) == offset)
+| +		return addr;
+
+This is a lucky case, i.e. the 1st get_unmapped_area() call returned an
+aligned addr. Not applicable to my patch.
+
+| +
+| +	inflated_len = len + HPAGE_PMD_SIZE - PAGE_SIZE;
+| +	if (inflated_len > TASK_SIZE)
+| +		return addr;
+
+Checked by arch_get_unmapped_area_topdown().
+
+| +	if (inflated_len < len)
+| +		return addr;
+
+Checked in my patch.
+
+| +	inflated_addr = get_area(NULL, 0, inflated_len, 0, flags);
+
+Not sure why passing 'filp' and 'off' as NULL here.
+
+| +	if (IS_ERR_VALUE(inflated_addr))
+| +		return addr;
+
+Checked in my patch.
+
+| +	if (inflated_addr & ~PAGE_MASK)
+| +		return addr;
+
+Hmm... if this happens, it is a bug in the allocation code. I do not think
+this check is necessary.
+
+| +	inflated_offset = inflated_addr & (HPAGE_PMD_SIZE-1);
+| +	inflated_addr += offset - inflated_offset;
+| +	if (inflated_offset > offset)
+| +		inflated_addr += HPAGE_PMD_SIZE;
+| +
+| +	if (inflated_addr > TASK_SIZE - len)
+| +		return addr;
+
+The allocation code needs to assure this.
+
+| +	return inflated_addr;
+
+> > 
+> > +}
+> > +
+> > +unsigned long thp_get_unmapped_area(struct file *filp, unsigned long
+> > addr,
+> > +		unsigned long len, unsigned long pgoff, unsigned long
+> > flags)
+> > +{
+> > +	loff_t off = (loff_t)pgoff << PAGE_SHIFT;
+> > +
+> > +	if (addr)
+> > +		goto out;
 >
-> I think this whole series need to go back to the drawing board as I
-> don't think it can actually rely on using direct I/O as the EIO
-> fallback.
+> I think it's too strong reaction to hint, isn't it?
+> We definately need this for MAP_FIXED. But in general? Maybe.
 
-The only callers of dax_do_io are direct_IO methods.
+It calls arch's get_unmapped_area() to proceed with the original args when
+'addr' is passed. The arch's get_unmapped_are() then handles 'addr' as a
+hint when MAP_FIXED is not set. This can be used as a hint to avoid using
+THP mappings if a non-aligned address is passed. Hugh's code handles it in
+the same way as well.
 
-Cheers,
-Jeff
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
