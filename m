@@ -1,203 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A0CF96B007E
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 12:15:06 -0400 (EDT)
-Received: by mail-ob0-f198.google.com with SMTP id n2so243586341obo.1
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 09:15:06 -0700 (PDT)
-Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
-        by mx.google.com with ESMTPS id i65si24433984ioi.135.2016.04.25.09.15.05
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Apr 2016 09:15:05 -0700 (PDT)
-Message-ID: <1461600377.8149.76.camel@hpe.com>
-Subject: Re: [PATCH v4 1/2] thp, dax: add thp_get_unmapped_area for pmd
- mappings
-From: Toshi Kani <toshi.kani@hpe.com>
-Date: Mon, 25 Apr 2016 10:06:17 -0600
-In-Reply-To: <20160424225057.GA6670@node.shutemov.name>
-References: <1461370883-7664-1-git-send-email-toshi.kani@hpe.com>
-	 <1461370883-7664-2-git-send-email-toshi.kani@hpe.com>
-	 <20160424225057.GA6670@node.shutemov.name>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7170A6B007E
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 13:14:39 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e190so379998586pfe.3
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 10:14:39 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id n3si7667470pfb.123.2016.04.25.10.14.38
+        for <linux-mm@kvack.org>;
+        Mon, 25 Apr 2016 10:14:38 -0700 (PDT)
+From: "Verma, Vishal L" <vishal.l.verma@intel.com>
+Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
+Date: Mon, 25 Apr 2016 17:14:36 +0000
+Message-ID: <1461604476.3106.12.camel@intel.com>
+References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
+	 <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
+	 <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
+	 <20160420205923.GA24797@infradead.org> <1461434916.3695.7.camel@intel.com>
+	 <20160425083114.GA27556@infradead.org>
+In-Reply-To: <20160425083114.GA27556@infradead.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <80F5C603E926CF47BF71F79A2B125709@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>
-Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, viro@zeniv.linux.org.uk, willy@linux.intel.com, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com, david@fromorbit.com, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, mike.kravetz@oracle.com, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "hch@infradead.org" <hch@infradead.org>
+Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "jmoyer@redhat.com" <jmoyer@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>
 
-On Mon, 2016-04-25 at 01:50 +0300, Kirill A. Shutemov wrote:
-> On Fri, Apr 22, 2016 at 06:21:22PM -0600, Toshi Kani wrote:
-> > 
-A :
-> > +unsigned long __thp_get_unmapped_area(struct file *filp, unsigned long
-> > len,
-> > +		loff_t off, unsigned long flags, unsigned long size)
-> > +{
-> > +	unsigned long addr;
-> > +	loff_t off_end = off + len;
-> > +	loff_t off_align = round_up(off, size);
-> > +	unsigned long len_pad;
-> > +
-> > +	if (off_end <= off_align || (off_end - off_align) < size)
-> > +		return 0;
-> > +
-> > +	len_pad = len + size;
-> > +	if (len_pad < len || (off + len_pad) < off)
-> > +		return 0;
-> > +
-> > +	addr = current->mm->get_unmapped_area(filp, 0, len_pad,
-> > +					A A A A A A off >> PAGE_SHIFT,
-> > flags);
-> > +	if (IS_ERR_VALUE(addr))
-> > +		return 0;
-> > +
-> > +	addr += (off - addr) & (size - 1);
-> > +	return addr;
->
-> Hugh has more sanity checks before and after call to get_unmapped_area().
-> Please, consider borrowing them.
-
-This function only checks if the request is qualified for THP mappings. It
-tries not to step into the implementation of the allocation code current-
->mm->get_unmapped_area(), such asA arch_get_unmapped_area_topdown() on x86.
-
-Let me walk thru Hugh's checks to make sure I am not missing something:
-
----(Hugh's checks)---
-| +	if (len > TASK_SIZE)
-| +		return -ENOMEM;
-
-This check is made by arch_get_unmapped_area_topdown().
-
-| +
-| +	get_area = current->mm->get_unmapped_area;
-| +	addr = get_area(file, uaddr, len, pgoff, flags);
-| +
-| +	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-| +		return addr;
-
-thp_get_unmapped_area() is defined to NULL in this case.
-
-| +	if (IS_ERR_VALUE(addr))
-| +		return addr;
-
-Checked in my patch.
-
-| +	if (addr & ~PAGE_MASK)
-| +		return addr;
-
-arch_get_unmapped_area_topdown() aligns 'addr' unless MAP_FIXED is set. No
-need to check in this func.
-
-| +	if (addr > TASK_SIZE - len)
-| +		return addr;
-
-The allocation code needs to assure this case.
-
-| +	if (shmem_huge == SHMEM_HUGE_DENY)
-| +		return addr;
-
-This check is specific to Hugh's patch.
-
-| +	if (len < HPAGE_PMD_SIZE)
-| +		return addr;
-
-Checked in my patch.
-
-| +	if (flags & MAP_FIXED)
-| +		return addr;
-
-Checked by arch_get_unmapped_area_topdown().
-
-| +	/*
-| +	A * Our priority is to support MAP_SHARED mapped hugely;
-| +	A * and support MAP_PRIVATE mapped hugely too, until it is COWed.
-| +	A * But if caller specified an address hint, respect that as
-before.
-| +	A */
-| +	if (uaddr)
-| +		return addr;
-
-Checked in my patch.
-
-(cut)
-
-| +	offset = (pgoff << PAGE_SHIFT) & (HPAGE_PMD_SIZE-1);
-| +	if (offset && offset + len < 2 * HPAGE_PMD_SIZE)
-| +		return addr;
-
-Checked in my patch.
-
-| +	if ((addr & (HPAGE_PMD_SIZE-1)) == offset)
-| +		return addr;
-
-This is a lucky case, i.e. the 1st get_unmapped_area() call returned an
-aligned addr. Not applicable to my patch.
-
-| +
-| +	inflated_len = len + HPAGE_PMD_SIZE - PAGE_SIZE;
-| +	if (inflated_len > TASK_SIZE)
-| +		return addr;
-
-Checked by arch_get_unmapped_area_topdown().
-
-| +	if (inflated_len < len)
-| +		return addr;
-
-Checked in my patch.
-
-| +	inflated_addr = get_area(NULL, 0, inflated_len, 0, flags);
-
-Not sure why passing 'filp' and 'off' as NULL here.
-
-| +	if (IS_ERR_VALUE(inflated_addr))
-| +		return addr;
-
-Checked in my patch.
-
-| +	if (inflated_addr & ~PAGE_MASK)
-| +		return addr;
-
-Hmm... if this happens, it is a bug in the allocation code. I do not think
-this check is necessary.
-
-| +	inflated_offset = inflated_addr & (HPAGE_PMD_SIZE-1);
-| +	inflated_addr += offset - inflated_offset;
-| +	if (inflated_offset > offset)
-| +		inflated_addr += HPAGE_PMD_SIZE;
-| +
-| +	if (inflated_addr > TASK_SIZE - len)
-| +		return addr;
-
-The allocation code needs to assure this.
-
-| +	return inflated_addr;
-
-> > 
-> > +}
-> > +
-> > +unsigned long thp_get_unmapped_area(struct file *filp, unsigned long
-> > addr,
-> > +		unsigned long len, unsigned long pgoff, unsigned long
-> > flags)
-> > +{
-> > +	loff_t off = (loff_t)pgoff << PAGE_SHIFT;
-> > +
-> > +	if (addr)
-> > +		goto out;
->
-> I think it's too strong reaction to hint, isn't it?
-> We definately need this for MAP_FIXED. But in general? Maybe.
-
-It calls arch's get_unmapped_area() to proceed with the original args when
-'addr' is passed. The arch's get_unmapped_are() then handles 'addr' as a
-hint when MAP_FIXED is not set. This can be used as a hint to avoid using
-THP mappings if a non-aligned address is passed. Hugh's code handles it in
-the same way as well.
-
-Thanks,
--Toshi
+T24gTW9uLCAyMDE2LTA0LTI1IGF0IDAxOjMxIC0wNzAwLCBoY2hAaW5mcmFkZWFkLm9yZyB3cm90
+ZToNCj4gT24gU2F0LCBBcHIgMjMsIDIwMTYgYXQgMDY6MDg6MzdQTSArMDAwMCwgVmVybWEsIFZp
+c2hhbCBMIHdyb3RlOg0KPiA+IA0KPiA+IGRpcmVjdF9JTyBtaWdodCBmYWlsIHdpdGggLUVJTlZB
+TCBkdWUgdG8gbWlzYWxpZ25tZW50LCBvciAtRU5PTUVNDQo+ID4gZHVlDQo+ID4gdG8gc29tZSBh
+bGxvY2F0aW9uIGZhaWxpbmcsIGFuZCBJIHRob3VnaHQgd2Ugc2hvdWxkIHJldHVybiB0aGUNCj4g
+PiBvcmlnaW5hbA0KPiA+IC1FSU8gaW4gc3VjaCBjYXNlcyBzbyB0aGF0IHRoZSBhcHBsaWNhdGlv
+biBkb2Vzbid0IGxvc2UgdGhlDQo+ID4gaW5mb3JtYXRpb24NCj4gPiB0aGF0IHRoZSBiYWQgYmxv
+Y2sgaXMgYWN0dWFsbHkgY2F1c2luZyB0aGUgZXJyb3IuDQo+IEVJTlZBTCBpcyBhIGNvbmNlcm4g
+aGVyZS7CoMKgTm90IGR1ZSB0byB0aGUgcmlnaHQgZXJyb3IgcmVwb3J0ZWQsIGJ1dA0KPiBiZWNh
+dXNlIGl0IG1lYW5zIHlvdXIgY3VycmVudCBzY2hlbWUgaXMgZnVuZGFtZW50YWxseSBicm9rZW4g
+LSB3ZQ0KPiBuZWVkIHRvIHN1cHBvcnQgSS9PIGF0IGFueSBhbGlnbm1lbnQgZm9yIERBWCBJL08s
+IGFuZCBub3QgZmFpbCBkdWUgdG8NCj4gYWxpZ25ibWVudCBjb25jZXJuZXMgZm9yIGEgaGlnaGx5
+IHNwZWNpZmljIGRlZ3JhZGVkIGNhc2UuDQo+IA0KPiBJIHRoaW5rIHRoaXMgd2hvbGUgc2VyaWVz
+IG5lZWQgdG8gZ28gYmFjayB0byB0aGUgZHJhd2luZyBib2FyZCBhcyBJDQo+IGRvbid0IHRoaW5r
+IGl0IGNhbiBhY3R1YWxseSByZWx5IG9uIHVzaW5nIGRpcmVjdCBJL08gYXMgdGhlIEVJTw0KPiBm
+YWxsYmFjay4NCj4gDQpBZ3JlZWQgdGhhdCBEQVggSS9PIGNhbiBoYXBwZW4gd2l0aCBhbnkgc2l6
+ZS9hbGlnbm1lbnQsIGJ1dCBob3cgZWxzZSBkbw0Kd2Ugc2VuZCBhbiBJTyB0aHJvdWdoIHRoZSBk
+cml2ZXIgd2l0aG91dCBhbGlnbm1lbnQgcmVzdHJpY3Rpb25zPyBBbHNvLA0KdGhlIGdyYW51bGFy
+aXR5IGF0IHdoaWNoIHdlIHN0b3JlIGJhZGJsb2NrcyBpcyA1MTJCIHNlY3RvcnMsIHNvIGl0DQpz
+ZWVtcyBuYXR1cmFsIHRoYXQgdG8gY2xlYXIgc3VjaCBhIHNlY3RvciwgeW91J2QgZXhwZWN0IHRv
+IHNlbmQgYSB3cml0ZQ0KdG8gdGhlIHdob2xlIHNlY3Rvci4NCg0KVGhlIGV4cGVjdGVkIHVzYWdl
+IGZsb3cgaXM6DQoNCi0gQXBwbGljYXRpb24gaGl0cyBFSU8gZG9pbmcgZGF4X0lPIG9yIGxvYWQv
+c3RvcmUgaW8NCg0KLSBJdCBjaGVja3MgYmFkYmxvY2tzIGFuZCBkaXNjb3ZlcnMgaXQncyBmaWxl
+cyBoYXZlIGxvc3QgZGF0YQ0KDQotIEl0IHdyaXRlKClzIHRob3NlIHNlY3RvcnMgKHBvc3NpYmx5
+IGNvbnZlcnRlZCB0byBmaWxlIG9mZnNldHMgdXNpbmcNCmZpZW1hcCkNCsKgIMKgICogVGhpcyB0
+cmlnZ2VycyB0aGUgZmFsbGJhY2sgcGF0aCwgYnV0IGlmIHRoZSBhcHBsaWNhdGlvbiBpcyBkb2lu
+Zw0KdGhpcyBsZXZlbCBvZiByZWNvdmVyeSwgaXQgd2lsbCBrbm93IHRoZSBzZWN0b3IgaXMgYmFk
+LCBhbmQgd3JpdGUgdGhlDQplbnRpcmUgc2VjdG9yDQoNCi0gT3IgaXQgcmVwbGFjZXMgdGhlIGVu
+dGlyZSBmaWxlIGZyb20gYmFja3VwIGFsc28gdXNpbmcgd3JpdGUoKSAobm90DQptbWFwK3N0b3Jl
+cykNCsKgIMKgICogVGhpcyBqdXN0IGZyZWVzIHRoZSBmcyBibG9jaywgYW5kIHRoZSBuZXh0IHRp
+bWUgdGhlIGJsb2NrIGlzDQpyZWFsbG9jYXRlZCBieSB0aGUgZnMsIGl0IHdpbGwgbGlrZWx5IGJl
+IHplcm9lZCBmaXJzdCwgYW5kIHRoYXQgd2lsbCBiZQ0KZG9uZSB0aHJvdWdoIHRoZSBkcml2ZXIg
+YW5kIHdpbGwgY2xlYXIgZXJyb3JzDQoNCg0KSSB0aGluayBpZiB3ZSB3YW50IHRvIGtlZXAgYWxs
+b3dpbmcgYXJiaXRyYXJ5IGFsaWdubWVudHMgZm9yIHRoZQ0KZGF4X2RvX2lvIHBhdGgsIHdlJ2Qg
+bmVlZDoNCjEuIFRvIHJlcHJlc2VudCBiYWRibG9ja3MgYXQgYSBmaW5lciBncmFudWxhcml0eSAo
+bGlrZWx5IGNhY2hlIGxpbmVzKQ0KMi4gVG8gYWxsb3cgdGhlIGRyaXZlciB0byBkbyBJTyB0byBh
+ICpibG9jayBkZXZpY2UqIGF0IHN1Yi1zZWN0b3INCmdyYW51bGFyaXR5DQoNCkNhbiB3ZSBkbyB0
+aGF0Pw==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
