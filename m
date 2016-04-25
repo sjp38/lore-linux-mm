@@ -1,99 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 543686B007E
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 08:19:36 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id tb5so45759561lbb.3
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 05:19:36 -0700 (PDT)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id o7si24156729wjr.71.2016.04.25.05.19.34
+Received: from mail-qg0-f70.google.com (mail-qg0-f70.google.com [209.85.192.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CB8D16B007E
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 08:51:45 -0400 (EDT)
+Received: by mail-qg0-f70.google.com with SMTP id c103so194285170qge.1
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 05:51:45 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k64si10625742qhc.118.2016.04.25.05.51.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Apr 2016 05:19:34 -0700 (PDT)
-Received: by mail-wm0-f52.google.com with SMTP id u206so124159844wme.1
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 05:19:34 -0700 (PDT)
-Date: Mon, 25 Apr 2016 14:19:33 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: + procfs-expose-umask-in-proc-pid-status.patch added to -mm tree
-Message-ID: <20160425121933.GG23933@dhcp22.suse.cz>
-References: <571a8f8c.6RbLc3Gh9b0xGfe6%akpm@linux-foundation.org>
- <20160425093155.GD23933@dhcp22.suse.cz>
- <20160425121219.GQ11600@redhat.com>
+        Mon, 25 Apr 2016 05:51:44 -0700 (PDT)
+Date: Mon, 25 Apr 2016 15:51:37 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH kernel 0/2] speed up live migration by skipping free pages
+Message-ID: <20160425154452-mutt-send-email-mst@redhat.com>
+References: <1461076474-3864-1-git-send-email-liang.z.li@intel.com>
+ <20160425060641.GC4735@grmbl.mre>
+ <20160425135642-mutt-send-email-mst@redhat.com>
+ <20160425120830.GD4735@grmbl.mre>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160425121219.GQ11600@redhat.com>
+In-Reply-To: <20160425120830.GD4735@grmbl.mre>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Richard W.M. Jones" <rjones@redhat.com>
-Cc: akpm@linux-foundation.org, jmarchan@redhat.com, keescook@chromium.org, koct9i@gmail.com, pierre@spotify.com, tytso@mit.edu, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Amit Shah <amit.shah@redhat.com>
+Cc: Liang Li <liang.z.li@intel.com>, viro@zeniv.linux.org.uk, linux-kernel@vger.kernel.org, quintela@redhat.com, pbonzini@redhat.com, dgilbert@redhat.com, linux-mm@kvack.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, agraf@suse.de, borntraeger@de.ibm.com
 
-On Mon 25-04-16 13:12:19, Richard W.M. Jones wrote:
-> On Mon, Apr 25, 2016 at 11:31:55AM +0200, Michal Hocko wrote:
-> > On Fri 22-04-16 13:54:36, Andrew Morton wrote:
-> > > From: "Richard W.M. Jones" <rjones@redhat.com>
-> > > Subject: procfs: expose umask in /proc/<PID>/status
+On Mon, Apr 25, 2016 at 05:38:30PM +0530, Amit Shah wrote:
+> On (Mon) 25 Apr 2016 [14:04:06], Michael S. Tsirkin wrote:
+> > On Mon, Apr 25, 2016 at 11:36:41AM +0530, Amit Shah wrote:
+> > > On (Tue) 19 Apr 2016 [22:34:32], Liang Li wrote:
+> > > > Current QEMU live migration implementation mark all guest's RAM pages
+> > > > as dirtied in the ram bulk stage, all these pages will be processed
+> > > > and it consumes quite a lot of CPU cycles and network bandwidth.
+> > > > 
+> > > > From guest's point of view, it doesn't care about the content in free
+> > > > page. We can make use of this fact and skip processing the free
+> > > > pages, this can save a lot CPU cycles and reduce the network traffic
+> > > > significantly while speed up the live migration process obviously.
+> > > > 
+> > > > This patch set is the kernel side implementation.
+> > > > 
+> > > > The virtio-balloon driver is extended to send the free page bitmap
+> > > > from guest to QEMU.
+> > > > 
+> > > > After getting the free page bitmap, QEMU can use it to filter out
+> > > > guest's free pages. This make the live migration process much more
+> > > > efficient.
+> > > > 
+> > > > In order to skip more free pages, we add an interface to let the user
+> > > > decide whether dropping the cache in guest during live migration.
 > > > 
-> > > It's not possible to read the process umask without also modifying it,
-> > > which is what umask(2) does.  A library cannot read umask safely,
-> > > especially if the main program might be multithreaded.
-> > > 
-> > > Add a new status line ("Umask") in /proc/<PID>/status.  It contains
-> > > the file mode creation mask (umask) in octal.  It is only shown for
-> > > tasks which have task->fs.
-> > > 
-> > > This patch is adapted from one originally written by Pierre Carrier.
-> > > 
-> > > 
-> > > The use case is that we have endless trouble with people setting weird
-> > > umask() values (usually on the grounds of "security"), and then everything
-> > > breaking.  I'm on the hook to fix these.  We'd like to add debugging to
-> > > our program so we can dump out the umask in debug reports.
-> > > 
-> > > Previous versions of the patch used a syscall so you could only read your
-> > > own umask.  That's all I need.  However there was quite a lot of push-back
-> > > from those, so this new version exports it in /proc.
-> > > 
-> > > See:
-> > > 
+> > > So if virtio-balloon is the way to go (i.e. speed is acceptable), I
+> > > just have one point then.  My main concern with using (or not using)
+> > > virtio-balloon was that a guest admin is going to disable the
+> > > virtio-balloon driver entirely because the admin won't want the guest
+> > > to give away pages to the host, esp. when the guest is to be a
+> > > high-performant one.
 > > 
-> > lkmlo.org links tend to be rather unstable from my experience. Please
-> > try to use lkml.kernel.org/[rg]/$msg_id as much as possible
+> > The result will be the reverse of high-performance.
 > > 
-> > > https://lkml.org/lkml/2016/4/13/704 [umask2]
+> > If you don't want to inflate a balloon, don't.
 > > 
-> > http://lkml.kernel.org/r/1460574336-18930-1-git-send-email-rjones@redhat.com
-> > 
-> > > https://lkml.org/lkml/2016/4/13/487 [getumask]
-> > 
-> > http://lkml.kernel.org/r/1460547786-16766-1-git-send-email-rjones@redhat.com
+> > If you do but guest doesn't respond to inflate requests,
+> > it's quite reasonable for host to kill it -
+> > there is no way to distinguish between that and
+> > guest being malicious.
 > 
-> FWIW this was heavily edited from my original commit message.  My
-> original commit message (minus the Signed-off-by etc) was:
+> With the new command I'm suggesting, the guest will let the host know
+> that it has enabled this option, and it won't free up any RAM for the
+> host.
 > 
->     procfs: expose umask in /proc/<PID>/status
->     
->     It's not possible to read the process umask without also modifying it,
->     which is what umask(2) does.  A library cannot read umask safely,
->     especially if the main program might be multithreaded.
->     
->     Add a new status line ("Umask") in /proc/<PID>/status.  It contains
->     the file mode creation mask (umask) in octal.  It is only shown for
->     tasks which have task->fs.
->     
->     This patch is adapted from one originally written by Pierre Carrier.
+> Also, just because a guest doesn't release some memory (which the
+> guest owns anyway) doesn't make it malicious, and killing such guests
+> is never going to end well for that hosting provider.
+> 
+> > I don't know of management tools doing that but
+> > it's rather reasonable. What does happen is
+> > some random guest memory is pushed it out to swap,
+> > which is likely much worse than dropping unused memory
+> > by moving it into the balloon.
+> 
+> Even if the host (admin) gave a guarantee that there won't be any
+> ballooning activity involved that will slow down the guest, a guest
+> admin can be paranoid enough to disable ballooning.  If, however, this
+> is made known to the host, it's likely a win-win situation because the
+> host knows the guest needs its RAM, and the guest can still use the
+> driver to send stats which the host can use during migration for
+> speedups.
+> 
+> 
+> 		Amit
 
-I guess Andrew added the remaining and I agree that part is really
-useful. Any API to the userspace should document the use case. We have
-added just way too many of those in the past without proper
-justification. It is hard (close to impossible for some) to find out
-what was the original reason why they were introduce and whether a small
-change might break anything. Reference to discussions which shape the
-API is useful as well.
+We'd need to understand the usecase better to design a good interface
+for this. AFAIK the normal usecase for ballooning is for
+memory overcommit: asking guest to free up memory might work
+better than swap which makes host initiate a bunch of IO.
+How is not inflating in this case a good idea?
+I'm afraid I don't understand why was inflating balloon
+requested if we do not want the guest to inflate the balloon.  What does
+"paranoid" mean in this context?  This seems to imply some kind of
+security concern. Is guest likely to need all of its memory or a
+specific portion of it? Is it likely to be a static configuration or a
+dynamic one? If dynamic, does guest also want to avoid deflating the
+balloon or only inflating it?
 
-Just my 2c
+
 -- 
-Michal Hocko
-SUSE Labs
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
