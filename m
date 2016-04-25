@@ -1,58 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FEB46B0005
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 17:44:00 -0400 (EDT)
-Received: by mail-ob0-f198.google.com with SMTP id n2so258668107obo.1
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:44:00 -0700 (PDT)
-Received: from mail-oi0-x22b.google.com (mail-oi0-x22b.google.com. [2607:f8b0:4003:c06::22b])
-        by mx.google.com with ESMTPS id w13si579502oie.188.2016.04.25.14.43.59
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 816796B0005
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 17:46:28 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 203so280330595pfy.2
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:46:28 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id q26si208686pfi.106.2016.04.25.14.46.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Apr 2016 14:43:59 -0700 (PDT)
-Received: by mail-oi0-x22b.google.com with SMTP id r78so191580585oie.0
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:43:59 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160425143850.b767ca9602fc1be9e13462a5@linux-foundation.org>
-References: <1461616763-60246-1-git-send-email-thgarnie@google.com>
-	<20160425141046.d14466272ea246dd0374ea43@linux-foundation.org>
-	<CAJcbSZG4wcW=nKSjuzyZpkvTSwYn1eyAok0QtXsgDLyjARz=ig@mail.gmail.com>
-	<CAJcbSZGCywmo_hUCE1DAcPjr0FHcMm0ewAVkCH9jRecmJZBtZQ@mail.gmail.com>
-	<20160425143850.b767ca9602fc1be9e13462a5@linux-foundation.org>
-Date: Mon, 25 Apr 2016 14:43:58 -0700
-Message-ID: <CAJcbSZE6srG0zgb5Jt8WF9RiTewhn9PEU_3mbzHw2jt3HKdRHg@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: SLAB freelist randomization
-From: Thomas Garnier <thgarnie@google.com>
-Content-Type: text/plain; charset=UTF-8
+        Mon, 25 Apr 2016 14:46:22 -0700 (PDT)
+Date: Mon, 25 Apr 2016 14:46:21 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/zpool: use workqueue for zpool_destroy
+Message-Id: <20160425144621.07f246158845fc08815c39dd@linux-foundation.org>
+In-Reply-To: <1461619210-10057-1-git-send-email-ddstreet@ieee.org>
+References: <CALZtONCDqBjL9TFmUEwuHaNU3n55k0VwbYWqW-9dODuNWyzkLQ@mail.gmail.com>
+	<1461619210-10057-1-git-send-email-ddstreet@ieee.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Kees Cook <keescook@chromium.org>, Greg Thelen <gthelen@google.com>, Laura Abbott <labbott@fedoraproject.org>, kernel-hardening@lists.openwall.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Yu Zhao <yuzhao@google.com>, Seth Jennings <sjenning@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <dan.streetman@canonical.com>
 
-On Mon, Apr 25, 2016 at 2:38 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Mon, 25 Apr 2016 14:14:33 -0700 Thomas Garnier <thgarnie@google.com> wrote:
->
->> >>> +     /* Get best entropy at this stage */
->> >>> +     get_random_bytes_arch(&seed, sizeof(seed));
->> >>
->> >> See concerns in other email - isn't this a no-op if CONFIG_ARCH_RANDOM=n?
->> >>
->>
->> The arch_* functions will return 0 which will break the loop in
->> get_random_bytes_arch and make it uses extract_entropy (as does
->> get_random_bytes).
->> (cf http://lxr.free-electrons.com/source/drivers/char/random.c#L1335)
->>
->
-> oop, sorry, I misread the code.
->
-> (and the get_random_bytes_arch() comment "This function will use the
-> architecture-specific hardware random number generator if it is
-> available" is misleading, so there)
+On Mon, 25 Apr 2016 17:20:10 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
 
-No problem, better double check it. I agree it is misleading.
+> Add a work_struct to struct zpool, and change zpool_destroy_pool to
+> defer calling the pool implementation destroy.
+> 
+> The zsmalloc pool destroy function, which is one of the zpool
+> implementations, may sleep during destruction of the pool.  However
+> zswap, which uses zpool, may call zpool_destroy_pool from atomic
+> context.  So we need to defer the call to the zpool implementation
+> to destroy the pool.
+> 
+> This is essentially the same as Yu Zhao's proposed patch to zsmalloc,
+> but moved to zpool.
 
-Thomas
+OK, but the refrain remains the same: what are the runtime effects of
+the change?  Are real people in real worlds seeing scary kernel
+warnings?  Deadlocks?
+
+This info is needed so that I and others can decide which kernel
+version(s) should be patched.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
