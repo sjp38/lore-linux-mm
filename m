@@ -1,193 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CF5AD6B025E
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 17:14:34 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id fg3so349089620obb.3
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:14:34 -0700 (PDT)
-Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
-        by mx.google.com with ESMTPS id jx3si8555754oeb.82.2016.04.25.14.14.34
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 36C9E6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 17:22:38 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id n83so3529279qkn.0
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:22:38 -0700 (PDT)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id b39si11624362qkh.202.2016.04.25.14.22.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Apr 2016 14:14:34 -0700 (PDT)
-Received: by mail-oi0-x236.google.com with SMTP id r78so190777818oie.0
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:14:34 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAJcbSZG4wcW=nKSjuzyZpkvTSwYn1eyAok0QtXsgDLyjARz=ig@mail.gmail.com>
-References: <1461616763-60246-1-git-send-email-thgarnie@google.com>
-	<20160425141046.d14466272ea246dd0374ea43@linux-foundation.org>
-	<CAJcbSZG4wcW=nKSjuzyZpkvTSwYn1eyAok0QtXsgDLyjARz=ig@mail.gmail.com>
-Date: Mon, 25 Apr 2016 14:14:33 -0700
-Message-ID: <CAJcbSZGCywmo_hUCE1DAcPjr0FHcMm0ewAVkCH9jRecmJZBtZQ@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: SLAB freelist randomization
-From: Thomas Garnier <thgarnie@google.com>
-Content-Type: text/plain; charset=UTF-8
+        Mon, 25 Apr 2016 14:22:37 -0700 (PDT)
+Received: by mail-qk0-x243.google.com with SMTP id q184so11411792qkf.0
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:22:36 -0700 (PDT)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH] mm/zpool: use workqueue for zpool_destroy
+Date: Mon, 25 Apr 2016 17:20:10 -0400
+Message-Id: <1461619210-10057-1-git-send-email-ddstreet@ieee.org>
+In-Reply-To: <CALZtONCDqBjL9TFmUEwuHaNU3n55k0VwbYWqW-9dODuNWyzkLQ@mail.gmail.com>
+References: <CALZtONCDqBjL9TFmUEwuHaNU3n55k0VwbYWqW-9dODuNWyzkLQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Kees Cook <keescook@chromium.org>, Greg Thelen <gthelen@google.com>, Laura Abbott <labbott@fedoraproject.org>, kernel-hardening@lists.openwall.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Yu Zhao <yuzhao@google.com>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@redhat.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <ddstreet@ieee.org>, Dan Streetman <dan.streetman@canonical.com>
 
-On Mon, Apr 25, 2016 at 2:13 PM, Thomas Garnier <thgarnie@google.com> wrote:
-> On Mon, Apr 25, 2016 at 2:10 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
->> On Mon, 25 Apr 2016 13:39:23 -0700 Thomas Garnier <thgarnie@google.com> wrote:
->>
->>> Provides an optional config (CONFIG_FREELIST_RANDOM) to randomize the
->>> SLAB freelist. The list is randomized during initialization of a new set
->>> of pages. The order on different freelist sizes is pre-computed at boot
->>> for performance. Each kmem_cache has its own randomized freelist except
->>> early on boot where global lists are used. This security feature reduces
->>> the predictability of the kernel SLAB allocator against heap overflows
->>> rendering attacks much less stable.
->>>
->>> For example this attack against SLUB (also applicable against SLAB)
->>> would be affected:
->>> https://jon.oberheide.org/blog/2010/09/10/linux-kernel-can-slub-overflow/
->>>
->>> Also, since v4.6 the freelist was moved at the end of the SLAB. It means
->>> a controllable heap is opened to new attacks not yet publicly discussed.
->>> A kernel heap overflow can be transformed to multiple use-after-free.
->>> This feature makes this type of attack harder too.
->>>
->>> To generate entropy, we use get_random_bytes_arch because 0 bits of
->>> entropy is available in the boot stage. In the worse case this function
->>> will fallback to the get_random_bytes sub API. We also generate a shift
->>> random number to shift pre-computed freelist for each new set of pages.
->>>
->>> The config option name is not specific to the SLAB as this approach will
->>> be extended to other allocators like SLUB.
->>>
->>> Performance results highlighted no major changes:
->>>
->>> slab_test 1 run on boot. Difference only seen on the 2048 size test
->>> being the worse case scenario covered by freelist randomization. New
->>> slab pages are constantly being created on the 10000 allocations.
->>> Variance should be mainly due to getting new pages every few
->>> allocations.
->>>
->>> ...
->>>
->>> --- a/include/linux/slab_def.h
->>> +++ b/include/linux/slab_def.h
->>> @@ -80,6 +80,10 @@ struct kmem_cache {
->>>       struct kasan_cache kasan_info;
->>>  #endif
->>>
->>> +#ifdef CONFIG_FREELIST_RANDOM
->>
->> CONFIG_FREELIST_RANDOM bugs me a bit - "freelist" is so vague.
->> CONFIG_SLAB_FREELIST_RANDOM would be better.  I mean, what Kconfig
->> identifier could be used for implementing randomisation in
->> slub/slob/etc once CONFIG_FREELIST_RANDOM is used up?
->>
->>> +     void *random_seq;
->>> +#endif
->>> +
->>>       struct kmem_cache_node *node[MAX_NUMNODES];
->>>  };
->>>
->>> diff --git a/init/Kconfig b/init/Kconfig
->>> index 0c66640..73453d0 100644
->>> --- a/init/Kconfig
->>> +++ b/init/Kconfig
->>> @@ -1742,6 +1742,15 @@ config SLOB
->>>
->>>  endchoice
->>>
->>> +config FREELIST_RANDOM
->>> +     default n
->>> +     depends on SLAB
->>> +     bool "SLAB freelist randomization"
->>> +     help
->>> +       Randomizes the freelist order used on creating new SLABs. This
->>> +       security feature reduces the predictability of the kernel slab
->>> +       allocator against heap overflows.
->>> +
->>>  config SLUB_CPU_PARTIAL
->>>       default y
->>>       depends on SLUB && SMP
->>> diff --git a/mm/slab.c b/mm/slab.c
->>> index b82ee6b..89eb617 100644
->>> --- a/mm/slab.c
->>> +++ b/mm/slab.c
->>> @@ -116,6 +116,7 @@
->>>  #include     <linux/kmemcheck.h>
->>>  #include     <linux/memory.h>
->>>  #include     <linux/prefetch.h>
->>> +#include     <linux/log2.h>
->>>
->>>  #include     <net/sock.h>
->>>
->>> @@ -1230,6 +1231,100 @@ static void __init set_up_node(struct kmem_cache *cachep, int index)
->>>       }
->>>  }
->>>
->>> +#ifdef CONFIG_FREELIST_RANDOM
->>> +static void freelist_randomize(struct rnd_state *state, freelist_idx_t *list,
->>> +                     size_t count)
->>> +{
->>> +     size_t i;
->>> +     unsigned int rand;
->>> +
->>> +     for (i = 0; i < count; i++)
->>> +             list[i] = i;
->>> +
->>> +     /* Fisher-Yates shuffle */
->>> +     for (i = count - 1; i > 0; i--) {
->>> +             rand = prandom_u32_state(state);
->>> +             rand %= (i + 1);
->>> +             swap(list[i], list[rand]);
->>> +     }
->>> +}
->>> +
->>> +/* Create a random sequence per cache */
->>> +static void cache_random_seq_create(struct kmem_cache *cachep)
->>> +{
->>> +     unsigned int seed, count = cachep->num;
->>> +     struct rnd_state state;
->>> +
->>> +     if (count < 2)
->>> +             return;
->>> +
->>> +     cachep->random_seq = kcalloc(count, sizeof(freelist_idx_t), GFP_KERNEL);
->>> +     BUG_ON(cachep->random_seq == NULL);
->
-> On your previous email. (trying to stay in one thread). I added a
-> comment on this
-> version to explain that we need best entropy at this boot stage.
->
->>
->> Yikes, that's a bit rude.  Is there no way of recovering from this?  If
->> the answer to that is really really "no" then I guess we should put a
->> __GFP_NOFAIL in there.  Add a comment explaining why (apologetically -
->> __GFP_NOFAIL is unpopular!) and remove the now-unneeded BUG_ON.
->>
->>
->
-> We can always use the static. I will update on next iteration to remove the
-> BUG_ON.
->
->>> +     /* Get best entropy at this stage */
->>> +     get_random_bytes_arch(&seed, sizeof(seed));
->>
->> See concerns in other email - isn't this a no-op if CONFIG_ARCH_RANDOM=n?
->>
+Add a work_struct to struct zpool, and change zpool_destroy_pool to
+defer calling the pool implementation destroy.
 
-The arch_* functions will return 0 which will break the loop in
-get_random_bytes_arch and make it uses extract_entropy (as does
-get_random_bytes).
-(cf http://lxr.free-electrons.com/source/drivers/char/random.c#L1335)
+The zsmalloc pool destroy function, which is one of the zpool
+implementations, may sleep during destruction of the pool.  However
+zswap, which uses zpool, may call zpool_destroy_pool from atomic
+context.  So we need to defer the call to the zpool implementation
+to destroy the pool.
 
-I might be missing something.
+This is essentially the same as Yu Zhao's proposed patch to zsmalloc,
+but moved to zpool.
 
->
->
->>
->>> +     prandom_seed_state(&state, seed);
->>> +
->>> +     freelist_randomize(&state, cachep->random_seq, count);
->>> +}
->>> +
->>
+Reported-by: Yu Zhao <yuzhao@google.com>
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+Cc: Dan Streetman <dan.streetman@canonical.com>
+---
+ mm/zpool.c | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/mm/zpool.c b/mm/zpool.c
+index fd3ff71..ea12069 100644
+--- a/mm/zpool.c
++++ b/mm/zpool.c
+@@ -23,6 +23,7 @@ struct zpool {
+ 	const struct zpool_ops *ops;
+ 
+ 	struct list_head list;
++	struct work_struct work;
+ };
+ 
+ static LIST_HEAD(drivers_head);
+@@ -197,6 +198,15 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
+ 	return zpool;
+ }
+ 
++static void zpool_destroy_pool_work(struct work_struct *work)
++{
++	struct zpool *zpool = container_of(work, struct zpool, work);
++
++	zpool->driver->destroy(zpool->pool);
++	zpool_put_driver(zpool->driver);
++	kfree(zpool);
++}
++
+ /**
+  * zpool_destroy_pool() - Destroy a zpool
+  * @pool	The zpool to destroy.
+@@ -204,7 +214,8 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
+  * Implementations must guarantee this to be thread-safe,
+  * however only when destroying different pools.  The same
+  * pool should only be destroyed once, and should not be used
+- * after it is destroyed.
++ * after it is destroyed.  This defers calling the implementation
++ * to a workqueue, so the implementation may sleep.
+  *
+  * This destroys an existing zpool.  The zpool should not be in use.
+  */
+@@ -215,9 +226,8 @@ void zpool_destroy_pool(struct zpool *zpool)
+ 	spin_lock(&pools_lock);
+ 	list_del(&zpool->list);
+ 	spin_unlock(&pools_lock);
+-	zpool->driver->destroy(zpool->pool);
+-	zpool_put_driver(zpool->driver);
+-	kfree(zpool);
++	INIT_WORK(&zpool->work, zpool_destroy_pool_work);
++	schedule_work(&zpool->work);
+ }
+ 
+ /**
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
