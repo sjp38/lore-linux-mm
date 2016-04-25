@@ -1,51 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 31D496B007E
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 17:04:23 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id b203so108128074pfb.1
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:04:23 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 75DB16B0005
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 17:11:11 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id u190so391875214pfb.0
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 14:11:11 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l26si3143pfi.125.2016.04.25.14.04.22
+        by mx.google.com with ESMTPS id h82si83321pfd.43.2016.04.25.14.10.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Apr 2016 14:04:22 -0700 (PDT)
-Date: Mon, 25 Apr 2016 14:04:20 -0700
+        Mon, 25 Apr 2016 14:11:10 -0700 (PDT)
+Date: Mon, 25 Apr 2016 14:10:46 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: SLAB freelist randomization
-Message-Id: <20160425140420.cf51815650e7237c7ed9ffbf@linux-foundation.org>
-In-Reply-To: <CAJcbSZGSFOQjxbFETA=Zj6g2pRJeyzMBwPGB691AOoCp7VAr3Q@mail.gmail.com>
-References: <1460741159-51752-1-git-send-email-thgarnie@google.com>
-	<20160415150026.65abbdd5b2ef741cd070c769@linux-foundation.org>
-	<1460759160.19090.50.camel@perches.com>
-	<CAJcbSZFoVjdcfKjoajL8mmSfz=BPRALx7=0gw3faE2o-hu1RqQ@mail.gmail.com>
-	<CAJcbSZGLABr5xEFeopKTj34bL2P-ss=rChs+AYAP_49r1r0NfA@mail.gmail.com>
-	<57153751.7080800@redhat.com>
-	<CAJcbSZGSFOQjxbFETA=Zj6g2pRJeyzMBwPGB691AOoCp7VAr3Q@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: SLAB freelist randomization
+Message-Id: <20160425141046.d14466272ea246dd0374ea43@linux-foundation.org>
+In-Reply-To: <1461616763-60246-1-git-send-email-thgarnie@google.com>
+References: <1461616763-60246-1-git-send-email-thgarnie@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Thomas Garnier <thgarnie@google.com>
-Cc: Laura Abbott <labbott@redhat.com>, Joe Perches <joe@perches.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Kees Cook <keescook@chromium.org>, Greg Thelen <gthelen@google.com>, Laura Abbott <labbott@fedoraproject.org>, kernel-hardening@lists.openwall.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Kees Cook <keescook@chromium.org>, gthelen@google.com, labbott@fedoraproject.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 18 Apr 2016 12:52:30 -0700 Thomas Garnier <thgarnie@google.com> wrote:
+On Mon, 25 Apr 2016 13:39:23 -0700 Thomas Garnier <thgarnie@google.com> wrote:
 
-> I agree, if we had a generic way to pass entropy across boots on all
-> architecture that would be amazing. I will let the SLAB maintainers to
-> decide on requiring CONFIG_ARCH_RANDOM or documenting it.
+> Provides an optional config (CONFIG_FREELIST_RANDOM) to randomize the
+> SLAB freelist. The list is randomized during initialization of a new set
+> of pages. The order on different freelist sizes is pre-computed at boot
+> for performance. Each kmem_cache has its own randomized freelist except
+> early on boot where global lists are used. This security feature reduces
+> the predictability of the kernel SLAB allocator against heap overflows
+> rendering attacks much less stable.
+> 
+> For example this attack against SLUB (also applicable against SLAB)
+> would be affected:
+> https://jon.oberheide.org/blog/2010/09/10/linux-kernel-can-slub-overflow/
+> 
+> Also, since v4.6 the freelist was moved at the end of the SLAB. It means
+> a controllable heap is opened to new attacks not yet publicly discussed.
+> A kernel heap overflow can be transformed to multiple use-after-free.
+> This feature makes this type of attack harder too.
+> 
+> To generate entropy, we use get_random_bytes_arch because 0 bits of
+> entropy is available in the boot stage. In the worse case this function
+> will fallback to the get_random_bytes sub API. We also generate a shift
+> random number to shift pre-computed freelist for each new set of pages.
+> 
+> The config option name is not specific to the SLAB as this approach will
+> be extended to other allocators like SLUB.
+> 
+> Performance results highlighted no major changes:
+> 
+> slab_test 1 run on boot. Difference only seen on the 2048 size test
+> being the worse case scenario covered by freelist randomization. New
+> slab pages are constantly being created on the 10000 allocations.
+> Variance should be mainly due to getting new pages every few
+> allocations.
+>
+> ...
+>
+> --- a/include/linux/slab_def.h
+> +++ b/include/linux/slab_def.h
+> @@ -80,6 +80,10 @@ struct kmem_cache {
+>  	struct kasan_cache kasan_info;
+>  #endif
+>  
+> +#ifdef CONFIG_FREELIST_RANDOM
 
-In our world, requiring that sort of attention from maintainers
-requires a pretty active level of pinging, poking and harrassing ;)
+CONFIG_FREELIST_RANDOM bugs me a bit - "freelist" is so vague. 
+CONFIG_SLAB_FREELIST_RANDOM would be better.  I mean, what Kconfig
+identifier could be used for implementing randomisation in
+slub/slob/etc once CONFIG_FREELIST_RANDOM is used up?
 
-I do think that if you stick with get_random_bytes_arch() then it need
-a comment explaining why.
+> +	void *random_seq;
+> +#endif
+> +
+>  	struct kmem_cache_node *node[MAX_NUMNODES];
+>  };
+>  
+> diff --git a/init/Kconfig b/init/Kconfig
+> index 0c66640..73453d0 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -1742,6 +1742,15 @@ config SLOB
+>  
+>  endchoice
+>  
+> +config FREELIST_RANDOM
+> +	default n
+> +	depends on SLAB
+> +	bool "SLAB freelist randomization"
+> +	help
+> +	  Randomizes the freelist order used on creating new SLABs. This
+> +	  security feature reduces the predictability of the kernel slab
+> +	  allocator against heap overflows.
+> +
+>  config SLUB_CPU_PARTIAL
+>  	default y
+>  	depends on SLUB && SMP
+> diff --git a/mm/slab.c b/mm/slab.c
+> index b82ee6b..89eb617 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -116,6 +116,7 @@
+>  #include	<linux/kmemcheck.h>
+>  #include	<linux/memory.h>
+>  #include	<linux/prefetch.h>
+> +#include	<linux/log2.h>
+>  
+>  #include	<net/sock.h>
+>  
+> @@ -1230,6 +1231,100 @@ static void __init set_up_node(struct kmem_cache *cachep, int index)
+>  	}
+>  }
+>  
+> +#ifdef CONFIG_FREELIST_RANDOM
+> +static void freelist_randomize(struct rnd_state *state, freelist_idx_t *list,
+> +			size_t count)
+> +{
+> +	size_t i;
+> +	unsigned int rand;
+> +
+> +	for (i = 0; i < count; i++)
+> +		list[i] = i;
+> +
+> +	/* Fisher-Yates shuffle */
+> +	for (i = count - 1; i > 0; i--) {
+> +		rand = prandom_u32_state(state);
+> +		rand %= (i + 1);
+> +		swap(list[i], list[rand]);
+> +	}
+> +}
+> +
+> +/* Create a random sequence per cache */
+> +static void cache_random_seq_create(struct kmem_cache *cachep)
+> +{
+> +	unsigned int seed, count = cachep->num;
+> +	struct rnd_state state;
+> +
+> +	if (count < 2)
+> +		return;
+> +
+> +	cachep->random_seq = kcalloc(count, sizeof(freelist_idx_t), GFP_KERNEL);
+> +	BUG_ON(cachep->random_seq == NULL);
 
-And I (still) don't think that get_random_bytes_arch() actually does
-what you want - if CONFIG_ARCH_RANDOM isn't implemented then
-get_random_bytes_arch() just fails.  IOW your statement "the arch
-version that will fallback on get_random_bytes sub API in the worse
-case" is a misconception?  There is no fallback.
+Yikes, that's a bit rude.  Is there no way of recovering from this?  If
+the answer to that is really really "no" then I guess we should put a
+__GFP_NOFAIL in there.  Add a comment explaining why (apologetically -
+__GFP_NOFAIL is unpopular!) and remove the now-unneeded BUG_ON.
+
+
+> +	/* Get best entropy at this stage */
+> +	get_random_bytes_arch(&seed, sizeof(seed));
+
+See concerns in other email - isn't this a no-op if CONFIG_ARCH_RANDOM=n?
+
+
+> +	prandom_seed_state(&state, seed);
+> +
+> +	freelist_randomize(&state, cachep->random_seq, count);
+> +}
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
