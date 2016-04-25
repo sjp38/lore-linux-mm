@@ -1,104 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 09D616B0005
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 19:53:16 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id zy2so294420806pac.1
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 16:53:16 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id q81si800975pfa.134.2016.04.25.16.53.14
-        for <linux-mm@kvack.org>;
-        Mon, 25 Apr 2016 16:53:15 -0700 (PDT)
-From: "Verma, Vishal L" <vishal.l.verma@intel.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-Date: Mon, 25 Apr 2016 23:53:13 +0000
-Message-ID: <1461628381.1421.24.camel@intel.com>
-References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
-	 <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
-	 <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
-	 <20160420205923.GA24797@infradead.org> <1461434916.3695.7.camel@intel.com>
-	 <20160425083114.GA27556@infradead.org> <1461604476.3106.12.camel@intel.com>
-	 <20160425232552.GD18496@dastard>
-In-Reply-To: <20160425232552.GD18496@dastard>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <7502BB94DF2B3F4BBDDD7D995E54F60F@intel.com>
-Content-Transfer-Encoding: base64
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EBA566B025E
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 19:54:57 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 203so284626373pfy.2
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 16:54:57 -0700 (PDT)
+Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
+        by mx.google.com with ESMTPS id ya3si755054pab.2.2016.04.25.16.54.56
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Apr 2016 16:54:57 -0700 (PDT)
+Received: by mail-pf0-x229.google.com with SMTP id y69so53065825pfb.1
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 16:54:56 -0700 (PDT)
+Date: Mon, 25 Apr 2016 16:54:55 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch v3] mm, hugetlb_cgroup: round limit_in_bytes down to hugepage
+ size
+In-Reply-To: <20160425145223.22617d4c1f12b0f7f4702988@linux-foundation.org>
+Message-ID: <alpine.DEB.2.10.1604251654380.31930@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1604051824320.32718@chino.kir.corp.google.com> <5704BA37.2080508@kyup.com> <5704BBBF.8040302@kyup.com> <alpine.DEB.2.10.1604061510040.10401@chino.kir.corp.google.com> <20160407125145.GD32755@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1604141321350.6593@chino.kir.corp.google.com> <20160415132451.GL32377@dhcp22.suse.cz> <alpine.DEB.2.10.1604181422220.23710@chino.kir.corp.google.com> <20160425145223.22617d4c1f12b0f7f4702988@linux-foundation.org>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "david@fromorbit.com" <david@fromorbit.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "jmoyer@redhat.com" <jmoyer@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew
- R" <matthew.r.wilcox@intel.com>, "jack@suse.cz" <jack@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Nikolay Borisov <kernel@kyup.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-T24gVHVlLCAyMDE2LTA0LTI2IGF0IDA5OjI1ICsxMDAwLCBEYXZlIENoaW5uZXIgd3JvdGU6DQo+
-wqANCjw+DQoNCj4gPiANCj4gPiAtIEl0IGNoZWNrcyBiYWRibG9ja3MgYW5kIGRpc2NvdmVycyBp
-dCdzIGZpbGVzIGhhdmUgbG9zdCBkYXRhDQo+IExvdHMgb2YgaGFuZC13YXZpbmcgaGVyZS4gSG93
-IGRvZXMgdGhlIGFwcGxpY2F0aW9uIG1hcCBhIGJhZA0KPiAic2VjdG9yIiB0byBhIGZpbGUgd2l0
-aG91dCBzY2FubmluZyB0aGUgZW50aXJlIGZpbGVzeXN0ZW0gdG8gZmluZA0KPiB0aGUgb3duZXIg
-b2YgdGhlIGJhZCBzZWN0b3I/DQoNClllcyB0aGlzIHdhcyBoYW5kLXdhdmV5LCBidXQgd2UgdGFs
-a2VkIGFib3V0IHRoaXMgYSBiaXQgYXQgTFNGLi4NClRoZSBpZGVhIGlzIHRoYXQgYSBwZXItYmxv
-Y2stZGV2aWNlIGJhZGJsb2NrcyBsaXN0IGlzIGF2YWlsYWJsZSBhdA0KL3N5cy9ibG9jay88cG1l
-bVg+L2JhZGJsb2Nrcy4gVGhlIGFwcGxpY2F0aW9uIChvciBhIHN1aXRhYmxlIHlldC10by1iZS0N
-CndyaXR0ZW4gbGlicmFyeSBmdW5jdGlvbikgZG9lcyBhIGZpZW1hcCB0byBmaWd1cmUgb3V0IHRo
-ZSBzZWN0b3JzIGl0cw0KZmlsZXMgYXJlIHVzaW5nLCBhbmQgY29ycmVsYXRlcyB0aGUgdHdvIGxp
-c3RzLg0KV2UgY2FuIGFsc28gbG9vayBpbnRvIHByb3ZpZGluZyBhbiBlYXNpZXItdG8tdXNlIGlu
-dGVyZmFjZSBmcm9tIHRoZQ0Ka2VybmVsLCBpbiB0aGUgZm9ybSBvZiBhbiBmaWVtYXAgZmxhZyB0
-byByZXBvcnQgb25seSB0aGUgYmFkIHNlY3RvcnMsIG9yDQphIFNFRUtfQkFEIGZsYWcuLg0KVGhl
-IGFwcGxpY2F0aW9uIGRvZXNuJ3QgaGF2ZSB0byBzY2FuIHRoZSBlbnRpcmUgZmlsZXN5c3RlbSwg
-YnV0DQpwcmVzdW1hYmx5IGl0IGtub3dzIHdoYXQgZmlsZXMgaXQgJ293bnMnLCBhbmQgZG9lcyBh
-IGZpZW1hcCBmb3IgdGhvc2UuDQoNCj4gDQo+ID4gDQo+ID4gLSBJdCB3cml0ZSgpcyB0aG9zZSBz
-ZWN0b3JzIChwb3NzaWJseSBjb252ZXJ0ZWQgdG8gZmlsZSBvZmZzZXRzDQo+ID4gdXNpbmcNCj4g
-PiBmaWVtYXApDQo+ID4gwqAgwqAgKiBUaGlzIHRyaWdnZXJzIHRoZSBmYWxsYmFjayBwYXRoLCBi
-dXQgaWYgdGhlIGFwcGxpY2F0aW9uIGlzDQo+ID4gZG9pbmcNCj4gPiB0aGlzIGxldmVsIG9mIHJl
-Y292ZXJ5LCBpdCB3aWxsIGtub3cgdGhlIHNlY3RvciBpcyBiYWQsIGFuZCB3cml0ZQ0KPiA+IHRo
-ZQ0KPiA+IGVudGlyZSBzZWN0b3INCj4gV2hlcmUgZG9lcyB0aGUgYXBwbGljYXRpb24gZmluZCB0
-aGUgZGF0YSB0aGF0IHdhcyBsb3N0IHRvIGJlIGFibGUgdG8NCj4gcmV3cml0ZSBpdD8NCg0KVGhl
-IGRhdGEgdGhhdCB3YXMgbG9zdCBpcyBnb25lIC0tIHRoaXMgYXNzdW1lcyB0aGUgYXBwbGljYXRp
-b24gaGFzIHNvbWUNCmFiaWxpdHkgdG8gcmVjb3ZlciB1c2luZyBhIGpvdXJuYWwvbG9nIG9yIG90
-aGVyIHJlZHVuZGFuY3kgLSB5ZXMsIGF0IHRoZQ0KYXBwbGljYXRpb24gbGF5ZXIuIElmIGl0IGRv
-ZXNuJ3QgaGF2ZSB0aGlzIHNvcnQgb2YgY2FwYWJpbGl0eSwgdGhlIG9ubHkNCm9wdGlvbiBpcyB0
-byByZXN0b3JlIGZpbGVzIGZyb20gYSBiYWNrdXAvbWlycm9yLg0KDQo+IA0KPiA+IA0KPiA+IC0g
-T3IgaXQgcmVwbGFjZXMgdGhlIGVudGlyZSBmaWxlIGZyb20gYmFja3VwIGFsc28gdXNpbmcgd3Jp
-dGUoKSAobm90DQo+ID4gbW1hcCtzdG9yZXMpDQo+ID4gwqAgwqAgKiBUaGlzIGp1c3QgZnJlZXMg
-dGhlIGZzIGJsb2NrLCBhbmQgdGhlIG5leHQgdGltZSB0aGUgYmxvY2sgaXMNCj4gPiByZWFsbG9j
-YXRlZCBieSB0aGUgZnMsIGl0IHdpbGwgbGlrZWx5IGJlIHplcm9lZCBmaXJzdCwgYW5kIHRoYXQg
-d2lsbA0KPiA+IGJlDQo+ID4gZG9uZSB0aHJvdWdoIHRoZSBkcml2ZXIgYW5kIHdpbGwgY2xlYXIg
-ZXJyb3JzDQo+IFRoZXJlJ3MgYW4gaW1wbGljaXQgYXNzdW1wdGlvbiB0aGF0IGFwcGxpY2F0aW9u
-cyB3aWxsIGtlZXAgcmVkdW5kYW50DQo+IGNvcGllcyBvZiB0aGVpciBkYXRhIGF0IHRoZSAvYXBw
-bGljYXRpb24gbGF5ZXIvIGFuZCBiZSBhYmxlIHRvDQo+IGF1dG9tYXRpY2FsbHkgcmVwYWlyIGl0
-PyBBbmQgdGhlbiB0aGVyZSdzIHRoZSBpbXBsaWNpdCBhc3N1bXB0aW9uDQo+IHRoYXQgaXQgd2ls
-bCB1bmxpbmsgYW5kIGZyZWUgdGhlIGVudGlyZSBmaWxlIGJlZm9yZSB3cml0aW5nIGEgbmV3DQo+
-IGNvcHksIGFuZCB0aGF0IHRoZW4gYXNzdW1lcyB0aGUgdGhlIGZpbGVzeXN0ZW0gd2lsbCB6ZXJv
-IGJsb2NrcyBpZg0KPiB0aGV5IGdldCByZXVzZWQgdG8gY2xlYXIgZXJyb3JzIG9uIHRoYXQgTEJB
-IHNlY3RvciBtYXBwaW5nIGJlZm9yZQ0KPiB0aGV5IGFyZSBhY2Nlc3NpYmxlIGFnYWluIHRvIHVz
-ZXJzcGFjZS4uDQo+IA0KPiBJdCBzZWVtcyB0byBtZSB0aGF0IHRoZXJlIGFyZSBhIG51bWJlciBv
-ZiBhc3N1bXB0aW9ucyBiZWluZyBtYWRlDQo+IGFjcm9zcyBtdWx0aXBsZSBsYXllcnMgaGVyZS4g
-TWF5YmUgSSd2ZSBtaXNzZWQgc29tZXRoaW5nIC0gY2FuIHlvdQ0KPiBwb2ludCBtZSB0byB0aGUg
-ZGVzaWduL2FyY2hpdGVjdHVyZSBkZXNjcmlwdGlvbiBzbyBJIGNhbiBzZWUgaG93DQo+ICJhcHAg
-ZG9lcyBkYXRhIHJlY292ZXJ5IGl0c2VsZiIgZGFuY2UgaXMgc3VwcG9zZWQgdG8gd29yaz8NCg0K
-VGhlcmUgaXNuJ3QgYSBkb2N1bWVudCBvdGhlciB0aGFuIHRoZSBmbG93IGluIG15IGhlYWQgOikg
-LSBidXQgbWF5YmUgSQ0KY291bGQgd3JpdGUgb25lIHVwLi4NCkkgd2Fzbid0IHRoaW5raW5nIHRo
-ZSBhcHBsaWNhdGlvbiBpdHNlbGYgbWFpbnRhaW5zIGFuZCByZXN0b3JlcyBmcm9tDQpiYWNrdXAg
-Y29weSBvZiB0aGUgZmlsZS4uIFRoZSBhcHBsaWNhdGlvbiBoaXRzIGVpdGhlciBhIFNJR0JVUyBv
-ciBFSU8NCmRlcGVuZGluZyBvbiBob3cgaXQgYWNjZXNzZXMgdGhlIGRhdGEsIGFuZCBjcmFzaGVz
-IG9yIHJhaXNlcyBzb21lIGFsYXJtLg0KVGhlIHJlY292ZXJ5IGlzIHRoZW4gZG9uZSBvdXQtb2Yt
-YmFuZCwgYnkgYSBzeXNhZG1pbiBvciBzdWNoIChpLmUuDQpkZWxldGUgdGhlIGZpbGUsIHJlcGxh
-Y2Ugd2l0aCBhIGtub3duIGdvb2QgY29weSwgcmVzdGFydCBhcHBsaWNhdGlvbikuDQoNClRvIHN1
-bW1hcml6ZSwgdGhlIHR3byBjYXNlcyB3ZSB3YW50IHRvIGhhbmRsZSBhcmU6DQoxLiBBcHBsaWNh
-dGlvbiBoYXMgaW5idWlsdCByZWNvdmVyeToNCsKgIC0gaGl0cyBiYWRibG9jaw0KwqAgLSBmaWd1
-cmVzIG91dCBpdCBpcyBhYmxlIHRvIHJlY292ZXIgdGhlIGRhdGENCsKgIC0gaGFuZGxlcyBTSUdC
-VVMgb3IgRUlPDQrCoCAtIGRvZXMgYSAoc2VjdG9yIGFsaWduZWQpIHdyaXRlKCkgdG8gcmVzdG9y
-ZSB0aGUgZGF0YQ0KMi4gQXBwbGljYXRpb24gZG9lc24ndCBoYXZlIGFueSBpbmJ1aWx0IHJlY292
-ZXJ5IG1lY2hhbmlzbQ0KwqAgLSBoaXRzIGJhZGJsb2NrDQrCoCAtIGdldHMgU0lHQlVTIChvciBF
-SU8pIGFuZCBjcmFzaGVzDQrCoCAtIFN5c2FkbWluIHJlc3RvcmVzIGZpbGUgZnJvbSBiYWNrdXAN
-Cg0KQ2FzZSAxIGlzIGhhbmRsZWQgYnkgZWl0aGVyIGEgZmFsbGJhY2sgdG8gZGlyZWN0X0lPIGZy
-b20gZGF4X2RvX2lvLCBvcg0KYWx3YXlzIF9hY3R1YWxseV8gZG9pbmcgZGlyZWN0X0lPIHdoZW4g
-d2UncmUgb3BlbmVkIHdpdGggT19ESVJFQ1QgaW4NCnNwaXRlIG9mIGRheCAod2hhdCBEYW4gc3Vn
-Z2VzdGVkKS4gQ3VycmVudGx5IGlmIHdlJ3JlIG1vdW50ZWQgd2l0aCBkYXgsDQphbGwgSU8gT19E
-SVJFQ1Qgb3Igb3RoZXJ3aXNlIHdpbGwgZ28gdGhyb3VnaCBkYXhfZG9faW8uDQpDYXNlIDIgaXMg
-aGFuZGxlZCBieSBwYXRjaCA0IG9mIHRoZSBzZXJpZXM6DQrCoCDCoCBkYXg6IHVzZSBzYl9pc3N1
-ZV96ZXJvdXQgaW5zdGVhZCBvZiBjYWxsaW5nIGRheF9jbGVhcl9zZWN0b3JzDQoNCj4gDQo+IENo
-ZWVycywNCj4gDQo+IERhdmUu
+The page_counter rounds limits down to page size values.  This makes
+sense, except in the case of hugetlb_cgroup where it's not possible to
+charge partial hugepages.  If the hugetlb_cgroup margin is less than the
+hugepage size being charged, it will fail as expected.
+
+Round the hugetlb_cgroup limit down to hugepage size, since it is the
+effective limit of the cgroup.
+
+For consistency, round down PAGE_COUNTER_MAX as well when a
+hugetlb_cgroup is created: this prevents error reports when a user cannot
+restore the value to the kernel default.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ v3: update changelog per akpm
+     no stable backport needed
+
+ mm/hugetlb_cgroup.c | 35 ++++++++++++++++++++++++++---------
+ 1 file changed, 26 insertions(+), 9 deletions(-)
+
+diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+--- a/mm/hugetlb_cgroup.c
++++ b/mm/hugetlb_cgroup.c
+@@ -67,26 +67,42 @@ static inline bool hugetlb_cgroup_have_usage(struct hugetlb_cgroup *h_cg)
+ 	return false;
+ }
+ 
++static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
++				struct hugetlb_cgroup *parent_h_cgroup)
++{
++	int idx;
++
++	for (idx = 0; idx < HUGE_MAX_HSTATE; idx++) {
++		struct page_counter *counter = &h_cgroup->hugepage[idx];
++		struct page_counter *parent = NULL;
++		unsigned long limit;
++		int ret;
++
++		if (parent_h_cgroup)
++			parent = &parent_h_cgroup->hugepage[idx];
++		page_counter_init(counter, parent);
++
++		limit = round_down(PAGE_COUNTER_MAX,
++				   1 << huge_page_order(&hstates[idx]));
++		ret = page_counter_limit(counter, limit);
++		VM_BUG_ON(ret);
++	}
++}
++
+ static struct cgroup_subsys_state *
+ hugetlb_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+ {
+ 	struct hugetlb_cgroup *parent_h_cgroup = hugetlb_cgroup_from_css(parent_css);
+ 	struct hugetlb_cgroup *h_cgroup;
+-	int idx;
+ 
+ 	h_cgroup = kzalloc(sizeof(*h_cgroup), GFP_KERNEL);
+ 	if (!h_cgroup)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-	if (parent_h_cgroup) {
+-		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
+-			page_counter_init(&h_cgroup->hugepage[idx],
+-					  &parent_h_cgroup->hugepage[idx]);
+-	} else {
++	if (!parent_h_cgroup)
+ 		root_h_cgroup = h_cgroup;
+-		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
+-			page_counter_init(&h_cgroup->hugepage[idx], NULL);
+-	}
++
++	hugetlb_cgroup_init(h_cgroup, parent_h_cgroup);
+ 	return &h_cgroup->css;
+ }
+ 
+@@ -285,6 +301,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
+ 		return ret;
+ 
+ 	idx = MEMFILE_IDX(of_cft(of)->private);
++	nr_pages = round_down(nr_pages, 1 << huge_page_order(&hstates[idx]));
+ 
+ 	switch (MEMFILE_ATTR(of_cft(of)->private)) {
+ 	case RES_LIMIT:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
