@@ -1,103 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C7526B0274
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 09:57:56 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id 68so12749017lfq.2
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 06:57:56 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id w10si3460108wmw.27.2016.04.26.06.57.54
+Received: from mail-ig0-f200.google.com (mail-ig0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F3DDF6B025E
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 10:00:20 -0400 (EDT)
+Received: by mail-ig0-f200.google.com with SMTP id u5so25074749igk.2
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 07:00:20 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id p7si9835909oew.31.2016.04.26.07.00.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Apr 2016 06:57:54 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id w143so4676230wmw.3
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 06:57:54 -0700 (PDT)
-Date: Tue, 26 Apr 2016 15:57:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] oom: consider multi-threaded tasks in task_will_free_mem
-Message-ID: <20160426135752.GC20813@dhcp22.suse.cz>
-References: <1460452756-15491-1-git-send-email-mhocko@kernel.org>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Apr 2016 07:00:19 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timeout.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20160420144758.GA7950@dhcp22.suse.cz>
+	<201604212049.GFE34338.OQFOJSMOHFFLVt@I-love.SAKURA.ne.jp>
+	<20160421130750.GA18427@dhcp22.suse.cz>
+	<201604242319.GAF12996.tOJMOQFLFVOHSF@I-love.SAKURA.ne.jp>
+	<20160425095508.GE23933@dhcp22.suse.cz>
+In-Reply-To: <20160425095508.GE23933@dhcp22.suse.cz>
+Message-Id: <201604262300.FDB82145.SHFFQLOOtMJFOV@I-love.SAKURA.ne.jp>
+Date: Tue, 26 Apr 2016 23:00:09 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1460452756-15491-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
 
-On Tue 12-04-16 11:19:16, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+Michal Hocko wrote:
+> On Sun 24-04-16 23:19:03, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > I have seen that patch. I didn't get to review it properly yet as I am
+> > > still travelling. From a quick view I think it is conflating two things
+> > > together. I could see arguments for the panic part but I do not consider
+> > > the move-to-kill-another timeout as justified. I would have to see a
+> > > clear indication this is actually useful for real life usecases.
+> > 
+> > You admit that it is possible that the TIF_MEMDIE thread is blocked at
+> > unkillable wait (due to memory allocation requests by somebody else) but
+> > the OOM reaper cannot reap the victim's memory (due to holding the mmap_sem
+> > for write), don't you?
 > 
-> task_will_free_mem is a misnomer for a more complex PF_EXITING test
-> for early break out from the oom killer because it is believed that
-> such a task would release its memory shortly and so we do not have
-> to select an oom victim and perform a disruptive action.
-> 
-> Currently we make sure that the given task is not participating in the
-> core dumping because it might get blocked for a long time - see
-> d003f371b270 ("oom: don't assume that a coredumping thread will exit
-> soon").
-> 
-> The check can still do better though. We shouldn't consider the task
-> unless the whole thread group is going down. This is rather unlikely
-> but not impossible. A single exiting thread would surely leave all the
-> address space behind. If we are really unlucky it might get stuck on the
-> exit path and keep its TIF_MEMDIE and so block the oom killer.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-> 
-> Hi,
-> I hope I got it right but I would really appreciate if Oleg found some
-> time and double checked after me. The fix is more cosmetic than anything
-> else but I guess it is worth it.
-
-ping...
-
-> 
-> Thanks!
-> 
->  include/linux/oom.h | 15 +++++++++++++--
->  1 file changed, 13 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/oom.h b/include/linux/oom.h
-> index 628a43242a34..b09c7dc523ff 100644
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -102,13 +102,24 @@ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
->  
->  static inline bool task_will_free_mem(struct task_struct *task)
->  {
-> +	struct signal_struct *sig = task->signal;
-> +
->  	/*
->  	 * A coredumping process may sleep for an extended period in exit_mm(),
->  	 * so the oom killer cannot assume that the process will promptly exit
->  	 * and release memory.
->  	 */
-> -	return (task->flags & PF_EXITING) &&
-> -		!(task->signal->flags & SIGNAL_GROUP_COREDUMP);
-> +	if (sig->flags & SIGNAL_GROUP_COREDUMP)
-> +		return false;
-> +
-> +	if (!(task->flags & PF_EXITING))
-> +		return false;
-> +
-> +	/* Make sure that the whole thread group is going down */
-> +	if (!thread_group_empty(task) && !(sig->flags & SIGNAL_GROUP_EXIT))
-> +		return false;
-> +
-> +	return true;
->  }
->  
->  /* sysctls */
-> -- 
-> 2.8.0.rc3
+> I have never said this to be impossible.
 > 
 
--- 
-Michal Hocko
-SUSE Labs
+OK. You might think it happens once per million OOM killer invocations.
+I might think it happens once per thousand OOM killer invocations. But
+someone might have a setup and applications which make it happen once
+per ten OOM killer invocations. We need to be prepared for it anyway.
+
+> > Then, I think this patch makes little sense unless accompanied with the
+> > move-to-kill-another timeout. If the OOM reaper failed to reap the victim's
+> > memory, the OOM reaper simply clears TIF_MEMDIE from the victim thread. But
+> > since nothing has changed (i.e. the victim continues waiting, and the victim's
+> > memory is not reclaimed, and the victim's oom_score_adj is not updated to
+> > OOM_SCORE_ADJ_MIN), the OOM killer will select that same victim again.
+> 
+> Yes a patch to introduce a reliable panic-on-timeout would have to
+> solved this and it is not really trivial to do so.
+> 
+> > This forms an infinite loop. You will want to call panic() as soon as the OOM
+> > reaper failed to reap the victim's memory (than waiting for the panic timeout).
+> > 
+> > For both system operators at customer's companies and staffs at support center,
+> > avoiding hangup (due to OOM livelock) and panic (due to the OOM panic timeout)
+> > eliminates a lot of overhead. This is a practical benefit for them.
+> > 
+> > I also think that the purpose of killing only one task at a time than calling
+> > panic() is to save as much work as possible.
+> 
+> If we are locked up then there is no room to try to save some work. We
+> want the machine to recover rather than hope for anything.
+> 
+
+We might be locked up with the first OOM victim due to mmap_sem held for write.
+But we are likely no longer locked up with the second/third OOM victims
+(assuming that the OOM killer selects different mm users). I never want
+the machine to panic/reboot without trying SysRq-f for several times (but
+I'm not always sitting in front of the console in order to try SysRq-f).
+
+> > Therefore, I can't understand why
+> > you don't think that killing only another task via the move-to-kill-another
+> > timeout is a useful real life usecase.
+> 
+> I feel like I have to repeat myself. The argument is really simple. If
+> you have an unlikely possibility of a lockup then you you really want to
+> a _reliable_ way to get out of this unfortunate state. Kill-another-task
+> is a mere optimization which has to be evaluated for maintenance vs.
+> feasibility aspects. So far I am not really convicend about the second
+> while the first seems like a real concern because the oom code is
+> complex enough already.
+> 
+
+Quite opposite. Panic on timeout is a mere optimization for those who don't
+want to wait for too long. The basic direction for panic_on_oom == 0 is try
+to loose minimum work while avoiding oom lockup. We added the OOM reaper
+in order to assist that direction. We are talking about situations where
+the OOM reaper failed to assist. You think "an unlikely possibility of a
+lockup" but such assumption is not always true.
+
+> You also have to consider that exporting sysctl knobs for one-off
+> usecases which are very specific to the implementation at the time have
+> proven bad. The implementation is moving on and there is no guarantee
+> that the OOM killer will see changes where the single oom victim will
+> make even sense - e.g. we might change the semantic to kill whole
+> containers or that the killing logic would be under control of the admin
+> (e.g. BPF filters or kernel modules or whatever).
+> 
+
+Yes, the OOM killer might change in the future. But that is not an excuse
+to desert current users. You can deprecate and then remove such sysctl knobs
+when you developed perfect model and mechanism. Until that moment, please
+don't desert current and future users.
+
+> No panic on timeout has a _clear_ semantic independent on the current
+> oom implementation. While move-to-other victim is not so clear in that
+> aspect.
+> 
+> > panic on timeout is a practical benefit for you, but giving several chances
+> > on timeout is a practical benefit for someone you don't know.
+> 
+> Then I would like to hear about that "someone I don't know" with a
+> clear usecase. So far you are only fuzzy about those and that is not
+> sufficient to add another subtle code. Did I make myself clear?
+
+I still cannot understand what you want to hear about the "usecase".
+
+For CONFIG_MMU=n systems, the possibility is not small because the OOM
+reaper is not available.
+
+For large servers which take 10 minutes to reboot, trying to survive
+for up to 60 seconds using move-to-other victim is helpful for several
+administrators. (Of course, the period to retry is just an example.)
+
+For desktop PCs running an Office application and a Web browser,
+trying to save not-yet-saved Office documents when the Web browser
+by chance triggered the OOM killer is helpful for several users.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
