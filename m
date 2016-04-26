@@ -1,87 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DD98F6B0267
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 10:27:43 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id k200so14712702lfg.1
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 07:27:43 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z126si3570766wmz.77.2016.04.26.07.27.42
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 24DDB6B0267
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 10:31:34 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id xm6so20284622pab.3
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 07:31:34 -0700 (PDT)
+Received: from mail-pf0-f196.google.com (mail-pf0-f196.google.com. [209.85.192.196])
+        by mx.google.com with ESMTPS id ff4si3693046pad.48.2016.04.26.07.31.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Apr 2016 07:27:42 -0700 (PDT)
-Subject: Re: [PATCH 17/28] mm, page_alloc: Check once if a zone has isolated
- pageblocks
-References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
- <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
- <1460711275-1130-5-git-send-email-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <571F7AD8.10301@suse.cz>
-Date: Tue, 26 Apr 2016 16:27:36 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Apr 2016 07:31:33 -0700 (PDT)
+Received: by mail-pf0-f196.google.com with SMTP id 145so1720937pfz.1
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 07:31:33 -0700 (PDT)
+Date: Tue, 26 Apr 2016 16:31:29 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm,oom: Re-enable OOM killer using timeout.
+Message-ID: <20160426143129.GD20813@dhcp22.suse.cz>
+References: <201604200006.FBG45192.SOHFQJFOOLFMtV@I-love.SAKURA.ne.jp>
+ <20160419200752.GA10437@dhcp22.suse.cz>
+ <201604200655.HDH86486.HOStQFJFLOMFOV@I-love.SAKURA.ne.jp>
+ <201604201937.AGB86467.MOFFOOQJVFHLtS@I-love.SAKURA.ne.jp>
+ <20160425114733.GF23933@dhcp22.suse.cz>
+ <201604262300.IFD43745.FMOLFJFQOVStHO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <1460711275-1130-5-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201604262300.IFD43745.FMOLFJFQOVStHO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
 
-On 04/15/2016 11:07 AM, Mel Gorman wrote:
-> When bulk freeing pages from the per-cpu lists the zone is checked
-> for isolated pageblocks on every release. This patch checks it once
-> per drain. Technically this is race-prone but so is the existing
-> code.
+On Tue 26-04-16 23:00:15, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > Hmm, I guess we have already discussed that in the past but I might
+> > misremember. The above relies on oom killer to be triggered after the
+> > previous victim was selected. There is no guarantee this will happen.
+> 
+> Why there is no guarantee this will happen?
 
-No, existing code is protected by zone->lock. Both checking and manipulating the
-variable zone->nr_isolate_pageblock should happen under the lock, as correct
-accounting depends on it.
+What happens if you even do not hit the out_of_memory path? E.g
+GFP_FS allocation being stuck somewhere in shrinkers waiting for
+somebody to make a forward progress which never happens. Because this is
+essentially what would block the mmap_sem write holder as well and what
+you are trying to workaround by the timeout based approach.
 
-Luckily, the patch could be simply fixed by removing last changelog sentence and:
+> This OOM livelock is caused by waiting for TIF_MEMDIE threads forever
+> unconditionally. If oom_unkillable_task() is not called, it is not
+> the OOM killer's problem.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 49aabfb39ff1..7de04bdd8c67 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -831,9 +831,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
-        int batch_free = 0;
-        int to_free = count;
-        unsigned long nr_scanned;
--       bool isolated_pageblocks = has_isolate_pageblock(zone);
-+       bool isolated_pageblocks;
+It really doesn't matter whose problem is that because whoever it is
+doesn't have a full picture to draw any conclusions.
+
+[...]
+
+> These OOM livelocks are caused by lack of mechanism for hearing administrator's
+> policy. We are missing rescue mechanisms which are needed for recovering from
+> situations your model did not expect.
+
+I am not opposed against a rescue policy defined by the admin. All I
+am saying is that the only save and reasonably maintainable one with
+_predictable_ behavior I can see is to reboot/panic/killall-tasks after
+a certain timeout. You consider this to be too harsh but do you at
+least agree that the semantic of this is clear and an admin knows what
+the behavior would be? As we are not able to find a consensus on
+go-to-other-victim approach can we at least agree on the absolute last
+resort first?
+
+We will surely hear complains if this is too coarse and users really
+need something more fine grained.
  
-        spin_lock(&zone->lock);
-+       isolated_pageblocks = has_isolate_pageblock(zone);
-        nr_scanned = zone_page_state(zone, NR_PAGES_SCANNED);
-        if (nr_scanned)
-                __mod_zone_page_state(zone, NR_PAGES_SCANNED, -nr_scanned);
+> I'm talking about corner cases where your deterministic approach fail. What we
+> need is "stop waiting for something forever unconditionally" and "hear what the
+> administrator wants to do". You can deprecate and then remove sysctl knobs for
+> hearing what the administrator wants to do when you developed perfect model and
+> mechanism.
+> 
+> > Why cannot we get back to the timer based solution at least for the
+> > panic timeout?
+> 
+> Use of global timer can cause false positive panic() calls.
 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> ---
->   mm/page_alloc.c | 3 ++-
->   1 file changed, 2 insertions(+), 1 deletion(-)
+Race that would take in orders of tens of seconds which would be the
+most probable chosen value doesn't matter that much IMHO.
+
+> Timeout should be calculated for per task_struct or signal_struct basis.
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 4a364e318873..835a1c434832 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -831,6 +831,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->   	int batch_free = 0;
->   	int to_free = count;
->   	unsigned long nr_scanned;
-> +	bool isolated_pageblocks = has_isolate_pageblock(zone);
->   
->   	spin_lock(&zone->lock);
->   	nr_scanned = zone_page_state(zone, NR_PAGES_SCANNED);
-> @@ -870,7 +871,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->   			/* MIGRATE_ISOLATE page should not go to pcplists */
->   			VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
->   			/* Pageblock could have been isolated meanwhile */
-> -			if (unlikely(has_isolate_pageblock(zone)))
-> +			if (unlikely(isolated_pageblocks))
->   				mt = get_pageblock_migratetype(page);
->   
->   			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
-> 
+> Also, although a different problem, global timer based solution does not
+> work for OOM livelock without any TIF_MEMDIE thread case (an example
+> shown above).
+
+which is a technical detail which can be solved.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
