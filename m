@@ -1,201 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AB37C6B0281
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 19:22:07 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id i22so63393918ywc.3
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 16:22:07 -0700 (PDT)
-Received: from mail-yw0-x22d.google.com (mail-yw0-x22d.google.com. [2607:f8b0:4002:c05::22d])
-        by mx.google.com with ESMTPS id y184si254834ywe.264.2016.04.26.16.22.05
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D8D26B026C
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 19:34:01 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id w143so23638248wmw.3
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 16:34:01 -0700 (PDT)
+Received: from mail-lf0-x22c.google.com (mail-lf0-x22c.google.com. [2a00:1450:4010:c07::22c])
+        by mx.google.com with ESMTPS id pr5si2594918lbc.5.2016.04.26.16.34.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Apr 2016 16:22:07 -0700 (PDT)
-Received: by mail-yw0-x22d.google.com with SMTP id o66so44867612ywc.3
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 16:22:05 -0700 (PDT)
+        Tue, 26 Apr 2016 16:34:00 -0700 (PDT)
+Received: by mail-lf0-x22c.google.com with SMTP id c126so37011310lfb.2
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 16:34:00 -0700 (PDT)
+Date: Wed, 27 Apr 2016 02:33:57 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v4 1/2] shmem: Support for registration of driver/file
+ owner specific ops
+Message-ID: <20160426233357.GA20322@node.shutemov.name>
+References: <1459775891-32442-1-git-send-email-chris@chris-wilson.co.uk>
+ <20160424234250.GB6670@node.shutemov.name>
+ <20160426125341.GF8291@phenom.ffwll.local>
 MIME-Version: 1.0
-In-Reply-To: <20160426161743.f831225a4efb3eb04debe402@linux-foundation.org>
-References: <1461687670-47585-1-git-send-email-thgarnie@google.com>
-	<20160426161743.f831225a4efb3eb04debe402@linux-foundation.org>
-Date: Tue, 26 Apr 2016 16:22:05 -0700
-Message-ID: <CAJcbSZED2hmEb9KvFcas6S05rN7vDYy+2tUhKRA6Z36Rj-GBfw@mail.gmail.com>
-Subject: Re: [PATCH v4] mm: SLAB freelist randomization
-From: Thomas Garnier <thgarnie@google.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160426125341.GF8291@phenom.ffwll.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Kees Cook <keescook@chromium.org>, Greg Thelen <gthelen@google.com>, Laura Abbott <labbott@fedoraproject.org>, kernel-hardening@lists.openwall.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Chris Wilson <chris@chris-wilson.co.uk>, intel-gfx@lists.freedesktop.org, Akash Goel <akash.goel@intel.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.linux.org, Sourab Gupta <sourab.gupta@intel.com>
 
-On Tue, Apr 26, 2016 at 4:17 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 26 Apr 2016 09:21:10 -0700 Thomas Garnier <thgarnie@google.com> wrote:
->
->> Provides an optional config (CONFIG_FREELIST_RANDOM) to randomize the
->> SLAB freelist. The list is randomized during initialization of a new set
->> of pages. The order on different freelist sizes is pre-computed at boot
->> for performance. Each kmem_cache has its own randomized freelist. Before
->> pre-computed lists are available freelists are generated
->> dynamically. This security feature reduces the predictability of the
->> kernel SLAB allocator against heap overflows rendering attacks much less
->> stable.
->>
->> For example this attack against SLUB (also applicable against SLAB)
->> would be affected:
->> https://jon.oberheide.org/blog/2010/09/10/linux-kernel-can-slub-overflow/
->>
->> Also, since v4.6 the freelist was moved at the end of the SLAB. It means
->> a controllable heap is opened to new attacks not yet publicly discussed.
->> A kernel heap overflow can be transformed to multiple use-after-free.
->> This feature makes this type of attack harder too.
->>
->> To generate entropy, we use get_random_bytes_arch because 0 bits of
->> entropy is available in the boot stage. In the worse case this function
->> will fallback to the get_random_bytes sub API. We also generate a shift
->> random number to shift pre-computed freelist for each new set of pages.
->>
->> The config option name is not specific to the SLAB as this approach will
->> be extended to other allocators like SLUB.
->>
->> Performance results highlighted no major changes:
->>
->> Hackbench (running 90 10 times):
->>
->> Before average: 0.0698
->> After average: 0.0663 (-5.01%)
->>
->> slab_test 1 run on boot. Difference only seen on the 2048 size test
->> being the worse case scenario covered by freelist randomization. New
->> slab pages are constantly being created on the 10000 allocations.
->> Variance should be mainly due to getting new pages every few
->> allocations.
->>
->> ...
->>
->> --- a/include/linux/slab_def.h
->> +++ b/include/linux/slab_def.h
->> @@ -80,6 +80,10 @@ struct kmem_cache {
->>       struct kasan_cache kasan_info;
->>  #endif
->>
->> +#ifdef CONFIG_FREELIST_RANDOM
->> +     void *random_seq;
->> +#endif
->> +
->>       struct kmem_cache_node *node[MAX_NUMNODES];
->>  };
->>
->> diff --git a/init/Kconfig b/init/Kconfig
->> index 0c66640..73453d0 100644
->> --- a/init/Kconfig
->> +++ b/init/Kconfig
->> @@ -1742,6 +1742,15 @@ config SLOB
->>
->>  endchoice
->>
->> +config FREELIST_RANDOM
->> +     default n
->> +     depends on SLAB
->> +     bool "SLAB freelist randomization"
->> +     help
->> +       Randomizes the freelist order used on creating new SLABs. This
->> +       security feature reduces the predictability of the kernel slab
->> +       allocator against heap overflows.
->
-> Against the v2 patch I didst observe:
->
-> : CONFIG_FREELIST_RANDOM bugs me a bit - "freelist" is so vague.
-> : CONFIG_SLAB_FREELIST_RANDOM would be better.  I mean, what Kconfig
-> : identifier could be used for implementing randomisation in
-> : slub/slob/etc once CONFIG_FREELIST_RANDOM is used up?
->
-> but this pearl appeared to pass unnoticed.
->
+On Tue, Apr 26, 2016 at 02:53:41PM +0200, Daniel Vetter wrote:
+> On Mon, Apr 25, 2016 at 02:42:50AM +0300, Kirill A. Shutemov wrote:
+> > On Mon, Apr 04, 2016 at 02:18:10PM +0100, Chris Wilson wrote:
+> > > From: Akash Goel <akash.goel@intel.com>
+> > > 
+> > > This provides support for the drivers or shmem file owners to register
+> > > a set of callbacks, which can be invoked from the address space
+> > > operations methods implemented by shmem.  This allow the file owners to
+> > > hook into the shmem address space operations to do some extra/custom
+> > > operations in addition to the default ones.
+> > > 
+> > > The private_data field of address_space struct is used to store the
+> > > pointer to driver specific ops.  Currently only one ops field is defined,
+> > > which is migratepage, but can be extended on an as-needed basis.
+> > > 
+> > > The need for driver specific operations arises since some of the
+> > > operations (like migratepage) may not be handled completely within shmem,
+> > > so as to be effective, and would need some driver specific handling also.
+> > > Specifically, i915.ko would like to participate in migratepage().
+> > > i915.ko uses shmemfs to provide swappable backing storage for its user
+> > > objects, but when those objects are in use by the GPU it must pin the
+> > > entire object until the GPU is idle.  As a result, large chunks of memory
+> > > can be arbitrarily withdrawn from page migration, resulting in premature
+> > > out-of-memory due to fragmentation.  However, if i915.ko can receive the
+> > > migratepage() request, it can then flush the object from the GPU, remove
+> > > its pin and thus enable the migration.
+> > > 
+> > > Since gfx allocations are one of the major consumer of system memory, its
+> > > imperative to have such a mechanism to effectively deal with
+> > > fragmentation.  And therefore the need for such a provision for initiating
+> > > driver specific actions during address space operations.
+> > 
+> > Hm. Sorry, my ignorance, but shouldn't this kind of flushing be done in
+> > response to mmu_notifier's ->invalidate_page?
+> > 
+> > I'm not aware about how i915 works and what's its expectation wrt shmem.
+> > Do you have some userspace VMA which is mirrored on GPU side?
+> > If yes, migration would cause unmapping of these pages and trigger the
+> > mmu_notifier's hook.
+> 
+> We do that for userptr pages (i.e. stuff we steal from userspace address
+> spaces). But we also have native gfx buffer objects based on shmem files,
+> and thus far we need to allocate them as !GFP_MOVEABLE. And we allocate a
+> _lot_ of those. And those files aren't mapped into any cpu address space
+> (ofc they're mapped on the gpu side, but that's driver private), from the
+> core mm they are pure pagecache. And afaiui for that we need to wire up
+> the migratepage hooks through shmem to i915_gem.c
 
-It was discussed a bit before. The intent is to have a similar feature
-for other kernel heap (I know it is possible for SLUB). That's why I
-think it make sense to have a similar config name used for all
-allocators.
+I see.
 
->>  config SLUB_CPU_PARTIAL
->>       default y
->>       depends on SLUB && SMP
->> diff --git a/mm/slab.c b/mm/slab.c
->> index b82ee6b..0ed728a 100644
->> --- a/mm/slab.c
->> +++ b/mm/slab.c
->> @@ -1230,6 +1230,61 @@ static void __init set_up_node(struct kmem_cache *cachep, int index)
->>       }
->>  }
->>
->> +#ifdef CONFIG_FREELIST_RANDOM
->> +static void freelist_randomize(struct rnd_state *state, freelist_idx_t *list,
->> +                     size_t count)
->> +{
->> +     size_t i;
->> +     unsigned int rand;
->> +
->> +     for (i = 0; i < count; i++)
->> +             list[i] = i;
->> +
->> +     /* Fisher-Yates shuffle */
->> +     for (i = count - 1; i > 0; i--) {
->> +             rand = prandom_u32_state(state);
->> +             rand %= (i + 1);
->> +             swap(list[i], list[rand]);
->> +     }
->> +}
->> +
->> +/* Create a random sequence per cache */
->> +static int cache_random_seq_create(struct kmem_cache *cachep)
->> +{
->> +     unsigned int seed, count = cachep->num;
->> +     struct rnd_state state;
->> +
->> +     if (count < 2)
->> +             return 0;
->> +
->> +     /* If it fails, we will just use the global lists */
->> +     cachep->random_seq = kcalloc(count, sizeof(freelist_idx_t), GFP_KERNEL);
->> +     if (!cachep->random_seq)
->> +             return -ENOMEM;
->
-> OK, no BUG.  If this happens, kmem_cache_init_late() will go BUG
-> instead ;)
->
+I don't particularly like the way patch hooks into migrate, but don't a
+good idea how to implement this better.
 
-Yes, as Christophe asked.
+This way allows to hook up to any shmem file, which can be abused by
+drivers later.
 
-> Questions for slab maintainers:
->
-> What's going on with the gfp_flags in there?  kmem_cache_init_late()
-> passes GFP_NOWAIT into enable_cpucache().
->
-> a) why the heck does it do that?  It's __init code!
->
-> b) if there's a legit reason then your new cache_random_seq_create()
-> should be getting its gfp_t from its caller, rather than blindly
-> assuming GFP_KERNEL.
->
-> c) kmem_cache_init_late() goes BUG on ENOMEM.  Generally that's OK in
-> __init code: we assume infinite memory during bootup.  But it's really
-> quite weird to use GFP_NOWAIT and then to go BUG if GFP_NOWAIT had its
-> predictable outcome (ie: failure).
->
-> Finally, all callers of enable_cpucache() (and hence of
-> cache_random_seq_create()) are __init, so we're unnecessarily bloating
-> up vmlinux.  Could someone please take a look at this as a separate
-> thing?
->
->> +     /* Get best entropy at this stage */
->> +     get_random_bytes_arch(&seed, sizeof(seed));
->> +     prandom_seed_state(&state, seed);
->> +
->> +     freelist_randomize(&state, cachep->random_seq, count);
->> +     return 0;
->> +}
->> +
->>
->> ...
->>
+I wounder if it would be better for i915 to have its own in-kernel mount
+with variant of tmpfs which provides different mapping->a_ops? Or is it
+overkill? I don't know.
+
+Hugh?
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
