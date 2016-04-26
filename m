@@ -1,65 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B3976B0253
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 09:04:25 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r12so11870528wme.0
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 06:04:25 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id wa2si17159054wjc.62.2016.04.26.05.56.45
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 50E806B0270
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 09:30:52 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r12so12446132wme.0
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 06:30:52 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hc5si29990405wjb.226.2016.04.26.06.30.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Apr 2016 05:56:45 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id r12so4234860wme.0
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:56:45 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 18/18] drm/amdgpu: make amdgpu_mn_get wait for mmap_sem killable
-Date: Tue, 26 Apr 2016 14:56:25 +0200
-Message-Id: <1461675385-5934-19-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1461675385-5934-1-git-send-email-mhocko@kernel.org>
-References: <1461675385-5934-1-git-send-email-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Apr 2016 06:30:50 -0700 (PDT)
+Subject: Re: [PATCH 14/28] mm, page_alloc: Simplify last cpupid reset
+References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
+ <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
+ <1460711275-1130-2-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <571F6D89.1000704@suse.cz>
+Date: Tue, 26 Apr 2016 15:30:49 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <1460711275-1130-2-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, David Airlie <airlied@linux.ie>, Alex Deucher <alexander.deucher@amd.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On 04/15/2016 11:07 AM, Mel Gorman wrote:
+> The current reset unnecessarily clears flags and makes pointless calculations.
 
-amdgpu_mn_get which is called during ioct path relies on mmap_sem for
-write. If the waiting task gets killed by the oom killer it would block
-oom_reaper from asynchronous address space reclaim and reduce the
-chances of timely OOM resolving. Wait for the lock in the killable mode
-and return with EINTR if the task got killed while waiting.
+Ugh, indeed.
 
-Cc: David Airlie <airlied@linux.ie>
-Cc: Alex Deucher <alexander.deucher@amd.com>
-Reviewed-by: Christian KA?nig <christian.koenig@amd.com>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-index 9f4a45cd2aab..cf90686a50d1 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
-@@ -232,7 +232,10 @@ static struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev)
- 	int r;
- 
- 	mutex_lock(&adev->mn_lock);
--	down_write(&mm->mmap_sem);
-+	if (down_write_killable(&mm->mmap_sem)) {
-+		mutex_unlock(&adev->mn_lock);
-+		return -EINTR;
-+	}
- 
- 	hash_for_each_possible(adev->mn_hash, rmn, node, (unsigned long)mm)
- 		if (rmn->mm == mm)
--- 
-2.8.0.rc3
+> ---
+>   include/linux/mm.h | 5 +----
+>   1 file changed, 1 insertion(+), 4 deletions(-)
+>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index ffcff53e3b2b..60656db00abd 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -837,10 +837,7 @@ extern int page_cpupid_xchg_last(struct page *page, int cpupid);
+>
+>   static inline void page_cpupid_reset_last(struct page *page)
+>   {
+> -	int cpupid = (1 << LAST_CPUPID_SHIFT) - 1;
+> -
+> -	page->flags &= ~(LAST_CPUPID_MASK << LAST_CPUPID_PGSHIFT);
+> -	page->flags |= (cpupid & LAST_CPUPID_MASK) << LAST_CPUPID_PGSHIFT;
+> +	page->flags |= LAST_CPUPID_MASK << LAST_CPUPID_PGSHIFT;
+>   }
+>   #endif /* LAST_CPUPID_NOT_IN_PAGE_FLAGS */
+>   #else /* !CONFIG_NUMA_BALANCING */
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
