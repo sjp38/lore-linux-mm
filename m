@@ -1,78 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 000A36B0005
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 15:49:46 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id e201so19637387wme.1
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 12:49:46 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t203si5018817wmg.31.2016.04.26.12.49.45
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F27516B0005
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 17:10:18 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id x7so60968859qkd.2
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 14:10:18 -0700 (PDT)
+Received: from mail-qg0-x241.google.com (mail-qg0-x241.google.com. [2607:f8b0:400d:c04::241])
+        by mx.google.com with ESMTPS id 201si422259qhg.121.2016.04.26.14.10.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Apr 2016 12:49:45 -0700 (PDT)
-Subject: Re: [PATCH 26/28] cpuset: use static key better and convert to new
- API
-References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
- <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
- <1460711275-1130-14-git-send-email-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <571FC658.3030206@suse.cz>
-Date: Tue, 26 Apr 2016 21:49:44 +0200
-MIME-Version: 1.0
-In-Reply-To: <1460711275-1130-14-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Apr 2016 14:10:18 -0700 (PDT)
+Received: by mail-qg0-x241.google.com with SMTP id b14so1788832qge.2
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 14:10:18 -0700 (PDT)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH] mm/zswap: use workqueue to destroy pool
+Date: Tue, 26 Apr 2016 17:08:11 -0400
+Message-Id: <1461704891-15272-1-git-send-email-ddstreet@ieee.org>
+In-Reply-To: <1461619210-10057-1-git-send-email-ddstreet@ieee.org>
+References: <1461619210-10057-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Zefan Li <lizefan@huawei.com>
+To: Yu Zhao <yuzhao@google.com>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@redhat.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <ddstreet@ieee.org>, Dan Streetman <dan.streetman@canonical.com>
 
-On 04/15/2016 11:07 AM, Mel Gorman wrote:
-> From: Vlastimil Babka <vbabka@suse.cz>
->
-> An important function for cpusets is cpuset_node_allowed(), which optimizes on
-> the fact if there's a single root CPU set, it must be trivially allowed. But
-> the check "nr_cpusets() <= 1" doesn't use the cpusets_enabled_key static key
-> the right way where static keys eliminate branching overhead with jump labels.
->
-> This patch converts it so that static key is used properly. It's also switched
-> to the new static key API and the checking functions are converted to return
-> bool instead of int. We also provide a new variant __cpuset_zone_allowed()
-> which expects that the static key check was already done and they key was
-> enabled. This is needed for get_page_from_freelist() where we want to also
-> avoid the relatively slower check when ALLOC_CPUSET is not set in alloc_flags.
->
-> The impact on the page allocator microbenchmark is less than expected but the
-> cleanup in itself is worthwhile.
->
->                                             4.6.0-rc2                  4.6.0-rc2
->                                       multcheck-v1r20               cpuset-v1r20
-> Min      alloc-odr0-1               348.00 (  0.00%)           348.00 (  0.00%)
-> Min      alloc-odr0-2               254.00 (  0.00%)           254.00 (  0.00%)
-> Min      alloc-odr0-4               213.00 (  0.00%)           213.00 (  0.00%)
-> Min      alloc-odr0-8               186.00 (  0.00%)           183.00 (  1.61%)
-> Min      alloc-odr0-16              173.00 (  0.00%)           171.00 (  1.16%)
-> Min      alloc-odr0-32              166.00 (  0.00%)           163.00 (  1.81%)
-> Min      alloc-odr0-64              162.00 (  0.00%)           159.00 (  1.85%)
-> Min      alloc-odr0-128             160.00 (  0.00%)           157.00 (  1.88%)
-> Min      alloc-odr0-256             169.00 (  0.00%)           166.00 (  1.78%)
-> Min      alloc-odr0-512             180.00 (  0.00%)           180.00 (  0.00%)
-> Min      alloc-odr0-1024            188.00 (  0.00%)           187.00 (  0.53%)
-> Min      alloc-odr0-2048            194.00 (  0.00%)           193.00 (  0.52%)
-> Min      alloc-odr0-4096            199.00 (  0.00%)           198.00 (  0.50%)
-> Min      alloc-odr0-8192            202.00 (  0.00%)           201.00 (  0.50%)
-> Min      alloc-odr0-16384           203.00 (  0.00%)           202.00 (  0.49%)
->
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Add a work_struct to struct zswap_pool, and change __zswap_pool_empty
+to use the workqueue instead of using call_rcu().
 
-Acked-by: Vl... ah, no, I actually wrote this one.
+When zswap destroys a pool no longer in use, it uses call_rcu() to
+perform the destruction/freeing.  Since that executes in softirq
+context, it must not sleep.  However, actually destroying the pool
+involves freeing the per-cpu compressors (which requires locking the
+cpu_add_remove_lock mutex) and freeing the zpool, for which the
+implementation may sleep (e.g. zsmalloc calls kmem_cache_destroy,
+which locks the slab_mutex).  So if either mutex is currently taken,
+or any other part of the compressor or zpool implementation sleeps, it
+will result in a BUG().
 
-But since the cpuset maintainer acked [1] my earlier posting only after Mel 
-included it in this series, I think it's worth transferring it here:
+It's not easy to reproduce this when changing zswap's params normally.
+In testing with a loaded system, this does not fail:
 
-Acked-by: Zefan Li <lizefan@huawei.com>
+$ cd /sys/module/zswap/parameters
+$ echo lz4 > compressor ; echo zsmalloc > zpool
 
-[1] http://marc.info/?l=linux-mm&m=146062276216574&w=2
+nor does this:
+
+$ while true ; do
+> echo lzo > compressor ; echo zbud > zpool
+> sleep 1
+> echo lz4 > compressor ; echo zsmalloc > zpool
+> sleep 1
+> done
+
+although it's still possible either of those might fail, depending on
+whether anything else besides zswap has locked the mutexes.
+
+However, changing a parameter with no delay immediately causes the
+schedule while atomic BUG:
+
+$ while true ; do
+> echo lzo > compressor ; echo lz4 > compressor
+> done
+
+This is essentially the same as Yu Zhao's proposed patch to zsmalloc,
+but moved to zswap, to cover compressor and zpool freeing.
+
+Fixes: f1c54846ee45 ("zswap: dynamic pool creation")
+Reported-by: Yu Zhao <yuzhao@google.com>
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+Cc: Dan Streetman <dan.streetman@canonical.com>
+---
+ mm/zswap.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/mm/zswap.c b/mm/zswap.c
+index 91dad80..f207da7 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -117,7 +117,7 @@ struct zswap_pool {
+ 	struct crypto_comp * __percpu *tfm;
+ 	struct kref kref;
+ 	struct list_head list;
+-	struct rcu_head rcu_head;
++	struct work_struct work;
+ 	struct notifier_block notifier;
+ 	char tfm_name[CRYPTO_MAX_ALG_NAME];
+ };
+@@ -652,9 +652,11 @@ static int __must_check zswap_pool_get(struct zswap_pool *pool)
+ 	return kref_get_unless_zero(&pool->kref);
+ }
+ 
+-static void __zswap_pool_release(struct rcu_head *head)
++static void __zswap_pool_release(struct work_struct *work)
+ {
+-	struct zswap_pool *pool = container_of(head, typeof(*pool), rcu_head);
++	struct zswap_pool *pool = container_of(work, typeof(*pool), work);
++
++	synchronize_rcu();
+ 
+ 	/* nobody should have been able to get a kref... */
+ 	WARN_ON(kref_get_unless_zero(&pool->kref));
+@@ -674,7 +676,9 @@ static void __zswap_pool_empty(struct kref *kref)
+ 	WARN_ON(pool == zswap_pool_current());
+ 
+ 	list_del_rcu(&pool->list);
+-	call_rcu(&pool->rcu_head, __zswap_pool_release);
++
++	INIT_WORK(&pool->work, __zswap_pool_release);
++	schedule_work(&pool->work);
+ 
+ 	spin_unlock(&zswap_pools_lock);
+ }
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
