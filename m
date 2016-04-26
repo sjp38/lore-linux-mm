@@ -1,65 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4990D6B026D
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 08:57:08 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id s63so11701026wme.2
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:57:08 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id c10si29010679wjt.45.2016.04.26.05.56.44
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 75AE76B0005
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 09:00:16 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id y84so11590616lfc.3
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 06:00:16 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id eh3si29863528wjd.44.2016.04.26.06.00.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Apr 2016 05:56:44 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id w143so4195355wmw.3
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:56:44 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 17/18] drm/radeon: make radeon_mn_get wait for mmap_sem killable
-Date: Tue, 26 Apr 2016 14:56:24 +0200
-Message-Id: <1461675385-5934-18-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1461675385-5934-1-git-send-email-mhocko@kernel.org>
-References: <1461675385-5934-1-git-send-email-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Apr 2016 06:00:15 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id A741F985C4
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 13:00:13 +0000 (UTC)
+Date: Tue, 26 Apr 2016 14:00:11 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 13/28] mm, page_alloc: Remove redundant check for empty
+ zonelist
+Message-ID: <20160426130011.GC2858@techsingularity.net>
+References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
+ <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
+ <571F5963.1000504@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <571F5963.1000504@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Alex Deucher <alexander.deucher@amd.com>, =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Vlastimil Babka <vbabka@suse.cz>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On Tue, Apr 26, 2016 at 02:04:51PM +0200, Vlastimil Babka wrote:
+> On 04/15/2016 11:07 AM, Mel Gorman wrote:
+> >A check is made for an empty zonelist early in the page allocator fast path
+> >but it's unnecessary. When get_page_from_freelist() is called, it'll return
+> >NULL immediately. Removing the first check is slower for machines with
+> >memoryless nodes but that is a corner case that can live with the overhead.
+> >
+> >Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> >---
+> >  mm/page_alloc.c | 11 -----------
+> >  1 file changed, 11 deletions(-)
+> >
+> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >index df03ccc7f07c..21aaef6ddd7a 100644
+> >--- a/mm/page_alloc.c
+> >+++ b/mm/page_alloc.c
+> >@@ -3374,14 +3374,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+> >  	if (should_fail_alloc_page(gfp_mask, order))
+> >  		return NULL;
+> >
+> >-	/*
+> >-	 * Check the zones suitable for the gfp_mask contain at least one
+> >-	 * valid zone. It's possible to have an empty zonelist as a result
+> >-	 * of __GFP_THISNODE and a memoryless node
+> >-	 */
+> >-	if (unlikely(!zonelist->_zonerefs->zone))
+> >-		return NULL;
+> >-
+> >  	if (IS_ENABLED(CONFIG_CMA) && ac.migratetype == MIGRATE_MOVABLE)
+> >  		alloc_flags |= ALLOC_CMA;
+> >
+> >@@ -3394,8 +3386,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+> >  	/* The preferred zone is used for statistics later */
+> >  	preferred_zoneref = first_zones_zonelist(ac.zonelist, ac.high_zoneidx,
+> >  				ac.nodemask, &ac.preferred_zone);
+> >-	if (!ac.preferred_zone)
+> >-		goto out;
+> 
+> Is this part really safe? Besides changelog doesn't mention preferred_zone.
+> What if somebody attempts e.g. a DMA allocation with ac.nodemask being set
+> to cpuset_current_mems_allowed and initially only containing nodes without
+> ZONE_DMA. Then ac.preferred_zone is NULL, yet we proceed to
+> get_page_from_freelist(). Meanwhile cpuset_current_mems_allowed gets changed
+> so in fact it does contains a suitable node, so we manage to get inside
+> for_each_zone_zonelist_nodemask(). Then there's
+> zone_local(ac->preferred_zone, zone), which will defererence the NULL
+> ac->preferred_zone?
+> 
 
-radeon_mn_get which is called during ioct path relies on mmap_sem for
-write. If the waiting task gets killed by the oom killer it would block
-oom_reaper from asynchronous address space reclaim and reduce the
-chances of timely OOM resolving. Wait for the lock in the killable mode
-and return with EINTR if the task got killed while waiting.
+You're right, this is a potential problem. I thought of a few solutions
+but they're not necessarily cheaper than the current code. If Andrew is
+watching, please drop this patch if possible. Otherwise, I'll post a revert
+within the next 2 days and find an alternative solution that still saves
+cycles.
 
-Cc: Alex Deucher <alexander.deucher@amd.com>
-Cc: "Christian KA?nig" <christian.koenig@amd.com>
-Cc: David Airlie <airlied@linux.ie>
-Reviewed-by: Christian KA?nig <christian.koenig@amd.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- drivers/gpu/drm/radeon/radeon_mn.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-diff --git a/drivers/gpu/drm/radeon/radeon_mn.c b/drivers/gpu/drm/radeon/radeon_mn.c
-index eef006c48584..896f2cf51e4e 100644
---- a/drivers/gpu/drm/radeon/radeon_mn.c
-+++ b/drivers/gpu/drm/radeon/radeon_mn.c
-@@ -186,7 +186,9 @@ static struct radeon_mn *radeon_mn_get(struct radeon_device *rdev)
- 	struct radeon_mn *rmn;
- 	int r;
- 
--	down_write(&mm->mmap_sem);
-+	if (down_write_killable(&mm->mmap_sem))
-+		return ERR_PTR(-EINTR);
-+
- 	mutex_lock(&rdev->mn_lock);
- 
- 	hash_for_each_possible(rdev->mn_hash, rmn, node, (unsigned long)mm)
 -- 
-2.8.0.rc3
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
