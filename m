@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5ACE36B026C
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 18:57:59 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id x7so66953067qkd.2
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 15:57:59 -0700 (PDT)
-Received: from na01-bl2-obe.outbound.protection.outlook.com (mail-bl2on0061.outbound.protection.outlook.com. [65.55.169.61])
-        by mx.google.com with ESMTPS id d126si636940qkb.84.2016.04.26.15.57.58
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 11E7B6B026F
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 18:58:09 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id a66so60053587qkg.1
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 15:58:09 -0700 (PDT)
+Received: from na01-bl2-obe.outbound.protection.outlook.com (mail-bl2on0067.outbound.protection.outlook.com. [65.55.169.67])
+        by mx.google.com with ESMTPS id h81si727522qhc.41.2016.04.26.15.58.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 26 Apr 2016 15:57:58 -0700 (PDT)
+        Tue, 26 Apr 2016 15:58:08 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [RFC PATCH v1 11/18] x86: Decrypt trampoline area if memory
- encryption is active
-Date: Tue, 26 Apr 2016 17:57:49 -0500
-Message-ID: <20160426225749.13567.40821.stgit@tlendack-t1.amdoffice.net>
+Subject: [RFC PATCH v1 12/18] x86: Access device tree in the clear
+Date: Tue, 26 Apr 2016 17:58:00 -0500
+Message-ID: <20160426225800.13567.99120.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
 References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -28,43 +27,41 @@ Cc: Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arn
  Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry
  Vyukov <dvyukov@google.com>
 
-When Secure Memory Encryption is enabled, the trampoline area must not
-be encrypted. A cpu running in real mode will not be able to decrypt
-memory that has been encrypted because it will not be able to use addresses
-with the memory encryption mask.
+The device tree is not encrypted and needs to be accessed as such. Be sure
+to memmap it without the encryption mask set.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/realmode/init.c |    9 +++++++++
- 1 file changed, 9 insertions(+)
+ arch/x86/kernel/devicetree.c |    6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/realmode/init.c b/arch/x86/realmode/init.c
-index 0b7a63d..85b145c 100644
---- a/arch/x86/realmode/init.c
-+++ b/arch/x86/realmode/init.c
-@@ -4,6 +4,7 @@
- #include <asm/cacheflush.h>
- #include <asm/pgtable.h>
- #include <asm/realmode.h>
+diff --git a/arch/x86/kernel/devicetree.c b/arch/x86/kernel/devicetree.c
+index 3fe45f8..ff11f7a 100644
+--- a/arch/x86/kernel/devicetree.c
++++ b/arch/x86/kernel/devicetree.c
+@@ -22,6 +22,7 @@
+ #include <asm/pci_x86.h>
+ #include <asm/setup.h>
+ #include <asm/i8259.h>
 +#include <asm/mem_encrypt.h>
  
- struct real_mode_header *real_mode_header;
- u32 *trampoline_cr4_features;
-@@ -113,6 +114,14 @@ static int __init set_real_mode_permissions(void)
- 	unsigned long text_start =
- 		(unsigned long) __va(real_mode_header->text_start);
+ __initdata u64 initial_dtb;
+ char __initdata cmd_line[COMMAND_LINE_SIZE];
+@@ -276,11 +277,12 @@ static void __init x86_flattree_get_config(void)
  
-+	/*
-+	 * If memory encryption is active, the trampoline area will need to
-+	 * be in non-encrypted memory in order to bring up other processors
-+	 * successfully.
-+	 */
-+	sme_early_mem_dec(__pa(base), size);
-+	sme_set_mem_dec(base, size);
-+
- 	set_memory_nx((unsigned long) base, size >> PAGE_SHIFT);
- 	set_memory_ro((unsigned long) base, ro_size >> PAGE_SHIFT);
- 	set_memory_x((unsigned long) text_start, text_size >> PAGE_SHIFT);
+ 	map_len = max(PAGE_SIZE - (initial_dtb & ~PAGE_MASK), (u64)128);
+ 
+-	initial_boot_params = dt = early_memremap(initial_dtb, map_len);
++	initial_boot_params = dt = sme_early_memremap(initial_dtb, map_len);
+ 	size = of_get_flat_dt_size();
+ 	if (map_len < size) {
+ 		early_memunmap(dt, map_len);
+-		initial_boot_params = dt = early_memremap(initial_dtb, size);
++		initial_boot_params = dt = sme_early_memremap(initial_dtb,
++							      size);
+ 		map_len = size;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
