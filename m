@@ -1,96 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 34C186B0005
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 15:47:15 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u190so48987500pfb.0
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 12:47:15 -0700 (PDT)
-Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
-        by mx.google.com with ESMTPS id d125si199587pfd.93.2016.04.26.12.47.14
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 000A36B0005
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 15:49:46 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e201so19637387wme.1
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 12:49:46 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t203si5018817wmg.31.2016.04.26.12.49.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Apr 2016 12:47:14 -0700 (PDT)
-Received: by mail-pf0-x229.google.com with SMTP id c189so10804836pfb.3
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 12:47:14 -0700 (PDT)
-Subject: Re: [BUG linux-next] kernel NULL pointer dereference on
- linux-next-20160420
-References: <5719729E.7000101@linaro.org>
-From: "Shi, Yang" <yang.shi@linaro.org>
-Message-ID: <571FC5C0.1080208@linaro.org>
-Date: Tue, 26 Apr 2016 12:47:12 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Apr 2016 12:49:45 -0700 (PDT)
+Subject: Re: [PATCH 26/28] cpuset: use static key better and convert to new
+ API
+References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
+ <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
+ <1460711275-1130-14-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <571FC658.3030206@suse.cz>
+Date: Tue, 26 Apr 2016 21:49:44 +0200
 MIME-Version: 1.0
-In-Reply-To: <5719729E.7000101@linaro.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <1460711275-1130-14-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, sfr@canb.auug.org.au, hughd@google.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Zefan Li <lizefan@huawei.com>
 
-Did some preliminary investigation on this one.
-
-The problem is the cc->freepages list is empty, but cc->nr_freepages > 
-0, it looks the list and nr_freepages get out-of-sync somewhere.
-
-Any hint is appreciated.
-
-Thanks,
-Yang
-
-
-On 4/21/2016 5:38 PM, Shi, Yang wrote:
-> Hi folks,
+On 04/15/2016 11:07 AM, Mel Gorman wrote:
+> From: Vlastimil Babka <vbabka@suse.cz>
 >
-> I did the below test with huge tmpfs on linux-next-20160420:
+> An important function for cpusets is cpuset_node_allowed(), which optimizes on
+> the fact if there's a single root CPU set, it must be trivially allowed. But
+> the check "nr_cpusets() <= 1" doesn't use the cpusets_enabled_key static key
+> the right way where static keys eliminate branching overhead with jump labels.
 >
-> # mount -t tmpfs huge=1 tmpfs /mnt
-> # cd /mnt
-> Then clone linux kernel
+> This patch converts it so that static key is used properly. It's also switched
+> to the new static key API and the checking functions are converted to return
+> bool instead of int. We also provide a new variant __cpuset_zone_allowed()
+> which expects that the static key check was already done and they key was
+> enabled. This is needed for get_page_from_freelist() where we want to also
+> avoid the relatively slower check when ALLOC_CPUSET is not set in alloc_flags.
 >
-> Then I got the below bug, such test works well on non-huge tmpfs.
+> The impact on the page allocator microbenchmark is less than expected but the
+> cleanup in itself is worthwhile.
 >
-> BUG: unable to handle kernel NULL pointer dereference at           (null)
-> IP: [<ffffffff8119d2f8>] release_freepages+0x18/0xa0
-> PGD 0
-> Oops: 0000 [#1] PREEMPT SMP
-> Modules linked in:
-> CPU: 6 PID: 110 Comm: kcompactd0 Not tainted
-> 4.6.0-rc4-next-20160420-WR7.0.0.0_standard #4
-> Hardware name: Intel Corporation S5520HC/S5520HC, BIOS
-> S5500.86B.01.10.0025.030220091519 03/02/2009
-> task: ffff880361708040 ti: ffff880361704000 task.ti: ffff880361704000
-> RIP: 0010:[<ffffffff8119d2f8>]  [<ffffffff8119d2f8>]
-> release_freepages+0x18/0xa0
-> RSP: 0018:ffff880361707cf8  EFLAGS: 00010282
-> RAX: 0000000000000000 RBX: ffff88036ffde7c0 RCX: 0000000000000009
-> RDX: 0000000000001bf1 RSI: 000000000000000f RDI: ffff880361707dd0
-> RBP: ffff880361707d20 R08: 0000000000000007 R09: 0000160000000000
-> R10: ffff88036ffde7c0 R11: 0000000000000000 R12: 0000000000000000
-> R13: ffff880361707dd0 R14: ffff880361707dc0 R15: ffff880361707db0
-> FS:  0000000000000000(0000) GS:ffff880363cc0000(0000)
-> knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000000000000 CR3: 0000000002206000 CR4: 00000000000006e0
-> Stack:
->   ffff88036ffde7c0 0000000000000000 0000000000001a00 ffff880361707dc0
->   ffff880361707db0 ffff880361707da0 ffffffff8119f13d ffffffff81196239
->   0000000000000000 ffff880361708040 0000000000000001 0000000000100000
-> Call Trace:
->   [<ffffffff8119f13d>] compact_zone+0x55d/0x9f0
->   [<ffffffff81196239>] ? fragmentation_index+0x19/0x70
->   [<ffffffff8119f92f>] kcompactd_do_work+0x10f/0x230
->   [<ffffffff8119fae0>] kcompactd+0x90/0x1e0
->   [<ffffffff810a3a40>] ? wait_woken+0xa0/0xa0
->   [<ffffffff8119fa50>] ? kcompactd_do_work+0x230/0x230
->   [<ffffffff810801ed>] kthread+0xdd/0x100
->   [<ffffffff81be5ee2>] ret_from_fork+0x22/0x40
->   [<ffffffff81080110>] ? kthread_create_on_node+0x180/0x180
-> Code: c1 fa 06 31 f6 e8 a9 9b fd ff eb 98 0f 1f 80 00 00 00 00 66 66 66
-> 66 90 55 48 89 e5 41 57 41 56 41 55 49 89 fd 41 54 53 48 8b 07 <48> 8b
-> 10 48 8d 78 e0 49 39 c5 4c 8d 62 e0 74 70 49 be 00 00 00
-> RIP  [<ffffffff8119d2f8>] release_freepages+0x18/0xa0
->   RSP <ffff880361707cf8>
-> CR2: 0000000000000000
-> ---[ end trace 855da7e142f7311f ]---
+>                                             4.6.0-rc2                  4.6.0-rc2
+>                                       multcheck-v1r20               cpuset-v1r20
+> Min      alloc-odr0-1               348.00 (  0.00%)           348.00 (  0.00%)
+> Min      alloc-odr0-2               254.00 (  0.00%)           254.00 (  0.00%)
+> Min      alloc-odr0-4               213.00 (  0.00%)           213.00 (  0.00%)
+> Min      alloc-odr0-8               186.00 (  0.00%)           183.00 (  1.61%)
+> Min      alloc-odr0-16              173.00 (  0.00%)           171.00 (  1.16%)
+> Min      alloc-odr0-32              166.00 (  0.00%)           163.00 (  1.81%)
+> Min      alloc-odr0-64              162.00 (  0.00%)           159.00 (  1.85%)
+> Min      alloc-odr0-128             160.00 (  0.00%)           157.00 (  1.88%)
+> Min      alloc-odr0-256             169.00 (  0.00%)           166.00 (  1.78%)
+> Min      alloc-odr0-512             180.00 (  0.00%)           180.00 (  0.00%)
+> Min      alloc-odr0-1024            188.00 (  0.00%)           187.00 (  0.53%)
+> Min      alloc-odr0-2048            194.00 (  0.00%)           193.00 (  0.52%)
+> Min      alloc-odr0-4096            199.00 (  0.00%)           198.00 (  0.50%)
+> Min      alloc-odr0-8192            202.00 (  0.00%)           201.00 (  0.50%)
+> Min      alloc-odr0-16384           203.00 (  0.00%)           202.00 (  0.49%)
+>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+
+Acked-by: Vl... ah, no, I actually wrote this one.
+
+But since the cpuset maintainer acked [1] my earlier posting only after Mel 
+included it in this series, I think it's worth transferring it here:
+
+Acked-by: Zefan Li <lizefan@huawei.com>
+
+[1] http://marc.info/?l=linux-mm&m=146062276216574&w=2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
