@@ -1,64 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BED46B0268
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 08:56:55 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r12so11679686wme.0
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:56:55 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id p141si23416123wmb.69.2016.04.26.05.56.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Apr 2016 05:56:40 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id r12so4234100wme.0
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:56:39 -0700 (PDT)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B0A8D6B0268
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 08:56:57 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id y84so11523212lfc.3
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:56:57 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 11/18] coredump: make coredump_wait wait for mmap_sem for write killable
-Date: Tue, 26 Apr 2016 14:56:18 +0200
-Message-Id: <1461675385-5934-12-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 12/18] aio: make aio_setup_ring killable
+Date: Tue, 26 Apr 2016 14:56:19 +0200
+Message-Id: <1461675385-5934-13-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1461675385-5934-1-git-send-email-mhocko@kernel.org>
 References: <1461675385-5934-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Benamin LaHaise <bcrl@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Jeff Moyer <jmoyer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
 From: Michal Hocko <mhocko@suse.com>
 
-coredump_wait waits for mmap_sem for write currently which can
-prevent oom_reaper to reclaim the oom victims address space
-asynchronously because that requires mmap_sem for read. This might
-happen if the oom victim is multi threaded and some thread(s) is
-holding mmap_sem for read (e.g. page fault) and it is stuck in
-the page allocator while other thread(s) reached coredump_wait
-already.
+aio_setup_ring waits for mmap_sem in writable mode. If the waiting
+task gets killed by the oom killer it would block oom_reaper from
+asynchronous address space reclaim and reduce the chances of timely
+OOM resolving. Wait for the lock in the killable mode and return with
+EINTR if the task got killed while waiting. This will also expedite
+the return to the userspace and do_exit.
 
-This patch simply uses down_write_killable and bails out with EINTR
-if the lock got interrupted by the fatal signal. do_coredump will
-return right away and do_group_exit will take care to zap the whole
-thread group.
-
-Acked-by: Oleg Nesterov <oleg@redhat.com>
+Cc: Benamin LaHaise <bcrl@kvack.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Acked-by: Jeff Moyer <jmoyer@redhat.com>
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- fs/coredump.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ fs/aio.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
 
-diff --git a/fs/coredump.c b/fs/coredump.c
-index 47c32c3bfa1d..f2cef927789b 100644
---- a/fs/coredump.c
-+++ b/fs/coredump.c
-@@ -413,7 +413,9 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
- 	core_state->dumper.task = tsk;
- 	core_state->dumper.next = NULL;
+diff --git a/fs/aio.c b/fs/aio.c
+index 155f84253f33..be771046d77c 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -496,7 +496,12 @@ static int aio_setup_ring(struct kioctx *ctx)
+ 	ctx->mmap_size = nr_pages * PAGE_SIZE;
+ 	pr_debug("attempting mmap of %lu bytes\n", ctx->mmap_size);
  
 -	down_write(&mm->mmap_sem);
-+	if (down_write_killable(&mm->mmap_sem))
++	if (down_write_killable(&mm->mmap_sem)) {
++		ctx->mmap_size = 0;
++		aio_free_ring(ctx);
 +		return -EINTR;
++	}
 +
- 	if (!mm->core_state)
- 		core_waiters = zap_threads(tsk, mm, core_state, exit_code);
- 	up_write(&mm->mmap_sem);
+ 	ctx->mmap_base = do_mmap_pgoff(ctx->aio_ring_file, 0, ctx->mmap_size,
+ 				       PROT_READ | PROT_WRITE,
+ 				       MAP_SHARED, 0, &unused);
 -- 
 2.8.0.rc3
 
