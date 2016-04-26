@@ -1,114 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EBA566B025E
-	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 19:54:57 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 203so284626373pfy.2
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 16:54:57 -0700 (PDT)
-Received: from mail-pf0-x229.google.com (mail-pf0-x229.google.com. [2607:f8b0:400e:c00::229])
-        by mx.google.com with ESMTPS id ya3si755054pab.2.2016.04.25.16.54.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Apr 2016 16:54:57 -0700 (PDT)
-Received: by mail-pf0-x229.google.com with SMTP id y69so53065825pfb.1
-        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 16:54:56 -0700 (PDT)
-Date: Mon, 25 Apr 2016 16:54:55 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v3] mm, hugetlb_cgroup: round limit_in_bytes down to hugepage
- size
-In-Reply-To: <20160425145223.22617d4c1f12b0f7f4702988@linux-foundation.org>
-Message-ID: <alpine.DEB.2.10.1604251654380.31930@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1604051824320.32718@chino.kir.corp.google.com> <5704BA37.2080508@kyup.com> <5704BBBF.8040302@kyup.com> <alpine.DEB.2.10.1604061510040.10401@chino.kir.corp.google.com> <20160407125145.GD32755@dhcp22.suse.cz>
- <alpine.DEB.2.10.1604141321350.6593@chino.kir.corp.google.com> <20160415132451.GL32377@dhcp22.suse.cz> <alpine.DEB.2.10.1604181422220.23710@chino.kir.corp.google.com> <20160425145223.22617d4c1f12b0f7f4702988@linux-foundation.org>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D21A6B025E
+	for <linux-mm@kvack.org>; Mon, 25 Apr 2016 20:13:01 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b203so217145pfb.1
+        for <linux-mm@kvack.org>; Mon, 25 Apr 2016 17:13:01 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id b14si843598pat.152.2016.04.25.17.12.59
+        for <linux-mm@kvack.org>;
+        Mon, 25 Apr 2016 17:13:00 -0700 (PDT)
+Date: Tue, 26 Apr 2016 10:11:57 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
+Message-ID: <20160426001157.GE18496@dastard>
+References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
+ <1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
+ <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
+ <20160420205923.GA24797@infradead.org>
+ <1461434916.3695.7.camel@intel.com>
+ <20160425083114.GA27556@infradead.org>
+ <1461604476.3106.12.camel@intel.com>
+ <20160425232552.GD18496@dastard>
+ <CAPcyv4i6iwm1iY2mQ5yRbYfRexQroUX_R0B-db4ROU837fratw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4i6iwm1iY2mQ5yRbYfRexQroUX_R0B-db4ROU837fratw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Nikolay Borisov <kernel@kyup.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: "Verma, Vishal L" <vishal.l.verma@intel.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "jack@suse.cz" <jack@suse.cz>, "axboe@fb.com" <axboe@fb.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "hch@infradead.org" <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>
 
-The page_counter rounds limits down to page size values.  This makes
-sense, except in the case of hugetlb_cgroup where it's not possible to
-charge partial hugepages.  If the hugetlb_cgroup margin is less than the
-hugepage size being charged, it will fail as expected.
+On Mon, Apr 25, 2016 at 04:43:14PM -0700, Dan Williams wrote:
+> On Mon, Apr 25, 2016 at 4:25 PM, Dave Chinner <david@fromorbit.com> wrote:
+> > On Mon, Apr 25, 2016 at 05:14:36PM +0000, Verma, Vishal L wrote:
+> >> On Mon, 2016-04-25 at 01:31 -0700, hch@infradead.org wrote:
+> >> > On Sat, Apr 23, 2016 at 06:08:37PM +0000, Verma, Vishal L wrote:
+> >> > >
+> >> > > direct_IO might fail with -EINVAL due to misalignment, or -ENOMEM
+> >> > > due
+> >> > > to some allocation failing, and I thought we should return the
+> >> > > original
+> >> > > -EIO in such cases so that the application doesn't lose the
+> >> > > information
+> >> > > that the bad block is actually causing the error.
+> >> > EINVAL is a concern here.  Not due to the right error reported, but
+> >> > because it means your current scheme is fundamentally broken - we
+> >> > need to support I/O at any alignment for DAX I/O, and not fail due to
+> >> > alignbment concernes for a highly specific degraded case.
+> >> >
+> >> > I think this whole series need to go back to the drawing board as I
+> >> > don't think it can actually rely on using direct I/O as the EIO
+> >> > fallback.
+> >> >
+> >> Agreed that DAX I/O can happen with any size/alignment, but how else do
+> >> we send an IO through the driver without alignment restrictions? Also,
+> >> the granularity at which we store badblocks is 512B sectors, so it
+> >> seems natural that to clear such a sector, you'd expect to send a write
+> >> to the whole sector.
+> >>
+> >> The expected usage flow is:
+> >>
+> >> - Application hits EIO doing dax_IO or load/store io
+> >>
+> >> - It checks badblocks and discovers it's files have lost data
+> >
+> > Lots of hand-waving here. How does the application map a bad
+> > "sector" to a file without scanning the entire filesystem to find
+> > the owner of the bad sector?
+> >
+> >> - It write()s those sectors (possibly converted to file offsets using
+> >> fiemap)
+> >>     * This triggers the fallback path, but if the application is doing
+> >> this level of recovery, it will know the sector is bad, and write the
+> >> entire sector
+> >
+> > Where does the application find the data that was lost to be able to
+> > rewrite it?
+> >
+> >> - Or it replaces the entire file from backup also using write() (not
+> >> mmap+stores)
+> >>     * This just frees the fs block, and the next time the block is
+> >> reallocated by the fs, it will likely be zeroed first, and that will be
+> >> done through the driver and will clear errors
+> >
+> > There's an implicit assumption that applications will keep redundant
+> > copies of their data at the /application layer/ and be able to
+> > automatically repair it? And then there's the implicit assumption
+> > that it will unlink and free the entire file before writing a new
+> > copy, and that then assumes the the filesystem will zero blocks if
+> > they get reused to clear errors on that LBA sector mapping before
+> > they are accessible again to userspace..
+> >
+> > It seems to me that there are a number of assumptions being made
+> > across multiple layers here. Maybe I've missed something - can you
+> > point me to the design/architecture description so I can see how
+> > "app does data recovery itself" dance is supposed to work?
+> >
+> 
+> Maybe I missed something, but all these assumptions are already
+> present for typical block devices, i.e. sectors may go bad and a write
+> may make the sector usable again.
 
-Round the hugetlb_cgroup limit down to hugepage size, since it is the
-effective limit of the cgroup.
+The assumption we make about sectors going bad on SSDs or SRDs is
+that the device is about to die and needs replacing ASAP. Then
+RAID takes care of the rebuild completely transparently. i.e.
+handling and correcting bad sectors is typically done completely
+transparently /below/ the filesytem like so:
 
-For consistency, round down PAGE_COUNTER_MAX as well when a
-hugetlb_cgroup is created: this prevents error reports when a user cannot
-restore the value to the kernel default.
+Application
+Filesystem
+block
+[LBA mapping/redundancy/correction driver e.g. md/dm]
+driver
+hardware
+[LBA redundancy/correction e.g h/w RAID]
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- v3: update changelog per akpm
-     no stable backport needed
+In the case of filesystems with their own RAID/redundancy code (e.g.
+btrfs), then it looks like this:
 
- mm/hugetlb_cgroup.c | 35 ++++++++++++++++++++++++++---------
- 1 file changed, 26 insertions(+), 9 deletions(-)
+Application
+Filesystem
+mapping/redundancy/correction driver
+block
+driver
+hardware
+[LBA redundancy/correction e.g h/w RAID]
 
-diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
---- a/mm/hugetlb_cgroup.c
-+++ b/mm/hugetlb_cgroup.c
-@@ -67,26 +67,42 @@ static inline bool hugetlb_cgroup_have_usage(struct hugetlb_cgroup *h_cg)
- 	return false;
- }
- 
-+static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
-+				struct hugetlb_cgroup *parent_h_cgroup)
-+{
-+	int idx;
-+
-+	for (idx = 0; idx < HUGE_MAX_HSTATE; idx++) {
-+		struct page_counter *counter = &h_cgroup->hugepage[idx];
-+		struct page_counter *parent = NULL;
-+		unsigned long limit;
-+		int ret;
-+
-+		if (parent_h_cgroup)
-+			parent = &parent_h_cgroup->hugepage[idx];
-+		page_counter_init(counter, parent);
-+
-+		limit = round_down(PAGE_COUNTER_MAX,
-+				   1 << huge_page_order(&hstates[idx]));
-+		ret = page_counter_limit(counter, limit);
-+		VM_BUG_ON(ret);
-+	}
-+}
-+
- static struct cgroup_subsys_state *
- hugetlb_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
- {
- 	struct hugetlb_cgroup *parent_h_cgroup = hugetlb_cgroup_from_css(parent_css);
- 	struct hugetlb_cgroup *h_cgroup;
--	int idx;
- 
- 	h_cgroup = kzalloc(sizeof(*h_cgroup), GFP_KERNEL);
- 	if (!h_cgroup)
- 		return ERR_PTR(-ENOMEM);
- 
--	if (parent_h_cgroup) {
--		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
--			page_counter_init(&h_cgroup->hugepage[idx],
--					  &parent_h_cgroup->hugepage[idx]);
--	} else {
-+	if (!parent_h_cgroup)
- 		root_h_cgroup = h_cgroup;
--		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
--			page_counter_init(&h_cgroup->hugepage[idx], NULL);
--	}
-+
-+	hugetlb_cgroup_init(h_cgroup, parent_h_cgroup);
- 	return &h_cgroup->css;
- }
- 
-@@ -285,6 +301,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
- 		return ret;
- 
- 	idx = MEMFILE_IDX(of_cft(of)->private);
-+	nr_pages = round_down(nr_pages, 1 << huge_page_order(&hstates[idx]));
- 
- 	switch (MEMFILE_ATTR(of_cft(of)->private)) {
- 	case RES_LIMIT:
+> This patch series is extending that
+> out to the DAX-mmap case, but it's the same principle of "write to
+> clear error" that we live with in the block-I/O path.  What
+> clarification are you looking for beyond that point?
+
+I'm asking for an actual design document that explains how moving
+all the redundancy and bad sector correction stuff from the LBA
+layer up into application space is supposed to work when
+applications have no clue about LBA mappings, nor tend to keep
+redundant data around. i.e. you're proposing this:
+
+Application
+Application data redundancy/correction
+Filesystem
+Block
+[LBA mapping/redundancy/correction driver e.g. md/dm]
+driver
+hardware
+
+And somehow all the error information from the hardware layer needs
+to be propagated up to the application layer, along with all the
+mapping information from the filesystem and block layers for the
+application to make sense of the hardware reported errors.
+
+I see assumptions this this "just works" but we don't have any of
+the relevant APIs or infrastructure to enable the application to do
+the hardware error->file+offset namespace mapping (i.e. filesystem
+reverse mapping for for file offsets and directory paths, and
+reverse mapping for the the block layer remapping drivers).
+
+I haven't seen any design/documentation for infrastructure at the
+application layer to handle redundant data and correctly
+transparently so I don't have any idea what the technical
+requirements this different IO stack places on filesystems may be.
+Hence I'm asking for some kind of architecture/design documentation
+that I can read to understand exactly what is being proposed here...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
