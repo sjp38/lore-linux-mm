@@ -1,125 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 159B56B0260
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 07:56:26 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id w143so10314434wmw.3
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 04:56:26 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id 188si2920032wmn.43.2016.04.26.04.56.23
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DAB36B0005
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 08:05:00 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id j8so10458374lfd.0
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:05:00 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 3si24570976wmk.45.2016.04.26.05.04.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Apr 2016 04:56:23 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id n3so4244109wmn.1
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 04:56:23 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] mm, debug: report when GFP_NO{FS,IO} is used explicitly from memalloc_no{fs,io}_{save,restore} context
-Date: Tue, 26 Apr 2016 13:56:12 +0200
-Message-Id: <1461671772-1269-3-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1461671772-1269-1-git-send-email-mhocko@kernel.org>
-References: <1461671772-1269-1-git-send-email-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Apr 2016 05:04:58 -0700 (PDT)
+Subject: Re: [PATCH 13/28] mm, page_alloc: Remove redundant check for empty
+ zonelist
+References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
+ <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <571F5963.1000504@suse.cz>
+Date: Tue, 26 Apr 2016 14:04:51 +0200
+MIME-Version: 1.0
+In-Reply-To: <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On 04/15/2016 11:07 AM, Mel Gorman wrote:
+> A check is made for an empty zonelist early in the page allocator fast path
+> but it's unnecessary. When get_page_from_freelist() is called, it'll return
+> NULL immediately. Removing the first check is slower for machines with
+> memoryless nodes but that is a corner case that can live with the overhead.
+>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> ---
+>   mm/page_alloc.c | 11 -----------
+>   1 file changed, 11 deletions(-)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index df03ccc7f07c..21aaef6ddd7a 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3374,14 +3374,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>   	if (should_fail_alloc_page(gfp_mask, order))
+>   		return NULL;
+>
+> -	/*
+> -	 * Check the zones suitable for the gfp_mask contain at least one
+> -	 * valid zone. It's possible to have an empty zonelist as a result
+> -	 * of __GFP_THISNODE and a memoryless node
+> -	 */
+> -	if (unlikely(!zonelist->_zonerefs->zone))
+> -		return NULL;
+> -
+>   	if (IS_ENABLED(CONFIG_CMA) && ac.migratetype == MIGRATE_MOVABLE)
+>   		alloc_flags |= ALLOC_CMA;
+>
+> @@ -3394,8 +3386,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>   	/* The preferred zone is used for statistics later */
+>   	preferred_zoneref = first_zones_zonelist(ac.zonelist, ac.high_zoneidx,
+>   				ac.nodemask, &ac.preferred_zone);
+> -	if (!ac.preferred_zone)
+> -		goto out;
 
-THIS PATCH IS FOR TESTING ONLY AND NOT MEANT TO HIT LINUS TREE
+Is this part really safe? Besides changelog doesn't mention preferred_zone. What 
+if somebody attempts e.g. a DMA allocation with ac.nodemask being set to 
+cpuset_current_mems_allowed and initially only containing nodes without 
+ZONE_DMA. Then ac.preferred_zone is NULL, yet we proceed to 
+get_page_from_freelist(). Meanwhile cpuset_current_mems_allowed gets changed so 
+in fact it does contains a suitable node, so we manage to get inside 
+for_each_zone_zonelist_nodemask(). Then there's zone_local(ac->preferred_zone, 
+zone), which will defererence the NULL ac->preferred_zone?
 
-It is desirable to reduce the direct GFP_NO{FS,IO} usage at minimum and
-prefer scope usage defined by memalloc_no{fs,io}_{save,restore} API.
-
-Let's help this process and add a debugging tool to catch when an
-explicit allocation request for GFP_NO{FS,IO} is done from the scope
-context. The printed stacktrace should help to identify the caller
-and evaluate whether it can be changed to use a wider context or whether
-it is called from another potentially dangerous context which needs
-a scope protection as well.
-
-The checks have to be enabled explicitly by debug_scope_gfp kernel
-command line parameter.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/page_alloc.c | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 56 insertions(+)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 86bb5d6ddd7d..085d00280496 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3750,6 +3750,61 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	return page;
- }
- 
-+static bool debug_scope_gfp;
-+
-+static int __init enable_debug_scope_gfp(char *unused)
-+{
-+	debug_scope_gfp = true;
-+	return 0;
-+}
-+
-+/*
-+ * spit the stack trace if the given gfp_mask clears flags which are context
-+ * wide cleared. Such a caller can remove special flags clearing and rely on
-+ * the context wide mask.
-+ */
-+static inline void debug_scope_gfp_context(gfp_t gfp_mask)
-+{
-+	gfp_t restrict_mask;
-+
-+	if (likely(!debug_scope_gfp))
-+		return;
-+
-+	/* both NOFS, NOIO are irrelevant when direct reclaim is disabled */
-+	if (!(gfp_mask & __GFP_DIRECT_RECLAIM))
-+		return;
-+
-+	if (current->flags & PF_MEMALLOC_NOIO)
-+		restrict_mask = __GFP_IO;
-+	else if ((current->flags & PF_MEMALLOC_NOFS) && (gfp_mask & __GFP_IO))
-+		restrict_mask = __GFP_FS;
-+	else
-+		return;
-+
-+	if ((gfp_mask & restrict_mask) != restrict_mask) {
-+		/*
-+		 * If you see this this warning then the code does:
-+		 * memalloc_no{fs,io}_save()
-+		 * ...
-+		 *    foo()
-+		 *      alloc_page(GFP_NO{FS,IO})
-+		 * ...
-+		 * memalloc_no{fs,io}_restore()
-+		 *
-+		 * allocation which is unnecessary because the scope gfp
-+		 * context will do that for all allocation requests already.
-+		 * If foo() is called from multiple contexts then make sure other
-+		 * contexts are safe wrt. GFP_NO{FS,IO} semantic and either add
-+		 * scope protection into particular paths or change the gfp mask
-+		 * to GFP_KERNEL.
-+		 */
-+		pr_info("Unnecesarily specific gfp mask:%#x(%pGg) for the %s task wide context\n", gfp_mask, &gfp_mask,
-+				(current->flags & PF_MEMALLOC_NOIO)?"NOIO":"NOFS");
-+		dump_stack();
-+	}
-+}
-+early_param("debug_scope_gfp", enable_debug_scope_gfp);
-+
- /*
-  * This is the 'heart' of the zoned buddy allocator.
-  */
-@@ -3796,6 +3851,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 				ac.nodemask);
- 
- 	/* First allocation attempt */
-+	debug_scope_gfp_context(gfp_mask);
- 	page = get_page_from_freelist(alloc_mask, order, alloc_flags, &ac);
- 	if (likely(page))
- 		goto out;
--- 
-2.8.0.rc3
+>   	ac.classzone_idx = zonelist_zone_idx(preferred_zoneref);
+>
+>   	/* First allocation attempt */
+> @@ -3418,7 +3408,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>
+>   	trace_mm_page_alloc(page, order, alloc_mask, ac.migratetype);
+>
+> -out:
+>   	/*
+>   	 * When updating a task's mems_allowed, it is possible to race with
+>   	 * parallel threads in such a way that an allocation can fail while
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
