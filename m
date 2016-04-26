@@ -1,82 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 592146B0005
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 10:00:25 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id y69so28454333oif.0
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 07:00:25 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id t32si9840671ota.108.2016.04.26.07.00.23
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B286E6B025E
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 10:03:21 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id k200so14099636lfg.1
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 07:03:21 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id r14si15357515lfe.140.2016.04.26.07.03.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Apr 2016 07:00:24 -0700 (PDT)
-Subject: Re: [PATCH v2] mm,oom: Re-enable OOM killer using timeout.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201604200006.FBG45192.SOHFQJFOOLFMtV@I-love.SAKURA.ne.jp>
-	<20160419200752.GA10437@dhcp22.suse.cz>
-	<201604200655.HDH86486.HOStQFJFLOMFOV@I-love.SAKURA.ne.jp>
-	<201604201937.AGB86467.MOFFOOQJVFHLtS@I-love.SAKURA.ne.jp>
-	<20160425114733.GF23933@dhcp22.suse.cz>
-In-Reply-To: <20160425114733.GF23933@dhcp22.suse.cz>
-Message-Id: <201604262300.IFD43745.FMOLFJFQOVStHO@I-love.SAKURA.ne.jp>
-Date: Tue, 26 Apr 2016 23:00:15 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Apr 2016 07:03:20 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id m101so2471689lfi.1
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 07:03:20 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAJu=L5-CjPWj4+Vi0QKPLvyCM32mBz_x_y_6fo-Q2gy_gE8OKA@mail.gmail.com>
+References: <1460766240-84565-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <571565F0.9070203@linaro.org> <20160419165024.GB24312@redhat.com>
+ <CAJu=L59T4KsEORSOza7TBdnbWtypKgyuGUOZpzvMTENo4rmSqg@mail.gmail.com>
+ <CACzj_yVnuirXiOt7EiH+SKj27Rk8DOq5hoz8aBD6r1WROFNGdQ@mail.gmail.com> <CAJu=L5-CjPWj4+Vi0QKPLvyCM32mBz_x_y_6fo-Q2gy_gE8OKA@mail.gmail.com>
+From: Wincy Van <fanwenyi0529@gmail.com>
+Date: Tue, 26 Apr 2016 22:02:59 +0800
+Message-ID: <CACzj_yW6gqrEaZABQKkJTooULCu5TvhgtdYaP0qUW5Hd=jTZJQ@mail.gmail.com>
+Subject: Re: [PATCHv7 00/29] THP-enabled tmpfs/shmem using compound pages
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
+To: Andres Lagar-Cavilla <andreslc@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, "Shi, Yang" <yang.shi@linaro.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Ning Qu <quning@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Michal Hocko wrote:
-> Hmm, I guess we have already discussed that in the past but I might
-> misremember. The above relies on oom killer to be triggered after the
-> previous victim was selected. There is no guarantee this will happen.
+On Mon, Apr 25, 2016 at 9:30 PM, Andres Lagar-Cavilla
+<andreslc@google.com> wrote:
+>>
+>> We are using kvm + tmpfs to do qemu live upgrading, how does google
+>> use this memory model ?
+>> I think our pupose to use tmpfs may be the same.
+>
+> Nothing our of the ordinary. Guest memory is an mmap of a tmpfs fd.
+> Huge tmpfs gives us naturally a great guest performance boost.
+> MAP_SHARED, and having guest memory persist any one given process, are
+> what drives us to use tmpfs.
+>
 
-Why there is no guarantee this will happen?
+OK. We are also using mmap.
 
-This OOM livelock is caused by waiting for TIF_MEMDIE threads forever
-unconditionally. If oom_unkillable_task() is not called, it is not
-the OOM killer's problem.
+Besides google's kvm userspace(as I know it is not qemu), google have another
+userspace tool need to access guest memory, so that google use tmpfs?
 
-Are you talking about doing did_some_progress = 1 for !__GFP_FS && !__GFP_NOFAIL
-allocations without calling oom_unkillable_task() ? Then, I insist that this is
-the page allocator's problem. GFP_NOIO and GFP_NOFS allocations wake up kswapd,
-and kswapd does __GFP_FS reclaim. If the kswapd is unable to make forward
-progress (an example is
-http://I-love.SAKURA.ne.jp/tmp/serial-20160314-too-many-isolated2.txt.xz
+If so, what function does that another userspace do?
 
-----------
-[  485.216878] Out of memory: Kill process 1356 (a.out) score 999 or sacrifice child
-[  485.219170] Killed process 1356 (a.out) total-vm:4176kB, anon-rss:80kB, file-rss:0kB, shmem-rss:0kB
-[  514.255929] MemAlloc-Info: stalling=146 dying=0 exiting=0 victim=0 oom_count=1/226
-(...snipped...)
-[  540.998623] MemAlloc-Info: stalling=146 dying=0 exiting=0 victim=0 oom_count=1/226
-[  571.003817] MemAlloc-Info: stalling=152 dying=0 exiting=0 victim=0 oom_count=1/226
-(...snipped...)
-[  585.888300] MemAlloc-Info: stalling=152 dying=0 exiting=0 victim=0 oom_count=1/226
-----------
-), we are already OOM and we need to hear from administrator's decision (i.e.
-either fail !__GFP_FS && !__GFP_NOFAIL allocations or select an OOM victim).
-This OOM livelock is caused by waiting for somebody else forever unconditionally.
-
-These OOM livelocks are caused by lack of mechanism for hearing administrator's
-policy. We are missing rescue mechanisms which are needed for recovering from
-situations your model did not expect.
-
-I'm talking about corner cases where your deterministic approach fail. What we
-need is "stop waiting for something forever unconditionally" and "hear what the
-administrator wants to do". You can deprecate and then remove sysctl knobs for
-hearing what the administrator wants to do when you developed perfect model and
-mechanism.
-
-> Why cannot we get back to the timer based solution at least for the
-> panic timeout?
-
-Use of global timer can cause false positive panic() calls.
-Timeout should be calculated for per task_struct or signal_struct basis.
-
-Also, although a different problem, global timer based solution does not
-work for OOM livelock without any TIF_MEMDIE thread case (an example
-shown above).
+Thanks,
+Wincy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
