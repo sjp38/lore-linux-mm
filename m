@@ -1,60 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C5196B0262
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 08:56:42 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id 68so11465438lfq.2
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:56:42 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id cj2si29888790wjc.54.2016.04.26.05.56.35
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D0756B0262
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 08:56:44 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r12so11675776wme.0
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:56:44 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id r9si24827220wme.19.2016.04.26.05.56.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Apr 2016 05:56:35 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id w143so4194148wmw.3
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:56:35 -0700 (PDT)
+        Tue, 26 Apr 2016 05:56:36 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id n3so4763413wmn.1
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:56:36 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 05/18] mm, elf: handle vm_brk error
-Date: Tue, 26 Apr 2016 14:56:12 +0200
-Message-Id: <1461675385-5934-6-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 06/18] mm: make vm_brk killable
+Date: Tue, 26 Apr 2016 14:56:13 +0200
+Message-Id: <1461675385-5934-7-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1461675385-5934-1-git-send-email-mhocko@kernel.org>
 References: <1461675385-5934-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vlastimil Babka <vbabka@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
 From: Michal Hocko <mhocko@suse.com>
 
-load_elf_library doesn't handle vm_brk failure although nothing really
-indicates it cannot do that because the function is allowed to fail
-due to vm_mmap failures already. This might be not a problem now
-but later patch will make vm_brk killable (resp. mmap_sem for write
-waiting will become killable) and so the failure will be more probable.
+Now that all the callers handle vm_brk failure we can change it
+wait for mmap_sem killable to help oom_reaper to not get blocked
+just because vm_brk gets blocked behind mmap_sem readers.
 
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- fs/binfmt_elf.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ include/linux/mm.h | 2 +-
+ mm/mmap.c          | 9 +++------
+ 2 files changed, 4 insertions(+), 7 deletions(-)
 
-diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-index 81381cc0dd17..37455ee5aeec 100644
---- a/fs/binfmt_elf.c
-+++ b/fs/binfmt_elf.c
-@@ -1176,8 +1176,11 @@ static int load_elf_library(struct file *file)
- 	len = ELF_PAGESTART(eppnt->p_filesz + eppnt->p_vaddr +
- 			    ELF_MIN_ALIGN - 1);
- 	bss = eppnt->p_memsz + eppnt->p_vaddr;
--	if (bss > len)
--		vm_brk(len, bss - len);
-+	if (bss > len) {
-+		error = vm_brk(len, bss - len);
-+		if (BAD_ADDR(error))
-+			goto out_free_ph;
-+	}
- 	error = 0;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 1085e025852a..7b52750caf9e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2003,7 +2003,7 @@ static inline void mm_populate(unsigned long addr, unsigned long len) {}
+ #endif
  
- out_free_ph:
+ /* These take the mm semaphore themselves */
+-extern unsigned long vm_brk(unsigned long, unsigned long);
++extern unsigned long __must_check vm_brk(unsigned long, unsigned long);
+ extern int vm_munmap(unsigned long, size_t);
+ extern unsigned long __must_check vm_mmap(struct file *, unsigned long,
+         unsigned long, unsigned long,
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 032605bda665..62cb02310494 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2712,12 +2712,9 @@ unsigned long vm_brk(unsigned long addr, unsigned long len)
+ 	unsigned long ret;
+ 	bool populate;
+ 
+-	/*
+-	 * XXX not all users are chcecking the return value, convert
+-	 * to down_write_killable after they are able to cope with
+-	 * error
+-	 */
+-	down_write(&mm->mmap_sem);
++	if (down_write_killable(&mm->mmap_sem))
++		return -EINTR;
++
+ 	ret = do_brk(addr, len);
+ 	populate = ((mm->def_flags & VM_LOCKED) != 0);
+ 	up_write(&mm->mmap_sem);
 -- 
 2.8.0.rc3
 
