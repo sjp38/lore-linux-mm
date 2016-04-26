@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B6FF6B0266
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 18:56:34 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e190so56986369pfe.3
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 15:56:34 -0700 (PDT)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1on0062.outbound.protection.outlook.com. [157.56.110.62])
-        by mx.google.com with ESMTPS id o190si188684pfb.135.2016.04.26.15.56.32
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AAAF76B0267
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 18:56:44 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id f63so53194753oig.1
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 15:56:44 -0700 (PDT)
+Received: from na01-bl2-obe.outbound.protection.outlook.com (mail-bl2on0099.outbound.protection.outlook.com. [65.55.169.99])
+        by mx.google.com with ESMTPS id p143si5881369ioe.43.2016.04.26.15.56.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 26 Apr 2016 15:56:33 -0700 (PDT)
+        Tue, 26 Apr 2016 15:56:44 -0700 (PDT)
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [RFC PATCH v1 03/18] x86: Secure Memory Encryption (SME) support
-Date: Tue, 26 Apr 2016 17:56:26 -0500
-Message-ID: <20160426225626.13567.72425.stgit@tlendack-t1.amdoffice.net>
+Subject: [RFC PATCH v1 04/18] x86: Add the Secure Memory Encryption cpu
+ feature
+Date: Tue, 26 Apr 2016 17:56:35 -0500
+Message-ID: <20160426225635.13567.39381.stgit@tlendack-t1.amdoffice.net>
 In-Reply-To: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
 References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
@@ -27,133 +28,63 @@ Cc: Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arn
  Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry
  Vyukov <dvyukov@google.com>
 
-Provide support for Secure Memory Encryption (SME). This initial support
-defines the memory encryption mask as a variable for quick access and an
-accessor for retrieving the number of physical addressing bits lost if
-SME is enabled.
+Update the cpu features to include identifying and reporting on the
+Secure Memory Encryption feature.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/mem_encrypt.h |   37 ++++++++++++++++++++++++++++++++++++
- arch/x86/kernel/Makefile           |    2 ++
- arch/x86/kernel/mem_encrypt.S      |   29 ++++++++++++++++++++++++++++
- arch/x86/kernel/x8664_ksyms_64.c   |    6 ++++++
- 4 files changed, 74 insertions(+)
- create mode 100644 arch/x86/include/asm/mem_encrypt.h
- create mode 100644 arch/x86/kernel/mem_encrypt.S
+ arch/x86/include/asm/cpufeature.h  |    1 +
+ arch/x86/include/asm/cpufeatures.h |    5 ++++-
+ arch/x86/kernel/cpu/scattered.c    |    1 +
+ 3 files changed, 6 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
-new file mode 100644
-index 0000000..747fc52
---- /dev/null
-+++ b/arch/x86/include/asm/mem_encrypt.h
-@@ -0,0 +1,37 @@
-+/*
-+ * AMD Memory Encryption Support
-+ *
-+ * Copyright (C) 2016 Advanced Micro Devices, Inc.
-+ *
-+ * Author: Tom Lendacky <thomas.lendacky@amd.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ */
-+
-+#ifndef __X86_MEM_ENCRYPT_H__
-+#define __X86_MEM_ENCRYPT_H__
-+
-+#ifndef __ASSEMBLY__
-+
-+#ifdef CONFIG_AMD_MEM_ENCRYPT
-+
-+extern unsigned long sme_me_mask;
-+
-+u8 sme_get_me_loss(void);
-+
-+#else	/* !CONFIG_AMD_MEM_ENCRYPT */
-+
-+#define sme_me_mask		0UL
-+
-+static inline u8 sme_get_me_loss(void)
-+{
-+	return 0;
-+}
-+
-+#endif	/* CONFIG_AMD_MEM_ENCRYPT */
-+
-+#endif	/* __ASSEMBLY__ */
-+
-+#endif	/* __X86_MEM_ENCRYPT_H__ */
-diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-index 9abf855..11536d9 100644
---- a/arch/x86/kernel/Makefile
-+++ b/arch/x86/kernel/Makefile
-@@ -126,6 +126,8 @@ obj-$(CONFIG_EFI)			+= sysfb_efi.o
- obj-$(CONFIG_PERF_EVENTS)		+= perf_regs.o
- obj-$(CONFIG_TRACING)			+= tracepoint.o
+diff --git a/arch/x86/include/asm/cpufeature.h b/arch/x86/include/asm/cpufeature.h
+index 07c942d..e27e352 100644
+--- a/arch/x86/include/asm/cpufeature.h
++++ b/arch/x86/include/asm/cpufeature.h
+@@ -27,6 +27,7 @@ enum cpuid_leafs
+ 	CPUID_6_EAX,
+ 	CPUID_8000_000A_EDX,
+ 	CPUID_7_ECX,
++	CPUID_8000_001F_EAX,
+ };
  
-+obj-y					+= mem_encrypt.o
-+
- ###
- # 64 bit specific files
- ifeq ($(CONFIG_X86_64),y)
-diff --git a/arch/x86/kernel/mem_encrypt.S b/arch/x86/kernel/mem_encrypt.S
-new file mode 100644
-index 0000000..ef7f325
---- /dev/null
-+++ b/arch/x86/kernel/mem_encrypt.S
-@@ -0,0 +1,29 @@
-+/*
-+ * AMD Memory Encryption Support
-+ *
-+ * Copyright (C) 2016 Advanced Micro Devices, Inc.
-+ *
-+ * Author: Tom Lendacky <thomas.lendacky@amd.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ */
-+
-+#include <linux/linkage.h>
-+
-+	.text
-+	.code64
-+ENTRY(sme_get_me_loss)
-+	xor	%rax, %rax
-+	mov	sme_me_loss(%rip), %al
-+	ret
-+ENDPROC(sme_get_me_loss)
-+
-+	.data
-+	.align 16
-+ENTRY(sme_me_mask)
-+	.quad	0x0000000000000000
-+sme_me_loss:
-+	.byte	0x00
-+	.align	8
-diff --git a/arch/x86/kernel/x8664_ksyms_64.c b/arch/x86/kernel/x8664_ksyms_64.c
-index cd05942..72cb689 100644
---- a/arch/x86/kernel/x8664_ksyms_64.c
-+++ b/arch/x86/kernel/x8664_ksyms_64.c
-@@ -11,6 +11,7 @@
- #include <asm/uaccess.h>
- #include <asm/desc.h>
- #include <asm/ftrace.h>
-+#include <asm/mem_encrypt.h>
+ #ifdef CONFIG_X86_FEATURE_NAMES
+diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
+index 47b5056..4aea205 100644
+--- a/arch/x86/include/asm/cpufeatures.h
++++ b/arch/x86/include/asm/cpufeatures.h
+@@ -12,7 +12,7 @@
+ /*
+  * Defines x86 CPU feature bits
+  */
+-#define NCAPINTS	17	/* N 32-bit words worth of info */
++#define NCAPINTS	18	/* N 32-bit words worth of info */
+ #define NBUGINTS	1	/* N 32-bit bug flags */
  
- #ifdef CONFIG_FUNCTION_TRACER
- /* mcount and __fentry__ are defined in assembly */
-@@ -79,3 +80,8 @@ EXPORT_SYMBOL(native_load_gs_index);
- EXPORT_SYMBOL(___preempt_schedule);
- EXPORT_SYMBOL(___preempt_schedule_notrace);
- #endif
+ /*
+@@ -282,6 +282,9 @@
+ #define X86_FEATURE_PKU		(16*32+ 3) /* Protection Keys for Userspace */
+ #define X86_FEATURE_OSPKE	(16*32+ 4) /* OS Protection Keys Enable */
+ 
++/* AMD SME Feature Identification, CPUID level 0x8000001f (eax), word 17 */
++#define X86_FEATURE_SME		(17*32+ 0) /* Secure Memory Encryption support */
 +
-+#ifdef CONFIG_AMD_MEM_ENCRYPT
-+EXPORT_SYMBOL_GPL(sme_me_mask);
-+EXPORT_SYMBOL_GPL(sme_get_me_loss);
-+#endif
+ /*
+  * BUG word(s)
+  */
+diff --git a/arch/x86/kernel/cpu/scattered.c b/arch/x86/kernel/cpu/scattered.c
+index 8cb57df..d86d9a5 100644
+--- a/arch/x86/kernel/cpu/scattered.c
++++ b/arch/x86/kernel/cpu/scattered.c
+@@ -37,6 +37,7 @@ void init_scattered_cpuid_features(struct cpuinfo_x86 *c)
+ 		{ X86_FEATURE_HW_PSTATE,	CR_EDX, 7, 0x80000007, 0 },
+ 		{ X86_FEATURE_CPB,		CR_EDX, 9, 0x80000007, 0 },
+ 		{ X86_FEATURE_PROC_FEEDBACK,	CR_EDX,11, 0x80000007, 0 },
++		{ X86_FEATURE_SME,		CR_EAX, 0, 0x8000001f, 0 },
+ 		{ 0, 0, 0, 0, 0 }
+ 	};
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
