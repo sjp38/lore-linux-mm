@@ -1,55 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 038176B0274
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 09:54:06 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r12so12954222wme.0
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 06:54:05 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id rw19si30087524wjb.184.2016.04.26.06.54.04
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C7526B0274
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 09:57:56 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 68so12749017lfq.2
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 06:57:56 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id w10si3460108wmw.27.2016.04.26.06.57.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Apr 2016 06:54:04 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id n3so5272946wmn.1
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 06:54:04 -0700 (PDT)
-Date: Tue, 26 Apr 2016 15:54:03 +0200
+        Tue, 26 Apr 2016 06:57:54 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id w143so4676230wmw.3
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 06:57:54 -0700 (PDT)
+Date: Tue, 26 Apr 2016 15:57:52 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timeout.
-Message-ID: <20160426135402.GB20813@dhcp22.suse.cz>
-References: <20160419200752.GA10437@dhcp22.suse.cz>
- <201604200655.HDH86486.HOStQFJFLOMFOV@I-love.SAKURA.ne.jp>
- <20160420144758.GA7950@dhcp22.suse.cz>
- <201604212049.GFE34338.OQFOJSMOHFFLVt@I-love.SAKURA.ne.jp>
- <20160421130750.GA18427@dhcp22.suse.cz>
- <201604242319.GAF12996.tOJMOQFLFVOHSF@I-love.SAKURA.ne.jp>
- <20160425095508.GE23933@dhcp22.suse.cz>
+Subject: Re: [PATCH] oom: consider multi-threaded tasks in task_will_free_mem
+Message-ID: <20160426135752.GC20813@dhcp22.suse.cz>
+References: <1460452756-15491-1-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160425095508.GE23933@dhcp22.suse.cz>
+In-Reply-To: <1460452756-15491-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 25-04-16 11:55:08, Michal Hocko wrote:
-> On Sun 24-04-16 23:19:03, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > I have seen that patch. I didn't get to review it properly yet as I am
-> > > still travelling. From a quick view I think it is conflating two things
-> > > together. I could see arguments for the panic part but I do not consider
-> > > the move-to-kill-another timeout as justified. I would have to see a
-> > > clear indication this is actually useful for real life usecases.
-> > 
-> > You admit that it is possible that the TIF_MEMDIE thread is blocked at
-> > unkillable wait (due to memory allocation requests by somebody else) but
-> > the OOM reaper cannot reap the victim's memory (due to holding the mmap_sem
-> > for write), don't you?
+On Tue 12-04-16 11:19:16, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> I have never said this to be impossible.
+> task_will_free_mem is a misnomer for a more complex PF_EXITING test
+> for early break out from the oom killer because it is believed that
+> such a task would release its memory shortly and so we do not have
+> to select an oom victim and perform a disruptive action.
+> 
+> Currently we make sure that the given task is not participating in the
+> core dumping because it might get blocked for a long time - see
+> d003f371b270 ("oom: don't assume that a coredumping thread will exit
+> soon").
+> 
+> The check can still do better though. We shouldn't consider the task
+> unless the whole thread group is going down. This is rather unlikely
+> but not impossible. A single exiting thread would surely leave all the
+> address space behind. If we are really unlucky it might get stuck on the
+> exit path and keep its TIF_MEMDIE and so block the oom killer.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+> 
+> Hi,
+> I hope I got it right but I would really appreciate if Oleg found some
+> time and double checked after me. The fix is more cosmetic than anything
+> else but I guess it is worth it.
 
-And just to clarify. I consider unkillable sleep while holding mmap_sem
-for write to be a _bug_ which should be fixed rather than worked around
-by some timeout based heuristics.
+ping...
+
+> 
+> Thanks!
+> 
+>  include/linux/oom.h | 15 +++++++++++++--
+>  1 file changed, 13 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/oom.h b/include/linux/oom.h
+> index 628a43242a34..b09c7dc523ff 100644
+> --- a/include/linux/oom.h
+> +++ b/include/linux/oom.h
+> @@ -102,13 +102,24 @@ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
+>  
+>  static inline bool task_will_free_mem(struct task_struct *task)
+>  {
+> +	struct signal_struct *sig = task->signal;
+> +
+>  	/*
+>  	 * A coredumping process may sleep for an extended period in exit_mm(),
+>  	 * so the oom killer cannot assume that the process will promptly exit
+>  	 * and release memory.
+>  	 */
+> -	return (task->flags & PF_EXITING) &&
+> -		!(task->signal->flags & SIGNAL_GROUP_COREDUMP);
+> +	if (sig->flags & SIGNAL_GROUP_COREDUMP)
+> +		return false;
+> +
+> +	if (!(task->flags & PF_EXITING))
+> +		return false;
+> +
+> +	/* Make sure that the whole thread group is going down */
+> +	if (!thread_group_empty(task) && !(sig->flags & SIGNAL_GROUP_EXIT))
+> +		return false;
+> +
+> +	return true;
+>  }
+>  
+>  /* sysctls */
+> -- 
+> 2.8.0.rc3
+> 
+
 -- 
 Michal Hocko
 SUSE Labs
