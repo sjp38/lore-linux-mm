@@ -1,88 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DAB36B0005
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 08:05:00 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id j8so10458374lfd.0
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:05:00 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 3si24570976wmk.45.2016.04.26.05.04.58
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 028B66B0005
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 08:53:47 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w143so11526244wmw.3
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:53:46 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id o8si3184278wmg.24.2016.04.26.05.53.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Apr 2016 05:04:58 -0700 (PDT)
-Subject: Re: [PATCH 13/28] mm, page_alloc: Remove redundant check for empty
- zonelist
-References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
- <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <571F5963.1000504@suse.cz>
-Date: Tue, 26 Apr 2016 14:04:51 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Apr 2016 05:53:45 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id w143so4173008wmw.3
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 05:53:45 -0700 (PDT)
+Date: Tue, 26 Apr 2016 14:53:41 +0200
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [PATCH v4 1/2] shmem: Support for registration of driver/file
+ owner specific ops
+Message-ID: <20160426125341.GF8291@phenom.ffwll.local>
+References: <1459775891-32442-1-git-send-email-chris@chris-wilson.co.uk>
+ <20160424234250.GB6670@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160424234250.GB6670@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Chris Wilson <chris@chris-wilson.co.uk>, intel-gfx@lists.freedesktop.org, Akash Goel <akash.goel@intel.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.linux.org, Sourab Gupta <sourab.gupta@intel.com>
 
-On 04/15/2016 11:07 AM, Mel Gorman wrote:
-> A check is made for an empty zonelist early in the page allocator fast path
-> but it's unnecessary. When get_page_from_freelist() is called, it'll return
-> NULL immediately. Removing the first check is slower for machines with
-> memoryless nodes but that is a corner case that can live with the overhead.
->
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> ---
->   mm/page_alloc.c | 11 -----------
->   1 file changed, 11 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index df03ccc7f07c..21aaef6ddd7a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3374,14 +3374,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->   	if (should_fail_alloc_page(gfp_mask, order))
->   		return NULL;
->
-> -	/*
-> -	 * Check the zones suitable for the gfp_mask contain at least one
-> -	 * valid zone. It's possible to have an empty zonelist as a result
-> -	 * of __GFP_THISNODE and a memoryless node
-> -	 */
-> -	if (unlikely(!zonelist->_zonerefs->zone))
-> -		return NULL;
-> -
->   	if (IS_ENABLED(CONFIG_CMA) && ac.migratetype == MIGRATE_MOVABLE)
->   		alloc_flags |= ALLOC_CMA;
->
-> @@ -3394,8 +3386,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->   	/* The preferred zone is used for statistics later */
->   	preferred_zoneref = first_zones_zonelist(ac.zonelist, ac.high_zoneidx,
->   				ac.nodemask, &ac.preferred_zone);
-> -	if (!ac.preferred_zone)
-> -		goto out;
+On Mon, Apr 25, 2016 at 02:42:50AM +0300, Kirill A. Shutemov wrote:
+> On Mon, Apr 04, 2016 at 02:18:10PM +0100, Chris Wilson wrote:
+> > From: Akash Goel <akash.goel@intel.com>
+> > 
+> > This provides support for the drivers or shmem file owners to register
+> > a set of callbacks, which can be invoked from the address space
+> > operations methods implemented by shmem.  This allow the file owners to
+> > hook into the shmem address space operations to do some extra/custom
+> > operations in addition to the default ones.
+> > 
+> > The private_data field of address_space struct is used to store the
+> > pointer to driver specific ops.  Currently only one ops field is defined,
+> > which is migratepage, but can be extended on an as-needed basis.
+> > 
+> > The need for driver specific operations arises since some of the
+> > operations (like migratepage) may not be handled completely within shmem,
+> > so as to be effective, and would need some driver specific handling also.
+> > Specifically, i915.ko would like to participate in migratepage().
+> > i915.ko uses shmemfs to provide swappable backing storage for its user
+> > objects, but when those objects are in use by the GPU it must pin the
+> > entire object until the GPU is idle.  As a result, large chunks of memory
+> > can be arbitrarily withdrawn from page migration, resulting in premature
+> > out-of-memory due to fragmentation.  However, if i915.ko can receive the
+> > migratepage() request, it can then flush the object from the GPU, remove
+> > its pin and thus enable the migration.
+> > 
+> > Since gfx allocations are one of the major consumer of system memory, its
+> > imperative to have such a mechanism to effectively deal with
+> > fragmentation.  And therefore the need for such a provision for initiating
+> > driver specific actions during address space operations.
+> 
+> Hm. Sorry, my ignorance, but shouldn't this kind of flushing be done in
+> response to mmu_notifier's ->invalidate_page?
+> 
+> I'm not aware about how i915 works and what's its expectation wrt shmem.
+> Do you have some userspace VMA which is mirrored on GPU side?
+> If yes, migration would cause unmapping of these pages and trigger the
+> mmu_notifier's hook.
 
-Is this part really safe? Besides changelog doesn't mention preferred_zone. What 
-if somebody attempts e.g. a DMA allocation with ac.nodemask being set to 
-cpuset_current_mems_allowed and initially only containing nodes without 
-ZONE_DMA. Then ac.preferred_zone is NULL, yet we proceed to 
-get_page_from_freelist(). Meanwhile cpuset_current_mems_allowed gets changed so 
-in fact it does contains a suitable node, so we manage to get inside 
-for_each_zone_zonelist_nodemask(). Then there's zone_local(ac->preferred_zone, 
-zone), which will defererence the NULL ac->preferred_zone?
-
->   	ac.classzone_idx = zonelist_zone_idx(preferred_zoneref);
->
->   	/* First allocation attempt */
-> @@ -3418,7 +3408,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->
->   	trace_mm_page_alloc(page, order, alloc_mask, ac.migratetype);
->
-> -out:
->   	/*
->   	 * When updating a task's mems_allowed, it is possible to race with
->   	 * parallel threads in such a way that an allocation can fail while
->
+We do that for userptr pages (i.e. stuff we steal from userspace address
+spaces). But we also have native gfx buffer objects based on shmem files,
+and thus far we need to allocate them as !GFP_MOVEABLE. And we allocate a
+_lot_ of those. And those files aren't mapped into any cpu address space
+(ofc they're mapped on the gpu side, but that's driver private), from the
+core mm they are pure pagecache. And afaiui for that we need to wire up
+the migratepage hooks through shmem to i915_gem.c
+-Daniel
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
