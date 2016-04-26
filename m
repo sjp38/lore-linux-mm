@@ -1,49 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EF456B0005
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 11:18:43 -0400 (EDT)
-Received: by mail-ob0-f200.google.com with SMTP id u2so31965421obx.0
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 08:18:43 -0700 (PDT)
-Received: from relay.sgi.com (relay2.sgi.com. [192.48.180.65])
-        by mx.google.com with ESMTP id ei6si3953610igb.99.2016.04.26.08.18.42
-        for <linux-mm@kvack.org>;
-        Tue, 26 Apr 2016 08:18:42 -0700 (PDT)
-Date: Tue, 26 Apr 2016 10:18:41 -0500
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: Re: [PATCH 14/18] prctl: make PR_SET_THP_DISABLE wait for mmap_sem
- killable
-Message-ID: <20160426151841.GQ152091@stormcage.americas.sgi.com>
-References: <1461675385-5934-1-git-send-email-mhocko@kernel.org>
- <1461675385-5934-15-git-send-email-mhocko@kernel.org>
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D8E8D6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 11:23:07 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 68so14791394lfq.2
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 08:23:07 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j123si3801758wmb.118.2016.04.26.08.23.06
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Apr 2016 08:23:06 -0700 (PDT)
+Subject: Re: [PATCH 18/28] mm, page_alloc: Shorten the page allocator fast
+ path
+References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
+ <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
+ <1460711275-1130-6-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <571F87D4.8090706@suse.cz>
+Date: Tue, 26 Apr 2016 17:23:00 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1461675385-5934-15-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1460711275-1130-6-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Alex Thorlton <athorlton@sgi.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Apr 26, 2016 at 02:56:21PM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> PR_SET_THP_DISABLE requires mmap_sem for write. If the waiting
-> task gets killed by the oom killer it would block oom_reaper from
-> asynchronous address space reclaim and reduce the chances of timely OOM
-> resolving. Wait for the lock in the killable mode and return with EINTR
-> if the task got killed while waiting.
-> 
-> Cc: Alex Thorlton <athorlton@sgi.com>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+On 04/15/2016 11:07 AM, Mel Gorman wrote:
+> The page allocator fast path checks page multiple times unnecessarily.
+> This patch avoids all the slowpath checks if the first allocation attempt
+> succeeds.
+>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-Looks good to me - I wrote that bit of code so I think this can get an:
-
-Acked-by: Alex Thorlton <athorlton@sgi.com>
-
-Thanks for Ccing me!
-
-- Alex
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
