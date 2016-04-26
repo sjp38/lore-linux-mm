@@ -1,74 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 060586B0272
-	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 09:41:26 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id k200so13601201lfg.1
-        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 06:41:25 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b20si25036135wmd.15.2016.04.26.06.41.24
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 038176B0274
+	for <linux-mm@kvack.org>; Tue, 26 Apr 2016 09:54:06 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r12so12954222wme.0
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 06:54:05 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id rw19si30087524wjb.184.2016.04.26.06.54.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Apr 2016 06:41:24 -0700 (PDT)
-Subject: Re: [PATCH 15/28] mm, page_alloc: Move might_sleep_if check to the
- allocator slowpath
-References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
- <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
- <1460711275-1130-3-git-send-email-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <571F7002.5030602@suse.cz>
-Date: Tue, 26 Apr 2016 15:41:22 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Apr 2016 06:54:04 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id n3so5272946wmn.1
+        for <linux-mm@kvack.org>; Tue, 26 Apr 2016 06:54:04 -0700 (PDT)
+Date: Tue, 26 Apr 2016 15:54:03 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timeout.
+Message-ID: <20160426135402.GB20813@dhcp22.suse.cz>
+References: <20160419200752.GA10437@dhcp22.suse.cz>
+ <201604200655.HDH86486.HOStQFJFLOMFOV@I-love.SAKURA.ne.jp>
+ <20160420144758.GA7950@dhcp22.suse.cz>
+ <201604212049.GFE34338.OQFOJSMOHFFLVt@I-love.SAKURA.ne.jp>
+ <20160421130750.GA18427@dhcp22.suse.cz>
+ <201604242319.GAF12996.tOJMOQFLFVOHSF@I-love.SAKURA.ne.jp>
+ <20160425095508.GE23933@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1460711275-1130-3-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160425095508.GE23933@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
 
-On 04/15/2016 11:07 AM, Mel Gorman wrote:
-> There is a debugging check for callers that specify __GFP_DIRECT_RECLAIM
-> from a context that cannot sleep. Triggering this is almost certainly
-> a bug but it's also overhead in the fast path.
+On Mon 25-04-16 11:55:08, Michal Hocko wrote:
+> On Sun 24-04-16 23:19:03, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > I have seen that patch. I didn't get to review it properly yet as I am
+> > > still travelling. From a quick view I think it is conflating two things
+> > > together. I could see arguments for the panic part but I do not consider
+> > > the move-to-kill-another timeout as justified. I would have to see a
+> > > clear indication this is actually useful for real life usecases.
+> > 
+> > You admit that it is possible that the TIF_MEMDIE thread is blocked at
+> > unkillable wait (due to memory allocation requests by somebody else) but
+> > the OOM reaper cannot reap the victim's memory (due to holding the mmap_sem
+> > for write), don't you?
+> 
+> I have never said this to be impossible.
 
-For CONFIG_DEBUG_ATOMIC_SLEEP, enabling is asking for the overhead. But for 
-CONFIG_PREEMPT_VOLUNTARY which turns it into _cond_resched(), I guess it's not.
-
-> Move the check to the slow
-> path. It'll be harder to trigger as it'll only be checked when watermarks
-> are depleted but it'll also only be checked in a path that can sleep.
-
-Hmm what about zone_reclaim_mode=1, should the check be also duplicated to that 
-part of get_page_from_freelist()?
-
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> ---
->   mm/page_alloc.c | 4 ++--
->   1 file changed, 2 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 21aaef6ddd7a..9ef2f4ab9ca5 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3176,6 +3176,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->   		return NULL;
->   	}
->
-> +	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
-> +
->   	/*
->   	 * We also sanity check to catch abuse of atomic reserves being used by
->   	 * callers that are not in atomic context.
-> @@ -3369,8 +3371,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->
->   	lockdep_trace_alloc(gfp_mask);
->
-> -	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
-> -
->   	if (should_fail_alloc_page(gfp_mask, order))
->   		return NULL;
->
->
+And just to clarify. I consider unkillable sleep while holding mmap_sem
+for write to be a _bug_ which should be fixed rather than worked around
+by some timeout based heuristics.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
