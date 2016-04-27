@@ -1,127 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EEE66B025E
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:01:39 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id s63so36665514wme.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 05:01:39 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id qc8si4074565wjc.37.2016.04.27.05.01.25
+Received: from mail-qg0-f71.google.com (mail-qg0-f71.google.com [209.85.192.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 428166B0005
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:04:50 -0400 (EDT)
+Received: by mail-qg0-f71.google.com with SMTP id d90so68231416qgd.3
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 05:04:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q184si2261717qke.136.2016.04.27.05.04.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Apr 2016 05:01:26 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 3/3] mm, page_alloc: don't duplicate code in free_pcp_prepare
-Date: Wed, 27 Apr 2016 14:01:16 +0200
-Message-Id: <1461758476-450-3-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1461758476-450-1-git-send-email-vbabka@suse.cz>
-References: <5720A987.7060507@suse.cz>
- <1461758476-450-1-git-send-email-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Apr 2016 05:04:49 -0700 (PDT)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH 1/1] mm: thp: kvm: fix memory corruption in KVM with THP enabled
+Date: Wed, 27 Apr 2016 14:04:46 +0200
+Message-Id: <1461758686-27157-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org
+Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Li, Liang Z" <liang.z.li@intel.com>, Amit Shah <amit.shah@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>
 
-The new free_pcp_prepare() function shares a lot of code with
-free_pages_prepare(), which makes this a maintenance risk when some future
-patch modifies only one of them. We should be able to achieve the same effect
-(skipping free_pages_check() from !DEBUG_VM configs) by adding a parameter to
-free_pages_prepare() and making it inline, so the checks (and the order != 0
-parts) are eliminated from the call from free_pcp_prepare().
+After the THP refcounting change, obtaining a compound pages from
+get_user_pages() no longer allows us to assume the entire compound
+page is immediately mappable from a secondary MMU.
 
-!DEBUG_VM: bloat-o-meter reports no difference, as my gcc was already inlining
-free_pages_prepare() and the elimination seems to work as expected
+A secondary MMU doesn't want to call get_user_pages() more than once
+for each compound page, in order to know if it can map the whole
+compound page. So a secondary MMU needs to know from a single
+get_user_pages() invocation when it can map immediately the entire
+compound page to avoid a flood of unnecessary secondary MMU faults and
+spurious atomic_inc()/atomic_dec() (pages don't have to be pinned by
+MMU notifier users).
 
-DEBUG_VM bloat-o-meter:
+Ideally instead of the page->_mapcount < 1 check, get_user_pages()
+should return the granularity of the "page" mapping in the "mm" passed
+to get_user_pages(). However it's non trivial change to pass the "pmd"
+status belonging to the "mm" walked by get_user_pages up the stack (up
+to the caller of get_user_pages). So the fix just checks if there is
+not a single pte mapping on the page returned by get_user_pages, and
+in turn if the caller can assume that the whole compound page is
+mapped in the current "mm" (in a pmd_trans_huge()). In such case the
+entire compound page is safe to map into the secondary MMU without
+additional get_user_pages() calls on the surrounding tail/head
+pages. In addition of being faster, not having to run other
+get_user_pages() calls also reduces the memory footprint of the
+secondary MMU fault in case the pmd split happened as result of memory
+pressure.
 
-add/remove: 0/1 grow/shrink: 2/0 up/down: 1035/-778 (257)
-function                                     old     new   delta
-__free_pages_ok                              297    1060    +763
-free_hot_cold_page                           480     752    +272
-free_pages_prepare                           778       -    -778
+Without this fix after a MADV_DONTNEED (like invoked by QEMU during
+postcopy live migration or balloning) or after generic swapping (with
+a failure in split_huge_page() that would only result in pmd splitting
+and not a physical page split), KVM would map the whole compound page
+into the shadow pagetables, despite regular faults or userfaults (like
+UFFDIO_COPY) may map regular pages into the primary MMU as result of
+the pte faults, leading to the guest mode and userland mode going out
+of sync and not working on the same memory at all times.
 
-Here inlining didn't occur before, and added some code, but it's ok for a debug
-option.
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/page_alloc.c | 34 ++++++----------------------------
- 1 file changed, 6 insertions(+), 28 deletions(-)
+ arch/arm/kvm/mmu.c         |  2 +-
+ arch/x86/kvm/mmu.c         |  4 ++--
+ include/linux/page-flags.h | 22 ++++++++++++++++++++++
+ 3 files changed, 25 insertions(+), 3 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 163d08ea43f0..b23f641348ab 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -990,7 +990,8 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
- 	return ret;
+diff --git a/arch/arm/kvm/mmu.c b/arch/arm/kvm/mmu.c
+index 58dbd5c..d6d4191 100644
+--- a/arch/arm/kvm/mmu.c
++++ b/arch/arm/kvm/mmu.c
+@@ -1004,7 +1004,7 @@ static bool transparent_hugepage_adjust(kvm_pfn_t *pfnp, phys_addr_t *ipap)
+ 	kvm_pfn_t pfn = *pfnp;
+ 	gfn_t gfn = *ipap >> PAGE_SHIFT;
+ 
+-	if (PageTransCompound(pfn_to_page(pfn))) {
++	if (PageTransCompoundMap(pfn_to_page(pfn))) {
+ 		unsigned long mask;
+ 		/*
+ 		 * The address we faulted on is backed by a transparent huge
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index 1ff4dbb..b6f50e8 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -2823,7 +2823,7 @@ static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
+ 	 */
+ 	if (!is_error_noslot_pfn(pfn) && !kvm_is_reserved_pfn(pfn) &&
+ 	    level == PT_PAGE_TABLE_LEVEL &&
+-	    PageTransCompound(pfn_to_page(pfn)) &&
++	    PageTransCompoundMap(pfn_to_page(pfn)) &&
+ 	    !mmu_gfn_lpage_is_disallowed(vcpu, gfn, PT_DIRECTORY_LEVEL)) {
+ 		unsigned long mask;
+ 		/*
+@@ -4785,7 +4785,7 @@ restart:
+ 		 */
+ 		if (sp->role.direct &&
+ 			!kvm_is_reserved_pfn(pfn) &&
+-			PageTransCompound(pfn_to_page(pfn))) {
++			PageTransCompoundMap(pfn_to_page(pfn))) {
+ 			drop_spte(kvm, sptep);
+ 			need_tlb_flush = 1;
+ 			goto restart;
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index f4ed4f1b..6b052aa 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -517,6 +517,27 @@ static inline int PageTransCompound(struct page *page)
  }
  
--static bool free_pages_prepare(struct page *page, unsigned int order)
-+static __always_inline bool free_pages_prepare(struct page *page, unsigned int order,
-+						bool check_free)
- {
- 	int bad = 0;
- 
-@@ -1023,7 +1024,7 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
- 	}
- 	if (PageAnonHead(page))
- 		page->mapping = NULL;
--	if (free_pages_check(page)) {
-+	if (check_free && free_pages_check(page)) {
- 		bad++;
- 	} else {
- 		page_cpupid_reset_last(page);
-@@ -1050,7 +1051,7 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
- #ifdef CONFIG_DEBUG_VM
- static inline bool free_pcp_prepare(struct page *page)
- {
--	return free_pages_prepare(page, 0);
-+	return free_pages_prepare(page, 0, true);
- }
- 
- static inline bool bulkfree_pcp_prepare(struct page *page)
-@@ -1060,30 +1061,7 @@ static inline bool bulkfree_pcp_prepare(struct page *page)
+ /*
++ * PageTransCompoundMap is the same as PageTransCompound, but it also
++ * guarantees the primary MMU has the entire compound page mapped
++ * through pmd_trans_huge, which in turn guarantees the secondary MMUs
++ * can also map the entire compound page. This allows the secondary
++ * MMUs to call get_user_pages() only once for each compound page and
++ * to immediately map the entire compound page with a single secondary
++ * MMU fault. If there will be a pmd split later, the secondary MMUs
++ * will get an update through the MMU notifier invalidation through
++ * split_huge_pmd().
++ *
++ * Unlike PageTransCompound, this is safe to be called only while
++ * split_huge_pmd() cannot run from under us, like if protected by the
++ * MMU notifier, otherwise it may result in page->_mapcount < 0 false
++ * positives.
++ */
++static inline int PageTransCompoundMap(struct page *page)
++{
++	return PageTransCompound(page) && atomic_read(&page->_mapcount) < 0;
++}
++
++/*
+  * PageTransTail returns true for both transparent huge pages
+  * and hugetlbfs pages, so it should only be called when it's known
+  * that hugetlbfs pages aren't involved.
+@@ -559,6 +580,7 @@ static inline int TestClearPageDoubleMap(struct page *page)
  #else
- static bool free_pcp_prepare(struct page *page)
- {
--	VM_BUG_ON_PAGE(PageTail(page), page);
--
--	trace_mm_page_free(page, 0);
--	kmemcheck_free_shadow(page, 0);
--	kasan_free_pages(page, 0);
--
--	if (PageAnonHead(page))
--		page->mapping = NULL;
--
--	reset_page_owner(page, 0);
--
--	if (!PageHighMem(page)) {
--		debug_check_no_locks_freed(page_address(page),
--					   PAGE_SIZE);
--		debug_check_no_obj_freed(page_address(page),
--					   PAGE_SIZE);
--	}
--	arch_free_page(page, 0);
--	kernel_poison_pages(page, 0, 0);
--	kernel_map_pages(page, 0, 0);
--
--	page_cpupid_reset_last(page);
--	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
--	return true;
-+	return free_pages_prepare(page, 0, false);
- }
- 
- static bool bulkfree_pcp_prepare(struct page *page)
-@@ -1260,7 +1238,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 	int migratetype;
- 	unsigned long pfn = page_to_pfn(page);
- 
--	if (!free_pages_prepare(page, order))
-+	if (!free_pages_prepare(page, order, true))
- 		return;
- 
- 	migratetype = get_pfnblock_migratetype(page, pfn);
--- 
-2.8.1
+ TESTPAGEFLAG_FALSE(TransHuge)
+ TESTPAGEFLAG_FALSE(TransCompound)
++TESTPAGEFLAG_FALSE(TransCompoundMap)
+ TESTPAGEFLAG_FALSE(TransTail)
+ TESTPAGEFLAG_FALSE(DoubleMap)
+ 	TESTSETFLAG_FALSE(DoubleMap)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
