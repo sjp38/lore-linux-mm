@@ -1,61 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 10A7C6B0262
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:57:38 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id 68so39685934lfq.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:57:38 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id dg4si4863980wjd.125.2016.04.27.07.57.26
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Apr 2016 07:57:26 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 1CB47986F8
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 14:57:24 +0000 (UTC)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 1/6] mm, page_alloc: Only check PageCompound for high-order pages -fix
-Date: Wed, 27 Apr 2016 15:57:18 +0100
-Message-Id: <1461769043-28337-2-git-send-email-mgorman@techsingularity.net>
-In-Reply-To: <1461769043-28337-1-git-send-email-mgorman@techsingularity.net>
-References: <1461769043-28337-1-git-send-email-mgorman@techsingularity.net>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 76D816B0263
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:58:03 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id e201so40359628wme.1
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:58:03 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTP id 79si14486437wmi.27.2016.04.27.07.58.02
+        for <linux-mm@kvack.org>;
+        Wed, 27 Apr 2016 07:58:02 -0700 (PDT)
+Date: Wed, 27 Apr 2016 16:58:01 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [RFC PATCH v1 00/18] x86: Secure Memory Encryption (AMD)
+Message-ID: <20160427145801.GA5895@amd>
+References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
+ <20160322130058.GA16528@xo-6d-61-c0.localdomain>
+ <20160427140520.GG21011@pd.tnic>
+ <20160427143045.GA4718@amd>
+ <20160427143951.GH21011@pd.tnic>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160427143951.GH21011@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-Vlastimil Babka pointed out that an unlikely annotation in free_pages_prepare
-shrinks stack usage by moving compound handling to the end of the function.
+On Wed 2016-04-27 16:39:51, Borislav Petkov wrote:
+> On Wed, Apr 27, 2016 at 04:30:45PM +0200, Pavel Machek wrote:
+> > That does not answer the question. "Why would I want SME on my
+> > system?".
+> 
+> Because your question wasn't formulated properly. Here's some text from
+> the 0th mail which you could've found on your own:
 
-add/remove: 0/0 grow/shrink: 0/1 up/down: 0/-30 (-30)
-function                                     old     new   delta
-free_pages_prepare                           771     741     -30
+> "The following links provide additional detail:
+> 
+> AMD Memory Encryption whitepaper:
+>    http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2013/12/AMD_Memory_Encryption_Whitepaper_v7-Public.pdf
+> "
+> 
+> > And that answer should go to Documentation/.
+> 
+> It will.
 
-It's also consistent with the buffered_rmqueue path.
+Yeah? So why not include it in reply instead of flaming me?
 
-This is a fix to the mmotm patch
-mm-page_alloc-only-check-pagecompound-for-high-order-pages.patch.
-
-Suggested-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1da56779f8fa..d8383750bd43 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1003,7 +1003,7 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
- 	 * Check tail pages before head page information is cleared to
- 	 * avoid checking PageCompound for order-0 pages.
- 	 */
--	if (order) {
-+	if (unlikely(order)) {
- 		bool compound = PageCompound(page);
- 		int i;
- 
+									Pavel
 -- 
-2.6.4
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
