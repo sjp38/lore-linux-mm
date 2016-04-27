@@ -1,76 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 379A96B025E
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:44:16 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id s63so37795944wme.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 05:44:16 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTP id u64si8911464wmd.74.2016.04.27.05.44.15
-        for <linux-mm@kvack.org>;
-        Wed, 27 Apr 2016 05:44:15 -0700 (PDT)
-Date: Tue, 22 Mar 2016 14:03:54 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC PATCH v1 03/18] x86: Secure Memory Encryption (SME) support
-Message-ID: <20160322130354.GC16528@xo-6d-61-c0.localdomain>
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225626.13567.72425.stgit@tlendack-t1.amdoffice.net>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 59E516B025E
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:53:26 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r12so37884407wme.0
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 05:53:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id jw2si4233987wjb.219.2016.04.27.05.53.25
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 27 Apr 2016 05:53:25 -0700 (PDT)
+Subject: Re: [PATCH 1/3] mm, page_alloc: un-inline the bad part of
+ free_pages_check
+References: <5720A987.7060507@suse.cz>
+ <1461758476-450-1-git-send-email-vbabka@suse.cz>
+ <20160427123751.GI2858@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5720B643.6060908@suse.cz>
+Date: Wed, 27 Apr 2016 14:53:23 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160426225626.13567.72425.stgit@tlendack-t1.amdoffice.net>
+In-Reply-To: <20160427123751.GI2858@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Tue 2016-04-26 17:56:26, Tom Lendacky wrote:
-> Provide support for Secure Memory Encryption (SME). This initial support
-> defines the memory encryption mask as a variable for quick access and an
-> accessor for retrieving the number of physical addressing bits lost if
-> SME is enabled.
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
->  arch/x86/include/asm/mem_encrypt.h |   37 ++++++++++++++++++++++++++++++++++++
->  arch/x86/kernel/Makefile           |    2 ++
->  arch/x86/kernel/mem_encrypt.S      |   29 ++++++++++++++++++++++++++++
->  arch/x86/kernel/x8664_ksyms_64.c   |    6 ++++++
->  4 files changed, 74 insertions(+)
->  create mode 100644 arch/x86/include/asm/mem_encrypt.h
->  create mode 100644 arch/x86/kernel/mem_encrypt.S
-> 
-> index 0000000..ef7f325
-> --- /dev/null
-> +++ b/arch/x86/kernel/mem_encrypt.S
-> @@ -0,0 +1,29 @@
-> +/*
-> + * AMD Memory Encryption Support
-> + *
-> + * Copyright (C) 2016 Advanced Micro Devices, Inc.
-> + *
-> + * Author: Tom Lendacky <thomas.lendacky@amd.com>
-> + *
-> + * This program is free software; you can redistribute it and/or modify
-> + * it under the terms of the GNU General Public License version 2 as
-> + * published by the Free Software Foundation.
-> + */
-> +
-> +#include <linux/linkage.h>
-> +
-> +	.text
-> +	.code64
-> +ENTRY(sme_get_me_loss)
-> +	xor	%rax, %rax
-> +	mov	sme_me_loss(%rip), %al
-> +	ret
-> +ENDPROC(sme_get_me_loss)
+On 04/27/2016 02:37 PM, Mel Gorman wrote:
+> On Wed, Apr 27, 2016 at 02:01:14PM +0200, Vlastimil Babka wrote:
+>> !DEBUG_VM bloat-o-meter:
+>>
+>> add/remove: 1/0 grow/shrink: 0/2 up/down: 124/-383 (-259)
+>> function                                     old     new   delta
+>> free_pages_check_bad                           -     124    +124
+>> free_pcppages_bulk                          1509    1403    -106
+>> __free_pages_ok                             1025     748    -277
+>>
+>> DEBUG_VM:
+>>
+>> add/remove: 1/0 grow/shrink: 0/1 up/down: 124/-242 (-118)
+>> function                                     old     new   delta
+>> free_pages_check_bad                           -     124    +124
+>> free_pages_prepare                          1048     806    -242
+>>
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>
+> This uninlines the check all right but it also introduces new function
+> calls into the free path. As it's the free fast path, I suspect it would
+> be a step in the wrong direction from a performance perspective.
 
-Does this really need to be implemented in assembly?
-
-
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Oh expected this to be a non-issue as the call only happens when a bad 
+page is actually encountered, which is rare? But if you can measure some 
+overhead here then sure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
