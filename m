@@ -1,114 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 724FB6B0005
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 13:02:02 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id vv3so80250923pab.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:02:02 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id qe4si6181770pab.195.2016.04.27.10.02.01
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D9736B0005
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 13:07:40 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b203so96273550pfb.1
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:07:40 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id q9si1188205paz.202.2016.04.27.10.07.39
         for <linux-mm@kvack.org>;
-        Wed, 27 Apr 2016 10:02:01 -0700 (PDT)
-From: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
-Subject: mm: pages are not freed from lru_add_pvecs after process termination
-Date: Wed, 27 Apr 2016 17:01:57 +0000
-Message-ID: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Wed, 27 Apr 2016 10:07:39 -0700 (PDT)
+Subject: Re: [RFC PATCH v1 02/18] x86: Secure Memory Encryption (SME) build
+ enablement
+References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
+ <20160426225614.13567.47487.stgit@tlendack-t1.amdoffice.net>
+ <20160322130150.GB16528@xo-6d-61-c0.localdomain> <5720D810.9060602@amd.com>
+ <20160427153010.GA7861@amd> <20160427154140.GK21011@pd.tnic>
+ <20160427164137.GA11779@amd>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <5720F1D6.7020400@arm.com>
+Date: Wed, 27 Apr 2016 18:07:34 +0100
 MIME-Version: 1.0
+In-Reply-To: <20160427164137.GA11779@amd>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
+To: Pavel Machek <pavel@ucw.cz>, Borislav Petkov <bp@alien8.de>
+Cc: linux-efi@vger.kernel.org, kvm@vger.kernel.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, x86@kernel.org, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-arch@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, linux-doc@vger.kernel.org, kasan-dev@googlegroups.com, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, Paolo Bonzini <pbonzini@redhat.com>
 
-Hi,
-I encounter a problem which I'd like to discuss here (tested on 3.10 and 4.=
-5).
-While running some workloads we noticed that in case of "improper" applicat=
-ion
-exit (like SIGTERM) quite a bit (a few GBs) of memory is not being reclaime=
-d
-after process termination.
+On 27/04/16 17:41, Pavel Machek wrote:
+> On Wed 2016-04-27 17:41:40, Borislav Petkov wrote:
+>> On Wed, Apr 27, 2016 at 05:30:10PM +0200, Pavel Machek wrote:
+>>> Doing it early will break bisect, right?
+>>
+>> How exactly? Please do tell.
+>
+> Hey look, SME slowed down 30% since being initially merged into
+> kernel!
 
-Executing  echo 1 > /proc/sys/vm/compact_memory makes the memory available =
-again.
+As opposed to "well, bisection shows these n+1 complicated changes are 
+all fine and the crash is down to this Kconfig patch", presumably. I'm 
+sure we all love spending a whole afternoon only to find that, right? :P
 
-This memory is not reclaimed so OOM will kill process trying to allocate me=
-mory
-which technically should be available.=20
-Such behavior is present only when THP are [always] enabled.
-Disabling it makes the issue not visible to the naked eye.
+Robin.
 
-An important information is that it is visible mostly due to large amount o=
-f CPUs
-in the system (>200) and amount of missing memory varies with the number of=
- CPUs.
-
-This memory seems to not be accounted anywhere, but I was able to found it =
-on
-per cpu lru_add_pvec lists thanks to Dave Hansen's suggestion.
-
-Knowing that I am able to reproduce this problem with much simpler code:
-//compile with: gcc repro.c -o repro -fopenmp
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include "omp.h"
-int main() {
-#pragma omp parallel
-{
-        size_t size =3D 55*1000*1000; // tweaked for 288cpus, "leaks" ~3.5G=
-B
-        unsigned long nodemask =3D 1;
-        void *p =3D mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | =
-MAP_ANONYMOUS , -1, 0);
-        if(p)
-                memset(p, 0, size);
-       =20
-        //munmap(p, size); // uncomment to make the problem go away
-}
-        return 0;
-}
-
-
-Exemplary execution:
-$ numactl -H | grep "node 1" | grep MB
-node 1 size: 16122 MB
-node 1 free: 16026 MB
-$ ./repro
-$ numactl -H | grep "node 1" | grep MB
-node 1 size: 16122 MB
-node 1 free: 13527 MB
-
-After a couple of minutes on idle system some of this memory is reclaimed, =
-but never all
-unless I run tasks on every CPU:
-node 1 size: 16122 MB
-node 1 free: 14823 MB
-
-Pieces of the puzzle:
-A) after process termination memory is not getting freed nor accounted as f=
-ree
-B) memory cannot be allocated by other processes (unless it is allocated by=
- all CPUs)
-
-I am not sure whether it is expected behavior or a side effect of something=
- else not
-going as it should. Temporarily I added lru_add_drain_all() to try_to_free_=
-pages()
-which sort of hammers B case, but A is still present.
-
-I am not familiar with this code, but I feel like draining lru_add work sho=
-uld be split
-into smaller pieces and done by kswapd to fix A and drain only as much page=
-s as
-needed in try_to_free_pages to fix B.
-
-Any comments/ideas/patches for a proper fix are welcome.
-
-Thanks,
-Lukas
+> 									Pavel
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
