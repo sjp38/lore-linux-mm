@@ -1,123 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 661F66B0005
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 03:38:17 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r12so30562024wme.0
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 00:38:17 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id t184si7620086wmb.113.2016.04.27.00.38.15
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Apr 2016 00:38:16 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id e201so10172731wme.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 00:38:15 -0700 (PDT)
-Date: Wed, 27 Apr 2016 09:38:13 +0200
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [PATCH v4 1/2] shmem: Support for registration of driver/file
- owner specific ops
-Message-ID: <20160427073813.GQ2558@phenom.ffwll.local>
-References: <1459775891-32442-1-git-send-email-chris@chris-wilson.co.uk>
- <20160424234250.GB6670@node.shutemov.name>
- <20160426125341.GF8291@phenom.ffwll.local>
- <20160426233357.GA20322@node.shutemov.name>
- <alpine.LSU.2.11.1604270005530.6977@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1604270005530.6977@eggly.anvils>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 753376B0005
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 03:47:14 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e190so76878960pfe.3
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 00:47:14 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id l27si2814413pfj.18.2016.04.27.00.47.12
+        for <linux-mm@kvack.org>;
+        Wed, 27 Apr 2016 00:47:13 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v4 01/12] mm: use put_page to free page instead of  putback_lru_page
+Date: Wed, 27 Apr 2016 16:48:14 +0900
+Message-Id: <1461743305-19970-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1461743305-19970-1-git-send-email-minchan@kernel.org>
+References: <1461743305-19970-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Chris Wilson <chris@chris-wilson.co.uk>, intel-gfx@lists.freedesktop.org, Akash Goel <akash.goel@intel.com>, linux-mm@kvack.org, linux-kernel@vger.linux.org, Sourab Gupta <sourab.gupta@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed, Apr 27, 2016 at 12:16:37AM -0700, Hugh Dickins wrote:
-> On Wed, 27 Apr 2016, Kirill A. Shutemov wrote:
-> > On Tue, Apr 26, 2016 at 02:53:41PM +0200, Daniel Vetter wrote:
-> > > On Mon, Apr 25, 2016 at 02:42:50AM +0300, Kirill A. Shutemov wrote:
-> > > > On Mon, Apr 04, 2016 at 02:18:10PM +0100, Chris Wilson wrote:
-> > > > > From: Akash Goel <akash.goel@intel.com>
-> > > > > 
-> > > > > This provides support for the drivers or shmem file owners to register
-> > > > > a set of callbacks, which can be invoked from the address space
-> > > > > operations methods implemented by shmem.  This allow the file owners to
-> > > > > hook into the shmem address space operations to do some extra/custom
-> > > > > operations in addition to the default ones.
-> > > > > 
-> > > > > The private_data field of address_space struct is used to store the
-> > > > > pointer to driver specific ops.  Currently only one ops field is defined,
-> > > > > which is migratepage, but can be extended on an as-needed basis.
-> > > > > 
-> > > > > The need for driver specific operations arises since some of the
-> > > > > operations (like migratepage) may not be handled completely within shmem,
-> > > > > so as to be effective, and would need some driver specific handling also.
-> > > > > Specifically, i915.ko would like to participate in migratepage().
-> > > > > i915.ko uses shmemfs to provide swappable backing storage for its user
-> > > > > objects, but when those objects are in use by the GPU it must pin the
-> > > > > entire object until the GPU is idle.  As a result, large chunks of memory
-> > > > > can be arbitrarily withdrawn from page migration, resulting in premature
-> > > > > out-of-memory due to fragmentation.  However, if i915.ko can receive the
-> > > > > migratepage() request, it can then flush the object from the GPU, remove
-> > > > > its pin and thus enable the migration.
-> > > > > 
-> > > > > Since gfx allocations are one of the major consumer of system memory, its
-> > > > > imperative to have such a mechanism to effectively deal with
-> > > > > fragmentation.  And therefore the need for such a provision for initiating
-> > > > > driver specific actions during address space operations.
-> > > > 
-> > > > Hm. Sorry, my ignorance, but shouldn't this kind of flushing be done in
-> > > > response to mmu_notifier's ->invalidate_page?
-> > > > 
-> > > > I'm not aware about how i915 works and what's its expectation wrt shmem.
-> > > > Do you have some userspace VMA which is mirrored on GPU side?
-> > > > If yes, migration would cause unmapping of these pages and trigger the
-> > > > mmu_notifier's hook.
-> > > 
-> > > We do that for userptr pages (i.e. stuff we steal from userspace address
-> > > spaces). But we also have native gfx buffer objects based on shmem files,
-> > > and thus far we need to allocate them as !GFP_MOVEABLE. And we allocate a
-> > > _lot_ of those. And those files aren't mapped into any cpu address space
-> > > (ofc they're mapped on the gpu side, but that's driver private), from the
-> > > core mm they are pure pagecache. And afaiui for that we need to wire up
-> > > the migratepage hooks through shmem to i915_gem.c
-> > 
-> > I see.
-> > 
-> > I don't particularly like the way patch hooks into migrate, but don't a
-> > good idea how to implement this better.
-> > 
-> > This way allows to hook up to any shmem file, which can be abused by
-> > drivers later.
-> > 
-> > I wounder if it would be better for i915 to have its own in-kernel mount
-> > with variant of tmpfs which provides different mapping->a_ops? Or is it
-> > overkill? I don't know.
-> > 
-> > Hugh?
-> 
-> This, and the 2/2, remain perpetually in my "needs more thought" box.
-> And won't get that thought today either, I'm afraid.  Tomorrow.
-> 
-> Like you, I don't particularly like these; but recognize that the i915
-> guys are doing all the rest of us a big favour by going to some trouble
-> to allow migration of their pinned pages.
-> 
-> Potential for abuse of migratepage by drivers is already there anyway:
-> we can be grateful that they're offering to use rather than abuse it;
-> but yes, it's a worry that such trickiness gets dispersed into drivers.
+Procedure of page migration is as follows:
 
-Looking at our internal roadmap it'll likely get a lot worse, and in a few
-years you'll have i915 asking the core mm politely to move around pages
-for it because they're place suboptimally for gpu access. It'll be fun.
+First of all, it should isolate a page from LRU and try to
+migrate the page. If it is successful, it releases the page
+for freeing. Otherwise, it should put the page back to LRU
+list.
 
-We don't have a prototype yet at all even internally, but I think that's
-another reason why a more cozy relationship between i915 and shmem would
-be good. Not sure you want that, or whether we should resurrect the old
-idea of a gemfs.
--Daniel
+For LRU pages, we have used putback_lru_page for both freeing
+and putback to LRU list. It's okay because put_page is aware of
+LRU list so if it releases last refcount of the page, it removes
+the page from LRU list. However, It makes unnecessary operations
+(e.g., lru_cache_add, pagevec and flags operations. It would be
+not significant but no worth to do) and harder to support new
+non-lru page migration because put_page isn't aware of non-lru
+page's data structure.
+
+To solve the problem, we can add new hook in put_page with
+PageMovable flags check but it can increase overhead in
+hot path and needs new locking scheme to stabilize the flag check
+with put_page.
+
+So, this patch cleans it up to divide two semantic(ie, put and putback).
+If migration is successful, use put_page instead of putback_lru_page and
+use putback_lru_page only on failure. That makes code more readable
+and doesn't add overhead in put_page.
+
+Comment from Vlastimil
+"Yeah, and compaction (perhaps also other migration users) has to drain
+the lru pvec... Getting rid of this stuff is worth even by itself."
+
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/migrate.c | 64 +++++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 40 insertions(+), 24 deletions(-)
+
+diff --git a/mm/migrate.c b/mm/migrate.c
+index f8587b974cba..7880f30d1d3d 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -933,6 +933,19 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 		put_anon_vma(anon_vma);
+ 	unlock_page(page);
+ out:
++	/*
++	 * If migration is successful, decrease refcount of the newpage
++	 * which will not free the page because new page owner increased
++	 * refcounter. As well, if it is LRU page, add the page to LRU
++	 * list in here.
++	 */
++	if (rc == MIGRATEPAGE_SUCCESS) {
++		if (unlikely(__is_movable_balloon_page(newpage)))
++			put_page(newpage);
++		else
++			putback_lru_page(newpage);
++	}
++
+ 	return rc;
+ }
+ 
+@@ -971,6 +984,12 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+ 
+ 	if (page_count(page) == 1) {
+ 		/* page was freed from under us. So we are done. */
++		ClearPageActive(page);
++		ClearPageUnevictable(page);
++		if (put_new_page)
++			put_new_page(newpage, private);
++		else
++			put_page(newpage);
+ 		goto out;
+ 	}
+ 
+@@ -983,10 +1002,8 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+ 	}
+ 
+ 	rc = __unmap_and_move(page, newpage, force, mode);
+-	if (rc == MIGRATEPAGE_SUCCESS) {
+-		put_new_page = NULL;
++	if (rc == MIGRATEPAGE_SUCCESS)
+ 		set_page_owner_migrate_reason(newpage, reason);
+-	}
+ 
+ out:
+ 	if (rc != -EAGAIN) {
+@@ -999,34 +1016,33 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+ 		list_del(&page->lru);
+ 		dec_zone_page_state(page, NR_ISOLATED_ANON +
+ 				page_is_file_cache(page));
+-		/* Soft-offlined page shouldn't go through lru cache list */
+-		if (reason == MR_MEMORY_FAILURE && rc == MIGRATEPAGE_SUCCESS) {
++	}
++
++	/*
++	 * If migration is successful, releases reference grabbed during
++	 * isolation. Otherwise, restore the page to right list unless
++	 * we want to retry.
++	 */
++	if (rc == MIGRATEPAGE_SUCCESS) {
++		put_page(page);
++		if (reason == MR_MEMORY_FAILURE) {
+ 			/*
+-			 * With this release, we free successfully migrated
+-			 * page and set PG_HWPoison on just freed page
+-			 * intentionally. Although it's rather weird, it's how
+-			 * HWPoison flag works at the moment.
++			 * Set PG_HWPoison on just freed page
++			 * intentionally. Although it's rather weird,
++			 * it's how HWPoison flag works at the moment.
+ 			 */
+-			put_page(page);
+ 			if (!test_set_page_hwpoison(page))
+ 				num_poisoned_pages_inc();
+-		} else
++		}
++	} else {
++		if (rc != -EAGAIN)
+ 			putback_lru_page(page);
++		if (put_new_page)
++			put_new_page(newpage, private);
++		else
++			put_page(newpage);
+ 	}
+ 
+-	/*
+-	 * If migration was not successful and there's a freeing callback, use
+-	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
+-	 * during isolation.
+-	 */
+-	if (put_new_page)
+-		put_new_page(newpage, private);
+-	else if (unlikely(__is_movable_balloon_page(newpage))) {
+-		/* drop our reference, page already in the balloon */
+-		put_page(newpage);
+-	} else
+-		putback_lru_page(newpage);
+-
+ 	if (result) {
+ 		if (rc)
+ 			*result = rc;
 -- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-http://blog.ffwll.ch
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
