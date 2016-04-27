@@ -1,42 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CB03D6B0005
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 04:51:26 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id k200so33580571lfg.1
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 01:51:26 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a1si7977554wmi.12.2016.04.27.01.51.25
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BF9346B0005
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 06:07:16 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id y84so32230758lfc.3
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 03:07:16 -0700 (PDT)
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id p5si8249419wmd.62.2016.04.27.03.07.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Apr 2016 01:51:25 -0700 (PDT)
-Subject: Re: [BUG linux-next] Kernel panic found with linux-next-20160414
-References: <5716C29F.1090205@linaro.org>
- <alpine.LSU.2.11.1604200041460.3009@eggly.anvils>
- <5717AA46.5020905@linaro.org>
- <alpine.LSU.2.11.1604270029350.7066@eggly.anvils>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <57207D88.4000508@suse.cz>
-Date: Wed, 27 Apr 2016 10:51:20 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Apr 2016 03:07:15 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id ED6051C17E6
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 11:07:14 +0100 (IST)
+Date: Wed, 27 Apr 2016 11:07:13 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 23/28] mm, page_alloc: Check multiple page fields with a
+ single branch
+Message-ID: <20160427100713.GG2858@techsingularity.net>
+References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
+ <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
+ <1460711275-1130-11-git-send-email-mgorman@techsingularity.net>
+ <571FB66E.80306@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1604270029350.7066@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <571FB66E.80306@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, "Shi, Yang" <yang.shi@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, sfr@canb.auug.org.au, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 04/27/2016 10:14 AM, Hugh Dickins wrote:
-> It's rather horrible that compaction.c uses functions in page_alloc.c
-> which skip doing some of the things we expect to be done: the non-debug
-> preparation tends to get noticed, but the debug options overlooked.
-> We can expect more problems of this kind in future: someone will add
-> yet another debug prep line in page_alloc.c, and at first nobody will
-> notice that it's also needed in compaction.c.
+On Tue, Apr 26, 2016 at 08:41:50PM +0200, Vlastimil Babka wrote:
+> On 04/15/2016 11:07 AM, Mel Gorman wrote:
+> >Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> 
+> I wonder, would it be just too ugly to add +1 to
+> atomic_read(&page->_mapcount) and OR it with the rest for a truly single
+> branch?
+> 
 
-Point taken, I'll try to come up with more maintainable solution next 
-time I attempt the isolate_freepages_direct() approach. Sorry about the 
-troubles.
+Interesting thought. I'm not going to do it as a fix but when I'm doing
+the next round of page allocator material, I'll add it to the pile for
+evaluation.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
