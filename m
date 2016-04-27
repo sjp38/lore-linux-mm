@@ -1,183 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ED5D16B026A
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 04:14:22 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id xm6so50141908pab.3
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 01:14:22 -0700 (PDT)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id x10si4141632pas.64.2016.04.27.01.14.22
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 38B616B0005
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 04:35:33 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id e201so30519761wme.1
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 01:35:33 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id y21si29505723wmd.12.2016.04.27.01.35.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Apr 2016 01:14:22 -0700 (PDT)
-Received: by mail-pa0-x232.google.com with SMTP id bt5so16506446pac.3
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 01:14:22 -0700 (PDT)
-Date: Wed, 27 Apr 2016 01:14:13 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [BUG linux-next] Kernel panic found with linux-next-20160414
-In-Reply-To: <5717AA46.5020905@linaro.org>
-Message-ID: <alpine.LSU.2.11.1604270029350.7066@eggly.anvils>
-References: <5716C29F.1090205@linaro.org> <alpine.LSU.2.11.1604200041460.3009@eggly.anvils> <5717AA46.5020905@linaro.org>
+        Wed, 27 Apr 2016 01:35:31 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id w143so10595227wmw.3
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 01:35:31 -0700 (PDT)
+Date: Wed, 27 Apr 2016 10:35:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 17/19] dm: get rid of superfluous gfp flags
+Message-ID: <20160427083530.GD2179@dhcp22.suse.cz>
+References: <1460372892-8157-1-git-send-email-mhocko@kernel.org>
+ <1460372892-8157-18-git-send-email-mhocko@kernel.org>
+ <alpine.LRH.2.02.1604150826280.16981@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160415130839.GJ32377@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1604151437500.3288@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160416203135.GC15128@dhcp22.suse.cz>
+ <20160422124730.GA11733@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1604261307520.12205@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1604261307520.12205@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Shi, Yang" <yang.shi@linaro.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, sfr@canb.auug.org.au, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Shaohua Li <shli@kernel.org>, dm-devel@redhat.com
 
-On Wed, 20 Apr 2016, Shi, Yang wrote:
-> On 4/20/2016 1:01 AM, Hugh Dickins wrote:
-> > On Tue, 19 Apr 2016, Shi, Yang wrote:
-> > > Hi folks,
-> > > 
-> > > When I ran ltp on linux-next-20160414 on my ARM64 machine, I got the
-> > > below
-> > > kernel panic:
-> > > 
-> > > Unable to handle kernel paging request at virtual address
-> > > ffffffc007846000
-> > > pgd = ffffffc01e21d000
-> > > [ffffffc007846000] *pgd=0000000000000000, *pud=0000000000000000
-> > > Internal error: Oops: 96000047 [#11] PREEMPT SMP
-> > > Modules linked in: loop
-> > > CPU: 7 PID: 274 Comm: systemd-journal Tainted: G      D
-> > > 4.6.0-rc3-next-20160414-WR8.0.0.0_standard+ #9
-> > > Hardware name: Freescale Layerscape 2085a RDB Board (DT)
-> > > task: ffffffc01e3fcf80 ti: ffffffc01ea8c000 task.ti: ffffffc01ea8c000
-> > > PC is at copy_page+0x38/0x120
-> > > LR is at migrate_page_copy+0x604/0x1660
-> > > pc : [<ffffff9008ff2318>] lr : [<ffffff900867cdac>] pstate: 20000145
-> > > sp : ffffffc01ea8ecd0
-> > > x29: ffffffc01ea8ecd0 x28: 0000000000000000
-> > > x27: 1ffffff7b80240f8 x26: ffffffc018196f20
-> > > x25: ffffffbdc01e1180 x24: ffffffbdc01e1180
-> > > x23: 0000000000000000 x22: ffffffc01e3fcf80
-> > > x21: ffffffc00481f000 x20: ffffff900a31d000
-> > > x19: ffffffbdc01207c0 x18: 0000000000000f00
-> > > x17: 0000000000000000 x16: 0000000000000000
-> > > x15: 0000000000000000 x14: 0000000000000000
-> > > x13: 0000000000000000 x12: 0000000000000000
-> > > x11: 0000000000000000 x10: 0000000000000000
-> > > x9 : 0000000000000000 x8 : 0000000000000000
-> > > x7 : 0000000000000000 x6 : 0000000000000000
-> > > x5 : 0000000000000000 x4 : 0000000000000000
-> > > x3 : 0000000000000000 x2 : 0000000000000000
-> > > x1 : ffffffc00481f080 x0 : ffffffc007846000
-> > > 
-> > > Call trace:
-> > > Exception stack(0xffffffc021fc2ed0 to 0xffffffc021fc2ff0)
-> > > 2ec0:                                   ffffffbdc00887c0 ffffff900a31d000
-> > > 2ee0: ffffffc021fc30f0 ffffff9008ff2318 0000000020000145 0000000000000025
-> > > 2f00: ffffffbdc025a280 ffffffc020adc4c0 0000000041b58ab3 ffffff900a085fd0
-> > > 2f20: ffffff9008200658 0000000000000000 0000000000000000 ffffffbdc00887c0
-> > > 2f40: ffffff900b0f1320 ffffffc021fc3078 0000000041b58ab3 ffffff900a0864f8
-> > > 2f60: ffffff9008210010 ffffffc021fb8960 ffffff900867bacc 1ffffff8043f712d
-> > > 2f80: ffffffc021fc2fb0 ffffff9008210564 ffffffc021fc3070 ffffffc021fb8940
-> > > 2fa0: 0000000008221f78 ffffff900862f9c8 ffffffc021fc2fe0 ffffff9008215dc8
-> > > 2fc0: 1ffffff8043f8602 ffffffc021fc0000 ffffffc00968a000 ffffffc00221f080
-> > > 2fe0: f9407e11d00001f0 d61f02209103e210
-> > > [<ffffff9008ff2318>] copy_page+0x38/0x120
-> > > [<ffffff900867de7c>] migrate_page+0x74/0x98
-> > > [<ffffff90089ba418>] nfs_migrate_page+0x58/0x80
-> > > [<ffffff900867dffc>] move_to_new_page+0x15c/0x4d8
-> > > [<ffffff900867eec8>] migrate_pages+0x7c8/0x11f0
-> > > [<ffffff90085f8724>] compact_zone+0xdfc/0x2570
-> > > [<ffffff90085f9f78>] compact_zone_order+0xe0/0x170
-> > > [<ffffff90085fb688>] try_to_compact_pages+0x2e8/0x8f8
-> > > [<ffffff90085913a0>] __alloc_pages_direct_compact+0x100/0x540
-> > > [<ffffff9008592420>] __alloc_pages_nodemask+0xc40/0x1c58
-> > > [<ffffff90086887e8>] khugepaged+0x468/0x19c8
-> > > [<ffffff9008301700>] kthread+0x248/0x2c0
-> > > [<ffffff9008206610>] ret_from_fork+0x10/0x40
-> > > Code: d281f012 91020021 f1020252 d503201f (a8000c02)
-> > > 
-> > > 
-> > > I did some initial investigation and found it is caused by
-> > > DEBUG_PAGEALLOC
-> > > and CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT. And, mainline 4.6-rc3 works
-> > > well.
-> > > 
-> > > It should be not arch specific although I got it caught on ARM64. I
-> > > suspect
-> > > this might be caused by Hugh's huge tmpfs patches.
-> > 
-> > Thanks for testing.  It might be caused by my patches, but I don't think
-> > that's very likely.  This is page migraton for compaction, in the service
-> > of anon THP's khugepaged; and I wonder if you were even exercising huge
-> > tmpfs when running LTP here (it certainly can be done: I like to mount a
-> > huge tmpfs on /opt/ltp and install there, with shmem_huge 2 so any other
-> > tmpfs mounts are also huge).
+[Adding dm-devel@redhat.com to CC]
+
+On Tue 26-04-16 13:20:04, Mikulas Patocka wrote:
+> On Fri, 22 Apr 2016, Michal Hocko wrote:
+[...]
+> > copy_params seems to be called only from the ioctl context which doesn't
+> > hold any locks which would lockup during the direct reclaim AFAICS. The
+> > git log shows that the code has used PF_MEMALLOC before which is even
+> > bigger mystery to me. Could you please clarify why this is GFP_NOIO
+> > restricted context? Maybe it needed to be in the past but I do not see
+> > any reason for it to be now so unless I am missing something the
+> > GFP_KERNEL should be perfectly OK. Also note that GFP_NOIO wouldn't work
+> > properly because there are copy_from_user calls in the same path which
+> > could page fault and do GFP_KERNEL allocations anyway. I can send follow
+> > up cleanups unless I am missing something subtle here.
 > 
-> Some further investigation shows I got the panic even though I don't have
-> tmpfs mounted with huge=1 or set shmem_huge to 2.
+> The LVM tool calls suspend and resume ioctls on device mapper block 
+> devices.
+>
+> When a device is suspended, any bio sent to the device is held. If the 
+> resume ioctl did GFP_KERNEL allocation, the allocation could get stuck 
+> trying to write some dirty cached pages to the suspended device.
 > 
-> > 
-> > There are compaction changes in linux-next too, but I don't see any
-> > reason why they'd cause this.  I don't know arm64 traces enough to know
-> > whether it's the source page or the destination page for the copy, but
-> > it looks as if it has been freed (and DEBUG_PAGEALLOC unmapped) before
-> > reaching migration's copy.
-> 
-> The fault address is passed by x0, which is dest in the implementation of
-> copy_page, so it is the destination page.
-> 
-> > 
-> > Needs more debugging, I'm afraid: is it reproducible?
-> 
-> Yes, as long as I enable those two PAGEALLOC debug options, I can get the
-> panic once I run ltp. But, it is not caused any specific ltp test case
-> directly, the panic happens randomly during ltp is running.
+> The LVM tool and the dmeventd daemon use mlock to lock its address space, 
+> so the copy_from_user/copy_to_user call cannot trigger a page fault.
 
-Your ping on the crash in release_freepages() reminded me to take another
-look at this one.  And found that I only needed to enable DEBUG_PAGEALLOC
-and run LTP to get it on x86_64 too, as you suspected.
-
-It's another of those compaction errors, in mmotm and linux-next of a
-week or two ago, whose patch has since been withdrawn (but huge tmpfs
-has also been withdrawn for now, so you're right to stick with the
-older linux-next for testing it).
-
-I believe the patch below fixes it; but I've not done full diligence
-on it - if I had more time, I'd want to check that all of the things
-that need doing are now being done on this path, and that it's also
-okay if the release undoes them even when they didn't get to be done.
-But not worth that diligence if the patch is withdrawn already.
-
-It's rather horrible that compaction.c uses functions in page_alloc.c
-which skip doing some of the things we expect to be done: the non-debug
-preparation tends to get noticed, but the debug options overlooked.
-We can expect more problems of this kind in future: someone will add
-yet another debug prep line in page_alloc.c, and at first nobody will
-notice that it's also needed in compaction.c.
-
-I am hopeful, since the missed map_pages() does KASAN initialization too,
-that this might also fix your KASAN use-after-free in nfs_do_filldir(),
-which you also reported on April 20th.
-
-But with this patch in, I do get a more interesting crash in
-remap_team_by_ptes() from LTP's mmapstress10: there appears to be an
-anon THP in a huge tmpfs vma.  Maybe I've got the test at the head of
-__split_huge_pmd() wrong, but I don't recall seeing this before
-rebuilding with DEBUG_PAGEALLOC.  Can't spend longer on it now,
-will return to it tomorrow.
-
-Hugh
+OK, I see, thanks for the clarification! This sounds fragile to me
+though. Wouldn't it be better to use the memalloc_noio_save for the
+whole copy_params instead? That would force all possible allocations to
+not trigger any IO. Something like the following.
 ---
- mm/compaction.c |    1 +
- 1 file changed, 1 insertion(+)
-
---- 4.6-rc2-mm1/mm/compaction.c	2016-04-11 11:35:08.000000000 -0700
-+++ linux/mm/compaction.c	2016-04-26 22:15:10.954455303 -0700
-@@ -1113,6 +1113,7 @@ static void isolate_freepages_direct(str
- 	}
- 
- 	spin_unlock_irqrestore(&cc->zone->lock, flags);
-+	map_pages(&cc->freepages);
- }
- 
- /*
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
