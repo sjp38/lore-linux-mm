@@ -1,73 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CE6466B0260
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 11:17:45 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 203so89837551pfy.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:17:45 -0700 (PDT)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1bon0074.outbound.protection.outlook.com. [157.56.111.74])
-        by mx.google.com with ESMTPS id hy8si5800964pab.190.2016.04.27.08.17.44
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CB7CC6B0261
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 11:18:37 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id s63so43252113wme.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:18:37 -0700 (PDT)
+Received: from mail-lf0-x235.google.com (mail-lf0-x235.google.com. [2a00:1450:4010:c07::235])
+        by mx.google.com with ESMTPS id r73si2424474lfd.181.2016.04.27.08.18.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 27 Apr 2016 08:17:44 -0700 (PDT)
-Subject: Re: [RFC PATCH v1 02/18] x86: Secure Memory Encryption (SME) build
- enablement
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225614.13567.47487.stgit@tlendack-t1.amdoffice.net>
- <20160322130150.GB16528@xo-6d-61-c0.localdomain>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <5720D810.9060602@amd.com>
-Date: Wed, 27 Apr 2016 10:17:36 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Apr 2016 08:18:36 -0700 (PDT)
+Received: by mail-lf0-x235.google.com with SMTP id y84so53773874lfc.0
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:18:36 -0700 (PDT)
+Date: Wed, 27 Apr 2016 18:18:34 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/1] mm: thp: kvm: fix memory corruption in KVM with THP
+ enabled
+Message-ID: <20160427151834.GC22035@node.shutemov.name>
+References: <1461758686-27157-1-git-send-email-aarcange@redhat.com>
+ <20160427135030.GB22035@node.shutemov.name>
+ <20160427145957.GA9217@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20160322130150.GB16528@xo-6d-61-c0.localdomain>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160427145957.GA9217@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, qemu-devel@nongnu.org, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Li, Liang Z" <liang.z.li@intel.com>, Amit Shah <amit.shah@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>
 
-On 03/22/2016 08:01 AM, Pavel Machek wrote:
-> On Tue 2016-04-26 17:56:14, Tom Lendacky wrote:
->> Provide the Kconfig support to build the SME support in the kernel.
+On Wed, Apr 27, 2016 at 04:59:57PM +0200, Andrea Arcangeli wrote:
+> On Wed, Apr 27, 2016 at 04:50:30PM +0300, Kirill A. Shutemov wrote:
+> > I know nothing about kvm. How do you protect against pmd splitting between
+> > get_user_pages() and the check?
+> 
+> get_user_pages_fast() runs fully lockless and unpins the page right
+> away (we need a get_user_pages_fast without the FOLL_GET in fact to
+> avoid a totally useless atomic_inc/dec!).
+> 
+> Then we take a lock that is also taken by
+> mmu_notifier_invalidate_range_start. This way __split_huge_pmd will
+> block in mmu_notifier_invalidate_range_start if it tries to run again
+> (every other mmu notifier like mmu_notifier_invalidate_page will also
+> block).
+> 
+> Then after we serialized against __split_huge_pmd through the MMU
+> notifier KVM internal locking, we are able to tell if any mmu_notifier
+> invalidate happened in the region just before get_user_pages_fast()
+> was invoked, until we call PageCompoundTransMap and we actually map
+> the shadow pagetable into the compound page with hugepage
+> granularity (to allow real 2MB TLBs if guest also uses trans_huge_pmd
+> in the guest pagetables).
+> 
+> After the shadow pagetable is mapped, we drop the internal MMU
+> notifier lock and __split_huge_pmd mmu_notifier_invalidate_range_start
+> can continue and drop the shadow pagetable that we just mapped in the
+> above paragraph just before dropping the mmu notifier internal lock.
+> 
+> To be able to tell if any invalidate happened while
+> get_user_pages_fast was running and until we grab the lock again and
+> we start mapping the shadow pagtable we use:
+> 
+> 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+> 	smp_rmb();
+> 
+> 	if (try_async_pf(vcpu, prefault, gfn, v, &pfn, write, &map_writable))
+> 	    ^^^^^^^^^^^^ this is get_user_pages and does put_page on the page
+> 	    		 and just returns the &pfn
+> 	    		 this is why we need a get_user_pages_fast that won't
+> 			 attempt to touch the page->_count at all! we can avoid
+> 			 2 atomic ops for each secondary MMU fault that way
+> 		return 0;
+> 
+> 	spin_lock(&vcpu->kvm->mmu_lock);
+> 	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
+> 		goto out_unlock;
+> 	... here we check PageTransCompoundMap(pfn_to_page(pfn)) and
+> 	map a 4k or 2MB shadow pagetable on "pfn" ...
 > 
 > 
-> Probably should go last in the series?
-
-Yeah, I've seen arguments both ways for this. Doing it early
-allows compiling and testing with it enabled and doing it late
-doesn't enable anything until it's all there. I just chose the
-former.
-
-Thanks,
-Tom
-
+> Note mmu_notifier_retry does the other side of the smp_rmb():
 > 
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>  arch/x86/Kconfig |    9 +++++++++
->>  1 file changed, 9 insertions(+)
->>
->> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
->> index 7bb1574..13249b5 100644
->> --- a/arch/x86/Kconfig
->> +++ b/arch/x86/Kconfig
->> @@ -1356,6 +1356,15 @@ config X86_DIRECT_GBPAGES
->>  	  supports them), so don't confuse the user by printing
->>  	  that we have them enabled.
->>  
->> +config AMD_MEM_ENCRYPT
->> +	bool "Secure Memory Encryption support for AMD"
->> +	depends on X86_64 && CPU_SUP_AMD
->> +	---help---
->> +	  Say yes to enable the encryption of system memory. This requires
->> +	  an AMD processor that supports Secure Memory Encryption (SME).
->> +	  The encryption of system memory is disabled by default but can be
->> +	  enabled with the mem_encrypt=on command line option.
->> +
->>  # Common NUMA Features
->>  config NUMA
->>  	bool "Numa Memory Allocation and Scheduler Support"
-> 
+> 	smp_rmb();
+> 	if (kvm->mmu_notifier_seq != mmu_seq)
+> 		return 1;
+> 	return 0;
+
+Okay, I see.
+
+But do we really want to make PageTransCompoundMap() visiable beyond KVM
+code? It looks like too KVM-specific.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
