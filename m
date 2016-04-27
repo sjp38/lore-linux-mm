@@ -1,66 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 20AF36B0260
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 11:31:25 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id e63so93580152iod.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:31:25 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id io7si5076146wjb.27.2016.04.27.08.31.23
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Apr 2016 08:31:23 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 63D1398A65
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 15:31:23 +0000 (UTC)
-Date: Wed, 27 Apr 2016 16:31:21 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 28/28] mm, page_alloc: Defer debugging checks of pages
- allocated from the PCP
-Message-ID: <20160427153121.GK2858@techsingularity.net>
-References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
- <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
- <1460711275-1130-16-git-send-email-mgorman@techsingularity.net>
- <5720C753.2000804@suse.cz>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F67A6B0261
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 11:32:05 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id 68so40871705lfq.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:32:05 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id r9si31381838wme.19.2016.04.27.08.32.03
+        for <linux-mm@kvack.org>;
+        Wed, 27 Apr 2016 08:32:04 -0700 (PDT)
+Date: Wed, 27 Apr 2016 17:31:58 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [RFC PATCH v1 01/18] x86: Set the write-protect cache mode for
+ AMD processors
+Message-ID: <20160427153158.GJ21011@pd.tnic>
+References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
+ <20160426225604.13567.55443.stgit@tlendack-t1.amdoffice.net>
+ <CALCETrU9ozp1mBKG-P88cKRJRY5bifn2Ab__AZcn5b33n3j2cg@mail.gmail.com>
+ <5720D066.7080409@amd.com>
+ <CALCETrV+JzPZjrrqkhWSVfvKQt62Aq8NSW=ZvfdiAi8XKoLi8A@mail.gmail.com>
+ <5720D546.6050105@amd.com>
+ <CALCETrVcS-H9BtCevT4=Luo2sK0A3cbBs7Rs=RaBr2yzOzxp4w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <5720C753.2000804@suse.cz>
+In-Reply-To: <CALCETrVcS-H9BtCevT4=Luo2sK0A3cbBs7Rs=RaBr2yzOzxp4w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, kvm list <kvm@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Wed, Apr 27, 2016 at 04:06:11PM +0200, Vlastimil Babka wrote:
-> From afdefd87f2d8d07cba4bd2a2f3531dc8bb0b7a19 Mon Sep 17 00:00:00 2001
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Wed, 27 Apr 2016 15:47:29 +0200
-> Subject: [PATCH] mm, page_alloc: uninline the bad page part of
->  check_new_page()
-> 
-> Bad pages should be rare so the code handling them doesn't need to be inline
-> for performance reasons. Put it to separate function which returns void.
-> This also assumes that the initial page_expected_state() result will match the
-> result of the thorough check, i.e. the page doesn't become "good" in the
-> meanwhile. This matches the same expectations already in place in
-> free_pages_check().
-> 
-> !DEBUG_VM bloat-o-meter:
-> 
-> add/remove: 1/0 grow/shrink: 0/1 up/down: 134/-274 (-140)
-> function                                     old     new   delta
-> check_new_page_bad                             -     134    +134
-> get_page_from_freelist                      3468    3194    -274
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+On Wed, Apr 27, 2016 at 08:12:56AM -0700, Andy Lutomirski wrote:
+> I think there are some errata
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+Isn't that addressed by the first branch of the if-test in pat_init():
 
-Andrew, if you pick up v2 of of the follow-up series then can you also
-add this patch on top if it's convenient please?
+        if ((c->x86_vendor == X86_VENDOR_INTEL) &&
+            (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
+             ((c->x86 == 0xf) && (c->x86_model <= 0x6)))) {
+
 
 -- 
-Mel Gorman
-SUSE Labs
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
