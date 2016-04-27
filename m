@@ -1,73 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A8E26B0268
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 04:03:19 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id w143so30817271wmw.3
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 01:03:19 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id d28si7724859wmi.69.2016.04.27.01.03.13
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ED5D16B026A
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 04:14:22 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id xm6so50141908pab.3
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 01:14:22 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id x10si4141632pas.64.2016.04.27.01.14.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Apr 2016 01:03:13 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id r12so10453109wme.0
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 01:03:13 -0700 (PDT)
-Date: Wed, 27 Apr 2016 10:03:11 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm, debug: report when GFP_NO{FS,IO} is used
- explicitly from memalloc_no{fs,io}_{save,restore} context
-Message-ID: <20160427080311.GC2179@dhcp22.suse.cz>
-References: <1461671772-1269-1-git-send-email-mhocko@kernel.org>
- <1461671772-1269-3-git-send-email-mhocko@kernel.org>
- <20160426225845.GF26977@dastard>
+        Wed, 27 Apr 2016 01:14:22 -0700 (PDT)
+Received: by mail-pa0-x232.google.com with SMTP id bt5so16506446pac.3
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 01:14:22 -0700 (PDT)
+Date: Wed, 27 Apr 2016 01:14:13 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [BUG linux-next] Kernel panic found with linux-next-20160414
+In-Reply-To: <5717AA46.5020905@linaro.org>
+Message-ID: <alpine.LSU.2.11.1604270029350.7066@eggly.anvils>
+References: <5716C29F.1090205@linaro.org> <alpine.LSU.2.11.1604200041460.3009@eggly.anvils> <5717AA46.5020905@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160426225845.GF26977@dastard>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
+To: "Shi, Yang" <yang.shi@linaro.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, sfr@canb.auug.org.au, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed 27-04-16 08:58:45, Dave Chinner wrote:
-> On Tue, Apr 26, 2016 at 01:56:12PM +0200, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
+On Wed, 20 Apr 2016, Shi, Yang wrote:
+> On 4/20/2016 1:01 AM, Hugh Dickins wrote:
+> > On Tue, 19 Apr 2016, Shi, Yang wrote:
+> > > Hi folks,
+> > > 
+> > > When I ran ltp on linux-next-20160414 on my ARM64 machine, I got the
+> > > below
+> > > kernel panic:
+> > > 
+> > > Unable to handle kernel paging request at virtual address
+> > > ffffffc007846000
+> > > pgd = ffffffc01e21d000
+> > > [ffffffc007846000] *pgd=0000000000000000, *pud=0000000000000000
+> > > Internal error: Oops: 96000047 [#11] PREEMPT SMP
+> > > Modules linked in: loop
+> > > CPU: 7 PID: 274 Comm: systemd-journal Tainted: G      D
+> > > 4.6.0-rc3-next-20160414-WR8.0.0.0_standard+ #9
+> > > Hardware name: Freescale Layerscape 2085a RDB Board (DT)
+> > > task: ffffffc01e3fcf80 ti: ffffffc01ea8c000 task.ti: ffffffc01ea8c000
+> > > PC is at copy_page+0x38/0x120
+> > > LR is at migrate_page_copy+0x604/0x1660
+> > > pc : [<ffffff9008ff2318>] lr : [<ffffff900867cdac>] pstate: 20000145
+> > > sp : ffffffc01ea8ecd0
+> > > x29: ffffffc01ea8ecd0 x28: 0000000000000000
+> > > x27: 1ffffff7b80240f8 x26: ffffffc018196f20
+> > > x25: ffffffbdc01e1180 x24: ffffffbdc01e1180
+> > > x23: 0000000000000000 x22: ffffffc01e3fcf80
+> > > x21: ffffffc00481f000 x20: ffffff900a31d000
+> > > x19: ffffffbdc01207c0 x18: 0000000000000f00
+> > > x17: 0000000000000000 x16: 0000000000000000
+> > > x15: 0000000000000000 x14: 0000000000000000
+> > > x13: 0000000000000000 x12: 0000000000000000
+> > > x11: 0000000000000000 x10: 0000000000000000
+> > > x9 : 0000000000000000 x8 : 0000000000000000
+> > > x7 : 0000000000000000 x6 : 0000000000000000
+> > > x5 : 0000000000000000 x4 : 0000000000000000
+> > > x3 : 0000000000000000 x2 : 0000000000000000
+> > > x1 : ffffffc00481f080 x0 : ffffffc007846000
+> > > 
+> > > Call trace:
+> > > Exception stack(0xffffffc021fc2ed0 to 0xffffffc021fc2ff0)
+> > > 2ec0:                                   ffffffbdc00887c0 ffffff900a31d000
+> > > 2ee0: ffffffc021fc30f0 ffffff9008ff2318 0000000020000145 0000000000000025
+> > > 2f00: ffffffbdc025a280 ffffffc020adc4c0 0000000041b58ab3 ffffff900a085fd0
+> > > 2f20: ffffff9008200658 0000000000000000 0000000000000000 ffffffbdc00887c0
+> > > 2f40: ffffff900b0f1320 ffffffc021fc3078 0000000041b58ab3 ffffff900a0864f8
+> > > 2f60: ffffff9008210010 ffffffc021fb8960 ffffff900867bacc 1ffffff8043f712d
+> > > 2f80: ffffffc021fc2fb0 ffffff9008210564 ffffffc021fc3070 ffffffc021fb8940
+> > > 2fa0: 0000000008221f78 ffffff900862f9c8 ffffffc021fc2fe0 ffffff9008215dc8
+> > > 2fc0: 1ffffff8043f8602 ffffffc021fc0000 ffffffc00968a000 ffffffc00221f080
+> > > 2fe0: f9407e11d00001f0 d61f02209103e210
+> > > [<ffffff9008ff2318>] copy_page+0x38/0x120
+> > > [<ffffff900867de7c>] migrate_page+0x74/0x98
+> > > [<ffffff90089ba418>] nfs_migrate_page+0x58/0x80
+> > > [<ffffff900867dffc>] move_to_new_page+0x15c/0x4d8
+> > > [<ffffff900867eec8>] migrate_pages+0x7c8/0x11f0
+> > > [<ffffff90085f8724>] compact_zone+0xdfc/0x2570
+> > > [<ffffff90085f9f78>] compact_zone_order+0xe0/0x170
+> > > [<ffffff90085fb688>] try_to_compact_pages+0x2e8/0x8f8
+> > > [<ffffff90085913a0>] __alloc_pages_direct_compact+0x100/0x540
+> > > [<ffffff9008592420>] __alloc_pages_nodemask+0xc40/0x1c58
+> > > [<ffffff90086887e8>] khugepaged+0x468/0x19c8
+> > > [<ffffff9008301700>] kthread+0x248/0x2c0
+> > > [<ffffff9008206610>] ret_from_fork+0x10/0x40
+> > > Code: d281f012 91020021 f1020252 d503201f (a8000c02)
+> > > 
+> > > 
+> > > I did some initial investigation and found it is caused by
+> > > DEBUG_PAGEALLOC
+> > > and CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT. And, mainline 4.6-rc3 works
+> > > well.
+> > > 
+> > > It should be not arch specific although I got it caught on ARM64. I
+> > > suspect
+> > > this might be caused by Hugh's huge tmpfs patches.
 > > 
-> > THIS PATCH IS FOR TESTING ONLY AND NOT MEANT TO HIT LINUS TREE
-> > 
-> > It is desirable to reduce the direct GFP_NO{FS,IO} usage at minimum and
-> > prefer scope usage defined by memalloc_no{fs,io}_{save,restore} API.
-> > 
-> > Let's help this process and add a debugging tool to catch when an
-> > explicit allocation request for GFP_NO{FS,IO} is done from the scope
-> > context. The printed stacktrace should help to identify the caller
-> > and evaluate whether it can be changed to use a wider context or whether
-> > it is called from another potentially dangerous context which needs
-> > a scope protection as well.
+> > Thanks for testing.  It might be caused by my patches, but I don't think
+> > that's very likely.  This is page migraton for compaction, in the service
+> > of anon THP's khugepaged; and I wonder if you were even exercising huge
+> > tmpfs when running LTP here (it certainly can be done: I like to mount a
+> > huge tmpfs on /opt/ltp and install there, with shmem_huge 2 so any other
+> > tmpfs mounts are also huge).
 > 
-> You're going to get a large number of these from XFS. There are call
-> paths in XFs that get called both inside and outside transaction
-> context, and many of them are marked with GFP_NOFS to prevent issues
-> that have cropped up in the past.
+> Some further investigation shows I got the panic even though I don't have
+> tmpfs mounted with huge=1 or set shmem_huge to 2.
 > 
-> Often these are to silence lockdep warnings (e.g. commit b17cb36
-> ("xfs: fix missing KM_NOFS tags to keep lockdep happy")) because
-> lockdep gets very unhappy about the same functions being called with
-> different reclaim contexts. e.g.  directory block mapping might
-> occur from readdir (no transaction context) or within transactions
-> (create/unlink). hence paths like this are tagged with GFP_NOFS to
-> stop lockdep emitting false positive warnings....
+> > 
+> > There are compaction changes in linux-next too, but I don't see any
+> > reason why they'd cause this.  I don't know arm64 traces enough to know
+> > whether it's the source page or the destination page for the copy, but
+> > it looks as if it has been freed (and DEBUG_PAGEALLOC unmapped) before
+> > reaching migration's copy.
+> 
+> The fault address is passed by x0, which is dest in the implementation of
+> copy_page, so it is the destination page.
+> 
+> > 
+> > Needs more debugging, I'm afraid: is it reproducible?
+> 
+> Yes, as long as I enable those two PAGEALLOC debug options, I can get the
+> panic once I run ltp. But, it is not caused any specific ltp test case
+> directly, the panic happens randomly during ltp is running.
 
-I would much rather see lockdep being fixed than abusing GFP_NOFS to
-workaround its limitations. GFP_NOFS has a real consequences to the
-memory reclaim. I will go and check the commit you mentioned and try
-to understand why that is a problem. From what you described above
-I would like to get rid of exactly this kind of usage which is not
-really needed for the recursion protection.
+Your ping on the crash in release_freepages() reminded me to take another
+look at this one.  And found that I only needed to enable DEBUG_PAGEALLOC
+and run LTP to get it on x86_64 too, as you suspected.
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+It's another of those compaction errors, in mmotm and linux-next of a
+week or two ago, whose patch has since been withdrawn (but huge tmpfs
+has also been withdrawn for now, so you're right to stick with the
+older linux-next for testing it).
+
+I believe the patch below fixes it; but I've not done full diligence
+on it - if I had more time, I'd want to check that all of the things
+that need doing are now being done on this path, and that it's also
+okay if the release undoes them even when they didn't get to be done.
+But not worth that diligence if the patch is withdrawn already.
+
+It's rather horrible that compaction.c uses functions in page_alloc.c
+which skip doing some of the things we expect to be done: the non-debug
+preparation tends to get noticed, but the debug options overlooked.
+We can expect more problems of this kind in future: someone will add
+yet another debug prep line in page_alloc.c, and at first nobody will
+notice that it's also needed in compaction.c.
+
+I am hopeful, since the missed map_pages() does KASAN initialization too,
+that this might also fix your KASAN use-after-free in nfs_do_filldir(),
+which you also reported on April 20th.
+
+But with this patch in, I do get a more interesting crash in
+remap_team_by_ptes() from LTP's mmapstress10: there appears to be an
+anon THP in a huge tmpfs vma.  Maybe I've got the test at the head of
+__split_huge_pmd() wrong, but I don't recall seeing this before
+rebuilding with DEBUG_PAGEALLOC.  Can't spend longer on it now,
+will return to it tomorrow.
+
+Hugh
+---
+ mm/compaction.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+--- 4.6-rc2-mm1/mm/compaction.c	2016-04-11 11:35:08.000000000 -0700
++++ linux/mm/compaction.c	2016-04-26 22:15:10.954455303 -0700
+@@ -1113,6 +1113,7 @@ static void isolate_freepages_direct(str
+ 	}
+ 
+ 	spin_unlock_irqrestore(&cc->zone->lock, flags);
++	map_pages(&cc->freepages);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
