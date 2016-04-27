@@ -1,64 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EA3C06B0260
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 11:30:13 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w143so42977693wmw.3
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:30:13 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTP id r3si5066335wjl.28.2016.04.27.08.30.11
-        for <linux-mm@kvack.org>;
-        Wed, 27 Apr 2016 08:30:11 -0700 (PDT)
-Date: Wed, 27 Apr 2016 17:30:10 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC PATCH v1 02/18] x86: Secure Memory Encryption (SME) build
- enablement
-Message-ID: <20160427153010.GA7861@amd>
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225614.13567.47487.stgit@tlendack-t1.amdoffice.net>
- <20160322130150.GB16528@xo-6d-61-c0.localdomain>
- <5720D810.9060602@amd.com>
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 20AF36B0260
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 11:31:25 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id e63so93580152iod.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:31:25 -0700 (PDT)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id io7si5076146wjb.27.2016.04.27.08.31.23
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 27 Apr 2016 08:31:23 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 63D1398A65
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 15:31:23 +0000 (UTC)
+Date: Wed, 27 Apr 2016 16:31:21 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 28/28] mm, page_alloc: Defer debugging checks of pages
+ allocated from the PCP
+Message-ID: <20160427153121.GK2858@techsingularity.net>
+References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
+ <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
+ <1460711275-1130-16-git-send-email-mgorman@techsingularity.net>
+ <5720C753.2000804@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <5720D810.9060602@amd.com>
+In-Reply-To: <5720C753.2000804@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 2016-04-27 10:17:36, Tom Lendacky wrote:
-> On 03/22/2016 08:01 AM, Pavel Machek wrote:
-> > On Tue 2016-04-26 17:56:14, Tom Lendacky wrote:
-> >> Provide the Kconfig support to build the SME support in the kernel.
-> > 
-> > 
-> > Probably should go last in the series?
+On Wed, Apr 27, 2016 at 04:06:11PM +0200, Vlastimil Babka wrote:
+> From afdefd87f2d8d07cba4bd2a2f3531dc8bb0b7a19 Mon Sep 17 00:00:00 2001
+> From: Vlastimil Babka <vbabka@suse.cz>
+> Date: Wed, 27 Apr 2016 15:47:29 +0200
+> Subject: [PATCH] mm, page_alloc: uninline the bad page part of
+>  check_new_page()
 > 
-> Yeah, I've seen arguments both ways for this. Doing it early
-> allows compiling and testing with it enabled and doing it late
-> doesn't enable anything until it's all there. I just chose the
-> former.
+> Bad pages should be rare so the code handling them doesn't need to be inline
+> for performance reasons. Put it to separate function which returns void.
+> This also assumes that the initial page_expected_state() result will match the
+> result of the thorough check, i.e. the page doesn't become "good" in the
+> meanwhile. This matches the same expectations already in place in
+> free_pages_check().
+> 
+> !DEBUG_VM bloat-o-meter:
+> 
+> add/remove: 1/0 grow/shrink: 0/1 up/down: 134/-274 (-140)
+> function                                     old     new   delta
+> check_new_page_bad                             -     134    +134
+> get_page_from_freelist                      3468    3194    -274
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-Doing it early will break bisect, right?
-							Pavel
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
-> >> +config AMD_MEM_ENCRYPT
-> >> +	bool "Secure Memory Encryption support for AMD"
-> >> +	depends on X86_64 && CPU_SUP_AMD
-> >> +	---help---
-> >> +	  Say yes to enable the encryption of system memory. This requires
-> >> +	  an AMD processor that supports Secure Memory Encryption (SME).
-> >> +	  The encryption of system memory is disabled by default but can be
-> >> +	  enabled with the mem_encrypt=on command line option.
-> >> +
-> >>  # Common NUMA Features
-> >>  config NUMA
-> >>  	bool "Numa Memory Allocation and Scheduler Support"
-> > 
+Andrew, if you pick up v2 of of the follow-up series then can you also
+add this patch on top if it's convenient please?
 
 -- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
