@@ -1,49 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A5AC76B025E
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:31:42 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 68so35353969lfq.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 05:31:42 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id uu10si4165908wjc.123.2016.04.27.05.31.41
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 82D1F6B025E
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:37:54 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r12so37547606wme.0
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 05:37:54 -0700 (PDT)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id w81si30556824wme.1.2016.04.27.05.37.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Apr 2016 05:31:41 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id n129so3276527wmn.1
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 05:31:41 -0700 (PDT)
-Date: Wed, 27 Apr 2016 14:31:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Confusing olddefault prompt for Z3FOLD
-Message-ID: <20160427123139.GA2230@dhcp22.suse.cz>
-References: <9459.1461686910@turing-police.cc.vt.edu>
+        Wed, 27 Apr 2016 05:37:53 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 4202D1C134C
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 13:37:53 +0100 (IST)
+Date: Wed, 27 Apr 2016 13:37:51 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 1/3] mm, page_alloc: un-inline the bad part of
+ free_pages_check
+Message-ID: <20160427123751.GI2858@techsingularity.net>
+References: <5720A987.7060507@suse.cz>
+ <1461758476-450-1-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <9459.1461686910@turing-police.cc.vt.edu>
+In-Reply-To: <1461758476-450-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Valdis Kletnieks <Valdis.Kletnieks@vt.edu>
-Cc: Vitaly Wool <vitalywool@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Tue 26-04-16 12:08:30, Valdis Kletnieks wrote:
-> Saw this duplicate prompt text in today's linux-next in a 'make oldconfig':
+On Wed, Apr 27, 2016 at 02:01:14PM +0200, Vlastimil Babka wrote:
+> !DEBUG_VM bloat-o-meter:
 > 
-> Low density storage for compressed pages (ZBUD) [Y/n/m/?] y
-> Low density storage for compressed pages (Z3FOLD) [N/m/y/?] (NEW) ?
+> add/remove: 1/0 grow/shrink: 0/2 up/down: 124/-383 (-259)
+> function                                     old     new   delta
+> free_pages_check_bad                           -     124    +124
+> free_pcppages_bulk                          1509    1403    -106
+> __free_pages_ok                             1025     748    -277
 > 
-> I had to read the help texts for both before I clued in that one used
-> two compressed pages, and the other used 3.
+> DEBUG_VM:
 > 
-> And 'make oldconfig' doesn't have a "Wait, what?" option to go back
-> to a previous prompt....
+> add/remove: 1/0 grow/shrink: 0/1 up/down: 124/-242 (-118)
+> function                                     old     new   delta
+> free_pages_check_bad                           -     124    +124
+> free_pages_prepare                          1048     806    -242
 > 
-> (Change Z3FOLD prompt to "New low density" or something? )
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-Or even better can we only a single one rather than 2 algorithms doing
-the similar thing? I wasn't following this closely but what is the
-difference to have them both?
+This uninlines the check all right but it also introduces new function
+calls into the free path. As it's the free fast path, I suspect it would
+be a step in the wrong direction from a performance perspective.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
