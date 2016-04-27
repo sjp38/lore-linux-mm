@@ -1,50 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E9E9B6B0005
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:30:12 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id y84so35578721lfc.3
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 05:30:12 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id 71si5851097wmo.92.2016.04.27.05.30.11
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A5AC76B025E
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 08:31:42 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id 68so35353969lfq.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 05:31:42 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id uu10si4165908wjc.123.2016.04.27.05.31.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Apr 2016 05:30:11 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 75BCC987F0
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 12:30:11 +0000 (UTC)
-Date: Wed, 27 Apr 2016 13:30:09 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 2/4] mm, page_alloc: inline the fast path of the zonelist
- iterator -fix
-Message-ID: <20160427123009.GH2858@techsingularity.net>
-References: <1461759885-17163-1-git-send-email-mgorman@techsingularity.net>
- <1461759885-17163-3-git-send-email-mgorman@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Apr 2016 05:31:41 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id n129so3276527wmn.1
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 05:31:41 -0700 (PDT)
+Date: Wed, 27 Apr 2016 14:31:39 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Confusing olddefault prompt for Z3FOLD
+Message-ID: <20160427123139.GA2230@dhcp22.suse.cz>
+References: <9459.1461686910@turing-police.cc.vt.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1461759885-17163-3-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <9459.1461686910@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Valdis Kletnieks <Valdis.Kletnieks@vt.edu>
+Cc: Vitaly Wool <vitalywool@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Apr 27, 2016 at 01:24:43PM +0100, Mel Gorman wrote:
-> Vlastimil Babka pointed out that the nodes allowed by a cpuset are not
-> reread if the nodemask changes during an allocation. This potentially
-> allows an unnecessary page allocation failure. Moving the retry_cpuset
-> label is insufficient but rereading the nodemask before retrying addresses
-> the problem.
+On Tue 26-04-16 12:08:30, Valdis Kletnieks wrote:
+> Saw this duplicate prompt text in today's linux-next in a 'make oldconfig':
 > 
-> This is a fix to the mmotm patch
-> mm-page_alloc-inline-the-fast-path-of-the-zonelist-iterator.patch .
+> Low density storage for compressed pages (ZBUD) [Y/n/m/?] y
+> Low density storage for compressed pages (Z3FOLD) [N/m/y/?] (NEW) ?
 > 
-> Suggested-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> I had to read the help texts for both before I clued in that one used
+> two compressed pages, and the other used 3.
+> 
+> And 'make oldconfig' doesn't have a "Wait, what?" option to go back
+> to a previous prompt....
+> 
+> (Change Z3FOLD prompt to "New low density" or something? )
 
-And this is wrong :( . I'll think again.
-
+Or even better can we only a single one rather than 2 algorithms doing
+the similar thing? I wasn't following this closely but what is the
+difference to have them both?
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
