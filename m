@@ -1,45 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6903F6B0005
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 13:12:16 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id y84so43776609lfc.3
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:12:16 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id d18si10199149wma.106.2016.04.27.10.12.15
-        for <linux-mm@kvack.org>;
-        Wed, 27 Apr 2016 10:12:15 -0700 (PDT)
-Date: Wed, 27 Apr 2016 19:12:09 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC PATCH v1 02/18] x86: Secure Memory Encryption (SME) build
- enablement
-Message-ID: <20160427171209.GA27488@pd.tnic>
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225614.13567.47487.stgit@tlendack-t1.amdoffice.net>
- <20160322130150.GB16528@xo-6d-61-c0.localdomain>
- <5720D810.9060602@amd.com>
- <20160427153010.GA7861@amd>
- <20160427154140.GK21011@pd.tnic>
- <20160427164137.GA11779@amd>
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D2C066B0005
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 13:19:43 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id x7so132228813qkd.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:19:43 -0700 (PDT)
+Received: from mail-vk0-x241.google.com (mail-vk0-x241.google.com. [2607:f8b0:400c:c05::241])
+        by mx.google.com with ESMTPS id 19si2702945uad.43.2016.04.27.10.19.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Apr 2016 10:19:43 -0700 (PDT)
+Received: by mail-vk0-x241.google.com with SMTP id u23so253587vkb.3
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:19:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20160427164137.GA11779@amd>
+In-Reply-To: <20160427005853.GD4782@swordfish>
+References: <1461619210-10057-1-git-send-email-ddstreet@ieee.org>
+ <1461704891-15272-1-git-send-email-ddstreet@ieee.org> <20160427005853.GD4782@swordfish>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Wed, 27 Apr 2016 13:19:03 -0400
+Message-ID: <CALZtONArGwmaWNcHJODmY1uXm306NiqeZtRekfCFgZsMz_cngw@mail.gmail.com>
+Subject: Re: [PATCH] mm/zswap: use workqueue to destroy pool
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Yu Zhao <yuzhao@google.com>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@redhat.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <dan.streetman@canonical.com>
 
-On Wed, Apr 27, 2016 at 06:41:37PM +0200, Pavel Machek wrote:
-> Hey look, SME slowed down 30% since being initially merged into
-> kernel!
+On Tue, Apr 26, 2016 at 8:58 PM, Sergey Senozhatsky
+<sergey.senozhatsky.work@gmail.com> wrote:
+> Hello,
+>
+> On (04/26/16 17:08), Dan Streetman wrote:
+> [..]
+>> -static void __zswap_pool_release(struct rcu_head *head)
+>> +static void __zswap_pool_release(struct work_struct *work)
+>>  {
+>> -     struct zswap_pool *pool = container_of(head, typeof(*pool), rcu_head);
+>> +     struct zswap_pool *pool = container_of(work, typeof(*pool), work);
+>> +
+>> +     synchronize_rcu();
+>>
+>>       /* nobody should have been able to get a kref... */
+>>       WARN_ON(kref_get_unless_zero(&pool->kref));
+>> @@ -674,7 +676,9 @@ static void __zswap_pool_empty(struct kref *kref)
+>>       WARN_ON(pool == zswap_pool_current());
+>>
+>>       list_del_rcu(&pool->list);
+>> -     call_rcu(&pool->rcu_head, __zswap_pool_release);
+>> +
+>> +     INIT_WORK(&pool->work, __zswap_pool_release);
+>> +     schedule_work(&pool->work);
+>
+> so in general the patch look good to me.
+>
+> it's either I didn't have enough coffee yet (which is true) or
+> _IN THEORY_ it creates a tiny race condition; which is hard (and
+> unlikely) to hit, but still. and the problem being is
+> CONFIG_ZSMALLOC_STAT.
 
-How is that breaking bisection?
+Aha, thanks, I hadn't tested with that param enabled.  However, the
+patch doesn't create the race condition, that existed already.
 
--- 
-Regards/Gruss,
-    Boris.
+>
+> zsmalloc stats are exported via debugfs which is getting init
+> during pool set up in zs_pool_stat_create() -> debugfs_create_dir() zsmalloc<ID>.
+>
+> so, once again, in theory, since zswap has the same <ID>, debugfs
+> dir will have the same for different pool, so a series of zpool
+> changes via user space knob
+>
+>         zsmalloc > zpool
+>         zbud > zpool
+>         zsmalloc > zpool
+>
+> can result in
+>
+> release zsmalloc0        switch to zbud         switch to zsmalloc
+> __zswap_pool_release()
+>         schedule_work()
+>                                 ...
+>                                                 zs_create_pool()
+>                                                         zs_pool_stat_create()
+>                                                         <<  zsmalloc0 still exists >>
+>
+>         work is finally scheduled
+>                 zs_destroy_pool()
+>                         zs_pool_stat_destroy()
 
-ECO tip #101: Trim your mails when you reply.
+zsmalloc uses the pool 'name' provided, without any checking, and in
+this case it will always be 'zswap'.  So this is easy to reproduce:
+
+1. make sure kernel is compiled with CONFIG_ZSMALLOC_STAT=y
+2. enable zswap, change zpool to zsmalloc
+3. put some pages into zswap
+4. try to change the compressor -> failure
+
+It fails because the new zswap pool creates a new zpool using
+zsmalloc, but it can't create the zsmalloc pool because there is
+already one named 'zswap' so the stat dir can't be created.
+
+So...either zswap needs to provide a unique 'name' to each of its
+zpools, or zsmalloc needs to modify its provided pool name in some way
+(add a unique suffix maybe).  Or both.
+
+It seems like zsmalloc should do the checking/modification - or, at
+the very least, it should have consistent behavior regardless of the
+CONFIG_ZSMALLOC_STAT setting.  However, it's easy to change zswap to
+provide a unique name for each zpool creation, and zsmalloc's primary
+user (zram) guarantees to provide a unique name for each pool created.
+So updating zswap is probably best.
+
+
+>
+>         -ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
