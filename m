@@ -1,51 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CB62E6B0253
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:45:01 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id x7so120933368qkd.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:45:01 -0700 (PDT)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1bon0090.outbound.protection.outlook.com. [157.56.111.90])
-        by mx.google.com with ESMTPS id a31si2651247qga.41.2016.04.27.07.45.00
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 18C546B0005
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:47:43 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id i22so111988028ywc.3
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:47:43 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q78si2667328qhb.82.2016.04.27.07.47.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 27 Apr 2016 07:45:01 -0700 (PDT)
-Subject: Re: [RFC PATCH v1 01/18] x86: Set the write-protect cache mode for
- AMD processors
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225604.13567.55443.stgit@tlendack-t1.amdoffice.net>
- <CALCETrU9ozp1mBKG-P88cKRJRY5bifn2Ab__AZcn5b33n3j2cg@mail.gmail.com>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <5720D066.7080409@amd.com>
-Date: Wed, 27 Apr 2016 09:44:54 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Apr 2016 07:47:42 -0700 (PDT)
+Date: Wed, 27 Apr 2016 16:47:39 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: post-copy is broken?
+Message-ID: <20160427144739.GF10120@redhat.com>
+References: <20160414162230.GC9976@redhat.com>
+ <20160415125236.GA3376@node.shutemov.name>
+ <20160415134233.GG2229@work-vm>
+ <20160415152330.GB3376@node.shutemov.name>
+ <20160415163448.GJ2229@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E04181101@shsmsx102.ccr.corp.intel.com>
+ <20160418095528.GD2222@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E0418115C@shsmsx102.ccr.corp.intel.com>
+ <20160418101555.GE2222@work-vm>
+ <F2CBF3009FA73547804AE4C663CAB28E041813A6@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrU9ozp1mBKG-P88cKRJRY5bifn2Ab__AZcn5b33n3j2cg@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E041813A6@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: linux-arch <linux-arch@vger.kernel.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, kvm list <kvm@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: "Li, Liang Z" <liang.z.li@intel.com>
+Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, Amit Shah <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 04/27/2016 09:33 AM, Andy Lutomirski wrote:
-> On Tue, Apr 26, 2016 at 3:56 PM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
->> For AMD processors that support PAT, set the write-protect cache mode
->> (_PAGE_CACHE_MODE_WP) entry to the actual write-protect value (x05).
+Hello Liang,
+
+On Mon, Apr 18, 2016 at 10:33:14AM +0000, Li, Liang Z wrote:
+> If the THP is disabled, no fails.
+> And your test was always passed, even when  real post-copy was failed. 
 > 
-> What's the purpose of using the WP memory type?
+> In my env, the output of 
+> 'cat /sys/kernel/mm/transparent_hugepage/enabled'  is:
+> 
+>  [always] ...
+> 
 
-The WP memory type is used for encrypting or decrypting data "in place".
-The use of the WP on the source data will prevent any of the source
-data from being cached.  Refer to section 7.10.8 "Encrypt-in-Place" in
-the AMD64 APM link provided in the cover letter.
+Can you test the fix?
+https://marc.info/?l=linux-mm&m=146175869123580&w=2
 
-This memory type will be used in subsequent patches for this purpose.
+This was not a breakage in userfaultfd nor in postcopy. userfaultfd
+had no bugs and is fully rock solid and with zero chances of
+generating undetected memory corruption like it was happening in v4.5.
+
+As I suspected, the same problem would have happened with any THP
+pmd_trans_huge split (swapping/inflating-balloon etc..). Postcopy just
+makes it easier to reproduce the problem because it does a scattered
+MADV_DONTNEED on the destination qemu guest memory for the pages
+redirtied during the last precopy pass that run, or not transferred
+(to allow THP faults in destination qemu during precopy), just before
+starting the guest in the destination node.
+
+Other reports of KVM memory corruption happening on v4.5 with THP
+enabled will also be taken care of by the above fix.
+
+I hope I managed to fix this in time for v4.6 final (current is
+v4.6-rc5-69), so the only kernel where KVM must not be used with THP
+enabled will be v4.5.
+
+On a side note, this MADV_DONTEED trigger reminded me as soon as the
+madvisev syscall is merged, loadvm_postcopy_ram_handle_discard should
+start using it to reduce the enter/exit kernel to just 1 (or a few
+madvisev in case we want to give a limit to the temporary buffer to
+avoid the risk of allocating too much temporary RAM for very large
+guests) to do the MADV_DONTNEED scattered zapping. Same thing in
+virtio_balloon_handle_output.
 
 Thanks,
-Tom
-
-> 
-> --Andy
-> 
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
