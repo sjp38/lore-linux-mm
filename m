@@ -1,89 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 84ECB6B0005
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 15:16:19 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id xm6so74413186pab.3
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 12:16:19 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id rx5si6726418pab.151.2016.04.27.12.16.18
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 928476B0005
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 15:43:50 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id k200so50932535lfg.1
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 12:43:50 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id j142si10926283wmg.70.2016.04.27.12.43.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Apr 2016 12:16:18 -0700 (PDT)
-Date: Wed, 27 Apr 2016 12:16:17 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5] mm: SLAB freelist randomization
-Message-Id: <20160427121617.5a3123d75230effd7842e408@linux-foundation.org>
-In-Reply-To: <1461777659-81290-1-git-send-email-thgarnie@google.com>
-References: <1461777659-81290-1-git-send-email-thgarnie@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 27 Apr 2016 12:43:49 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id n129so6849041wmn.1
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 12:43:49 -0700 (PDT)
+Date: Wed, 27 Apr 2016 21:43:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1.1/2] xfs: abstract PF_FSTRANS to PF_MEMALLOC_NOFS
+Message-ID: <20160427194347.GA22544@dhcp22.suse.cz>
+References: <1461671772-1269-2-git-send-email-mhocko@kernel.org>
+ <1461758075-21815-1-git-send-email-mhocko@kernel.org>
+ <04798BA8-2157-4611-B4EA-B8BCBA88AEC3@dilger.ca>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <04798BA8-2157-4611-B4EA-B8BCBA88AEC3@dilger.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Garnier <thgarnie@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Kees Cook <keescook@chromium.org>, gthelen@google.com, labbott@fedoraproject.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andreas Dilger <adilger@dilger.ca>
+Cc: Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel <cluster-devel@redhat.com>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, logfs@logfs.org, XFS Developers <xfs@oss.sgi.com>, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 27 Apr 2016 10:20:59 -0700 Thomas Garnier <thgarnie@google.com> wrote:
+On Wed 27-04-16 11:41:51, Andreas Dilger wrote:
+> On Apr 27, 2016, at 5:54 AM, Michal Hocko <mhocko@kernel.org> wrote:
+[...]
+> > --- a/fs/xfs/kmem.c
+> > +++ b/fs/xfs/kmem.c
+> > @@ -80,13 +80,13 @@ kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
+> > 	 * context via PF_MEMALLOC_NOIO to prevent memory reclaim re-entering
+> > 	 * the filesystem here and potentially deadlocking.
+> > 	 */
+> > -	if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
+> > +	if ((current->flags & PF_MEMALLOC_NOFS) || (flags & KM_NOFS))
+> > 		noio_flag = memalloc_noio_save();
+> > 
+> > 	lflags = kmem_flags_convert(flags);
+> > 	ptr = __vmalloc(size, lflags | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
+> > 
+> > -	if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
+> > +	if ((current->flags & PF_MEMALLOC_NOFS) || (flags & KM_NOFS))
+> > 		memalloc_noio_restore(noio_flag);
+> 
+> Not really the fault of this patch, but it brings this nasty bit of code into
+> the light.  Is all of this machinery still needed given that __vmalloc() can
+> accept GFP flags?  If yes, wouldn't it be better to fix __vmalloc() to honor
+> the GFP flags instead of working around it in the filesystem code?
 
-> Provides an optional config (CONFIG_SLAB_FREELIST_RANDOM) to randomize
-> the SLAB freelist.
-
-Forgot this bit?
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-slab-freelist-randomization-v5-fix
-
-propagate gfp_t into cache_random_seq_create()
-
-Cc: Christoph Lameter <cl@linux.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Greg Thelen <gthelen@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Laura Abbott <labbott@fedoraproject.org>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Thomas Garnier <thgarnie@google.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-
---- a/mm/slab.c~mm-slab-freelist-randomization-v5-fix
-+++ a/mm/slab.c
-@@ -1262,7 +1262,7 @@ static void freelist_randomize(struct rn
- }
- 
- /* Create a random sequence per cache */
--static int cache_random_seq_create(struct kmem_cache *cachep)
-+static int cache_random_seq_create(struct kmem_cache *cachep, gfp_t gfp)
- {
- 	unsigned int seed, count = cachep->num;
- 	struct rnd_state state;
-@@ -1271,7 +1271,7 @@ static int cache_random_seq_create(struc
- 		return 0;
- 
- 	/* If it fails, we will just use the global lists */
--	cachep->random_seq = kcalloc(count, sizeof(freelist_idx_t), GFP_KERNEL);
-+	cachep->random_seq = kcalloc(count, sizeof(freelist_idx_t), gfp);
- 	if (!cachep->random_seq)
- 		return -ENOMEM;
- 
-@@ -1290,7 +1290,7 @@ static void cache_random_seq_destroy(str
- 	cachep->random_seq = NULL;
- }
- #else
--static inline int cache_random_seq_create(struct kmem_cache *cachep)
-+static inline int cache_random_seq_create(struct kmem_cache *cachep, gfp_t gfp)
- {
- 	return 0;
- }
-@@ -3999,7 +3999,7 @@ static int enable_cpucache(struct kmem_c
- 	int shared = 0;
- 	int batchcount = 0;
- 
--	err = cache_random_seq_create(cachep);
-+	err = cache_random_seq_create(cachep, gfp);
- 	if (err)
- 		goto end;
- 
-_
+This is not that easy. __vmalloc can accept gfp flags but it doesn't
+honor __GFP_IO 100%. IIRC some paths like page table allocations are
+hardcoded GFP_KERNEL. Besides that I would like to have GFP_NOIO used
+via memalloc_noio_{save,restore} API as well for the similar reasons as
+GFP_NOFS - it is just easier to explain scope than particular code paths
+which might be shared.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
