@@ -1,52 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CBE376B025E
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:48:04 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id e63so91127067iod.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:48:04 -0700 (PDT)
-Received: from mail-ob0-x22a.google.com (mail-ob0-x22a.google.com. [2607:f8b0:4003:c01::22a])
-        by mx.google.com with ESMTPS id s28si1942204otd.122.2016.04.27.07.48.04
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BC90D6B0005
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:57:25 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id y84so40053677lfc.3
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:57:25 -0700 (PDT)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id q2si4831045wjp.213.2016.04.27.07.57.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Apr 2016 07:48:04 -0700 (PDT)
-Received: by mail-ob0-x22a.google.com with SMTP id n10so20936291obb.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:48:04 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <5720D066.7080409@amd.com>
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225604.13567.55443.stgit@tlendack-t1.amdoffice.net>
- <CALCETrU9ozp1mBKG-P88cKRJRY5bifn2Ab__AZcn5b33n3j2cg@mail.gmail.com> <5720D066.7080409@amd.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 27 Apr 2016 07:47:44 -0700
-Message-ID: <CALCETrV+JzPZjrrqkhWSVfvKQt62Aq8NSW=ZvfdiAi8XKoLi8A@mail.gmail.com>
-Subject: Re: [RFC PATCH v1 01/18] x86: Set the write-protect cache mode for
- AMD processors
-Content-Type: text/plain; charset=UTF-8
+        Wed, 27 Apr 2016 07:57:24 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id CBB621C1315
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 15:57:23 +0100 (IST)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 0/6] Optimise page alloc/free fast paths followup v2
+Date: Wed, 27 Apr 2016 15:57:17 +0100
+Message-Id: <1461769043-28337-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch <linux-arch@vger.kernel.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, kvm list <kvm@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-On Wed, Apr 27, 2016 at 7:44 AM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
-> On 04/27/2016 09:33 AM, Andy Lutomirski wrote:
->> On Tue, Apr 26, 2016 at 3:56 PM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
->>> For AMD processors that support PAT, set the write-protect cache mode
->>> (_PAGE_CACHE_MODE_WP) entry to the actual write-protect value (x05).
->>
->> What's the purpose of using the WP memory type?
->
-> The WP memory type is used for encrypting or decrypting data "in place".
-> The use of the WP on the source data will prevent any of the source
-> data from being cached.  Refer to section 7.10.8 "Encrypt-in-Place" in
-> the AMD64 APM link provided in the cover letter.
->
-> This memory type will be used in subsequent patches for this purpose.
+This is a follow-up series based on Vlastimil Babka's review feedback.
+The first change is that the second patch in the previous series was dropped
+as the patch "mm, page_alloc: inline the fast path of the zonelist iterator"
+is fine. The nodemask pointer is the same between cpuset retries. If the
+zonelist changes due to ALLOC_NO_WATERMARKS *and* it races with a cpuset
+change then there is a second harmless pass through the page allocator.
 
-OK.
+Patches 1-3 are fixes for patches in mmotm. They should be taking into
+account the changes in mmotm already made although that did involve
+some guesswork. It should be relatively easy to merge into the correct
+places. However, if there are major conflicts then let me know and I'll
+respin the entire series.
 
-Why AMD-only?  I thought Intel supported WP, too.
+Patches 4-6 are from Vlastimil with only minor modifications.
 
---Andy
+There is a marginal impact to the series but it's within the noise and
+necessary to address the problems.
+
+pagealloc
+                                           4.6.0-rc4                  4.6.0-rc4
+                                      mmotm-20150422              followup-v1r1
+Min      alloc-odr0-1               317.00 (  0.00%)           319.00 ( -0.63%)
+Min      alloc-odr0-2               232.00 (  0.00%)           231.00 (  0.43%)
+Min      alloc-odr0-4               192.00 (  0.00%)           193.00 ( -0.52%)
+Min      alloc-odr0-8               167.00 (  0.00%)           168.00 ( -0.60%)
+Min      alloc-odr0-16              154.00 (  0.00%)           155.00 ( -0.65%)
+Min      alloc-odr0-32              148.00 (  0.00%)           148.00 (  0.00%)
+Min      alloc-odr0-64              145.00 (  0.00%)           145.00 (  0.00%)
+Min      alloc-odr0-128             143.00 (  0.00%)           144.00 ( -0.70%)
+Min      alloc-odr0-256             152.00 (  0.00%)           156.00 ( -2.63%)
+Min      alloc-odr0-512             164.00 (  0.00%)           165.00 ( -0.61%)
+Min      alloc-odr0-1024            172.00 (  0.00%)           175.00 ( -1.74%)
+Min      alloc-odr0-2048            178.00 (  0.00%)           180.00 ( -1.12%)
+Min      alloc-odr0-4096            184.00 (  0.00%)           186.00 ( -1.09%)
+Min      alloc-odr0-8192            187.00 (  0.00%)           189.00 ( -1.07%)
+Min      alloc-odr0-16384           188.00 (  0.00%)           189.00 ( -0.53%)
+Min      free-odr0-1                178.00 (  0.00%)           177.00 (  0.56%)
+Min      free-odr0-2                125.00 (  0.00%)           125.00 (  0.00%)
+Min      free-odr0-4                 98.00 (  0.00%)            97.00 (  1.02%)
+Min      free-odr0-8                 84.00 (  0.00%)            84.00 (  0.00%)
+Min      free-odr0-16                79.00 (  0.00%)            80.00 ( -1.27%)
+Min      free-odr0-32                75.00 (  0.00%)            75.00 (  0.00%)
+Min      free-odr0-64                73.00 (  0.00%)            73.00 (  0.00%)
+Min      free-odr0-128               72.00 (  0.00%)            72.00 (  0.00%)
+Min      free-odr0-256               88.00 (  0.00%)            93.00 ( -5.68%)
+Min      free-odr0-512              108.00 (  0.00%)           107.00 (  0.93%)
+Min      free-odr0-1024             117.00 (  0.00%)           116.00 (  0.85%)
+Min      free-odr0-2048             125.00 (  0.00%)           124.00 (  0.80%)
+Min      free-odr0-4096             131.00 (  0.00%)           128.00 (  2.29%)
+Min      free-odr0-8192             131.00 (  0.00%)           129.00 (  1.53%)
+Min      free-odr0-16384            131.00 (  0.00%)           129.00 (  1.53%)
+Min      total-odr0-1               495.00 (  0.00%)           496.00 ( -0.20%)
+Min      total-odr0-2               357.00 (  0.00%)           356.00 (  0.28%)
+Min      total-odr0-4               290.00 (  0.00%)           290.00 (  0.00%)
+Min      total-odr0-8               251.00 (  0.00%)           252.00 ( -0.40%)
+Min      total-odr0-16              233.00 (  0.00%)           235.00 ( -0.86%)
+Min      total-odr0-32              223.00 (  0.00%)           223.00 (  0.00%)
+Min      total-odr0-64              218.00 (  0.00%)           218.00 (  0.00%)
+Min      total-odr0-128             215.00 (  0.00%)           216.00 ( -0.47%)
+Min      total-odr0-256             240.00 (  0.00%)           249.00 ( -3.75%)
+Min      total-odr0-512             272.00 (  0.00%)           272.00 (  0.00%)
+Min      total-odr0-1024            289.00 (  0.00%)           291.00 ( -0.69%)
+Min      total-odr0-2048            303.00 (  0.00%)           304.00 ( -0.33%)
+Min      total-odr0-4096            315.00 (  0.00%)           314.00 (  0.32%)
+Min      total-odr0-8192            318.00 (  0.00%)           318.00 (  0.00%)
+Min      total-odr0-16384           319.00 (  0.00%)           318.00 (  0.31%)
+
+ mm/page_alloc.c | 69 +++++++++++++++++++++++----------------------------------
+ 1 file changed, 28 insertions(+), 41 deletions(-)
+
+-- 
+2.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
