@@ -1,44 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 848496B0005
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:30:47 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id s63so41617765wme.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:30:47 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTP id y10si24489712wmb.17.2016.04.27.07.30.46
-        for <linux-mm@kvack.org>;
-        Wed, 27 Apr 2016 07:30:46 -0700 (PDT)
-Date: Wed, 27 Apr 2016 16:30:45 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC PATCH v1 00/18] x86: Secure Memory Encryption (AMD)
-Message-ID: <20160427143045.GA4718@amd>
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160322130058.GA16528@xo-6d-61-c0.localdomain>
- <20160427140520.GG21011@pd.tnic>
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E0206B0005
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:33:41 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id y69so91095565oif.0
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:33:41 -0700 (PDT)
+Received: from mail-ob0-x22b.google.com (mail-ob0-x22b.google.com. [2607:f8b0:4003:c01::22b])
+        by mx.google.com with ESMTPS id 5si1910004otw.63.2016.04.27.07.33.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Apr 2016 07:33:40 -0700 (PDT)
+Received: by mail-ob0-x22b.google.com with SMTP id n10so20729746obb.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:33:40 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160427140520.GG21011@pd.tnic>
+In-Reply-To: <20160426225604.13567.55443.stgit@tlendack-t1.amdoffice.net>
+References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net> <20160426225604.13567.55443.stgit@tlendack-t1.amdoffice.net>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 27 Apr 2016 07:33:21 -0700
+Message-ID: <CALCETrU9ozp1mBKG-P88cKRJRY5bifn2Ab__AZcn5b33n3j2cg@mail.gmail.com>
+Subject: Re: [RFC PATCH v1 01/18] x86: Set the write-protect cache mode for
+ AMD processors
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch <linux-arch@vger.kernel.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, kvm list <kvm@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Wed 2016-04-27 16:05:20, Borislav Petkov wrote:
-> On Tue, Mar 22, 2016 at 02:00:58PM +0100, Pavel Machek wrote:
-> > Why would I want SME on my system? My system seems to work without it.
-> 
-> Your system doesn't have it and SME is default off.
+On Tue, Apr 26, 2016 at 3:56 PM, Tom Lendacky <thomas.lendacky@amd.com> wrote:
+> For AMD processors that support PAT, set the write-protect cache mode
+> (_PAGE_CACHE_MODE_WP) entry to the actual write-protect value (x05).
 
-That does not answer the question. "Why would I want SME on my
-system?".
+What's the purpose of using the WP memory type?
 
-And that answer should go to Documentation/.
-
-									Pavel
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
