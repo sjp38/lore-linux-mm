@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B4066B025E
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:57:29 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id r12so42228814wme.0
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:57:29 -0700 (PDT)
-Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
-        by mx.google.com with ESMTPS id it2si4863518wjb.129.2016.04.27.07.57.24
+	by kanga.kvack.org (Postfix) with ESMTP id 5D45C6B025F
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:57:31 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id s63so42389597wme.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:57:31 -0700 (PDT)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
+        by mx.google.com with ESMTPS id g69si9543069wme.83.2016.04.27.07.57.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 27 Apr 2016 07:57:25 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id BF8EC1C158D
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id E916E1C15AC
 	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 15:57:24 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 5/6] mm, page_alloc: pull out side effects from free_pages_check
-Date: Wed, 27 Apr 2016 15:57:22 +0100
-Message-Id: <1461769043-28337-6-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 6/6] mm, page_alloc: don't duplicate code in free_pcp_prepare
+Date: Wed, 27 Apr 2016 15:57:23 +0100
+Message-Id: <1461769043-28337-7-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1461769043-28337-1-git-send-email-mgorman@techsingularity.net>
 References: <1461769043-28337-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,74 +23,107 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Check without side-effects should be easier to maintain. It also removes the
-duplicated cpupid and flags reset done in !DEBUG_VM variant of both
-free_pcp_prepare() and then bulkfree_pcp_prepare(). Finally, it enables
-the next patch.
+The new free_pcp_prepare() function shares a lot of code with
+free_pages_prepare(), which makes this a maintenance risk when some future
+patch modifies only one of them. We should be able to achieve the same effect
+(skipping free_pages_check() from !DEBUG_VM configs) by adding a parameter to
+free_pages_prepare() and making it inline, so the checks (and the order != 0
+parts) are eliminated from the call from free_pcp_prepare().
 
-It shouldn't result in new branches, thanks to inlining of the check.
+!DEBUG_VM: bloat-o-meter reports no difference, as my gcc was already inlining
+free_pages_prepare() and the elimination seems to work as expected
 
-!DEBUG_VM bloat-o-meter:
+DEBUG_VM bloat-o-meter:
 
-add/remove: 0/0 grow/shrink: 0/2 up/down: 0/-27 (-27)
+add/remove: 0/1 grow/shrink: 2/0 up/down: 1035/-778 (257)
 function                                     old     new   delta
-__free_pages_ok                              748     739      -9
-free_pcppages_bulk                          1403    1385     -18
+__free_pages_ok                              297    1060    +763
+free_hot_cold_page                           480     752    +272
+free_pages_prepare                           778       -    -778
 
-DEBUG_VM:
-
-add/remove: 0/0 grow/shrink: 0/1 up/down: 0/-28 (-28)
-function                                     old     new   delta
-free_pages_prepare                           806     778     -28
-
-This is also slightly faster because cpupid information is not set on tail
-pages so we can avoid resets there.
+Here inlining didn't occur before, and added some code, but it's ok for a debug
+option.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/page_alloc.c | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ mm/page_alloc.c | 35 +++++++----------------------------
+ 1 file changed, 7 insertions(+), 28 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 97894cbe2fa3..b823f00c275b 100644
+index b823f00c275b..bc4160bfb36b 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -932,11 +932,8 @@ static void free_pages_check_bad(struct page *page)
+@@ -990,7 +990,8 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
+ 	return ret;
  }
- static inline int free_pages_check(struct page *page)
- {
--	if (likely(page_expected_state(page, PAGE_FLAGS_CHECK_AT_FREE))) {
--		page_cpupid_reset_last(page);
--		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-+	if (likely(page_expected_state(page, PAGE_FLAGS_CHECK_AT_FREE)))
- 		return 0;
--	}
  
- 	/* Something has gone sideways, find it */
- 	free_pages_check_bad(page);
-@@ -1016,7 +1013,11 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
- 		for (i = 1; i < (1 << order); i++) {
- 			if (compound)
- 				bad += free_tail_pages_check(page, page + i);
--			bad += free_pages_check(page + i);
-+			if (unlikely(free_pages_check(page + i))) {
-+				bad++;
-+				continue;
-+			}
-+			(page + i)->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
- 		}
+-static bool free_pages_prepare(struct page *page, unsigned int order)
++static __always_inline bool free_pages_prepare(struct page *page, unsigned int order,
++						bool check_free)
+ {
+ 	int bad = 0;
+ 
+@@ -1022,7 +1023,8 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
  	}
  	if (PageAnonHead(page))
-@@ -1025,6 +1026,8 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+ 		page->mapping = NULL;
+-	bad += free_pages_check(page);
++	if (check_free)
++		bad += free_pages_check(page);
  	if (bad)
  		return false;
  
-+	page_cpupid_reset_last(page);
-+	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
- 	reset_page_owner(page, order);
+@@ -1046,7 +1048,7 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+ #ifdef CONFIG_DEBUG_VM
+ static inline bool free_pcp_prepare(struct page *page)
+ {
+-	return free_pages_prepare(page, 0);
++	return free_pages_prepare(page, 0, true);
+ }
  
- 	if (!PageHighMem(page)) {
+ static inline bool bulkfree_pcp_prepare(struct page *page)
+@@ -1056,30 +1058,7 @@ static inline bool bulkfree_pcp_prepare(struct page *page)
+ #else
+ static bool free_pcp_prepare(struct page *page)
+ {
+-	VM_BUG_ON_PAGE(PageTail(page), page);
+-
+-	trace_mm_page_free(page, 0);
+-	kmemcheck_free_shadow(page, 0);
+-	kasan_poison_free_pages(page, 0);
+-
+-	if (PageAnonHead(page))
+-		page->mapping = NULL;
+-
+-	reset_page_owner(page, 0);
+-
+-	if (!PageHighMem(page)) {
+-		debug_check_no_locks_freed(page_address(page),
+-					   PAGE_SIZE);
+-		debug_check_no_obj_freed(page_address(page),
+-					   PAGE_SIZE);
+-	}
+-	arch_free_page(page, 0);
+-	kernel_poison_pages(page, 0, 0);
+-	kernel_map_pages(page, 0, 0);
+-
+-	page_cpupid_reset_last(page);
+-	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+-	return true;
++	return free_pages_prepare(page, 0, false);
+ }
+ 
+ static bool bulkfree_pcp_prepare(struct page *page)
+@@ -1257,7 +1236,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	int migratetype;
+ 	unsigned long pfn = page_to_pfn(page);
+ 
+-	if (!free_pages_prepare(page, order))
++	if (!free_pages_prepare(page, order, true))
+ 		return;
+ 
+ 	migratetype = get_pfnblock_migratetype(page, pfn);
 -- 
 2.6.4
 
