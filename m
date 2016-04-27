@@ -1,50 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D9736B0005
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 13:07:40 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id b203so96273550pfb.1
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:07:40 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id q9si1188205paz.202.2016.04.27.10.07.39
+	by kanga.kvack.org (Postfix) with ESMTP id E3D316B0005
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 13:11:05 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 203so96231477pfy.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:11:05 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id kx15si6244259pab.97.2016.04.27.10.11.05
         for <linux-mm@kvack.org>;
-        Wed, 27 Apr 2016 10:07:39 -0700 (PDT)
-Subject: Re: [RFC PATCH v1 02/18] x86: Secure Memory Encryption (SME) build
- enablement
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225614.13567.47487.stgit@tlendack-t1.amdoffice.net>
- <20160322130150.GB16528@xo-6d-61-c0.localdomain> <5720D810.9060602@amd.com>
- <20160427153010.GA7861@amd> <20160427154140.GK21011@pd.tnic>
- <20160427164137.GA11779@amd>
-From: Robin Murphy <robin.murphy@arm.com>
-Message-ID: <5720F1D6.7020400@arm.com>
-Date: Wed, 27 Apr 2016 18:07:34 +0100
+        Wed, 27 Apr 2016 10:11:05 -0700 (PDT)
+Subject: Re: mm: pages are not freed from lru_add_pvecs after process
+ termination
+References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <5720F2A8.6070406@intel.com>
+Date: Wed, 27 Apr 2016 10:11:04 -0700
 MIME-Version: 1.0
-In-Reply-To: <20160427164137.GA11779@amd>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>, Borislav Petkov <bp@alien8.de>
-Cc: linux-efi@vger.kernel.org, kvm@vger.kernel.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Matt Fleming <matt@codeblueprint.co.uk>, x86@kernel.org, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-arch@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, linux-doc@vger.kernel.org, kasan-dev@googlegroups.com, Ingo Molnar <mingo@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Tom Lendacky <thomas.lendacky@amd.com>, Arnd Bergmann <arnd@arndb.de>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, linux-kernel@vger.kernel.org, iommu@lists.linux-foundation.org, Paolo Bonzini <pbonzini@redhat.com>
+To: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
 
-On 27/04/16 17:41, Pavel Machek wrote:
-> On Wed 2016-04-27 17:41:40, Borislav Petkov wrote:
->> On Wed, Apr 27, 2016 at 05:30:10PM +0200, Pavel Machek wrote:
->>> Doing it early will break bisect, right?
->>
->> How exactly? Please do tell.
->
-> Hey look, SME slowed down 30% since being initially merged into
-> kernel!
+On 04/27/2016 10:01 AM, Odzioba, Lukasz wrote:
+> Pieces of the puzzle:
+> A) after process termination memory is not getting freed nor accounted as free
 
-As opposed to "well, bisection shows these n+1 complicated changes are 
-all fine and the crash is down to this Kconfig patch", presumably. I'm 
-sure we all love spending a whole afternoon only to find that, right? :P
+I don't think this part is necessarily a bug.  As long as we have stats
+*somewhere*, and we really do "reclaim" them, I don't think we need to
+call these pages "free".
 
-Robin.
+> I am not sure whether it is expected behavior or a side effect of something else not
+> going as it should. Temporarily I added lru_add_drain_all() to try_to_free_pages()
+> which sort of hammers B case, but A is still present.
 
-> 									Pavel
->
+It's not expected behavior.  It's an unanticipated side effect of large
+numbers of cpu threads, large pages on the LRU, and (relatively) small
+zones.
+
+> I am not familiar with this code, but I feel like draining lru_add work should be split
+> into smaller pieces and done by kswapd to fix A and drain only as much pages as
+> needed in try_to_free_pages to fix B.
+> 
+> Any comments/ideas/patches for a proper fix are welcome.
+
+Here are my suggestions.  I've passed these along multiple times, but I
+guess I'll repeat them again for good measure.
+
+> 1. We need some statistics on the number and total *SIZES* of all pages
+>    in the lru pagevecs.  It's too opaque now.
+> 2. We need to make darn sure we drain the lru pagevecs before failing
+>    any kind of allocation.
+> 3. We need some way to drain the lru pagevecs directly.  Maybe the buddy
+>    pcp lists too.
+> 4. We need to make sure that a zone_reclaim_mode=0 system still drains
+>    too.
+> 5. The VM stats and their updates are now related to how often
+>    drain_zone_pages() gets run.  That might be interacting here too.
+
+6. Perhaps don't use the LRU pagevecs for large pages.  It limits the
+   severity of the problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
