@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A1CE6B007E
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 16:30:15 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id dx6so88229578pad.0
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 13:30:15 -0700 (PDT)
-Received: from mail-pa0-f66.google.com (mail-pa0-f66.google.com. [209.85.220.66])
-        by mx.google.com with ESMTPS id e5si7024499paf.167.2016.04.27.13.30.14
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A4C176B007E
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 17:04:01 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id vv3so89158622pab.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 14:04:01 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id h10si7165058paw.142.2016.04.27.14.04.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Apr 2016 13:30:14 -0700 (PDT)
-Received: by mail-pa0-f66.google.com with SMTP id zy2so6974329pac.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 13:30:14 -0700 (PDT)
-Date: Wed, 27 Apr 2016 22:30:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1.2/2] mm: introduce memalloc_nofs_{save,restore} API
-Message-ID: <20160427203010.GD22544@dhcp22.suse.cz>
-References: <1461671772-1269-2-git-send-email-mhocko@kernel.org>
- <1461758075-21815-1-git-send-email-mhocko@kernel.org>
- <1461758075-21815-2-git-send-email-mhocko@kernel.org>
- <20160427200927.GC22544@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160427200927.GC22544@dhcp22.suse.cz>
+        Wed, 27 Apr 2016 14:04:00 -0700 (PDT)
+Date: Wed, 27 Apr 2016 14:03:59 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: put activate_page_pvecs and others pagevec together
+Message-Id: <20160427140359.a5003280ef5c6bda149ee141@linux-foundation.org>
+In-Reply-To: <tencent_5CF8AA8413F8563C681F8DC9@qq.com>
+References: <tencent_5CF8AA8413F8563C681F8DC9@qq.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
+To: Ming Li <mingli199x@qq.com>
+Cc: Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <Babkavbabka@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Wed 27-04-16 22:09:27, Michal Hocko wrote:
-[...]
-> [   53.993480]   [<ffffffff810945e3>] mark_held_locks+0x5e/0x74
-> [   53.993480]   [<ffffffff8109722c>] lockdep_trace_alloc+0xb2/0xb5
-> [   53.993480]   [<ffffffff81174e56>] kmem_cache_alloc+0x36/0x2b0
+On Mon, 11 Apr 2016 09:36:46 +0800 "Ming Li" <mingli199x@qq.com> wrote:
 
-Scratch that. I got it. It is the lockdep annotation which I got wrong
-with my patch. I thought this was done much later in the slow path.
-My head is burnt so I will get back to it tomorrow. The patch 1.1 should
-be OK to go for XFS though because it doesn't really introduce anything
-new.
+> hi, i`m sorry, I made some mistakes in last email. I have been studying mm and learn age_activate_anon(), at the very beginning I felt confuse when I saw activate_page_pvecs, after I learned the whole thing I understood that it's similar with other pagevec's function. Can we put it with other pagevec together? I think it is easier for newbies to read and understand.
 
-Sorry about the noise!
--- 
-Michal Hocko
-SUSE Labs
+Welcome to kernel development ;)
+
+Your email client is mangling the patches in several ways.  Please sort
+that out for next time - mail yourself a patch, check that it applies.
+
+The changelog text wasn't very conventional.  I rewrote it to
+
+: Put the activate_page_pvecs definition next to those of the other
+: pagevecs, for clarity.
+
+and I changed the title to 
+
+Subject: mm/swap.c: put activate_page_pvecs and other pagevecs together
+
+because "mm" is a big place!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
