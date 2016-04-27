@@ -1,45 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 639E96B0005
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 12:41:40 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id j8so42609919lfd.0
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 09:41:40 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTP id 14si10040623wmu.112.2016.04.27.09.41.39
-        for <linux-mm@kvack.org>;
-        Wed, 27 Apr 2016 09:41:39 -0700 (PDT)
-Date: Wed, 27 Apr 2016 18:41:37 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC PATCH v1 02/18] x86: Secure Memory Encryption (SME) build
- enablement
-Message-ID: <20160427164137.GA11779@amd>
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225614.13567.47487.stgit@tlendack-t1.amdoffice.net>
- <20160322130150.GB16528@xo-6d-61-c0.localdomain>
- <5720D810.9060602@amd.com>
- <20160427153010.GA7861@amd>
- <20160427154140.GK21011@pd.tnic>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B98EA6B0005
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 12:50:36 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id zy2so79883856pac.1
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 09:50:36 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id uv6si6145813pac.176.2016.04.27.09.50.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Apr 2016 09:50:35 -0700 (PDT)
+Received: by mail-pa0-x235.google.com with SMTP id bt5so21282045pac.3
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 09:50:35 -0700 (PDT)
+Subject: Re: [BUG] set_pte_at: racy dirty state clearing warning
+References: <57180A53.3000207@linaro.org>
+ <20160421084946.GA23774@e104818-lin.cambridge.arm.com>
+From: "Shi, Yang" <yang.shi@linaro.org>
+Message-ID: <50501020-db93-cb6c-c2d9-b59efc05c30d@linaro.org>
+Date: Wed, 27 Apr 2016 09:50:33 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160427154140.GK21011@pd.tnic>
+In-Reply-To: <20160421084946.GA23774@e104818-lin.cambridge.arm.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Wed 2016-04-27 17:41:40, Borislav Petkov wrote:
-> On Wed, Apr 27, 2016 at 05:30:10PM +0200, Pavel Machek wrote:
-> > Doing it early will break bisect, right?
-> 
-> How exactly? Please do tell.
+On 4/21/2016 1:49 AM, Catalin Marinas wrote:
+> On Wed, Apr 20, 2016 at 04:01:39PM -0700, Shi, Yang wrote:
+>> When I enable memory comact via
+>>
+>> # echo 1 > /proc/sys/vm/compact_memory
+>>
+>> I got the below WARNING:
+>>
+>> set_pte_at: racy dirty state clearing: 0x0068000099371bd3 ->
+>> 0x0068000099371fd3
+>> ------------[ cut here ]------------
+>> WARNING: CPU: 5 PID: 294 at ./arch/arm64/include/asm/pgtable.h:227
+>> ptep_set_access_flags+0x138/0x1b8
+>> Modules linked in:
+>
+> Do you have this patch applied:
+>
+> http://article.gmane.org/gmane.linux.ports.arm.kernel/492239
+>
+> It's also queued into -next as commit 66dbd6e61a52.
 
-Hey look, SME slowed down 30% since being initially merged into
-kernel!
-									Pavel
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+No, but I just applied it, it works.
+
+Thanks,
+Yang
+
+>
+>> My kernel has ARM64_HW_AFDBM enabled, but LS2085 is not ARMv8.1.
+>>
+>> The code shows it just check if ARM64_HW_AFDBM is enabled or not, but
+>> doesn't check if the CPU really has such capability.
+>>
+>> So, it might be better to have the capability checked runtime?
+>
+> The warnings are there to spot any incorrect uses of the pte accessors
+> even before you run on AF/DBM-capable hardware.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
