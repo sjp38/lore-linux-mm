@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D45C6B025F
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:57:31 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id s63so42389597wme.2
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:57:31 -0700 (PDT)
-Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
-        by mx.google.com with ESMTPS id g69si9543069wme.83.2016.04.27.07.57.25
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 91CAC6B0260
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 10:57:33 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id e201so40346329wme.1
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 07:57:33 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id a71si9579753wma.36.2016.04.27.07.57.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Apr 2016 07:57:25 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 27 Apr 2016 07:57:26 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id E916E1C15AC
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 15:57:24 +0100 (IST)
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 4CD549895D
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 14:57:24 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 6/6] mm, page_alloc: don't duplicate code in free_pcp_prepare
-Date: Wed, 27 Apr 2016 15:57:23 +0100
-Message-Id: <1461769043-28337-7-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 2/6] mm, page_alloc: move might_sleep_if check to the allocator slowpath -revert
+Date: Wed, 27 Apr 2016 15:57:19 +0100
+Message-Id: <1461769043-28337-3-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1461769043-28337-1-git-send-email-mgorman@techsingularity.net>
 References: <1461769043-28337-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,107 +23,42 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-The new free_pcp_prepare() function shares a lot of code with
-free_pages_prepare(), which makes this a maintenance risk when some future
-patch modifies only one of them. We should be able to achieve the same effect
-(skipping free_pages_check() from !DEBUG_VM configs) by adding a parameter to
-free_pages_prepare() and making it inline, so the checks (and the order != 0
-parts) are eliminated from the call from free_pcp_prepare().
+Vlastimil Babka pointed out that a patch weakens a zone_reclaim test
+which while "safe" defeats the purposes of the debugging check. As most
+configurations eliminate this check anyway, I thought it was better to
+simply revert the patch instead of adding a second check in zone_reclaim.
 
-!DEBUG_VM: bloat-o-meter reports no difference, as my gcc was already inlining
-free_pages_prepare() and the elimination seems to work as expected
+This is a revert of the mmotm patch
+mm-page_alloc-move-might_sleep_if-check-to-the-allocator-slowpath.patch .
 
-DEBUG_VM bloat-o-meter:
-
-add/remove: 0/1 grow/shrink: 2/0 up/down: 1035/-778 (257)
-function                                     old     new   delta
-__free_pages_ok                              297    1060    +763
-free_hot_cold_page                           480     752    +272
-free_pages_prepare                           778       -    -778
-
-Here inlining didn't occur before, and added some code, but it's ok for a debug
-option.
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Suggested-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/page_alloc.c | 35 +++++++----------------------------
- 1 file changed, 7 insertions(+), 28 deletions(-)
+ mm/page_alloc.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b823f00c275b..bc4160bfb36b 100644
+index d8383750bd43..9ad4e68486e9 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -990,7 +990,8 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
- 	return ret;
- }
- 
--static bool free_pages_prepare(struct page *page, unsigned int order)
-+static __always_inline bool free_pages_prepare(struct page *page, unsigned int order,
-+						bool check_free)
- {
- 	int bad = 0;
- 
-@@ -1022,7 +1023,8 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+@@ -3606,8 +3606,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		return NULL;
  	}
- 	if (PageAnonHead(page))
- 		page->mapping = NULL;
--	bad += free_pages_check(page);
-+	if (check_free)
-+		bad += free_pages_check(page);
- 	if (bad)
- 		return false;
  
-@@ -1046,7 +1048,7 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
- #ifdef CONFIG_DEBUG_VM
- static inline bool free_pcp_prepare(struct page *page)
- {
--	return free_pages_prepare(page, 0);
-+	return free_pages_prepare(page, 0, true);
- }
+-	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
+-
+ 	/*
+ 	 * We also sanity check to catch abuse of atomic reserves being used by
+ 	 * callers that are not in atomic context.
+@@ -3806,6 +3804,8 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
  
- static inline bool bulkfree_pcp_prepare(struct page *page)
-@@ -1056,30 +1058,7 @@ static inline bool bulkfree_pcp_prepare(struct page *page)
- #else
- static bool free_pcp_prepare(struct page *page)
- {
--	VM_BUG_ON_PAGE(PageTail(page), page);
--
--	trace_mm_page_free(page, 0);
--	kmemcheck_free_shadow(page, 0);
--	kasan_poison_free_pages(page, 0);
--
--	if (PageAnonHead(page))
--		page->mapping = NULL;
--
--	reset_page_owner(page, 0);
--
--	if (!PageHighMem(page)) {
--		debug_check_no_locks_freed(page_address(page),
--					   PAGE_SIZE);
--		debug_check_no_obj_freed(page_address(page),
--					   PAGE_SIZE);
--	}
--	arch_free_page(page, 0);
--	kernel_poison_pages(page, 0, 0);
--	kernel_map_pages(page, 0, 0);
--
--	page_cpupid_reset_last(page);
--	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
--	return true;
-+	return free_pages_prepare(page, 0, false);
- }
+ 	lockdep_trace_alloc(gfp_mask);
  
- static bool bulkfree_pcp_prepare(struct page *page)
-@@ -1257,7 +1236,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 	int migratetype;
- 	unsigned long pfn = page_to_pfn(page);
++	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
++
+ 	if (should_fail_alloc_page(gfp_mask, order))
+ 		return NULL;
  
--	if (!free_pages_prepare(page, order))
-+	if (!free_pages_prepare(page, order, true))
- 		return;
- 
- 	migratetype = get_pfnblock_migratetype(page, pfn);
 -- 
 2.6.4
 
