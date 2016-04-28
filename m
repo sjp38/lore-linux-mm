@@ -1,78 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 973426B0262
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 11:41:02 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id l137so181254649ywe.0
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:41:02 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w72si5148562qkw.173.2016.04.28.08.41.01
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C1456B007E
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 12:00:24 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 68so68212669lfq.2
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:00:24 -0700 (PDT)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
+        by mx.google.com with ESMTPS id c191si16449878wme.44.2016.04.28.09.00.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 08:41:01 -0700 (PDT)
-Date: Thu, 28 Apr 2016 11:40:59 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH] md: simplify free_params for kmalloc vs vmalloc
+        Thu, 28 Apr 2016 09:00:22 -0700 (PDT)
+Received: by mail-wm0-f42.google.com with SMTP id n129so71125180wmn.1
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:00:22 -0700 (PDT)
+Date: Thu, 28 Apr 2016 18:00:21 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 19/20] md: simplify free_params for kmalloc vs vmalloc
  fallback
-In-Reply-To: <20160428152812.GM31489@dhcp22.suse.cz>
-Message-ID: <alpine.LRH.2.02.1604281129360.14065@file01.intranet.prod.int.rdu2.redhat.com>
-References: <1461849846-27209-20-git-send-email-mhocko@kernel.org> <1461855076-1682-1-git-send-email-mhocko@kernel.org> <alpine.LRH.2.02.1604281059290.14065@file01.intranet.prod.int.rdu2.redhat.com> <20160428152812.GM31489@dhcp22.suse.cz>
+Message-ID: <20160428160021.GN31489@dhcp22.suse.cz>
+References: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
+ <1461849846-27209-20-git-send-email-mhocko@kernel.org>
+ <20160428153730.GA14570@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160428153730.GA14570@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Shaohua Li <shli@kernel.org>, dm-devel@redhat.com
+To: Mike Snitzer <snitzer@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mikulas Patocka <mpatocka@redhat.com>, Shaohua Li <shli@kernel.org>
 
-
-
-On Thu, 28 Apr 2016, Michal Hocko wrote:
-
-> On Thu 28-04-16 11:04:05, Mikulas Patocka wrote:
-> > Acked-by: Mikulas Patocka <mpatocka@redhat.com>
+On Thu 28-04-16 11:37:31, Mike Snitzer wrote:
+> On Thu, Apr 28 2016 at  9:24am -0400,
+> Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> Thanks!
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > Use kvfree rather than DM_PARAMS_[KV]MALLOC specific param flags.
+> > 
+> > Cc: Shaohua Li <shli@kernel.org>
+> > Cc: Mikulas Patocka <mpatocka@redhat.com>
+> > Cc: dm-devel@redhat.com
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> > BTW. we could also use kvmalloc to complement kvfree, proposed here: 
-> > https://www.redhat.com/archives/dm-devel/2015-July/msg00046.html
+> Nack, seriously, this is the 3rd time this patch has been attempted.
+> Did you actually test the change?  It'll crash very quickly, see:
 > 
-> If there are sufficient users (I haven't checked other than quick git
-> grep on KMALLOC_MAX_SIZE
+> https://www.redhat.com/archives/dm-devel/2016-April/msg00103.html
 
-the problem is that kmallocs with large sizes near KMALLOC_MAX_SIZE are 
-unreliable, they'll randomly fail if memory is too fragmented.
+You are right! My bad I should have checked the other callers!
 
-> and there do not seem that many) who are
-> sharing the same fallback strategy then why not. But I suspect that some
-> would rather fallback earlier and even do not attempt larger than e.g.
-> order-1 requests.
-> -- 
-> Michal Hocko
-> SUSE Labs
-
-There are many users that use one of these patterns:
-
-	if (size <= some_threshold)
-		p = kmalloc(size);
-	else
-		p = vmalloc(size);
-
-or
-
-	p = kmalloc(size);
-	if (!p)
-		p = vmalloc(size);
-
-
-For example: alloc_fdmem, seq_buf_alloc, setxattr, getxattr, ipc_alloc, 
-pidlist_allocate, get_pages_array, alloc_bucket_locks, 
-frame_vector_create. If you grep the kernel for vmalloc, you'll find this 
-pattern over and over again.
-
-In alloc_large_system_hash, there is
-	table = __vmalloc(size, GFP_ATOMIC, PAGE_KERNEL);
-- that is clearly wrong because __vmalloc doesn't respect GFP_ATOMIC
-
-Mikulas
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
