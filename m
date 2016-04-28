@@ -1,54 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B5F76B0262
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 11:20:45 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id xm6so108664172pab.3
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:20:45 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id wj2si12217969pab.71.2016.04.28.08.20.44
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EE1B16B025F
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 11:28:14 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id w143so6658161wmw.3
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:28:14 -0700 (PDT)
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com. [74.125.82.48])
+        by mx.google.com with ESMTPS id v124si37826566wmd.119.2016.04.28.08.28.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 08:20:44 -0700 (PDT)
-From: Christopher Covington <cov@codeaurora.org>
-Subject: [RFC 5/5] arm64: Gain VDSO unmap and remap powers
-Date: Thu, 28 Apr 2016 11:18:57 -0400
-Message-Id: <1461856737-17071-6-git-send-email-cov@codeaurora.org>
-In-Reply-To: <1461856737-17071-1-git-send-email-cov@codeaurora.org>
-References: <20151202121918.GA4523@arm.com>
- <1461856737-17071-1-git-send-email-cov@codeaurora.org>
+        Thu, 28 Apr 2016 08:28:13 -0700 (PDT)
+Received: by mail-wm0-f48.google.com with SMTP id e201so81241410wme.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:28:13 -0700 (PDT)
+Date: Thu, 28 Apr 2016 17:28:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] md: simplify free_params for kmalloc vs vmalloc fallback
+Message-ID: <20160428152812.GM31489@dhcp22.suse.cz>
+References: <1461849846-27209-20-git-send-email-mhocko@kernel.org>
+ <1461855076-1682-1-git-send-email-mhocko@kernel.org>
+ <alpine.LRH.2.02.1604281059290.14065@file01.intranet.prod.int.rdu2.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1604281059290.14065@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, criu@openvz.org, Laurent Dufour <ldufour@linux.vnet.ibm.com>, Will Deacon <Will.Deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
-Cc: Christopher Covington <cov@codeaurora.org>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Shaohua Li <shli@kernel.org>, dm-devel@redhat.com
 
-Checkpoint/Restore In Userspace (CRIU) must be able to remap and unmap the
-Virtual Dynamic Shared Object (VDSO) to be able to handle the changing
-addresses that result from address space layout randomization. Now that the
-support for this originally written for PowerPC has been moved to a generic
-location and arm64 has adopted unsigned long for the type of mm->context.vdso,
-simply opt-in to VDSO unmap and remap support.
+On Thu 28-04-16 11:04:05, Mikulas Patocka wrote:
+> Acked-by: Mikulas Patocka <mpatocka@redhat.com>
 
-Signed-off-by: Christopher Covington <cov@codeaurora.org>
----
- arch/arm64/Kconfig | 1 +
- 1 file changed, 1 insertion(+)
+Thanks!
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 4f43622..cbdce39 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -14,6 +14,7 @@ config ARM64
- 	select ARCH_WANT_OPTIONAL_GPIOLIB
- 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
- 	select ARCH_WANT_FRAME_POINTERS
-+	select ARCH_WANT_VDSO_MAP
- 	select ARCH_HAS_UBSAN_SANITIZE_ALL
- 	select ARM_AMBA
- 	select ARM_ARCH_TIMER
+> BTW. we could also use kvmalloc to complement kvfree, proposed here: 
+> https://www.redhat.com/archives/dm-devel/2015-July/msg00046.html
+
+If there are sufficient users (I haven't checked other than quick git
+grep on KMALLOC_MAX_SIZE and there do not seem that many) who are
+sharing the same fallback strategy then why not. But I suspect that some
+would rather fallback earlier and even do not attempt larger than e.g.
+order-1 requests.
 -- 
-Qualcomm Innovation Center, Inc.
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-a Linux Foundation Collaborative Project
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
