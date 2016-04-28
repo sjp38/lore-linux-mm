@@ -1,68 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DDC906B0260
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:39:06 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id k200so70664806lfg.1
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 05:39:06 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id xy10si587961wjc.159.2016.04.28.05.39.05
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F336B6B0262
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:24:13 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id k200so71853686lfg.1
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 06:24:13 -0700 (PDT)
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com. [74.125.82.54])
+        by mx.google.com with ESMTPS id g128si37131517wmg.98.2016.04.28.06.24.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 05:39:05 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id w143so23004769wmw.3
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 05:39:05 -0700 (PDT)
-Date: Thu, 28 Apr 2016 14:39:04 +0200
+        Thu, 28 Apr 2016 06:24:12 -0700 (PDT)
+Received: by mail-wm0-f54.google.com with SMTP id a17so65214871wme.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 06:24:12 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 14/14] mm, oom, compaction: prevent from
- should_compact_retry looping for ever for costly orders
-Message-ID: <20160428123904.GH31489@dhcp22.suse.cz>
-References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
- <1461181647-8039-15-git-send-email-mhocko@kernel.org>
- <5721D0EA.3020205@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5721D0EA.3020205@suse.cz>
+Subject: [PATCH 0/19] get rid of superfluous __GFP_REPEAT
+Date: Thu, 28 Apr 2016 15:23:46 +0200
+Message-Id: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Chen Liqin <liqin.linux@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Heiko Carstens <heiko.carstens@de.ibm.com>, Helge Deller <deller@gmx.de>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, John Crispin <blogic@openwrt.org>, Lennox Wu <lennox.wu@gmail.com>, Ley Foon Tan <lftan@altera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Fleming <matt@codeblueprint.co.uk>, Michal Hocko <mhocko@suse.com>, Mikulas Patocka <mpatocka@redhat.com>, Rich Felker <dalias@libc.org>, Russell King <linux@arm.linux.org.uk>, Shaohua Li <shli@kernel.org>, Theodore Ts'o <tytso@mit.edu>, Thomas Gleixner <tglx@linutronix.de>, Vineet Gupta <vgupta@synopsys.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>
 
-On Thu 28-04-16 10:59:22, Vlastimil Babka wrote:
-> On 04/20/2016 09:47 PM, Michal Hocko wrote:
-> >From: Michal Hocko <mhocko@suse.com>
-> >
-> >"mm: consider compaction feedback also for costly allocation" has
-> >removed the upper bound for the reclaim/compaction retries based on the
-> >number of reclaimed pages for costly orders. While this is desirable
-> >the patch did miss a mis interaction between reclaim, compaction and the
-> >retry logic.
-> 
-> Hmm perhaps reversing the order of patches 13 and 14 would be a bit safer
-> wrt future bisections then? Add compaction_zonelist_suitable() first with
-> the reasoning, and then immediately use it in the other patch.
+Hi,
+this is the thrid version of the patchset previously sent [1]. I have
+basically only rebased it on top of next-20160428 tree and dropped
+"crypto: get rid of superfluous __GFP_REPEAT" which went through crypto
+tree. I have added two more md patches as I couldn't resist more alloc
+related cleanups at that area.
 
-Hmm, I do not think the risk is high. This would require the allocate
-GFP_REPEAT large orders to the last drop which is not usual. I found the
-ordering more logical to argue about because this patch will be mostly
-noop for costly orders without 13 and !costly allocations retry
-endlessly anyway. So I would prefer this ordering even though there is
-a window where an extreme load can lockup. I do not expect people
-shooting their head during bisection.
+Motivation:
+While working on something unrelated I've checked the current usage
+of __GFP_REPEAT in the tree. It seems that a majority of the usage is
+and always has been bogus because __GFP_REPEAT has always been about
+costly high order allocations while we are using it for order-0 or very
+small orders very often. It seems that a big pile of them is just a
+copy&paste when a code has been adopted from one arch to another.
 
-[...]
-> >
-> >[vbabka@suse.cz: fix classzone_idx vs. high_zoneidx usage in
-> >compaction_zonelist_suitable]
-> >Signed-off-by: Michal Hocko <mhocko@suse.com>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I think it makes some sense to get rid of them because they are just
+making the semantic more unclear. Please note that GFP_REPEAT is
+documented as
+ * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
+ *   _might_ fail.  This depends upon the particular VM implementation.
+while !costly requests have basically nofail semantic. So one could
+reasonably expect that order-0 request with __GFP_REPEAT will not loop
+for ever. This is not implemented right now though.
 
-Thanks!
+I would like to move on with __GFP_REPEAT and define a better
+semantic for it. One thought was to rename it to __GFP_BEST_EFFORT
+which would behave consistently for all orders and guarantee that the
+allocation would try as long as it seem feasible or fail eventually.
+!costly request would then finally get a request context which neiter
+fails too early (GFP_NORETRY) nor endlessly loops in the allocator for
+ever (default behavior). Costly high order requests would keep the
+current semantic.
+We have discussed that at LSF/MM this year and another suggestion was
+to introduce __GFP_TRYHARD instead which would be implicit for all
+orders and users would opt out by ~__GFP_TRYHARD instead. I am not
+sure which way is better right now but I plan to do the clean up first
+before going further with semantic changes.
 
--- 
-Michal Hocko
-SUSE Labs
+$ git grep __GFP_REPEAT next/master | wc -l
+109
+$ git grep __GFP_REPEAT | wc -l
+35
+
+So we are down to the third after this patch series. The remaining places
+really seem to be relying on __GFP_REPEAT due to large allocation requests.
+This still needs some double checking which I will do later after all the
+simple ones are sorted out.
+
+I am touching a lot of arch specific code here and I hope I got it right
+but as a matter of fact I even didn't compile test for some archs as I
+do not have cross compiler for them. Patches should be quite trivial to
+review for stupid compile mistakes though. The tricky parts are usually
+hidden by macro definitions and thats where I would appreciate help from
+arch maintainers.
+
+[1] http://lkml.kernel.org/r/1460372892-8157-1-git-send-email-mhocko@kernel.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
