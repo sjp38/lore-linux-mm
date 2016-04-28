@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 78F066B007E
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 04:47:31 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id y84so58250293lfc.3
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 01:47:31 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A7B2D6B007E
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 04:53:20 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w143so61349184wmw.3
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 01:53:20 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k88si14197706wmh.15.2016.04.28.01.47.30
+        by mx.google.com with ESMTPS id p5si14195556wmd.62.2016.04.28.01.53.19
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 28 Apr 2016 01:47:30 -0700 (PDT)
-Subject: Re: [PATCH 08/14] mm, compaction: Abstract compaction feedback to
- helpers
+        Thu, 28 Apr 2016 01:53:19 -0700 (PDT)
+Subject: Re: [PATCH 09/14] mm: use compaction feedback for thp backoff
+ conditions
 References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
- <1461181647-8039-9-git-send-email-mhocko@kernel.org>
+ <1461181647-8039-10-git-send-email-mhocko@kernel.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5721CE20.6070801@suse.cz>
-Date: Thu, 28 Apr 2016 10:47:28 +0200
+Message-ID: <5721CF7E.9020106@suse.cz>
+Date: Thu, 28 Apr 2016 10:53:18 +0200
 MIME-Version: 1.0
-In-Reply-To: <1461181647-8039-9-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1461181647-8039-10-git-send-email-mhocko@kernel.org>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,27 +28,39 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpx
 On 04/20/2016 09:47 PM, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 >
-> Compaction can provide a wild variation of feedback to the caller. Many
-> of them are implementation specific and the caller of the compaction
-> (especially the page allocator) shouldn't be bound to specifics of the
-> current implementation.
+> THP requests skip the direct reclaim if the compaction is either
+> deferred or contended to reduce stalls which wouldn't help the
+> allocation success anyway. These checks are ignoring other potential
+> feedback modes which we have available now.
 >
-> This patch abstracts the feedback into three basic types:
-> 	- compaction_made_progress - compaction was active and made some
-> 	  progress.
-> 	- compaction_failed - compaction failed and further attempts to
-> 	  invoke it would most probably fail and therefore it is not
-> 	  worth retrying
-> 	- compaction_withdrawn - compaction wasn't invoked for an
->            implementation specific reasons. In the current implementation
->            it means that the compaction was deferred, contended or the
->            page scanners met too early without any progress. Retrying is
->            still worthwhile.
+> It clearly doesn't make much sense to go and reclaim few pages if the
+> previous compaction has failed.
 >
-> [vbabka@suse.cz: do not change thp back off behavior]
+> We can also simplify the check by using compaction_withdrawn which
+> checks for both COMPACT_CONTENDED and COMPACT_DEFERRED. This check
+> is however covering more reasons why the compaction was withdrawn.
+> None of them should be a problem for the THP case though.
+>
+> It is safe to back of if we see COMPACT_SKIPPED because that means
+> that compaction_suitable failed and a single round of the reclaim is
+> unlikely to make any difference here. We would have to be close to
+> the low watermark to reclaim enough and even then there is no guarantee
+> that the compaction would make any progress while the direct reclaim
+> would have caused the stall.
+>
+> COMPACT_PARTIAL_SKIPPED is slightly different because that means that we
+> have only seen a part of the zone so a retry would make some sense. But
+> it would be a compaction retry not a reclaim retry to perform. We are
+> not doing that and that might indeed lead to situations where THP fails
+> but this should happen only rarely and it would be really hard to
+> measure.
+>
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+THP's don't compact by default in page fault path anymore, so we don't 
+need to restrict them even more. And hopefully we'll replace the 
+is_thp_gfp_mask() hack with something better soon, so this might be just 
+extra code churn. But I don't feel strongly enough to nack it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
