@@ -1,72 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0327D6B025E
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 11:08:34 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 68so67134311lfq.2
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:08:33 -0700 (PDT)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id wt3si11424350wjb.215.2016.04.28.08.08.32
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DD756B007E
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 11:19:24 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e201so6365452wme.1
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:19:24 -0700 (PDT)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
+        by mx.google.com with ESMTPS id b7si11538949wjj.94.2016.04.28.08.19.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 08:08:32 -0700 (PDT)
-Received: by mail-wm0-f52.google.com with SMTP id n129so69258469wmn.1
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:08:32 -0700 (PDT)
-Date: Thu, 28 Apr 2016 17:08:31 +0200
+        Thu, 28 Apr 2016 08:19:23 -0700 (PDT)
+Received: by mail-wm0-f45.google.com with SMTP id a17so71183653wme.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:19:23 -0700 (PDT)
+Date: Thu, 28 Apr 2016 17:19:21 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 04/20] arm: get rid of superfluous __GFP_REPEAT
-Message-ID: <20160428150831.GK31489@dhcp22.suse.cz>
-References: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
- <1461849846-27209-5-git-send-email-mhocko@kernel.org>
- <20160428145545.GN19428@n2100.arm.linux.org.uk>
+Subject: Re: + mm-thp-avoid-unnecessary-swapin-in-khugepaged.patch added to
+ -mm tree
+Message-ID: <20160428151921.GL31489@dhcp22.suse.cz>
+References: <57212c60.fUSE244UFwhXE+az%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160428145545.GN19428@n2100.arm.linux.org.uk>
+In-Reply-To: <57212c60.fUSE244UFwhXE+az%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: ebru.akagunduz@gmail.com, aarcange@redhat.com, aneesh.kumar@linux.vnet.ibm.com, boaz@plexistor.com, gorcunov@openvz.org, hannes@cmpxchg.org, hughd@google.com, iamjoonsoo.kim@lge.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, rientjes@google.com, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 28-04-16 15:55:45, Russell King - ARM Linux wrote:
-> On Thu, Apr 28, 2016 at 03:23:50PM +0200, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > __GFP_REPEAT has a rather weak semantic but since it has been introduced
-> > around 2.6.12 it has been ignored for low order allocations.
-> > 
-> > PGALLOC_GFP uses __GFP_REPEAT but none of the allocation which uses
-> > this flag is for more than order-2. This means that this flag has never
-> > been actually useful here because it has always been used only for
-> > PAGE_ALLOC_COSTLY requests.
-> 
-> I'm unconvinced.  Back in 2013, I was seeing a lot of failures, so:
-> 
-> commit 8c65da6dc89ccb605d73773b1dd617e72982d971
-> Author: Russell King <rmk+kernel@arm.linux.org.uk>
-> Date:   Sat Nov 30 12:52:31 2013 +0000
-> 
->     ARM: pgd allocation: retry on failure
-> 
->     Make pgd allocation retry on failure; we really need this to succeed
->     otherwise fork() can trigger OOMs.
-> 
->     Signed-off-by: Russell King <rmk+kernel@arm.linux.org.uk>
-> 
-> Maybe something has changed again in the MM layer which makes this flag
-> unnecessary again, and it was a temporary blip around that time, I don't
-> know.
+On Wed 27-04-16 14:17:20, Andrew Morton wrote:
+[...]
+> @@ -2484,7 +2485,14 @@ static void collapse_huge_page(struct mm
+>  		goto out;
+>  	}
+>  
+> -	__collapse_huge_page_swapin(mm, vma, address, pmd);
+> +	swap = get_mm_counter(mm, MM_SWAPENTS);
+> +	curr_allocstall = sum_vm_event(ALLOCSTALL);
+> +	/*
+> +	 * When system under pressure, don't swapin readahead.
+> +	 * So that avoid unnecessary resource consuming.
+> +	 */
+> +	if (allocstall == curr_allocstall && swap != 0)
+> +		__collapse_huge_page_swapin(mm, vma, address, pmd);
+>  
+>  	anon_vma_lock_write(vma->anon_vma);
+>  
 
-PAGE_ALLOC_COSTLY_ORDER is defined to order 3 since 2007 and even before
-the code was doing
--               if ((order <= 3) || (gfp_mask & __GFP_REPEAT))
-+               if ((order <= PAGE_ALLOC_COSTLY_ORDER) ||
-+                                               (gfp_mask & __GFP_REPEAT))
-                        do_retry = 1;
-
-So an order-2 allocation which is the case for this particular code now
-will trigger the OOM killer and fail only when the current task is
-killed by the OOM killer. Other than that order-2 is basically
-GFP_NOFAIL. Have a look at __alloc_pages_slowpath() for more details.
+I have mentioned that before already but this seems like a rather weak
+heuristic. Don't we really rather teach __collapse_huge_page_swapin
+(resp. do_swap_page) do to an optimistic GFP_NOWAIT allocations and
+back off under the memory pressure?
 -- 
 Michal Hocko
 SUSE Labs
