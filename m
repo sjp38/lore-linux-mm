@@ -1,103 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E14F66B0262
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 11:39:38 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id u23so61391550vkb.2
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:39:38 -0700 (PDT)
-Received: from mail-qg0-x244.google.com (mail-qg0-x244.google.com. [2607:f8b0:400d:c04::244])
-        by mx.google.com with ESMTPS id d124si5175193qka.70.2016.04.28.08.39.38
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 973426B0262
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 11:41:02 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id l137so181254649ywe.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:41:02 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w72si5148562qkw.173.2016.04.28.08.41.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 08:39:38 -0700 (PDT)
-Received: by mail-qg0-x244.google.com with SMTP id b14so5808293qge.2
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:39:38 -0700 (PDT)
-From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH] mm/zsmalloc: don't fail if can't create debugfs info
-Date: Thu, 28 Apr 2016 11:36:48 -0400
-Message-Id: <1461857808-11030-1-git-send-email-ddstreet@ieee.org>
+        Thu, 28 Apr 2016 08:41:01 -0700 (PDT)
+Date: Thu, 28 Apr 2016 11:40:59 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] md: simplify free_params for kmalloc vs vmalloc
+ fallback
+In-Reply-To: <20160428152812.GM31489@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1604281129360.14065@file01.intranet.prod.int.rdu2.redhat.com>
+References: <1461849846-27209-20-git-send-email-mhocko@kernel.org> <1461855076-1682-1-git-send-email-mhocko@kernel.org> <alpine.LRH.2.02.1604281059290.14065@file01.intranet.prod.int.rdu2.redhat.com> <20160428152812.GM31489@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Seth Jennings <sjenning@redhat.com>, Yu Zhao <yuzhao@google.com>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <ddstreet@ieee.org>, Dan Streetman <dan.streetman@canonical.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Shaohua Li <shli@kernel.org>, dm-devel@redhat.com
 
-Change the return type of zs_pool_stat_create() to void, and
-remove the logic to abort pool creation if the stat debugfs
-dir/file could not be created.
 
-The debugfs stat file is for debugging/information only, and doesn't
-affect operation of zsmalloc; there is no reason to abort creating
-the pool if the stat file can't be created.  This was seen with
-zswap, which used the same name for all pool creations, which caused
-zsmalloc to fail to create a second pool for zswap if
-CONFIG_ZSMALLOC_STAT was enabled.
 
-Cc: Dan Streetman <dan.streetman@canonical.com>
-Signed-off-by: Dan Streetman <ddstreet@ieee.org>
----
- mm/zsmalloc.c | 17 +++++++----------
- 1 file changed, 7 insertions(+), 10 deletions(-)
+On Thu, 28 Apr 2016, Michal Hocko wrote:
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index e72efb1..25a7db2 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -567,17 +567,17 @@ static const struct file_operations zs_stat_size_ops = {
- 	.release        = single_release,
- };
- 
--static int zs_pool_stat_create(const char *name, struct zs_pool *pool)
-+static void zs_pool_stat_create(const char *name, struct zs_pool *pool)
- {
- 	struct dentry *entry;
- 
- 	if (!zs_stat_root)
--		return -ENODEV;
-+		return;
- 
- 	entry = debugfs_create_dir(name, zs_stat_root);
- 	if (!entry) {
- 		pr_warn("debugfs dir <%s> creation failed\n", name);
--		return -ENOMEM;
-+		return;
- 	}
- 	pool->stat_dentry = entry;
- 
-@@ -586,10 +586,8 @@ static int zs_pool_stat_create(const char *name, struct zs_pool *pool)
- 	if (!entry) {
- 		pr_warn("%s: debugfs file entry <%s> creation failed\n",
- 				name, "classes");
--		return -ENOMEM;
-+		return;
- 	}
--
--	return 0;
- }
- 
- static void zs_pool_stat_destroy(struct zs_pool *pool)
-@@ -607,9 +605,8 @@ static void __exit zs_stat_exit(void)
- {
- }
- 
--static inline int zs_pool_stat_create(const char *name, struct zs_pool *pool)
-+static inline void zs_pool_stat_create(const char *name, struct zs_pool *pool)
- {
--	return 0;
- }
- 
- static inline void zs_pool_stat_destroy(struct zs_pool *pool)
-@@ -1956,8 +1953,8 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
- 
- 	pool->flags = flags;
- 
--	if (zs_pool_stat_create(name, pool))
--		goto err;
-+	/* debug only, don't abort if it fails */
-+	zs_pool_stat_create(name, pool);
- 
- 	/*
- 	 * Not critical, we still can use the pool
--- 
-2.7.4
+> On Thu 28-04-16 11:04:05, Mikulas Patocka wrote:
+> > Acked-by: Mikulas Patocka <mpatocka@redhat.com>
+> 
+> Thanks!
+> 
+> > BTW. we could also use kvmalloc to complement kvfree, proposed here: 
+> > https://www.redhat.com/archives/dm-devel/2015-July/msg00046.html
+> 
+> If there are sufficient users (I haven't checked other than quick git
+> grep on KMALLOC_MAX_SIZE
+
+the problem is that kmallocs with large sizes near KMALLOC_MAX_SIZE are 
+unreliable, they'll randomly fail if memory is too fragmented.
+
+> and there do not seem that many) who are
+> sharing the same fallback strategy then why not. But I suspect that some
+> would rather fallback earlier and even do not attempt larger than e.g.
+> order-1 requests.
+> -- 
+> Michal Hocko
+> SUSE Labs
+
+There are many users that use one of these patterns:
+
+	if (size <= some_threshold)
+		p = kmalloc(size);
+	else
+		p = vmalloc(size);
+
+or
+
+	p = kmalloc(size);
+	if (!p)
+		p = vmalloc(size);
+
+
+For example: alloc_fdmem, seq_buf_alloc, setxattr, getxattr, ipc_alloc, 
+pidlist_allocate, get_pages_array, alloc_bucket_locks, 
+frame_vector_create. If you grep the kernel for vmalloc, you'll find this 
+pattern over and over again.
+
+In alloc_large_system_hash, there is
+	table = __vmalloc(size, GFP_ATOMIC, PAGE_KERNEL);
+- that is clearly wrong because __vmalloc doesn't respect GFP_ATOMIC
+
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
