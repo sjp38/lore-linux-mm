@@ -1,47 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F1B66B007E
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 04:03:26 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id c189so38607657vkb.0
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 01:03:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p29si4285790qki.199.2016.04.28.01.03.25
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CCD3A6B007E
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 04:18:02 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id j8so57236088lfd.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 01:18:02 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id r68si11942003wmg.2.2016.04.28.01.18.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 01:03:25 -0700 (PDT)
-Date: Thu, 28 Apr 2016 09:03:20 +0100
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: post-copy is broken?
-Message-ID: <20160428080319.GA2267@work-vm>
-References: <20160415134233.GG2229@work-vm>
- <20160415152330.GB3376@node.shutemov.name>
- <20160415163448.GJ2229@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E04181101@shsmsx102.ccr.corp.intel.com>
- <20160418095528.GD2222@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E0418115C@shsmsx102.ccr.corp.intel.com>
- <20160418101555.GE2222@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E041813A6@shsmsx102.ccr.corp.intel.com>
- <20160427144739.GF10120@redhat.com>
- <F2CBF3009FA73547804AE4C663CAB28E041877A3@shsmsx102.ccr.corp.intel.com>
+        Thu, 28 Apr 2016 01:18:01 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id r12so20673840wme.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 01:18:01 -0700 (PDT)
+Date: Thu, 28 Apr 2016 10:17:59 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm, debug: report when GFP_NO{FS,IO} is used
+ explicitly from memalloc_no{fs,io}_{save,restore} context
+Message-ID: <20160428081759.GA31489@dhcp22.suse.cz>
+References: <1461671772-1269-1-git-send-email-mhocko@kernel.org>
+ <1461671772-1269-3-git-send-email-mhocko@kernel.org>
+ <20160426225845.GF26977@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E041877A3@shsmsx102.ccr.corp.intel.com>
+In-Reply-To: <20160426225845.GF26977@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Li, Liang Z" <liang.z.li@intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, Amit Shah <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, xfs@oss.sgi.com, LKML <linux-kernel@vger.kernel.org>
 
-* Li, Liang Z (liang.z.li@intel.com) wrote:
+[Trim the CC list]
+On Wed 27-04-16 08:58:45, Dave Chinner wrote:
+[...]
+> Often these are to silence lockdep warnings (e.g. commit b17cb36
+> ("xfs: fix missing KM_NOFS tags to keep lockdep happy")) because
+> lockdep gets very unhappy about the same functions being called with
+> different reclaim contexts. e.g.  directory block mapping might
+> occur from readdir (no transaction context) or within transactions
+> (create/unlink). hence paths like this are tagged with GFP_NOFS to
+> stop lockdep emitting false positive warnings....
 
-> 
-> I have test the patch, guest doesn't crash anymore, I think the issue is fixed. Thanks!
+As already said in other email, I have tried to revert the above
+commit and tried to run it with some fs workloads but didn't manage
+to hit any lockdep splats (after I fixed my bug in the patch 1.2). I
+have tried to find reports which led to this commit but didn't succeed
+much. Everything is from much earlier or later. Do you happen to
+remember which loads triggered them, what they looked like or have an
+idea what to try to reproduce them? So far I was trying heavy parallel
+fs_mark, kernbench inside a tiny virtual machine so any of those have
+triggered direct reclaim all the time.
 
-Great!  Thanks for reporting it.
-
-Dave
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
