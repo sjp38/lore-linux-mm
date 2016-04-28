@@ -1,65 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 576CB6B025E
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 19:52:45 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id u2so114934583obx.0
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 16:52:45 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id p63si12801596iod.206.2016.04.27.16.52.43
-        for <linux-mm@kvack.org>;
-        Wed, 27 Apr 2016 16:52:44 -0700 (PDT)
-Date: Thu, 28 Apr 2016 08:54:13 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v4 00/13] Support non-lru page migration
-Message-ID: <20160427235413.GA19222@bbox>
-References: <1461743305-19970-1-git-send-email-minchan@kernel.org>
- <20160427132035.e96f99f3420c8fb0020b0fc4@linux-foundation.org>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B3ABA6B007E
+	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 21:38:55 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 203so115952643pfy.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 18:38:55 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id ya3si12804294pab.2.2016.04.27.18.38.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Apr 2016 18:38:54 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id n1so30379965pfn.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 18:38:54 -0700 (PDT)
+Date: Thu, 28 Apr 2016 10:40:28 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] mm/zswap: use workqueue to destroy pool
+Message-ID: <20160428014028.GA594@swordfish>
+References: <1461619210-10057-1-git-send-email-ddstreet@ieee.org>
+ <1461704891-15272-1-git-send-email-ddstreet@ieee.org>
+ <20160427005853.GD4782@swordfish>
+ <CALZtONArGwmaWNcHJODmY1uXm306NiqeZtRekfCFgZsMz_cngw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160427132035.e96f99f3420c8fb0020b0fc4@linux-foundation.org>
+In-Reply-To: <CALZtONArGwmaWNcHJODmY1uXm306NiqeZtRekfCFgZsMz_cngw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, dri-devel@lists.freedesktop.org, Hugh Dickins <hughd@google.com>, John Einar Reitan <john.reitan@foss.arm.com>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Aquini <aquini@redhat.com>, Rik van Riel <riel@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, virtualization@lists.linux-foundation.org, Gioh Kim <gi-oh.kim@profitbricks.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Sangseok Lee <sangseok.lee@lge.com>, Kyeongdon Kim <kyeongdon.kim@lge.com>, Chulmin Kim <cmlaika.kim@samsung.com>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Yu Zhao <yuzhao@google.com>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@redhat.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <dan.streetman@canonical.com>
 
-Hello Andrew,
+Hello Dan,
 
-On Wed, Apr 27, 2016 at 01:20:35PM -0700, Andrew Morton wrote:
-> On Wed, 27 Apr 2016 16:48:13 +0900 Minchan Kim <minchan@kernel.org> wrote:
+On (04/27/16 13:19), Dan Streetman wrote:
+[..]
+> > so in general the patch look good to me.
+> >
+> > it's either I didn't have enough coffee yet (which is true) or
+> > _IN THEORY_ it creates a tiny race condition; which is hard (and
+> > unlikely) to hit, but still. and the problem being is
+> > CONFIG_ZSMALLOC_STAT.
 > 
-> > Recently, I got many reports about perfermance degradation in embedded
-> > system(Android mobile phone, webOS TV and so on) and easy fork fail.
-> > 
-> > The problem was fragmentation caused by zram and GPU driver mainly.
-> > With memory pressure, their pages were spread out all of pageblock and
-> > it cannot be migrated with current compaction algorithm which supports
-> > only LRU pages. In the end, compaction cannot work well so reclaimer
-> > shrinks all of working set pages. It made system very slow and even to
-> > fail to fork easily which requires order-[2 or 3] allocations.
-> > 
-> > Other pain point is that they cannot use CMA memory space so when OOM
-> > kill happens, I can see many free pages in CMA area, which is not
-> > memory efficient. In our product which has big CMA memory, it reclaims
-> > zones too exccessively to allocate GPU and zram page although there are
-> > lots of free space in CMA so system becomes very slow easily.
-> > 
-> > To solve these problem, this patch tries to add facility to migrate
-> > non-lru pages via introducing new functions and page flags to help
-> > migration.
+> Aha, thanks, I hadn't tested with that param enabled.  However, the
+> patch doesn't create the race condition, that existed already.
+
+well, agree. it's not like zsmalloc race condition, but the way zsmalloc
+is managed (deferred destruction either via rcu or scheduled work).
+
+> It fails because the new zswap pool creates a new zpool using
+> zsmalloc, but it can't create the zsmalloc pool because there is
+> already one named 'zswap' so the stat dir can't be created.
 > 
-> I'm seeing some rejects here against Mel's changes and our patch
-> bandwidth is getting waaay way ahead of our review bandwidth.  So I
-> think I'll loadshed this patchset at this time, sorry.
+> So...either zswap needs to provide a unique 'name' to each of its
+> zpools, or zsmalloc needs to modify its provided pool name in some way
+> (add a unique suffix maybe).  Or both.
+> 
+> It seems like zsmalloc should do the checking/modification - or, at
+> the very least, it should have consistent behavior regardless of the
+> CONFIG_ZSMALLOC_STAT setting.
 
-I expected the conflict with Mel's change in recent mmotm but doesn't want
-to send patches against recent mmotm because it has several problems in
-compaction so my test was really trobule.
-I just picked patches from Hugh and Vlastimil and finally can test on it.
-Anyway, I will rebase my patches on recent mmotm, hoping you picked every
-patches on compaction part and respin after a few days.
+yes, zram guarantees that there won't be any name collisions. and the
+way it's working for zram, zram<ID> corresponds to zsmalloc<ID>.
 
-Thanks for let me knowing your plan.
+
+the bigger issue here (and I was thinking at some point of fixing it,
+but then I grepped to see how many API users are in there, and I gave
+up) is that it seems we have no way to check if the dir exists in debugfs.
+
+we call this function
+
+struct dentry *debugfs_create_dir(const char *name, struct dentry *parent)
+{
+	struct dentry *dentry = start_creating(name, parent);
+	struct inode *inode;
+
+	if (IS_ERR(dentry))
+		return NULL;
+
+	inode = debugfs_get_inode(dentry->d_sb);
+	if (unlikely(!inode))
+		return failed_creating(dentry);
+
+	inode->i_mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
+	inode->i_op = &simple_dir_inode_operations;
+	inode->i_fop = &simple_dir_operations;
+
+	/* directory inodes start off with i_nlink == 2 (for "." entry) */
+	inc_nlink(inode);
+	d_instantiate(dentry, inode);
+	inc_nlink(d_inode(dentry->d_parent));
+	fsnotify_mkdir(d_inode(dentry->d_parent), dentry);
+	return end_creating(dentry);
+}
+
+and debugfs _does know_ that the directory ERR_PTR(-EEXIST), that's what
+start_creating()->lookup_one_len() return
+
+static struct dentry *start_creating(const char *name, struct dentry *parent)
+{
+	struct dentry *dentry;
+	int error;
+
+	pr_debug("debugfs: creating file '%s'\n",name);
+
+	if (IS_ERR(parent))
+		return parent;
+
+	error = simple_pin_fs(&debug_fs_type, &debugfs_mount,
+			      &debugfs_mount_count);
+	if (error)
+		return ERR_PTR(error);
+
+	/* If the parent is not specified, we create it in the root.
+	 * We need the root dentry to do this, which is in the super
+	 * block. A pointer to that is in the struct vfsmount that we
+	 * have around.
+	 */
+	if (!parent)
+		parent = debugfs_mount->mnt_root;
+
+	inode_lock(d_inode(parent));
+	dentry = lookup_one_len(name, parent, strlen(name));
+	if (!IS_ERR(dentry) && d_really_is_positive(dentry)) {
+		dput(dentry);
+		dentry = ERR_PTR(-EEXIST);
+	}
+
+	if (IS_ERR(dentry)) {
+		inode_unlock(d_inode(parent));
+		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
+	}
+
+	return dentry;
+}
+
+but debugfs_create_dir() instead of propagating this error, it swallows it
+and simply return NULL, so we can't tell the difference between -EEXIST, OOM,
+or anything else. so doing this check in zsmalloc() is not so easy.
+
+/* well, I may be wrong here */
+
+> However, it's easy to change zswap to provide a unique name for each
+> zpool creation, and zsmalloc's primary user (zram) guarantees to
+> provide a unique name for each pool created. So updating zswap is
+> probably best.
+
+if you can do it in zswap, then please do.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
