@@ -1,111 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 837326B0005
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 15:40:50 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w143so1364809wmw.3
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 12:40:50 -0700 (PDT)
-Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
-        by mx.google.com with ESMTPS id m197si39074684wmd.77.2016.04.28.12.40.49
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 12:40:49 -0700 (PDT)
-Received: by mail-wm0-x233.google.com with SMTP id n129so2015224wmn.1
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 12:40:49 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160428115858.GE31489@dhcp22.suse.cz>
-References: <9459.1461686910@turing-police.cc.vt.edu>
-	<20160427123139.GA2230@dhcp22.suse.cz>
-	<CAMJBoFPWNx6UTqyw1XF46fZYNi=nBjHXNdWz+SDokqG3xEkjAA@mail.gmail.com>
-	<20160428115858.GE31489@dhcp22.suse.cz>
-Date: Thu, 28 Apr 2016 21:40:48 +0200
-Message-ID: <CAMJBoFM3HYpfPRD2di6=QF_Ebo1fOmNCLPWzXF2RgWKB4cB6GA@mail.gmail.com>
-Subject: Re: Confusing olddefault prompt for Z3FOLD
-From: Vitaly Wool <vitalywool@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AF2916B0005
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 17:17:21 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id zy2so139381947pac.1
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 14:17:21 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id fv2si13599089pad.86.2016.04.28.14.17.20
+        for <linux-mm@kvack.org>;
+        Thu, 28 Apr 2016 14:17:20 -0700 (PDT)
+From: Vishal Verma <vishal.l.verma@intel.com>
+Subject: [PATCH v4 0/7] dax: handling media errors
+Date: Thu, 28 Apr 2016 15:16:51 -0600
+Message-Id: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: linux-nvdimm@lists.01.org
+Cc: Vishal Verma <vishal.l.verma@intel.com>, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <matthew@wil.cx>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>
 
-On Thu, Apr 28, 2016 at 1:58 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Thu 28-04-16 13:35:45, Vitaly Wool wrote:
->> On Wed, Apr 27, 2016 at 2:31 PM, Michal Hocko <mhocko@kernel.org> wrote:
->> > On Tue 26-04-16 12:08:30, Valdis Kletnieks wrote:
->> >> Saw this duplicate prompt text in today's linux-next in a 'make oldconfig':
->> >>
->> >> Low density storage for compressed pages (ZBUD) [Y/n/m/?] y
->> >> Low density storage for compressed pages (Z3FOLD) [N/m/y/?] (NEW) ?
->> >>
->> >> I had to read the help texts for both before I clued in that one used
->> >> two compressed pages, and the other used 3.
->> >>
->> >> And 'make oldconfig' doesn't have a "Wait, what?" option to go back
->> >> to a previous prompt....
->> >>
->> >> (Change Z3FOLD prompt to "New low density" or something? )
->> >
->> > Or even better can we only a single one rather than 2 algorithms doing
->> > the similar thing? I wasn't following this closely but what is the
->> > difference to have them both?
->>
->> The v3 version of z3fold doesn't claim itself to be a low density storage :)
->> The reasons to have them both are listed in [1] and mentioned in [2].
->>
-> Thanks for the pointer!
->
->> [1] https://lkml.org/lkml/2016/4/25/526
->
->> * zbud is 30% less object code
->
-> This sounds like a lot but in fact:
->    text    data     bss     dec     hex filename
->    2063     104       8    2175     87f mm/zbud.o
->    3467     104       8    3579     dfb mm/z3fold.o
+Until now, dax has been disabled if media errors were found on
+any device. This series attempts to address that.
 
-I get significantly larger code on an ARM64 machine...
+The first three patches from Dan re-enable dax even when media
+errors are present.
 
-> Does this difference actually matter for somebody to not use z3fold if
-> the overal savings in the compressed memory are better? I also suspect
-> that even small configs might not save too much because of the internal
-> fragmentation.
+The fourth patch from Matthew removes the zeroout path from dax
+entirely, making zeroout operations always go through the driver
+(The motivation is that if a backing device has media errors,
+and we create a sparse file on it, we don't want the initial
+zeroing to happen via dax, we want to give the block driver a
+chance to clear the errors).
 
-Probably not, but I'm not the one to ask here. If I didn't want to
-make something more memory efficient I wouldn't start on z3fold :)
+The fifth patch changes how DAX IO is re-routed as direct IO.
+We add a new iocb flag for DAX to distinguish it from actual
+direct IO, and if we're in O_DIRECT, use the regular direct_IO
+path instead of DAX. This gives us an opportunity to do recovery
+by doing O_DIRECT writes that will go through the driver to clear
+errors from bad sectors.
 
->> * some system configurations might break if we removed zbud
->
-> Why would they break? Are the two incompatible? Or to be more specific
-> what should be the criteria to chose one over the other?
->
->> * zbud exports its own API while z3fold is designed to work via zpool
->
-> $ git grep EXPORT mm/zbud.c include/linux/zbud.h
-> $
->
-> So the API can be used only from the kernel, right? I haven't checked
-> users but why does the API actually matters.
->
-> Or is there any other API I have missed.
+Patch 6 reduces our calls to clear_pmem from dax in the
+truncate/hole-punch cases. We check if the range being truncated
+is sector aligned/sized, and if so, send blkdev_issue_zeroout
+instead of clear_pmem so that errors can be handled better by
+the driver.
 
-Not sure really. zswap used to call zbud functions directly rather
-than via zpool. z3fold was only intended to be used via zpool. That of
-course may be changed, but I consider it right to have something
-proven and working side-by-side with the new stuff and if the new
-stuff supersedes the old one, well, we can remove the latter later.
+Patch 7 fixes a redundant comment in DAX and is mostly unrelated
+to the rest of this series.
 
->> * limiting the amount of zpool users doesn't make much sense to me,
->>   after all :)
->
-> I am not sure I understand this part. Could you be more specific?
+This series also depends on/is based on Jan Kara's DAX Locking
+fixes series [1].
 
-Well, the thought was trivial: if there is an API which provides
-abstraction for compressed objects storage, why not have several users
-of it rather than 1,5?  What we need to do is to provide a better
-documentation (I must admit I wasn't that good in doing this) on when
-to use what.
 
-Thanks,
-   Vitaly
+[1]: http://www.spinics.net/lists/linux-mm/msg105819.html
+
+v4:
+ - Remove the dax->direct_IO fallbacks entirely. Instead, go through
+   the usual direct_IO path when we're in O_DIRECT, and use dax_IO
+   for other, non O_DIRECT IO. (Dan, Christoph)
+
+v3:
+ - Wrapper-ize the direct_IO fallback again and make an exception
+   for -EIOCBQUEUED (Jeff, Dan)
+ - Reduce clear_pmem usage in DAX to the minimum
+
+
+Dan Williams (3):
+  block, dax: pass blk_dax_ctl through to drivers
+  dax: fallback from pmd to pte on error
+  dax: enable dax in the presence of known media errors (badblocks)
+
+Matthew Wilcox (1):
+  dax: use sb_issue_zerout instead of calling dax_clear_sectors
+
+Vishal Verma (3):
+  fs: prioritize and separate direct_io from dax_io
+  dax: for truncate/hole-punch, do zeroing through the driver if
+    possible
+  dax: fix a comment in dax_zero_page_range and dax_truncate_page
+
+ arch/powerpc/sysdev/axonram.c | 10 +++---
+ block/ioctl.c                 |  9 -----
+ drivers/block/brd.c           |  9 ++---
+ drivers/block/loop.c          |  2 +-
+ drivers/nvdimm/pmem.c         | 17 +++++++---
+ drivers/s390/block/dcssblk.c  | 12 +++----
+ fs/block_dev.c                | 19 ++++++++---
+ fs/dax.c                      | 78 +++++++++++++++----------------------------
+ fs/ext2/inode.c               | 23 ++++++++-----
+ fs/ext4/file.c                |  2 +-
+ fs/ext4/inode.c               | 19 +++++++----
+ fs/xfs/xfs_aops.c             | 20 +++++++----
+ fs/xfs/xfs_bmap_util.c        | 15 +++------
+ fs/xfs/xfs_file.c             |  4 +--
+ include/linux/blkdev.h        |  3 +-
+ include/linux/dax.h           |  1 -
+ include/linux/fs.h            | 15 +++++++--
+ mm/filemap.c                  |  4 +--
+ 18 files changed, 134 insertions(+), 128 deletions(-)
+
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
