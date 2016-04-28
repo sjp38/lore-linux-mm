@@ -1,76 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A06C6B007E
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 12:59:37 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id j8so69512145lfd.0
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:59:37 -0700 (PDT)
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
-        by mx.google.com with ESMTPS id i205si38381141wmf.31.2016.04.28.09.59.35
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B78706B0005
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 14:17:31 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e201so10063722wme.1
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 11:17:31 -0700 (PDT)
+Received: from mail-lf0-x22a.google.com (mail-lf0-x22a.google.com. [2a00:1450:4010:c07::22a])
+        by mx.google.com with ESMTPS id zd4si5718912lbb.110.2016.04.28.11.17.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 09:59:35 -0700 (PDT)
-Received: by mail-wm0-f53.google.com with SMTP id g17so5826295wme.0
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:59:35 -0700 (PDT)
-Date: Thu, 28 Apr 2016 18:59:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] md: simplify free_params for kmalloc vs vmalloc fallback
-Message-ID: <20160428165934.GQ31489@dhcp22.suse.cz>
-References: <1461849846-27209-20-git-send-email-mhocko@kernel.org>
- <1461855076-1682-1-git-send-email-mhocko@kernel.org>
- <alpine.LRH.2.02.1604281059290.14065@file01.intranet.prod.int.rdu2.redhat.com>
- <20160428152812.GM31489@dhcp22.suse.cz>
- <alpine.LRH.2.02.1604281129360.14065@file01.intranet.prod.int.rdu2.redhat.com>
+        Thu, 28 Apr 2016 11:17:30 -0700 (PDT)
+Received: by mail-lf0-x22a.google.com with SMTP id y84so93372957lfc.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 11:17:30 -0700 (PDT)
+Date: Thu, 28 Apr 2016 21:17:26 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [BUG] vfio device assignment regression with THP ref counting
+ redesign
+Message-ID: <20160428181726.GA2847@node.shutemov.name>
+References: <20160428102051.17d1c728@t450s.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1604281129360.14065@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <20160428102051.17d1c728@t450s.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Shaohua Li <shli@kernel.org>, dm-devel@redhat.com
+To: Alex Williamson <alex.williamson@redhat.com>
+Cc: kirill.shutemov@linux.intel.com, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu 28-04-16 11:40:59, Mikulas Patocka wrote:
-[...]
-> There are many users that use one of these patterns:
+On Thu, Apr 28, 2016 at 10:20:51AM -0600, Alex Williamson wrote:
+> Hi,
 > 
-> 	if (size <= some_threshold)
-> 		p = kmalloc(size);
-> 	else
-> 		p = vmalloc(size);
+> vfio-based device assignment makes use of get_user_pages_fast() in order
+> to pin pages for mapping through the iommu for userspace drivers.
+> Until the recent redesign of THP reference counting in the v4.5 kernel,
+> this all worked well.  Now we're seeing cases where a sanity test
+> before we release our "pinned" mapping results in a different page
+> address than what we programmed into the iommu.  So something is
+> occurring which pretty much negates the pinning we're trying to do.
 > 
-> or
+> The test program I'm using is here:
 > 
-> 	p = kmalloc(size);
-> 	if (!p)
-> 		p = vmalloc(size);
+> https://github.com/awilliam/tests/blob/master/vfio-iommu-map-unmap.c
 > 
+> Apologies for lack of makefile, simply build with gcc -o <out> <in.c>.
 > 
-> For example: alloc_fdmem, seq_buf_alloc, setxattr, getxattr, ipc_alloc, 
-> pidlist_allocate, get_pages_array, alloc_bucket_locks, 
-> frame_vector_create. If you grep the kernel for vmalloc, you'll find this 
-> pattern over and over again.
+> To run this, enable the IOMMU on your system - enable in BIOS plus add
+> intel_iommu=on to the kernel commandline (only Intel x86_64 tested).
+> 
+> Pick a target PCI device, it doesn't matter what it is, the test only
+> needs a device for the purpose of creating an iommu domain, the device
+> is never actually touched.  In my case I use a spare NIC at 00:19.0.
+> libvirt tools are useful for setting this up, simply run 'virsh
+> nodedev-detach pci_0000_00_19_0'.  Otherwise bind the device manually
+> to vfio-pci using the standard new_id bind (ask, I can provide
+> instructions).
+> 
+> I also tweak THP scanning to make sure it is actively trying to
+> collapse pages:
+> 
+> echo always > /sys/kernel/mm/transparent_hugepage/defrag
+> echo 0 > /sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs
+> echo 65536 > /sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
+> 
+> Run the test with 'vfio-iommu-map-unmap 0000:00:19.0', or your chosen
+> target device.
+> 
+> Of course to see that the mappings are moving, we need additional
+> sanity testing in the vfio iommu driver.  For that:
+> 
+> https://github.com/awilliam/linux-vfio/commit/379f324e3629349a7486018ad1cc5d4877228d1e
+> 
+> When we map memory for vfio, we use get_user_pages_fast() on the
+> process vaddr to give us a page.  page_to_pfn() then gives us the
+> physical memory address which we program into the iommu.  Obviously we
+> expect this mapping to be stable so long as we hold the page
+> reference.  On unmap we generally retrieve the physical memory address
+> from the iommu, convert it back to a page, and release our reference to
+> it.  The debug code above adds an additional sanity test where on unmap
+> we also call get_user_pages_fast() again before we're released the
+> mapping reference and compare whether the physical page address still
+> matches what we previously stored in the iommu.  On a v4.4 kernel this
+> works every time.  On v4.5+, we get mismatches in dmesg within a few
+> lines of output from the test program.
+> 
+> It's difficult to bisect around the THP reference counting redesign
+> since THP becomes disabled for much of it.  I have discovered that this
+> commit is a significant contributor:
+> 
+> 1f25fe2 mm, thp: adjust conditions when we can reuse the page on WP fault
+> 
+> Particularly the middle chunk in huge_memory.c.  Reverting this change
+> alone significantly improves the problem, but does not lead to a stable
+> system.
+> 
+> I'm not an mm expert, so I'm looking for help debugging this.  As shown
+> above this issue is reproducible without KVM, so Andrea's previous KVM
+> specific fix to this code is not applicable.  It also still occurs on
+> kernels as recent as v4.6-rc5, so the issue hasn't been silently fixed
+> yet.  I'm able to reproduce this fairly quickly with the above test,
+> but it's not hard to imagine a test w/o any iommu dependencies which
+> simply does a user directed get_user_pages_fast() on a set of userspace
+> addresses, retains the reference, and at some point later rechecks that
+> a new get_user_pages_fast() results in the same page address.  It
+> appears that any sort of device assignment, either vfio or legacy kvm,
+> should be susceptible to this issue and therefore unsafe to use on v4.5+
+> kernels without using explicit hugepages or disabling THP.  Thanks,
 
-It is certainly good to address a common pattern by a helper if it makes
-to code easier to follo IMHO.
+I'm not able to reproduce it so far. How long does it usually take?
 
-> 
-> In alloc_large_system_hash, there is
-> 	table = __vmalloc(size, GFP_ATOMIC, PAGE_KERNEL);
-> - that is clearly wrong because __vmalloc doesn't respect GFP_ATOMIC
+How much memory your system has? Could you share your kernel config?
 
-I have seen this code some time already. I guess it was Al complaining
-about it but then I just forgot about it. I have no idea why GFP_ATOMIC
-was used there. This predates git times but it should be
-https://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.10/2.6.10-mm1/broken-out/alloc_large_system_hash-numa-interleaving.patch
-The changelog is quite verbose but no mention about this ugliness.
+I've modified your instrumentation slightly to provide more info.
+Could you try this:
 
-So I do agree that the above should be fixed and a common helper might
-be interesting but I am afraid we are getting off topic here.
-
-Thanks!
+diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
+index 75b24e93cedb..434954841d19 100644
+--- a/drivers/vfio/vfio_iommu_type1.c
++++ b/drivers/vfio/vfio_iommu_type1.c
+@@ -59,6 +59,7 @@ struct vfio_iommu {
+ 	struct rb_root		dma_list;
+ 	bool			v2;
+ 	bool			nesting;
++	bool			dying;
+ };
+ 
+ struct vfio_domain {
+@@ -336,8 +337,10 @@ static long vfio_unpin_pages(unsigned long pfn, long npage,
+ static void vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma)
+ {
+ 	dma_addr_t iova = dma->iova, end = dma->iova + dma->size;
++	unsigned long vaddr = dma->vaddr;
+ 	struct vfio_domain *domain, *d;
+ 	long unlocked = 0;
++	struct page *page;
+ 
+ 	if (!dma->size)
+ 		return;
+@@ -363,9 +366,20 @@ static void vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma)
+ 		phys = iommu_iova_to_phys(domain->domain, iova);
+ 		if (WARN_ON(!phys)) {
+ 			iova += PAGE_SIZE;
++			vaddr += PAGE_SIZE;
+ 			continue;
+ 		}
+ 
++		if (!iommu->dying && get_user_pages_fast(vaddr, 1, !!(dma->prot & IOMMU_WRITE), &page) == 1) {
++			if (phys >> PAGE_SHIFT != page_to_pfn(page)) {
++				dump_page(page, NULL);
++				if (PageTail(page))
++					dump_page(compound_head(page), NULL);
++				dump_page(pfn_to_page(phys >> PAGE_SHIFT), "1");
++			}
++			put_page(page);
++		}
++
+ 		/*
+ 		 * To optimize for fewer iommu_unmap() calls, each of which
+ 		 * may require hardware cache flushing, try to find the
+@@ -374,6 +388,17 @@ static void vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma)
+ 		for (len = PAGE_SIZE;
+ 		     !domain->fgsp && iova + len < end; len += PAGE_SIZE) {
+ 			next = iommu_iova_to_phys(domain->domain, iova + len);
++
++			if (!iommu->dying && get_user_pages_fast(vaddr + len, 1, !!(dma->prot & IOMMU_WRITE), &page) == 1) {
++				if (next >> PAGE_SHIFT != page_to_pfn(page)) {
++					dump_page(page, NULL);
++					if (PageTail(page))
++						dump_page(compound_head(page), NULL);
++					dump_page(pfn_to_page(next >> PAGE_SHIFT), "2");
++				}
++				put_page(page);
++			}
++
+ 			if (next != phys + len)
+ 				break;
+ 		}
+@@ -386,6 +411,7 @@ static void vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma)
+ 					     unmapped >> PAGE_SHIFT,
+ 					     dma->prot, false);
+ 		iova += unmapped;
++		vaddr += unmapped;
+ 
+ 		cond_resched();
+ 	}
+@@ -855,6 +881,8 @@ static void vfio_iommu_unmap_unpin_all(struct vfio_iommu *iommu)
+ {
+ 	struct rb_node *node;
+ 
++	iommu->dying = true;
++
+ 	while ((node = rb_first(&iommu->dma_list)))
+ 		vfio_remove_dma(iommu, rb_entry(node, struct vfio_dma, node));
+ }
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
