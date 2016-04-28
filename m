@@ -1,109 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 79C406B0280
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:32:43 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id e201so3702575wme.1
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 06:32:43 -0700 (PDT)
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
-        by mx.google.com with ESMTPS id g4si8683472wjy.235.2016.04.28.06.24.27
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4305E6B0260
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 10:20:12 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id c189so57276950vkb.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 07:20:12 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c64si5077809qha.27.2016.04.28.07.20.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 06:24:27 -0700 (PDT)
-Received: by mail-wm0-f50.google.com with SMTP id a17so65227584wme.0
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 06:24:27 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 20/20] jbd2: get rid of superfluous __GFP_REPEAT
-Date: Thu, 28 Apr 2016 15:24:06 +0200
-Message-Id: <1461849846-27209-21-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
-References: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
+        Thu, 28 Apr 2016 07:20:11 -0700 (PDT)
+Date: Thu, 28 Apr 2016 10:20:09 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH 18/20] dm: clean up GFP_NIO usage
+In-Reply-To: <1461849846-27209-19-git-send-email-mhocko@kernel.org>
+Message-ID: <alpine.LRH.2.02.1604281016520.14065@file01.intranet.prod.int.rdu2.redhat.com>
+References: <1461849846-27209-1-git-send-email-mhocko@kernel.org> <1461849846-27209-19-git-send-email-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Theodore Ts'o <tytso@mit.edu>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Shaohua Li <shli@kernel.org>, dm-devel@redhat.com
 
-From: Michal Hocko <mhocko@suse.com>
 
-jbd2_alloc is explicit about its allocation preferences wrt. the
-allocation size. Sub page allocations go to the slab allocator
-and larger are using either the page allocator or vmalloc. This
-is all good but the logic is unnecessarily complex.
-1) as per Ted, the vmalloc fallback is a left-over:
-: jbd2_alloc is only passed in the bh->b_size, which can't be >
-: PAGE_SIZE, so the code path that calls vmalloc() should never get
-: called.  When we conveted jbd2_alloc() to suppor sub-page size
-: allocations in commit d2eecb039368, there was an assumption that it
-: could be called with a size greater than PAGE_SIZE, but that's
-: certaily not true today.
-Moreover vmalloc allocation might even lead to a deadlock because
-the callers expect GFP_NOFS context while vmalloc is GFP_KERNEL.
 
-2) __GFP_REPEAT for requests <= PAGE_ALLOC_COSTLY_ORDER is ignored
-since the flag was introduced.
+On Thu, 28 Apr 2016, Michal Hocko wrote:
 
-Let's simplify the code flow and use the slab allocator for sub-page
-requests and the page allocator for others. Even though order > 0 is
-not currently used as per above leave that option open.
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> copy_params uses GFP_NOIO for explicit allocation requests because this
+> might be called from the suspend path. To quote Mikulas:
+> : The LVM tool calls suspend and resume ioctls on device mapper block
+> : devices.
+> :
+> : When a device is suspended, any bio sent to the device is held. If the
+> : resume ioctl did GFP_KERNEL allocation, the allocation could get stuck
+> : trying to write some dirty cached pages to the suspended device.
+> :
+> : The LVM tool and the dmeventd daemon use mlock to lock its address space,
+> : so the copy_from_user/copy_to_user call cannot trigger a page fault.
+> 
+> Relying on the mlock is quite fragile and we have a better way in kernel
+> to enfore NOIO which is already used for the vmalloc fallback. Just use
+> memalloc_noio_{save,restore} around the whole copy_params function which
+> will force the same also to the page fult paths via copy_{from,to}_user.
 
-Cc: "Theodore Ts'o" <tytso@mit.edu>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- fs/jbd2/journal.c | 32 +++++++-------------------------
- 1 file changed, 7 insertions(+), 25 deletions(-)
+The userspace memory is locked, so we don't need to use memalloc_noio_save 
+around copy_from_user. If the memory weren't locked, memalloc_noio_save 
+wouldn't help us to prevent the IO.
 
-diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
-index b31852f76f46..e3ca4b4cac84 100644
---- a/fs/jbd2/journal.c
-+++ b/fs/jbd2/journal.c
-@@ -2329,18 +2329,10 @@ void *jbd2_alloc(size_t size, gfp_t flags)
- 
- 	BUG_ON(size & (size-1)); /* Must be a power of 2 */
- 
--	flags |= __GFP_REPEAT;
--	if (size == PAGE_SIZE)
--		ptr = (void *)__get_free_pages(flags, 0);
--	else if (size > PAGE_SIZE) {
--		int order = get_order(size);
--
--		if (order < 3)
--			ptr = (void *)__get_free_pages(flags, order);
--		else
--			ptr = vmalloc(size);
--	} else
-+	if (size < PAGE_SIZE)
- 		ptr = kmem_cache_alloc(get_slab(size), flags);
-+	else
-+		ptr = (void *)__get_free_pages(flags, get_order(size));
- 
- 	/* Check alignment; SLUB has gotten this wrong in the past,
- 	 * and this can lead to user data corruption! */
-@@ -2351,20 +2343,10 @@ void *jbd2_alloc(size_t size, gfp_t flags)
- 
- void jbd2_free(void *ptr, size_t size)
- {
--	if (size == PAGE_SIZE) {
--		free_pages((unsigned long)ptr, 0);
--		return;
--	}
--	if (size > PAGE_SIZE) {
--		int order = get_order(size);
--
--		if (order < 3)
--			free_pages((unsigned long)ptr, order);
--		else
--			vfree(ptr);
--		return;
--	}
--	kmem_cache_free(get_slab(size), ptr);
-+	if (size < PAGE_SIZE)
-+		kmem_cache_free(get_slab(size), ptr);
-+	else
-+		free_pages((unsigned long)ptr, get_order(size));
- };
- 
- /*
--- 
-2.8.0.rc3
+We don't need this change (unless you show that it fixes real bug).
+
+Mikulas
+
+> While we are there we can also remove __GFP_NOMEMALLOC because copy_params
+> is never called from MEMALLOC context (e.g. during the reclaim).
+> 
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: Mikulas Patocka <mpatocka@redhat.com>
+> Cc: dm-devel@redhat.com
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  drivers/md/dm-ioctl.c | 13 +++++++------
+>  1 file changed, 7 insertions(+), 6 deletions(-)
+> 
+> diff --git a/drivers/md/dm-ioctl.c b/drivers/md/dm-ioctl.c
+> index 2c7ca258c4e4..fe0b57d7573c 100644
+> --- a/drivers/md/dm-ioctl.c
+> +++ b/drivers/md/dm-ioctl.c
+> @@ -1715,16 +1715,13 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
+>  	 */
+>  	dmi = NULL;
+>  	if (param_kernel->data_size <= KMALLOC_MAX_SIZE) {
+> -		dmi = kmalloc(param_kernel->data_size, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+> +		dmi = kmalloc(param_kernel->data_size, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
+>  		if (dmi)
+>  			*param_flags |= DM_PARAMS_KMALLOC;
+>  	}
+>  
+>  	if (!dmi) {
+> -		unsigned noio_flag;
+> -		noio_flag = memalloc_noio_save();
+> -		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_HIGH | __GFP_HIGHMEM, PAGE_KERNEL);
+> -		memalloc_noio_restore(noio_flag);
+> +		dmi = __vmalloc(param_kernel->data_size, GFP_KERNEL | __GFP_HIGH | __GFP_HIGHMEM, PAGE_KERNEL);
+>  		if (dmi)
+>  			*param_flags |= DM_PARAMS_VMALLOC;
+>  	}
+> @@ -1801,6 +1798,7 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
+>  	ioctl_fn fn = NULL;
+>  	size_t input_param_size;
+>  	struct dm_ioctl param_kernel;
+> +	unsigned noio_flag;
+>  
+>  	/* only root can play with this */
+>  	if (!capable(CAP_SYS_ADMIN))
+> @@ -1832,9 +1830,12 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
+>  	}
+>  
+>  	/*
+> -	 * Copy the parameters into kernel space.
+> +	 * Copy the parameters into kernel space. Make sure that no IO is triggered
+> +	 * from the allocation paths because this might be called during the suspend.
+>  	 */
+> +	noio_flag = memalloc_noio_save();
+>  	r = copy_params(user, &param_kernel, ioctl_flags, &param, &param_flags);
+> +	memalloc_noio_restore(noio_flag);
+>  
+>  	if (r)
+>  		return r;
+> -- 
+> 2.8.0.rc3
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
