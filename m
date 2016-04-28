@@ -1,54 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 164156B0253
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 12:21:28 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id i22so183101840ywc.3
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:21:28 -0700 (PDT)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0067.outbound.protection.outlook.com. [157.55.234.67])
-        by mx.google.com with ESMTPS id b66si5267827qkd.55.2016.04.28.09.21.27
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BD116B007E
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 12:42:34 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 68so69134304lfq.2
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:42:34 -0700 (PDT)
+Received: from mail.rt-rk.com (mx2.rt-rk.com. [89.216.37.149])
+        by mx.google.com with ESMTPS id z21si38258519wmh.56.2016.04.28.09.42.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 28 Apr 2016 09:21:27 -0700 (PDT)
-Subject: Re: [PATCH 15/20] tile: get rid of superfluous __GFP_REPEAT
-References: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
- <1461849846-27209-16-git-send-email-mhocko@kernel.org>
-From: Chris Metcalf <cmetcalf@mellanox.com>
-Message-ID: <7390db4d-9035-6f09-8f0d-134d2bdeccf7@mellanox.com>
-Date: Thu, 28 Apr 2016 12:21:11 -0400
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Apr 2016 09:42:32 -0700 (PDT)
+Received: from localhost (localhost [127.0.0.1])
+	by mail.rt-rk.com (Postfix) with ESMTP id 7F2461A2399
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 18:42:30 +0200 (CEST)
+Received: from [10.80.11.84] (rtrkn220.domain.local [10.80.11.84])
+	by mail.rt-rk.com (Postfix) with ESMTPSA id 6C2271A221F
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 18:42:30 +0200 (CEST)
+From: Bojan Prtvar <bojan.prtvar@rt-rk.com>
+Subject: memtest help
+Message-ID: <57223D77.6020502@rt-rk.com>
+Date: Thu, 28 Apr 2016 18:42:31 +0200
 MIME-Version: 1.0
-In-Reply-To: <1461849846-27209-16-git-send-email-mhocko@kernel.org>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org
+To: linux-mm@kvack.org
 
-On 4/28/2016 9:24 AM, Michal Hocko wrote:
-> From: Michal Hocko<mhocko@suse.com>
->
-> __GFP_REPEAT has a rather weak semantic but since it has been introduced
-> around 2.6.12 it has been ignored for low order allocations.
->
-> pgtable_alloc_one uses __GFP_REPEAT flag for L2_USER_PGTABLE_ORDER but
-> the order is either 0 or 3 if L2_KERNEL_PGTABLE_SHIFT for HPAGE_SHIFT.
-> This means that this flag has never been actually useful here because it
-> has always been used only for PAGE_ALLOC_COSTLY requests.
->
-> Cc: Chris Metcalf<cmetcalf@mellanox.com>
-> Cc:linux-arch@vger.kernel.org
-> Signed-off-by: Michal Hocko<mhocko@suse.com>
-> ---
->   arch/tile/mm/pgtable.c | 2 +-
->   1 file changed, 1 insertion(+), 1 deletion(-)
+Hello everyone,
 
-This seems OK as far as I can tell from code review.
+I need to test all RAM cells on a linux ARM embedded system. My use case 
+is very similar to the one described in [1] expect the fact I also have 
+strong requirements on minimizing the boot time impact.
+Instead of doing that from the bootloader, I decided to evaluate the 
+linux memtest feature introduced with [2].
 
-Acked-by: Chris Metcalf <cmetcalf@mellanox.com> [for tile]
+My questions are:
 
--- 
-Chris Metcalf, Mellanox Technologies
-http://www.mellanox.com
+1)
+Does the  early_memtest() as called in [3] really covers *all* RAM cells?
+
+2)
+As memtest happens very early in boot stage, what primitives I can use 
+to measure duration of early_memtest()? Are there any known heuristics? 
+I need to test ~2GB of RAM.
+This is my major concern.
+
+3)
+It seems reasonable to expose the number of detected bad cells to user 
+space. I was thinking about sysfs. Are the patches welcomed?
+
+[1]
+http://www.linuxforums.org/forum/newbie/173847-how-do-memory-ram-test-when-linux-running.html
+[2]
+http://lkml.iu.edu/hypermail/linux/kernel/1503.1/00566.html
+[3]
+http://lxr.free-electrons.com/source/arch/arm/mm/init.c#L291
+
+Thanks,
+Bojan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
