@@ -1,74 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 71FB36B0264
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:24:17 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id e201so3517855wme.1
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 06:24:17 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id h64si5225521wmf.112.2016.04.28.06.24.14
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A0AC06B0265
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:24:19 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r12so3596674wme.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 06:24:19 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id h62si15568543wma.124.2016.04.28.06.24.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 28 Apr 2016 06:24:14 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id e201so23387599wme.2
+Received: by mail-wm0-f65.google.com with SMTP id n129so14111107wmn.1
         for <linux-mm@kvack.org>; Thu, 28 Apr 2016 06:24:14 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 02/20] x86: get rid of superfluous __GFP_REPEAT
-Date: Thu, 28 Apr 2016 15:23:48 +0200
-Message-Id: <1461849846-27209-3-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 03/20] x86/efi: get rid of superfluous __GFP_REPEAT
+Date: Thu, 28 Apr 2016 15:23:49 +0200
+Message-Id: <1461849846-27209-4-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
 References: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, linux-arch@vger.kernel.org
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org, Matt Fleming <matt@codeblueprint.co.uk>
 
 From: Michal Hocko <mhocko@suse.com>
 
 __GFP_REPEAT has a rather weak semantic but since it has been introduced
 around 2.6.12 it has been ignored for low order allocations.
 
-PGALLOC_GFP uses __GFP_REPEAT but none of the allocation which uses this
-flag is for more than order-0. This means that this flag has never
-been actually useful here because it has always been used only for
-PAGE_ALLOC_COSTLY requests.
+efi_alloc_page_tables uses __GFP_REPEAT but it allocates an order-0
+page. This means that this flag has never been actually useful here
+because it has always been used only for PAGE_ALLOC_COSTLY requests.
 
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andy Lutomirski <luto@kernel.org>
 Cc: linux-arch@vger.kernel.org
+Acked-by: Matt Fleming <matt@codeblueprint.co.uk>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- arch/x86/kernel/espfix_64.c | 2 +-
- arch/x86/mm/pgtable.c       | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ arch/x86/platform/efi/efi_64.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/x86/kernel/espfix_64.c b/arch/x86/kernel/espfix_64.c
-index 4d38416e2a7f..04f89caef9c4 100644
---- a/arch/x86/kernel/espfix_64.c
-+++ b/arch/x86/kernel/espfix_64.c
-@@ -57,7 +57,7 @@
- # error "Need more than one PGD for the ESPFIX hack"
- #endif
+diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
+index 49e4dd4a1f58..a7ee3f08074f 100644
+--- a/arch/x86/platform/efi/efi_64.c
++++ b/arch/x86/platform/efi/efi_64.c
+@@ -141,7 +141,7 @@ int __init efi_alloc_page_tables(void)
+ 	if (efi_enabled(EFI_OLD_MEMMAP))
+ 		return 0;
  
--#define PGALLOC_GFP (GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO)
-+#define PGALLOC_GFP (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
- 
- /* This contains the *bottom* address of the espfix stack */
- DEFINE_PER_CPU_READ_MOSTLY(unsigned long, espfix_stack);
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 4eb287e25043..aa0ff4b02a96 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -6,7 +6,7 @@
- #include <asm/fixmap.h>
- #include <asm/mtrr.h>
- 
--#define PGALLOC_GFP GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO
-+#define PGALLOC_GFP GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO
- 
- #ifdef CONFIG_HIGHPTE
- #define PGALLOC_USER_GFP __GFP_HIGHMEM
+-	gfp_mask = GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO;
++	gfp_mask = GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO;
+ 	efi_pgd = (pgd_t *)__get_free_page(gfp_mask);
+ 	if (!efi_pgd)
+ 		return -ENOMEM;
 -- 
 2.8.0.rc3
 
