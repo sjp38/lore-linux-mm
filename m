@@ -1,99 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 105946B007E
-	for <linux-mm@kvack.org>; Wed, 27 Apr 2016 22:59:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b203so118795567pfb.1
-        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 19:59:43 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id h85si7473444pfj.72.2016.04.27.19.59.42
-        for <linux-mm@kvack.org>;
-        Wed, 27 Apr 2016 19:59:42 -0700 (PDT)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: post-copy is broken?
-Date: Thu, 28 Apr 2016 02:59:38 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E041877A3@shsmsx102.ccr.corp.intel.com>
-References: <20160414162230.GC9976@redhat.com>
- <20160415125236.GA3376@node.shutemov.name> <20160415134233.GG2229@work-vm>
- <20160415152330.GB3376@node.shutemov.name> <20160415163448.GJ2229@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E04181101@shsmsx102.ccr.corp.intel.com>
- <20160418095528.GD2222@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E0418115C@shsmsx102.ccr.corp.intel.com>
- <20160418101555.GE2222@work-vm>
- <F2CBF3009FA73547804AE4C663CAB28E041813A6@shsmsx102.ccr.corp.intel.com>
- <20160427144739.GF10120@redhat.com>
-In-Reply-To: <20160427144739.GF10120@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E9FF16B007E
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 00:08:17 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id vv3so101641911pab.2
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 21:08:17 -0700 (PDT)
+Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
+        by mx.google.com with ESMTPS id wg1si9172257pab.52.2016.04.27.21.08.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Apr 2016 21:08:17 -0700 (PDT)
+Received: by mail-pf0-x22a.google.com with SMTP id c189so28644178pfb.3
+        for <linux-mm@kvack.org>; Wed, 27 Apr 2016 21:08:17 -0700 (PDT)
+Date: Thu, 28 Apr 2016 13:09:49 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] mm/zswap: use workqueue to destroy pool
+Message-ID: <20160428040949.GA529@swordfish>
+References: <1461619210-10057-1-git-send-email-ddstreet@ieee.org>
+ <1461704891-15272-1-git-send-email-ddstreet@ieee.org>
+ <20160427005853.GD4782@swordfish>
+ <CALZtONArGwmaWNcHJODmY1uXm306NiqeZtRekfCFgZsMz_cngw@mail.gmail.com>
+ <20160428014028.GA594@swordfish>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160428014028.GA594@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, Amit Shah <amit.shah@redhat.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Dan Streetman <ddstreet@ieee.org>, Yu Zhao <yuzhao@google.com>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@redhat.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <dan.streetman@canonical.com>
 
-> -----Original Message-----
-> From: Andrea Arcangeli [mailto:aarcange@redhat.com]
-> Sent: Wednesday, April 27, 2016 10:48 PM
-> To: Li, Liang Z
-> Cc: Dr. David Alan Gilbert; Kirill A. Shutemov; kirill.shutemov@linux.int=
-el.com;
-> Amit Shah; qemu-devel@nongnu.org; quintela@redhat.com; linux-
-> mm@kvack.org
-> Subject: Re: post-copy is broken?
->=20
-> Hello Liang,
->=20
-> On Mon, Apr 18, 2016 at 10:33:14AM +0000, Li, Liang Z wrote:
-> > If the THP is disabled, no fails.
-> > And your test was always passed, even when  real post-copy was failed.
-> >
-> > In my env, the output of
-> > 'cat /sys/kernel/mm/transparent_hugepage/enabled'  is:
-> >
-> >  [always] ...
-> >
->=20
-> Can you test the fix?
-> https://marc.info/?l=3Dlinux-mm&m=3D146175869123580&w=3D2
->=20
-> This was not a breakage in userfaultfd nor in postcopy. userfaultfd had n=
-o
-> bugs and is fully rock solid and with zero chances of generating undetect=
-ed
-> memory corruption like it was happening in v4.5.
->=20
-> As I suspected, the same problem would have happened with any THP
-> pmd_trans_huge split (swapping/inflating-balloon etc..). Postcopy just
-> makes it easier to reproduce the problem because it does a scattered
-> MADV_DONTNEED on the destination qemu guest memory for the pages
-> redirtied during the last precopy pass that run, or not transferred (to a=
-llow
-> THP faults in destination qemu during precopy), just before starting the
-> guest in the destination node.
->=20
-> Other reports of KVM memory corruption happening on v4.5 with THP
-> enabled will also be taken care of by the above fix.
->=20
-> I hope I managed to fix this in time for v4.6 final (current is v4.6-rc5-=
-69), so
-> the only kernel where KVM must not be used with THP enabled will be v4.5.
->=20
-> On a side note, this MADV_DONTEED trigger reminded me as soon as the
-> madvisev syscall is merged, loadvm_postcopy_ram_handle_discard should
-> start using it to reduce the enter/exit kernel to just 1 (or a few madvis=
-ev in
-> case we want to give a limit to the temporary buffer to avoid the risk of
-> allocating too much temporary RAM for very large
-> guests) to do the MADV_DONTNEED scattered zapping. Same thing in
-> virtio_balloon_handle_output.
->=20
+On (04/28/16 10:40), Sergey Senozhatsky wrote:
+[..]
+> the bigger issue here (and I was thinking at some point of fixing it,
+> but then I grepped to see how many API users are in there, and I gave
+> up) is that it seems we have no way to check if the dir exists in debugfs.
 
-I have test the patch, guest doesn't crash anymore, I think the issue is fi=
-xed. Thanks!
+well, unless we want to do something like below. but I don't think Greg
+will not buy it and the basic rule is to be careful in the driver code
+and avoid any collisions.
 
-Liang
-> Thanks,
-> Andrea
+---
+
+ fs/debugfs/inode.c      | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/debugfs.h |  7 +++++++
+ 2 files changed, 55 insertions(+)
+
+diff --git a/fs/debugfs/inode.c b/fs/debugfs/inode.c
+index 8580831..76cf851 100644
+--- a/fs/debugfs/inode.c
++++ b/fs/debugfs/inode.c
+@@ -709,6 +709,54 @@ exit:
+ EXPORT_SYMBOL_GPL(debugfs_rename);
+ 
+ /**
++ * debugfs_entry_exists - lookup file/directory name
++ *
++ * @name: a pointer to a string containing the name of the file/directory
++ *        to lookup.
++ * @parent: a pointer to the parent dentry.  This should be a directory
++ *          dentry if set. If this parameter is NULL, then the root of the
++ *          debugfs filesystem will be used.
++ *
++ * This function lookup a file/directory name in debugfs. If the
++ * name corresponds to positive dentry, the function will return %0.
++ *
++ * If debugfs is not enabled in the kernel, the value -%ENODEV will be
++ * returned.
++ */
++int debugfs_entry_exists(const char *name, struct dentry *parent)
++{
++	struct dentry *dentry;
++	int error;
++
++	if (IS_ERR(parent))
++		return PTR_ERR(parent);
++
++	error = simple_pin_fs(&debug_fs_type, &debugfs_mount,
++			      &debugfs_mount_count);
++	if (error)
++		return error;
++
++	if (!parent)
++		parent = debugfs_mount->mnt_root;
++
++	error = -EINVAL;
++	inode_lock(d_inode(parent));
++	dentry = lookup_one_len(name, parent, strlen(name));
++	if (IS_ERR(dentry)) {
++		error = PTR_ERR(dentry);
++	} else {
++		if (d_really_is_positive(dentry))
++			error = 0;
++		dput(dentry);
++	}
++
++	inode_unlock(d_inode(parent));
++	simple_release_fs(&debugfs_mount, &debugfs_mount_count);
++	return error;
++}
++EXPORT_SYMBOL_GPL(debugfs_entry_exists);
++
++/**
+  * debugfs_initialized - Tells whether debugfs has been registered
+  */
+ bool debugfs_initialized(void)
+diff --git a/include/linux/debugfs.h b/include/linux/debugfs.h
+index 981e53a..5b6321e 100644
+--- a/include/linux/debugfs.h
++++ b/include/linux/debugfs.h
+@@ -124,6 +124,8 @@ ssize_t debugfs_read_file_bool(struct file *file, char __user *user_buf,
+ ssize_t debugfs_write_file_bool(struct file *file, const char __user *user_buf,
+ 				size_t count, loff_t *ppos);
+ 
++int debugfs_entry_exists(const char *name, struct dentry *parent);
++
+ #else
+ 
+ #include <linux/err.h>
+@@ -312,6 +314,11 @@ static inline ssize_t debugfs_write_file_bool(struct file *file,
+ 	return -ENODEV;
+ }
+ 
++static inline int debugfs_entry_exists(const char *name, struct dentry *parent)
++{
++	return -ENODEV;
++}
++
+ #endif
+ 
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
