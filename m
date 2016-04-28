@@ -1,63 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BD116B007E
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 12:42:34 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id 68so69134304lfq.2
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:42:34 -0700 (PDT)
-Received: from mail.rt-rk.com (mx2.rt-rk.com. [89.216.37.149])
-        by mx.google.com with ESMTPS id z21si38258519wmh.56.2016.04.28.09.42.32
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A06C6B007E
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 12:59:37 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id j8so69512145lfd.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:59:37 -0700 (PDT)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
+        by mx.google.com with ESMTPS id i205si38381141wmf.31.2016.04.28.09.59.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 09:42:32 -0700 (PDT)
-Received: from localhost (localhost [127.0.0.1])
-	by mail.rt-rk.com (Postfix) with ESMTP id 7F2461A2399
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 18:42:30 +0200 (CEST)
-Received: from [10.80.11.84] (rtrkn220.domain.local [10.80.11.84])
-	by mail.rt-rk.com (Postfix) with ESMTPSA id 6C2271A221F
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 18:42:30 +0200 (CEST)
-From: Bojan Prtvar <bojan.prtvar@rt-rk.com>
-Subject: memtest help
-Message-ID: <57223D77.6020502@rt-rk.com>
-Date: Thu, 28 Apr 2016 18:42:31 +0200
+        Thu, 28 Apr 2016 09:59:35 -0700 (PDT)
+Received: by mail-wm0-f53.google.com with SMTP id g17so5826295wme.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 09:59:35 -0700 (PDT)
+Date: Thu, 28 Apr 2016 18:59:34 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] md: simplify free_params for kmalloc vs vmalloc fallback
+Message-ID: <20160428165934.GQ31489@dhcp22.suse.cz>
+References: <1461849846-27209-20-git-send-email-mhocko@kernel.org>
+ <1461855076-1682-1-git-send-email-mhocko@kernel.org>
+ <alpine.LRH.2.02.1604281059290.14065@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160428152812.GM31489@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1604281129360.14065@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1604281129360.14065@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Shaohua Li <shli@kernel.org>, dm-devel@redhat.com
 
-Hello everyone,
+On Thu 28-04-16 11:40:59, Mikulas Patocka wrote:
+[...]
+> There are many users that use one of these patterns:
+> 
+> 	if (size <= some_threshold)
+> 		p = kmalloc(size);
+> 	else
+> 		p = vmalloc(size);
+> 
+> or
+> 
+> 	p = kmalloc(size);
+> 	if (!p)
+> 		p = vmalloc(size);
+> 
+> 
+> For example: alloc_fdmem, seq_buf_alloc, setxattr, getxattr, ipc_alloc, 
+> pidlist_allocate, get_pages_array, alloc_bucket_locks, 
+> frame_vector_create. If you grep the kernel for vmalloc, you'll find this 
+> pattern over and over again.
 
-I need to test all RAM cells on a linux ARM embedded system. My use case 
-is very similar to the one described in [1] expect the fact I also have 
-strong requirements on minimizing the boot time impact.
-Instead of doing that from the bootloader, I decided to evaluate the 
-linux memtest feature introduced with [2].
+It is certainly good to address a common pattern by a helper if it makes
+to code easier to follo IMHO.
 
-My questions are:
+> 
+> In alloc_large_system_hash, there is
+> 	table = __vmalloc(size, GFP_ATOMIC, PAGE_KERNEL);
+> - that is clearly wrong because __vmalloc doesn't respect GFP_ATOMIC
 
-1)
-Does the  early_memtest() as called in [3] really covers *all* RAM cells?
+I have seen this code some time already. I guess it was Al complaining
+about it but then I just forgot about it. I have no idea why GFP_ATOMIC
+was used there. This predates git times but it should be
+https://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.10/2.6.10-mm1/broken-out/alloc_large_system_hash-numa-interleaving.patch
+The changelog is quite verbose but no mention about this ugliness.
 
-2)
-As memtest happens very early in boot stage, what primitives I can use 
-to measure duration of early_memtest()? Are there any known heuristics? 
-I need to test ~2GB of RAM.
-This is my major concern.
+So I do agree that the above should be fixed and a common helper might
+be interesting but I am afraid we are getting off topic here.
 
-3)
-It seems reasonable to expose the number of detected bad cells to user 
-space. I was thinking about sysfs. Are the patches welcomed?
-
-[1]
-http://www.linuxforums.org/forum/newbie/173847-how-do-memory-ram-test-when-linux-running.html
-[2]
-http://lkml.iu.edu/hypermail/linux/kernel/1503.1/00566.html
-[3]
-http://lxr.free-electrons.com/source/arch/arm/mm/init.c#L291
-
-Thanks,
-Bojan
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
