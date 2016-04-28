@@ -1,70 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A2FF66B007E
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 10:41:18 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id y84so66951357lfc.3
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 07:41:18 -0700 (PDT)
-Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com. [74.125.82.48])
-        by mx.google.com with ESMTPS id ga6si11292950wjb.152.2016.04.28.07.41.16
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 748AA6B025E
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 10:51:23 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id w143so5727028wmw.3
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 07:51:23 -0700 (PDT)
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
+        by mx.google.com with ESMTPS id gx6si11383252wjb.76.2016.04.28.07.51.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 07:41:16 -0700 (PDT)
-Received: by mail-wm0-f48.google.com with SMTP id e201so79493273wme.0
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 07:41:16 -0700 (PDT)
-Date: Thu, 28 Apr 2016 16:41:15 +0200
+        Thu, 28 Apr 2016 07:51:22 -0700 (PDT)
+Received: by mail-wm0-f49.google.com with SMTP id g17so45796793wme.1
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 07:51:22 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 18/20] dm: clean up GFP_NIO usage
-Message-ID: <20160428144115.GJ31489@dhcp22.suse.cz>
-References: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
- <1461849846-27209-19-git-send-email-mhocko@kernel.org>
- <alpine.LRH.2.02.1604281016520.14065@file01.intranet.prod.int.rdu2.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1604281016520.14065@file01.intranet.prod.int.rdu2.redhat.com>
+Subject: [PATCH] md: simplify free_params for kmalloc vs vmalloc fallback
+Date: Thu, 28 Apr 2016 16:51:16 +0200
+Message-Id: <1461855076-1682-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1461849846-27209-20-git-send-email-mhocko@kernel.org>
+References: <1461849846-27209-20-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Shaohua Li <shli@kernel.org>, dm-devel@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Shaohua Li <shli@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>, dm-devel@redhat.com
 
-On Thu 28-04-16 10:20:09, Mikulas Patocka wrote:
-> 
-> 
-> On Thu, 28 Apr 2016, Michal Hocko wrote:
-> 
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > copy_params uses GFP_NOIO for explicit allocation requests because this
-> > might be called from the suspend path. To quote Mikulas:
-> > : The LVM tool calls suspend and resume ioctls on device mapper block
-> > : devices.
-> > :
-> > : When a device is suspended, any bio sent to the device is held. If the
-> > : resume ioctl did GFP_KERNEL allocation, the allocation could get stuck
-> > : trying to write some dirty cached pages to the suspended device.
-> > :
-> > : The LVM tool and the dmeventd daemon use mlock to lock its address space,
-> > : so the copy_from_user/copy_to_user call cannot trigger a page fault.
-> > 
-> > Relying on the mlock is quite fragile and we have a better way in kernel
-> > to enfore NOIO which is already used for the vmalloc fallback. Just use
-> > memalloc_noio_{save,restore} around the whole copy_params function which
-> > will force the same also to the page fult paths via copy_{from,to}_user.
-> 
-> The userspace memory is locked, so we don't need to use memalloc_noio_save 
-> around copy_from_user. If the memory weren't locked, memalloc_noio_save 
-> wouldn't help us to prevent the IO.
+From: Michal Hocko <mhocko@suse.com>
 
-OK, you are right. Got your point. You would have to read from disk to
-fault memory in so this is not just about not performing IO during the
-reclaim.
+Use kvfree rather than DM_PARAMS_[KV]MALLOC specific param flags.
 
-So scratch this patch then.
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Mikulas Patocka <mpatocka@redhat.com>
+Cc: dm-devel@redhat.com
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+Hi,
+this is a rebase on top of dropped "dm: clean up GFP_NIO usage" which
+should be dropped as per the feedback from Mikulas.
 
-Thanks!
+ drivers/md/dm-ioctl.c | 16 +++-------------
+ 1 file changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/drivers/md/dm-ioctl.c b/drivers/md/dm-ioctl.c
+index 2c7ca258c4e4..e66e5b43bc18 100644
+--- a/drivers/md/dm-ioctl.c
++++ b/drivers/md/dm-ioctl.c
+@@ -1670,19 +1670,14 @@ static int check_version(unsigned int cmd, struct dm_ioctl __user *user)
+ 	return r;
+ }
+ 
+-#define DM_PARAMS_KMALLOC	0x0001	/* Params alloced with kmalloc */
+-#define DM_PARAMS_VMALLOC	0x0002	/* Params alloced with vmalloc */
+-#define DM_WIPE_BUFFER		0x0010	/* Wipe input buffer before returning from ioctl */
++#define DM_WIPE_BUFFER		0x0001	/* Wipe input buffer before returning from ioctl */
+ 
+ static void free_params(struct dm_ioctl *param, size_t param_size, int param_flags)
+ {
+ 	if (param_flags & DM_WIPE_BUFFER)
+ 		memset(param, 0, param_size);
+ 
+-	if (param_flags & DM_PARAMS_KMALLOC)
+-		kfree(param);
+-	if (param_flags & DM_PARAMS_VMALLOC)
+-		vfree(param);
++	kvfree(param);
+ }
+ 
+ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kernel,
+@@ -1714,19 +1709,14 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
+ 	 * Use kmalloc() rather than vmalloc() when we can.
+ 	 */
+ 	dmi = NULL;
+-	if (param_kernel->data_size <= KMALLOC_MAX_SIZE) {
++	if (param_kernel->data_size <= KMALLOC_MAX_SIZE)
+ 		dmi = kmalloc(param_kernel->data_size, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+-		if (dmi)
+-			*param_flags |= DM_PARAMS_KMALLOC;
+-	}
+ 
+ 	if (!dmi) {
+ 		unsigned noio_flag;
+ 		noio_flag = memalloc_noio_save();
+ 		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_HIGH | __GFP_HIGHMEM, PAGE_KERNEL);
+ 		memalloc_noio_restore(noio_flag);
+-		if (dmi)
+-			*param_flags |= DM_PARAMS_VMALLOC;
+ 	}
+ 
+ 	if (!dmi) {
 -- 
-Michal Hocko
-SUSE Labs
+2.8.0.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
