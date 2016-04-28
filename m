@@ -1,72 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B5F376B0005
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 17:51:49 -0400 (EDT)
-Received: by mail-ig0-f197.google.com with SMTP id sq19so8956014igc.0
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 14:51:49 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id z21si1710038ioi.42.2016.04.28.14.51.48
-        for <linux-mm@kvack.org>;
-        Thu, 28 Apr 2016 14:51:48 -0700 (PDT)
-Date: Fri, 29 Apr 2016 07:51:45 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 2/2] mm, debug: report when GFP_NO{FS,IO} is used
- explicitly from memalloc_no{fs,io}_{save,restore} context
-Message-ID: <20160428215145.GM26977@dastard>
-References: <1461671772-1269-1-git-send-email-mhocko@kernel.org>
- <1461671772-1269-3-git-send-email-mhocko@kernel.org>
- <20160426225845.GF26977@dastard>
- <20160428081759.GA31489@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160428081759.GA31489@dhcp22.suse.cz>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 584686B0005
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 18:07:11 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 203so167311154pfy.2
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 15:07:11 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id f3si18185650pas.21.2016.04.28.15.07.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Apr 2016 15:07:10 -0700 (PDT)
+Date: Thu, 28 Apr 2016 15:07:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/zsmalloc: don't fail if can't create debugfs info
+Message-Id: <20160428150709.2eef0506d84cd37ac6b61d12@linux-foundation.org>
+In-Reply-To: <1461857808-11030-1-git-send-email-ddstreet@ieee.org>
+References: <1461857808-11030-1-git-send-email-ddstreet@ieee.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, xfs@oss.sgi.com, LKML <linux-kernel@vger.kernel.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Seth Jennings <sjenning@redhat.com>, Yu Zhao <yuzhao@google.com>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <dan.streetman@canonical.com>
 
-On Thu, Apr 28, 2016 at 10:17:59AM +0200, Michal Hocko wrote:
-> [Trim the CC list]
-> On Wed 27-04-16 08:58:45, Dave Chinner wrote:
-> [...]
-> > Often these are to silence lockdep warnings (e.g. commit b17cb36
-> > ("xfs: fix missing KM_NOFS tags to keep lockdep happy")) because
-> > lockdep gets very unhappy about the same functions being called with
-> > different reclaim contexts. e.g.  directory block mapping might
-> > occur from readdir (no transaction context) or within transactions
-> > (create/unlink). hence paths like this are tagged with GFP_NOFS to
-> > stop lockdep emitting false positive warnings....
+On Thu, 28 Apr 2016 11:36:48 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
+
+> Change the return type of zs_pool_stat_create() to void, and
+> remove the logic to abort pool creation if the stat debugfs
+> dir/file could not be created.
 > 
-> As already said in other email, I have tried to revert the above
-> commit and tried to run it with some fs workloads but didn't manage
-> to hit any lockdep splats (after I fixed my bug in the patch 1.2). I
-> have tried to find reports which led to this commit but didn't succeed
-> much. Everything is from much earlier or later. Do you happen to
-> remember which loads triggered them, what they looked like or have an
-> idea what to try to reproduce them? So far I was trying heavy parallel
-> fs_mark, kernbench inside a tiny virtual machine so any of those have
-> triggered direct reclaim all the time.
+> The debugfs stat file is for debugging/information only, and doesn't
+> affect operation of zsmalloc; there is no reason to abort creating
+> the pool if the stat file can't be created.  This was seen with
+> zswap, which used the same name for all pool creations, which caused
+> zsmalloc to fail to create a second pool for zswap if
+> CONFIG_ZSMALLOC_STAT was enabled.
 
-Most of those issues were reported by users and not reproducable by
-any obvious means. They may have been fixed since, but I'm sceptical
-of that because, generally speaking, developer testing only catches
-the obvious lockdep issues. i.e. it's users that report all the
-really twisty issues, and they are generally not reproducable except
-under their production workloads...
+Needed a bit of tweaking due to
+http://ozlabs.org/~akpm/mmotm/broken-out/zsmalloc-reordering-function-parameter.patch
 
-IOWs, the absence of reports in your testing does not mean there
-isn't a problem, and that is one of the biggest problems with
-lockdep annotations - we have no way of ever knowing if they are
-still necessary or not without exposing users to regressions and
-potential deadlocks.....
 
-Cheers,
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: mm/zsmalloc: don't fail if can't create debugfs info
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Change the return type of zs_pool_stat_create() to void, and
+remove the logic to abort pool creation if the stat debugfs
+dir/file could not be created.
+
+The debugfs stat file is for debugging/information only, and doesn't
+affect operation of zsmalloc; there is no reason to abort creating
+the pool if the stat file can't be created.  This was seen with
+zswap, which used the same name for all pool creations, which caused
+zsmalloc to fail to create a second pool for zswap if
+CONFIG_ZSMALLOC_STAT was enabled.
+
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+Cc: Dan Streetman <dan.streetman@canonical.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/zsmalloc.c |   18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)
+
+diff -puN mm/zsmalloc.c~mm-zsmalloc-dont-fail-if-cant-create-debugfs-info mm/zsmalloc.c
+--- a/mm/zsmalloc.c~mm-zsmalloc-dont-fail-if-cant-create-debugfs-info
++++ a/mm/zsmalloc.c
+@@ -568,17 +568,17 @@ static const struct file_operations zs_s
+ 	.release        = single_release,
+ };
+ 
+-static int zs_pool_stat_create(struct zs_pool *pool, const char *name)
++static void zs_pool_stat_create(struct zs_pool *pool, const char *name)
+ {
+ 	struct dentry *entry;
+ 
+ 	if (!zs_stat_root)
+-		return -ENODEV;
++		return;
+ 
+ 	entry = debugfs_create_dir(name, zs_stat_root);
+ 	if (!entry) {
+ 		pr_warn("debugfs dir <%s> creation failed\n", name);
+-		return -ENOMEM;
++		return;
+ 	}
+ 	pool->stat_dentry = entry;
+ 
+@@ -587,10 +587,8 @@ static int zs_pool_stat_create(struct zs
+ 	if (!entry) {
+ 		pr_warn("%s: debugfs file entry <%s> creation failed\n",
+ 				name, "classes");
+-		return -ENOMEM;
++		return;
+ 	}
+-
+-	return 0;
+ }
+ 
+ static void zs_pool_stat_destroy(struct zs_pool *pool)
+@@ -608,9 +606,8 @@ static void __exit zs_stat_exit(void)
+ {
+ }
+ 
+-static inline int zs_pool_stat_create(struct zs_pool *pool, const char *name)
++static inline void zs_pool_stat_create(struct zs_pool *pool, const char *name)
+ {
+-	return 0;
+ }
+ 
+ static inline void zs_pool_stat_destroy(struct zs_pool *pool)
+@@ -618,7 +615,6 @@ static inline void zs_pool_stat_destroy(
+ }
+ #endif
+ 
+-
+ /*
+  * For each size class, zspages are divided into different groups
+  * depending on how "full" they are. This was done so that we could
+@@ -1944,8 +1940,8 @@ struct zs_pool *zs_create_pool(const cha
+ 		prev_class = class;
+ 	}
+ 
+-	if (zs_pool_stat_create(pool, name))
+-		goto err;
++	/* debug only, don't abort if it fails */
++	zs_pool_stat_create(pool, name);
+ 
+ 	/*
+ 	 * Not critical, we still can use the pool
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
