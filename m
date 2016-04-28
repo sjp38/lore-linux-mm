@@ -1,92 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 748AA6B025E
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 10:51:23 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id w143so5727028wmw.3
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 07:51:23 -0700 (PDT)
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
-        by mx.google.com with ESMTPS id gx6si11383252wjb.76.2016.04.28.07.51.22
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E8A346B025E
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 10:55:56 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id k200so74311976lfg.1
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 07:55:56 -0700 (PDT)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id f141si16089860wmf.102.2016.04.28.07.55.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 07:51:22 -0700 (PDT)
-Received: by mail-wm0-f49.google.com with SMTP id g17so45796793wme.1
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 07:51:22 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] md: simplify free_params for kmalloc vs vmalloc fallback
-Date: Thu, 28 Apr 2016 16:51:16 +0200
-Message-Id: <1461855076-1682-1-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1461849846-27209-20-git-send-email-mhocko@kernel.org>
-References: <1461849846-27209-20-git-send-email-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 28 Apr 2016 07:55:55 -0700 (PDT)
+Date: Thu, 28 Apr 2016 15:55:45 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH 04/20] arm: get rid of superfluous __GFP_REPEAT
+Message-ID: <20160428145545.GN19428@n2100.arm.linux.org.uk>
+References: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
+ <1461849846-27209-5-git-send-email-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1461849846-27209-5-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Shaohua Li <shli@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>, dm-devel@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Thu, Apr 28, 2016 at 03:23:50PM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> __GFP_REPEAT has a rather weak semantic but since it has been introduced
+> around 2.6.12 it has been ignored for low order allocations.
+> 
+> PGALLOC_GFP uses __GFP_REPEAT but none of the allocation which uses
+> this flag is for more than order-2. This means that this flag has never
+> been actually useful here because it has always been used only for
+> PAGE_ALLOC_COSTLY requests.
 
-Use kvfree rather than DM_PARAMS_[KV]MALLOC specific param flags.
+I'm unconvinced.  Back in 2013, I was seeing a lot of failures, so:
 
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Mikulas Patocka <mpatocka@redhat.com>
-Cc: dm-devel@redhat.com
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-Hi,
-this is a rebase on top of dropped "dm: clean up GFP_NIO usage" which
-should be dropped as per the feedback from Mikulas.
+commit 8c65da6dc89ccb605d73773b1dd617e72982d971
+Author: Russell King <rmk+kernel@arm.linux.org.uk>
+Date:   Sat Nov 30 12:52:31 2013 +0000
 
- drivers/md/dm-ioctl.c | 16 +++-------------
- 1 file changed, 3 insertions(+), 13 deletions(-)
+    ARM: pgd allocation: retry on failure
 
-diff --git a/drivers/md/dm-ioctl.c b/drivers/md/dm-ioctl.c
-index 2c7ca258c4e4..e66e5b43bc18 100644
---- a/drivers/md/dm-ioctl.c
-+++ b/drivers/md/dm-ioctl.c
-@@ -1670,19 +1670,14 @@ static int check_version(unsigned int cmd, struct dm_ioctl __user *user)
- 	return r;
- }
- 
--#define DM_PARAMS_KMALLOC	0x0001	/* Params alloced with kmalloc */
--#define DM_PARAMS_VMALLOC	0x0002	/* Params alloced with vmalloc */
--#define DM_WIPE_BUFFER		0x0010	/* Wipe input buffer before returning from ioctl */
-+#define DM_WIPE_BUFFER		0x0001	/* Wipe input buffer before returning from ioctl */
- 
- static void free_params(struct dm_ioctl *param, size_t param_size, int param_flags)
- {
- 	if (param_flags & DM_WIPE_BUFFER)
- 		memset(param, 0, param_size);
- 
--	if (param_flags & DM_PARAMS_KMALLOC)
--		kfree(param);
--	if (param_flags & DM_PARAMS_VMALLOC)
--		vfree(param);
-+	kvfree(param);
- }
- 
- static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kernel,
-@@ -1714,19 +1709,14 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
- 	 * Use kmalloc() rather than vmalloc() when we can.
- 	 */
- 	dmi = NULL;
--	if (param_kernel->data_size <= KMALLOC_MAX_SIZE) {
-+	if (param_kernel->data_size <= KMALLOC_MAX_SIZE)
- 		dmi = kmalloc(param_kernel->data_size, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
--		if (dmi)
--			*param_flags |= DM_PARAMS_KMALLOC;
--	}
- 
- 	if (!dmi) {
- 		unsigned noio_flag;
- 		noio_flag = memalloc_noio_save();
- 		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_HIGH | __GFP_HIGHMEM, PAGE_KERNEL);
- 		memalloc_noio_restore(noio_flag);
--		if (dmi)
--			*param_flags |= DM_PARAMS_VMALLOC;
- 	}
- 
- 	if (!dmi) {
+    Make pgd allocation retry on failure; we really need this to succeed
+    otherwise fork() can trigger OOMs.
+
+    Signed-off-by: Russell King <rmk+kernel@arm.linux.org.uk>
+
+Maybe something has changed again in the MM layer which makes this flag
+unnecessary again, and it was a temporary blip around that time, I don't
+know.
+
 -- 
-2.8.0.rc3
+RMK's Patch system: http://www.arm.linux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
