@@ -1,76 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F5F36B025E
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:35:51 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id j8so63444123lfd.0
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 05:35:51 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id 193si15348126wmp.38.2016.04.28.05.35.47
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DDC906B0260
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:39:06 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id k200so70664806lfg.1
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 05:39:06 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id xy10si587961wjc.159.2016.04.28.05.39.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 05:35:47 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id r12so23135266wme.0
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 05:35:47 -0700 (PDT)
-Date: Thu, 28 Apr 2016 14:35:45 +0200
+        Thu, 28 Apr 2016 05:39:05 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id w143so23004769wmw.3
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 05:39:05 -0700 (PDT)
+Date: Thu, 28 Apr 2016 14:39:04 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 09/14] mm: use compaction feedback for thp backoff
- conditions
-Message-ID: <20160428123545.GG31489@dhcp22.suse.cz>
+Subject: Re: [PATCH 14/14] mm, oom, compaction: prevent from
+ should_compact_retry looping for ever for costly orders
+Message-ID: <20160428123904.GH31489@dhcp22.suse.cz>
 References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
- <1461181647-8039-10-git-send-email-mhocko@kernel.org>
- <5721CF7E.9020106@suse.cz>
+ <1461181647-8039-15-git-send-email-mhocko@kernel.org>
+ <5721D0EA.3020205@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5721CF7E.9020106@suse.cz>
+In-Reply-To: <5721D0EA.3020205@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 28-04-16 10:53:18, Vlastimil Babka wrote:
+On Thu 28-04-16 10:59:22, Vlastimil Babka wrote:
 > On 04/20/2016 09:47 PM, Michal Hocko wrote:
 > >From: Michal Hocko <mhocko@suse.com>
 > >
-> >THP requests skip the direct reclaim if the compaction is either
-> >deferred or contended to reduce stalls which wouldn't help the
-> >allocation success anyway. These checks are ignoring other potential
-> >feedback modes which we have available now.
+> >"mm: consider compaction feedback also for costly allocation" has
+> >removed the upper bound for the reclaim/compaction retries based on the
+> >number of reclaimed pages for costly orders. While this is desirable
+> >the patch did miss a mis interaction between reclaim, compaction and the
+> >retry logic.
+> 
+> Hmm perhaps reversing the order of patches 13 and 14 would be a bit safer
+> wrt future bisections then? Add compaction_zonelist_suitable() first with
+> the reasoning, and then immediately use it in the other patch.
+
+Hmm, I do not think the risk is high. This would require the allocate
+GFP_REPEAT large orders to the last drop which is not usual. I found the
+ordering more logical to argue about because this patch will be mostly
+noop for costly orders without 13 and !costly allocations retry
+endlessly anyway. So I would prefer this ordering even though there is
+a window where an extreme load can lockup. I do not expect people
+shooting their head during bisection.
+
+[...]
 > >
-> >It clearly doesn't make much sense to go and reclaim few pages if the
-> >previous compaction has failed.
-> >
-> >We can also simplify the check by using compaction_withdrawn which
-> >checks for both COMPACT_CONTENDED and COMPACT_DEFERRED. This check
-> >is however covering more reasons why the compaction was withdrawn.
-> >None of them should be a problem for the THP case though.
-> >
-> >It is safe to back of if we see COMPACT_SKIPPED because that means
-> >that compaction_suitable failed and a single round of the reclaim is
-> >unlikely to make any difference here. We would have to be close to
-> >the low watermark to reclaim enough and even then there is no guarantee
-> >that the compaction would make any progress while the direct reclaim
-> >would have caused the stall.
-> >
-> >COMPACT_PARTIAL_SKIPPED is slightly different because that means that we
-> >have only seen a part of the zone so a retry would make some sense. But
-> >it would be a compaction retry not a reclaim retry to perform. We are
-> >not doing that and that might indeed lead to situations where THP fails
-> >but this should happen only rarely and it would be really hard to
-> >measure.
-> >
+> >[vbabka@suse.cz: fix classzone_idx vs. high_zoneidx usage in
+> >compaction_zonelist_suitable]
 > >Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> THP's don't compact by default in page fault path anymore, so we don't need
-> to restrict them even more. And hopefully we'll replace the
-> is_thp_gfp_mask() hack with something better soon, so this might be just
-> extra code churn. But I don't feel strongly enough to nack it.
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-My main point was to simplify the code and get rid of as much compaction
-specific hacks as possible. We might very well drop this later on but it
-would be at least less code to grasp through. I do not have any problem
-with dropping this but I think this shouldn't collide with other patches
-much so reducing the number of lines is worth it.
+Thanks!
 
 -- 
 Michal Hocko
