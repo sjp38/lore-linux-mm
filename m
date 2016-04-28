@@ -1,88 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B85766B007E
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 04:59:25 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id e201so59879802wme.1
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 01:59:25 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n125si1095473wmn.11.2016.04.28.01.59.24
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2943B6B007E
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 05:16:15 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id n83so154053370qkn.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 02:16:15 -0700 (PDT)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id k93si4478144qgf.62.2016.04.28.02.16.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 28 Apr 2016 01:59:24 -0700 (PDT)
-Subject: Re: [PATCH 14/14] mm, oom, compaction: prevent from
- should_compact_retry looping for ever for costly orders
-References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
- <1461181647-8039-15-git-send-email-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5721D0EA.3020205@suse.cz>
-Date: Thu, 28 Apr 2016 10:59:22 +0200
-MIME-Version: 1.0
-In-Reply-To: <1461181647-8039-15-git-send-email-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Apr 2016 02:16:14 -0700 (PDT)
+Received: by mail-qk0-x243.google.com with SMTP id i7so1882144qkd.1
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 02:16:14 -0700 (PDT)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH] mm/zswap: provide unique zpool name
+Date: Thu, 28 Apr 2016 05:13:23 -0400
+Message-Id: <1461834803-5565-1-git-send-email-ddstreet@ieee.org>
+In-Reply-To: <CALZtONArGwmaWNcHJODmY1uXm306NiqeZtRekfCFgZsMz_cngw@mail.gmail.com>
+References: <CALZtONArGwmaWNcHJODmY1uXm306NiqeZtRekfCFgZsMz_cngw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@redhat.com>
+Cc: Yu Zhao <yuzhao@google.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <ddstreet@ieee.org>, Dan Streetman <dan.streetman@canonical.com>
 
-On 04/20/2016 09:47 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
->
-> "mm: consider compaction feedback also for costly allocation" has
-> removed the upper bound for the reclaim/compaction retries based on the
-> number of reclaimed pages for costly orders. While this is desirable
-> the patch did miss a mis interaction between reclaim, compaction and the
-> retry logic.
+Instead of using "zswap" as the name for all zpools created, add
+an atomic counter and use "zswap%x" with the counter number for each
+zpool created, to provide a unique name for each new zpool.
 
-Hmm perhaps reversing the order of patches 13 and 14 would be a bit 
-safer wrt future bisections then? Add compaction_zonelist_suitable() 
-first with the reasoning, and then immediately use it in the other patch.
+As zsmalloc, one of the zpool implementations, requires/expects a
+unique name for each pool created, zswap should provide a unique name.
+The zsmalloc pool creation does not fail if a new pool with a
+conflicting name is created, unless CONFIG_ZSMALLOC_STAT is enabled;
+in that case, zsmalloc pool creation fails with -ENOMEM.  Then zswap
+will be unable to change its compressor parameter if its zpool is
+zsmalloc; it also will be unable to change its zpool parameter back
+to zsmalloc, if it has any existing old zpool using zsmalloc with
+page(s) in it.  Attempts to change the parameters will result in
+failure to create the zpool.  This changes zswap to provide a
+unique name for each zpool creation.
 
-> The direct reclaim tries to get zones over min watermark
-> while compaction backs off and returns COMPACT_SKIPPED when all zones
-> are below low watermark + 1<<order gap. If we are getting really close
-> to OOM then __compaction_suitable can keep returning COMPACT_SKIPPED a
-> high order request (e.g. hugetlb order-9) while the reclaim is not able
-> to release enough pages to get us over low watermark. The reclaim is
-> still able to make some progress (usually trashing over few remaining
-> pages) so we are not able to break out from the loop.
->
-> I have seen this happening with the same test described in "mm: consider
-> compaction feedback also for costly allocation" on a swapless system.
-> The original problem got resolved by "vmscan: consider classzone_idx in
-> compaction_ready" but it shows how things might go wrong when we
-> approach the oom event horizont.
->
-> The reason why compaction requires being over low rather than min
-> watermark is not clear to me. This check was there essentially since
-> 56de7263fcf3 ("mm: compaction: direct compact when a high-order
-> allocation fails"). It is clearly an implementation detail though and we
-> shouldn't pull it into the generic retry logic while we should be able
-> to cope with such eventuality. The only place in should_compact_retry
-> where we retry without any upper bound is for compaction_withdrawn()
-> case.
->
-> Introduce compaction_zonelist_suitable function which checks the given
-> zonelist and returns true only if there is at least one zone which would
-> would unblock __compaction_suitable if more memory got reclaimed. In
-> this implementation it checks __compaction_suitable with NR_FREE_PAGES
-> plus part of the reclaimable memory as the target for the watermark check.
-> The reclaimable memory is reduced linearly by the allocation order. The
-> idea is that we do not want to reclaim all the remaining memory for a
-> single allocation request just unblock __compaction_suitable which
-> doesn't guarantee we will make a further progress.
->
-> The new helper is then used if compaction_withdrawn() feedback was
-> provided so we do not retry if there is no outlook for a further
-> progress. !costly requests shouldn't be affected much - e.g. order-2
-> pages would require to have at least 64kB on the reclaimable LRUs while
-> order-9 would need at least 32M which should be enough to not lock up.
->
-> [vbabka@suse.cz: fix classzone_idx vs. high_zoneidx usage in
-> compaction_zonelist_suitable]
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+Fixes: f1c54846ee45 ("zswap: dynamic pool creation")
+Reported-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Dan Streetman <dan.streetman@canonical.com>
+Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+---
+ mm/zswap.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+diff --git a/mm/zswap.c b/mm/zswap.c
+index f207da7..275b22c 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -170,6 +170,8 @@ static struct zswap_tree *zswap_trees[MAX_SWAPFILES];
+ static LIST_HEAD(zswap_pools);
+ /* protects zswap_pools list modification */
+ static DEFINE_SPINLOCK(zswap_pools_lock);
++/* pool counter to provide unique names to zpool */
++static atomic_t zswap_pools_count = ATOMIC_INIT(0);
+ 
+ /* used by param callback function */
+ static bool zswap_init_started;
+@@ -565,6 +567,7 @@ static struct zswap_pool *zswap_pool_find_get(char *type, char *compressor)
+ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
+ {
+ 	struct zswap_pool *pool;
++	char name[38]; /* 'zswap' + 32 char (max) num + \0 */
+ 	gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
+ 
+ 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+@@ -573,7 +576,10 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
+ 		return NULL;
+ 	}
+ 
+-	pool->zpool = zpool_create_pool(type, "zswap", gfp, &zswap_zpool_ops);
++	/* unique name for each pool specifically required by zsmalloc */
++	snprintf(name, 38, "zswap%x", atomic_inc_return(&zswap_pools_count));
++
++	pool->zpool = zpool_create_pool(type, name, gfp, &zswap_zpool_ops);
+ 	if (!pool->zpool) {
+ 		pr_err("%s zpool not available\n", type);
+ 		goto error;
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
