@@ -1,97 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C2456B007E
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 07:59:01 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id w143so1466706wmw.3
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 04:59:01 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id 19si15153463wmq.119.2016.04.28.04.59.00
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F5F36B025E
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 08:35:51 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id j8so63444123lfd.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 05:35:51 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id 193si15348126wmp.38.2016.04.28.05.35.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 04:59:00 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id e201so22664123wme.2
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 04:59:00 -0700 (PDT)
-Date: Thu, 28 Apr 2016 13:58:58 +0200
+        Thu, 28 Apr 2016 05:35:47 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id r12so23135266wme.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 05:35:47 -0700 (PDT)
+Date: Thu, 28 Apr 2016 14:35:45 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Confusing olddefault prompt for Z3FOLD
-Message-ID: <20160428115858.GE31489@dhcp22.suse.cz>
-References: <9459.1461686910@turing-police.cc.vt.edu>
- <20160427123139.GA2230@dhcp22.suse.cz>
- <CAMJBoFPWNx6UTqyw1XF46fZYNi=nBjHXNdWz+SDokqG3xEkjAA@mail.gmail.com>
+Subject: Re: [PATCH 09/14] mm: use compaction feedback for thp backoff
+ conditions
+Message-ID: <20160428123545.GG31489@dhcp22.suse.cz>
+References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
+ <1461181647-8039-10-git-send-email-mhocko@kernel.org>
+ <5721CF7E.9020106@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAMJBoFPWNx6UTqyw1XF46fZYNi=nBjHXNdWz+SDokqG3xEkjAA@mail.gmail.com>
+In-Reply-To: <5721CF7E.9020106@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Joonsoo Kim <js1304@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 28-04-16 13:35:45, Vitaly Wool wrote:
-> On Wed, Apr 27, 2016 at 2:31 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Tue 26-04-16 12:08:30, Valdis Kletnieks wrote:
-> >> Saw this duplicate prompt text in today's linux-next in a 'make oldconfig':
-> >>
-> >> Low density storage for compressed pages (ZBUD) [Y/n/m/?] y
-> >> Low density storage for compressed pages (Z3FOLD) [N/m/y/?] (NEW) ?
-> >>
-> >> I had to read the help texts for both before I clued in that one used
-> >> two compressed pages, and the other used 3.
-> >>
-> >> And 'make oldconfig' doesn't have a "Wait, what?" option to go back
-> >> to a previous prompt....
-> >>
-> >> (Change Z3FOLD prompt to "New low density" or something? )
+On Thu 28-04-16 10:53:18, Vlastimil Babka wrote:
+> On 04/20/2016 09:47 PM, Michal Hocko wrote:
+> >From: Michal Hocko <mhocko@suse.com>
 > >
-> > Or even better can we only a single one rather than 2 algorithms doing
-> > the similar thing? I wasn't following this closely but what is the
-> > difference to have them both?
+> >THP requests skip the direct reclaim if the compaction is either
+> >deferred or contended to reduce stalls which wouldn't help the
+> >allocation success anyway. These checks are ignoring other potential
+> >feedback modes which we have available now.
+> >
+> >It clearly doesn't make much sense to go and reclaim few pages if the
+> >previous compaction has failed.
+> >
+> >We can also simplify the check by using compaction_withdrawn which
+> >checks for both COMPACT_CONTENDED and COMPACT_DEFERRED. This check
+> >is however covering more reasons why the compaction was withdrawn.
+> >None of them should be a problem for the THP case though.
+> >
+> >It is safe to back of if we see COMPACT_SKIPPED because that means
+> >that compaction_suitable failed and a single round of the reclaim is
+> >unlikely to make any difference here. We would have to be close to
+> >the low watermark to reclaim enough and even then there is no guarantee
+> >that the compaction would make any progress while the direct reclaim
+> >would have caused the stall.
+> >
+> >COMPACT_PARTIAL_SKIPPED is slightly different because that means that we
+> >have only seen a part of the zone so a retry would make some sense. But
+> >it would be a compaction retry not a reclaim retry to perform. We are
+> >not doing that and that might indeed lead to situations where THP fails
+> >but this should happen only rarely and it would be really hard to
+> >measure.
+> >
+> >Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> The v3 version of z3fold doesn't claim itself to be a low density storage :)
-> The reasons to have them both are listed in [1] and mentioned in [2].
-> 
-Thanks for the pointer!
+> THP's don't compact by default in page fault path anymore, so we don't need
+> to restrict them even more. And hopefully we'll replace the
+> is_thp_gfp_mask() hack with something better soon, so this might be just
+> extra code churn. But I don't feel strongly enough to nack it.
 
-> [1] https://lkml.org/lkml/2016/4/25/526
+My main point was to simplify the code and get rid of as much compaction
+specific hacks as possible. We might very well drop this later on but it
+would be at least less code to grasp through. I do not have any problem
+with dropping this but I think this shouldn't collide with other patches
+much so reducing the number of lines is worth it.
 
-> * zbud is 30% less object code
-
-This sounds like a lot but in fact:
-   text    data     bss     dec     hex filename
-   2063     104       8    2175     87f mm/zbud.o
-   3467     104       8    3579     dfb mm/z3fold.o
-
-Does this difference actually matter for somebody to not use z3fold if
-the overal savings in the compressed memory are better? I also suspect
-that even small configs might not save too much because of the internal
-fragmentation.
-
-> * some system configurations might break if we removed zbud
-
-Why would they break? Are the two incompatible? Or to be more specific
-what should be the criteria to chose one over the other?
-
-> * zbud exports its own API while z3fold is designed to work via zpool
-
-$ git grep EXPORT mm/zbud.c include/linux/zbud.h
-$
-
-So the API can be used only from the kernel, right? I haven't checked
-users but why does the API actually matters.
-
-Or is there any other API I have missed.
-
-> * limiting the amount of zpool users doesn't make much sense to me,
->   after all :)
-
-I am not sure I understand this part. Could you be more specific?
-
-Just to clarify I am not opposing an idea of a new page compressing
-algorithm. I just think that the config space in this area is way to
-large and confusing. One has the scratch his head to find out what to
-enable and for what reasons. The config help text didn't tell me which
-is suitable for which kind of workload. All I can tell from it is that I
-want 3 pages compressed rather than 2 so why bother having both of them?
 -- 
 Michal Hocko
 SUSE Labs
