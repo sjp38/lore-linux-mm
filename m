@@ -1,57 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 49AF56B007E
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 07:35:47 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 68so61968061lfq.2
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 04:35:47 -0700 (PDT)
-Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
-        by mx.google.com with ESMTPS id g5si18735832wmf.67.2016.04.28.04.35.45
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D6D266B0253
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 07:39:02 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id j8so62070524lfd.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 04:39:02 -0700 (PDT)
+Received: from mail-lf0-x229.google.com (mail-lf0-x229.google.com. [2a00:1450:4010:c07::229])
+        by mx.google.com with ESMTPS id h198si4677621lfe.211.2016.04.28.04.39.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 04:35:46 -0700 (PDT)
-Received: by mail-wm0-x229.google.com with SMTP id e201so73022741wme.0
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 04:35:45 -0700 (PDT)
+        Thu, 28 Apr 2016 04:39:01 -0700 (PDT)
+Received: by mail-lf0-x229.google.com with SMTP id u64so80782509lff.3
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 04:39:01 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160427123139.GA2230@dhcp22.suse.cz>
-References: <9459.1461686910@turing-police.cc.vt.edu>
-	<20160427123139.GA2230@dhcp22.suse.cz>
-Date: Thu, 28 Apr 2016 13:35:45 +0200
-Message-ID: <CAMJBoFPWNx6UTqyw1XF46fZYNi=nBjHXNdWz+SDokqG3xEkjAA@mail.gmail.com>
-Subject: Re: Confusing olddefault prompt for Z3FOLD
-From: Vitaly Wool <vitalywool@gmail.com>
+In-Reply-To: <20160422143259.b2d2c253da7ea6fa4b425269@linux-foundation.org>
+References: <2126fe9ca8c3a4698c0ad7aae652dce28e261182.1460545373.git.glider@google.com>
+	<20160422143259.b2d2c253da7ea6fa4b425269@linux-foundation.org>
+Date: Thu, 28 Apr 2016 13:31:14 +0200
+Message-ID: <CAG_fn=XTeQ5TgxWRKSnAt3b+rkw4H6c=h3h36UGMeBben4TMsA@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] mm, kasan: don't call kasan_krealloc() from ksize().
+From: Alexander Potapenko <glider@google.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Christoph Lameter <cl@linux.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Wed, Apr 27, 2016 at 2:31 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Tue 26-04-16 12:08:30, Valdis Kletnieks wrote:
->> Saw this duplicate prompt text in today's linux-next in a 'make oldconfig':
->>
->> Low density storage for compressed pages (ZBUD) [Y/n/m/?] y
->> Low density storage for compressed pages (Z3FOLD) [N/m/y/?] (NEW) ?
->>
->> I had to read the help texts for both before I clued in that one used
->> two compressed pages, and the other used 3.
->>
->> And 'make oldconfig' doesn't have a "Wait, what?" option to go back
->> to a previous prompt....
->>
->> (Change Z3FOLD prompt to "New low density" or something? )
+On Fri, Apr 22, 2016 at 11:32 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed, 13 Apr 2016 13:20:09 +0200 Alexander Potapenko <glider@google.com=
+> wrote:
 >
-> Or even better can we only a single one rather than 2 algorithms doing
-> the similar thing? I wasn't following this closely but what is the
-> difference to have them both?
+>> Instead of calling kasan_krealloc(), which replaces the memory allocatio=
+n
+>> stack ID (if stack depot is used), just unpoison the whole memory chunk.
+>
+> I don't understand why these two patches exist.  Bugfix?  Cleanup?
+> Optimization?
+It's incorrect to call kasan_krealloc() from ksize(), because the
+former may touch the allocation metadata (it does so for the SLAB
+allocator).
+Yes, this is a bugfix.
+>
+> I had to change kmalloc_tests_init() a bit due to
+> mm-kasan-initial-memory-quarantine-implementation.patch:
+>
+>         kasan_stack_oob();
+>         kasan_global_oob();
+>  #ifdef CONFIG_SLAB
+>         kasan_quarantine_cache();
+>  #endif
+> +       ksize_unpoisons_memory();
+>         return -EAGAIN;
+>  }
+>
+> Please check.
+Ack.
 
-The v3 version of z3fold doesn't claim itself to be a low density storage :)
-The reasons to have them both are listed in [1] and mentioned in [2].
 
-Thanks,
-   Vitaly
 
-[1] https://lkml.org/lkml/2016/4/25/526
-[2] https://lkml.org/lkml/2016/4/25/570
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
