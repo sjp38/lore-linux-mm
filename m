@@ -1,106 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B010D6B0005
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 08:17:41 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id j8so88320338lfd.0
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 05:17:41 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id z7si3903802wmz.39.2016.04.29.05.17.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Apr 2016 05:17:40 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id w143so4592035wmw.3
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 05:17:40 -0700 (PDT)
-Date: Fri, 29 Apr 2016 14:17:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Confusing olddefault prompt for Z3FOLD
-Message-ID: <20160429121738.GM21977@dhcp22.suse.cz>
-References: <9459.1461686910@turing-police.cc.vt.edu>
- <20160427123139.GA2230@dhcp22.suse.cz>
- <CAMJBoFPWNx6UTqyw1XF46fZYNi=nBjHXNdWz+SDokqG3xEkjAA@mail.gmail.com>
- <20160428115858.GE31489@dhcp22.suse.cz>
- <CAMJBoFM3HYpfPRD2di6=QF_Ebo1fOmNCLPWzXF2RgWKB4cB6GA@mail.gmail.com>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D73036B0005
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 08:54:26 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id xm6so145049585pab.3
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 05:54:26 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id z129si16406798pfb.12.2016.04.29.05.54.25
+        for <linux-mm@kvack.org>;
+        Fri, 29 Apr 2016 05:54:26 -0700 (PDT)
+Date: Fri, 29 Apr 2016 20:54:13 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [LKP] [lkp] [mm, oom] faad2185f4: vm-scalability.throughput
+ -11.8% regression
+Message-ID: <20160429125413.GA21824@aaronlu.sh.intel.com>
+References: <87fuu7iht0.fsf@yhuang-dev.intel.com>
+ <20160427083733.GE2179@dhcp22.suse.cz>
+ <87bn4vigpc.fsf@yhuang-dev.intel.com>
+ <20160427091718.GG2179@dhcp22.suse.cz>
+ <20160428051659.GA10843@aaronlu.sh.intel.com>
+ <20160428085702.GB31489@dhcp22.suse.cz>
+ <e7bfca34-2f7b-290f-0638-4ab1794b9fbd@intel.com>
+ <20160428112135.GD31489@dhcp22.suse.cz>
+ <20160429085937.GA20922@aaronlu.sh.intel.com>
+ <20160429092936.GE21977@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAMJBoFM3HYpfPRD2di6=QF_Ebo1fOmNCLPWzXF2RgWKB4cB6GA@mail.gmail.com>
+In-Reply-To: <20160429092936.GE21977@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, kernel test robot <xiaolong.ye@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, lkp@01.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-On Thu 28-04-16 21:40:48, Vitaly Wool wrote:
-> On Thu, Apr 28, 2016 at 1:58 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Thu 28-04-16 13:35:45, Vitaly Wool wrote:
-[...]
-> >> * zbud is 30% less object code
-> >
-> > This sounds like a lot but in fact:
-> >    text    data     bss     dec     hex filename
-> >    2063     104       8    2175     87f mm/zbud.o
-> >    3467     104       8    3579     dfb mm/z3fold.o
+On Fri, Apr 29, 2016 at 11:29:36AM +0200, Michal Hocko wrote:
+> On Fri 29-04-16 16:59:37, Aaron Lu wrote:
+> > On Thu, Apr 28, 2016 at 01:21:35PM +0200, Michal Hocko wrote:
+> > > All of them are order-2 and this was a known problem for "mm, oom:
+> > > rework oom detection" commit and later should make it much more
+> > > resistant to failures for higher (!costly) orders. So I would definitely
+> > > encourage you to retest with the current _complete_ mmotm tree.
+> > 
+> > OK, will run the test on this branch:
+> > https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-4.5
+> > with head commit:
+> > commit 81cc2e6f1e8bd81ebc7564a3cd3797844ee1712e
+> > Author: Michal Hocko <mhocko@suse.com>
+> > Date:   Thu Apr 28 12:03:24 2016 +0200
+> > 
+> >     drm/amdgpu: make amdgpu_mn_get wait for mmap_sem killable
+> > 
+> > Please let me know if this isn't right.
 > 
-> I get significantly larger code on an ARM64 machine...
+> Yes that should contain all the oom related patches in the mmotm tree.
 
-That is quite unexpected. I would assume that the arch specific growth
-would be proportional for both modules.
-
-[...]
-
-> >> * zbud exports its own API while z3fold is designed to work via zpool
-> >
-> > $ git grep EXPORT mm/zbud.c include/linux/zbud.h
-> > $
-> >
-> > So the API can be used only from the kernel, right? I haven't checked
-> > users but why does the API actually matters.
-> >
-> > Or is there any other API I have missed.
-> 
-> Not sure really. zswap used to call zbud functions directly rather
-> than via zpool. z3fold was only intended to be used via zpool. That of
-> course may be changed, but I consider it right to have something
-> proven and working side-by-side with the new stuff and if the new
-> stuff supersedes the old one, well, we can remove the latter later.
-
-On the other hand it is more code to maintain. I can see a reason to
-have more implementations if they are not overlapping completely - e.g.
-because they behave really differently for specific usecases which are
-too hard to be covered by a single algorithm. Is this the case here?
-If yes this should be really explained and justified. I really hate how
-all the Z* stuff is hard to grasp because there are way too many
-components already - each suited for a particular workload not
-considering others. I would hope for a simplification in that area
-rather than yet another option on top. Now, I might be just unfair here
-because I am not deeply familiar with Z* stuff but just looking at the
-configuration space makes my head hurt.
-
-> >> * limiting the amount of zpool users doesn't make much sense to me,
-> >>   after all :)
-> >
-> > I am not sure I understand this part. Could you be more specific?
-> 
-> Well, the thought was trivial: if there is an API which provides
-> abstraction for compressed objects storage, why not have several users
-> of it rather than 1,5?
-
-Because the configuration space is already too complicated and poor user
-has to decide what to use somehow. I would be completely lost on what to
-use now... From a first thought I would rather go with a better
-comprimation but is there any risk that I would end up using much more
-CPU for that or that I might be just too unlucky and my data wouldn't
-compress enough to fit in?
-
-> What we need to do is to provide a better
-> documentation (I must admit I wasn't that good in doing this) on when
-> to use what.
-
-That would be certainly appreciated.
-
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+The test shows commit 81cc2e6f1e doesn't OOM anymore and its throughput 
+is 43609, the same level compared to 43802, so everyting is fine :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
