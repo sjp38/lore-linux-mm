@@ -1,74 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 084F66B0005
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 03:18:06 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 203so185250205pfy.2
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 00:18:05 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id a1si14882489pfb.126.2016.04.29.00.18.04
-        for <linux-mm@kvack.org>;
-        Fri, 29 Apr 2016 00:18:05 -0700 (PDT)
-Date: Fri, 29 Apr 2016 16:18:10 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v4] mm: SLAB freelist randomization
-Message-ID: <20160429071810.GD19896@js1304-P5Q-DELUXE>
-References: <1461687670-47585-1-git-send-email-thgarnie@google.com>
- <20160426161743.f831225a4efb3eb04debe402@linux-foundation.org>
- <alpine.DEB.2.20.1604271027540.20042@east.gentwo.org>
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D39E76B0253
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 03:18:14 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id e63so193306102iod.2
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 00:18:14 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id v2si3073329igg.71.2016.04.29.00.18.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Apr 2016 00:18:14 -0700 (PDT)
+Date: Fri, 29 Apr 2016 03:17:43 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [RFC PATCH v1 13/18] x86: DMA support for memory encryption
+Message-ID: <20160429071743.GC11592@char.us.oracle.com>
+References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
+ <20160426225812.13567.91220.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1604271027540.20042@east.gentwo.org>
+In-Reply-To: <20160426225812.13567.91220.stgit@tlendack-t1.amdoffice.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Garnier <thgarnie@google.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Kees Cook <keescook@chromium.org>, gthelen@google.com, labbott@fedoraproject.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Wed, Apr 27, 2016 at 10:39:29AM -0500, Christoph Lameter wrote:
-> On Tue, 26 Apr 2016, Andrew Morton wrote:
-> 
-> > : CONFIG_FREELIST_RANDOM bugs me a bit - "freelist" is so vague.
-> > : CONFIG_SLAB_FREELIST_RANDOM would be better.  I mean, what Kconfig
-> > : identifier could be used for implementing randomisation in
-> > : slub/slob/etc once CONFIG_FREELIST_RANDOM is used up?
-> >
-> > but this pearl appeared to pass unnoticed.
-> 
-> Ok. lets add SLAB here and then use this option for the other allocators
-> as well.
-> 
-> > > +	/* If it fails, we will just use the global lists */
-> > > +	cachep->random_seq = kcalloc(count, sizeof(freelist_idx_t), GFP_KERNEL);
-> > > +	if (!cachep->random_seq)
-> > > +		return -ENOMEM;
-> >
-> > OK, no BUG.  If this happens, kmem_cache_init_late() will go BUG
-> > instead ;)
-> >
-> > Questions for slab maintainers:
-> >
-> > What's going on with the gfp_flags in there?  kmem_cache_init_late()
-> > passes GFP_NOWAIT into enable_cpucache().
-> >
-> > a) why the heck does it do that?  It's __init code!
-> 
-> enable_cpucache() was called when a slab cache was reconfigured by writing to /proc/slabinfo.
-> That was changed awhile back when the memcg changes were made ot slab. So
-> now its ok to be made init code.
-> 
-> > Finally, all callers of enable_cpucache() (and hence of
-> > cache_random_seq_create()) are __init, so we're unnecessarily bloating
-> > up vmlinux.  Could someone please take a look at this as a separate
-> > thing?
-> 
-> Hmmm. Well if that is the case then lots of stuff could be straightened
-> out. Joonsoo?
+On Tue, Apr 26, 2016 at 05:58:12PM -0500, Tom Lendacky wrote:
+> Since DMA addresses will effectively look like 48-bit addresses when the
+> memory encryption mask is set, SWIOTLB is needed if the DMA mask of the
+> device performing the DMA does not support 48-bits. SWIOTLB will be
+> initialized to create un-encrypted bounce buffers for use by these devices.
 > 
 
-As I mentioned in other thread, enable_cpucache() can be called
-whenever kmem_cache is created. It should not be __init.
 
-Thanks.
+I presume the sme_me_mask does not use the lower 48 bits?
+
+
+..snip..
+> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+> index 7d56d1b..594dc65 100644
+> --- a/arch/x86/mm/mem_encrypt.c
+> +++ b/arch/x86/mm/mem_encrypt.c
+> @@ -12,6 +12,8 @@
+>  
+>  #include <linux/init.h>
+>  #include <linux/mm.h>
+> +#include <linux/dma-mapping.h>
+> +#include <linux/swiotlb.h>
+>  
+>  #include <asm/mem_encrypt.h>
+>  #include <asm/cacheflush.h>
+> @@ -168,6 +170,25 @@ void __init sme_early_init(void)
+>  }
+>  
+>  /* Architecture __weak replacement functions */
+> +void __init mem_encrypt_init(void)
+> +{
+> +	if (!sme_me_mask)
+> +		return;
+> +
+> +	/* Make SWIOTLB use an unencrypted DMA area */
+> +	swiotlb_clear_encryption();
+> +}
+> +
+> +unsigned long swiotlb_get_me_mask(void)
+> +{
+> +	return sme_me_mask;
+> +}
+> +
+> +void swiotlb_set_mem_dec(void *vaddr, unsigned long size)
+> +{
+> +	sme_set_mem_dec(vaddr, size);
+> +}
+> +
+>  void __init *efi_me_early_memremap(resource_size_t paddr,
+>  				   unsigned long size)
+>  {
+> diff --git a/include/linux/swiotlb.h b/include/linux/swiotlb.h
+> index 017fced..121b9de 100644
+> --- a/include/linux/swiotlb.h
+> +++ b/include/linux/swiotlb.h
+> @@ -30,6 +30,7 @@ int swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose);
+>  extern unsigned long swiotlb_nr_tbl(void);
+>  unsigned long swiotlb_size_or_default(void);
+>  extern int swiotlb_late_init_with_tbl(char *tlb, unsigned long nslabs);
+> +extern void __init swiotlb_clear_encryption(void);
+>  
+>  /*
+>   * Enumeration for sync targets
+> diff --git a/init/main.c b/init/main.c
+> index b3c6e36..1013d1c 100644
+> --- a/init/main.c
+> +++ b/init/main.c
+> @@ -458,6 +458,10 @@ void __init __weak thread_info_cache_init(void)
+>  }
+>  #endif
+>  
+> +void __init __weak mem_encrypt_init(void)
+> +{
+> +}
+> +
+>  /*
+>   * Set up kernel memory allocators
+>   */
+> @@ -597,6 +601,8 @@ asmlinkage __visible void __init start_kernel(void)
+>  	 */
+>  	locking_selftest();
+>  
+> +	mem_encrypt_init();
+> +
+>  #ifdef CONFIG_BLK_DEV_INITRD
+>  	if (initrd_start && !initrd_below_start_ok &&
+>  	    page_to_pfn(virt_to_page((void *)initrd_start)) < min_low_pfn) {
+
+What happens if devices use the bounce buffer before mem_encrypt_init()?
+
+..snip..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
