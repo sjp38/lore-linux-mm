@@ -1,73 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f200.google.com (mail-ig0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 96E7C6B025E
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 01:37:42 -0400 (EDT)
-Received: by mail-ig0-f200.google.com with SMTP id fn8so27741488igb.1
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 22:37:42 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id e7si2552559igg.93.2016.04.28.22.37.41
-        for <linux-mm@kvack.org>;
-        Thu, 28 Apr 2016 22:37:41 -0700 (PDT)
-Date: Fri, 29 Apr 2016 14:37:40 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm/zsmalloc: don't fail if can't create debugfs info
-Message-ID: <20160429053740.GA2431@bbox>
-References: <1461857808-11030-1-git-send-email-ddstreet@ieee.org>
- <20160428150709.2eef0506d84cd37ac6b61d12@linux-foundation.org>
- <20160429003824.GC4920@swordfish>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160429003824.GC4920@swordfish>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CCFFB6B025E
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 01:47:12 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e190so208037271pfe.3
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 22:47:12 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id p123si14400181pfb.235.2016.04.28.22.47.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Apr 2016 22:47:12 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id r187so13282999pfr.2
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 22:47:11 -0700 (PDT)
+From: Minfei Huang <mnghuan@gmail.com>
+Subject: [PATCH] Use existing helper to convert "on/off" to boolean
+Date: Fri, 29 Apr 2016 13:47:04 +0800
+Message-Id: <1461908824-16129-1-git-send-email-mnghuan@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@redhat.com>, Yu Zhao <yuzhao@google.com>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <dan.streetman@canonical.com>
+To: akpm@linux-foundation.org, labbott@fedoraproject.org, rjw@rjwysocki.net, mgorman@techsingularity.net, mhocko@suse.com, vbabka@suse.cz, rientjes@google.com, kirill.shutemov@linux.intel.com, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, alexander.h.duyck@redhat.com, hannes@cmpxchg.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minfei Huang <mnghuan@gmail.com>
 
-On Fri, Apr 29, 2016 at 09:38:24AM +0900, Sergey Senozhatsky wrote:
-> On (04/28/16 15:07), Andrew Morton wrote:
-> > Needed a bit of tweaking due to
-> > http://ozlabs.org/~akpm/mmotm/broken-out/zsmalloc-reordering-function-parameter.patch
-> 
-> Thanks.
-> 
-> > From: Dan Streetman <ddstreet@ieee.org>
-> > Subject: mm/zsmalloc: don't fail if can't create debugfs info
-> > 
-> > Change the return type of zs_pool_stat_create() to void, and
-> > remove the logic to abort pool creation if the stat debugfs
-> > dir/file could not be created.
-> > 
-> > The debugfs stat file is for debugging/information only, and doesn't
-> > affect operation of zsmalloc; there is no reason to abort creating
-> > the pool if the stat file can't be created.  This was seen with
-> > zswap, which used the same name for all pool creations, which caused
-> > zsmalloc to fail to create a second pool for zswap if
-> > CONFIG_ZSMALLOC_STAT was enabled.
-> 
-> no real objections from me. given that both zram and zswap now provide
-> unique names for zsmalloc stats dir, this patch does not fix any "real"
-> (observed) problem /* ENOMEM in debugfs_create_dir() is a different
-> case */.  so it's more of a cosmetic patch.
-> 
+It's more convenient to use existing function helper to convert string
+"on/off" to boolean.
 
-Logically, I agree with Dan that debugfs is just optional so it
-shouldn't affect the module running *but* practically, debugfs_create_dir
-failure with no memory would be rare. Rather than it, we would see
-error from same entry naming like Dan's case.
+Signed-off-by: Minfei Huang <mnghuan@gmail.com>
+---
+ lib/kstrtox.c    | 2 +-
+ mm/page_alloc.c  | 9 +--------
+ mm/page_poison.c | 8 +-------
+ 3 files changed, 3 insertions(+), 16 deletions(-)
 
-If we removes such error propagation logic in case of same naming,
-how do zsmalloc user can notice that debugfs entry was not created
-although zs_creation was successful returns success?
-
-Otherwise, future user of zsmalloc can miss it easily if they repeates
-same mistakes. So, what's the gain with this patch in real practice?
-
-
-> FWIW,
-> Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> 
-> 	-ss
+diff --git a/lib/kstrtox.c b/lib/kstrtox.c
+index d8a5cf6..3c66fc4 100644
+--- a/lib/kstrtox.c
++++ b/lib/kstrtox.c
+@@ -326,7 +326,7 @@ EXPORT_SYMBOL(kstrtos8);
+  * @s: input string
+  * @res: result
+  *
+- * This routine returns 0 iff the first character is one of 'Yy1Nn0', or
++ * This routine returns 0 if the first character is one of 'Yy1Nn0', or
+  * [oO][NnFf] for "on" and "off". Otherwise it will return -EINVAL.  Value
+  * pointed to by res is updated upon finding a match.
+  */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 59de90d..d31426d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -513,14 +513,7 @@ static int __init early_debug_pagealloc(char *buf)
+ {
+ 	if (!buf)
+ 		return -EINVAL;
+-
+-	if (strcmp(buf, "on") == 0)
+-		_debug_pagealloc_enabled = true;
+-
+-	if (strcmp(buf, "off") == 0)
+-		_debug_pagealloc_enabled = false;
+-
+-	return 0;
++	return kstrtobool(buf, &_debug_pagealloc_enabled);
+ }
+ early_param("debug_pagealloc", early_debug_pagealloc);
+ 
+diff --git a/mm/page_poison.c b/mm/page_poison.c
+index 479e7ea..1eae5fa 100644
+--- a/mm/page_poison.c
++++ b/mm/page_poison.c
+@@ -13,13 +13,7 @@ static int early_page_poison_param(char *buf)
+ {
+ 	if (!buf)
+ 		return -EINVAL;
+-
+-	if (strcmp(buf, "on") == 0)
+-		want_page_poisoning = true;
+-	else if (strcmp(buf, "off") == 0)
+-		want_page_poisoning = false;
+-
+-	return 0;
++	return strtobool(buf, &want_page_poisoning);
+ }
+ early_param("page_poison", early_page_poison_param);
+ 
+-- 
+2.6.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
