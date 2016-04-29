@@ -1,62 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 943B66B0265
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 05:29:38 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id y84so85054828lfc.3
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 02:29:38 -0700 (PDT)
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
-        by mx.google.com with ESMTPS id gx6si16321659wjb.76.2016.04.29.02.29.37
+	by kanga.kvack.org (Postfix) with ESMTP id 9D7ED6B0005
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 05:41:54 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id y84so85274624lfc.3
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 02:41:54 -0700 (PDT)
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
+        by mx.google.com with ESMTPS id a141si3170471wmd.7.2016.04.29.02.41.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Apr 2016 02:29:37 -0700 (PDT)
-Received: by mail-wm0-f47.google.com with SMTP id e201so19924541wme.0
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 02:29:37 -0700 (PDT)
-Date: Fri, 29 Apr 2016 11:29:36 +0200
+        Fri, 29 Apr 2016 02:41:53 -0700 (PDT)
+Received: by mail-wm0-f49.google.com with SMTP id n129so20364045wmn.1
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 02:41:53 -0700 (PDT)
+Date: Fri, 29 Apr 2016 11:41:52 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LKP] [lkp] [mm, oom] faad2185f4: vm-scalability.throughput
- -11.8% regression
-Message-ID: <20160429092936.GE21977@dhcp22.suse.cz>
-References: <20160427073617.GA2179@dhcp22.suse.cz>
- <87fuu7iht0.fsf@yhuang-dev.intel.com>
- <20160427083733.GE2179@dhcp22.suse.cz>
- <87bn4vigpc.fsf@yhuang-dev.intel.com>
- <20160427091718.GG2179@dhcp22.suse.cz>
- <20160428051659.GA10843@aaronlu.sh.intel.com>
- <20160428085702.GB31489@dhcp22.suse.cz>
- <e7bfca34-2f7b-290f-0638-4ab1794b9fbd@intel.com>
- <20160428112135.GD31489@dhcp22.suse.cz>
- <20160429085937.GA20922@aaronlu.sh.intel.com>
+Subject: Re: [PATCH 04/20] arm: get rid of superfluous __GFP_REPEAT
+Message-ID: <20160429094152.GF21977@dhcp22.suse.cz>
+References: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
+ <1461849846-27209-5-git-send-email-mhocko@kernel.org>
+ <20160428145545.GN19428@n2100.arm.linux.org.uk>
+ <20160428150831.GK31489@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160429085937.GA20922@aaronlu.sh.intel.com>
+In-Reply-To: <20160428150831.GK31489@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, kernel test robot <xiaolong.ye@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, lkp@01.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org
 
-On Fri 29-04-16 16:59:37, Aaron Lu wrote:
-> On Thu, Apr 28, 2016 at 01:21:35PM +0200, Michal Hocko wrote:
-> > All of them are order-2 and this was a known problem for "mm, oom:
-> > rework oom detection" commit and later should make it much more
-> > resistant to failures for higher (!costly) orders. So I would definitely
-> > encourage you to retest with the current _complete_ mmotm tree.
+On Thu 28-04-16 17:08:31, Michal Hocko wrote:
+> On Thu 28-04-16 15:55:45, Russell King - ARM Linux wrote:
+> > On Thu, Apr 28, 2016 at 03:23:50PM +0200, Michal Hocko wrote:
+> > > From: Michal Hocko <mhocko@suse.com>
+> > > 
+> > > __GFP_REPEAT has a rather weak semantic but since it has been introduced
+> > > around 2.6.12 it has been ignored for low order allocations.
+> > > 
+> > > PGALLOC_GFP uses __GFP_REPEAT but none of the allocation which uses
+> > > this flag is for more than order-2. This means that this flag has never
+> > > been actually useful here because it has always been used only for
+> > > PAGE_ALLOC_COSTLY requests.
+> > 
+> > I'm unconvinced.  Back in 2013, I was seeing a lot of failures, so:
+> > 
+> > commit 8c65da6dc89ccb605d73773b1dd617e72982d971
+> > Author: Russell King <rmk+kernel@arm.linux.org.uk>
+> > Date:   Sat Nov 30 12:52:31 2013 +0000
+> > 
+> >     ARM: pgd allocation: retry on failure
+> > 
+> >     Make pgd allocation retry on failure; we really need this to succeed
+> >     otherwise fork() can trigger OOMs.
+> > 
+> >     Signed-off-by: Russell King <rmk+kernel@arm.linux.org.uk>
+> > 
+> > Maybe something has changed again in the MM layer which makes this flag
+> > unnecessary again, and it was a temporary blip around that time, I don't
+> > know.
 > 
-> OK, will run the test on this branch:
-> https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-4.5
-> with head commit:
-> commit 81cc2e6f1e8bd81ebc7564a3cd3797844ee1712e
-> Author: Michal Hocko <mhocko@suse.com>
-> Date:   Thu Apr 28 12:03:24 2016 +0200
+> PAGE_ALLOC_COSTLY_ORDER is defined to order 3 since 2007 and even before
+> the code was doing
+> -               if ((order <= 3) || (gfp_mask & __GFP_REPEAT))
+> +               if ((order <= PAGE_ALLOC_COSTLY_ORDER) ||
+> +                                               (gfp_mask & __GFP_REPEAT))
+>                         do_retry = 1;
 > 
->     drm/amdgpu: make amdgpu_mn_get wait for mmap_sem killable
-> 
-> Please let me know if this isn't right.
+> So an order-2 allocation which is the case for this particular code now
+> will trigger the OOM killer and fail only when the current task is
+> killed by the OOM killer. Other than that order-2 is basically
+> GFP_NOFAIL. Have a look at __alloc_pages_slowpath() for more details.
 
-Yes that should contain all the oom related patches in the mmotm tree.
-
-Thanks!
-
+Does this explanation help?
 -- 
 Michal Hocko
 SUSE Labs
