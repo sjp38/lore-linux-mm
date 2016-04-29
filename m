@@ -1,160 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C3FB6B0005
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 03:06:16 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id k200so91430063lfg.1
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 00:06:16 -0700 (PDT)
-Received: from mail-lf0-x231.google.com (mail-lf0-x231.google.com. [2a00:1450:4010:c07::231])
-        by mx.google.com with ESMTPS id q19si7254390lbn.31.2016.04.29.00.06.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Apr 2016 00:06:14 -0700 (PDT)
-Received: by mail-lf0-x231.google.com with SMTP id c126so123366415lfb.2
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 00:06:14 -0700 (PDT)
-Date: Fri, 29 Apr 2016 10:06:11 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [BUG] vfio device assignment regression with THP ref counting
- redesign
-Message-ID: <20160429070611.GA4990@node.shutemov.name>
-References: <20160428102051.17d1c728@t450s.home>
- <20160428181726.GA2847@node.shutemov.name>
- <20160428125808.29ad59e5@t450s.home>
- <20160428232127.GL11700@redhat.com>
- <20160429005106.GB2847@node.shutemov.name>
- <20160428204542.5f2053f7@ul30vt.home>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 084F66B0005
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 03:18:06 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 203so185250205pfy.2
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 00:18:05 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id a1si14882489pfb.126.2016.04.29.00.18.04
+        for <linux-mm@kvack.org>;
+        Fri, 29 Apr 2016 00:18:05 -0700 (PDT)
+Date: Fri, 29 Apr 2016 16:18:10 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v4] mm: SLAB freelist randomization
+Message-ID: <20160429071810.GD19896@js1304-P5Q-DELUXE>
+References: <1461687670-47585-1-git-send-email-thgarnie@google.com>
+ <20160426161743.f831225a4efb3eb04debe402@linux-foundation.org>
+ <alpine.DEB.2.20.1604271027540.20042@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160428204542.5f2053f7@ul30vt.home>
+In-Reply-To: <alpine.DEB.2.20.1604271027540.20042@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Williamson <alex.williamson@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Thomas Garnier <thgarnie@google.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Kees Cook <keescook@chromium.org>, gthelen@google.com, labbott@fedoraproject.org, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Apr 28, 2016 at 08:45:42PM -0600, Alex Williamson wrote:
-> On Fri, 29 Apr 2016 03:51:06 +0300
-> "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+On Wed, Apr 27, 2016 at 10:39:29AM -0500, Christoph Lameter wrote:
+> On Tue, 26 Apr 2016, Andrew Morton wrote:
 > 
-> > On Fri, Apr 29, 2016 at 01:21:27AM +0200, Andrea Arcangeli wrote:
-> > > Hello Alex and Kirill,
-> > > 
-> > > On Thu, Apr 28, 2016 at 12:58:08PM -0600, Alex Williamson wrote:  
-> > > > > > specific fix to this code is not applicable.  It also still occurs on
-> > > > > > kernels as recent as v4.6-rc5, so the issue hasn't been silently fixed
-> > > > > > yet.  I'm able to reproduce this fairly quickly with the above test,
-> > > > > > but it's not hard to imagine a test w/o any iommu dependencies which
-> > > > > > simply does a user directed get_user_pages_fast() on a set of userspace
-> > > > > > addresses, retains the reference, and at some point later rechecks that
-> > > > > > a new get_user_pages_fast() results in the same page address.  It  
-> > > 
-> > > Can you try to "git revert 1f25fe20a76af0d960172fb104d4b13697cafa84"
-> > > and then apply the below patch on top of the revert?
-> > > 
-> > > Totally untested... if I missed something and it isn't correct, I hope
-> > > this brings us in the right direction faster at least.
-> > > 
-> > > Overall the problem I think is that we need to restore full accuracy
-> > > and we can't deal with false positive COWs (which aren't entirely
-> > > cheap either... reading 512 cachelines should be much faster than
-> > > copying 2MB and using 4MB of CPU cache). 32k vs 4MB. The problem of
-> > > course is when we really need a COW, we'll waste an additional 32k,
-> > > but then it doesn't matter that much as we'd be forced to load 4MB of
-> > > cache anyway in such case. There's room for optimizations but even the
-> > > simple below patch would be ok for now.
-> > > 
-> > > From 09e3d1ff10b49fb9c3ab77f0b96a862848e30067 Mon Sep 17 00:00:00 2001
-> > > From: Andrea Arcangeli <aarcange@redhat.com>
-> > > Date: Fri, 29 Apr 2016 01:05:06 +0200
-> > > Subject: [PATCH 1/1] mm: thp: calculate page_mapcount() correctly for THP
-> > >  pages
-> > > 
-> > > This allows to revert commit 1f25fe20a76af0d960172fb104d4b13697cafa84
-> > > and it provides fully accuracy with wrprotect faults so page pinning
-> > > will stop causing false positive copy-on-writes.
-> > > 
-> > > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > > ---
-> > >  mm/util.c | 5 +++--
-> > >  1 file changed, 3 insertions(+), 2 deletions(-)
-> > > 
-> > > diff --git a/mm/util.c b/mm/util.c
-> > > index 6cc81e7..a0b9f63 100644
-> > > --- a/mm/util.c
-> > > +++ b/mm/util.c
-> > > @@ -383,9 +383,10 @@ struct address_space *page_mapping(struct page *page)
-> > >  /* Slow path of page_mapcount() for compound pages */
-> > >  int __page_mapcount(struct page *page)
-> > >  {
-> > > -	int ret;
-> > > +	int ret = 0, i;
-> > >  
-> > > -	ret = atomic_read(&page->_mapcount) + 1;
-> > > +	for (i = 0; i < HPAGE_PMD_NR; i++)
-> > > +		ret = max(ret, atomic_read(&page->_mapcount) + 1);
-> > >  	page = compound_head(page);
-> > >  	ret += atomic_read(compound_mapcount_ptr(page)) + 1;
-> > >  	if (PageDoubleMap(page))  
-> > 
-> > You are right about the cause. I spend some time on wrong path: I was only
-> > able to trigger the bug with numa balancing enabled, so I assumed
-> > something is wrong in that code...
-> > 
-> > I would like to preserve current page_mapcount() behaviouts.
-> > I think this fix is better:
+> > : CONFIG_FREELIST_RANDOM bugs me a bit - "freelist" is so vague.
+> > : CONFIG_SLAB_FREELIST_RANDOM would be better.  I mean, what Kconfig
+> > : identifier could be used for implementing randomisation in
+> > : slub/slob/etc once CONFIG_FREELIST_RANDOM is used up?
+> >
+> > but this pearl appeared to pass unnoticed.
 > 
-> This also seems to work in my testing, but assuming all else being
-> equal, there is a performance difference between the two for this test
-> case in favor of Andrea's solution.  Modifying the test to exit after
-> the first set of iterations, my system takes on average 107s to complete
-> with the solution below or 103.5s with the other approach.  Please note
-> that I have every mm debugging option I could find enabled and THP
-> scanning full speed on the system, so I don't know how this would play
-> out in a more tuned configuration.
+> Ok. lets add SLAB here and then use this option for the other allocators
+> as well.
 > 
-> The only reason I noticed is that I added a side test to sleep a random
-> number of seconds and kill the test program because sometimes killing
-> the test triggers errors.  I didn't see any errors with either of these
-> solutions, but suspected the first solution was completing more
-> iterations for similar intervals.  Modifying the test to exit seems to
-> prove that true.
+> > > +	/* If it fails, we will just use the global lists */
+> > > +	cachep->random_seq = kcalloc(count, sizeof(freelist_idx_t), GFP_KERNEL);
+> > > +	if (!cachep->random_seq)
+> > > +		return -ENOMEM;
+> >
+> > OK, no BUG.  If this happens, kmem_cache_init_late() will go BUG
+> > instead ;)
+> >
+> > Questions for slab maintainers:
+> >
+> > What's going on with the gfp_flags in there?  kmem_cache_init_late()
+> > passes GFP_NOWAIT into enable_cpucache().
+> >
+> > a) why the heck does it do that?  It's __init code!
 > 
-> I can't speak to which is the more architecturally correct solution,
-> but there may be a measurable performance difference to consider.
-
-Hm. I just woke up and haven't got any coffee yet, but I don't why my
-approach would be worse for performance. Both have the same algorithmic
-complexity.
-
-> Thanks,
+> enable_cpucache() was called when a slab cache was reconfigured by writing to /proc/slabinfo.
+> That was changed awhile back when the memcg changes were made ot slab. So
+> now its ok to be made init code.
 > 
-> Alex
+> > Finally, all callers of enable_cpucache() (and hence of
+> > cache_random_seq_create()) are __init, so we're unnecessarily bloating
+> > up vmlinux.  Could someone please take a look at this as a separate
+> > thing?
 > 
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index 86f9f8b82f8e..163c10f48e1b 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -1298,15 +1298,9 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> >         VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
-> >         /*
-> >          * We can only reuse the page if nobody else maps the huge page or it's
-> > -        * part. We can do it by checking page_mapcount() on each sub-page, but
-> > -        * it's expensive.
-> > -        * The cheaper way is to check page_count() to be equal 1: every
-> > -        * mapcount takes page reference reference, so this way we can
-> > -        * guarantee, that the PMD is the only mapping.
-> > -        * This can give false negative if somebody pinned the page, but that's
-> > -        * fine.
-> > +        * part.
-> >          */
-> > -       if (page_mapcount(page) == 1 && page_count(page) == 1) {
-> > +       if (total_mapcount(page) == 1) {
-> >                 pmd_t entry;
-> >                 entry = pmd_mkyoung(orig_pmd);
-> >                 entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+> Hmmm. Well if that is the case then lots of stuff could be straightened
+> out. Joonsoo?
 > 
 
--- 
- Kirill A. Shutemov
+As I mentioned in other thread, enable_cpucache() can be called
+whenever kmem_cache is created. It should not be __init.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
