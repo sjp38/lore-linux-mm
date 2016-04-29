@@ -1,77 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 00AA86B007E
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 14:09:40 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id dx6so181777694pad.0
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 11:09:39 -0700 (PDT)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id q64si17542598pfb.1.2016.04.29.11.09.38
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EAA66B007E
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 14:54:54 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id t184so288355479qkh.3
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 11:54:54 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a47si8221576qge.3.2016.04.29.11.54.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Apr 2016 11:09:38 -0700 (PDT)
-Received: by mail-pf0-x22d.google.com with SMTP id y69so51050374pfb.1
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 11:09:38 -0700 (PDT)
-Subject: Re: [PATCH] mm: move huge_pmd_set_accessed out of huge_memory.c
-References: <1461176698-9714-1-git-send-email-yang.shi@linaro.org>
- <5717EDDB.1060704@linaro.org> <20160421073050.GA32611@node.shutemov.name>
- <57195A87.4050408@linaro.org> <20160422094815.GB7336@node.shutemov.name>
-From: "Shi, Yang" <yang.shi@linaro.org>
-Message-ID: <0357941c-d7ce-3ba9-c24f-9d2599429a8a@linaro.org>
-Date: Fri, 29 Apr 2016 11:09:36 -0700
+        Fri, 29 Apr 2016 11:54:54 -0700 (PDT)
+Date: Fri, 29 Apr 2016 14:54:52 -0400
+From: Mike Snitzer <snitzer@redhat.com>
+Subject: Re: [PATCH 17/20] dm: get rid of superfluous gfp flags
+Message-ID: <20160429185451.GA21865@redhat.com>
+References: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
+ <1461849846-27209-18-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20160422094815.GB7336@node.shutemov.name>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1461849846-27209-18-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, hughd@google.com, mgorman@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mikulas Patocka <mpatocka@redhat.com>, Shaohua Li <shli@kernel.org>
 
-On 4/22/2016 2:48 AM, Kirill A. Shutemov wrote:
-> On Thu, Apr 21, 2016 at 03:56:07PM -0700, Shi, Yang wrote:
->> On 4/21/2016 12:30 AM, Kirill A. Shutemov wrote:
->>> On Wed, Apr 20, 2016 at 02:00:11PM -0700, Shi, Yang wrote:
->>>> Hi folks,
->>>>
->>>> I didn't realize pmd_* functions are protected by
->>>> CONFIG_TRANSPARENT_HUGEPAGE on the most architectures before I made this
->>>> change.
->>>>
->>>> Before I fix all the affected architectures code, I want to check if you
->>>> guys think this change is worth or not?
->>>>
->>>> Thanks,
->>>> Yang
->>>>
->>>> On 4/20/2016 11:24 AM, Yang Shi wrote:
->>>>> huge_pmd_set_accessed is only called by __handle_mm_fault from memory.c,
->>>>> move the definition to memory.c and make it static like create_huge_pmd and
->>>>> wp_huge_pmd.
->>>>>
->>>>> Signed-off-by: Yang Shi <yang.shi@linaro.org>
->>>
->>> On pte side we have the same functionality open-coded. Should we do the
->>> same for pmd? Or change pte side the same way?
->>
->> Sorry, I don't quite understand you. Do you mean pte_* functions?
->
-> See handle_pte_fault(), we do the same for pte there what
-> huge_pmd_set_accessed() does for pmd.
+On Thu, Apr 28 2016 at  9:24am -0400,
+Michal Hocko <mhocko@kernel.org> wrote:
 
-Thanks for directing to this code.
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> copy_params seems to be little bit confused about which allocation flags
+> to use. It enforces GFP_NOIO even though it uses
+> memalloc_noio_{save,restore} which enforces GFP_NOIO at the page
+> allocator level automatically (via memalloc_noio_flags). It also
+> uses __GFP_REPEAT for the __vmalloc request which doesn't make much
+> sense either because vmalloc doesn't rely on costly high order
+> allocations. Let's just drop the __GFP_REPEAT and leave the further
+> cleanup to later changes.
+> 
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: Mikulas Patocka <mpatocka@redhat.com>
+> Cc: dm-devel@redhat.com
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
->
-> I think we should be consistent here: either both are abstructed into
-> functions or both open-coded.
-
-I'm supposed functions sound better. However, do_wp_page has to be 
-called with pte lock acquired. So, the abstracted function has to call it.
-
-Thanks,
-Yang
-
-
->
+I've taken this patch for 4.7 but editted the header, see:
+https://git.kernel.org/cgit/linux/kernel/git/device-mapper/linux-dm.git/commit/?h=dm-4.7&id=0222c76e96163355620224625c1cd80991086dc7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
