@@ -1,30 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E6D66B025E
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 04:58:50 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e201so13955483wme.1
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 01:58:50 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0068.outbound.protection.outlook.com. [104.47.1.68])
-        by mx.google.com with ESMTPS id ei9si16179252wjd.95.2016.04.29.01.58.48
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 29 Apr 2016 01:58:49 -0700 (PDT)
-From: Xiaowen Liu <xiaowen.liu@nxp.com>
-Subject: =?gb2312?B?s7e72DogQ01BIHJlc2VydmF0aW9ucyBoYXZlIGRpZmZlcmVudCByZXN1bHQg?=
- =?gb2312?Q?compared_to_linux_3.14_kernel.?=
-Date: Fri, 29 Apr 2016 08:58:47 +0000
-Message-ID: <VI1PR0401MB1792B8FC2142BEE9310BF807EE660@VI1PR0401MB1792.eurprd04.prod.outlook.com>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F8F56B025F
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 04:59:43 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id vv3so158794619pab.2
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 01:59:43 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id l124si7198847pfl.154.2016.04.29.01.59.42
+        for <linux-mm@kvack.org>;
+        Fri, 29 Apr 2016 01:59:42 -0700 (PDT)
+Date: Fri, 29 Apr 2016 16:59:37 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [LKP] [lkp] [mm, oom] faad2185f4: vm-scalability.throughput
+ -11.8% regression
+Message-ID: <20160429085937.GA20922@aaronlu.sh.intel.com>
+References: <20160427031556.GD29014@yexl-desktop>
+ <20160427073617.GA2179@dhcp22.suse.cz>
+ <87fuu7iht0.fsf@yhuang-dev.intel.com>
+ <20160427083733.GE2179@dhcp22.suse.cz>
+ <87bn4vigpc.fsf@yhuang-dev.intel.com>
+ <20160427091718.GG2179@dhcp22.suse.cz>
+ <20160428051659.GA10843@aaronlu.sh.intel.com>
+ <20160428085702.GB31489@dhcp22.suse.cz>
+ <e7bfca34-2f7b-290f-0638-4ab1794b9fbd@intel.com>
+ <20160428112135.GD31489@dhcp22.suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160428112135.GD31489@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "laurent.pinchart+renesas@ideasonboard.com" <laurent.pinchart+renesas@ideasonboard.com>
-Cc: "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, kernel test robot <xiaolong.ye@intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, lkp@01.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 
-WGlhb3dlbiBMaXUgvauzt7vY08q8/qGwQ01BIHJlc2VydmF0aW9ucyBoYXZlIGRpZmZlcmVudCBy
-ZXN1bHQgY29tcGFyZWQgdG8gbGludXggMy4xNCBrZXJuZWwuobGhow==
+On Thu, Apr 28, 2016 at 01:21:35PM +0200, Michal Hocko wrote:
+> All of them are order-2 and this was a known problem for "mm, oom:
+> rework oom detection" commit and later should make it much more
+> resistant to failures for higher (!costly) orders. So I would definitely
+> encourage you to retest with the current _complete_ mmotm tree.
+
+OK, will run the test on this branch:
+https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-4.5
+with head commit:
+commit 81cc2e6f1e8bd81ebc7564a3cd3797844ee1712e
+Author: Michal Hocko <mhocko@suse.com>
+Date:   Thu Apr 28 12:03:24 2016 +0200
+
+    drm/amdgpu: make amdgpu_mn_get wait for mmap_sem killable
+
+Please let me know if this isn't right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
