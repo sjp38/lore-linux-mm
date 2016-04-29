@@ -1,141 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 187C16B0253
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 11:12:59 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id a66so244173247qkg.1
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 08:12:59 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t3si7756287qha.16.2016.04.29.08.12.58
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AFDC6B0005
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 11:33:18 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e190so237726330pfe.3
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 08:33:18 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id cz6si18574478pad.230.2016.04.29.08.33.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Apr 2016 08:12:58 -0700 (PDT)
-Date: Fri, 29 Apr 2016 09:12:57 -0600
-From: Alex Williamson <alex.williamson@redhat.com>
-Subject: Re: [BUG] vfio device assignment regression with THP ref counting
- redesign
-Message-ID: <20160429091257.76e953b7@t450s.home>
-In-Reply-To: <20160429070611.GA4990@node.shutemov.name>
-References: <20160428102051.17d1c728@t450s.home>
-	<20160428181726.GA2847@node.shutemov.name>
-	<20160428125808.29ad59e5@t450s.home>
-	<20160428232127.GL11700@redhat.com>
-	<20160429005106.GB2847@node.shutemov.name>
-	<20160428204542.5f2053f7@ul30vt.home>
-	<20160429070611.GA4990@node.shutemov.name>
+        Fri, 29 Apr 2016 08:33:17 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id p185so14988147pfb.3
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 08:33:17 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Date: Sat, 30 Apr 2016 00:33:09 +0900
+Subject: Re: [PATCH] mm/zsmalloc: don't fail if can't create debugfs info
+Message-ID: <20160429153309.GA2696@blaptop>
+References: <1461857808-11030-1-git-send-email-ddstreet@ieee.org>
+ <20160428150709.2eef0506d84cd37ac6b61d12@linux-foundation.org>
+ <20160429003824.GC4920@swordfish>
+ <20160429053740.GA2431@bbox>
+ <CALZtONCq2QCcg+5S5f-yHiNp6FBPD9sUHjNiFuhJjm-uc6smtg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALZtONCq2QCcg+5S5f-yHiNp6FBPD9sUHjNiFuhJjm-uc6smtg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@redhat.com>, Yu Zhao <yuzhao@google.com>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <dan.streetman@canonical.com>
 
-On Fri, 29 Apr 2016 10:06:11 +0300
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-
-> On Thu, Apr 28, 2016 at 08:45:42PM -0600, Alex Williamson wrote:
-> > On Fri, 29 Apr 2016 03:51:06 +0300
-> > "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> >   
-> > > On Fri, Apr 29, 2016 at 01:21:27AM +0200, Andrea Arcangeli wrote:  
-> > > > Hello Alex and Kirill,
-> > > > 
-> > > > On Thu, Apr 28, 2016 at 12:58:08PM -0600, Alex Williamson wrote:    
-> > > > > > > specific fix to this code is not applicable.  It also still occurs on
-> > > > > > > kernels as recent as v4.6-rc5, so the issue hasn't been silently fixed
-> > > > > > > yet.  I'm able to reproduce this fairly quickly with the above test,
-> > > > > > > but it's not hard to imagine a test w/o any iommu dependencies which
-> > > > > > > simply does a user directed get_user_pages_fast() on a set of userspace
-> > > > > > > addresses, retains the reference, and at some point later rechecks that
-> > > > > > > a new get_user_pages_fast() results in the same page address.  It    
-> > > > 
-> > > > Can you try to "git revert 1f25fe20a76af0d960172fb104d4b13697cafa84"
-> > > > and then apply the below patch on top of the revert?
-> > > > 
-> > > > Totally untested... if I missed something and it isn't correct, I hope
-> > > > this brings us in the right direction faster at least.
-> > > > 
-> > > > Overall the problem I think is that we need to restore full accuracy
-> > > > and we can't deal with false positive COWs (which aren't entirely
-> > > > cheap either... reading 512 cachelines should be much faster than
-> > > > copying 2MB and using 4MB of CPU cache). 32k vs 4MB. The problem of
-> > > > course is when we really need a COW, we'll waste an additional 32k,
-> > > > but then it doesn't matter that much as we'd be forced to load 4MB of
-> > > > cache anyway in such case. There's room for optimizations but even the
-> > > > simple below patch would be ok for now.
-> > > > 
-> > > > From 09e3d1ff10b49fb9c3ab77f0b96a862848e30067 Mon Sep 17 00:00:00 2001
-> > > > From: Andrea Arcangeli <aarcange@redhat.com>
-> > > > Date: Fri, 29 Apr 2016 01:05:06 +0200
-> > > > Subject: [PATCH 1/1] mm: thp: calculate page_mapcount() correctly for THP
-> > > >  pages
-> > > > 
-> > > > This allows to revert commit 1f25fe20a76af0d960172fb104d4b13697cafa84
-> > > > and it provides fully accuracy with wrprotect faults so page pinning
-> > > > will stop causing false positive copy-on-writes.
-> > > > 
-> > > > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> > > > ---
-> > > >  mm/util.c | 5 +++--
-> > > >  1 file changed, 3 insertions(+), 2 deletions(-)
-> > > > 
-> > > > diff --git a/mm/util.c b/mm/util.c
-> > > > index 6cc81e7..a0b9f63 100644
-> > > > --- a/mm/util.c
-> > > > +++ b/mm/util.c
-> > > > @@ -383,9 +383,10 @@ struct address_space *page_mapping(struct page *page)
-> > > >  /* Slow path of page_mapcount() for compound pages */
-> > > >  int __page_mapcount(struct page *page)
-> > > >  {
-> > > > -	int ret;
-> > > > +	int ret = 0, i;
-> > > >  
-> > > > -	ret = atomic_read(&page->_mapcount) + 1;
-> > > > +	for (i = 0; i < HPAGE_PMD_NR; i++)
-> > > > +		ret = max(ret, atomic_read(&page->_mapcount) + 1);
-> > > >  	page = compound_head(page);
-> > > >  	ret += atomic_read(compound_mapcount_ptr(page)) + 1;
-> > > >  	if (PageDoubleMap(page))    
-> > > 
-> > > You are right about the cause. I spend some time on wrong path: I was only
-> > > able to trigger the bug with numa balancing enabled, so I assumed
-> > > something is wrong in that code...
-> > > 
-> > > I would like to preserve current page_mapcount() behaviouts.
-> > > I think this fix is better:  
-> > 
-> > This also seems to work in my testing, but assuming all else being
-> > equal, there is a performance difference between the two for this test
-> > case in favor of Andrea's solution.  Modifying the test to exit after
-> > the first set of iterations, my system takes on average 107s to complete
-> > with the solution below or 103.5s with the other approach.  Please note
-> > that I have every mm debugging option I could find enabled and THP
-> > scanning full speed on the system, so I don't know how this would play
-> > out in a more tuned configuration.
-> > 
-> > The only reason I noticed is that I added a side test to sleep a random
-> > number of seconds and kill the test program because sometimes killing
-> > the test triggers errors.  I didn't see any errors with either of these
-> > solutions, but suspected the first solution was completing more
-> > iterations for similar intervals.  Modifying the test to exit seems to
-> > prove that true.
-> > 
-> > I can't speak to which is the more architecturally correct solution,
-> > but there may be a measurable performance difference to consider.  
+On Fri, Apr 29, 2016 at 10:50:13AM -0400, Dan Streetman wrote:
+> On Fri, Apr 29, 2016 at 1:37 AM, Minchan Kim <minchan@kernel.org> wrote:
+> > On Fri, Apr 29, 2016 at 09:38:24AM +0900, Sergey Senozhatsky wrote:
+> >> On (04/28/16 15:07), Andrew Morton wrote:
+> >> > Needed a bit of tweaking due to
+> >> > http://ozlabs.org/~akpm/mmotm/broken-out/zsmalloc-reordering-function-parameter.patch
+> >>
+> >> Thanks.
+> >>
+> >> > From: Dan Streetman <ddstreet@ieee.org>
+> >> > Subject: mm/zsmalloc: don't fail if can't create debugfs info
+> >> >
+> >> > Change the return type of zs_pool_stat_create() to void, and
+> >> > remove the logic to abort pool creation if the stat debugfs
+> >> > dir/file could not be created.
+> >> >
+> >> > The debugfs stat file is for debugging/information only, and doesn't
+> >> > affect operation of zsmalloc; there is no reason to abort creating
+> >> > the pool if the stat file can't be created.  This was seen with
+> >> > zswap, which used the same name for all pool creations, which caused
+> >> > zsmalloc to fail to create a second pool for zswap if
+> >> > CONFIG_ZSMALLOC_STAT was enabled.
+> >>
+> >> no real objections from me. given that both zram and zswap now provide
+> >> unique names for zsmalloc stats dir, this patch does not fix any "real"
+> >> (observed) problem /* ENOMEM in debugfs_create_dir() is a different
+> >> case */.  so it's more of a cosmetic patch.
+> >>
+> >
+> > Logically, I agree with Dan that debugfs is just optional so it
+> > shouldn't affect the module running *but* practically, debugfs_create_dir
+> > failure with no memory would be rare. Rather than it, we would see
+> > error from same entry naming like Dan's case.
+> >
+> > If we removes such error propagation logic in case of same naming,
+> > how do zsmalloc user can notice that debugfs entry was not created
+> > although zs_creation was successful returns success?
 > 
-> Hm. I just woke up and haven't got any coffee yet, but I don't why my
-> approach would be worse for performance. Both have the same algorithmic
-> complexity.
+> Does it actually matter to the caller?
+> 
+> Since there's no way for zsmalloc to know if the stats dir/file
+> creation failed because of EEXIST or because of ENOMEM, there's no way
+> for it to let the caller know why it failed, either.  Thus all
+> zsmalloc can do is return a generic error, or possibly-wrong ENOMEM.
+> In that case what will the caller do?  Change the name and try again?
+> How does the caller know what name to change it to, maybe the new name
+> is taken too?
+> 
+> The point of debugfs is to provide debug; failures should be ignored,
+> because it's just debug.  It should never prevent actual operation of
+> the driver.
+> 
+> >
+> > Otherwise, future user of zsmalloc can miss it easily if they repeates
+> > same mistakes. So, what's the gain with this patch in real practice?
+> 
+> Well as far as future users, zs_create_pool doesn't document 'name' at
+> all, and certainly doesn't clarify that 'name' should be unique across
+> *all* zs pools that exist.  And zsmalloc behavior should not be
+> different depending on whether the ZSMALLOC_STAT param - which appears
+> to be a debug/info only param - is enabled or not.
 
-I can't explain it either, I won't claim to understand either solution,
-but with all the kernel hacking vm debug/sanity options disabled, there
-still appears to be a very slight advantage to Andrea's proposal.  I
-expect the test program should show this even if you're having a
-difficult time using it to reproduce the bug.  I ran Andrea's patch
-overnight, no issues reported.  Running your patch for an extended test
-now.  Thanks,
+Fair enough.
 
-Alex
+Then, could you apply it to zs_stat_init?
+We could make zs_stat_init to return void to not affect module loading,
+too. As well, we should be okay in zs_stat_root failue, too.
+
+I hope your patch handles them all in this chance.
+
+Thanks for the looking this.
+
+> 
+> But after any future driver using zsmalloc is created, if it did use
+> an already-existing name - either because it was not coded to use
+> unique names, or because of a bug that reused an existing name - which
+> is worse?
+> 1) driver suddenly stops working because new zs pools can't be created?
+> 2) statistics information isn't available for some of the pools created?
+> 
+> And, even though zswap is now patched to provide a unique name, why
+> does zswap have to bear the burden of that?  zswap doesn't care at all
+> about the pool name, and there's no way for users to tell which
+> zsmalloc pool corresponds to which zswap pool parameters.  Future
+> users of zsmalloc (from a code point of view, not person) probably
+> will also not care about the zsmalloc pool name.  And zsmalloc still
+> logs the failure - so anyone looking for the stats and not finding it
+> can easily check the logs to see the reason.
+> 
+> The other alternative that I mentioned before, is for zsmalloc to take
+> care of the problem itself.  If the debugfs dir creation fails, it
+> should change the name and retry; or zsmalloc can keep a list of
+> active pool names so it knows if a new pool's name exists already or
+> not.  But neither expecting the calling code to retry with a different
+> name, nor failing pool creation, seem like a good response when the
+> only failure is providing debug/stats information.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
