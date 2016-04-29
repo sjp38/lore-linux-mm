@@ -1,35 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f72.google.com (mail-qg0-f72.google.com [209.85.192.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DAD926B0005
-	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 20:44:34 -0400 (EDT)
-Received: by mail-qg0-f72.google.com with SMTP id e35so82596892qge.0
-        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 17:44:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o140si6169942qke.179.2016.04.28.17.44.34
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DE5F06B0005
+	for <linux-mm@kvack.org>; Thu, 28 Apr 2016 20:51:10 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id j8so77100630lfd.0
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 17:51:10 -0700 (PDT)
+Received: from mail-lf0-x22d.google.com (mail-lf0-x22d.google.com. [2a00:1450:4010:c07::22d])
+        by mx.google.com with ESMTPS id h129si6498713lfh.51.2016.04.28.17.51.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Apr 2016 17:44:34 -0700 (PDT)
-Date: Thu, 28 Apr 2016 18:44:30 -0600
-From: Alex Williamson <alex.williamson@redhat.com>
+        Thu, 28 Apr 2016 17:51:09 -0700 (PDT)
+Received: by mail-lf0-x22d.google.com with SMTP id j11so116024032lfb.1
+        for <linux-mm@kvack.org>; Thu, 28 Apr 2016 17:51:09 -0700 (PDT)
+Date: Fri, 29 Apr 2016 03:51:06 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [BUG] vfio device assignment regression with THP ref counting
  redesign
-Message-ID: <20160428184430.5ddef470@ul30vt.home>
-In-Reply-To: <20160428232127.GL11700@redhat.com>
+Message-ID: <20160429005106.GB2847@node.shutemov.name>
 References: <20160428102051.17d1c728@t450s.home>
-	<20160428181726.GA2847@node.shutemov.name>
-	<20160428125808.29ad59e5@t450s.home>
-	<20160428232127.GL11700@redhat.com>
+ <20160428181726.GA2847@node.shutemov.name>
+ <20160428125808.29ad59e5@t450s.home>
+ <20160428232127.GL11700@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160428232127.GL11700@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, 29 Apr 2016 01:21:27 +0200
-Andrea Arcangeli <aarcange@redhat.com> wrote:
-
+On Fri, Apr 29, 2016 at 01:21:27AM +0200, Andrea Arcangeli wrote:
 > Hello Alex and Kirill,
 > 
 > On Thu, Apr 28, 2016 at 12:58:08PM -0600, Alex Williamson wrote:
@@ -39,18 +39,11 @@ Andrea Arcangeli <aarcange@redhat.com> wrote:
 > > > > but it's not hard to imagine a test w/o any iommu dependencies which
 > > > > simply does a user directed get_user_pages_fast() on a set of userspace
 > > > > addresses, retains the reference, and at some point later rechecks that
-> > > > a new get_user_pages_fast() results in the same page address.  It  
+> > > > a new get_user_pages_fast() results in the same page address.  It
 > 
 > Can you try to "git revert 1f25fe20a76af0d960172fb104d4b13697cafa84"
 > and then apply the below patch on top of the revert?
-
-Looking good so far!  I haven't seen any errors yet with this
-combination of v4.5, 1f25fe20a reverted, and your patch applied on
-top.  I'll keep testing since reverting 1f25fe20a alone already made
-the bug much more elusive.  Thanks Andrea!
-
-Alex
-
+> 
 > Totally untested... if I missed something and it isn't correct, I hope
 > this brings us in the right direction faster at least.
 > 
@@ -95,6 +88,38 @@ Alex
 >  	page = compound_head(page);
 >  	ret += atomic_read(compound_mapcount_ptr(page)) + 1;
 >  	if (PageDoubleMap(page))
+
+You are right about the cause. I spend some time on wrong path: I was only
+able to trigger the bug with numa balancing enabled, so I assumed
+something is wrong in that code...
+
+I would like to preserve current page_mapcount() behaviouts.
+I think this fix is better:
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 86f9f8b82f8e..163c10f48e1b 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1298,15 +1298,9 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+        VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
+        /*
+         * We can only reuse the page if nobody else maps the huge page or it's
+-        * part. We can do it by checking page_mapcount() on each sub-page, but
+-        * it's expensive.
+-        * The cheaper way is to check page_count() to be equal 1: every
+-        * mapcount takes page reference reference, so this way we can
+-        * guarantee, that the PMD is the only mapping.
+-        * This can give false negative if somebody pinned the page, but that's
+-        * fine.
++        * part.
+         */
+-       if (page_mapcount(page) == 1 && page_count(page) == 1) {
++       if (total_mapcount(page) == 1) {
+                pmd_t entry;
+                entry = pmd_mkyoung(orig_pmd);
+                entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
