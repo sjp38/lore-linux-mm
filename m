@@ -1,207 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 815176B0253
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 18:34:32 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id b189so15574821vkh.1
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 15:34:32 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 74si8502844qkj.181.2016.04.29.15.34.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Apr 2016 15:34:31 -0700 (PDT)
-Date: Fri, 29 Apr 2016 16:34:29 -0600
-From: Alex Williamson <alex.williamson@redhat.com>
-Subject: Re: [BUG] vfio device assignment regression with THP ref counting
- redesign
-Message-ID: <20160429163429.30c9f4a0@t450s.home>
-In-Reply-To: <20160429163444.GM11700@redhat.com>
-References: <20160428102051.17d1c728@t450s.home>
-	<20160428181726.GA2847@node.shutemov.name>
-	<20160428125808.29ad59e5@t450s.home>
-	<20160428232127.GL11700@redhat.com>
-	<20160429005106.GB2847@node.shutemov.name>
-	<20160428204542.5f2053f7@ul30vt.home>
-	<20160429070611.GA4990@node.shutemov.name>
-	<20160429163444.GM11700@redhat.com>
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D7506B007E
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 19:40:13 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id m2so275941152ioa.3
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 16:40:13 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id w74si3511503iod.51.2016.04.29.16.40.11
+        for <linux-mm@kvack.org>;
+        Fri, 29 Apr 2016 16:40:12 -0700 (PDT)
+Date: Sat, 30 Apr 2016 09:40:08 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 2/2] mm, debug: report when GFP_NO{FS,IO} is used
+ explicitly from memalloc_no{fs,io}_{save,restore} context
+Message-ID: <20160429234008.GN26977@dastard>
+References: <1461671772-1269-1-git-send-email-mhocko@kernel.org>
+ <1461671772-1269-3-git-send-email-mhocko@kernel.org>
+ <20160426225845.GF26977@dastard>
+ <20160428081759.GA31489@dhcp22.suse.cz>
+ <20160428215145.GM26977@dastard>
+ <20160429121219.GL21977@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160429121219.GL21977@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, xfs@oss.sgi.com, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 29 Apr 2016 18:34:44 +0200
-Andrea Arcangeli <aarcange@redhat.com> wrote:
+On Fri, Apr 29, 2016 at 02:12:20PM +0200, Michal Hocko wrote:
+> On Fri 29-04-16 07:51:45, Dave Chinner wrote:
+> > On Thu, Apr 28, 2016 at 10:17:59AM +0200, Michal Hocko wrote:
+> > > [Trim the CC list]
+> > > On Wed 27-04-16 08:58:45, Dave Chinner wrote:
+> > > [...]
+> > > > Often these are to silence lockdep warnings (e.g. commit b17cb36
+> > > > ("xfs: fix missing KM_NOFS tags to keep lockdep happy")) because
+> > > > lockdep gets very unhappy about the same functions being called with
+> > > > different reclaim contexts. e.g.  directory block mapping might
+> > > > occur from readdir (no transaction context) or within transactions
+> > > > (create/unlink). hence paths like this are tagged with GFP_NOFS to
+> > > > stop lockdep emitting false positive warnings....
+> > > 
+> > > As already said in other email, I have tried to revert the above
+> > > commit and tried to run it with some fs workloads but didn't manage
+> > > to hit any lockdep splats (after I fixed my bug in the patch 1.2). I
+> > > have tried to find reports which led to this commit but didn't succeed
+> > > much. Everything is from much earlier or later. Do you happen to
+> > > remember which loads triggered them, what they looked like or have an
+> > > idea what to try to reproduce them? So far I was trying heavy parallel
+> > > fs_mark, kernbench inside a tiny virtual machine so any of those have
+> > > triggered direct reclaim all the time.
+> > 
+> > Most of those issues were reported by users and not reproducable by
+> > any obvious means.
+> 
+> I would really appreciate a reference to some of those (my google-fu has
+> failed me) or at least a pattern of those splats
 
-> On Fri, Apr 29, 2016 at 10:06:11AM +0300, Kirill A. Shutemov wrote:
-> > Hm. I just woke up and haven't got any coffee yet, but I don't why my
-> > approach would be worse for performance. Both have the same algorithmic
-> > complexity.  
-> 
-> Even before looking at the overall performance, I'm not sure your
-> patch is really fixing it all: you didn't touch reuse_swap_page which
-> is used by do_wp_page to know if it can call do_wp_page_reuse. Your
-> patch would still trigger a COW instead of calling do_wp_page_reuse,
-> but it would only happen if the page was pinned after the pmd split,
-> which is probably not what the testcase is triggering. My patch
-> instead fixed that too.
-> 
-> total_mapcount returns the wrong value for reuse_swap_page, which is
-> probably why you didn't try to use it there.
-> 
-> The main issue of my patch is that it has a performance downside that
-> is page_mapcount becomes expensive for all other usages, which is
-> better than breaking vfio but I couldn't use total_mapcount again
-> because it counts things wrong in reuse_swap_page.
-> 
-> Like I said there's room for optimizations so today I tried to
-> optimize more stuff...
+If you can't find them with google, then I won't. Google is mostly
+useless as a patch/mailing list search tool these days. You can try
+looking through this list:
 
-I've had this under test for several hours without error.  Thanks!
+https://www.google.com.au/search?q=XFS+lockdep+site:oss.sgi.com+-splice
 
-Alex
+but I'm not seeing anything particularly relevant in that list -
+there isn't a single reclaim related lockdep report in that...
 
+> - was it 
+> "inconsistent {RECLAIM_FS-ON-[RW]} -> {IN-RECLAIM_FS-[WR]} usage"
+> or a different class reports?
 
-> From 74f1fd7fab71a2cce0d1796fb38241acde2c1224 Mon Sep 17 00:00:00 2001
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> Date: Fri, 29 Apr 2016 01:05:06 +0200
-> Subject: [PATCH 1/1] mm: thp: calculate the mapcount correctly for THP pages
->  during WP faults
+Typically that was involved, but it quite often there'd be a number
+of locks and sometimes even interrupt stacks in an interaction
+between 5 or 6 different processes. Lockdep covers all sorts of
+stuff now (like fs freeze annotations as well as locks and memory
+reclaim) so sometimes the only thing we can do is remove the
+reclaim context from the stack and see if that makes it go away...
 > 
-> This will provide fully accuracy to the mapcount calculation in the
-> write protect faults, so page pinning will not get broken by false
-> positive copy-on-writes.
+> > They may have been fixed since, but I'm sceptical
+> > of that because, generally speaking, developer testing only catches
+> > the obvious lockdep issues. i.e. it's users that report all the
+> > really twisty issues, and they are generally not reproducable except
+> > under their production workloads...
+> > 
+> > IOWs, the absence of reports in your testing does not mean there
+> > isn't a problem, and that is one of the biggest problems with
+> > lockdep annotations - we have no way of ever knowing if they are
+> > still necessary or not without exposing users to regressions and
+> > potential deadlocks.....
 > 
-> total_mapcount() isn't the right calculation needed in
-> reuse_swap_page, so this introduces a page_trans_huge_mapcount() that
-> is effectively the full accurate return value for page_mapcount() if
-> dealing with Transparent Hugepages, however we only use the
-> page_trans_huge_mapcount() during COW faults where it strictly needed,
-> due to its higher runtime cost.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->  include/linux/mm.h   |  5 +++++
->  include/linux/swap.h |  3 +--
->  mm/huge_memory.c     | 44 ++++++++++++++++++++++++++++++++++++--------
->  mm/swapfile.c        |  5 +----
->  4 files changed, 43 insertions(+), 14 deletions(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 8fb3604..c2026a1 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -501,11 +501,16 @@ static inline int page_mapcount(struct page *page)
->  
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  int total_mapcount(struct page *page);
-> +int page_trans_huge_mapcount(struct page *page);
->  #else
->  static inline int total_mapcount(struct page *page)
->  {
->  	return page_mapcount(page);
->  }
-> +static inline int page_trans_huge_mapcount(struct page *page)
-> +{
-> +	return page_mapcount(page);
-> +}
->  #endif
->  
->  static inline struct page *virt_to_head_page(const void *x)
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 2f6478f..905bf8e 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -517,8 +517,7 @@ static inline int swp_swapcount(swp_entry_t entry)
->  	return 0;
->  }
->  
-> -#define reuse_swap_page(page) \
-> -	(!PageTransCompound(page) && page_mapcount(page) == 1)
-> +#define reuse_swap_page(page) (page_trans_huge_mapcount(page) == 1)
->  
->  static inline int try_to_free_swap(struct page *page)
->  {
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 06bce0f..6a6d9c0 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1298,15 +1298,9 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
->  	/*
->  	 * We can only reuse the page if nobody else maps the huge page or it's
-> -	 * part. We can do it by checking page_mapcount() on each sub-page, but
-> -	 * it's expensive.
-> -	 * The cheaper way is to check page_count() to be equal 1: every
-> -	 * mapcount takes page reference reference, so this way we can
-> -	 * guarantee, that the PMD is the only mapping.
-> -	 * This can give false negative if somebody pinned the page, but that's
-> -	 * fine.
-> +	 * part.
->  	 */
-> -	if (page_mapcount(page) == 1 && page_count(page) == 1) {
-> +	if (page_trans_huge_mapcount(page) == 1) {
->  		pmd_t entry;
->  		entry = pmd_mkyoung(orig_pmd);
->  		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-> @@ -3226,6 +3220,40 @@ int total_mapcount(struct page *page)
->  }
->  
->  /*
-> + * This calculates accurately how many mappings a transparent hugepage
-> + * has (unlike page_mapcount() which isn't fully accurate). This full
-> + * accuracy is primarily needed to know if copy-on-write faults can
-> + * takeover the page and change the mapping to read-write instead of
-> + * copying them. This is different from total_mapcount() too: we must
-> + * not count all mappings on the subpages individually, but instead we
-> + * must check the highest mapcount any one of the subpages has.
-> + *
-> + * It would be entirely safe and even more correct to replace
-> + * page_mapcount() with page_trans_huge_mapcount(), however we only
-> + * use page_trans_huge_mapcount() in the copy-on-write faults where we
-> + * need full accuracy to avoid breaking page pinning.
-> + */
-> +int page_trans_huge_mapcount(struct page *page)
-> +{
-> +	int i, ret;
-> +
-> +	VM_BUG_ON_PAGE(PageTail(page), page);
-> +
-> +	if (likely(!PageCompound(page)))
-> +		return atomic_read(&page->_mapcount) + 1;
-> +
-> +	ret = 0;
-> +	if (likely(!PageHuge(page))) {
-> +		for (i = 0; i < HPAGE_PMD_NR; i++)
-> +			ret = max(ret, atomic_read(&page[i]._mapcount) + 1);
-> +		if (PageDoubleMap(page))
-> +			ret -= 1;
-> +	}
-> +	ret += compound_mapcount(page);
-> +	return ret;
-> +}
-> +
-> +/*
->   * This function splits huge page into normal pages. @page can point to any
->   * subpage of huge page to split. Split doesn't change the position of @page.
->   *
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 83874ec..984470a 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -930,10 +930,7 @@ int reuse_swap_page(struct page *page)
->  	VM_BUG_ON_PAGE(!PageLocked(page), page);
->  	if (unlikely(PageKsm(page)))
->  		return 0;
-> -	/* The page is part of THP and cannot be reused */
-> -	if (PageTransCompound(page))
-> -		return 0;
-> -	count = page_mapcount(page);
-> +	count = page_trans_huge_mapcount(page);
->  	if (count <= 1 && PageSwapCache(page)) {
->  		count += page_swapcount(page);
->  		if (count == 1 && !PageWriteback(page)) {
+> I understand your points here but if we are sure that those lockdep
+> reports are just false positives then we should rather provide an api to
+> silence lockdep for those paths
+
+I agree with this - please provide such infrastructure before we
+need it...
+
+> than abusing GFP_NOFS which a) hurts
+> the overal reclaim healthiness
+
+Which doesn't actually seem to be a problem for the vast majority of
+users.
+
+> and b) works around a non-existing
+> problem with lockdep disabled which is the vast majority of
+> configurations.
+
+But the moment we have a lockdep problem, we get bug reports from
+all over the place and people complaining about it, so we are
+*required* to silence them one way or another. And, like I said,
+when the choice is simply adding GFP_NOFS or spending a week or two
+completely reworking complex code that has functioned correctly for
+15 years, the risk/reward *always* falls on the side of "just add
+GFP_NOFS".
+
+Please keep in mind that there is as much code in fs/xfs as there is
+in the mm/ subsystem, and XFS has twice that in userspace as well.
+I say this, because we have only have 3-4 full time developers to do
+all the work required on this code base, unlike the mm/ subsystem
+which had 30-40 full time MM developers attending LSFMM. This is why
+I push back on suggestions that require significant redesign of
+subsystem code to handle memory allocation/reclaim quirks - most
+subsystems simply don't have the resources available to do such
+work, and so will always look for the quick 2 minute fix when it is
+available....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
