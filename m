@@ -1,52 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 25E536B007E
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 17:06:30 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e190so256509680pfe.3
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 14:06:30 -0700 (PDT)
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 510B66B007E
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 17:21:12 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id dx6so189011829pad.0
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 14:21:12 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id gs6si19960399pac.81.2016.04.29.14.06.29
+        by mx.google.com with ESMTPS id z189si16015134pfb.180.2016.04.29.14.21.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Apr 2016 14:06:29 -0700 (PDT)
-Date: Fri, 29 Apr 2016 14:06:28 -0700
+        Fri, 29 Apr 2016 14:21:11 -0700 (PDT)
+Date: Fri, 29 Apr 2016 14:21:10 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: link references in the merged patch
-Message-Id: <20160429140628.2f74b36a4bb123a3b81197ea@linux-foundation.org>
-In-Reply-To: <20160429081601.GB21977@dhcp22.suse.cz>
-References: <20160429081601.GB21977@dhcp22.suse.cz>
+Subject: Re: [PATCH] Use existing helper to convert "on/off" to boolean
+Message-Id: <20160429142110.b4039a422866754bc914b8b2@linux-foundation.org>
+In-Reply-To: <1461908824-16129-1-git-send-email-mnghuan@gmail.com>
+References: <1461908824-16129-1-git-send-email-mnghuan@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org
+To: Minfei Huang <mnghuan@gmail.com>
+Cc: labbott@fedoraproject.org, rjw@rjwysocki.net, mgorman@techsingularity.net, mhocko@suse.com, vbabka@suse.cz, rientjes@google.com, kirill.shutemov@linux.intel.com, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, alexander.h.duyck@redhat.com, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 29 Apr 2016 10:16:02 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+On Fri, 29 Apr 2016 13:47:04 +0800 Minfei Huang <mnghuan@gmail.com> wrote:
 
-> Hi Andrew,
-> I was suggesting this during your mm workflow session at LSF/MM so this
-> is just a friendly reminder. Could you add something like tip tree and
-> reference the original email where the patch came from? Tip uses
+> It's more convenient to use existing function helper to convert string
+> "on/off" to boolean.
 > 
-> Link: http://lkml.kernel.org/r/$msg_id
-> 
-> and this is really helpful when trying to find the discussion around the
-> patch. I would even welcome to add such a link for each follow up -fix*
-> patches and do
-> [ $email: $(comment for the follow up chaneg)]
-> Link: http://lkml.kernel.org/r/$msg_id
-> 
-> So it is clear what the follow up change was.
-> 
+> ...
+>
+> --- a/lib/kstrtox.c
+> +++ b/lib/kstrtox.c
+> @@ -326,7 +326,7 @@ EXPORT_SYMBOL(kstrtos8);
+>   * @s: input string
+>   * @res: result
+>   *
+> - * This routine returns 0 iff the first character is one of 'Yy1Nn0', or
+> + * This routine returns 0 if the first character is one of 'Yy1Nn0', or
 
-Yeah, that's in my todo list (along with "do expense reports", sigh).
-But who ever reads those things?
+That isn't actually a typo.  "iff" is shorthand for "if and only if". 
+ie: kstrtobool() will not return 0 in any other case.
 
-<fiddle fiddle>
-
-OK, let's see how this goes.
+Use of "iff" is a bit pretentious but I guess it does convey some
+conceivably useful info.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
