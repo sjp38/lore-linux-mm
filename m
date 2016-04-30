@@ -1,151 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CD2B36B025E
-	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 19:50:07 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e190so263384648pfe.3
-        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 16:50:07 -0700 (PDT)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1on0094.outbound.protection.outlook.com. [157.56.110.94])
-        by mx.google.com with ESMTPS id c127si18911598pfa.69.2016.04.29.16.50.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 29 Apr 2016 16:50:06 -0700 (PDT)
-Subject: Re: [RFC PATCH v1 13/18] x86: DMA support for memory encryption
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225812.13567.91220.stgit@tlendack-t1.amdoffice.net>
- <20160429071743.GC11592@char.us.oracle.com> <572379ED.9050404@amd.com>
- <20160429162757.GA1191@char.us.oracle.com>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <5723F324.9040909@amd.com>
-Date: Fri, 29 Apr 2016 18:49:56 -0500
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 814CD6B025E
+	for <linux-mm@kvack.org>; Fri, 29 Apr 2016 20:11:44 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id dx6so194041922pad.0
+        for <linux-mm@kvack.org>; Fri, 29 Apr 2016 17:11:44 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id ul1si2352813pab.19.2016.04.29.17.11.42
+        for <linux-mm@kvack.org>;
+        Fri, 29 Apr 2016 17:11:43 -0700 (PDT)
+Date: Sat, 30 Apr 2016 10:11:38 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 0/2] scop GFP_NOFS api
+Message-ID: <20160430001138.GO26977@dastard>
+References: <1461671772-1269-1-git-send-email-mhocko@kernel.org>
+ <8737q5ugcx.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
-In-Reply-To: <20160429162757.GA1191@char.us.oracle.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8737q5ugcx.fsf@notabene.neil.brown.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: NeilBrown <mr@neil.brown.name>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
-On 04/29/2016 11:27 AM, Konrad Rzeszutek Wilk wrote:
-> On Fri, Apr 29, 2016 at 10:12:45AM -0500, Tom Lendacky wrote:
->> On 04/29/2016 02:17 AM, Konrad Rzeszutek Wilk wrote:
->>> On Tue, Apr 26, 2016 at 05:58:12PM -0500, Tom Lendacky wrote:
->>>> Since DMA addresses will effectively look like 48-bit addresses when the
->>>> memory encryption mask is set, SWIOTLB is needed if the DMA mask of the
->>>> device performing the DMA does not support 48-bits. SWIOTLB will be
->>>> initialized to create un-encrypted bounce buffers for use by these devices.
->>>>
->>>
->>>
->>> I presume the sme_me_mask does not use the lower 48 bits?
->>
->> The sme_me_mask will actually be bit 47. So, when applied, the address
->> will become a 48-bit address.
->>
->>>
->>>
->>> ..snip..
->>>> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
->>>> index 7d56d1b..594dc65 100644
->>>> --- a/arch/x86/mm/mem_encrypt.c
->>>> +++ b/arch/x86/mm/mem_encrypt.c
->>>> @@ -12,6 +12,8 @@
->>>>  
->>>>  #include <linux/init.h>
->>>>  #include <linux/mm.h>
->>>> +#include <linux/dma-mapping.h>
->>>> +#include <linux/swiotlb.h>
->>>>  
->>>>  #include <asm/mem_encrypt.h>
->>>>  #include <asm/cacheflush.h>
->>>> @@ -168,6 +170,25 @@ void __init sme_early_init(void)
->>>>  }
->>>>  
->>>>  /* Architecture __weak replacement functions */
->>>> +void __init mem_encrypt_init(void)
->>>> +{
->>>> +	if (!sme_me_mask)
->>>> +		return;
->>>> +
->>>> +	/* Make SWIOTLB use an unencrypted DMA area */
->>>> +	swiotlb_clear_encryption();
->>>> +}
->>>> +
->>>> +unsigned long swiotlb_get_me_mask(void)
->>>> +{
->>>> +	return sme_me_mask;
->>>> +}
->>>> +
->>>> +void swiotlb_set_mem_dec(void *vaddr, unsigned long size)
->>>> +{
->>>> +	sme_set_mem_dec(vaddr, size);
->>>> +}
->>>> +
->>>>  void __init *efi_me_early_memremap(resource_size_t paddr,
->>>>  				   unsigned long size)
->>>>  {
->>>> diff --git a/include/linux/swiotlb.h b/include/linux/swiotlb.h
->>>> index 017fced..121b9de 100644
->>>> --- a/include/linux/swiotlb.h
->>>> +++ b/include/linux/swiotlb.h
->>>> @@ -30,6 +30,7 @@ int swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose);
->>>>  extern unsigned long swiotlb_nr_tbl(void);
->>>>  unsigned long swiotlb_size_or_default(void);
->>>>  extern int swiotlb_late_init_with_tbl(char *tlb, unsigned long nslabs);
->>>> +extern void __init swiotlb_clear_encryption(void);
->>>>  
->>>>  /*
->>>>   * Enumeration for sync targets
->>>> diff --git a/init/main.c b/init/main.c
->>>> index b3c6e36..1013d1c 100644
->>>> --- a/init/main.c
->>>> +++ b/init/main.c
->>>> @@ -458,6 +458,10 @@ void __init __weak thread_info_cache_init(void)
->>>>  }
->>>>  #endif
->>>>  
->>>> +void __init __weak mem_encrypt_init(void)
->>>> +{
->>>> +}
->>>> +
->>>>  /*
->>>>   * Set up kernel memory allocators
->>>>   */
->>>> @@ -597,6 +601,8 @@ asmlinkage __visible void __init start_kernel(void)
->>>>  	 */
->>>>  	locking_selftest();
->>>>  
->>>> +	mem_encrypt_init();
->>>> +
->>>>  #ifdef CONFIG_BLK_DEV_INITRD
->>>>  	if (initrd_start && !initrd_below_start_ok &&
->>>>  	    page_to_pfn(virt_to_page((void *)initrd_start)) < min_low_pfn) {
->>>
->>> What happens if devices use the bounce buffer before mem_encrypt_init()?
->>
->> The call to mem_encrypt_init is early in the boot process, I may have
->> overlooked something, but what devices would be performing DMA before
->> this?
+On Fri, Apr 29, 2016 at 03:35:42PM +1000, NeilBrown wrote:
+> On Tue, Apr 26 2016, Michal Hocko wrote:
 > 
-> I am not saying that you overlooked. Merely wondering if somebody re-orders these
-> calls what would happen. It maybe also good to have a comment right before
-> mem_encrpyt_init stating what will happen if the device does DMA before the function
-> is called.
+> > Hi,
+> > we have discussed this topic at LSF/MM this year. There was a general
+> > interest in the scope GFP_NOFS allocation context among some FS
+> > developers. For those who are not aware of the discussion or the issue
+> > I am trying to sort out (or at least start in that direction) please
+> > have a look at patch 1 which adds memalloc_nofs_{save,restore} api
+> > which basically copies what we have for the scope GFP_NOIO allocation
+> > context. I haven't converted any of the FS myself because that is way
+> > beyond my area of expertise but I would be happy to help with further
+> > changes on the MM front as well as in some more generic code paths.
+> >
+> > Dave had an idea on how to further improve the reclaim context to be
+> > less all-or-nothing wrt. GFP_NOFS. In short he was suggesting an opaque
+> > and FS specific cookie set in the FS allocation context and consumed
+> > by the FS reclaim context to allow doing some provably save actions
+> > that would be skipped due to GFP_NOFS normally.  I like this idea and
+> > I believe we can go that direction regardless of the approach taken here.
+> > Many filesystems simply need to cleanup their NOFS usage first before
+> > diving into a more complex changes.>
 > 
+> This strikes me as over-engineering to work around an unnecessarily
+> burdensome interface.... but without details it is hard to be certain.
+> 
+> Exactly what things happen in "FS reclaim context" which may, or may
+> not, be safe depending on the specific FS allocation context?  Do they
+> need to happen at all?
+> 
+> My research suggests that for most filesystems the only thing that
+> happens in reclaim context that is at all troublesome is the final
+> 'evict()' on an inode.  This needs to flush out dirty pages and sync the
+> inode to storage.  Some time ago we moved most dirty-page writeout out
+> of the reclaim context and into kswapd.  I think this was an excellent
+> advance in simplicity.
 
-Ah, ok. Before mem_encrypt_init is called the bounce buffers will be
-marked as encrypted in the page tables. The use of the bounce buffers
-will not have the memory encryption bit as part of the DMA address so a
-device will DMA into memory in the clear. When the bounce buffer is
-copied to the original buffer it will be accessed by a virtual address
-that has the memory encryption bit set in the page tables. So the
-plaintext data that was DMA'd in will be decrypted resulting in invalid
-data in the destination buffer.
+No, we didn't move dirty page writeout to kswapd - we moved it back
+to the background writeback threads where it can be done
+efficiently.  kswapd should almost never do single page writeback
+because of how inefficient it is from an IO perspective, even though
+it can. i.e. if we are doing any significant amount of dirty page
+writeback from memory reclaim (direct, kswapd or otherwise) then
+we've screwed something up.
 
-I'll be sure to add a comment before the call.
+> If we could similarly move evict() into kswapd (and I believe we can)
+> then most file systems would do nothing in reclaim context that
+> interferes with allocation context.
 
-Thanks,
-Tom
+When lots of GFP_NOFS allocation is being done, this already
+happens. The shrinkers that can't run due to context accumulate the
+work on the shrinker structure, and when the shrinker can next run
+(e.g. run from kswapd) it runs all the deferred work from GFP_NOFS
+reclaim contexts.
+
+IOWs, we already move shrinker work from direct reclaim to kswapd
+when appropriate.
+
+> The exceptions include:
+>  - nfs and any filesystem using fscache can block for up to 1 second
+>    in ->releasepage().  They used to block waiting for some IO, but that
+>    caused deadlocks and wasn't really needed.  I left the timeout because
+>    it seemed likely that some throttling would help.  I suspect that a
+>    careful analysis will show that there is sufficient throttling
+>    elsewhere.
+> 
+>  - xfs_qm_shrink_scan is nearly unique among shrinkers in that it waits
+>    for IO so it can free some quotainfo things. 
+
+No it's not. evict() can block on IO - waiting for data or inode
+writeback to complete, or even for filesystems to run transactions
+on the inode. Hence the superblock shrinker can and does block in
+inode cache reclaim.
+
+Indeed, blocking the superblock shrinker in reclaim is a key part of
+balancing inode cache pressure in XFS. If the shrinker starts
+hitting dirty inodes, it blocks on cleaning them, thereby slowing
+the rate of allocation to that which inodes can be cleaned and
+reclaimed. There are also background threads that walk ahead freeing
+clean inodes, but we have to throttle direct reclaim in this manner
+otherwise the allocation pressure vastly outweighs the ability to
+reclaim inodes. if we don't balance this, inode allocation triggers
+the OOM killer because reclaim keeps reporting "no progress being
+made" because dirty inodes are skipped. BY blocking on such inodes,
+the shrinker makes progress (slowly) and reclaim sees that memory is
+being freed and so continues without invoking the OOM killer...
+
+>    If it could be changed
+>    to just schedule the IO without waiting for it then I think this
+>    would be safe to be called in any FS allocation context.  It already
+>    uses a 'trylock' in xfs_dqlock_nowait() to avoid deadlocking
+>    if the lock is held.
+
+We could, but then we have the same problem as the inode cache -
+there's no indication of progress going back to the memory reclaim
+subsystem, nor is reclaim able to throttle memory allocation back to
+the rate at which reclaim is making progress.
+
+There's feedback loops all throughout the XFS reclaim code - it's
+designed specifically that way - I made changes to the shrinker
+infrastructure years ago to enable this. It's no different to the
+dirty page throttling that was done at roughly the same time -
+that's also one big feedback loop controlled by the rate at which
+pages can be cleaned. Indeed, it was designed was based on the same
+premise as all the XFS shrinker code: in steady state conditions
+we can't allocate a resource faster than we can reclaim it, so we
+need to make reclaim as efficient at possible...
+
+> I think you/we would end up with a much simpler system if instead of
+> focussing on the places where GFP_NOFS is used, we focus on places where
+> __GFP_FS is tested, and try to remove them.  If we get rid of enough of
+> them the remainder could just use __GFP_IO.
+
+The problem with this is that a single kswapd thread can't keep up
+with all of the allocation pressure that occurs. e.g. a 20-core
+intel CPU with local memory will be seen as a single node and so
+will have a single kswapd thread to do reclaim. There's a massive
+imbalance between maximum reclaim rate and maximum allocation rate
+in situations like this. If we want memory reclaim to run faster,
+we to be able to do more work *now*, not defer it to a context with
+limited execution resources.
+
+i.e. IMO deferring more work to a single reclaim thread per node is
+going to limit memory reclaim scalability and performance, not
+improve it.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
