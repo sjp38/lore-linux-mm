@@ -1,102 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 660F36B007E
-	for <linux-mm@kvack.org>; Sat, 30 Apr 2016 17:18:45 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 4so100271682pfw.0
-        for <linux-mm@kvack.org>; Sat, 30 Apr 2016 14:18:45 -0700 (PDT)
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1298E6B007E
+	for <linux-mm@kvack.org>; Sat, 30 Apr 2016 17:56:13 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id xm6so196838650pab.3
+        for <linux-mm@kvack.org>; Sat, 30 Apr 2016 14:56:13 -0700 (PDT)
 Received: from neil.brown.name (neil.brown.name. [103.29.64.221])
-        by mx.google.com with ESMTPS id d62si3394642pfc.214.2016.04.30.14.18.44
+        by mx.google.com with ESMTPS id x8si24833904pfa.188.2016.04.30.14.56.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sat, 30 Apr 2016 14:18:44 -0700 (PDT)
+        Sat, 30 Apr 2016 14:56:12 -0700 (PDT)
 From: NeilBrown <mr@neil.brown.name>
-Date: Sun, 01 May 2016 07:17:56 +1000
-Subject: Re: [Cluster-devel] [PATCH 0/2] scop GFP_NOFS api
-In-Reply-To: <57233571.50509@redhat.com>
-References: <1461671772-1269-1-git-send-email-mhocko@kernel.org> <8737q5ugcx.fsf@notabene.neil.brown.name> <57233571.50509@redhat.com>
-Message-ID: <87wpneu77f.fsf@notabene.neil.brown.name>
+Date: Sun, 01 May 2016 07:55:31 +1000
+Subject: Re: [PATCH 0/2] scop GFP_NOFS api
+In-Reply-To: <20160429120418.GK21977@dhcp22.suse.cz>
+References: <1461671772-1269-1-git-send-email-mhocko@kernel.org> <8737q5ugcx.fsf@notabene.neil.brown.name> <20160429120418.GK21977@dhcp22.suse.cz>
+Message-ID: <87twiiu5gs.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
 Content-Type: multipart/signed; boundary="=-=-=";
 	micalg=pgp-sha256; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Whitehouse <swhiteho@redhat.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: linux-nfs@vger.kernel.org, linux-ext4@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, linux-ntfs-dev@lists.sourceforge.net, LKML <linux-kernel@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, reiserfs-devel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, logfs@logfs.org, cluster-devel@redhat.com, Chris Mason <clm@fb.com>, linux-mtd@lists.infradead.org, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, xfs@oss.sgi.com, ceph-devel@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-afs@lists.infradead.orgcluster-devel <cluster-devel@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
 
 --=-=-=
 Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
 
-On Fri, Apr 29 2016, Steven Whitehouse wrote:
-
-> Hi,
->
-> On 29/04/16 06:35, NeilBrown wrote:
->> If we could similarly move evict() into kswapd (and I believe we can)
->> then most file systems would do nothing in reclaim context that
->> interferes with allocation context.
-> evict() is an issue, but moving it into kswapd would be a potential=20
-> problem for GFS2. We already have a memory allocation issue when=20
-> recovery is taking place and memory is short. The code path is as follows:
->
->   1. Inode is scheduled for eviction (which requires deallocation)
->   2. The glock is required in order to perform the deallocation, which=20
-> implies getting a DLM lock
->   3. Another node in the cluster fails, so needs recovery
->   4. When the DLM lock is requested, it gets blocked until recovery is=20
-> complete (for the failed node)
->   5. Recovery is performed using a userland fencing utility
->   6. Fencing requires memory and then blocks on the eviction
->   7. Deadlock (Fencing waiting on memory alloc, memory alloc waiting on=20
-> DLM lock, DLM lock waiting on fencing)
-
-You even have user-space in the loop there - impressive!  You can't
-really pass GFP_NOFS to a user-space thread, can you :-?
+On Fri, Apr 29 2016, Michal Hocko wrote:
 
 >
-> It doesn't happen often, but we've been looking at the best place to=20
-> break that cycle, and one of the things we've been wondering is whether=20
-> we could avoid deallocation evictions from memory related contexts, or=20
-> at least make it async somehow.
+> One think I have learned is that shrinkers can be really complex and
+> getting rid of GFP_NOFS will be really hard so I would really like to
+> start the easiest way possible and remove the direct usage and replace
+> it by scope one which would at least _explain_ why it is needed. I think
+> this is a reasonable _first_ step and a large step ahead because we have
+> a good chance to get rid of a large number of those which were used
+> "just because I wasn't sure and this should be safe, right?". I wouldn't
+> be surprised if we end up with a very small number of both scope and
+> direct usage in the end.
 
-I think "async" is definitely the answer and I think
-evict()/evict_inode() is the best place to focus attention.
+Yes, shrinkers can be complex.  About two of them are.  We could fix
+lots and lots of call sites, or fix two shrinkers.
+OK, that's a bit unfair as fixing one of the shrinkers involves changing
+many ->evict_inode() functions.  But that would be a very focused
+change.
 
-I can see now (thanks) that just moving the evict() call to kswapd isn't
-really a solution as it will just serve to block kswapd and so lots of
-other freeing of memory won't happen.
+I think your proposal is little more than re-arranging deck chairs on
+the titanic.  Yes, it might give everybody a better view of the iceberg
+but the iceberg is still there and in reality we can already see it.
 
-I'm now imagining giving ->evict_inode() a "don't sleep" flag and
-allowing it to return -EAGAIN.  In that case evict would queue the inode
-to kswapd (or maybe another thread) for periodic retry.
+The main iceberg is evict_inode.  It appears in both examples given so
+far: xfs and gfs.  There are other little icebergs but they won't last
+long after evict_inode is dealt with.
 
-The flag would only get set when prune_icache_sb() calls dispose_list()
-to call evict().  Other uses (e.g. unmount, iput) would still be
-synchronous.
+One particular problem with your process-context idea is that it isn't
+inherited across threads.
+Steve Whitehouse's example in gfs shows how allocation dependencies can
+even cross into user space.
 
-How difficult would it be to change gfs's evict_inode() to optionally
-never block?
+A more localized one that I have seen is that NFSv4 sometimes needs to
+start up a state-management thread (particularly if the server
+restarted).
+It uses kthread_run(), which doesn't actually create the thread but asks
+kthreadd to do it.  If NFS writeout is waiting for state management it
+would need to make sure that kthreadd runs in allocation context to
+avoid deadlock.
+I feel that I've forgotten some important detail here and this might
+have been fixed somehow, but the point still stands that the allocation
+context can cross from thread to thread and can effectively become
+anything and everything.
 
-For this to work we would need to add a way for
-deactivate_locked_super() to wait for all the async evictions to
-complete.  Currently prune_icache_sb() is called under s_umount.  If we
-moved part of the eviction out of that lock some other synchronization
-would be needed.  Possibly a per-superblock list of "inodes being
-evicted" would suffice.
+It is OK to wait for memory to be freed.  It is not OK to wait for any
+particular piece of memory to be freed because you don't always know who
+is waiting for you, or who you really are waiting on to free that
+memory.
+
+Whenever trying to free memory I think you need to do best-effort
+without blocking.
+
+>
+> I would also like to revisit generic inode/dentry shrinker and see
+> whether it could be more __GFP_FS friendly. As you say many FS might
+> even not depend on some FS internal locks so pushing GFP_FS check down
+> the layers might make a lot of sense and allow to clean some [id]cache
+> even for __GFP_FS context.
+
+I think the only part of prune_dcache_sb() that might need care is
+iput() which boils down to evict().  The final unlink for NFS
+silly-rename might happen in there too (in d_iput).
+shrinking the dcache seems rather late to be performing that unlink
+though, so I've probably missed some key detail.
+
+If we find a way for evict(), when called from the shrinker, to be
+non-blocking, and generally require all shrinkers to be non-blocking,
+then many of these allocation problems evaporate.
 
 Thanks,
 NeilBrown
 
-
->
-> The issue is that it is not possible to know in advance whether an=20
-> eviction will result in mearly writing things back to disk (because the=20
-> inode is being dropped from cache, but still resides on disk) which is=20
-> easy to do, or whether it requires a full deallocation (n_link=3D=3D0) wh=
-ich=20
-> may require significant resources and time,
->
-> Steve.
 
 --=-=-=
 Content-Type: application/pgp-signature; name="signature.asc"
@@ -104,19 +105,19 @@ Content-Type: application/pgp-signature; name="signature.asc"
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQIcBAEBCAAGBQJXJSEEAAoJEDnsnt1WYoG5r68P/2XBKjAdTUcRbcSSLoUKYpEo
-nFQiiu9BM8FRmffmYHNQrRVQQsEA8H5WKekt0heSAUyqbs75dPybzH8Bm447azdm
-rb6ZUSSKV0LiDFWxe/mXjDFi9qgplAVAKIMQVoTUADgi6YXfpqYwjkTfXiBPcJF2
-NXecVP/OBA0aGT7sUBJOYq1hKCA8e4oIAvEUdjv5c/405U4FoiTmTICwCkhCPTHR
-y5tACMN3RtAbzmxsQ0LHIkz8XMKiwtvUkG/Ku054lSQknknjfgESQSsBtEqiTXb+
-I9vdZUbg0kjz6KAOJ/QogDjI47ORtoHptnB07NMl2OX9LWq93SPg0F81HfE5eIBc
-Y4NvPLg/EyBjW6KpcmYiAlfkRDEvt3/FeyaKCtEKzuu4cpCbGXqxRXqAl/tXzJLx
-VlFJqcvn9YNzyqvs4K+ZbHc6KKq+ppHRpWaXemIiwE69hkGiXH12Rb6cMN3XzOuU
-Tm7ORKC3HuPdoHLR0Ls/N+C16C2cQhkFlG3MGFyECtG2qKzotOJP/dvN0HNI+LSc
-fRW3/BQlCEmtwNJ2cpt6v6zUHmcEoPtxECUhIJllOzlnUqZ941i/tzTPNyY60WDA
-OBRNlLoo9qG9IDUVGjGoDA1WS+eLDmptOGi7T7gPHkvwKLJg6CH8Ivdped54sqMP
-K3N9YqjgZ+d4FzruChG6
-=tfvX
+iQIcBAEBCAAGBQJXJSnTAAoJEDnsnt1WYoG5VzYP/0sRKiPS4flNsF5KJO+8W9kv
+wAXMCErisoi1qhXUF24r7eKveCvsedAF4ocRL4VVEn8bcS3PQqM4dNw8Hr5yjss0
+VxnuMMN67dDSmDmPfFPEZrJTwe5/vQr8DyCStlsuoB2ZaHjXODurzOaRpRKdDxae
+1dOwbgPTlitwuDexsjC8xpcVHJx6v/f0+U5/K4DZunr1chcwsIsZONBCZTzsm8Sk
+pcZhNAtZSZR/XnsvaM80RYrGwjOCfoY58rpXhYTSRv0NGT+y0m7AeYBVLwueOtke
+ye1jJwenlswn5KMdCZRtHz1qoCGVCvVUjahOnzegk7doEYx4f2EN2AQJIvw+Ngci
+DRS+XCooDI4jLWTkTZADjPZjm6nH++xa+PfUWgo9+OaDGbyS5sy4H0q2Sqh0Nevp
+F+XtkgchYnI/d/Y4/11tvvh4CScdbLR+Cc3qT8r85pz+lCE0D51nsPQo0zMhmrdY
+GLmDYkLA4MgymC1PG5Jc76ctIYDY96EO9F10pq/U1SPNaPhrA7y0RE8SLHPJE2OS
+Bns+184wgWCgtx6wC1GiFM/H+Hq2B2byRBgX1U90fvJvisZrcKuG2selCfquYHRr
+NMFO2YCCag8V7BDXvfmwbQKh5zpDlTCH9Zk9dPpSFzLmaYUp+TyeBPDx3CbqwVtu
+yzQMkIxl5FRwqpg2qQNb
+=jsDQ
 -----END PGP SIGNATURE-----
 --=-=-=--
 
