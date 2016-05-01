@@ -1,121 +1,160 @@
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: Re: [PATCH 01/10] mm: update_lru_size warn and reset bad lru_size
-Date: Thu, 14 Apr 2016 13:56:41 +0200
-Message-ID: <570F8579.2070201@suse.cz>
-References: <alpine.LSU.2.11.1604051329480.5965@eggly.anvils>
- <alpine.LSU.2.11.1604051337450.5965@eggly.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EF2F6B007E
+	for <linux-mm@kvack.org>; Sun,  1 May 2016 18:10:39 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 4so146169828pfw.0
+        for <linux-mm@kvack.org>; Sun, 01 May 2016 15:10:39 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id rn6si11380024pab.99.2016.05.01.15.10.38
+        for <linux-mm@kvack.org>;
+        Sun, 01 May 2016 15:10:38 -0700 (PDT)
+Subject: Re: [RFC PATCH v1 15/18] x86: Enable memory encryption on the APs
+References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
+ <20160426225833.13567.55695.stgit@tlendack-t1.amdoffice.net>
+From: "Huang, Kai" <kai.huang@linux.intel.com>
+Message-ID: <f37dd7de-23ad-f70f-c32d-a32f116215ce@linux.intel.com>
+Date: Mon, 2 May 2016 10:10:24 +1200
+MIME-Version: 1.0
+In-Reply-To: <20160426225833.13567.55695.stgit@tlendack-t1.amdoffice.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <alpine.LSU.2.11.1604051337450.5965@eggly.anvils>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andres Lagar-Cavilla <andreslc@google.com>, Yang Shi <yang.shi@linaro.org>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>
-List-Id: linux-mm.kvack.org
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
+Cc: =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On 04/05/2016 10:40 PM, Hugh Dickins wrote:
-> Though debug kernels have a VM_BUG_ON to help protect from misaccounting
-> lru_size, non-debug kernels are liable to wrap it around: and then the
-> vast unsigned long size draws page reclaim into a loop of repeatedly
-> doing nothing on an empty list, without even a cond_resched().
+
+
+On 4/27/2016 10:58 AM, Tom Lendacky wrote:
+> Add support to set the memory encryption enable flag on the APs during
+> realmode initialization. When an AP is started it checks this flag, and
+> if set, enables memory encryption on its core.
 >
-> That soft lockup looks confusingly like an over-busy reclaim scenario,
-> with lots of contention on the lru_lock in shrink_inactive_list():
-> yet has a totally different origin.
->
-> Help differentiate with a custom warning in mem_cgroup_update_lru_size(),
-> even in non-debug kernels; and reset the size to avoid the lockup.  But
-> the particular bug which suggested this change was mine alone, and since
-> fixed.
-
-In my opinion, the code now looks quite complicated, not sure it's a good 
-tradeoff for a rare (?) development bug. But I guess it's up to memcg 
-maintainers which I note are not explicitly CC'd, so adding them now.
-
-Maybe more generally, we can discuss in LSF/MM's mm debugging session, what it 
-means that DEBUG_VM check has to become unconditional. Does it mean insufficient 
-testing with DEBUG_VM during development/integration phase? Or are some bugs so 
-rare we can't depend on that phase to catch them? IIRC Fedora kernels are built 
-with DEBUG_VM, unless that changed...
-
-> Make it a WARN_ONCE: the first occurrence is the most informative, a
-> flurry may follow, yet even when rate-limited little more is learnt.
->
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 > ---
->   include/linux/mm_inline.h |    2 +-
->   mm/memcontrol.c           |   24 ++++++++++++++++++++----
->   2 files changed, 21 insertions(+), 5 deletions(-)
+>  arch/x86/include/asm/msr-index.h     |    2 ++
+>  arch/x86/include/asm/realmode.h      |   12 ++++++++++++
+>  arch/x86/realmode/init.c             |    4 ++++
+>  arch/x86/realmode/rm/trampoline_64.S |   14 ++++++++++++++
+>  4 files changed, 32 insertions(+)
 >
-> --- a/include/linux/mm_inline.h
-> +++ b/include/linux/mm_inline.h
-> @@ -35,8 +35,8 @@ static __always_inline void del_page_fro
->   				struct lruvec *lruvec, enum lru_list lru)
->   {
->   	int nr_pages = hpage_nr_pages(page);
-> -	mem_cgroup_update_lru_size(lruvec, lru, -nr_pages);
->   	list_del(&page->lru);
-> +	mem_cgroup_update_lru_size(lruvec, lru, -nr_pages);
->   	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, -nr_pages);
->   }
+> diff --git a/arch/x86/include/asm/msr-index.h b/arch/x86/include/asm/msr-index.h
+> index 94555b4..b73182b 100644
+> --- a/arch/x86/include/asm/msr-index.h
+> +++ b/arch/x86/include/asm/msr-index.h
+> @@ -349,6 +349,8 @@
+>  #define MSR_K8_TOP_MEM1			0xc001001a
+>  #define MSR_K8_TOP_MEM2			0xc001001d
+>  #define MSR_K8_SYSCFG			0xc0010010
+> +#define MSR_K8_SYSCFG_MEM_ENCRYPT_BIT	23
+> +#define MSR_K8_SYSCFG_MEM_ENCRYPT	(1ULL << MSR_K8_SYSCFG_MEM_ENCRYPT_BIT)
+>  #define MSR_K8_INT_PENDING_MSG		0xc0010055
+>  /* C1E active bits in int pending message */
+>  #define K8_INTP_C1E_ACTIVE_MASK		0x18000000
+> diff --git a/arch/x86/include/asm/realmode.h b/arch/x86/include/asm/realmode.h
+> index 9c6b890..e24d2ec 100644
+> --- a/arch/x86/include/asm/realmode.h
+> +++ b/arch/x86/include/asm/realmode.h
+> @@ -1,6 +1,15 @@
+>  #ifndef _ARCH_X86_REALMODE_H
+>  #define _ARCH_X86_REALMODE_H
 >
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1022,22 +1022,38 @@ out:
->    * @lru: index of lru list the page is sitting on
->    * @nr_pages: positive when adding or negative when removing
->    *
-> - * This function must be called when a page is added to or removed from an
-> - * lru list.
-> + * This function must be called under lru_lock, just before a page is added
-> + * to or just after a page is removed from an lru list (that ordering being
-> + * so as to allow it to check that lru_size 0 is consistent with list_empty).
->    */
->   void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
->   				int nr_pages)
->   {
->   	struct mem_cgroup_per_zone *mz;
->   	unsigned long *lru_size;
-> +	long size;
-> +	bool empty;
+> +/*
+> + * Flag bit definitions for use with the flags field of the trampoline header
+> + * when configured for X86_64
+> + */
+> +#define TH_FLAGS_MEM_ENCRYPT_BIT	0
+> +#define TH_FLAGS_MEM_ENCRYPT		(1ULL << TH_FLAGS_MEM_ENCRYPT_BIT)
 
-Could there be more descriptive names? lru_size vs size looks confusing.
+Would mind change it to a more vendor specific name, such as 
+AMD_MEM_ENCRYPT, or SME_MEM_ENCRYPT?
 
->
->   	if (mem_cgroup_disabled())
->   		return;
->
->   	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
->   	lru_size = mz->lru_size + lru;
-> -	*lru_size += nr_pages;
-> -	VM_BUG_ON((long)(*lru_size) < 0);
-> +	empty = list_empty(lruvec->lists + lru);
 > +
-> +	if (nr_pages < 0)
-> +		*lru_size += nr_pages;
+> +#ifndef __ASSEMBLY__
 > +
-> +	size = *lru_size;
-> +	if (WARN_ONCE(size < 0 || empty != !size,
-
-Maybe I'm just not used enough to constructs like "empty != !size", but it 
-really takes me longer than I'd like to get the meaning :(
-
-> +		"%s(%p, %d, %d): lru_size %ld but %sempty\n",
-> +		__func__, lruvec, lru, nr_pages, size, empty ? "" : "not ")) {
-> +		VM_BUG_ON(1);
-> +		*lru_size = 0;
-> +	}
+>  #include <linux/types.h>
+>  #include <asm/io.h>
+>
+> @@ -38,6 +47,7 @@ struct trampoline_header {
+>  	u64 start;
+>  	u64 efer;
+>  	u32 cr4;
+> +	u32 flags;
+>  #endif
+>  };
+>
+> @@ -61,4 +71,6 @@ extern unsigned char secondary_startup_64[];
+>  void reserve_real_mode(void);
+>  void setup_real_mode(void);
+>
+> +#endif /* __ASSEMBLY__ */
 > +
-> +	if (nr_pages > 0)
-> +		*lru_size += nr_pages;
->   }
+>  #endif /* _ARCH_X86_REALMODE_H */
+> diff --git a/arch/x86/realmode/init.c b/arch/x86/realmode/init.c
+> index 85b145c..657532b 100644
+> --- a/arch/x86/realmode/init.c
+> +++ b/arch/x86/realmode/init.c
+> @@ -84,6 +84,10 @@ void __init setup_real_mode(void)
+>  	trampoline_cr4_features = &trampoline_header->cr4;
+>  	*trampoline_cr4_features = __read_cr4();
 >
->   bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg)
+> +	trampoline_header->flags = 0;
+> +	if (sme_me_mask)
+> +		trampoline_header->flags |= TH_FLAGS_MEM_ENCRYPT;
+> +
+>  	trampoline_pgd = (u64 *) __va(real_mode_header->trampoline_pgd);
+>  	trampoline_pgd[0] = init_level4_pgt[pgd_index(__PAGE_OFFSET)].pgd;
+>  	trampoline_pgd[511] = init_level4_pgt[511].pgd;
+> diff --git a/arch/x86/realmode/rm/trampoline_64.S b/arch/x86/realmode/rm/trampoline_64.S
+> index dac7b20..8d84167 100644
+> --- a/arch/x86/realmode/rm/trampoline_64.S
+> +++ b/arch/x86/realmode/rm/trampoline_64.S
+> @@ -30,6 +30,7 @@
+>  #include <asm/msr.h>
+>  #include <asm/segment.h>
+>  #include <asm/processor-flags.h>
+> +#include <asm/realmode.h>
+>  #include "realmode.h"
 >
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>  	.text
+> @@ -109,6 +110,18 @@ ENTRY(startup_32)
+>  	movl	$(X86_CR0_PG | X86_CR0_WP | X86_CR0_PE), %eax
+>  	movl	%eax, %cr0
 >
+> +	# Check for and enable memory encryption support
+> +	movl	pa_tr_flags, %eax
+> +	bt	$TH_FLAGS_MEM_ENCRYPT_BIT, pa_tr_flags
+
+pa_tr_flags -> %eax ? Otherwise looks the previous line is useless.
+
+Thanks,
+-Kai
+
+> +	jnc	.Ldone
+> +	movl	$MSR_K8_SYSCFG, %ecx
+> +	rdmsr
+> +	bt	$MSR_K8_SYSCFG_MEM_ENCRYPT_BIT, %eax
+> +	jc	.Ldone
+> +	bts	$MSR_K8_SYSCFG_MEM_ENCRYPT_BIT, %eax
+> +	wrmsr
+> +.Ldone:
+> +
+>  	/*
+>  	 * At this point we're in long mode but in 32bit compatibility mode
+>  	 * with EFER.LME = 1, CS.L = 0, CS.D = 1 (and in turn
+> @@ -147,6 +160,7 @@ GLOBAL(trampoline_header)
+>  	tr_start:		.space	8
+>  	GLOBAL(tr_efer)		.space	8
+>  	GLOBAL(tr_cr4)		.space	4
+> +	GLOBAL(tr_flags)	.space	4
+>  END(trampoline_header)
+>
+>  #include "trampoline_common.S"
+>
+>
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
