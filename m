@@ -1,88 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f71.google.com (mail-qg0-f71.google.com [209.85.192.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 33C296B0253
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 14:03:10 -0400 (EDT)
-Received: by mail-qg0-f71.google.com with SMTP id b14so304644950qge.2
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:03:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a88si15506046qgf.53.2016.05.02.11.03.09
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B70F6B0005
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 14:10:23 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id e63so385435281iod.2
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:10:23 -0700 (PDT)
+Received: from mail-oi0-x22b.google.com (mail-oi0-x22b.google.com. [2607:f8b0:4003:c06::22b])
+        by mx.google.com with ESMTPS id b17si12086508oig.70.2016.05.02.11.10.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 11:03:09 -0700 (PDT)
-Date: Mon, 2 May 2016 20:03:07 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [BUG] vfio device assignment regression with THP ref counting
- redesign
-Message-ID: <20160502180307.GB12310@redhat.com>
-References: <20160428181726.GA2847@node.shutemov.name>
- <20160428125808.29ad59e5@t450s.home>
- <20160428232127.GL11700@redhat.com>
- <20160429005106.GB2847@node.shutemov.name>
- <20160428204542.5f2053f7@ul30vt.home>
- <20160429070611.GA4990@node.shutemov.name>
- <20160429163444.GM11700@redhat.com>
- <20160502104119.GA23305@node.shutemov.name>
- <20160502152307.GA12310@redhat.com>
- <20160502160042.GC24419@node.shutemov.name>
+        Mon, 02 May 2016 11:10:22 -0700 (PDT)
+Received: by mail-oi0-x22b.google.com with SMTP id x19so200356505oix.2
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:10:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160502160042.GC24419@node.shutemov.name>
+In-Reply-To: <572791E1.7000103@plexistor.com>
+References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>
+	<1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>
+	<5727753F.6090104@plexistor.com>
+	<CAPcyv4jWPTDbbw6uMFEEt2Kazgw+wb5Pfwroej--uQPE+AtUbA@mail.gmail.com>
+	<57277EDA.9000803@plexistor.com>
+	<CAPcyv4jnz69a3S+XZgLaLojHZmpfoVXGDkJkt_1Q=8kk0gik9w@mail.gmail.com>
+	<572791E1.7000103@plexistor.com>
+Date: Mon, 2 May 2016 11:10:21 -0700
+Message-ID: <CAPcyv4hGV07gpADT32xn=3brEq75P4RJA592vp-1A+jXMQCeOQ@mail.gmail.com>
+Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Vishal Verma <vishal.l.verma@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-block@vger.kernel.org, Jan Kara <jack@suse.cz>, Matthew Wilcox <matthew@wil.cx>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, XFS Developers <xfs@oss.sgi.com>, Jens Axboe <axboe@fb.com>, Linux MM <linux-mm@kvack.org>, Al Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On Mon, May 02, 2016 at 07:00:42PM +0300, Kirill A. Shutemov wrote:
-> Sounds correct, but code is going to be ugly :-/
+On Mon, May 2, 2016 at 10:44 AM, Boaz Harrosh <boaz@plexistor.com> wrote:
+> On 05/02/2016 07:49 PM, Dan Williams wrote:
+>> On Mon, May 2, 2016 at 9:22 AM, Boaz Harrosh <boaz@plexistor.com> wrote:
+>>> On 05/02/2016 07:01 PM, Dan Williams wrote:
+>>>> On Mon, May 2, 2016 at 8:41 AM, Boaz Harrosh <boaz@plexistor.com> wrote:
+>>>>> On 04/29/2016 12:16 AM, Vishal Verma wrote:
+>>>>>> All IO in a dax filesystem used to go through dax_do_io, which cannot
+>>>>>> handle media errors, and thus cannot provide a recovery path that can
+>>>>>> send a write through the driver to clear errors.
+>>>>>>
+>>>>>> Add a new iocb flag for DAX, and set it only for DAX mounts. In the IO
+>>>>>> path for DAX filesystems, use the same direct_IO path for both DAX and
+>>>>>> direct_io iocbs, but use the flags to identify when we are in O_DIRECT
+>>>>>> mode vs non O_DIRECT with DAX, and for O_DIRECT, use the conventional
+>>>>>> direct_IO path instead of DAX.
+>>>>>>
+>>>>>
+>>>>> Really? What are your thinking here?
+>>>>>
+>>>>> What about all the current users of O_DIRECT, you have just made them
+>>>>> 4 times slower and "less concurrent*" then "buffred io" users. Since
+>>>>> direct_IO path will queue an IO request and all.
+>>>>> (And if it is not so slow then why do we need dax_do_io at all? [Rhetorical])
+>>>>>
+>>>>> I hate it that you overload the semantics of a known and expected
+>>>>> O_DIRECT flag, for special pmem quirks. This is an incompatible
+>>>>> and unrelated overload of the semantics of O_DIRECT.
+>>>>
+>>>> I think it is the opposite situation, it us undoing the premature
+>>>> overloading of O_DIRECT that went in without performance numbers.
+>>>
+>>> We have tons of measurements. Is not hard to imagine the results though.
+>>> Specially the 1000 threads case
+>>>
+>>>> This implementation clarifies that dax_do_io() handles the lack of a
+>>>> page cache for buffered I/O and O_DIRECT behaves as it nominally would
+>>>> by sending an I/O to the driver.
+>>>
+>>>> It has the benefit of matching the
+>>>> error semantics of a typical block device where a buffered write could
+>>>> hit an error filling the page cache, but an O_DIRECT write potentially
+>>>> triggers the drive to remap the block.
+>>>>
+>>>
+>>> I fail to see how in writes the device error semantics regarding remapping of
+>>> blocks is any different between buffered and direct IO. As far as the block
+>>> device it is the same exact code path. All The big difference is higher in the
+>>> VFS.
+>>>
+>>> And ... So you are willing to sacrifice the 99% hotpath for the sake of the
+>>> 1% error path? and piggybacking on poor O_DIRECT.
+>>>
+>>> Again there are tons of O_DIRECT apps out there, why are you forcing them to
+>>> change if they want true pmem performance?
+>>
+>> This isn't forcing them to change.  This is the path of least surprise
+>> as error semantics are identical to a typical block device.  Yes, an
+>> application can go faster by switching to the "buffered" / dax_do_io()
+>> path it can go even faster to switch to mmap() I/O and use DAX
+>> directly.  If we can later optimize the O_DIRECT path to bring it's
+>> performance more in line with dax_do_io(), great, but the
+>> implementation should be correct first and optimized later.
+>>
+>
+> Why does it need to be either or. Why not both?
+> And also I disagree if you are correct and dax_do_io is bad and needs fixing
+> than you have broken applications. Because in current model:
+>
+> read => -EIO, write-bufferd, sync()
+> gives you the same error semantics as: read => -EIO, write-direct-io
+> In fact this is what the delete, restore from backup model does today.
+> Who said it uses / must direct IO. Actually I think it does not.
 
-Now if a page is not shared in the parent, it is already in the local
-anon_vma. The only thing we could lose here is a pmd split in the
-child caused by swapping and then parent releases the page, child
-reuse it but it stays in the anon_vma of the parent. It doesn't sound
-like a major concern.
+The semantic I am talking about preserving is:
 
-What we could to improve this though, is to do a rmap walk after the
-physical split_huge_page succeeded, to relocate the page->mapping to
-the local vma->anon_vma of the child if page_mapcount() is 1 before
-releasing the (root) anon_vma lock. If a page got a pmd split it'll be
-a candidate for a physical split if any of the ptes has been
-unmapped.
+buffered / unaligned write of a bad sector => -EIO on reading into the
+page cache
 
-If it wasn't because of THP in tmpfs the old THP refcounting overall I
-think would have been simpler, it never had issues like these, but
-having a single model for all THP sounds much easier to maintain over
-time, instead of dealing with totally different models and rules and
-locking for every filesystem and MM part. This is why I hope we'll
-soon leverage all this work in tmpfs too. With tmpfs being able to map
-the compound THP with both ptes and pmds is mandatory, the old
-refcounting had a too big constraint to make compound THP work in tmpfs.
+...and that the only guaranteed way to clear an error (assuming the
+block device supports it) is an O_DIRECT write.
 
-> I didn't say we shouldn't fix the problem on THP side. But the attitude
-> "get_user_pages() would magically freeze page tables" worries me.
+>
+> Two things I can think of which are better:
+> [1]
+> Why not go deeper into the dax io loops, and for any WRITE
+> failed page call bdev_rw_page() to let the pmem.c clear / relocate
+> the error page.
 
-It doesn't need to freeze page tables, it only needs to prevent the
-pages to be freed. In fact this bug cannot generate random kernel
-corruption no matter what, but then userland view of the memory will
-go out of sync and it can generate data corruption to userland (in RAM
-or hardware device DMA).
+Where do you get the rest of the data to complete a full page write?
 
-What THP refcounting did is just to change some expectation on the
-userland side in terms of when the view on the pinned pages would get
-lost and replaced by copies, depending what userland did. A process to
-invoke page pinning must have root (or enough capabilities anyway), so
-it's somewhat connected to the kernel behavior, it's non standard.
+> So reads return -EIO - is what you wanted no?
 
-However issues like this are userland visible even to not privileged
-tasks, in fact it's strongly recommended to use MADV_DONTFORK on the
-get_user_pages addresses, if a program is using
-get_user_pages/O_DIRECT+fork+threads to avoid silent data corruption.
+That's well understood.  What we are debating is the method to clear
+errors / ask the storage device to remap bad blocks.
 
-> Agreed. I just didn't see the two-refcounts solution.
+> writes get a memory error and retry with bdev_rw_page() to let the bdev
+> relocate / clear the error - is what you wanted no?
+>
+> In the partial page WRITE case on bad sectors. we can carefully read-modify-write
+> sector-by-sector and zero-out the bad-sectors that could not be read, what else?
+> (Or enhance the bdev_rw_page() API)
 
-If you didn't do it already or if you're busy with something else,
-I can change the patch to the two refcount solution, which should
-restore the old semantics without breaking rmap.
+See all the previous discussions on why the fallback path is
+problematic to implement.
+
+>
+> [2]
+> Only switch to slow O_DIRECT, on presence of errors like you wanted. But I still
+> hate that you overload error semantics with O_DIRECT which does not exist today
+> see above
+
+I still think we're talking past each other on this point.  This patch
+set is not overloading error semantics, it's fixing the error handling
+problem that was introduced in this commit:
+
+   d475c6346a38 dax,ext2: replace XIP read and write with DAX I/O
+
+...where we started overloading O_DIRECT and dax_do_io() semantics.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
