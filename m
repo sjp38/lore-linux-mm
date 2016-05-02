@@ -1,36 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E667C6B007E
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 10:39:39 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id s63so79335438wme.2
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 07:39:39 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x5si34478322wjf.206.2016.05.02.07.39.38
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D4B56B007E
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 10:56:09 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id zy2so297003682pac.1
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 07:56:09 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id tp1si1380957pac.137.2016.05.02.07.56.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 02 May 2016 07:39:38 -0700 (PDT)
-Subject: Re: mm: pages are not freed from lru_add_pvecs after process
- termination
-References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
- <5720F2A8.6070406@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <572766A7.9090406@suse.cz>
-Date: Mon, 2 May 2016 16:39:35 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 May 2016 07:56:08 -0700 (PDT)
+Date: Mon, 2 May 2016 07:56:06 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
+Message-ID: <20160502145606.GD20589@infradead.org>
+References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>
+ <1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <5720F2A8.6070406@intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
+To: Vishal Verma <vishal.l.verma@intel.com>
+Cc: linux-nvdimm@ml01.01.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <matthew@wil.cx>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>
 
-On 04/27/2016 07:11 PM, Dave Hansen wrote:
-> 6. Perhaps don't use the LRU pagevecs for large pages.  It limits the
->     severity of the problem.
+> index 79defba..97a1f5f 100644
+> --- a/fs/block_dev.c
+> +++ b/fs/block_dev.c
+> @@ -167,12 +167,21 @@ blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
+>  	struct file *file = iocb->ki_filp;
+>  	struct inode *inode = bdev_file_inode(file);
+>  
+> -	if (IS_DAX(inode))
+> +	if (iocb_is_direct(iocb))
+> +		return __blockdev_direct_IO(iocb, inode, I_BDEV(inode), iter,
+> +					    offset, blkdev_get_block, NULL,
+> +					    NULL, DIO_SKIP_DIO_COUNT);
+> +	else if (iocb_is_dax(iocb))
+>  		return dax_do_io(iocb, inode, iter, offset, blkdev_get_block,
+>  				NULL, DIO_SKIP_DIO_COUNT);
+> -	return __blockdev_direct_IO(iocb, inode, I_BDEV(inode), iter, offset,
+> -				    blkdev_get_block, NULL, NULL,
+> -				    DIO_SKIP_DIO_COUNT);
+> +	else {
+> +		/*
+> +		 * If we're in the direct_IO path, either the IOCB_DIRECT or
+> +		 * IOCB_DAX flags must be set.
+> +		 */
+> +		WARN_ONCE(1, "Kernel Bug with iocb flags\n");
+> +		return -ENXIO;
+> +	}
 
-I think that makes sense. Being large already amortizes the cost per 
-base page much more than pagevecs do (512 vs ~22 pages?).
+DAX should not even end up in ->direct_IO.
+
+> --- a/fs/xfs/xfs_file.c
+> +++ b/fs/xfs/xfs_file.c
+> @@ -300,7 +300,7 @@ xfs_file_read_iter(
+>  
+>  	XFS_STATS_INC(mp, xs_read_calls);
+>  
+> -	if (unlikely(iocb->ki_flags & IOCB_DIRECT))
+> +	if (unlikely(iocb->ki_flags & (IOCB_DIRECT | IOCB_DAX)))
+>  		ioflags |= XFS_IO_ISDIRECT;
+
+please also add a XFS_IO_ISDAX flag to propagate the information
+properly and allow tracing to display the actual I/O type.
+
+> +static inline bool iocb_is_dax(struct kiocb *iocb)
+>  {
+> +	return IS_DAX(file_inode(iocb->ki_filp)) &&
+> +		(iocb->ki_flags & IOCB_DAX);
+> +}
+> +
+> +static inline bool iocb_is_direct(struct kiocb *iocb)
+> +{
+> +	return iocb->ki_flags & IOCB_DIRECT;
+>  }
+
+No need for these helpers - especially as IOCB_DAX should never be set
+if IS_DAX is false.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
