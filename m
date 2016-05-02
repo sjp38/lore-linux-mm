@@ -1,132 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 91D1A6B025F
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 12:03:42 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id r12so81558459wme.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 09:03:42 -0700 (PDT)
-Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
-        by mx.google.com with ESMTPS id gf10si34901262wjc.141.2016.05.02.09.03.41
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 45FCD6B007E
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 12:12:57 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id e201so80636608wme.1
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 09:12:57 -0700 (PDT)
+Received: from mail-lf0-x230.google.com (mail-lf0-x230.google.com. [2a00:1450:4010:c07::230])
+        by mx.google.com with ESMTPS id pu3si17432380lbb.183.2016.05.02.09.12.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 09:03:41 -0700 (PDT)
-Received: by mail-wm0-x22d.google.com with SMTP id n129so113303191wmn.1
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 09:03:41 -0700 (PDT)
-Message-ID: <57277A59.3000306@plexistor.com>
-Date: Mon, 02 May 2016 19:03:37 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+        Mon, 02 May 2016 09:12:56 -0700 (PDT)
+Received: by mail-lf0-x230.google.com with SMTP id y84so193257470lfc.0
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 09:12:55 -0700 (PDT)
+Date: Mon, 2 May 2016 19:12:52 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: GUP guarantees wrt to userspace mappings
+Message-ID: <20160502161252.GE24419@node.shutemov.name>
+References: <20160429005106.GB2847@node.shutemov.name>
+ <20160428204542.5f2053f7@ul30vt.home>
+ <20160429070611.GA4990@node.shutemov.name>
+ <20160429163444.GM11700@redhat.com>
+ <20160502104119.GA23305@node.shutemov.name>
+ <20160502111513.GA4079@gmail.com>
+ <20160502121402.GB23305@node.shutemov.name>
+ <20160502133919.GB4079@gmail.com>
+ <20160502150013.GA24419@node.shutemov.name>
+ <20160502152249.GA5827@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
-References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>	 <1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>	 <5727753F.6090104@plexistor.com> <1462204291.11211.20.camel@kernel.org>
-In-Reply-To: <1462204291.11211.20.camel@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160502152249.GA5827@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vishal Verma <vishal@kernel.org>, Vishal Verma <vishal.l.verma@intel.com>, linux-nvdimm@lists.01.org
-Cc: linux-block@vger.kernel.org, Jan Kara <jack@suse.cz>, Matthew Wilcox <matthew@wil.cx>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, Jens Axboe <axboe@fb.com>, linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-ext4@vger.kernel.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 05/02/2016 06:51 PM, Vishal Verma wrote:
-> On Mon, 2016-05-02 at 18:41 +0300, Boaz Harrosh wrote:
->> On 04/29/2016 12:16 AM, Vishal Verma wrote:
->>>
->>> All IO in a dax filesystem used to go through dax_do_io, which
->>> cannot
->>> handle media errors, and thus cannot provide a recovery path that
->>> can
->>> send a write through the driver to clear errors.
->>>
->>> Add a new iocb flag for DAX, and set it only for DAX mounts. In the
->>> IO
->>> path for DAX filesystems, use the same direct_IO path for both DAX
->>> and
->>> direct_io iocbs, but use the flags to identify when we are in
->>> O_DIRECT
->>> mode vs non O_DIRECT with DAX, and for O_DIRECT, use the
->>> conventional
->>> direct_IO path instead of DAX.
->>>
->> Really? What are your thinking here?
->>
->> What about all the current users of O_DIRECT, you have just made them
->> 4 times slower and "less concurrent*" then "buffred io" users. Since
->> direct_IO path will queue an IO request and all.
->> (And if it is not so slow then why do we need dax_do_io at all?
->> [Rhetorical])
->>
->> I hate it that you overload the semantics of a known and expected
->> O_DIRECT flag, for special pmem quirks. This is an incompatible
->> and unrelated overload of the semantics of O_DIRECT.
+On Mon, May 02, 2016 at 05:22:49PM +0200, Jerome Glisse wrote:
+> On Mon, May 02, 2016 at 06:00:13PM +0300, Kirill A. Shutemov wrote:
+> > > > Quick look around:
+> > > > 
+> > > >  - I don't see any check page_count() around __replace_page() in uprobes,
+> > > >    so it can easily replace pinned page.
+> > > 
+> > > Not an issue for existing user as this is only use to instrument code, existing
+> > > user do not execute code from virtual address for which they have done a GUP.
+> > 
+> > Okay, so we can establish that GUP doesn't provide the guarantee in some
+> > cases.
 > 
-> We overloaded O_DIRECT a long time ago when we made DAX piggyback on
-> the same path:
+> Correct but it use to provide that guarantee in respect to THP.
+
+Yes, the THP regression need to be fixed. I don't argue with that.
+
+> > > >  - KSM has the page_count() check, there's still race wrt GUP_fast: it can
+> > > >    take the pin between the check and establishing new pte entry.
+> > > 
+> > > KSM is not an issue for existing user as they all do get_user_pages() with
+> > > write = 1 and the KSM first map page read only before considering to replace
+> > > them and check page refcount. So there can be no race with gup_fast there.
+> > 
+> > In vfio case, 'write' is conditional on IOMMU_WRITE, meaning not all
+> > get_user_pages() are with write=1.
 > 
-> static inline bool io_is_direct(struct file *filp)
-> {
-> 	return (filp->f_flags & O_DIRECT) || IS_DAX(filp->f_mapping->host);
-> }
+> I think this is still fine as it means that device will read only and thus
+> you can migrate to different page (ie the guest is not expecting to read back
+> anything writen by the device and device writting to the page would be illegal
+> and a proper IOMMU would forbid it). So it is like direct-io when you write
+> from anonymous memory to a file.
+
+Hm. Okay.
+
+> > > >  - khugepaged: the same story as with KSM.
+> > > 
+> > > I am assuming you are talking about collapse_huge_page() here, if you look in
+> > > that function there is a comment about GUP_fast. Noneless i believe the comment
+> > > is wrong as i believe there is an existing race window btw pmdp_collapse_flush()
+> > > and __collapse_huge_page_isolate() :
+> > > 
+> > >   get_user_pages_fast()          | collapse_huge_page()
+> > >    gup_pmd_range() -> valid pmd  | ...
+> > >                                  | pmdp_collapse_flush() clear pmd
+> > >                                  | ...
+> > >                                  | __collapse_huge_page_isolate()
+> > >                                  | [Above check page count and see no GUP]
+> > >    gup_pte_range() -> ref page   |
+> > > 
+> > > This is a very unlikely race because get_user_pages_fast() can not be preempted
+> > > while collapse_huge_page() can be preempted btw pmdp_collapse_flush() and
+> > > __collapse_huge_page_isolate(), more over collapse_huge_page() has lot more
+> > > instructions to chew on than get_user_pages_fast() btw gup_pmd_range() and
+> > > gup_pte_range().
+> > 
+> > Yes, the race window is small, but there.
 > 
+> Now that i think again about it, i don't think it exist. pmdp_collapse_flush()
+> will flush the tlb and thus send an IPI but get_user_pages_fast() can't be
+> preempted so the flush will have to wait for existing get_user_pages_fast() to
+> complete. Or am i missunderstanding flush ? So khugepaged is safe from GUP_fast
+> point of view like the comment, inside it, says.
 
-No as far as the user is concerned we have not. The O_DIRECT user
-is still getting all the semantics he wants, .i.e no syncs no
-memory cache usage, no copies ...
+You are right. It's safe too.
 
-Only with DAX the buffered IO is the same since with pmem it is faster.
-Then why not? The basic contract with the user did not break.
-
-The above was just an implementation detail to easily navigate
-through the Linux vfs IO stack and make the least amount of changes
-in every FS that wanted to support DAX.(And since dax_do_io is much
-more like direct_IO then like page-cache IO)
-
-> Yes O_DIRECT on a DAX mounted file system will now be slower, but -
+> > > So as said above, i think existing user of get_user_pages() are not sensitive
+> > > to the races you pointed above. I am sure there are some corner case where
+> > > the guarantee that GUP pin a page against a virtual address is violated but
+> > > i do not think they apply to any existing user of GUP.
+> > > 
+> > > Note that i would personaly like that this existing assumption about GUP did
+> > > not exist. I hate it, but fact is that it does exist and nobody can remember
+> > > where the Doc did park the Delorean
+> > 
+> > The drivers who want the guarantee can provide own ->mmap and have more
+> > control on what is visible in userspace.
+> > 
+> > Alternatively, we have mmu_notifiers to track changes in userspace
+> > mappings.
+> > 
 > 
->>
->>>
->>> This allows us a recovery path in the form of opening the file with
->>> O_DIRECT and writing to it with the usual O_DIRECT semantics
->>> (sector
->>> alignment restrictions).
->>>
->> I understand that you want a sector aligned IO, right? for the
->> clear of errors. But I hate it that you forced all O_DIRECT IO
->> to be slow for this.
->> Can you not make dax_do_io handle media errors? At least for the
->> parts of the IO that are aligned.
->> (And your recovery path application above can use only aligned
->>  IO to make sure)
->>
->> Please look for another solution. Even a special
->> IOCTL_DAX_CLEAR_ERROR
+> Well you can't not rely on special vma here. Qemu alloc anonymous memory and
+> hand it over to guest, then a guest driver (ie runing in the guest not on the
+> host) try to map that memory and need valid DMA address for it, this is when
+> vfio (on the host kernel) starts pining memory of regular anonymous vma (on
+> the host). That same memory might back some special vma with ->mmap callback
+> but in the guest. Point is there is no driver on the host and no special vma.
+> From host point of view this is anonymous memory, but from guest POV it is
+> just memory.
 > 
->  - see all the versions of this series prior to this one, where we try
-> to do a fallback...
+> Requiring special vma would need major change to kvm and probably xen, in
+> respect on how they support things like PCI passthrough.
 > 
+> In existing workload, host kernel can not make assumption on how anonymous
+> memory is gonna be use.
 
-And?
+Any reason why mmu_notifier is not an option?
 
-So now all O_DIRECT APPs go 4 times slower. I will have a look but if
-it is really so bad than please consider an IOCTL or syscall. Or a special
-O_DAX_ERRORS flag ...
-
-Please do not trash all the O_DIRECT users, they are the more important
-clients, like DBs and VMs.
-
-Thanks
-Boaz
-
->>
->> [*"less concurrent" because of the queuing done in bdev. Note how
->>   pmem is not even multi-queue, and even if it was it will be much
->>   slower then DAX because of the code depth and all the locks and
->> task
->>   switches done in the block layer. In DAX the final memcpy is done
->> directly
->>   on the user-mode thread]
->>
->> Thanks
->> Boaz
->>
-> 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
