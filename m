@@ -1,83 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 506B16B0005
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 13:53:27 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id t140so142823213oie.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 10:53:27 -0700 (PDT)
-Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
-        by mx.google.com with ESMTPS id x63si12055988oia.120.2016.05.02.10.53.26
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BA6EF6B0005
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 14:03:07 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 68so146946653lfq.2
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:03:07 -0700 (PDT)
+Received: from mail-lf0-x236.google.com (mail-lf0-x236.google.com. [2a00:1450:4010:c07::236])
+        by mx.google.com with ESMTPS id p10si13269906lfi.16.2016.05.02.11.03.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 10:53:26 -0700 (PDT)
-Received: by mail-oi0-x232.google.com with SMTP id k142so199971004oib.1
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 10:53:26 -0700 (PDT)
+        Mon, 02 May 2016 11:03:06 -0700 (PDT)
+Received: by mail-lf0-x236.google.com with SMTP id y84so196842825lfc.0
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:03:06 -0700 (PDT)
+Date: Mon, 2 May 2016 21:03:03 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: GUP guarantees wrt to userspace mappings redesign
+Message-ID: <20160502180303.GA26252@node.shutemov.name>
+References: <20160429005106.GB2847@node.shutemov.name>
+ <20160428204542.5f2053f7@ul30vt.home>
+ <20160429070611.GA4990@node.shutemov.name>
+ <20160429163444.GM11700@redhat.com>
+ <20160502104119.GA23305@node.shutemov.name>
+ <20160502111513.GA4079@gmail.com>
+ <20160502121402.GB23305@node.shutemov.name>
+ <20160502141538.GA5961@redhat.com>
+ <20160502162128.GF24419@node.shutemov.name>
+ <20160502162211.GA11678@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <x49pot4ebeb.fsf@segfault.boston.devel.redhat.com>
-References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
-	<1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
-	<x49twj26edj.fsf@segfault.boston.devel.redhat.com>
-	<20160420205923.GA24797@infradead.org>
-	<1461434916.3695.7.camel@intel.com>
-	<20160425083114.GA27556@infradead.org>
-	<1461604476.3106.12.camel@intel.com>
-	<20160425232552.GD18496@dastard>
-	<1461628381.1421.24.camel@intel.com>
-	<20160426004155.GF18496@dastard>
-	<x49pot4ebeb.fsf@segfault.boston.devel.redhat.com>
-Date: Mon, 2 May 2016 10:53:25 -0700
-Message-ID: <CAPcyv4jfUVXoge5D+cBY1Ph=t60165sp6sF_QFZUbFv+cNcdHg@mail.gmail.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160502162211.GA11678@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Dave Chinner <david@fromorbit.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "jack@suse.cz" <jack@suse.cz>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, May 2, 2016 at 8:18 AM, Jeff Moyer <jmoyer@redhat.com> wrote:
-> Dave Chinner <david@fromorbit.com> writes:
-[..]
->> We need some form of redundancy and correction in the PMEM stack to
->> prevent single sector errors from taking down services until an
->> administrator can correct the problem. I'm trying to understand
->> where this is supposed to fit into the picture - at this point I
->> really don't think userspace applications are going to be able to do
->> this reliably....
->
-> Not all storage is configured into a RAID volume, and in some instances,
-> the application is better positioned to recover the data (gluster/ceph,
-> for example).  It really comes down to whether applications or libraries
-> will want to implement redundancy themselves in order to get a bump in
-> performance by not going through the kernel.  And I think I know what
-> your opinion is on that front.  :-)
->
-> Speaking of which, did you see the numbers Dan shared at LSF on how much
-> overhead there is in calling into the kernel for syncing?  Dan, can/did
-> you publish that spreadsheet somewhere?
+On Mon, May 02, 2016 at 06:22:11PM +0200, Oleg Nesterov wrote:
+> On 05/02, Kirill A. Shutemov wrote:
+> >
+> > On Mon, May 02, 2016 at 04:15:38PM +0200, Oleg Nesterov wrote:
+> > > >
+> > > >  - I don't see any check page_count() around __replace_page() in uprobes,
+> > > >    so it can easily replace pinned page.
+> > >
+> > > Why it should? even if it races with get_user_pages_fast()... this doesn't
+> > > differ from the case when an application writes to MAP_PRIVATE non-anonymous
+> > > region, no?
+> >
+> > < I know nothing about uprobes or ptrace in general >
+> >
+> > I think the difference is that the write is initiated by the process
+> > itself, but IIUC __replace_page() can be initiated by other process, so
+> > it's out of control of the application.
+> 
+> Yes. Just like gdb can insert a breakpoint into the read-only executable vma.
+> 
+> > So we have pages pinned by a driver and the driver expects the pinned
+> > pages to be mapped into userspace, then __replace_page() kicks in and put
+> > different page there -- driver's expectation is broken.
+> 
+> Yes... but I don't understand the problem space. I mean, I do not know why
+> this driver should expect this, how it can be broken, etc.
+> 
+> I do not even understand why "initiated by other process" can make any
+> difference... Unless this driver somehow controls all threads which could
+> have this page mapped.
 
-Here it is:
+Okay, my understanding is following:
 
-https://docs.google.com/spreadsheets/d/1pwr9psy6vtB9DOsc2bUdXevJRz5Guf6laZ4DaZlkhoo/edit?usp=sharing
+Some drivers (i.e. vfio) rely on get_user_page{,_fast}() to pin the memory
+and expect pinned pages to be mapped into userspace until the pin is gone.
+This memory is used to communicate between kernel and userspace.
 
-On the "Filtered" tab I have some of the comparisons where:
+This kinda works unless an application does something that can change page
+tables in the area: fork() (due CoW), mremap(), munmap(), MADV_DONTNEED,
+etc.
 
-noop => don't call msync and don't flush caches in userspace
+This model is really fragile, but the application has (kinda) control over
+the situation: if it's very careful, it can keep the mapping intact.
 
-persist => cache flushing only in userspace and only on individual cache lines
+With __replace_page() situation is different: it can be triggered from
+outside of process and therefore out of control of the application.
 
-persist_4k => cache flushing only in userspace, but flushing is
-performed in 4K aligned units
+I don't think there's something to fix on uprobe side. It's part of
+debugging interface. Debuggers can be destructive, nothing new there.
+I just tried to find the cases why this usage of GUP is not correct...
 
-msync => same granularity flushing as the 'persist' case, but the
-kernel internally promotes this to a 4K sized / aligned flush
-
-msync_0 => synthetic case where msync() returns immediately and does
-no other work
-
-The takeaway is that msync() is 9-10x slower than userspace cache management.
-
-Let me know if there are any questions and I can add an NVML developer
-to this thread...
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
