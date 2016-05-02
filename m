@@ -1,57 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E40CF6B0253
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 03:49:52 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w143so69838556wmw.3
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 00:49:52 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g78si19428550wmc.117.2016.05.02.00.49.51
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DAA1D6B007E
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 04:26:30 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id m64so32597133lfd.1
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 01:26:30 -0700 (PDT)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id s127si19656189wme.28.2016.05.02.01.26.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 02 May 2016 00:49:51 -0700 (PDT)
-Subject: Re: [PATCH v2 0/6] Introduce ZONE_CMA
-References: <1461561670-28012-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20160425053653.GA25662@js1304-P5Q-DELUXE>
- <20160428103927.GM2858@techsingularity.net>
- <20160429065145.GA19896@js1304-P5Q-DELUXE>
- <20160429092902.GQ2858@techsingularity.net>
- <20160502061423.GA31646@js1304-P5Q-DELUXE>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5727069B.5070600@suse.cz>
-Date: Mon, 2 May 2016 09:49:47 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 May 2016 01:26:29 -0700 (PDT)
+Received: by mail-wm0-x22c.google.com with SMTP id n129so98097067wmn.1
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 01:26:29 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160502061423.GA31646@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1462167374-6321-1-git-send-email-chengang@emindsoft.com.cn>
+References: <1462167374-6321-1-git-send-email-chengang@emindsoft.com.cn>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 2 May 2016 10:26:09 +0200
+Message-ID: <CACT4Y+Z7Yfsq9wjJuoeegEvPBvJs9iX6wN2VO1scA7HA4TVLmQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/kasan/kasan.h: Fix boolean checking issue for kasan_report_enabled()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: chengang@emindsoft.com.cn
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
 
-On 05/02/2016 08:14 AM, Joonsoo Kim wrote:
->>> > >Although it's separate issue, I should mentioned one thing. Related to
->>> > >I/O pinning issue, ZONE_CMA don't get blockdev allocation request so
->>> > >I/O pinning problem is much reduced.
->>> > >
->> >
->> >This is not super-clear from the patch. blockdev is using GFP_USER so it
->> >already should not be classed as MOVABLE. I could easily be looking in
->> >the wrong place or missed which allocation path sets GFP_MOVABLE.
-> Okay. Please see sb_bread(), sb_getblk(), __getblk() and __bread() in
-> include/linux/buffer_head.h. These are main functions used by blockdev
-> and they uses GFP_MOVABLE. To fix permanent allocation case which is
-> used by mount and cannot be released until umount, Gioh introduces
-> sb_bread_unmovable() but there are many remaining issues that prevent
-> migration at the moment and avoid blockdev allocation from CMA area is
-> preferable approach.
+On Mon, May 2, 2016 at 7:36 AM,  <chengang@emindsoft.com.cn> wrote:
+> From: Chen Gang <chengang@emindsoft.com.cn>
+>
+> According to kasan_[dis|en]able_current() comments and the kasan_depth'
+> s initialization, if kasan_depth is zero, it means disable.
+>
+> So need use "!!kasan_depth" instead of "!kasan_depth" for checking
+> enable.
+>
+> Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
+> ---
+>  mm/kasan/kasan.h | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+> index 7da78a6..6464b8f 100644
+> --- a/mm/kasan/kasan.h
+> +++ b/mm/kasan/kasan.h
+> @@ -102,7 +102,7 @@ static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
+>
+>  static inline bool kasan_report_enabled(void)
+>  {
+> -       return !current->kasan_depth;
+> +       return !!current->kasan_depth;
+>  }
+>
+>  void kasan_report(unsigned long addr, size_t size,
 
-Hm Patch 3/6 describes the lack of blockdev allocations mostly as a 
-limitation, although it does mention the possible advantages later. 
-Anyway, this doesn't have to be specific to ZONE_CMA, right? You could 
-just change ALLOC_CMA handling to consider GFP_HIGHUSER_MOVABLE instead 
-of just __GFP_MOVABLE. For ZONE_CMA it might be inevitable as you 
-describe, but it's already possible to do that now, if the advantages 
-are larger than the disadvantages.
+Hi Chen,
+
+I don't think this is correct.
+We seem to have some incorrect comments around kasan_depth, and a
+weird way of manipulating it (disable should increment, and enable
+should decrement). But in the end it is working. This change will
+suppress all true reports and enable all false reports.
+
+If you want to improve kasan_depth handling, then please fix the
+comments and make disable increment and enable decrement (potentially
+with WARNING on overflow/underflow). It's better to produce a WARNING
+rather than silently ignore the error. We've ate enough unmatched
+annotations in user space (e.g. enable is skipped on an error path).
+These unmatched annotations are hard to notice (they suppress
+reports). So in user space we bark loudly on overflows/underflows and
+also check that a thread does not exit with enabled suppressions.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
