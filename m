@@ -1,66 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 581786B0005
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 14:43:11 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id a5so8995861vkg.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:43:11 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c111si15622397qge.21.2016.05.02.11.43.10
+Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B4BEF6B0005
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 14:48:16 -0400 (EDT)
+Received: by mail-ig0-f197.google.com with SMTP id z8so1041711igl.3
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:48:16 -0700 (PDT)
+Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
+        by mx.google.com with ESMTPS id i32si7189321otd.145.2016.05.02.11.48.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 11:43:10 -0700 (PDT)
-Date: Mon, 2 May 2016 19:41:14 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: GUP guarantees wrt to userspace mappings redesign
-Message-ID: <20160502174114.GA15417@redhat.com>
-References: <20160428204542.5f2053f7@ul30vt.home> <20160429070611.GA4990@node.shutemov.name> <20160429163444.GM11700@redhat.com> <20160502104119.GA23305@node.shutemov.name> <20160502111513.GA4079@gmail.com> <20160502121402.GB23305@node.shutemov.name> <20160502141538.GA5961@redhat.com> <20160502162128.GF24419@node.shutemov.name> <20160502162211.GA11678@redhat.com> <20160502180303.GA26252@node.shutemov.name>
+        Mon, 02 May 2016 11:48:16 -0700 (PDT)
+Received: by mail-oi0-x233.google.com with SMTP id v145so168647310oie.0
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:48:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160502180303.GA26252@node.shutemov.name>
+In-Reply-To: <57279D57.5020800@plexistor.com>
+References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>
+	<1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>
+	<5727753F.6090104@plexistor.com>
+	<CAPcyv4jWPTDbbw6uMFEEt2Kazgw+wb5Pfwroej--uQPE+AtUbA@mail.gmail.com>
+	<57277EDA.9000803@plexistor.com>
+	<CAPcyv4jnz69a3S+XZgLaLojHZmpfoVXGDkJkt_1Q=8kk0gik9w@mail.gmail.com>
+	<572791E1.7000103@plexistor.com>
+	<CAPcyv4hGV07gpADT32xn=3brEq75P4RJA592vp-1A+jXMQCeOQ@mail.gmail.com>
+	<57279D57.5020800@plexistor.com>
+Date: Mon, 2 May 2016 11:48:15 -0700
+Message-ID: <CAPcyv4i3QteM508fVams8DxzoPTo5AXT6RQQ4=gR-iAN-B4-6g@mail.gmail.com>
+Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Jerome Glisse <j.glisse@gmail.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Vishal Verma <vishal.l.verma@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-block@vger.kernel.org, Jan Kara <jack@suse.cz>, Matthew Wilcox <matthew@wil.cx>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, XFS Developers <xfs@oss.sgi.com>, Jens Axboe <axboe@fb.com>, Linux MM <linux-mm@kvack.org>, Al Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-ext4 <linux-ext4@vger.kernel.org>
 
-On 05/02, Kirill A. Shutemov wrote:
+On Mon, May 2, 2016 at 11:32 AM, Boaz Harrosh <boaz@plexistor.com> wrote:
+> On 05/02/2016 09:10 PM, Dan Williams wrote:
+> <>
+>>
+>> The semantic I am talking about preserving is:
+>>
+>> buffered / unaligned write of a bad sector => -EIO on reading into the
+>> page cache
+>>
 >
-> On Mon, May 02, 2016 at 06:22:11PM +0200, Oleg Nesterov wrote:
-
-> > > So we have pages pinned by a driver and the driver expects the pinned
-> > > pages to be mapped into userspace, then __replace_page() kicks in and put
-> > > different page there -- driver's expectation is broken.
-> >
-> > Yes... but I don't understand the problem space. I mean, I do not know why
-> > this driver should expect this, how it can be broken, etc.
-> >
-> > I do not even understand why "initiated by other process" can make any
-> > difference... Unless this driver somehow controls all threads which could
-> > have this page mapped.
+> What about aligned buffered write? like write 0-to-eof
+> This still broken? (and is what restore apps do)
 >
-> Okay, my understanding is following:
+>> ...and that the only guaranteed way to clear an error (assuming the
+>> block device supports it) is an O_DIRECT write.
+>>
 >
-> Some drivers (i.e. vfio) rely on get_user_page{,_fast}() to pin the memory
-> and expect pinned pages to be mapped into userspace until the pin is gone.
-> This memory is used to communicate between kernel and userspace.
+> Sure fixing dax_do_io will guaranty that.
+>
+> <>
+>> I still think we're talking past each other on this point.
+>
+> Yes we are!
+>
+>> This patch
+>> set is not overloading error semantics, it's fixing the error handling
+>> problem that was introduced in this commit:
+>>
+>>    d475c6346a38 dax,ext2: replace XIP read and write with DAX I/O
+>>
+>> ...where we started overloading O_DIRECT and dax_do_io() semantics.
+>>
+>
+> But above does not fix them does it? it just completely NULLs DAX for
+> O_DIRECT which is a great pity, why did we do all this work in the first
+> place.
 
-Thanks Kirill.
+This is hyperbole.  We don't impact "all the work" we did for the mmap
+I/O case and the acceleration of the non-direct-I/O case.
 
-Then I think uprobes should be fine,
+> And then it keeps broken the aligned buffered writes, which are still
+> broken after this set.
 
-> I don't think there's something to fix on uprobe side. It's part of
-> debugging interface. Debuggers can be destructive, nothing new there.
+...identical to the current situation with a traditional disk.
 
-Yes, exactly. And as for uprobes in particular, __replace_page() can
-only be called of vma->vm_file and and the mapping is private/executable,
-VM_MAYSHARE must not be set.
+> I have by now read the v2 patches. And I think you guys did not yet try
+> the proper fix for dax_do_io. I think you need to go deeper into the loops
+> and selectively call bdev_* when error on a specific page copy. No need to
+> go through direct_IO path at all.
 
-Unlikely userspace can read or write to this memory to communicate with
-kernel or something else.
+We still reach a point where the minimum granularity of
+bdev_direct_access() is larger than a sector, so you end up still
+needing to have the application understand how to send a properly
+aligned I/O.  The semantics of how to send a properly aligned
+direct-I/O are already well understood, so we simply reuse that path.
 
-Thanks,
+> Do you need that I send you a patch to demonstrate what I mean?
 
-Oleg.
+I remain skeptical of what you are proposing, but yes, a patch has a
+better chance to move the discussion forward.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
