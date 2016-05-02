@@ -1,48 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 312EE6B007E
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 11:13:46 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id j8so143529780lfd.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:13:46 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lf6si34682892wjc.111.2016.05.02.08.13.44
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D9A56B007E
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 11:17:35 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id x189so196035630ywe.2
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:17:35 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 134si14955898qkh.103.2016.05.02.08.17.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 02 May 2016 08:13:44 -0700 (PDT)
-Subject: Re: mm: pages are not freed from lru_add_pvecs after process
- termination
-References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
- <5720F2A8.6070406@intel.com> <572766A7.9090406@suse.cz>
- <20160502150109.GB24419@node.shutemov.name>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <57276EA6.5090907@suse.cz>
-Date: Mon, 2 May 2016 17:13:43 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 May 2016 08:17:34 -0700 (PDT)
+Date: Mon, 2 May 2016 16:15:38 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: GUP guarantees wrt to userspace mappings redesign
+Message-ID: <20160502141538.GA5961@redhat.com>
+References: <20160428181726.GA2847@node.shutemov.name> <20160428125808.29ad59e5@t450s.home> <20160428232127.GL11700@redhat.com> <20160429005106.GB2847@node.shutemov.name> <20160428204542.5f2053f7@ul30vt.home> <20160429070611.GA4990@node.shutemov.name> <20160429163444.GM11700@redhat.com> <20160502104119.GA23305@node.shutemov.name> <20160502111513.GA4079@gmail.com> <20160502121402.GB23305@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <20160502150109.GB24419@node.shutemov.name>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160502121402.GB23305@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Hansen <dave.hansen@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 05/02/2016 05:01 PM, Kirill A. Shutemov wrote:
-> On Mon, May 02, 2016 at 04:39:35PM +0200, Vlastimil Babka wrote:
->> On 04/27/2016 07:11 PM, Dave Hansen wrote:
->>> 6. Perhaps don't use the LRU pagevecs for large pages.  It limits the
->>>     severity of the problem.
->>
->> I think that makes sense. Being large already amortizes the cost per base
->> page much more than pagevecs do (512 vs ~22 pages?).
+I am sure I missed the problem, but...
+
+On 05/02, Kirill A. Shutemov wrote:
 >
-> We try to do this already, don't we? Any spefic case where we have THPs on
-> pagevecs?
+> Quick look around:
+>
+>  - I don't see any check page_count() around __replace_page() in uprobes,
+>    so it can easily replace pinned page.
 
-For example like this?
-__do_huge_pmd_anonymous_page
-   lru_cache_add_active_or_unevictable
-     lru_cache_add
+Why it should? even if it races with get_user_pages_fast()... this doesn't
+differ from the case when an application writes to MAP_PRIVATE non-anonymous
+region, no?
 
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
