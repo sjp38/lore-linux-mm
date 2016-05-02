@@ -1,45 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CA18D6B007E
-	for <linux-mm@kvack.org>; Sun,  1 May 2016 21:05:48 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e190so371859611pfe.3
-        for <linux-mm@kvack.org>; Sun, 01 May 2016 18:05:48 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id w127si196236pfb.38.2016.05.01.18.05.47
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BC2666B007E
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 00:13:27 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id zy2so274710143pac.1
+        for <linux-mm@kvack.org>; Sun, 01 May 2016 21:13:27 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id dy1si16703776pab.117.2016.05.01.21.13.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 01 May 2016 18:05:47 -0700 (PDT)
-Received: by mail-pa0-x235.google.com with SMTP id iv1so67530443pac.2
-        for <linux-mm@kvack.org>; Sun, 01 May 2016 18:05:47 -0700 (PDT)
-Subject: Re: [RFC 1/5] powerpc: Rename context.vdso_base to context.vdso
-References: <20151202121918.GA4523@arm.com>
- <1461856737-17071-1-git-send-email-cov@codeaurora.org>
- <1461856737-17071-2-git-send-email-cov@codeaurora.org>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <5726A7D5.7030305@gmail.com>
-Date: Mon, 2 May 2016 11:05:25 +1000
+        Sun, 01 May 2016 21:13:27 -0700 (PDT)
+Received: by mail-pa0-x22b.google.com with SMTP id r5so70428541pag.1
+        for <linux-mm@kvack.org>; Sun, 01 May 2016 21:13:26 -0700 (PDT)
+Date: Sun, 1 May 2016 21:13:18 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH mmotm] radix-tree: rewrite radix_tree_locate_item fix
+Message-ID: <alpine.LSU.2.11.1605012108490.1166@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <1461856737-17071-2-git-send-email-cov@codeaurora.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Covington <cov@codeaurora.org>, Catalin Marinas <catalin.marinas@arm.com>, criu@openvz.org, Laurent Dufour <ldufour@linux.vnet.ibm.com>, Will Deacon <Will.Deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+radix_tree_locate_item() is often returning the wrong index, causing
+swapoff of shmem to hang because it cannot find the swap entry there.
+__locate()'s use of base is bogus, it adds an offset twice into index.
 
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+Fix to radix-tree-rewrite-radix_tree_locate_item.patch
 
-On 29/04/16 01:18, Christopher Covington wrote:
-> In order to share remap and unmap support for the VDSO with other
-> architectures without duplicating the code, we need a common name and type
-> for the address of the VDSO. An informal survey of the architectures
-> indicates unsigned long vdso is popular. Change the variable name in
-> powerpc from mm->context.vdso_base to simply mm->context.vdso.
-> 
+ lib/radix-tree.c |    5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-Could you please provide additional details on why the remap/unmap operations are required?
-This patch does rename, but should it abstract via a function acesss to vmap field using arch_* operations? Not sure
-
-Balbir Singh
+--- 4.6-rc5-mm1/lib/radix-tree.c	2016-04-30 22:55:06.067184898 -0700
++++ linux/lib/radix-tree.c	2016-05-01 18:52:06.668085420 -0700
+@@ -1254,15 +1254,14 @@ struct locate_info {
+ static unsigned long __locate(struct radix_tree_node *slot, void *item,
+ 			      unsigned long index, struct locate_info *info)
+ {
+-	unsigned long base, i;
++	unsigned long i;
+ 
+ 	do {
+ 		unsigned int shift = slot->shift;
+-		base = index & ~((1UL << shift) - 1);
+ 
+ 		for (i = (index >> shift) & RADIX_TREE_MAP_MASK;
+ 		     i < RADIX_TREE_MAP_SIZE;
+-		     i++, index = base + (i << shift)) {
++		     i++, index += (1UL << shift)) {
+ 			struct radix_tree_node *node =
+ 					rcu_dereference_raw(slot->slots[i]);
+ 			if (node == RADIX_TREE_RETRY)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
