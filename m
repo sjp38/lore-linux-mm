@@ -1,184 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 017D26B007E
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 11:23:01 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id x7so459558548qkd.2
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:23:00 -0700 (PDT)
-Received: from mail-qg0-x231.google.com (mail-qg0-x231.google.com. [2607:f8b0:400d:c04::231])
-        by mx.google.com with ESMTPS id b70si15060429qge.25.2016.05.02.08.23.00
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D189C6B0253
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 11:23:10 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id v81so429563904ywa.1
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:23:10 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s201si14991758qke.3.2016.05.02.08.23.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 08:23:00 -0700 (PDT)
-Received: by mail-qg0-x231.google.com with SMTP id f92so70628550qgf.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:23:00 -0700 (PDT)
-Date: Mon, 2 May 2016 17:22:49 +0200
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: GUP guarantees wrt to userspace mappings
-Message-ID: <20160502152249.GA5827@gmail.com>
-References: <20160428232127.GL11700@redhat.com>
+        Mon, 02 May 2016 08:23:10 -0700 (PDT)
+Date: Mon, 2 May 2016 17:23:07 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [BUG] vfio device assignment regression with THP ref counting
+ redesign
+Message-ID: <20160502152307.GA12310@redhat.com>
+References: <20160428102051.17d1c728@t450s.home>
+ <20160428181726.GA2847@node.shutemov.name>
+ <20160428125808.29ad59e5@t450s.home>
+ <20160428232127.GL11700@redhat.com>
  <20160429005106.GB2847@node.shutemov.name>
  <20160428204542.5f2053f7@ul30vt.home>
  <20160429070611.GA4990@node.shutemov.name>
  <20160429163444.GM11700@redhat.com>
  <20160502104119.GA23305@node.shutemov.name>
- <20160502111513.GA4079@gmail.com>
- <20160502121402.GB23305@node.shutemov.name>
- <20160502133919.GB4079@gmail.com>
- <20160502150013.GA24419@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20160502150013.GA24419@node.shutemov.name>
+In-Reply-To: <20160502104119.GA23305@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, May 02, 2016 at 06:00:13PM +0300, Kirill A. Shutemov wrote:
-> On Mon, May 02, 2016 at 03:39:20PM +0200, Jerome Glisse wrote:
-> > On Mon, May 02, 2016 at 03:14:02PM +0300, Kirill A. Shutemov wrote:
-> > > On Mon, May 02, 2016 at 01:15:13PM +0200, Jerome Glisse wrote:
-> > > > On Mon, May 02, 2016 at 01:41:19PM +0300, Kirill A. Shutemov wrote:
-> > > > > Other thing I would like to discuss is if there's a problem on vfio side.
-> > > > > To me it looks like vfio expects guarantee from get_user_pages() which it
-> > > > > doesn't provide: obtaining pin on the page doesn't guarantee that the page
-> > > > > is going to remain mapped into userspace until the pin is gone.
-> > > > > 
-> > > > > Even with THP COW regressing fixed, vfio would stay fragile: any
-> > > > > MADV_DONTNEED/fork()/mremap()/whatever what would make vfio expectation
-> > > > > broken.
-> > > > > 
-> > > > 
-> > > > Well i don't think it is fair/accurate assessment of get_user_pages(), page
-> > > > must remain mapped to same virtual address until pin is gone. I am ignoring
-> > > > mremap() as it is a scient decision from userspace and while virtual address
-> > > > change in that case, the pined page behind should move with the mapping.
-> > > > Same of MADV_DONTNEED. I agree that get_user_pages() is broken after fork()
-> > > > but this have been the case since dawn of time, so it is something expected.
-> > > > 
-> > > > If not vfio, then direct-io, have been expecting this kind of behavior for
-> > > > long time, so i see this as part of get_user_pages() guarantee.
-> > > > 
-> > > > Concerning vfio, not providing this guarantee will break countless number of
-> > > > workload. Thing like qemu/kvm allocate anonymous memory and hand it over to
-> > > > the guest kernel which presents it as memory. Now a device driver inside the
-> > > > guest kernel need to get bus mapping for a given (guest) page, which from
-> > > > host point of view means a mapping from anonymous page to bus mapping but
-> > > > for guest to keep accessing the same page the anonymous mapping (ie a
-> > > > specific virtual address on the host side) must keep pointing to the same
-> > > > page. This have been the case with get_user_pages() until now, so whether
-> > > > we like it or not we must keep that guarantee.
-> > > > 
-> > > > This kind of workload knows that they can't do mremap()/fork()/... and keep
-> > > > that guarantee but they at expect existing guarantee and i don't think we
-> > > > can break that.
-> > > 
-> > > Quick look around:
-> > > 
-> > >  - I don't see any check page_count() around __replace_page() in uprobes,
-> > >    so it can easily replace pinned page.
-> > 
-> > Not an issue for existing user as this is only use to instrument code, existing
-> > user do not execute code from virtual address for which they have done a GUP.
+On Mon, May 02, 2016 at 01:41:19PM +0300, Kirill A. Shutemov wrote:
+> I don't think this would work correctly. Let's check one of callers:
 > 
-> Okay, so we can establish that GUP doesn't provide the guarantee in some
-> cases.
-
-Correct but it use to provide that guarantee in respect to THP.
-
-
-> > >  - KSM has the page_count() check, there's still race wrt GUP_fast: it can
-> > >    take the pin between the check and establishing new pte entry.
-> > 
-> > KSM is not an issue for existing user as they all do get_user_pages() with
-> > write = 1 and the KSM first map page read only before considering to replace
-> > them and check page refcount. So there can be no race with gup_fast there.
+> static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> 		unsigned long address, pte_t *page_table, pmd_t *pmd,
+> 		spinlock_t *ptl, pte_t orig_pte)
+> 	__releases(ptl)
+> {
+> ...
+> 		if (reuse_swap_page(old_page)) {
+> 			/*
+> 			 * The page is all ours.  Move it to our anon_vma so
+> 			 * the rmap code will not search our parent or siblings.
+> 			 * Protected against the rmap code by the page lock.
+> 			 */
+> 			page_move_anon_rmap(old_page, vma, address);
+> 			unlock_page(old_page);
+> 			return wp_page_reuse(mm, vma, address, page_table, ptl,
+> 					     orig_pte, old_page, 0, 0);
+> 		}
 > 
-> In vfio case, 'write' is conditional on IOMMU_WRITE, meaning not all
-> get_user_pages() are with write=1.
+> The first thing to notice is that old_page can be a tail page here
+> therefore page_move_anon_rmap() should be able to handle this after you
+> patch, which it doesn't.
 
-I think this is still fine as it means that device will read only and thus
-you can migrate to different page (ie the guest is not expecting to read back
-anything writen by the device and device writting to the page would be illegal
-and a proper IOMMU would forbid it). So it is like direct-io when you write
-from anonymous memory to a file.
+Agreed, that's an implementation error and easy to fix.
 
-
-> > >  - khugepaged: the same story as with KSM.
-> > 
-> > I am assuming you are talking about collapse_huge_page() here, if you look in
-> > that function there is a comment about GUP_fast. Noneless i believe the comment
-> > is wrong as i believe there is an existing race window btw pmdp_collapse_flush()
-> > and __collapse_huge_page_isolate() :
-> > 
-> >   get_user_pages_fast()          | collapse_huge_page()
-> >    gup_pmd_range() -> valid pmd  | ...
-> >                                  | pmdp_collapse_flush() clear pmd
-> >                                  | ...
-> >                                  | __collapse_huge_page_isolate()
-> >                                  | [Above check page count and see no GUP]
-> >    gup_pte_range() -> ref page   |
-> > 
-> > This is a very unlikely race because get_user_pages_fast() can not be preempted
-> > while collapse_huge_page() can be preempted btw pmdp_collapse_flush() and
-> > __collapse_huge_page_isolate(), more over collapse_huge_page() has lot more
-> > instructions to chew on than get_user_pages_fast() btw gup_pmd_range() and
-> > gup_pte_range().
+> But I think there's a bigger problem.
 > 
-> Yes, the race window is small, but there.
-
-Now that i think again about it, i don't think it exist. pmdp_collapse_flush()
-will flush the tlb and thus send an IPI but get_user_pages_fast() can't be
-preempted so the flush will have to wait for existing get_user_pages_fast() to
-complete. Or am i missunderstanding flush ? So khugepaged is safe from GUP_fast
-point of view like the comment, inside it, says.
-
-
-> > So i think this is an unlikely race. I am not sure how to forbid it from
-> > happening, except maybe in get_user_pages_fast() by checking pmd is still
-> > valid after gup_pte_range().
+> Consider the following situation: after split_huge_pmd() we have
+> pte-mapped THP, fork() comes and now the pages is shared between two
+> processes. Child process munmap()s one half of the THP page, parent
+> munmap()s the other half.
 > 
-> Switching to non-fast GUP would help :-P
+> IIUC, afther that page_trans_huge_mapcount() would give us 1 as all 4k
+> subpages have mapcount exactly one. Fault in the child would trigger
+> do_wp_page() and reuse_swap_page() returns true, which would lead to
+> page_move_anon_rmap() tranferring the whole compound page to child's
+> anon_vma. That's not correct.
 > 
-> > > I don't see how we can deliver on the guarantee, especially with lockless
-> > > GUP_fast.
-> > > 
-> > > Or am I missing something important?
-> > 
-> > So as said above, i think existing user of get_user_pages() are not sensitive
-> > to the races you pointed above. I am sure there are some corner case where
-> > the guarantee that GUP pin a page against a virtual address is violated but
-> > i do not think they apply to any existing user of GUP.
-> > 
-> > Note that i would personaly like that this existing assumption about GUP did
-> > not exist. I hate it, but fact is that it does exist and nobody can remember
-> > where the Doc did park the Delorean
+> We should at least avoid page_move_anon_rmap() for compound pages there.
+
+So (compound_head() missing aside) the calculation I was doing is
+correct with regard to taking over the page and marking the pagetable
+read-write instead of triggering a COW and breaking the pinning, but
+it's not right only in terms of calling page_move_anon_rmap? The child
+or parent would then lose visibility on its ptes if the compound page
+is moved to the local vma->anon_vma.
+
+The fix should be just to change page_trans_huge_mapcount() to return
+two refcounts, one "hard" for the pinning, and one "soft" for the rmap
+which will be the same as total_mapcount. The runtime cost will remain
+the same, so a fix can be easy for this one too.
+
+> Other thing I would like to discuss is if there's a problem on vfio side.
+> To me it looks like vfio expects guarantee from get_user_pages() which it
+> doesn't provide: obtaining pin on the page doesn't guarantee that the page
+> is going to remain mapped into userspace until the pin is gone.
 > 
-> The drivers who want the guarantee can provide own ->mmap and have more
-> control on what is visible in userspace.
-> 
-> Alternatively, we have mmu_notifiers to track changes in userspace
-> mappings.
-> 
+> Even with THP COW regressing fixed, vfio would stay fragile: any
+> MADV_DONTNEED/fork()/mremap()/whatever what would make vfio expectation
+> broken.
 
-Well you can't not rely on special vma here. Qemu alloc anonymous memory and
-hand it over to guest, then a guest driver (ie runing in the guest not on the
-host) try to map that memory and need valid DMA address for it, this is when
-vfio (on the host kernel) starts pining memory of regular anonymous vma (on
-the host). That same memory might back some special vma with ->mmap callback
-but in the guest. Point is there is no driver on the host and no special vma.
->From host point of view this is anonymous memory, but from guest POV it is
-just memory.
+vfio must run as root, it will take care of not doing such things, it
+just needs a way to prevent the page to be moved so it can DMA into it
+and mlock is not enough. This clearly has to be caused by a
+get_user_pages(write=0) or by a serialized fork/exec() while a
+longstanding page pin is being held (and to be safe fork/exec had to
+be serialized in a way that the parent process wouldn't write to the
+pinned page until after exec has run in the child, or it's already
+racy no matter what kernel).
 
-Requiring special vma would need major change to kvm and probably xen, in
-respect on how they support things like PCI passthrough.
+I agree it's somewhat fragile, the problem here is that the THP
+refcounting change made it even weaker than it already was.
 
-In existing workload, host kernel can not make assumption on how anonymous
-memory is gonna be use.
+Ideally the MMU notifier invalidate should be used instead of pinning
+the page, that would make it 100% robust and it wouldn't even pin the
+page at all.
 
-Cheers,
-Jerome
+However we can't send an MMU notifier invalidate to an IOMMU because
+next time the IOMMU non-present physical address is used it would kill
+the app. Some new IOMMU can raise an exception synchronously that we
+could use to implement a IOMMU secondary MMU page fault to make the
+MMU notifier model work with IOMMUs too, but that's not feasible with
+most IOMMU out there that raises an unrecoverable asynchronous
+exception instead and can't implement a proper "IOMMU page
+fault". Furthermore the speed of the invalidate may not be optimal
+with IOMMUs which would then be an added cost to pay for swapping and
+memory migration.
+
+This is anyway a regression of the previous guarantees a pin would
+provide, if we want to bring back the old semantics of a page pin, I
+think fixing both places like I attempted to do (modulo two
+implementation bugs) is better than fixing only the THP case.
+
+If instead leave things as is, and we weaken the semantics of a page
+pin, the alternative to deal with the even weakened semantics inside
+the vfio code, is to use get_user_pages with write=1 forced and then
+it'll probably work also with current upstream (unless it's fork/exec,
+but I don't think it is, MADV_DONTFORK would be recommended anyway for
+usages like this with vfio if fork can ever run and there are threads
+in the parent, even O_DIRECT generates data corruption without
+MADV_DONTFORK in such conditions for similar reasons).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
