@@ -1,114 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A4C36B0005
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 14:52:23 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 77so2779528pfz.3
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:52:23 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id q62si17511925pfb.220.2016.05.02.11.52.22
-        for <linux-mm@kvack.org>;
-        Mon, 02 May 2016 11:52:22 -0700 (PDT)
-From: "Verma, Vishal L" <vishal.l.verma@intel.com>
-Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
-Date: Mon, 2 May 2016 18:52:02 +0000
-Message-ID: <1462215110.1421.43.camel@intel.com>
-References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>
-		 <1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>
-		 <5727753F.6090104@plexistor.com> <1462204291.11211.20.camel@kernel.org>
-	 <57277A59.3000306@plexistor.com>
-In-Reply-To: <57277A59.3000306@plexistor.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <6CC4C63FB2C3A74E9884555DCBF97A11@intel.com>
-Content-Transfer-Encoding: base64
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D1BCB6B0253
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 14:56:52 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id x67so371561873oix.2
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:56:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v7si178825ioe.64.2016.05.02.11.56.52
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 May 2016 11:56:52 -0700 (PDT)
+Date: Mon, 2 May 2016 20:56:49 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: GUP guarantees wrt to userspace mappings redesign
+Message-ID: <20160502185649.GC12310@redhat.com>
+References: <20160428181726.GA2847@node.shutemov.name>
+ <20160428125808.29ad59e5@t450s.home>
+ <20160428232127.GL11700@redhat.com>
+ <20160429005106.GB2847@node.shutemov.name>
+ <20160428204542.5f2053f7@ul30vt.home>
+ <20160429070611.GA4990@node.shutemov.name>
+ <20160429163444.GM11700@redhat.com>
+ <20160502104119.GA23305@node.shutemov.name>
+ <20160502111513.GA4079@gmail.com>
+ <20160502121402.GB23305@node.shutemov.name>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160502121402.GB23305@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "boaz@plexistor.com" <boaz@plexistor.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>, "matthew@wil.cx" <matthew@wil.cx>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Jerome Glisse <j.glisse@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-T24gTW9uLCAyMDE2LTA1LTAyIGF0IDE5OjAzICswMzAwLCBCb2F6IEhhcnJvc2ggd3JvdGU6DQo+
-IE9uIDA1LzAyLzIwMTYgMDY6NTEgUE0sIFZpc2hhbCBWZXJtYSB3cm90ZToNCj4gPiANCj4gPiBP
-biBNb24sIDIwMTYtMDUtMDIgYXQgMTg6NDEgKzAzMDAsIEJvYXogSGFycm9zaCB3cm90ZToNCj4g
-PiA+IA0KPiA+ID4gT24gMDQvMjkvMjAxNiAxMjoxNiBBTSwgVmlzaGFsIFZlcm1hIHdyb3RlOg0K
-PiA+ID4gPiANCj4gPiA+ID4gDQo+ID4gPiA+IEFsbCBJTyBpbiBhIGRheCBmaWxlc3lzdGVtIHVz
-ZWQgdG8gZ28gdGhyb3VnaCBkYXhfZG9faW8sIHdoaWNoDQo+ID4gPiA+IGNhbm5vdA0KPiA+ID4g
-PiBoYW5kbGUgbWVkaWEgZXJyb3JzLCBhbmQgdGh1cyBjYW5ub3QgcHJvdmlkZSBhIHJlY292ZXJ5
-IHBhdGgNCj4gPiA+ID4gdGhhdA0KPiA+ID4gPiBjYW4NCj4gPiA+ID4gc2VuZCBhIHdyaXRlIHRo
-cm91Z2ggdGhlIGRyaXZlciB0byBjbGVhciBlcnJvcnMuDQo+ID4gPiA+IA0KPiA+ID4gPiBBZGQg
-YSBuZXcgaW9jYiBmbGFnIGZvciBEQVgsIGFuZCBzZXQgaXQgb25seSBmb3IgREFYIG1vdW50cy4g
-SW4NCj4gPiA+ID4gdGhlDQo+ID4gPiA+IElPDQo+ID4gPiA+IHBhdGggZm9yIERBWCBmaWxlc3lz
-dGVtcywgdXNlIHRoZSBzYW1lIGRpcmVjdF9JTyBwYXRoIGZvciBib3RoDQo+ID4gPiA+IERBWA0K
-PiA+ID4gPiBhbmQNCj4gPiA+ID4gZGlyZWN0X2lvIGlvY2JzLCBidXQgdXNlIHRoZSBmbGFncyB0
-byBpZGVudGlmeSB3aGVuIHdlIGFyZSBpbg0KPiA+ID4gPiBPX0RJUkVDVA0KPiA+ID4gPiBtb2Rl
-IHZzIG5vbiBPX0RJUkVDVCB3aXRoIERBWCwgYW5kIGZvciBPX0RJUkVDVCwgdXNlIHRoZQ0KPiA+
-ID4gPiBjb252ZW50aW9uYWwNCj4gPiA+ID4gZGlyZWN0X0lPIHBhdGggaW5zdGVhZCBvZiBEQVgu
-DQo+ID4gPiA+IA0KPiA+ID4gUmVhbGx5PyBXaGF0IGFyZSB5b3VyIHRoaW5raW5nIGhlcmU/DQo+
-ID4gPiANCj4gPiA+IFdoYXQgYWJvdXQgYWxsIHRoZSBjdXJyZW50IHVzZXJzIG9mIE9fRElSRUNU
-LCB5b3UgaGF2ZSBqdXN0IG1hZGUNCj4gPiA+IHRoZW0NCj4gPiA+IDQgdGltZXMgc2xvd2VyIGFu
-ZCAibGVzcyBjb25jdXJyZW50KiIgdGhlbiAiYnVmZnJlZCBpbyIgdXNlcnMuDQo+ID4gPiBTaW5j
-ZQ0KPiA+ID4gZGlyZWN0X0lPIHBhdGggd2lsbCBxdWV1ZSBhbiBJTyByZXF1ZXN0IGFuZCBhbGwu
-DQo+ID4gPiAoQW5kIGlmIGl0IGlzIG5vdCBzbyBzbG93IHRoZW4gd2h5IGRvIHdlIG5lZWQgZGF4
-X2RvX2lvIGF0IGFsbD8NCj4gPiA+IFtSaGV0b3JpY2FsXSkNCj4gPiA+IA0KPiA+ID4gSSBoYXRl
-IGl0IHRoYXQgeW91IG92ZXJsb2FkIHRoZSBzZW1hbnRpY3Mgb2YgYSBrbm93biBhbmQgZXhwZWN0
-ZWQNCj4gPiA+IE9fRElSRUNUIGZsYWcsIGZvciBzcGVjaWFsIHBtZW0gcXVpcmtzLiBUaGlzIGlz
-IGFuIGluY29tcGF0aWJsZQ0KPiA+ID4gYW5kIHVucmVsYXRlZCBvdmVybG9hZCBvZiB0aGUgc2Vt
-YW50aWNzIG9mIE9fRElSRUNULg0KPiA+IFdlIG92ZXJsb2FkZWQgT19ESVJFQ1QgYSBsb25nIHRp
-bWUgYWdvIHdoZW4gd2UgbWFkZSBEQVggcGlnZ3liYWNrIG9uDQo+ID4gdGhlIHNhbWUgcGF0aDoN
-Cj4gPiANCj4gPiBzdGF0aWMgaW5saW5lIGJvb2wgaW9faXNfZGlyZWN0KHN0cnVjdCBmaWxlICpm
-aWxwKQ0KPiA+IHsNCj4gPiAJcmV0dXJuIChmaWxwLT5mX2ZsYWdzICYgT19ESVJFQ1QpIHx8IElT
-X0RBWChmaWxwLT5mX21hcHBpbmctDQo+ID4gPmhvc3QpOw0KPiA+IH0NCj4gPiANCj4gTm8gYXMg
-ZmFyIGFzIHRoZSB1c2VyIGlzIGNvbmNlcm5lZCB3ZSBoYXZlIG5vdC4gVGhlIE9fRElSRUNUIHVz
-ZXINCj4gaXMgc3RpbGwgZ2V0dGluZyBhbGwgdGhlIHNlbWFudGljcyBoZSB3YW50cywgLmkuZSBu
-byBzeW5jcyBubw0KPiBtZW1vcnkgY2FjaGUgdXNhZ2UsIG5vIGNvcGllcyAuLi4NCj4gDQo+IE9u
-bHkgd2l0aCBEQVggdGhlIGJ1ZmZlcmVkIElPIGlzIHRoZSBzYW1lIHNpbmNlIHdpdGggcG1lbSBp
-dCBpcw0KPiBmYXN0ZXIuDQo+IFRoZW4gd2h5IG5vdD8gVGhlIGJhc2ljIGNvbnRyYWN0IHdpdGgg
-dGhlIHVzZXIgZGlkIG5vdCBicmVhay4NCj4gDQo+IFRoZSBhYm92ZSB3YXMganVzdCBhbiBpbXBs
-ZW1lbnRhdGlvbiBkZXRhaWwgdG8gZWFzaWx5IG5hdmlnYXRlDQo+IHRocm91Z2ggdGhlIExpbnV4
-IHZmcyBJTyBzdGFjayBhbmQgbWFrZSB0aGUgbGVhc3QgYW1vdW50IG9mIGNoYW5nZXMNCj4gaW4g
-ZXZlcnkgRlMgdGhhdCB3YW50ZWQgdG8gc3VwcG9ydCBEQVguKEFuZCBzaW5jZSBkYXhfZG9faW8g
-aXMgbXVjaA0KPiBtb3JlIGxpa2UgZGlyZWN0X0lPIHRoZW4gbGlrZSBwYWdlLWNhY2hlIElPKQ0K
-PiANCj4gPiANCj4gPiBZZXMgT19ESVJFQ1Qgb24gYSBEQVggbW91bnRlZCBmaWxlIHN5c3RlbSB3
-aWxsIG5vdyBiZSBzbG93ZXIsIGJ1dCAtDQo+ID4gDQo+ID4gPiANCj4gPiA+IA0KPiA+ID4gPiAN
-Cj4gPiA+ID4gDQo+ID4gPiA+IFRoaXMgYWxsb3dzIHVzIGEgcmVjb3ZlcnkgcGF0aCBpbiB0aGUg
-Zm9ybSBvZiBvcGVuaW5nIHRoZSBmaWxlDQo+ID4gPiA+IHdpdGgNCj4gPiA+ID4gT19ESVJFQ1Qg
-YW5kIHdyaXRpbmcgdG8gaXQgd2l0aCB0aGUgdXN1YWwgT19ESVJFQ1Qgc2VtYW50aWNzDQo+ID4g
-PiA+IChzZWN0b3INCj4gPiA+ID4gYWxpZ25tZW50IHJlc3RyaWN0aW9ucykuDQo+ID4gPiA+IA0K
-PiA+ID4gSSB1bmRlcnN0YW5kIHRoYXQgeW91IHdhbnQgYSBzZWN0b3IgYWxpZ25lZCBJTywgcmln
-aHQ/IGZvciB0aGUNCj4gPiA+IGNsZWFyIG9mIGVycm9ycy4gQnV0IEkgaGF0ZSBpdCB0aGF0IHlv
-dSBmb3JjZWQgYWxsIE9fRElSRUNUIElPDQo+ID4gPiB0byBiZSBzbG93IGZvciB0aGlzLg0KPiA+
-ID4gQ2FuIHlvdSBub3QgbWFrZSBkYXhfZG9faW8gaGFuZGxlIG1lZGlhIGVycm9ycz8gQXQgbGVh
-c3QgZm9yIHRoZQ0KPiA+ID4gcGFydHMgb2YgdGhlIElPIHRoYXQgYXJlIGFsaWduZWQuDQo+ID4g
-PiAoQW5kIHlvdXIgcmVjb3ZlcnkgcGF0aCBhcHBsaWNhdGlvbiBhYm92ZSBjYW4gdXNlIG9ubHkg
-YWxpZ25lZA0KPiA+ID4gwqBJTyB0byBtYWtlIHN1cmUpDQo+ID4gPiANCj4gPiA+IFBsZWFzZSBs
-b29rIGZvciBhbm90aGVyIHNvbHV0aW9uLiBFdmVuIGEgc3BlY2lhbA0KPiA+ID4gSU9DVExfREFY
-X0NMRUFSX0VSUk9SDQo+ID4gwqAtIHNlZSBhbGwgdGhlIHZlcnNpb25zIG9mIHRoaXMgc2VyaWVz
-IHByaW9yIHRvIHRoaXMgb25lLCB3aGVyZSB3ZQ0KPiA+IHRyeQ0KPiA+IHRvIGRvIGEgZmFsbGJh
-Y2suLi4NCj4gPiANCj4gQW5kPw0KPiANCj4gU28gbm93IGFsbCBPX0RJUkVDVCBBUFBzIGdvIDQg
-dGltZXMgc2xvd2VyLiBJIHdpbGwgaGF2ZSBhIGxvb2sgYnV0IGlmDQo+IGl0IGlzIHJlYWxseSBz
-byBiYWQgdGhhbiBwbGVhc2UgY29uc2lkZXIgYW4gSU9DVEwgb3Igc3lzY2FsbC4gT3IgYQ0KPiBz
-cGVjaWFsDQo+IE9fREFYX0VSUk9SUyBmbGFnIC4uLg0KDQpJJ20gY3VyaW91cyB3aGVyZSB0aGUg
-NHggc2xvd2VyIGNvbWVzIGZyb20uLiBUaGUgT19ESVJFQ1QgcGF0aCBpcyBzdGlsbA0Kd2l0aG91
-dCBwYWdlLWNhY2hlIGNvcGllcywgYW5kIG5vciBkb2VzIGl0IGdvIHRocm91Z2ggcmVxdWVzdCBx
-dWV1ZXMNCihzaW5jZSBwbWVtIGlzIGEgYmlvLWJhc2VkIGRyaXZlcikuIFRoZSBvbmx5IG92ZXJo
-ZWFkIGlzIHRoYXQgb2YNCnN1Ym1pdHRpbmcgYSBiaW8gLSBhbmQgd2hpbGUgSSBhZ3JlZSBpdCBp
-cyBtb3JlIG92ZXJoZWFkIHRoYW4gZGF4X2RvX2lvLA0KNHggc2VlbXMgYSBiaXQgaGlnaC4NCg0K
-PiANCj4gUGxlYXNlIGRvIG5vdCB0cmFzaCBhbGwgdGhlIE9fRElSRUNUIHVzZXJzLCB0aGV5IGFy
-ZSB0aGUgbW9yZQ0KPiBpbXBvcnRhbnQNCj4gY2xpZW50cywgbGlrZSBEQnMgYW5kIFZNcy4NCg0K
-U2hvdWxkbid0IHRoZXkgYmUgdXNpbmcgbW1hcHMgYW5kIGRheCBmYXVsdHM/IEkgd2FzIHVuZGVy
-IHRoZSBpbXByZXNzaW9uDQp0aGF0IHRoZSBkYXhfZG9faW8gcGF0aCBpcyBhIG5pY2UtdG8taGF2
-ZSwgYnV0IGZvciBhbnlvbmUgdGhhdCB3aWxsIHdhbnQNCnRvIHVzZSBEQVgsIHRoZXkgd2lsbCB3
-YW50IHRoZSBtbWFwL2ZhdWx0IHBhdGgsIG5vdCB0aGUgSU8gcGF0aC4gVGhpcyBpcw0KanVzdCBt
-YWtpbmcgdGhlIElPIHBhdGggJ21vcmUgY29ycmVjdCcgYnkgYWxsb3dpbmcgaXQgYSB3YXkgdG8g
-ZGVhbCB3aXRoDQplcnJvcnMuDQoNCj4gDQo+IFRoYW5rcw0KPiBCb2F6DQo+IA0KPiA+IA0KPiA+
-ID4gDQo+ID4gPiANCj4gPiA+IFsqImxlc3MgY29uY3VycmVudCIgYmVjYXVzZSBvZiB0aGUgcXVl
-dWluZyBkb25lIGluIGJkZXYuIE5vdGUgaG93DQo+ID4gPiDCoCBwbWVtIGlzIG5vdCBldmVuIG11
-bHRpLXF1ZXVlLCBhbmQgZXZlbiBpZiBpdCB3YXMgaXQgd2lsbCBiZSBtdWNoDQo+ID4gPiDCoCBz
-bG93ZXIgdGhlbiBEQVggYmVjYXVzZSBvZiB0aGUgY29kZSBkZXB0aCBhbmQgYWxsIHRoZSBsb2Nr
-cyBhbmQNCj4gPiA+IHRhc2sNCj4gPiA+IMKgIHN3aXRjaGVzIGRvbmUgaW4gdGhlIGJsb2NrIGxh
-eWVyLiBJbiBEQVggdGhlIGZpbmFsIG1lbWNweSBpcw0KPiA+ID4gZG9uZQ0KPiA+ID4gZGlyZWN0
-bHkNCj4gPiA+IMKgIG9uIHRoZSB1c2VyLW1vZGUgdGhyZWFkXQ0KPiA+ID4gDQo+ID4gPiBUaGFu
-a3MNCj4gPiA+IEJvYXoNCj4gPiA+IA==
+On Mon, May 02, 2016 at 03:14:02PM +0300, Kirill A. Shutemov wrote:
+> Quick look around:
+> 
+>  - I don't see any check page_count() around __replace_page() in uprobes,
+>    so it can easily replace pinned page.
+> 
+>  - KSM has the page_count() check, there's still race wrt GUP_fast: it can
+>    take the pin between the check and establishing new pte entry.
+
+		 * Ok this is tricky, when get_user_pages_fast() run it doesn't
+		 * take any lock, therefore the check that we are going to make
+		 * with the pagecount against the mapcount is racey and
+		 * O_DIRECT can happen right after the check.
+		 * So we clear the pte and flush the tlb before the check
+		 * this assure us that no O_DIRECT can happen after the check
+		 * or in the middle of the check.
+		 */
+		entry = ptep_clear_flush_notify(vma, addr, ptep);
+
+KSM takes care of that or it wouldn't be safe if KSM was with memory
+under O_DIRECT.
+ 
+>  - khugepaged: the same story as with KSM.
+
+In __collapse_huge_page_isolate we do:
+
+		/*
+		 * cannot use mapcount: can't collapse if there's a gup pin.
+		 * The page must only be referenced by the scanned process
+		 * and page swap cache.
+		 */
+		if (page_count(page) != 1 + !!PageSwapCache(page)) {
+			unlock_page(page);
+			result = SCAN_PAGE_COUNT;
+			goto out;
+		}
+
+At that point the pmd has been zapped (pmdp_collapse_flush already
+run) and like for KSM case that is enough to ensure
+get_user_pages_fast can't succeed and it'll have to call into the slow
+get_user_pages.
+
+These two issues are not specific to vfio and IOMMUs, this is must be
+correct or O_DIRECT will generate data corruption in presence of
+KSM/khugepaged. Both looks fine to me.
+
+> I don't see how we can deliver on the guarantee, especially with lockless
+> GUP_fast.
+
+By zapping the pmd_trans_huge/pte and sending IPIs if needed
+(get_user_pages_fast runs with irq disabled), before checking
+page_count.
+
+With the RCU version of it it's the same, but instead of sending IPIs,
+we'll wait for a quiescient point to be sure of having flushed any
+concurrent get_user_pages_fast out of the other CPUs, before we
+proceed to check page_count (then no other get_user_pages_fast can
+increase the page count for this page on this "mm" anymore).
+
+That's how the guaranteed is provided against get_user_pages_fast.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
