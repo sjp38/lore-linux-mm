@@ -1,84 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B1FA6B007E
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 12:18:25 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id k129so386117525iof.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 09:18:25 -0700 (PDT)
-Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
-        by mx.google.com with ESMTP id a3si9984069igy.69.2016.05.02.09.18.23
-        for <linux-mm@kvack.org>;
-        Mon, 02 May 2016 09:18:24 -0700 (PDT)
-Message-ID: <57277EEA.6070909@emindsoft.com.cn>
-Date: Tue, 03 May 2016 00:23:06 +0800
-From: Chen Gang <chengang@emindsoft.com.cn>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 31DCC6B007E
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 12:21:32 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r12so81948064wme.0
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 09:21:32 -0700 (PDT)
+Received: from mail-lf0-x22b.google.com (mail-lf0-x22b.google.com. [2a00:1450:4010:c07::22b])
+        by mx.google.com with ESMTPS id ub9si9440560lbb.87.2016.05.02.09.21.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 May 2016 09:21:31 -0700 (PDT)
+Received: by mail-lf0-x22b.google.com with SMTP id y84so193546464lfc.0
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 09:21:30 -0700 (PDT)
+Date: Mon, 2 May 2016 19:21:28 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: GUP guarantees wrt to userspace mappings redesign
+Message-ID: <20160502162128.GF24419@node.shutemov.name>
+References: <20160428125808.29ad59e5@t450s.home>
+ <20160428232127.GL11700@redhat.com>
+ <20160429005106.GB2847@node.shutemov.name>
+ <20160428204542.5f2053f7@ul30vt.home>
+ <20160429070611.GA4990@node.shutemov.name>
+ <20160429163444.GM11700@redhat.com>
+ <20160502104119.GA23305@node.shutemov.name>
+ <20160502111513.GA4079@gmail.com>
+ <20160502121402.GB23305@node.shutemov.name>
+ <20160502141538.GA5961@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/kasan/kasan.h: Fix boolean checking issue for kasan_report_enabled()
-References: <1462167374-6321-1-git-send-email-chengang@emindsoft.com.cn>	<CACT4Y+Z7Yfsq9wjJuoeegEvPBvJs9iX6wN2VO1scA7HA4TVLmQ@mail.gmail.com>	<572735EB.8030300@emindsoft.com.cn>	<CACT4Y+Yrq4mt6c8wQKU7WcTnN7k28T3hM1V6_DWF-NpmuMH7Gw@mail.gmail.com>	<572747C2.5040009@emindsoft.com.cn>	<CAG_fn=VGJAGb71HU4rC9MNboqPqPs4EPgcWBfaiBpcgNQ2qFqA@mail.gmail.com>	<57275B71.8000907@emindsoft.com.cn>	<CAG_fn=WBPcQ8HgG13RksM=v833Q4GmM4dXhFNa9ihhMnOWKLmA@mail.gmail.com>	<57276E95.1030201@emindsoft.com.cn> <CAG_fn=W76ArZumUwM-fqsAZC2ksoi8azMPah+1aopigmrEWSNQ@mail.gmail.com>
-In-Reply-To: <CAG_fn=W76ArZumUwM-fqsAZC2ksoi8azMPah+1aopigmrEWSNQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160502141538.GA5961@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 5/2/16 23:35, Alexander Potapenko wrote:
-> On Mon, May 2, 2016 at 5:13 PM, Chen Gang <chengang@emindsoft.com.cn> wrote:
->>
->> OK. But it does not look quite easy to use kasan_disable_current() for
->> INIT_KASAN which is used in INIT_TASK.
->>
->> If we have to set "kasan_depth == 1", we have to use kasan_depth-- in
->> kasan_enable_current().
-> Agreed, decrementing the counter in kasan_enable_current() is more natural.
-> I can fix this together with the comments.
-
-OK, thanks. And need I also send patch v2 for include/linux/kasan.h? (or
-you will fix them together).
-
->>
->> If we don't prevent the overflow, it will have negative effect with the
->> caller. When we issue an warning, it means the caller's hope fail, but
->> can not destroy the caller's original work. In our case:
->>
->>  - Assume "kasan_depth-- for kasan_enable_current()", the first enable
->>    will let kasan_depth be 0.
-> Sorry, I'm not sure I follow.
-> If we start with kasan_depth=0 (which is the default case for every
-> task except for the init, which also gets kasan_depth=0 short after
-> the kernel starts),
-> then the first call to kasan_disable_current() will make kasan_depth
-> nonzero and will disable KASAN.
-> The subsequent call to kasan_enable_current() will enable KASAN back.
+On Mon, May 02, 2016 at 04:15:38PM +0200, Oleg Nesterov wrote:
+> I am sure I missed the problem, but...
 > 
-> There indeed is a problem when someone calls kasan_enable_current()
-> without previously calling kasan_disable_current().
-> In this case we need to check that kasan_depth was zero and print a
-> warning if it was.
-> It actually does not matter whether we modify kasan_depth after that
-> warning or not, because we are already in inconsistent state.
-> But I think we should modify kasan_depth anyway to ease the debugging.
+> On 05/02, Kirill A. Shutemov wrote:
+> >
+> > Quick look around:
+> >
+> >  - I don't see any check page_count() around __replace_page() in uprobes,
+> >    so it can easily replace pinned page.
 > 
+> Why it should? even if it races with get_user_pages_fast()... this doesn't
+> differ from the case when an application writes to MAP_PRIVATE non-anonymous
+> region, no?
 
-For me, BUG_ON() will be better for debugging, but it is really not well
-for using.  For WARN_ON(), it already print warnings, so I am not quite
-sure "always modifying kasan_depth will be ease the debugging".
+< I know nothing about uprobes or ptrace in general >
 
-When we are in inconsistent state, for me, what we can do is:
+I think the difference is that the write is initiated by the process
+itself, but IIUC __replace_page() can be initiated by other process, so
+it's out of control of the application.
 
- - Still try to do correct things within our control: "when the caller
-   make a mistake, if kasan_enable_current() notices about it, it need
-   issue warning, and prevent itself to make mistake (causing disable).
+So we have pages pinned by a driver and the driver expects the pinned
+pages to be mapped into userspace, then __replace_page() kicks in and put
+different page there -- driver's expectation is broken.
 
- - "try to let negative effect smaller to user", e.g. let users "loose
-   hope" (call enable has no effect) instead of destroying users'
-   original work (call enable, but get disable).
-
-Thanks.
 -- 
-Chen Gang (e??a??)
-
-Managing Natural Environments is the Duty of Human Beings.
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
