@@ -1,92 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BA6EF6B0005
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 14:03:07 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id 68so146946653lfq.2
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:03:07 -0700 (PDT)
-Received: from mail-lf0-x236.google.com (mail-lf0-x236.google.com. [2a00:1450:4010:c07::236])
-        by mx.google.com with ESMTPS id p10si13269906lfi.16.2016.05.02.11.03.06
+Received: from mail-qg0-f71.google.com (mail-qg0-f71.google.com [209.85.192.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 33C296B0253
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 14:03:10 -0400 (EDT)
+Received: by mail-qg0-f71.google.com with SMTP id b14so304644950qge.2
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:03:10 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a88si15506046qgf.53.2016.05.02.11.03.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 11:03:06 -0700 (PDT)
-Received: by mail-lf0-x236.google.com with SMTP id y84so196842825lfc.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 11:03:06 -0700 (PDT)
-Date: Mon, 2 May 2016 21:03:03 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: GUP guarantees wrt to userspace mappings redesign
-Message-ID: <20160502180303.GA26252@node.shutemov.name>
-References: <20160429005106.GB2847@node.shutemov.name>
+        Mon, 02 May 2016 11:03:09 -0700 (PDT)
+Date: Mon, 2 May 2016 20:03:07 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [BUG] vfio device assignment regression with THP ref counting
+ redesign
+Message-ID: <20160502180307.GB12310@redhat.com>
+References: <20160428181726.GA2847@node.shutemov.name>
+ <20160428125808.29ad59e5@t450s.home>
+ <20160428232127.GL11700@redhat.com>
+ <20160429005106.GB2847@node.shutemov.name>
  <20160428204542.5f2053f7@ul30vt.home>
  <20160429070611.GA4990@node.shutemov.name>
  <20160429163444.GM11700@redhat.com>
  <20160502104119.GA23305@node.shutemov.name>
- <20160502111513.GA4079@gmail.com>
- <20160502121402.GB23305@node.shutemov.name>
- <20160502141538.GA5961@redhat.com>
- <20160502162128.GF24419@node.shutemov.name>
- <20160502162211.GA11678@redhat.com>
+ <20160502152307.GA12310@redhat.com>
+ <20160502160042.GC24419@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160502162211.GA11678@redhat.com>
+In-Reply-To: <20160502160042.GC24419@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Jerome Glisse <j.glisse@gmail.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, May 02, 2016 at 06:22:11PM +0200, Oleg Nesterov wrote:
-> On 05/02, Kirill A. Shutemov wrote:
-> >
-> > On Mon, May 02, 2016 at 04:15:38PM +0200, Oleg Nesterov wrote:
-> > > >
-> > > >  - I don't see any check page_count() around __replace_page() in uprobes,
-> > > >    so it can easily replace pinned page.
-> > >
-> > > Why it should? even if it races with get_user_pages_fast()... this doesn't
-> > > differ from the case when an application writes to MAP_PRIVATE non-anonymous
-> > > region, no?
-> >
-> > < I know nothing about uprobes or ptrace in general >
-> >
-> > I think the difference is that the write is initiated by the process
-> > itself, but IIUC __replace_page() can be initiated by other process, so
-> > it's out of control of the application.
-> 
-> Yes. Just like gdb can insert a breakpoint into the read-only executable vma.
-> 
-> > So we have pages pinned by a driver and the driver expects the pinned
-> > pages to be mapped into userspace, then __replace_page() kicks in and put
-> > different page there -- driver's expectation is broken.
-> 
-> Yes... but I don't understand the problem space. I mean, I do not know why
-> this driver should expect this, how it can be broken, etc.
-> 
-> I do not even understand why "initiated by other process" can make any
-> difference... Unless this driver somehow controls all threads which could
-> have this page mapped.
+On Mon, May 02, 2016 at 07:00:42PM +0300, Kirill A. Shutemov wrote:
+> Sounds correct, but code is going to be ugly :-/
 
-Okay, my understanding is following:
+Now if a page is not shared in the parent, it is already in the local
+anon_vma. The only thing we could lose here is a pmd split in the
+child caused by swapping and then parent releases the page, child
+reuse it but it stays in the anon_vma of the parent. It doesn't sound
+like a major concern.
 
-Some drivers (i.e. vfio) rely on get_user_page{,_fast}() to pin the memory
-and expect pinned pages to be mapped into userspace until the pin is gone.
-This memory is used to communicate between kernel and userspace.
+What we could to improve this though, is to do a rmap walk after the
+physical split_huge_page succeeded, to relocate the page->mapping to
+the local vma->anon_vma of the child if page_mapcount() is 1 before
+releasing the (root) anon_vma lock. If a page got a pmd split it'll be
+a candidate for a physical split if any of the ptes has been
+unmapped.
 
-This kinda works unless an application does something that can change page
-tables in the area: fork() (due CoW), mremap(), munmap(), MADV_DONTNEED,
-etc.
+If it wasn't because of THP in tmpfs the old THP refcounting overall I
+think would have been simpler, it never had issues like these, but
+having a single model for all THP sounds much easier to maintain over
+time, instead of dealing with totally different models and rules and
+locking for every filesystem and MM part. This is why I hope we'll
+soon leverage all this work in tmpfs too. With tmpfs being able to map
+the compound THP with both ptes and pmds is mandatory, the old
+refcounting had a too big constraint to make compound THP work in tmpfs.
 
-This model is really fragile, but the application has (kinda) control over
-the situation: if it's very careful, it can keep the mapping intact.
+> I didn't say we shouldn't fix the problem on THP side. But the attitude
+> "get_user_pages() would magically freeze page tables" worries me.
 
-With __replace_page() situation is different: it can be triggered from
-outside of process and therefore out of control of the application.
+It doesn't need to freeze page tables, it only needs to prevent the
+pages to be freed. In fact this bug cannot generate random kernel
+corruption no matter what, but then userland view of the memory will
+go out of sync and it can generate data corruption to userland (in RAM
+or hardware device DMA).
 
-I don't think there's something to fix on uprobe side. It's part of
-debugging interface. Debuggers can be destructive, nothing new there.
-I just tried to find the cases why this usage of GUP is not correct...
+What THP refcounting did is just to change some expectation on the
+userland side in terms of when the view on the pinned pages would get
+lost and replaced by copies, depending what userland did. A process to
+invoke page pinning must have root (or enough capabilities anyway), so
+it's somewhat connected to the kernel behavior, it's non standard.
 
--- 
- Kirill A. Shutemov
+However issues like this are userland visible even to not privileged
+tasks, in fact it's strongly recommended to use MADV_DONTFORK on the
+get_user_pages addresses, if a program is using
+get_user_pages/O_DIRECT+fork+threads to avoid silent data corruption.
+
+> Agreed. I just didn't see the two-refcounts solution.
+
+If you didn't do it already or if you're busy with something else,
+I can change the patch to the two refcount solution, which should
+restore the old semantics without breaking rmap.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
