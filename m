@@ -1,87 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F54D6B007E
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 12:22:54 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id j8so144875781lfd.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 09:22:54 -0700 (PDT)
-Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
-        by mx.google.com with ESMTPS id ld7si34979575wjb.127.2016.05.02.09.22.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 09:22:53 -0700 (PDT)
-Received: by mail-wm0-x22c.google.com with SMTP id n129so113989051wmn.1
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 09:22:52 -0700 (PDT)
-Message-ID: <57277EDA.9000803@plexistor.com>
-Date: Mon, 02 May 2016 19:22:50 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FB5C6B007E
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 12:33:57 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id zy2so301501376pac.1
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 09:33:57 -0700 (PDT)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTP id lx17si38218915pab.66.2016.05.02.09.33.55
+        for <linux-mm@kvack.org>;
+        Mon, 02 May 2016 09:33:56 -0700 (PDT)
+Message-ID: <57278294.3060006@emindsoft.com.cn>
+Date: Tue, 03 May 2016 00:38:44 +0800
+From: Chen Gang <chengang@emindsoft.com.cn>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
-References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>	<1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>	<5727753F.6090104@plexistor.com> <CAPcyv4jWPTDbbw6uMFEEt2Kazgw+wb5Pfwroej--uQPE+AtUbA@mail.gmail.com>
-In-Reply-To: <CAPcyv4jWPTDbbw6uMFEEt2Kazgw+wb5Pfwroej--uQPE+AtUbA@mail.gmail.com>
+Subject: Re: [PATCH] mm/kasan/kasan.h: Fix boolean checking issue for kasan_report_enabled()
+References: <1462167374-6321-1-git-send-email-chengang@emindsoft.com.cn>	<CACT4Y+Z7Yfsq9wjJuoeegEvPBvJs9iX6wN2VO1scA7HA4TVLmQ@mail.gmail.com>	<572735EB.8030300@emindsoft.com.cn>	<CACT4Y+Yrq4mt6c8wQKU7WcTnN7k28T3hM1V6_DWF-NpmuMH7Gw@mail.gmail.com>	<572747C2.5040009@emindsoft.com.cn>	<CAG_fn=VGJAGb71HU4rC9MNboqPqPs4EPgcWBfaiBpcgNQ2qFqA@mail.gmail.com>	<57275B71.8000907@emindsoft.com.cn>	<CAG_fn=WBPcQ8HgG13RksM=v833Q4GmM4dXhFNa9ihhMnOWKLmA@mail.gmail.com>	<57276E95.1030201@emindsoft.com.cn> <CAG_fn=W76ArZumUwM-fqsAZC2ksoi8azMPah+1aopigmrEWSNQ@mail.gmail.com> <57277EEA.6070909@emindsoft.com.cn>
+In-Reply-To: <57277EEA.6070909@emindsoft.com.cn>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Vishal Verma <vishal.l.verma@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-block@vger.kernel.org, Jan Kara <jack@suse.cz>, Matthew Wilcox <matthew@wil.cx>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, XFS Developers <xfs@oss.sgi.com>, Jens Axboe <axboe@fb.com>, Linux MM <linux-mm@kvack.org>, Al Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Alexander Potapenko <glider@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
 
-On 05/02/2016 07:01 PM, Dan Williams wrote:
-> On Mon, May 2, 2016 at 8:41 AM, Boaz Harrosh <boaz@plexistor.com> wrote:
->> On 04/29/2016 12:16 AM, Vishal Verma wrote:
->>> All IO in a dax filesystem used to go through dax_do_io, which cannot
->>> handle media errors, and thus cannot provide a recovery path that can
->>> send a write through the driver to clear errors.
+On 5/3/16 00:23, Chen Gang wrote:
+> On 5/2/16 23:35, Alexander Potapenko wrote:
+>> On Mon, May 2, 2016 at 5:13 PM, Chen Gang <chengang@emindsoft.com.cn> wrote:
 >>>
->>> Add a new iocb flag for DAX, and set it only for DAX mounts. In the IO
->>> path for DAX filesystems, use the same direct_IO path for both DAX and
->>> direct_io iocbs, but use the flags to identify when we are in O_DIRECT
->>> mode vs non O_DIRECT with DAX, and for O_DIRECT, use the conventional
->>> direct_IO path instead of DAX.
+>>> OK. But it does not look quite easy to use kasan_disable_current() for
+>>> INIT_KASAN which is used in INIT_TASK.
 >>>
->>
->> Really? What are your thinking here?
->>
->> What about all the current users of O_DIRECT, you have just made them
->> 4 times slower and "less concurrent*" then "buffred io" users. Since
->> direct_IO path will queue an IO request and all.
->> (And if it is not so slow then why do we need dax_do_io at all? [Rhetorical])
->>
->> I hate it that you overload the semantics of a known and expected
->> O_DIRECT flag, for special pmem quirks. This is an incompatible
->> and unrelated overload of the semantics of O_DIRECT.
+>>> If we have to set "kasan_depth == 1", we have to use kasan_depth-- in
+>>> kasan_enable_current().
+>> Agreed, decrementing the counter in kasan_enable_current() is more natural.
+>> I can fix this together with the comments.
 > 
-> I think it is the opposite situation, it us undoing the premature
-> overloading of O_DIRECT that went in without performance numbers.
+> OK, thanks. And need I also send patch v2 for include/linux/kasan.h? (or
+> you will fix them together).
+> 
+>>>
+>>> If we don't prevent the overflow, it will have negative effect with the
+>>> caller. When we issue an warning, it means the caller's hope fail, but
+>>> can not destroy the caller's original work. In our case:
+>>>
+>>>  - Assume "kasan_depth-- for kasan_enable_current()", the first enable
+>>>    will let kasan_depth be 0.
+>> Sorry, I'm not sure I follow.
+>> If we start with kasan_depth=0 (which is the default case for every
+>> task except for the init, which also gets kasan_depth=0 short after
+>> the kernel starts),
+>> then the first call to kasan_disable_current() will make kasan_depth
+>> nonzero and will disable KASAN.
+>> The subsequent call to kasan_enable_current() will enable KASAN back.
+>>
+>> There indeed is a problem when someone calls kasan_enable_current()
+>> without previously calling kasan_disable_current().
+>> In this case we need to check that kasan_depth was zero and print a
+>> warning if it was.
+>> It actually does not matter whether we modify kasan_depth after that
+>> warning or not, because we are already in inconsistent state.
+>> But I think we should modify kasan_depth anyway to ease the debugging.
+>>
 
-We have tons of measurements. Is not hard to imagine the results though.
-Specially the 1000 threads case
+Oh, sorry, I forgot one of our original discussing content:
 
-> This implementation clarifies that dax_do_io() handles the lack of a
-> page cache for buffered I/O and O_DIRECT behaves as it nominally would
-> by sending an I/O to the driver.  
+ - If we use signed int kasan_depth, and kasan_depth <= 0 means enable, I
+   guess, we can always modify kasan_depth.
 
-> It has the benefit of matching the
-> error semantics of a typical block device where a buffered write could
-> hit an error filling the page cache, but an O_DIRECT write potentially
-> triggers the drive to remap the block.
+ - When overflow/underflow (singed int overflow), we can use BUG_ON(),
+   since it should be rarely happen.
+
+Thanks.
+
+> 
+> For me, BUG_ON() will be better for debugging, but it is really not well
+> for using.  For WARN_ON(), it already print warnings, so I am not quite
+> sure "always modifying kasan_depth will be ease the debugging".
+> 
+> When we are in inconsistent state, for me, what we can do is:
+> 
+>  - Still try to do correct things within our control: "when the caller
+>    make a mistake, if kasan_enable_current() notices about it, it need
+>    issue warning, and prevent itself to make mistake (causing disable).
+> 
+>  - "try to let negative effect smaller to user", e.g. let users "loose
+>    hope" (call enable has no effect) instead of destroying users'
+>    original work (call enable, but get disable).
+> 
+> Thanks.
 > 
 
-I fail to see how in writes the device error semantics regarding remapping of
-blocks is any different between buffered and direct IO. As far as the block
-device it is the same exact code path. All The big difference is higher in the
-VFS.
+-- 
+Chen Gang (e??a??)
 
-And ... So you are willing to sacrifice the 99% hotpath for the sake of the
-1% error path? and piggybacking on poor O_DIRECT.
-
-Again there are tons of O_DIRECT apps out there, why are you forcing them to
-change if they want true pmem performance?
-
-I still believe dax_do_io() can be made more resilient to errors, and clear
-errors on writes. Me going digging in old patches ...
-
-Cheers
-Boaz
+Managing Natural Environments is the Duty of Human Beings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
