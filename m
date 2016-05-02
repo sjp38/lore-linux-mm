@@ -1,155 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 20B3D6B007E
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 11:18:41 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id x189so196114714ywe.2
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:18:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 199si15014837qhk.92.2016.05.02.08.18.39
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 017D26B007E
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 11:23:01 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id x7so459558548qkd.2
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:23:00 -0700 (PDT)
+Received: from mail-qg0-x231.google.com (mail-qg0-x231.google.com. [2607:f8b0:400d:c04::231])
+        by mx.google.com with ESMTPS id b70si15060429qge.25.2016.05.02.08.23.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 08:18:40 -0700 (PDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-References: <1459303190-20072-1-git-send-email-vishal.l.verma@intel.com>
-	<1459303190-20072-6-git-send-email-vishal.l.verma@intel.com>
-	<x49twj26edj.fsf@segfault.boston.devel.redhat.com>
-	<20160420205923.GA24797@infradead.org>
-	<1461434916.3695.7.camel@intel.com>
-	<20160425083114.GA27556@infradead.org>
-	<1461604476.3106.12.camel@intel.com> <20160425232552.GD18496@dastard>
-	<1461628381.1421.24.camel@intel.com> <20160426004155.GF18496@dastard>
-Date: Mon, 02 May 2016 11:18:36 -0400
-In-Reply-To: <20160426004155.GF18496@dastard> (Dave Chinner's message of "Tue,
-	26 Apr 2016 10:41:55 +1000")
-Message-ID: <x49pot4ebeb.fsf@segfault.boston.devel.redhat.com>
+        Mon, 02 May 2016 08:23:00 -0700 (PDT)
+Received: by mail-qg0-x231.google.com with SMTP id f92so70628550qgf.0
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:23:00 -0700 (PDT)
+Date: Mon, 2 May 2016 17:22:49 +0200
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: GUP guarantees wrt to userspace mappings
+Message-ID: <20160502152249.GA5827@gmail.com>
+References: <20160428232127.GL11700@redhat.com>
+ <20160429005106.GB2847@node.shutemov.name>
+ <20160428204542.5f2053f7@ul30vt.home>
+ <20160429070611.GA4990@node.shutemov.name>
+ <20160429163444.GM11700@redhat.com>
+ <20160502104119.GA23305@node.shutemov.name>
+ <20160502111513.GA4079@gmail.com>
+ <20160502121402.GB23305@node.shutemov.name>
+ <20160502133919.GB4079@gmail.com>
+ <20160502150013.GA24419@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20160502150013.GA24419@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, "Dan J. Williams" <dan.j.williams@intel.com>
-Cc: "Verma, Vishal L" <vishal.l.verma@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "jack@suse.cz" <jack@suse.cz>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Dave Chinner <david@fromorbit.com> writes:
+On Mon, May 02, 2016 at 06:00:13PM +0300, Kirill A. Shutemov wrote:
+> On Mon, May 02, 2016 at 03:39:20PM +0200, Jerome Glisse wrote:
+> > On Mon, May 02, 2016 at 03:14:02PM +0300, Kirill A. Shutemov wrote:
+> > > On Mon, May 02, 2016 at 01:15:13PM +0200, Jerome Glisse wrote:
+> > > > On Mon, May 02, 2016 at 01:41:19PM +0300, Kirill A. Shutemov wrote:
+> > > > > Other thing I would like to discuss is if there's a problem on vfio side.
+> > > > > To me it looks like vfio expects guarantee from get_user_pages() which it
+> > > > > doesn't provide: obtaining pin on the page doesn't guarantee that the page
+> > > > > is going to remain mapped into userspace until the pin is gone.
+> > > > > 
+> > > > > Even with THP COW regressing fixed, vfio would stay fragile: any
+> > > > > MADV_DONTNEED/fork()/mremap()/whatever what would make vfio expectation
+> > > > > broken.
+> > > > > 
+> > > > 
+> > > > Well i don't think it is fair/accurate assessment of get_user_pages(), page
+> > > > must remain mapped to same virtual address until pin is gone. I am ignoring
+> > > > mremap() as it is a scient decision from userspace and while virtual address
+> > > > change in that case, the pined page behind should move with the mapping.
+> > > > Same of MADV_DONTNEED. I agree that get_user_pages() is broken after fork()
+> > > > but this have been the case since dawn of time, so it is something expected.
+> > > > 
+> > > > If not vfio, then direct-io, have been expecting this kind of behavior for
+> > > > long time, so i see this as part of get_user_pages() guarantee.
+> > > > 
+> > > > Concerning vfio, not providing this guarantee will break countless number of
+> > > > workload. Thing like qemu/kvm allocate anonymous memory and hand it over to
+> > > > the guest kernel which presents it as memory. Now a device driver inside the
+> > > > guest kernel need to get bus mapping for a given (guest) page, which from
+> > > > host point of view means a mapping from anonymous page to bus mapping but
+> > > > for guest to keep accessing the same page the anonymous mapping (ie a
+> > > > specific virtual address on the host side) must keep pointing to the same
+> > > > page. This have been the case with get_user_pages() until now, so whether
+> > > > we like it or not we must keep that guarantee.
+> > > > 
+> > > > This kind of workload knows that they can't do mremap()/fork()/... and keep
+> > > > that guarantee but they at expect existing guarantee and i don't think we
+> > > > can break that.
+> > > 
+> > > Quick look around:
+> > > 
+> > >  - I don't see any check page_count() around __replace_page() in uprobes,
+> > >    so it can easily replace pinned page.
+> > 
+> > Not an issue for existing user as this is only use to instrument code, existing
+> > user do not execute code from virtual address for which they have done a GUP.
+> 
+> Okay, so we can establish that GUP doesn't provide the guarantee in some
+> cases.
 
-> On Mon, Apr 25, 2016 at 11:53:13PM +0000, Verma, Vishal L wrote:
->> On Tue, 2016-04-26 at 09:25 +1000, Dave Chinner wrote:
-> You're assuming that only the DAX aware application accesses it's
-> files.  users, backup programs, data replicators, fileystem
-> re-organisers (e.g.  defragmenters) etc all may access the files and
-> they may throw errors. What then?
+Correct but it use to provide that guarantee in respect to THP.
 
-I'm not sure how this is any different from regular storage.  If an
-application gets EIO, it's up to the app to decide what to do with that.
 
->> > Where does the application find the data that was lost to be able to
->> > rewrite it?
->>=20
->> The data that was lost is gone -- this assumes the application has some
->> ability to recover using a journal/log or other redundancy - yes, at the
->> application layer. If it doesn't have this sort of capability, the only
->> option is to restore files from a backup/mirror.
->
-> So the architecture has a built in assumption that only userspace
-> can handle data loss?
+> > >  - KSM has the page_count() check, there's still race wrt GUP_fast: it can
+> > >    take the pin between the check and establishing new pte entry.
+> > 
+> > KSM is not an issue for existing user as they all do get_user_pages() with
+> > write = 1 and the KSM first map page read only before considering to replace
+> > them and check page refcount. So there can be no race with gup_fast there.
+> 
+> In vfio case, 'write' is conditional on IOMMU_WRITE, meaning not all
+> get_user_pages() are with write=1.
 
-Remember that the proposed programming model completely bypasses the
-kernel, so yes, it is expected that user-space will have to deal with
-the problem.
+I think this is still fine as it means that device will read only and thus
+you can migrate to different page (ie the guest is not expecting to read back
+anything writen by the device and device writting to the page would be illegal
+and a proper IOMMU would forbid it). So it is like direct-io when you write
+from anonymous memory to a file.
 
-> What about filesytsems like NOVA, that use log structured design to
-> provide DAX w/ update atomicity and can potentially also provide
-> redundancy/repair through the same mechanisms? Won't pmem native
-> filesystems with built in data protection features like this remove
-> the need for adding all this to userspace applications?
 
-I don't think we'll /only/ support NOVA for pmem.  So we'll have to deal
-with this for existing file systems, right?
+> > >  - khugepaged: the same story as with KSM.
+> > 
+> > I am assuming you are talking about collapse_huge_page() here, if you look in
+> > that function there is a comment about GUP_fast. Noneless i believe the comment
+> > is wrong as i believe there is an existing race window btw pmdp_collapse_flush()
+> > and __collapse_huge_page_isolate() :
+> > 
+> >   get_user_pages_fast()          | collapse_huge_page()
+> >    gup_pmd_range() -> valid pmd  | ...
+> >                                  | pmdp_collapse_flush() clear pmd
+> >                                  | ...
+> >                                  | __collapse_huge_page_isolate()
+> >                                  | [Above check page count and see no GUP]
+> >    gup_pte_range() -> ref page   |
+> > 
+> > This is a very unlikely race because get_user_pages_fast() can not be preempted
+> > while collapse_huge_page() can be preempted btw pmdp_collapse_flush() and
+> > __collapse_huge_page_isolate(), more over collapse_huge_page() has lot more
+> > instructions to chew on than get_user_pages_fast() btw gup_pmd_range() and
+> > gup_pte_range().
+> 
+> Yes, the race window is small, but there.
 
-> If so, shouldn't that be the focus of development rahter than
-> placing the burden on userspace apps to handle storage repair
-> situations?
+Now that i think again about it, i don't think it exist. pmdp_collapse_flush()
+will flush the tlb and thus send an IPI but get_user_pages_fast() can't be
+preempted so the flush will have to wait for existing get_user_pages_fast() to
+complete. Or am i missunderstanding flush ? So khugepaged is safe from GUP_fast
+point of view like the comment, inside it, says.
 
-It really depends on the programming model.  In the model Vishal is
-talking about, either the applications themselves or the libraries they
-link to are expected to implement the redundancies where necessary.
 
->> > There's an implicit assumption that applications will keep redundant
->> > copies of their data at the /application layer/ and be able to
->> > automatically repair it?
+> > So i think this is an unlikely race. I am not sure how to forbid it from
+> > happening, except maybe in get_user_pages_fast() by checking pmd is still
+> > valid after gup_pte_range().
+> 
+> Switching to non-fast GUP would help :-P
+> 
+> > > I don't see how we can deliver on the guarantee, especially with lockless
+> > > GUP_fast.
+> > > 
+> > > Or am I missing something important?
+> > 
+> > So as said above, i think existing user of get_user_pages() are not sensitive
+> > to the races you pointed above. I am sure there are some corner case where
+> > the guarantee that GUP pin a page against a virtual address is violated but
+> > i do not think they apply to any existing user of GUP.
+> > 
+> > Note that i would personaly like that this existing assumption about GUP did
+> > not exist. I hate it, but fact is that it does exist and nobody can remember
+> > where the Doc did park the Delorean
+> 
+> The drivers who want the guarantee can provide own ->mmap and have more
+> control on what is visible in userspace.
+> 
+> Alternatively, we have mmu_notifiers to track changes in userspace
+> mappings.
+> 
 
-That's one way to do things.  It really depends on the application what
-it will do for recovery.
+Well you can't not rely on special vma here. Qemu alloc anonymous memory and
+hand it over to guest, then a guest driver (ie runing in the guest not on the
+host) try to map that memory and need valid DMA address for it, this is when
+vfio (on the host kernel) starts pining memory of regular anonymous vma (on
+the host). That same memory might back some special vma with ->mmap callback
+but in the guest. Point is there is no driver on the host and no special vma.
+>From host point of view this is anonymous memory, but from guest POV it is
+just memory.
 
->> > And then there's the implicit assumption that it will unlink and
->> > free the entire file before writing a new copy
+Requiring special vma would need major change to kvm and probably xen, in
+respect on how they support things like PCI passthrough.
 
-I think Vishal was referring to restoring from backup.  cp itself will
-truncate the file before overwriting, iirc.
-
->> To summarize, the two cases we want to handle are:
->> 1. Application has inbuilt recovery:
->> =C2=A0 - hits badblock
->> =C2=A0 - figures out it is able to recover the data
->> =C2=A0 - handles SIGBUS or EIO
->> =C2=A0 - does a (sector aligned) write() to restore the data
->
-> The "figures out" step here is where >95% of the work we'd have to
-> do is. And that's in filesystem and block layer code, not
-> userspace, and userspace can't do that work in a signal handler.
-> And it  can still fall down to the second case when the application
-> doesn't have another copy of the data somewhere.
-
-I read that "figures out" step as the application determining whether or
-not it had a redundant copy.
-
-> FWIW, we don't have a DAX enabled filesystem that can do
-> reverse block mapping, so we're a year or two away from this being a
-> workable production solution from the filesystem perspective. And
-> AFAICT, it's not even on the roadmap for dm/md layers.
-
-Do we even need that?  What if we added an FIEMAP flag for determining
-bad blocks.  The file system could simply walk the list of extents for
-the file and check the corresponding disk blocks.  No reverse mapping
-required.  Also note that DM/MD don't support direct_access(), either,
-so I don't think they're relevant for this discussion.
-
->> 2. Application doesn't have any inbuilt recovery mechanism
->> =C2=A0 - hits badblock
->> =C2=A0 - gets SIGBUS (or EIO) and crashes
->> =C2=A0 - Sysadmin restores file from backup
->
-> Which is no different to an existing non-DAX application getting an
-> EIO/sigbus from current storage technologies.
->
-> Except: in the existing storage stack, redundancy and correction has
-> already had to have failed for the application to see such an error.
-> Hence this is normally considered a DR case as there's had to be
-> cascading failures (e.g.  multiple disk failures in a RAID) to get
-> to this stage, not a single error in a single sector in
-> non-redundant storage.
->
-> We need some form of redundancy and correction in the PMEM stack to
-> prevent single sector errors from taking down services until an
-> administrator can correct the problem. I'm trying to understand
-> where this is supposed to fit into the picture - at this point I
-> really don't think userspace applications are going to be able to do
-> this reliably....
-
-Not all storage is configured into a RAID volume, and in some instances,
-the application is better positioned to recover the data (gluster/ceph,
-for example).  It really comes down to whether applications or libraries
-will want to implement redundancy themselves in order to get a bump in
-performance by not going through the kernel.  And I think I know what
-your opinion is on that front.  :-)
-
-Speaking of which, did you see the numbers Dan shared at LSF on how much
-overhead there is in calling into the kernel for syncing?  Dan, can/did
-you publish that spreadsheet somewhere?
+In existing workload, host kernel can not make assumption on how anonymous
+memory is gonna be use.
 
 Cheers,
-Jeff
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
