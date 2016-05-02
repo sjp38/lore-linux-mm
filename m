@@ -1,146 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AEEF86B007E
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 11:00:17 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e201so78608465wme.1
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:00:17 -0700 (PDT)
-Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
-        by mx.google.com with ESMTPS id fu6si34581781wjc.186.2016.05.02.08.00.16
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 76F926B0253
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 11:01:13 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id s63so79814351wme.2
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:01:13 -0700 (PDT)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id mb4si34535527wjb.202.2016.05.02.08.01.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 08:00:16 -0700 (PDT)
-Received: by mail-wm0-x233.google.com with SMTP id g17so146939119wme.1
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:00:16 -0700 (PDT)
-Date: Mon, 2 May 2016 18:00:13 +0300
+        Mon, 02 May 2016 08:01:12 -0700 (PDT)
+Received: by mail-wm0-x22f.google.com with SMTP id v200so23026391wmv.1
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:01:12 -0700 (PDT)
+Date: Mon, 2 May 2016 18:01:10 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: GUP guarantees wrt to userspace mappings
-Message-ID: <20160502150013.GA24419@node.shutemov.name>
-References: <20160428125808.29ad59e5@t450s.home>
- <20160428232127.GL11700@redhat.com>
- <20160429005106.GB2847@node.shutemov.name>
- <20160428204542.5f2053f7@ul30vt.home>
- <20160429070611.GA4990@node.shutemov.name>
- <20160429163444.GM11700@redhat.com>
- <20160502104119.GA23305@node.shutemov.name>
- <20160502111513.GA4079@gmail.com>
- <20160502121402.GB23305@node.shutemov.name>
- <20160502133919.GB4079@gmail.com>
+Subject: Re: mm: pages are not freed from lru_add_pvecs after process
+ termination
+Message-ID: <20160502150109.GB24419@node.shutemov.name>
+References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
+ <5720F2A8.6070406@intel.com>
+ <572766A7.9090406@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160502133919.GB4079@gmail.com>
+In-Reply-To: <572766A7.9090406@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Alex Williamson <alex.williamson@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Dave Hansen <dave.hansen@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
 
-On Mon, May 02, 2016 at 03:39:20PM +0200, Jerome Glisse wrote:
-> On Mon, May 02, 2016 at 03:14:02PM +0300, Kirill A. Shutemov wrote:
-> > On Mon, May 02, 2016 at 01:15:13PM +0200, Jerome Glisse wrote:
-> > > On Mon, May 02, 2016 at 01:41:19PM +0300, Kirill A. Shutemov wrote:
-> > > > Other thing I would like to discuss is if there's a problem on vfio side.
-> > > > To me it looks like vfio expects guarantee from get_user_pages() which it
-> > > > doesn't provide: obtaining pin on the page doesn't guarantee that the page
-> > > > is going to remain mapped into userspace until the pin is gone.
-> > > > 
-> > > > Even with THP COW regressing fixed, vfio would stay fragile: any
-> > > > MADV_DONTNEED/fork()/mremap()/whatever what would make vfio expectation
-> > > > broken.
-> > > > 
-> > > 
-> > > Well i don't think it is fair/accurate assessment of get_user_pages(), page
-> > > must remain mapped to same virtual address until pin is gone. I am ignoring
-> > > mremap() as it is a scient decision from userspace and while virtual address
-> > > change in that case, the pined page behind should move with the mapping.
-> > > Same of MADV_DONTNEED. I agree that get_user_pages() is broken after fork()
-> > > but this have been the case since dawn of time, so it is something expected.
-> > > 
-> > > If not vfio, then direct-io, have been expecting this kind of behavior for
-> > > long time, so i see this as part of get_user_pages() guarantee.
-> > > 
-> > > Concerning vfio, not providing this guarantee will break countless number of
-> > > workload. Thing like qemu/kvm allocate anonymous memory and hand it over to
-> > > the guest kernel which presents it as memory. Now a device driver inside the
-> > > guest kernel need to get bus mapping for a given (guest) page, which from
-> > > host point of view means a mapping from anonymous page to bus mapping but
-> > > for guest to keep accessing the same page the anonymous mapping (ie a
-> > > specific virtual address on the host side) must keep pointing to the same
-> > > page. This have been the case with get_user_pages() until now, so whether
-> > > we like it or not we must keep that guarantee.
-> > > 
-> > > This kind of workload knows that they can't do mremap()/fork()/... and keep
-> > > that guarantee but they at expect existing guarantee and i don't think we
-> > > can break that.
-> > 
-> > Quick look around:
-> > 
-> >  - I don't see any check page_count() around __replace_page() in uprobes,
-> >    so it can easily replace pinned page.
+On Mon, May 02, 2016 at 04:39:35PM +0200, Vlastimil Babka wrote:
+> On 04/27/2016 07:11 PM, Dave Hansen wrote:
+> >6. Perhaps don't use the LRU pagevecs for large pages.  It limits the
+> >    severity of the problem.
 > 
-> Not an issue for existing user as this is only use to instrument code, existing
-> user do not execute code from virtual address for which they have done a GUP.
+> I think that makes sense. Being large already amortizes the cost per base
+> page much more than pagevecs do (512 vs ~22 pages?).
 
-Okay, so we can establish that GUP doesn't provide the guarantee in some
-cases.
-
-> >  - KSM has the page_count() check, there's still race wrt GUP_fast: it can
-> >    take the pin between the check and establishing new pte entry.
-> 
-> KSM is not an issue for existing user as they all do get_user_pages() with
-> write = 1 and the KSM first map page read only before considering to replace
-> them and check page refcount. So there can be no race with gup_fast there.
-
-In vfio case, 'write' is conditional on IOMMU_WRITE, meaning not all
-get_user_pages() are with write=1.
-
-> >  - khugepaged: the same story as with KSM.
-> 
-> I am assuming you are talking about collapse_huge_page() here, if you look in
-> that function there is a comment about GUP_fast. Noneless i believe the comment
-> is wrong as i believe there is an existing race window btw pmdp_collapse_flush()
-> and __collapse_huge_page_isolate() :
-> 
->   get_user_pages_fast()          | collapse_huge_page()
->    gup_pmd_range() -> valid pmd  | ...
->                                  | pmdp_collapse_flush() clear pmd
->                                  | ...
->                                  | __collapse_huge_page_isolate()
->                                  | [Above check page count and see no GUP]
->    gup_pte_range() -> ref page   |
-> 
-> This is a very unlikely race because get_user_pages_fast() can not be preempted
-> while collapse_huge_page() can be preempted btw pmdp_collapse_flush() and
-> __collapse_huge_page_isolate(), more over collapse_huge_page() has lot more
-> instructions to chew on than get_user_pages_fast() btw gup_pmd_range() and
-> gup_pte_range().
-
-Yes, the race window is small, but there.
-
-> So i think this is an unlikely race. I am not sure how to forbid it from
-> happening, except maybe in get_user_pages_fast() by checking pmd is still
-> valid after gup_pte_range().
-
-Switching to non-fast GUP would help :-P
-
-> > I don't see how we can deliver on the guarantee, especially with lockless
-> > GUP_fast.
-> > 
-> > Or am I missing something important?
-> 
-> So as said above, i think existing user of get_user_pages() are not sensitive
-> to the races you pointed above. I am sure there are some corner case where
-> the guarantee that GUP pin a page against a virtual address is violated but
-> i do not think they apply to any existing user of GUP.
-> 
-> Note that i would personaly like that this existing assumption about GUP did
-> not exist. I hate it, but fact is that it does exist and nobody can remember
-> where the Doc did park the Delorean
-
-The drivers who want the guarantee can provide own ->mmap and have more
-control on what is visible in userspace.
-
-Alternatively, we have mmu_notifiers to track changes in userspace
-mappings.
+We try to do this already, don't we? Any spefic case where we have THPs on
+pagevecs?
 
 -- 
  Kirill A. Shutemov
