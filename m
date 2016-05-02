@@ -1,97 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 654616B025E
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 07:23:05 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r12so74268031wme.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 04:23:05 -0700 (PDT)
-Received: from mail-lf0-x231.google.com (mail-lf0-x231.google.com. [2a00:1450:4010:c07::231])
-        by mx.google.com with ESMTPS id re10si16822183lbb.202.2016.05.02.04.23.04
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FC196B025E
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 07:30:55 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id i75so67859415ioa.3
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 04:30:55 -0700 (PDT)
+Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
+        by mx.google.com with ESMTPS id gy8si10676761igb.45.2016.05.02.04.30.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 04:23:04 -0700 (PDT)
-Received: by mail-lf0-x231.google.com with SMTP id y84so183880032lfc.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 04:23:04 -0700 (PDT)
+        Mon, 02 May 2016 04:30:54 -0700 (PDT)
+From: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>
+Subject: RE: [PATCH] kasan: improve double-free detection
+Date: Mon, 2 May 2016 11:30:36 +0000
+Message-ID: <20E775CA4D599049A25800DE5799F6DD1F61EF48@G9W0752.americas.hpqcorp.net>
+References: <20160502094920.GA3005@cherokee.in.rdlabs.hpecorp.net>
+ <CACT4Y+YV4A_YbDq5asowLJPUODottNHAKScWoRdUx6uy+TN-Uw@mail.gmail.com>
+In-Reply-To: <CACT4Y+YV4A_YbDq5asowLJPUODottNHAKScWoRdUx6uy+TN-Uw@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <572737FB.2020405@emindsoft.com.cn>
-References: <1462167348-6280-1-git-send-email-chengang@emindsoft.com.cn>
-	<CAG_fn=W5Ai_cqhzyi=EBEyhhQtvoQtOsuyfBfRihf=fuKh2Xqw@mail.gmail.com>
-	<572737FB.2020405@emindsoft.com.cn>
-Date: Mon, 2 May 2016 13:23:03 +0200
-Message-ID: <CAG_fn=W7m0UN6-38Ut0c-a_m4BfuUPjrmHQThGCLLqV-brKTmA@mail.gmail.com>
-Subject: Re: [PATCH] include/linux/kasan.h: Notice about 0 for kasan_[dis/en]able_current()
-From: Alexander Potapenko <glider@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <chengang@emindsoft.com.cn>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitriy Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, May 2, 2016 at 1:20 PM, Chen Gang <chengang@emindsoft.com.cn> wrote=
-:
-> On 5/2/16 18:49, Alexander Potapenko wrote:
->> On Mon, May 2, 2016 at 7:35 AM,  <chengang@emindsoft.com.cn> wrote:
->>>
->>> According to their comments and the kasan_depth's initialization, if
->>> kasan_depth is zero, it means disable. So kasan_depth need consider
->>> about the 0 overflow.
->>>
->>> Also remove useless comments for dummy kasan_slab_free().
->>>
->>> Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
->>
->> Acked-by: Alexander Potapenko <glider@google.com>
-Nacked-by: Alexander Potapenko <glider@google.com>
->>
->
-> OK, thanks.
-Well, on a second thought I take that back, there still might be problems.
-I haven't noticed the other CL, and was too hasty reviewing this one.
-
-As kasan_disable_current() and kasan_enable_current() always go
-together, we need to prevent nested calls to them from breaking
-everything.
-If we ignore some calls to kasan_disable_current() to prevent
-overflows, the pairing calls to kasan_enable_current() will bring
-|current->kasan_depth| to an invalid state.
-
-E.g. if I'm understanding your idea correctly, after the following
-sequence of calls:
-  kasan_disable_current();  // #1
-  kasan_disable_current();  // #2
-  kasan_enable_current();  // #3
-  kasan_enable_current();  // #4
-
-the value of |current->kasan_depth| will be 2, so a single subsequent
-call to kasan_disable_current() won't disable KASAN.
-
-I think we'd better add BUG checks to bail out if the value of
-|current->kasan_depth| is too big or too small.
-
-> Another patch thread is also related with this patch thread, please help
-> check.
->
-> And sorry, originally, I did not let the 2 patches in one patches set.
->
-> Thanks.
-> --
-> Chen Gang (=E9=99=88=E5=88=9A)
->
-> Managing Natural Environments is the Duty of Human Beings.
-
-
-
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+SGkgRG1pdHJ5LA0KDQpUaGFua3MgdmVyeSBtdWNoIGZvciB5b3VyIHJlc3BvbnNlL3Jldmlldy4N
+Cg0KPiBJIGFncmVlIHRoYXQgaXQncyBzb21ldGhpbmcgd2UgbmVlZCB0byBmaXggKHVzZXItc3Bh
+Y2UgQVNBTiBkb2VzDQo+IHNvbWV0aGluZyBhbG9uZyB0aGVzZSBsaW5lcykuIE15IG9ubHkgY29u
+Y2VybiBpcyBpbmNyZWFzZSBvZg0KPiBrYXNhbl9hbGxvY19tZXRhIHNpemUuIEl0J3MgdW5uZWNl
+c3NhcnkgbGFyZ2UgYWxyZWFkeSBhbmQgd2UgaGF2ZSBhDQo+IHBsYW4gdG8gcmVkdWNlIGJvdGgg
+YWxsb2MgYW5kIGZyZWUgaW50byB0byAxNiBieXRlcy4gSG93ZXZlciwgaXQgY2FuDQo+IG1ha2Ug
+c2Vuc2UgdG8gbGFuZCB0aGlzIGFuZCB0aGVuIHJlZHVjZSBzaXplIG9mIGhlYWRlcnMgaW4gYSBz
+ZXBhcmF0ZQ0KPiBwYXRjaCB1c2luZyBhIENBUy1sb29wIG9uIHN0YXRlLg0KDQpvay4NCg0KPiAg
+QWxleGFuZGVyLCB3aGF0J3MgdGhlIHN0YXRlIG9mIHlvdXINCj4gcGF0Y2hlcyB0aGF0IHJlZHVj
+ZSBoZWFkZXIgc2l6ZT8NCj4gDQo+IEkgdGhpbmsgdGhlcmUgaXMgYW5vdGhlciByYWNlLiBJZiB3
+ZSBoYXZlIHJhY2luZyBmcmVlcywgb25lIHRocmVhZA0KPiBzZXRzIHN0YXRlIHRvIEtBU0FOX1NU
+QVRFX1FVQVJBTlRJTkUgYnV0IGRvZXMgbm90IGZpbGwNCj4gZnJlZV9pbmZvLT50cmFjayB5ZXQs
+IGF0IHRoaXMgcG9pbnQgYW5vdGhlciB0aHJlYWQgZG9lcyBmcmVlIGFuZA0KPiByZXBvcnRzIGRv
+dWJsZS1mcmVlLCBidXQgdGhlIHRyYWNrIGlzIHdyb25nIHNvIHdlIHdpbGwgcHJpbnQgYSBib2d1
+cw0KPiBzdGFjay4gVGhlIHNhbWUgaXMgdHJ1ZSBmb3IgYWxsIG90aGVyIHN0YXRlIHRyYW5zaXRp
+b25zIChlLmcuDQo+IHVzZS1hZnRlci1mcmVlIHJhY2luZyB3aXRoIHRoZSBvYmplY3QgYmVpbmcg
+cHVzaGVkIG91dCBvZiB0aGUNCj4gcXVhcmFudGluZSkuDQoNClllcywgSSd2ZSBub3RpY2VkIHRo
+aXMgdG9vLiBGb3IgdGhlIGRvdWJsZS1mcmVlLCBpbiBteSBsb2NhbCB0ZXN0cywgdGhlIGVycm9y
+DQpyZXBvcnRzIGZyb20gdGhlIGJhZCBmcmVlcyBnZXQgcHJpbnRlZCBvbmx5IGFmdGVyIHRoZSBz
+dWNjZXNzZnVsICJnb29kIg0KZnJlZSBzZXQgdGhlIG5ldyB0cmFjayBpbmZvLiBCdXQgdGhlbiwg
+SSB3YXMgdXNpbmcga2FzYW5fcmVwb3J0KCkgb24gdGhlDQplcnJvciBwYXRoIHRvIGdldCBzYW5l
+IHJlcG9ydHMgZnJvbSB0aGUgbXVsdGlwbGUgY29uY3VycmVudCBmcmVlcyBzbyB0aGF0DQptYXkg
+aGF2ZSAic2xvd2VkIiBkb3duIHRoZSBlcnJvciBwYXRocyBlbm91Z2ggdW50aWwgdGhlIGdvb2Qg
+ZnJlZSB3YXMNCmRvbmUuIEFncmVlZCwgdGhlIHdpbmRvdyBzdGlsbCBleGlzdHMgZm9yIGEgc3Rh
+bGUgKG9yIG1pc3NpbmcpIGRlYWxsb2NhdGlvbg0Kc3RhY2sgaW4gZXJyb3IgcmVwb3J0Lg0KDQo+
+ICBXZSBjb3VsZCBpbnRyb2R1Y2UgMiBoZWxwZXIgZnVuY3Rpb25zIGxpa2U6DQo+IA0KPiAvKiBT
+ZXRzIHN0YXR1cyB0byBLQVNBTl9TVEFURV9MT0NLRUQgaWYgdGhlIGN1cnJlbnQgc3RhdHVzIGlz
+IGVxdWFsIHRvDQo+IG9sZF9zdGF0ZSwgcmV0dXJucyBjdXJyZW50IHN0YXRlLiBXYWl0cyB3aGls
+ZSBjdXJyZW50IHN0YXRlIGVxdWFscw0KPiBLQVNBTl9TVEFURV9MT0NLRUQuICovDQo+IHUzMiBr
+YXNhbl9sb2NrX2lmX3N0YXRlX2VxdWFscyhzdHJ1Y3Qga2FzYW5fYWxsb2NfbWV0YSAqbWV0YSwg
+dTMyIG9sZF9zdGF0ZSk7DQo+IA0KPiAvKiBDaGFuZ2VzIHN0YXRlIGZyb20gS0FTQU5fU1RBVEVf
+TE9DS0VEIHRvIG5ld19zdGF0ZSAqLw0KPiB2b2lkIGthc2FuX3VubG9ja19hbmRfc2V0X3N0YXR1
+cyhzdHJ1Y3Qga2FzYW5fYWxsb2NfbWV0YSAqbWV0YSwgdTMyDQo+IG5ld19zdGF0ZSk7DQo+IA0K
+PiBUaGVuIGZyZWUgY2FuIGJlIGV4cHJlc3NlZCBhczoNCj4gDQo+IGlmIChrYXNhbl9sb2NrX2lm
+X3N0YXRlX2VxdWFscyhtZXRhLCBLQVNBTl9TVEFURV9BTExPQykgPT0NCj4gS0FTQU5fU1RBVEVf
+QUxMT0MpIHsNCj4gICAgICAgICAgICAgICAgZnJlZV9pbmZvID0gZ2V0X2ZyZWVfaW5mbyhjYWNo
+ZSwgb2JqZWN0KTsNCj4gICAgICAgICAgICAgICAgcXVhcmFudGluZV9wdXQoZnJlZV9pbmZvLCBj
+YWNoZSk7DQo+ICAgICAgICAgICAgICAgIHNldF90cmFjaygmZnJlZV9pbmZvLT50cmFjaywgR0ZQ
+X05PV0FJVCk7DQo+ICAgICAgICAgICAgICAgIGthc2FuX3BvaXNvbl9zbGFiX2ZyZWUoY2FjaGUs
+IG9iamVjdCk7DQo+ICAgICAgICAgICAgICAgIGthc2FuX3VubG9ja19hbmRfc2V0X3N0YXR1cyht
+ZXRhLCBLQVNBTl9TVEFURV9RVUFSQU5USU5FKTsNCj4gICAgICAgICAgICAgICAgcmV0dXJuIHRy
+dWU7DQo+IH0NCj4gDQo+IEFuZCBvbiB0aGUgcmVwb3J0aW5nIHBhdGggd2Ugd291bGQgbmVlZCB0
+byBsb2NrIHRoZSBoZWFkZXIsIHJlYWQgYWxsDQo+IHN0YXRlLCB1bmxvY2sgdGhlIGhlYWRlci4N
+Cj4gDQo+IERvZXMgaXQgbWFrZSBzZW5zZT8NCg0KSXQgZG9lcywgdGhhbmtzISBJJ2xsIHRyeSB0
+byBoYWNrIHVwIHNvbWV0aGluZywgdGhvdWdoIHJpZ2h0IG5vdywgaXQncyBub3QgZW50aXJlbHkN
+CmNsZWFyIHRvIG1lIGhvdyB0byBhY2hpZXZlIHRoaXMgd2l0aG91dCByZXNvcnRpbmcgdG8gYSBn
+bG9iYWwgbG9jayAod2hpY2ggd291bGQNCmJlIHVuYWNjZXB0YWJsZSkuDQoNCj4gDQo+IFBsZWFz
+ZSBhZGQgdGhlIHRlc3QgYXMgd2VsbC4gV2UgbmVlZCB0byBzdGFydCBjb2xsZWN0aW5nIHRlc3Rz
+IGZvciBhbGwNCj4gdGhlc2UgdHJpY2t5IGNvcm5lciBjYXNlcy4NCg0KU3VyZSwgYSBuZXcgdGVz
+dCBjYW4gYmUgYWRkZWQgZm9yIHRlc3Rfa2FzYW4ua28uIFVubGlrZSB0aGUgb3RoZXIgdGVzdHMs
+IGENCmRvdWJsZS1mcmVlIHdvdWxkIGxpa2VseSBwYW5pYyB0aGUgc3lzdGVtIGR1ZSB0byBzbGFi
+IGNvcnJ1cHRpb24uIFdvdWxkIGl0IHN0aWxsDQpiZSAiS0FTQU5pYyIgZm9yIGthc2FuX3NsYWJf
+ZnJlZSgpIHRvIHJldHVybiB0cnVlIGFmdGVyIHJlcG9ydGluZyBkb3VibGUtZnJlZQ0KYXR0ZW1w
+dCBlcnJvciBzbyB0aHJlYWQgd2lsbCBub3QgY2FsbCBpbnRvIF9fY2FjaGVfZnJlZSgpPyBIb3cg
+ZG9lcyBBU0FODQpoYW5kbGUgdGhpcz8NCg0KVGhhbmtzLA0KDQpLdXRob251em8NCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
