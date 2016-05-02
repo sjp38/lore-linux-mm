@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f200.google.com (mail-ig0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 031B36B007E
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 01:36:28 -0400 (EDT)
-Received: by mail-ig0-f200.google.com with SMTP id sq19so175694086igc.0
-        for <linux-mm@kvack.org>; Sun, 01 May 2016 22:36:28 -0700 (PDT)
-Received: from out1134-235.mail.aliyun.com (out1134-235.mail.aliyun.com. [42.120.134.235])
-        by mx.google.com with ESMTP id ii3si12556596igb.6.2016.05.01.22.36.26
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AD55B6B0253
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 01:36:54 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id t140so110881619oie.0
+        for <linux-mm@kvack.org>; Sun, 01 May 2016 22:36:54 -0700 (PDT)
+Received: from out1134-201.mail.aliyun.com (out1134-201.mail.aliyun.com. [42.120.134.201])
+        by mx.google.com with ESMTP id ke3si17268211igc.21.2016.05.01.22.36.43
         for <linux-mm@kvack.org>;
-        Sun, 01 May 2016 22:36:27 -0700 (PDT)
+        Sun, 01 May 2016 22:36:54 -0700 (PDT)
 From: chengang@emindsoft.com.cn
-Subject: [PATCH] mm/kasan/kasan.h: Fix boolean checking issue for kasan_report_enabled()
-Date: Mon,  2 May 2016 13:36:14 +0800
-Message-Id: <1462167374-6321-1-git-send-email-chengang@emindsoft.com.cn>
+Subject: [PATCH] include/linux/kasan.h: Notice about 0 for kasan_[dis/en]able_current()
+Date: Mon,  2 May 2016 13:35:48 +0800
+Message-Id: <1462167348-6280-1-git-send-email-chengang@emindsoft.com.cn>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, aryabinin@virtuozzo.com, glider@google.com, dvyukov@google.com
@@ -19,30 +19,48 @@ Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 From: Chen Gang <chengang@emindsoft.com.cn>
 
-According to kasan_[dis|en]able_current() comments and the kasan_depth'
-s initialization, if kasan_depth is zero, it means disable.
+According to their comments and the kasan_depth's initialization, if
+kasan_depth is zero, it means disable. So kasan_depth need consider
+about the 0 overflow.
 
-So need use "!!kasan_depth" instead of "!kasan_depth" for checking
-enable.
+Also remove useless comments for dummy kasan_slab_free().
 
 Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
 ---
- mm/kasan/kasan.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/linux/kasan.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index 7da78a6..6464b8f 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -102,7 +102,7 @@ static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
- 
- static inline bool kasan_report_enabled(void)
+diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+index 645c280..37fab04 100644
+--- a/include/linux/kasan.h
++++ b/include/linux/kasan.h
+@@ -32,13 +32,15 @@ static inline void *kasan_mem_to_shadow(const void *addr)
+ /* Enable reporting bugs after kasan_disable_current() */
+ static inline void kasan_enable_current(void)
  {
--	return !current->kasan_depth;
-+	return !!current->kasan_depth;
+-	current->kasan_depth++;
++	if (current->kasan_depth + 1)
++		current->kasan_depth++;
  }
  
- void kasan_report(unsigned long addr, size_t size,
+ /* Disable reporting bugs for current task */
+ static inline void kasan_disable_current(void)
+ {
+-	current->kasan_depth--;
++	if (current->kasan_depth)
++		current->kasan_depth--;
+ }
+ 
+ void kasan_unpoison_shadow(const void *address, size_t size);
+@@ -113,8 +115,6 @@ static inline void kasan_krealloc(const void *object, size_t new_size,
+ 
+ static inline void kasan_slab_alloc(struct kmem_cache *s, void *object,
+ 				   gfp_t flags) {}
+-/* kasan_slab_free() returns true if the object has been put into quarantine.
+- */
+ static inline bool kasan_slab_free(struct kmem_cache *s, void *object)
+ {
+ 	return false;
 -- 
 1.9.3
 
