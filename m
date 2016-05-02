@@ -1,95 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 574846B007E
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 06:49:27 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id s63so73624667wme.2
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 03:49:27 -0700 (PDT)
-Received: from mail-lf0-x234.google.com (mail-lf0-x234.google.com. [2a00:1450:4010:c07::234])
-        by mx.google.com with ESMTPS id i192si16754221lfb.230.2016.05.02.03.49.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 03:49:25 -0700 (PDT)
-Received: by mail-lf0-x234.google.com with SMTP id j8so51107720lfd.2
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 03:49:25 -0700 (PDT)
+Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 044EA6B007E
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 07:06:52 -0400 (EDT)
+Received: by mail-ob0-f199.google.com with SMTP id rd14so215921047obb.3
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 04:06:52 -0700 (PDT)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTP id 70si15468856ioh.95.2016.05.02.04.06.49
+        for <linux-mm@kvack.org>;
+        Mon, 02 May 2016 04:06:51 -0700 (PDT)
+Message-ID: <572735EB.8030300@emindsoft.com.cn>
+Date: Mon, 02 May 2016 19:11:39 +0800
+From: Chen Gang <chengang@emindsoft.com.cn>
 MIME-Version: 1.0
-In-Reply-To: <1462167348-6280-1-git-send-email-chengang@emindsoft.com.cn>
-References: <1462167348-6280-1-git-send-email-chengang@emindsoft.com.cn>
-Date: Mon, 2 May 2016 12:49:25 +0200
-Message-ID: <CAG_fn=W5Ai_cqhzyi=EBEyhhQtvoQtOsuyfBfRihf=fuKh2Xqw@mail.gmail.com>
-Subject: Re: [PATCH] include/linux/kasan.h: Notice about 0 for kasan_[dis/en]able_current()
-From: Alexander Potapenko <glider@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH] mm/kasan/kasan.h: Fix boolean checking issue for kasan_report_enabled()
+References: <1462167374-6321-1-git-send-email-chengang@emindsoft.com.cn> <CACT4Y+Z7Yfsq9wjJuoeegEvPBvJs9iX6wN2VO1scA7HA4TVLmQ@mail.gmail.com>
+In-Reply-To: <CACT4Y+Z7Yfsq9wjJuoeegEvPBvJs9iX6wN2VO1scA7HA4TVLmQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: chengang@emindsoft.com.cn
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitriy Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chen Gang <gang.chen.5i5j@gmail.com>
 
-On Mon, May 2, 2016 at 7:35 AM,  <chengang@emindsoft.com.cn> wrote:
-> From: Chen Gang <chengang@emindsoft.com.cn>
->
-> According to their comments and the kasan_depth's initialization, if
-> kasan_depth is zero, it means disable. So kasan_depth need consider
-> about the 0 overflow.
->
-> Also remove useless comments for dummy kasan_slab_free().
->
-> Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
-> ---
->  include/linux/kasan.h | 8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
->
-> diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-> index 645c280..37fab04 100644
-> --- a/include/linux/kasan.h
-> +++ b/include/linux/kasan.h
-> @@ -32,13 +32,15 @@ static inline void *kasan_mem_to_shadow(const void *a=
-ddr)
->  /* Enable reporting bugs after kasan_disable_current() */
->  static inline void kasan_enable_current(void)
->  {
-> -       current->kasan_depth++;
-> +       if (current->kasan_depth + 1)
-> +               current->kasan_depth++;
->  }
->
->  /* Disable reporting bugs for current task */
->  static inline void kasan_disable_current(void)
->  {
-> -       current->kasan_depth--;
-> +       if (current->kasan_depth)
-> +               current->kasan_depth--;
->  }
->
->  void kasan_unpoison_shadow(const void *address, size_t size);
-> @@ -113,8 +115,6 @@ static inline void kasan_krealloc(const void *object,=
- size_t new_size,
->
->  static inline void kasan_slab_alloc(struct kmem_cache *s, void *object,
->                                    gfp_t flags) {}
-> -/* kasan_slab_free() returns true if the object has been put into quaran=
-tine.
-> - */
->  static inline bool kasan_slab_free(struct kmem_cache *s, void *object)
->  {
->         return false;
-> --
-> 1.9.3
->
+On 5/2/16 16:26, Dmitry Vyukov wrote:
+> On Mon, May 2, 2016 at 7:36 AM,  <chengang@emindsoft.com.cn> wrote:
+>> From: Chen Gang <chengang@emindsoft.com.cn>
+>>
+>> According to kasan_[dis|en]able_current() comments and the kasan_depth'
+>> s initialization, if kasan_depth is zero, it means disable.
+>>
+>> So need use "!!kasan_depth" instead of "!kasan_depth" for checking
+>> enable.
+>>
+> 
+> Hi Chen,
+> 
+> I don't think this is correct.
 
-Acked-by: Alexander Potapenko <glider@google.com>
+OK, thanks.
 
---=20
-Alexander Potapenko
-Software Engineer
+> We seem to have some incorrect comments around kasan_depth, and a
+> weird way of manipulating it (disable should increment, and enable
+> should decrement). But in the end it is working. This change will
+> suppress all true reports and enable all false reports.
+> 
 
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
+For me, I guess, what you said above is reasonable.
 
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+But it is really strange to any newbies (e.g. me), so it will be better
+to get another member's confirmation, too. If no any additional reply by
+any other members within 3 days, I shall treat what you said is OK.
+
+> If you want to improve kasan_depth handling, then please fix the
+> comments and make disable increment and enable decrement (potentially
+> with WARNING on overflow/underflow). It's better to produce a WARNING
+> rather than silently ignore the error. We've ate enough unmatched
+> annotations in user space (e.g. enable is skipped on an error path).
+> These unmatched annotations are hard to notice (they suppress
+> reports). So in user space we bark loudly on overflows/underflows and
+> also check that a thread does not exit with enabled suppressions.
+> 
+
+For me, when WARNING on something, it will dummy the related feature
+which should be used (may let user's hope fail), but should not get the
+negative result (hurt user's original work). So in our case:
+
+ - When caller calls kasan_report_enabled(), kasan_depth-- to 0, 
+
+ - When a caller calls kasan_report_enabled() again, the caller will get
+   a warning, and notice about this calling is failed, but it is still
+   in enable state, should not change to disable state automatically.
+
+ - If we report an warning, but still kasan_depth--, it will let things
+   much complex.
+
+And for me, another improvements can be done:
+
+ - signed int kasan_depth may be a little better. When kasan_depth > 0,
+   it is in disable state, else in enable state. It will be much harder
+   to generate overflow than unsigned int kasan_depth.
+
+ - Let kasan_[en|dis]able_current() return Boolean value to notify the
+   caller whether the calling succeeds or fails.
+
+Thanks.
+-- 
+Chen Gang (e??a??)
+
+Managing Natural Environments is the Duty of Human Beings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
