@@ -1,45 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E4E0C6B0253
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 11:49:07 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id zy2so299608930pac.1
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:49:07 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id a13si19011708pfc.215.2016.05.02.08.49.07
-        for <linux-mm@kvack.org>;
-        Mon, 02 May 2016 08:49:07 -0700 (PDT)
-Subject: Re: mm: pages are not freed from lru_add_pvecs after process
- termination
-References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
- <5720F2A8.6070406@intel.com> <572766A7.9090406@suse.cz>
- <20160502150109.GB24419@node.shutemov.name>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <572776EF.2070804@intel.com>
-Date: Mon, 2 May 2016 08:49:03 -0700
-MIME-Version: 1.0
-In-Reply-To: <20160502150109.GB24419@node.shutemov.name>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 66D306B0253
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 11:51:35 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 203so359293614pfy.2
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 08:51:35 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id o86si2010256pfi.217.2016.05.02.08.51.34
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 May 2016 08:51:34 -0700 (PDT)
+Message-ID: <1462204291.11211.20.camel@kernel.org>
+Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
+From: Vishal Verma <vishal@kernel.org>
+Date: Mon, 02 May 2016 09:51:31 -0600
+In-Reply-To: <5727753F.6090104@plexistor.com>
+References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>
+	 <1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>
+	 <5727753F.6090104@plexistor.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>
-Cc: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
+To: Boaz Harrosh <boaz@plexistor.com>, Vishal Verma <vishal.l.verma@intel.com>, linux-nvdimm@lists.01.org
+Cc: linux-block@vger.kernel.org, Jan Kara <jack@suse.cz>, Matthew Wilcox <matthew@wil.cx>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, Jens Axboe <axboe@fb.com>, linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-ext4@vger.kernel.org
 
-On 05/02/2016 08:01 AM, Kirill A. Shutemov wrote:
-> On Mon, May 02, 2016 at 04:39:35PM +0200, Vlastimil Babka wrote:
->> On 04/27/2016 07:11 PM, Dave Hansen wrote:
->>> 6. Perhaps don't use the LRU pagevecs for large pages.  It limits the
->>>    severity of the problem.
->>
->> I think that makes sense. Being large already amortizes the cost per base
->> page much more than pagevecs do (512 vs ~22 pages?).
+On Mon, 2016-05-02 at 18:41 +0300, Boaz Harrosh wrote:
+> On 04/29/2016 12:16 AM, Vishal Verma wrote:
+> > 
+> > All IO in a dax filesystem used to go through dax_do_io, which
+> > cannot
+> > handle media errors, and thus cannot provide a recovery path that
+> > can
+> > send a write through the driver to clear errors.
+> > 
+> > Add a new iocb flag for DAX, and set it only for DAX mounts. In the
+> > IO
+> > path for DAX filesystems, use the same direct_IO path for both DAX
+> > and
+> > direct_io iocbs, but use the flags to identify when we are in
+> > O_DIRECT
+> > mode vs non O_DIRECT with DAX, and for O_DIRECT, use the
+> > conventional
+> > direct_IO path instead of DAX.
+> > 
+> Really? What are your thinking here?
 > 
-> We try to do this already, don't we? Any spefic case where we have THPs on
-> pagevecs?
+> What about all the current users of O_DIRECT, you have just made them
+> 4 times slower and "less concurrent*" then "buffred io" users. Since
+> direct_IO path will queue an IO request and all.
+> (And if it is not so slow then why do we need dax_do_io at all?
+> [Rhetorical])
+> 
+> I hate it that you overload the semantics of a known and expected
+> O_DIRECT flag, for special pmem quirks. This is an incompatible
+> and unrelated overload of the semantics of O_DIRECT.
 
-Lukas was hitting this on a RHEL 7 era kernel.  In his kernel at least,
-I'm pretty sure THP's were ending up on pagevecs.  Are you saying you
-don't think we're doing that any more?
+We overloaded O_DIRECT a long time ago when we made DAX piggyback on
+the same path:
+
+static inline bool io_is_direct(struct file *filp)
+{
+	return (filp->f_flags & O_DIRECT) || IS_DAX(filp->f_mapping->host);
+}
+
+Yes O_DIRECT on a DAX mounted file system will now be slower, but -
+
+> 
+> > 
+> > This allows us a recovery path in the form of opening the file with
+> > O_DIRECT and writing to it with the usual O_DIRECT semantics
+> > (sector
+> > alignment restrictions).
+> > 
+> I understand that you want a sector aligned IO, right? for the
+> clear of errors. But I hate it that you forced all O_DIRECT IO
+> to be slow for this.
+> Can you not make dax_do_io handle media errors? At least for the
+> parts of the IO that are aligned.
+> (And your recovery path application above can use only aligned
+> A IO to make sure)
+> 
+> Please look for another solution. Even a special
+> IOCTL_DAX_CLEAR_ERROR
+
+A - see all the versions of this series prior to this one, where we try
+to do a fallback...
+
+> 
+> [*"less concurrent" because of the queuing done in bdev. Note how
+> A  pmem is not even multi-queue, and even if it was it will be much
+> A  slower then DAX because of the code depth and all the locks and
+> task
+> A  switches done in the block layer. In DAX the final memcpy is done
+> directly
+> A  on the user-mode thread]
+> 
+> Thanks
+> Boaz
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
