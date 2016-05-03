@@ -1,71 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1918A6B0005
-	for <linux-mm@kvack.org>; Tue,  3 May 2016 14:30:07 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 203so55596181pfy.2
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 11:30:07 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id y6si520481paf.29.2016.05.03.11.30.05
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BEC96B0005
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 16:28:03 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id yl2so42009434pac.2
+        for <linux-mm@kvack.org>; Tue, 03 May 2016 13:28:03 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id 6si173952paj.187.2016.05.03.13.28.02
         for <linux-mm@kvack.org>;
-        Tue, 03 May 2016 11:30:05 -0700 (PDT)
-From: "Rudoff, Andy" <andy.rudoff@intel.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-Date: Tue, 3 May 2016 18:30:04 +0000
-Message-ID: <FBB11841-7DFE-4223-9973-3457034260C2@intel.com>
-References: <1461434916.3695.7.camel@intel.com>
- <20160425083114.GA27556@infradead.org> <1461604476.3106.12.camel@intel.com>
- <20160425232552.GD18496@dastard> <1461628381.1421.24.camel@intel.com>
- <20160426004155.GF18496@dastard>
- <x49pot4ebeb.fsf@segfault.boston.devel.redhat.com>
- <CAPcyv4jfUVXoge5D+cBY1Ph=t60165sp6sF_QFZUbFv+cNcdHg@mail.gmail.com>
- <20160503004226.GR26977@dastard>
- <D26BCF92-ED25-4ACA-9CC8-7B1C05A1D5FC@intel.com>
- <20160503024948.GT26977@dastard>
-In-Reply-To: <20160503024948.GT26977@dastard>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <7D8FE82952539F48983E0B1A68FA405B@intel.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        Tue, 03 May 2016 13:28:02 -0700 (PDT)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH] radix-tree: add test for radix_tree_locate_item()
+Date: Tue,  3 May 2016 14:27:43 -0600
+Message-Id: <1462307263-20623-1-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <alpine.LSU.2.11.1605012108490.1166@eggly.anvils>
+References: <alpine.LSU.2.11.1605012108490.1166@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: "Williams, Dan J" <dan.j.williams@intel.com>, "hch@infradead.org" <hch@infradead.org>, "jack@suse.cz" <jack@suse.cz>, "axboe@fb.com" <axboe@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-Pg0KPkFuZCB3aGVuIHRoZSBmaWxlc3lzdGVtIHNheXMgbm8gYmVjYXVzZSB0aGUgZnMgZGV2cyBk
-b24ndCB3YW50IHRvDQo+aGF2ZSB0byBkZWFsIHdpdGggYnJva2VuIGFwcHMgYmVjYXVzZSBhcHAg
-ZGV2cyBsZWFybiB0aGF0ICJ0aGlzIGlzIGENCj5nbyBmYXN0IGtub2IiIGFuZCBkYXRhIGludGVn
-cml0eSBiZSBkYW1uZWQ/IEl0J3MgImZzeW5jIGlzIHNsb3cgc28gSQ0KPndvbid0IHVzZSBpdCIg
-YWxsIG92ZXIgYWdhaW4uLi4NCi4uLg0KPg0KPkFuZCwgcGxlYXNlIGtlZXAgaW4gbWluZDogbWFu
-eSBhcHBsaWNhdGlvbiBkZXZlbG9wZXJzIHdpbGwgbm90DQo+ZGVzaWduIGZvciBwbWVtIGJlY2F1
-c2UgdGhleSBhbHNvIGhhdmUgdG8gc3VwcG9ydCB0cmFkaXRpb25hbA0KPnN0b3JhZ2UgYmFja2Vk
-IGJ5IHBhZ2UgY2FjaGUuIElmIHRoZXkgdXNlIG1zeW5jKCksIHRoZSBhcHAgd2lsbCB3b3JrDQo+
-b24gYW55IHN0b3JhZ2Ugc3RhY2ssIGJ1dCBqdXN0IGJlIG11Y2gsIG11Y2ggZmFzdGVyIG9uIHBt
-ZW0rREFYLiBTbywNCj5yZWFsbHksIHdlIGhhdmUgdG8gbWFrZSB0aGUgbXN5bmMoKS1vbmx5IG1v
-ZGVsIHdvcmsgZWZmaWNpZW50bHksIHNvDQo+d2UgbWF5IGFzIHdlbGwgZGVzaWduIGZvciB0aGF0
-IGluIHRoZSBmaXJzdCBwbGFjZS4uLi4NCg0KQm90aCBvZiB0aGVzZSBzbmlwcGV0cyBzZWVtIHRv
-IGJlIGFyZ3VpbmcgdGhhdCB3ZSBzaG91bGQgbWFrZSBtc3luYy9mc3luYw0KbW9yZSBlZmZpY2ll
-bnQuICBCdXQgSSBkb24ndCB0aGluayBhbnlvbmUgaXMgYXJndWluZyB0aGUgb3Bwb3NpdGUuICBJ
-cw0Kc29tZW9uZSBzYXlpbmcgd2Ugc2hvdWxkbid0IG1ha2UgdGhlIG1zeW5jKCktb25seSBtb2Rl
-bCB3b3JrIGVmZmljaWVudGx5Pw0KDQpTYWlkIGFub3RoZXIgd2F5OiB0aGUgY29tbW9uIGNhc2Ug
-Zm9yIERBWCB3aWxsIGJlIGFwcGxpY2F0aW9ucyBzaW1wbHkNCmZvbGxvd2luZyB0aGUgUE9TSVgg
-bW9kZWwuICBvcGVuLCBtbWFwLCBtc3luYy4uLiAgVGhhdCB3aWxsIHdvcmsgZmluZQ0KYW5kIG9m
-IGNvdXJzZSB3ZSBzaG91bGQgb3B0aW1pemUgdGhhdCBwYXRoIGFzIG11Y2ggYXMgcG9zc2libGUu
-ICBMZXNzDQpjb21tb24gYXJlIGxhdGVuY3ktc2Vuc2l0aXZlIGFwcGxpY2F0aW9ucyBidWlsdCB0
-byBsZXZlcmFnZSB0byBieXRlLQ0KYWRkcmVzc2FibGUgbmF0dXJlIG9mIHBtZW0uICBGaWxlIHN5
-c3RlbXMgc3VwcG9ydGluZyB0aGlzIG1vZGVsIHdpbGwNCmluZGljYXRlIGl0IHVzaW5nIGEgbmV3
-IGlvY3RsIHRoYXQgc2F5cyBkb2luZyBDUFUgY2FjaGUgZmx1c2hlcyBpcw0Kc3VmZmljaWVudCB0
-byBmbHVzaCBzdG9yZXMgdG8gcGVyc2lzdGVuY2UuICBCdXQgSSBkb24ndCBzZWUgaG93IHRoYXQN
-CmRpcmVjdGlvbiBpcyBnZXR0aW5nIHR1cm5lZCBpbnRvIGFuIGFyZ3VtZW50IGFnYWluc3QgbXN5
-bmMoKSBlZmZpY2llbmN5Lg0KDQo+V2hpY2ggYnJpbmdzIHVwIGFub3RoZXIgcG9pbnQ6IGFkdmFu
-Y2VkIG5ldyBmdW5jdGlvbmFsaXR5DQo+aXMgZ29pbmcgdG8gcmVxdWlyZSBuYXRpdmUgcG1lbSBm
-aWxlc3lzdGVtcy4NCg0KSSBhZ3JlZSB0aGVyZSdzIG9wcG9ydHVuaXR5IGZvciBuZXcgZmlsZXN5
-c3RlbXMgKGFuZCBvbGQpIHRvIGxldmVyYWdlDQp3aGF0IHBtZW0gcHJvdmlkZXMuICBCdXQgdGhl
-IHdvcmQgInJlcXVpcmUiIGltcGxpZXMgdGhhdCdzIHRoZSBvbmx5DQp3YXkgdG8gZ28gYW5kIHdl
-IGtub3cgdGhhdCdzIG5vdCB0aGUgY2FzZS4gIFVzaW5nIGV4dDQrZGF4IHRvIG1hcA0KcG1lbSBp
-bnRvIGFuIGFwcGxpY2F0aW9uIGFsbG93cyB0aGF0IGFwcGxpY2F0aW9uIHRvIHVzZSB0aGUgcG1l
-bQ0KZGlyZWN0bHkgYW5kIGEgZ29vZCBudW1iZXIgb2Ygc29mdHdhcmUgcHJvamVjdHMgYXJlIGRv
-aW5nIGV4YWN0bHkgdGhhdC4NCg0KLWFuZHkNCg0K
+Add a unit test that provides coverage for the bug fixed in the commit
+entitled "radix-tree: rewrite radix_tree_locate_item fix" from Hugh
+Dickins.  I've verified that this test fails before his patch due to
+miscalculated 'index' values in __locate() in lib/radix-tree.c, and passes
+with his fix.
+
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ tools/testing/radix-tree/linux/init.h |  1 +
+ tools/testing/radix-tree/main.c       | 15 ++++++++++++++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+ create mode 100644 tools/testing/radix-tree/linux/init.h
+
+diff --git a/tools/testing/radix-tree/linux/init.h b/tools/testing/radix-tree/linux/init.h
+new file mode 100644
+index 0000000..360cabb
+--- /dev/null
++++ b/tools/testing/radix-tree/linux/init.h
+@@ -0,0 +1 @@
++/* An empty file stub that allows radix-tree.c to compile. */
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index 65231e9..b7619ff 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -232,7 +232,7 @@ void copy_tag_check(void)
+ 	item_kill_tree(&tree);
+ }
+ 
+-void __locate_check(struct radix_tree_root *tree, unsigned long index,
++static void __locate_check(struct radix_tree_root *tree, unsigned long index,
+ 			unsigned order)
+ {
+ 	struct item *item;
+@@ -248,12 +248,25 @@ void __locate_check(struct radix_tree_root *tree, unsigned long index,
+ 	}
+ }
+ 
++static void __order_0_locate_check(void)
++{
++	RADIX_TREE(tree, GFP_KERNEL);
++	int i;
++
++	for (i = 0; i < 50; i++)
++		__locate_check(&tree, rand() % INT_MAX, 0);
++
++	item_kill_tree(&tree);
++}
++
+ static void locate_check(void)
+ {
+ 	RADIX_TREE(tree, GFP_KERNEL);
+ 	unsigned order;
+ 	unsigned long offset, index;
+ 
++	__order_0_locate_check();
++
+ 	for (order = 0; order < 20; order++) {
+ 		for (offset = 0; offset < (1 << (order + 3));
+ 		     offset += (1UL << order)) {
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
