@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7789A6B0005
-	for <linux-mm@kvack.org>; Tue,  3 May 2016 01:23:06 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b203so18986597pfb.1
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 22:23:06 -0700 (PDT)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id x66si2286437pfx.231.2016.05.02.22.23.05
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 759BC6B0253
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 01:23:09 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 77so18754863pfz.3
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 22:23:09 -0700 (PDT)
+Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
+        by mx.google.com with ESMTPS id c68si2317376pfd.116.2016.05.02.22.23.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 22:23:05 -0700 (PDT)
-Received: by mail-pf0-x22b.google.com with SMTP id y69so5061255pfb.1
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 22:23:05 -0700 (PDT)
+        Mon, 02 May 2016 22:23:08 -0700 (PDT)
+Received: by mail-pf0-x231.google.com with SMTP id c189so5318668pfb.3
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 22:23:08 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH 0/6] mm/page_owner: use tackdepot to store stacktrace
-Date: Tue,  3 May 2016 14:22:58 +0900
-Message-Id: <1462252984-8524-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 1/6] mm/compaction: split freepages without holding the zone lock
+Date: Tue,  3 May 2016 14:22:59 +0900
+Message-Id: <1462252984-8524-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1462252984-8524-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1462252984-8524-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -22,41 +24,141 @@ Cc: Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-This patchset changes a way to store stacktrace in page_owner in order to
-reduce memory usage. Below is motivation of this patchset coped
-from the patch 6.
+We don't need to split freepages with holding the zone lock. It will cause
+more contention on zone lock so not desirable.
 
-Currently, we store each page's allocation stacktrace on corresponding
-page_ext structure and it requires a lot of memory. This causes the problem
-that memory tight system doesn't work well if page_owner is enabled.
-Moreover, even with this large memory consumption, we cannot get full
-stacktrace because we allocate memory at boot time and just maintain
-8 stacktrace slots to balance memory consumption. We could increase it
-to more but it would make system unusable or change system behaviour.
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ include/linux/mm.h |  1 -
+ mm/compaction.c    | 42 ++++++++++++++++++++++++++++++------------
+ mm/page_alloc.c    | 27 ---------------------------
+ 3 files changed, 30 insertions(+), 40 deletions(-)
 
-To solve the problem, this patch uses stackdepot to store stacktrace.
-
-Thanks.
-
-Joonsoo Kim (6):
-  mm/compaction: split freepages without holding the zone lock
-  mm/page_owner: initialize page owner without holding the zone lock
-  mm/page_owner: copy last_migrate_reason in copy_page_owner()
-  mm/page_owner: introduce split_page_owner and replace manual handling
-  tools/vm/page_owner: increase temporary buffer size
-  mm/page_owner: use stackdepot to store stacktrace
-
- include/linux/mm.h         |   1 -
- include/linux/page_ext.h   |   4 +-
- include/linux/page_owner.h |  12 ++--
- lib/Kconfig.debug          |   1 +
- mm/compaction.c            |  45 +++++++++++----
- mm/page_alloc.c            |  37 +-----------
- mm/page_isolation.c        |   9 ++-
- mm/page_owner.c            | 136 ++++++++++++++++++++++++++++++++++++++-------
- tools/vm/page_owner_sort.c |   9 ++-
- 9 files changed, 173 insertions(+), 81 deletions(-)
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 7b52750..9608f33 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -523,7 +523,6 @@ void __put_page(struct page *page);
+ void put_pages_list(struct list_head *pages);
+ 
+ void split_page(struct page *page, unsigned int order);
+-int split_free_page(struct page *page);
+ 
+ /*
+  * Compound pages have a destructor function.  Provide a
+diff --git a/mm/compaction.c b/mm/compaction.c
+index c9a95c1..ecf0252 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -65,13 +65,31 @@ static unsigned long release_freepages(struct list_head *freelist)
+ 
+ static void map_pages(struct list_head *list)
+ {
+-	struct page *page;
++	unsigned int i, order, nr_pages;
++	struct page *page, *next;
++	LIST_HEAD(tmp_list);
++
++	list_for_each_entry_safe(page, next, list, lru) {
++		list_del(&page->lru);
++
++		order = page_private(page);
++		nr_pages = 1 << order;
++		set_page_private(page, 0);
++		set_page_refcounted(page);
++
++		arch_alloc_page(page, order);
++		kernel_map_pages(page, nr_pages, 1);
++		kasan_alloc_pages(page, order);
++		if (order)
++			split_page(page, order);
+ 
+-	list_for_each_entry(page, list, lru) {
+-		arch_alloc_page(page, 0);
+-		kernel_map_pages(page, 1, 1);
+-		kasan_alloc_pages(page, 0);
++		for (i = 0; i < nr_pages; i++) {
++			list_add(&page->lru, &tmp_list);
++			page++;
++		}
+ 	}
++
++	list_splice(&tmp_list, list);
+ }
+ 
+ static inline bool migrate_async_suitable(int migratetype)
+@@ -368,12 +386,13 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 	unsigned long flags = 0;
+ 	bool locked = false;
+ 	unsigned long blockpfn = *start_pfn;
++	unsigned int order;
+ 
+ 	cursor = pfn_to_page(blockpfn);
+ 
+ 	/* Isolate free pages. */
+ 	for (; blockpfn < end_pfn; blockpfn++, cursor++) {
+-		int isolated, i;
++		int isolated;
+ 		struct page *page = cursor;
+ 
+ 		/*
+@@ -439,13 +458,12 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 				goto isolate_fail;
+ 		}
+ 
+-		/* Found a free page, break it into order-0 pages */
+-		isolated = split_free_page(page);
++		/* Found a free page, will break it into order-0 pages */
++		order = page_order(page);
++		isolated = __isolate_free_page(page, page_order(page));
++		set_page_private(page, order);
+ 		total_isolated += isolated;
+-		for (i = 0; i < isolated; i++) {
+-			list_add(&page->lru, freelist);
+-			page++;
+-		}
++		list_add_tail(&page->lru, freelist);
+ 
+ 		/* If a page was split, advance to the end of it */
+ 		if (isolated) {
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5dd65d9..60d7f10 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2532,33 +2532,6 @@ int __isolate_free_page(struct page *page, unsigned int order)
+ }
+ 
+ /*
+- * Similar to split_page except the page is already free. As this is only
+- * being used for migration, the migratetype of the block also changes.
+- * As this is called with interrupts disabled, the caller is responsible
+- * for calling arch_alloc_page() and kernel_map_page() after interrupts
+- * are enabled.
+- *
+- * Note: this is probably too low level an operation for use in drivers.
+- * Please consult with lkml before using this in your driver.
+- */
+-int split_free_page(struct page *page)
+-{
+-	unsigned int order;
+-	int nr_pages;
+-
+-	order = page_order(page);
+-
+-	nr_pages = __isolate_free_page(page, order);
+-	if (!nr_pages)
+-		return 0;
+-
+-	/* Split into individual pages */
+-	set_page_refcounted(page);
+-	split_page(page, order);
+-	return nr_pages;
+-}
+-
+-/*
+  * Update NUMA hit/miss statistics
+  *
+  * Must be called with interrupts disabled.
 -- 
 1.9.1
 
