@@ -1,96 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 59CBF6B0005
-	for <linux-mm@kvack.org>; Tue,  3 May 2016 13:50:46 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id s63so26481848wme.2
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 10:50:46 -0700 (PDT)
-Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
-        by mx.google.com with ESMTPS id j124si288666wmg.99.2016.05.03.10.50.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 May 2016 10:50:45 -0700 (PDT)
-Received: by mail-wm0-x22b.google.com with SMTP id g17so30145114wme.0
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 10:50:45 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1918A6B0005
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 14:30:07 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 203so55596181pfy.2
+        for <linux-mm@kvack.org>; Tue, 03 May 2016 11:30:07 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id y6si520481paf.29.2016.05.03.11.30.05
+        for <linux-mm@kvack.org>;
+        Tue, 03 May 2016 11:30:05 -0700 (PDT)
+From: "Rudoff, Andy" <andy.rudoff@intel.com>
+Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
+Date: Tue, 3 May 2016 18:30:04 +0000
+Message-ID: <FBB11841-7DFE-4223-9973-3457034260C2@intel.com>
+References: <1461434916.3695.7.camel@intel.com>
+ <20160425083114.GA27556@infradead.org> <1461604476.3106.12.camel@intel.com>
+ <20160425232552.GD18496@dastard> <1461628381.1421.24.camel@intel.com>
+ <20160426004155.GF18496@dastard>
+ <x49pot4ebeb.fsf@segfault.boston.devel.redhat.com>
+ <CAPcyv4jfUVXoge5D+cBY1Ph=t60165sp6sF_QFZUbFv+cNcdHg@mail.gmail.com>
+ <20160503004226.GR26977@dastard>
+ <D26BCF92-ED25-4ACA-9CC8-7B1C05A1D5FC@intel.com>
+ <20160503024948.GT26977@dastard>
+In-Reply-To: <20160503024948.GT26977@dastard>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <7D8FE82952539F48983E0B1A68FA405B@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20E775CA4D599049A25800DE5799F6DD1F61F2B7@G9W0752.americas.hpqcorp.net>
-References: <20160502094920.GA3005@cherokee.in.rdlabs.hpecorp.net>
- <CACT4Y+YV4A_YbDq5asowLJPUODottNHAKScWoRdUx6uy+TN-Uw@mail.gmail.com>
- <20E775CA4D599049A25800DE5799F6DD1F61EF48@G9W0752.americas.hpqcorp.net>
- <CACT4Y+Y5n0u=qLA9A=89B07gMVRiQ+6nQaob2_rk_mOOt57iQw@mail.gmail.com> <20E775CA4D599049A25800DE5799F6DD1F61F2B7@G9W0752.americas.hpqcorp.net>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 3 May 2016 19:50:25 +0200
-Message-ID: <CACT4Y+b9yo58kgkQR5JD+k5N-LNmEF-rPP8OGzoiKkzYUho6FQ@mail.gmail.com>
-Subject: Re: [PATCH] kasan: improve double-free detection
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: "Williams, Dan J" <dan.j.williams@intel.com>, "hch@infradead.org" <hch@infradead.org>, "jack@suse.cz" <jack@suse.cz>, "axboe@fb.com" <axboe@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
 
-On Tue, May 3, 2016 at 11:24 AM, Luruo, Kuthonuzo
-<kuthonuzo.luruo@hpe.com> wrote:
->>
->> We can use per-header lock by setting status to KASAN_STATE_LOCKED.  A
->> thread can CAS any status to KASAN_STATE_LOCKED which means that it
->> locked the header. If any thread tried to modify/read the status and
->> the status is KASAN_STATE_LOCKED, then the thread waits.
->
-> Thanks, Dmitry. I've successfully tested with the concurrent free slab_test test
-> (alloc on cpu 0; then concurrent frees on all other cpus on a 12-vcpu KVM) using:
->
-> static inline bool kasan_alloc_state_lock(struct kasan_alloc_meta *alloc_info)
-> {
->         if (cmpxchg(&alloc_info->state, KASAN_STATE_ALLOC,
->                                 KASAN_STATE_LOCKED) == KASAN_STATE_ALLOC)
->                 return true;
->         return false;
-> }
->
-> static inline void kasan_alloc_state_unlock_wait(struct kasan_alloc_meta
->                 *alloc_info)
-> {
->         while (alloc_info->state == KASAN_STATE_LOCKED)
->                 cpu_relax();
-> }
->
-> Race "winner" sets state to quarantine as the last step:
->
->         if (kasan_alloc_state_lock(alloc_info)) {
->                 free_info = get_free_info(cache, object);
->                 quarantine_put(free_info, cache);
->                 set_track(&free_info->track, GFP_NOWAIT);
->                 kasan_poison_slab_free(cache, object);
->                 alloc_info->state = KASAN_STATE_QUARANTINE;
->                 return true;
->         } else
->                 kasan_alloc_state_unlock_wait(alloc_info);
->
-> Now, I'm not sure whether on current KASAN-supported archs, state byte load in
-> the busy-wait loop is atomic wrt the KASAN_STATE_QUARANTINE byte store.
-> Would you advise using CAS primitives for load/store here too?
-
-Store to state needs to use smp_store_release function, otherwise
-stores to free_info->track can sink below the store to state.
-Similarly, loads of state in kasan_alloc_state_unlock_wait need to use
-smp_store_acquire.
-
-A function similar to kasan_alloc_state_lock will also be needed for
-KASAN_STATE_QUARANTINE -> KASAN_STATE_ALLOC state transition (when we
-reuse the object). If a thread tried to report use-after-free when
-another thread pushes the object out of quarantine and overwrites
-alloc_info->track, the thread will print a bogus stack.
-
-kasan_alloc_state_unlock_wait is not enough to prevent the races.
-Consider that a thread executes kasan_alloc_state_unlock_wait and
-proceeds to reporting, at this point another thread pushes the object
-to quarantine or out of the quarantine and overwrites tracks. The
-first thread will read inconsistent data from the header. Any thread
-that reads/writes header needs to (1) wait while status is
-KASAN_STATE_LOCKED, (2) CAS status to KASAN_STATE_LOCKED, (3)
-read/write header, (4) restore/update status and effectively unlock
-the header.
-Alternatively, we can introduce LOCKED bit to header. Then it will be
-simpler for readers to set/unset the bit.
+Pg0KPkFuZCB3aGVuIHRoZSBmaWxlc3lzdGVtIHNheXMgbm8gYmVjYXVzZSB0aGUgZnMgZGV2cyBk
+b24ndCB3YW50IHRvDQo+aGF2ZSB0byBkZWFsIHdpdGggYnJva2VuIGFwcHMgYmVjYXVzZSBhcHAg
+ZGV2cyBsZWFybiB0aGF0ICJ0aGlzIGlzIGENCj5nbyBmYXN0IGtub2IiIGFuZCBkYXRhIGludGVn
+cml0eSBiZSBkYW1uZWQ/IEl0J3MgImZzeW5jIGlzIHNsb3cgc28gSQ0KPndvbid0IHVzZSBpdCIg
+YWxsIG92ZXIgYWdhaW4uLi4NCi4uLg0KPg0KPkFuZCwgcGxlYXNlIGtlZXAgaW4gbWluZDogbWFu
+eSBhcHBsaWNhdGlvbiBkZXZlbG9wZXJzIHdpbGwgbm90DQo+ZGVzaWduIGZvciBwbWVtIGJlY2F1
+c2UgdGhleSBhbHNvIGhhdmUgdG8gc3VwcG9ydCB0cmFkaXRpb25hbA0KPnN0b3JhZ2UgYmFja2Vk
+IGJ5IHBhZ2UgY2FjaGUuIElmIHRoZXkgdXNlIG1zeW5jKCksIHRoZSBhcHAgd2lsbCB3b3JrDQo+
+b24gYW55IHN0b3JhZ2Ugc3RhY2ssIGJ1dCBqdXN0IGJlIG11Y2gsIG11Y2ggZmFzdGVyIG9uIHBt
+ZW0rREFYLiBTbywNCj5yZWFsbHksIHdlIGhhdmUgdG8gbWFrZSB0aGUgbXN5bmMoKS1vbmx5IG1v
+ZGVsIHdvcmsgZWZmaWNpZW50bHksIHNvDQo+d2UgbWF5IGFzIHdlbGwgZGVzaWduIGZvciB0aGF0
+IGluIHRoZSBmaXJzdCBwbGFjZS4uLi4NCg0KQm90aCBvZiB0aGVzZSBzbmlwcGV0cyBzZWVtIHRv
+IGJlIGFyZ3VpbmcgdGhhdCB3ZSBzaG91bGQgbWFrZSBtc3luYy9mc3luYw0KbW9yZSBlZmZpY2ll
+bnQuICBCdXQgSSBkb24ndCB0aGluayBhbnlvbmUgaXMgYXJndWluZyB0aGUgb3Bwb3NpdGUuICBJ
+cw0Kc29tZW9uZSBzYXlpbmcgd2Ugc2hvdWxkbid0IG1ha2UgdGhlIG1zeW5jKCktb25seSBtb2Rl
+bCB3b3JrIGVmZmljaWVudGx5Pw0KDQpTYWlkIGFub3RoZXIgd2F5OiB0aGUgY29tbW9uIGNhc2Ug
+Zm9yIERBWCB3aWxsIGJlIGFwcGxpY2F0aW9ucyBzaW1wbHkNCmZvbGxvd2luZyB0aGUgUE9TSVgg
+bW9kZWwuICBvcGVuLCBtbWFwLCBtc3luYy4uLiAgVGhhdCB3aWxsIHdvcmsgZmluZQ0KYW5kIG9m
+IGNvdXJzZSB3ZSBzaG91bGQgb3B0aW1pemUgdGhhdCBwYXRoIGFzIG11Y2ggYXMgcG9zc2libGUu
+ICBMZXNzDQpjb21tb24gYXJlIGxhdGVuY3ktc2Vuc2l0aXZlIGFwcGxpY2F0aW9ucyBidWlsdCB0
+byBsZXZlcmFnZSB0byBieXRlLQ0KYWRkcmVzc2FibGUgbmF0dXJlIG9mIHBtZW0uICBGaWxlIHN5
+c3RlbXMgc3VwcG9ydGluZyB0aGlzIG1vZGVsIHdpbGwNCmluZGljYXRlIGl0IHVzaW5nIGEgbmV3
+IGlvY3RsIHRoYXQgc2F5cyBkb2luZyBDUFUgY2FjaGUgZmx1c2hlcyBpcw0Kc3VmZmljaWVudCB0
+byBmbHVzaCBzdG9yZXMgdG8gcGVyc2lzdGVuY2UuICBCdXQgSSBkb24ndCBzZWUgaG93IHRoYXQN
+CmRpcmVjdGlvbiBpcyBnZXR0aW5nIHR1cm5lZCBpbnRvIGFuIGFyZ3VtZW50IGFnYWluc3QgbXN5
+bmMoKSBlZmZpY2llbmN5Lg0KDQo+V2hpY2ggYnJpbmdzIHVwIGFub3RoZXIgcG9pbnQ6IGFkdmFu
+Y2VkIG5ldyBmdW5jdGlvbmFsaXR5DQo+aXMgZ29pbmcgdG8gcmVxdWlyZSBuYXRpdmUgcG1lbSBm
+aWxlc3lzdGVtcy4NCg0KSSBhZ3JlZSB0aGVyZSdzIG9wcG9ydHVuaXR5IGZvciBuZXcgZmlsZXN5
+c3RlbXMgKGFuZCBvbGQpIHRvIGxldmVyYWdlDQp3aGF0IHBtZW0gcHJvdmlkZXMuICBCdXQgdGhl
+IHdvcmQgInJlcXVpcmUiIGltcGxpZXMgdGhhdCdzIHRoZSBvbmx5DQp3YXkgdG8gZ28gYW5kIHdl
+IGtub3cgdGhhdCdzIG5vdCB0aGUgY2FzZS4gIFVzaW5nIGV4dDQrZGF4IHRvIG1hcA0KcG1lbSBp
+bnRvIGFuIGFwcGxpY2F0aW9uIGFsbG93cyB0aGF0IGFwcGxpY2F0aW9uIHRvIHVzZSB0aGUgcG1l
+bQ0KZGlyZWN0bHkgYW5kIGEgZ29vZCBudW1iZXIgb2Ygc29mdHdhcmUgcHJvamVjdHMgYXJlIGRv
+aW5nIGV4YWN0bHkgdGhhdC4NCg0KLWFuZHkNCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
