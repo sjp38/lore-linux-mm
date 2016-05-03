@@ -1,308 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C8E5E6B0265
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 20:47:01 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id zy2so7718081pac.1
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 17:47:01 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 2si1015676pfg.64.2016.05.02.17.47.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 17:47:00 -0700 (PDT)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.5 160/200] x86/mm/kmmio: Fix mmiotrace for hugepages
-Date: Mon,  2 May 2016 17:12:39 -0700
-Message-Id: <20160503000559.844244389@linuxfoundation.org>
-In-Reply-To: <20160503000554.631204776@linuxfoundation.org>
-References: <20160503000554.631204776@linuxfoundation.org>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C96566B0005
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 21:26:49 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b203so11214953pfb.1
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 18:26:49 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id w184si1177378pfw.121.2016.05.02.18.26.48
+        for <linux-mm@kvack.org>;
+        Mon, 02 May 2016 18:26:48 -0700 (PDT)
+From: "Rudoff, Andy" <andy.rudoff@intel.com>
+Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
+Date: Tue, 3 May 2016 01:26:46 +0000
+Message-ID: <D26BCF92-ED25-4ACA-9CC8-7B1C05A1D5FC@intel.com>
+References: <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
+ <20160420205923.GA24797@infradead.org> <1461434916.3695.7.camel@intel.com>
+ <20160425083114.GA27556@infradead.org> <1461604476.3106.12.camel@intel.com>
+ <20160425232552.GD18496@dastard> <1461628381.1421.24.camel@intel.com>
+ <20160426004155.GF18496@dastard>
+ <x49pot4ebeb.fsf@segfault.boston.devel.redhat.com>
+ <CAPcyv4jfUVXoge5D+cBY1Ph=t60165sp6sF_QFZUbFv+cNcdHg@mail.gmail.com>
+ <20160503004226.GR26977@dastard>
+In-Reply-To: <20160503004226.GR26977@dastard>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <0AF4EB11DD0E4F4EBC00F7351C1A2029@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Pierre Moreau <pierre.morrow@free.fr>, Karol Herbst <nouveau@karolherbst.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Luis R. Rodriguez" <mcgrof@suse.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org, linux-x86_64@vger.kernel.org, nouveau@lists.freedesktop.org, pq@iki.fi, rostedt@goodmis.org, Ingo Molnar <mingo@kernel.org>
+To: Dave Chinner <david@fromorbit.com>, "Williams, Dan J" <dan.j.williams@intel.com>
+Cc: "hch@infradead.org" <hch@infradead.org>, "jack@suse.cz" <jack@suse.cz>, "axboe@fb.com" <axboe@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
 
-4.5-stable review patch.  If anyone has any objections, please let me know.
-
-------------------
-
-From: Karol Herbst <nouveau@karolherbst.de>
-
-commit cfa52c0cfa4d727aa3e457bf29aeff296c528a08 upstream.
-
-Because Linux might use bigger pages than the 4K pages to handle those mmio
-ioremaps, the kmmio code shouldn't rely on the pade id as it currently does.
-
-Using the memory address instead of the page id lets us look up how big the
-page is and what its base address is, so that we won't get a page fault
-within the same page twice anymore.
-
-Tested-by: Pierre Moreau <pierre.morrow@free.fr>
-Signed-off-by: Karol Herbst <nouveau@karolherbst.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Luis R. Rodriguez <mcgrof@suse.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Toshi Kani <toshi.kani@hp.com>
-Cc: linux-mm@kvack.org
-Cc: linux-x86_64@vger.kernel.org
-Cc: nouveau@lists.freedesktop.org
-Cc: pq@iki.fi
-Cc: rostedt@goodmis.org
-Link: http://lkml.kernel.org/r/1456966991-6861-1-git-send-email-nouveau@karolherbst.de
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
----
- arch/x86/mm/kmmio.c |   88 ++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 59 insertions(+), 29 deletions(-)
-
---- a/arch/x86/mm/kmmio.c
-+++ b/arch/x86/mm/kmmio.c
-@@ -33,7 +33,7 @@
- struct kmmio_fault_page {
- 	struct list_head list;
- 	struct kmmio_fault_page *release_next;
--	unsigned long page; /* location of the fault page */
-+	unsigned long addr; /* the requested address */
- 	pteval_t old_presence; /* page presence prior to arming */
- 	bool armed;
- 
-@@ -70,9 +70,16 @@ unsigned int kmmio_count;
- static struct list_head kmmio_page_table[KMMIO_PAGE_TABLE_SIZE];
- static LIST_HEAD(kmmio_probes);
- 
--static struct list_head *kmmio_page_list(unsigned long page)
-+static struct list_head *kmmio_page_list(unsigned long addr)
- {
--	return &kmmio_page_table[hash_long(page, KMMIO_PAGE_HASH_BITS)];
-+	unsigned int l;
-+	pte_t *pte = lookup_address(addr, &l);
-+
-+	if (!pte)
-+		return NULL;
-+	addr &= page_level_mask(l);
-+
-+	return &kmmio_page_table[hash_long(addr, KMMIO_PAGE_HASH_BITS)];
- }
- 
- /* Accessed per-cpu */
-@@ -98,15 +105,19 @@ static struct kmmio_probe *get_kmmio_pro
- }
- 
- /* You must be holding RCU read lock. */
--static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long page)
-+static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long addr)
- {
- 	struct list_head *head;
- 	struct kmmio_fault_page *f;
-+	unsigned int l;
-+	pte_t *pte = lookup_address(addr, &l);
- 
--	page &= PAGE_MASK;
--	head = kmmio_page_list(page);
-+	if (!pte)
-+		return NULL;
-+	addr &= page_level_mask(l);
-+	head = kmmio_page_list(addr);
- 	list_for_each_entry_rcu(f, head, list) {
--		if (f->page == page)
-+		if (f->addr == addr)
- 			return f;
- 	}
- 	return NULL;
-@@ -137,10 +148,10 @@ static void clear_pte_presence(pte_t *pt
- static int clear_page_presence(struct kmmio_fault_page *f, bool clear)
- {
- 	unsigned int level;
--	pte_t *pte = lookup_address(f->page, &level);
-+	pte_t *pte = lookup_address(f->addr, &level);
- 
- 	if (!pte) {
--		pr_err("no pte for page 0x%08lx\n", f->page);
-+		pr_err("no pte for addr 0x%08lx\n", f->addr);
- 		return -1;
- 	}
- 
-@@ -156,7 +167,7 @@ static int clear_page_presence(struct km
- 		return -1;
- 	}
- 
--	__flush_tlb_one(f->page);
-+	__flush_tlb_one(f->addr);
- 	return 0;
- }
- 
-@@ -176,12 +187,12 @@ static int arm_kmmio_fault_page(struct k
- 	int ret;
- 	WARN_ONCE(f->armed, KERN_ERR pr_fmt("kmmio page already armed.\n"));
- 	if (f->armed) {
--		pr_warning("double-arm: page 0x%08lx, ref %d, old %d\n",
--			   f->page, f->count, !!f->old_presence);
-+		pr_warning("double-arm: addr 0x%08lx, ref %d, old %d\n",
-+			   f->addr, f->count, !!f->old_presence);
- 	}
- 	ret = clear_page_presence(f, true);
--	WARN_ONCE(ret < 0, KERN_ERR pr_fmt("arming 0x%08lx failed.\n"),
--		  f->page);
-+	WARN_ONCE(ret < 0, KERN_ERR pr_fmt("arming at 0x%08lx failed.\n"),
-+		  f->addr);
- 	f->armed = true;
- 	return ret;
- }
-@@ -191,7 +202,7 @@ static void disarm_kmmio_fault_page(stru
- {
- 	int ret = clear_page_presence(f, false);
- 	WARN_ONCE(ret < 0,
--			KERN_ERR "kmmio disarming 0x%08lx failed.\n", f->page);
-+			KERN_ERR "kmmio disarming at 0x%08lx failed.\n", f->addr);
- 	f->armed = false;
- }
- 
-@@ -215,6 +226,12 @@ int kmmio_handler(struct pt_regs *regs,
- 	struct kmmio_context *ctx;
- 	struct kmmio_fault_page *faultpage;
- 	int ret = 0; /* default to fault not handled */
-+	unsigned long page_base = addr;
-+	unsigned int l;
-+	pte_t *pte = lookup_address(addr, &l);
-+	if (!pte)
-+		return -EINVAL;
-+	page_base &= page_level_mask(l);
- 
- 	/*
- 	 * Preemption is now disabled to prevent process switch during
-@@ -227,7 +244,7 @@ int kmmio_handler(struct pt_regs *regs,
- 	preempt_disable();
- 	rcu_read_lock();
- 
--	faultpage = get_kmmio_fault_page(addr);
-+	faultpage = get_kmmio_fault_page(page_base);
- 	if (!faultpage) {
- 		/*
- 		 * Either this page fault is not caused by kmmio, or
-@@ -239,7 +256,7 @@ int kmmio_handler(struct pt_regs *regs,
- 
- 	ctx = &get_cpu_var(kmmio_ctx);
- 	if (ctx->active) {
--		if (addr == ctx->addr) {
-+		if (page_base == ctx->addr) {
- 			/*
- 			 * A second fault on the same page means some other
- 			 * condition needs handling by do_page_fault(), the
-@@ -267,9 +284,9 @@ int kmmio_handler(struct pt_regs *regs,
- 	ctx->active++;
- 
- 	ctx->fpage = faultpage;
--	ctx->probe = get_kmmio_probe(addr);
-+	ctx->probe = get_kmmio_probe(page_base);
- 	ctx->saved_flags = (regs->flags & (X86_EFLAGS_TF | X86_EFLAGS_IF));
--	ctx->addr = addr;
-+	ctx->addr = page_base;
- 
- 	if (ctx->probe && ctx->probe->pre_handler)
- 		ctx->probe->pre_handler(ctx->probe, regs, addr);
-@@ -354,12 +371,11 @@ out:
- }
- 
- /* You must be holding kmmio_lock. */
--static int add_kmmio_fault_page(unsigned long page)
-+static int add_kmmio_fault_page(unsigned long addr)
- {
- 	struct kmmio_fault_page *f;
- 
--	page &= PAGE_MASK;
--	f = get_kmmio_fault_page(page);
-+	f = get_kmmio_fault_page(addr);
- 	if (f) {
- 		if (!f->count)
- 			arm_kmmio_fault_page(f);
-@@ -372,26 +388,25 @@ static int add_kmmio_fault_page(unsigned
- 		return -1;
- 
- 	f->count = 1;
--	f->page = page;
-+	f->addr = addr;
- 
- 	if (arm_kmmio_fault_page(f)) {
- 		kfree(f);
- 		return -1;
- 	}
- 
--	list_add_rcu(&f->list, kmmio_page_list(f->page));
-+	list_add_rcu(&f->list, kmmio_page_list(f->addr));
- 
- 	return 0;
- }
- 
- /* You must be holding kmmio_lock. */
--static void release_kmmio_fault_page(unsigned long page,
-+static void release_kmmio_fault_page(unsigned long addr,
- 				struct kmmio_fault_page **release_list)
- {
- 	struct kmmio_fault_page *f;
- 
--	page &= PAGE_MASK;
--	f = get_kmmio_fault_page(page);
-+	f = get_kmmio_fault_page(addr);
- 	if (!f)
- 		return;
- 
-@@ -420,18 +435,27 @@ int register_kmmio_probe(struct kmmio_pr
- 	int ret = 0;
- 	unsigned long size = 0;
- 	const unsigned long size_lim = p->len + (p->addr & ~PAGE_MASK);
-+	unsigned int l;
-+	pte_t *pte;
- 
- 	spin_lock_irqsave(&kmmio_lock, flags);
- 	if (get_kmmio_probe(p->addr)) {
- 		ret = -EEXIST;
- 		goto out;
- 	}
-+
-+	pte = lookup_address(p->addr, &l);
-+	if (!pte) {
-+		ret = -EINVAL;
-+		goto out;
-+	}
-+
- 	kmmio_count++;
- 	list_add_rcu(&p->list, &kmmio_probes);
- 	while (size < size_lim) {
- 		if (add_kmmio_fault_page(p->addr + size))
- 			pr_err("Unable to set page fault.\n");
--		size += PAGE_SIZE;
-+		size += page_level_size(l);
- 	}
- out:
- 	spin_unlock_irqrestore(&kmmio_lock, flags);
-@@ -506,11 +530,17 @@ void unregister_kmmio_probe(struct kmmio
- 	const unsigned long size_lim = p->len + (p->addr & ~PAGE_MASK);
- 	struct kmmio_fault_page *release_list = NULL;
- 	struct kmmio_delayed_release *drelease;
-+	unsigned int l;
-+	pte_t *pte;
-+
-+	pte = lookup_address(p->addr, &l);
-+	if (!pte)
-+		return;
- 
- 	spin_lock_irqsave(&kmmio_lock, flags);
- 	while (size < size_lim) {
- 		release_kmmio_fault_page(p->addr + size, &release_list);
--		size += PAGE_SIZE;
-+		size += page_level_size(l);
- 	}
- 	list_del_rcu(&p->list);
- 	kmmio_count--;
-
+DQo+PiBUaGUgdGFrZWF3YXkgaXMgdGhhdCBtc3luYygpIGlzIDktMTB4IHNsb3dlciB0aGFuIHVz
+ZXJzcGFjZSBjYWNoZSBtYW5hZ2VtZW50Lg0KPg0KPkFuIGFsdGVybmF0aXZlIHZpZXdwb2ludDog
+dGhhdCBmbHVzaGluZyBjbGVhbiBjYWNoZWxpbmVzIGlzDQo+ZXh0cmVtZWx5IGV4cGVuc2l2ZSBv
+biBJbnRlbCBDUFVzLiA7KQ0KPg0KPmkuZS4gU2FtZSBudW1iZXJzLCBkaWZmZXJlbnQgYW5hbHlz
+aXMgZnJvbSBhIGRpZmZlcmVudCBQb1YsIGFuZA0KPnRoYXQgZ2l2ZXMgYSAqY29tcGxldGVseSBk
+aWZmZXJlbnQgY29uY2x1c2lvbiouDQo+DQo+VGhpbmsgYWJvdXQgaXQgZm9yIHRoZSBtb21lbnQu
+IFRoZSBoYXJkd2FyZSBpbmVmZmljaWVuY3kgYmVpbmcNCj5kZW1vbnN0cmF0ZWQgY291bGQgYmUg
+Zml4ZWQvb3B0aW1pc2VkIGluIHRoZSBuZXh0IGhhcmR3YXJlIHByb2R1Y3QNCj5jeWNsZShzKSBh
+bmQgc28gd2lsbCBldmVudHVhbGx5IGdvIGF3YXkuIE9UT0gsIHdlJ2xsIGJlIHN0dWNrIHdpdGgN
+Cj53aGF0ZXZlciBwcm9ncmFtbWluZyBtb2RlbCB3ZSBjb21lIHVwIHdpdGggZm9yIHRoZSBuZXh0
+IDMwLTQwIHllYXJzLA0KPmFuZCB3ZSdsbCBuZXZlciBiZSBhYmxlIHRvIGZpeCBmbGF3cyBpbiBp
+dCBiZWNhdXNlIGFwcGxpY2F0aW9ucyB3aWxsDQo+YmUgZGVwZW5kaW5nIG9uIHRoZW0uIERvIHdl
+IHJlYWxseSB3YW50IHRvIGJlIHN0dWNrIHdpdGggYSBwbWVtDQo+bW9kZWwgdGhhdCBpcyBkZXNp
+Z25lZCBhcm91bmQgdGhlIGZsYXdzIGFuZCBkZWZpY2llbmNpZXMgb2YgfjFzdA0KPmdlbmVyYXRp
+b24gaGFyZHdhcmU/DQoNCkhpIERhdmUsDQoNCk5vdCBzdXJlIEkgYWdyZWUgd2l0aCB5b3VyIGNv
+bXBsZXRlbHkgZGlmZmVyZW50IGNvbmNsdXNpb24uICAoTm90IHN1cmUNCkkgY29tcGxldGVseSBk
+aXNhZ3JlZSBlaXRoZXIsIGJ1dCBwbGVhc2UgbGV0IG1lIHJhaXNlIHNvbWUgcHJhY3RpY2FsDQpw
+b2ludHMuKQ0KDQpGaXJzdCBvZiBhbGwsIGxldCdzIHNheSB5b3UncmUgY29tcGxldGVseSByaWdo
+dCBhbmQgZmx1c2hpbmcgY2xlYW4NCmNhY2hlIGxpbmVzIGlzIGV4dHJlbWVseSBleHBlbnNpdmUu
+ICBTbyB5b3VyIHNvbHV0aW9uIGlzIHRvIHdhaXQgZm9yDQp0aGUgY2hpcCB0byBiZSBmaXhlZD8g
+IFJlbWVtYmVyIHRoZSBtb2RlbCB3ZSdyZSBwdXR0aW5nIGZvcndhcmQgKHdoaWNoDQp3ZSdyZSB3
+b3JraW5nIG9uIGRvY3VtZW50aW5nLCBiZWNhdXNlIEkgZnVsbHkgYWdyZWUgd2l0aCB0aGUgbGFj
+ayBvZg0KZG9jdW1lbnRhdGlvbiBwb2ludCB5b3Uga2VlcCByYWlzaW5nKSByZXF1aXJlcyB0aGUg
+YXBwbGljYXRpb24gdG8gQVNLDQpmb3IgdGhlIGZpbGUgc3lzdGVtJ3MgcGVybWlzc2lvbiBiZWZv
+cmUgYXNzdW1pbmcgZmx1c2hpbmcgZnJvbSB1c2VyIHNwYWNlDQp0byBwZXJzaXN0ZW5jZSBpcyBh
+bGxvd2VkLiAgU28gdGhhdCBkb2Vzbid0IHN0aWNrIHVzIHdpdGggMzAtNDAgeWVhcnMgb2YNCmEg
+Zmxhd2VkIG1vZGVsLiAgSSBkb24ndCB0aGluayB0aGUgbW9kZWwgaXMgd3JvbmcsIGhhdmluZyBz
+cGVudCBsb3RzIG9mDQpyZXNlYXJjaCB0aW1lIG9uIGl0LCBidXQgaWYgSSdtIGZ1bGwgb2YgY3Jh
+cCwgYWxsIHdlIGhhdmUgdG8gZG8gaXMgc3RvcA0KdGVsbGluZyB0aGUgYXBwIHRoYXQgZmx1c2hp
+bmcgZnJvbSB1c2VyIHNwYWNlIGlzIGFsbG93ZWQgYW5kIGl0IG11c3QgZ28NCmJhY2sgdG8gdXNp
+bmcgbXN5bmMoKS4gIFRoaXMgaXMgbXkgdW5kZXJzdGFuZGluZyBvZiB3aGF0IERhbiBzdWdnZXN0
+ZWQNCmF0IExTRiBhbmQgdGhpcyBpcyB3aGF0IEknbSBjdXJyZW50bHkgd3JpdGluZyB1cC4gIEJ5
+IHRoZSB3YXksIHRoZSBOVk0NCkxpYnJhcmllcyBhbHJlYWR5IGNvbnRhaW4gdGhlIGxvZ2ljIHRv
+IGFzayBpZiBmbHVzaGluZyBmcm9tIHVzZXIgc3BhY2UNCmlzIGFsbG93ZWQsIGZhbGxpbmcgYmFj
+ayB0byBtc3luYygpIGlmIG5vdC4gIEN1cnJlbnRseSB0aG9zZSBsaWJyYXJpZXMNCmNoZWNrIGZv
+ciBEQVggbWFwcGluZ3MuICBCdXQgdGhlIHBvaW50cyB5b3UgcmFpc2VkIGFib3V0IG1ldGFkYXRh
+IGNoYW5nZXMNCmhhcHBlbmluZyBkdXJpbmcgcGFnZSBmYXVsdHMgbWFkZSB1cyByZWFsaXplIHdl
+IGhhdmUgdG8gYXNrIHRoZSBmaWxlDQpzeXN0ZW0gdG8gb3B0LWluIHRvIGFsbG93aW5nIHVzZXIg
+c3BhY2UgZmx1c2hpbmcsIHNvIHRoYXQncyB3aGF0IHdlJ3JlDQpjaGFuZ2luZyB0aGUgbGlicmFy
+eSB0byBkby4gIFNlZSwgd2UgYXJlIGxpc3RlbmluZyA6LSkNCg0KQW55d2F5LCBJIGRvdWJ0IHRo
+YXQgZmx1c2hpbmcgYSBjbGVhbiBjYWNoZSBsaW5lIGlzIGV4dHJlbWVseSBleHBlbnNpdmUuDQpS
+ZW1lbWJlciB0aGUgY29kZSBpcyBidWlsZGluZyB0cmFuc2FjdGlvbnMgdG8gbWFpbnRhaW4gYSBj
+b25zaXN0ZW50DQppbi1tZW1vcnkgZGF0YSBzdHJ1Y3R1cmUgaW4gdGhlIGZhY2Ugb2Ygc3VkZGVu
+IGZhaWx1cmUgbGlrZSBwb3dlcmxvc3MuDQpTbyBpdCBpcyB1c2luZyB0aGUgZmx1c2hlcyB0byBj
+cmVhdGUgc3RvcmUgYmFycmllcnMsIGJ1dCBub3QgdGhlIGJsb2NrLQ0KYmFzZWQgc3RvcmUgYmFy
+cmllcnMgd2UncmUgdXNlZCB0byBpbiB0aGUgc3RvcmFnZSB3b3JsZCwgYnV0IGNhY2hlLWxpbmUt
+DQpzaXplZCBzdG9yZSBiYXJyaWVycyAodXN1YWxseSBtdWx0aXBsZXMgb2YgY2FjaGUgbGluZXMs
+IGJ1dCBtb3N0IGNvbW1vbmx5DQpzbWFsbGVyIHRoYW4gNGsgb2YgdGhlbSkuICBTbyBJIHRoaW5r
+IHdoZW4geW91IHR1cm4gYSBjYWNoZSBsaW5lIGZsdXNoDQppbnRvIGFuIG1zeW5jKCksIHlvdSdy
+ZSBzZWVpbmcgc29tZSBkaXJ0eSBzdHVmZiBnZXQgZmx1c2hlZCBiZWZvcmUgaXQNCmlzIHRpbWUg
+dG8gZmx1c2ggaXQuICBJJ20gbm90IHN1cmUgdGhvdWdoLCBidXQgY2VydGFpbmx5IHdlIGNvdWxk
+IHNwZW5kDQptb3JlIHRpbWUgdGVzdGluZyAmIG1lYXN1cmluZy4NCg0KTW9yZSBpbXBvcnRhbnRs
+eSwgSSB0aGluayBpdCBpcyBpbnRlcmVzdGluZyB0byBkZWNpZGUgd2hhdCB3ZSB3YW50IHRoZQ0K
+cG1lbSBwcm9ncmFtbWluZyBtb2RlbCB0byBiZSBsb25nLXRlcm0uICBJIHRoaW5rIHdlIHdhbnQg
+YXBwbGljYXRpb25zIHRvDQpqdXN0IG1hcCBwbWVtLCBkbyBub3JtYWwgc3RvcmVzIHRvIGl0LCBh
+bmQgYXNzdW1lIHRoZXkgYXJlIHBlcnNpc3RlbnQuDQpUaGlzIGlzIHF1aXRlIGRpZmZlcmVudCBm
+cm9tIHRoZSAzMC15ZWFyLW9sZCBQT1NJWCBNb2RlbCB3aGVyZSBtc3luYygpDQppcyByZXF1aXJl
+ZC4gIEJ1dCBJIHRoaW5rIGl0IGlzIGNsZWFuZXIsIGVhc2llciB0byB1bmRlcnN0YW5kLCBhbmQg
+bGVzcw0KZXJyb3ItcHJvbmUuICBTbyB3aHkgZG9lc24ndCBpdCB3b3JrIHRoYXQgd2F5IHJpZ2h0
+IG5vdz8gIEJlY2F1c2Ugd2UncmUNCmZpbmRpbmcgaXQgaW1wcmFjdGljYWwuICBVc2luZyB3cml0
+ZS10aHJvdWdoIGNhY2hpbmcgZm9yIHBtZW0gc2ltcGx5DQpkb2Vzbid0IHBlcmZvcm0gd2VsbCwg
+YW5kIGRlcGVuZGluZyBvbiB0aGUgcGxhdGZvcm0gdG8gZmx1c2ggdGhlIENQVQ0KY2FjaGVzIG9u
+IHNodXRkb3duL3Bvd2VyZmFpbCBpcyBub3QgcHJhY3RpY2FsIHlldC4gIEJ1dCBJIHRoaW5rIHRo
+ZSBkYXkNCndpbGwgY29tZSB3aGVuIGl0IGlzIHByYWN0aWNhbC4NCg0KU28gZ2l2ZW4gdGhhdCBs
+b25nLXRlcm0gdGFyZ2V0LCB0aGUgaWRlYSBpcyBmb3IgYW4gYXBwbGljYXRpb24gdG8gYXNrIGlm
+DQp0aGUgbXN5bmMoKSBjYWxscyBhcmUgcmVxdWlyZWQsIG9yIGlmIGp1c3QgZmx1c2hpbmcgdGhl
+IENQVSBjYWNoZXMgaXMNCnN1ZmZpY2llbnQgZm9yIHBlcnNpc3RlbmNlLiAgVGhlbiwgd2UncmUg
+YWxzbyBhZGRpbmcgYW4gQUNQSSBwcm9wZXJ0eQ0KdGhhdCBhbGxvd3MgU1cgdG8gZGlzY292ZXIg
+aWYgdGhlIGNhY2hlcyBhcmUgZmx1c2hlZCBhdXRvbWF0aWNhbGx5DQpvbiBzaHV0ZG93bi9wb3dl
+cmxvc3MuICBJbml0aWFsbHkgdGhhdCB3aWxsIG9ubHkgYmUgdHJ1ZSBmb3IgY3VzdG9tDQpwbGF0
+Zm9ybXMsIGJ1dCBob3BlZnVsbHkgaXQgY2FuIGJlIGF2YWlsYWJsZSBtb3JlIGJyb2FkbHkgaW4g
+dGhlIGZ1dHVyZS4NClRoZSByZXN1bHQgd2lsbCBiZSB0aGF0IHRoZSBwcm9ncmFtbWluZyBtb2Rl
+bCBnZXRzIHNpbXBsZXIgYXMgbW9yZSBhbmQNCm1vcmUgaGFyZHdhcmUgcmVxdWlyZXMgbGVzcyBl
+eHBsaWNpdCBmbHVzaGluZy4NCg0KTm93IEknbGwgZ28gYmFjayB0byB3cml0aW5nIHVwIHRoZSBi
+aWcgcGljdHVyZSBmb3IgdGhpcyBwcm9ncmFtbWluZw0KbW9kZWwgc28gSSBjYW4gYXNrIHlvdSBm
+b3IgY29tbWVudHMgb24gdGhhdCBhcyB3ZWxsLi4uDQoNCg0KLWFuZHkNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
