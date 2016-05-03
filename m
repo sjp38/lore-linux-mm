@@ -1,112 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C96566B0005
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 21:26:49 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id b203so11214953pfb.1
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 18:26:49 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id w184si1177378pfw.121.2016.05.02.18.26.48
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6758F6B0005
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 21:29:12 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b203so11288527pfb.1
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 18:29:12 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id g1si1219588pfd.0.2016.05.02.18.29.10
         for <linux-mm@kvack.org>;
-        Mon, 02 May 2016 18:26:48 -0700 (PDT)
-From: "Rudoff, Andy" <andy.rudoff@intel.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-Date: Tue, 3 May 2016 01:26:46 +0000
-Message-ID: <D26BCF92-ED25-4ACA-9CC8-7B1C05A1D5FC@intel.com>
-References: <x49twj26edj.fsf@segfault.boston.devel.redhat.com>
- <20160420205923.GA24797@infradead.org> <1461434916.3695.7.camel@intel.com>
- <20160425083114.GA27556@infradead.org> <1461604476.3106.12.camel@intel.com>
- <20160425232552.GD18496@dastard> <1461628381.1421.24.camel@intel.com>
- <20160426004155.GF18496@dastard>
- <x49pot4ebeb.fsf@segfault.boston.devel.redhat.com>
- <CAPcyv4jfUVXoge5D+cBY1Ph=t60165sp6sF_QFZUbFv+cNcdHg@mail.gmail.com>
- <20160503004226.GR26977@dastard>
-In-Reply-To: <20160503004226.GR26977@dastard>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <0AF4EB11DD0E4F4EBC00F7351C1A2029@intel.com>
-Content-Transfer-Encoding: base64
+        Mon, 02 May 2016 18:29:11 -0700 (PDT)
+Date: Tue, 3 May 2016 10:29:34 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 0/6] Introduce ZONE_CMA
+Message-ID: <20160503012934.GA4060@js1304-P5Q-DELUXE>
+References: <1461561670-28012-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20160425053653.GA25662@js1304-P5Q-DELUXE>
+ <20160428103927.GM2858@techsingularity.net>
+ <20160429065145.GA19896@js1304-P5Q-DELUXE>
+ <20160429092902.GQ2858@techsingularity.net>
+ <20160502061423.GA31646@js1304-P5Q-DELUXE>
+ <5727069B.5070600@suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5727069B.5070600@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, "Williams, Dan J" <dan.j.williams@intel.com>
-Cc: "hch@infradead.org" <hch@infradead.org>, "jack@suse.cz" <jack@suse.cz>, "axboe@fb.com" <axboe@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-DQo+PiBUaGUgdGFrZWF3YXkgaXMgdGhhdCBtc3luYygpIGlzIDktMTB4IHNsb3dlciB0aGFuIHVz
-ZXJzcGFjZSBjYWNoZSBtYW5hZ2VtZW50Lg0KPg0KPkFuIGFsdGVybmF0aXZlIHZpZXdwb2ludDog
-dGhhdCBmbHVzaGluZyBjbGVhbiBjYWNoZWxpbmVzIGlzDQo+ZXh0cmVtZWx5IGV4cGVuc2l2ZSBv
-biBJbnRlbCBDUFVzLiA7KQ0KPg0KPmkuZS4gU2FtZSBudW1iZXJzLCBkaWZmZXJlbnQgYW5hbHlz
-aXMgZnJvbSBhIGRpZmZlcmVudCBQb1YsIGFuZA0KPnRoYXQgZ2l2ZXMgYSAqY29tcGxldGVseSBk
-aWZmZXJlbnQgY29uY2x1c2lvbiouDQo+DQo+VGhpbmsgYWJvdXQgaXQgZm9yIHRoZSBtb21lbnQu
-IFRoZSBoYXJkd2FyZSBpbmVmZmljaWVuY3kgYmVpbmcNCj5kZW1vbnN0cmF0ZWQgY291bGQgYmUg
-Zml4ZWQvb3B0aW1pc2VkIGluIHRoZSBuZXh0IGhhcmR3YXJlIHByb2R1Y3QNCj5jeWNsZShzKSBh
-bmQgc28gd2lsbCBldmVudHVhbGx5IGdvIGF3YXkuIE9UT0gsIHdlJ2xsIGJlIHN0dWNrIHdpdGgN
-Cj53aGF0ZXZlciBwcm9ncmFtbWluZyBtb2RlbCB3ZSBjb21lIHVwIHdpdGggZm9yIHRoZSBuZXh0
-IDMwLTQwIHllYXJzLA0KPmFuZCB3ZSdsbCBuZXZlciBiZSBhYmxlIHRvIGZpeCBmbGF3cyBpbiBp
-dCBiZWNhdXNlIGFwcGxpY2F0aW9ucyB3aWxsDQo+YmUgZGVwZW5kaW5nIG9uIHRoZW0uIERvIHdl
-IHJlYWxseSB3YW50IHRvIGJlIHN0dWNrIHdpdGggYSBwbWVtDQo+bW9kZWwgdGhhdCBpcyBkZXNp
-Z25lZCBhcm91bmQgdGhlIGZsYXdzIGFuZCBkZWZpY2llbmNpZXMgb2YgfjFzdA0KPmdlbmVyYXRp
-b24gaGFyZHdhcmU/DQoNCkhpIERhdmUsDQoNCk5vdCBzdXJlIEkgYWdyZWUgd2l0aCB5b3VyIGNv
-bXBsZXRlbHkgZGlmZmVyZW50IGNvbmNsdXNpb24uICAoTm90IHN1cmUNCkkgY29tcGxldGVseSBk
-aXNhZ3JlZSBlaXRoZXIsIGJ1dCBwbGVhc2UgbGV0IG1lIHJhaXNlIHNvbWUgcHJhY3RpY2FsDQpw
-b2ludHMuKQ0KDQpGaXJzdCBvZiBhbGwsIGxldCdzIHNheSB5b3UncmUgY29tcGxldGVseSByaWdo
-dCBhbmQgZmx1c2hpbmcgY2xlYW4NCmNhY2hlIGxpbmVzIGlzIGV4dHJlbWVseSBleHBlbnNpdmUu
-ICBTbyB5b3VyIHNvbHV0aW9uIGlzIHRvIHdhaXQgZm9yDQp0aGUgY2hpcCB0byBiZSBmaXhlZD8g
-IFJlbWVtYmVyIHRoZSBtb2RlbCB3ZSdyZSBwdXR0aW5nIGZvcndhcmQgKHdoaWNoDQp3ZSdyZSB3
-b3JraW5nIG9uIGRvY3VtZW50aW5nLCBiZWNhdXNlIEkgZnVsbHkgYWdyZWUgd2l0aCB0aGUgbGFj
-ayBvZg0KZG9jdW1lbnRhdGlvbiBwb2ludCB5b3Uga2VlcCByYWlzaW5nKSByZXF1aXJlcyB0aGUg
-YXBwbGljYXRpb24gdG8gQVNLDQpmb3IgdGhlIGZpbGUgc3lzdGVtJ3MgcGVybWlzc2lvbiBiZWZv
-cmUgYXNzdW1pbmcgZmx1c2hpbmcgZnJvbSB1c2VyIHNwYWNlDQp0byBwZXJzaXN0ZW5jZSBpcyBh
-bGxvd2VkLiAgU28gdGhhdCBkb2Vzbid0IHN0aWNrIHVzIHdpdGggMzAtNDAgeWVhcnMgb2YNCmEg
-Zmxhd2VkIG1vZGVsLiAgSSBkb24ndCB0aGluayB0aGUgbW9kZWwgaXMgd3JvbmcsIGhhdmluZyBz
-cGVudCBsb3RzIG9mDQpyZXNlYXJjaCB0aW1lIG9uIGl0LCBidXQgaWYgSSdtIGZ1bGwgb2YgY3Jh
-cCwgYWxsIHdlIGhhdmUgdG8gZG8gaXMgc3RvcA0KdGVsbGluZyB0aGUgYXBwIHRoYXQgZmx1c2hp
-bmcgZnJvbSB1c2VyIHNwYWNlIGlzIGFsbG93ZWQgYW5kIGl0IG11c3QgZ28NCmJhY2sgdG8gdXNp
-bmcgbXN5bmMoKS4gIFRoaXMgaXMgbXkgdW5kZXJzdGFuZGluZyBvZiB3aGF0IERhbiBzdWdnZXN0
-ZWQNCmF0IExTRiBhbmQgdGhpcyBpcyB3aGF0IEknbSBjdXJyZW50bHkgd3JpdGluZyB1cC4gIEJ5
-IHRoZSB3YXksIHRoZSBOVk0NCkxpYnJhcmllcyBhbHJlYWR5IGNvbnRhaW4gdGhlIGxvZ2ljIHRv
-IGFzayBpZiBmbHVzaGluZyBmcm9tIHVzZXIgc3BhY2UNCmlzIGFsbG93ZWQsIGZhbGxpbmcgYmFj
-ayB0byBtc3luYygpIGlmIG5vdC4gIEN1cnJlbnRseSB0aG9zZSBsaWJyYXJpZXMNCmNoZWNrIGZv
-ciBEQVggbWFwcGluZ3MuICBCdXQgdGhlIHBvaW50cyB5b3UgcmFpc2VkIGFib3V0IG1ldGFkYXRh
-IGNoYW5nZXMNCmhhcHBlbmluZyBkdXJpbmcgcGFnZSBmYXVsdHMgbWFkZSB1cyByZWFsaXplIHdl
-IGhhdmUgdG8gYXNrIHRoZSBmaWxlDQpzeXN0ZW0gdG8gb3B0LWluIHRvIGFsbG93aW5nIHVzZXIg
-c3BhY2UgZmx1c2hpbmcsIHNvIHRoYXQncyB3aGF0IHdlJ3JlDQpjaGFuZ2luZyB0aGUgbGlicmFy
-eSB0byBkby4gIFNlZSwgd2UgYXJlIGxpc3RlbmluZyA6LSkNCg0KQW55d2F5LCBJIGRvdWJ0IHRo
-YXQgZmx1c2hpbmcgYSBjbGVhbiBjYWNoZSBsaW5lIGlzIGV4dHJlbWVseSBleHBlbnNpdmUuDQpS
-ZW1lbWJlciB0aGUgY29kZSBpcyBidWlsZGluZyB0cmFuc2FjdGlvbnMgdG8gbWFpbnRhaW4gYSBj
-b25zaXN0ZW50DQppbi1tZW1vcnkgZGF0YSBzdHJ1Y3R1cmUgaW4gdGhlIGZhY2Ugb2Ygc3VkZGVu
-IGZhaWx1cmUgbGlrZSBwb3dlcmxvc3MuDQpTbyBpdCBpcyB1c2luZyB0aGUgZmx1c2hlcyB0byBj
-cmVhdGUgc3RvcmUgYmFycmllcnMsIGJ1dCBub3QgdGhlIGJsb2NrLQ0KYmFzZWQgc3RvcmUgYmFy
-cmllcnMgd2UncmUgdXNlZCB0byBpbiB0aGUgc3RvcmFnZSB3b3JsZCwgYnV0IGNhY2hlLWxpbmUt
-DQpzaXplZCBzdG9yZSBiYXJyaWVycyAodXN1YWxseSBtdWx0aXBsZXMgb2YgY2FjaGUgbGluZXMs
-IGJ1dCBtb3N0IGNvbW1vbmx5DQpzbWFsbGVyIHRoYW4gNGsgb2YgdGhlbSkuICBTbyBJIHRoaW5r
-IHdoZW4geW91IHR1cm4gYSBjYWNoZSBsaW5lIGZsdXNoDQppbnRvIGFuIG1zeW5jKCksIHlvdSdy
-ZSBzZWVpbmcgc29tZSBkaXJ0eSBzdHVmZiBnZXQgZmx1c2hlZCBiZWZvcmUgaXQNCmlzIHRpbWUg
-dG8gZmx1c2ggaXQuICBJJ20gbm90IHN1cmUgdGhvdWdoLCBidXQgY2VydGFpbmx5IHdlIGNvdWxk
-IHNwZW5kDQptb3JlIHRpbWUgdGVzdGluZyAmIG1lYXN1cmluZy4NCg0KTW9yZSBpbXBvcnRhbnRs
-eSwgSSB0aGluayBpdCBpcyBpbnRlcmVzdGluZyB0byBkZWNpZGUgd2hhdCB3ZSB3YW50IHRoZQ0K
-cG1lbSBwcm9ncmFtbWluZyBtb2RlbCB0byBiZSBsb25nLXRlcm0uICBJIHRoaW5rIHdlIHdhbnQg
-YXBwbGljYXRpb25zIHRvDQpqdXN0IG1hcCBwbWVtLCBkbyBub3JtYWwgc3RvcmVzIHRvIGl0LCBh
-bmQgYXNzdW1lIHRoZXkgYXJlIHBlcnNpc3RlbnQuDQpUaGlzIGlzIHF1aXRlIGRpZmZlcmVudCBm
-cm9tIHRoZSAzMC15ZWFyLW9sZCBQT1NJWCBNb2RlbCB3aGVyZSBtc3luYygpDQppcyByZXF1aXJl
-ZC4gIEJ1dCBJIHRoaW5rIGl0IGlzIGNsZWFuZXIsIGVhc2llciB0byB1bmRlcnN0YW5kLCBhbmQg
-bGVzcw0KZXJyb3ItcHJvbmUuICBTbyB3aHkgZG9lc24ndCBpdCB3b3JrIHRoYXQgd2F5IHJpZ2h0
-IG5vdz8gIEJlY2F1c2Ugd2UncmUNCmZpbmRpbmcgaXQgaW1wcmFjdGljYWwuICBVc2luZyB3cml0
-ZS10aHJvdWdoIGNhY2hpbmcgZm9yIHBtZW0gc2ltcGx5DQpkb2Vzbid0IHBlcmZvcm0gd2VsbCwg
-YW5kIGRlcGVuZGluZyBvbiB0aGUgcGxhdGZvcm0gdG8gZmx1c2ggdGhlIENQVQ0KY2FjaGVzIG9u
-IHNodXRkb3duL3Bvd2VyZmFpbCBpcyBub3QgcHJhY3RpY2FsIHlldC4gIEJ1dCBJIHRoaW5rIHRo
-ZSBkYXkNCndpbGwgY29tZSB3aGVuIGl0IGlzIHByYWN0aWNhbC4NCg0KU28gZ2l2ZW4gdGhhdCBs
-b25nLXRlcm0gdGFyZ2V0LCB0aGUgaWRlYSBpcyBmb3IgYW4gYXBwbGljYXRpb24gdG8gYXNrIGlm
-DQp0aGUgbXN5bmMoKSBjYWxscyBhcmUgcmVxdWlyZWQsIG9yIGlmIGp1c3QgZmx1c2hpbmcgdGhl
-IENQVSBjYWNoZXMgaXMNCnN1ZmZpY2llbnQgZm9yIHBlcnNpc3RlbmNlLiAgVGhlbiwgd2UncmUg
-YWxzbyBhZGRpbmcgYW4gQUNQSSBwcm9wZXJ0eQ0KdGhhdCBhbGxvd3MgU1cgdG8gZGlzY292ZXIg
-aWYgdGhlIGNhY2hlcyBhcmUgZmx1c2hlZCBhdXRvbWF0aWNhbGx5DQpvbiBzaHV0ZG93bi9wb3dl
-cmxvc3MuICBJbml0aWFsbHkgdGhhdCB3aWxsIG9ubHkgYmUgdHJ1ZSBmb3IgY3VzdG9tDQpwbGF0
-Zm9ybXMsIGJ1dCBob3BlZnVsbHkgaXQgY2FuIGJlIGF2YWlsYWJsZSBtb3JlIGJyb2FkbHkgaW4g
-dGhlIGZ1dHVyZS4NClRoZSByZXN1bHQgd2lsbCBiZSB0aGF0IHRoZSBwcm9ncmFtbWluZyBtb2Rl
-bCBnZXRzIHNpbXBsZXIgYXMgbW9yZSBhbmQNCm1vcmUgaGFyZHdhcmUgcmVxdWlyZXMgbGVzcyBl
-eHBsaWNpdCBmbHVzaGluZy4NCg0KTm93IEknbGwgZ28gYmFjayB0byB3cml0aW5nIHVwIHRoZSBi
-aWcgcGljdHVyZSBmb3IgdGhpcyBwcm9ncmFtbWluZw0KbW9kZWwgc28gSSBjYW4gYXNrIHlvdSBm
-b3IgY29tbWVudHMgb24gdGhhdCBhcyB3ZWxsLi4uDQoNCg0KLWFuZHkNCg==
+On Mon, May 02, 2016 at 09:49:47AM +0200, Vlastimil Babka wrote:
+> On 05/02/2016 08:14 AM, Joonsoo Kim wrote:
+> >>>> >Although it's separate issue, I should mentioned one thing. Related to
+> >>>> >I/O pinning issue, ZONE_CMA don't get blockdev allocation request so
+> >>>> >I/O pinning problem is much reduced.
+> >>>> >
+> >>>
+> >>>This is not super-clear from the patch. blockdev is using GFP_USER so it
+> >>>already should not be classed as MOVABLE. I could easily be looking in
+> >>>the wrong place or missed which allocation path sets GFP_MOVABLE.
+> >Okay. Please see sb_bread(), sb_getblk(), __getblk() and __bread() in
+> >include/linux/buffer_head.h. These are main functions used by blockdev
+> >and they uses GFP_MOVABLE. To fix permanent allocation case which is
+> >used by mount and cannot be released until umount, Gioh introduces
+> >sb_bread_unmovable() but there are many remaining issues that prevent
+> >migration at the moment and avoid blockdev allocation from CMA area is
+> >preferable approach.
+> 
+> Hm Patch 3/6 describes the lack of blockdev allocations mostly as a
+> limitation, although it does mention the possible advantages later.
+
+Because what this patch try to do isn't an optimization. It would be
+best to maintain previous behaviour as much as possible but it
+doesn't. Therfore, I mentioned it as side-effect of this patch
+although it seems to be a good thing to me.
+
+> Anyway, this doesn't have to be specific to ZONE_CMA, right? You
+> could just change ALLOC_CMA handling to consider
+> GFP_HIGHUSER_MOVABLE instead of just __GFP_MOVABLE. For ZONE_CMA it
+> might be inevitable as you describe, but it's already possible to do
+> that now, if the advantages are larger than the disadvantages.
+
+I think that it's not easy. Even if we just allow freepages on CMA area
+when GFP_HIGHUSER_MOVABLE allocation request comes, compaction could move
+__GFP_MOVABLE pages to freepages on CMA pageblock. Allocated page has no
+knowledge about requested gfp and compaction just assume that
+migration within a single zone is safe. So, compaction would migrate
+__GFP_MOVABLE blockdev pages on ordinary pageblock to the page on CMA
+pageblock and we can't easily prevent it. I guess it would be marginal
+amount but I'm not sure whether it causes some other problems or not.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
