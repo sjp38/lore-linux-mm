@@ -1,186 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 64B0E6B025E
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 22:49:54 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 4so13994322pfw.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 19:49:54 -0700 (PDT)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id 12si1597677pfl.3.2016.05.02.19.49.51
-        for <linux-mm@kvack.org>;
-        Mon, 02 May 2016 19:49:53 -0700 (PDT)
-Date: Tue, 3 May 2016 12:49:48 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-Message-ID: <20160503024948.GT26977@dastard>
-References: <1461434916.3695.7.camel@intel.com>
- <20160425083114.GA27556@infradead.org>
- <1461604476.3106.12.camel@intel.com>
- <20160425232552.GD18496@dastard>
- <1461628381.1421.24.camel@intel.com>
- <20160426004155.GF18496@dastard>
- <x49pot4ebeb.fsf@segfault.boston.devel.redhat.com>
- <CAPcyv4jfUVXoge5D+cBY1Ph=t60165sp6sF_QFZUbFv+cNcdHg@mail.gmail.com>
- <20160503004226.GR26977@dastard>
- <D26BCF92-ED25-4ACA-9CC8-7B1C05A1D5FC@intel.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B6DA76B0005
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 00:04:13 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b203so16493661pfb.1
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 21:04:13 -0700 (PDT)
+Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
+        by mx.google.com with ESMTPS id o126si1929172pfb.135.2016.05.02.21.04.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 May 2016 21:04:12 -0700 (PDT)
+Received: by mail-pf0-x233.google.com with SMTP id c189so4459087pfb.3
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 21:04:12 -0700 (PDT)
+Date: Mon, 2 May 2016 21:04:02 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [Question] Missing data after DMA read transfer - mm issue with
+ transparent huge page?
+In-Reply-To: <15edf085-c21b-aa1c-9f1f-057d17b8a1a3@morey-chaisemartin.com>
+Message-ID: <alpine.LSU.2.11.1605022020560.5004@eggly.anvils>
+References: <15edf085-c21b-aa1c-9f1f-057d17b8a1a3@morey-chaisemartin.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <D26BCF92-ED25-4ACA-9CC8-7B1C05A1D5FC@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rudoff, Andy" <andy.rudoff@intel.com>
-Cc: "Williams, Dan J" <dan.j.williams@intel.com>, "hch@infradead.org" <hch@infradead.org>, "jack@suse.cz" <jack@suse.cz>, "axboe@fb.com" <axboe@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+To: Nicolas Morey Chaisemartin <devel@morey-chaisemartin.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jerome Glisse <j.glisse@gmail.com>, Alex Williamson <alex.williamson@redhat.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, May 03, 2016 at 01:26:46AM +0000, Rudoff, Andy wrote:
+On Fri, 29 Apr 2016, Nicolas Morey Chaisemartin wrote:
+
+> Hi everyone,
 > 
-> >> The takeaway is that msync() is 9-10x slower than userspace cache management.
-> >
-> >An alternative viewpoint: that flushing clean cachelines is
-> >extremely expensive on Intel CPUs. ;)
-> >
-> >i.e. Same numbers, different analysis from a different PoV, and
-> >that gives a *completely different conclusion*.
-> >
-> >Think about it for the moment. The hardware inefficiency being
-> >demonstrated could be fixed/optimised in the next hardware product
-> >cycle(s) and so will eventually go away. OTOH, we'll be stuck with
-> >whatever programming model we come up with for the next 30-40 years,
-> >and we'll never be able to fix flaws in it because applications will
-> >be depending on them. Do we really want to be stuck with a pmem
-> >model that is designed around the flaws and deficiencies of ~1st
-> >generation hardware?
+> This is a repost from a different address as it seems the previous one ended in Gmail junk due to a domain error..
+
+linux-kernel is a very high volume list which few are reading:
+that also will account for your lack of response so far
+(apart from the indefatigable Alan).
+
+I've added linux-mm, and some people from another thread regarding
+THP and get_user_pages() pins which has been discussed in recent days.
+
+Make no mistake, the issue you're raising here is definitely not the
+same as that one (which is specifically about the new THP refcounting
+in v4.5+, whereas you're reporting a problem you've seen in both a
+v3.10-based kernel and in v4.5).  But I think their heads are in
+gear, much more so than mine, and likely to spot something.
+
+> I added more info found while blindly debugging the issue.
 > 
-> Hi Dave,
+> Short version:
+> I'm having an issue with direct DMA transfer from a device to host memory.
+> It seems some of the data is not transferring to the appropriate page.
 > 
-> Not sure I agree with your completely different conclusion.  (Not sure
-> I completely disagree either, but please let me raise some practical
-> points.)
+> Some more details:
+> I'm debugging a home made PCI driver for our board (Kalray), attached to a x86_64 host running centos7 (3.10.0-327.el7.x86_64)
 > 
-> First of all, let's say you're completely right and flushing clean
-> cache lines is extremely expensive.  So your solution is to wait for
-> the chip to be fixed? 
+> In the current case, a userland application transfers back and forth data through read/write operations on a file.
+> On the kernel side, it triggers DMA transfers through the PCI to/from our board memory.
+> 
+> We followed what pretty much all docs said about direct I/O to user buffers:
+> 
+> 1) get_user_pages() (in the current case, it's at most 16 pages at once)
+> 2) convert to a scatterlist
+> 3) pci_map_sg
+> 4) eventually coalesce sg (Intel IOMMU is enabled, so it's usually possible)
+> 4) A lot of DMA engine handling code, using the dmaengine layer and virt-dma
+> 5) wait for transfer complete, in the mean time, go back to (1) to schedule more work, if any
+> 6) pci_unmap_sg
+> 7) for read (card2host) transfer, set_page_dirty_lock
+> 8) page_cache_release
+> 
+> In 99,9999% it works perfectly.
+> However, I have one userland application where a few pages are not written by a read (card2host) transfer.
+> The buffer is memset them to a different value so I can check that nothing has overwritten them.
+> 
+> I know (PCI protocol analyser) that the data left our board for the "right" address (the one set in the sg by pci_map_sg).
+> I tried reading the data between the pci_unmap_sg and the set_page_dirty, using
+>         uint32_t *addr = page_address(trans->pages[0]);
+>         dev_warn(&pdata->pdev->dev, "val = %x\n", *addr);
+> and it has the expected value.
+> But if I try to copy_from_user (using the address coming from userland, the one passed to get_user_pages), the data has not been written and I see the memset value.
+> 
+> New infos:
+> 
+> The issue happens with IOMMU on or off.
+> I compiled a kernel with DMA_API_DEBUG enabled and got no warnings or errors.
+> 
+> I digged a little bit deeper with my very small understanding of linux mm and I discovered that:
+>  * we are using transparent huge pages
+>  * the page 'not transferred' are the last few of a huge page
+> More precisely:
+> - We have several transfer in flight from the same user buffer
+> - Each transfer is 16 pages long
+> - At one point in time, we start transferring from another huge page (transfers are still in flight from the previous one)
+> - When a transfer from the previous huge page completes, I dumped at the mapcount of the pages from the previous transfers,
+>   they are all to 0. The pages are still mapped to dma at this point.
+> - A get_user_page to the address of the completed transfer returns return a different struct page * then the on I had.
+> But this is before I have unmapped/put_page them back. From my understanding this should not have happened.
+> 
+> I tried the same code with a kernel 4.5 and encountered the same issue
+> 
+> Disabling transparent huge pages makes the issue disapear
+> 
+> Thanks in advance
 
-No, I'm not saying that's the solution - I'm pointing out that if
-clean cache line flushing overhead is less of a problem in future,
-the optimisations made now will not be necessary. However, we'll be
-still stuck with the API/model that has encoded those optimisations
-as a necessary thing for applications to know about and do the
-correct thing with. I.e. we end up with a library of applications
-that are optimised for a problem that no longer exists...
+It does look to me as if pages are being migrated, despite being pinned
+by get_user_pages(): and that would be wrong.  Originally I intended
+to suggest that THP is probably merely the cause of compaction, with
+compaction causing the page migration.  But you posted very interesting
+details in an earlier mail on 27th April from <nmorey@kalray.eu>:
 
-> Remember the model we're putting forward (which
-> we're working on documenting, because I fully agree with the lack of
-> documentation point you keep raising) requires the application to ASK
-> for the file system's permission before assuming flushing from user space
-> to persistence is allowed.
+> I ran some more tests:
+> 
+> * Test is OK if transparent huge tlb are disabled
+> 
+> * For all the page where data are not transfered, and only those pages, a call to get_user_page(user vaddr) just before dma_unmap_sg returns a different page from the original one.
+> [436477.927279] mppa 0000:03:00.0: org_page= ffffea0009f60080 cur page = ffffea00074e0080
+> [436477.927298] page:ffffea0009f60080 count:0 mapcount:1 mapping:          (null) index:0x2
+> [436477.927314] page flags: 0x2fffff00008000(tail)
+> [436477.927354] page dumped because: org_page
+> [436477.927369] page:ffffea00074e0080 count:0 mapcount:1 mapping:          (null) index:0x2
+> [436477.927382] page flags: 0x2fffff00008000(tail)
+> [436477.927421] page dumped because: cur_page
+> 
+> I'm not sure what to make of this...
 
-And when the filesystem says no because the fs devs don't want to
-have to deal with broken apps because app devs learn that "this is a
-go fast knob" and data integrity be damned? It's "fsync is slow so I
-won't use it" all over again...
+That (on the older kernel I think) seems clearly to show that a THP
+itself has been migrated: which makes me suspect NUMA migration of
+mispaced THPs - migrate_misplaced_transhuge_page().  I'd hoped to
+find something obviously wrong there, but haven't quite managed
+to bring my brain fully to bear on it, and hope the others Cc'ed
+will do so more quickly (or spot the error of your ways instead).
 
-> Anyway, I doubt that flushing a clean cache line is extremely expensive.
-> Remember the code is building transactions to maintain a consistent
-> in-memory data structure in the face of sudden failure like powerloss.
-> So it is using the flushes to create store barriers, but not the block-
-> based store barriers we're used to in the storage world, but cache-line-
-> sized store barriers (usually multiples of cache lines, but most commonly
-> smaller than 4k of them).  So I think when you turn a cache line flush
-> into an msync(), you're seeing some dirty stuff get flushed before it
-> is time to flush it.  I'm not sure though, but certainly we could spend
-> more time testing & measuring.
+I do find it suspect, how the migrate_page_copy() is done rather
+early, while the old page is still mapped in the pagetable.  And
+odd how it inserts the new pmd for a moment, before checking old
+page_count and backing out.  But I don't see how either of those
+would cause the trouble you see, where the migration goes ahead.
 
-Sure, but is that what Dan was testing? I don't know - he just
-presented a bunch of numbers without a description of the workload,
-posting the benchmark code, etc. hence I can only *make assumptions*
-about what the numbers mean.
+But I may be mistaken to suspect migration at all: perhaps this is
+about Copy-On-Write: there's no concurrent fork()ing, is there?
 
-I'm somewhat tired of having to make assumptions because nobody is
-describing what they are doing sufficiently and then getting called
-out for it, or having to ask lots of questions because other people
-have made assumptions about how they think something is going to
-work without explaining how the dots connect together. It's a waste
-of everyone's time to be playing this ass-u-me game...
+And I think your driver is using get_user_pages() (under mmap_sem),
+not short-cutting with the trickier get_user_pages_fast().
 
-The fact that nobody has been able to explain the how the overall
-model is supposed to work from physical error all the way out to
-userspace makes me think that this is all being made up on the spot.
-There are big pieces of the picture missing, and nobody seems to be
-able to communicate a clear vision of the architecture we are
-supposed to be discussing, let alone implementing...
+Over to more clued-in Cc's.
 
-> More importantly, I think it is interesting to decide what we want the
-> pmem programming model to be long-term.  I think we want applications to
-> just map pmem, do normal stores to it, and assume they are persistent.
-> This is quite different from the 30-year-old POSIX Model where msync()
-> is required.
-
-Yes, it's different, but we still have to co-ordinate multiple
-layers of persistence (i.e. metadata that references the data).
-
-> But I think it is cleaner, easier to understand, and less
-> error-prone.  So why doesn't it work that way right now?  Because we're
-> finding it impractical.  Using write-through caching for pmem simply
-> doesn't perform well, and depending on the platform to flush the CPU
-> caches on shutdown/powerfail is not practical yet.  But I think the day
-> will come when it is practical.
-
-Right - it's also simply not practical to intercept every userspace
-store to ensure the referencing metadata is also persistent, so we
-still need synchronisation mechanisms to ensure that such state is
-acheived.  Either that, or the entire dynamic filesystem state needs
-to be stored in write-through persistent memory as well. We're a
-long, long way from that.
-
-And, please keep in mind: many application developers will not
-design for pmem because they also have to support traditional
-storage backed by page cache. If they use msync(), the app will work
-on any storage stack, but just be much, much faster on pmem+DAX. So,
-really, we have to make the msync()-only model work efficiently, so
-we may as well design for that in the first place....
-
-> So given that long-term target, the idea is for an application to ask if
-> the msync() calls are required, or if just flushing the CPU caches is
-> sufficient for persistence.  Then, we're also adding an ACPI property
-> that allows SW to discover if the caches are flushed automatically
-> on shutdown/powerloss.  Initially that will only be true for custom
-> platforms, but hopefully it can be available more broadly in the future.
-> The result will be that the programming model gets simpler as more and
-> more hardware requires less explicit flushing.
-
-That's a different problem, and one that requires a filesystem to
-also store all it's dynamic information in pmem. i.e. there's not
-point flushing pmem caches if the powerloss loses dirty metadata
-that is held in system RAM. We really need completely new
-pmem-native filesystems to make this work - it's a completely
-separate problem to whether msync() should be the API that provided
-fundamental data integrity guarantees or not.
-
-Which brings up another point: advanced new functionality
-is going to require native pmem filesystems. These are unlikely to
-be block device based, and instead will directly interface with the
-low level CPU and pmem APIs. I don't expect these to use the DAX
-infrastructure, either, because that assumes block device based
-operations. The will, however, still have to have POSIX compatible
-behaviour, and so we go full circle in expecting that an app
-written for mmap+DAX on an existing block based filesystem will work
-identically on funky new byte-addressable native pmem filesytems.
-
-Encoding cache flushing for data integrity into the userspace
-applications assumes that such future pmem-based storage will have
-identical persistence requirements to the existing hardware. This,
-to me, seems very unlikely to be the case (especially when
-considering different platforms (e.g. power, ARM)) and so, again,
-application developers are likely to have to fall back to using a
-kernel provided data integrity primitive they know they can rely on
-(i.e. msync()).....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
