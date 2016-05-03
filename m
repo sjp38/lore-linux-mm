@@ -1,78 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 253A96B0005
-	for <linux-mm@kvack.org>; Tue,  3 May 2016 11:13:15 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id s63so22594640wme.2
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 08:13:15 -0700 (PDT)
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E07886B0005
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 11:38:26 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 68so18523810lfq.2
+        for <linux-mm@kvack.org>; Tue, 03 May 2016 08:38:26 -0700 (PDT)
 Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id gy10si4718671wjc.115.2016.05.03.08.13.13
+        by mx.google.com with ESMTPS id zl3si4880619wjb.1.2016.05.03.08.38.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 May 2016 08:13:13 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id e201so4342610wme.2
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 08:13:13 -0700 (PDT)
-Date: Tue, 3 May 2016 17:13:12 +0200
+        Tue, 03 May 2016 08:38:25 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id w143so4454612wmw.3
+        for <linux-mm@kvack.org>; Tue, 03 May 2016 08:38:25 -0700 (PDT)
+Date: Tue, 3 May 2016 17:38:23 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/2] scop GFP_NOFS api
-Message-ID: <20160503151312.GA4470@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/2] mm, debug: report when GFP_NO{FS,IO} is used
+ explicitly from memalloc_no{fs,io}_{save,restore} context
+Message-ID: <20160503153823.GB4470@dhcp22.suse.cz>
 References: <1461671772-1269-1-git-send-email-mhocko@kernel.org>
- <8737q5ugcx.fsf@notabene.neil.brown.name>
- <20160429120418.GK21977@dhcp22.suse.cz>
- <87twiiu5gs.fsf@notabene.neil.brown.name>
+ <1461671772-1269-3-git-send-email-mhocko@kernel.org>
+ <20160426225845.GF26977@dastard>
+ <20160428081759.GA31489@dhcp22.suse.cz>
+ <20160428215145.GM26977@dastard>
+ <20160429121219.GL21977@dhcp22.suse.cz>
+ <20160429234008.GN26977@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87twiiu5gs.fsf@notabene.neil.brown.name>
+In-Reply-To: <20160429234008.GN26977@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <mr@neil.brown.name>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, xfs@oss.sgi.com, LKML <linux-kernel@vger.kernel.org>
 
-Hi,
-
-On Sun 01-05-16 07:55:31, NeilBrown wrote:
+On Sat 30-04-16 09:40:08, Dave Chinner wrote:
+> On Fri, Apr 29, 2016 at 02:12:20PM +0200, Michal Hocko wrote:
 [...]
-> One particular problem with your process-context idea is that it isn't
-> inherited across threads.
-> Steve Whitehouse's example in gfs shows how allocation dependencies can
-> even cross into user space.
-
-Hmm, I am still not sure I understand that example completely but making
-a dependency between direct reclaim and userspace can hardly work.
-Especially when the direct reclaim might be sitting on top of hard to
-guess pile of locks. So unless I've missed anything what Steve has
-described is a clear NOFS context.
-
-> A more localized one that I have seen is that NFSv4 sometimes needs to
-> start up a state-management thread (particularly if the server
-> restarted).
-> It uses kthread_run(), which doesn't actually create the thread but asks
-> kthreadd to do it.  If NFS writeout is waiting for state management it
-> would need to make sure that kthreadd runs in allocation context to
-> avoid deadlock.
-> I feel that I've forgotten some important detail here and this might
-> have been fixed somehow, but the point still stands that the allocation
-> context can cross from thread to thread and can effectively become
-> anything and everything.
-
-Not sure I understand your point here but relying on kthread_run
-from GFP_NOFS context has always been deadlock prone with or without
-scope GFP_NOFS semantic so I am not really sure I see your point
-here. Similarly relying on a work item which doesn't have a dedicated
-WQ_MEM_RECLAIM WQ is deadlock prone.  You simply shouldn't do that.
-
-> It is OK to wait for memory to be freed.  It is not OK to wait for any
-> particular piece of memory to be freed because you don't always know who
-> is waiting for you, or who you really are waiting on to free that
-> memory.
+> > - was it 
+> > "inconsistent {RECLAIM_FS-ON-[RW]} -> {IN-RECLAIM_FS-[WR]} usage"
+> > or a different class reports?
 > 
-> Whenever trying to free memory I think you need to do best-effort
-> without blocking.
+> Typically that was involved, but it quite often there'd be a number
+> of locks and sometimes even interrupt stacks in an interaction
+> between 5 or 6 different processes. Lockdep covers all sorts of
+> stuff now (like fs freeze annotations as well as locks and memory
+> reclaim) so sometimes the only thing we can do is remove the
+> reclaim context from the stack and see if that makes it go away...
 
-I agree with that. Or at least you have to wait on something that is
-_guaranteed_ to make a forward progress. I am not really that sure this
-is easy to achieve with the current code base.
+That is what I was thinking of. lockdep_reclaim_{disable,enable} or
+something like that to tell __lockdep_trace_alloc to not skip
+mark_held_locks(). This would effectivelly help to get rid of reclaim
+specific reports. It is hard to tell whether there would be others,
+though.
 
+> > > They may have been fixed since, but I'm sceptical
+> > > of that because, generally speaking, developer testing only catches
+> > > the obvious lockdep issues. i.e. it's users that report all the
+> > > really twisty issues, and they are generally not reproducable except
+> > > under their production workloads...
+> > > 
+> > > IOWs, the absence of reports in your testing does not mean there
+> > > isn't a problem, and that is one of the biggest problems with
+> > > lockdep annotations - we have no way of ever knowing if they are
+> > > still necessary or not without exposing users to regressions and
+> > > potential deadlocks.....
+> > 
+> > I understand your points here but if we are sure that those lockdep
+> > reports are just false positives then we should rather provide an api to
+> > silence lockdep for those paths
+> 
+> I agree with this - please provide such infrastructure before we
+> need it...
+
+Do you think a reclaim specific lockdep annotation would be sufficient?
+
+> > than abusing GFP_NOFS which a) hurts
+> > the overal reclaim healthiness
+> 
+> Which doesn't actually seem to be a problem for the vast majority of
+> users.
+
+Yes, most users are OK. Those allocations can be triggered by the
+userspace (read a malicious user) quite easily and be harmful without a
+good way to contain them.
+ 
+> > and b) works around a non-existing
+> > problem with lockdep disabled which is the vast majority of
+> > configurations.
+> 
+> But the moment we have a lockdep problem, we get bug reports from
+> all over the place and people complaining about it, so we are
+> *required* to silence them one way or another. And, like I said,
+> when the choice is simply adding GFP_NOFS or spending a week or two
+> completely reworking complex code that has functioned correctly for
+> 15 years, the risk/reward *always* falls on the side of "just add
+> GFP_NOFS".
+> 
+> Please keep in mind that there is as much code in fs/xfs as there is
+> in the mm/ subsystem, and XFS has twice that in userspace as well.
+> I say this, because we have only have 3-4 full time developers to do
+> all the work required on this code base, unlike the mm/ subsystem
+> which had 30-40 full time MM developers attending LSFMM. This is why
+> I push back on suggestions that require significant redesign of
+> subsystem code to handle memory allocation/reclaim quirks - most
+> subsystems simply don't have the resources available to do such
+> work, and so will always look for the quick 2 minute fix when it is
+> available....
+
+I do understand your concerns and I really do not ask you to redesign
+your code. I would like make the code more maintainable and reducing the
+number of (undocumented) GFP_NOFS usage to the minimum seems to be like
+a first step. Now the direct usage of GFP_NOFS (resp. KM_NOFS) in xfs is
+not that large. If we can reduce the few instances which are using the
+flag to silence the lockdep and replace them by a better annotation then
+I think this would be an improvement as well. If we can go one step
+further and can get rid of mapping_set_gfp_mask(inode->i_mapping,
+(gfp_mask & ~(__GFP_FS))) then I would be even happier.
+
+I think other fs and code which interacts with FS layer needs much more
+changes than xfs to be honest.
 -- 
 Michal Hocko
 SUSE Labs
