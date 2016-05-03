@@ -1,77 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F3FBF6B0005
-	for <linux-mm@kvack.org>; Tue,  3 May 2016 01:13:25 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 4so18663870pfw.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 22:13:25 -0700 (PDT)
-Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
-        by mx.google.com with ESMTPS id o6si2272197pfj.110.2016.05.02.22.13.25
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7789A6B0005
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 01:23:06 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b203so18986597pfb.1
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 22:23:06 -0700 (PDT)
+Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
+        by mx.google.com with ESMTPS id x66si2286437pfx.231.2016.05.02.22.23.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 22:13:25 -0700 (PDT)
-Received: by mail-pf0-x232.google.com with SMTP id 206so5054844pfu.0
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 22:13:25 -0700 (PDT)
+        Mon, 02 May 2016 22:23:05 -0700 (PDT)
+Received: by mail-pf0-x22b.google.com with SMTP id y69so5061255pfb.1
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 22:23:05 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH for v4.6] lib/stackdepot: avoid to return 0 handle
-Date: Tue,  3 May 2016 14:13:23 +0900
-Message-Id: <1462252403-1106-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 0/6] mm/page_owner: use tackdepot to store stacktrace
+Date: Tue,  3 May 2016 14:22:58 +0900
+Message-Id: <1462252984-8524-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Potapenko <glider@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Recently, we allow to save the stacktrace whose hashed value is 0.
-It causes the problem that stackdepot could return 0 even if in success.
-User of stackdepot cannot distinguish whether it is success or not so we
-need to solve this problem. In this patch, 1 bit are added to handle
-and make valid handle none 0 by setting this bit. After that, valid handle
-will not be 0 and 0 handle will represent failure correctly.
+This patchset changes a way to store stacktrace in page_owner in order to
+reduce memory usage. Below is motivation of this patchset coped
+from the patch 6.
 
-Fixes: 33334e25769c ("lib/stackdepot.c: allow the stack trace hash
-to be zero")
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- lib/stackdepot.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+Currently, we store each page's allocation stacktrace on corresponding
+page_ext structure and it requires a lot of memory. This causes the problem
+that memory tight system doesn't work well if page_owner is enabled.
+Moreover, even with this large memory consumption, we cannot get full
+stacktrace because we allocate memory at boot time and just maintain
+8 stacktrace slots to balance memory consumption. We could increase it
+to more but it would make system unusable or change system behaviour.
 
-diff --git a/lib/stackdepot.c b/lib/stackdepot.c
-index 9e0b031..53ad6c0 100644
---- a/lib/stackdepot.c
-+++ b/lib/stackdepot.c
-@@ -42,12 +42,14 @@
- 
- #define DEPOT_STACK_BITS (sizeof(depot_stack_handle_t) * 8)
- 
-+#define STACK_ALLOC_NULL_PROTECTION_BITS 1
- #define STACK_ALLOC_ORDER 2 /* 'Slab' size order for stack depot, 4 pages */
- #define STACK_ALLOC_SIZE (1LL << (PAGE_SHIFT + STACK_ALLOC_ORDER))
- #define STACK_ALLOC_ALIGN 4
- #define STACK_ALLOC_OFFSET_BITS (STACK_ALLOC_ORDER + PAGE_SHIFT - \
- 					STACK_ALLOC_ALIGN)
--#define STACK_ALLOC_INDEX_BITS (DEPOT_STACK_BITS - STACK_ALLOC_OFFSET_BITS)
-+#define STACK_ALLOC_INDEX_BITS (DEPOT_STACK_BITS - \
-+		STACK_ALLOC_NULL_PROTECTION_BITS - STACK_ALLOC_OFFSET_BITS)
- #define STACK_ALLOC_SLABS_CAP 1024
- #define STACK_ALLOC_MAX_SLABS \
- 	(((1LL << (STACK_ALLOC_INDEX_BITS)) < STACK_ALLOC_SLABS_CAP) ? \
-@@ -59,6 +61,7 @@ union handle_parts {
- 	struct {
- 		u32 slabindex : STACK_ALLOC_INDEX_BITS;
- 		u32 offset : STACK_ALLOC_OFFSET_BITS;
-+		u32 valid : STACK_ALLOC_NULL_PROTECTION_BITS;
- 	};
- };
- 
-@@ -136,6 +139,7 @@ static struct stack_record *depot_alloc_stack(unsigned long *entries, int size,
- 	stack->size = size;
- 	stack->handle.slabindex = depot_index;
- 	stack->handle.offset = depot_offset >> STACK_ALLOC_ALIGN;
-+	stack->handle.valid = 1;
- 	memcpy(stack->entries, entries, size * sizeof(unsigned long));
- 	depot_offset += required_size;
- 
+To solve the problem, this patch uses stackdepot to store stacktrace.
+
+Thanks.
+
+Joonsoo Kim (6):
+  mm/compaction: split freepages without holding the zone lock
+  mm/page_owner: initialize page owner without holding the zone lock
+  mm/page_owner: copy last_migrate_reason in copy_page_owner()
+  mm/page_owner: introduce split_page_owner and replace manual handling
+  tools/vm/page_owner: increase temporary buffer size
+  mm/page_owner: use stackdepot to store stacktrace
+
+ include/linux/mm.h         |   1 -
+ include/linux/page_ext.h   |   4 +-
+ include/linux/page_owner.h |  12 ++--
+ lib/Kconfig.debug          |   1 +
+ mm/compaction.c            |  45 +++++++++++----
+ mm/page_alloc.c            |  37 +-----------
+ mm/page_isolation.c        |   9 ++-
+ mm/page_owner.c            | 136 ++++++++++++++++++++++++++++++++++++++-------
+ tools/vm/page_owner_sort.c |   9 ++-
+ 9 files changed, 173 insertions(+), 81 deletions(-)
+
 -- 
 1.9.1
 
