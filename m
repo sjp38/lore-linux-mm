@@ -1,126 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E07886B0005
-	for <linux-mm@kvack.org>; Tue,  3 May 2016 11:38:26 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id 68so18523810lfq.2
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 08:38:26 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id zl3si4880619wjb.1.2016.05.03.08.38.25
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 00C5F6B0005
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 11:55:30 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id k129so56324129iof.0
+        for <linux-mm@kvack.org>; Tue, 03 May 2016 08:55:30 -0700 (PDT)
+Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2on0096.outbound.protection.outlook.com. [207.46.100.96])
+        by mx.google.com with ESMTPS id h144si4946640iof.183.2016.05.03.08.55.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 May 2016 08:38:25 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id w143so4454612wmw.3
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 08:38:25 -0700 (PDT)
-Date: Tue, 3 May 2016 17:38:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm, debug: report when GFP_NO{FS,IO} is used
- explicitly from memalloc_no{fs,io}_{save,restore} context
-Message-ID: <20160503153823.GB4470@dhcp22.suse.cz>
-References: <1461671772-1269-1-git-send-email-mhocko@kernel.org>
- <1461671772-1269-3-git-send-email-mhocko@kernel.org>
- <20160426225845.GF26977@dastard>
- <20160428081759.GA31489@dhcp22.suse.cz>
- <20160428215145.GM26977@dastard>
- <20160429121219.GL21977@dhcp22.suse.cz>
- <20160429234008.GN26977@dastard>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 03 May 2016 08:55:28 -0700 (PDT)
+Subject: Re: [RFC PATCH v1 00/18] x86: Secure Memory Encryption (AMD)
+References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
+ <94D0CD8314A33A4D9D801C0FE68B402963918FDA@G4W3296.americas.hpqcorp.net>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <5728C9E1.3050803@amd.com>
+Date: Tue, 3 May 2016 10:55:13 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160429234008.GN26977@dastard>
+In-Reply-To: <94D0CD8314A33A4D9D801C0FE68B402963918FDA@G4W3296.americas.hpqcorp.net>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, xfs@oss.sgi.com, LKML <linux-kernel@vger.kernel.org>
+To: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
+Cc: =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek
+ Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo
+ Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander
+ Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry
+ Vyukov <dvyukov@google.com>
 
-On Sat 30-04-16 09:40:08, Dave Chinner wrote:
-> On Fri, Apr 29, 2016 at 02:12:20PM +0200, Michal Hocko wrote:
-[...]
-> > - was it 
-> > "inconsistent {RECLAIM_FS-ON-[RW]} -> {IN-RECLAIM_FS-[WR]} usage"
-> > or a different class reports?
+On 04/30/2016 01:13 AM, Elliott, Robert (Persistent Memory) wrote:
+>> -----Original Message-----
+>> From: linux-kernel-owner@vger.kernel.org [mailto:linux-kernel-
+>> owner@vger.kernel.org] On Behalf Of Tom Lendacky
+>> Sent: Tuesday, April 26, 2016 5:56 PM
+>> Subject: [RFC PATCH v1 00/18] x86: Secure Memory Encryption (AMD)
+>>
+>> This RFC patch series provides support for AMD's new Secure Memory
+>> Encryption (SME) feature.
+>>
+>> SME can be used to mark individual pages of memory as encrypted through the
+>> page tables. A page of memory that is marked encrypted will be automatically
+>> decrypted when read from DRAM and will be automatically encrypted when
+>> written to DRAM. Details on SME can found in the links below.
+>>
+> ...
+>> ...  Certain data must be accounted for
+>> as having been placed in memory before SME was enabled (EFI, initrd, etc.)
+>> and accessed accordingly.
+>>
+> ...
+>>       x86/efi: Access EFI related tables in the clear
+>>       x86: Access device tree in the clear
+>>       x86: Do not specify encrypted memory for VGA mapping
 > 
-> Typically that was involved, but it quite often there'd be a number
-> of locks and sometimes even interrupt stacks in an interaction
-> between 5 or 6 different processes. Lockdep covers all sorts of
-> stuff now (like fs freeze annotations as well as locks and memory
-> reclaim) so sometimes the only thing we can do is remove the
-> reclaim context from the stack and see if that makes it go away...
+> If the SME encryption key "is created randomly each time a system is booted,"
+> data on NVDIMMs won't decrypt properly on the next boot.  You need to exclude
+> persistent memory regions (reported in the UEFI memory map as 
+> EfiReservedMemoryType with the NV attribute, or as EfiPersistentMemory).
 
-That is what I was thinking of. lockdep_reclaim_{disable,enable} or
-something like that to tell __lockdep_trace_alloc to not skip
-mark_held_locks(). This would effectivelly help to get rid of reclaim
-specific reports. It is hard to tell whether there would be others,
-though.
+The current plan is for the AMD Secure Processor to securely save the
+SME encryption key when NVDIMMs are installed on a system. The saved SME
+key will be restored if an NVDIMM restore event needs to be performed.
+If there isn't an NVDIMM restore event, then the randomly generated key
+will be used.
 
-> > > They may have been fixed since, but I'm sceptical
-> > > of that because, generally speaking, developer testing only catches
-> > > the obvious lockdep issues. i.e. it's users that report all the
-> > > really twisty issues, and they are generally not reproducable except
-> > > under their production workloads...
-> > > 
-> > > IOWs, the absence of reports in your testing does not mean there
-> > > isn't a problem, and that is one of the biggest problems with
-> > > lockdep annotations - we have no way of ever knowing if they are
-> > > still necessary or not without exposing users to regressions and
-> > > potential deadlocks.....
-> > 
-> > I understand your points here but if we are sure that those lockdep
-> > reports are just false positives then we should rather provide an api to
-> > silence lockdep for those paths
+Thanks,
+Tom
+
 > 
-> I agree with this - please provide such infrastructure before we
-> need it...
-
-Do you think a reclaim specific lockdep annotation would be sufficient?
-
-> > than abusing GFP_NOFS which a) hurts
-> > the overal reclaim healthiness
+> Perhaps the SEV feature will allow key export/import that could work for
+> NVDIMMs.
 > 
-> Which doesn't actually seem to be a problem for the vast majority of
-> users.
-
-Yes, most users are OK. Those allocations can be triggered by the
-userspace (read a malicious user) quite easily and be harmful without a
-good way to contain them.
- 
-> > and b) works around a non-existing
-> > problem with lockdep disabled which is the vast majority of
-> > configurations.
+> ---
+> Robert Elliott, HPE Persistent Memory
 > 
-> But the moment we have a lockdep problem, we get bug reports from
-> all over the place and people complaining about it, so we are
-> *required* to silence them one way or another. And, like I said,
-> when the choice is simply adding GFP_NOFS or spending a week or two
-> completely reworking complex code that has functioned correctly for
-> 15 years, the risk/reward *always* falls on the side of "just add
-> GFP_NOFS".
 > 
-> Please keep in mind that there is as much code in fs/xfs as there is
-> in the mm/ subsystem, and XFS has twice that in userspace as well.
-> I say this, because we have only have 3-4 full time developers to do
-> all the work required on this code base, unlike the mm/ subsystem
-> which had 30-40 full time MM developers attending LSFMM. This is why
-> I push back on suggestions that require significant redesign of
-> subsystem code to handle memory allocation/reclaim quirks - most
-> subsystems simply don't have the resources available to do such
-> work, and so will always look for the quick 2 minute fix when it is
-> available....
-
-I do understand your concerns and I really do not ask you to redesign
-your code. I would like make the code more maintainable and reducing the
-number of (undocumented) GFP_NOFS usage to the minimum seems to be like
-a first step. Now the direct usage of GFP_NOFS (resp. KM_NOFS) in xfs is
-not that large. If we can reduce the few instances which are using the
-flag to silence the lockdep and replace them by a better annotation then
-I think this would be an improvement as well. If we can go one step
-further and can get rid of mapping_set_gfp_mask(inode->i_mapping,
-(gfp_mask & ~(__GFP_FS))) then I would be even happier.
-
-I think other fs and code which interacts with FS layer needs much more
-changes than xfs to be honest.
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
