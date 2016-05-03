@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 95EF66B0265
-	for <linux-mm@kvack.org>; Tue,  3 May 2016 17:02:49 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id yl2so43165576pac.2
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 14:02:49 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id vh16si323550pab.164.2016.05.03.14.02.48
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D24656B0268
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 17:03:21 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b203so63397438pfb.1
+        for <linux-mm@kvack.org>; Tue, 03 May 2016 14:03:21 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id k4si351779pan.85.2016.05.03.14.03.20
         for <linux-mm@kvack.org>;
-        Tue, 03 May 2016 14:02:48 -0700 (PDT)
-Message-ID: <1462309367.21143.12.camel@linux.intel.com>
-Subject: [PATCH 5/7] mm: Batch addtion of pages to swap cache
+        Tue, 03 May 2016 14:03:20 -0700 (PDT)
+Message-ID: <1462309397.21143.13.camel@linux.intel.com>
+Subject: [PATCH 6/7] mm: Cleanup - Reorganize code to group handling of page
 From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Tue, 03 May 2016 14:02:47 -0700
+Date: Tue, 03 May 2016 14:03:17 -0700
 In-Reply-To: <cover.1462306228.git.tim.c.chen@linux.intel.com>
 References: <cover.1462306228.git.tim.c.chen@linux.intel.com>
 Content-Type: text/plain; charset="UTF-8"
@@ -22,376 +22,419 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>
 Cc: "Kirill A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-When a page is to be swapped, it needed to be added to the swap cache
-and then removed after the paging has been completed.A A A swap partition's
-mapping tree lock is acquired for each anonymous page's addition to the
-swap cache.
+In this patch, we reorganize the paging operations so the paging
+operations of pages to the same swap device can be grouped together.
+This prepares for the next patch that remove multiple pages from
+the same swap cache together once they have been paged out.
 
-This patch created new functions add_to_swap_batch and
-__add_to_swap_cache_batch that allows multiple pages destinied for the
-same swap partition to be added to that swap partition's swap cache in
-one acquisition of the mapping tree lock.A A These functions extend the
-original add_to_swap and __add_to_swap_cache. This reduces the contention
-of the swap partition's mapping tree lock when we are actively reclaiming
-memory and swapping pages
+The patch creates a new function handle_pgout_batch that takes
+the code of handle_pgout and put a loop around handle_pgout code for
+multiple pages.
 
 Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
 ---
-A include/linux/swap.h |A A A 2 +
-A mm/swap_state.cA A A A A A | 248 +++++++++++++++++++++++++++++++++++++--------------
-A mm/vmscan.cA A A A A A A A A A |A A 19 ++--
-A 3 files changed, 196 insertions(+), 73 deletions(-)
+A mm/vmscan.c | 338 +++++++++++++++++++++++++++++++++++-------------------------
+A 1 file changed, 196 insertions(+), 142 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index da6d994..cd06f2a 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -373,6 +373,8 @@ extern unsigned long total_swapcache_pages(void);
-A extern void show_swap_cache_info(void);
-A extern int add_to_swap(struct page *, struct list_head *list,
-A 			swp_entry_t *entry);
-+extern void add_to_swap_batch(struct page *pages[], struct list_head *list,
-+			swp_entry_t entries[], int ret_codes[], int nr);
-A extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
-A extern int __add_to_swap_cache(struct page *page, swp_entry_t entry);
-A extern void __delete_from_swap_cache(struct page *);
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index bad02c1..ce02024 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -72,49 +72,94 @@ void show_swap_cache_info(void)
-A 	printk("Total swap = %lukB\n", total_swap_pages << (PAGE_SHIFT - 10));
-A }
-A 
--/*
-- * __add_to_swap_cache resembles add_to_page_cache_locked on swapper_space,
-- * but sets SwapCache flag and private instead of mapping and index.
-- */
--int __add_to_swap_cache(struct page *page, swp_entry_t entry)
-+void __add_to_swap_cache_batch(struct page *pages[], swp_entry_t entries[],
-+				int ret[], int nr)
-A {
--	int error;
-+	int error, i;
-A 	struct address_space *address_space;
-+	struct address_space *prev;
-+	struct page *page;
-+	swp_entry_t entry;
-A 
--	VM_BUG_ON_PAGE(!PageLocked(page), page);
--	VM_BUG_ON_PAGE(PageSwapCache(page), page);
--	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
-+	prev = NULL;
-+	address_space = NULL;
-+	for (i = 0; i < nr; ++i) {
-+		/* error at pre-processing stage, swap entry already released */
-+		if (ret[i] == -ENOENT)
-+			continue;
-A 
--	get_page(page);
--	SetPageSwapCache(page);
--	set_page_private(page, entry.val);
-+		page = pages[i];
-+		entry = entries[i];
-A 
--	address_space = swap_address_space(entry);
--	spin_lock_irq(&address_space->tree_lock);
--	error = radix_tree_insert(&address_space->page_tree,
--					entry.val, page);
--	if (likely(!error)) {
--		address_space->nrpages++;
--		__inc_zone_page_state(page, NR_FILE_PAGES);
--		INC_CACHE_INFO(add_total);
--	}
--	spin_unlock_irq(&address_space->tree_lock);
-+		VM_BUG_ON_PAGE(!PageLocked(page), page);
-+		VM_BUG_ON_PAGE(PageSwapCache(page), page);
-+		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
-A 
--	if (unlikely(error)) {
--		/*
--		A * Only the context which have set SWAP_HAS_CACHE flag
--		A * would call add_to_swap_cache().
--		A * So add_to_swap_cache() doesn't returns -EEXIST.
--		A */
--		VM_BUG_ON(error == -EEXIST);
--		set_page_private(page, 0UL);
--		ClearPageSwapCache(page);
--		put_page(page);
-+		get_page(page);
-+		SetPageSwapCache(page);
-+		set_page_private(page, entry.val);
-+
-+		address_space = swap_address_space(entry);
-+		if (prev != address_space) {
-+			if (prev)
-+				spin_unlock_irq(&prev->tree_lock);
-+			spin_lock_irq(&address_space->tree_lock);
-+		}
-+		error = radix_tree_insert(&address_space->page_tree,
-+				entry.val, page);
-+		if (likely(!error)) {
-+			address_space->nrpages++;
-+			__inc_zone_page_state(page, NR_FILE_PAGES);
-+			INC_CACHE_INFO(add_total);
-+		}
-+
-+		if (unlikely(error)) {
-+			spin_unlock_irq(&address_space->tree_lock);
-+			address_space = NULL;
-+			/*
-+			A * Only the context which have set SWAP_HAS_CACHE flag
-+			A * would call add_to_swap_cache().
-+			A * So add_to_swap_cache() doesn't returns -EEXIST.
-+			A */
-+			VM_BUG_ON(error == -EEXIST);
-+			set_page_private(page, 0UL);
-+			ClearPageSwapCache(page);
-+			put_page(page);
-+		}
-+		prev = address_space;
-+		ret[i] = error;
-A 	}
-+	if (address_space)
-+		spin_unlock_irq(&address_space->tree_lock);
-+}
-A 
--	return error;
-+/*
-+ * __add_to_swap_cache resembles add_to_page_cache_locked on swapper_space,
-+ * but sets SwapCache flag and private instead of mapping and index.
-+ */
-+int __add_to_swap_cache(struct page *page, swp_entry_t entry)
-+{
-+	swp_entry_t	entries[1];
-+	struct page	*pages[1];
-+	int	ret[1];
-+
-+	pages[0] = page;
-+	entries[0] = entry;
-+	__add_to_swap_cache_batch(pages, entries, ret, 1);
-+	return ret[0];
-A }
-A 
-+void add_to_swap_cache_batch(struct page *pages[], swp_entry_t entries[],
-+				gfp_t gfp_mask, int ret[], int nr)
-+{
-+	int error;
-+
-+	error = radix_tree_maybe_preload(gfp_mask);
-+	if (!error) {
-+		__add_to_swap_cache_batch(pages, entries, ret, nr);
-+		radix_tree_preload_end();
-+	}
-+}
-A 
-A int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
-A {
-@@ -151,6 +196,73 @@ void __delete_from_swap_cache(struct page *page)
-A 	INC_CACHE_INFO(del_total);
-A }
-A 
-+void add_to_swap_batch(struct page *pages[], struct list_head *list,
-+			swp_entry_t entries[], int ret_codes[], int nr)
-+{
-+	swp_entry_t *entry;
-+	struct page *page;
-+	int i;
-+
-+	for (i = 0; i < nr; ++i) {
-+		entry = &entries[i];
-+		page = pages[i];
-+
-+		VM_BUG_ON_PAGE(!PageLocked(page), page);
-+		VM_BUG_ON_PAGE(!PageUptodate(page), page);
-+
-+		ret_codes[i] = 1;
-+
-+		if (!entry->val)
-+			ret_codes[i] = -ENOENT;
-+
-+		if (mem_cgroup_try_charge_swap(page, *entry)) {
-+			swapcache_free(*entry);
-+			ret_codes[i] = 0;
-+		}
-+
-+		if (unlikely(PageTransHuge(page)))
-+			if (unlikely(split_huge_page_to_list(page, list))) {
-+				swapcache_free(*entry);
-+				ret_codes[i] = -ENOENT;
-+				continue;
-+			}
-+	}
-+
-+	/*
-+	A * Radix-tree node allocations from PF_MEMALLOC contexts could
-+	A * completely exhaust the page allocator. __GFP_NOMEMALLOC
-+	A * stops emergency reserves from being allocated.
-+	A *
-+	A * TODO: this could cause a theoretical memory reclaim
-+	A * deadlock in the swap out path.
-+	A */
-+	/*
-+	A * Add it to the swap cache
-+	A */
-+	add_to_swap_cache_batch(pages, entries,
-+			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN,
-+				ret_codes, nr);
-+
-+	for (i = 0; i < nr; ++i) {
-+		entry = &entries[i];
-+		page = pages[i];
-+
-+		if (!ret_codes[i]) {A A A A /* Success */
-+			ret_codes[i] = 1;
-+			continue;
-+		} else {A A A A A A A A /* -ENOMEM radix-tree allocation failure */
-+			/*
-+			A * add_to_swap_cache() doesn't return -EEXIST,
-+			A * so we can safely clear SWAP_HAS_CACHE flag.
-+			A */
-+			if (ret_codes[i] != -ENOENT)
-+				swapcache_free(*entry);
-+			ret_codes[i] = 0;
-+			continue;
-+		}
-+	}
-+}
-+
-A /**
-A  * add_to_swap - allocate swap space for a page
-A  * @page: page we want to move to swap
-@@ -161,54 +273,56 @@ void __delete_from_swap_cache(struct page *page)
-A  */
-A int add_to_swap(struct page *page, struct list_head *list, swp_entry_t *entry)
-A {
--	int err;
--	swp_entry_t ent;
-+	int ret[1];
-+	swp_entry_t ent[1];
-A 
-A 	VM_BUG_ON_PAGE(!PageLocked(page), page);
-A 	VM_BUG_ON_PAGE(!PageUptodate(page), page);
-A 
-A 	if (!entry) {
--		ent = get_swap_page();
--		entry = &ent;
-+		ent[0] = get_swap_page();
-+		entry = &ent[0];
-A 	}
-A 
-A 	if (entry && !entry->val)
-A 		return 0;
-A 
--	if (mem_cgroup_try_charge_swap(page, *entry)) {
--		swapcache_free(*entry);
--		return 0;
--	}
-+	add_to_swap_batch(&page, list, entry, ret, 1);
-+	return ret[0];
-+}
-A 
--	if (unlikely(PageTransHuge(page)))
--		if (unlikely(split_huge_page_to_list(page, list))) {
--			swapcache_free(*entry);
--			return 0;
-+void delete_from_swap_cache_batch(struct page pages[], int nr)
-+{
-+	struct page *page;
-+	swp_entry_t entry;
-+	struct address_space *address_space, *prev;
-+	int i;
-+
-+	prev = NULL;
-+	address_space = NULL;
-+	for (i = 0; i < nr; ++i) {
-+		page = &pages[i];
-+		entry.val = page_private(page);
-+
-+		address_space = swap_address_space(entry);
-+		if (address_space != prev) {
-+			if (prev)
-+				spin_unlock_irq(&prev->tree_lock);
-+			spin_lock_irq(&address_space->tree_lock);
-A 		}
-+		__delete_from_swap_cache(page);
-+		prev = address_space;
-+	}
-+	if (address_space)
-+		spin_unlock_irq(&address_space->tree_lock);
-A 
--	/*
--	A * Radix-tree node allocations from PF_MEMALLOC contexts could
--	A * completely exhaust the page allocator. __GFP_NOMEMALLOC
--	A * stops emergency reserves from being allocated.
--	A *
--	A * TODO: this could cause a theoretical memory reclaim
--	A * deadlock in the swap out path.
--	A */
--	/*
--	A * Add it to the swap cache.
--	A */
--	err = add_to_swap_cache(page, *entry,
--			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
-+	for (i = 0; i < nr; ++i) {
-+		page = &pages[i];
-+		entry.val = page_private(page);
-A 
--	if (!err) {
--		return 1;
--	} else {	/* -ENOMEM radix-tree allocation failure */
--		/*
--		A * add_to_swap_cache() doesn't return -EEXIST, so we can safely
--		A * clear SWAP_HAS_CACHE flag.
--		A */
--		swapcache_free(*entry);
--		return 0;
-+		/* can batch this */
-+		swapcache_free(entry);
-+		put_page(page);
-A 	}
-A }
-A 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 310e2b2..fab61f1 100644
+index fab61f1..9fc04e1 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1097,8 +1097,9 @@ static unsigned long shrink_anon_page_list(struct list_head *page_list,
+@@ -884,154 +884,218 @@ enum pg_result {
+A 	PG_UNKNOWN,
+A };
+A 
+-static enum pg_result handle_pgout(struct list_head *page_list,
++static void handle_pgout_batch(struct list_head *page_list,
+A 	struct zone *zone,
+A 	struct scan_control *sc,
+A 	enum ttu_flags ttu_flags,
+A 	enum page_references references,
+A 	bool may_enter_fs,
+A 	bool lazyfree,
+-	intA A *swap_ret,
+-	struct page *page)
++	struct page *pages[],
++	intA A swap_ret[],
++	int ret[],
++	int nr)
+A {
+A 	struct address_space *mapping;
++	struct page *page;
++	int i;
+A 
+-	mapping =A A page_mapping(page);
++	for (i = 0; i < nr; ++i) {
++		page = pages[i];
++		mapping =A A page_mapping(page);
+A 
+-	/*
+-	A * The page is mapped into the page tables of one or more
+-	A * processes. Try to unmap it here.
+-	A */
+-	if (page_mapped(page) && mapping) {
+-		switch (*swap_ret = try_to_unmap(page, lazyfree ?
+-			(ttu_flags | TTU_BATCH_FLUSH | TTU_LZFREE) :
+-			(ttu_flags | TTU_BATCH_FLUSH))) {
+-		case SWAP_FAIL:
+-			return PG_ACTIVATE_LOCKED;
+-		case SWAP_AGAIN:
+-			return PG_KEEP_LOCKED;
+-		case SWAP_MLOCK:
+-			return PG_MLOCKED;
+-		case SWAP_LZFREE:
+-			goto lazyfree;
+-		case SWAP_SUCCESS:
+-			; /* try to free the page below */
++		/* check outcome of cache addition */
++		if (!ret[i]) {
++			ret[i] = PG_ACTIVATE_LOCKED;
++			continue;
+A 		}
+-	}
+-
+-	if (PageDirty(page)) {
+A 		/*
+-		A * Only kswapd can writeback filesystem pages to
+-		A * avoid risk of stack overflow but only writeback
+-		A * if many dirty pages have been encountered.
++		A * The page is mapped into the page tables of one or more
++		A * processes. Try to unmap it here.
+A 		A */
+-		if (page_is_file_cache(page) &&
+-				(!current_is_kswapd() ||
+-				A !test_bit(ZONE_DIRTY, &zone->flags))) {
++		if (page_mapped(page) && mapping) {
++			switch (swap_ret[i] = try_to_unmap(page, lazyfree ?
++				(ttu_flags | TTU_BATCH_FLUSH | TTU_LZFREE) :
++				(ttu_flags | TTU_BATCH_FLUSH))) {
++			case SWAP_FAIL:
++				ret[i] = PG_ACTIVATE_LOCKED;
++				continue;
++			case SWAP_AGAIN:
++				ret[i] = PG_KEEP_LOCKED;
++				continue;
++			case SWAP_MLOCK:
++				ret[i] = PG_MLOCKED;
++				continue;
++			case SWAP_LZFREE:
++				goto lazyfree;
++			case SWAP_SUCCESS:
++				; /* try to free the page below */
++			}
++		}
++
++		if (PageDirty(page)) {
+A 			/*
+-			A * Immediately reclaim when written back.
+-			A * Similar in principal to deactivate_page()
+-			A * except we already have the page isolated
+-			A * and know it's dirty
++			A * Only kswapd can writeback filesystem pages to
++			A * avoid risk of stack overflow but only writeback
++			A * if many dirty pages have been encountered.
+A 			A */
+-			inc_zone_page_state(page, NR_VMSCAN_IMMEDIATE);
+-			SetPageReclaim(page);
+-
+-			return PG_KEEP_LOCKED;
+-		}
++			if (page_is_file_cache(page) &&
++					(!current_is_kswapd() ||
++					A !test_bit(ZONE_DIRTY, &zone->flags))) {
++				/*
++				A * Immediately reclaim when written back.
++				A * Similar in principal to deactivate_page()
++				A * except we already have the page isolated
++				A * and know it's dirty
++				A */
++				inc_zone_page_state(page, NR_VMSCAN_IMMEDIATE);
++				SetPageReclaim(page);
+A 
+-		if (references == PAGEREF_RECLAIM_CLEAN)
+-			return PG_KEEP_LOCKED;
+-		if (!may_enter_fs)
+-			return PG_KEEP_LOCKED;
+-		if (!sc->may_writepage)
+-			return PG_KEEP_LOCKED;
++				ret[i] = PG_KEEP_LOCKED;
++				continue;
++			}
+A 
+-		/*
+-		A * Page is dirty. Flush the TLB if a writable entry
+-		A * potentially exists to avoid CPU writes after IO
+-		A * starts and then write it out here.
+-		A */
+-		try_to_unmap_flush_dirty();
+-		switch (pageout(page, mapping, sc)) {
+-		case PAGE_KEEP:
+-			return PG_KEEP_LOCKED;
+-		case PAGE_ACTIVATE:
+-			return PG_ACTIVATE_LOCKED;
+-		case PAGE_SUCCESS:
+-			if (PageWriteback(page))
+-				return PG_KEEP;
+-			if (PageDirty(page))
+-				return PG_KEEP;
++			if (references == PAGEREF_RECLAIM_CLEAN) {
++				ret[i] = PG_KEEP_LOCKED;
++				continue;
++			}
++			if (!may_enter_fs) {
++				ret[i] = PG_KEEP_LOCKED;
++				continue;
++			}
++			if (!sc->may_writepage) {
++				ret[i] = PG_KEEP_LOCKED;
++				continue;
++			}
+A 
+A 			/*
+-			A * A synchronous write - probably a ramdisk.A A Go
+-			A * ahead and try to reclaim the page.
++			A * Page is dirty. Flush the TLB if a writable entry
++			A * potentially exists to avoid CPU writes after IO
++			A * starts and then write it out here.
+A 			A */
+-			if (!trylock_page(page))
+-				return PG_KEEP;
+-			if (PageDirty(page) || PageWriteback(page))
+-				return PG_KEEP_LOCKED;
+-			mapping = page_mapping(page);
+-		case PAGE_CLEAN:
+-			; /* try to free the page below */
+-		}
+-	}
++			try_to_unmap_flush_dirty();
++			switch (pageout(page, mapping, sc)) {
++			case PAGE_KEEP:
++				ret[i] = PG_KEEP_LOCKED;
++				continue;
++			case PAGE_ACTIVATE:
++				ret[i] = PG_ACTIVATE_LOCKED;
++				continue;
++			case PAGE_SUCCESS:
++				if (PageWriteback(page)) {
++					ret[i] = PG_KEEP;
++					continue;
++				}
++				if (PageDirty(page)) {
++					ret[i] = PG_KEEP;
++					continue;
++				}
+A 
+-	/*
+-	A * If the page has buffers, try to free the buffer mappings
+-	A * associated with this page. If we succeed we try to free
+-	A * the page as well.
+-	A *
+-	A * We do this even if the page is PageDirty().
+-	A * try_to_release_page() does not perform I/O, but it is
+-	A * possible for a page to have PageDirty set, but it is actually
+-	A * clean (all its buffers are clean).A A This happens if the
+-	A * buffers were written out directly, with submit_bh(). ext3
+-	A * will do this, as well as the blockdev mapping.
+-	A * try_to_release_page() will discover that cleanness and will
+-	A * drop the buffers and mark the page clean - it can be freed.
+-	A *
+-	A * Rarely, pages can have buffers and no ->mapping.A A These are
+-	A * the pages which were not successfully invalidated in
+-	A * truncate_complete_page().A A We try to drop those buffers here
+-	A * and if that worked, and the page is no longer mapped into
+-	A * process address space (page_count == 1) it can be freed.
+-	A * Otherwise, leave the page on the LRU so it is swappable.
+-	A */
+-	if (page_has_private(page)) {
+-		if (!try_to_release_page(page, sc->gfp_mask))
+-			return PG_ACTIVATE_LOCKED;
+-		if (!mapping && page_count(page) == 1) {
+-			unlock_page(page);
+-			if (put_page_testzero(page))
+-				return PG_FREE;
+-			else {
+A 				/*
+-				A * rare race with speculative reference.
+-				A * the speculative reference will free
+-				A * this page shortly, so we may
+-				A * increment nr_reclaimed (and
+-				A * leave it off the LRU).
++				A * A synchronous write - probably a ramdisk.A A Go
++				A * ahead and try to reclaim the page.
+A 				A */
+-				return PG_SPECULATIVE_REF;
++				if (!trylock_page(page)) {
++					ret[i] = PG_KEEP;
++					continue;
++				}
++				if (PageDirty(page) || PageWriteback(page)) {
++					ret[i] = PG_KEEP_LOCKED;
++					continue;
++				}
++				mapping = page_mapping(page);
++			case PAGE_CLEAN:
++				; /* try to free the page below */
+A 			}
+A 		}
+-	}
+A 
++		/*
++		A * If the page has buffers, try to free the buffer mappings
++		A * associated with this page. If we succeed we try to free
++		A * the page as well.
++		A *
++		A * We do this even if the page is PageDirty().
++		A * try_to_release_page() does not perform I/O, but it is
++		A * possible for a page to have PageDirty set, but it is actually
++		A * clean (all its buffers are clean).A A This happens if the
++		A * buffers were written out directly, with submit_bh(). ext3
++		A * will do this, as well as the blockdev mapping.
++		A * try_to_release_page() will discover that cleanness and will
++		A * drop the buffers and mark the page clean - it can be freed.
++		A *
++		A * Rarely, pages can have buffers and no ->mapping.A A These are
++		A * the pages which were not successfully invalidated in
++		A * truncate_complete_page().A A We try to drop those buffers here
++		A * and if that worked, and the page is no longer mapped into
++		A * process address space (page_count == 1) it can be freed.
++		A * Otherwise, leave the page on the LRU so it is swappable.
++		A */
++		if (page_has_private(page)) {
++			if (!try_to_release_page(page, sc->gfp_mask)) {
++				ret[i] = PG_ACTIVATE_LOCKED;
++				continue;
++			}
++			if (!mapping && page_count(page) == 1) {
++				unlock_page(page);
++				if (put_page_testzero(page)) {
++					ret[i] = PG_FREE;
++					continue;
++				} else {
++					/*
++					A * rare race with speculative reference.
++					A * the speculative reference will free
++					A * this page shortly, so we may
++					A * increment nr_reclaimed (and
++					A * leave it off the LRU).
++					A */
++					ret[i] = PG_SPECULATIVE_REF;
++					continue;
++				}
++			}
++		}
+A lazyfree:
+-	if (!mapping || !__remove_mapping(mapping, page, true))
+-		return PG_KEEP_LOCKED;
++		if (!mapping || !__remove_mapping(mapping, page, true)) {
++			ret[i] = PG_KEEP_LOCKED;
++			continue;
++		}
++
++		/*
++		A * At this point, we have no other references and there is
++		A * no way to pick any more up (removed from LRU, removed
++		A * from pagecache). Can use non-atomic bitops now (and
++		A * we obviously don't have to worry about waking up a process
++		A * waiting on the page lock, because there are no references.
++		A */
++		__ClearPageLocked(page);
++		ret[i] = PG_FREE;
++	}
++}
++
++static enum pg_result handle_pgout(struct list_head *page_list,
++	struct zone *zone,
++	struct scan_control *sc,
++	enum ttu_flags ttu_flags,
++	enum page_references references,
++	bool may_enter_fs,
++	bool lazyfree,
++	intA A *swap_ret,
++	struct page *page)
++{
++	struct page *pages[1];
++	int ret[1];
++	int sret[1];
++
++	pages[0] = page;
+A 
+A 	/*
+-	A * At this point, we have no other references and there is
+-	A * no way to pick any more up (removed from LRU, removed
+-	A * from pagecache). Can use non-atomic bitops now (and
+-	A * we obviously don't have to worry about waking up a process
+-	A * waiting on the page lock, because there are no references.
++	A * page is in swap cache or page cache, indicate that
++	A * by setting ret[0] to 1
+A 	A */
+-	__ClearPageLocked(page);
+-	return PG_FREE;
++	ret[0] = 1;
++	handle_pgout_batch(page_list, zone, sc, ttu_flags, references,
++		may_enter_fs, lazyfree, pages, sret, ret, 1);
++	*swap_ret = sret[0];
++	return ret[0];
+A }
+A 
+A static void pg_finish(struct page *page,
+@@ -1095,14 +1159,13 @@ static unsigned long shrink_anon_page_list(struct list_head *page_list,
+A 	bool clean)
+A {
 A 	unsigned long nr_reclaimed = 0;
-A 	enum pg_result pg_dispose;
+-	enum pg_result pg_dispose;
 A 	swp_entry_t swp_entries[SWAP_BATCH];
-+	struct page *pages[SWAP_BATCH];
-+	int m, i, k, ret[SWAP_BATCH];
+A 	struct page *pages[SWAP_BATCH];
+A 	int m, i, k, ret[SWAP_BATCH];
 A 	struct page *page;
--	int m, i, k;
 A 
 A 	while (n > 0) {
-A 		int swap_ret = SWAP_SUCCESS;
-@@ -1117,13 +1118,19 @@ static unsigned long shrink_anon_page_list(struct list_head *page_list,
-A 			page = lru_to_page(swap_pages);
+-		int swap_ret = SWAP_SUCCESS;
++		int swap_ret[SWAP_BATCH];
 A 
-A 			list_del(&page->lru);
-+			pages[i] = page;
-+		}
+A 		m = get_swap_pages(n, swp_entries);
+A 		if (!m)
+@@ -1127,28 +1190,19 @@ static unsigned long shrink_anon_page_list(struct list_head *page_list,
+A 		*/
+A 		add_to_swap_batch(pages, page_list, swp_entries, ret, m);
 A 
--			/*
--			* Anonymous process memory has backing store?
--			* Try to allocate it some swap space here.
--			*/
-+		/*
-+		* Anonymous process memory has backing store?
-+		* Try to allocate it some swap space here.
-+		*/
-+		add_to_swap_batch(pages, page_list, swp_entries, ret, m);
+-		for (i = 0; i < m; ++i) {
+-			page = pages[i];
+-
+-			if (!ret[i]) {
+-				pg_finish(page, PG_ACTIVATE_LOCKED, swap_ret,
+-						&nr_reclaimed, pgactivate,
+-						ret_pages, free_pages);
+-				continue;
+-			}
+-
+-			if (clean)
+-				pg_dispose = handle_pgout(page_list, zone, sc,
+-						ttu_flags, PAGEREF_RECLAIM_CLEAN,
+-						true, true, &swap_ret, page);
+-			else
+-				pg_dispose = handle_pgout(page_list, zone, sc,
+-						ttu_flags, PAGEREF_RECLAIM,
+-						true, true, &swap_ret, page);
+-
+-			pg_finish(page, pg_dispose, swap_ret, &nr_reclaimed,
+-					pgactivate, ret_pages, free_pages);
+-		}
++		if (clean)
++			handle_pgout_batch(page_list, zone, sc, ttu_flags,
++					PAGEREF_RECLAIM_CLEAN, true, true,
++					pages, swap_ret, ret, m);
++		else
++			handle_pgout_batch(page_list, zone, sc, ttu_flags,
++					PAGEREF_RECLAIM, true, true,
++					pages, swap_ret, ret, m);
 +
-+		for (i = 0; i < m; ++i) {
-+			page = pages[i];
++		for (i = 0; i < m; ++i)
++			pg_finish(pages[i], ret[i], swap_ret[i],
++					&nr_reclaimed, pgactivate,
++					ret_pages, free_pages);
+A 	}
+A 	return nr_reclaimed;
 A 
--			if (!add_to_swap(page, page_list, NULL)) {
-+			if (!ret[i]) {
-A 				pg_finish(page, PG_ACTIVATE_LOCKED, swap_ret,
-A 						&nr_reclaimed, pgactivate,
-A 						ret_pages, free_pages);
 --A 
 2.5.5
 
