@@ -1,42 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 30F746B0005
-	for <linux-mm@kvack.org>; Tue,  3 May 2016 03:59:15 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id d62so33432113iof.1
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 00:59:15 -0700 (PDT)
-Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
-        by mx.google.com with ESMTPS id e37si1122612ioj.10.2016.05.03.00.59.14
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9554D6B0005
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 04:50:42 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r12so12922662wme.0
+        for <linux-mm@kvack.org>; Tue, 03 May 2016 01:50:42 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id 204si25764847wmg.36.2016.05.03.01.50.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 May 2016 00:59:14 -0700 (PDT)
-From: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>
-Subject: RE: [PATCH] kasan: improve double-free detection
-Date: Tue, 3 May 2016 07:58:57 +0000
-Message-ID: <20E775CA4D599049A25800DE5799F6DD1F61F1DD@G9W0752.americas.hpqcorp.net>
-References: <20160502094920.GA3005@cherokee.in.rdlabs.hpecorp.net>
-	<CACT4Y+YV4A_YbDq5asowLJPUODottNHAKScWoRdUx6uy+TN-Uw@mail.gmail.com>
-	<CACT4Y+Z_+crRUm0U89YwW3x99dtx9cfPoO+L6mD-uyzfZAMkKw@mail.gmail.com>
- <CAG_fn=U3-JxoOExtG3Zi3WJ4Xoao5OVWN-eZ-05u+hJ9Pr+kyQ@mail.gmail.com>
-In-Reply-To: <CAG_fn=U3-JxoOExtG3Zi3WJ4Xoao5OVWN-eZ-05u+hJ9Pr+kyQ@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 03 May 2016 01:50:41 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id EF68A987C9
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 08:50:40 +0000 (UTC)
+Date: Tue, 3 May 2016 09:50:39 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 0/6] Optimise page alloc/free fast paths followup v2
+Message-ID: <20160503085039.GS2858@techsingularity.net>
+References: <1461769043-28337-1-git-send-email-mgorman@techsingularity.net>
+ <572715BF.3000003@suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <572715BF.3000003@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-PiA+DQo+ID4gSSBtaXNzZWQgdGhhdCBBbGV4YW5kZXIgYWxyZWFkeSBsYW5kZWQgcGF0Y2hlcyB0
-aGF0IHJlZHVjZSBoZWFkZXIgc2l6ZQ0KPiA+IHRvIDE2IGJ5dGVzLg0KPiA+IEl0IGlzIG5vdCBP
-SyB0byBpbmNyZWFzZSB0aGVtIGFnYWluLiBQbGVhc2UgbGVhdmUgc3RhdGUgYXMgYml0ZmllbGQN
-Cj4gPiBhbmQgdXBkYXRlIGl0IHdpdGggQ0FTIChpZiB3ZSBpbnRyb2R1Y2UgaGVscGVyIGZ1bmN0
-aW9ucyBmb3Igc3RhdGUNCj4gPiBtYW5pcHVsYXRpb24sIHRoZXkgd2lsbCBoaWRlIHRoZSBDQVMg
-bG9vcCwgd2hpY2ggaXMgbmljZSkuDQo+IE5vdGUgdGhhdCBpbiB0aGlzIGNhc2UgeW91J2xsIHBy
-b2JhYmx5IG5lZWQgdG8gdXBkYXRlIGFsbG9jX3NpemUgd2l0aA0KPiBDQVMgbG9vcCBhcyB3ZWxs
-Lg0KDQpOb3Qgc3VyZSBJIHVuZGVyc3Rvb2QgdGhpczsgQW55d2F5LCByZXZpc2VkIGthc2FuX2Fs
-bG9jX21ldGEgaW4gdXBjb21pbmcgcGF0Y2gNCnNob3VsZCBtYWtlIHRoaXMgdW5uZWNlc3Nhcnku
-DQoNClRoYW5rcywNCg0KS3V0aG9udXpvDQoNCg==
+On Mon, May 02, 2016 at 10:54:23AM +0200, Vlastimil Babka wrote:
+> On 04/27/2016 04:57 PM, Mel Gorman wrote:
+> > as the patch "mm, page_alloc: inline the fast path of the zonelist iterator"
+> > is fine. The nodemask pointer is the same between cpuset retries. If the
+> > zonelist changes due to ALLOC_NO_WATERMARKS *and* it races with a cpuset
+> > change then there is a second harmless pass through the page allocator.
+> 
+> True. But I just realized (while working on direct compaction priorities)
+> that there's another subtle issue with the ALLOC_NO_WATERMARKS part.
+> According to the comment it should be ignoring mempolicies, but it still
+> honours ac.nodemask, and your patch is replacing NULL ac.nodemask with the
+> mempolicy one.
+> 
+> I think it's possibly easily fixed outside the fast path like this. If
+> you agree, consider it has my s-o-b:
+> 
+
+While I see your point, I don't necessarily see why this fixes it as the
+original nodemask may also be a restricted set that ALLOC_NO_WATERMARKS
+should ignore. How about this?
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 79100583b9de..dbb08d102d41 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3432,9 +3432,13 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		/*
+ 		 * Ignore mempolicies if ALLOC_NO_WATERMARKS on the grounds
+ 		 * the allocation is high priority and these type of
+-		 * allocations are system rather than user orientated
++		 * allocations are system rather than user orientated. If a
++		 * cpuset retry occurs then these values persist across the
++		 * retry but that's ok for a context ignoring watermarks.
+ 		 */
+ 		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
++		ac->high_zoneidx = MAX_NR_ZONES - 1;
++		ac->nodemask = NULL;
+ 		page = get_page_from_freelist(gfp_mask, order,
+ 						ALLOC_NO_WATERMARKS, ac);
+ 		if (page)
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
