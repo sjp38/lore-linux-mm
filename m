@@ -1,237 +1,291 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 027C56B0005
-	for <linux-mm@kvack.org>; Mon,  2 May 2016 21:52:06 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id i75so20204486ioa.3
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 18:52:05 -0700 (PDT)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id n27si1261896ioe.105.2016.05.02.18.52.03
+Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 101DD6B0005
+	for <linux-mm@kvack.org>; Mon,  2 May 2016 21:58:13 -0400 (EDT)
+Received: by mail-ob0-f200.google.com with SMTP id rd14so12865920obb.3
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 18:58:13 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id dy10si8997066igb.102.2016.05.02.18.58.11
         for <linux-mm@kvack.org>;
-        Mon, 02 May 2016 18:52:05 -0700 (PDT)
-Date: Tue, 3 May 2016 11:51:59 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-Message-ID: <20160503015159.GS26977@dastard>
-References: <20160420205923.GA24797@infradead.org>
- <1461434916.3695.7.camel@intel.com>
- <20160425083114.GA27556@infradead.org>
- <1461604476.3106.12.camel@intel.com>
- <20160425232552.GD18496@dastard>
- <1461628381.1421.24.camel@intel.com>
- <20160426004155.GF18496@dastard>
- <x49pot4ebeb.fsf@segfault.boston.devel.redhat.com>
- <20160502230422.GQ26977@dastard>
- <CAPcyv4jDTvSUDGTBZb0MaK_gKxMxWtMecnR_OjLzim1Sdg5Y9g@mail.gmail.com>
+        Mon, 02 May 2016 18:58:12 -0700 (PDT)
+Date: Tue, 3 May 2016 10:58:10 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v4 11/12] zsmalloc: page migration support
+Message-ID: <20160503015810.GA3642@bbox>
+References: <1461743305-19970-1-git-send-email-minchan@kernel.org>
+ <1461743305-19970-12-git-send-email-minchan@kernel.org>
+ <5727E3BC.8070308@samsung.com>
+ <20160503004359.GA2272@bbox>
+ <572801FA.4090304@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4jDTvSUDGTBZb0MaK_gKxMxWtMecnR_OjLzim1Sdg5Y9g@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <572801FA.4090304@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jeff Moyer <jmoyer@redhat.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "jack@suse.cz" <jack@suse.cz>
+To: Chulmin Kim <cmlaika.kim@samsung.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Mon, May 02, 2016 at 04:25:51PM -0700, Dan Williams wrote:
-> On Mon, May 2, 2016 at 4:04 PM, Dave Chinner <david@fromorbit.com> wrote:
-> > On Mon, May 02, 2016 at 11:18:36AM -0400, Jeff Moyer wrote:
-> >> Dave Chinner <david@fromorbit.com> writes:
-> >>
-> >> > On Mon, Apr 25, 2016 at 11:53:13PM +0000, Verma, Vishal L wrote:
-> >> >> On Tue, 2016-04-26 at 09:25 +1000, Dave Chinner wrote:
-> >> > You're assuming that only the DAX aware application accesses it's
-> >> > files.  users, backup programs, data replicators, fileystem
-> >> > re-organisers (e.g.  defragmenters) etc all may access the files and
-> >> > they may throw errors. What then?
-> >>
-> >> I'm not sure how this is any different from regular storage.  If an
-> >> application gets EIO, it's up to the app to decide what to do with that.
+On Tue, May 03, 2016 at 10:42:18AM +0900, Chulmin Kim wrote:
+> On 2016e?? 05i?? 03i? 1/4  09:43, Minchan Kim wrote:
+> >Good morning, Chulmin
 > >
-> > Sure - they'll fail. But the question I'm asking is that if the
-> > application that owns the data is supposed to do error recovery,
-> > what happens when a 3rd party application hits an error? If that
-> > consumes the error, the the app that owns the data won't ever get a
-> > chance to correct the error.
+> >On Tue, May 03, 2016 at 08:33:16AM +0900, Chulmin Kim wrote:
+> >>Hello, Minchan!
+> >>
+> >>On 2016e?? 04i?? 27i? 1/4  16:48, Minchan Kim wrote:
+> >>>This patch introduces run-time migration feature for zspage.
+> >>>
+> >>>For migration, VM uses page.lru field so it would be better to not use
+> >>>page.next field for own purpose. For that, firstly, we can get first
+> >>>object offset of the page via runtime calculation instead of
+> >>>page->index so we can use page->index as link for page chaining.
+> >>>In case of huge object, it stores handle rather than page chaining.
+> >>>To identify huge object, we uses PG_owner_priv_1 flag.
+> >>>
+> >>>For migration, it supports three functions
+> >>>
+> >>>* zs_page_isolate
+> >>>
+> >>>It isolates a zspage which includes a subpage VM want to migrate from
+> >>>class so anyone cannot allocate new object from the zspage if it's first
+> >>>isolation on subpages of zspage. Thus, further isolation on other
+> >>>subpages cannot isolate zspage from class list.
+> >>>
+> >>>* zs_page_migrate
+> >>>
+> >>>First of all, it holds write-side zspage->lock to prevent migrate other
+> >>>subpage in zspage. Then, lock all objects in the page VM want to migrate.
+> >>>The reason we should lock all objects in the page is due to race between
+> >>>zs_map_object and zs_page_migrate.
+> >>>
+> >>>zs_map_object				zs_page_migrate
+> >>>
+> >>>pin_tag(handle)
+> >>>obj = handle_to_obj(handle)
+> >>>obj_to_location(obj, &page, &obj_idx);
+> >>>
+> >>>					write_lock(&zspage->lock)
+> >>>					if (!trypin_tag(handle))
+> >>>						goto unpin_object
+> >>>
+> >>>zspage = get_zspage(page);
+> >>>read_lock(&zspage->lock);
+> >>>
+> >>>If zs_page_migrate doesn't do trypin_tag, zs_map_object's page can
+> >>>be stale so go crash.
+> >>>
+> >>>If it locks all of objects successfully, it copies content from old page
+> >>>create new one, finally, create new page chain with new page.
+> >>>If it's last isolated page in the zspage, put the zspage back to class.
+> >>>
+> >>>* zs_page_putback
+> >>>
+> >>>It returns isolated zspage to right fullness_group list if it fails to
+> >>>migrate a page.
+> >>>
+> >>>Lastly, this patch introduces asynchronous zspage free. The reason
+> >>>we need it is we need page_lock to clear PG_movable but unfortunately,
+> >>>zs_free path should be atomic so the apporach is try to grab page_lock
+> >>>with preemption disabled. If it got page_lock of all of pages
+> >>>successfully, it can free zspage in the context. Otherwise, it queues
+> >>>the free request and free zspage via workqueue in process context.
+> >>>
+> >>>Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> >>>Signed-off-by: Minchan Kim <minchan@kernel.org>
+> >>>---
+> >>>  include/uapi/linux/magic.h |   1 +
+> >>>  mm/zsmalloc.c              | 552 +++++++++++++++++++++++++++++++++++++++------
+> >>>  2 files changed, 487 insertions(+), 66 deletions(-)
+> >>>
+> >>>diff --git a/include/uapi/linux/magic.h b/include/uapi/linux/magic.h
+> >>>index e1fbe72c39c0..93b1affe4801 100644
+> >>>--- a/include/uapi/linux/magic.h
+> >>>+++ b/include/uapi/linux/magic.h
+> >>>@@ -79,5 +79,6 @@
+> >>>  #define NSFS_MAGIC		0x6e736673
+> >>>  #define BPF_FS_MAGIC		0xcafe4a11
+> >>>  #define BALLOON_KVM_MAGIC	0x13661366
+> >>>+#define ZSMALLOC_MAGIC		0x58295829
+> >>>
+> >>>  #endif /* __LINUX_MAGIC_H__ */
+> >>>diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> >>>index 8d82e44c4644..042793015ecf 100644
+> >>>--- a/mm/zsmalloc.c
+> >>>+++ b/mm/zsmalloc.c
+> >>>@@ -17,15 +17,14 @@
+> >>>   *
+> >>>   * Usage of struct page fields:
+> >>>   *	page->private: points to zspage
+> >>>- *	page->index: offset of the first object starting in this page.
+> >>>- *		For the first page, this is always 0, so we use this field
+> >>>- *		to store handle for huge object.
+> >>>- *	page->next: links together all component pages of a zspage
+> >>>+ *	page->freelist: links together all component pages of a zspage
+> >>>+ *		For the huge page, this is always 0, so we use this field
+> >>>+ *		to store handle.
+> >>>   *
+> >>>   * Usage of struct page flags:
+> >>>   *	PG_private: identifies the first component page
+> >>>   *	PG_private2: identifies the last component page
+> >>>- *
+> >>>+ *	PG_owner_priv_1: indentifies the huge component page
+> >>>   */
+> >>>
+> >>>  #include <linux/module.h>
+> >>>@@ -47,6 +46,10 @@
+> >>>  #include <linux/debugfs.h>
+> >>>  #include <linux/zsmalloc.h>
+> >>>  #include <linux/zpool.h>
+> >>>+#include <linux/mount.h>
+> >>>+#include <linux/migrate.h>
+> >>>+
+> >>>+#define ZSPAGE_MAGIC	0x58
+> >>>
+> >>>  /*
+> >>>   * This must be power of 2 and greater than of equal to sizeof(link_free).
+> >>>@@ -128,8 +131,33 @@
+> >>>   *  ZS_MIN_ALLOC_SIZE and ZS_SIZE_CLASS_DELTA must be multiple of ZS_ALIGN
+> >>>   *  (reason above)
+> >>>   */
+> >>>+
+> >>>+/*
+> >>>+ * A zspage's class index and fullness group
+> >>>+ * are encoded in its (first)page->mapping
+> >>>+ */
+> >>>+#define FULLNESS_BITS	2
+> >>>+#define CLASS_BITS	8
+> >>>+#define ISOLATED_BITS	3
+> >>>+#define MAGIC_VAL_BITS	8
+> >>>+
+> >>>+
+> >>>  #define ZS_SIZE_CLASS_DELTA	(PAGE_SIZE >> CLASS_BITS)
+> >>>
+> >>>+struct zspage {
+> >>>+	struct {
+> >>>+		unsigned int fullness:FULLNESS_BITS;
+> >>>+		unsigned int class:CLASS_BITS;
+> >>>+		unsigned int isolated:ISOLATED_BITS;
+> >>>+		unsigned int magic:MAGIC_VAL_BITS;
+> >>>+	};
+> >>>+	unsigned int inuse;
+> >>>+	unsigned int freeobj;
+> >>>+	struct page *first_page;
+> >>>+	struct list_head list; /* fullness list */
+> >>>+	rwlock_t lock;
+> >>>+};
+> >>>+
+> >>>  /*
+> >>>   * We do not maintain any list for completely empty or full pages
+> >>>   */
+> >>>@@ -161,6 +189,8 @@ struct zs_size_stat {
+> >>>  static struct dentry *zs_stat_root;
+> >>>  #endif
+> >>>
+> >>>+static struct vfsmount *zsmalloc_mnt;
+> >>>+
+> >>>  /*
+> >>>   * number of size_classes
+> >>>   */
+> >>>@@ -243,24 +273,10 @@ struct zs_pool {
+> >>>  #ifdef CONFIG_ZSMALLOC_STAT
+> >>>  	struct dentry *stat_dentry;
+> >>>  #endif
+> >>>-};
+> >>>-
+> >>>-/*
+> >>>- * A zspage's class index and fullness group
+> >>>- * are encoded in its (first)page->mapping
+> >>>- */
+> >>>-#define FULLNESS_BITS	2
+> >>>-#define CLASS_BITS	8
+> >>>-
+> >>>-struct zspage {
+> >>>-	struct {
+> >>>-		unsigned int fullness:FULLNESS_BITS;
+> >>>-		unsigned int class:CLASS_BITS;
+> >>>-	};
+> >>>-	unsigned int inuse;
+> >>>-	unsigned int freeobj;
+> >>>-	struct page *first_page;
+> >>>-	struct list_head list; /* fullness list */
+> >>>+	struct inode *inode;
+> >>>+	spinlock_t free_lock;
+> >>>+	struct work_struct free_work;
+> >>>+	struct list_head free_zspage;
+> >>>  };
+> >>>
+> >>>  struct mapping_area {
+> >>>@@ -312,8 +328,11 @@ static struct zspage *cache_alloc_zspage(struct zs_pool *pool, gfp_t flags)
+> >>>  	struct zspage *zspage;
+> >>>
+> >>>  	zspage = kmem_cache_alloc(pool->zspage_cachep, flags & ~__GFP_HIGHMEM);
+> >>>-	if (zspage)
+> >>>+	if (zspage) {
+> >>>  		memset(zspage, 0, sizeof(struct zspage));
+> >>>+		zspage->magic = ZSPAGE_MAGIC;
+> >>>+		rwlock_init(&zspage->lock);
+> >>
+> >>+              INIT_LIST_HEAD(&zspage->list);
+> >>
+> >>If there is no special intention here,
+> >>I think we need the list initialization.
 > >
-> > This is a minefield - a 3rd party app that swallows and clears DAX
-> > based IO errors is a data corruption vector. can yo imagine if
-> > *grep* did this? The model that is being promoted here effectively
-> > allows this sort of behaviour - I don't really think we
-> > should be architecting an error recovery strategy that has the
-> > capability to go this wrong....
+> >Intention was that I just watned to add unncessary instruction there
+> >although it was not expensive. :)
+> >
+> >>
+> >>There are some functions checking "list_empty(&zspage->list)".
+> >>and they might be executed before the list initialization in rare cases.
+> >
+> >There are two places now.
+> >
+> >1. zspage_isolate
+> >
+> >It's okay because zs_page_isolate checks get_zspage_inuse under
+> >class->lock while alloc_zspage adds newly created zspage to list
+> >under class->lock with increasing used object count.
+> >
+> >2. free_zspage
+> >
+> >It's okay because every zspage passed free_zspage should
+> >remove from list and remove_zspage has list_del_init and
+> >the used object in the zspage should be zero so zs_page_isolate
+> >cannot pick it up.
+> >
+> >>(AFAIK, the list initialization is being done by insert_zspage(),etc.)
+> >>I guess, checking the uninitialized list is not intended at all.
+> >
+> >You have been great to spot something until now so you are saying
+> >with some clue already and I might miss something. :)
+> >
+> >Do you have another scenario to make race problem?
+> >Otherwise, I want to remain as it is because I want to reveal the
+> >problem rather than hiding problems with safe-guard. :)
 > 
-> Since when does grep write to a file on error?
-
-That's precisely my point - it doesn't right now because there is no
-onus on userspace applications to correct data errors when they are
-found.
-
-However, if the accepted model becomes "userspace needs to try to correct
-errors in data automatically", the above scenario is a distinct
-possiblity. I'm not saying grep will do this - I'm taking
-the logical argument being presented to the extreme - but I'm sure
-that there will be developers that have enough knowledge to know
-they are supposed to do something with errors on pmem devices, but
-not have enough knowledge to know the correct things to do.
-
-And then the app mishandles a EINVAL error (or something like that)
-and so we end up with buggy userspace apps trying to correct
-errors in good data and causing data loss that way.
-
-Do we really want to introduce a data integrity and error recovery
-model where this sort of "bug" is a distinct possibly?
-
-> >> >> > There's an implicit assumption that applications will keep redundant
-> >> >> > copies of their data at the /application layer/ and be able to
-> >> >> > automatically repair it?
-> >>
-> >> That's one way to do things.  It really depends on the application what
-> >> it will do for recovery.
-> >>
-> >> >> > And then there's the implicit assumption that it will unlink and
-> >> >> > free the entire file before writing a new copy
-> >>
-> >> I think Vishal was referring to restoring from backup.  cp itself will
-> >> truncate the file before overwriting, iirc.
-> >
-> > Which version of cp? what happens if they use --sparse and the error
-> > is in a zeroed region? There's so many assumptions about undefined userspace
-> > environment, application and user behaviour being made here, and
-> > it's all being handwaved away.
-> >
-> > I'm asking for this to be defined, demonstrated and documented as a
-> > working model that cannot be abused and doesn't have holes the size
-> > of trucks in it, not handwaving...
+> A weak clue, yes.
+> my team saw the problem cases with zspage->list filled with 0.
 > 
-> You lost me...  how are these patches abusing the existing semantics
-> of -EIO and write to clear?
-
-I haven't said that. I said there are assumptions about how
-userspace will handle the error, but they aren't documented
-anywhere. "copy a file using cp" is not a robust recovery solution -
-it provides no guarantees about how the bad file and regions will be
-recycled and the errors cleared. This effectively of puts it all on
-the filesystems to deal with, even though you're trying to design an
-error handling model that bypasses the filesystems and goes straight
-to userspace.
-
-If I can't understand how this is all supposed to work
-because none of it is documented, then we have no chance that the
-average admin is going to be able to understand it.
-
+> I just found a scenario.
 > 
-> >> >> To summarize, the two cases we want to handle are:
-> >> >> 1. Application has inbuilt recovery:
-> >> >>   - hits badblock
-> >> >>   - figures out it is able to recover the data
-> >> >>   - handles SIGBUS or EIO
-> >> >>   - does a (sector aligned) write() to restore the data
-> >> >
-> >> > The "figures out" step here is where >95% of the work we'd have to
-> >> > do is. And that's in filesystem and block layer code, not
-> >> > userspace, and userspace can't do that work in a signal handler.
-> >> > And it  can still fall down to the second case when the application
-> >> > doesn't have another copy of the data somewhere.
-> >>
-> >> I read that "figures out" step as the application determining whether or
-> >> not it had a redundant copy.
-> >
-> > Another undocumented assumption, that doesn't simplify what needs to
-> > be done. Indeed, userspace can't do that until it is in SIGBUS
-> > context, which tends to imply applications need to do a major amount
-> > of work from within the signal handler....
-> >
-> >> > FWIW, we don't have a DAX enabled filesystem that can do
-> >> > reverse block mapping, so we're a year or two away from this being a
-> >> > workable production solution from the filesystem perspective. And
-> >> > AFAICT, it's not even on the roadmap for dm/md layers.
-> >>
-> >> Do we even need that?  What if we added an FIEMAP flag for determining
-> >> bad blocks.
-> >
-> > So you're assuming that the filesystem has been informed of the bad
-> > blocks and has already marked the bad regions of the file in it's
-> > extent list?
-> >
-> > How does that happen? What mechanism is used for the underlying
-> > block device to inform the filesytem that theirs a bad LBA, and how
-> > does the filesytem the map that to a path/file/offset with reverse
-> > mapping? Or is there some other magic that hasn't been explained
-> > happening here?
+> In case of huge page,
+> the list initialization in remove_zspage() and insert_zspage()
+> will not work as one zs_malloc will make the zspage to ZS_FULL.
 > 
-> In 4.5 we added this:
-> 
-> commit 99e6608c9e7414ae4f2168df8bf8fae3eb49e41f
-> Author: Vishal Verma <vishal.l.verma@intel.com>
-> Date:   Sat Jan 9 08:36:51 2016 -0800
-> 
->     block: Add badblock management for gendisks
+> I guess this is the cause of the problem I saw.
 
-Yes, I know, and it doesn't answer any of the questions I just
-asked. What you just told me is that there is something that is kept
-three levels of abstraction away from a filesystem. So:
+Good spot!
 
-	- What mechanism is to be used for the underlying block
-	  device to inform the filesytem that a new bad block was
-	  added to this list? What context comes along with that
-	  notification?
-	- how does the filesystem query the bad block list without
-	  adding layering violations?
-	- when does the filesystem need to query the bad block list?
-	- how will the bad block list propagate through DM/MD
-	  layers?
-	- how does the filesytem the map the bad block to a
-	  path/file/offset without reverse mapping - does this error
-	  handling interface really imply the filesystem needs to
-	  implement brute force scans at notification time?
-	- Is the filesystem expectd to find the active application or
-	  address_space access that triggered the bad block
-	  notification to handle them correctly? (e.g. prevent a
-	  page fault from failing because we can recover from the
-	  error immediately)
-	- what exactly is the filesystem supposed to do with the bad
-	  block? e.g:
-		- is the block persistently bad until the filesystem
-		  rewrites it? Over power cycles? Will we get
-		  multiple notifications (e.g. once per boot)?
-		- Is the filesystem supposed to intercept
-		  reads/writes to bad blocks once it knows about
-		  them?
-		- how is the filesystem supposed to communicate that
-		  there is a bad block in a file back to userspace?
-		  Or is userspace supposed to infer that there's a
-		  bad block from EIO and so has to run FIEMAP to
-		  determine if the error really was due to a bad
-		  block?
-		- what happens if there is no running application
-		  that we can report the error to or will handle the
-		  error (e.g. found error by a media scrub or during
-		  boot)?
-	- if the bad block is in filesystem free space, what should
-	  the filesystem do with it?
+In that case, INIT_LIST_HEAD in alloc_zspage is not a solution.
+If we do, we cannot migrate huge object because migration can
+think object compactor already isolated the zspage so it return
+false on zs_page_isolate.
 
-What I'm failing to communicate is that having and maintaining
-things like bad block lists in a block device is the easy part of
-the problem.
+I think it would be better to maintain ZS_FULL and ZS_EMPTY
+in fullness_list. I will cook a patch.
 
-Similarly reporting a bad block flag in FIEMAP is only a few
-lines of code to implement, but that assumes the filesystem has
-already propagated the bad block information into it's internal
-extents lists.
-
-That's the hard part of all this: connecting the two pieces together
-in a sane, reliable, consistent and useful manner. This will form
-the user API, so we need to sort it out before applications start to
-use it. However, if I'm struggling to understand how I'm supposed to
-connecct up the parts inside a filesytem, then expecting application
-developers to be able to connect the dots in a sane manner is
-bordering on fantasy....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
