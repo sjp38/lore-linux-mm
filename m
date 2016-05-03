@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 86CE46B0005
-	for <linux-mm@kvack.org>; Tue,  3 May 2016 17:00:58 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 77so63059076pfz.3
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 14:00:58 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id 145si318688pfy.175.2016.05.03.14.00.57
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CA2406B025E
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 17:01:40 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 77so63127497pfz.3
+        for <linux-mm@kvack.org>; Tue, 03 May 2016 14:01:40 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id l27si364670pfj.18.2016.05.03.14.01.39
         for <linux-mm@kvack.org>;
-        Tue, 03 May 2016 14:00:57 -0700 (PDT)
-Message-ID: <1462309239.21143.6.camel@linux.intel.com>
-Subject: [PATCH 0/7] mm: Improve swap path scalability with batched
- operations
+        Tue, 03 May 2016 14:01:39 -0700 (PDT)
+Message-ID: <1462309298.21143.9.camel@linux.intel.com>
+Subject: [PATCH 2/7] mm: Group the processing of anonymous pages to be
+ swapped in shrink_page_list
 From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Tue, 03 May 2016 14:00:39 -0700
+Date: Tue, 03 May 2016 14:01:38 -0700
 In-Reply-To: <cover.1462306228.git.tim.c.chen@linux.intel.com>
 References: <cover.1462306228.git.tim.c.chen@linux.intel.com>
 Content-Type: text/plain; charset="UTF-8"
@@ -23,60 +23,145 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>
 Cc: "Kirill A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-The page swap out path is not scalable due to the numerous locks
-acquired and released along the way, which are all executed on a page
-by page basis, e.g.:
+This is a clean up patch to reorganize the processing of anonymous
+pages in shrink_page_list.
 
-1. The acquisition of the mapping tree lock in swap cache when adding
-a page to swap cache, and then again when deleting a page from swap cache after
-it has been swapped out.A 
-2. The acquisition of the lock on swap device to allocate a swap slot for
-a page to be swapped out.A 
+We delay the processing of swapping anonymous pages in shrink_page_list
+and put them together on a separate list.A A This prepares for batching
+of pages to be swapped.A A The processing of the list of anonymous pages
+to be swapped is consolidated in the function shrink_anon_page_list.
 
-With the advent of high speed block devices that's several ordersA A 
-of magnitude faster than the old spinning disks, these bottlenecks
-become fairly significant, especially on server class machines
-with many theads running.A A To reduce these locking costs, this patch
-series attempt to batch the pages on the following oprations needed
-on for swap:
-1. Allocate swap slots in large batches, so locks on the swap device
-don't need to be acquired as often.A 
-2. Add anonymous pages to the swap cache for the same swap device inA A A A A A A A A A A A A 
-batches, so the mapping tree lock can be acquired less.
-3. Delete pages from swap cache also in batches.
+Functionally, there is no change in the logic of how pages are processed,
+just the order of processing of the anonymous pages and file mapped
+pages in shrink_page_list.
 
-We experimented the effect of this patches. We set up N threads to access
-memory in excess of memory capcity, causing swap.A A In experiments using
-a single pmem based fast block device on a 2 socket machine, we saw
-that for 1 thread, there is a ~25% increase in swap throughput and for
-16 threads, the swap throughput increase by ~85%, when compared with the
-vanilla kernel. Batching helps even for 1 thread because of contention
-with kswapd when doing direct memory reclaim.
+Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+---
+A mm/vmscan.c | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+A 1 file changed, 77 insertions(+), 5 deletions(-)
 
-Feedbacks and reviews to this patch series are much appreciated.
-
-Thanks.
-
-Tim
-
-
-Tim Chen (7):
-A  mm: Cleanup - Reorganize the shrink_page_list code into smaller
-A A A A functions
-A  mm: Group the processing of anonymous pages to be swapped in
-A A A A shrink_page_list
-A  mm: Add new functions to allocate swap slots in batches
-A  mm: Shrink page list batch allocates swap slots for page swapping
-A  mm: Batch addtion of pages to swap cache
-A  mm: Cleanup - Reorganize code to group handling of page
-A  mm: Batch unmapping of pages that are in swap cache
-
-A include/linux/swap.h |A A 29 ++-
-A mm/swap_state.cA A A A A A | 253 +++++++++++++-----
-A mm/swapfile.cA A A A A A A A | 215 +++++++++++++--
-A mm/vmscan.cA A A A A A A A A A | 725 ++++++++++++++++++++++++++++++++++++++-------------
-A 4 files changed, 945 insertions(+), 277 deletions(-)
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 5542005..132ba02 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1083,6 +1083,58 @@ static void pg_finish(struct page *page,
+A 	}
+A }
+A 
++static unsigned long shrink_anon_page_list(struct list_head *page_list,
++	struct zone *zone,
++	struct scan_control *sc,
++	struct list_head *swap_pages,
++	struct list_head *ret_pages,
++	struct list_head *free_pages,
++	enum ttu_flags ttu_flags,
++	int *pgactivate,
++	int n,
++	bool clean)
++{
++	unsigned long nr_reclaimed = 0;
++	enum pg_result pg_dispose;
++
++	while (n > 0) {
++		struct page *page;
++		int swap_ret = SWAP_SUCCESS;
++
++		--n;
++		if (list_empty(swap_pages))
++		A A A A A A A return nr_reclaimed;
++
++		page = lru_to_page(swap_pages);
++
++		list_del(&page->lru);
++
++		/*
++		* Anonymous process memory has backing store?
++		* Try to allocate it some swap space here.
++		*/
++
++		if (!add_to_swap(page, page_list)) {
++			pg_finish(page, PG_ACTIVATE_LOCKED, swap_ret, &nr_reclaimed,
++					pgactivate, ret_pages, free_pages);
++			continue;
++		}
++
++		if (clean)
++			pg_dispose = handle_pgout(page_list, zone, sc, ttu_flags,
++				PAGEREF_RECLAIM_CLEAN, true, true, &swap_ret, page);
++		else
++			pg_dispose = handle_pgout(page_list, zone, sc, ttu_flags,
++				PAGEREF_RECLAIM, true, true, &swap_ret, page);
++
++		pg_finish(page, pg_dispose, swap_ret, &nr_reclaimed,
++				pgactivate, ret_pages, free_pages);
++	}
++	return nr_reclaimed;
++}
++
++
++
+A /*
+A  * shrink_page_list() returns the number of reclaimed pages
+A  */
+@@ -1099,6 +1151,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+A {
+A 	LIST_HEAD(ret_pages);
+A 	LIST_HEAD(free_pages);
++	LIST_HEAD(swap_pages);
++	LIST_HEAD(swap_pages_clean);
+A 	int pgactivate = 0;
+A 	unsigned long nr_unqueued_dirty = 0;
+A 	unsigned long nr_dirty = 0;
+@@ -1106,6 +1160,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+A 	unsigned long nr_reclaimed = 0;
+A 	unsigned long nr_writeback = 0;
+A 	unsigned long nr_immediate = 0;
++	unsigned long nr_swap = 0;
++	unsigned long nr_swap_clean = 0;
+A 
+A 	cond_resched();
+A 
+@@ -1271,12 +1327,17 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+A 				pg_dispose = PG_KEEP_LOCKED;
+A 				goto finish;
+A 			}
+-			if (!add_to_swap(page, page_list)) {
+-				pg_dispose = PG_ACTIVATE_LOCKED;
+-				goto finish;
++			if (references == PAGEREF_RECLAIM_CLEAN) {
++				list_add(&page->lru, &swap_pages_clean);
++				++nr_swap_clean;
++			} else {
++				list_add(&page->lru, &swap_pages);
++				++nr_swap;
+A 			}
+-			lazyfree = true;
+-			may_enter_fs = 1;
++
++			pg_dispose = PG_NEXT;
++			goto finish;
++
+A 		}
+A 
+A 		pg_dispose = handle_pgout(page_list, zone, sc, ttu_flags,
+@@ -1288,6 +1349,17 @@ finish:
+A 
+A 	}
+A 
++	nr_reclaimed += shrink_anon_page_list(page_list, zone, sc,
++						&swap_pages_clean, &ret_pages,
++						&free_pages, ttu_flags,
++						&pgactivate, nr_swap_clean,
++						true);
++	nr_reclaimed += shrink_anon_page_list(page_list, zone, sc,
++						&swap_pages, &ret_pages,
++						&free_pages, ttu_flags,
++						&pgactivate, nr_swap,
++						false);
++
+A 	mem_cgroup_uncharge_list(&free_pages);
+A 	try_to_unmap_flush();
+A 	free_hot_cold_page_list(&free_pages, true);
 --A 
 2.5.5
 
