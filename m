@@ -1,150 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B6DA76B0005
-	for <linux-mm@kvack.org>; Tue,  3 May 2016 00:04:13 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id b203so16493661pfb.1
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 21:04:13 -0700 (PDT)
-Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
-        by mx.google.com with ESMTPS id o126si1929172pfb.135.2016.05.02.21.04.12
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F3FBF6B0005
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 01:13:25 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 4so18663870pfw.0
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 22:13:25 -0700 (PDT)
+Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
+        by mx.google.com with ESMTPS id o6si2272197pfj.110.2016.05.02.22.13.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 May 2016 21:04:12 -0700 (PDT)
-Received: by mail-pf0-x233.google.com with SMTP id c189so4459087pfb.3
-        for <linux-mm@kvack.org>; Mon, 02 May 2016 21:04:12 -0700 (PDT)
-Date: Mon, 2 May 2016 21:04:02 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [Question] Missing data after DMA read transfer - mm issue with
- transparent huge page?
-In-Reply-To: <15edf085-c21b-aa1c-9f1f-057d17b8a1a3@morey-chaisemartin.com>
-Message-ID: <alpine.LSU.2.11.1605022020560.5004@eggly.anvils>
-References: <15edf085-c21b-aa1c-9f1f-057d17b8a1a3@morey-chaisemartin.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Mon, 02 May 2016 22:13:25 -0700 (PDT)
+Received: by mail-pf0-x232.google.com with SMTP id 206so5054844pfu.0
+        for <linux-mm@kvack.org>; Mon, 02 May 2016 22:13:25 -0700 (PDT)
+From: js1304@gmail.com
+Subject: [PATCH for v4.6] lib/stackdepot: avoid to return 0 handle
+Date: Tue,  3 May 2016 14:13:23 +0900
+Message-Id: <1462252403-1106-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Morey Chaisemartin <devel@morey-chaisemartin.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jerome Glisse <j.glisse@gmail.com>, Alex Williamson <alex.williamson@redhat.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Potapenko <glider@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri, 29 Apr 2016, Nicolas Morey Chaisemartin wrote:
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-> Hi everyone,
-> 
-> This is a repost from a different address as it seems the previous one ended in Gmail junk due to a domain error..
+Recently, we allow to save the stacktrace whose hashed value is 0.
+It causes the problem that stackdepot could return 0 even if in success.
+User of stackdepot cannot distinguish whether it is success or not so we
+need to solve this problem. In this patch, 1 bit are added to handle
+and make valid handle none 0 by setting this bit. After that, valid handle
+will not be 0 and 0 handle will represent failure correctly.
 
-linux-kernel is a very high volume list which few are reading:
-that also will account for your lack of response so far
-(apart from the indefatigable Alan).
+Fixes: 33334e25769c ("lib/stackdepot.c: allow the stack trace hash
+to be zero")
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ lib/stackdepot.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-I've added linux-mm, and some people from another thread regarding
-THP and get_user_pages() pins which has been discussed in recent days.
-
-Make no mistake, the issue you're raising here is definitely not the
-same as that one (which is specifically about the new THP refcounting
-in v4.5+, whereas you're reporting a problem you've seen in both a
-v3.10-based kernel and in v4.5).  But I think their heads are in
-gear, much more so than mine, and likely to spot something.
-
-> I added more info found while blindly debugging the issue.
-> 
-> Short version:
-> I'm having an issue with direct DMA transfer from a device to host memory.
-> It seems some of the data is not transferring to the appropriate page.
-> 
-> Some more details:
-> I'm debugging a home made PCI driver for our board (Kalray), attached to a x86_64 host running centos7 (3.10.0-327.el7.x86_64)
-> 
-> In the current case, a userland application transfers back and forth data through read/write operations on a file.
-> On the kernel side, it triggers DMA transfers through the PCI to/from our board memory.
-> 
-> We followed what pretty much all docs said about direct I/O to user buffers:
-> 
-> 1) get_user_pages() (in the current case, it's at most 16 pages at once)
-> 2) convert to a scatterlist
-> 3) pci_map_sg
-> 4) eventually coalesce sg (Intel IOMMU is enabled, so it's usually possible)
-> 4) A lot of DMA engine handling code, using the dmaengine layer and virt-dma
-> 5) wait for transfer complete, in the mean time, go back to (1) to schedule more work, if any
-> 6) pci_unmap_sg
-> 7) for read (card2host) transfer, set_page_dirty_lock
-> 8) page_cache_release
-> 
-> In 99,9999% it works perfectly.
-> However, I have one userland application where a few pages are not written by a read (card2host) transfer.
-> The buffer is memset them to a different value so I can check that nothing has overwritten them.
-> 
-> I know (PCI protocol analyser) that the data left our board for the "right" address (the one set in the sg by pci_map_sg).
-> I tried reading the data between the pci_unmap_sg and the set_page_dirty, using
->         uint32_t *addr = page_address(trans->pages[0]);
->         dev_warn(&pdata->pdev->dev, "val = %x\n", *addr);
-> and it has the expected value.
-> But if I try to copy_from_user (using the address coming from userland, the one passed to get_user_pages), the data has not been written and I see the memset value.
-> 
-> New infos:
-> 
-> The issue happens with IOMMU on or off.
-> I compiled a kernel with DMA_API_DEBUG enabled and got no warnings or errors.
-> 
-> I digged a little bit deeper with my very small understanding of linux mm and I discovered that:
->  * we are using transparent huge pages
->  * the page 'not transferred' are the last few of a huge page
-> More precisely:
-> - We have several transfer in flight from the same user buffer
-> - Each transfer is 16 pages long
-> - At one point in time, we start transferring from another huge page (transfers are still in flight from the previous one)
-> - When a transfer from the previous huge page completes, I dumped at the mapcount of the pages from the previous transfers,
->   they are all to 0. The pages are still mapped to dma at this point.
-> - A get_user_page to the address of the completed transfer returns return a different struct page * then the on I had.
-> But this is before I have unmapped/put_page them back. From my understanding this should not have happened.
-> 
-> I tried the same code with a kernel 4.5 and encountered the same issue
-> 
-> Disabling transparent huge pages makes the issue disapear
-> 
-> Thanks in advance
-
-It does look to me as if pages are being migrated, despite being pinned
-by get_user_pages(): and that would be wrong.  Originally I intended
-to suggest that THP is probably merely the cause of compaction, with
-compaction causing the page migration.  But you posted very interesting
-details in an earlier mail on 27th April from <nmorey@kalray.eu>:
-
-> I ran some more tests:
-> 
-> * Test is OK if transparent huge tlb are disabled
-> 
-> * For all the page where data are not transfered, and only those pages, a call to get_user_page(user vaddr) just before dma_unmap_sg returns a different page from the original one.
-> [436477.927279] mppa 0000:03:00.0: org_page= ffffea0009f60080 cur page = ffffea00074e0080
-> [436477.927298] page:ffffea0009f60080 count:0 mapcount:1 mapping:          (null) index:0x2
-> [436477.927314] page flags: 0x2fffff00008000(tail)
-> [436477.927354] page dumped because: org_page
-> [436477.927369] page:ffffea00074e0080 count:0 mapcount:1 mapping:          (null) index:0x2
-> [436477.927382] page flags: 0x2fffff00008000(tail)
-> [436477.927421] page dumped because: cur_page
-> 
-> I'm not sure what to make of this...
-
-That (on the older kernel I think) seems clearly to show that a THP
-itself has been migrated: which makes me suspect NUMA migration of
-mispaced THPs - migrate_misplaced_transhuge_page().  I'd hoped to
-find something obviously wrong there, but haven't quite managed
-to bring my brain fully to bear on it, and hope the others Cc'ed
-will do so more quickly (or spot the error of your ways instead).
-
-I do find it suspect, how the migrate_page_copy() is done rather
-early, while the old page is still mapped in the pagetable.  And
-odd how it inserts the new pmd for a moment, before checking old
-page_count and backing out.  But I don't see how either of those
-would cause the trouble you see, where the migration goes ahead.
-
-But I may be mistaken to suspect migration at all: perhaps this is
-about Copy-On-Write: there's no concurrent fork()ing, is there?
-
-And I think your driver is using get_user_pages() (under mmap_sem),
-not short-cutting with the trickier get_user_pages_fast().
-
-Over to more clued-in Cc's.
-
-Hugh
+diff --git a/lib/stackdepot.c b/lib/stackdepot.c
+index 9e0b031..53ad6c0 100644
+--- a/lib/stackdepot.c
++++ b/lib/stackdepot.c
+@@ -42,12 +42,14 @@
+ 
+ #define DEPOT_STACK_BITS (sizeof(depot_stack_handle_t) * 8)
+ 
++#define STACK_ALLOC_NULL_PROTECTION_BITS 1
+ #define STACK_ALLOC_ORDER 2 /* 'Slab' size order for stack depot, 4 pages */
+ #define STACK_ALLOC_SIZE (1LL << (PAGE_SHIFT + STACK_ALLOC_ORDER))
+ #define STACK_ALLOC_ALIGN 4
+ #define STACK_ALLOC_OFFSET_BITS (STACK_ALLOC_ORDER + PAGE_SHIFT - \
+ 					STACK_ALLOC_ALIGN)
+-#define STACK_ALLOC_INDEX_BITS (DEPOT_STACK_BITS - STACK_ALLOC_OFFSET_BITS)
++#define STACK_ALLOC_INDEX_BITS (DEPOT_STACK_BITS - \
++		STACK_ALLOC_NULL_PROTECTION_BITS - STACK_ALLOC_OFFSET_BITS)
+ #define STACK_ALLOC_SLABS_CAP 1024
+ #define STACK_ALLOC_MAX_SLABS \
+ 	(((1LL << (STACK_ALLOC_INDEX_BITS)) < STACK_ALLOC_SLABS_CAP) ? \
+@@ -59,6 +61,7 @@ union handle_parts {
+ 	struct {
+ 		u32 slabindex : STACK_ALLOC_INDEX_BITS;
+ 		u32 offset : STACK_ALLOC_OFFSET_BITS;
++		u32 valid : STACK_ALLOC_NULL_PROTECTION_BITS;
+ 	};
+ };
+ 
+@@ -136,6 +139,7 @@ static struct stack_record *depot_alloc_stack(unsigned long *entries, int size,
+ 	stack->size = size;
+ 	stack->handle.slabindex = depot_index;
+ 	stack->handle.offset = depot_offset >> STACK_ALLOC_ALIGN;
++	stack->handle.valid = 1;
+ 	memcpy(stack->entries, entries, size * sizeof(unsigned long));
+ 	depot_offset += required_size;
+ 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
