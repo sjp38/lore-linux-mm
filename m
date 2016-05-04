@@ -1,69 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f197.google.com (mail-ob0-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 954C36B007E
-	for <linux-mm@kvack.org>; Wed,  4 May 2016 04:32:11 -0400 (EDT)
-Received: by mail-ob0-f197.google.com with SMTP id rd14so91771594obb.3
-        for <linux-mm@kvack.org>; Wed, 04 May 2016 01:32:11 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id a140si2836996ioa.39.2016.05.04.01.32.10
-        for <linux-mm@kvack.org>;
-        Wed, 04 May 2016 01:32:10 -0700 (PDT)
-Date: Wed, 4 May 2016 17:32:38 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 0.14] oom detection rework v6
-Message-ID: <20160504083238.GA11859@js1304-P5Q-DELUXE>
-References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
- <20160504054502.GA10899@js1304-P5Q-DELUXE>
- <5729AEFB.9060101@suse.cz>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 35C7D6B007E
+	for <linux-mm@kvack.org>; Wed,  4 May 2016 04:34:07 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id s63so42409844wme.2
+        for <linux-mm@kvack.org>; Wed, 04 May 2016 01:34:07 -0700 (PDT)
+Received: from mail-lf0-x22d.google.com (mail-lf0-x22d.google.com. [2a00:1450:4010:c07::22d])
+        by mx.google.com with ESMTPS id nd10si2034779lbc.76.2016.05.04.01.34.05
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 May 2016 01:34:06 -0700 (PDT)
+Received: by mail-lf0-x22d.google.com with SMTP id j8so50879225lfd.2
+        for <linux-mm@kvack.org>; Wed, 04 May 2016 01:34:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5729AEFB.9060101@suse.cz>
+In-Reply-To: <1462252403-1106-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1462252403-1106-1-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Wed, 4 May 2016 10:34:05 +0200
+Message-ID: <CAG_fn=VwrB3sb9RvMdj0qnafnbNONASTpkxj0zSE7spdEVi7hw@mail.gmail.com>
+Subject: Re: [PATCH for v4.6] lib/stackdepot: avoid to return 0 handle
+From: Alexander Potapenko <glider@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed, May 04, 2016 at 10:12:43AM +0200, Vlastimil Babka wrote:
-> On 05/04/2016 07:45 AM, Joonsoo Kim wrote:
-> >I still don't agree with some part of this patchset that deal with
-> >!costly order. As you know, there was two regression reports from Hugh
-> >and Aaron and you fixed them by ensuring to trigger compaction. I
-> >think that these show the problem of this patchset. Previous kernel
-> >doesn't need to ensure to trigger compaction and just works fine in
-> >any case.
-> 
-> IIRC previous kernel somehow subtly never OOM'd for !costly orders.
+On Tue, May 3, 2016 at 7:13 AM,  <js1304@gmail.com> wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> Recently, we allow to save the stacktrace whose hashed value is 0.
+> It causes the problem that stackdepot could return 0 even if in success.
+> User of stackdepot cannot distinguish whether it is success or not so we
+> need to solve this problem. In this patch, 1 bit are added to handle
+> and make valid handle none 0 by setting this bit. After that, valid handl=
+e
+> will not be 0 and 0 handle will represent failure correctly.
+Returning success or failure doesn't require a special bit, we can
+just make depot_alloc_stack() return a boolean value.
+If I'm understanding correctly, your primary intention is to reserve
+an invalid handle value that will never collide with valid handles
+returned in the future.
+Can you reflect this in the description?
+> Fixes: 33334e25769c ("lib/stackdepot.c: allow the stack trace hash
+> to be zero")
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  lib/stackdepot.c | 6 +++++-
+>  1 file changed, 5 insertions(+), 1 deletion(-)
+>
+> diff --git a/lib/stackdepot.c b/lib/stackdepot.c
+> index 9e0b031..53ad6c0 100644
+> --- a/lib/stackdepot.c
+> +++ b/lib/stackdepot.c
+> @@ -42,12 +42,14 @@
+>
+>  #define DEPOT_STACK_BITS (sizeof(depot_stack_handle_t) * 8)
+>
+> +#define STACK_ALLOC_NULL_PROTECTION_BITS 1
+>  #define STACK_ALLOC_ORDER 2 /* 'Slab' size order for stack depot, 4 page=
+s */
+>  #define STACK_ALLOC_SIZE (1LL << (PAGE_SHIFT + STACK_ALLOC_ORDER))
+>  #define STACK_ALLOC_ALIGN 4
+>  #define STACK_ALLOC_OFFSET_BITS (STACK_ALLOC_ORDER + PAGE_SHIFT - \
+>                                         STACK_ALLOC_ALIGN)
+> -#define STACK_ALLOC_INDEX_BITS (DEPOT_STACK_BITS - STACK_ALLOC_OFFSET_BI=
+TS)
+> +#define STACK_ALLOC_INDEX_BITS (DEPOT_STACK_BITS - \
+> +               STACK_ALLOC_NULL_PROTECTION_BITS - STACK_ALLOC_OFFSET_BIT=
+S)
+>  #define STACK_ALLOC_SLABS_CAP 1024
+>  #define STACK_ALLOC_MAX_SLABS \
+>         (((1LL << (STACK_ALLOC_INDEX_BITS)) < STACK_ALLOC_SLABS_CAP) ? \
+> @@ -59,6 +61,7 @@ union handle_parts {
+>         struct {
+>                 u32 slabindex : STACK_ALLOC_INDEX_BITS;
+>                 u32 offset : STACK_ALLOC_OFFSET_BITS;
+> +               u32 valid : STACK_ALLOC_NULL_PROTECTION_BITS;
+>         };
+>  };
+>
+> @@ -136,6 +139,7 @@ static struct stack_record *depot_alloc_stack(unsigne=
+d long *entries, int size,
+>         stack->size =3D size;
+>         stack->handle.slabindex =3D depot_index;
+>         stack->handle.offset =3D depot_offset >> STACK_ALLOC_ALIGN;
+> +       stack->handle.valid =3D 1;
+>         memcpy(stack->entries, entries, size * sizeof(unsigned long));
+>         depot_offset +=3D required_size;
+>
+> --
+> 1.9.1
+>
 
-IIRC, it would not OOM in thrashing case. But, it could OOM in other
-cases.
 
-> So anything that introduces the possibility of OOM may look like
-> regression for some corner case workloads. But I don't think that
-> it's OK to not OOM for e.g. kernel stack allocations?
 
-Sorry. Double negation makes me hard to understand since I'm not
-native. So, you think that it's OK to OOM for kernel stack allocation?
-I think so, too. But, I want not to OOM prematurely.
+--=20
+Alexander Potapenko
+Software Engineer
 
-> >Your series make compaction necessary for all. OOM handling
-> >is essential part in MM but compaction isn't. OOM handling should not
-> >depend on compaction. I tested my own benchmark without
-> >CONFIG_COMPACTION and found that premature OOM happens.
-> >
-> >I hope that you try to test something without CONFIG_COMPACTION.
-> 
-> Hmm a valid point, !CONFIG_COMPACTION should be considered. But
-> reclaim cannot guarantee forming an order>0 page. But neither does
-> OOM. So would you suggest we keep reclaiming without OOM as before,
-> to prevent these regressions? Or where to draw the line here?
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
 
-I suggested that memorizing number of reclaimable pages when entering
-allocation slowpath and try to reclaim at least that amount. Thrashing
-is effectively prevented in this algorithm and we don't trigger OOM
-prematurely.
-
-Thanks.
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
