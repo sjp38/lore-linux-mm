@@ -1,139 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B2BD96B007E
-	for <linux-mm@kvack.org>; Tue,  3 May 2016 19:27:08 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 203so70124906pfy.2
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 16:27:08 -0700 (PDT)
-Received: from neil.brown.name (neil.brown.name. [103.29.64.221])
-        by mx.google.com with ESMTPS id o6si934675pfj.110.2016.05.03.16.27.07
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 03 May 2016 16:27:07 -0700 (PDT)
-From: NeilBrown <mr@neil.brown.name>
-Date: Wed, 04 May 2016 09:26:15 +1000
-Subject: Re: [PATCH 0/2] scop GFP_NOFS api
-In-Reply-To: <20160503151312.GA4470@dhcp22.suse.cz>
-References: <1461671772-1269-1-git-send-email-mhocko@kernel.org> <8737q5ugcx.fsf@notabene.neil.brown.name> <20160429120418.GK21977@dhcp22.suse.cz> <87twiiu5gs.fsf@notabene.neil.brown.name> <20160503151312.GA4470@dhcp22.suse.cz>
-Message-ID: <87futyd8q0.fsf@notabene.neil.brown.name>
+Received: from mail-ig0-f200.google.com (mail-ig0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F15B76B007E
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 20:09:39 -0400 (EDT)
+Received: by mail-ig0-f200.google.com with SMTP id kj7so32592580igb.3
+        for <linux-mm@kvack.org>; Tue, 03 May 2016 17:09:39 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id nj7si741355igb.76.2016.05.03.17.09.37
+        for <linux-mm@kvack.org>;
+        Tue, 03 May 2016 17:09:38 -0700 (PDT)
+Date: Wed, 4 May 2016 10:07:03 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 2/2] mm, debug: report when GFP_NO{FS,IO} is used
+ explicitly from memalloc_no{fs,io}_{save,restore} context
+Message-ID: <20160504000703.GW26977@dastard>
+References: <1461671772-1269-1-git-send-email-mhocko@kernel.org>
+ <1461671772-1269-3-git-send-email-mhocko@kernel.org>
+ <20160426225845.GF26977@dastard>
+ <20160428081759.GA31489@dhcp22.suse.cz>
+ <20160428215145.GM26977@dastard>
+ <20160429121219.GL21977@dhcp22.suse.cz>
+ <20160429234008.GN26977@dastard>
+ <20160503153823.GB4470@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha256; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160503153823.GB4470@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Chris Mason <clm@fb.com>, Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, cluster-devel@redhat.com, linux-nfs@vger.kernel.org, logfs@logfs.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mtd@lists.infradead.org, reiserfs-devel@vger.kernel.org, linux-ntfs-dev@lists.sourceforge.net, linux-f2fs-devel@lists.sourceforge.net, linux-afs@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, xfs@oss.sgi.com, LKML <linux-kernel@vger.kernel.org>
 
---=-=-=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
-
-On Wed, May 04 2016, Michal Hocko wrote:
-
-> Hi,
->
-> On Sun 01-05-16 07:55:31, NeilBrown wrote:
+On Tue, May 03, 2016 at 05:38:23PM +0200, Michal Hocko wrote:
+> On Sat 30-04-16 09:40:08, Dave Chinner wrote:
+> > On Fri, Apr 29, 2016 at 02:12:20PM +0200, Michal Hocko wrote:
 > [...]
->> One particular problem with your process-context idea is that it isn't
->> inherited across threads.
->> Steve Whitehouse's example in gfs shows how allocation dependencies can
->> even cross into user space.
->
-> Hmm, I am still not sure I understand that example completely but making
-> a dependency between direct reclaim and userspace can hardly work.
+> > > - was it 
+> > > "inconsistent {RECLAIM_FS-ON-[RW]} -> {IN-RECLAIM_FS-[WR]} usage"
+> > > or a different class reports?
+> > 
+> > Typically that was involved, but it quite often there'd be a number
+> > of locks and sometimes even interrupt stacks in an interaction
+> > between 5 or 6 different processes. Lockdep covers all sorts of
+> > stuff now (like fs freeze annotations as well as locks and memory
+> > reclaim) so sometimes the only thing we can do is remove the
+> > reclaim context from the stack and see if that makes it go away...
+> 
+> That is what I was thinking of. lockdep_reclaim_{disable,enable} or
+> something like that to tell __lockdep_trace_alloc to not skip
+> mark_held_locks(). This would effectivelly help to get rid of reclaim
+> specific reports. It is hard to tell whether there would be others,
+> though.
 
-No it can't.  Specifically: if direct reclaim blocks on user-space that
-must be a problem.
-I think the point of this example is that some filesystem things can
-block on user-space in ways that are very hard to encode in with flags
-as they are multi-level indirect.
-So the conclusion (my conclusion) is that direct reclaim mustn't block.
+Yeah, though I suspect this would get messy having to scatter it
+around the code. I can encapsulate it via internal XFS KM flags,
+though, so I do think that will be a real issue.
 
-When I was working on deadlock avoidance in loop-back NFS I went down
-the path of adding GFP flags and extended the PF_FSTRANS flag and got it
-working (think) but no-one liked it.  It was way too intrusive.
+> > > > They may have been fixed since, but I'm sceptical
+> > > > of that because, generally speaking, developer testing only catches
+> > > > the obvious lockdep issues. i.e. it's users that report all the
+> > > > really twisty issues, and they are generally not reproducable except
+> > > > under their production workloads...
+> > > > 
+> > > > IOWs, the absence of reports in your testing does not mean there
+> > > > isn't a problem, and that is one of the biggest problems with
+> > > > lockdep annotations - we have no way of ever knowing if they are
+> > > > still necessary or not without exposing users to regressions and
+> > > > potential deadlocks.....
+> > > 
+> > > I understand your points here but if we are sure that those lockdep
+> > > reports are just false positives then we should rather provide an api to
+> > > silence lockdep for those paths
+> > 
+> > I agree with this - please provide such infrastructure before we
+> > need it...
+> 
+> Do you think a reclaim specific lockdep annotation would be sufficient?
 
-Some how I landed on the idea of making nfs_release_page non blocking
-and everything suddenly became much much simpler.  Problems evaporated.
+It will help - it'll take some time to work through all the explicit
+KM_NOFS calls in XFS, though, to determine if they are just working
+around lockdep false positives or some other potential problem....
 
-NFS has a distinct advantage here.  The "Close-to-open" cache semantic
-means that all dirty pages must be flushed on last close.  So when
-=2D>evict_inode is finally called there is nothing much to do - just free
-everything up.  So I could fix NFS without worrying about (or even
-noticing) evict_inode.
+> I do understand your concerns and I really do not ask you to redesign
+> your code. I would like make the code more maintainable and reducing the
+> number of (undocumented) GFP_NOFS usage to the minimum seems to be like
+> a first step. Now the direct usage of GFP_NOFS (resp. KM_NOFS) in xfs is
+> not that large.
 
+That's true, and if we can reduce them to real cases of GFP_NOFS
+being needed vs annotations to silence lockdep false positives we'll
+then know what problems we really need to fix...
 
-> Especially when the direct reclaim might be sitting on top of hard to
-> guess pile of locks. So unless I've missed anything what Steve has
-> described is a clear NOFS context.
->
->> A more localized one that I have seen is that NFSv4 sometimes needs to
->> start up a state-management thread (particularly if the server
->> restarted).
->> It uses kthread_run(), which doesn't actually create the thread but asks
->> kthreadd to do it.  If NFS writeout is waiting for state management it
->> would need to make sure that kthreadd runs in allocation context to
->> avoid deadlock.
->> I feel that I've forgotten some important detail here and this might
->> have been fixed somehow, but the point still stands that the allocation
->> context can cross from thread to thread and can effectively become
->> anything and everything.
->
-> Not sure I understand your point here but relying on kthread_run
-> from GFP_NOFS context has always been deadlock prone with or without
-> scope GFP_NOFS semantic so I am not really sure I see your point
-> here. Similarly relying on a work item which doesn't have a dedicated
-> WQ_MEM_RECLAIM WQ is deadlock prone.  You simply shouldn't do that.
+Cheers,
 
-The point is really that saying "You shouldn't do that" isn't much good
-when "that" is exactly what the fs developer wants to do and it seems to
-work and never triggers a warning.
-
-You can create lots of rules about what is or is not allowed, or
-you can make everything that it not explicit forbidden (ideally at
-compile time but possibly at runtime with might_sleep or lockdep),
-permitted.
-
-I prefer the latter.
-
->
->> It is OK to wait for memory to be freed.  It is not OK to wait for any
->> particular piece of memory to be freed because you don't always know who
->> is waiting for you, or who you really are waiting on to free that
->> memory.
->>=20
->> Whenever trying to free memory I think you need to do best-effort
->> without blocking.
->
-> I agree with that. Or at least you have to wait on something that is
-> _guaranteed_ to make a forward progress. I am not really that sure this
-> is easy to achieve with the current code base.
-
-I accept that it isn't "easy".  But I claim that it isn't particularly
-difficult either.
-
-NeilBrown
-
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJXKTOXAAoJEDnsnt1WYoG5eugQALaVi36cVlv3XUWoqQkoecRW
-Sh+gP4igqZwrsa+rKJ6N0SAKf2Ckg5hRnQ8pXs4gg+k8AtoQpEjRNqt0W6uCrMVz
-foj53Bwv0C/QYJiFUWxT+ExaA/iBp35HUkNpJZifwL5YYsWL1mRvVV4FINA5VpTV
-tSIAAIEM955RacQYX77m523pkH5oh4/SaZowW6u0sBi0jUCD1KsrD156mV61ah6L
-HCOzm1mMSaAxjDvFzu1dA2yz7Kjq5spqHZyYO47N+7ice7b0QHfvqFMS8beX2zzT
-5DMis1MWLrZOUhw6yej+hW3aQO9Ch1hOwRRu9E49T32FWuh9qEo9Ia79it6OI4/1
-xBCpqkhToiBDioB4H1NtF45qwEa8m4dyMYBGUfKyop8JlaUS/foMaK8uHS0xG1MO
-LICkLC7y/7l/N3GNQ1Ia3bLFdQJmHdOpZO1NbzlIbWMC9sV3r6KdlCeLoBC7GvF8
-eM8tAM4W4dXOSK/JMz/nsRXBCXvQgT1L9eXvwrKFmEkVGyXWGA+th3fCCexKNUP6
-ab5aas5pj9AseznwfOP3EYEhLRvPKSP8qeu6Wkezodwi/LIjb8v+Y9h96a46FbkA
-viFdp7ZWP/nQ3wQ4g0T89RdIX9zY8Xv+8yNbKaxmL4B6L5nI4mer4XaV63V36Qge
-/NBmt+ZGgYKghbndVHaz
-=zENk
------END PGP SIGNATURE-----
---=-=-=--
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
