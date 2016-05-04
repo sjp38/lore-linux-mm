@@ -1,56 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A7296B007E
-	for <linux-mm@kvack.org>; Wed,  4 May 2016 08:45:39 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id w143so47624427wmw.3
-        for <linux-mm@kvack.org>; Wed, 04 May 2016 05:45:39 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id hb7si4688381wjd.57.2016.05.04.05.45.37
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 870736B007E
+	for <linux-mm@kvack.org>; Wed,  4 May 2016 09:47:42 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id aq1so105044461obc.2
+        for <linux-mm@kvack.org>; Wed, 04 May 2016 06:47:42 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id p18si4428832igs.50.2016.05.04.06.47.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 May 2016 05:45:37 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id w143so10028244wmw.3
-        for <linux-mm@kvack.org>; Wed, 04 May 2016 05:45:37 -0700 (PDT)
-Date: Wed, 4 May 2016 14:45:35 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/7] mm: Improve swap path scalability with batched
- operations
-Message-ID: <20160504124535.GJ29978@dhcp22.suse.cz>
-References: <cover.1462306228.git.tim.c.chen@linux.intel.com>
- <1462309239.21143.6.camel@linux.intel.com>
+        Wed, 04 May 2016 06:47:41 -0700 (PDT)
+Date: Wed, 4 May 2016 15:47:29 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: kmap_atomic and preemption
+Message-ID: <20160504134729.GP3430@twins.programming.kicks-ass.net>
+References: <5729D0F4.9090907@synopsys.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1462309239.21143.6.camel@linux.intel.com>
+In-Reply-To: <5729D0F4.9090907@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, "Kirill A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: Nicolas Pitre <nicolas.pitre@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, David Hildenbrand <dahi@linux.vnet.ibm.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Russell King <linux@arm.linux.org.uk>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
 
-On Tue 03-05-16 14:00:39, Tim Chen wrote:
-[...]
->  include/linux/swap.h |  29 ++-
->  mm/swap_state.c      | 253 +++++++++++++-----
->  mm/swapfile.c        | 215 +++++++++++++--
->  mm/vmscan.c          | 725 ++++++++++++++++++++++++++++++++++++++-------------
->  4 files changed, 945 insertions(+), 277 deletions(-)
+On Wed, May 04, 2016 at 04:07:40PM +0530, Vineet Gupta wrote:
+> Hi,
+> 
+> I was staring at some recent ARC highmem crashes and see that kmap_atomic()
+> disables preemption even when page is in lowmem and call returns right away.
+> This seems to be true for other arches as well.
+> 
+> arch/arc/mm/highmem.c:
+> 
+> void *kmap_atomic(struct page *page)
+> {
+> 	int idx, cpu_idx;
+> 	unsigned long vaddr;
+> 
+> 	preempt_disable();
+> 	pagefault_disable();
+> 	if (!PageHighMem(page))
+> 		return page_address(page);
+> 
+>         /* do the highmem foo ... */
+> ..
+> }
+> 
+> I would really like to implement a inline fastpath for !PageHighMem(page) case and
+> do the highmem foo out-of-line.
+> 
+> Is preemption disabling a requirement of kmap_atomic() callers independent of
+> where page is or is it only needed when page is in highmem and can trigger page
+> faults or TLB Misses between kmap_atomic() and kunmap_atomic and wants protection
+> against reschedules etc.
 
-This is rather large change for a normally rare path. We have been
-trying to preserve the anonymous memory as much as possible and rather
-push the page cache out. In fact swappiness is ignored most of the
-time for the vast majority of workloads.
+Traditionally kmap_atomic() disables preemption; and the reason is that
+the returned pointer must stay valid. This had a side effect in that it
+also disabled pagefaults.
 
-So this would help anonymous mostly workloads and I am really wondering
-whether this is something worth bothering without further and deeper
-rethinking of our current reclaim strategy. I fully realize that the
-swap out sucks and that the new storage technologies might change the
-way how we think about anonymous memory being so "special" wrt. disk
-based caches but I would like to see a stronger use case than "we have
-been playing with some artificial use case and it scales better"
--- 
-Michal Hocko
-SUSE Labs
+We've since de-coupled the pagefault from the preemption thing, so you
+could disable pagefaults while leaving preemption enabled.
+
+Now, I've also done preemptible kmap_atomic() on -rt; which appears to
+work, suggesting nothing relies on it disabling preemption (on -rt).
+
+So sure; you can try and leave preemption enabled for lowmem pages, see
+what comes apart -- if anything. It gives weird semantics for
+kmap_atomic() though, and I'm not sure the cost of doing that
+preempt_disable/preempt_enable() is worth the pain.
+
+If you want a fast-slow path splt, you can easily do something like:
+
+
+static inline void *kmap_atomic(struct page *page)
+{
+	preempt_disable();
+	pagefault_disable();
+	if (!PageHighMem(page))
+		return page_address(page);
+
+	return __kmap_atomic(page);
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
