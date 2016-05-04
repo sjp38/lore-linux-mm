@@ -1,119 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A4E8C6B0005
-	for <linux-mm@kvack.org>; Wed,  4 May 2016 10:32:32 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id u185so98046883oie.3
-        for <linux-mm@kvack.org>; Wed, 04 May 2016 07:32:32 -0700 (PDT)
-Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com. [2607:f8b0:4003:c01::231])
-        by mx.google.com with ESMTPS id c93si1771060otb.22.2016.05.04.07.32.31
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 00B8E6B0005
+	for <linux-mm@kvack.org>; Wed,  4 May 2016 10:36:32 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 68so43206135lfq.2
+        for <linux-mm@kvack.org>; Wed, 04 May 2016 07:36:31 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id b186si5501963wmb.97.2016.05.04.07.36.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 May 2016 07:32:31 -0700 (PDT)
-Received: by mail-ob0-x231.google.com with SMTP id x1so21424713obt.0
-        for <linux-mm@kvack.org>; Wed, 04 May 2016 07:32:31 -0700 (PDT)
+        Wed, 04 May 2016 07:36:30 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 4367A1C1141
+	for <linux-mm@kvack.org>; Wed,  4 May 2016 15:36:30 +0100 (IST)
+Date: Wed, 4 May 2016 15:36:28 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH] mm, page_alloc: Restore the original nodemask if the fast
+ path allocation failed
+Message-ID: <20160504143628.GU2858@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <20160504084737.GB29978@dhcp22.suse.cz>
-References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
-	<20160504054502.GA10899@js1304-P5Q-DELUXE>
-	<20160504084737.GB29978@dhcp22.suse.cz>
-Date: Wed, 4 May 2016 23:32:31 +0900
-Message-ID: <CAAmzW4M7ZT7+vUsW3SrTRSv6Q80B2NdAS+OX7PrnpdrV+=R19A@mail.gmail.com>
-Subject: Re: [PATCH 0.14] oom detection rework v6
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, Vlastimil Babka <vbabka@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-2016-05-04 17:47 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
-> On Wed 04-05-16 14:45:02, Joonsoo Kim wrote:
->> On Wed, Apr 20, 2016 at 03:47:13PM -0400, Michal Hocko wrote:
->> > Hi,
->> >
->> > This is v6 of the series. The previous version was posted [1]. The
->> > code hasn't changed much since then. I have found one old standing
->> > bug (patch 1) which just got much more severe and visible with this
->> > series. Other than that I have reorganized the series and put the
->> > compaction feedback abstraction to the front just in case we find out
->> > that parts of the series would have to be reverted later on for some
->> > reason. The premature oom killer invocation reported by Hugh [2] seems
->> > to be addressed.
->> >
->> > We have discussed this series at LSF/MM summit in Raleigh and there
->> > didn't seem to be any concerns/objections to go on with the patch set
->> > and target it for the next merge window.
->>
->> I still don't agree with some part of this patchset that deal with
->> !costly order. As you know, there was two regression reports from Hugh
->> and Aaron and you fixed them by ensuring to trigger compaction. I
->> think that these show the problem of this patchset. Previous kernel
->> doesn't need to ensure to trigger compaction and just works fine in
->> any case. Your series make compaction necessary for all. OOM handling
->> is essential part in MM but compaction isn't. OOM handling should not
->> depend on compaction. I tested my own benchmark without
->> CONFIG_COMPACTION and found that premature OOM happens.
->
-> High order allocations without compaction are basically a lost game. You
+(Andrew, this is on top of the pagealloc optimisation series in mmotm. It
+ could be classed as a fix-up but it's subtle enough that it deserves its
+ own changelog. "Clever" fixes had other consequences.)
 
-I don't think that order 1 or 2 allocation has a big trouble without compaction.
-They can be made by buddy algorithm that keeps high order freepages
-as long as possible.
+The page allocator fast path uses either the requested nodemask or
+cpuset_current_mems_allowed if cpusets are enabled. If the allocation
+context allows watermarks to be ignored then it can also ignore memory
+policies. However, on entering the allocator slowpath the nodemask may
+still be cpuset_current_mems_allowed and the policies are enforced.
+This patch resets the nodemask appropriately before entering the slowpath.
 
-> can wait unbounded amount of time and still have no guarantee of any
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-I know that it has no guarantee. But, it doesn't mean that it's better to
-give up early. Since OOM could causes serious problem, if there is
-reclaimable memory, we need to reclaim all of them at least once
-with praying for high order page before triggering OOM. Optimizing
-this situation by incomplete guessing is a dangerous idea.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 79100583b9de..ec5155ab1482 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3637,6 +3637,12 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	alloc_mask = memalloc_noio_flags(gfp_mask);
+ 	ac.spread_dirty_pages = false;
+ 
++	/*
++	 * Restore the original nodemask if it was potentially replaced with
++	 * &cpuset_current_mems_allowed to optimize the fast-path attempt.
++	 */
++	if (cpusets_enabled())
++		ac.nodemask = nodemask;
+ 	page = __alloc_pages_slowpath(alloc_mask, order, &ac);
+ 
+ no_zone:
 
-> progress. What is the usual reason to disable compaction in the first
-> place?
-
-I don't disable it. But, who knows who disable compaction? It's been *not*
-a long time that CONFIG_COMPACTION is default enable. Maybe, 3 years?
-
-> Anyway if this is _really_ a big issue then we can do something like the
-> following to emulate the previous behavior. We are losing the
-> determinism but if you really thing that the !COMPACTION workloads
-> already reconcile with it I can live with that.
-> ---
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 2e7e26c5d3ba..f48b9e9b1869 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3319,6 +3319,24 @@ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_fla
->                      enum migrate_mode *migrate_mode,
->                      int compaction_retries)
->  {
-> +       struct zone *zone;
-> +       struct zoneref *z;
-> +
-> +       if (order > PAGE_ALLOC_COSTLY_ORDER)
-> +               return false;
-> +
-> +       /*
-> +        * There are setups with compaction disabled which would prefer to loop
-> +        * inside the allocator rather than hit the oom killer prematurely. Let's
-> +        * give them a good hope and keep retrying while the order-0 watermarks
-> +        * are OK.
-> +        */
-> +       for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
-> +                                       ac->nodemask) {
-> +               if(zone_watermark_ok(zone, 0, min_wmark_pages(zone),
-> +                                       ac->high_zoneidx, alloc_flags))
-> +                       return true;
-> +       }
->         return false;
-
-I hope that this kind of logic is added to should_reclaim_retry() so
-that this logic is
-applied in any setup. should_compact_retry() should not become a fundamental
-criteria to determine OOM. What compaction does can be changed in the future
-and it's undesirable that it's change affects OOM condition greatly.
-
-Thanks.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
