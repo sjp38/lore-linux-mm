@@ -1,58 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D9456B007E
-	for <linux-mm@kvack.org>; Wed,  4 May 2016 15:42:26 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id b203so126782307pfb.1
-        for <linux-mm@kvack.org>; Wed, 04 May 2016 12:42:26 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id 192si6270407pfz.229.2016.05.04.12.42.25
-        for <linux-mm@kvack.org>;
-        Wed, 04 May 2016 12:42:25 -0700 (PDT)
-From: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
-Subject: RE: mm: pages are not freed from lru_add_pvecs after process
- termination
-Date: Wed, 4 May 2016 19:41:59 +0000
-Message-ID: <D6EDEBF1F91015459DB866AC4EE162CC023C182F@IRSMSX103.ger.corp.intel.com>
-References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
- <5720F2A8.6070406@intel.com> <20160428143710.GC31496@dhcp22.suse.cz>
- <20160502130006.GD25265@dhcp22.suse.cz>
-In-Reply-To: <20160502130006.GD25265@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A0A446B0005
+	for <linux-mm@kvack.org>; Wed,  4 May 2016 15:49:04 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id s63so60335367wme.2
+        for <linux-mm@kvack.org>; Wed, 04 May 2016 12:49:04 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id wb6si6905053wjc.99.2016.05.04.12.49.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 May 2016 12:49:03 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id w143so12651411wmw.3
+        for <linux-mm@kvack.org>; Wed, 04 May 2016 12:49:03 -0700 (PDT)
+Date: Wed, 4 May 2016 21:49:02 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/7] mm: Improve swap path scalability with batched
+ operations
+Message-ID: <20160504194901.GG21490@dhcp22.suse.cz>
+References: <cover.1462306228.git.tim.c.chen@linux.intel.com>
+ <1462309239.21143.6.camel@linux.intel.com>
+ <20160504124535.GJ29978@dhcp22.suse.cz>
+ <1462381986.30611.28.camel@linux.intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1462381986.30611.28.camel@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, "Kirill A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Thu 02-05-16 03:00:00, Michal Hocko wrote:
-> So I have given this a try (not tested yet) and it doesn't look terribly
-> complicated. It is hijacking vmstat for a purpose it wasn't intended for
-> originally but creating a dedicated kenrnel threads/WQ sounds like an
-> overkill to me. Does this helps or do we have to be more aggressive and
-> wake up shepherd from the allocator slow path. Could you give it a try
-> please?
+On Wed 04-05-16 10:13:06, Tim Chen wrote:
+> On Wed, 2016-05-04 at 14:45 +0200, Michal Hocko wrote:
+> > On Tue 03-05-16 14:00:39, Tim Chen wrote:
+> > [...]
+> > > 
+> > >  include/linux/swap.h |  29 ++-
+> > >  mm/swap_state.c      | 253 +++++++++++++-----
+> > >  mm/swapfile.c        | 215 +++++++++++++--
+> > >  mm/vmscan.c          | 725 ++++++++++++++++++++++++++++++++++++++-
+> > > ------------
+> > >  4 files changed, 945 insertions(+), 277 deletions(-)
+> > This is rather large change for a normally rare path. We have been
+> > trying to preserve the anonymous memory as much as possible and
+> > rather
+> > push the page cache out. In fact swappiness is ignored most of the
+> > time for the vast majority of workloads.
+> > 
+> > So this would help anonymous mostly workloads and I am really
+> > wondering
+> > whether this is something worth bothering without further and deeper
+> > rethinking of our current reclaim strategy. I fully realize that the
+> > swap out sucks and that the new storage technologies might change the
+> > way how we think about anonymous memory being so "special" wrt. disk
+> > based caches but I would like to see a stronger use case than "we
+> > have
+> > been playing with some artificial use case and it scales better"
+> 
+> With non-volatile ram based block devices, swap device could be very
+> fast, approaching RAM speed and can potentially be used as a secondary
+> memory. Just configuring these NVRAM as swap will be
+> an easy way for apps to make use of them without doing any heavy
+> lifting to change the apps.  But the swap path is so 
+> un-scalable today that such use case
+> is unfeasible, even more so for multi-threaded server machines.
 
-It seems to work fine, but it takes quite random time to drain lists, somet=
-imes
-a couple of seconds sometimes over two minutes. It is acceptable I believe.
+In order this to work other quite intrusive changes to the current
+reclaim decisions would have to be made though. This is what I tried to
+say. Look at get_scan_count() on how we are making many steps to ignore
+swappiness or prefer the page cache. Even when we make swapout scale it
+won't help much if we do not swap out that often. That's why I claim
+that we really should think more long term and maybe reconsider these
+decisions which were based on the rotating rust for the swap devices.
 
-I have an app which allocates almost all of the memory from numa node and
-with just second patch and 100 consecutive executions 30-50% got killed.
-After applying also your first patch I haven't seen any oom kill activity -=
- great.
+> I understand that the patch set is a little large. Any better
+> ideas for achieving similar ends will be appreciated.  I put
+> out these patches in the hope that it will spur solutions
+> to improve swap.
+> 
+> Perhaps the first two patches to make shrink_page_list into
+> smaller components can be considered first, as a first step 
+> to make any changes to the reclaim code easier.
 
-I was wondering how many lru_add_drain()'s are called and after boot when
-machine was idle it was a bit over 5k calls during first 400s, and with som=
-e=20
-activity it went up to 15k calls during 700s (including 5k from previous=20
-experiment) which sounds fair to me given big cpu count.
+I didn't get to review those yet and probably will not get to them
+shortly (sorry about that). shrink_page_list is surely one giant
+function that is calling for a better layout/split out. I wouldn't be
+opposed but there are some subtle details lurking there which make
+clean ups non-trivial. I will not discourage you from trying to get it
+into shape of course.
 
-Do you see any advantages of dropping THP from pagevecs over this solution?
-
-Thanks,
-Lukas
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
