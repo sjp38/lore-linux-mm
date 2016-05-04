@@ -1,97 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DD08E6B007E
-	for <linux-mm@kvack.org>; Tue,  3 May 2016 21:39:19 -0400 (EDT)
-Received: by mail-ig0-f197.google.com with SMTP id kj7so36000369igb.3
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 18:39:19 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id o191si1079632ite.10.2016.05.03.18.39.17
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CE55F6B007E
+	for <linux-mm@kvack.org>; Tue,  3 May 2016 22:14:25 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id t140so70312614oie.0
+        for <linux-mm@kvack.org>; Tue, 03 May 2016 19:14:25 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id qb8si1186728igc.55.2016.05.03.19.14.24
         for <linux-mm@kvack.org>;
-        Tue, 03 May 2016 18:39:19 -0700 (PDT)
-Date: Wed, 4 May 2016 11:36:57 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-Message-ID: <20160504013657.GO18496@dastard>
-References: <1461604476.3106.12.camel@intel.com>
- <20160425232552.GD18496@dastard>
- <1461628381.1421.24.camel@intel.com>
- <20160426004155.GF18496@dastard>
- <x49pot4ebeb.fsf@segfault.boston.devel.redhat.com>
- <CAPcyv4jfUVXoge5D+cBY1Ph=t60165sp6sF_QFZUbFv+cNcdHg@mail.gmail.com>
- <20160503004226.GR26977@dastard>
- <D26BCF92-ED25-4ACA-9CC8-7B1C05A1D5FC@intel.com>
- <20160503024948.GT26977@dastard>
- <FBB11841-7DFE-4223-9973-3457034260C2@intel.com>
+        Tue, 03 May 2016 19:14:25 -0700 (PDT)
+Date: Wed, 4 May 2016 11:14:50 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 6/6] mm/page_owner: use stackdepot to store stacktrace
+Message-ID: <20160504021449.GA10256@js1304-P5Q-DELUXE>
+References: <1462252984-8524-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1462252984-8524-7-git-send-email-iamjoonsoo.kim@lge.com>
+ <20160503085356.GD28039@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <FBB11841-7DFE-4223-9973-3457034260C2@intel.com>
+In-Reply-To: <20160503085356.GD28039@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rudoff, Andy" <andy.rudoff@intel.com>
-Cc: "Williams, Dan J" <dan.j.williams@intel.com>, "hch@infradead.org" <hch@infradead.org>, "jack@suse.cz" <jack@suse.cz>, "axboe@fb.com" <axboe@fb.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, May 03, 2016 at 06:30:04PM +0000, Rudoff, Andy wrote:
-> >
-> >And when the filesystem says no because the fs devs don't want to
-> >have to deal with broken apps because app devs learn that "this is a
-> >go fast knob" and data integrity be damned? It's "fsync is slow so I
-> >won't use it" all over again...
-> ...
-> >
-> >And, please keep in mind: many application developers will not
-> >design for pmem because they also have to support traditional
-> >storage backed by page cache. If they use msync(), the app will work
-> >on any storage stack, but just be much, much faster on pmem+DAX. So,
-> >really, we have to make the msync()-only model work efficiently, so
-> >we may as well design for that in the first place....
+On Tue, May 03, 2016 at 10:53:56AM +0200, Michal Hocko wrote:
+> On Tue 03-05-16 14:23:04, Joonsoo Kim wrote:
+> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > 
+> > Currently, we store each page's allocation stacktrace on corresponding
+> > page_ext structure and it requires a lot of memory. This causes the problem
+> > that memory tight system doesn't work well if page_owner is enabled.
+> > Moreover, even with this large memory consumption, we cannot get full
+> > stacktrace because we allocate memory at boot time and just maintain
+> > 8 stacktrace slots to balance memory consumption. We could increase it
+> > to more but it would make system unusable or change system behaviour.
+> > 
+> > To solve the problem, this patch uses stackdepot to store stacktrace.
+> > It obviously provides memory saving but there is a drawback that
+> > stackdepot could fail.
+> > 
+> > stackdepot allocates memory at runtime so it could fail if system has
+> > not enough memory. But, most of allocation stack are generated at very
+> > early time and there are much memory at this time. So, failure would not
+> > happen easily. And, one failure means that we miss just one page's
+> > allocation stacktrace so it would not be a big problem. In this patch,
+> > when memory allocation failure happens, we store special stracktrace
+> > handle to the page that is failed to save stacktrace. With it, user
+> > can guess memory usage properly even if failure happens.
+> > 
+> > Memory saving looks as following. (Boot 4GB memory system with page_owner)
+> > 
+> > 92274688 bytes -> 25165824 bytes
 > 
-> Both of these snippets seem to be arguing that we should make msync/fsync
-> more efficient.  But I don't think anyone is arguing the opposite.  Is
-> someone saying we shouldn't make the msync()-only model work efficiently?
+> It is not clear to me whether this is after a fresh boot or some workload
+> which would grow the stack depot as well. What is a usual cap for the
+> memory consumption.
 
-Not directly. The argument presented is "we need a flag to avoid
-msync, because msync is inefficient", which is followed by "look,
-here's numbers that show msync() being slow, so just give us the
-flag already". Experience tells me that the moment a workaround is
-in place, nobody will go back and try to fix the problem that the
-workaround is mitigating.
+It is static allocation size after a fresh boot. I didn't add size of
+dynamic allocation memory so it could be larger a little. See below line.
+> 
+> > 72% reduction in static allocation size. Even if we should add up size of
+> > dynamic allocation memory, it would not that big because stacktrace is
+> > mostly duplicated.
+> > 
+> > Note that implementation looks complex than someone would imagine because
+> > there is recursion issue. stackdepot uses page allocator and page_owner
+> > is called at page allocation. Using stackdepot in page_owner could re-call
+> > page allcator and then page_owner. That is a recursion.
+> 
+> This is rather fragile. How do we check there is no lock dependency
+> introduced later on - e.g. split_page called from a different
+> locking/reclaim context than alloc_pages? Would it be safer to
 
-Now we know that it's the page granularity cache flushing overhead
-that causes the performance differential rather than it being caused
-by using msync(), we should be looking at ways to reduce the cache
-flushing overhead, not completely bypassing it.
+There is no callsite that calls set_page_owner() with
+__GFP_DIRECT_RECLAIM. So, there would be no lock/context dependency
+now.
 
-> Said another way: the common case for DAX will be applications simply
-> following the POSIX model.  open, mmap, msync...  That will work fine
-> and of course we should optimize that path as much as possible.  Less
-> common are latency-sensitive applications built to leverage to byte-
-> addressable nature of pmem.  File systems supporting this model will
-> indicate it using a new ioctl that says doing CPU cache flushes is
-> sufficient to flush stores to persistence.
+split_page() doesn't call set_page_owner(). Instead, it calls
+split_page_owner() and just copies previous entry. Since it doesn't
+require any new stackdepot entry, it is safe in any context.
 
-You keep saying this whilst ignoring the repeated comments about how
-this can not be guaranteed by all filesystems, and hence apps will
-not be able to depend on having such behaviour present. The only
-guarantee for persistence that an app will be able to rely on is
-msync().
+> use ~__GFP_DIRECT_RECLAIM for those stack allocations? Or do you think
+> there would be too many failed allocations? This alone wouldn't remove a
+> need for the recursion detection but it sounds less tricky.
+> 
+> > To detect and
+> > avoid it, whenever we obtain stacktrace, recursion is checked and
+> > page_owner is set to dummy information if found. Dummy information means
+> > that this page is allocated for page_owner feature itself
+> > (such as stackdepot) and it's understandable behavior for user.
+> > 
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> I like the idea in general I just wish this would be less subtle. Few
+> more comments below.
+> 
+> [...]
+> > -void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
+> > +static inline bool check_recursive_alloc(struct stack_trace *trace,
+> > +					unsigned long ip)
+> >  {
+> > -	struct page_ext *page_ext = lookup_page_ext(page);
+> > +	int i, count;
+> > +
+> > +	if (!trace->nr_entries)
+> > +		return false;
+> > +
+> > +	for (i = 0, count = 0; i < trace->nr_entries; i++) {
+> > +		if (trace->entries[i] == ip && ++count == 2)
+> > +			return true;
+> > +	}
+> 
+> This would deserve a comment I guess. Btw, don't we have a better and
+> more robust way to detect the recursion? Per task_struct flag or
+> something like that?
 
-> But I don't see how that
-> direction is getting turned into an argument against msync() efficiency.
+Okay. I will add a comment.
 
-Promoting a model that works around inefficiency rather than solving
-it is no different to saying you don't care about fixing the
-inefficiency....
+I already considered task_struct flag and I know that it is a better
+solution. But, I don't think that this debugging feature deserve to
+use such precious flag. This implementation isn't efficient but I
+think that it is at least robust.
 
-I've said my piece, I'm not going to waste any more time going
-around this circle again.
+> [...]
+> > +static noinline depot_stack_handle_t save_stack(gfp_t flags)
+> > +{
+> > +	unsigned long entries[PAGE_OWNER_STACK_DEPTH];
+> >  	struct stack_trace trace = {
+> >  		.nr_entries = 0,
+> > -		.max_entries = ARRAY_SIZE(page_ext->trace_entries),
+> > -		.entries = &page_ext->trace_entries[0],
+> > -		.skip = 3,
+> > +		.entries = entries,
+> > +		.max_entries = PAGE_OWNER_STACK_DEPTH,
+> > +		.skip = 0
+> >  	};
+> [...]
+> >  void __dump_page_owner(struct page *page)
+> >  {
+> >  	struct page_ext *page_ext = lookup_page_ext(page);
+> > +	unsigned long entries[PAGE_OWNER_STACK_DEPTH];
+> 
+> This is worrying because of the excessive stack consumption while we
+> might be in a deep call chain already. Can we preallocate a hash table
+> for few buffers when the feature is enabled? This would require locking
+> of course but chances are that contention wouldn't be that large.
 
-Cheers,
+Make sense but I'm not sure that excessive stack consumption would
+cause real problem. For example, if direct reclaim is triggered during
+allocation, it may go more deeper than this path. I'd like to
+postpone to handle this issue until stack breakage is reported due to
+this feature.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
