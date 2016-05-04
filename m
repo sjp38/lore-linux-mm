@@ -1,89 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A2DB6B0005
-	for <linux-mm@kvack.org>; Wed,  4 May 2016 16:36:46 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id s63so805759wme.2
-        for <linux-mm@kvack.org>; Wed, 04 May 2016 13:36:46 -0700 (PDT)
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
-        by mx.google.com with ESMTPS id b187si7369388wmh.51.2016.05.04.13.36.45
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 317D26B0005
+	for <linux-mm@kvack.org>; Wed,  4 May 2016 17:05:42 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id j8so51669218lfd.0
+        for <linux-mm@kvack.org>; Wed, 04 May 2016 14:05:42 -0700 (PDT)
+Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
+        by mx.google.com with ESMTPS id wp4si7227807wjb.173.2016.05.04.14.05.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 May 2016 13:36:45 -0700 (PDT)
-Received: by mail-wm0-f49.google.com with SMTP id n129so204128440wmn.1
-        for <linux-mm@kvack.org>; Wed, 04 May 2016 13:36:45 -0700 (PDT)
-Date: Wed, 4 May 2016 22:36:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm: pages are not freed from lru_add_pvecs after process
- termination
-Message-ID: <20160504203643.GI21490@dhcp22.suse.cz>
-References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
- <5720F2A8.6070406@intel.com>
- <20160428143710.GC31496@dhcp22.suse.cz>
- <20160502130006.GD25265@dhcp22.suse.cz>
- <D6EDEBF1F91015459DB866AC4EE162CC023C182F@IRSMSX103.ger.corp.intel.com>
+        Wed, 04 May 2016 14:05:40 -0700 (PDT)
+Date: Wed, 4 May 2016 14:05:39 -0700
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 0/7] mm: Improve swap path scalability with batched
+ operations
+Message-ID: <20160504210539.GM13997@two.firstfloor.org>
+References: <cover.1462306228.git.tim.c.chen@linux.intel.com>
+ <1462309239.21143.6.camel@linux.intel.com>
+ <20160504124535.GJ29978@dhcp22.suse.cz>
+ <1462381986.30611.28.camel@linux.intel.com>
+ <20160504194901.GG21490@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <D6EDEBF1F91015459DB866AC4EE162CC023C182F@IRSMSX103.ger.corp.intel.com>
+In-Reply-To: <20160504194901.GG21490@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
-Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, "Kirill A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Wed 04-05-16 19:41:59, Odzioba, Lukasz wrote:
-> On Thu 02-05-16 03:00:00, Michal Hocko wrote:
-> > So I have given this a try (not tested yet) and it doesn't look terribly
-> > complicated. It is hijacking vmstat for a purpose it wasn't intended for
-> > originally but creating a dedicated kenrnel threads/WQ sounds like an
-> > overkill to me. Does this helps or do we have to be more aggressive and
-> > wake up shepherd from the allocator slow path. Could you give it a try
-> > please?
-> 
-> It seems to work fine, but it takes quite random time to drain lists, sometimes
-> a couple of seconds sometimes over two minutes. It is acceptable I believe.
+> In order this to work other quite intrusive changes to the current
+> reclaim decisions would have to be made though. This is what I tried to
+> say. Look at get_scan_count() on how we are making many steps to ignore
+> swappiness or prefer the page cache. Even when we make swapout scale it
+> won't help much if we do not swap out that often. That's why I claim
 
-I guess you mean that some CPUs are not drained for few minutes, right?
-This might be a quite long and I tried to not flush LRU drain to the
-idle entry because I felt it would be too expensive. Maybe it would be
-better to kick the vmstat_shepherd from the allocator slow path. It
-would still take unpredictable amount of time but it would at list be
-called when we are getting short on memory.
- 
-> I have an app which allocates almost all of the memory from numa node and
-> with just second patch and 100 consecutive executions 30-50% got killed.
+But if you made swapout to scale you would need some equivalent
+of Tim's patches for the swap path... So you need them in case.
 
-This is still not acceptable. So I guess we need a way to kick
-vmstat_shepherd from the reclaim path. I will think about that. Sounds a
-bit tricky at first sight.
+> that we really should think more long term and maybe reconsider these
+> decisions which were based on the rotating rust for the swap devices.
 
-> After applying also your first patch I haven't seen any oom kill
-> activity - great.
+Sure that makes sense, but why not start with low hanging fruit
+in basic performance, like Tim did? Usually that is how Linux
+changes work, steady evolution, not revolution.
 
-As I've said the first patch is quite dangerous as it depends on the WQ
-to make a forward progress which might depend on the memory allocation
-to create a new worker.
- 
-> I was wondering how many lru_add_drain()'s are called and after boot when
-> machine was idle it was a bit over 5k calls during first 400s, and with some 
-> activity it went up to 15k calls during 700s (including 5k from previous 
-> experiment) which sounds fair to me given big cpu count.
-> 
-> Do you see any advantages of dropping THP from pagevecs over this
-> solution?
+-Andi
 
-Well the general purpose of pcp pagevecs is to reduce the lru_lock
-contention. I have never measured the effect of THP pages. It is true
-THP amortizes the contention by the page number handled at once so it
-might be the easiest way (and certainly more acceptable for an old
-kernel which you seem to be running as mentioned by Dave) but it sounds
-too special cased and I would rather see less special casing for THP. So
-if the async pcp sync is not too tricky or hard to maintain and worsk I
-would rather go that way.
-
-Thanks for testing those patches!
 -- 
-Michal Hocko
-SUSE Labs
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
