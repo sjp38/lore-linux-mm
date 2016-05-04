@@ -1,388 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CDB86B007E
-	for <linux-mm@kvack.org>; Wed,  4 May 2016 01:05:15 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id u185so75397110oie.3
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 22:05:15 -0700 (PDT)
-Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
-        by mx.google.com with ESMTPS id r3si694483oig.7.2016.05.03.22.05.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 May 2016 22:05:14 -0700 (PDT)
-Received: by mail-oi0-x22a.google.com with SMTP id x19so52549186oix.2
-        for <linux-mm@kvack.org>; Tue, 03 May 2016 22:05:14 -0700 (PDT)
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CD0D56B025E
+	for <linux-mm@kvack.org>; Wed,  4 May 2016 01:44:36 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id gw7so57559157pac.0
+        for <linux-mm@kvack.org>; Tue, 03 May 2016 22:44:36 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id cz6si2801844pad.230.2016.05.03.22.44.34
+        for <linux-mm@kvack.org>;
+        Tue, 03 May 2016 22:44:35 -0700 (PDT)
+Date: Wed, 4 May 2016 14:45:02 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 0.14] oom detection rework v6
+Message-ID: <20160504054502.GA10899@js1304-P5Q-DELUXE>
+References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20160504031848.GP18496@dastard>
-References: <20160425083114.GA27556@infradead.org>
-	<1461604476.3106.12.camel@intel.com>
-	<20160425232552.GD18496@dastard>
-	<1461628381.1421.24.camel@intel.com>
-	<20160426004155.GF18496@dastard>
-	<x49pot4ebeb.fsf@segfault.boston.devel.redhat.com>
-	<20160502230422.GQ26977@dastard>
-	<CAPcyv4jDTvSUDGTBZb0MaK_gKxMxWtMecnR_OjLzim1Sdg5Y9g@mail.gmail.com>
-	<20160503015159.GS26977@dastard>
-	<CAPcyv4jHexooj9bPHPAUJUkJSv2przuA6dv0wZPQUweBffa=bQ@mail.gmail.com>
-	<20160504031848.GP18496@dastard>
-Date: Tue, 3 May 2016 22:05:13 -0700
-Message-ID: <CAPcyv4iGmYz0gXK=BzeC2agtVD2VzKT6ajzd4bkrCSZ-VSDLYQ@mail.gmail.com>
-Subject: Re: [PATCH v2 5/5] dax: handle media errors in dax_do_io
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jeff Moyer <jmoyer@redhat.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "jack@suse.cz" <jack@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, May 3, 2016 at 8:18 PM, Dave Chinner <david@fromorbit.com> wrote:
-> On Tue, May 03, 2016 at 10:28:15AM -0700, Dan Williams wrote:
->> On Mon, May 2, 2016 at 6:51 PM, Dave Chinner <david@fromorbit.com> wrote:
->> > On Mon, May 02, 2016 at 04:25:51PM -0700, Dan Williams wrote:
->> [..]
->> > Yes, I know, and it doesn't answer any of the questions I just
->> > asked. What you just told me is that there is something that is kept
->> > three levels of abstraction away from a filesystem. So:
->>
->> Ok, let's answer them.
->>
->> A lot of your questions seem to assume the filesystem has a leading
->> role to play with error recovery, that isn't the case with traditional
->> disk errors and we're not looking to change that situation.
->
-> *cough* BTRFS
->
-> New filesystems are mostly being designed with redundancy and
-> recovery mechanisms built into them. Hence the high level
-> /assumption/ that filesystems aren't going to play a significant
-> role in error recovery for pmem storage is, well, somewhat
-> disturbing....
+On Wed, Apr 20, 2016 at 03:47:13PM -0400, Michal Hocko wrote:
+> Hi,
+> 
+> This is v6 of the series. The previous version was posted [1]. The
+> code hasn't changed much since then. I have found one old standing
+> bug (patch 1) which just got much more severe and visible with this
+> series. Other than that I have reorganized the series and put the
+> compaction feedback abstraction to the front just in case we find out
+> that parts of the series would have to be reverted later on for some
+> reason. The premature oom killer invocation reported by Hugh [2] seems
+> to be addressed.
+> 
+> We have discussed this series at LSF/MM summit in Raleigh and there
+> didn't seem to be any concerns/objections to go on with the patch set
+> and target it for the next merge window. 
 
-It is unfortunate is that you cite the lack of pmem enabling in btrfs
-as a reason to block patches that hookup the kernel's existing error
-mechanisms for the DAX case.  I expect btrfs multi-device
-redundancy-management for pmem to be a more a coherent solution than
-what we can achieve with single-device-filesystems + RAID.  I'm trying
-not to boil the ocean in this discussion, but Iet's go ahead and rope
-in btrfs-devel into this thread so we can make progress on hooking up
-SIGBUS notifications for DAX errors and bypassing dax_do_io() to clear
-errors.
+I still don't agree with some part of this patchset that deal with
+!costly order. As you know, there was two regression reports from Hugh
+and Aaron and you fixed them by ensuring to trigger compaction. I
+think that these show the problem of this patchset. Previous kernel
+doesn't need to ensure to trigger compaction and just works fine in
+any case. Your series make compaction necessary for all. OOM handling
+is essential part in MM but compaction isn't. OOM handling should not
+depend on compaction. I tested my own benchmark without
+CONFIG_COMPACTION and found that premature OOM happens.
 
->> The
->> filesystem can help with forensics after an error escapes the kernel
->> and is communicated to userspace, but the ability to reverse map a
->> sector to a file is just a convenience to identify potential data
->> loss.
->
-> So working out what file got corrupted in your terabytes of pmem
-> storage is "just a convenience"? I suspect that a rather large
-> percentage of admins will disagree with you on this.
+I hope that you try to test something without CONFIG_COMPACTION.
 
-Yes, I will point them to their file system maintainer to ask about
-reverse mapping support.
+Thanks.
 
->> For redundancy in the DAX case I can envision DAX-aware RAID that
->> makes the potential exposure to bad blocks smaller, but it will always
->> be the case that the array can be out-of-sync / degraded and has no
->> choice but to communicate the error to userspace.  So, the answers
->> below address what we do when we are in that state, and include some
->> thoughts about follow-on enabling we can do at the DM/MD layer.
->>
->> >         - What mechanism is to be used for the underlying block
->> >           device to inform the filesytem that a new bad block was
->> >           added to this list?
->>
->> The filesystem doesn't need this notification and doesn't get it today
->> from RAID.
->
-> Why doesn't the filesystem need this notification? Just because we
-> don't get it today from a RAID device does not mean we can't use it.
-
-If xfs and ext4 had a use for error notification today we would hook into it.
-
-> Indeed, think about the btrfs scrub operation - it validates
-> everything on it's individual block devices, and when it finds a
-> problem (e.g. a data CRC error) it notifies a different layer in the
-> btrfs code that goes and works out if it can repair the problem from
-> redundant copies/parity/mirrors/etc.
-
-Yes, just like RAID, sounds like we should definitely keep that in
-mind for the patch set that adds pmem support to btrfs, this isn't
-that patch set.
-
->> It's handy for the bad block list to be available to
->> fs/dax.c and the block layer, but I don't see ext4/xfs having a role
->> to play with the list and certainly not care about "new error detected
->> events".
->
-> That's very short-sighted. Just because ext4/xfs don't *currently*
-> do this, it doesn't mean other filesystems (existing or new) can't
-> make use of notifications, nor that ext4/XFS can't ever make use of
-> it, either.
-
-Did I say "can't ever make use of it", no, if you have a need for a
-notification for xfs let's work on a notification mechanism.
-
->
->> For a DM/MD driver it also does not need to know about new
->> errors because it will follow the traditional disk model where errors
->> are handled on access, or discovered and scrubbed during a periodic
->> array scan.
->>
->> That said, new errors may get added to the list by having the pmem
->> driver trigger a rescan of the device whenever a latent error is
->> discovered (i.e. memcpy_from_pmem() returns -EIO).  The update of the
->> bad block list is asynchronous.  We also have a task on the todo list
->> to allow the pmem rescan action to be triggered via sysfs.
->
-> IOWs, the pmem driver won't report errors to anyone who can correct
-> them until an access to that bad block is made? Even if it means the
-> error might go unreported and hence uncorrected for weeks or months
-> because no access is made to that bad data?
-
-RAID periodically polls for and fixes bad blocks.  The currently
-implementation only polls for errors at driver load.  When we
-implement userspace triggered bad blocks scans we could also have a
-cron job to periodically kick off a scan, which follows the status quo
-for RAID error scanning.
-
->
->> >           What context comes along with that
->> >           notification?
->>
->> The only notification the file system gets is -EIO on access.
->> However, assuming we had a DAX-aware RAID driver what infrastructure
->> would we need to prevent SIGBUS from reaching the application if we
->> happened to have a redundant copy of the data?
->
-> We'd need the same infrastructure at the filesystem layer would
-> require if it has a redundant copy of the data. I don't know what
-> that is, however, because I know very little about about MCEs and
-> signal delivery (which is why I asked this question).
-
-Fair enough.
-
-> [....]
->
->> The in-kernel recovery path, assuming RAID is present, needs more
->> thought especially considering the limited NMI context of a machine
->> check notification and the need to trap back into driver code.
->
-> This is precisely the problem I am asking about - I know there is a
-> limited context, but how exactly is it limited and what can we
-> actually do from this context? e.g. Can we schedule recovery work on
-> other CPU cores and wait for it to complete in a MCE notification
-> handler?
->
->> I see
->> the code in fs/dax.c getting involved to translate a
->> process-physical-address back to a sector, but otherwise the rest of
->> the filesystem need not be involved.
->
-> More /assumptions/ about filesystems not containing or being able to
-> recover from redudant copies of data.
->
->>
->> >         - how does the filesystem query the bad block list without
->> >           adding layering violations?
->>
->> Why does the file system need to read the list?
->> Apologies for answering this question with a question, but these
->> patches don't assume the filesystem will do anything with a bad block
->> list.
->
-> People keep talking about FIEMAP reporting bad blocks in files! How
-> the fuck are we supposed to report bad blocks in a file via FIEMAP
-> if the filesystem can't access the bad block list?
-
-Compare FIEMAP results against the badblocks list, or arrange for
-FIEMAP to return the errors in file list by parsing the list against
-the badblocks list available in the gendisk.  Shall I send a patch?
-It does assume we can do a inode to bdev lookup.
-
->> >         - Is the filesystem expectd to find the active application or
->> >           address_space access that triggered the bad block
->> >           notification to handle them correctly? (e.g. prevent a
->> >           page fault from failing because we can recover from the
->> >           error immediately)
->>
->> With these patches no, but it would be nice to incrementally add that
->> ability.  I.e. trap machine check faults on non-anonymous memory and
->> send a request down the stack to recover the sector if the storage
->> layer has a redundant copy.  Again, fs/dax.c would need extensions to
->> do this coordination, but I don't foresee the filesystem getting
->> involved beyond that point.
->
-> Again, the /assumption/ here is that only the block layer has the
-> ability to recover, and only sector mapping is required from the fs.
-
-Presently yes, in the future, no.
-
->
->> >         - what exactly is the filesystem supposed to do with the bad
->> >           block? e.g:
->> >                 - is the block persistently bad until the filesystem
->> >                   rewrites it? Over power cycles? Will we get
->> >                   multiple notifications (e.g. once per boot)?
->>
->> Bad blocks on persistent memory media remain bad after a reboot.  Per
->> the ACPI spec the DIMM device tracks the errors and reports them in
->> response to an "address range scrub" command.  Each boot the libnvdimm
->> sub-system kicks off a scrub and populates the bad block list per pmem
->> namespace.  As mentioned above, we want to add the ability to
->> re-trigger this scrub on-demand, in response to a memcpy_from_pmem()
->> discovering an error, or after a SIGBUS is communicated to userspace.
->>
->> >                 - Is the filesystem supposed to intercept
->> >                   reads/writes to bad blocks once it knows about
->> >                   them?
->>
->> No, the driver handles that.
->
-> So, -EIO will be returned to the filesystem on access? If -EIO, then
-> we'll have to check over the bad block list to determine if data
-> recovery operations are required, right? Perhaps we need a different
-> error here to tell the higher layers it's a specific type of error
-> (e.g. -EBADBLOCK)?
-
-That sounds reasonable.
-
->> >                 - how is the filesystem supposed to communicate that
->> >                   there is a bad block in a file back to userspace?
->>
->> -EIO on access.
->
-> So no consideration for proactive "data loss has occurred at offset X
-> in file /mnt/path/to/file, attempting recovery" messages when the
-> error is first detected by the lowest layers?
-
-That sounds reasonable too, what does xfs report today for disk errors?
-
->> >                   Or is userspace supposed to infer that there's a
->> >                   bad block from EIO and so has to run FIEMAP to
->> >                   determine if the error really was due to a bad
->> >                   block?
->>
->> The information is there to potentially do forensics on why an I/O
->> encountered an error, but there is no expectation that userspace
->> follow up on each -EIO with a FIEMAP.
->
-> Ok, so how is userspace driven error recovery supposed to work if it
-> can't differentiate the cause of an EIO error? If there's no
-> requirement for FIEMAP to report the bad blocks in a file that needs
-> recovery, then what is the app supposed to do with the EIO? Indeed,
-> what consideration has been given to ensuring the app knows aheadi
-> of time that the filesystem FIEMAP implementation will report bad
-> blocks if they exist?
-
-So, having a new flavor of FIEMAP that reports bad blocks in a file,
-or a new SEEK_BADBLOCK flag for lseek() was proposed for situations
-where an application could not simply take a list of badblocks from
-sysfs and do an intersection operation with typical FIEMAP results to
-see if a file was impacted.
-
-Indeed btrfs is an example where the per-block-device list is unusable
-for an application to do this FIEMAP intersection operation, but an
-application on a single-device-ext4 filesystem could make use of the
-list.
-
-> Of course, the filesystem has to know about the bad blocks to be
-> able to do any of this with FIEMAP....
-
-Is there some complication about looking up the gendisk from the inode
-that I'm overlooking?  Is there a different location we need to place
-the error list to make it easy for the fs to consume?
-
->> >                 - what happens if there is no running application
->> >                   that we can report the error to or will handle the
->> >                   error (e.g. found error by a media scrub or during
->> >                   boot)?
->>
->> Same as RAID today, if the array is in sync the bad block will get
->> re-written during the scrub hopefully in advance of when an
->> application might discover it.  If no RAID is present then the only
->> notification is an on-access error.
->
-> More /assumptions/ that only device level RAID will be able to
-> recover....
-
-Presently yes, in the future, no.
-
->
->> >         - if the bad block is in filesystem free space, what should
->> >           the filesystem do with it?
->>
->> Nothing.  When the free space becomes allocated we rely on the fact
->> that the filesystem will first zero the blocks.  That zeroing process
->> will clear the media error.
->
-> The incorrect /assumption/ here is that all allocations will do
-> block zeroing first. That's simply wrong. We do that for *user data*
-> in XFS and ext4, but we do not do it for metadata as they are not
-> accessed by DAX and, being transactionally protected, don't need
-> zeroing to prevent stale data exposure.
-
-Ah, great point.  See, I knew if we kept talking, something productive
-would come out of this discussion, but I think we're still ok, see
-below.
-
-> Hence we have a problem here - the first write to such blocks may
-> be metadata writeback of some type and so the filesystem will see
-> EIO errors in metadata writes and they'll freak out.
-
-As long as the filesystem writes before it reads metadata we're mostly
-ok, because a block error is cleared on write, we don't return -EIO
-for them, however...
-
-> What
-> now - does this really mean that we'll have to add special IO
-> falback code for all internal IO paths to be able to clear pmem bad
-> block errors?
-
-...we still have the case where a badblock can develop in metadata
-after writing it, we can't do anything about it unless some layer
-somewhere implements redundancy.
-
-> Oh, and just a thought: lots of people are pushing for selectable
-> FALLOC_FL_NO_HIDE_STALE behaviour which will skip zeroing
-> of data blocks on allocation. If this happens, it we also skip
-> the zeroing on allocation, so again there is no mechanism to clear
-> bad block status in this case.....
-
-Outside of rewriting the file, yes I was aware of this and it breaks
-the "delete to clear media errors" recovery model.  My only answer
-right now is that we would need to document FALLOC_FL_NO_HIDE_STALE
-with notifications about the fact that we lose the side-effect of
-clearing latent media errors when block zeroing / trimming on
-reallocation is disabled.
-
-> [...]
->
->> > However, if I'm struggling to understand how I'm supposed to
->> > connecct up the parts inside a filesytem, then expecting application
->> > developers to be able to connect the dots in a sane manner is
->> > bordering on fantasy....
->>
->> Hopefully it is becoming clearer that we are not proposing anything
->> radically different than what is present for error recovery today
->> modulo thinking about the mechanisms to trap and recover a DAX read of
->> a bad media area via a DM/MD implementation.
->
-> There is a radical difference - there is a pervasive /assumption/ in
-> what is being proposed that filesystems are incapable of storing
-> redundant information that can be used for error recovery.
-
-That's not an assumption, it is a fact that DAX enabled filesystems
-don't account for data redundancy today outside of "let the storage
-layer do it".  I'm all for making this situation better than it is.
-
-> The
-> current IO stack makes no such assumptions, even if it doesn't
-> provide any infrastructure for such functionality.
-
-Great, lets start to fill in that hole with some patches to return
-SIGBUS on a DAX fault hitting a bad block, and bypassing dax_do_io()
-for O_DIRECT writes so userspace I/O can clear errors instead of
-receiving -EIO for a write.
+> 
+> Motivation:
+> As pointed by Linus [3][4] relying on zone_reclaimable as a way to
+> communicate the reclaim progress is rater dubious. I tend to agree,
+> not only it is really obscure, it is not hard to imagine cases where a
+> single page freed in the loop keeps all the reclaimers looping without
+> getting any progress because their gfp_mask wouldn't allow to get that
+> page anyway (e.g. single GFP_ATOMIC alloc and free loop). This is rather
+> rare so it doesn't happen in the practice but the current logic which we
+> have is rather obscure and hard to follow a also non-deterministic.
+> 
+> This is an attempt to make the OOM detection more deterministic and
+> easier to follow because each reclaimer basically tracks its own
+> progress which is implemented at the page allocator layer rather spread
+> out between the allocator and the reclaim. The more on the implementation
+> is described in the first patch.
+> 
+> I have tested several different scenarios but it should be clear that
+> testing OOM killer is quite hard to be representative. There is usually
+> a tiny gap between almost OOM and full blown OOM which is often time
+> sensitive. Anyway, I have tested the following 2 scenarios and I would
+> appreciate if there are more to test.
+> 
+> Testing environment: a virtual machine with 2G of RAM and 2CPUs without
+> any swap to make the OOM more deterministic.
+> 
+> 1) 2 writers (each doing dd with 4M blocks to an xfs partition with 1G
+>    file size, removes the files and starts over again) running in
+>    parallel for 10s to build up a lot of dirty pages when 100 parallel
+>    mem_eaters (anon private populated mmap which waits until it gets
+>    signal) with 80M each.
+> 
+>    This causes an OOM flood of course and I have compared both patched
+>    and unpatched kernels. The test is considered finished after there
+>    are no OOM conditions detected. This should tell us whether there are
+>    any excessive kills or some of them premature (e.g. due to dirty pages):
+> 
+> I have performed two runs this time each after a fresh boot.
+> 
+> * base kernel
+> $ grep "Out of memory:" base-oom-run1.log | wc -l
+> 78
+> $ grep "Out of memory:" base-oom-run2.log | wc -l
+> 78
+> 
+> $ grep "Kill process" base-oom-run1.log | tail -n1
+> [   91.391203] Out of memory: Kill process 3061 (mem_eater) score 39 or sacrifice child
+> $ grep "Kill process" base-oom-run2.log | tail -n1
+> [   82.141919] Out of memory: Kill process 3086 (mem_eater) score 39 or sacrifice child
+> 
+> $ grep "DMA32 free:" base-oom-run1.log | sed 's@.*free:\([0-9]*\)kB.*@\1@' | calc_min_max.awk 
+> min: 5376.00 max: 6776.00 avg: 5530.75 std: 166.50 nr: 61
+> $ grep "DMA32 free:" base-oom-run2.log | sed 's@.*free:\([0-9]*\)kB.*@\1@' | calc_min_max.awk 
+> min: 5416.00 max: 5608.00 avg: 5514.15 std: 42.94 nr: 52
+> 
+> $ grep "DMA32.*all_unreclaimable? no" base-oom-run1.log | wc -l
+> 1
+> $ grep "DMA32.*all_unreclaimable? no" base-oom-run2.log | wc -l
+> 3
+> 
+> * patched kernel
+> $ grep "Out of memory:" patched-oom-run1.log | wc -l
+> 78
+> miso@tiehlicka /mnt/share/devel/miso/kvm $ grep "Out of memory:" patched-oom-run2.log | wc -l
+> 77
+> 
+> e grep "Kill process" patched-oom-run1.log | tail -n1
+> [  497.317732] Out of memory: Kill process 3108 (mem_eater) score 39 or sacrifice child
+> $ grep "Kill process" patched-oom-run2.log | tail -n1
+> [  316.169920] Out of memory: Kill process 3093 (mem_eater) score 39 or sacrifice child
+> 
+> $ grep "DMA32 free:" patched-oom-run1.log | sed 's@.*free:\([0-9]*\)kB.*@\1@' | calc_min_max.awk 
+> min: 5420.00 max: 5808.00 avg: 5513.90 std: 60.45 nr: 78
+> $ grep "DMA32 free:" patched-oom-run2.log | sed 's@.*free:\([0-9]*\)kB.*@\1@' | calc_min_max.awk 
+> min: 5380.00 max: 6384.00 avg: 5520.94 std: 136.84 nr: 77
+> 
+> e grep "DMA32.*all_unreclaimable? no" patched-oom-run1.log | wc -l
+> 2
+> $ grep "DMA32.*all_unreclaimable? no" patched-oom-run2.log | wc -l
+> 3
+> 
+> The patched kernel run noticeably longer while invoking OOM killer same
+> number of times. This means that the original implementation is much
+> more aggressive and triggers the OOM killer sooner. free pages stats
+> show that neither kernels went OOM too early most of the time, though. I
+> guess the difference is in the backoff when retries without any progress
+> do sleep for a while if there is memory under writeback or dirty which
+> is highly likely considering the parallel IO.
+> Both kernels have seen races where zone wasn't marked unreclaimable
+> and we still hit the OOM killer. This is most likely a race where
+> a task managed to exit between the last allocation attempt and the oom
+> killer invocation.
+> 
+> 2) 2 writers again with 10s of run and then 10 mem_eaters to consume as much
+>    memory as possible without triggering the OOM killer. This required a lot
+>    of tuning but I've considered 3 consecutive runs in three different boots
+>    without OOM as a success.
+> 
+> * base kernel
+> size=$(awk '/MemFree/{printf "%dK", ($2/10)-(16*1024)}' /proc/meminfo)
+> 
+> * patched kernel
+> size=$(awk '/MemFree/{printf "%dK", ($2/10)-(12*1024)}' /proc/meminfo)
+> 
+> That means 40M more memory was usable without triggering OOM killer. The
+> base kernel sometimes managed to handle the same as patched but it
+> wasn't consistent and failed in at least on of the 3 runs. This seems
+> like a minor improvement.
+> 
+> I was testing also GPF_REPEAT costly requests (hughetlb) with fragmented
+> memory and under memory pressure. The results are in patch 11 where the
+> logic is implemented. In short I can see huge improvement there.
+> 
+> I am certainly interested in other usecases as well as well as any
+> feedback. Especially those which require higher order requests.
+> 
+> * Changes since v5
+> - added "vmscan: consider classzone_idx in compaction_ready"
+> - added "mm, oom, compaction: prevent from should_compact_retry looping
+>   for ever for costly orders"
+> - acked-bys from Vlastimil
+> - integrated feedback from review
+> * Changes since v4
+> - dropped __GFP_REPEAT for costly allocation as it is now replaced by
+>   the compaction based feedback logic
+> - !costly high order requests are retried based on the compaction feedback
+> - compaction feedback has been tweaked to give us an useful information
+>   to make decisions in the page allocator
+> - rebased on the current mmotm-2016-04-01-16-24 with the previous version
+>   of the rework reverted
+> 
+> * Changes since v3
+> - factor out the new heuristic into its own function as suggested by
+>   Johannes (no functional changes)
+> 
+> * Changes since v2
+> - rebased on top of mmotm-2015-11-25-17-08 which includes
+>   wait_iff_congested related changes which needed refresh in
+>   patch#1 and patch#2
+> - use zone_page_state_snapshot for NR_FREE_PAGES per David
+> - shrink_zones doesn't need to return anything per David
+> - retested because the major kernel version has changed since
+>   the last time (4.2 -> 4.3 based kernel + mmotm patches)
+> 
+> * Changes since v1
+> - backoff calculation was de-obfuscated by using DIV_ROUND_UP
+> - __GFP_NOFAIL high order migh fail fixed - theoretical bug
+> 
+> [1] http://lkml.kernel.org/r/1459855533-4600-1-git-send-email-mhocko@kernel.org
+> [2] http://lkml.kernel.org/r/alpine.LSU.2.11.1602241832160.15564@eggly.anvils
+> [3] http://lkml.kernel.org/r/CA+55aFwapaED7JV6zm-NVkP-jKie+eQ1vDXWrKD=SkbshZSgmw@mail.gmail.com
+> [4] http://lkml.kernel.org/r/CA+55aFxwg=vS2nrXsQhAUzPQDGb8aQpZi0M7UUh21ftBo-z46Q@mail.gmail.com
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
