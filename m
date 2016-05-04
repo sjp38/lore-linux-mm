@@ -1,74 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 005AA6B0005
-	for <linux-mm@kvack.org>; Wed,  4 May 2016 15:41:49 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id 68so51155376lfq.2
-        for <linux-mm@kvack.org>; Wed, 04 May 2016 12:41:48 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id m7si7115227wmc.30.2016.05.04.12.41.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 May 2016 12:41:47 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id n129so12665977wmn.1
-        for <linux-mm@kvack.org>; Wed, 04 May 2016 12:41:47 -0700 (PDT)
-Date: Wed, 4 May 2016 21:41:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 6/6] mm/page_owner: use stackdepot to store stacktrace
-Message-ID: <20160504194146.GF21490@dhcp22.suse.cz>
-References: <1462252984-8524-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1462252984-8524-7-git-send-email-iamjoonsoo.kim@lge.com>
- <20160503085356.GD28039@dhcp22.suse.cz>
- <20160504021449.GA10256@js1304-P5Q-DELUXE>
- <20160504092133.GG29978@dhcp22.suse.cz>
- <CAAmzW4NYWaNvC5MPR8RwQSiKP2b2Z5wVy9nnNxc+sTVWvQ6BGA@mail.gmail.com>
- <CAAmzW4MNNNMwBtfT9Zc2bnJTrDkC=bc-x0b5gpM74E1Mb0uh4w@mail.gmail.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D9456B007E
+	for <linux-mm@kvack.org>; Wed,  4 May 2016 15:42:26 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b203so126782307pfb.1
+        for <linux-mm@kvack.org>; Wed, 04 May 2016 12:42:26 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id 192si6270407pfz.229.2016.05.04.12.42.25
+        for <linux-mm@kvack.org>;
+        Wed, 04 May 2016 12:42:25 -0700 (PDT)
+From: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
+Subject: RE: mm: pages are not freed from lru_add_pvecs after process
+ termination
+Date: Wed, 4 May 2016 19:41:59 +0000
+Message-ID: <D6EDEBF1F91015459DB866AC4EE162CC023C182F@IRSMSX103.ger.corp.intel.com>
+References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
+ <5720F2A8.6070406@intel.com> <20160428143710.GC31496@dhcp22.suse.cz>
+ <20160502130006.GD25265@dhcp22.suse.cz>
+In-Reply-To: <20160502130006.GD25265@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAmzW4MNNNMwBtfT9Zc2bnJTrDkC=bc-x0b5gpM74E1Mb0uh4w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
 
-On Thu 05-05-16 00:45:45, Joonsoo Kim wrote:
-> 2016-05-05 0:30 GMT+09:00 Joonsoo Kim <js1304@gmail.com>:
-> > 2016-05-04 18:21 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
-> >> On Wed 04-05-16 11:14:50, Joonsoo Kim wrote:
-> >>> On Tue, May 03, 2016 at 10:53:56AM +0200, Michal Hocko wrote:
-> >>> > On Tue 03-05-16 14:23:04, Joonsoo Kim wrote:
-> >> [...]
-> >>> > > Memory saving looks as following. (Boot 4GB memory system with page_owner)
-> >>> > >
-> >>> > > 92274688 bytes -> 25165824 bytes
-> >>> >
-> >>> > It is not clear to me whether this is after a fresh boot or some workload
-> >>> > which would grow the stack depot as well. What is a usual cap for the
-> >>> > memory consumption.
-> >>>
-> >>> It is static allocation size after a fresh boot. I didn't add size of
-> >>> dynamic allocation memory so it could be larger a little. See below line.
-> >>> >
-> >>> > > 72% reduction in static allocation size. Even if we should add up size of
-> >>> > > dynamic allocation memory, it would not that big because stacktrace is
-> >>> > > mostly duplicated.
-> >>
-> >> This would be true only if most of the allocation stacks are basically
-> >> same after the boot which I am not really convinced is true. But you are
-> >> right that the number of sublicates will grow only a little. I was
-> >> interested about how much is that little ;)
-> >
-> > After a fresh boot, it just uses 14 order-2 pages.
-> 
-> I missed to add other information. Even after building the kernel,
-> it takes 20 order-2 pages. 20 * 4 * 4KB = 320 KB.
+On Thu 02-05-16 03:00:00, Michal Hocko wrote:
+> So I have given this a try (not tested yet) and it doesn't look terribly
+> complicated. It is hijacking vmstat for a purpose it wasn't intended for
+> originally but creating a dedicated kenrnel threads/WQ sounds like an
+> overkill to me. Does this helps or do we have to be more aggressive and
+> wake up shepherd from the allocator slow path. Could you give it a try
+> please?
 
-Something like that would be useful to mention in the changelog because
-measuring right after the fresh boot without any reasonable workload
-sounds suspicious.
--- 
-Michal Hocko
-SUSE Labs
+It seems to work fine, but it takes quite random time to drain lists, somet=
+imes
+a couple of seconds sometimes over two minutes. It is acceptable I believe.
+
+I have an app which allocates almost all of the memory from numa node and
+with just second patch and 100 consecutive executions 30-50% got killed.
+After applying also your first patch I haven't seen any oom kill activity -=
+ great.
+
+I was wondering how many lru_add_drain()'s are called and after boot when
+machine was idle it was a bit over 5k calls during first 400s, and with som=
+e=20
+activity it went up to 15k calls during 700s (including 5k from previous=20
+experiment) which sounds fair to me given big cpu count.
+
+Do you see any advantages of dropping THP from pagevecs over this solution?
+
+Thanks,
+Lukas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
