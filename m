@@ -1,65 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F1AA6B0253
-	for <linux-mm@kvack.org>; Thu,  5 May 2016 04:32:24 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id j8so8406193lfd.0
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 01:32:24 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id r5si10102280wju.74.2016.05.05.01.32.22
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E95D6B0005
+	for <linux-mm@kvack.org>; Thu,  5 May 2016 05:07:54 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e201so9669319wme.1
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 02:07:54 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x5si10240246wjf.206.2016.05.05.02.07.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 May 2016 01:32:22 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id w143so2163804wmw.3
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 01:32:22 -0700 (PDT)
-Date: Thu, 5 May 2016 10:32:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] Documentation/memcg: remove restriction of setting kmem
- limit
-Message-ID: <20160505083221.GD4386@dhcp22.suse.cz>
-References: <572B0105.50503@huawei.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 05 May 2016 02:07:52 -0700 (PDT)
+Date: Thu, 5 May 2016 11:07:50 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] writeback: Avoid exhausting allocation reserves under
+ memory pressure
+Message-ID: <20160505090750.GD1970@quack2.suse.cz>
+References: <1462436092-32665-1-git-send-email-jack@suse.cz>
+ <20160505082433.GC4386@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <572B0105.50503@huawei.com>
+In-Reply-To: <20160505082433.GC4386@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qiang Huang <h.huangqiang@huawei.com>
-Cc: corbet@lwn.net, tj@kernel.org, Zefan Li <lizefan@huawei.com>, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, tj@kernel.org
 
-On Thu 05-05-16 16:15:01, Qiang Huang wrote:
-> We don't have this restriction for a long time, docs should
-> be fixed.
+On Thu 05-05-16 10:24:33, Michal Hocko wrote:
+> > +/*
+> > + * Check whether the request to writeback some pages can be merged with some
+> > + * other request which is already pending. If yes, merge it and return true.
+> > + * If no, return false.
+> > + */
+> > +static bool wb_merge_request(struct bdi_writeback *wb, long nr_pages,
+> > +			     struct super_block *sb, bool range_cyclic,
+> > +			     enum wb_reason reason)
+> > +{
+> > +	struct wb_writeback_work *work;
+> > +	bool merged = false;
+> > +
+> > +	spin_lock_bh(&wb->work_lock);
+> > +	list_for_each_entry(work, &wb->work_list, list) {
 > 
-> Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
-> ---
->  Documentation/cgroup-v1/memory.txt | 8 +++-----
->  1 file changed, 3 insertions(+), 5 deletions(-)
-> 
-> diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
-> index ff71e16..d45b201 100644
-> --- a/Documentation/cgroup-v1/memory.txt
-> +++ b/Documentation/cgroup-v1/memory.txt
-> @@ -281,11 +281,9 @@ different than user memory, since it can't be swapped out, which makes it
->  possible to DoS the system by consuming too much of this precious resource.
->  
->  Kernel memory won't be accounted at all until limit on a group is set. This
-> -allows for existing setups to continue working without disruption.  The limit
-> -cannot be set if the cgroup have children, or if there are already tasks in the
-> -cgroup. Attempting to set the limit under those conditions will return -EBUSY.
-> -When use_hierarchy == 1 and a group is accounted, its children will
-> -automatically be accounted regardless of their limit value.
-> +allows for existing setups to continue working without disruption. When
-> +use_hierarchy == 1 and a group is accounted, its children will automatically
-> +be accounted regardless of their limit value.
+> Is the lenght of the list bounded somehow? In other words is it possible
+> that the spinlock would be held for too long to traverse the whole list?
 
-The restriction is not there anymore because the accounting is enabled
-by default even in the cgroup v1 - see b313aeee2509 ("mm: memcontrol:
-enable kmem accounting for all cgroups in the legacy hierarchy"). So
-this _whole_ paragraph could see some update.
+I was thinking about this as well. With the merging enabled, the number of
+entries queued from wb_start_writeback() is essentially limited by the
+number of writeback reasons and there's only a couple of those. What is
+more questionable is the number of entries queued from
+__writeback_inodes_sb_nr(). Generally there should be a couple at maximum
+either but it is hard to give any guarantee since e.g. filesystems use this
+function to reduce amount of delay-allocated data when they are running out
+of space. Hum, maybe we could limit the merging to scan only the last say
+16 entries. That should give good results in most cases... Thoughts?
 
+								Honza
+
+> > +		if (work->reason == reason &&
+> > +		    work->range_cyclic == range_cyclic &&
+> > +		    work->auto_free == 1 && work->sb == sb &&
+> > +		    work->for_sync == 0) {
+> > +			work->nr_pages += nr_pages;
+> > +			merged = true;
+> > +			trace_writeback_merged(wb, work);
+> > +			break;
+> > +		}
+> > +	}
+> > +	spin_unlock_bh(&wb->work_lock);
+> > +
+> > +	return merged;
+> > +}
+> -- 
+> Michal Hocko
+> SUSE Labs
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
