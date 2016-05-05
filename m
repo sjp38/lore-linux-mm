@@ -1,78 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CEE726B0253
-	for <linux-mm@kvack.org>; Thu,  5 May 2016 10:43:08 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 4so171517534pfw.0
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 07:43:08 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id us15si11759235pab.53.2016.05.05.07.43.04
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 304A26B0005
+	for <linux-mm@kvack.org>; Thu,  5 May 2016 11:09:11 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id o133so46783389vka.3
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 08:09:11 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j123si1649035qkj.185.2016.05.05.08.09.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 May 2016 07:43:04 -0700 (PDT)
-From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH] include <asm/sections.h> instead of <asm-generic/sections.h>
-Date: Thu,  5 May 2016 16:42:59 +0200
-Message-Id: <1462459379-21049-1-git-send-email-hch@lst.de>
+        Thu, 05 May 2016 08:09:10 -0700 (PDT)
+Date: Thu, 5 May 2016 17:09:07 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [BUG] vfio device assignment regression with THP ref counting
+ redesign
+Message-ID: <20160505150907.GF28755@redhat.com>
+References: <20160429005106.GB2847@node.shutemov.name>
+ <20160428204542.5f2053f7@ul30vt.home>
+ <20160429070611.GA4990@node.shutemov.name>
+ <20160429163444.GM11700@redhat.com>
+ <20160502104119.GA23305@node.shutemov.name>
+ <20160502152307.GA12310@redhat.com>
+ <20160502160042.GC24419@node.shutemov.name>
+ <20160502180307.GB12310@redhat.com>
+ <20160504191927.095cdd90@t450s.home>
+ <20160505143924.GC28755@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160505143924.GC28755@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ananth@linux.vnet.ibm.com, anil.s.keshavamurthy@intel.com, davem@davemloft.net, mhiramat@kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alex Williamson <alex.williamson@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-asm-generic headers are generic implementations for architecture specific
-code and should not be included by common code.  Thus use the asm/ version
-of sections.h to get at the linker sections.
+On Thu, May 05, 2016 at 04:39:24PM +0200, Andrea Arcangeli wrote:
+> I'm currently testing this:
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- kernel/kprobes.c       | 2 +-
- kernel/printk/printk.c | 2 +-
- mm/memblock.c          | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
+I must have been testing an earlier version, this below has better
+chance not to oops. There's a reason I didn't attempt a proper submit
+yet.. this is just for testing until we're sure this ok.
 
-diff --git a/kernel/kprobes.c b/kernel/kprobes.c
-index d10ab6b..d630954 100644
---- a/kernel/kprobes.c
-+++ b/kernel/kprobes.c
-@@ -49,7 +49,7 @@
- #include <linux/cpu.h>
- #include <linux/jump_label.h>
- 
--#include <asm-generic/sections.h>
-+#include <asm/sections.h>
- #include <asm/cacheflush.h>
- #include <asm/errno.h>
- #include <asm/uaccess.h>
-diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index bfbf284..3a7f696 100644
---- a/kernel/printk/printk.c
-+++ b/kernel/printk/printk.c
-@@ -48,7 +48,7 @@
- #include <linux/uio.h>
- 
- #include <asm/uaccess.h>
--#include <asm-generic/sections.h>
-+#include <asm/sections.h>
- 
- #define CREATE_TRACE_POINTS
- #include <trace/events/printk.h>
-diff --git a/mm/memblock.c b/mm/memblock.c
-index b570ddd..7ed1ea1a 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -20,7 +20,7 @@
- #include <linux/seq_file.h>
- #include <linux/memblock.h>
- 
--#include <asm-generic/sections.h>
-+#include <asm/sections.h>
- #include <linux/io.h>
- 
- #include "internal.h"
--- 
-2.1.4
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I also had a version of it initially that added a "*local_rmap"
+instead of a *total_mapcount parameter to reuse_swap_page but then I
+don't think gcc would have optimized things away enough depending on
+the kernel config. reuse_swap_page couldn't just forward the
+"total_mapcount" pointer from caller to callee anymore. So this
+results in less code at the very least but then we've to check
+"total_mapcount == 1" instead of just a true/false "local_rmap" (which
+might have been more self explanatory) if reuse_swap_page returns
+true.
