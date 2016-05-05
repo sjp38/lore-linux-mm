@@ -1,65 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DDB946B0005
-	for <linux-mm@kvack.org>; Thu,  5 May 2016 10:24:35 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id gw7so117328016pac.0
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 07:24:35 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.9])
-        by mx.google.com with ESMTPS id pv8si11675584pac.134.2016.05.05.07.24.34
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1501E6B025F
+	for <linux-mm@kvack.org>; Thu,  5 May 2016 10:39:29 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id s184so45171194vkb.0
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 07:39:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r17si3709254qkh.180.2016.05.05.07.39.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 May 2016 07:24:34 -0700 (PDT)
-Date: Thu, 5 May 2016 07:24:33 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
-Message-ID: <20160505142433.GA4557@infradead.org>
-References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>
- <1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>
- <5727753F.6090104@plexistor.com>
+        Thu, 05 May 2016 07:39:28 -0700 (PDT)
+Date: Thu, 5 May 2016 16:39:24 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [BUG] vfio device assignment regression with THP ref counting
+ redesign
+Message-ID: <20160505143924.GC28755@redhat.com>
+References: <20160428232127.GL11700@redhat.com>
+ <20160429005106.GB2847@node.shutemov.name>
+ <20160428204542.5f2053f7@ul30vt.home>
+ <20160429070611.GA4990@node.shutemov.name>
+ <20160429163444.GM11700@redhat.com>
+ <20160502104119.GA23305@node.shutemov.name>
+ <20160502152307.GA12310@redhat.com>
+ <20160502160042.GC24419@node.shutemov.name>
+ <20160502180307.GB12310@redhat.com>
+ <20160504191927.095cdd90@t450s.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5727753F.6090104@plexistor.com>
+In-Reply-To: <20160504191927.095cdd90@t450s.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: Vishal Verma <vishal.l.verma@intel.com>, linux-nvdimm@ml01.01.org, Jens Axboe <axboe@fb.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew@wil.cx>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-block@vger.kernel.org, linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Alex Williamson <alex.williamson@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, May 02, 2016 at 06:41:51PM +0300, Boaz Harrosh wrote:
-> > All IO in a dax filesystem used to go through dax_do_io, which cannot
-> > handle media errors, and thus cannot provide a recovery path that can
-> > send a write through the driver to clear errors.
+Hello Alex,
+
+On Wed, May 04, 2016 at 07:19:27PM -0600, Alex Williamson wrote:
+> On Mon, 2 May 2016 20:03:07 +0200
+> Andrea Arcangeli <aarcange@redhat.com> wrote:
+> 
+> > On Mon, May 02, 2016 at 07:00:42PM +0300, Kirill A. Shutemov wrote:
+> > > Agreed. I just didn't see the two-refcounts solution.  
 > > 
-> > Add a new iocb flag for DAX, and set it only for DAX mounts. In the IO
-> > path for DAX filesystems, use the same direct_IO path for both DAX and
-> > direct_io iocbs, but use the flags to identify when we are in O_DIRECT
-> > mode vs non O_DIRECT with DAX, and for O_DIRECT, use the conventional
-> > direct_IO path instead of DAX.
-> > 
+> > If you didn't do it already or if you're busy with something else,
+> > I can change the patch to the two refcount solution, which should
+> > restore the old semantics without breaking rmap.
 > 
-> Really? What are your thinking here?
-> 
-> What about all the current users of O_DIRECT, you have just made them
-> 4 times slower and "less concurrent*" then "buffred io" users. Since
-> direct_IO path will queue an IO request and all.
-> (And if it is not so slow then why do we need dax_do_io at all? [Rhetorical])
-> 
-> I hate it that you overload the semantics of a known and expected
-> O_DIRECT flag, for special pmem quirks. This is an incompatible
-> and unrelated overload of the semantics of O_DIRECT.
+> I didn't see any follow-up beyond this nor patches on lkml.  Do we have
+> something we feel confident for posting to v4.6 with a stable backport
+> to v4.5?  Thanks,
 
-Agreed - makig O_DIRECT less direct than not having it is plain stupid,
-and I somehow missed this initially.
-
-This whole DAX story turns into a major nightmare, and I fear all our
-hodge podge tweaks to the semantics aren't helping it.
-
-It seems like we simply need an explicit O_DAX for the read/write
-bypass if can't sort out the semantics (error, writer synchronization)
-just as we need a special flag for MMAP..
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I'm currently testing this:
