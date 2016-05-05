@@ -1,173 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D82416B0005
-	for <linux-mm@kvack.org>; Thu,  5 May 2016 03:21:26 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id j8so7278538lfd.0
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 00:21:26 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CD5CD6B0005
+	for <linux-mm@kvack.org>; Thu,  5 May 2016 03:49:24 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id s63so8148028wme.2
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 00:49:24 -0700 (PDT)
 Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id gg1si9761358wjd.214.2016.05.05.00.21.25
+        by mx.google.com with ESMTPS id wn5si9888965wjb.196.2016.05.05.00.49.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 May 2016 00:21:25 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id r12so1873109wme.0
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 00:21:25 -0700 (PDT)
-Date: Thu, 5 May 2016 09:21:23 +0200
+        Thu, 05 May 2016 00:49:23 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id e201so1981809wme.2
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 00:49:23 -0700 (PDT)
+Date: Thu, 5 May 2016 09:49:22 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm: pages are not freed from lru_add_pvecs after process
- termination
-Message-ID: <20160505072122.GA4386@dhcp22.suse.cz>
-References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
- <5720F2A8.6070406@intel.com>
- <20160428143710.GC31496@dhcp22.suse.cz>
- <20160502130006.GD25265@dhcp22.suse.cz>
- <D6EDEBF1F91015459DB866AC4EE162CC023C182F@IRSMSX103.ger.corp.intel.com>
- <20160504203643.GI21490@dhcp22.suse.cz>
+Subject: Re: [PATCH 0/7] mm: Improve swap path scalability with batched
+ operations
+Message-ID: <20160505074922.GB4386@dhcp22.suse.cz>
+References: <cover.1462306228.git.tim.c.chen@linux.intel.com>
+ <1462309239.21143.6.camel@linux.intel.com>
+ <20160504124535.GJ29978@dhcp22.suse.cz>
+ <1462381986.30611.28.camel@linux.intel.com>
+ <20160504194901.GG21490@dhcp22.suse.cz>
+ <20160504212506.GA1364@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20160504203643.GI21490@dhcp22.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20160504212506.GA1364@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
-Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, "Kirill A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Wed 04-05-16 22:36:43, Michal Hocko wrote:
-> On Wed 04-05-16 19:41:59, Odzioba, Lukasz wrote:
-[...]
-> > I have an app which allocates almost all of the memory from numa node and
-> > with just second patch and 100 consecutive executions 30-50% got killed.
+On Wed 04-05-16 17:25:06, Johannes Weiner wrote:
+> On Wed, May 04, 2016 at 09:49:02PM +0200, Michal Hocko wrote:
+> > On Wed 04-05-16 10:13:06, Tim Chen wrote:
+> > In order this to work other quite intrusive changes to the current
+> > reclaim decisions would have to be made though. This is what I tried to
+> > say. Look at get_scan_count() on how we are making many steps to ignore
+> > swappiness or prefer the page cache. Even when we make swapout scale it
+> > won't help much if we do not swap out that often. That's why I claim
+> > that we really should think more long term and maybe reconsider these
+> > decisions which were based on the rotating rust for the swap devices.
 > 
-> This is still not acceptable. So I guess we need a way to kick
-> vmstat_shepherd from the reclaim path. I will think about that. Sounds a
-> bit tricky at first sight.
+> While I agree that such balancing rework is necessary to make swap
+> perform optimally, I don't see why this would be a dependency for
+> making the mechanical swapout paths a lot leaner.
 
-OK, it wasn't that tricky afterall. Maybe I have missed something but
-the following should work. Or maybe the async nature of flushing turns
-out to be just impractical and unreliable and we will end up skipping
-THP (or all compound pages) for pcp LRU add cache. Let's see...
----
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 0aa613df463e..7f2c1aef6a09 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -274,4 +274,5 @@ static inline void __mod_zone_freepage_state(struct zone *zone, int nr_pages,
- 
- extern const char * const vmstat_text[];
- 
-+extern void kick_vmstat_update(void);
- #endif /* _LINUX_VMSTAT_H */
-diff --git a/mm/internal.h b/mm/internal.h
-index b6ead95a0184..876125bd11f4 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -488,4 +488,5 @@ extern const struct trace_print_flags pageflag_names[];
- extern const struct trace_print_flags vmaflag_names[];
- extern const struct trace_print_flags gfpflag_names[];
- 
-+extern bool pcp_lru_add_need_drain(int cpu);
- #endif	/* __MM_INTERNAL_H */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 056baf55a88d..5ca829e707f4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3556,6 +3556,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	enum compact_result compact_result;
- 	int compaction_retries = 0;
- 	int no_progress_loops = 0;
-+	bool vmstat_updated = false;
- 
- 	/*
- 	 * In the slowpath, we sanity check order to avoid ever trying to
-@@ -3658,6 +3659,11 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (order && compaction_made_progress(compact_result))
- 		compaction_retries++;
- 
-+	if (!vmstat_updated) {
-+		vmstat_updated = true;
-+		kick_vmstat_update();
-+	}
-+
- 	/* Try direct reclaim and then allocating */
- 	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
- 							&did_some_progress);
-diff --git a/mm/swap.c b/mm/swap.c
-index 95916142fc46..3937e6caef96 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -667,6 +667,15 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
- 
- static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
- 
-+bool pcp_lru_add_need_drain(int cpu)
-+{
-+	return pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
-+		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
-+		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
-+		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
-+		    need_activate_page_drain(cpu);
-+}
-+
- void lru_add_drain_all(void)
- {
- 	static DEFINE_MUTEX(lock);
-@@ -680,11 +689,7 @@ void lru_add_drain_all(void)
- 	for_each_online_cpu(cpu) {
- 		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
- 
--		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
--		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
--		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
--		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
--		    need_activate_page_drain(cpu)) {
-+		if (pcp_lru_add_need_drain(cpu)) {
- 			INIT_WORK(work, lru_add_drain_per_cpu);
- 			schedule_work_on(cpu, work);
- 			cpumask_set_cpu(cpu, &has_work);
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7397d9548f21..cf4b095ace1c 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -479,6 +479,13 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
- 	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
- 	int changes = 0;
- 
-+	/*
-+	 * Do not try to drain LRU pcp caches because that might be
-+	 * expensive - we take locks there etc.
-+	 */
-+	if (do_pagesets && pcp_lru_add_need_drain(smp_processor_id()))
-+		lru_add_drain();
-+
- 	for_each_populated_zone(zone) {
- 		struct per_cpu_pageset __percpu *p = zone->pageset;
- 
-@@ -1477,7 +1484,8 @@ static bool need_update(int cpu)
- 			return true;
- 
- 	}
--	return false;
-+
-+	return pcp_lru_add_need_drain(cpu);
- }
- 
- void quiet_vmstat(void)
-@@ -1542,6 +1550,16 @@ static void vmstat_shepherd(struct work_struct *w)
- 		round_jiffies_relative(sysctl_stat_interval));
- }
- 
-+void kick_vmstat_update(void)
-+{
-+#ifdef CONFIG_SMP
-+	might_sleep();
-+
-+	if (cancel_delayed_work(&shepherd))
-+		vmstat_shepherd(&shepherd.work);
-+#endif
-+}
-+
- static void __init start_shepherd_timer(void)
- {
- 	int cpu;
+Ohh, I didn't say this would be a dependency. I am all for preparing
+the code for a better scaling I just felt that the patch is quite large
+with a small benefit at this moment and the initial description was not
+very clear about the motivation and changes seemed to be shaped by an
+artificial test case.
+
+> I'm actually working on improving the LRU balancing decisions for fast
+> random IO swap devices, and hope to have something to submit soon.
+
+That is really good to hear!
+
+> > > I understand that the patch set is a little large. Any better
+> > > ideas for achieving similar ends will be appreciated.  I put
+> > > out these patches in the hope that it will spur solutions
+> > > to improve swap.
+> > > 
+> > > Perhaps the first two patches to make shrink_page_list into
+> > > smaller components can be considered first, as a first step 
+> > > to make any changes to the reclaim code easier.
+> 
+> It makes sense that we need to batch swap allocation and swap cache
+> operations. Unfortunately, the patches as they stand turn
+> shrink_page_list() into an unreadable mess. This would need better
+> refactoring before considering them for upstream merging. The swap
+> allocation batching should not obfuscate the main sequence of events
+> that is happening for both file-backed and anonymous pages.
+
+That was my first impression as well but to be fair I only skimmed
+through the patch so I might be just biased by the size.
+
+> It'd also be great if the remove_mapping() batching could be done
+> universally for all pages, given that in many cases file pages from
+> the same inode also cluster together on the LRU.
+
+Agreed!
+
 -- 
 Michal Hocko
 SUSE Labs
