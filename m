@@ -1,104 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 926C56B0005
-	for <linux-mm@kvack.org>; Thu,  5 May 2016 02:24:21 -0400 (EDT)
-Received: by mail-ig0-f199.google.com with SMTP id i5so17532414ige.1
-        for <linux-mm@kvack.org>; Wed, 04 May 2016 23:24:21 -0700 (PDT)
-Received: from g1t5424.austin.hp.com (g1t5424.austin.hp.com. [15.216.225.54])
-        by mx.google.com with ESMTPS id b76si8431013ioj.157.2016.05.04.23.24.20
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 643A56B0005
+	for <linux-mm@kvack.org>; Thu,  5 May 2016 02:55:23 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id m64so6878946lfd.1
+        for <linux-mm@kvack.org>; Wed, 04 May 2016 23:55:23 -0700 (PDT)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id w198si1969798wmd.93.2016.05.04.23.55.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 May 2016 23:24:21 -0700 (PDT)
-From: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>
-Subject: RE: [PATCH] kasan: improve double-free detection
-Date: Thu, 5 May 2016 06:23:37 +0000
-Message-ID: <20E775CA4D599049A25800DE5799F6DD1F625C60@G4W3225.americas.hpqcorp.net>
+        Wed, 04 May 2016 23:55:21 -0700 (PDT)
+Received: by mail-wm0-x22a.google.com with SMTP id a17so11527991wme.0
+        for <linux-mm@kvack.org>; Wed, 04 May 2016 23:55:21 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20E775CA4D599049A25800DE5799F6DD1F625C60@G4W3225.americas.hpqcorp.net>
 References: <20160502094920.GA3005@cherokee.in.rdlabs.hpecorp.net>
  <CACT4Y+YV4A_YbDq5asowLJPUODottNHAKScWoRdUx6uy+TN-Uw@mail.gmail.com>
  <CACT4Y+Z_+crRUm0U89YwW3x99dtx9cfPoO+L6mD-uyzfZAMkKw@mail.gmail.com>
  <20E775CA4D599049A25800DE5799F6DD1F61F1B2@G9W0752.americas.hpqcorp.net>
  <CACT4Y+azLKpGXSqs2=7PKZLNHd61LN7FiAQeWLhw3yApVHadXQ@mail.gmail.com>
  <20E775CA4D599049A25800DE5799F6DD1F624B08@G4W3225.americas.hpqcorp.net>
- <CACT4Y+bow7r43x=OR+1tyn7p_eMDKuAfH+LG1uROU2+Lc45Ctg@mail.gmail.com>
-In-Reply-To: <CACT4Y+bow7r43x=OR+1tyn7p_eMDKuAfH+LG1uROU2+Lc45Ctg@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+ <CACT4Y+bow7r43x=OR+1tyn7p_eMDKuAfH+LG1uROU2+Lc45Ctg@mail.gmail.com> <20E775CA4D599049A25800DE5799F6DD1F625C60@G4W3225.americas.hpqcorp.net>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 5 May 2016 08:55:01 +0200
+Message-ID: <CACT4Y+bUwH6gWoj1X=xSdRcP85Oyz8O4tQpykii+E70S5OiEdw@mail.gmail.com>
+Subject: Re: [PATCH] kasan: improve double-free detection
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
+To: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>
 Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-PiA+PiA+PiBJIG1pc3NlZCB0aGF0IEFsZXhhbmRlciBhbHJlYWR5IGxhbmRlZCBwYXRjaGVzIHRo
-YXQgcmVkdWNlIGhlYWRlciBzaXplDQo+ID4+ID4+IHRvIDE2IGJ5dGVzLg0KPiA+PiA+PiBJdCBp
-cyBub3QgT0sgdG8gaW5jcmVhc2UgdGhlbSBhZ2Fpbi4gUGxlYXNlIGxlYXZlIHN0YXRlIGFzIGJp
-dGZpZWxkDQo+ID4+ID4+IGFuZCB1cGRhdGUgaXQgd2l0aCBDQVMgKGlmIHdlIGludHJvZHVjZSBo
-ZWxwZXIgZnVuY3Rpb25zIGZvciBzdGF0ZQ0KPiA+PiA+PiBtYW5pcHVsYXRpb24sIHRoZXkgd2ls
-bCBoaWRlIHRoZSBDQVMgbG9vcCwgd2hpY2ggaXMgbmljZSkuDQo+ID4+ID4+DQo+ID4+ID4NCj4g
-Pj4gPiBBdmFpbGFibGUgQ0FTIHByaW1pdGl2ZXMvY29tcGlsZXIgZG8gbm90IHN1cHBvcnQgQ0FT
-IHdpdGggYml0ZmllbGQuIEkNCj4gcHJvcG9zZQ0KPiA+PiA+IHRvIGNoYW5nZSBrYXNhbl9hbGxv
-Y19tZXRhIHRvOg0KPiA+PiA+DQo+ID4+ID4gc3RydWN0IGthc2FuX2FsbG9jX21ldGEgew0KPiA+
-PiA+ICAgICAgICAgc3RydWN0IGthc2FuX3RyYWNrIHRyYWNrOw0KPiA+PiA+ICAgICAgICAgdTE2
-IHNpemVfZGVsdGE7ICAgICAgICAgLyogb2JqZWN0X3NpemUgLSBhbGxvYyBzaXplICovDQo+ID4+
-ID4gICAgICAgICB1OCBzdGF0ZTsgICAgICAgICAgICAgICAgICAgIC8qIGVudW0ga2FzYW5fc3Rh
-dGUgKi8NCj4gPj4gPiAgICAgICAgIHU4IHJlc2VydmVkMTsNCj4gPj4gPiAgICAgICAgIHUzMiBy
-ZXNlcnZlZDI7DQo+ID4+ID4gfQ0KPiA+PiA+DQo+ID4+ID4gVGhpcyBzaHJpbmtzIF91c2VkXyBt
-ZXRhIG9iamVjdCBieSAxIGJ5dGUgd3J0IHRoZSBvcmlnaW5hbC4gKGJ0dywgcGF0Y2ggdjENCj4g
-ZG9lcw0KPiA+PiA+IG5vdCBpbmNyZWFzZSBvdmVyYWxsIGFsbG9jIG1ldGEgb2JqZWN0IHNpemUp
-LiAiQWxsb2Mgc2l6ZSIsIHdoZXJlIG5lZWRlZCwgaXMNCj4gPj4gPiBlYXNpbHkgY2FsY3VsYXRl
-ZCBhcyBhIGRlbHRhIGZyb20gY2FjaGUtPm9iamVjdF9zaXplLg0KPiA+Pg0KPiA+Pg0KPiA+PiBX
-aGF0IGlzIHRoZSBtYXhpbXVtIHNpemUgdGhhdCBzbGFiIGNhbiBhbGxvY2F0ZT8NCj4gPj4gSSBy
-ZW1lbWJlciBzZWVpbmcgc2xhYnMgYXMgbGFyZ2UgYXMgNE1CIHNvbWUgdGltZSBhZ28gKG9yIGRp
-ZCBJDQo+ID4+IGNvbmZ1c2UgaXQgd2l0aCBzb21ldGhpbmcgZWxzZT8pLiBJZiB0aGVyZSBhcmUg
-c3VjaCBsYXJnZSBvYmplY3RzLA0KPiA+PiB0aGF0IDIgYnl0ZXMgd29uJ3QgYmUgYWJsZSB0byBo
-b2xkIGV2ZW4gZGVsdGEuDQo+ID4+IEhvd2V2ZXIsIG5vdyBvbiBteSBkZXNrdG9wIEkgZG9uJ3Qg
-c2VlIHNsYWJzIGxhcmdlciB0aGFuIDE2S0IgaW4NCj4gPj4gL3Byb2Mvc2xhYmluZm8uDQo+ID4N
-Cj4gPiBtYXggc2l6ZSBmb3IgU0xBQidzIHNsYWIgaXMgMzJNQjsgZGVmYXVsdCBpcyA0TUIuIEkg
-bXVzdCBoYXZlIGdvdHRlbiBjb25mdXNlZA0KPiBieQ0KPiA+IFNMVUIncyA4S0IgbGltaXQuIEFu
-eXdheSwgbmV3IGthc2FuX2FsbG9jX21ldGEgaW4gcGF0Y2ggVjI6DQo+ID4NCj4gPiBzdHJ1Y3Qg
-a2FzYW5fYWxsb2NfbWV0YSB7DQo+ID4gICAgICAgICBzdHJ1Y3Qga2FzYW5fdHJhY2sgdHJhY2s7
-DQo+ID4gICAgICAgICB1bmlvbiB7DQo+ID4gICAgICAgICAgICAgICAgIHU4IGxvY2s7DQo+ID4g
-ICAgICAgICAgICAgICAgIHN0cnVjdCB7DQo+ID4gICAgICAgICAgICAgICAgICAgICAgICAgdTMy
-IGR1bW15IDogODsNCj4gPiAgICAgICAgICAgICAgICAgICAgICAgICB1MzIgc2l6ZV9kZWx0YSA6
-IDI0OyAgICAvKiBvYmplY3Rfc2l6ZSAtIGFsbG9jIHNpemUgKi8NCj4gPiAgICAgICAgICAgICAg
-ICAgfTsNCj4gPiAgICAgICAgIH07DQo+ID4gICAgICAgICB1MzIgc3RhdGUgOiAyOyAgICAgICAg
-ICAgICAgICAgICAgICAgICAgLyogZW51bSBrYXNhbl9hbGxvY19zdGF0ZSAqLw0KPiA+ICAgICAg
-ICAgdTMyIHVudXNlZCA6IDMwOw0KPiA+IH07DQo+ID4NCj4gPiBUaGlzIHVzZXMgMiBtb3JlIGJp
-dHMgdGhhbiBjdXJyZW50LCBidXQgZ2l2ZW4gdGhlIGNvbnN0cmFpbnRzIEkgdGhpbmsgdGhpcyBp
-cw0KPiA+IGNsb3NlIHRvIG9wdGltYWwuDQo+IA0KPiANCj4gV2UgcGxhbiB0byB1c2UgdGhlIHVu
-dXNlZCBwYXJ0IGZvciBhbm90aGVyIGRlcG90X3N0YWNrX2hhbmRsZV90ICh1MzIpDQo+IHRvIG1l
-bW9yaXplIHN0YWNrIG9mIHRoZSBsYXN0IGNhbGxfcmN1IG9uIHRoZSBvYmplY3QgKHRoaXMgd2ls
-bA0KPiBncmVhdGx5IHNpbXBsaWZ5IGRlYnVnZ2luZyBvZiB1c2UtYWZ0ZXItZnJlZSBmb3Igb2Jq
-ZWN0cyBmcmVlZCBieQ0KPiByY3UpLiBTbyB3ZSBuZWVkIHRoYXQgdW51c2VkIHBhcnQuDQo+IA0K
-PiBJIHdvdWxkIHdvdWxkIHNpbXBseSBwdXQgYWxsIHRoZXNlIGZpZWxkcyBpbnRvIGEgc2luZ2xl
-IHUzMjoNCj4gDQo+IHN0cnVjdCBrYXNhbl9hbGxvY19tZXRhIHsNCj4gICAgICAgICBzdHJ1Y3Qg
-a2FzYW5fdHJhY2sgdHJhY2s7DQo+ICAgICAgICAgdTMyIHN0YXR1czsgIC8vIGNvbnRhaW5zIGxv
-Y2ssIHN0YXRlIGFuZCBzaXplDQo+ICAgICAgICAgdTMyIHVudXNlZDsgIC8vIHJlc2VydmVkIGZv
-ciBjYWxsX3JjdSBzdGFjayBoYW5kbGUNCj4gfTsNCj4gDQo+IEFuZCB0aGVuIHNlcGFyYXRlbHkg
-YSBoZWxwZXIgdHlwZSB0byBwYWNrL3VucGFjayBzdGF0dXM6DQo+IA0KPiB1bmlvbiBrYXNhbl9h
-bGxvY19zdGF0dXMgew0KPiAgICAgICAgIHUzMiByYXc7DQo+ICAgICAgICAgc3RydWN0IHsNCj4g
-ICAgICAgICAgICAgICAgICAgIHUzMiBsb2NrIDogMTsNCj4gICAgICAgICAgICAgICAgICAgIHUz
-MiBzdGF0ZSA6IDI7DQo+ICAgICAgICAgICAgICAgICAgICB1MzIgdW51c2VkIDogNTsNCj4gICAg
-ICAgICAgICAgICAgICAgIHUzMiBzaXplIDogMjQ7DQo+ICAgICAgICAgfTsNCj4gfTsNCj4gDQo+
-IA0KPiBUaGVuLCB3aGVuIHdlIG5lZWQgdG8gcmVhZC91cGRhdGUgdGhlIGhlYWRlciB3ZSBkbyBz
-b21ldGhpbmcgbGlrZToNCj4gDQo+IGthc2FuX2FsbG9jX3N0YXR1cyBzdGF0dXMsIG5ld19zdGF0
-dXM7DQo+IA0KPiBmb3IgKDs7KSB7DQo+ICAgICBzdGF0dXMucmF3ID0gUkVBRF9PTkNFKGhlYWRl
-ci0+c3RhdHVzKTsNCj4gICAgIC8vIHJlYWQgc3RhdHVzLCBmb3JtIG5ld19zdGF0dXMsIGZvciBl
-eGFtcGxlOg0KPiAgICAgaWYgKHN0YXR1cy5sb2NrKQ0KPiAgICAgICAgICAgY29udGludWU7DQo+
-ICAgICBuZXdfc3RhdHVzLnJhdyA9IHN0YXR1cy5yYXc7DQo+ICAgICBuZXdfc3RhdHVzLmxvY2sg
-PSAxOw0KPiAgICAgaWYgKGNhcygmaGVhZGVyLT5zdGF0dXMsIHN0YXR1cy5yYXcsIG5ld19zdGF0
-dXMucmF3KSkNCj4gICAgICAgICAgICAgIGJyZWFrOw0KPiB9DQo+IA0KPiANCj4gVGhpcyB3aWxs
-IHByb2JhYmx5IG1ha2Ugc3RhdGUgbWFuaXB1bGF0aW9uIGZ1bmN0aW9ucyBmZXcgbGluZXMgbG9u
-Z2VyLA0KPiBidXQgc2luY2UgdGhlcmUgYXJlIGxpa2UgMyBzdWNoIGZ1bmN0aW9ucyBJIGRvbid0
-IGFmcmFpZCB0aGF0LiBBbmQgd2UNCj4gc3RpbGwgY2FuIHVzZSBiaXRmaWVsZCBtYWdpYyB0byBl
-eHRyYWN0IGZpZWxkcyBhbmQgbGVhdmUgd2hvbGUgNSBiaXRzDQo+IHVudXNlZCBiaXRzIGZvciBm
-dXR1cmUuDQoNClRoZSBkaWZmaWN1bHR5IGlzIHRoYXQgdGhlIGxvY2sgbWFuYWdlZCBieSBDQVMg
-bmVlZHMgMSBieXRlLCBtaW5pbnVtOyBUQVMgYml0DQppcyBldmVuICd3b3JzZSc6IGFkZHJlc3Mg
-bXVzdCBiZSB0aGF0IG9mIGFuIHVuc2lnbmVkIGxvbmcuDQoNCk1pZ2h0IGl0IGJlIHBvc3NpYmxl
-IGZvciB5b3UgdG8gZW1wbG95IHRoZSAna2FzYW5fZnJlZV9tZXRhJyBoZWFkZXIgZm9yIHlvdXIN
-ClJDVSBzdGFjayBoYW5kbGUgaW5zdGVhZCBzaW5jZSBLQVNBTiBkb2VzIG5vdCBjdXJyZW50bHkg
-c3RvcmUgc3RhdGUgZm9yIFJDVQ0Kc2xhYnMgb24gZnJlZT8NCg0KS3V0aG9udXpvDQo=
+On Thu, May 5, 2016 at 8:23 AM, Luruo, Kuthonuzo
+<kuthonuzo.luruo@hpe.com> wrote:
+>> >> >> I missed that Alexander already landed patches that reduce header size
+>> >> >> to 16 bytes.
+>> >> >> It is not OK to increase them again. Please leave state as bitfield
+>> >> >> and update it with CAS (if we introduce helper functions for state
+>> >> >> manipulation, they will hide the CAS loop, which is nice).
+>> >> >>
+>> >> >
+>> >> > Available CAS primitives/compiler do not support CAS with bitfield. I
+>> propose
+>> >> > to change kasan_alloc_meta to:
+>> >> >
+>> >> > struct kasan_alloc_meta {
+>> >> >         struct kasan_track track;
+>> >> >         u16 size_delta;         /* object_size - alloc size */
+>> >> >         u8 state;                    /* enum kasan_state */
+>> >> >         u8 reserved1;
+>> >> >         u32 reserved2;
+>> >> > }
+>> >> >
+>> >> > This shrinks _used_ meta object by 1 byte wrt the original. (btw, patch v1
+>> does
+>> >> > not increase overall alloc meta object size). "Alloc size", where needed, is
+>> >> > easily calculated as a delta from cache->object_size.
+>> >>
+>> >>
+>> >> What is the maximum size that slab can allocate?
+>> >> I remember seeing slabs as large as 4MB some time ago (or did I
+>> >> confuse it with something else?). If there are such large objects,
+>> >> that 2 bytes won't be able to hold even delta.
+>> >> However, now on my desktop I don't see slabs larger than 16KB in
+>> >> /proc/slabinfo.
+>> >
+>> > max size for SLAB's slab is 32MB; default is 4MB. I must have gotten confused
+>> by
+>> > SLUB's 8KB limit. Anyway, new kasan_alloc_meta in patch V2:
+>> >
+>> > struct kasan_alloc_meta {
+>> >         struct kasan_track track;
+>> >         union {
+>> >                 u8 lock;
+>> >                 struct {
+>> >                         u32 dummy : 8;
+>> >                         u32 size_delta : 24;    /* object_size - alloc size */
+>> >                 };
+>> >         };
+>> >         u32 state : 2;                          /* enum kasan_alloc_state */
+>> >         u32 unused : 30;
+>> > };
+>> >
+>> > This uses 2 more bits than current, but given the constraints I think this is
+>> > close to optimal.
+>>
+>>
+>> We plan to use the unused part for another depot_stack_handle_t (u32)
+>> to memorize stack of the last call_rcu on the object (this will
+>> greatly simplify debugging of use-after-free for objects freed by
+>> rcu). So we need that unused part.
+>>
+>> I would would simply put all these fields into a single u32:
+>>
+>> struct kasan_alloc_meta {
+>>         struct kasan_track track;
+>>         u32 status;  // contains lock, state and size
+>>         u32 unused;  // reserved for call_rcu stack handle
+>> };
+>>
+>> And then separately a helper type to pack/unpack status:
+>>
+>> union kasan_alloc_status {
+>>         u32 raw;
+>>         struct {
+>>                    u32 lock : 1;
+>>                    u32 state : 2;
+>>                    u32 unused : 5;
+>>                    u32 size : 24;
+>>         };
+>> };
+>>
+>>
+>> Then, when we need to read/update the header we do something like:
+>>
+>> kasan_alloc_status status, new_status;
+>>
+>> for (;;) {
+>>     status.raw = READ_ONCE(header->status);
+>>     // read status, form new_status, for example:
+>>     if (status.lock)
+>>           continue;
+>>     new_status.raw = status.raw;
+>>     new_status.lock = 1;
+>>     if (cas(&header->status, status.raw, new_status.raw))
+>>              break;
+>> }
+>>
+>>
+>> This will probably make state manipulation functions few lines longer,
+>> but since there are like 3 such functions I don't afraid that. And we
+>> still can use bitfield magic to extract fields and leave whole 5 bits
+>> unused bits for future.
+>
+> The difficulty is that the lock managed by CAS needs 1 byte, mininum; TAS bit
+> is even 'worse': address must be that of an unsigned long.
+
+cmpxchg function can operate on bytes, words, double words and quad words:
+http://lxr.free-electrons.com/source/arch/x86/include/asm/cmpxchg.h#L146
+
+
+> Might it be possible for you to employ the 'kasan_free_meta' header for your
+> RCU stack handle instead since KASAN does not currently store state for RCU
+> slabs on free?
+
+Free meta is overlapped with user object. The object is not freed yet
+when call_rcu is invoked, so free meta cannot be used yet (user still
+holds own data there). Free meta can only be used after kfree is
+invoked on the object.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
