@@ -1,75 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A944B6B0005
-	for <linux-mm@kvack.org>; Thu,  5 May 2016 12:24:21 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id d62so194309145iof.1
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 09:24:21 -0700 (PDT)
-Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
-        by mx.google.com with ESMTPS id d184si4966675oig.163.2016.05.05.09.24.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 May 2016 09:24:20 -0700 (PDT)
-Received: by mail-oi0-x232.google.com with SMTP id x19so108383346oix.2
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 09:24:20 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F3CE6B007E
+	for <linux-mm@kvack.org>; Thu,  5 May 2016 13:25:12 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 77so179549265pfz.3
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 10:25:12 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id f5si12436558pay.191.2016.05.05.10.25.11
+        for <linux-mm@kvack.org>;
+        Thu, 05 May 2016 10:25:11 -0700 (PDT)
+From: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
+Subject: RE: mm: pages are not freed from lru_add_pvecs after process
+ termination
+Date: Thu, 5 May 2016 17:25:07 +0000
+Message-ID: <D6EDEBF1F91015459DB866AC4EE162CC023C3C4B@IRSMSX103.ger.corp.intel.com>
+References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
+ <5720F2A8.6070406@intel.com> <20160428143710.GC31496@dhcp22.suse.cz>
+ <20160502130006.GD25265@dhcp22.suse.cz>
+ <D6EDEBF1F91015459DB866AC4EE162CC023C182F@IRSMSX103.ger.corp.intel.com>
+ <20160504203643.GI21490@dhcp22.suse.cz>
+ <20160505072122.GA4386@dhcp22.suse.cz>
+In-Reply-To: <20160505072122.GA4386@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20160505152230.GA3994@infradead.org>
-References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>
-	<1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>
-	<5727753F.6090104@plexistor.com>
-	<20160505142433.GA4557@infradead.org>
-	<CAPcyv4gdmo5m=Arf5sp5izJfNaaAkaaMbOzud8KRcBEC8RRu1Q@mail.gmail.com>
-	<20160505152230.GA3994@infradead.org>
-Date: Thu, 5 May 2016 09:24:20 -0700
-Message-ID: <CAPcyv4i1wRv56C=0uAz83ANZL=zv-LpbTuSPnMFo7baZXwWSLg@mail.gmail.com>
-Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
-From: Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Boaz Harrosh <boaz@plexistor.com>, linux-block@vger.kernel.org, linux-ext4 <linux-ext4@vger.kernel.org>, Jan Kara <jack@suse.cz>, Matthew Wilcox <matthew@wil.cx>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, XFS Developers <xfs@oss.sgi.com>, Jens Axboe <axboe@fb.com>, Linux MM <linux-mm@kvack.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
 
-On Thu, May 5, 2016 at 8:22 AM, Christoph Hellwig <hch@infradead.org> wrote:
-> On Thu, May 05, 2016 at 08:15:32AM -0700, Dan Williams wrote:
->> > Agreed - makig O_DIRECT less direct than not having it is plain stupid,
->> > and I somehow missed this initially.
->>
->> Of course I disagree because like Dave argues in the msync case we
->> should do the correct thing first and make it fast later, but also
->> like Dave this arguing in circles is getting tiresome.
->
-> We should do the right thing first, and make it fast later.  But this
-> proposal is not getting it right - it still does not handle errors
-> for the fast path, but magically makes it work for direct I/O by
-> in general using a less optional path for O_DIRECT.  It's getting the
-> worst of all choices.
->
-> As far as I can tell the only sensible option is to:
->
->  - always try dax-like I/O first
->  - have a custom get_user_pages + rw_bytes fallback handles bad blocks
->    when hitting EIO
+On Thu 05-05-16 09:21:00, Michal Hocko wrote:=20
+> OK, it wasn't that tricky afterall. Maybe I have missed something but
+> the following should work. Or maybe the async nature of flushing turns
+> out to be just impractical and unreliable and we will end up skipping
+> THP (or all compound pages) for pcp LRU add cache. Let's see...
 
-If you're on board with more special fallbacks for dax-capable block
-devices that indeed opens up the thinking.  The O_DIRECT approach was
-meant to keep the error clearing model close to the traditional block
-device case, but yes that does constrain the implementation in
-sub-optimal ways.
+Initially this issue was found on RH's 3.10.x kernel, but now I am using=20
+4.6-rc6.
 
-However, we still have the alignment problem in the rw_bytes case, how
-do we communicate to the application that only writes with a certain
-size/alignment will clear errors?  That forced alignment assumption
-was the other appeal of O_DIRECT.  Perhaps we can at least start with
-hole punching and block reallocation as the error clearing method
-while we think more about the write-to-clear case?
+In overall it does help and under heavy load it is slightly better than the
+second patch. Unfortunately I am still able to hit 10-20% oom kills with it=
+ -
+(went down from 30-50%) partially due to earlier vmstat_update call
+ - it went up to 25-25% with this patch below:
 
-> And then we need to sort out the concurrent write synchronization.
-> Again there I think we absolutely have to obey Posix for the !O_DIRECT
-> case and can avoid it for O_DIRECT, similar to the existing non-DAX
-> semantics.  If we want any special additional semantics we _will_ need
-> a special O_DAX flag.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b4359f8..7a5ab0d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3264,17 +3264,17 @@ retry:
+        if (!is_thp_gfp_mask(gfp_mask) || (current->flags & PF_KTHREAD))
+                migration_mode =3D MIGRATE_SYNC_LIGHT;
 
-Ok, makes sense.
+-       if(!vmstat_updated) {
+-               vmstat_updated =3D true;
+-               kick_vmstat_update();
+-       }
+-
+        /* Try direct reclaim and then allocating */
+        page =3D __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags,=
+ ac,
+                                                        &did_some_progress)=
+;
+        if (page)
+                goto got_pg;
+
++       if(!vmstat_updated) {
++               vmstat_updated =3D true;
++               kick_vmstat_update();
++       }
+
+I don't quite see an uninvasive way to make sure that we drain all pvecs
+before failing allocation and doing it asynchronously will race allocations
+anyway - I guess.
+
+Thanks,
+Lukas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
