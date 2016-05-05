@@ -1,81 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F3CE6B007E
-	for <linux-mm@kvack.org>; Thu,  5 May 2016 13:25:12 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 77so179549265pfz.3
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 10:25:12 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id f5si12436558pay.191.2016.05.05.10.25.11
-        for <linux-mm@kvack.org>;
-        Thu, 05 May 2016 10:25:11 -0700 (PDT)
-From: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
-Subject: RE: mm: pages are not freed from lru_add_pvecs after process
- termination
-Date: Thu, 5 May 2016 17:25:07 +0000
-Message-ID: <D6EDEBF1F91015459DB866AC4EE162CC023C3C4B@IRSMSX103.ger.corp.intel.com>
-References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
- <5720F2A8.6070406@intel.com> <20160428143710.GC31496@dhcp22.suse.cz>
- <20160502130006.GD25265@dhcp22.suse.cz>
- <D6EDEBF1F91015459DB866AC4EE162CC023C182F@IRSMSX103.ger.corp.intel.com>
- <20160504203643.GI21490@dhcp22.suse.cz>
- <20160505072122.GA4386@dhcp22.suse.cz>
-In-Reply-To: <20160505072122.GA4386@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A85346B007E
+	for <linux-mm@kvack.org>; Thu,  5 May 2016 17:07:47 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b203so190422271pfb.1
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 14:07:47 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ss2si13430420pab.111.2016.05.05.14.07.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 May 2016 14:07:46 -0700 (PDT)
+Date: Thu, 5 May 2016 14:07:45 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] ksm: fix conflict between mmput and
+ scan_get_next_rmap_item
+Message-Id: <20160505140745.32b100a6d100a86d59f1d11b@linux-foundation.org>
+In-Reply-To: <1462452176-33462-1-git-send-email-zhouchengming1@huawei.com>
+References: <1462452176-33462-1-git-send-email-zhouchengming1@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
+To: Zhou Chengming <zhouchengming1@huawei.com>
+Cc: hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, geliangtang@163.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, dingtianhong@huawei.com, huawei.libin@huawei.com, thunder.leizhen@huawei.com, qiuxishi@huawei.com
 
-On Thu 05-05-16 09:21:00, Michal Hocko wrote:=20
-> OK, it wasn't that tricky afterall. Maybe I have missed something but
-> the following should work. Or maybe the async nature of flushing turns
-> out to be just impractical and unreliable and we will end up skipping
-> THP (or all compound pages) for pcp LRU add cache. Let's see...
+On Thu, 5 May 2016 20:42:56 +0800 Zhou Chengming <zhouchengming1@huawei.com> wrote:
 
-Initially this issue was found on RH's 3.10.x kernel, but now I am using=20
-4.6-rc6.
+> A concurrency issue about KSM in the function scan_get_next_rmap_item.
+> 
+> task A (ksmd):				|task B (the mm's task):
+> 					|
+> mm = slot->mm;				|
+> down_read(&mm->mmap_sem);		|
+> 					|
+> ...					|
+> 					|
+> spin_lock(&ksm_mmlist_lock);		|
+> 					|
+> ksm_scan.mm_slot go to the next slot;	|
+> 					|
+> spin_unlock(&ksm_mmlist_lock);		|
+> 					|mmput() ->
+> 					|	ksm_exit():
+> 					|
+> 					|spin_lock(&ksm_mmlist_lock);
+> 					|if (mm_slot && ksm_scan.mm_slot != mm_slot) {
+> 					|	if (!mm_slot->rmap_list) {
+> 					|		easy_to_free = 1;
+> 					|		...
+> 					|
+> 					|if (easy_to_free) {
+> 					|	mmdrop(mm);
+> 					|	...
+> 					|
+> 					|So this mm_struct will be freed successfully.
+> 					|
+> up_read(&mm->mmap_sem);			|
+> 
+> As we can see above, the ksmd thread may access a mm_struct that already
+> been freed to the kmem_cache.
+> Suppose a fork will get this mm_struct from the kmem_cache, the ksmd thread
+> then call up_read(&mm->mmap_sem), will cause mmap_sem.count to become -1.
+> I changed the scan_get_next_rmap_item function refered to the khugepaged
+> scan function.
 
-In overall it does help and under heavy load it is slightly better than the
-second patch. Unfortunately I am still able to hit 10-20% oom kills with it=
- -
-(went down from 30-50%) partially due to earlier vmstat_update call
- - it went up to 25-25% with this patch below:
+Thanks.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b4359f8..7a5ab0d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3264,17 +3264,17 @@ retry:
-        if (!is_thp_gfp_mask(gfp_mask) || (current->flags & PF_KTHREAD))
-                migration_mode =3D MIGRATE_SYNC_LIGHT;
-
--       if(!vmstat_updated) {
--               vmstat_updated =3D true;
--               kick_vmstat_update();
--       }
--
-        /* Try direct reclaim and then allocating */
-        page =3D __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags,=
- ac,
-                                                        &did_some_progress)=
-;
-        if (page)
-                goto got_pg;
-
-+       if(!vmstat_updated) {
-+               vmstat_updated =3D true;
-+               kick_vmstat_update();
-+       }
-
-I don't quite see an uninvasive way to make sure that we drain all pvecs
-before failing allocation and doing it asynchronously will race allocations
-anyway - I guess.
-
-Thanks,
-Lukas
+We need to decide whether this fix should be backported into earlier
+(-stable) kernels.  Can you tell us how easily this is triggered and
+share your thoughts on this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
