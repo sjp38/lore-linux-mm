@@ -1,103 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F03196B0253
-	for <linux-mm@kvack.org>; Thu,  5 May 2016 17:37:53 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id xm6so131347098pab.3
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 14:37:53 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id yp3si13565360pac.120.2016.05.05.14.37.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 May 2016 14:37:53 -0700 (PDT)
-Date: Thu, 5 May 2016 14:37:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] writeback: Avoid exhausting allocation reserves under
- memory pressure
-Message-Id: <20160505143751.06aa4223e266c1d92b3323a2@linux-foundation.org>
-In-Reply-To: <20160505090750.GD1970@quack2.suse.cz>
-References: <1462436092-32665-1-git-send-email-jack@suse.cz>
-	<20160505082433.GC4386@dhcp22.suse.cz>
-	<20160505090750.GD1970@quack2.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 84B8E6B025E
+	for <linux-mm@kvack.org>; Thu,  5 May 2016 17:39:33 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 203so191674312pfy.2
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 14:39:33 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id b68si13192003pfb.21.2016.05.05.14.39.32
+        for <linux-mm@kvack.org>;
+        Thu, 05 May 2016 14:39:32 -0700 (PDT)
+From: "Verma, Vishal L" <vishal.l.verma@intel.com>
+Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
+Date: Thu, 5 May 2016 21:39:14 +0000
+Message-ID: <1462484343.29294.1.camel@intel.com>
+References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>
+	 <1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>
+	 <5727753F.6090104@plexistor.com> <20160505142433.GA4557@infradead.org>
+In-Reply-To: <20160505142433.GA4557@infradead.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <A85A0D742E7D4047B1D16786AE1B7AF0@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, tj@kernel.org
+To: "hch@infradead.org" <hch@infradead.org>, "boaz@plexistor.com" <boaz@plexistor.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "axboe@fb.com" <axboe@fb.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>, "matthew@wil.cx" <matthew@wil.cx>
 
-On Thu, 5 May 2016 11:07:50 +0200 Jan Kara <jack@suse.cz> wrote:
-
-> On Thu 05-05-16 10:24:33, Michal Hocko wrote:
-> > > +/*
-> > > + * Check whether the request to writeback some pages can be merged with some
-> > > + * other request which is already pending. If yes, merge it and return true.
-> > > + * If no, return false.
-> > > + */
-> > > +static bool wb_merge_request(struct bdi_writeback *wb, long nr_pages,
-> > > +			     struct super_block *sb, bool range_cyclic,
-> > > +			     enum wb_reason reason)
-> > > +{
-> > > +	struct wb_writeback_work *work;
-> > > +	bool merged = false;
-> > > +
-> > > +	spin_lock_bh(&wb->work_lock);
-> > > +	list_for_each_entry(work, &wb->work_list, list) {
-> > 
-> > Is the lenght of the list bounded somehow? In other words is it possible
-> > that the spinlock would be held for too long to traverse the whole list?
-> 
-> I was thinking about this as well. With the merging enabled, the number of
-> entries queued from wb_start_writeback() is essentially limited by the
-> number of writeback reasons and there's only a couple of those. What is
-> more questionable is the number of entries queued from
-> __writeback_inodes_sb_nr(). Generally there should be a couple at maximum
-> either but it is hard to give any guarantee since e.g. filesystems use this
-> function to reduce amount of delay-allocated data when they are running out
-> of space. Hum, maybe we could limit the merging to scan only the last say
-> 16 entries. That should give good results in most cases... Thoughts?
-
-If it's possible to cause a search complexity meltdown, someone will
-find a way :(
-
-Is there any reason why the requests coming out of
-writeback_inodes_sb_nr() cannot also be merged?
-
-Your wb_merge_request() doesn't check ->tagged_writepages?
-
-Why is ->for_sync handled differently?  Needs a comment.
-
-Suggest turning this into a separate function.  Build a local
-wb_writeback_work in wb_start_writeback(), do:
-
-
-	/* comment goes here */
-	if (new->reason != old->reason)
-		return false;
-	/* comment goes here */
-	if (new->range_cyclic != old->range_cyclic)
-		retun false;
-	return true;
-
-then copy wb_start_writeback()'s local wb_writeback_work into the
-newly-allocated one if needed (kmemdup()).  Or just pass a billion args
-into that comparison function.
-
-bdi_split_work_to_wbs() does GFP_ATOMIC as well.  Problem?  (Why the
-heck don't we document the *reasons* for these things, sigh).
-
-I suspect it would be best to be proactive here and use some smarter
-data structure.  It appears that all the wb_writeback_work fields
-except sb can be squeezed into a single word so perhaps a radix-tree. 
-Or hash them all together and use a chained array or something.  Maybe
-fiddle at it for an hour or so, see how it's looking?  It's a lot of
-fuss to avoid one problematic kmalloc(), sigh.
-
-We really don't want there to be *any* pathological workload which
-results in merging failures - if that's the case then someone will hit
-it.  They'll experience the ooms (perhaps) and the search complexity
-issues (for sure).
-
+T24gVGh1LCAyMDE2LTA1LTA1IGF0IDA3OjI0IC0wNzAwLCBDaHJpc3RvcGggSGVsbHdpZyB3cm90
+ZToNCj4gT24gTW9uLCBNYXkgMDIsIDIwMTYgYXQgMDY6NDE6NTFQTSArMDMwMCwgQm9heiBIYXJy
+b3NoIHdyb3RlOg0KPiA+IA0KPiA+ID4gDQo+ID4gPiBBbGwgSU8gaW4gYSBkYXggZmlsZXN5c3Rl
+bSB1c2VkIHRvIGdvIHRocm91Z2ggZGF4X2RvX2lvLCB3aGljaA0KPiA+ID4gY2Fubm90DQo+ID4g
+PiBoYW5kbGUgbWVkaWEgZXJyb3JzLCBhbmQgdGh1cyBjYW5ub3QgcHJvdmlkZSBhIHJlY292ZXJ5
+IHBhdGggdGhhdA0KPiA+ID4gY2FuDQo+ID4gPiBzZW5kIGEgd3JpdGUgdGhyb3VnaCB0aGUgZHJp
+dmVyIHRvIGNsZWFyIGVycm9ycy4NCj4gPiA+IA0KPiA+ID4gQWRkIGEgbmV3IGlvY2IgZmxhZyBm
+b3IgREFYLCBhbmQgc2V0IGl0IG9ubHkgZm9yIERBWCBtb3VudHMuIEluDQo+ID4gPiB0aGUgSU8N
+Cj4gPiA+IHBhdGggZm9yIERBWCBmaWxlc3lzdGVtcywgdXNlIHRoZSBzYW1lIGRpcmVjdF9JTyBw
+YXRoIGZvciBib3RoIERBWA0KPiA+ID4gYW5kDQo+ID4gPiBkaXJlY3RfaW8gaW9jYnMsIGJ1dCB1
+c2UgdGhlIGZsYWdzIHRvIGlkZW50aWZ5IHdoZW4gd2UgYXJlIGluDQo+ID4gPiBPX0RJUkVDVA0K
+PiA+ID4gbW9kZSB2cyBub24gT19ESVJFQ1Qgd2l0aCBEQVgsIGFuZCBmb3IgT19ESVJFQ1QsIHVz
+ZSB0aGUNCj4gPiA+IGNvbnZlbnRpb25hbA0KPiA+ID4gZGlyZWN0X0lPIHBhdGggaW5zdGVhZCBv
+ZiBEQVguDQo+ID4gPiANCj4gPiBSZWFsbHk/IFdoYXQgYXJlIHlvdXIgdGhpbmtpbmcgaGVyZT8N
+Cj4gPiANCj4gPiBXaGF0IGFib3V0IGFsbCB0aGUgY3VycmVudCB1c2VycyBvZiBPX0RJUkVDVCwg
+eW91IGhhdmUganVzdCBtYWRlDQo+ID4gdGhlbQ0KPiA+IDQgdGltZXMgc2xvd2VyIGFuZCAibGVz
+cyBjb25jdXJyZW50KiIgdGhlbiAiYnVmZnJlZCBpbyIgdXNlcnMuIFNpbmNlDQo+ID4gZGlyZWN0
+X0lPIHBhdGggd2lsbCBxdWV1ZSBhbiBJTyByZXF1ZXN0IGFuZCBhbGwuDQo+ID4gKEFuZCBpZiBp
+dCBpcyBub3Qgc28gc2xvdyB0aGVuIHdoeSBkbyB3ZSBuZWVkIGRheF9kb19pbyBhdCBhbGw/DQo+
+ID4gW1JoZXRvcmljYWxdKQ0KPiA+IA0KPiA+IEkgaGF0ZSBpdCB0aGF0IHlvdSBvdmVybG9hZCB0
+aGUgc2VtYW50aWNzIG9mIGEga25vd24gYW5kIGV4cGVjdGVkDQo+ID4gT19ESVJFQ1QgZmxhZywg
+Zm9yIHNwZWNpYWwgcG1lbSBxdWlya3MuIFRoaXMgaXMgYW4gaW5jb21wYXRpYmxlDQo+ID4gYW5k
+IHVucmVsYXRlZCBvdmVybG9hZCBvZiB0aGUgc2VtYW50aWNzIG9mIE9fRElSRUNULg0KPiBBZ3Jl
+ZWQgLSBtYWtpZyBPX0RJUkVDVCBsZXNzIGRpcmVjdCB0aGFuIG5vdCBoYXZpbmcgaXQgaXMgcGxh
+aW4NCj4gc3R1cGlkLA0KPiBhbmQgSSBzb21laG93IG1pc3NlZCB0aGlzIGluaXRpYWxseS4NCg0K
+SG93IGlzIGl0IGFueSAnbGVzcyBkaXJlY3QnPyBBbGwgaXQgZG9lcyBub3cgaXMgZm9sbG93IHRo
+ZSBibG9ja2Rldg0KT19ESVJFQ1QgcGF0aC4gVGhlcmUgc3RpbGwgaXNuJ3QgYW55IHBhZ2UgY2Fj
+aGUgaW52b2x2ZWQuLg0KDQo+IA0KPiBUaGlzIHdob2xlIERBWCBzdG9yeSB0dXJucyBpbnRvIGEg
+bWFqb3IgbmlnaHRtYXJlLCBhbmQgSSBmZWFyIGFsbCBvdXINCj4gaG9kZ2UgcG9kZ2UgdHdlYWtz
+IHRvIHRoZSBzZW1hbnRpY3MgYXJlbid0IGhlbHBpbmcgaXQuDQo+IA0KPiBJdCBzZWVtcyBsaWtl
+IHdlIHNpbXBseSBuZWVkIGFuIGV4cGxpY2l0IE9fREFYIGZvciB0aGUgcmVhZC93cml0ZQ0KPiBi
+eXBhc3MgaWYgY2FuJ3Qgc29ydCBvdXQgdGhlIHNlbWFudGljcyAoZXJyb3IsIHdyaXRlciBzeW5j
+aHJvbml6YXRpb24pDQo+IGp1c3QgYXMgd2UgbmVlZCBhIHNwZWNpYWwgZmxhZyBmb3IgTU1BUC4u
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
