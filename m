@@ -1,76 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 347256B0005
-	for <linux-mm@kvack.org>; Thu,  5 May 2016 07:56:34 -0400 (EDT)
-Received: by mail-ob0-f198.google.com with SMTP id rd14so166240260obb.3
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 04:56:34 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0146.outbound.protection.outlook.com. [157.56.112.146])
-        by mx.google.com with ESMTPS id 197si3658075oia.13.2016.05.05.04.56.33
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F366F6B0005
+	for <linux-mm@kvack.org>; Thu,  5 May 2016 08:37:23 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b203so165083503pfb.1
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 05:37:23 -0700 (PDT)
+Received: from smtprelay.synopsys.com (us01smtprelay-2.synopsys.com. [198.182.60.111])
+        by mx.google.com with ESMTPS id hu12si11219646pac.157.2016.05.05.05.37.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 05 May 2016 04:56:33 -0700 (PDT)
-Subject: Re: [PATCHv8 1/2] x86/vdso: add mremap hook to vm_special_mapping
-References: <1460388169-13340-1-git-send-email-dsafonov@virtuozzo.com>
- <1461584223-9418-1-git-send-email-dsafonov@virtuozzo.com>
- <CALCETrVJhooHkMMVY_702p88-jYRJibXi38WB+fAizAt6S3PjQ@mail.gmail.com>
- <e0a10957-ddf7-1bc4-fad6-8b5836628fce@virtuozzo.com>
- <20160505115240.GA29616@gmail.com>
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <70acdc9f-8980-0488-2d52-49a90c4b6a59@virtuozzo.com>
-Date: Thu, 5 May 2016 14:55:12 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 May 2016 05:37:22 -0700 (PDT)
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Subject: Re: kmap_atomic and preemption
+Date: Thu, 5 May 2016 12:37:17 +0000
+Message-ID: <C2D7FE5348E1B147BCA15975FBA23075F4EA086B@us01wembx1.internal.synopsys.com>
+References: <5729D0F4.9090907@synopsys.com>
+ <20160504134729.GP3430@twins.programming.kicks-ass.net>
+ <C2D7FE5348E1B147BCA15975FBA23075F4EA065E@us01wembx1.internal.synopsys.com>
+ <20160504150138.GR3430@twins.programming.kicks-ass.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20160505115240.GA29616@gmail.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dmitry Safonov <0x7f454c46@gmail.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Nicolas Pitre <nicolas.pitre@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, David Hildenbrand <dahi@linux.vnet.ibm.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Russell King <linux@arm.linux.org.uk>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
 
-On 05/05/2016 02:52 PM, Ingo Molnar wrote:
->
-> * Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
->
->> On 04/26/2016 12:38 AM, Andy Lutomirski wrote:
->>> On Mon, Apr 25, 2016 at 4:37 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
->>>> Add possibility for userspace 32-bit applications to move
->>>> vdso mapping. Previously, when userspace app called
->>>> mremap for vdso, in return path it would land on previous
->>>> address of vdso page, resulting in segmentation violation.
->>>> Now it lands fine and returns to userspace with remapped vdso.
->>>> This will also fix context.vdso pointer for 64-bit, which does not
->>>> affect the user of vdso after mremap by now, but this may change.
->>>>
->>>> As suggested by Andy, return EINVAL for mremap that splits vdso image.
->>>>
->>>> Renamed and moved text_mapping structure declaration inside
->>>> map_vdso, as it used only there and now it complement
->>>> vvar_mapping variable.
->>>>
->>>> There is still problem for remapping vdso in glibc applications:
->>>> linker relocates addresses for syscalls on vdso page, so
->>>> you need to relink with the new addresses. Or the next syscall
->>>> through glibc may fail:
->>>>   Program received signal SIGSEGV, Segmentation fault.
->>>>   #0  0xf7fd9b80 in __kernel_vsyscall ()
->>>>   #1  0xf7ec8238 in _exit () from /usr/lib32/libc.so.6
->>> Acked-by: Andy Lutomirski <luto@kernel.org>
->>>
->>> Ingo, can you apply this?
->>
->> Hm, so I'm not sure - should I resend those two?
->> Or just ping?
->
-> Please send a clean series with updated Acked-by's, etc.
-
-
-Thanks, Ingo, will do.
-Sorry for html in the last email - mail agent got an
-update and I overlooked html composing become turned on.
-
--- 
-Regards,
-Dmitry Safonov
+On Wednesday 04 May 2016 08:31 PM, Peter Zijlstra wrote:=0A=
+> So I'm fairly sure people rely on the fact you cannot have pagefault=0A=
+> inside a kmap_atomic().=0A=
+=0A=
+So this translates to: any hardware page faults inside kmap_atomic() can't =
+lead to=0A=
+do_page_fault() taking a lock - those can only be ex_table fixups, yes ?=0A=
+Could you please also help explain your earlier comment about kmap_atomic n=
+eeding=0A=
+to disable preemption so that "returned pointer stayed valid". I can't quit=
+e=0A=
+fathom how that can happen=0A=
+=0A=
+> But you could potentially get away with leaving preemption enabled. Give=
+=0A=
+> it a try, see if something goes *bang* ;-)=0A=
+=0A=
+So tried patch further below: on a quad core slowish FPGA setup, concurrent=
+=0A=
+hackbench and LMBench seem to run w/o issues  - so it is not obviously brok=
+en even=0A=
+if not proven otherwise. But the point is highmem page is a slow path anywa=
+ys -=0A=
+needs a PTE update, new TLB entry etc. I hoped to not wiggle even a single =
+cache=0A=
+line for the low page - but seems like that is not possible.=0A=
+=0A=
+OTOH, if we do keep the status quo - then making these 2 cache lines into 1=
+ is not=0A=
+possible either. From reading the orig "decoupling of prremption and page f=
+ault"=0A=
+thread it seems to be because preempt count is per cpu on x86.=0A=
+=0A=
+@@ -67,7 +67,6 @@ void *kmap_atomic(struct page *page)=0A=
+        int idx, cpu_idx;=0A=
+        unsigned long vaddr;=0A=
+ =0A=
+-       preempt_disable();=0A=
+        pagefault_disable();=0A=
+        if (!PageHighMem(page))=0A=
+                return page_address(page);=0A=
+@@ -107,7 +106,6 @@ void __kunmap_atomic(void *kv)=0A=
+        }=0A=
+ =0A=
+        pagefault_enable();=0A=
+-       preempt_enable();=0A=
+ }=0A=
+=0A=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
