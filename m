@@ -1,71 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FDAA6B0005
-	for <linux-mm@kvack.org>; Thu,  5 May 2016 11:57:57 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b203so175035916pfb.1
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 08:57:57 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id vz3si12076416pab.93.2016.05.05.08.57.56
-        for <linux-mm@kvack.org>;
-        Thu, 05 May 2016 08:57:56 -0700 (PDT)
-Message-ID: <1462463770.22178.4.camel@linux.intel.com>
-Subject: Re: [PATCH 0/7] mm: Improve swap path scalability with batched
- operations
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Thu, 05 May 2016 08:56:10 -0700
-In-Reply-To: <20160505074922.GB4386@dhcp22.suse.cz>
-References: <cover.1462306228.git.tim.c.chen@linux.intel.com>
-	 <1462309239.21143.6.camel@linux.intel.com>
-	 <20160504124535.GJ29978@dhcp22.suse.cz>
-	 <1462381986.30611.28.camel@linux.intel.com>
-	 <20160504194901.GG21490@dhcp22.suse.cz> <20160504212506.GA1364@cmpxchg.org>
-	 <20160505074922.GB4386@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A944B6B0005
+	for <linux-mm@kvack.org>; Thu,  5 May 2016 12:24:21 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id d62so194309145iof.1
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 09:24:21 -0700 (PDT)
+Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
+        by mx.google.com with ESMTPS id d184si4966675oig.163.2016.05.05.09.24.20
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 May 2016 09:24:20 -0700 (PDT)
+Received: by mail-oi0-x232.google.com with SMTP id x19so108383346oix.2
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 09:24:20 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20160505152230.GA3994@infradead.org>
+References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>
+	<1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>
+	<5727753F.6090104@plexistor.com>
+	<20160505142433.GA4557@infradead.org>
+	<CAPcyv4gdmo5m=Arf5sp5izJfNaaAkaaMbOzud8KRcBEC8RRu1Q@mail.gmail.com>
+	<20160505152230.GA3994@infradead.org>
+Date: Thu, 5 May 2016 09:24:20 -0700
+Message-ID: <CAPcyv4i1wRv56C=0uAz83ANZL=zv-LpbTuSPnMFo7baZXwWSLg@mail.gmail.com>
+Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
+From: Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, "Kirill A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Boaz Harrosh <boaz@plexistor.com>, linux-block@vger.kernel.org, linux-ext4 <linux-ext4@vger.kernel.org>, Jan Kara <jack@suse.cz>, Matthew Wilcox <matthew@wil.cx>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, XFS Developers <xfs@oss.sgi.com>, Jens Axboe <axboe@fb.com>, Linux MM <linux-mm@kvack.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, 2016-05-05 at 09:49 +0200, Michal Hocko wrote:
-> On Wed 04-05-16 17:25:06, Johannes Weiner wrote:
-> > 
-> >A 
-> 
-> > 
-> > > 
-> > > > 
-> > > > I understand that the patch set is a little large. Any better
-> > > > ideas for achieving similar ends will be appreciated. A I put
-> > > > out these patches in the hope that it will spur solutions
-> > > > to improve swap.
-> > > > 
-> > > > Perhaps the first two patches to make shrink_page_list into
-> > > > smaller components can be considered first, as a first stepA 
-> > > > to make any changes to the reclaim code easier.
-> > It makes sense that we need to batch swap allocation and swap cache
-> > operations. Unfortunately, the patches as they stand turn
-> > shrink_page_list() into an unreadable mess. This would need better
-> > refactoring before considering them for upstream merging. The swap
-> > allocation batching should not obfuscate the main sequence of
-> > events
-> > that is happening for both file-backed and anonymous pages.
-> That was my first impression as well but to be fair I only skimmed
-> through the patch so I might be just biased by the size.
-> 
-> > 
-> > It'd also be great if the remove_mapping() batching could be done
-> > universally for all pages, given that in many cases file pages from
-> > the same inode also cluster together on the LRU.
-> 
+On Thu, May 5, 2016 at 8:22 AM, Christoph Hellwig <hch@infradead.org> wrote:
+> On Thu, May 05, 2016 at 08:15:32AM -0700, Dan Williams wrote:
+>> > Agreed - makig O_DIRECT less direct than not having it is plain stupid,
+>> > and I somehow missed this initially.
+>>
+>> Of course I disagree because like Dave argues in the msync case we
+>> should do the correct thing first and make it fast later, but also
+>> like Dave this arguing in circles is getting tiresome.
+>
+> We should do the right thing first, and make it fast later.  But this
+> proposal is not getting it right - it still does not handle errors
+> for the fast path, but magically makes it work for direct I/O by
+> in general using a less optional path for O_DIRECT.  It's getting the
+> worst of all choices.
+>
+> As far as I can tell the only sensible option is to:
+>
+>  - always try dax-like I/O first
+>  - have a custom get_user_pages + rw_bytes fallback handles bad blocks
+>    when hitting EIO
 
-Agree. A I didn't try to do something on file mapped pages yet as
-the changes in this patch set is already quite substantial.
-But once we have some agreement on the batching on the anonymous
-pages, the file backed pages could be grouped similarly.
+If you're on board with more special fallbacks for dax-capable block
+devices that indeed opens up the thinking.  The O_DIRECT approach was
+meant to keep the error clearing model close to the traditional block
+device case, but yes that does constrain the implementation in
+sub-optimal ways.
 
-Tim
+However, we still have the alignment problem in the rw_bytes case, how
+do we communicate to the application that only writes with a certain
+size/alignment will clear errors?  That forced alignment assumption
+was the other appeal of O_DIRECT.  Perhaps we can at least start with
+hole punching and block reallocation as the error clearing method
+while we think more about the write-to-clear case?
+
+> And then we need to sort out the concurrent write synchronization.
+> Again there I think we absolutely have to obey Posix for the !O_DIRECT
+> case and can avoid it for O_DIRECT, similar to the existing non-DAX
+> semantics.  If we want any special additional semantics we _will_ need
+> a special O_DAX flag.
+
+Ok, makes sense.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
