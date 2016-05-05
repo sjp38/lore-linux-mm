@@ -1,63 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 32D366B025F
-	for <linux-mm@kvack.org>; Thu,  5 May 2016 17:45:10 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id gw7so132371165pac.0
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 14:45:10 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id 124si13194285pfd.109.2016.05.05.14.45.08
-        for <linux-mm@kvack.org>;
-        Thu, 05 May 2016 14:45:09 -0700 (PDT)
-From: "Verma, Vishal L" <vishal.l.verma@intel.com>
-Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
-Date: Thu, 5 May 2016 21:45:07 +0000
-Message-ID: <1462484695.29294.7.camel@intel.com>
-References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>
-	 <1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>
-	 <5727753F.6090104@plexistor.com> <20160505142433.GA4557@infradead.org>
-	 <CAPcyv4gdmo5m=Arf5sp5izJfNaaAkaaMbOzud8KRcBEC8RRu1Q@mail.gmail.com>
-	 <20160505152230.GA3994@infradead.org>
-In-Reply-To: <20160505152230.GA3994@infradead.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <70E6DC278A3EE74D9541D62DE6070F32@intel.com>
-Content-Transfer-Encoding: base64
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E51A6B0253
+	for <linux-mm@kvack.org>; Thu,  5 May 2016 17:57:35 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id v81so219697462ywa.1
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 14:57:35 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j44si7517474qgd.86.2016.05.05.14.57.34
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 May 2016 14:57:34 -0700 (PDT)
+Date: Thu, 5 May 2016 23:57:31 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] ksm: fix conflict between mmput and
+ scan_get_next_rmap_item
+Message-ID: <20160505215731.GK28755@redhat.com>
+References: <1462452176-33462-1-git-send-email-zhouchengming1@huawei.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1462452176-33462-1-git-send-email-zhouchengming1@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Williams, Dan J" <dan.j.williams@intel.com>, "hch@infradead.org" <hch@infradead.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>, "matthew@wil.cx" <matthew@wil.cx>
+To: Zhou Chengming <zhouchengming1@huawei.com>
+Cc: akpm@linux-foundation.org, hughd@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, geliangtang@163.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, dingtianhong@huawei.com, huawei.libin@huawei.com, thunder.leizhen@huawei.com, qiuxishi@huawei.com
 
-T24gVGh1LCAyMDE2LTA1LTA1IGF0IDA4OjIyIC0wNzAwLCBDaHJpc3RvcGggSGVsbHdpZyB3cm90
-ZToNCj4gT24gVGh1LCBNYXkgMDUsIDIwMTYgYXQgMDg6MTU6MzJBTSAtMDcwMCwgRGFuIFdpbGxp
-YW1zIHdyb3RlOg0KPiA+IA0KPiA+ID4gDQo+ID4gPiBBZ3JlZWQgLSBtYWtpZyBPX0RJUkVDVCBs
-ZXNzIGRpcmVjdCB0aGFuIG5vdCBoYXZpbmcgaXQgaXMgcGxhaW4NCj4gPiA+IHN0dXBpZCwNCj4g
-PiA+IGFuZCBJIHNvbWVob3cgbWlzc2VkIHRoaXMgaW5pdGlhbGx5Lg0KPiA+IE9mIGNvdXJzZSBJ
-IGRpc2FncmVlIGJlY2F1c2UgbGlrZSBEYXZlIGFyZ3VlcyBpbiB0aGUgbXN5bmMgY2FzZSB3ZQ0K
-PiA+IHNob3VsZCBkbyB0aGUgY29ycmVjdCB0aGluZyBmaXJzdCBhbmQgbWFrZSBpdCBmYXN0IGxh
-dGVyLCBidXQgYWxzbw0KPiA+IGxpa2UgRGF2ZSB0aGlzIGFyZ3VpbmcgaW4gY2lyY2xlcyBpcyBn
-ZXR0aW5nIHRpcmVzb21lLg0KPiBXZSBzaG91bGQgZG8gdGhlIHJpZ2h0IHRoaW5nIGZpcnN0LCBh
-bmQgbWFrZSBpdCBmYXN0IGxhdGVyLsKgwqBCdXQgdGhpcw0KPiBwcm9wb3NhbCBpcyBub3QgZ2V0
-dGluZyBpdCByaWdodCAtIGl0IHN0aWxsIGRvZXMgbm90IGhhbmRsZSBlcnJvcnMNCj4gZm9yIHRo
-ZSBmYXN0IHBhdGgsIGJ1dCBtYWdpY2FsbHkgbWFrZXMgaXQgd29yayBmb3IgZGlyZWN0IEkvTyBi
-eQ0KPiBpbiBnZW5lcmFsIHVzaW5nIGEgbGVzcyBvcHRpb25hbCBwYXRoIGZvciBPX0RJUkVDVC7C
-oMKgSXQncyBnZXR0aW5nIHRoZQ0KPiB3b3JzdCBvZiBhbGwgY2hvaWNlcy4NCj4gDQo+IEFzIGZh
-ciBhcyBJIGNhbiB0ZWxsIHRoZSBvbmx5IHNlbnNpYmxlIG9wdGlvbiBpcyB0bzoNCj4gDQo+IMKg
-LSBhbHdheXMgdHJ5IGRheC1saWtlIEkvTyBmaXJzdA0KPiDCoC0gaGF2ZSBhIGN1c3RvbSBnZXRf
-dXNlcl9wYWdlcyArIHJ3X2J5dGVzIGZhbGxiYWNrIGhhbmRsZXMgYmFkIGJsb2Nrcw0KPiDCoMKg
-wqB3aGVuIGhpdHRpbmcgRUlPDQoNCkknbSBub3Qgc3VyZSBJIGNvbXBsZXRlbHkgdW5kZXJzdGFu
-ZCBob3cgdGhpcyB3aWxsIHdvcms/IENhbiB5b3UgZXhwbGFpbg0KYSBiaXQ/IFdvdWxkIHdlIGhh
-dmUgdG8gZXhwb3J0IHJ3X2J5dGVzIHVwIHRvIGxheWVycyBhYm92ZSB0aGUgcG1lbQ0KZHJpdmVy
-PyBXaGVyZSBkb2VzIGdldF91c2VyX3BhZ2VzIGNvbWUgaW4/DQoNCj4gDQo+IEFuZCB0aGVuIHdl
-IG5lZWQgdG8gc29ydCBvdXQgdGhlIGNvbmN1cnJlbnQgd3JpdGUgc3luY2hyb25pemF0aW9uLg0K
-PiBBZ2FpbiB0aGVyZSBJIHRoaW5rIHdlIGFic29sdXRlbHkgaGF2ZSB0byBvYmV5IFBvc2l4IGZv
-ciB0aGUgIU9fRElSRUNUDQo+IGNhc2UgYW5kIGNhbiBhdm9pZCBpdCBmb3IgT19ESVJFQ1QsIHNp
-bWlsYXIgdG8gdGhlIGV4aXN0aW5nIG5vbi1EQVgNCj4gc2VtYW50aWNzLsKgwqBJZiB3ZSB3YW50
-IGFueSBzcGVjaWFsIGFkZGl0aW9uYWwgc2VtYW50aWNzIHdlIF93aWxsXyBuZWVkDQo+IGEgc3Bl
-Y2lhbCBPX0RBWCBmbGFnLg0KPiBfX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19f
-X19fX19fX19fXw0KPiBMaW51eC1udmRpbW0gbWFpbGluZyBsaXN0DQo+IExpbnV4LW52ZGltbUBs
-aXN0cy4wMS5vcmcNCj4gaHR0cHM6Ly9saXN0cy4wMS5vcmcvbWFpbG1hbi9saXN0aW5mby9saW51
-eC1udmRpbW0=
+Hello Zhou,
+
+Great catch.
+
+On Thu, May 05, 2016 at 08:42:56PM +0800, Zhou Chengming wrote:
+>  	remove_trailing_rmap_items(slot, ksm_scan.rmap_list);
+> +	up_read(&mm->mmap_sem);
+>  
+>  	spin_lock(&ksm_mmlist_lock);
+>  	ksm_scan.mm_slot = list_entry(slot->mm_list.next,
+> @@ -1666,16 +1667,12 @@ next_mm:
+>  		 */
+>  		hash_del(&slot->link);
+>  		list_del(&slot->mm_list);
+> -		spin_unlock(&ksm_mmlist_lock);
+>  
+>  		free_mm_slot(slot);
+>  		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+> -		up_read(&mm->mmap_sem);
+>  		mmdrop(mm);
+
+I thought the mmap_sem for reading prevented a race of the above
+clear_bit against a concurrent madvise(MADV_MERGEABLE) which takes the
+mmap_sem for writing. After this change can't __ksm_enter run
+concurrently with the clear_bit above introducing a different SMP race
+condition?
+
+> -	} else {
+> -		spin_unlock(&ksm_mmlist_lock);
+> -		up_read(&mm->mmap_sem);
+
+The strict obviously safe fix is just to invert the above two,
+up_read; spin_unlock.
+
+Then I found another instance of this same SMP race condition in
+unmerge_and_remove_all_rmap_items() that you didn't fix.
+
+Actually for the other instance of the bug the implementation above
+that releases the mmap_sem early sounds safe, because it's a
+ksm_text_exit that takes the clear_bit path, not just the fact we
+didn't find a vma with VM_MERGEABLE set and we garbage collect the
+mm_slot, while the "mm" may still alive. In the other case the "mm"
+isn't alive anymore so the race with MADV_MERGEABLE shouldn't be
+possible to materialize.
+
+Could you fix it by just inverting the up_read/spin_unlock order, in
+the place you patched, and add this comment:
+
+	} else {
+		/*
+		 * up_read(&mm->mmap_sem) first because after
+		 * spin_unlock(&ksm_mmlist_lock) run, the "mm" may
+		 * already have been freed under us by __ksm_exit()
+		 * because the "mm_slot" is still hashed and
+		 * ksm_scan.mm_slot doesn't point to it anymore.
+		 */
+		up_read(&mm->mmap_sem);
+		spin_unlock(&ksm_mmlist_lock);
+	}
+
+And in unmerge_and_remove_all_rmap_items() same thing, except there
+you can apply your up_read() early and you can just drop the "else"
+clause.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
