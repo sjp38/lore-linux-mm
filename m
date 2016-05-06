@@ -1,93 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AAECB6B0266
-	for <linux-mm@kvack.org>; Fri,  6 May 2016 17:53:39 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id xm6so174511393pab.3
-        for <linux-mm@kvack.org>; Fri, 06 May 2016 14:53:39 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BF436B0269
+	for <linux-mm@kvack.org>; Fri,  6 May 2016 17:53:44 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b203so253578449pfb.1
+        for <linux-mm@kvack.org>; Fri, 06 May 2016 14:53:44 -0700 (PDT)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id l9si20592411pav.105.2016.05.06.14.53.38
+        by mx.google.com with ESMTP id l9si20592411pav.105.2016.05.06.14.53.43
         for <linux-mm@kvack.org>;
-        Fri, 06 May 2016 14:53:38 -0700 (PDT)
+        Fri, 06 May 2016 14:53:43 -0700 (PDT)
 From: Vishal Verma <vishal.l.verma@intel.com>
-Subject: [PATCH v5 0/5] dax: handling media errors (clear-on-zero only)
-Date: Fri,  6 May 2016 15:53:06 -0600
-Message-Id: <1462571591-3361-1-git-send-email-vishal.l.verma@intel.com>
+Subject: [PATCH v5 1/5] dax: fallback from pmd to pte on error
+Date: Fri,  6 May 2016 15:53:07 -0600
+Message-Id: <1462571591-3361-2-git-send-email-vishal.l.verma@intel.com>
+In-Reply-To: <1462571591-3361-1-git-send-email-vishal.l.verma@intel.com>
+References: <1462571591-3361-1-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Vishal Verma <vishal.l.verma@intel.com>, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Boaz Harrosh <boaz@plexistor.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Boaz Harrosh <boaz@plexistor.com>
 
-Until now, dax has been disabled if media errors were found on
-any device. This series attempts to address that.
+From: Dan Williams <dan.j.williams@intel.com>
 
-The first two patches from Dan re-enable dax even when media
-errors are present.
+In preparation for consulting a badblocks list in pmem_direct_access(),
+teach dax_pmd_fault() to fallback rather than fail immediately upon
+encountering an error.  The thought being that reducing the span of the
+dax request may avoid the error region.
 
-The third patch from Matthew removes the zeroout path from dax
-entirely, making zeroout operations always go through the driver
-(The motivation is that if a backing device has media errors,
-and we create a sparse file on it, we don't want the initial
-zeroing to happen via dax, we want to give the block driver a
-chance to clear the errors).
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+ fs/dax.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Patch 4 reduces our calls to clear_pmem from dax in the
-truncate/hole-punch cases. We check if the range being truncated
-is sector aligned/sized, and if so, send blkdev_issue_zeroout
-instead of clear_pmem so that errors can be handled better by
-the driver.
-
-Patch 5 fixes a redundant comment in DAX and is mostly unrelated
-to the rest of this series.
-
-This series also depends on/is based on Jan Kara's DAX Locking
-fixes series [1].
-
-
-[1]: http://www.spinics.net/lists/linux-mm/msg105819.html
-
-v5:
- - Drop the patch that attempts to clear-errors-on-write till we
-   reach consensus on how to handle that.
- - Don't pass blk_dax_ctl to direct_access, instead pass in all the
-   required arguments individually (Christoph, Dan)
-
-v4:
- - Remove the dax->direct_IO fallbacks entirely. Instead, go through
-   the usual direct_IO path when we're in O_DIRECT, and use dax_IO
-   for other, non O_DIRECT IO. (Dan, Christoph)
-
-v3:
- - Wrapper-ize the direct_IO fallback again and make an exception
-   for -EIOCBQUEUED (Jeff, Dan)
- - Reduce clear_pmem usage in DAX to the minimum
-
-
-Dan Williams (2):
-  dax: fallback from pmd to pte on error
-  dax: enable dax in the presence of known media errors (badblocks)
-
-Matthew Wilcox (1):
-  dax: use sb_issue_zerout instead of calling dax_clear_sectors
-
-Vishal Verma (2):
-  dax: for truncate/hole-punch, do zeroing through the driver if
-    possible
-  dax: fix a comment in dax_zero_page_range and dax_truncate_page
-
- Documentation/filesystems/dax.txt | 32 ++++++++++++++++
- arch/powerpc/sysdev/axonram.c     |  2 +-
- block/ioctl.c                     |  9 -----
- drivers/block/brd.c               |  2 +-
- drivers/nvdimm/pmem.c             | 10 ++++-
- drivers/s390/block/dcssblk.c      |  2 +-
- fs/block_dev.c                    |  2 +-
- fs/dax.c                          | 78 ++++++++++++++-------------------------
- fs/ext2/inode.c                   |  7 ++--
- fs/xfs/xfs_bmap_util.c            | 15 ++------
- include/linux/blkdev.h            |  2 +-
- include/linux/dax.h               |  1 -
- 12 files changed, 80 insertions(+), 82 deletions(-)
-
+diff --git a/fs/dax.c b/fs/dax.c
+index 5a34f08..52f0044 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -1111,8 +1111,8 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+ 		long length = dax_map_atomic(bdev, &dax);
+ 
+ 		if (length < 0) {
+-			result = VM_FAULT_SIGBUS;
+-			goto out;
++			dax_pmd_dbg(&bh, address, "dax-error fallback");
++			goto fallback;
+ 		}
+ 		if (length < PMD_SIZE) {
+ 			dax_pmd_dbg(&bh, address, "dax-length too small");
 -- 
 2.5.5
 
