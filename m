@@ -1,51 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C2856B025F
-	for <linux-mm@kvack.org>; Fri,  6 May 2016 11:04:09 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id y6so140864363ywe.0
-        for <linux-mm@kvack.org>; Fri, 06 May 2016 08:04:09 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e66si9798035qgf.125.2016.05.06.08.04.03
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 May 2016 08:04:04 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 3/3] mm: thp: split_huge_pmd_address() comment improvement
-Date: Fri,  6 May 2016 17:04:00 +0200
-Message-Id: <1462547040-1737-4-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1462547040-1737-1-git-send-email-aarcange@redhat.com>
-References: <1462547040-1737-1-git-send-email-aarcange@redhat.com>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1361A6B025E
+	for <linux-mm@kvack.org>; Fri,  6 May 2016 11:10:59 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id gw7so161629514pac.0
+        for <linux-mm@kvack.org>; Fri, 06 May 2016 08:10:59 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id u4si18254111pfu.157.2016.05.06.08.10.57
+        for <linux-mm@kvack.org>;
+        Fri, 06 May 2016 08:10:58 -0700 (PDT)
+From: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
+Subject: RE: mm: pages are not freed from lru_add_pvecs after process
+ termination
+Date: Fri, 6 May 2016 15:10:00 +0000
+Message-ID: <D6EDEBF1F91015459DB866AC4EE162CC023C402E@IRSMSX103.ger.corp.intel.com>
+References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
+ <5720F2A8.6070406@intel.com> <20160428143710.GC31496@dhcp22.suse.cz>
+ <20160502130006.GD25265@dhcp22.suse.cz>
+ <D6EDEBF1F91015459DB866AC4EE162CC023C182F@IRSMSX103.ger.corp.intel.com>
+ <20160504203643.GI21490@dhcp22.suse.cz>
+ <20160505072122.GA4386@dhcp22.suse.cz>
+In-Reply-To: <20160505072122.GA4386@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Alex Williamson <alex.williamson@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
 
-Comment is partly wrong, this improves it by including the case of
-split_huge_pmd_address() called by try_to_unmap_one if
-TTU_SPLIT_HUGE_PMD is set.
+On Thu 05-05-16 09:21:00, Michal Hocko wrote:=20
+> Or maybe the async nature of flushing turns
+> out to be just impractical and unreliable and we will end up skipping
+> THP (or all compound pages) for pcp LRU add cache. Let's see...
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/huge_memory.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+What if we simply skip lru_add pvecs for compound pages?
+That way we still have compound pages on LRU's, but the problem goes
+away.  It is not quite what this na=EFve patch does, but it works nice for =
+me.
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 9086793..1fbe13d 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -3031,8 +3031,10 @@ void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
- 		return;
- 
- 	/*
--	 * Caller holds the mmap_sem write mode, so a huge pmd cannot
--	 * materialize from under us.
-+	 * Caller holds the mmap_sem write mode or the anon_vma lock,
-+	 * so a huge pmd cannot materialize from under us (khugepaged
-+	 * holds both the mmap_sem write mode and the anon_vma lock
-+	 * write mode).
- 	 */
- 	__split_huge_pmd(vma, pmd, address, freeze);
+diff --git a/mm/swap.c b/mm/swap.c
+index 03aacbc..c75d5e1 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -392,7 +392,9 @@ static void __lru_cache_add(struct page *page)
+        get_page(page);
+        if (!pagevec_space(pvec))
+                __pagevec_lru_add(pvec);
+        pagevec_add(pvec, page);
++       if (PageCompound(page))
++               __pagevec_lru_add(pvec);
+        put_cpu_var(lru_add_pvec);
  }
+
+Do we have any tests that I could use to measure performance impact
+of such changes before I start to tweak it up? Or maybe it doesn't make
+sense at all ?
+
+Thanks,
+Lukas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
