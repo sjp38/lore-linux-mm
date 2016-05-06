@@ -1,157 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 811266B025F
-	for <linux-mm@kvack.org>; Fri,  6 May 2016 08:45:12 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id n2so229418440obo.1
-        for <linux-mm@kvack.org>; Fri, 06 May 2016 05:45:12 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0103.outbound.protection.outlook.com. [157.56.112.103])
-        by mx.google.com with ESMTPS id tt9si7428667obb.74.2016.05.06.05.45.09
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DE0A66B007E
+	for <linux-mm@kvack.org>; Fri,  6 May 2016 10:24:35 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id j68so243573743qke.1
+        for <linux-mm@kvack.org>; Fri, 06 May 2016 07:24:35 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j6si4906987qgf.34.2016.05.06.07.24.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 06 May 2016 05:45:10 -0700 (PDT)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH 4/4] x86/kasan: Instrument user memory access API
-Date: Fri, 6 May 2016 15:45:22 +0300
-Message-ID: <1462538722-1574-4-git-send-email-aryabinin@virtuozzo.com>
-In-Reply-To: <1462538722-1574-1-git-send-email-aryabinin@virtuozzo.com>
-References: <1462538722-1574-1-git-send-email-aryabinin@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 May 2016 07:24:35 -0700 (PDT)
+Date: Fri, 6 May 2016 16:24:31 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v2] ksm: fix conflict between mmput and
+ scan_get_next_rmap_item
+Message-ID: <20160506142431.GA4855@redhat.com>
+References: <1462505256-37301-1-git-send-email-zhouchengming1@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1462505256-37301-1-git-send-email-zhouchengming1@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, x86@kernel.org
+To: Zhou Chengming <zhouchengming1@huawei.com>
+Cc: akpm@linux-foundation.org, hughd@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, geliangtang@163.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, dingtianhong@huawei.com, huawei.libin@huawei.com, thunder.leizhen@huawei.com, qiuxishi@huawei.com
 
-Exchange between user and kernel memory is coded in assembly language.
-Which means that such accesses won't be spotted by KASAN as a compiler
-instruments only C code.
-Add explicit KASAN checks to user memory access API to ensure that
-userspace writes to (or reads from) a valid kernel memory.
+On Fri, May 06, 2016 at 11:27:36AM +0800, Zhou Chengming wrote:
+> @@ -1650,16 +1647,22 @@ next_mm:
+>  		 */
+>  		hash_del(&slot->link);
+>  		list_del(&slot->mm_list);
+> -		spin_unlock(&ksm_mmlist_lock);
+>  
+>  		free_mm_slot(slot);
+>  		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+>  		up_read(&mm->mmap_sem);
+>  		mmdrop(mm);
+>  	} else {
+> -		spin_unlock(&ksm_mmlist_lock);
+>  		up_read(&mm->mmap_sem);
+>  	}
+> +	/*
+> +	 * up_read(&mm->mmap_sem) first because after
+> +	 * spin_unlock(&ksm_mmlist_lock) run, the "mm" may
+> +	 * already have been freed under us by __ksm_exit()
+> +	 * because the "mm_slot" is still hashed and
+> +	 * ksm_scan.mm_slot doesn't point to it anymore.
+> +	 */
+> +	spin_unlock(&ksm_mmlist_lock);
+>  
+>  	/* Repeat until we've completed scanning the whole list */
+>  	slot = ksm_scan.mm_slot;
 
-Note: Unlike others strncpy_from_user() is written mostly in C and KASAN
-sees memory accesses in it. However, it makes sense to add explicit check
-for all @count bytes that *potentially* could be written to the kernel.
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: x86@kernel.org
----
- arch/x86/include/asm/uaccess.h    | 5 +++++
- arch/x86/include/asm/uaccess_64.h | 7 +++++++
- lib/strncpy_from_user.c           | 2 ++
- 3 files changed, 14 insertions(+)
+While the above patch is correct, I would however prefer if you could
+update it to keep releasing the ksm_mmlist_lock as before (I'm talking
+only about the quoted part, not the other one not quoted), because
+it's "strictier" and it better documents that it's only needed up
+until:
 
-diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-index 0b17fad..5dd6d18 100644
---- a/arch/x86/include/asm/uaccess.h
-+++ b/arch/x86/include/asm/uaccess.h
-@@ -5,6 +5,7 @@
-  */
- #include <linux/errno.h>
- #include <linux/compiler.h>
-+#include <linux/kasan-checks.h>
- #include <linux/thread_info.h>
- #include <linux/string.h>
- #include <asm/asm.h>
-@@ -732,6 +733,8 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
- 
- 	might_fault();
- 
-+	kasan_check_write(to, n);
-+
- 	/*
- 	 * While we would like to have the compiler do the checking for us
- 	 * even in the non-constant size case, any false positives there are
-@@ -765,6 +768,8 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
- {
- 	int sz = __compiletime_object_size(from);
- 
-+	kasan_check_read(from, n);
-+
- 	might_fault();
- 
- 	/* See the comment in copy_from_user() above. */
-diff --git a/arch/x86/include/asm/uaccess_64.h b/arch/x86/include/asm/uaccess_64.h
-index 3076986..2eac2aa 100644
---- a/arch/x86/include/asm/uaccess_64.h
-+++ b/arch/x86/include/asm/uaccess_64.h
-@@ -7,6 +7,7 @@
- #include <linux/compiler.h>
- #include <linux/errno.h>
- #include <linux/lockdep.h>
-+#include <linux/kasan-checks.h>
- #include <asm/alternative.h>
- #include <asm/cpufeatures.h>
- #include <asm/page.h>
-@@ -109,6 +110,7 @@ static __always_inline __must_check
- int __copy_from_user(void *dst, const void __user *src, unsigned size)
- {
- 	might_fault();
-+	kasan_check_write(dst, size);
- 	return __copy_from_user_nocheck(dst, src, size);
- }
- 
-@@ -175,6 +177,7 @@ static __always_inline __must_check
- int __copy_to_user(void __user *dst, const void *src, unsigned size)
- {
- 	might_fault();
-+	kasan_check_read(src, size);
- 	return __copy_to_user_nocheck(dst, src, size);
- }
- 
-@@ -242,12 +245,14 @@ int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
- static __must_check __always_inline int
- __copy_from_user_inatomic(void *dst, const void __user *src, unsigned size)
- {
-+	kasan_check_write(dst, size);
- 	return __copy_from_user_nocheck(dst, src, size);
- }
- 
- static __must_check __always_inline int
- __copy_to_user_inatomic(void __user *dst, const void *src, unsigned size)
- {
-+	kasan_check_read(src, size);
- 	return __copy_to_user_nocheck(dst, src, size);
- }
- 
-@@ -258,6 +263,7 @@ static inline int
- __copy_from_user_nocache(void *dst, const void __user *src, unsigned size)
- {
- 	might_fault();
-+	kasan_check_write(dst, size);
- 	return __copy_user_nocache(dst, src, size, 1);
- }
- 
-@@ -265,6 +271,7 @@ static inline int
- __copy_from_user_inatomic_nocache(void *dst, const void __user *src,
- 				  unsigned size)
- {
-+	kasan_check_write(dst, size);
- 	return __copy_user_nocache(dst, src, size, 0);
- }
- 
-diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
-index 3384032..e3472b0 100644
---- a/lib/strncpy_from_user.c
-+++ b/lib/strncpy_from_user.c
-@@ -1,5 +1,6 @@
- #include <linux/compiler.h>
- #include <linux/export.h>
-+#include <linux/kasan-checks.h>
- #include <linux/uaccess.h>
- #include <linux/kernel.h>
- #include <linux/errno.h>
-@@ -103,6 +104,7 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
- 	if (unlikely(count <= 0))
- 		return 0;
- 
-+	kasan_check_write(dst, count);
- 	max_addr = user_addr_max();
- 	src_addr = (unsigned long)src;
- 	if (likely(src_addr < max_addr)) {
--- 
-2.7.3
+  		hash_del(&slot->link);
+  		list_del(&slot->mm_list);
+
+It should be also a bit more scalable but to me this is just about
+keeping implicit documentation on the locking by keeping it strict.
+
+The fact up_read happens exactly after clear_bit also avoided me to
+overlook that it was really needed, same thing with the
+ksm_mmlist_lock after list_del, I'd like to keep it there and just
+invert the order of spin_unlock; up_read in the else branch.
+
+That should be enough because after hash_del get_mm_slot will return
+NULL so the mmdrop will not happen anymore in __ksm_exit, this is
+further explicit by the code doing mmdrop itself just after
+up_read.
+
+The SMP race condition is fixed by just the two liner that reverse the
+order of spin_unlock; up_read without increasing the size of the
+spinlock critical section for the ksm_scan.address == 0 case. This is
+also why it wasn't reproducible because it's about 1 instruction window.
+
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
