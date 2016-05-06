@@ -1,171 +1,544 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AA436B0262
-	for <linux-mm@kvack.org>; Fri,  6 May 2016 14:10:20 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id e63so264639012iod.2
-        for <linux-mm@kvack.org>; Fri, 06 May 2016 11:10:20 -0700 (PDT)
-Received: from resqmta-po-06v.sys.comcast.net (resqmta-po-06v.sys.comcast.net. [2001:558:fe16:19:96:114:154:165])
-        by mx.google.com with ESMTPS id 92si18770441iog.75.2016.05.06.11.10.19
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AEBF96B0005
+	for <linux-mm@kvack.org>; Fri,  6 May 2016 15:27:47 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w143so50848111wmw.3
+        for <linux-mm@kvack.org>; Fri, 06 May 2016 12:27:47 -0700 (PDT)
+Received: from 1.mo1.mail-out.ovh.net (1.mo1.mail-out.ovh.net. [178.32.127.22])
+        by mx.google.com with ESMTPS id n184si5870508wmn.115.2016.05.06.12.27.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 May 2016 11:10:19 -0700 (PDT)
-Date: Fri, 6 May 2016 13:09:49 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: [PATCH] vmstat: Get rid of the ugly cpu_stat_off variable V2
-Message-ID: <alpine.DEB.2.20.1605061306460.17934@east.gentwo.org>
-Content-Type: text/plain; charset=US-ASCII
+        Fri, 06 May 2016 12:27:46 -0700 (PDT)
+Received: from player168.ha.ovh.net (b6.ovh.net [213.186.33.56])
+	by mo1.mail-out.ovh.net (Postfix) with ESMTP id DBAD2FF9A02
+	for <linux-mm@kvack.org>; Fri,  6 May 2016 21:27:45 +0200 (CEST)
+Subject: Re: [Question] Missing data after DMA read transfer - mm issue with
+ transparent huge page?
+References: <15edf085-c21b-aa1c-9f1f-057d17b8a1a3@morey-chaisemartin.com>
+ <alpine.LSU.2.11.1605022020560.5004@eggly.anvils>
+ <20160503101153.GA7241@gmail.com>
+From: Nicolas Morey-Chaisemartin <devel@morey-chaisemartin.com>
+Message-ID: <7a3b413a-f779-e5c9-654b-27b993d54f5d@morey-chaisemartin.com>
+Date: Fri, 6 May 2016 21:27:34 +0200
+MIME-Version: 1.0
+In-Reply-To: <20160503101153.GA7241@gmail.com>
+Content-Type: multipart/alternative;
+ boundary="------------45FDA5543920101E34328A81"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Tejun Heo <htejun@gmail.com>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: Jerome Glisse <j.glisse@gmail.com>, Hugh Dickins <hughd@google.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alex Williamson <alex.williamson@redhat.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The cpu_stat_off variable is unecessary since we can check if
-a workqueue request is pending otherwise. Removal of
-cpu_stat_off makes it pretty easy for the vmstat shepherd to
-ensure that the proper things happen.
+This is a multi-part message in MIME format.
+--------------45FDA5543920101E34328A81
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 
-Removing the state also removes all races related to it.
-Should a workqueue not be scheduled as needed for vmstat_update
-then the shepherd will notice and schedule it as needed.
-Should a workqueue be unecessarily scheduled then the vmstat
-updater will disable it.
+Thank you all for your time and feedback.
+I am (or soon was) off this week but I'll give your patch a try as soon as I can (some time next week) !
 
-V1->V2:
- - Rediff to proper upstream version
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+Regards
 
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c
-+++ linux/mm/vmstat.c
-@@ -1376,42 +1376,21 @@ static const struct file_operations proc
- static struct workqueue_struct *vmstat_wq;
- static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
- int sysctl_stat_interval __read_mostly = HZ;
--static cpumask_var_t cpu_stat_off;
 
- static void vmstat_update(struct work_struct *w)
- {
--	if (refresh_cpu_vm_stats(true)) {
-+	if (refresh_cpu_vm_stats(true))
- 		/*
- 		 * Counters were updated so we expect more updates
- 		 * to occur in the future. Keep on running the
- 		 * update worker thread.
--		 * If we were marked on cpu_stat_off clear the flag
--		 * so that vmstat_shepherd doesn't schedule us again.
- 		 */
--		if (!cpumask_test_and_clear_cpu(smp_processor_id(),
--						cpu_stat_off)) {
--			queue_delayed_work_on(smp_processor_id(), vmstat_wq,
-+		queue_delayed_work_on(smp_processor_id(), vmstat_wq,
- 				this_cpu_ptr(&vmstat_work),
- 				round_jiffies_relative(sysctl_stat_interval));
--		}
--	} else {
--		/*
--		 * We did not update any counters so the app may be in
--		 * a mode where it does not cause counter updates.
--		 * We may be uselessly running vmstat_update.
--		 * Defer the checking for differentials to the
--		 * shepherd thread on a different processor.
--		 */
--		cpumask_set_cpu(smp_processor_id(), cpu_stat_off);
--	}
- }
+Nicolas
 
- /*
-- * Switch off vmstat processing and then fold all the remaining differentials
-- * until the diffs stay at zero. The function is used by NOHZ and can only be
-- * invoked when tick processing is not active.
-- */
--/*
-  * Check if the diffs for a certain cpu indicate that
-  * an update is needed.
-  */
-@@ -1434,16 +1413,17 @@ static bool need_update(int cpu)
- 	return false;
- }
 
-+/*
-+ * Switch off vmstat processing and then fold all the remaining differentials
-+ * until the diffs stay at zero. The function is used by NOHZ and can only be
-+ * invoked when tick processing is not active.
-+ */
- void quiet_vmstat(void)
- {
- 	if (system_state != SYSTEM_RUNNING)
- 		return;
+Le 05/03/2016 a 12:11 PM, Jerome Glisse a ecrit :
+> On Mon, May 02, 2016 at 09:04:02PM -0700, Hugh Dickins wrote:
+>> On Fri, 29 Apr 2016, Nicolas Morey Chaisemartin wrote:
+>>
+>>> Hi everyone,
+>>>
+>>> This is a repost from a different address as it seems the previous one ended in Gmail junk due to a domain error..
+>> linux-kernel is a very high volume list which few are reading:
+>> that also will account for your lack of response so far
+>> (apart from the indefatigable Alan).
+>>
+>> I've added linux-mm, and some people from another thread regarding
+>> THP and get_user_pages() pins which has been discussed in recent days.
+>>
+>> Make no mistake, the issue you're raising here is definitely not the
+>> same as that one (which is specifically about the new THP refcounting
+>> in v4.5+, whereas you're reporting a problem you've seen in both a
+>> v3.10-based kernel and in v4.5).  But I think their heads are in
+>> gear, much more so than mine, and likely to spot something.
+>>
+>>> I added more info found while blindly debugging the issue.
+>>>
+>>> Short version:
+>>> I'm having an issue with direct DMA transfer from a device to host memory.
+>>> It seems some of the data is not transferring to the appropriate page.
+>>>
+>>> Some more details:
+>>> I'm debugging a home made PCI driver for our board (Kalray), attached to a x86_64 host running centos7 (3.10.0-327.el7.x86_64)
+>>>
+>>> In the current case, a userland application transfers back and forth data through read/write operations on a file.
+>>> On the kernel side, it triggers DMA transfers through the PCI to/from our board memory.
+>>>
+>>> We followed what pretty much all docs said about direct I/O to user buffers:
+>>>
+>>> 1) get_user_pages() (in the current case, it's at most 16 pages at once)
+>>> 2) convert to a scatterlist
+>>> 3) pci_map_sg
+>>> 4) eventually coalesce sg (Intel IOMMU is enabled, so it's usually possible)
+>>> 4) A lot of DMA engine handling code, using the dmaengine layer and virt-dma
+>>> 5) wait for transfer complete, in the mean time, go back to (1) to schedule more work, if any
+>>> 6) pci_unmap_sg
+>>> 7) for read (card2host) transfer, set_page_dirty_lock
+>>> 8) page_cache_release
+>>>
+>>> In 99,9999% it works perfectly.
+>>> However, I have one userland application where a few pages are not written by a read (card2host) transfer.
+>>> The buffer is memset them to a different value so I can check that nothing has overwritten them.
+>>>
+>>> I know (PCI protocol analyser) that the data left our board for the "right" address (the one set in the sg by pci_map_sg).
+>>> I tried reading the data between the pci_unmap_sg and the set_page_dirty, using
+>>>         uint32_t *addr = page_address(trans->pages[0]);
+>>>         dev_warn(&pdata->pdev->dev, "val = %x\n", *addr);
+>>> and it has the expected value.
+>>> But if I try to copy_from_user (using the address coming from userland, the one passed to get_user_pages), the data has not been written and I see the memset value.
+>>>
+>>> New infos:
+>>>
+>>> The issue happens with IOMMU on or off.
+>>> I compiled a kernel with DMA_API_DEBUG enabled and got no warnings or errors.
+>>>
+>>> I digged a little bit deeper with my very small understanding of linux mm and I discovered that:
+>>>  * we are using transparent huge pages
+>>>  * the page 'not transferred' are the last few of a huge page
+>>> More precisely:
+>>> - We have several transfer in flight from the same user buffer
+>>> - Each transfer is 16 pages long
+>>> - At one point in time, we start transferring from another huge page (transfers are still in flight from the previous one)
+>>> - When a transfer from the previous huge page completes, I dumped at the mapcount of the pages from the previous transfers,
+>>>   they are all to 0. The pages are still mapped to dma at this point.
+>>> - A get_user_page to the address of the completed transfer returns return a different struct page * then the on I had.
+>>> But this is before I have unmapped/put_page them back. From my understanding this should not have happened.
+>>>
+>>> I tried the same code with a kernel 4.5 and encountered the same issue
+>>>
+>>> Disabling transparent huge pages makes the issue disapear
+>>>
+>>> Thanks in advance
+>> It does look to me as if pages are being migrated, despite being pinned
+>> by get_user_pages(): and that would be wrong.  Originally I intended
+>> to suggest that THP is probably merely the cause of compaction, with
+>> compaction causing the page migration.  But you posted very interesting
+>> details in an earlier mail on 27th April from <nmorey@kalray.eu>:
+>>
+>>> I ran some more tests:
+>>>
+>>> * Test is OK if transparent huge tlb are disabled
+>>>
+>>> * For all the page where data are not transfered, and only those pages, a call to get_user_page(user vaddr) just before dma_unmap_sg returns a different page from the original one.
+>>> [436477.927279] mppa 0000:03:00.0: org_page= ffffea0009f60080 cur page = ffffea00074e0080
+>>> [436477.927298] page:ffffea0009f60080 count:0 mapcount:1 mapping:          (null) index:0x2
+>>> [436477.927314] page flags: 0x2fffff00008000(tail)
+>>> [436477.927354] page dumped because: org_page
+>>> [436477.927369] page:ffffea00074e0080 count:0 mapcount:1 mapping:          (null) index:0x2
+>>> [436477.927382] page flags: 0x2fffff00008000(tail)
+>>> [436477.927421] page dumped because: cur_page
+>>>
+>>> I'm not sure what to make of this...
+>> That (on the older kernel I think) seems clearly to show that a THP
+>> itself has been migrated: which makes me suspect NUMA migration of
+>> mispaced THPs - migrate_misplaced_transhuge_page().  I'd hoped to
+>> find something obviously wrong there, but haven't quite managed
+>> to bring my brain fully to bear on it, and hope the others Cc'ed
+>> will do so more quickly (or spot the error of your ways instead).
+>>
+>> I do find it suspect, how the migrate_page_copy() is done rather
+>> early, while the old page is still mapped in the pagetable.  And
+>> odd how it inserts the new pmd for a moment, before checking old
+>> page_count and backing out.  But I don't see how either of those
+>> would cause the trouble you see, where the migration goes ahead.
+> So i do not think there is a bug migrate_misplaced_transhuge_page()
+> but i think something is wrong in it see attached patch. I still
+> want to convince myself i am not missing anything before posting
+> that one.
+>
+>
+> Now about this bug, dumb question but do you do get_user_pages with
+> write = 1 because if your device is writting to the page then you
+> must set write to 1.
+>
+> get_user_pages(vaddr, nrpages, 1, 0|1, pages, NULL|vmas);
+>
+>
+> Cheers,
+> Jerome
+>
+> 0001-mm-numa-thp-fix-assumptions-of-migrate_misplaced_tra.patch
+>
+>
+> From 9ded2a5da75a5e736fb36a2c4e2511d9516ecc37 Mon Sep 17 00:00:00 2001
+> From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+> Date: Tue, 3 May 2016 11:53:24 +0200
+> Subject: [PATCH] mm/numa/thp: fix assumptions of
+>  migrate_misplaced_transhuge_page()
+> MIME-Version: 1.0
+> Content-Type: text/plain; charset=UTF-8
+> Content-Transfer-Encoding: 8bit
+>
+> Fix assumptions in migrate_misplaced_transhuge_page() which is only
+> call by do_huge_pmd_numa_page() itself only call by __handle_mm_fault()
+> for pmd with PROT_NONE. This means that if the pmd stays the same
+> then there can be no concurrent get_user_pages / get_user_pages_fast
+> (GUP/GUP_fast). More over because migrate_misplaced_transhuge_page()
+> only do something is page is map once then there can be no GUP from
+> a different process. Finaly, holding the pmd lock assure us that no
+> other part of the kernel will take an extre reference on the page.
+>
+> In the end this means that the failure code path should never be
+> taken unless something is horribly wrong, so convert it to BUG_ON().
+>
+> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  mm/migrate.c | 31 +++++++++++++++++++++----------
+>  1 file changed, 21 insertions(+), 10 deletions(-)
+>
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 6c822a7..6315aac 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1757,6 +1757,14 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+>  	pmd_t orig_entry;
+>  
+>  	/*
+> +	 * What we do here is only valid if pmd_protnone(entry) is true and it
+> +	 * is map in only one vma numamigrate_isolate_page() takes care of that
+> +	 * check.
+> +	 */
+> +	if (!pmd_protnone(entry))
+> +		goto out_unlock;
+> +
+> +	/*
+>  	 * Rate-limit the amount of data that is being migrated to a node.
+>  	 * Optimal placement is no good if the memory bus is saturated and
+>  	 * all the time is being spent migrating!
+> @@ -1797,7 +1805,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+>  	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+>  	ptl = pmd_lock(mm, pmd);
+>  	if (unlikely(!pmd_same(*pmd, entry) || page_count(page) != 2)) {
+> -fail_putback:
+>  		spin_unlock(ptl);
+>  		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+>  
+> @@ -1819,7 +1826,12 @@ fail_putback:
+>  		goto out_unlock;
+>  	}
+>  
+> -	orig_entry = *pmd;
+> +	/*
+> +	 * We are holding the lock so no one can set a new pmd and original pmd
+> +	 * is PROT_NONE thus no one can get_user_pages or get_user_pages_fast
+> +	 * (GUP or GUP_fast) from this point on we can not fail.
+> +	 */
+> +	orig_entry = entry;
+>  	entry = mk_pmd(new_page, vma->vm_page_prot);
+>  	entry = pmd_mkhuge(entry);
+>  	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+> @@ -1837,14 +1849,13 @@ fail_putback:
+>  	set_pmd_at(mm, mmun_start, pmd, entry);
+>  	update_mmu_cache_pmd(vma, address, &entry);
+>  
+> -	if (page_count(page) != 2) {
+> -		set_pmd_at(mm, mmun_start, pmd, orig_entry);
+> -		flush_pmd_tlb_range(vma, mmun_start, mmun_end);
+> -		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);
+> -		update_mmu_cache_pmd(vma, address, &entry);
+> -		page_remove_rmap(new_page, true);
+> -		goto fail_putback;
+> -	}
+> +	/* As said above no one can get reference on the old page nor through
+> +	 * get_user_pages or get_user_pages_fast (GUP/GUP_fast) or through
+> +	 * any other means. To get reference on huge page you need to hold
+> +	 * pmd_lock and we are already holding that lock here and the page
+> +	 * is only mapped once.
+> +	 */
+> +	BUG_ON(page_count(page) != 2);
+>  
+>  	mlock_migrate_page(new_page, page);
+>  	page_remove_rmap(page, true);
 
--	/*
--	 * If we are already in hands of the shepherd then there
--	 * is nothing for us to do here.
--	 */
--	if (cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
-+	if (!delayed_work_pending(this_cpu_ptr(&vmstat_work)))
- 		return;
 
- 	if (!need_update(smp_processor_id()))
-@@ -1458,7 +1438,6 @@ void quiet_vmstat(void)
- 	refresh_cpu_vm_stats(false);
- }
+--------------45FDA5543920101E34328A81
+Content-Type: text/html; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 
--
- /*
-  * Shepherd worker thread that checks the
-  * differentials of processors that have their worker
-@@ -1475,20 +1454,11 @@ static void vmstat_shepherd(struct work_
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    <p>Thank you all for your time and feedback.<br>
+      I am (or soon was) off this week but I'll give your patch a try as
+      soon as I can (some time next week) !</p>
+    <br>
+    <p>Regards</p>
+    <p><br>
+    </p>
+    <p>Nicolas<br>
+    </p>
+    <br>
+    <div class="moz-cite-prefix">Le 05/03/2016 a 12:11 PM, Jerome Glisse
+      a ecrit :<br>
+    </div>
+    <blockquote cite="mid:20160503101153.GA7241@gmail.com" type="cite">
+      <pre wrap="">On Mon, May 02, 2016 at 09:04:02PM -0700, Hugh Dickins wrote:
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">On Fri, 29 Apr 2016, Nicolas Morey Chaisemartin wrote:
 
- 	get_online_cpus();
- 	/* Check processors whose vmstat worker threads have been disabled */
--	for_each_cpu(cpu, cpu_stat_off) {
-+	for_each_online_cpu(cpu) {
- 		struct delayed_work *dw = &per_cpu(vmstat_work, cpu);
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Hi everyone,
 
--		if (need_update(cpu)) {
--			if (cpumask_test_and_clear_cpu(cpu, cpu_stat_off))
-+		if (!delayed_work_pending(dw) && need_update(cpu))
- 				queue_delayed_work_on(cpu, vmstat_wq, dw, 0);
--		} else {
--			/*
--			 * Cancel the work if quiet_vmstat has put this
--			 * cpu on cpu_stat_off because the work item might
--			 * be still scheduled
--			 */
--			cancel_delayed_work(dw);
--		}
+This is a repost from a different address as it seems the previous one ended in Gmail junk due to a domain error..
+</pre>
+        </blockquote>
+        <pre wrap="">
+linux-kernel is a very high volume list which few are reading:
+that also will account for your lack of response so far
+(apart from the indefatigable Alan).
+
+I've added linux-mm, and some people from another thread regarding
+THP and get_user_pages() pins which has been discussed in recent days.
+
+Make no mistake, the issue you're raising here is definitely not the
+same as that one (which is specifically about the new THP refcounting
+in v4.5+, whereas you're reporting a problem you've seen in both a
+v3.10-based kernel and in v4.5).  But I think their heads are in
+gear, much more so than mine, and likely to spot something.
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">I added more info found while blindly debugging the issue.
+
+Short version:
+I'm having an issue with direct DMA transfer from a device to host memory.
+It seems some of the data is not transferring to the appropriate page.
+
+Some more details:
+I'm debugging a home made PCI driver for our board (Kalray), attached to a x86_64 host running centos7 (3.10.0-327.el7.x86_64)
+
+In the current case, a userland application transfers back and forth data through read/write operations on a file.
+On the kernel side, it triggers DMA transfers through the PCI to/from our board memory.
+
+We followed what pretty much all docs said about direct I/O to user buffers:
+
+1) get_user_pages() (in the current case, it's at most 16 pages at once)
+2) convert to a scatterlist
+3) pci_map_sg
+4) eventually coalesce sg (Intel IOMMU is enabled, so it's usually possible)
+4) A lot of DMA engine handling code, using the dmaengine layer and virt-dma
+5) wait for transfer complete, in the mean time, go back to (1) to schedule more work, if any
+6) pci_unmap_sg
+7) for read (card2host) transfer, set_page_dirty_lock
+8) page_cache_release
+
+In 99,9999% it works perfectly.
+However, I have one userland application where a few pages are not written by a read (card2host) transfer.
+The buffer is memset them to a different value so I can check that nothing has overwritten them.
+
+I know (PCI protocol analyser) that the data left our board for the "right" address (the one set in the sg by pci_map_sg).
+I tried reading the data between the pci_unmap_sg and the set_page_dirty, using
+        uint32_t *addr = page_address(trans-&gt;pages[0]);
+        dev_warn(&amp;pdata-&gt;pdev-&gt;dev, "val = %x\n", *addr);
+and it has the expected value.
+But if I try to copy_from_user (using the address coming from userland, the one passed to get_user_pages), the data has not been written and I see the memset value.
+
+New infos:
+
+The issue happens with IOMMU on or off.
+I compiled a kernel with DMA_API_DEBUG enabled and got no warnings or errors.
+
+I digged a little bit deeper with my very small understanding of linux mm and I discovered that:
+ * we are using transparent huge pages
+ * the page 'not transferred' are the last few of a huge page
+More precisely:
+- We have several transfer in flight from the same user buffer
+- Each transfer is 16 pages long
+- At one point in time, we start transferring from another huge page (transfers are still in flight from the previous one)
+- When a transfer from the previous huge page completes, I dumped at the mapcount of the pages from the previous transfers,
+  they are all to 0. The pages are still mapped to dma at this point.
+- A get_user_page to the address of the completed transfer returns return a different struct page * then the on I had.
+But this is before I have unmapped/put_page them back. From my understanding this should not have happened.
+
+I tried the same code with a kernel 4.5 and encountered the same issue
+
+Disabling transparent huge pages makes the issue disapear
+
+Thanks in advance
+</pre>
+        </blockquote>
+        <pre wrap="">
+It does look to me as if pages are being migrated, despite being pinned
+by get_user_pages(): and that would be wrong.  Originally I intended
+to suggest that THP is probably merely the cause of compaction, with
+compaction causing the page migration.  But you posted very interesting
+details in an earlier mail on 27th April from <a class="moz-txt-link-rfc2396E" href="mailto:nmorey@kalray.eu">&lt;nmorey@kalray.eu&gt;</a>:
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">I ran some more tests:
+
+* Test is OK if transparent huge tlb are disabled
+
+* For all the page where data are not transfered, and only those pages, a call to get_user_page(user vaddr) just before dma_unmap_sg returns a different page from the original one.
+[436477.927279] mppa 0000:03:00.0: org_page= ffffea0009f60080 cur page = ffffea00074e0080
+[436477.927298] page:ffffea0009f60080 count:0 mapcount:1 mapping:          (null) index:0x2
+[436477.927314] page flags: 0x2fffff00008000(tail)
+[436477.927354] page dumped because: org_page
+[436477.927369] page:ffffea00074e0080 count:0 mapcount:1 mapping:          (null) index:0x2
+[436477.927382] page flags: 0x2fffff00008000(tail)
+[436477.927421] page dumped because: cur_page
+
+I'm not sure what to make of this...
+</pre>
+        </blockquote>
+        <pre wrap="">
+That (on the older kernel I think) seems clearly to show that a THP
+itself has been migrated: which makes me suspect NUMA migration of
+mispaced THPs - migrate_misplaced_transhuge_page().  I'd hoped to
+find something obviously wrong there, but haven't quite managed
+to bring my brain fully to bear on it, and hope the others Cc'ed
+will do so more quickly (or spot the error of your ways instead).
+
+I do find it suspect, how the migrate_page_copy() is done rather
+early, while the old page is still mapped in the pagetable.  And
+odd how it inserts the new pmd for a moment, before checking old
+page_count and backing out.  But I don't see how either of those
+would cause the trouble you see, where the migration goes ahead.
+</pre>
+      </blockquote>
+      <pre wrap="">
+So i do not think there is a bug migrate_misplaced_transhuge_page()
+but i think something is wrong in it see attached patch. I still
+want to convince myself i am not missing anything before posting
+that one.
+
+
+Now about this bug, dumb question but do you do get_user_pages with
+write = 1 because if your device is writting to the page then you
+must set write to 1.
+
+get_user_pages(vaddr, nrpages, 1, 0|1, pages, NULL|vmas);
+
+
+Cheers,
+Jerome
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"><legend
+          class="mimeAttachmentHeaderName">0001-mm-numa-thp-fix-assumptions-of-migrate_misplaced_tra.patch</legend></fieldset>
+      <br>
+      <pre wrap="">From 9ded2a5da75a5e736fb36a2c4e2511d9516ecc37 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <a class="moz-txt-link-rfc2396E" href="mailto:jglisse@redhat.com">&lt;jglisse@redhat.com&gt;</a>
+Date: Tue, 3 May 2016 11:53:24 +0200
+Subject: [PATCH] mm/numa/thp: fix assumptions of
+ migrate_misplaced_transhuge_page()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Fix assumptions in migrate_misplaced_transhuge_page() which is only
+call by do_huge_pmd_numa_page() itself only call by __handle_mm_fault()
+for pmd with PROT_NONE. This means that if the pmd stays the same
+then there can be no concurrent get_user_pages / get_user_pages_fast
+(GUP/GUP_fast). More over because migrate_misplaced_transhuge_page()
+only do something is page is map once then there can be no GUP from
+a different process. Finaly, holding the pmd lock assure us that no
+other part of the kernel will take an extre reference on the page.
+
+In the end this means that the failure code path should never be
+taken unless something is horribly wrong, so convert it to BUG_ON().
+
+Signed-off-by: Jerome Glisse <a class="moz-txt-link-rfc2396E" href="mailto:jglisse@redhat.com">&lt;jglisse@redhat.com&gt;</a>
+Cc: Kirill A. Shutemov &lt;<a class="moz-txt-link-abbreviated" href="mailto:kirill.shutemov@linux.intel.com">kirill.shutemov@linux.intel.com</a>
+Cc: Mel Gorman <a class="moz-txt-link-rfc2396E" href="mailto:mgorman@suse.de">&lt;mgorman@suse.de&gt;</a>
+Cc: Hugh Dickins <a class="moz-txt-link-rfc2396E" href="mailto:hughd@google.com">&lt;hughd@google.com&gt;</a>
+Cc: Andrea Arcangeli <a class="moz-txt-link-rfc2396E" href="mailto:aarcange@redhat.com">&lt;aarcange@redhat.com&gt;</a>
+---
+ mm/migrate.c | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 6c822a7..6315aac 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1757,6 +1757,14 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	pmd_t orig_entry;
+ 
+ 	/*
++	 * What we do here is only valid if pmd_protnone(entry) is true and it
++	 * is map in only one vma numamigrate_isolate_page() takes care of that
++	 * check.
++	 */
++	if (!pmd_protnone(entry))
++		goto out_unlock;
++
++	/*
+ 	 * Rate-limit the amount of data that is being migrated to a node.
+ 	 * Optimal placement is no good if the memory bus is saturated and
+ 	 * all the time is being spent migrating!
+@@ -1797,7 +1805,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+ 	ptl = pmd_lock(mm, pmd);
+ 	if (unlikely(!pmd_same(*pmd, entry) || page_count(page) != 2)) {
+-fail_putback:
+ 		spin_unlock(ptl);
+ 		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+ 
+@@ -1819,7 +1826,12 @@ fail_putback:
+ 		goto out_unlock;
  	}
- 	put_online_cpus();
+ 
+-	orig_entry = *pmd;
++	/*
++	 * We are holding the lock so no one can set a new pmd and original pmd
++	 * is PROT_NONE thus no one can get_user_pages or get_user_pages_fast
++	 * (GUP or GUP_fast) from this point on we can not fail.
++	 */
++	orig_entry = entry;
+ 	entry = mk_pmd(new_page, vma-&gt;vm_page_prot);
+ 	entry = pmd_mkhuge(entry);
+ 	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+@@ -1837,14 +1849,13 @@ fail_putback:
+ 	set_pmd_at(mm, mmun_start, pmd, entry);
+ 	update_mmu_cache_pmd(vma, address, &amp;entry);
+ 
+-	if (page_count(page) != 2) {
+-		set_pmd_at(mm, mmun_start, pmd, orig_entry);
+-		flush_pmd_tlb_range(vma, mmun_start, mmun_end);
+-		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);
+-		update_mmu_cache_pmd(vma, address, &amp;entry);
+-		page_remove_rmap(new_page, true);
+-		goto fail_putback;
+-	}
++	/* As said above no one can get reference on the old page nor through
++	 * get_user_pages or get_user_pages_fast (GUP/GUP_fast) or through
++	 * any other means. To get reference on huge page you need to hold
++	 * pmd_lock and we are already holding that lock here and the page
++	 * is only mapped once.
++	 */
++	BUG_ON(page_count(page) != 2);
+ 
+ 	mlock_migrate_page(new_page, page);
+ 	page_remove_rmap(page, true);
+</pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
 
-@@ -1504,10 +1474,6 @@ static void __init start_shepherd_timer(
- 		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
- 			vmstat_update);
-
--	if (!alloc_cpumask_var(&cpu_stat_off, GFP_KERNEL))
--		BUG();
--	cpumask_copy(cpu_stat_off, cpu_online_mask);
--
- 	vmstat_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
- 	schedule_delayed_work(&shepherd,
- 		round_jiffies_relative(sysctl_stat_interval));
-@@ -1542,16 +1508,13 @@ static int vmstat_cpuup_callback(struct
- 	case CPU_ONLINE_FROZEN:
- 		refresh_zone_stat_thresholds();
- 		node_set_state(cpu_to_node(cpu), N_CPU);
--		cpumask_set_cpu(cpu, cpu_stat_off);
- 		break;
- 	case CPU_DOWN_PREPARE:
- 	case CPU_DOWN_PREPARE_FROZEN:
- 		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
--		cpumask_clear_cpu(cpu, cpu_stat_off);
- 		break;
- 	case CPU_DOWN_FAILED:
- 	case CPU_DOWN_FAILED_FROZEN:
--		cpumask_set_cpu(cpu, cpu_stat_off);
- 		break;
- 	case CPU_DEAD:
- 	case CPU_DEAD_FROZEN:
+--------------45FDA5543920101E34328A81--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
