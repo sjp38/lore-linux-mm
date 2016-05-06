@@ -1,152 +1,232 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 811826B007E
-	for <linux-mm@kvack.org>; Thu,  5 May 2016 23:35:09 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id xm6so141001483pab.3
-        for <linux-mm@kvack.org>; Thu, 05 May 2016 20:35:09 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id lx17si15420398pab.66.2016.05.05.20.35.08
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 68C9A6B007E
+	for <linux-mm@kvack.org>; Fri,  6 May 2016 00:13:53 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 4so206824972pfw.0
+        for <linux-mm@kvack.org>; Thu, 05 May 2016 21:13:53 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id vy3si15628276pac.128.2016.05.05.21.13.52
         for <linux-mm@kvack.org>;
-        Thu, 05 May 2016 20:35:08 -0700 (PDT)
-Date: Thu, 5 May 2016 21:35:07 -0600
+        Thu, 05 May 2016 21:13:52 -0700 (PDT)
+Date: Thu, 5 May 2016 22:13:50 -0600
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [RFC v3] [PATCH 0/18] DAX page fault locking
-Message-ID: <20160506033507.GA26154@linux.intel.com>
+Subject: Re: [PATCH 16/18] dax: New fault locking
+Message-ID: <20160506041350.GA29628@linux.intel.com>
 References: <1461015341-20153-1-git-send-email-jack@suse.cz>
+ <1461015341-20153-17-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1461015341-20153-1-git-send-email-jack@suse.cz>
+In-Reply-To: <1461015341-20153-17-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>
 Cc: linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>
 
-On Mon, Apr 18, 2016 at 11:35:23PM +0200, Jan Kara wrote:
-> Hello,
+On Mon, Apr 18, 2016 at 11:35:39PM +0200, Jan Kara wrote:
+> Currently DAX page fault locking is racy.
 > 
-> this is my third attempt at DAX page fault locking rewrite. The patch set has
-> passed xfstests both with and without DAX mount option on ext4 and xfs for
-> me and also additional page fault beating using the new page fault stress
-> tests I have added to xfstests. So I'd be grateful if you guys could have a
-> closer look at the patches so that they can be merged. Thanks.
+> CPU0 (write fault)		CPU1 (read fault)
 > 
-> Changes since v2:
-> - lot of additional ext4 fixes and cleanups
-> - make PMD page faults depend on CONFIG_BROKEN instead of #if 0
-> - fixed page reference leak when replacing hole page with a pfn
-> - added some reviewed-by tags
-> - rebased on top of current Linus' tree
+> __dax_fault()			__dax_fault()
+>   get_block(inode, block, &bh, 0) -> not mapped
+> 				  get_block(inode, block, &bh, 0)
+> 				    -> not mapped
+>   if (!buffer_mapped(&bh))
+>     if (vmf->flags & FAULT_FLAG_WRITE)
+>       get_block(inode, block, &bh, 1) -> allocates blocks
+>   if (page) -> no
+> 				  if (!buffer_mapped(&bh))
+> 				    if (vmf->flags & FAULT_FLAG_WRITE) {
+> 				    } else {
+> 				      dax_load_hole();
+> 				    }
+>   dax_insert_mapping()
 > 
-> Changes since v1:
-> - handle wakeups of exclusive waiters properly
-> - fix cow fault races
-> - other minor stuff
+> And we are in a situation where we fail in dax_radix_entry() with -EIO.
 > 
-> General description
+> Another problem with the current DAX page fault locking is that there is
+> no race-free way to clear dirty tag in the radix tree. We can always
+> end up with clean radix tree and dirty data in CPU cache.
 > 
-> The basic idea is that we use a bit in an exceptional radix tree entry as
-> a lock bit and use it similarly to how page lock is used for normal faults.
-> That way we fix races between hole instantiation and read faults of the
-> same index. For now I have disabled PMD faults since there the issues with
-> page fault locking are even worse. Now that Matthew's multi-order radix tree
-> has landed, I can have a look into using that for proper locking of PMD faults
-> but first I want normal pages sorted out.
+> We fix the first problem by introducing locking of exceptional radix
+> tree entries in DAX mappings acting very similarly to page lock and thus
+> synchronizing properly faults against the same mapping index. The same
+> lock can later be used to avoid races when clearing radix tree dirty
+> tag.
 > 
-> In the end I have decided to implement the bit locking directly in the DAX
-> code. Originally I was thinking we could provide something generic directly
-> in the radix tree code but the functions DAX needs are rather specific.
-> Maybe someone else will have a good idea how to distill some generally useful
-> functions out of what I've implemented for DAX but for now I didn't bother
-> with that.
-> 
-> 								Honza
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+> @@ -300,6 +324,259 @@ ssize_t dax_do_io(struct kiocb *iocb, struct inode *inode,
+>  EXPORT_SYMBOL_GPL(dax_do_io);
+>  
+>  /*
+> + * DAX radix tree locking
+> + */
+> +struct exceptional_entry_key {
+> +	struct radix_tree_root *root;
+> +	unsigned long index;
+> +};
 
-Hey Jan,
+I believe that we basically just need the struct exceptional_entry_key to
+uniquely identify an entry, correct?  I agree that we get this with the pair
+[struct radix_tree_root, index], but we also get it with
+[struct address_space, index], and we might want to use the latter here since
+that's the pair that is used to look up the wait queue in
+dax_entry_waitqueue().  Functionally I don't think it matters (correct me if
+I'm wrong), but it makes for a nicer symmetry.
 
-I've been testing with this a bit today, and I hit the following issue with
-generic/231.  I was able to reproduce it 100% of the time with both ext4 and
-XFS.
+> +/*
+> + * Find radix tree entry at given index. If it points to a page, return with
+> + * the page locked. If it points to the exceptional entry, return with the
+> + * radix tree entry locked. If the radix tree doesn't contain given index,
+> + * create empty exceptional entry for the index and return with it locked.
+> + *
+> + * Note: Unlike filemap_fault() we don't honor FAULT_FLAG_RETRY flags. For
+> + * persistent memory the benefit is doubtful. We can add that later if we can
+> + * show it helps.
+> + */
+> +static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index)
+> +{
+> +	void *ret, **slot;
+> +
+> +restart:
+> +	spin_lock_irq(&mapping->tree_lock);
+> +	ret = get_unlocked_mapping_entry(mapping, index, &slot);
+> +	/* No entry for given index? Make sure radix tree is big enough. */
+> +	if (!ret) {
+> +		int err;
+> +
+> +		spin_unlock_irq(&mapping->tree_lock);
+> +		err = radix_tree_preload(
+> +				mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM);
 
-Here's the test:
+In the conversation about v2 of this series you said:
 
-# ./check generic/231
-FSTYP         -- ext4
-PLATFORM      -- Linux/x86_64 lorwyn 4.6.0-rc5+
-MKFS_OPTIONS  -- /dev/pmem0p2
-MOUNT_OPTIONS -- -o dax -o context=system_u:object_r:nfs_t:s0 /dev/pmem0p2 /mnt/xfstests_scratch
+> Note that we take the hit for dropping the lock only if we really need to
+> allocate new radix tree node so about once per 64 new entries. So it is not
+> too bad.
 
-generic/231 28s ..../check: line 542:  1545 Segmentation fault      ./$seq > $tmp.rawout 2>&1
- [failed, exit status 139] - output mismatch (see /root/xfstests/results//generic/231.out.bad)
-    --- tests/generic/231.out	2016-01-12 09:24:26.420085531 -0700
-    +++ /root/xfstests/results//generic/231.out.bad	2016-05-05 21:25:18.629675139 -0600
-    @@ -1,16 +1,3 @@
-     Qe output created by 231
-     === FSX Standard Mode, Memory Mapping, 1 Tasks ===
-     All 20000 operations completed A-OK!
-    -Comparing user usage
-    -Comparing group usage
-    -=== FSX Standard Mode, Memory Mapping, 4 Tasks ===
-    -All 20000 operations completed A-OK!
-    ...
-    (Run 'diff -u tests/generic/231.out /root/xfstests/results//generic/231.out.bad'  to see the entire diff)
+I think this is incorrect.  We get here whenever we get a NULL return from
+__radix_tree_lookup().  I believe that this happens if we don't have a node,
+in which case we need an allocation, but I think it also happens in the case
+where we do have a node and we just have a NULL slot in that node.
 
-And the log, passed through kasan_symbolize.py:
+For the behavior you're looking for (only preload if you need to do an
+allocation), you probably need to check the 'slot' we get back from
+get_unlocked_mapping_entry(), yea?
 
-t mm/workingset.c:423!
-invalid opcode: 0000 [#1] SMP
-Modules linked in: nd_pmem nd_btt nd_e820 libnvdimm
-CPU: 1 PID: 1545 Comm: 231 Not tainted 4.6.0-rc5+ #1
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.8.2-20150714_191134- 04/01/2014
-task: ffff880505853180 ti: ffff880504f08000 task.ti: ffff880504f08000
-RIP: 0010:[<ffffffff81207b93>]  [<ffffffff81207b93>] shadow_lru_isolate+0x183/0x1a0
-RSP: 0018:ffff880504f0bbe8  EFLAGS: 00010006
-RAX: ffff880094f304b8 RBX: ffff880094f304a8 RCX: ffff880094f306b8
-RDX: 0000000000000077 RSI: 0000000000000000 RDI: ffff8800b8483000
-RBP: ffff880504f0bc10 R08: 0000000000000004 R09: 0000000000000000
-R10: ffff88009ba51ec8 R11: 0000000000000080 R12: ffff8800b8483000
-R13: ffff88009ba51eb0 R14: ffff88009ba51e98 R15: ffff8800b8483048
-FS:  00007f3332e14700(0000) GS:ffff88051a200000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007f3332e2c000 CR3: 000000051425c000 CR4: 00000000000006e0
-Stack:
- ffff8800b8483000 ffff8800b8483048 ffff880504f0bd18 ffff880094f11b78
- ffff880094f304a8 ffff880504f0bc60 ffffffff81206c7f 0000000000000000
- 0000000000000000 ffffffff81207a10 ffff880504f0bd10 0000000000000000
-Call Trace:
- [<ffffffff81206c7f>] __list_lru_walk_one.isra.3+0x9f/0x150 mm/list_lru.c:223
- [<ffffffff81206d53>] list_lru_walk_one+0x23/0x30 mm/list_lru.c:263
- [<     inline     >] list_lru_shrink_walk include/linux/list_lru.h:170
- [<ffffffff81207bea>] scan_shadow_nodes+0x3a/0x50 mm/workingset.c:457
- [<     inline     >] do_shrink_slab mm/vmscan.c:344
- [<ffffffff811ea37e>] shrink_slab.part.40+0x1fe/0x420 mm/vmscan.c:442
- [<ffffffff811ea5c9>] shrink_slab+0x29/0x30 mm/vmscan.c:406
- [<ffffffff811ec831>] drop_slab_node+0x31/0x60 mm/vmscan.c:460
- [<ffffffff811ec89f>] drop_slab+0x3f/0x70 mm/vmscan.c:471
- [<ffffffff812d8c39>] drop_caches_sysctl_handler+0x69/0xb0 fs/drop_caches.c:58
- [<ffffffff812f2937>] proc_sys_call_handler+0xe7/0x100 fs/proc/proc_sysctl.c:543
- [<ffffffff812f2964>] proc_sys_write+0x14/0x20 fs/proc/proc_sysctl.c:561
- [<ffffffff81269aa7>] __vfs_write+0x37/0x120 fs/read_write.c:529
- [<ffffffff8126a3fc>] vfs_write+0xac/0x1a0 fs/read_write.c:578
- [<     inline     >] SYSC_write fs/read_write.c:625
- [<ffffffff8126b8d8>] SyS_write+0x58/0xd0 fs/read_write.c:617
- [<ffffffff81a92a3c>] entry_SYSCALL_64_fastpath+0x1f/0xbd arch/x86/entry/entry_64.S:207
-Code: 66 90 66 66 90 e8 4e 53 88 00 fa 66 66 90 66 66 90 e8 52 5c ef ff 4c 89 e7 e8 ba a1 88 00 89 d8 5b 41 5c 41 5d 41 5e 41 5f 5d c3 <0f> 0b 0f 0b 0f 0b 0f 0b 0f 0b 0f 0b 0f 0b 66 66 66 66 66 66 2e
-RIP  [<ffffffff81207b93>] shadow_lru_isolate+0x183/0x1a0 mm/workingset.c:448
- RSP <ffff880504f0bbe8>
----[ end trace 8e4a52e5c9e07c83 ]---
+> +/*
+> + * Delete exceptional DAX entry at @index from @mapping. Wait for radix tree
+> + * entry to get unlocked before deleting it.
+> + */
+> +int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index)
+> +{
+> +	void *entry;
+> +
+> +	spin_lock_irq(&mapping->tree_lock);
+> +	entry = get_unlocked_mapping_entry(mapping, index, NULL);
+> +	/*
+> +	 * Caller should make sure radix tree modifications don't race and
+> +	 * we have seen exceptional entry here before.
+> +	 */
+> +	if (WARN_ON_ONCE(!entry || !radix_tree_exceptional_entry(entry))) {
 
-This passes 100% of the time with my baseline, which was just v4.6-rc5.
+dax_delete_mapping_entry() is only called from clear_exceptional_entry().
+With this new code we've changed the behavior of that call path a little.
 
-For convenience I've pushed a working tree of what I was testing here:
+In the various places where clear_exceptional_entry() is called, the code
+batches up a bunch of entries in a pvec via pagevec_lookup_entries().  We
+don't hold the mapping->tree_lock between the time this lookup happens and the
+time that the entry is passed to clear_exceptional_entry(). This is why the
+old code did a verification that the entry passed in matched what was still
+currently present in the radix tree.  This was done in the DAX case via
+radix_tree_delete_item(), and it was open coded in clear_exceptional_entry()
+for the page cache case.  In both cases if the entry didn't match what was
+currently in the tree, we bailed without doing anything.
 
-https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=jan_testing
+This new code doesn't verify against the 'entry' passed to
+clear_exceptional_entry(), but instead makes sure it is an exceptional entry
+before removing, and if not it does a WARN_ON_ONCE().
 
-My setup is just a pair of PMEM ramdisks for my test device and scratch device.
-Let me know if you have any trouble reproducing this result.
+This changes things because:
 
-Thanks,
-- Ross
+a) If the exceptional entry changed, say from a plain lock entry to an actual
+DAX entry, we wouldn't notice, and we would just clear the latter out.  My
+guess is that this is fine, I just wanted to call it out.
+
+b) If we have a non-exceptional entry here now, say because our lock entry has
+been swapped out for a zero page, we will WARN_ON_ONCE() and return without a
+removal.  I think we may want to silence the WARN_ON_ONCE(), as I believe this
+could happen during normal operation and we don't want to scare anyone. :)
+
+> +/*
+>   * The user has performed a load from a hole in the file.  Allocating
+>   * a new page in the file would cause excessive storage usage for
+>   * workloads with sparse files.  We allocate a page cache page instead.
+> @@ -307,15 +584,24 @@ EXPORT_SYMBOL_GPL(dax_do_io);
+>   * otherwise it will simply fall out of the page cache under memory
+>   * pressure without ever having been dirtied.
+>   */
+> -static int dax_load_hole(struct address_space *mapping, struct page *page,
+> -							struct vm_fault *vmf)
+> +static int dax_load_hole(struct address_space *mapping, void *entry,
+> +			 struct vm_fault *vmf)
+>  {
+> -	if (!page)
+> -		page = find_or_create_page(mapping, vmf->pgoff,
+> -						GFP_KERNEL | __GFP_ZERO);
+> -	if (!page)
+> -		return VM_FAULT_OOM;
+> +	struct page *page;
+> +
+> +	/* Hole page already exists? Return it...  */
+> +	if (!radix_tree_exceptional_entry(entry)) {
+> +		vmf->page = entry;
+> +		return VM_FAULT_LOCKED;
+> +	}
+>  
+> +	/* This will replace locked radix tree entry with a hole page */
+> +	page = find_or_create_page(mapping, vmf->pgoff,
+> +				   vmf->gfp_mask | __GFP_ZERO);
+
+This replacement happens via page_cache_tree_insert(), correct?  In this case,
+who wakes up anyone waiting on the old lock entry that we just killed?  In the
+non-hole case we would traverse through put_locked_mapping_entry(), but I
+don't see that in the hole case.
+
+> @@ -963,23 +1228,18 @@ EXPORT_SYMBOL_GPL(dax_pmd_fault);
+>  int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+>  {
+>  	struct file *file = vma->vm_file;
+> -	int error;
+> -
+> -	/*
+> -	 * We pass NO_SECTOR to dax_radix_entry() because we expect that a
+> -	 * RADIX_DAX_PTE entry already exists in the radix tree from a
+> -	 * previous call to __dax_fault().  We just want to look up that PTE
+> -	 * entry using vmf->pgoff and make sure the dirty tag is set.  This
+> -	 * saves us from having to make a call to get_block() here to look
+> -	 * up the sector.
+> -	 */
+> -	error = dax_radix_entry(file->f_mapping, vmf->pgoff, NO_SECTOR, false,
+> -			true);
+> +	struct address_space *mapping = file->f_mapping;
+> +	void *entry;
+> +	pgoff_t index = vmf->pgoff;
+>  
+> -	if (error == -ENOMEM)
+> -		return VM_FAULT_OOM;
+> -	if (error)
+> -		return VM_FAULT_SIGBUS;
+> +	spin_lock_irq(&mapping->tree_lock);
+> +	entry = get_unlocked_mapping_entry(mapping, index, NULL);
+> +	if (!entry || !radix_tree_exceptional_entry(entry))
+> +		goto out;
+> +	radix_tree_tag_set(&mapping->page_tree, index, PAGECACHE_TAG_DIRTY);
+> +	put_unlocked_mapping_entry(mapping, index, entry);
+
+I really like how simple this function has become. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
