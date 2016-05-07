@@ -1,36 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AF0F16B0271
-	for <linux-mm@kvack.org>; Fri,  6 May 2016 18:48:17 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id xm6so175993029pab.3
-        for <linux-mm@kvack.org>; Fri, 06 May 2016 15:48:17 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f22si20211049pfj.46.2016.05.06.15.48.16
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 901BF6B0005
+	for <linux-mm@kvack.org>; Sat,  7 May 2016 00:04:20 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 77so265542201pfz.3
+        for <linux-mm@kvack.org>; Fri, 06 May 2016 21:04:20 -0700 (PDT)
+Received: from mail-pf0-x236.google.com (mail-pf0-x236.google.com. [2607:f8b0:400e:c00::236])
+        by mx.google.com with ESMTPS id yt2si22400822pab.188.2016.05.06.21.04.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 May 2016 15:48:16 -0700 (PDT)
-Date: Fri, 6 May 2016 15:48:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/4] kasan/tests: add tests for user memory access
- functions
-Message-Id: <20160506154815.1a2fcfa25112e48f9bb7c321@linux-foundation.org>
-In-Reply-To: <1462538722-1574-1-git-send-email-aryabinin@virtuozzo.com>
-References: <1462538722-1574-1-git-send-email-aryabinin@virtuozzo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 06 May 2016 21:04:19 -0700 (PDT)
+Received: by mail-pf0-x236.google.com with SMTP id c189so57825491pfb.3
+        for <linux-mm@kvack.org>; Fri, 06 May 2016 21:04:19 -0700 (PDT)
+Date: Fri, 6 May 2016 21:04:09 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] ksm: fix conflict between mmput and
+ scan_get_next_rmap_item
+In-Reply-To: <572C0674.9080006@huawei.com>
+Message-ID: <alpine.LSU.2.11.1605062010260.2310@eggly.anvils>
+References: <1462452176-33462-1-git-send-email-zhouchengming1@huawei.com> <20160505140745.32b100a6d100a86d59f1d11b@linux-foundation.org> <572C0674.9080006@huawei.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
+To: zhouchengming <zhouchengming1@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, geliangtang@163.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, dingtianhong@huawei.com, huawei.libin@huawei.com, thunder.leizhen@huawei.com, qiuxishi@huawei.com
 
-On Fri, 6 May 2016 15:45:19 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+On Fri, 6 May 2016, zhouchengming wrote:
+> On 2016/5/6 5:07, Andrew Morton wrote:
+> > On Thu, 5 May 2016 20:42:56 +0800 Zhou Chengming<zhouchengming1@huawei.com>
+> > wrote:
+> > 
+> > > A concurrency issue about KSM in the function scan_get_next_rmap_item.
+> > > 
+> > > task A (ksmd):				|task B (the mm's task):
+> > > 					|
+> > > mm = slot->mm;				|
+> > > down_read(&mm->mmap_sem);		|
+> > > 					|
+> > > ...					|
+> > > 					|
+> > > spin_lock(&ksm_mmlist_lock);		|
+> > > 					|
+> > > ksm_scan.mm_slot go to the next slot;	|
+> > > 					|
+> > > spin_unlock(&ksm_mmlist_lock);		|
+> > > 					|mmput() ->
+> > > 					|	ksm_exit():
+> > > 					|
+> > > 					|spin_lock(&ksm_mmlist_lock);
+> > > 					|if (mm_slot&&  ksm_scan.mm_slot !=
+> > > mm_slot) {
+> > > 					|	if (!mm_slot->rmap_list) {
+> > > 					|		easy_to_free = 1;
+> > > 					|		...
+> > > 					|
+> > > 					|if (easy_to_free) {
+> > > 					|	mmdrop(mm);
+> > > 					|	...
+> > > 					|
+> > > 					|So this mm_struct will be freed
+> > > successfully.
 
-> This patch adds some tests for user memory access API.
-> KASAN doesn't pass these tests yet, but follow on patches will fix that.
+Good catch, yes.  Note that the mmdrop(mm) shown above is not the one that
+frees the mm_struct: the whole address space has to be torn down before
+we reach the mmdrop(mm) which actually frees the mm_struct.  But you're
+right that there's no serialization against ksmd in that interval, so if
+ksmd is rescheduled or interrupted for a long time, yes that mm_struct
+might be freed by the time of its up_read() below.
 
-I'll move this patch from [1/4] to [4/4] to avoid the minor bisection
-hole.
+> > > 					|
+> > > up_read(&mm->mmap_sem);			|
+> > > 
+> > > As we can see above, the ksmd thread may access a mm_struct that already
+> > > been freed to the kmem_cache.
+> > > Suppose a fork will get this mm_struct from the kmem_cache, the ksmd
+> > > thread
+> > > then call up_read(&mm->mmap_sem), will cause mmap_sem.count to become -1.
+> > > I changed the scan_get_next_rmap_item function refered to the khugepaged
+> > > scan function.
+> > 
+> > Thanks.
+> > 
+> > We need to decide whether this fix should be backported into earlier
+> > (-stable) kernels.  Can you tell us how easily this is triggered and
+> > share your thoughts on this?
+
+Not easy to trigger at all, I think, and I've never seen it or heard
+a report of it; but possible.  It can only happen when there are one or
+more VM_MERGEABLE areas in the process, but they're all empty or swapped
+out when it exits (the easy_to_free route which presents this problem is
+only taken in that !mm_slot->rmap_list case - intended to minimize the
+drag on quick processes which exit before ksmd even reaches them).
+
+But if ksmd is preempted for a long time in between its spin_unlock
+and its up_read, then yes it can happen.  Fix should go back to
+2.6.32, I don't think there's been much change here since it went in.
+
+> > 
+> > 
+> > .
+> > 
+> 
+> I write a patch that can easily trigger this bug.
+> When ksmd go to sleep, if a fork get this mm_struct, BUG_ON
+> will be triggered.
+
+Please don't use the patch below to test the final version of your fix
+(including latest suggestions from Andrea): mm->owner is updated even
+before the final mmput() which calls ksm_exit(), so BUGging on a
+change of mm->owner says nothing about how likely it would be to
+up_read on a freed mm_struct.
+
+Hugh
+
+> 
+> From eedfdd12eb11858f69ff4a4300acad42946ca260 Mon Sep 17 00:00:00 2001
+> From: Zhou Chengming <zhouchengming1@huawei.com>
+> Date: Thu, 5 May 2016 17:49:22 +0800
+> Subject: [PATCH] ksm: trigger a bug
+> 
+> Signed-off-by: Zhou Chengming <zhouchengming1@huawei.com>
+> ---
+>  mm/ksm.c |   17 +++++++++++++++++
+>  1 files changed, 17 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index ca6d2a0..676368c 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -1519,6 +1519,18 @@ static struct rmap_item *get_next_rmap_item(struct
+> mm_slot *mm_slot,
+>  	return rmap_item;
+>  }
+> 
+> +static void trigger_a_bug(struct task_struct *p, struct mm_struct *mm)
+> +{
+> +	/* send KILL sig to the task, hope the mm_struct will be freed */
+> +	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+> +	/* sleep for 5s, the mm_struct will be freed and another fork
+> +	 * will use this mm_struct
+> +	 */
+> +	schedule_timeout(msecs_to_jiffies(5000));
+> +	/* the mm_struct owned by another task */
+> +	BUG_ON(mm->owner != p);
+> +}
+> +
+>  static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+>  {
+>  	struct mm_struct *mm;
+> @@ -1526,6 +1538,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct
+> page **page)
+>  	struct vm_area_struct *vma;
+>  	struct rmap_item *rmap_item;
+>  	int nid;
+> +	struct task_struct *taskp;
+> 
+>  	if (list_empty(&ksm_mm_head.mm_list))
+>  		return NULL;
+> @@ -1636,6 +1649,8 @@ next_mm:
+>  	remove_trailing_rmap_items(slot, ksm_scan.rmap_list);
+> 
+>  	spin_lock(&ksm_mmlist_lock);
+> +	/* get the mm's task now in the ksm_mmlist_lock */
+> +	taskp = mm->owner;
+>  	ksm_scan.mm_slot = list_entry(slot->mm_list.next,
+>  						struct mm_slot, mm_list);
+>  	if (ksm_scan.address == 0) {
+> @@ -1651,6 +1666,7 @@ next_mm:
+>  		hash_del(&slot->link);
+>  		list_del(&slot->mm_list);
+>  		spin_unlock(&ksm_mmlist_lock);
+> +		trigger_a_bug(taskp, mm);
+> 
+>  		free_mm_slot(slot);
+>  		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+> @@ -1658,6 +1674,7 @@ next_mm:
+>  		mmdrop(mm);
+>  	} else {
+>  		spin_unlock(&ksm_mmlist_lock);
+> +		trigger_a_bug(taskp, mm);
+>  		up_read(&mm->mmap_sem);
+>  	}
+> 
+> -- 
+> 1.7.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
