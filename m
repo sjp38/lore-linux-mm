@@ -1,189 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 901BF6B0005
-	for <linux-mm@kvack.org>; Sat,  7 May 2016 00:04:20 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 77so265542201pfz.3
-        for <linux-mm@kvack.org>; Fri, 06 May 2016 21:04:20 -0700 (PDT)
-Received: from mail-pf0-x236.google.com (mail-pf0-x236.google.com. [2607:f8b0:400e:c00::236])
-        by mx.google.com with ESMTPS id yt2si22400822pab.188.2016.05.06.21.04.19
+Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 446816B0005
+	for <linux-mm@kvack.org>; Sat,  7 May 2016 04:58:42 -0400 (EDT)
+Received: by mail-ob0-f200.google.com with SMTP id je7so278948514obb.0
+        for <linux-mm@kvack.org>; Sat, 07 May 2016 01:58:42 -0700 (PDT)
+Received: from g1t5424.austin.hp.com (g1t5424.austin.hp.com. [15.216.225.54])
+        by mx.google.com with ESMTPS id o21si21703433ioo.91.2016.05.07.01.58.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 May 2016 21:04:19 -0700 (PDT)
-Received: by mail-pf0-x236.google.com with SMTP id c189so57825491pfb.3
-        for <linux-mm@kvack.org>; Fri, 06 May 2016 21:04:19 -0700 (PDT)
-Date: Fri, 6 May 2016 21:04:09 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] ksm: fix conflict between mmput and
- scan_get_next_rmap_item
-In-Reply-To: <572C0674.9080006@huawei.com>
-Message-ID: <alpine.LSU.2.11.1605062010260.2310@eggly.anvils>
-References: <1462452176-33462-1-git-send-email-zhouchengming1@huawei.com> <20160505140745.32b100a6d100a86d59f1d11b@linux-foundation.org> <572C0674.9080006@huawei.com>
+        Sat, 07 May 2016 01:58:41 -0700 (PDT)
+From: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>
+Subject: RE: [PATCH] kasan: improve double-free detection
+Date: Sat, 7 May 2016 08:56:42 +0000
+Message-ID: <20E775CA4D599049A25800DE5799F6DD1F627358@G4W3225.americas.hpqcorp.net>
+References: <20160502094920.GA3005@cherokee.in.rdlabs.hpecorp.net>
+ <CACT4Y+YV4A_YbDq5asowLJPUODottNHAKScWoRdUx6uy+TN-Uw@mail.gmail.com>
+ <CACT4Y+Z_+crRUm0U89YwW3x99dtx9cfPoO+L6mD-uyzfZAMkKw@mail.gmail.com>
+ <20E775CA4D599049A25800DE5799F6DD1F61F1B2@G9W0752.americas.hpqcorp.net>
+ <CACT4Y+azLKpGXSqs2=7PKZLNHd61LN7FiAQeWLhw3yApVHadXQ@mail.gmail.com>
+ <20E775CA4D599049A25800DE5799F6DD1F624B08@G4W3225.americas.hpqcorp.net>
+ <CACT4Y+bow7r43x=OR+1tyn7p_eMDKuAfH+LG1uROU2+Lc45Ctg@mail.gmail.com>
+ <20E775CA4D599049A25800DE5799F6DD1F625C60@G4W3225.americas.hpqcorp.net>
+ <CACT4Y+bUwH6gWoj1X=xSdRcP85Oyz8O4tQpykii+E70S5OiEdw@mail.gmail.com>
+In-Reply-To: <CACT4Y+bUwH6gWoj1X=xSdRcP85Oyz8O4tQpykii+E70S5OiEdw@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhouchengming <zhouchengming1@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, geliangtang@163.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, dingtianhong@huawei.com, huawei.libin@huawei.com, thunder.leizhen@huawei.com, qiuxishi@huawei.com
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 6 May 2016, zhouchengming wrote:
-> On 2016/5/6 5:07, Andrew Morton wrote:
-> > On Thu, 5 May 2016 20:42:56 +0800 Zhou Chengming<zhouchengming1@huawei.com>
-> > wrote:
-> > 
-> > > A concurrency issue about KSM in the function scan_get_next_rmap_item.
-> > > 
-> > > task A (ksmd):				|task B (the mm's task):
-> > > 					|
-> > > mm = slot->mm;				|
-> > > down_read(&mm->mmap_sem);		|
-> > > 					|
-> > > ...					|
-> > > 					|
-> > > spin_lock(&ksm_mmlist_lock);		|
-> > > 					|
-> > > ksm_scan.mm_slot go to the next slot;	|
-> > > 					|
-> > > spin_unlock(&ksm_mmlist_lock);		|
-> > > 					|mmput() ->
-> > > 					|	ksm_exit():
-> > > 					|
-> > > 					|spin_lock(&ksm_mmlist_lock);
-> > > 					|if (mm_slot&&  ksm_scan.mm_slot !=
-> > > mm_slot) {
-> > > 					|	if (!mm_slot->rmap_list) {
-> > > 					|		easy_to_free = 1;
-> > > 					|		...
-> > > 					|
-> > > 					|if (easy_to_free) {
-> > > 					|	mmdrop(mm);
-> > > 					|	...
-> > > 					|
-> > > 					|So this mm_struct will be freed
-> > > successfully.
-
-Good catch, yes.  Note that the mmdrop(mm) shown above is not the one that
-frees the mm_struct: the whole address space has to be torn down before
-we reach the mmdrop(mm) which actually frees the mm_struct.  But you're
-right that there's no serialization against ksmd in that interval, so if
-ksmd is rescheduled or interrupted for a long time, yes that mm_struct
-might be freed by the time of its up_read() below.
-
-> > > 					|
-> > > up_read(&mm->mmap_sem);			|
-> > > 
-> > > As we can see above, the ksmd thread may access a mm_struct that already
-> > > been freed to the kmem_cache.
-> > > Suppose a fork will get this mm_struct from the kmem_cache, the ksmd
-> > > thread
-> > > then call up_read(&mm->mmap_sem), will cause mmap_sem.count to become -1.
-> > > I changed the scan_get_next_rmap_item function refered to the khugepaged
-> > > scan function.
-> > 
-> > Thanks.
-> > 
-> > We need to decide whether this fix should be backported into earlier
-> > (-stable) kernels.  Can you tell us how easily this is triggered and
-> > share your thoughts on this?
-
-Not easy to trigger at all, I think, and I've never seen it or heard
-a report of it; but possible.  It can only happen when there are one or
-more VM_MERGEABLE areas in the process, but they're all empty or swapped
-out when it exits (the easy_to_free route which presents this problem is
-only taken in that !mm_slot->rmap_list case - intended to minimize the
-drag on quick processes which exit before ksmd even reaches them).
-
-But if ksmd is preempted for a long time in between its spin_unlock
-and its up_read, then yes it can happen.  Fix should go back to
-2.6.32, I don't think there's been much change here since it went in.
-
-> > 
-> > 
-> > .
-> > 
-> 
-> I write a patch that can easily trigger this bug.
-> When ksmd go to sleep, if a fork get this mm_struct, BUG_ON
-> will be triggered.
-
-Please don't use the patch below to test the final version of your fix
-(including latest suggestions from Andrea): mm->owner is updated even
-before the final mmput() which calls ksm_exit(), so BUGging on a
-change of mm->owner says nothing about how likely it would be to
-up_read on a freed mm_struct.
-
-Hugh
-
-> 
-> From eedfdd12eb11858f69ff4a4300acad42946ca260 Mon Sep 17 00:00:00 2001
-> From: Zhou Chengming <zhouchengming1@huawei.com>
-> Date: Thu, 5 May 2016 17:49:22 +0800
-> Subject: [PATCH] ksm: trigger a bug
-> 
-> Signed-off-by: Zhou Chengming <zhouchengming1@huawei.com>
-> ---
->  mm/ksm.c |   17 +++++++++++++++++
->  1 files changed, 17 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index ca6d2a0..676368c 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -1519,6 +1519,18 @@ static struct rmap_item *get_next_rmap_item(struct
-> mm_slot *mm_slot,
->  	return rmap_item;
->  }
-> 
-> +static void trigger_a_bug(struct task_struct *p, struct mm_struct *mm)
-> +{
-> +	/* send KILL sig to the task, hope the mm_struct will be freed */
-> +	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
-> +	/* sleep for 5s, the mm_struct will be freed and another fork
-> +	 * will use this mm_struct
-> +	 */
-> +	schedule_timeout(msecs_to_jiffies(5000));
-> +	/* the mm_struct owned by another task */
-> +	BUG_ON(mm->owner != p);
-> +}
-> +
->  static struct rmap_item *scan_get_next_rmap_item(struct page **page)
->  {
->  	struct mm_struct *mm;
-> @@ -1526,6 +1538,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct
-> page **page)
->  	struct vm_area_struct *vma;
->  	struct rmap_item *rmap_item;
->  	int nid;
-> +	struct task_struct *taskp;
-> 
->  	if (list_empty(&ksm_mm_head.mm_list))
->  		return NULL;
-> @@ -1636,6 +1649,8 @@ next_mm:
->  	remove_trailing_rmap_items(slot, ksm_scan.rmap_list);
-> 
->  	spin_lock(&ksm_mmlist_lock);
-> +	/* get the mm's task now in the ksm_mmlist_lock */
-> +	taskp = mm->owner;
->  	ksm_scan.mm_slot = list_entry(slot->mm_list.next,
->  						struct mm_slot, mm_list);
->  	if (ksm_scan.address == 0) {
-> @@ -1651,6 +1666,7 @@ next_mm:
->  		hash_del(&slot->link);
->  		list_del(&slot->mm_list);
->  		spin_unlock(&ksm_mmlist_lock);
-> +		trigger_a_bug(taskp, mm);
-> 
->  		free_mm_slot(slot);
->  		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
-> @@ -1658,6 +1674,7 @@ next_mm:
->  		mmdrop(mm);
->  	} else {
->  		spin_unlock(&ksm_mmlist_lock);
-> +		trigger_a_bug(taskp, mm);
->  		up_read(&mm->mmap_sem);
->  	}
-> 
-> -- 
-> 1.7.7
+PiA+PiA+PiA+PiBJIG1pc3NlZCB0aGF0IEFsZXhhbmRlciBhbHJlYWR5IGxhbmRlZCBwYXRjaGVz
+IHRoYXQgcmVkdWNlIGhlYWRlciBzaXplDQo+ID4+ID4+ID4+IHRvIDE2IGJ5dGVzLg0KPiA+PiA+
+PiA+PiBJdCBpcyBub3QgT0sgdG8gaW5jcmVhc2UgdGhlbSBhZ2Fpbi4gUGxlYXNlIGxlYXZlIHN0
+YXRlIGFzIGJpdGZpZWxkDQo+ID4+ID4+ID4+IGFuZCB1cGRhdGUgaXQgd2l0aCBDQVMgKGlmIHdl
+IGludHJvZHVjZSBoZWxwZXIgZnVuY3Rpb25zIGZvciBzdGF0ZQ0KPiA+PiA+PiA+PiBtYW5pcHVs
+YXRpb24sIHRoZXkgd2lsbCBoaWRlIHRoZSBDQVMgbG9vcCwgd2hpY2ggaXMgbmljZSkuDQo+ID4+
+ID4+ID4+DQo+ID4+ID4+ID4NCj4gPj4gPj4gPiBBdmFpbGFibGUgQ0FTIHByaW1pdGl2ZXMvY29t
+cGlsZXIgZG8gbm90IHN1cHBvcnQgQ0FTIHdpdGggYml0ZmllbGQuIEkNCj4gPj4gcHJvcG9zZQ0K
+PiA+PiA+PiA+IHRvIGNoYW5nZSBrYXNhbl9hbGxvY19tZXRhIHRvOg0KPiA+PiA+PiA+DQo+ID4+
+ID4+ID4gc3RydWN0IGthc2FuX2FsbG9jX21ldGEgew0KPiA+PiA+PiA+ICAgICAgICAgc3RydWN0
+IGthc2FuX3RyYWNrIHRyYWNrOw0KPiA+PiA+PiA+ICAgICAgICAgdTE2IHNpemVfZGVsdGE7ICAg
+ICAgICAgLyogb2JqZWN0X3NpemUgLSBhbGxvYyBzaXplICovDQo+ID4+ID4+ID4gICAgICAgICB1
+OCBzdGF0ZTsgICAgICAgICAgICAgICAgICAgIC8qIGVudW0ga2FzYW5fc3RhdGUgKi8NCj4gPj4g
+Pj4gPiAgICAgICAgIHU4IHJlc2VydmVkMTsNCj4gPj4gPj4gPiAgICAgICAgIHUzMiByZXNlcnZl
+ZDI7DQo+ID4+ID4+ID4gfQ0KPiA+PiA+PiA+DQo+ID4+ID4+ID4gVGhpcyBzaHJpbmtzIF91c2Vk
+XyBtZXRhIG9iamVjdCBieSAxIGJ5dGUgd3J0IHRoZSBvcmlnaW5hbC4gKGJ0dywgcGF0Y2ggdjEN
+Cj4gPj4gZG9lcw0KPiA+PiA+PiA+IG5vdCBpbmNyZWFzZSBvdmVyYWxsIGFsbG9jIG1ldGEgb2Jq
+ZWN0IHNpemUpLiAiQWxsb2Mgc2l6ZSIsIHdoZXJlIG5lZWRlZCwNCj4gaXMNCj4gPj4gPj4gPiBl
+YXNpbHkgY2FsY3VsYXRlZCBhcyBhIGRlbHRhIGZyb20gY2FjaGUtPm9iamVjdF9zaXplLg0KPiA+
+PiA+Pg0KPiA+PiA+Pg0KPiA+PiA+PiBXaGF0IGlzIHRoZSBtYXhpbXVtIHNpemUgdGhhdCBzbGFi
+IGNhbiBhbGxvY2F0ZT8NCj4gPj4gPj4gSSByZW1lbWJlciBzZWVpbmcgc2xhYnMgYXMgbGFyZ2Ug
+YXMgNE1CIHNvbWUgdGltZSBhZ28gKG9yIGRpZCBJDQo+ID4+ID4+IGNvbmZ1c2UgaXQgd2l0aCBz
+b21ldGhpbmcgZWxzZT8pLiBJZiB0aGVyZSBhcmUgc3VjaCBsYXJnZSBvYmplY3RzLA0KPiA+PiA+
+PiB0aGF0IDIgYnl0ZXMgd29uJ3QgYmUgYWJsZSB0byBob2xkIGV2ZW4gZGVsdGEuDQo+ID4+ID4+
+IEhvd2V2ZXIsIG5vdyBvbiBteSBkZXNrdG9wIEkgZG9uJ3Qgc2VlIHNsYWJzIGxhcmdlciB0aGFu
+IDE2S0IgaW4NCj4gPj4gPj4gL3Byb2Mvc2xhYmluZm8uDQo+ID4+ID4NCj4gPj4gPiBtYXggc2l6
+ZSBmb3IgU0xBQidzIHNsYWIgaXMgMzJNQjsgZGVmYXVsdCBpcyA0TUIuIEkgbXVzdCBoYXZlIGdv
+dHRlbg0KPiBjb25mdXNlZA0KPiA+PiBieQ0KPiA+PiA+IFNMVUIncyA4S0IgbGltaXQuIEFueXdh
+eSwgbmV3IGthc2FuX2FsbG9jX21ldGEgaW4gcGF0Y2ggVjI6DQo+ID4+ID4NCj4gPj4gPiBzdHJ1
+Y3Qga2FzYW5fYWxsb2NfbWV0YSB7DQo+ID4+ID4gICAgICAgICBzdHJ1Y3Qga2FzYW5fdHJhY2sg
+dHJhY2s7DQo+ID4+ID4gICAgICAgICB1bmlvbiB7DQo+ID4+ID4gICAgICAgICAgICAgICAgIHU4
+IGxvY2s7DQo+ID4+ID4gICAgICAgICAgICAgICAgIHN0cnVjdCB7DQo+ID4+ID4gICAgICAgICAg
+ICAgICAgICAgICAgICAgdTMyIGR1bW15IDogODsNCj4gPj4gPiAgICAgICAgICAgICAgICAgICAg
+ICAgICB1MzIgc2l6ZV9kZWx0YSA6IDI0OyAgICAvKiBvYmplY3Rfc2l6ZSAtIGFsbG9jIHNpemUg
+Ki8NCj4gPj4gPiAgICAgICAgICAgICAgICAgfTsNCj4gPj4gPiAgICAgICAgIH07DQo+ID4+ID4g
+ICAgICAgICB1MzIgc3RhdGUgOiAyOyAgICAgICAgICAgICAgICAgICAgICAgICAgLyogZW51bSBr
+YXNhbl9hbGxvY19zdGF0ZSAqLw0KPiA+PiA+ICAgICAgICAgdTMyIHVudXNlZCA6IDMwOw0KPiA+
+PiA+IH07DQo+ID4+ID4NCj4gPj4gPiBUaGlzIHVzZXMgMiBtb3JlIGJpdHMgdGhhbiBjdXJyZW50
+LCBidXQgZ2l2ZW4gdGhlIGNvbnN0cmFpbnRzIEkgdGhpbmsgdGhpcyBpcw0KPiA+PiA+IGNsb3Nl
+IHRvIG9wdGltYWwuDQo+ID4+DQo+ID4+DQo+ID4+IFdlIHBsYW4gdG8gdXNlIHRoZSB1bnVzZWQg
+cGFydCBmb3IgYW5vdGhlciBkZXBvdF9zdGFja19oYW5kbGVfdCAodTMyKQ0KPiA+PiB0byBtZW1v
+cml6ZSBzdGFjayBvZiB0aGUgbGFzdCBjYWxsX3JjdSBvbiB0aGUgb2JqZWN0ICh0aGlzIHdpbGwN
+Cj4gPj4gZ3JlYXRseSBzaW1wbGlmeSBkZWJ1Z2dpbmcgb2YgdXNlLWFmdGVyLWZyZWUgZm9yIG9i
+amVjdHMgZnJlZWQgYnkNCj4gPj4gcmN1KS4gU28gd2UgbmVlZCB0aGF0IHVudXNlZCBwYXJ0Lg0K
+PiA+Pg0KPiA+PiBJIHdvdWxkIHdvdWxkIHNpbXBseSBwdXQgYWxsIHRoZXNlIGZpZWxkcyBpbnRv
+IGEgc2luZ2xlIHUzMjoNCj4gPj4NCj4gPj4gc3RydWN0IGthc2FuX2FsbG9jX21ldGEgew0KPiA+
+PiAgICAgICAgIHN0cnVjdCBrYXNhbl90cmFjayB0cmFjazsNCj4gPj4gICAgICAgICB1MzIgc3Rh
+dHVzOyAgLy8gY29udGFpbnMgbG9jaywgc3RhdGUgYW5kIHNpemUNCj4gPj4gICAgICAgICB1MzIg
+dW51c2VkOyAgLy8gcmVzZXJ2ZWQgZm9yIGNhbGxfcmN1IHN0YWNrIGhhbmRsZQ0KPiA+PiB9Ow0K
+PiA+Pg0KPiA+PiBBbmQgdGhlbiBzZXBhcmF0ZWx5IGEgaGVscGVyIHR5cGUgdG8gcGFjay91bnBh
+Y2sgc3RhdHVzOg0KPiA+Pg0KPiA+PiB1bmlvbiBrYXNhbl9hbGxvY19zdGF0dXMgew0KPiA+PiAg
+ICAgICAgIHUzMiByYXc7DQo+ID4+ICAgICAgICAgc3RydWN0IHsNCj4gPj4gICAgICAgICAgICAg
+ICAgICAgIHUzMiBsb2NrIDogMTsNCj4gPj4gICAgICAgICAgICAgICAgICAgIHUzMiBzdGF0ZSA6
+IDI7DQo+ID4+ICAgICAgICAgICAgICAgICAgICB1MzIgdW51c2VkIDogNTsNCj4gPj4gICAgICAg
+ICAgICAgICAgICAgIHUzMiBzaXplIDogMjQ7DQo+ID4+ICAgICAgICAgfTsNCj4gPj4gfTsNCj4g
+Pj4NCj4gPj4NCj4gPj4gVGhlbiwgd2hlbiB3ZSBuZWVkIHRvIHJlYWQvdXBkYXRlIHRoZSBoZWFk
+ZXIgd2UgZG8gc29tZXRoaW5nIGxpa2U6DQo+ID4+DQo+ID4+IGthc2FuX2FsbG9jX3N0YXR1cyBz
+dGF0dXMsIG5ld19zdGF0dXM7DQo+ID4+DQo+ID4+IGZvciAoOzspIHsNCj4gPj4gICAgIHN0YXR1
+cy5yYXcgPSBSRUFEX09OQ0UoaGVhZGVyLT5zdGF0dXMpOw0KPiA+PiAgICAgLy8gcmVhZCBzdGF0
+dXMsIGZvcm0gbmV3X3N0YXR1cywgZm9yIGV4YW1wbGU6DQo+ID4+ICAgICBpZiAoc3RhdHVzLmxv
+Y2spDQo+ID4+ICAgICAgICAgICBjb250aW51ZTsNCj4gPj4gICAgIG5ld19zdGF0dXMucmF3ID0g
+c3RhdHVzLnJhdzsNCj4gPj4gICAgIG5ld19zdGF0dXMubG9jayA9IDE7DQo+ID4+ICAgICBpZiAo
+Y2FzKCZoZWFkZXItPnN0YXR1cywgc3RhdHVzLnJhdywgbmV3X3N0YXR1cy5yYXcpKQ0KPiA+PiAg
+ICAgICAgICAgICAgYnJlYWs7DQo+ID4+IH0NCj4gPj4NCj4gPj4NCj4gPj4gVGhpcyB3aWxsIHBy
+b2JhYmx5IG1ha2Ugc3RhdGUgbWFuaXB1bGF0aW9uIGZ1bmN0aW9ucyBmZXcgbGluZXMgbG9uZ2Vy
+LA0KPiA+PiBidXQgc2luY2UgdGhlcmUgYXJlIGxpa2UgMyBzdWNoIGZ1bmN0aW9ucyBJIGRvbid0
+IGFmcmFpZCB0aGF0LiBBbmQgd2UNCj4gPj4gc3RpbGwgY2FuIHVzZSBiaXRmaWVsZCBtYWdpYyB0
+byBleHRyYWN0IGZpZWxkcyBhbmQgbGVhdmUgd2hvbGUgNSBiaXRzDQo+ID4+IHVudXNlZCBiaXRz
+IGZvciBmdXR1cmUuDQoNCnYyIGhhcyBiZWVuIGltcGxlbWVudGVkIHdpdGggeW91ciBzdWdnZXN0
+ZWQgYml0ZmllbGQgbWFnaWMgKyBjYXMgbG9vcC4gVGhhbmtzLg0KDQo+ID4NCj4gPiBUaGUgZGlm
+ZmljdWx0eSBpcyB0aGF0IHRoZSBsb2NrIG1hbmFnZWQgYnkgQ0FTIG5lZWRzIDEgYnl0ZSwgbWlu
+aW51bTsgVEFTIGJpdA0KPiA+IGlzIGV2ZW4gJ3dvcnNlJzogYWRkcmVzcyBtdXN0IGJlIHRoYXQg
+b2YgYW4gdW5zaWduZWQgbG9uZy4NCj4gDQo+IGNtcHhjaGcgZnVuY3Rpb24gY2FuIG9wZXJhdGUg
+b24gYnl0ZXMsIHdvcmRzLCBkb3VibGUgd29yZHMgYW5kIHF1YWQgd29yZHM6DQo+IGh0dHA6Ly9s
+eHIuZnJlZS1lbGVjdHJvbnMuY29tL3NvdXJjZS9hcmNoL3g4Ni9pbmNsdWRlL2FzbS9jbXB4Y2hn
+LmgjTDE0Ng0KPiANCj4gDQo+ID4gTWlnaHQgaXQgYmUgcG9zc2libGUgZm9yIHlvdSB0byBlbXBs
+b3kgdGhlICdrYXNhbl9mcmVlX21ldGEnIGhlYWRlciBmb3IgeW91cg0KPiA+IFJDVSBzdGFjayBo
+YW5kbGUgaW5zdGVhZCBzaW5jZSBLQVNBTiBkb2VzIG5vdCBjdXJyZW50bHkgc3RvcmUgc3RhdGUg
+Zm9yIFJDVQ0KPiA+IHNsYWJzIG9uIGZyZWU/DQo+IA0KPiBGcmVlIG1ldGEgaXMgb3ZlcmxhcHBl
+ZCB3aXRoIHVzZXIgb2JqZWN0LiBUaGUgb2JqZWN0IGlzIG5vdCBmcmVlZCB5ZXQNCj4gd2hlbiBj
+YWxsX3JjdSBpcyBpbnZva2VkLCBzbyBmcmVlIG1ldGEgY2Fubm90IGJlIHVzZWQgeWV0ICh1c2Vy
+IHN0aWxsDQo+IGhvbGRzIG93biBkYXRhIHRoZXJlKS4gRnJlZSBtZXRhIGNhbiBvbmx5IGJlIHVz
+ZWQgYWZ0ZXIga2ZyZWUgaXMNCj4gaW52b2tlZCBvbiB0aGUgb2JqZWN0Lg0KDQpZZWFoOyBJd3Jv
+bmdseSBhc3N1bWVkIHRoYXQga2FzYW5fY2FjaGVfY3JlYXRlKCkgc3BlY2lhbCB0cmVhdG1lbnQg
+Zm9yDQpTTEFCX0RFU1RST1lfQllfUkNVIHNsYWJzIHRvIHN0b3JlIGZyZWUgbWV0YSBhdCBlbmQg
+b2Ygb2JqZWN0IGNvdmVycyBhbGwNCnVzZXMgb2YgUkNVLiBBbnl3YXksICJ1MzIgcmVzZXJ2ZWQi
+IGluIGFsbG9jIG1ldGEgaXMgbm93IGF2YWlsYWJsZSBhZ2Fpbi4uLg0KDQpLdXRob251em8NCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
