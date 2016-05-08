@@ -1,96 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B3B0F6B0005
-	for <linux-mm@kvack.org>; Sun,  8 May 2016 02:05:23 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id d66so74733606vkb.0
-        for <linux-mm@kvack.org>; Sat, 07 May 2016 23:05:23 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTP id h64si7121788ybg.33.2016.05.07.23.05.19
-        for <linux-mm@kvack.org>;
-        Sat, 07 May 2016 23:05:22 -0700 (PDT)
-Message-ID: <572ED69C.2000800@huawei.com>
-Date: Sun, 8 May 2016 14:03:08 +0800
-From: zhouchengming <zhouchengming1@huawei.com>
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 201E76B0005
+	for <linux-mm@kvack.org>; Sun,  8 May 2016 03:02:48 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id y6so232731972ywe.0
+        for <linux-mm@kvack.org>; Sun, 08 May 2016 00:02:48 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id b5si14909119qhc.44.2016.05.08.00.02.45
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 08 May 2016 00:02:47 -0700 (PDT)
+From: Zhou Chengming <zhouchengming1@huawei.com>
+Subject: [PATCH v3] ksm: fix conflict between mmput and scan_get_next_rmap_item
+Date: Sun, 8 May 2016 14:56:26 +0800
+Message-ID: <1462690586-50973-1-git-send-email-zhouchengming1@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] ksm: fix conflict between mmput and scan_get_next_rmap_item
-References: <1462505256-37301-1-git-send-email-zhouchengming1@huawei.com> <20160506142431.GA4855@redhat.com>
-In-Reply-To: <20160506142431.GA4855@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: akpm@linux-foundation.org, hughd@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, geliangtang@163.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, dingtianhong@huawei.com, huawei.libin@huawei.com, thunder.leizhen@huawei.com, qiuxishi@huawei.com
+To: akpm@linux-foundation.org, hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, geliangtang@163.com, minchan@kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, dingtianhong@huawei.com, huawei.libin@huawei.com, thunder.leizhen@huawei.com, qiuxishi@huawei.com, zhouchengming1@huawei.com
 
-On 2016/5/6 22:24, Andrea Arcangeli wrote:
-> On Fri, May 06, 2016 at 11:27:36AM +0800, Zhou Chengming wrote:
->> @@ -1650,16 +1647,22 @@ next_mm:
->>   		 */
->>   		hash_del(&slot->link);
->>   		list_del(&slot->mm_list);
->> -		spin_unlock(&ksm_mmlist_lock);
->>
->>   		free_mm_slot(slot);
->>   		clear_bit(MMF_VM_MERGEABLE,&mm->flags);
->>   		up_read(&mm->mmap_sem);
->>   		mmdrop(mm);
->>   	} else {
->> -		spin_unlock(&ksm_mmlist_lock);
->>   		up_read(&mm->mmap_sem);
->>   	}
->> +	/*
->> +	 * up_read(&mm->mmap_sem) first because after
->> +	 * spin_unlock(&ksm_mmlist_lock) run, the "mm" may
->> +	 * already have been freed under us by __ksm_exit()
->> +	 * because the "mm_slot" is still hashed and
->> +	 * ksm_scan.mm_slot doesn't point to it anymore.
->> +	 */
->> +	spin_unlock(&ksm_mmlist_lock);
->>
->>   	/* Repeat until we've completed scanning the whole list */
->>   	slot = ksm_scan.mm_slot;
->
-> Reviewed-by: Andrea Arcangeli<aarcange@redhat.com>
->
-> While the above patch is correct, I would however prefer if you could
-> update it to keep releasing the ksm_mmlist_lock as before (I'm talking
-> only about the quoted part, not the other one not quoted), because
-> it's "strictier" and it better documents that it's only needed up
-> until:
->
->    		hash_del(&slot->link);
->    		list_del(&slot->mm_list);
->
-> It should be also a bit more scalable but to me this is just about
-> keeping implicit documentation on the locking by keeping it strict.
->
-> The fact up_read happens exactly after clear_bit also avoided me to
-> overlook that it was really needed, same thing with the
-> ksm_mmlist_lock after list_del, I'd like to keep it there and just
-> invert the order of spin_unlock; up_read in the else branch.
+A concurrency issue about KSM in the function scan_get_next_rmap_item.
 
-Thanks a lot for your review and comment. It's my fault to misunderstand
-your last reply. Yes it's better and more scalable to just invert the 
-order of spin_unlock/up_read in the else branch. And it's also enough.
+task A (ksmd):				|task B (the mm's task):
+					|
+mm = slot->mm;				|
+down_read(&mm->mmap_sem);		|
+					|
+...					|
+					|
+spin_lock(&ksm_mmlist_lock);		|
+					|
+ksm_scan.mm_slot go to the next slot;	|
+					|
+spin_unlock(&ksm_mmlist_lock);		|
+					|mmput() ->
+					|	ksm_exit():
+					|
+					|spin_lock(&ksm_mmlist_lock);
+					|if (mm_slot && ksm_scan.mm_slot != mm_slot) {
+					|	if (!mm_slot->rmap_list) {
+					|		easy_to_free = 1;
+					|		...
+					|
+					|if (easy_to_free) {
+					|	mmdrop(mm);
+					|	...
+					|
+					|So this mm_struct may be freed in the mmput().
+					|
+up_read(&mm->mmap_sem);			|
 
-Thanks!
->
-> That should be enough because after hash_del get_mm_slot will return
-> NULL so the mmdrop will not happen anymore in __ksm_exit, this is
-> further explicit by the code doing mmdrop itself just after
-> up_read.
->
-> The SMP race condition is fixed by just the two liner that reverse the
-> order of spin_unlock; up_read without increasing the size of the
-> spinlock critical section for the ksm_scan.address == 0 case. This is
-> also why it wasn't reproducible because it's about 1 instruction window.
->
-> Thanks!
-> Andrea
->
-> .
->
+As we can see above, the ksmd thread may access a mm_struct that already
+been freed to the kmem_cache.
+Suppose a fork will get this mm_struct from the kmem_cache, the ksmd thread
+then call up_read(&mm->mmap_sem), will cause mmap_sem.count to become -1.
+>From the suggestion of Andrea Arcangeli, unmerge_and_remove_all_rmap_items
+has the same SMP race condition, so fix it too. My prev fix in function
+scan_get_next_rmap_item will introduce a different SMP race condition,
+so just invert the up_read/spin_unlock order as Andrea Arcangeli said.
 
+Signed-off-by: Zhou Chengming <zhouchengming1@huawei.com>
+Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/ksm.c |   16 ++++++++++------
+ 1 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/mm/ksm.c b/mm/ksm.c
+index ca6d2a0..b6dc387 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -777,6 +777,7 @@ static int unmerge_and_remove_all_rmap_items(void)
+ 		}
+ 
+ 		remove_trailing_rmap_items(mm_slot, &mm_slot->rmap_list);
++		up_read(&mm->mmap_sem);
+ 
+ 		spin_lock(&ksm_mmlist_lock);
+ 		ksm_scan.mm_slot = list_entry(mm_slot->mm_list.next,
+@@ -784,16 +785,12 @@ static int unmerge_and_remove_all_rmap_items(void)
+ 		if (ksm_test_exit(mm)) {
+ 			hash_del(&mm_slot->link);
+ 			list_del(&mm_slot->mm_list);
+-			spin_unlock(&ksm_mmlist_lock);
+ 
+ 			free_mm_slot(mm_slot);
+ 			clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+-			up_read(&mm->mmap_sem);
+ 			mmdrop(mm);
+-		} else {
+-			spin_unlock(&ksm_mmlist_lock);
+-			up_read(&mm->mmap_sem);
+ 		}
++		spin_unlock(&ksm_mmlist_lock);
+ 	}
+ 
+ 	/* Clean up stable nodes, but don't worry if some are still busy */
+@@ -1657,8 +1654,15 @@ next_mm:
+ 		up_read(&mm->mmap_sem);
+ 		mmdrop(mm);
+ 	} else {
+-		spin_unlock(&ksm_mmlist_lock);
+ 		up_read(&mm->mmap_sem);
++		/*
++		 * up_read(&mm->mmap_sem) first because after
++		 * spin_unlock(&ksm_mmlist_lock) run, the "mm" may
++		 * already have been freed under us by __ksm_exit()
++		 * because the "mm_slot" is still hashed and
++		 * ksm_scan.mm_slot doesn't point to it anymore.
++		 */
++		spin_unlock(&ksm_mmlist_lock);
+ 	}
+ 
+ 	/* Repeat until we've completed scanning the whole list */
+-- 
+1.7.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
