@@ -1,37 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BFA1B6B007E
-	for <linux-mm@kvack.org>; Sun,  8 May 2016 05:01:49 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id yl2so220983063pac.2
-        for <linux-mm@kvack.org>; Sun, 08 May 2016 02:01:49 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.9])
-        by mx.google.com with ESMTPS id n5si29887682pfn.212.2016.05.08.02.01.49
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C4A6E6B0005
+	for <linux-mm@kvack.org>; Sun,  8 May 2016 05:17:17 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id x67so296422612oix.2
+        for <linux-mm@kvack.org>; Sun, 08 May 2016 02:17:17 -0700 (PDT)
+Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1bon0090.outbound.protection.outlook.com. [157.56.111.90])
+        by mx.google.com with ESMTPS id cj1si19552363igb.65.2016.05.08.02.17.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 May 2016 02:01:49 -0700 (PDT)
-Date: Sun, 8 May 2016 02:01:48 -0700
-From: "hch@infradead.org" <hch@infradead.org>
-Subject: Re: [PATCH v4 5/7] fs: prioritize and separate direct_io from dax_io
-Message-ID: <20160508090148.GF15458@infradead.org>
-References: <1461878218-3844-1-git-send-email-vishal.l.verma@intel.com>
- <1461878218-3844-6-git-send-email-vishal.l.verma@intel.com>
- <5727753F.6090104@plexistor.com>
- <20160505142433.GA4557@infradead.org>
- <1462484343.29294.1.camel@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 08 May 2016 02:17:17 -0700 (PDT)
+Date: Sun, 8 May 2016 12:17:02 +0300
+From: Yury Norov <ynorov@caviumnetworks.com>
+Subject: Re: [PATCH v2 1/2] mm, kasan: improve double-free detection
+Message-ID: <20160508085045.GA27394@yury-N73SV>
+References: <20160506114727.GA2571@cherokee.in.rdlabs.hpecorp.net>
+ <20160507102505.GA27794@yury-N73SV>
+ <20E775CA4D599049A25800DE5799F6DD1F62744C@G4W3225.americas.hpqcorp.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1462484343.29294.1.camel@intel.com>
+In-Reply-To: <20E775CA4D599049A25800DE5799F6DD1F62744C@G4W3225.americas.hpqcorp.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Verma, Vishal L" <vishal.l.verma@intel.com>
-Cc: "hch@infradead.org" <hch@infradead.org>, "boaz@plexistor.com" <boaz@plexistor.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "axboe@fb.com" <axboe@fb.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>, "matthew@wil.cx" <matthew@wil.cx>
+To: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>
+Cc: "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "cl@linux.com" <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "klimov.linux@gmail.com" <klimov.linux@gmail.com>
 
-On Thu, May 05, 2016 at 09:39:14PM +0000, Verma, Vishal L wrote:
-> How is it any 'less direct'? All it does now is follow the blockdev
-> O_DIRECT path. There still isn't any page cache involved..
+On Sat, May 07, 2016 at 03:15:59PM +0000, Luruo, Kuthonuzo wrote:
+> Thank you for the review!
+> 
+> > > +	switch (alloc_data.state) {
+> > > +	case KASAN_STATE_QUARANTINE:
+> > > +	case KASAN_STATE_FREE:
+> > > +		kasan_report((unsigned long)object, 0, false,
+> > > +				(unsigned long)__builtin_return_address(1));
+> > 
+> > __builtin_return_address() is unsafe if argument is non-zero. Use
+> > return_address() instead.
+> 
+> hmm, I/cscope can't seem to find an x86 implementation for return_address().
+> Will dig further; thanks.
+> 
 
-It's still more overhead than the play DAX I/O path.
+It seems there's no generic interface to obtain return address. x86
+has  working __builtin_return_address() and it's ok with it, others
+use their own return_adderss(), and ok as well.
+
+I think unification is needed here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
