@@ -1,51 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C4A6E6B0005
-	for <linux-mm@kvack.org>; Sun,  8 May 2016 05:17:17 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id x67so296422612oix.2
-        for <linux-mm@kvack.org>; Sun, 08 May 2016 02:17:17 -0700 (PDT)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1bon0090.outbound.protection.outlook.com. [157.56.111.90])
-        by mx.google.com with ESMTPS id cj1si19552363igb.65.2016.05.08.02.17.16
+Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D93A6B0005
+	for <linux-mm@kvack.org>; Sun,  8 May 2016 08:03:08 -0400 (EDT)
+Received: by mail-ig0-f197.google.com with SMTP id kj7so191411178igb.3
+        for <linux-mm@kvack.org>; Sun, 08 May 2016 05:03:08 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id j50si10555588otc.88.2016.05.08.05.03.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 08 May 2016 02:17:17 -0700 (PDT)
-Date: Sun, 8 May 2016 12:17:02 +0300
-From: Yury Norov <ynorov@caviumnetworks.com>
-Subject: Re: [PATCH v2 1/2] mm, kasan: improve double-free detection
-Message-ID: <20160508085045.GA27394@yury-N73SV>
-References: <20160506114727.GA2571@cherokee.in.rdlabs.hpecorp.net>
- <20160507102505.GA27794@yury-N73SV>
- <20E775CA4D599049A25800DE5799F6DD1F62744C@G4W3225.americas.hpqcorp.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 08 May 2016 05:03:07 -0700 (PDT)
+From: Zhou Chengming <zhouchengming1@huawei.com>
+Subject: [PATCH v4] ksm: fix conflict between mmput and scan_get_next_rmap_item
+Date: Sun, 8 May 2016 20:00:15 +0800
+Message-ID: <1462708815-31301-1-git-send-email-zhouchengming1@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20E775CA4D599049A25800DE5799F6DD1F62744C@G4W3225.americas.hpqcorp.net>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>
-Cc: "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "cl@linux.com" <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "klimov.linux@gmail.com" <klimov.linux@gmail.com>
+To: akpm@linux-foundation.org, hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, geliangtang@163.com, minchan@kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, dingtianhong@huawei.com, huawei.libin@huawei.com, thunder.leizhen@huawei.com, qiuxishi@huawei.com, zhouchengming1@huawei.com
 
-On Sat, May 07, 2016 at 03:15:59PM +0000, Luruo, Kuthonuzo wrote:
-> Thank you for the review!
-> 
-> > > +	switch (alloc_data.state) {
-> > > +	case KASAN_STATE_QUARANTINE:
-> > > +	case KASAN_STATE_FREE:
-> > > +		kasan_report((unsigned long)object, 0, false,
-> > > +				(unsigned long)__builtin_return_address(1));
-> > 
-> > __builtin_return_address() is unsafe if argument is non-zero. Use
-> > return_address() instead.
-> 
-> hmm, I/cscope can't seem to find an x86 implementation for return_address().
-> Will dig further; thanks.
-> 
+A concurrency issue about KSM in the function scan_get_next_rmap_item.
 
-It seems there's no generic interface to obtain return address. x86
-has  working __builtin_return_address() and it's ok with it, others
-use their own return_adderss(), and ok as well.
+task A (ksmd):				|task B (the mm's task):
+					|
+mm = slot->mm;				|
+down_read(&mm->mmap_sem);		|
+					|
+...					|
+					|
+spin_lock(&ksm_mmlist_lock);		|
+					|
+ksm_scan.mm_slot go to the next slot;	|
+					|
+spin_unlock(&ksm_mmlist_lock);		|
+					|mmput() ->
+					|	ksm_exit():
+					|
+					|spin_lock(&ksm_mmlist_lock);
+					|if (mm_slot && ksm_scan.mm_slot != mm_slot) {
+					|	if (!mm_slot->rmap_list) {
+					|		easy_to_free = 1;
+					|		...
+					|
+					|if (easy_to_free) {
+					|	mmdrop(mm);
+					|	...
+					|
+					|So this mm_struct may be freed in the mmput().
+					|
+up_read(&mm->mmap_sem);			|
 
-I think unification is needed here.
+As we can see above, the ksmd thread may access a mm_struct that already
+been freed to the kmem_cache.
+Suppose a fork will get this mm_struct from the kmem_cache, the ksmd thread
+then call up_read(&mm->mmap_sem), will cause mmap_sem.count to become -1.
+>From the suggestion of Andrea Arcangeli, unmerge_and_remove_all_rmap_items
+has the same SMP race condition, so fix it too. My prev fix in function
+scan_get_next_rmap_item will introduce a different SMP race condition,
+so just invert the up_read/spin_unlock order as Andrea Arcangeli said.
+
+Signed-off-by: Zhou Chengming <zhouchengming1@huawei.com>
+Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/ksm.c |   15 ++++++++++-----
+ 1 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/mm/ksm.c b/mm/ksm.c
+index ca6d2a0..1d4c0e8 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -777,6 +777,7 @@ static int unmerge_and_remove_all_rmap_items(void)
+ 		}
+ 
+ 		remove_trailing_rmap_items(mm_slot, &mm_slot->rmap_list);
++		up_read(&mm->mmap_sem);
+ 
+ 		spin_lock(&ksm_mmlist_lock);
+ 		ksm_scan.mm_slot = list_entry(mm_slot->mm_list.next,
+@@ -788,12 +789,9 @@ static int unmerge_and_remove_all_rmap_items(void)
+ 
+ 			free_mm_slot(mm_slot);
+ 			clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+-			up_read(&mm->mmap_sem);
+ 			mmdrop(mm);
+-		} else {
++		} else
+ 			spin_unlock(&ksm_mmlist_lock);
+-			up_read(&mm->mmap_sem);
+-		}
+ 	}
+ 
+ 	/* Clean up stable nodes, but don't worry if some are still busy */
+@@ -1657,8 +1655,15 @@ next_mm:
+ 		up_read(&mm->mmap_sem);
+ 		mmdrop(mm);
+ 	} else {
+-		spin_unlock(&ksm_mmlist_lock);
+ 		up_read(&mm->mmap_sem);
++		/*
++		 * up_read(&mm->mmap_sem) first because after
++		 * spin_unlock(&ksm_mmlist_lock) run, the "mm" may
++		 * already have been freed under us by __ksm_exit()
++		 * because the "mm_slot" is still hashed and
++		 * ksm_scan.mm_slot doesn't point to it anymore.
++		 */
++		spin_unlock(&ksm_mmlist_lock);
+ 	}
+ 
+ 	/* Repeat until we've completed scanning the whole list */
+-- 
+1.7.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
