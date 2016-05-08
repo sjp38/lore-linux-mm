@@ -1,140 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E06DA6B0005
-	for <linux-mm@kvack.org>; Sat,  7 May 2016 11:16:07 -0400 (EDT)
-Received: by mail-ig0-f197.google.com with SMTP id i5so154221317ige.1
-        for <linux-mm@kvack.org>; Sat, 07 May 2016 08:16:07 -0700 (PDT)
-Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
-        by mx.google.com with ESMTPS id dr5si5014301igc.3.2016.05.07.08.16.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 07 May 2016 08:16:07 -0700 (PDT)
-From: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>
-Subject: RE: [PATCH v2 1/2] mm, kasan: improve double-free detection
-Date: Sat, 7 May 2016 15:15:59 +0000
-Message-ID: <20E775CA4D599049A25800DE5799F6DD1F62744C@G4W3225.americas.hpqcorp.net>
-References: <20160506114727.GA2571@cherokee.in.rdlabs.hpecorp.net>
- <20160507102505.GA27794@yury-N73SV>
-In-Reply-To: <20160507102505.GA27794@yury-N73SV>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B3B0F6B0005
+	for <linux-mm@kvack.org>; Sun,  8 May 2016 02:05:23 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id d66so74733606vkb.0
+        for <linux-mm@kvack.org>; Sat, 07 May 2016 23:05:23 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTP id h64si7121788ybg.33.2016.05.07.23.05.19
+        for <linux-mm@kvack.org>;
+        Sat, 07 May 2016 23:05:22 -0700 (PDT)
+Message-ID: <572ED69C.2000800@huawei.com>
+Date: Sun, 8 May 2016 14:03:08 +0800
+From: zhouchengming <zhouchengming1@huawei.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH v2] ksm: fix conflict between mmput and scan_get_next_rmap_item
+References: <1462505256-37301-1-git-send-email-zhouchengming1@huawei.com> <20160506142431.GA4855@redhat.com>
+In-Reply-To: <20160506142431.GA4855@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yury Norov <ynorov@caviumnetworks.com>
-Cc: "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "cl@linux.com" <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "klimov.linux@gmail.com" <klimov.linux@gmail.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: akpm@linux-foundation.org, hughd@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, geliangtang@163.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com, dingtianhong@huawei.com, huawei.libin@huawei.com, thunder.leizhen@huawei.com, qiuxishi@huawei.com
 
-Thank you for the review!
-
-> > +
-> > +/* acquire per-object lock for access to KASAN metadata. */
->=20
-> I believe there's strong reason not to use standard spin_lock() or
-> similar. I think it's proper place to explain it.
->=20
-
-will do.
-
-> > +void kasan_meta_lock(struct kasan_alloc_meta *alloc_info)
-> > +{
-> > +	union kasan_alloc_data old, new;
-> > +
-> > +	preempt_disable();
->=20
-> It's better to disable and enable preemption inside the loop
-> on each iteration, to decrease contention.
->=20
-
-ok, makes sense; will do.
-
-> > +	for (;;) {
-> > +		old.packed =3D READ_ONCE(alloc_info->data);
-> > +		if (unlikely(old.lock)) {
-> > +			cpu_relax();
-> > +			continue;
-> > +		}
-> > +		new.packed =3D old.packed;
-> > +		new.lock =3D 1;
-> > +		if (likely(cmpxchg(&alloc_info->data, old.packed, new.packed)
-> > +					=3D=3D old.packed))
-> > +			break;
-> > +	}
-> > +}
-> > +
-> > +/* release lock after a kasan_meta_lock(). */
-> > +void kasan_meta_unlock(struct kasan_alloc_meta *alloc_info)
-> > +{
-> > +	union kasan_alloc_data alloc_data;
-> > +
-> > +	alloc_data.packed =3D READ_ONCE(alloc_info->data);
-> > +	alloc_data.lock =3D 0;
-> > +	if (unlikely(xchg(&alloc_info->data, alloc_data.packed) !=3D
-> > +				(alloc_data.packed | 0x1U)))
-> > +		WARN_ONCE(1, "%s: lock not held!\n", __func__);
->=20
-> Nitpick. It never happens in normal case, correct?. Why don't you place i=
-t under
-> some developer config, or even leave at dev branch? The function will
-> be twice shorter without it.
-
-ok, will remove/shorten.
-
-> > +	alloc_data.packed =3D alloc_info->data;
-> > +	if (alloc_data.state =3D=3D KASAN_STATE_ALLOC) {
-> > +		free_info =3D get_free_info(cache, object);
-> > +		quarantine_put(free_info, cache);
->=20
-> I just pulled master and didn't find this function. If your patchset
-> is based on other branch, please notice it.
-
-Sorry; patchset is based on linux-next 'next-20160506' which has Alexander
-Potapenko's patches for KASAN SLAB support with memory quarantine +
-stackdepot features.
-
->=20
-> > +		set_track(&free_info->track, GFP_NOWAIT);
->=20
-> It may fail for many reasons. Is it OK to ignore it? If OK, I think it
-> should be explained.
-
-It's ok. A subsequent bug report on object would have a missing alloc/deall=
-oc
-stack trace.=20
-
->=20
-> > +		kasan_poison_slab_free(cache, object);
-> > +		alloc_data.state =3D KASAN_STATE_QUARANTINE;
-> > +		alloc_info->data =3D alloc_data.packed;
-> > +		kasan_meta_unlock(alloc_info);
-> > +		return true;
-> >  	}
-> > +	switch (alloc_data.state) {
-> > +	case KASAN_STATE_QUARANTINE:
-> > +	case KASAN_STATE_FREE:
-> > +		kasan_report((unsigned long)object, 0, false,
-> > +				(unsigned long)__builtin_return_address(1));
->=20
-> __builtin_return_address() is unsafe if argument is non-zero. Use
-> return_address() instead.
-
-hmm, I/cscope can't seem to find an x86 implementation for return_address()=
-.
-Will dig further; thanks.
-
-> > +		local_irq_save(flags);
-> > +		kasan_meta_lock(alloc_info);
-> > +		alloc_data.packed =3D alloc_info->data;
-> > +		alloc_data.state =3D KASAN_STATE_ALLOC;
-> > +		alloc_data.size_delta =3D cache->object_size - size;
-> > +		alloc_info->data =3D alloc_data.packed;
-> >  		set_track(&alloc_info->track, flags);
->=20
-> Same as above
+On 2016/5/6 22:24, Andrea Arcangeli wrote:
+> On Fri, May 06, 2016 at 11:27:36AM +0800, Zhou Chengming wrote:
+>> @@ -1650,16 +1647,22 @@ next_mm:
+>>   		 */
+>>   		hash_del(&slot->link);
+>>   		list_del(&slot->mm_list);
+>> -		spin_unlock(&ksm_mmlist_lock);
+>>
+>>   		free_mm_slot(slot);
+>>   		clear_bit(MMF_VM_MERGEABLE,&mm->flags);
+>>   		up_read(&mm->mmap_sem);
+>>   		mmdrop(mm);
+>>   	} else {
+>> -		spin_unlock(&ksm_mmlist_lock);
+>>   		up_read(&mm->mmap_sem);
+>>   	}
+>> +	/*
+>> +	 * up_read(&mm->mmap_sem) first because after
+>> +	 * spin_unlock(&ksm_mmlist_lock) run, the "mm" may
+>> +	 * already have been freed under us by __ksm_exit()
+>> +	 * because the "mm_slot" is still hashed and
+>> +	 * ksm_scan.mm_slot doesn't point to it anymore.
+>> +	 */
+>> +	spin_unlock(&ksm_mmlist_lock);
+>>
+>>   	/* Repeat until we've completed scanning the whole list */
+>>   	slot = ksm_scan.mm_slot;
 >
-As above.=20
+> Reviewed-by: Andrea Arcangeli<aarcange@redhat.com>
+>
+> While the above patch is correct, I would however prefer if you could
+> update it to keep releasing the ksm_mmlist_lock as before (I'm talking
+> only about the quoted part, not the other one not quoted), because
+> it's "strictier" and it better documents that it's only needed up
+> until:
+>
+>    		hash_del(&slot->link);
+>    		list_del(&slot->mm_list);
+>
+> It should be also a bit more scalable but to me this is just about
+> keeping implicit documentation on the locking by keeping it strict.
+>
+> The fact up_read happens exactly after clear_bit also avoided me to
+> overlook that it was really needed, same thing with the
+> ksm_mmlist_lock after list_del, I'd like to keep it there and just
+> invert the order of spin_unlock; up_read in the else branch.
 
-Kuthonuzo
+Thanks a lot for your review and comment. It's my fault to misunderstand
+your last reply. Yes it's better and more scalable to just invert the 
+order of spin_unlock/up_read in the else branch. And it's also enough.
+
+Thanks!
+>
+> That should be enough because after hash_del get_mm_slot will return
+> NULL so the mmdrop will not happen anymore in __ksm_exit, this is
+> further explicit by the code doing mmdrop itself just after
+> up_read.
+>
+> The SMP race condition is fixed by just the two liner that reverse the
+> order of spin_unlock; up_read without increasing the size of the
+> spinlock critical section for the ksm_scan.address == 0 case. This is
+> also why it wasn't reproducible because it's about 1 instruction window.
+>
+> Thanks!
+> Andrea
+>
+> .
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
