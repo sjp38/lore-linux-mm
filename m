@@ -1,52 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f71.google.com (mail-qg0-f71.google.com [209.85.192.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 48E106B0005
-	for <linux-mm@kvack.org>; Mon,  9 May 2016 14:07:49 -0400 (EDT)
-Received: by mail-qg0-f71.google.com with SMTP id c103so298570564qge.1
-        for <linux-mm@kvack.org>; Mon, 09 May 2016 11:07:49 -0700 (PDT)
-Received: from mail-vk0-x230.google.com (mail-vk0-x230.google.com. [2607:f8b0:400c:c05::230])
-        by mx.google.com with ESMTPS id b196si5132557vka.38.2016.05.09.11.07.48
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 95D5B6B0005
+	for <linux-mm@kvack.org>; Mon,  9 May 2016 16:12:00 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id zy2so321383162pac.1
+        for <linux-mm@kvack.org>; Mon, 09 May 2016 13:12:00 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id lc4si40617614pab.144.2016.05.09.13.11.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 May 2016 11:07:48 -0700 (PDT)
-Received: by mail-vk0-x230.google.com with SMTP id o133so76114029vka.0
-        for <linux-mm@kvack.org>; Mon, 09 May 2016 11:07:48 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160506150112.9b27324b4b2b141146b0ff25@linux-foundation.org>
-References: <bug-117731-27@https.bugzilla.kernel.org/>
-	<20160506150112.9b27324b4b2b141146b0ff25@linux-foundation.org>
-Date: Mon, 9 May 2016 11:07:48 -0700
-Message-ID: <CAM3pwhFHUzwKEShuOFos8nGqrjdNH=rwq55=ULWwOA5KEHVfWg@mail.gmail.com>
-Subject: Re: [Bug 117731] New: Doing mprotect for PROT_NONE and then for
- PROT_READ|PROT_WRITE reduces CPU write B/W on buffer
-From: Peter Feiner <pfeiner@google.com>
-Content-Type: text/plain; charset=UTF-8
+        Mon, 09 May 2016 13:11:59 -0700 (PDT)
+Date: Mon, 9 May 2016 13:11:58 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/3] memory-hotplug: improve rezoning capability
+Message-Id: <20160509131158.d5429d4dba4a24c5b1aac9ca@linux-foundation.org>
+In-Reply-To: <1462816419-4479-1-git-send-email-arbab@linux.vnet.ibm.com>
+References: <1462816419-4479-1-git-send-email-arbab@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: ashish0srivastava0@gmail.com, bugzilla-daemon@bugzilla.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org
+To: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Tang Chen <tangchen@cn.fujitsu.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Vrabel <david.vrabel@citrix.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Banman <abanman@sgi.com>, Chen Yucong <slaoub@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yasunori Goto <y-goto@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Shaohua Li <shaohua.li@intel.com>
 
-On Fri, May 6, 2016 at 3:01 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
->
-> (switched to email.  Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
->
-> Great bug report, thanks.
->
-> I assume the breakage was caused by
->
-> commit 64e455079e1bd7787cc47be30b7f601ce682a5f6
-> Author:     Peter Feiner <pfeiner@google.com>
-> AuthorDate: Mon Oct 13 15:55:46 2014 -0700
-> Commit:     Linus Torvalds <torvalds@linux-foundation.org>
-> CommitDate: Tue Oct 14 02:18:28 2014 +0200
->
->     mm: softdirty: enable write notifications on VMAs after VM_SOFTDIRTY cleared
->
->
-> Could someone (Peter, Kirill?) please take a look?
+On Mon,  9 May 2016 12:53:36 -0500 Reza Arbab <arbab@linux.vnet.ibm.com> wrote:
 
-Thanks for the report! I'm taking a look.
+> While it is currently possible to rezone memory when it is onlined, there are
+> implicit assumptions about the zones:
+> 
+> * To "online_kernel" a block into ZONE_NORMAL, it must currently
+>   be in ZONE_MOVABLE.
+> 
+> * To "online_movable" a block into ZONE_MOVABLE, it must currently
+>   be in (ZONE_MOVABLE - 1).
+> 
+> So on powerpc, where new memory is hotplugged into ZONE_DMA, these operations
+> do not work.
+> 
+> This patchset replaces the qualifications above with a more general
+> validation of zone movement.
+> 
+
+The patches look good from a first scan.  It's late for 4.6 so I'll
+queue them for 4.7-rc1, unless there are convincing reasons otherwise?
+
+Hopefully the other memory-hotplug developers will be able to find time
+to review these.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
