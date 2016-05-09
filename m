@@ -1,55 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 757216B0005
-	for <linux-mm@kvack.org>; Mon,  9 May 2016 13:27:52 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id xm6so269417126pab.3
-        for <linux-mm@kvack.org>; Mon, 09 May 2016 10:27:52 -0700 (PDT)
-Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
-        by mx.google.com with ESMTPS id a62si38681843pfc.166.2016.05.09.10.27.51
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7797B6B0005
+	for <linux-mm@kvack.org>; Mon,  9 May 2016 13:53:47 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id u23so152761037vkb.1
+        for <linux-mm@kvack.org>; Mon, 09 May 2016 10:53:47 -0700 (PDT)
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com. [32.97.110.153])
+        by mx.google.com with ESMTPS id f65si4962696qhe.24.2016.05.09.10.53.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 May 2016 10:27:51 -0700 (PDT)
-Received: by mail-pf0-x233.google.com with SMTP id y69so77685266pfb.1
-        for <linux-mm@kvack.org>; Mon, 09 May 2016 10:27:51 -0700 (PDT)
-Subject: Re: [PATCH] mm: slab: remove ZONE_DMA_FLAG
-References: <1462381297-11009-1-git-send-email-yang.shi@linaro.org>
- <20160505114946.GI4386@dhcp22.suse.cz>
-From: "Shi, Yang" <yang.shi@linaro.org>
-Message-ID: <c5c0d500-d5f9-195f-4db4-84716f5cf86c@linaro.org>
-Date: Mon, 9 May 2016 10:27:49 -0700
-MIME-Version: 1.0
-In-Reply-To: <20160505114946.GI4386@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 09 May 2016 10:53:46 -0700 (PDT)
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Mon, 9 May 2016 11:53:45 -0600
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: [PATCH 0/3] memory-hotplug: improve rezoning capability
+Date: Mon,  9 May 2016 12:53:36 -0500
+Message-Id: <1462816419-4479-1-git-send-email-arbab@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Tang Chen <tangchen@cn.fujitsu.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Vrabel <david.vrabel@citrix.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Banman <abanman@sgi.com>, Chen Yucong <slaoub@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 5/5/2016 4:49 AM, Michal Hocko wrote:
-> On Wed 04-05-16 10:01:37, Yang Shi wrote:
->> Now we have IS_ENABLED helper to check if a Kconfig option is enabled or not,
->> so ZONE_DMA_FLAG sounds no longer useful.
->>
->> And, the use of ZONE_DMA_FLAG in slab looks pointless according to the
->> comment [1] from Johannes Weiner, so remove them and ORing passed in flags with
->> the cache gfp flags has been done in kmem_getpages().
->>
->> [1] https://lkml.org/lkml/2014/9/25/553
->
-> I haven't checked the patch but I have a formal suggestion.
-> lkml.org tends to break and forget, please use
-> http://lkml.kernel.org/r/$msg-id instead. In this case
-> http://lkml.kernel.org/r/20140925185047.GA21089@cmpxchg.org
+While it is currently possible to rezone memory when it is onlined, there are
+implicit assumptions about the zones:
 
-Thanks for the suggestion. Will use msg-id in later post.
+* To "online_kernel" a block into ZONE_NORMAL, it must currently
+  be in ZONE_MOVABLE.
 
-Regards,
-Yang
+* To "online_movable" a block into ZONE_MOVABLE, it must currently
+  be in (ZONE_MOVABLE - 1).
 
->
-> Thanks!
->
+So on powerpc, where new memory is hotplugged into ZONE_DMA, these operations
+do not work.
+
+This patchset replaces the qualifications above with a more general
+validation of zone movement.
+
+Reza Arbab (3):
+  memory-hotplug: add move_pfn_range()
+  memory-hotplug: more general validation of zone during online
+  memory-hotplug: use zone_can_shift() for sysfs valid_zones attribute
+
+ drivers/base/memory.c          | 28 ++++++++++-------
+ include/linux/memory_hotplug.h |  2 ++
+ mm/memory_hotplug.c            | 70 ++++++++++++++++++++++++++++++++++--------
+ 3 files changed, 77 insertions(+), 23 deletions(-)
+
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
