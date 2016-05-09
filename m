@@ -1,101 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E05E96B007E
-	for <linux-mm@kvack.org>; Mon,  9 May 2016 19:41:44 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id gw7so282182637pac.0
-        for <linux-mm@kvack.org>; Mon, 09 May 2016 16:41:44 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id q11si39905414pfi.106.2016.05.09.16.41.43
-        for <linux-mm@kvack.org>;
-        Mon, 09 May 2016 16:41:43 -0700 (PDT)
-Date: Tue, 10 May 2016 08:42:05 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] zsmalloc: fix zs_can_compact() integer overflow
-Message-ID: <20160509234205.GB4426@bbox>
-References: <20160509140052.3389-1-sergey.senozhatsky@gmail.com>
-MIME-Version: 1.0
-In-Reply-To: <20160509140052.3389-1-sergey.senozhatsky@gmail.com>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C1A8F6B007E
+	for <linux-mm@kvack.org>; Mon,  9 May 2016 19:55:57 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b203so406951844pfb.1
+        for <linux-mm@kvack.org>; Mon, 09 May 2016 16:55:57 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id c8si41612108pag.244.2016.05.09.16.55.56
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 May 2016 16:55:57 -0700 (PDT)
+In-Reply-To: <1462434849-14935-2-git-send-email-oohall@gmail.com>
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [v2,2/2] powerpc/mm: Ensure "special" zones are empty
+Message-Id: <3r3fQw4Xbnz9t79@ozlabs.org>
+Date: Tue, 10 May 2016 09:55:51 +1000 (AEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, "[4.3+]" <stable@vger.kernel.org>
+To: Oliver O'Halloran <oohall@gmail.com>, linuxppc-dev@lists.ozlabs.org
+Cc: linux-mm@kvack.org
 
-On Mon, May 09, 2016 at 11:00:52PM +0900, Sergey Senozhatsky wrote:
-> zs_can_compact() has two race conditions in its core calculation:
-> 
-> unsigned long obj_wasted = zs_stat_get(class, OBJ_ALLOCATED) -
-> 				zs_stat_get(class, OBJ_USED);
-> 
-> 1) classes are not locked, so the numbers of allocated and used
->    objects can change by the concurrent ops happening on other CPUs
-> 2) shrinker invokes it from preemptible context
-> 
-> Depending on the circumstances, thus, OBJ_ALLOCATED can become
-> less than OBJ_USED, which can result in either very high or
-> negative `total_scan' value calculated later in do_shrink_slab().
-> 
-> do_shrink_slab() has some logic to prevent those cases:
-> 
->  vmscan: shrink_slab: zs_shrinker_scan+0x0/0x28 [zsmalloc] negative objects to delete nr=-62
->  vmscan: shrink_slab: zs_shrinker_scan+0x0/0x28 [zsmalloc] negative objects to delete nr=-62
->  vmscan: shrink_slab: zs_shrinker_scan+0x0/0x28 [zsmalloc] negative objects to delete nr=-64
->  vmscan: shrink_slab: zs_shrinker_scan+0x0/0x28 [zsmalloc] negative objects to delete nr=-62
->  vmscan: shrink_slab: zs_shrinker_scan+0x0/0x28 [zsmalloc] negative objects to delete nr=-62
->  vmscan: shrink_slab: zs_shrinker_scan+0x0/0x28 [zsmalloc] negative objects to delete nr=-62
-> 
-> However, due to the way `total_scan' is calculated, not every
-> shrinker->count_objects() overflow can be spotted and handled.
-> To demonstrate the latter, I added some debugging code to do_shrink_slab()
-> (x86_64) and the results were:
-> 
->  vmscan: OVERFLOW: shrinker->count_objects() == -1 [18446744073709551615]
->  vmscan: but total_scan > 0: 92679974445502
->  vmscan: resulting total_scan: 92679974445502
-> [..]
->  vmscan: OVERFLOW: shrinker->count_objects() == -1 [18446744073709551615]
->  vmscan: but total_scan > 0: 22634041808232578
->  vmscan: resulting total_scan: 22634041808232578
-> 
-> Even though shrinker->count_objects() has returned an overflowed value,
-> the resulting `total_scan' is positive, and, what is more worrisome, it
-> is insanely huge. This value is getting used later on in
-> shrinker->scan_objects() loop:
-> 
->         while (total_scan >= batch_size ||
->                total_scan >= freeable) {
->                 unsigned long ret;
->                 unsigned long nr_to_scan = min(batch_size, total_scan);
-> 
->                 shrinkctl->nr_to_scan = nr_to_scan;
->                 ret = shrinker->scan_objects(shrinker, shrinkctl);
->                 if (ret == SHRINK_STOP)
->                         break;
->                 freed += ret;
-> 
->                 count_vm_events(SLABS_SCANNED, nr_to_scan);
->                 total_scan -= nr_to_scan;
-> 
->                 cond_resched();
->         }
-> 
-> `total_scan >= batch_size' is true for a very-very long time and
-> 'total_scan >= freeable' is also true for quite some time, because
-> `freeable < 0' and `total_scan' is large enough, for example,
-> 22634041808232578. The only break condition, in the given scheme of
-> things, is shrinker->scan_objects() == SHRINK_STOP test, which is a
-> bit too weak to rely on, especially in heavy zsmalloc-usage scenarios.
-> 
-> To fix the issue, take a pool stat snapshot and use it instead of
-> racy zs_stat_get() calls.
-> 
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: <stable@vger.kernel.org>        [4.3+]
-Acked-by: Minchan Kim <minchan@kernel.org>
+On Thu, 2016-05-05 at 07:54:09 UTC, Oliver O'Halloran wrote:
+> The mm zone mechanism was traditionally used by arch specific code to
+> partition memory into allocation zones. However there are several zones
+> that are managed by the mm subsystem rather than the architecture. Most
+> architectures set the max PFN of these special zones to zero, however on
+> powerpc we set them to ~0ul. This, in conjunction with a bug in
+> free_area_init_nodes() results in all of system memory being placed in
+> ZONE_DEVICE when enabled. Device memory cannot be used for regular kernel
+> memory allocations so this will cause a kernel panic at boot.
 
-Thanks!
+This is breaking my freescale machine:
+
+  Sorting __ex_table...
+  Unable to handle kernel paging request for data at address 0xc000000101e28020
+  Faulting instruction address: 0xc0000000009ab698
+  cpu 0x0: Vector: 300 (Data Access) at [c000000000acbb30]
+      pc: c0000000009ab698: .reserve_bootmem_region+0x64/0x8c
+      lr: c0000000009883d0: .free_all_bootmem+0x70/0x200
+      sp: c000000000acbdb0
+     msr: 80021000
+     dar: c000000101e28020
+   dsisr: 800000
+    current = 0xc000000000a07640
+    paca    = 0xc00000003fff5000	 softe: 0	 irq_happened: 0x01
+      pid   = 0, comm = swapper
+  Linux version 4.6.0-rc3-00160-gc09920947f23 (michael@ka1) (gcc version 5.3.0 (GCC) ) #5 SMP Tue May 10 09:44:11 AEST 2016
+  enter ? for help
+  [link register   ] c0000000009883d0 .free_all_bootmem+0x70/0x200
+  [c000000000acbdb0] c000000000988398 .free_all_bootmem+0x38/0x200 (unreliable)
+  [c000000000acbe80] c00000000097b700 .mem_init+0x5c/0x7c
+  [c000000000acbef0] c000000000971a0c .start_kernel+0x28c/0x4e4
+  [c000000000acbf90] c000000000000544 start_here_common+0x20/0x5c
+  0:mon> ? 
+
+I can give you access some time if you need to debug it.
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
