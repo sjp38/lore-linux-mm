@@ -1,96 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CE016B0005
-	for <linux-mm@kvack.org>; Mon,  9 May 2016 08:43:32 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id i75so412515638ioa.3
-        for <linux-mm@kvack.org>; Mon, 09 May 2016 05:43:32 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0113.outbound.protection.outlook.com. [157.56.112.113])
-        by mx.google.com with ESMTPS id v53si12064831otv.211.2016.05.09.05.43.30
+Received: from mail-ig0-f198.google.com (mail-ig0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BD286B025E
+	for <linux-mm@kvack.org>; Mon,  9 May 2016 09:01:34 -0400 (EDT)
+Received: by mail-ig0-f198.google.com with SMTP id kj7so242765408igb.3
+        for <linux-mm@kvack.org>; Mon, 09 May 2016 06:01:34 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0120.outbound.protection.outlook.com. [157.56.112.120])
+        by mx.google.com with ESMTPS id s131si12082168oie.110.2016.05.09.06.01.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 09 May 2016 05:43:31 -0700 (PDT)
+        Mon, 09 May 2016 06:01:25 -0700 (PDT)
 Subject: Re: [PATCH v2 1/2] mm, kasan: improve double-free detection
 References: <20160506114727.GA2571@cherokee.in.rdlabs.hpecorp.net>
  <573065BD.2020708@virtuozzo.com>
- <CACT4Y+aZyKg6ehTovDWkzw_vLQ=Td=FHh3OC6w6cOyNOrKPfTA@mail.gmail.com>
+ <20E775CA4D599049A25800DE5799F6DD1F627919@G4W3225.americas.hpqcorp.net>
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <573085EB.5060808@virtuozzo.com>
-Date: Mon, 9 May 2016 15:43:23 +0300
+Message-ID: <57308A20.2050501@virtuozzo.com>
+Date: Mon, 9 May 2016 16:01:20 +0300
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+aZyKg6ehTovDWkzw_vLQ=Td=FHh3OC6w6cOyNOrKPfTA@mail.gmail.com>
+In-Reply-To: <20E775CA4D599049A25800DE5799F6DD1F627919@G4W3225.americas.hpqcorp.net>
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "cl@linux.com" <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
 
 
-On 05/09/2016 01:31 PM, Dmitry Vyukov wrote:
-> On Mon, May 9, 2016 at 12:26 PM, Andrey Ryabinin
-> <aryabinin@virtuozzo.com> wrote:
->>
->> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
->> index b3c122d..c2b0e51 100644
->> --- a/mm/kasan/report.c
->> +++ b/mm/kasan/report.c
->> @@ -140,18 +140,12 @@ static void object_err(struct kmem_cache *cache, struct page *page,
->>         pr_err("Object at %p, in cache %s\n", object, cache->name);
->>         if (!(cache->flags & SLAB_KASAN))
->>                 return;
->> -       switch (alloc_info->state) {
->> -       case KASAN_STATE_INIT:
->> -               pr_err("Object not allocated yet\n");
->> -               break;
->> -       case KASAN_STATE_ALLOC:
->> +       if (test_bit(KASAN_STATE_ALLOCATED, &alloc_info->state)) {
->>                 pr_err("Object allocated with size %u bytes.\n",
->>                        alloc_info->alloc_size);
->>                 pr_err("Allocation:\n");
->>                 print_track(&alloc_info->track);
+On 05/09/2016 02:35 PM, Luruo, Kuthonuzo wrote:
 > 
-> alloc_info->track is not necessary initialized when
-> KASAN_STATE_ALLOCATED is set.
-
-It should be initialized to something. If it's not initialized, than that object wasn't allocated.
-So this would be a *very* random pointer access. Also this would mean that ->state itself might be not initialized too.
-Anyway, we can't do much in such scenario since we can't trust any data.
-And I don't think that we should because very likely this will cause panic eventually.
-
-> Worse, it can be initialized to a wrong
-> stack.
+> This patch with atomic bit op is similar in spirit to v1 except that it increases metadata size.
 > 
 
-Define "wrong stack" here.
-
-I assume that you are talking about race in the following scenario:
-
-------
-Proccess A:                      Proccess B:
-
-p_A = kmalloc();
-/* use p_A */
-kfree(p_A);
-                                 p_A = kmalloc();
-                                      ....
-                                      set_bit(KASAN_STATE_ALLOCATED); //bit set, but stack is not saved yet.
-/* use after free p_A */
-
-if (test_bit(KASAN_STATE_ALLOCATED))
-        print_stack() // will print track from Proccess A
------
-
-So, would be the stack trace from A wrong in such situation? I don't think so.
-We could change ->state and save stack trace in the 'right' order with proper barriers,
-but would it prevent us from showing wrong stacktrace? - It wouldn't.
-
-Now, the only real problem with current code, is that we don't print free stack if we think that object is in
-allocated state. We should do this, because more information is always better, e.g. we might hit long-delayed use-after-free,
-in which case free stack would be useful (just like in scenario above).
-
-
-
+I don't think that this is a big deal. That will slightly increase size of objects <= (128 - 32) bytes.
+And if someone think otherwise, we can completely remove 'alloc_size'
+(we use it only to print size in report - not very useful).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
