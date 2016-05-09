@@ -1,166 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 23C676B0005
-	for <linux-mm@kvack.org>; Mon,  9 May 2016 01:08:38 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id y84so77375661lfc.3
-        for <linux-mm@kvack.org>; Sun, 08 May 2016 22:08:38 -0700 (PDT)
-Received: from mail-lf0-x22b.google.com (mail-lf0-x22b.google.com. [2a00:1450:4010:c07::22b])
-        by mx.google.com with ESMTPS id d4si5092272lbw.200.2016.05.08.22.08.36
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 49F706B0005
+	for <linux-mm@kvack.org>; Mon,  9 May 2016 01:35:30 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id 68so77354462lfq.2
+        for <linux-mm@kvack.org>; Sun, 08 May 2016 22:35:30 -0700 (PDT)
+Received: from mail-lf0-x22e.google.com (mail-lf0-x22e.google.com. [2a00:1450:4010:c07::22e])
+        by mx.google.com with ESMTPS id c135si18541348lfc.193.2016.05.08.22.35.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 May 2016 22:08:36 -0700 (PDT)
-Received: by mail-lf0-x22b.google.com with SMTP id u64so188060749lff.3
-        for <linux-mm@kvack.org>; Sun, 08 May 2016 22:08:36 -0700 (PDT)
+        Sun, 08 May 2016 22:35:28 -0700 (PDT)
+Received: by mail-lf0-x22e.google.com with SMTP id u64so188489492lff.3
+        for <linux-mm@kvack.org>; Sun, 08 May 2016 22:35:28 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1462538722-1574-4-git-send-email-aryabinin@virtuozzo.com>
-References: <1462538722-1574-1-git-send-email-aryabinin@virtuozzo.com> <1462538722-1574-4-git-send-email-aryabinin@virtuozzo.com>
+In-Reply-To: <20160506115048.GA2611@cherokee.in.rdlabs.hpecorp.net>
+References: <20160506115048.GA2611@cherokee.in.rdlabs.hpecorp.net>
 From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 9 May 2016 07:08:17 +0200
-Message-ID: <CACT4Y+YHMbd71u5omD8S5fRyxM-pqZBmkfoKSzrP79Lft2VGzg@mail.gmail.com>
-Subject: Re: [PATCH 4/4] x86/kasan: Instrument user memory access API
+Date: Mon, 9 May 2016 07:35:08 +0200
+Message-ID: <CACT4Y+Zwv6J+8ovnXAb4EbsHWf4J-8cKr-h25Ucxq5T3kjSn=A@mail.gmail.com>
+Subject: Re: [PATCH v2 2/2] kasan: add kasan_double_free() test
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Alexander Potapenko <glider@google.com>, "x86@kernel.org" <x86@kernel.org>
+To: Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, May 6, 2016 at 2:45 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
-> Exchange between user and kernel memory is coded in assembly language.
-> Which means that such accesses won't be spotted by KASAN as a compiler
-> instruments only C code.
-> Add explicit KASAN checks to user memory access API to ensure that
-> userspace writes to (or reads from) a valid kernel memory.
+On Fri, May 6, 2016 at 1:50 PM, Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com> wrote:
+> This patch adds a new 'test_kasan' test for KASAN double-free error
+> detection when the same slab object is concurrently deallocated.
 >
-> Note: Unlike others strncpy_from_user() is written mostly in C and KASAN
-> sees memory accesses in it. However, it makes sense to add explicit check
-> for all @count bytes that *potentially* could be written to the kernel.
-
-
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
-Thanks!
-
-
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Alexander Potapenko <glider@google.com>
-> Cc: Dmitry Vyukov <dvyukov@google.com>
-> Cc: x86@kernel.org
+> Signed-off-by: Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>
 > ---
->  arch/x86/include/asm/uaccess.h    | 5 +++++
->  arch/x86/include/asm/uaccess_64.h | 7 +++++++
->  lib/strncpy_from_user.c           | 2 ++
->  3 files changed, 14 insertions(+)
+> Changes in v2:
+> - This patch is new for v2.
+> ---
+>  lib/test_kasan.c |   79 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  1 files changed, 79 insertions(+), 0 deletions(-)
 >
-> diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-> index 0b17fad..5dd6d18 100644
-> --- a/arch/x86/include/asm/uaccess.h
-> +++ b/arch/x86/include/asm/uaccess.h
-> @@ -5,6 +5,7 @@
->   */
->  #include <linux/errno.h>
->  #include <linux/compiler.h>
-> +#include <linux/kasan-checks.h>
->  #include <linux/thread_info.h>
+> diff --git a/lib/test_kasan.c b/lib/test_kasan.c
+> index bd75a03..dec5f74 100644
+> --- a/lib/test_kasan.c
+> +++ b/lib/test_kasan.c
+> @@ -16,6 +16,7 @@
+>  #include <linux/slab.h>
 >  #include <linux/string.h>
->  #include <asm/asm.h>
-> @@ -732,6 +733,8 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
+>  #include <linux/module.h>
+> +#include <linux/kthread.h>
 >
->         might_fault();
+>  static noinline void __init kmalloc_oob_right(void)
+>  {
+> @@ -389,6 +390,83 @@ static noinline void __init ksize_unpoisons_memory(void)
+>         kfree(ptr);
+>  }
 >
-> +       kasan_check_write(to, n);
+> +#ifdef CONFIG_SLAB
+> +#ifdef CONFIG_SMP
+
+Will it fail without CONFIG_SMP if we create more than 1 kthread? If
+it does not fail, then please remove the ifdef.
+Also see below.
+
+
+> +static DECLARE_COMPLETION(starting_gun);
+> +static DECLARE_COMPLETION(finish_line);
 > +
->         /*
->          * While we would like to have the compiler do the checking for us
->          * even in the non-constant size case, any false positives there are
-> @@ -765,6 +768,8 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
->  {
->         int sz = __compiletime_object_size(from);
->
-> +       kasan_check_read(from, n);
+> +static int try_free(void *p)
+> +{
+> +       wait_for_completion(&starting_gun);
+> +       kfree(p);
+> +       complete(&finish_line);
+> +       return 0;
+> +}
 > +
->         might_fault();
->
->         /* See the comment in copy_from_user() above. */
-> diff --git a/arch/x86/include/asm/uaccess_64.h b/arch/x86/include/asm/uaccess_64.h
-> index 3076986..2eac2aa 100644
-> --- a/arch/x86/include/asm/uaccess_64.h
-> +++ b/arch/x86/include/asm/uaccess_64.h
-> @@ -7,6 +7,7 @@
->  #include <linux/compiler.h>
->  #include <linux/errno.h>
->  #include <linux/lockdep.h>
-> +#include <linux/kasan-checks.h>
->  #include <asm/alternative.h>
->  #include <asm/cpufeatures.h>
->  #include <asm/page.h>
-> @@ -109,6 +110,7 @@ static __always_inline __must_check
->  int __copy_from_user(void *dst, const void __user *src, unsigned size)
+> +/*
+> + * allocs an object; then all cpus concurrently attempt to free the
+> + * same object.
+> + */
+> +static noinline void __init kasan_double_free(void)
+> +{
+> +       char *p;
+> +       int cpu;
+> +       struct task_struct **tasks;
+> +       size_t size = (KMALLOC_MAX_CACHE_SIZE/4 + 1);
+
+Is it important to use such tricky size calculation here? If it is not
+important, then please replace it with some small constant.
+There are some tests that calculate size based on
+KMALLOC_MAX_CACHE_SIZE, but that's important for them.
+
+
+
+> +       /*
+> +        * max slab size instrumented by KASAN is KMALLOC_MAX_CACHE_SIZE/2.
+> +        * Do not increase size beyond this: slab corruption from double-free
+> +        * may ensue.
+> +        */
+> +       pr_info("concurrent double-free test\n");
+> +       init_completion(&starting_gun);
+> +       init_completion(&finish_line);
+> +       tasks = kzalloc((sizeof(tasks) * nr_cpu_ids), GFP_KERNEL);
+> +       if (!tasks) {
+> +               pr_err("Allocation failed\n");
+> +               return;
+> +       }
+> +       p = kmalloc(size, GFP_KERNEL);
+> +       if (!p) {
+> +               pr_err("Allocation failed\n");
+> +               return;
+> +       }
+> +
+> +       for_each_online_cpu(cpu) {
+
+
+Won't the test fail with 1 cpu?
+By failing I mean that it won't detect the double-free. Soon we will
+start automatically ensuring that a double-free test in fact detects a
+double-free.
+I think it will be much simpler to use just, say, 4 threads. It will
+eliminate kzmalloc, kfree, allocation failure tests, memory leaks and
+also fix !CONFIG_SMP.
+
+
+
+> +               tasks[cpu] = kthread_create(try_free, (void *)p, "try_free%d",
+> +                               cpu);
+> +               if (IS_ERR(tasks[cpu])) {
+> +                       WARN(1, "kthread_create failed.\n");
+> +                       return;
+> +               }
+> +               kthread_bind(tasks[cpu], cpu);
+> +               wake_up_process(tasks[cpu]);
+> +       }
+> +
+> +       complete_all(&starting_gun);
+> +       for_each_online_cpu(cpu)
+> +               wait_for_completion(&finish_line);
+> +       kfree(tasks);
+> +}
+> +#else
+> +static noinline void __init kasan_double_free(void)
+
+This test should work with CONFIG_SLAB as well.
+Please name the tests differently (e.g. kasan_double_free and
+kasan_double_free_threaded), and run kasan_double_free always.
+If kasan_double_free_threaded fails, but kasan_double_free does not,
+that's already some useful info. And if both fail, then it's always
+better to have a simpler reproducer.
+
+
+> +{
+> +       char *p;
+> +       size_t size = 2049;
+> +
+> +       pr_info("double-free test\n");
+> +       p = kmalloc(size, GFP_KERNEL);
+> +       if (!p) {
+> +               pr_err("Allocation failed\n");
+> +               return;
+> +       }
+> +       kfree(p);
+> +       kfree(p);
+> +}
+> +#endif
+> +#endif
+> +
+>  static int __init kmalloc_tests_init(void)
 >  {
->         might_fault();
-> +       kasan_check_write(dst, size);
->         return __copy_from_user_nocheck(dst, src, size);
->  }
->
-> @@ -175,6 +177,7 @@ static __always_inline __must_check
->  int __copy_to_user(void __user *dst, const void *src, unsigned size)
->  {
->         might_fault();
-> +       kasan_check_read(src, size);
->         return __copy_to_user_nocheck(dst, src, size);
->  }
->
-> @@ -242,12 +245,14 @@ int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
->  static __must_check __always_inline int
->  __copy_from_user_inatomic(void *dst, const void __user *src, unsigned size)
->  {
-> +       kasan_check_write(dst, size);
->         return __copy_from_user_nocheck(dst, src, size);
->  }
->
->  static __must_check __always_inline int
->  __copy_to_user_inatomic(void __user *dst, const void *src, unsigned size)
->  {
-> +       kasan_check_read(src, size);
->         return __copy_to_user_nocheck(dst, src, size);
->  }
->
-> @@ -258,6 +263,7 @@ static inline int
->  __copy_from_user_nocache(void *dst, const void __user *src, unsigned size)
->  {
->         might_fault();
-> +       kasan_check_write(dst, size);
->         return __copy_user_nocache(dst, src, size, 1);
->  }
->
-> @@ -265,6 +271,7 @@ static inline int
->  __copy_from_user_inatomic_nocache(void *dst, const void __user *src,
->                                   unsigned size)
->  {
-> +       kasan_check_write(dst, size);
->         return __copy_user_nocache(dst, src, size, 0);
->  }
->
-> diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
-> index 3384032..e3472b0 100644
-> --- a/lib/strncpy_from_user.c
-> +++ b/lib/strncpy_from_user.c
-> @@ -1,5 +1,6 @@
->  #include <linux/compiler.h>
->  #include <linux/export.h>
-> +#include <linux/kasan-checks.h>
->  #include <linux/uaccess.h>
->  #include <linux/kernel.h>
->  #include <linux/errno.h>
-> @@ -103,6 +104,7 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
->         if (unlikely(count <= 0))
->                 return 0;
->
-> +       kasan_check_write(dst, count);
->         max_addr = user_addr_max();
->         src_addr = (unsigned long)src;
->         if (likely(src_addr < max_addr)) {
+>         kmalloc_oob_right();
+> @@ -414,6 +492,7 @@ static int __init kmalloc_tests_init(void)
+>         kasan_global_oob();
+>  #ifdef CONFIG_SLAB
+>         kasan_quarantine_cache();
+> +       kasan_double_free();
+>  #endif
+>         ksize_unpoisons_memory();
+>         return -EAGAIN;
 > --
-> 2.7.3
+> 1.7.1
 >
 
 --
