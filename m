@@ -1,96 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 926D76B0005
-	for <linux-mm@kvack.org>; Mon,  9 May 2016 05:38:32 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 68so81546310lfq.2
-        for <linux-mm@kvack.org>; Mon, 09 May 2016 02:38:32 -0700 (PDT)
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7647D6B025E
+	for <linux-mm@kvack.org>; Mon,  9 May 2016 05:39:40 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id y84so81925971lfc.3
+        for <linux-mm@kvack.org>; Mon, 09 May 2016 02:39:40 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e2si25033705wme.34.2016.05.09.02.38.31
+        by mx.google.com with ESMTPS id s6si32675365wjt.205.2016.05.09.02.39.39
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 09 May 2016 02:38:31 -0700 (PDT)
-Date: Mon, 9 May 2016 11:38:28 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC v3] [PATCH 0/18] DAX page fault locking
-Message-ID: <20160509093828.GF11897@quack2.suse.cz>
-References: <1461015341-20153-1-git-send-email-jack@suse.cz>
- <20160506203308.GA12506@linux.intel.com>
+        Mon, 09 May 2016 02:39:39 -0700 (PDT)
+Subject: Re: [PATCH] mm: fix pfn spans two sections in has_unmovable_pages()
+References: <57304B9A.40504@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <57305AD8.9090202@suse.cz>
+Date: Mon, 9 May 2016 11:39:36 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160506203308.GA12506@linux.intel.com>
+In-Reply-To: <57304B9A.40504@huawei.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>
+To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 06-05-16 14:33:08, Ross Zwisler wrote:
-> On Mon, Apr 18, 2016 at 11:35:23PM +0200, Jan Kara wrote:
-> > Hello,
-> > 
-> > this is my third attempt at DAX page fault locking rewrite. The patch set has
-> > passed xfstests both with and without DAX mount option on ext4 and xfs for
-> > me and also additional page fault beating using the new page fault stress
-> > tests I have added to xfstests. So I'd be grateful if you guys could have a
-> > closer look at the patches so that they can be merged. Thanks.
-> > 
-> > Changes since v2:
-> > - lot of additional ext4 fixes and cleanups
-> > - make PMD page faults depend on CONFIG_BROKEN instead of #if 0
-> > - fixed page reference leak when replacing hole page with a pfn
-> > - added some reviewed-by tags
-> > - rebased on top of current Linus' tree
-> > 
-> > Changes since v1:
-> > - handle wakeups of exclusive waiters properly
-> > - fix cow fault races
-> > - other minor stuff
-> > 
-> > General description
-> > 
-> > The basic idea is that we use a bit in an exceptional radix tree entry as
-> > a lock bit and use it similarly to how page lock is used for normal faults.
-> > That way we fix races between hole instantiation and read faults of the
-> > same index. For now I have disabled PMD faults since there the issues with
-> > page fault locking are even worse. Now that Matthew's multi-order radix tree
-> > has landed, I can have a look into using that for proper locking of PMD faults
-> > but first I want normal pages sorted out.
-> > 
-> > In the end I have decided to implement the bit locking directly in the DAX
-> > code. Originally I was thinking we could provide something generic directly
-> > in the radix tree code but the functions DAX needs are rather specific.
-> > Maybe someone else will have a good idea how to distill some generally useful
-> > functions out of what I've implemented for DAX but for now I didn't bother
-> > with that.
-> > 
-> > 								Honza
-> 
-> Hey Jan,
-> 
-> Another hit in testing, which may or may not be related to the last one.  The
-> BUG is a few lines off from the previous report:
-> 	kernel BUG at mm/workingset.c:423!
-> vs
-> 	kernel BUG at mm/workingset.c:435!
-> 
-> I've been able to consistently hit this one using DAX + ext4 with generic/086.
-> For some reason generic/086 always passes when run by itself, but fails
-> consistently if you run it after a set of other tests.  Here is a relatively
-> fast set that reproduces it:
+On 05/09/2016 10:34 AM, Xishi Qiu wrote:
+> If the pfn is not aligned to pageblock, the check pfn may access a next
+> pageblcok, and the next pageblock may belong to a next section. Because
+> struct page has not been alloced in the next section, so kernel panic.
+>
+> I find the caller of has_unmovable_pages() has passed a aligned pfn, so it
+> doesn't have this problem. But the earlier kernel version(e.g. v3.10) has.
+> e.g. echo xxx > /sys/devices/system/memory/soft_offline_page could trigger
+> it. The following log is from RHEL v7.1
 
-Thanks for reports! It is strange that I didn't see this happening but I've
-been testing against somewhat older base so maybe something has changed.
-Anyway the culprit seems to be that workingset tracking code messes with
-radix tree which is managed by DAX and these two were never meant to
-coexist so assertions naturally trip. In particular we should not add radix
-tree node to working-set list of nodes for eviction in
-page_cache_tree_delete() for DAX inodes. However that seems to happen in
-your case and so far I don't quite understand why...
+I think has_unmovable_pages() is wrong layer where to fix such problem, 
+as I'll explain below.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> [14111.611492] Stack:
+> [14111.611494] ffffffff8115d952 0000000000000000 01ff880c393ebe40 ffff880c7ffd9000
+> [14111.611500] ffffea0061ffffc0 ffff880c7ffd9068 0000000000000286 0000000000000001
+> [14111.611505] ffff880c393ebe10 ffffffff811c265a 000000000187ffff 0000000000000200
+> [14111.611511] Call Trace:
+> [14111.611516] [<ffffffff8115d952>] ? has_unmovable_pages+0xd2/0x130
+> [14111.611521] [<ffffffff811c265a>] set_migratetype_isolate+0xda/0x170
+> [14111.611526] [<ffffffff811c187a>] soft_offline_page+0x9a/0x590
+> [14111.611530] [<ffffffff812e7cab>] ? _kstrtoull+0x3b/0xa0
+> [14111.611535] [<ffffffff813e158f>] store_soft_offline_page+0xaf/0xf0
+> [14111.611539] [<ffffffff813cae18>] dev_attr_store+0x18/0x30
+> [14111.611544] [<ffffffff8123c046>] sysfs_write_file+0xc6/0x140
+> [14111.611548] [<ffffffff811c5b5d>] vfs_write+0xbd/0x1e0
+> [14111.611551] [<ffffffff811c65a8>] SyS_write+0x58/0xb0
+> [14111.611556] [<ffffffff8160f509>] system_call_fastpath+0x16/0x1b
+> [14111.611559] Code: 66 66 66 90 48 83 e0 fd 0c a0 5d c3 66 2e 0f 1f 84 00 00 00 00 00 48 89 f8 66 66 66 90 48 83 c8 42 0c a0 5d c3 90 66 66 66 66 90 <8b> 07 25 00 c0 00 00 75 02 f3 c3 48 8b 07 f6 c4 80 75 0f 48 81
+> [14111.611594] RIP [<ffffffff81199fc5>] PageHuge+0x5/0x40
+> [14111.611598] RSP <ffff880c393ebd80>
+> [14111.611600] CR2: ffffea0062000000
+> [14111.611604] ---[ end trace 9f780ed1def334c6 ]---
+> [14111.678586] Kernel panic - not syncing: Fatal exception
+>
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+
+It's not CC'd stable, so how will this patch fix the older kernels? Also 
+you should determine which upstream kernel versions are affected, not a 
+RHEL derivative.
+Also is the current upstream broken or not?
+
+> ---
+>   mm/page_alloc.c | 1 +
+>   1 file changed, 1 insertion(+)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 59de90d..9afc1bc 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6842,6 +6842,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>   		return false;
+>
+>   	pfn = page_to_pfn(page);
+> +	pfn = pfn & ~(pageblock_nr_pages - 1);
+
+I think it's wrong that has_unmovable_pages() would silently correct 
+wrong input. See e.g. the call path from start_isolate_page_range -> 
+set_migratetype_isolate -> has_unmovable_pages. In 
+start_isolate_page_range() there are BUG_ON's to check the alignment. 
+That would be more appropriate here as well (but use VM_BUG_ON please).
+
+One danger of the self-correction is that the adjusted pfn might be of
+a different zone, so let's not go there. If there's a call stack that 
+passes unaligned page, it has to be fixed higher in the stack IMHO.
+
+>   	for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
+>   		unsigned long check = pfn + iter;
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
