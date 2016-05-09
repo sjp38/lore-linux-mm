@@ -1,63 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 02B486B0253
-	for <linux-mm@kvack.org>; Mon,  9 May 2016 10:55:30 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 203so381768969pfy.2
-        for <linux-mm@kvack.org>; Mon, 09 May 2016 07:55:29 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id qe4si39250343pab.195.2016.05.09.07.55.29
-        for <linux-mm@kvack.org>;
-        Mon, 09 May 2016 07:55:29 -0700 (PDT)
-Date: Mon, 9 May 2016 08:55:27 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v5 3/5] dax: use sb_issue_zerout instead of calling
- dax_clear_sectors
-Message-ID: <20160509145527.GA31079@linux.intel.com>
-References: <1462571591-3361-1-git-send-email-vishal.l.verma@intel.com>
- <1462571591-3361-4-git-send-email-vishal.l.verma@intel.com>
- <20160508085203.GA10160@infradead.org>
- <1462733173.3006.7.camel@intel.com>
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C69636B0005
+	for <linux-mm@kvack.org>; Mon,  9 May 2016 11:13:47 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id r185so300689404ywf.3
+        for <linux-mm@kvack.org>; Mon, 09 May 2016 08:13:47 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n6si18960034qge.102.2016.05.09.08.13.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 May 2016 08:13:46 -0700 (PDT)
+Subject: Re: [RFC PATCH v1 00/18] x86: Secure Memory Encryption (AMD)
+References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
+ <CALCETrUdrMAmE6Vgj6_PALdmRZVVKa3QDwJtO=YDTOQdox=rhQ@mail.gmail.com>
+ <57211CAB.9040902@amd.com>
+ <CALCETrWAP5hxQeVSwNx-XkO53-X3bX0LasjOuHxeRWCTob7JAA@mail.gmail.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <5730A91E.6040601@redhat.com>
+Date: Mon, 9 May 2016 17:13:34 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+In-Reply-To: <CALCETrWAP5hxQeVSwNx-XkO53-X3bX0LasjOuHxeRWCTob7JAA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <1462733173.3006.7.camel@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Verma, Vishal L" <vishal.l.verma@intel.com>
-Cc: "hch@infradead.org" <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, "jmoyer@redhat.com" <jmoyer@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "boaz@plexistor.com" <boaz@plexistor.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>
+To: Andy Lutomirski <luto@amacapital.net>, Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch <linux-arch@vger.kernel.org>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, kvm list <kvm@vger.kernel.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On Sun, May 08, 2016 at 06:46:13PM +0000, Verma, Vishal L wrote:
-> On Sun, 2016-05-08 at 01:52 -0700, Christoph Hellwig wrote:
-> > On Fri, May 06, 2016 at 03:53:09PM -0600, Vishal Verma wrote:
-> > > 
-> > > From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> > > 
-> > > dax_clear_sectors() cannot handle poisoned blocks.  These must be
-> > > zeroed using the BIO interface instead.  Convert ext2 and XFS to
-> > > use
-> > > only sb_issue_zerout().
-> > > 
-> > > Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> > > [vishal: Also remove the dax_clear_sectors function entirely]
-> > > Signed-off-by: Vishal Verma <vishal.l.verma@intel.com>
-> > Just to make sure:  the existing sb_issue_zerout as in 4.6-rc
-> > is already doing the right thing for DAX?  I've got a pending
-> > patchset
-> > for XFS that introduces another dax_clear_sectors users, but if it's
-> > already safe to use blkdev_issue_zeroout I can switch to that and
-> > avoid
-> > the merge conflict.
-> 
-> I believe so - Jan has moved all unwritten extent conversions out of
-> DAX with his patch set, and I believe zeroing through the driver is
-> always fine. Ross or Jan could confirm though. 
 
-Yep, I believe that the existing sb_issue_zeroout() as of v4.6-rc* does the
-right thing.  We'll end up calling sb_issue_zeroout() => blkdev_issue_zeroout()
-=> __blkdev_issue_zeroout() because we don't have support for discard or
-write_same in PMEM.  This will send zero page BIOs to the PMEM driver, which
-will do the zeroing as normal writes.
+
+On 02/05/2016 20:31, Andy Lutomirski wrote:
+> And did the SEV implementation remember to encrypt the guest register
+> state?  Because, if not, everything of importance will leak out
+> through the VMCB and/or GPRs.
+
+No, it doesn't.  And SEV is very limited unless you paravirtualize
+everything.
+
+For example, the hypervisor needs to read some instruction bytes from
+memory, and instruction bytes are always encrypted (15.34.5 in the APM).
+ So you're pretty much restricted to IN/OUT operations (not even
+INS/OUTS) on emulated (non-assigned) devices, paravirtualized MSRs, and
+hypercalls.  These are the only operations that connect the guest and
+the hypervisor, where the vmexit doesn't have the need to e.g. walk
+guest page tables (also always encrypted).  It possibly can be made to
+work once the guest boots, and a modern UEFI firmware probably can cope
+with it too just like a kernel can, but you need to ensure that your
+hardware has no memory BARs for example.  And I/O port space is not very
+abundant.
+
+Even in order to emulate I/O ports or RDMSR/WRMSR or process hypercalls,
+the hypervisor needs to read the GPRs.  The VMCB doesn't store guest
+GPRs, not even on SEV-enabled processors.  Accordingly, the hypervisor
+has access to the guest GPRs on every exit.
+
+In general, SEV provides mitigation only.  Even if the hypervisor cannot
+write known plaintext directly to memory, an accomplice virtual machine
+can e.g. use the network to spray the attacked VM's memory.  At least
+it's not as easy as "disable NX under the guest's feet and redirect RIP"
+(pte.nx is reserved if efer.nxe=0, all you get is a #PF).  But the
+hypervisor can still disable SMEP and SMAP, it can use hardware
+breakpoints to leak information through the registers, and it can do all
+the other attacks you mentioned.  If AMD had rdrand/rdseed, it could
+replace the output with not so random values, and so on.
+
+It's surely better than nothing, but "encryption that really is nothing
+more than mitigation" is pretty weird.  I'm waiting for cloud vendors to
+sell this as the best thing since sliced bread, when in reality it's
+just mitigation.  I wonder how wise it is to merge SEV in its current
+state---and since security is not my specialty I am definitely looking
+for advice on this.
+
+Paolo
+
+ps: I'm now reminded of this patch:
+
+    commit dab429a798a8ab3377136e09dda55ea75a41648d
+    Author: David Kaplan <David.Kaplan@amd.com>
+    Date:   Mon Mar 2 13:43:37 2015 -0600
+
+    kvm: svm: make wbinvd faster
+
+    No need to re-decode WBINVD since we know what it is from the
+    intercept.
+
+    Signed-off-by: David Kaplan <David.Kaplan@amd.com>
+    [extracted from larger unlrelated patch, forward ported,
+     tested,style cleanup]
+    Signed-off-by: Joel Schopp <joel.schopp@amd.com>
+    Reviewed-by: Radim KrA?mA!A? <rkrcmar@redhat.com>
+    Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
+
+and I wonder if the larger unlrelated patch had anything to do with SEV!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
