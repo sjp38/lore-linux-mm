@@ -1,119 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B45D6B0262
-	for <linux-mm@kvack.org>; Mon,  9 May 2016 06:15:50 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id b203so369925041pfb.1
-        for <linux-mm@kvack.org>; Mon, 09 May 2016 03:15:50 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id b6si36906786pfb.63.2016.05.09.03.15.45
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A35226B0264
+	for <linux-mm@kvack.org>; Mon,  9 May 2016 06:26:15 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id u185so342399475oie.3
+        for <linux-mm@kvack.org>; Mon, 09 May 2016 03:26:15 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0139.outbound.protection.outlook.com. [104.47.0.139])
+        by mx.google.com with ESMTPS id r9si11878924otd.249.2016.05.09.03.26.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 09 May 2016 03:15:49 -0700 (PDT)
-Message-ID: <57306038.1070907@huawei.com>
-Date: Mon, 9 May 2016 18:02:32 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 09 May 2016 03:26:14 -0700 (PDT)
+Subject: Re: [PATCH v2 1/2] mm, kasan: improve double-free detection
+References: <20160506114727.GA2571@cherokee.in.rdlabs.hpecorp.net>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <573065BD.2020708@virtuozzo.com>
+Date: Mon, 9 May 2016 13:26:05 +0300
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix pfn spans two sections in has_unmovable_pages()
-References: <57304B9A.40504@huawei.com> <57305AD8.9090202@suse.cz>
-In-Reply-To: <57305AD8.9090202@suse.cz>
-Content-Type: text/plain; charset="windows-1252"
+In-Reply-To: <20160506114727.GA2571@cherokee.in.rdlabs.hpecorp.net>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux
- MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, glider@google.com, dvyukov@google.com, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
+Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 2016/5/9 17:39, Vlastimil Babka wrote:
 
-> On 05/09/2016 10:34 AM, Xishi Qiu wrote:
->> If the pfn is not aligned to pageblock, the check pfn may access a next
->> pageblcok, and the next pageblock may belong to a next section. Because
->> struct page has not been alloced in the next section, so kernel panic.
->>
->> I find the caller of has_unmovable_pages() has passed a aligned pfn, so it
->> doesn't have this problem. But the earlier kernel version(e.g. v3.10) has.
->> e.g. echo xxx > /sys/devices/system/memory/soft_offline_page could trigger
->> it. The following log is from RHEL v7.1
+
+On 05/06/2016 02:47 PM, Kuthonuzo Luruo wrote:
+> Currently, KASAN may fail to detect concurrent deallocations of the same
+> object due to a race in kasan_slab_free(). This patch makes double-free
+> detection more reliable by serializing access to KASAN object metadata.
+> New functions kasan_meta_lock() and kasan_meta_unlock() are provided to
+> lock/unlock per-object metadata. Double-free errors are now reported via
+> kasan_report().
 > 
-> I think has_unmovable_pages() is wrong layer where to fix such problem, as I'll explain below.
+> Testing:
+> - Tested with a modified version of the 'slab_test' microbenchmark where
+>   allocs occur on CPU 0; then all other CPUs concurrently attempt to free
+>   the same object.
+> - Tested with new 'test_kasan' kasan_double_free() test in accompanying
+>   patch.
 > 
->> [14111.611492] Stack:
->> [14111.611494] ffffffff8115d952 0000000000000000 01ff880c393ebe40 ffff880c7ffd9000
->> [14111.611500] ffffea0061ffffc0 ffff880c7ffd9068 0000000000000286 0000000000000001
->> [14111.611505] ffff880c393ebe10 ffffffff811c265a 000000000187ffff 0000000000000200
->> [14111.611511] Call Trace:
->> [14111.611516] [<ffffffff8115d952>] ? has_unmovable_pages+0xd2/0x130
->> [14111.611521] [<ffffffff811c265a>] set_migratetype_isolate+0xda/0x170
->> [14111.611526] [<ffffffff811c187a>] soft_offline_page+0x9a/0x590
->> [14111.611530] [<ffffffff812e7cab>] ? _kstrtoull+0x3b/0xa0
->> [14111.611535] [<ffffffff813e158f>] store_soft_offline_page+0xaf/0xf0
->> [14111.611539] [<ffffffff813cae18>] dev_attr_store+0x18/0x30
->> [14111.611544] [<ffffffff8123c046>] sysfs_write_file+0xc6/0x140
->> [14111.611548] [<ffffffff811c5b5d>] vfs_write+0xbd/0x1e0
->> [14111.611551] [<ffffffff811c65a8>] SyS_write+0x58/0xb0
->> [14111.611556] [<ffffffff8160f509>] system_call_fastpath+0x16/0x1b
->> [14111.611559] Code: 66 66 66 90 48 83 e0 fd 0c a0 5d c3 66 2e 0f 1f 84 00 00 00 00 00 48 89 f8 66 66 66 90 48 83 c8 42 0c a0 5d c3 90 66 66 66 66 90 <8b> 07 25 00 c0 00 00 75 02 f3 c3 48 8b 07 f6 c4 80 75 0f 48 81
->> [14111.611594] RIP [<ffffffff81199fc5>] PageHuge+0x5/0x40
->> [14111.611598] RSP <ffff880c393ebd80>
->> [14111.611600] CR2: ffffea0062000000
->> [14111.611604] ---[ end trace 9f780ed1def334c6 ]---
->> [14111.678586] Kernel panic - not syncing: Fatal exception
->>
->> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> Signed-off-by: Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>
+> ---
 > 
-> It's not CC'd stable, so how will this patch fix the older kernels? Also you should determine which upstream kernel versions are affected, not a RHEL derivative.
-> Also is the current upstream broken or not?
+> Changes in v2:
+> - Incorporated suggestions from Dmitry Vyukov. New per-object metadata
+>   lock/unlock functions; kasan_alloc_meta modified to add new state while
+>   using fewer bits overall.
+> - Double-free pr_err promoted to kasan_report().
+> - kasan_init_object() introduced to initialize KASAN object metadata
+>   during slab creation. KASAN_STATE_INIT initialization removed from
+>   kasan_poison_object_data().
+>  
+> ---
+>  include/linux/kasan.h |    8 +++
+>  mm/kasan/kasan.c      |  118 ++++++++++++++++++++++++++++++++++++-------------
+>  mm/kasan/kasan.h      |   15 +++++-
+>  mm/kasan/quarantine.c |    7 +++-
+>  mm/kasan/report.c     |   31 +++++++++++--
+>  mm/slab.c             |    1 +
+>  6 files changed, 142 insertions(+), 38 deletions(-)
 > 
 
-OK, I'll resend it later. The current upstream has not this problem.
+Sorry, but this patch is crap.
 
->> ---
->>   mm/page_alloc.c | 1 +
->>   1 file changed, 1 insertion(+)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 59de90d..9afc1bc 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -6842,6 +6842,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
->>           return false;
->>
->>       pfn = page_to_pfn(page);
->> +    pfn = pfn & ~(pageblock_nr_pages - 1);
-> 
-> I think it's wrong that has_unmovable_pages() would silently correct wrong input. See e.g. the call path from start_isolate_page_range -> set_migratetype_isolate -> has_unmovable_pages. In start_isolate_page_range() there are BUG_ON's to check the alignment. That would be more appropriate here as well (but use VM_BUG_ON please).
-> 
+Something like this, will fix the race:
 
-Yes, this path is correct.
+---
+ mm/kasan/kasan.c      | 20 ++++----------------
+ mm/kasan/kasan.h      | 10 +++-------
+ mm/kasan/quarantine.c |  1 -
+ mm/kasan/report.c     | 11 ++---------
+ 4 files changed, 9 insertions(+), 33 deletions(-)
 
-But the older kernel like the following path has the problem.
-soft_offline_page
-	get_any_page
-		__get_any_page
-			set_migratetype_isolate
-				has_unmovable_pages
-
-> One danger of the self-correction is that the adjusted pfn might be of
-> a different zone, so let's not go there. If there's a call stack that passes unaligned page, it has to be fixed higher in the stack IMHO.
->
-
-How about change the pfn when calling set_migratetype_isolate()?
-e.g. set_migratetype_isolate((p & ~(pageblock_nr_pages - 1)), true);
-
-Thanks,
-Xishi Qiu
-
->>       for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
->>           unsigned long check = pfn + iter;
->>
->>
-> 
-> 
-> .
-> 
-
-
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index ef2e87b..8d078dc 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -419,13 +419,6 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
+ 	kasan_poison_shadow(object,
+ 			round_up(cache->object_size, KASAN_SHADOW_SCALE_SIZE),
+ 			KASAN_KMALLOC_REDZONE);
+-#ifdef CONFIG_SLAB
+-	if (cache->flags & SLAB_KASAN) {
+-		struct kasan_alloc_meta *alloc_info =
+-			get_alloc_info(cache, object);
+-		alloc_info->state = KASAN_STATE_INIT;
+-	}
+-#endif
+ }
+ 
+ #ifdef CONFIG_SLAB
+@@ -521,20 +514,15 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object)
+ 		struct kasan_free_meta *free_info =
+ 			get_free_info(cache, object);
+ 
+-		switch (alloc_info->state) {
+-		case KASAN_STATE_ALLOC:
+-			alloc_info->state = KASAN_STATE_QUARANTINE;
++		if (test_and_clear_bit(KASAN_STATE_ALLOCATED,
++					&alloc_info->state)) {
+ 			quarantine_put(free_info, cache);
+ 			set_track(&free_info->track, GFP_NOWAIT);
+ 			kasan_poison_slab_free(cache, object);
+ 			return true;
+-		case KASAN_STATE_QUARANTINE:
+-		case KASAN_STATE_FREE:
++		} else {
+ 			pr_err("Double free");
+ 			dump_stack();
+-			break;
+-		default:
+-			break;
+ 		}
+ 	}
+ 	return false;
+@@ -571,7 +559,7 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
+ 		struct kasan_alloc_meta *alloc_info =
+ 			get_alloc_info(cache, object);
+ 
+-		alloc_info->state = KASAN_STATE_ALLOC;
++		set_bit(KASAN_STATE_ALLOCATED, &alloc_info->state);
+ 		alloc_info->alloc_size = size;
+ 		set_track(&alloc_info->track, flags);
+ 	}
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index 7da78a6..2dcdc8f 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -60,10 +60,7 @@ struct kasan_global {
+  */
+ 
+ enum kasan_state {
+-	KASAN_STATE_INIT,
+-	KASAN_STATE_ALLOC,
+-	KASAN_STATE_QUARANTINE,
+-	KASAN_STATE_FREE
++	KASAN_STATE_ALLOCATED,
+ };
+ 
+ #define KASAN_STACK_DEPTH 64
+@@ -75,9 +72,8 @@ struct kasan_track {
+ 
+ struct kasan_alloc_meta {
+ 	struct kasan_track track;
+-	u32 state : 2;	/* enum kasan_state */
+-	u32 alloc_size : 30;
+-	u32 reserved;
++	unsigned long state;
++	u32 alloc_size;
+ };
+ 
+ struct kasan_free_meta {
+diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
+index 40159a6..ca33fd3 100644
+--- a/mm/kasan/quarantine.c
++++ b/mm/kasan/quarantine.c
+@@ -147,7 +147,6 @@ static void qlink_free(void **qlink, struct kmem_cache *cache)
+ 	unsigned long flags;
+ 
+ 	local_irq_save(flags);
+-	alloc_info->state = KASAN_STATE_FREE;
+ 	___cache_free(cache, object, _THIS_IP_);
+ 	local_irq_restore(flags);
+ }
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index b3c122d..c2b0e51 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -140,18 +140,12 @@ static void object_err(struct kmem_cache *cache, struct page *page,
+ 	pr_err("Object at %p, in cache %s\n", object, cache->name);
+ 	if (!(cache->flags & SLAB_KASAN))
+ 		return;
+-	switch (alloc_info->state) {
+-	case KASAN_STATE_INIT:
+-		pr_err("Object not allocated yet\n");
+-		break;
+-	case KASAN_STATE_ALLOC:
++	if (test_bit(KASAN_STATE_ALLOCATED, &alloc_info->state)) {
+ 		pr_err("Object allocated with size %u bytes.\n",
+ 		       alloc_info->alloc_size);
+ 		pr_err("Allocation:\n");
+ 		print_track(&alloc_info->track);
+-		break;
+-	case KASAN_STATE_FREE:
+-	case KASAN_STATE_QUARANTINE:
++	} else {
+ 		pr_err("Object freed, allocated with size %u bytes\n",
+ 		       alloc_info->alloc_size);
+ 		free_info = get_free_info(cache, object);
+@@ -159,7 +153,6 @@ static void object_err(struct kmem_cache *cache, struct page *page,
+ 		print_track(&alloc_info->track);
+ 		pr_err("Deallocation:\n");
+ 		print_track(&free_info->track);
+-		break;
+ 	}
+ }
+ #endif
+-- 
+2.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
