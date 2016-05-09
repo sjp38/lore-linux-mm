@@ -1,214 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 90DDE6B0266
-	for <linux-mm@kvack.org>; Mon,  9 May 2016 06:31:38 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id w143so94989161wmw.3
-        for <linux-mm@kvack.org>; Mon, 09 May 2016 03:31:38 -0700 (PDT)
-Received: from mail-lf0-x233.google.com (mail-lf0-x233.google.com. [2a00:1450:4010:c07::233])
-        by mx.google.com with ESMTPS id wj4si9216409lbb.194.2016.05.09.03.31.37
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EB5A36B025F
+	for <linux-mm@kvack.org>; Mon,  9 May 2016 07:36:05 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id d62so409059437iof.1
+        for <linux-mm@kvack.org>; Mon, 09 May 2016 04:36:05 -0700 (PDT)
+Received: from g1t5424.austin.hp.com (g1t5424.austin.hp.com. [15.216.225.54])
+        by mx.google.com with ESMTPS id o65si303750ito.7.2016.05.09.04.36.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 May 2016 03:31:37 -0700 (PDT)
-Received: by mail-lf0-x233.google.com with SMTP id u64so195383864lff.3
-        for <linux-mm@kvack.org>; Mon, 09 May 2016 03:31:37 -0700 (PDT)
-MIME-Version: 1.0
+        Mon, 09 May 2016 04:36:04 -0700 (PDT)
+From: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>
+Subject: RE: [PATCH v2 1/2] mm, kasan: improve double-free detection
+Date: Mon, 9 May 2016 11:35:07 +0000
+Message-ID: <20E775CA4D599049A25800DE5799F6DD1F627919@G4W3225.americas.hpqcorp.net>
+References: <20160506114727.GA2571@cherokee.in.rdlabs.hpecorp.net>
+ <573065BD.2020708@virtuozzo.com>
 In-Reply-To: <573065BD.2020708@virtuozzo.com>
-References: <20160506114727.GA2571@cherokee.in.rdlabs.hpecorp.net> <573065BD.2020708@virtuozzo.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 9 May 2016 12:31:17 +0200
-Message-ID: <CACT4Y+aZyKg6ehTovDWkzw_vLQ=Td=FHh3OC6w6cOyNOrKPfTA@mail.gmail.com>
-Subject: Re: [PATCH v2 1/2] mm, kasan: improve double-free detection
-Content-Type: text/plain; charset=UTF-8
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "cl@linux.com" <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, May 9, 2016 at 12:26 PM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
->
->
-> On 05/06/2016 02:47 PM, Kuthonuzo Luruo wrote:
->> Currently, KASAN may fail to detect concurrent deallocations of the same
->> object due to a race in kasan_slab_free(). This patch makes double-free
->> detection more reliable by serializing access to KASAN object metadata.
->> New functions kasan_meta_lock() and kasan_meta_unlock() are provided to
->> lock/unlock per-object metadata. Double-free errors are now reported via
->> kasan_report().
->>
->> Testing:
->> - Tested with a modified version of the 'slab_test' microbenchmark where
->>   allocs occur on CPU 0; then all other CPUs concurrently attempt to free
->>   the same object.
->> - Tested with new 'test_kasan' kasan_double_free() test in accompanying
->>   patch.
->>
->> Signed-off-by: Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>
->> ---
->>
->> Changes in v2:
->> - Incorporated suggestions from Dmitry Vyukov. New per-object metadata
->>   lock/unlock functions; kasan_alloc_meta modified to add new state while
->>   using fewer bits overall.
->> - Double-free pr_err promoted to kasan_report().
->> - kasan_init_object() introduced to initialize KASAN object metadata
->>   during slab creation. KASAN_STATE_INIT initialization removed from
->>   kasan_poison_object_data().
->>
->> ---
->>  include/linux/kasan.h |    8 +++
->>  mm/kasan/kasan.c      |  118 ++++++++++++++++++++++++++++++++++++-------------
->>  mm/kasan/kasan.h      |   15 +++++-
->>  mm/kasan/quarantine.c |    7 +++-
->>  mm/kasan/report.c     |   31 +++++++++++--
->>  mm/slab.c             |    1 +
->>  6 files changed, 142 insertions(+), 38 deletions(-)
->>
->
-> Sorry, but this patch is crap.
->
-> Something like this, will fix the race:
->
-> ---
->  mm/kasan/kasan.c      | 20 ++++----------------
->  mm/kasan/kasan.h      | 10 +++-------
->  mm/kasan/quarantine.c |  1 -
->  mm/kasan/report.c     | 11 ++---------
->  4 files changed, 9 insertions(+), 33 deletions(-)
->
-> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-> index ef2e87b..8d078dc 100644
-> --- a/mm/kasan/kasan.c
-> +++ b/mm/kasan/kasan.c
-> @@ -419,13 +419,6 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
->         kasan_poison_shadow(object,
->                         round_up(cache->object_size, KASAN_SHADOW_SCALE_SIZE),
->                         KASAN_KMALLOC_REDZONE);
-> -#ifdef CONFIG_SLAB
-> -       if (cache->flags & SLAB_KASAN) {
-> -               struct kasan_alloc_meta *alloc_info =
-> -                       get_alloc_info(cache, object);
-> -               alloc_info->state = KASAN_STATE_INIT;
-> -       }
-> -#endif
->  }
->
->  #ifdef CONFIG_SLAB
-> @@ -521,20 +514,15 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object)
->                 struct kasan_free_meta *free_info =
->                         get_free_info(cache, object);
->
-> -               switch (alloc_info->state) {
-> -               case KASAN_STATE_ALLOC:
-> -                       alloc_info->state = KASAN_STATE_QUARANTINE;
-> +               if (test_and_clear_bit(KASAN_STATE_ALLOCATED,
-> +                                       &alloc_info->state)) {
->                         quarantine_put(free_info, cache);
->                         set_track(&free_info->track, GFP_NOWAIT);
->                         kasan_poison_slab_free(cache, object);
->                         return true;
-> -               case KASAN_STATE_QUARANTINE:
-> -               case KASAN_STATE_FREE:
-> +               } else {
->                         pr_err("Double free");
->                         dump_stack();
-> -                       break;
-> -               default:
-> -                       break;
->                 }
->         }
->         return false;
-> @@ -571,7 +559,7 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
->                 struct kasan_alloc_meta *alloc_info =
->                         get_alloc_info(cache, object);
->
-> -               alloc_info->state = KASAN_STATE_ALLOC;
-> +               set_bit(KASAN_STATE_ALLOCATED, &alloc_info->state);
->                 alloc_info->alloc_size = size;
->                 set_track(&alloc_info->track, flags);
->         }
-> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-> index 7da78a6..2dcdc8f 100644
-> --- a/mm/kasan/kasan.h
-> +++ b/mm/kasan/kasan.h
-> @@ -60,10 +60,7 @@ struct kasan_global {
->   */
->
->  enum kasan_state {
-> -       KASAN_STATE_INIT,
-> -       KASAN_STATE_ALLOC,
-> -       KASAN_STATE_QUARANTINE,
-> -       KASAN_STATE_FREE
-> +       KASAN_STATE_ALLOCATED,
->  };
->
->  #define KASAN_STACK_DEPTH 64
-> @@ -75,9 +72,8 @@ struct kasan_track {
->
->  struct kasan_alloc_meta {
->         struct kasan_track track;
-> -       u32 state : 2;  /* enum kasan_state */
-> -       u32 alloc_size : 30;
-> -       u32 reserved;
-> +       unsigned long state;
-> +       u32 alloc_size;
->  };
->
->  struct kasan_free_meta {
-> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
-> index 40159a6..ca33fd3 100644
-> --- a/mm/kasan/quarantine.c
-> +++ b/mm/kasan/quarantine.c
-> @@ -147,7 +147,6 @@ static void qlink_free(void **qlink, struct kmem_cache *cache)
->         unsigned long flags;
->
->         local_irq_save(flags);
-> -       alloc_info->state = KASAN_STATE_FREE;
->         ___cache_free(cache, object, _THIS_IP_);
->         local_irq_restore(flags);
->  }
-> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-> index b3c122d..c2b0e51 100644
-> --- a/mm/kasan/report.c
-> +++ b/mm/kasan/report.c
-> @@ -140,18 +140,12 @@ static void object_err(struct kmem_cache *cache, struct page *page,
->         pr_err("Object at %p, in cache %s\n", object, cache->name);
->         if (!(cache->flags & SLAB_KASAN))
->                 return;
-> -       switch (alloc_info->state) {
-> -       case KASAN_STATE_INIT:
-> -               pr_err("Object not allocated yet\n");
-> -               break;
-> -       case KASAN_STATE_ALLOC:
-> +       if (test_bit(KASAN_STATE_ALLOCATED, &alloc_info->state)) {
->                 pr_err("Object allocated with size %u bytes.\n",
->                        alloc_info->alloc_size);
->                 pr_err("Allocation:\n");
->                 print_track(&alloc_info->track);
-
-alloc_info->track is not necessary initialized when
-KASAN_STATE_ALLOCATED is set. Worse, it can be initialized to a wrong
-stack.
-
-
-> -               break;
-> -       case KASAN_STATE_FREE:
-> -       case KASAN_STATE_QUARANTINE:
-> +       } else {
->                 pr_err("Object freed, allocated with size %u bytes\n",
->                        alloc_info->alloc_size);
->                 free_info = get_free_info(cache, object);
-> @@ -159,7 +153,6 @@ static void object_err(struct kmem_cache *cache, struct page *page,
->                 print_track(&alloc_info->track);
->                 pr_err("Deallocation:\n");
->                 print_track(&free_info->track);
-> -               break;
->         }
->  }
->  #endif
-> --
-> 2.7.3
->
+PiA+IEN1cnJlbnRseSwgS0FTQU4gbWF5IGZhaWwgdG8gZGV0ZWN0IGNvbmN1cnJlbnQgZGVhbGxv
+Y2F0aW9ucyBvZiB0aGUgc2FtZQ0KPiA+IG9iamVjdCBkdWUgdG8gYSByYWNlIGluIGthc2FuX3Ns
+YWJfZnJlZSgpLiBUaGlzIHBhdGNoIG1ha2VzIGRvdWJsZS1mcmVlDQo+ID4gZGV0ZWN0aW9uIG1v
+cmUgcmVsaWFibGUgYnkgc2VyaWFsaXppbmcgYWNjZXNzIHRvIEtBU0FOIG9iamVjdCBtZXRhZGF0
+YS4NCj4gPiBOZXcgZnVuY3Rpb25zIGthc2FuX21ldGFfbG9jaygpIGFuZCBrYXNhbl9tZXRhX3Vu
+bG9jaygpIGFyZSBwcm92aWRlZCB0bw0KPiA+IGxvY2svdW5sb2NrIHBlci1vYmplY3QgbWV0YWRh
+dGEuIERvdWJsZS1mcmVlIGVycm9ycyBhcmUgbm93IHJlcG9ydGVkIHZpYQ0KPiA+IGthc2FuX3Jl
+cG9ydCgpLg0KPiA+DQo+ID4gVGVzdGluZzoNCj4gPiAtIFRlc3RlZCB3aXRoIGEgbW9kaWZpZWQg
+dmVyc2lvbiBvZiB0aGUgJ3NsYWJfdGVzdCcgbWljcm9iZW5jaG1hcmsgd2hlcmUNCj4gPiAgIGFs
+bG9jcyBvY2N1ciBvbiBDUFUgMDsgdGhlbiBhbGwgb3RoZXIgQ1BVcyBjb25jdXJyZW50bHkgYXR0
+ZW1wdCB0byBmcmVlDQo+ID4gICB0aGUgc2FtZSBvYmplY3QuDQo+ID4gLSBUZXN0ZWQgd2l0aCBu
+ZXcgJ3Rlc3Rfa2FzYW4nIGthc2FuX2RvdWJsZV9mcmVlKCkgdGVzdCBpbiBhY2NvbXBhbnlpbmcN
+Cj4gPiAgIHBhdGNoLg0KPiA+DQo+ID4gU2lnbmVkLW9mZi1ieTogS3V0aG9udXpvIEx1cnVvIDxr
+dXRob251em8ubHVydW9AaHBlLmNvbT4NCj4gPiAtLS0NCj4gPg0KPiA+IENoYW5nZXMgaW4gdjI6
+DQo+ID4gLSBJbmNvcnBvcmF0ZWQgc3VnZ2VzdGlvbnMgZnJvbSBEbWl0cnkgVnl1a292LiBOZXcg
+cGVyLW9iamVjdCBtZXRhZGF0YQ0KPiA+ICAgbG9jay91bmxvY2sgZnVuY3Rpb25zOyBrYXNhbl9h
+bGxvY19tZXRhIG1vZGlmaWVkIHRvIGFkZCBuZXcgc3RhdGUgd2hpbGUNCj4gPiAgIHVzaW5nIGZl
+d2VyIGJpdHMgb3ZlcmFsbC4NCj4gPiAtIERvdWJsZS1mcmVlIHByX2VyciBwcm9tb3RlZCB0byBr
+YXNhbl9yZXBvcnQoKS4NCj4gPiAtIGthc2FuX2luaXRfb2JqZWN0KCkgaW50cm9kdWNlZCB0byBp
+bml0aWFsaXplIEtBU0FOIG9iamVjdCBtZXRhZGF0YQ0KPiA+ICAgZHVyaW5nIHNsYWIgY3JlYXRp
+b24uIEtBU0FOX1NUQVRFX0lOSVQgaW5pdGlhbGl6YXRpb24gcmVtb3ZlZCBmcm9tDQo+ID4gICBr
+YXNhbl9wb2lzb25fb2JqZWN0X2RhdGEoKS4NCj4gPg0KPiA+IC0tLQ0KPiA+ICBpbmNsdWRlL2xp
+bnV4L2thc2FuLmggfCAgICA4ICsrKw0KPiA+ICBtbS9rYXNhbi9rYXNhbi5jICAgICAgfCAgMTE4
+ICsrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKy0tLS0tLQ0KPiAtLS0tLS0tDQo+
+ID4gIG1tL2thc2FuL2thc2FuLmggICAgICB8ICAgMTUgKysrKystDQo+ID4gIG1tL2thc2FuL3F1
+YXJhbnRpbmUuYyB8ICAgIDcgKysrLQ0KPiA+ICBtbS9rYXNhbi9yZXBvcnQuYyAgICAgfCAgIDMx
+ICsrKysrKysrKysrLS0NCj4gPiAgbW0vc2xhYi5jICAgICAgICAgICAgIHwgICAgMSArDQo+ID4g
+IDYgZmlsZXMgY2hhbmdlZCwgMTQyIGluc2VydGlvbnMoKyksIDM4IGRlbGV0aW9ucygtKQ0KPiA+
+DQo+IA0KPiBTb3JyeSwgYnV0IHRoaXMgcGF0Y2ggaXMgY3JhcC4NCj4gDQo+IFNvbWV0aGluZyBs
+aWtlIHRoaXMsIHdpbGwgZml4IHRoZSByYWNlOg0KPiANCj4gLS0tDQo+ICBtbS9rYXNhbi9rYXNh
+bi5jICAgICAgfCAyMCArKysrLS0tLS0tLS0tLS0tLS0tLQ0KPiAgbW0va2FzYW4va2FzYW4uaCAg
+ICAgIHwgMTAgKysrLS0tLS0tLQ0KPiAgbW0va2FzYW4vcXVhcmFudGluZS5jIHwgIDEgLQ0KPiAg
+bW0va2FzYW4vcmVwb3J0LmMgICAgIHwgMTEgKystLS0tLS0tLS0NCj4gIDQgZmlsZXMgY2hhbmdl
+ZCwgOSBpbnNlcnRpb25zKCspLCAzMyBkZWxldGlvbnMoLSkNCj4gDQo+IGRpZmYgLS1naXQgYS9t
+bS9rYXNhbi9rYXNhbi5jIGIvbW0va2FzYW4va2FzYW4uYw0KPiBpbmRleCBlZjJlODdiLi44ZDA3
+OGRjIDEwMDY0NA0KPiAtLS0gYS9tbS9rYXNhbi9rYXNhbi5jDQo+ICsrKyBiL21tL2thc2FuL2th
+c2FuLmMNCj4gQEAgLTQxOSwxMyArNDE5LDYgQEAgdm9pZCBrYXNhbl9wb2lzb25fb2JqZWN0X2Rh
+dGEoc3RydWN0IGttZW1fY2FjaGUNCj4gKmNhY2hlLCB2b2lkICpvYmplY3QpDQo+ICAJa2FzYW5f
+cG9pc29uX3NoYWRvdyhvYmplY3QsDQo+ICAJCQlyb3VuZF91cChjYWNoZS0+b2JqZWN0X3NpemUs
+DQo+IEtBU0FOX1NIQURPV19TQ0FMRV9TSVpFKSwNCj4gIAkJCUtBU0FOX0tNQUxMT0NfUkVEWk9O
+RSk7DQo+IC0jaWZkZWYgQ09ORklHX1NMQUINCj4gLQlpZiAoY2FjaGUtPmZsYWdzICYgU0xBQl9L
+QVNBTikgew0KPiAtCQlzdHJ1Y3Qga2FzYW5fYWxsb2NfbWV0YSAqYWxsb2NfaW5mbyA9DQo+IC0J
+CQlnZXRfYWxsb2NfaW5mbyhjYWNoZSwgb2JqZWN0KTsNCj4gLQkJYWxsb2NfaW5mby0+c3RhdGUg
+PSBLQVNBTl9TVEFURV9JTklUOw0KPiAtCX0NCj4gLSNlbmRpZg0KPiAgfQ0KPiANCj4gICNpZmRl
+ZiBDT05GSUdfU0xBQg0KPiBAQCAtNTIxLDIwICs1MTQsMTUgQEAgYm9vbCBrYXNhbl9zbGFiX2Zy
+ZWUoc3RydWN0IGttZW1fY2FjaGUgKmNhY2hlLA0KPiB2b2lkICpvYmplY3QpDQo+ICAJCXN0cnVj
+dCBrYXNhbl9mcmVlX21ldGEgKmZyZWVfaW5mbyA9DQo+ICAJCQlnZXRfZnJlZV9pbmZvKGNhY2hl
+LCBvYmplY3QpOw0KPiANCj4gLQkJc3dpdGNoIChhbGxvY19pbmZvLT5zdGF0ZSkgew0KPiAtCQlj
+YXNlIEtBU0FOX1NUQVRFX0FMTE9DOg0KPiAtCQkJYWxsb2NfaW5mby0+c3RhdGUgPSBLQVNBTl9T
+VEFURV9RVUFSQU5USU5FOw0KPiArCQlpZiAodGVzdF9hbmRfY2xlYXJfYml0KEtBU0FOX1NUQVRF
+X0FMTE9DQVRFRCwNCj4gKwkJCQkJJmFsbG9jX2luZm8tPnN0YXRlKSkgew0KPiAgCQkJcXVhcmFu
+dGluZV9wdXQoZnJlZV9pbmZvLCBjYWNoZSk7DQo+ICAJCQlzZXRfdHJhY2soJmZyZWVfaW5mby0+
+dHJhY2ssIEdGUF9OT1dBSVQpOw0KPiAgCQkJa2FzYW5fcG9pc29uX3NsYWJfZnJlZShjYWNoZSwg
+b2JqZWN0KTsNCj4gIAkJCXJldHVybiB0cnVlOw0KPiAtCQljYXNlIEtBU0FOX1NUQVRFX1FVQVJB
+TlRJTkU6DQo+IC0JCWNhc2UgS0FTQU5fU1RBVEVfRlJFRToNCj4gKwkJfSBlbHNlIHsNCj4gIAkJ
+CXByX2VycigiRG91YmxlIGZyZWUiKTsNCj4gIAkJCWR1bXBfc3RhY2soKTsNCj4gLQkJCWJyZWFr
+Ow0KPiAtCQlkZWZhdWx0Og0KPiAtCQkJYnJlYWs7DQo+ICAJCX0NCj4gIAl9DQo+ICAJcmV0dXJu
+IGZhbHNlOw0KPiBAQCAtNTcxLDcgKzU1OSw3IEBAIHZvaWQga2FzYW5fa21hbGxvYyhzdHJ1Y3Qg
+a21lbV9jYWNoZSAqY2FjaGUsIGNvbnN0DQo+IHZvaWQgKm9iamVjdCwgc2l6ZV90IHNpemUsDQo+
+ICAJCXN0cnVjdCBrYXNhbl9hbGxvY19tZXRhICphbGxvY19pbmZvID0NCj4gIAkJCWdldF9hbGxv
+Y19pbmZvKGNhY2hlLCBvYmplY3QpOw0KPiANCj4gLQkJYWxsb2NfaW5mby0+c3RhdGUgPSBLQVNB
+Tl9TVEFURV9BTExPQzsNCj4gKwkJc2V0X2JpdChLQVNBTl9TVEFURV9BTExPQ0FURUQsICZhbGxv
+Y19pbmZvLT5zdGF0ZSk7DQo+ICAJCWFsbG9jX2luZm8tPmFsbG9jX3NpemUgPSBzaXplOw0KPiAg
+CQlzZXRfdHJhY2soJmFsbG9jX2luZm8tPnRyYWNrLCBmbGFncyk7DQo+ICAJfQ0KPiBkaWZmIC0t
+Z2l0IGEvbW0va2FzYW4va2FzYW4uaCBiL21tL2thc2FuL2thc2FuLmgNCj4gaW5kZXggN2RhNzhh
+Ni4uMmRjZGM4ZiAxMDA2NDQNCj4gLS0tIGEvbW0va2FzYW4va2FzYW4uaA0KPiArKysgYi9tbS9r
+YXNhbi9rYXNhbi5oDQo+IEBAIC02MCwxMCArNjAsNyBAQCBzdHJ1Y3Qga2FzYW5fZ2xvYmFsIHsN
+Cj4gICAqLw0KPiANCj4gIGVudW0ga2FzYW5fc3RhdGUgew0KPiAtCUtBU0FOX1NUQVRFX0lOSVQs
+DQo+IC0JS0FTQU5fU1RBVEVfQUxMT0MsDQo+IC0JS0FTQU5fU1RBVEVfUVVBUkFOVElORSwNCj4g
+LQlLQVNBTl9TVEFURV9GUkVFDQo+ICsJS0FTQU5fU1RBVEVfQUxMT0NBVEVELA0KPiAgfTsNCj4g
+DQo+ICAjZGVmaW5lIEtBU0FOX1NUQUNLX0RFUFRIIDY0DQo+IEBAIC03NSw5ICs3Miw4IEBAIHN0
+cnVjdCBrYXNhbl90cmFjayB7DQo+IA0KPiAgc3RydWN0IGthc2FuX2FsbG9jX21ldGEgew0KPiAg
+CXN0cnVjdCBrYXNhbl90cmFjayB0cmFjazsNCj4gLQl1MzIgc3RhdGUgOiAyOwkvKiBlbnVtIGth
+c2FuX3N0YXRlICovDQo+IC0JdTMyIGFsbG9jX3NpemUgOiAzMDsNCj4gLQl1MzIgcmVzZXJ2ZWQ7
+DQo+ICsJdW5zaWduZWQgbG9uZyBzdGF0ZTsNCj4gKwl1MzIgYWxsb2Nfc2l6ZTsNCj4gIH07DQo+
+IA0KPiAgc3RydWN0IGthc2FuX2ZyZWVfbWV0YSB7DQo+IGRpZmYgLS1naXQgYS9tbS9rYXNhbi9x
+dWFyYW50aW5lLmMgYi9tbS9rYXNhbi9xdWFyYW50aW5lLmMNCj4gaW5kZXggNDAxNTlhNi4uY2Ez
+M2ZkMyAxMDA2NDQNCj4gLS0tIGEvbW0va2FzYW4vcXVhcmFudGluZS5jDQo+ICsrKyBiL21tL2th
+c2FuL3F1YXJhbnRpbmUuYw0KPiBAQCAtMTQ3LDcgKzE0Nyw2IEBAIHN0YXRpYyB2b2lkIHFsaW5r
+X2ZyZWUodm9pZCAqKnFsaW5rLCBzdHJ1Y3Qga21lbV9jYWNoZQ0KPiAqY2FjaGUpDQo+ICAJdW5z
+aWduZWQgbG9uZyBmbGFnczsNCj4gDQo+ICAJbG9jYWxfaXJxX3NhdmUoZmxhZ3MpOw0KPiAtCWFs
+bG9jX2luZm8tPnN0YXRlID0gS0FTQU5fU1RBVEVfRlJFRTsNCj4gIAlfX19jYWNoZV9mcmVlKGNh
+Y2hlLCBvYmplY3QsIF9USElTX0lQXyk7DQo+ICAJbG9jYWxfaXJxX3Jlc3RvcmUoZmxhZ3MpOw0K
+PiAgfQ0KPiBkaWZmIC0tZ2l0IGEvbW0va2FzYW4vcmVwb3J0LmMgYi9tbS9rYXNhbi9yZXBvcnQu
+Yw0KPiBpbmRleCBiM2MxMjJkLi5jMmIwZTUxIDEwMDY0NA0KPiAtLS0gYS9tbS9rYXNhbi9yZXBv
+cnQuYw0KPiArKysgYi9tbS9rYXNhbi9yZXBvcnQuYw0KPiBAQCAtMTQwLDE4ICsxNDAsMTIgQEAg
+c3RhdGljIHZvaWQgb2JqZWN0X2VycihzdHJ1Y3Qga21lbV9jYWNoZSAqY2FjaGUsDQo+IHN0cnVj
+dCBwYWdlICpwYWdlLA0KPiAgCXByX2VycigiT2JqZWN0IGF0ICVwLCBpbiBjYWNoZSAlc1xuIiwg
+b2JqZWN0LCBjYWNoZS0+bmFtZSk7DQo+ICAJaWYgKCEoY2FjaGUtPmZsYWdzICYgU0xBQl9LQVNB
+TikpDQo+ICAJCXJldHVybjsNCj4gLQlzd2l0Y2ggKGFsbG9jX2luZm8tPnN0YXRlKSB7DQo+IC0J
+Y2FzZSBLQVNBTl9TVEFURV9JTklUOg0KPiAtCQlwcl9lcnIoIk9iamVjdCBub3QgYWxsb2NhdGVk
+IHlldFxuIik7DQo+IC0JCWJyZWFrOw0KPiAtCWNhc2UgS0FTQU5fU1RBVEVfQUxMT0M6DQo+ICsJ
+aWYgKHRlc3RfYml0KEtBU0FOX1NUQVRFX0FMTE9DQVRFRCwgJmFsbG9jX2luZm8tPnN0YXRlKSkg
+ew0KPiAgCQlwcl9lcnIoIk9iamVjdCBhbGxvY2F0ZWQgd2l0aCBzaXplICV1IGJ5dGVzLlxuIiwN
+Cj4gIAkJICAgICAgIGFsbG9jX2luZm8tPmFsbG9jX3NpemUpOw0KPiAgCQlwcl9lcnIoIkFsbG9j
+YXRpb246XG4iKTsNCj4gIAkJcHJpbnRfdHJhY2soJmFsbG9jX2luZm8tPnRyYWNrKTsNCj4gLQkJ
+YnJlYWs7DQo+IC0JY2FzZSBLQVNBTl9TVEFURV9GUkVFOg0KPiAtCWNhc2UgS0FTQU5fU1RBVEVf
+UVVBUkFOVElORToNCj4gKwl9IGVsc2Ugew0KPiAgCQlwcl9lcnIoIk9iamVjdCBmcmVlZCwgYWxs
+b2NhdGVkIHdpdGggc2l6ZSAldSBieXRlc1xuIiwNCj4gIAkJICAgICAgIGFsbG9jX2luZm8tPmFs
+bG9jX3NpemUpOw0KPiAgCQlmcmVlX2luZm8gPSBnZXRfZnJlZV9pbmZvKGNhY2hlLCBvYmplY3Qp
+Ow0KPiBAQCAtMTU5LDcgKzE1Myw2IEBAIHN0YXRpYyB2b2lkIG9iamVjdF9lcnIoc3RydWN0IGtt
+ZW1fY2FjaGUgKmNhY2hlLCBzdHJ1Y3QNCj4gcGFnZSAqcGFnZSwNCj4gIAkJcHJpbnRfdHJhY2so
+JmFsbG9jX2luZm8tPnRyYWNrKTsNCj4gIAkJcHJfZXJyKCJEZWFsbG9jYXRpb246XG4iKTsNCj4g
+IAkJcHJpbnRfdHJhY2soJmZyZWVfaW5mby0+dHJhY2spOw0KPiAtCQlicmVhazsNCj4gIAl9DQo+
+ICB9DQo+ICAjZW5kaWYNCj4gLS0NCj4gMi43LjMNCg0KVGhpcyBwYXRjaCB3aXRoIGF0b21pYyBi
+aXQgb3AgaXMgc2ltaWxhciBpbiBzcGlyaXQgdG8gdjEgZXhjZXB0IHRoYXQgaXQgaW5jcmVhc2Vz
+IG1ldGFkYXRhIHNpemUuDQoNCkt1dGhvbnV6bw0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
