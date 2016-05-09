@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A3F26B0266
-	for <linux-mm@kvack.org>; Sun,  8 May 2016 22:20:41 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 4so353925360pfw.0
-        for <linux-mm@kvack.org>; Sun, 08 May 2016 19:20:41 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id n4si34466221pfb.108.2016.05.08.19.20.24
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 776D76B0267
+	for <linux-mm@kvack.org>; Sun,  8 May 2016 22:20:43 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id yl2so244696164pac.2
+        for <linux-mm@kvack.org>; Sun, 08 May 2016 19:20:43 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id 21si34425960pfi.15.2016.05.08.19.20.24
         for <linux-mm@kvack.org>;
-        Sun, 08 May 2016 19:20:24 -0700 (PDT)
+        Sun, 08 May 2016 19:20:25 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v5 09/12] zsmalloc: separate free_zspage from putback_zspage
-Date: Mon,  9 May 2016 11:20:30 +0900
-Message-Id: <1462760433-32357-10-git-send-email-minchan@kernel.org>
+Subject: [PATCH v5 12/12] zram: use __GFP_MOVABLE for memory allocation
+Date: Mon,  9 May 2016 11:20:33 +0900
+Message-Id: <1462760433-32357-13-git-send-email-minchan@kernel.org>
 In-Reply-To: <1462760433-32357-1-git-send-email-minchan@kernel.org>
 References: <1462760433-32357-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,89 +19,83 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Currently, putback_zspage does free zspage under class->lock
-if fullness become ZS_EMPTY but it makes trouble to implement
-locking scheme for new zspage migration.
-So, this patch is to separate free_zspage from putback_zspage
-and free zspage out of class->lock which is preparation for
-zspage migration.
+Zsmalloc is ready for page migration so zram can use __GFP_MOVABLE
+from now on.
 
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+I did test to see how it helps to make higher order pages.
+Test scenario is as follows.
+
+KVM guest, 1G memory, ext4 formated zram block device,
+
+for i in `seq 1 8`;
+do
+        dd if=/dev/vda1 of=mnt/test$i.txt bs=128M count=1 &
+done
+
+wait `pidof dd`
+
+for i in `seq 1 2 8`;
+do
+        rm -rf mnt/test$i.txt
+done
+fstrim -v mnt
+
+echo "init"
+cat /proc/buddyinfo
+
+echo "compaction"
+echo 1 > /proc/sys/vm/compact_memory
+cat /proc/buddyinfo
+
+old:
+
+init
+Node 0, zone      DMA    208    120     51     41     11      0      0      0      0      0      0
+Node 0, zone    DMA32  16380  13777   9184   3805    789     54      3      0      0      0      0
+compaction
+Node 0, zone      DMA    132     82     40     39     16      2      1      0      0      0      0
+Node 0, zone    DMA32   5219   5526   4969   3455   1831    677    139     15      0      0      0
+
+new:
+
+init
+Node 0, zone      DMA    379    115     97     19      2      0      0      0      0      0      0
+Node 0, zone    DMA32  18891  16774  10862   3947    637     21      0      0      0      0      0
+compaction  1
+Node 0, zone      DMA    214     66     87     29     10      3      0      0      0      0      0
+Node 0, zone    DMA32   1612   3139   3154   2469   1745    990    384     94      7      0      0
+
+As you can see, compaction made so many high-order pages. Yay!
+
+Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/zsmalloc.c | 27 +++++++++++----------------
- 1 file changed, 11 insertions(+), 16 deletions(-)
+ drivers/block/zram/zram_drv.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 162a598a417a..5ccd83732a14 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -1685,14 +1685,12 @@ static struct zspage *isolate_zspage(struct size_class *class, bool source)
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 8fcfbebe79cd..55419f104f67 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -714,13 +714,15 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 		handle = zs_malloc(meta->mem_pool, clen,
+ 				__GFP_KSWAPD_RECLAIM |
+ 				__GFP_NOWARN |
+-				__GFP_HIGHMEM);
++				__GFP_HIGHMEM |
++				__GFP_MOVABLE);
+ 	if (!handle) {
+ 		zcomp_strm_release(zram->comp, zstrm);
+ 		zstrm = NULL;
  
- /*
-  * putback_zspage - add @zspage into right class's fullness list
-- * @pool: target pool
-  * @class: destination class
-  * @zspage: target page
-  *
-  * Return @zspage's fullness_group
-  */
--static enum fullness_group putback_zspage(struct zs_pool *pool,
--			struct size_class *class,
-+static enum fullness_group putback_zspage(struct size_class *class,
- 			struct zspage *zspage)
- {
- 	enum fullness_group fullness;
-@@ -1701,15 +1699,6 @@ static enum fullness_group putback_zspage(struct zs_pool *pool,
- 	insert_zspage(class, zspage, fullness);
- 	set_zspage_mapping(zspage, class->index, fullness);
+ 		handle = zs_malloc(meta->mem_pool, clen,
+-				GFP_NOIO | __GFP_HIGHMEM);
++				GFP_NOIO | __GFP_HIGHMEM |
++				__GFP_MOVABLE);
+ 		if (handle)
+ 			goto compress_again;
  
--	if (fullness == ZS_EMPTY) {
--		zs_stat_dec(class, OBJ_ALLOCATED, get_maxobj_per_zspage(
--			class->size, class->pages_per_zspage));
--		atomic_long_sub(class->pages_per_zspage,
--				&pool->pages_allocated);
--
--		free_zspage(pool, zspage);
--	}
--
- 	return fullness;
- }
- 
-@@ -1755,23 +1744,29 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
- 			if (!migrate_zspage(pool, class, &cc))
- 				break;
- 
--			putback_zspage(pool, class, dst_zspage);
-+			putback_zspage(class, dst_zspage);
- 		}
- 
- 		/* Stop if we couldn't find slot */
- 		if (dst_zspage == NULL)
- 			break;
- 
--		putback_zspage(pool, class, dst_zspage);
--		if (putback_zspage(pool, class, src_zspage) == ZS_EMPTY)
-+		putback_zspage(class, dst_zspage);
-+		if (putback_zspage(class, src_zspage) == ZS_EMPTY) {
-+			zs_stat_dec(class, OBJ_ALLOCATED, get_maxobj_per_zspage(
-+					class->size, class->pages_per_zspage));
-+			atomic_long_sub(class->pages_per_zspage,
-+					&pool->pages_allocated);
-+			free_zspage(pool, src_zspage);
- 			pool->stats.pages_compacted += class->pages_per_zspage;
-+		}
- 		spin_unlock(&class->lock);
- 		cond_resched();
- 		spin_lock(&class->lock);
- 	}
- 
- 	if (src_zspage)
--		putback_zspage(pool, class, src_zspage);
-+		putback_zspage(class, src_zspage);
- 
- 	spin_unlock(&class->lock);
- }
 -- 
 1.9.1
 
