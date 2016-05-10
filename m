@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DD0266B0265
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 03:37:31 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id 68so3952840lfq.2
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 00:37:31 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 13B656B0266
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 03:37:37 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w143so6333822wmw.3
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 00:37:37 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id qn6si1004135wjc.143.2016.05.10.00.37.08
+        by mx.google.com with ESMTPS id b186si30298719wmb.97.2016.05.10.00.37.08
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 10 May 2016 00:37:08 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC 05/13] mm, page_alloc: make THP-specific decisions more generic
-Date: Tue, 10 May 2016 09:35:55 +0200
-Message-Id: <1462865763-22084-6-git-send-email-vbabka@suse.cz>
+Subject: [RFC 08/13] mm, compaction: simplify contended compaction handling
+Date: Tue, 10 May 2016 09:35:58 +0200
+Message-Id: <1462865763-22084-9-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
 References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,99 +20,319 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
 
-Since THP allocations during page faults can be costly, extra decisions are
-employed for them to avoid excessive reclaim and compaction, if the initial
-compaction doesn't look promising. The detection has never been perfect as
-there is no gfp flag specific to THP allocations. At this moment it checks the
-whole combination of flags that makes up GFP_TRANSHUGE, and hopes that no other
-users of such combination exist, or would mind being treated the same way.
-Extra care is also taken to separate allocations from khugepaged, where latency
-doesn't matter that much.
+Async compaction detects contention either due to failing trylock on zone->lock
+or lru_lock, or by need_resched(). Since 1f9efdef4f3f ("mm, compaction:
+khugepaged should not give up due to need_resched()") the code got quite
+complicated to distinguish these two up to the __alloc_pages_slowpath() level,
+so different decisions could be taken for khugepaged allocations.
 
-It is however possible to distinguish these allocations in a simpler and more
-reliable way. The key observation is that after the initial compaction followed
-by the first iteration of "standard" reclaim/compaction, both __GFP_NORETRY
-allocations and costly allocations without __GFP_REPEAT are declared as
-failures:
+After the recent changes, khugepaged allocations don't check for contended
+compaction anymore, so we again don't need to distinguish lock and sched
+contention, and simplify the current convoluted code a lot.
 
-        /* Do not loop if specifically requested */
-        if (gfp_mask & __GFP_NORETRY)
-                goto nopage;
+However, I believe it's also possible to simplify even more and completely
+remove the check for contended compaction after the initial async compaction
+for costly orders, which was originally aimed at THP page fault allocations.
+There are several reasons why this can be done now:
 
-        /*
-         * Do not retry costly high order allocations unless they are
-         * __GFP_REPEAT
-         */
-        if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
-                goto nopage;
-
-This means we can further distinguish allocations that are costly order *and*
-additionally include the __GFP_NORETRY flag. As it happens, GFP_TRANSHUGE
-allocations do already fall into this category. This will also allow other
-costly allocations with similar high-order benefit vs latency considerations to
-use this semantic. Furthermore, we can distinguish THP allocations that should
-try a bit harder (such as from khugepageed) by removing __GFP_NORETRY, as will
-be done in the next patch.
+- with the new defaults, THP page faults no longer do reclaim/compaction at
+  all, unless the system admin has overriden the default, or application has
+  indicated via madvise that it can benefit from THP's. In both cases, it
+  means that the potential extra latency is expected and worth the benefits.
+- even if reclaim/compaction proceeds after this patch where it previously
+  wouldn't, the second compaction attempt is still async and will detect the
+  contention and back off, if the contention persists
+- there are still heuristics like deferred compaction and pageblock skip bits
+  in place that prevent excessive THP page fault latencies
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/page_alloc.c | 22 +++++++++-------------
- 1 file changed, 9 insertions(+), 13 deletions(-)
+ include/linux/compaction.h | 10 +------
+ mm/compaction.c            | 72 +++++++++-------------------------------------
+ mm/internal.h              |  5 +---
+ mm/page_alloc.c            | 28 +-----------------
+ 4 files changed, 16 insertions(+), 99 deletions(-)
 
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index 900d181ff1b0..cd3a59f1601e 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -51,14 +51,6 @@ enum compact_result {
+ 	COMPACT_PARTIAL,
+ };
+ 
+-/* Used to signal whether compaction detected need_sched() or lock contention */
+-/* No contention detected */
+-#define COMPACT_CONTENDED_NONE	0
+-/* Either need_sched() was true or fatal signal pending */
+-#define COMPACT_CONTENDED_SCHED	1
+-/* Zone lock or lru_lock was contended in async compaction */
+-#define COMPACT_CONTENDED_LOCK	2
+-
+ struct alloc_context; /* in mm/internal.h */
+ 
+ #ifdef CONFIG_COMPACTION
+@@ -74,7 +66,7 @@ extern int fragmentation_index(struct zone *zone, unsigned int order);
+ extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
+ 			unsigned int order,
+ 			unsigned int alloc_flags, const struct alloc_context *ac,
+-			enum compact_priority prio, int *contended);
++			enum compact_priority prio);
+ extern void compact_pgdat(pg_data_t *pgdat, int order);
+ extern void reset_isolation_suitable(pg_data_t *pgdat);
+ extern enum compact_result compaction_suitable(struct zone *zone, int order,
+diff --git a/mm/compaction.c b/mm/compaction.c
+index abfd71e1f1a3..f649c7bc6de5 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -279,7 +279,7 @@ static bool compact_trylock_irqsave(spinlock_t *lock, unsigned long *flags,
+ {
+ 	if (cc->mode == MIGRATE_ASYNC) {
+ 		if (!spin_trylock_irqsave(lock, *flags)) {
+-			cc->contended = COMPACT_CONTENDED_LOCK;
++			cc->contended = true;
+ 			return false;
+ 		}
+ 	} else {
+@@ -313,13 +313,13 @@ static bool compact_unlock_should_abort(spinlock_t *lock,
+ 	}
+ 
+ 	if (fatal_signal_pending(current)) {
+-		cc->contended = COMPACT_CONTENDED_SCHED;
++		cc->contended = true;
+ 		return true;
+ 	}
+ 
+ 	if (need_resched()) {
+ 		if (cc->mode == MIGRATE_ASYNC) {
+-			cc->contended = COMPACT_CONTENDED_SCHED;
++			cc->contended = true;
+ 			return true;
+ 		}
+ 		cond_resched();
+@@ -342,7 +342,7 @@ static inline bool compact_should_abort(struct compact_control *cc)
+ 	/* async compaction aborts if contended */
+ 	if (need_resched()) {
+ 		if (cc->mode == MIGRATE_ASYNC) {
+-			cc->contended = COMPACT_CONTENDED_SCHED;
++			cc->contended = true;
+ 			return true;
+ 		}
+ 
+@@ -1564,14 +1564,11 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+ 	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
+ 				cc->free_pfn, end_pfn, sync, ret);
+ 
+-	if (ret == COMPACT_CONTENDED)
+-		ret = COMPACT_PARTIAL;
+-
+ 	return ret;
+ }
+ 
+ static enum compact_result compact_zone_order(struct zone *zone, int order,
+-		gfp_t gfp_mask, enum compact_priority prio, int *contended,
++		gfp_t gfp_mask, enum compact_priority prio,
+ 		unsigned int alloc_flags, int classzone_idx)
+ {
+ 	enum compact_result ret;
+@@ -1595,7 +1592,6 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
+ 	VM_BUG_ON(!list_empty(&cc.freepages));
+ 	VM_BUG_ON(!list_empty(&cc.migratepages));
+ 
+-	*contended = cc.contended;
+ 	return ret;
+ }
+ 
+@@ -1608,23 +1604,18 @@ int sysctl_extfrag_threshold = 500;
+  * @alloc_flags: The allocation flags of the current allocation
+  * @ac: The context of current allocation
+  * @mode: The migration mode for async, sync light, or sync migration
+- * @contended: Return value that determines if compaction was aborted due to
+- *	       need_resched() or lock contention
+  *
+  * This is the main entry point for direct page compaction.
+  */
+ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 			unsigned int alloc_flags, const struct alloc_context *ac,
+-			enum compact_priority prio, int *contended)
++			enum compact_priority prio)
+ {
+ 	int may_enter_fs = gfp_mask & __GFP_FS;
+ 	int may_perform_io = gfp_mask & __GFP_IO;
+ 	struct zoneref *z;
+ 	struct zone *zone;
+ 	enum compact_result rc = COMPACT_SKIPPED;
+-	int all_zones_contended = COMPACT_CONTENDED_LOCK; /* init for &= op */
+-
+-	*contended = COMPACT_CONTENDED_NONE;
+ 
+ 	/* Check if the GFP flags allow compaction */
+ 	if (!order || !may_enter_fs || !may_perform_io)
+@@ -1637,7 +1628,6 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
+ 								ac->nodemask) {
+ 		enum compact_result status;
+-		int zone_contended;
+ 
+ 		if (compaction_deferred(zone, order)) {
+ 			rc = max_t(enum compact_result, COMPACT_DEFERRED, rc);
+@@ -1645,14 +1635,8 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 		}
+ 
+ 		status = compact_zone_order(zone, order, gfp_mask, prio,
+-				&zone_contended, alloc_flags,
+-				ac_classzone_idx(ac));
++					alloc_flags, ac_classzone_idx(ac));
+ 		rc = max(status, rc);
+-		/*
+-		 * It takes at least one zone that wasn't lock contended
+-		 * to clear all_zones_contended.
+-		 */
+-		all_zones_contended &= zone_contended;
+ 
+ 		/* If a normal allocation would succeed, stop compacting */
+ 		if (zone_watermark_ok(zone, order, low_wmark_pages(zone),
+@@ -1664,59 +1648,29 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 			 * succeeds in this zone.
+ 			 */
+ 			compaction_defer_reset(zone, order, false);
+-			/*
+-			 * It is possible that async compaction aborted due to
+-			 * need_resched() and the watermarks were ok thanks to
+-			 * somebody else freeing memory. The allocation can
+-			 * however still fail so we better signal the
+-			 * need_resched() contention anyway (this will not
+-			 * prevent the allocation attempt).
+-			 */
+-			if (zone_contended == COMPACT_CONTENDED_SCHED)
+-				*contended = COMPACT_CONTENDED_SCHED;
+ 
+-			goto break_loop;
++			break;
+ 		}
+ 
+ 		if (prio != COMPACT_PRIO_ASYNC && (status == COMPACT_COMPLETE ||
+-					status == COMPACT_PARTIAL_SKIPPED)) {
++					status == COMPACT_PARTIAL_SKIPPED))
+ 			/*
+ 			 * We think that allocation won't succeed in this zone
+ 			 * so we defer compaction there. If it ends up
+ 			 * succeeding after all, it will be reset.
+ 			 */
+ 			defer_compaction(zone, order);
+-		}
+ 
+ 		/*
+ 		 * We might have stopped compacting due to need_resched() in
+ 		 * async compaction, or due to a fatal signal detected. In that
+-		 * case do not try further zones and signal need_resched()
+-		 * contention.
+-		 */
+-		if ((zone_contended == COMPACT_CONTENDED_SCHED)
+-					|| fatal_signal_pending(current)) {
+-			*contended = COMPACT_CONTENDED_SCHED;
+-			goto break_loop;
+-		}
+-
+-		continue;
+-break_loop:
+-		/*
+-		 * We might not have tried all the zones, so  be conservative
+-		 * and assume they are not all lock contended.
++		 * case do not try further zones
+ 		 */
+-		all_zones_contended = 0;
+-		break;
++		if ((prio == COMPACT_PRIO_ASYNC && need_resched())
++					|| fatal_signal_pending(current))
++			break;
+ 	}
+ 
+-	/*
+-	 * If at least one zone wasn't deferred or skipped, we report if all
+-	 * zones that were tried were lock contended.
+-	 */
+-	if (rc > COMPACT_INACTIVE && all_zones_contended)
+-		*contended = COMPACT_CONTENDED_LOCK;
+-
+ 	return rc;
+ }
+ 
+diff --git a/mm/internal.h b/mm/internal.h
+index b6ead95a0184..556bc9d0a817 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -184,10 +184,7 @@ struct compact_control {
+ 	const unsigned int alloc_flags;	/* alloc flags of a direct compactor */
+ 	const int classzone_idx;	/* zone index of a direct compactor */
+ 	struct zone *zone;
+-	int contended;			/* Signal need_sched() or lock
+-					 * contention detected during
+-					 * compaction
+-					 */
++	bool contended;			/* Signal lock or sched contention */
+ };
+ 
+ unsigned long
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 88d680b3e7b6..f5d931e0854a 100644
+index 17abc05be972..aa9c39a7f40a 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3182,7 +3182,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 	return page;
- }
+@@ -3196,14 +3196,13 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 		enum compact_priority prio, enum compact_result *compact_result)
+ {
+ 	struct page *page;
+-	int contended_compaction;
  
+ 	if (!order)
+ 		return NULL;
+ 
+ 	current->flags |= PF_MEMALLOC;
+ 	*compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
+-						prio, &contended_compaction);
++									prio);
+ 	current->flags &= ~PF_MEMALLOC;
+ 
+ 	if (*compact_result <= COMPACT_INACTIVE)
+@@ -3233,24 +3232,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	count_vm_event(COMPACTFAIL);
+ 
+-	/*
+-	 * In all zones where compaction was attempted (and not
+-	 * deferred or skipped), lock contention has been detected.
+-	 * For THP allocation we do not want to disrupt the others
+-	 * so we fallback to base pages instead.
+-	 */
+-	if (contended_compaction == COMPACT_CONTENDED_LOCK)
+-		*compact_result = COMPACT_CONTENDED;
 -
- /*
-  * Maximum number of compaction retries wit a progress before OOM
-  * killer is consider as the only way to move forward.
-@@ -3447,11 +3446,6 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
- 	return !!(gfp_to_alloc_flags(gfp_mask) & ALLOC_NO_WATERMARKS);
- }
- 
--static inline bool is_thp_gfp_mask(gfp_t gfp_mask)
--{
--	return (gfp_mask & (GFP_TRANSHUGE | __GFP_KSWAPD_RECLAIM)) == GFP_TRANSHUGE;
--}
+-	/*
+-	 * If compaction was aborted due to need_resched(), we do not
+-	 * want to further increase allocation latency, unless it is
+-	 * khugepaged trying to collapse.
+-	 */
+-	if (contended_compaction == COMPACT_CONTENDED_SCHED
+-		&& !(current->flags & PF_KTHREAD))
+-		*compact_result = COMPACT_CONTENDED;
 -
- /*
-  * Maximum number of reclaim retries without any progress before OOM killer
-  * is consider as the only way to move forward.
-@@ -3610,8 +3604,11 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		if (page)
- 			goto got_pg;
+ 	cond_resched();
  
--		/* Checks for THP-specific high-order allocations */
--		if (is_thp_gfp_mask(gfp_mask)) {
-+		/*
-+		 * Checks for costly allocations with __GFP_NORETRY, which
-+		 * includes THP page fault allocations
-+		 */
-+		if (gfp_mask & __GFP_NORETRY) {
- 			/*
- 			 * If compaction is deferred for high-order allocations,
- 			 * it is because sync compaction recently failed. If
-@@ -3631,11 +3628,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	return NULL;
+@@ -3621,13 +3602,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
  				goto nopage;
  
  			/*
--			 * It can become very expensive to allocate transparent
--			 * hugepages at fault, so use asynchronous memory
--			 * compaction for THP unless it is khugepaged trying to
--			 * collapse. All other requests should tolerate at
--			 * least light sync migration.
-+			 * Looks like reclaim/compaction is worth trying, but
-+			 * sync compaction could be very expensive, so keep
-+			 * using async compaction, unless it's khugepaged
-+			 * trying to collapse.
- 			 */
- 			if (!(current->flags & PF_KTHREAD))
- 				migration_mode = MIGRATE_ASYNC;
+-			 * Compaction is contended so rather back off than cause
+-			 * excessive stalls.
+-			 */
+-			if (compact_result == COMPACT_CONTENDED)
+-				goto nopage;
+-
+-			/*
+ 			 * Looks like reclaim/compaction is worth trying, but
+ 			 * sync compaction could be very expensive, so keep
+ 			 * using async compaction.
 -- 
 2.8.2
 
