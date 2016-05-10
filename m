@@ -1,42 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 635986B007E
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 16:30:25 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 4so44911441pfw.0
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 13:30:25 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id g197si4542973pfb.203.2016.05.10.13.30.24
-        for <linux-mm@kvack.org>;
-        Tue, 10 May 2016 13:30:24 -0700 (PDT)
-Date: Tue, 10 May 2016 14:30:03 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [RFC v3] [PATCH 0/18] DAX page fault locking
-Message-ID: <20160510203003.GA5314@linux.intel.com>
-References: <1461015341-20153-1-git-send-email-jack@suse.cz>
- <20160506203308.GA12506@linux.intel.com>
- <20160509093828.GF11897@quack2.suse.cz>
- <20160510152814.GQ11897@quack2.suse.cz>
+Received: from mail-ob0-f197.google.com (mail-ob0-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E4B86B0005
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 16:39:52 -0400 (EDT)
+Received: by mail-ob0-f197.google.com with SMTP id aq1so42983259obc.2
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 13:39:52 -0700 (PDT)
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
+        by mx.google.com with ESMTPS id e13si5404397igz.25.2016.05.10.13.39.51
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 10 May 2016 13:39:51 -0700 (PDT)
+Received: from localhost
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Tue, 10 May 2016 14:39:50 -0600
+Date: Tue, 10 May 2016 15:39:43 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/3] memory-hotplug: more general validation of zone
+ during online
+Message-ID: <20160510203943.GA22115@arbab-laptop.austin.ibm.com>
+References: <1462816419-4479-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1462816419-4479-3-git-send-email-arbab@linux.vnet.ibm.com>
+ <573223b8.c52b8d0a.9a3c0.6217@mx.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <20160510152814.GQ11897@quack2.suse.cz>
+In-Reply-To: <573223b8.c52b8d0a.9a3c0.6217@mx.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>
+To: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Tang Chen <tangchen@cn.fujitsu.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Vrabel <david.vrabel@citrix.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Banman <abanman@sgi.com>, Chen Yucong <slaoub@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-On Tue, May 10, 2016 at 05:28:14PM +0200, Jan Kara wrote:
-> On Mon 09-05-16 11:38:28, Jan Kara wrote:
-> Somehow, I'm not able to reproduce the warnings... Anyway, I think I see
-> what's going on. Can you check whether the warning goes away when you
-> change the condition at the end of page_cache_tree_delete() to:
-> 
->         if (!dax_mapping(mapping) && !workingset_node_pages(node) &&
->             list_empty(&node->private_list)) {
+On Tue, May 10, 2016 at 11:08:56AM -0700, Yasuaki Ishimatsu wrote:
+>On Mon,  9 May 2016 12:53:38 -0500
+>Reza Arbab <arbab@linux.vnet.ibm.com> wrote:
+>> * If X is lower than Y, the onlined memory must lie at the end of X.
+>> * If X is higher than Y, the onlined memory must lie at the start of X.
+>
+>If memory address has hole, memory address gets uncotinuous. Then memory
+>cannot be changed the zone by above the two conditions. So the conditions
+>shouold be removed.
 
-Yep, this took care of both of the issues that I reported.  I'll restart my
-testing with this in my baseline, but as of this fix I don't have any more
-open testing issues. :)
+I don't understand what you mean by this. Could you give an example?
+
+-- 
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
