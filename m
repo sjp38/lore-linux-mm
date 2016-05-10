@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 59AE86B0268
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 03:37:47 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id s63so6413651wme.2
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 00:37:47 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 971D86B0269
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 03:37:49 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id s63so6414395wme.2
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 00:37:49 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b83si30379374wme.3.2016.05.10.00.37.08
+        by mx.google.com with ESMTPS id ks9si1044082wjb.15.2016.05.10.00.37.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 May 2016 00:37:08 -0700 (PDT)
+        Tue, 10 May 2016 00:37:09 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC 10/13] mm, compaction: cleanup unused functions
-Date: Tue, 10 May 2016 09:36:00 +0200
-Message-Id: <1462865763-22084-11-git-send-email-vbabka@suse.cz>
+Subject: [RFC 12/13] mm, compaction: more reliably increase direct compaction priority
+Date: Tue, 10 May 2016 09:36:02 +0200
+Message-Id: <1462865763-22084-13-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
 References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,126 +20,129 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
 
-Since kswapd compaction moved to kcompactd, compact_pgdat() is not called
-anymore, so we remove it. The only caller of __compact_pgdat() is
-compact_node(), so we merge them and remove code that was only reachable from
-kswapd.
+During reclaim/compaction loop, compaction priority can be increased by the
+should_compact_retry() function, but the current code is not optimal for
+several reasons:
+
+- priority is only increased when compaction_failed() is true, which means
+  that compaction has scanned the whole zone. This may not happen even after
+  multiple attempts with the lower priority due to parallel activity, so we
+  might needlessly struggle on the lower priority.
+
+- should_compact_retry() is only called when should_reclaim_retry() returns
+  false. This means that compaction priority cannot get increased as long
+  as reclaim makes sufficient progress. Theoretically, reclaim should stop
+  retrying for high-order allocations as long as the high-order page doesn't
+  exist but due to races, this may result in spurious retries when the
+  high-order page momentarily does exist.
+
+We can remove these corner cases by making sure that should_compact_retry() is
+always called, and increases compaction priority if possible. Examining further
+the compaction result can be done only after reaching the highest priority.
+This is a simple solution and we don't need to worry about reaching the highest
+priority "too soon" here - when should_compact_retry() is called it means that
+the system is already struggling and the allocation is supposed to either try
+as hard as possible, or it cannot fail at all. There's not much point staying
+at lower priorities with heuristics that may result in only partial compaction.
+
+The only exception here is the COMPACT_SKIPPED result, which means that
+compaction could not run at all due to failing order-0 watermarks. In that
+case, don't increase compaction priority, and check if compaction could proceed
+when everything reclaimable was reclaimed. Before this patch, this was tied to
+compaction_withdrawn(), but the other results considered there are in fact only
+due to low compaction priority so we can ignore them thanks to the patch.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/compaction.h |  5 ----
- mm/compaction.c            | 60 +++++++++++++---------------------------------
- 2 files changed, 17 insertions(+), 48 deletions(-)
+ mm/page_alloc.c | 46 +++++++++++++++++++++++-----------------------
+ 1 file changed, 23 insertions(+), 23 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index cd3a59f1601e..eeaed24e87a8 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -67,7 +67,6 @@ extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
- 			unsigned int order,
- 			unsigned int alloc_flags, const struct alloc_context *ac,
- 			enum compact_priority prio);
--extern void compact_pgdat(pg_data_t *pgdat, int order);
- extern void reset_isolation_suitable(pg_data_t *pgdat);
- extern enum compact_result compaction_suitable(struct zone *zone, int order,
- 					unsigned int alloc_flags, int classzone_idx);
-@@ -151,10 +150,6 @@ extern void kcompactd_stop(int nid);
- extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index aa9c39a7f40a..623027fb8121 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3248,28 +3248,27 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+ 		return false;
  
- #else
--static inline void compact_pgdat(pg_data_t *pgdat, int order)
--{
--}
+ 	/*
+-	 * compaction considers all the zone as desperately out of memory
+-	 * so it doesn't really make much sense to retry except when the
+-	 * failure could be caused by insufficient priority
++	 * Compaction backed off due to watermark checks for order-0
++	 * so the regular reclaim has to try harder and reclaim something
++	 * Retry only if it looks like reclaim might have a chance.
+ 	 */
+-	if (compaction_failed(compact_result)) {
+-		if (*compact_priority > 0) {
+-			(*compact_priority)--;
+-			return true;
+-		}
+-		return false;
+-	}
++	if (compact_result == COMPACT_SKIPPED)
++		return compaction_zonelist_suitable(ac, order, alloc_flags);
+ 
+ 	/*
+-	 * make sure the compaction wasn't deferred or didn't bail out early
+-	 * due to locks contention before we declare that we should give up.
+-	 * But do not retry if the given zonelist is not suitable for
+-	 * compaction.
++	 * Compaction could have withdrawn early or skip some zones or
++	 * pageblocks. We were asked to retry, which means the allocation
++	 * should try really hard, so increase the priority if possible.
+ 	 */
+-	if (compaction_withdrawn(compact_result))
+-		return compaction_zonelist_suitable(ac, order, alloc_flags);
++	if (*compact_priority > 0) {
++		(*compact_priority)--;
++		return true;
++	}
+ 
+ 	/*
++	 * The remaining possibility is that compaction made progress and
++	 * created a high-order page, but it was allocated by somebody else.
++	 * To prevent thrashing, limit the number of retries in such case.
+ 	 * !costly requests are much more important than __GFP_REPEAT
+ 	 * costly ones because they are de facto nofail and invoke OOM
+ 	 * killer to move on while costly can fail and users are ready
+@@ -3527,6 +3526,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 						struct alloc_context *ac)
+ {
+ 	bool can_direct_reclaim = gfp_mask & __GFP_DIRECT_RECLAIM;
++	bool should_retry;
+ 	struct page *page = NULL;
+ 	unsigned int alloc_flags;
+ 	unsigned long did_some_progress;
+@@ -3695,22 +3695,22 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	else
+ 		no_progress_loops++;
+ 
+-	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
+-				 did_some_progress > 0, no_progress_loops))
+-		goto retry;
 -
- static inline void reset_isolation_suitable(pg_data_t *pgdat)
- {
- }
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 1ce6783d3ead..7d0935e1a195 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1678,10 +1678,18 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
++	should_retry = should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
++				 did_some_progress > 0, no_progress_loops);
+ 	/*
+ 	 * It doesn't make any sense to retry for the compaction if the order-0
+ 	 * reclaim is not able to make any progress because the current
+ 	 * implementation of the compaction depends on the sufficient amount
+ 	 * of free memory (see __compaction_suitable)
+ 	 */
+-	if (did_some_progress > 0 &&
+-			should_compact_retry(ac, order, alloc_flags,
++	if (did_some_progress > 0)
++		should_retry |= should_compact_retry(ac, order, alloc_flags,
+ 				compact_result, &compact_priority,
+-				compaction_retries))
++				compaction_retries);
++	if (should_retry)
+ 		goto retry;
  
- 
- /* Compact all zones within a node */
--static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
-+static void compact_node(int nid)
- {
-+	pg_data_t *pgdat = NODE_DATA(nid);
- 	int zoneid;
- 	struct zone *zone;
-+	struct compact_control cc = {
-+		.order = -1,
-+		.mode = MIGRATE_SYNC,
-+		.ignore_skip_hint = true,
-+		.whole_zone = true,
-+	};
 +
- 
- 	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
- 
-@@ -1689,53 +1697,19 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
- 		if (!populated_zone(zone))
- 			continue;
- 
--		cc->nr_freepages = 0;
--		cc->nr_migratepages = 0;
--		cc->zone = zone;
--		INIT_LIST_HEAD(&cc->freepages);
--		INIT_LIST_HEAD(&cc->migratepages);
--
--		if (is_via_compact_memory(cc->order) ||
--				!compaction_deferred(zone, cc->order))
--			compact_zone(zone, cc);
--
--		VM_BUG_ON(!list_empty(&cc->freepages));
--		VM_BUG_ON(!list_empty(&cc->migratepages));
-+		cc.nr_freepages = 0;
-+		cc.nr_migratepages = 0;
-+		cc.zone = zone;
-+		INIT_LIST_HEAD(&cc.freepages);
-+		INIT_LIST_HEAD(&cc.migratepages);
- 
--		if (is_via_compact_memory(cc->order))
--			continue;
-+		compact_zone(zone, &cc);
- 
--		if (zone_watermark_ok(zone, cc->order,
--				low_wmark_pages(zone), 0, 0))
--			compaction_defer_reset(zone, cc->order, false);
-+		VM_BUG_ON(!list_empty(&cc.freepages));
-+		VM_BUG_ON(!list_empty(&cc.migratepages));
- 	}
- }
- 
--void compact_pgdat(pg_data_t *pgdat, int order)
--{
--	struct compact_control cc = {
--		.order = order,
--		.mode = MIGRATE_ASYNC,
--	};
--
--	if (!order)
--		return;
--
--	__compact_pgdat(pgdat, &cc);
--}
--
--static void compact_node(int nid)
--{
--	struct compact_control cc = {
--		.order = -1,
--		.mode = MIGRATE_SYNC,
--		.ignore_skip_hint = true,
--		.whole_zone = true,
--	};
--
--	__compact_pgdat(NODE_DATA(nid), &cc);
--}
--
- /* Compact all nodes in the system */
- static void compact_nodes(void)
- {
+ 	/* Reclaim has failed us, start killing things */
+ 	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
+ 	if (page)
 -- 
 2.8.2
 
