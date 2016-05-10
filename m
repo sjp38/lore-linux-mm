@@ -1,44 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 63AFA6B0253
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 11:14:04 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 68so13578261lfq.2
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 08:14:04 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 6CEFE6B007E
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 11:28:19 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id y84so13876686lfc.3
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 08:28:19 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r64si3702920wme.10.2016.05.10.08.14.02
+        by mx.google.com with ESMTPS id el5si3237422wjd.31.2016.05.10.08.28.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 May 2016 08:14:03 -0700 (PDT)
-Subject: Re: [PATCH 4/6] mm/page_owner: introduce split_page_owner and replace
- manual handling
-References: <1462252984-8524-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1462252984-8524-5-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5731FABA.8070308@suse.cz>
-Date: Tue, 10 May 2016 17:14:02 +0200
+        Tue, 10 May 2016 08:28:17 -0700 (PDT)
+Date: Tue, 10 May 2016 17:28:14 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC v3] [PATCH 0/18] DAX page fault locking
+Message-ID: <20160510152814.GQ11897@quack2.suse.cz>
+References: <1461015341-20153-1-git-send-email-jack@suse.cz>
+ <20160506203308.GA12506@linux.intel.com>
+ <20160509093828.GF11897@quack2.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1462252984-8524-5-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160509093828.GF11897@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>
 
-On 05/03/2016 07:23 AM, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> split_page() calls set_page_owner() to set up page_owner to each pages.
-> But, it has a drawback that head page and the others have different
-> stacktrace because callsite of set_page_owner() is slightly differnt.
-> To avoid this problem, this patch copies head page's page_owner to
-> the others. It needs to introduce new function, split_page_owner() but
-> it also remove the other function, get_page_owner_gfp() so looks good
-> to do.
+On Mon 09-05-16 11:38:28, Jan Kara wrote:
+> On Fri 06-05-16 14:33:08, Ross Zwisler wrote:
+> > On Mon, Apr 18, 2016 at 11:35:23PM +0200, Jan Kara wrote:
+> > > Hello,
+> > > 
+> > > this is my third attempt at DAX page fault locking rewrite. The patch set has
+> > > passed xfstests both with and without DAX mount option on ext4 and xfs for
+> > > me and also additional page fault beating using the new page fault stress
+> > > tests I have added to xfstests. So I'd be grateful if you guys could have a
+> > > closer look at the patches so that they can be merged. Thanks.
+> > > 
+> > > Changes since v2:
+> > > - lot of additional ext4 fixes and cleanups
+> > > - make PMD page faults depend on CONFIG_BROKEN instead of #if 0
+> > > - fixed page reference leak when replacing hole page with a pfn
+> > > - added some reviewed-by tags
+> > > - rebased on top of current Linus' tree
+> > > 
+> > > Changes since v1:
+> > > - handle wakeups of exclusive waiters properly
+> > > - fix cow fault races
+> > > - other minor stuff
+> > > 
+> > > General description
+> > > 
+> > > The basic idea is that we use a bit in an exceptional radix tree entry as
+> > > a lock bit and use it similarly to how page lock is used for normal faults.
+> > > That way we fix races between hole instantiation and read faults of the
+> > > same index. For now I have disabled PMD faults since there the issues with
+> > > page fault locking are even worse. Now that Matthew's multi-order radix tree
+> > > has landed, I can have a look into using that for proper locking of PMD faults
+> > > but first I want normal pages sorted out.
+> > > 
+> > > In the end I have decided to implement the bit locking directly in the DAX
+> > > code. Originally I was thinking we could provide something generic directly
+> > > in the radix tree code but the functions DAX needs are rather specific.
+> > > Maybe someone else will have a good idea how to distill some generally useful
+> > > functions out of what I've implemented for DAX but for now I didn't bother
+> > > with that.
+> > > 
+> > > 								Honza
+> > 
+> > Hey Jan,
+> > 
+> > Another hit in testing, which may or may not be related to the last one.  The
+> > BUG is a few lines off from the previous report:
+> > 	kernel BUG at mm/workingset.c:423!
+> > vs
+> > 	kernel BUG at mm/workingset.c:435!
+> > 
+> > I've been able to consistently hit this one using DAX + ext4 with generic/086.
+> > For some reason generic/086 always passes when run by itself, but fails
+> > consistently if you run it after a set of other tests.  Here is a relatively
+> > fast set that reproduces it:
+> 
+> Thanks for reports! It is strange that I didn't see this happening but I've
+> been testing against somewhat older base so maybe something has changed.
+> Anyway the culprit seems to be that workingset tracking code messes with
+> radix tree which is managed by DAX and these two were never meant to
+> coexist so assertions naturally trip. In particular we should not add radix
+> tree node to working-set list of nodes for eviction in
+> page_cache_tree_delete() for DAX inodes. However that seems to happen in
+> your case and so far I don't quite understand why...
 
-OK.
+Somehow, I'm not able to reproduce the warnings... Anyway, I think I see
+what's going on. Can you check whether the warning goes away when you
+change the condition at the end of page_cache_tree_delete() to:
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+        if (!dax_mapping(mapping) && !workingset_node_pages(node) &&
+            list_empty(&node->private_list)) {
+
+Thanks!
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
