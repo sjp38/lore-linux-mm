@@ -1,57 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AD7A6B0005
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 16:30:12 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id k129so52662147iof.0
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 13:30:12 -0700 (PDT)
-Received: from mail-oi0-x235.google.com (mail-oi0-x235.google.com. [2607:f8b0:4003:c06::235])
-        by mx.google.com with ESMTPS id h205si1338810oib.211.2016.05.10.13.30.11
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 May 2016 13:30:11 -0700 (PDT)
-Received: by mail-oi0-x235.google.com with SMTP id v145so35478473oie.0
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 13:30:11 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 635986B007E
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 16:30:25 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 4so44911441pfw.0
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 13:30:25 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id g197si4542973pfb.203.2016.05.10.13.30.24
+        for <linux-mm@kvack.org>;
+        Tue, 10 May 2016 13:30:24 -0700 (PDT)
+Date: Tue, 10 May 2016 14:30:03 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [RFC v3] [PATCH 0/18] DAX page fault locking
+Message-ID: <20160510203003.GA5314@linux.intel.com>
+References: <1461015341-20153-1-git-send-email-jack@suse.cz>
+ <20160506203308.GA12506@linux.intel.com>
+ <20160509093828.GF11897@quack2.suse.cz>
+ <20160510152814.GQ11897@quack2.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160510182055.GA24868@redhat.com>
-References: <CALCETrWWZy0hngPU8MCiQvnH+s0awpFE8wNBrYsf_c+nz6ZsDg@mail.gmail.com>
- <20160510182055.GA24868@redhat.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 10 May 2016 13:29:50 -0700
-Message-ID: <CALCETrU4me1X7oTriLgFQpTqwaebMsT5sdYZzjC=_EERXNbqzA@mail.gmail.com>
-Subject: Re: Getting rid of dynamic TASK_SIZE (on x86, at least)
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160510152814.GQ11897@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Dmitry Safonov <0x7f454c46@gmail.com>, Borislav Petkov <bp@alien8.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Ruslan Kabatsayev <b7.10110111@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>
 
-On May 10, 2016 11:21 AM, "Oleg Nesterov" <oleg@redhat.com> wrote:
->
-> On 05/10, Andy Lutomirski wrote:
-> >
-> >  - xol_add_vma: This one is weird: uprobes really is doing something
-> > behind the task's back, and the addresses need to be consistent with
-> > the address width.  I'm not quite sure what to do here.
->
-> It can use mm->task_size instead, plus this is just a hint. And perhaps
-> mm->task_size should have more users, say get_unmapped_area...
+On Tue, May 10, 2016 at 05:28:14PM +0200, Jan Kara wrote:
+> On Mon 09-05-16 11:38:28, Jan Kara wrote:
+> Somehow, I'm not able to reproduce the warnings... Anyway, I think I see
+> what's going on. Can you check whether the warning goes away when you
+> change the condition at the end of page_cache_tree_delete() to:
+> 
+>         if (!dax_mapping(mapping) && !workingset_node_pages(node) &&
+>             list_empty(&node->private_list)) {
 
-Ick.  I hadn't noticed mm->task_size.  We have a *lot* of different
-indicators of task size.  mm->task_size appears to have basically no
-useful uses except maybe for ppc.
-
-On x86, bitness can change without telling the kernel, and tasks
-running in 64-bit mode can do 32-bit syscalls.
-
-So maybe I should add mm->task_size to my list of things that would be
-nice to remove.  Or maybe I'm just tilting at windmills.
-
->
-> Not sure we should really get rid of dynamic TASK_SIZE completely, but
-> personally I agree it looks a bit ugly.
->
-> Oleg.
->
+Yep, this took care of both of the issues that I reported.  I'll restart my
+testing with this in my baseline, but as of this fix I don't have any more
+open testing issues. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
