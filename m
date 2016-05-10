@@ -1,131 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F6EA6B007E
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 07:55:31 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id m64so9033796lfd.1
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 04:55:30 -0700 (PDT)
-Received: from mail-lf0-x22e.google.com (mail-lf0-x22e.google.com. [2a00:1450:4010:c07::22e])
-        by mx.google.com with ESMTPS id zk3si1289024lbb.7.2016.05.10.04.55.29
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 295976B025E
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 07:56:33 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e201so12167428wme.1
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 04:56:33 -0700 (PDT)
+Received: from smtp.laposte.net (smtpoutz300.laposte.net. [178.22.154.200])
+        by mx.google.com with ESMTPS id qs7si2233494wjc.50.2016.05.10.04.56.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 May 2016 04:55:29 -0700 (PDT)
-Received: by mail-lf0-x22e.google.com with SMTP id m64so11849880lfd.1
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 04:55:29 -0700 (PDT)
+        Tue, 10 May 2016 04:56:32 -0700 (PDT)
+Received: from smtp.laposte.net (localhost [127.0.0.1])
+	by lpn-prd-vrout012 (Postfix) with ESMTP id AB2AD8C9FD
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 13:56:31 +0200 (CEST)
+Received: from lpn-prd-vrin001 (lpn-prd-vrin001.laposte [10.128.63.2])
+	by lpn-prd-vrout012 (Postfix) with ESMTP id 9C3B18C9E8
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 13:56:31 +0200 (CEST)
+Received: from lpn-prd-vrin001 (localhost [127.0.0.1])
+	by lpn-prd-vrin001 (Postfix) with ESMTP id 7F11F366975
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 13:56:31 +0200 (CEST)
+Message-ID: <5731CC6E.3080807@laposte.net>
+Date: Tue, 10 May 2016 13:56:30 +0200
+From: Sebastian Frias <sf84@laposte.net>
 MIME-Version: 1.0
-In-Reply-To: <573085EB.5060808@virtuozzo.com>
-References: <20160506114727.GA2571@cherokee.in.rdlabs.hpecorp.net>
- <573065BD.2020708@virtuozzo.com> <CACT4Y+aZyKg6ehTovDWkzw_vLQ=Td=FHh3OC6w6cOyNOrKPfTA@mail.gmail.com>
- <573085EB.5060808@virtuozzo.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 10 May 2016 13:55:09 +0200
-Message-ID: <CACT4Y+ZP=soaHzDt7JCe6ndsmgnhB+pWO+tGetRfSgaBbsQhqg@mail.gmail.com>
-Subject: Re: [PATCH v2 1/2] mm, kasan: improve double-free detection
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH] mm: add config option to select the initial overcommit mode
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, mason <slash.tmp@free.fr>
 
-On Mon, May 9, 2016 at 2:43 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->
->
-> On 05/09/2016 01:31 PM, Dmitry Vyukov wrote:
->> On Mon, May 9, 2016 at 12:26 PM, Andrey Ryabinin
->> <aryabinin@virtuozzo.com> wrote:
->>>
->>> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
->>> index b3c122d..c2b0e51 100644
->>> --- a/mm/kasan/report.c
->>> +++ b/mm/kasan/report.c
->>> @@ -140,18 +140,12 @@ static void object_err(struct kmem_cache *cache, struct page *page,
->>>         pr_err("Object at %p, in cache %s\n", object, cache->name);
->>>         if (!(cache->flags & SLAB_KASAN))
->>>                 return;
->>> -       switch (alloc_info->state) {
->>> -       case KASAN_STATE_INIT:
->>> -               pr_err("Object not allocated yet\n");
->>> -               break;
->>> -       case KASAN_STATE_ALLOC:
->>> +       if (test_bit(KASAN_STATE_ALLOCATED, &alloc_info->state)) {
->>>                 pr_err("Object allocated with size %u bytes.\n",
->>>                        alloc_info->alloc_size);
->>>                 pr_err("Allocation:\n");
->>>                 print_track(&alloc_info->track);
->>
->> alloc_info->track is not necessary initialized when
->> KASAN_STATE_ALLOCATED is set.
->
-> It should be initialized to something. If it's not initialized, than that object wasn't allocated.
-> So this would be a *very* random pointer access. Also this would mean that ->state itself might be not initialized too.
-> Anyway, we can't do much in such scenario since we can't trust any data.
-> And I don't think that we should because very likely this will cause panic eventually.
->
->> Worse, it can be initialized to a wrong
->> stack.
->>
->
-> Define "wrong stack" here.
->
-> I assume that you are talking about race in the following scenario:
->
-> ------
-> Proccess A:                      Proccess B:
->
-> p_A = kmalloc();
-> /* use p_A */
-> kfree(p_A);
->                                  p_A = kmalloc();
->                                       ....
->                                       set_bit(KASAN_STATE_ALLOCATED); //bit set, but stack is not saved yet.
-> /* use after free p_A */
->
-> if (test_bit(KASAN_STATE_ALLOCATED))
->         print_stack() // will print track from Proccess A
-> -----
->
-> So, would be the stack trace from A wrong in such situation? I don't think so.
-> We could change ->state and save stack trace in the 'right' order with proper barriers,
-> but would it prevent us from showing wrong stacktrace? - It wouldn't.
->
-> Now, the only real problem with current code, is that we don't print free stack if we think that object is in
-> allocated state. We should do this, because more information is always better, e.g. we might hit long-delayed use-after-free,
-> in which case free stack would be useful (just like in scenario above).
+Currently the initial value of the overcommit mode is OVERCOMMIT_GUESS.
+However, on embedded systems it is usually better to disable overcommit
+to avoid waking up the OOM-killer and its well known undesirable
+side-effects.
 
+This config option allows to setup the initial overcommit mode to any of
+the 3 available values, OVERCOMMIT_GUESS (which remains as default),
+OVERCOMMIT_ALWAYS and OVERCOMMIT_NEVER.
+The overcommit mode can still be changed thru sysctl after the system
+boots up.
 
+This config option depends on CONFIG_EXPERT.
+This patch does not introduces functional changes.
 
-If we report a use-after-free on an object, we need to print
-allocation stack of that object and free object for that object. If we
-report a double-free, we need to print allocation and free stacks for
-the object. That's correct stacks. Everything else is wrong.
+Signed-off-by: Sebastian Frias <sf84@laposte.net>
+---
 
-With your patch we don't print free stack on double-free. We can't
-print free_info->track because it is not necessary initialized at that
-point. We can't fix it by simply reversing order of stores of state
-and track, because then there is a data race on track during
-double-free.
+NOTE: I understand that the overcommit mode can be changed dynamically thru
+sysctl, but on embedded systems, where we know in advance that overcommit
+will be disabled, there's no reason to postpone such setting.
 
-I agree that if we have a use-after-free when the block is being
-reused for another allocation, we can't always print the right stacks
-(they are already overwritten for the new allocation). But we should
-avoid printing non-matching malloc/free stacks and treating random
-bytes as stack trace handle (both cases are possible with your patch).
-If we print bogus info that does not make sense, we compromise trust
-in the tool. Some developers postulate that a tool is totally broken
-and stop looking at reports as soon as they notice any incorrect info.
+I would also be interested in knowing if you guys think this option should
+disable sysctl access for overcommit mode, essentially hardcoding the
+overcommit mode when this option is used.
 
-Kuthonuzo's patch allows to always print matching malloc/free stacks,
-never treat random bytes as stack handle and detect some cases when we
-know we have stale information (due to block reuse). There well may be
-ways to simplify and improve it, but it introduces and uses a
-consistent discipline for header updates/reads that will be useful as
-we go forward.
+NOTE2: I tried to track down the history of overcommit but back then there
+were no single patches apparently and the patch that appears to have
+introduced the first overcommit mode (OVERCOMMIT_ALWAYS) is commit
+9334eab8a36f ("Import 2.1.27"). OVERCOMMIT_NEVER was introduced with commit
+502bff0685b2 ("[PATCH] strict overcommit").
+My understanding is that prior to commit 9334eab8a36f ("Import 2.1.27")
+there was no overcommit, is that correct?
 
-Re block size increase: it's not that is super big deal. But the
-increase is completely unnecessary. I've checked /proc/slabinfo on my
-non-instrumented machine, and most objects are exactly in 32/64-byte
-objects consuming 80MB in total. We've just got rid of fat inlined
-stack traces and refactored alloc/free info to occupy 16 bytes each.
-Let's not start increasing them again on any occasion.
+NOTE3: checkpatch.pl is warning about missing description for the config
+symbols ("please write a paragraph that describes the config symbol fully")
+but my understanding is that that is a false positive (or the warning message
+not clear enough for me to understand it) considering that I have added
+'help' sections for each 'config' section.
+---
+ mm/Kconfig | 32 ++++++++++++++++++++++++++++++++
+ mm/util.c  |  8 +++++++-
+ 2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/mm/Kconfig b/mm/Kconfig
+index abb7dcf..6dad57d 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -439,6 +439,38 @@ choice
+ 	  benefit.
+ endchoice
+ 
++choice
++	prompt "Overcommit Mode"
++	default OVERCOMMIT_GUESS
++	depends on EXPERT
++	help
++	  Selects the initial value for Overcommit mode.
++
++	  NOTE: The overcommit mode can be changed dynamically through sysctl.
++
++	config OVERCOMMIT_GUESS
++		bool "Guess"
++	help
++	  Selecting this option forces the initial value of overcommit mode to
++	  "Guess" overcommits. This is the default value.
++	  See Documentation/vm/overcommit-accounting for more information.
++
++	config OVERCOMMIT_ALWAYS
++		bool "Always"
++	help
++	  Selecting this option forces the initial value of overcommit mode to
++	  "Always" overcommit.
++	  See Documentation/vm/overcommit-accounting for more information.
++
++	config OVERCOMMIT_NEVER
++		bool "Never"
++	help
++	  Selecting this option forces the initial value of overcommit mode to
++	  "Never" overcommit.
++	  See Documentation/vm/overcommit-accounting for more information.
++
++endchoice
++
+ #
+ # UP and nommu archs use km based percpu allocator
+ #
+diff --git a/mm/util.c b/mm/util.c
+index 917e0e3..fd098bb 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -418,7 +418,13 @@ int __page_mapcount(struct page *page)
+ }
+ EXPORT_SYMBOL_GPL(__page_mapcount);
+ 
+-int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;
++#if defined(CONFIG_OVERCOMMIT_NEVER)
++int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_NEVER;
++#elif defined(CONFIG_OVERCOMMIT_ALWAYS)
++int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_ALWAYS;
++#else
++int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;
++#endif
+ int sysctl_overcommit_ratio __read_mostly = 50;
+ unsigned long sysctl_overcommit_kbytes __read_mostly;
+ int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
