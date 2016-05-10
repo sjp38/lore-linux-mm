@@ -1,73 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CD436B0260
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 03:07:15 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id i75so14779287ioa.3
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 00:07:15 -0700 (PDT)
-Received: from mail-ob0-x22f.google.com (mail-ob0-x22f.google.com. [2607:f8b0:4003:c01::22f])
-        by mx.google.com with ESMTPS id p64si262540oia.8.2016.05.10.00.07.14
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 474996B0262
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 03:09:43 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id s63so5825561wme.2
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 00:09:43 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n10si863747wjf.210.2016.05.10.00.09.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 May 2016 00:07:14 -0700 (PDT)
-Received: by mail-ob0-x22f.google.com with SMTP id x1so1870925obt.0
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 00:07:14 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 May 2016 00:09:42 -0700 (PDT)
+Subject: Re: [PATCH 0.14] oom detection rework v6
+References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
+ <20160504054502.GA10899@js1304-P5Q-DELUXE>
+ <20160504084737.GB29978@dhcp22.suse.cz>
+ <CAAmzW4M7ZT7+vUsW3SrTRSv6Q80B2NdAS+OX7PrnpdrV+=R19A@mail.gmail.com>
+ <20160504181608.GA21490@dhcp22.suse.cz>
+ <CAAmzW4NM-M39d7qp4B8J87moN3ESVgckbd01=pKXV1XEh6Y+6A@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <57318932.3030804@suse.cz>
+Date: Tue, 10 May 2016 09:09:38 +0200
 MIME-Version: 1.0
-In-Reply-To: <20160504194019.GE21490@dhcp22.suse.cz>
-References: <1462252984-8524-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1462252984-8524-7-git-send-email-iamjoonsoo.kim@lge.com>
-	<20160503085356.GD28039@dhcp22.suse.cz>
-	<20160504021449.GA10256@js1304-P5Q-DELUXE>
-	<20160504092133.GG29978@dhcp22.suse.cz>
-	<CAAmzW4NYWaNvC5MPR8RwQSiKP2b2Z5wVy9nnNxc+sTVWvQ6BGA@mail.gmail.com>
-	<20160504194019.GE21490@dhcp22.suse.cz>
-Date: Tue, 10 May 2016 16:07:14 +0900
-Message-ID: <CAAmzW4N1UocTRaX+K=-2OtaARPOu+WjsBLCayzr20pP15GNo4g@mail.gmail.com>
-Subject: Re: [PATCH 6/6] mm/page_owner: use stackdepot to store stacktrace
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <CAAmzW4NM-M39d7qp4B8J87moN3ESVgckbd01=pKXV1XEh6Y+6A@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-2016-05-05 4:40 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
-> On Thu 05-05-16 00:30:35, Joonsoo Kim wrote:
->> 2016-05-04 18:21 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
-> [...]
->> > Do we really consume 512B of stack during reclaim. That sounds more than
->> > worrying to me.
->>
->> Hmm...I checked it by ./script/stackusage and result is as below.
->>
->> shrink_zone() 128
->> shrink_zone_memcg() 248
->> shrink_active_list() 176
->>
->> We have a call path that shrink_zone() -> shrink_zone_memcg() ->
->> shrink_active_list().
->> I'm not sure whether it is the deepest path or not.
->
-> This is definitely not the deepest path. Slab shrinkers can take more
-> but 512B is still a lot. Some call paths are already too deep when
-> calling into the allocator and some of them already use GFP_NOFS to
-> prevent from potentially deep callchain slab shrinkers. Anyway worth
-> exploring for better solutions.
->
-> And I believe it would be better to solve this in the stackdepot
-> directly so other users do not have to invent their own ways around the
-> same issue. I have just checked the code and set_track uses save_stack
-> which does the same thing and it seems to be called from the slab
-> allocator. I have missed this usage before so the problem already does
-> exist. It would be unfair to request you to fix that in order to add a
-> new user. It would be great if this got addressed though.
+On 05/10/2016 08:41 AM, Joonsoo Kim wrote:
+> You applied band-aid for CONFIG_COMPACTION and fixed some reported
+> problem but it is also fragile. Assume almost pageblock's skipbit are
+> set. In this case, compaction easily returns COMPACT_COMPLETE and your
+> logic will stop retry. Compaction isn't designed to report accurate
+> fragmentation state of the system so depending on it's return value
+> for OOM is fragile.
 
-Yes, fixing it in stackdepot looks more reasonable.
-Then, I will just change PAGE_OWNER_STACK_DEPTH from 64 to 16 and
-leave the code as is for now. With this change, we will just consume 128B stack
-and would not cause stack problem. If anyone has an objection,
-please let me know.
-
-Thanks.
+Guess I'll just post a RFC now, even though it's not much tested...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
