@@ -1,44 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D1FF6B025E
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 09:58:04 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id m64so11602956lfd.1
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 06:58:04 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id s73si32069122wmd.77.2016.05.10.06.58.02
-        for <linux-mm@kvack.org>;
-        Tue, 10 May 2016 06:58:02 -0700 (PDT)
-Date: Tue, 10 May 2016 15:57:58 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [RFC PATCH v1 10/18] x86/efi: Access EFI related tables in the
- clear
-Message-ID: <20160510135758.GA16783@pd.tnic>
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225740.13567.85438.stgit@tlendack-t1.amdoffice.net>
- <20160510134358.GR2839@codeblueprint.co.uk>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 88CA06B007E
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 10:15:50 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e201so15553924wme.1
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 07:15:50 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v3si2900740wjx.3.2016.05.10.07.15.49
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 May 2016 07:15:49 -0700 (PDT)
+Date: Tue, 10 May 2016 16:15:44 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v5 1/5] dax: fallback from pmd to pte on error
+Message-ID: <20160510141544.GL11897@quack2.suse.cz>
+References: <1462571591-3361-1-git-send-email-vishal.l.verma@intel.com>
+ <1462571591-3361-2-git-send-email-vishal.l.verma@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160510134358.GR2839@codeblueprint.co.uk>
+In-Reply-To: <1462571591-3361-2-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matt Fleming <matt@codeblueprint.co.uk>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Vishal Verma <vishal.l.verma@intel.com>
+Cc: linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Boaz Harrosh <boaz@plexistor.com>
 
-On Tue, May 10, 2016 at 02:43:58PM +0100, Matt Fleming wrote:
-> Is it not possible to maintain some kind of kernel virtual address
-> mapping so memremap*() and friends can figure out when to twiddle the
-> mapping attributes and map with/without encryption?
+On Fri 06-05-16 15:53:07, Vishal Verma wrote:
+> From: Dan Williams <dan.j.williams@intel.com>
+> 
+> In preparation for consulting a badblocks list in pmem_direct_access(),
+> teach dax_pmd_fault() to fallback rather than fail immediately upon
+> encountering an error.  The thought being that reducing the span of the
+> dax request may avoid the error region.
+> 
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-I guess we can move the sme_* specific stuff one indirection layer
-below, i.e., in the *memremap() routines so that callers don't have to
-care... That should keep the churn down...
+The patch looks good. You can add:
 
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
 -- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
