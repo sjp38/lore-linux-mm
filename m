@@ -1,42 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 474996B0262
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 03:09:43 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id s63so5825561wme.2
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 00:09:43 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n10si863747wjf.210.2016.05.10.00.09.41
+	by kanga.kvack.org (Postfix) with ESMTP id 7ADE86B007E
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 03:28:40 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id w143so6147833wmw.3
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 00:28:40 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id hn10si990140wjc.65.2016.05.10.00.28.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 May 2016 00:09:42 -0700 (PDT)
-Subject: Re: [PATCH 0.14] oom detection rework v6
-References: <1461181647-8039-1-git-send-email-mhocko@kernel.org>
- <20160504054502.GA10899@js1304-P5Q-DELUXE>
- <20160504084737.GB29978@dhcp22.suse.cz>
- <CAAmzW4M7ZT7+vUsW3SrTRSv6Q80B2NdAS+OX7PrnpdrV+=R19A@mail.gmail.com>
- <20160504181608.GA21490@dhcp22.suse.cz>
- <CAAmzW4NM-M39d7qp4B8J87moN3ESVgckbd01=pKXV1XEh6Y+6A@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <57318932.3030804@suse.cz>
-Date: Tue, 10 May 2016 09:09:38 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 May 2016 00:28:39 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id r12so1168750wme.0
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 00:28:38 -0700 (PDT)
+Date: Tue, 10 May 2016 09:28:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] memcg: fix stale mem_cgroup_force_empty() comment
+Message-ID: <20160510072837.GC23576@dhcp22.suse.cz>
+References: <1462569810-54496-1-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
-In-Reply-To: <CAAmzW4NM-M39d7qp4B8J87moN3ESVgckbd01=pKXV1XEh6Y+6A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1462569810-54496-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Hillf Danton <hillf.zj@alibaba-inc.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 05/10/2016 08:41 AM, Joonsoo Kim wrote:
-> You applied band-aid for CONFIG_COMPACTION and fixed some reported
-> problem but it is also fragile. Assume almost pageblock's skipbit are
-> set. In this case, compaction easily returns COMPACT_COMPLETE and your
-> logic will stop retry. Compaction isn't designed to report accurate
-> fragmentation state of the system so depending on it's return value
-> for OOM is fragile.
+On Fri 06-05-16 14:23:30, Greg Thelen wrote:
+> commit f61c42a7d911 ("memcg: remove tasks/children test from
+> mem_cgroup_force_empty()") removed memory reparenting from the function.
+> 
+> Fix the function's comment.
+> 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
 
-Guess I'll just post a RFC now, even though it's not much tested...
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/memcontrol.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index fe787f5c41bd..19fd76168a05 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2636,8 +2636,7 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
+>  }
+>  
+>  /*
+> - * Reclaims as many pages from the given memcg as possible and moves
+> - * the rest to the parent.
+> + * Reclaims as many pages from the given memcg as possible.
+>   *
+>   * Caller is responsible for holding css reference for memcg.
+>   */
+> -- 
+> 2.8.0.rc3.226.g39d4020
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
