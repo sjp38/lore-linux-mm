@@ -1,39 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 991586B007E
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 04:42:48 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id j8so5222653lfd.0
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 01:42:48 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id kl3si561480wjb.22.2016.05.10.01.42.47
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5564D6B007E
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 04:57:08 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e201so8153118wme.1
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 01:57:08 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id i200si30648308wmd.116.2016.05.10.01.57.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 May 2016 01:42:47 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id n129so1460562wmn.1
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 01:42:47 -0700 (PDT)
-Date: Tue, 10 May 2016 10:42:45 +0200
+        Tue, 10 May 2016 01:57:07 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id n129so1522376wmn.1
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 01:57:07 -0700 (PDT)
+Date: Tue, 10 May 2016 10:57:06 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mmotm 2016-05-05-17-19 uploaded
-Message-ID: <20160510084245.GF23576@dhcp22.suse.cz>
-References: <572be328.fL9XliJnk212vzCy%akpm@linux-foundation.org>
+Subject: Re: [PATCH 6/6] mm/page_owner: use stackdepot to store stacktrace
+Message-ID: <20160510085706.GG23576@dhcp22.suse.cz>
+References: <1462252984-8524-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1462252984-8524-7-git-send-email-iamjoonsoo.kim@lge.com>
+ <20160503085356.GD28039@dhcp22.suse.cz>
+ <20160504021449.GA10256@js1304-P5Q-DELUXE>
+ <20160504092133.GG29978@dhcp22.suse.cz>
+ <CAAmzW4NYWaNvC5MPR8RwQSiKP2b2Z5wVy9nnNxc+sTVWvQ6BGA@mail.gmail.com>
+ <20160504194019.GE21490@dhcp22.suse.cz>
+ <CAAmzW4N1UocTRaX+K=-2OtaARPOu+WjsBLCayzr20pP15GNo4g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <572be328.fL9XliJnk212vzCy%akpm@linux-foundation.org>
+In-Reply-To: <CAAmzW4N1UocTRaX+K=-2OtaARPOu+WjsBLCayzr20pP15GNo4g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, broonie@kernel.org
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 05-05-16 17:19:52, Andrew Morton wrote:
-[...]
-> A git tree which contains the memory management portion of this tree is
-> maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-> by Michal Hocko.  It contains the patches which are between the
-> "#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-> file, http://www.ozlabs.org/~akpm/mmotm/series.
+On Tue 10-05-16 16:07:14, Joonsoo Kim wrote:
+> 2016-05-05 4:40 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
+> > On Thu 05-05-16 00:30:35, Joonsoo Kim wrote:
+> >> 2016-05-04 18:21 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
+> > [...]
+> >> > Do we really consume 512B of stack during reclaim. That sounds more than
+> >> > worrying to me.
+> >>
+> >> Hmm...I checked it by ./script/stackusage and result is as below.
+> >>
+> >> shrink_zone() 128
+> >> shrink_zone_memcg() 248
+> >> shrink_active_list() 176
+> >>
+> >> We have a call path that shrink_zone() -> shrink_zone_memcg() ->
+> >> shrink_active_list().
+> >> I'm not sure whether it is the deepest path or not.
+> >
+> > This is definitely not the deepest path. Slab shrinkers can take more
+> > but 512B is still a lot. Some call paths are already too deep when
+> > calling into the allocator and some of them already use GFP_NOFS to
+> > prevent from potentially deep callchain slab shrinkers. Anyway worth
+> > exploring for better solutions.
+> >
+> > And I believe it would be better to solve this in the stackdepot
+> > directly so other users do not have to invent their own ways around the
+> > same issue. I have just checked the code and set_track uses save_stack
+> > which does the same thing and it seems to be called from the slab
+> > allocator. I have missed this usage before so the problem already does
+> > exist. It would be unfair to request you to fix that in order to add a
+> > new user. It would be great if this got addressed though.
+> 
+> Yes, fixing it in stackdepot looks more reasonable.
+> Then, I will just change PAGE_OWNER_STACK_DEPTH from 64 to 16 and
+> leave the code as is for now. With this change, we will just consume 128B stack
+> and would not cause stack problem. If anyone has an objection,
+> please let me know.
 
-JFYI, I was offline last few days so the git tree was updated only now.
+128B is still quite a lot but considering there is a plan to make it
+more robust I can live with it as a temporary workaround.
+
 -- 
 Michal Hocko
 SUSE Labs
