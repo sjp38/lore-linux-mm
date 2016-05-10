@@ -1,132 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E29E76B0005
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 15:57:38 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id s63so23714247wme.2
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 12:57:38 -0700 (PDT)
-Received: from mail-lf0-x229.google.com (mail-lf0-x229.google.com. [2a00:1450:4010:c07::229])
-        by mx.google.com with ESMTPS id g72si2721945lfi.63.2016.05.10.12.57.37
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AD7A6B0005
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 16:30:12 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id k129so52662147iof.0
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 13:30:12 -0700 (PDT)
+Received: from mail-oi0-x235.google.com (mail-oi0-x235.google.com. [2607:f8b0:4003:c06::235])
+        by mx.google.com with ESMTPS id h205si1338810oib.211.2016.05.10.13.30.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 May 2016 12:57:37 -0700 (PDT)
-Received: by mail-lf0-x229.google.com with SMTP id j8so27023207lfd.2
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 12:57:37 -0700 (PDT)
+        Tue, 10 May 2016 13:30:11 -0700 (PDT)
+Received: by mail-oi0-x235.google.com with SMTP id v145so35478473oie.0
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 13:30:11 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAG_fn=UFvCVRwQ8uPHvabAuRmGEBOXsga-yfA+bz=MtmFZBeqg@mail.gmail.com>
-References: <cover.1458036040.git.glider@google.com>
-	<48cc05da0a19447843c6479cf1c15dbc174503a0.1458036040.git.glider@google.com>
-	<CAPAsAGySgwbB8Gh_t4DJUjtA1GcpN_AEfNpNOM62GoNLiGNSEQ@mail.gmail.com>
-	<CAG_fn=UFvCVRwQ8uPHvabAuRmGEBOXsga-yfA+bz=MtmFZBeqg@mail.gmail.com>
-Date: Tue, 10 May 2016 22:57:37 +0300
-Message-ID: <CAPAsAGyxo9vHUM63tEKBS_edmYSHkxXhX-zrzaKP4QG4Vbf3FA@mail.gmail.com>
-Subject: Re: [PATCH v8 7/7] mm: kasan: Initial memory quarantine implementation
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+In-Reply-To: <20160510182055.GA24868@redhat.com>
+References: <CALCETrWWZy0hngPU8MCiQvnH+s0awpFE8wNBrYsf_c+nz6ZsDg@mail.gmail.com>
+ <20160510182055.GA24868@redhat.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 10 May 2016 13:29:50 -0700
+Message-ID: <CALCETrU4me1X7oTriLgFQpTqwaebMsT5sdYZzjC=_EERXNbqzA@mail.gmail.com>
+Subject: Re: Getting rid of dynamic TASK_SIZE (on x86, at least)
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Dmitry Safonov <0x7f454c46@gmail.com>, Borislav Petkov <bp@alien8.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Ruslan Kabatsayev <b7.10110111@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-2016-05-10 20:17 GMT+03:00 Alexander Potapenko <glider@google.com>:
-> On Tue, May 10, 2016 at 5:39 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
->> 2016-03-15 13:10 GMT+03:00 Alexander Potapenko <glider@google.com>:
->>
->>>
->>>  static inline int kasan_module_alloc(void *addr, size_t size) { return 0; }
->>>  static inline void kasan_free_shadow(const struct vm_struct *vm) {}
->>> diff --git a/lib/test_kasan.c b/lib/test_kasan.c
->>> index 82169fb..799c98e 100644
->>> --- a/lib/test_kasan.c
->>> +++ b/lib/test_kasan.c
->>> @@ -344,6 +344,32 @@ static noinline void __init kasan_stack_oob(void)
->>>         *(volatile char *)p;
->>>  }
->>>
->>> +#ifdef CONFIG_SLAB
->>> +static noinline void __init kasan_quarantine_cache(void)
->>> +{
->>> +       struct kmem_cache *cache = kmem_cache_create(
->>> +                       "test", 137, 8, GFP_KERNEL, NULL);
->>> +       int i;
->>> +
->>> +       for (i = 0; i <  100; i++) {
->>> +               void *p = kmem_cache_alloc(cache, GFP_KERNEL);
->>> +
->>> +               kmem_cache_free(cache, p);
->>> +               p = kmalloc(sizeof(u64), GFP_KERNEL);
->>> +               kfree(p);
->>> +       }
->>> +       kmem_cache_shrink(cache);
->>> +       for (i = 0; i <  100; i++) {
->>> +               u64 *p = kmem_cache_alloc(cache, GFP_KERNEL);
->>> +
->>> +               kmem_cache_free(cache, p);
->>> +               p = kmalloc(sizeof(u64), GFP_KERNEL);
->>> +               kfree(p);
->>> +       }
->>> +       kmem_cache_destroy(cache);
->>> +}
->>> +#endif
->>> +
->>
->> Test looks quite useless. The kernel does allocations/frees all the
->> time, so I don't think that this test
->> adds something valuable.
-> Agreed.
->> And what's the result that we expect from this test? No crashes?
->> I'm thinking it would better to remove it.
-> Do you think it may make sense to improve it by introducing an actual
-> use-after-free?
-> Or perhaps we could insert a loop doing 1000 kmalloc()/kfree() calls
-> into the existing UAF tests.
+On May 10, 2016 11:21 AM, "Oleg Nesterov" <oleg@redhat.com> wrote:
+>
+> On 05/10, Andy Lutomirski wrote:
+> >
+> >  - xol_add_vma: This one is weird: uprobes really is doing something
+> > behind the task's back, and the addresses need to be consistent with
+> > the address width.  I'm not quite sure what to do here.
+>
+> It can use mm->task_size instead, plus this is just a hint. And perhaps
+> mm->task_size should have more users, say get_unmapped_area...
 
-You don't need to do an actual UAF, all you need is to
-make sure that repeated  kmalloc() + kfree() produces new addresses.
+Ick.  I hadn't noticed mm->task_size.  We have a *lot* of different
+indicators of task size.  mm->task_size appears to have basically no
+useful uses except maybe for ppc.
 
-But I personally wouldn't bother with testing this at all.  So, unless
-you care, just remove the test.
+On x86, bitness can change without telling the kernel, and tasks
+running in 64-bit mode can do 32-bit syscalls.
 
->>
->>> +
->>> +/* smp_load_acquire() here pairs with smp_store_release() in
->>> + * quarantine_reduce().
->>> + */
->>> +#define QUARANTINE_LOW_SIZE (smp_load_acquire(&quarantine_size) * 3 / 4)
->>
->> I'd prefer open coding barrier with a proper comment int place,
->> instead of sneaking it into macros.
-> Ack.
->> [...]
->>
->>> +
->>> +void quarantine_reduce(void)
->>> +{
->>> +       size_t new_quarantine_size;
->>> +       unsigned long flags;
->>> +       struct qlist to_free = QLIST_INIT;
->>> +       size_t size_to_free = 0;
->>> +       void **last;
->>> +
->>> +       /* smp_load_acquire() here pairs with smp_store_release() below. */
->>
->> Besides pairing rules, the comment should also explain *why* we need
->> this and for what
->> load/stores it provides memory ordering guarantees. For example take a
->> look at other
->> comments near barriers in the kernel tree.
-> Something along the lines of "We must load A before B, hence the barrier"?
+So maybe I should add mm->task_size to my list of things that would be
+nice to remove.  Or maybe I'm just tilting at windmills.
 
-Yes.
-BTW, do we really need these barriers? I didn't tried to understand
-this, thus could be wrong here,
-but it seems that READ_ONCE/WRITE_ONCE would be enough.
-
-
->>> +       if (likely(ACCESS_ONCE(global_quarantine.bytes) <=
->>> +                  smp_load_acquire(&quarantine_size)))
->>> +               return;
->>> +
->>>
+>
+> Not sure we should really get rid of dynamic TASK_SIZE completely, but
+> personally I agree it looks a bit ugly.
+>
+> Oleg.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
