@@ -1,173 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DE33D6B0253
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 09:30:41 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id u185so22777007oie.3
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 06:30:41 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0090.outbound.protection.outlook.com. [104.47.1.90])
-        by mx.google.com with ESMTPS id o10si3445407ige.32.2016.05.10.06.30.40
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 275D46B007E
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 09:34:08 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id e126so24573642vkb.2
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 06:34:08 -0700 (PDT)
+Received: from mail-qg0-x241.google.com (mail-qg0-x241.google.com. [2607:f8b0:400d:c04::241])
+        by mx.google.com with ESMTPS id l65si1431053qgd.61.2016.05.10.06.34.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 10 May 2016 06:30:40 -0700 (PDT)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv8 resend 2/2] selftest/x86: add mremap vdso test
-Date: Tue, 10 May 2016 16:29:11 +0300
-Message-ID: <1462886951-23376-2-git-send-email-dsafonov@virtuozzo.com>
-In-Reply-To: <1462886951-23376-1-git-send-email-dsafonov@virtuozzo.com>
-References: <1462886951-23376-1-git-send-email-dsafonov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 May 2016 06:34:07 -0700 (PDT)
+Received: by mail-qg0-x241.google.com with SMTP id e35so752189qge.1
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 06:34:07 -0700 (PDT)
+Date: Tue, 10 May 2016 15:34:01 +0200
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [Question] Missing data after DMA read transfer - mm issue with
+ transparent huge page?
+Message-ID: <20160510133401.GB18820@gmail.com>
+References: <15edf085-c21b-aa1c-9f1f-057d17b8a1a3@morey-chaisemartin.com>
+ <alpine.LSU.2.11.1605022020560.5004@eggly.anvils>
+ <20160503101153.GA7241@gmail.com>
+ <07619be9-e812-5459-26dd-ceb8c6490520@morey-chaisemartin.com>
+ <20160510100104.GA18820@gmail.com>
+ <80f878a0-f71b-2969-f2eb-05f4509ff58a@morey-chaisemartin.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <80f878a0-f71b-2969-f2eb-05f4509ff58a@morey-chaisemartin.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, mingo@redhat.com
-Cc: luto@amacapital.net, tglx@linutronix.de, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Shuah Khan <shuahkh@osg.samsung.com>, linux-kselftest@vger.kernel.org
+To: Nicolas Morey Chaisemartin <devel@morey-chaisemartin.com>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alex Williamson <alex.williamson@redhat.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Should print on success:
-[root@localhost ~]# ./test_mremap_vdso_32
-	AT_SYSINFO_EHDR is 0xf773f000
-[NOTE]	Moving vDSO: [f773f000, f7740000] -> [a000000, a001000]
-[OK]
-Or segfault if landing was bad (before patches):
-[root@localhost ~]# ./test_mremap_vdso_32
-	AT_SYSINFO_EHDR is 0xf774f000
-[NOTE]	Moving vDSO: [f774f000, f7750000] -> [a000000, a001000]
-Segmentation fault (core dumped)
+On Tue, May 10, 2016 at 01:15:02PM +0200, Nicolas Morey Chaisemartin wrote:
+> Le 05/10/2016 a 12:01 PM, Jerome Glisse a ecrit :
+> > On Tue, May 10, 2016 at 09:04:36AM +0200, Nicolas Morey Chaisemartin wrote:
+> >> Le 05/03/2016 a 12:11 PM, Jerome Glisse a ecrit :
+> >>> On Mon, May 02, 2016 at 09:04:02PM -0700, Hugh Dickins wrote:
+> >>>> On Fri, 29 Apr 2016, Nicolas Morey Chaisemartin wrote:
 
-Cc: Shuah Khan <shuahkh@osg.samsung.com>
-Cc: linux-kselftest@vger.kernel.org
-Suggested-by: Andy Lutomirski <luto@kernel.org>
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
-Acked-by: Andy Lutomirski <luto@kernel.org>
----
-v8: run test for x86_64 too;
-    removed fixed VDSO_SIZE - check EINVAL mremap return for partial remapping
-v5: initial version
+[...]
 
- tools/testing/selftests/x86/Makefile           |  2 +-
- tools/testing/selftests/x86/test_mremap_vdso.c | 99 ++++++++++++++++++++++++++
- 2 files changed, 100 insertions(+), 1 deletion(-)
- create mode 100644 tools/testing/selftests/x86/test_mremap_vdso.c
+> >> Hi,
+> >>
+> >> I backported the patch to 3.10 (had to copy paste pmd_protnone defitinition from 4.5) and it's working !
+> >> I'll open a ticket in Redhat tracker to try and get this fixed in RHEL7.
+> >>
+> >> I have a dumb question though: how can we end up in numa/misplaced memory code on a single socket system?
+> >>
+> > This patch is not a fix, do you see bug message in kernel log ? Because if
+> > you do that it means we have a bigger issue.
+> I don't see any on my 3.10. I have DMA_API_DEBUG enabled but I don't think it has an impact.
 
-diff --git a/tools/testing/selftests/x86/Makefile b/tools/testing/selftests/x86/Makefile
-index b47ebd170690..ba865f2efcce 100644
---- a/tools/testing/selftests/x86/Makefile
-+++ b/tools/testing/selftests/x86/Makefile
-@@ -5,7 +5,7 @@ include ../lib.mk
- .PHONY: all all_32 all_64 warn_32bit_failure clean
- 
- TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs syscall_nt ptrace_syscall \
--			check_initial_reg_state sigreturn ldt_gdt iopl
-+			check_initial_reg_state sigreturn ldt_gdt iopl test_mremap_vdso
- TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault test_syscall_vdso unwind_vdso \
- 			test_FCMOV test_FCOMI test_FISTTP \
- 			vdso_restorer
-diff --git a/tools/testing/selftests/x86/test_mremap_vdso.c b/tools/testing/selftests/x86/test_mremap_vdso.c
-new file mode 100644
-index 000000000000..831e2e0107d9
---- /dev/null
-+++ b/tools/testing/selftests/x86/test_mremap_vdso.c
-@@ -0,0 +1,99 @@
-+/*
-+ * 32-bit test to check vdso mremap.
-+ *
-+ * Copyright (c) 2016 Dmitry Safonov
-+ * Suggested-by: Andrew Lutomirski
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms and conditions of the GNU General Public License,
-+ * version 2, as published by the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope it will be useful, but
-+ * WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * General Public License for more details.
-+ */
-+/*
-+ * Can be built statically:
-+ * gcc -Os -Wall -static -m32 test_mremap_vdso.c
-+ */
-+#define _GNU_SOURCE
-+#include <stdio.h>
-+#include <errno.h>
-+#include <unistd.h>
-+#include <string.h>
-+
-+#include <sys/mman.h>
-+#include <sys/auxv.h>
-+#include <sys/syscall.h>
-+
-+#define PAGE_SIZE	4096
-+
-+static int try_to_remap(void *vdso_addr, unsigned long size)
-+{
-+	void *dest_addr, *new_addr;
-+
-+	dest_addr = mmap(0, size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-+	if (dest_addr == MAP_FAILED) {
-+		printf("[WARN]\tmmap failed (%d): %m\n", errno);
-+		return 0;
-+	}
-+
-+	printf("[NOTE]\tMoving vDSO: [%p, %#lx] -> [%p, %#lx]\n",
-+		vdso_addr, (unsigned long)vdso_addr + size,
-+		dest_addr, (unsigned long)dest_addr + size);
-+	fflush(stdout);
-+
-+	new_addr = mremap(vdso_addr, size, size,
-+			MREMAP_FIXED|MREMAP_MAYMOVE, dest_addr);
-+	if ((unsigned long)new_addr == (unsigned long)-1) {
-+		munmap(dest_addr, size);
-+		if (errno == EINVAL) {
-+			printf("[NOTE]\tvDSO partial move failed, will try with bigger size\n");
-+			return -1; /* retry with larger */
-+		}
-+		printf("[FAIL]\tmremap failed (%d): %m\n", errno);
-+		return 1;
-+	}
-+
-+	return 0;
-+
-+}
-+
-+int main(int argc, char **argv, char **envp)
-+{
-+	unsigned long auxval;
-+	const char *ok_string = "[OK]\n";
-+	int ret = -1;
-+	unsigned long vdso_size = PAGE_SIZE;
-+
-+	auxval = getauxval(AT_SYSINFO_EHDR);
-+	printf("\tAT_SYSINFO_EHDR is %#lx\n", auxval);
-+	if (!auxval || auxval == -ENOENT) {
-+		printf("[WARN]\tgetauxval failed\n");
-+		return 0;
-+	}
-+
-+	/* simpler than parsing ELF header */
-+	while(ret < 0) {
-+		ret = try_to_remap((void *)auxval, vdso_size);
-+		vdso_size += PAGE_SIZE;
-+	}
-+
-+	if (!ret)
-+#if defined(__i386__)
-+		asm volatile ("int $0x80" : :
-+			"a" (__NR_write), "b" (STDOUT_FILENO),
-+			"c" (ok_string), "d" (strlen(ok_string)));
-+
-+	asm volatile ("int $0x80" : : "a" (__NR_exit), "b" (!!ret));
-+#else
-+		asm volatile ("syscall" : :
-+			"a" (__NR_write), "D" (STDOUT_FILENO),
-+			"S" (ok_string), "d" (strlen(ok_string)));
-+
-+	asm volatile ("syscall" : : "a" (__NR_exit), "D" (!!ret));
-+#endif
-+
-+	return 0;
-+}
--- 
-2.8.0
+My patch can't be backported to 3.10 as is, you most likely need to replace
+pmd_protnone() by pmd_numa()
+
+> > You did not answer one of my previous question, do you set get_user_pages
+> > with write = 1 as a paremeter ?
+> For the read from the device, yes:
+>         down_read(&current->mm->mmap_sem);
+>         res = get_user_pages(
+>                 current,
+>                 current->mm,
+>                 (unsigned long) iov->host_addr,
+>                 page_count,
+>                 (write_mode == 0) ? 1 : 0,      /* write */
+>                 0,      /* force */
+>                 &trans->pages[sg_o],
+>                 NULL);
+>         up_read(&current->mm->mmap_sem);
+
+As i don't have context to infer how write_mode is set above, do you mind
+retesting your driver and always asking for write no matter what ?
+
+> > Also it would be a lot easier if you were testing with lastest 4.6 or 4.5
+> > not RHEL kernel as they are far appart and what might looks like same issue
+> > on both might be totaly different bugs.
+> Is a RPM from elrepo ok?
+> http://elrepo.org/linux/kernel/el7/SRPMS/
+
+Yes should be ok for testing.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
