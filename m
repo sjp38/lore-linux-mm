@@ -1,41 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 79ACE6B0005
-	for <linux-mm@kvack.org>; Tue, 10 May 2016 14:21:04 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id e126so41287880vkb.2
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 11:21:04 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d77si2326962qhd.7.2016.05.10.11.21.03
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 May 2016 11:21:03 -0700 (PDT)
-Date: Tue, 10 May 2016 20:20:55 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: Getting rid of dynamic TASK_SIZE (on x86, at least)
-Message-ID: <20160510182055.GA24868@redhat.com>
-References: <CALCETrWWZy0hngPU8MCiQvnH+s0awpFE8wNBrYsf_c+nz6ZsDg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrWWZy0hngPU8MCiQvnH+s0awpFE8wNBrYsf_c+nz6ZsDg@mail.gmail.com>
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 84EA26B0005
+	for <linux-mm@kvack.org>; Tue, 10 May 2016 14:49:36 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id xm6so28351723pab.3
+        for <linux-mm@kvack.org>; Tue, 10 May 2016 11:49:36 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id l9si4262140pav.105.2016.05.10.11.49.35
+        for <linux-mm@kvack.org>;
+        Tue, 10 May 2016 11:49:35 -0700 (PDT)
+From: Vishal Verma <vishal.l.verma@intel.com>
+Subject: [PATCH v6 0/5] dax: handling media errors (clear-on-zero only)
+Date: Tue, 10 May 2016 12:49:11 -0600
+Message-Id: <1462906156-22303-1-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Dmitry Safonov <0x7f454c46@gmail.com>, Ruslan Kabatsayev <b7.10110111@gmail.com>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Borislav Petkov <bp@alien8.de>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>
+To: linux-nvdimm@lists.01.org
+Cc: Vishal Verma <vishal.l.verma@intel.com>, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Boaz Harrosh <boaz@plexistor.com>
 
-On 05/10, Andy Lutomirski wrote:
->
->  - xol_add_vma: This one is weird: uprobes really is doing something
-> behind the task's back, and the addresses need to be consistent with
-> the address width.  I'm not quite sure what to do here.
+Until now, dax has been disabled if media errors were found on
+any device. This series attempts to address that.
 
-It can use mm->task_size instead, plus this is just a hint. And perhaps
-mm->task_size should have more users, say get_unmapped_area...
+The first two patches from Dan re-enable dax even when media
+errors are present.
 
-Not sure we should really get rid of dynamic TASK_SIZE completely, but
-personally I agree it looks a bit ugly.
+The third patch from Matthew removes the zeroout path from dax
+entirely, making zeroout operations always go through the driver
+(The motivation is that if a backing device has media errors,
+and we create a sparse file on it, we don't want the initial
+zeroing to happen via dax, we want to give the block driver a
+chance to clear the errors).
 
-Oleg.
+Patch 4 reduces our calls to clear_pmem from dax in the
+truncate/hole-punch cases. We check if the range being truncated
+is sector aligned/sized, and if so, send blkdev_issue_zeroout
+instead of clear_pmem so that errors can be handled better by
+the driver.
+
+Patch 5 fixes a redundant comment in DAX and is mostly unrelated
+to the rest of this series.
+
+This series also depends on/is based on Jan Kara's DAX Locking
+fixes series [1].
+
+
+[1]: http://www.spinics.net/lists/linux-mm/msg105819.html
+
+v6:
+ - Use IS_ALIGNED in dax_range_is_aligned instead of open coding
+   an alignment check (Jan)
+ - Collect all Reveiwed-by tags so far.
+
+v5:
+ - Drop the patch that attempts to clear-errors-on-write till we
+   reach consensus on how to handle that.
+ - Don't pass blk_dax_ctl to direct_access, instead pass in all the
+   required arguments individually (Christoph, Dan)
+
+v4:
+ - Remove the dax->direct_IO fallbacks entirely. Instead, go through
+   the usual direct_IO path when we're in O_DIRECT, and use dax_IO
+   for other, non O_DIRECT IO. (Dan, Christoph)
+
+v3:
+ - Wrapper-ize the direct_IO fallback again and make an exception
+   for -EIOCBQUEUED (Jeff, Dan)
+ - Reduce clear_pmem usage in DAX to the minimum
+
+
+Dan Williams (2):
+  dax: fallback from pmd to pte on error
+  dax: enable dax in the presence of known media errors (badblocks)
+
+Matthew Wilcox (1):
+  dax: use sb_issue_zerout instead of calling dax_clear_sectors
+
+Vishal Verma (2):
+  dax: for truncate/hole-punch, do zeroing through the driver if
+    possible
+  dax: fix a comment in dax_zero_page_range and dax_truncate_page
+
+ Documentation/filesystems/dax.txt | 32 ++++++++++++++++
+ arch/powerpc/sysdev/axonram.c     |  2 +-
+ block/ioctl.c                     |  9 -----
+ drivers/block/brd.c               |  2 +-
+ drivers/nvdimm/pmem.c             | 10 ++++-
+ drivers/s390/block/dcssblk.c      |  2 +-
+ fs/block_dev.c                    |  2 +-
+ fs/dax.c                          | 77 +++++++++++++--------------------------
+ fs/ext2/inode.c                   |  7 ++--
+ fs/xfs/xfs_bmap_util.c            | 15 ++------
+ include/linux/blkdev.h            |  2 +-
+ include/linux/dax.h               |  1 -
+ 12 files changed, 79 insertions(+), 82 deletions(-)
+
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
