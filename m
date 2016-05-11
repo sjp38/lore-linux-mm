@@ -1,87 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D1176B0253
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 15:23:37 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id c67so110312213vkh.3
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 12:23:37 -0700 (PDT)
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
-        by mx.google.com with ESMTPS id s205si6239023qhs.11.2016.05.11.12.23.36
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 11 May 2016 12:23:36 -0700 (PDT)
-Received: from localhost
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Wed, 11 May 2016 13:23:35 -0600
-Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com [9.57.198.24])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 03A3C1FF004B
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 13:23:17 -0600 (MDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by b01cxnp22034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u4BJNWtJ36700270
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 19:23:32 GMT
-Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u4BJNUqs028065
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 15:23:31 -0400
-Date: Wed, 11 May 2016 14:23:26 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/3] memory-hotplug: more general validation of zone
- during online
-Message-ID: <20160511192326.GE22115@arbab-laptop.austin.ibm.com>
-References: <1462816419-4479-1-git-send-email-arbab@linux.vnet.ibm.com>
- <1462816419-4479-3-git-send-email-arbab@linux.vnet.ibm.com>
- <573223b8.c52b8d0a.9a3c0.6217@mx.google.com>
- <20160510203943.GA22115@arbab-laptop.austin.ibm.com>
- <57334d15.524a370a.4b1f7.fffff006@mx.google.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C333E6B025F
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 15:26:34 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 4so103347528pfw.0
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 12:26:34 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id o8si11433460pfi.251.2016.05.11.12.26.33
+        for <linux-mm@kvack.org>;
+        Wed, 11 May 2016 12:26:33 -0700 (PDT)
+Date: Wed, 11 May 2016 13:26:32 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 16/18] dax: New fault locking
+Message-ID: <20160511192632.GA8841@linux.intel.com>
+References: <1461015341-20153-1-git-send-email-jack@suse.cz>
+ <1461015341-20153-17-git-send-email-jack@suse.cz>
+ <20160506041350.GA29628@linux.intel.com>
+ <20160510122715.GK11897@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <57334d15.524a370a.4b1f7.fffff006@mx.google.com>
+In-Reply-To: <20160510122715.GK11897@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <yasu.isimatu@gmail.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Daniel Kiper <daniel.kiper@oracle.com>, Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Tang Chen <tangchen@cn.fujitsu.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Vrabel <david.vrabel@citrix.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Banman <abanman@sgi.com>, Chen Yucong <slaoub@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>
 
-On Wed, May 11, 2016 at 08:17:41AM -0700, Yasuaki Ishimatsu wrote:
->On Tue, 10 May 2016 15:39:43 -0500
->Reza Arbab <arbab@linux.vnet.ibm.com> wrote:
-><snip>
->> +	if (idx < target) {
->> +		/* pages must be at end of current zone */
->> +		if (pfn + nr_pages != zone_end_pfn(zone))
->> +			return 0;
-><snip>
->> +	if (target < idx) {
->> +		/* pages must be at beginning of current zone */
->> +		if (pfn != zone->zone_start_pfn)
->> +			return 0;
->
->According your patch, memory address must be continuous for changing zone.
->So if memory address is uncontinuous as follows, memory address 0x180000000-0x1FFFFFFFF
->can be changed from ZONE_NORMAL to ZONE_MOVABLE. But memory address 0x80000000-0xFFFFFFFF
->can not be changed from ZONE_NORMAL to ZONE_MOVABLE since it does not meet
->above condition.
->
->Memory address
->  0x80000000 -  0xFFFFFFFF
-> 0x180000000 - 0x1FFFFFFFF
+On Tue, May 10, 2016 at 02:27:15PM +0200, Jan Kara wrote:
+> On Thu 05-05-16 22:13:50, Ross Zwisler wrote:
+> > On Mon, Apr 18, 2016 at 11:35:39PM +0200, Jan Kara wrote:
+> > > +/*
+> > > + * Find radix tree entry at given index. If it points to a page, return with
+> > > + * the page locked. If it points to the exceptional entry, return with the
+> > > + * radix tree entry locked. If the radix tree doesn't contain given index,
+> > > + * create empty exceptional entry for the index and return with it locked.
+> > > + *
+> > > + * Note: Unlike filemap_fault() we don't honor FAULT_FLAG_RETRY flags. For
+> > > + * persistent memory the benefit is doubtful. We can add that later if we can
+> > > + * show it helps.
+> > > + */
+> > > +static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index)
+> > > +{
+> > > +	void *ret, **slot;
+> > > +
+> > > +restart:
+> > > +	spin_lock_irq(&mapping->tree_lock);
+> > > +	ret = get_unlocked_mapping_entry(mapping, index, &slot);
+> > > +	/* No entry for given index? Make sure radix tree is big enough. */
+> > > +	if (!ret) {
+> > > +		int err;
+> > > +
+> > > +		spin_unlock_irq(&mapping->tree_lock);
+> > > +		err = radix_tree_preload(
+> > > +				mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM);
+> > 
+> > In the conversation about v2 of this series you said:
+> > 
+> > > Note that we take the hit for dropping the lock only if we really need to
+> > > allocate new radix tree node so about once per 64 new entries. So it is not
+> > > too bad.
+> > 
+> > I think this is incorrect.  We get here whenever we get a NULL return from
+> > __radix_tree_lookup().  I believe that this happens if we don't have a node,
+> > in which case we need an allocation, but I think it also happens in the case
+> > where we do have a node and we just have a NULL slot in that node.
+> > 
+> > For the behavior you're looking for (only preload if you need to do an
+> > allocation), you probably need to check the 'slot' we get back from
+> > get_unlocked_mapping_entry(), yea?
+> 
+> You are correct. However currently __radix_tree_lookup() doesn't return a
+> slot pointer if entry was not found so it is not easy to fix. So I'd leave
+> the code as is for now and we can later optimize the case where we don't
+> need to grow the radix tree...
 
-Ah, I see. What do you think of this instead?
+Ah, you're right.  Sure, that plan sounds good.
 
-<snip>
-+	if (idx < target) {
-+		/* must be the last pages present in current zone */
-+		for (i = pfn + nr_pages; i < zone_end_pfn(zone); i++)
-+			if (pfn_present(i))
-+				return 0;
-<snip>
-+	if (target < idx) {
-+		/* must be the first pages present in current zone */
-+		for (i = zone->zone_start_pfn; i < pfn; i++)
-+			if (pfn_present(i))
-+				return 0;
+> > > +/*
+> > > + * Delete exceptional DAX entry at @index from @mapping. Wait for radix tree
+> > > + * entry to get unlocked before deleting it.
+> > > + */
+> > > +int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index)
+> > > +{
+> > > +	void *entry;
+> > > +
+> > > +	spin_lock_irq(&mapping->tree_lock);
+> > > +	entry = get_unlocked_mapping_entry(mapping, index, NULL);
+> > > +	/*
+> > > +	 * Caller should make sure radix tree modifications don't race and
+> > > +	 * we have seen exceptional entry here before.
+> > > +	 */
+> > > +	if (WARN_ON_ONCE(!entry || !radix_tree_exceptional_entry(entry))) {
+> > 
+> > dax_delete_mapping_entry() is only called from clear_exceptional_entry().
+> > With this new code we've changed the behavior of that call path a little.
+> > 
+> > In the various places where clear_exceptional_entry() is called, the code
+> > batches up a bunch of entries in a pvec via pagevec_lookup_entries().  We
+> > don't hold the mapping->tree_lock between the time this lookup happens and the
+> > time that the entry is passed to clear_exceptional_entry(). This is why the
+> > old code did a verification that the entry passed in matched what was still
+> > currently present in the radix tree.  This was done in the DAX case via
+> > radix_tree_delete_item(), and it was open coded in clear_exceptional_entry()
+> > for the page cache case.  In both cases if the entry didn't match what was
+> > currently in the tree, we bailed without doing anything.
+> > 
+> > This new code doesn't verify against the 'entry' passed to
+> > clear_exceptional_entry(), but instead makes sure it is an exceptional entry
+> > before removing, and if not it does a WARN_ON_ONCE().
+> > 
+> > This changes things because:
+> > 
+> > a) If the exceptional entry changed, say from a plain lock entry to an actual
+> > DAX entry, we wouldn't notice, and we would just clear the latter out.  My
+> > guess is that this is fine, I just wanted to call it out.
+> > 
+> > b) If we have a non-exceptional entry here now, say because our lock entry has
+> > been swapped out for a zero page, we will WARN_ON_ONCE() and return without a
+> > removal.  I think we may want to silence the WARN_ON_ONCE(), as I believe this
+> > could happen during normal operation and we don't want to scare anyone. :)
+> 
+> So your concerns are exactly why I have added a comment to
+> dax_delete_mapping_entry() that:
+> 
+> 	/*
+> 	 * Caller should make sure radix tree modifications don't race and
+> 	 * we have seen exceptional entry here before.
+> 	 */
+> 
+> The thing is dax_delete_mapping_entry() is called only from truncate /
+> punch hole path. Those should hold i_mmap_sem for writing and thus there
+> should be no modifications of the radix tree. If anything changes, between
+> what truncate_inode_pages() (or similar functions) finds and what
+> dax_delete_mapping_entry() sees, we have a locking bug and I want to know
+> about it :). Any suggestion how I should expand the comment so that this is
+> clearer?
 
--- 
-Reza Arbab
+Ah, I didn't understand all that.  :)  Given a bit more context the comment
+seems fine - if anything it could be a bit more specific, and include the
+text: "dax_delete_mapping_entry() is called only from truncate / punch hole
+path. Those should hold i_mmap_sem for writing and thus there should be no
+modifications of the radix tree."  Either way - thanks for explaining.
+
+> > > +/*
+> > >   * The user has performed a load from a hole in the file.  Allocating
+> > >   * a new page in the file would cause excessive storage usage for
+> > >   * workloads with sparse files.  We allocate a page cache page instead.
+> > > @@ -307,15 +584,24 @@ EXPORT_SYMBOL_GPL(dax_do_io);
+> > >   * otherwise it will simply fall out of the page cache under memory
+> > >   * pressure without ever having been dirtied.
+> > >   */
+> > > -static int dax_load_hole(struct address_space *mapping, struct page *page,
+> > > -							struct vm_fault *vmf)
+> > > +static int dax_load_hole(struct address_space *mapping, void *entry,
+> > > +			 struct vm_fault *vmf)
+> > >  {
+> > > -	if (!page)
+> > > -		page = find_or_create_page(mapping, vmf->pgoff,
+> > > -						GFP_KERNEL | __GFP_ZERO);
+> > > -	if (!page)
+> > > -		return VM_FAULT_OOM;
+> > > +	struct page *page;
+> > > +
+> > > +	/* Hole page already exists? Return it...  */
+> > > +	if (!radix_tree_exceptional_entry(entry)) {
+> > > +		vmf->page = entry;
+> > > +		return VM_FAULT_LOCKED;
+> > > +	}
+> > >  
+> > > +	/* This will replace locked radix tree entry with a hole page */
+> > > +	page = find_or_create_page(mapping, vmf->pgoff,
+> > > +				   vmf->gfp_mask | __GFP_ZERO);
+> > 
+> > This replacement happens via page_cache_tree_insert(), correct?  In this case,
+> > who wakes up anyone waiting on the old lock entry that we just killed?  In the
+> > non-hole case we would traverse through put_locked_mapping_entry(), but I
+> > don't see that in the hole case.
+> 
+> Ha, good catch. We miss the wakeup. Fixed.
+> 
+> Attached is the diff resulting from your review of this patch. I still have
+> to hunt down that strange interaction with workingset code you've reported...
+
+At the end of this mail I've attached one small fixup for the incremental diff
+you sent.  Aside from that, I think that you've addressed all my review
+feedback, thanks!
+
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+
+I'm going to try and get more info on the working set test failure.
+
+---
+
+diff --git a/fs/dax.c b/fs/dax.c
+index f496854..c4cb69b 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -406,7 +406,7 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
+ 
+        init_wait(&ewait.wait);
+        ewait.wait.func = wake_exceptional_entry_func;
+-       ewait.key.root = &mapping->page_tree;
++       ewait.key.mapping = mapping;
+        ewait.key.index = index;
+ 
+        for (;;) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
