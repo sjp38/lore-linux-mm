@@ -1,35 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f198.google.com (mail-ig0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 325ED6B0253
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 09:39:33 -0400 (EDT)
-Received: by mail-ig0-f198.google.com with SMTP id kj7so83317371igb.3
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 06:39:33 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id bg5si8880554igb.68.2016.05.11.06.39.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 May 2016 06:39:32 -0700 (PDT)
-Date: Wed, 11 May 2016 15:39:28 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: x86_64 Question: Are concurrent IPI requests safe?
-Message-ID: <20160511133928.GF3192@twins.programming.kicks-ass.net>
-References: <201605061958.HHG48967.JVFtSLFQOFOOMH@I-love.SAKURA.ne.jp>
- <201605092354.AHF82313.FtQFOMVOFJLOSH@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.11.1605091853130.3540@nanos>
- <201605112219.HEB64012.FLQOFMJOVOtFHS@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201605112219.HEB64012.FLQOFMJOVOtFHS@I-love.SAKURA.ne.jp>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2711E6B0005
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 09:53:53 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e201so42935234wme.1
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 06:53:53 -0700 (PDT)
+Received: from mail.sigma-star.at (mail.sigma-star.at. [95.130.255.111])
+        by mx.google.com with ESMTP id z7si38927585wmz.39.2016.05.11.06.53.52
+        for <linux-mm@kvack.org>;
+        Wed, 11 May 2016 06:53:52 -0700 (PDT)
+From: Richard Weinberger <richard@nod.at>
+Subject: UBIFS and page migration (take 3)
+Date: Wed, 11 May 2016 15:53:41 +0200
+Message-Id: <1462974823-3168-1-git-send-email-richard@nod.at>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: tglx@linutronix.de, mingo@kernel.org, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-fsdevel@vger.kernel.org
+Cc: linux-mtd@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, boris.brezillon@free-electrons.com, maxime.ripard@free-electrons.com, david@sigma-star.at, david@fromorbit.com, dedekind1@gmail.com, alex@nextthing.co, akpm@linux-foundation.org, sasha.levin@oracle.com, iamjoonsoo.kim@lge.com, rvaswani@codeaurora.org, tony.luck@intel.com, shailendra.capricorn@gmail.com, kirill.shutemov@linux.intel.com, hch@infradead.org, hughd@google.com, mgorman@techsingularity.net, vbabka@suse.cz
 
-On Wed, May 11, 2016 at 10:19:16PM +0900, Tetsuo Handa wrote:
-> [  180.434659] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
+During page migrations UBIFS gets confused. We triggered this by using CMA
+on two different targets.
+It turned out that fallback_migrate_page() is not suitable for UBIFS as it
+does not copy the PagePrivate flag. Non-trivial block based filesystems
+do not notice since they can use buffer_migrate_page().
+UBIFS is using this flag among with PageChecked to account free space.
+One possible solution is implementing a ->migratepage() function in UBIFS
+which does more or less the same as fallback_migrate_page() but also
+copies PagePrivate. I'm not at all sure whether this is the way to go.
+IMHO either page migration should not happen if ->migratepage() is not implement
+or fallback_migrate_page() has to work for all filesystems.
 
-can you reproduce on real hardware?
+Comments? Flames? :-)
+
+Thanks,
+//richard
+
+[PATCH 1/2] mm: Export migrate_page_move_mapping and
+[PATCH 2/2] UBIFS: Implement ->migratepage()
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
