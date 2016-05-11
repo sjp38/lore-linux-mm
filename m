@@ -1,72 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 96CD16B0262
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 17:09:27 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 203so107936917pfy.2
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 14:09:27 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id s86si12031793pfi.193.2016.05.11.14.09.23
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B20C96B0005
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 17:26:19 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id gw7so79011258pac.0
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 14:26:19 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id v15si12186640pfa.20.2016.05.11.14.26.18
         for <linux-mm@kvack.org>;
-        Wed, 11 May 2016 14:09:23 -0700 (PDT)
-From: Vishal Verma <vishal.l.verma@intel.com>
-Subject: [PATCH v7 6/6] dax: fix a comment in dax_zero_page_range and dax_truncate_page
-Date: Wed, 11 May 2016 15:08:52 -0600
-Message-Id: <1463000932-31680-7-git-send-email-vishal.l.verma@intel.com>
-In-Reply-To: <1463000932-31680-1-git-send-email-vishal.l.verma@intel.com>
-References: <1463000932-31680-1-git-send-email-vishal.l.verma@intel.com>
+        Wed, 11 May 2016 14:26:18 -0700 (PDT)
+Date: Wed, 11 May 2016 17:26:16 -0400
+From: Mike Marciniszyn <mike.marciniszyn@intel.com>
+Subject: Re: [1/1] mm: thp: calculate the mapcount correctly for THP pages during WP faults
+Message-ID: <20160511212552.GA20578@phlsvsds.ph.intel.com>
+References: <1462908082-12657-1-git-send-email-aarcange@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1462908082-12657-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-nvdimm@lists.01.org
-Cc: Vishal Verma <vishal.l.verma@intel.com>, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Boaz Harrosh <boaz@plexistor.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-rdma@vger.kernel.org
 
-The distinction between PAGE_SIZE and PAGE_CACHE_SIZE was removed in
+>
+>Reviewed-by: "Kirill A. Shutemov" <kirill@shutemov.name>
+>Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+>
 
-09cbfea mm, fs: get rid of PAGE_CACHE_* and page_cache_{get,release}
-macros
+Our RDMA tests are seeing an issue with memory locking that bisects to
+commit 61f5d698cc97 ("mm: re-enable THP").
 
-The comments for the above functions described a distinction between
-those, that is now redundant, so remove those paragraphs
+The test program registers two rather large MRs (512M) and RDMA writes
+data to a passive peer using the first and RDMA reads it back into the
+second MR and compares that data.  The sizes are chosen randomly between
+0 and 1024 bytes.
 
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Signed-off-by: Vishal Verma <vishal.l.verma@intel.com>
----
- fs/dax.c | 12 ------------
- 1 file changed, 12 deletions(-)
+The test will get through a few (<= 4 iterations) and then gets a compare error.
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 0b9a169..ea936b3 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -995,12 +995,6 @@ EXPORT_SYMBOL_GPL(__dax_zero_page_range);
-  * page in a DAX file.  This is intended for hole-punch operations.  If
-  * you are truncating a file, the helper function dax_truncate_page() may be
-  * more convenient.
-- *
-- * We work in terms of PAGE_SIZE here for commonality with
-- * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
-- * took care of disposing of the unnecessary blocks.  Even if the filesystem
-- * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
-- * since the file might be mmapped.
-  */
- int dax_zero_page_range(struct inode *inode, loff_t from, unsigned length,
- 							get_block_t get_block)
-@@ -1035,12 +1029,6 @@ EXPORT_SYMBOL_GPL(dax_zero_page_range);
-  *
-  * Similar to block_truncate_page(), this function can be called by a
-  * filesystem when it is truncating a DAX file to handle the partial page.
-- *
-- * We work in terms of PAGE_SIZE here for commonality with
-- * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
-- * took care of disposing of the unnecessary blocks.  Even if the filesystem
-- * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
-- * since the file might be mmapped.
-  */
- int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
- {
--- 
-2.5.5
+Tracing indicates the kernel logical addresses associated with the individual
+pages at registration ARE correct , the data in the "RDMA read response only"
+packets ARE correct.
+
+The a??corruptiona?? occurs when the packet crosse two pages that are not
+physically contiguous.   The second page reads back as zero in the program.
+
+It looks like the user VA at the point of the compare error no longer points
+to the same physical address as was registered.  
+
+This patch totally resolves the issue!
+
+Tested-by: Mike Marciniszyn <mike.marciniszy@intel.com>
+Tested-by: Josh Collier <josh.d.collier@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
