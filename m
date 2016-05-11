@@ -1,72 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E8106B0005
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 08:40:43 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id e201so41117950wme.1
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 05:40:43 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id q4si9141898wjx.148.2016.05.11.05.40.41
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F2996B0005
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 08:48:26 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b203so83009373pfb.1
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 05:48:26 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id z6si9731184paa.60.2016.05.11.05.48.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 May 2016 05:40:41 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id w143so9139056wmw.3
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 05:40:41 -0700 (PDT)
-Date: Wed, 11 May 2016 14:40:40 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 01/13] mm, compaction: don't isolate PageWriteback pages in
- MIGRATE_SYNC_LIGHT mode
-Message-ID: <20160511124039.GL16677@dhcp22.suse.cz>
-References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
- <1462865763-22084-2-git-send-email-vbabka@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1462865763-22084-2-git-send-email-vbabka@suse.cz>
+        Wed, 11 May 2016 05:48:25 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id r187so4410098pfr.2
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 05:48:25 -0700 (PDT)
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: [PATCH] zram: introduce per-device debug_stat sysfs node
+Date: Wed, 11 May 2016 22:45:53 +0900
+Message-Id: <20160511134553.12655-1-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Tue 10-05-16 09:35:51, Vlastimil Babka wrote:
-> From: Hugh Dickins <hughd@google.com>
-> 
-> At present MIGRATE_SYNC_LIGHT is allowing __isolate_lru_page() to
-> isolate a PageWriteback page, which __unmap_and_move() then rejects
-> with -EBUSY: of course the writeback might complete in between, but
-> that's not what we usually expect, so probably better not to isolate it.
+debug_stat sysfs is read-only and represents various debugging
+data that zram developers may need. This file is not meant to be
+used by anyone else: its content is not documented and will change
+any time w/o any notice. Therefore, the output of debug_stat file
+contains a version string. To reduce the possibility of contusion,
+etc. we would increase the version number every time we modify
+the output.
 
-this makes a lot of sense regardless the rest of the series. I will have
-a look at the rest tomorrow more closely.
+At the moment this file exports only one value -- the number of
+re-compressions, IOW, the number of times compression fast path
+has failed; which is a temporarily stats, that we will be using
+should any per-cpu regressions happen. It's excepted to go away.
 
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ Documentation/ABI/testing/sysfs-block-zram |  7 +++++++
+ Documentation/blockdev/zram.txt            |  1 +
+ drivers/block/zram/zram_drv.c              | 21 +++++++++++++++++++++
+ drivers/block/zram/zram_drv.h              |  1 +
+ 4 files changed, 30 insertions(+)
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/compaction.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index c72987603343..481004c73c90 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1146,7 +1146,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->  	struct page *page;
->  	const isolate_mode_t isolate_mode =
->  		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
-> -		(cc->mode == MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
-> +		(cc->mode != MIGRATE_SYNC ? ISOLATE_ASYNC_MIGRATE : 0);
->  
->  	/*
->  	 * Start at where we last stopped, or beginning of the zone as
-> -- 
-> 2.8.2
-
+diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
+index 2e69e83..740aada 100644
+--- a/Documentation/ABI/testing/sysfs-block-zram
++++ b/Documentation/ABI/testing/sysfs-block-zram
+@@ -166,3 +166,10 @@ Description:
+ 		The mm_stat file is read-only and represents device's mm
+ 		statistics (orig_data_size, compr_data_size, etc.) in a format
+ 		similar to block layer statistics file format.
++
++What:		/sys/block/zram<id>/debug_stat
++Date:		July 2016
++Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
++Description:
++		The debug_stat file is read-only and represents various
++		device's debugging info.
+diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
+index d88f0c7..13100fb 100644
+--- a/Documentation/blockdev/zram.txt
++++ b/Documentation/blockdev/zram.txt
+@@ -172,6 +172,7 @@ mem_limit         RW    the maximum amount of memory ZRAM can use to store
+ pages_compacted   RO    the number of pages freed during compaction
+                         (available only via zram<id>/mm_stat node)
+ compact           WO    trigger memory compaction
++debug_stat        RO    this file is used for zram debugging purposes
+ 
+ WARNING
+ =======
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 8fcfbeb..a629bd8d 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -435,8 +435,26 @@ static ssize_t mm_stat_show(struct device *dev,
+ 	return ret;
+ }
+ 
++static ssize_t debug_stat_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	unsigned int version = 1;
++	struct zram *zram = dev_to_zram(dev);
++	ssize_t ret;
++
++	down_read(&zram->init_lock);
++	ret = scnprintf(buf, PAGE_SIZE,
++			"version: %d\n%8llu\n",
++			version,
++			(u64)atomic64_read(&zram->stats.num_recompress));
++	up_read(&zram->init_lock);
++
++	return ret;
++}
++
+ static DEVICE_ATTR_RO(io_stat);
+ static DEVICE_ATTR_RO(mm_stat);
++static DEVICE_ATTR_RO(debug_stat);
+ ZRAM_ATTR_RO(num_reads);
+ ZRAM_ATTR_RO(num_writes);
+ ZRAM_ATTR_RO(failed_reads);
+@@ -719,6 +737,8 @@ compress_again:
+ 		zcomp_strm_release(zram->comp, zstrm);
+ 		zstrm = NULL;
+ 
++		atomic64_inc(&zram->stats.num_recompress);
++
+ 		handle = zs_malloc(meta->mem_pool, clen,
+ 				GFP_NOIO | __GFP_HIGHMEM);
+ 		if (handle)
+@@ -1181,6 +1201,7 @@ static struct attribute *zram_disk_attrs[] = {
+ 	&dev_attr_comp_algorithm.attr,
+ 	&dev_attr_io_stat.attr,
+ 	&dev_attr_mm_stat.attr,
++	&dev_attr_debug_stat.attr,
+ 	NULL,
+ };
+ 
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index 06b1636..1fb45f7 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -85,6 +85,7 @@ struct zram_stats {
+ 	atomic64_t zero_pages;		/* no. of zero filled pages */
+ 	atomic64_t pages_stored;	/* no. of pages currently stored */
+ 	atomic_long_t max_used_pages;	/* no. of maximum pages stored */
++	atomic64_t num_recompress;	/* no. of compression slow paths */
+ };
+ 
+ struct zram_meta {
 -- 
-Michal Hocko
-SUSE Labs
+2.8.2.372.g63a3502
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
