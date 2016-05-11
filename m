@@ -1,100 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C21D6B0262
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 03:53:16 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id y84so29490782lfc.3
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 00:53:16 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id as1si7683975wjc.146.2016.05.11.00.53.14
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E78C6B0005
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 04:15:38 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id s63so35332360wme.2
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 01:15:38 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c12si8361646wmc.2.2016.05.11.01.15.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 May 2016 00:53:14 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id n129so7767187wmn.1
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 00:53:14 -0700 (PDT)
-Date: Wed, 11 May 2016 09:53:13 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm: pages are not freed from lru_add_pvecs after process
- termination
-Message-ID: <20160511075313.GE16677@dhcp22.suse.cz>
-References: <D6EDEBF1F91015459DB866AC4EE162CC023AEF26@IRSMSX103.ger.corp.intel.com>
- <5720F2A8.6070406@intel.com>
- <20160428143710.GC31496@dhcp22.suse.cz>
- <20160502130006.GD25265@dhcp22.suse.cz>
- <D6EDEBF1F91015459DB866AC4EE162CC023C182F@IRSMSX103.ger.corp.intel.com>
- <20160504203643.GI21490@dhcp22.suse.cz>
- <20160505072122.GA4386@dhcp22.suse.cz>
- <D6EDEBF1F91015459DB866AC4EE162CC023C402E@IRSMSX103.ger.corp.intel.com>
- <572CC092.5020702@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 11 May 2016 01:15:35 -0700 (PDT)
+Date: Wed, 11 May 2016 10:15:32 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v6 4/5] dax: for truncate/hole-punch, do zeroing through
+ the driver if possible
+Message-ID: <20160511081532.GB14744@quack2.suse.cz>
+References: <1462906156-22303-1-git-send-email-vishal.l.verma@intel.com>
+ <1462906156-22303-5-git-send-email-vishal.l.verma@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <572CC092.5020702@intel.com>
+In-Reply-To: <1462906156-22303-5-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
+To: Vishal Verma <vishal.l.verma@intel.com>
+Cc: linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Boaz Harrosh <boaz@plexistor.com>
 
-On Fri 06-05-16 09:04:34, Dave Hansen wrote:
-> On 05/06/2016 08:10 AM, Odzioba, Lukasz wrote:
-> > On Thu 05-05-16 09:21:00, Michal Hocko wrote: 
-> >> Or maybe the async nature of flushing turns
-> >> out to be just impractical and unreliable and we will end up skipping
-> >> THP (or all compound pages) for pcp LRU add cache. Let's see...
-> > 
-> > What if we simply skip lru_add pvecs for compound pages?
-> > That way we still have compound pages on LRU's, but the problem goes
-> > away.  It is not quite what this naive patch does, but it works nice for me.
-> > 
-> > diff --git a/mm/swap.c b/mm/swap.c
-> > index 03aacbc..c75d5e1 100644
-> > --- a/mm/swap.c
-> > +++ b/mm/swap.c
-> > @@ -392,7 +392,9 @@ static void __lru_cache_add(struct page *page)
-> >         get_page(page);
-> >         if (!pagevec_space(pvec))
-> >                 __pagevec_lru_add(pvec);
-> >         pagevec_add(pvec, page);
-> > +       if (PageCompound(page))
-> > +               __pagevec_lru_add(pvec);
-> >         put_cpu_var(lru_add_pvec);
-> >  }
+On Tue 10-05-16 12:49:15, Vishal Verma wrote:
+> In the truncate or hole-punch path in dax, we clear out sub-page ranges.
+> If these sub-page ranges are sector aligned and sized, we can do the
+> zeroing through the driver instead so that error-clearing is handled
+> automatically.
 > 
-> That's not _quite_ what I had in mind since that drains the entire pvec
-> every time a large page is encountered.  But I'm conflicted about what
-> the right behavior _is_.
+> For sub-sector ranges, we still have to rely on clear_pmem and have the
+> possibility of tripping over errors.
 > 
-> We'd taking the LRU lock for 'page' anyway, so we might as well drain
-> the pvec.
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: Jeff Moyer <jmoyer@redhat.com>
+> Cc: Christoph Hellwig <hch@infradead.org>
+> Cc: Dave Chinner <david@fromorbit.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> Signed-off-by: Vishal Verma <vishal.l.verma@intel.com>
 
-Yes I think this makes sense. The only case where it would be suboptimal
-is when the pagevec was already full and then we just created a single
-page pvec to drain it. This can be handled better though by:
+...
 
-diff --git a/mm/swap.c b/mm/swap.c
-index 95916142fc46..3fe4f180e8bf 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -391,9 +391,8 @@ static void __lru_cache_add(struct page *page)
- 	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
- 
- 	get_page(page);
--	if (!pagevec_space(pvec))
-+	if (!pagevec_add(pvec, page) || PageCompound(page))
- 		__pagevec_lru_add(pvec);
--	pagevec_add(pvec, page);
- 	put_cpu_var(lru_add_pvec);
- }
- 
+> +static bool dax_range_is_aligned(struct block_device *bdev,
+> +				 struct blk_dax_ctl *dax, unsigned int offset,
+> +				 unsigned int length)
+> +{
+> +	unsigned short sector_size = bdev_logical_block_size(bdev);
+> +
+> +	if (!IS_ALIGNED(((u64)dax->addr + offset), sector_size))
 
-> Or, does the additional work to put the page on to a pvec and then
-> immediately drain it overwhelm that advantage?
+One more question: 'dax' is initialized in dax_zero_page_range() and
+dax->addr is going to be always NULL here. So either you forgot to call
+dax_map_atomic() to get the addr or the use of dax->addr is just bogus
+(which is what I currently believe since I see no way how the address could
+be unaligned with the sector_size)...
 
-pagevec_add is quite trivial so I would be really surprised if it
-mattered.
+								Honza
+> +		return false;
+> +	if (!IS_ALIGNED(length, sector_size))
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+>  /**
+>   * dax_zero_page_range - zero a range within a page of a DAX file
+>   * @inode: The file being truncated
+> @@ -1240,11 +1254,16 @@ int dax_zero_page_range(struct inode *inode, loff_t from, unsigned length,
+>  			.size = PAGE_SIZE,
+>  		};
+>  
+> -		if (dax_map_atomic(bdev, &dax) < 0)
+> -			return PTR_ERR(dax.addr);
+> -		clear_pmem(dax.addr + offset, length);
+> -		wmb_pmem();
+> -		dax_unmap_atomic(bdev, &dax);
+> +		if (dax_range_is_aligned(bdev, &dax, offset, length))
+> +			return blkdev_issue_zeroout(bdev, dax.sector,
+> +					length >> 9, GFP_NOFS, true);
+> +		else {
+> +			if (dax_map_atomic(bdev, &dax) < 0)
+> +				return PTR_ERR(dax.addr);
+> +			clear_pmem(dax.addr + offset, length);
+> +			wmb_pmem();
+> +			dax_unmap_atomic(bdev, &dax);
+> +		}
+>  	}
+>  
+>  	return 0;
+> -- 
+> 2.5.5
+> 
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
