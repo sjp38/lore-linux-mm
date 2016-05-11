@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CA8FD6B007E
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 05:22:39 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id xm6so53399812pab.3
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 02:22:39 -0700 (PDT)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id e184si8362882pfe.144.2016.05.11.02.22.39
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 818286B007E
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 05:33:04 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 4so74743952pfw.0
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 02:33:04 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id g28si8425236pfg.142.2016.05.11.02.33.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 May 2016 02:22:39 -0700 (PDT)
-Received: by mail-pa0-x244.google.com with SMTP id zy2so3772747pac.2
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 02:22:39 -0700 (PDT)
-From: Oliver O'Halloran <oohall@gmail.com>
-Subject: [PATCH v2] powerpc/mm: Ensure "special" zones are empty
-Date: Wed, 11 May 2016 19:22:18 +1000
-Message-Id: <1462958539-25552-1-git-send-email-oohall@gmail.com>
-In-Reply-To: <3r3fQw4Xbnz9t79@ozlabs.org>
-References: <3r3fQw4Xbnz9t79@ozlabs.org>
-In-Reply-To: <3r3fQw4Xbnz9t79@ozlabs.org>
-References: <3r3fQw4Xbnz9t79@ozlabs.org>
+        Wed, 11 May 2016 02:33:03 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id r187so3984330pfr.2
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 02:33:03 -0700 (PDT)
+Date: Wed, 11 May 2016 18:34:35 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] mm/zsmalloc: avoid unnecessary iteration in
+ get_pages_per_zspage()
+Message-ID: <20160511093435.GA13113@swordfish>
+References: <1462425447-13385-1-git-send-email-opensource.ganesh@gmail.com>
+ <20160505100329.GA497@swordfish>
+ <20160506030935.GA18573@bbox>
+ <CADAEsF9S4GQE6V+zsvRRVYjdbfN3VRQFcTiN5E_MWw60bfk0Zw@mail.gmail.com>
+ <20160506090801.GA488@swordfish>
+ <20160506093342.GB488@swordfish>
+ <20160509050102.GA4574@blaptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160509050102.GA4574@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linuxppc-dev@lists.ozlabs.org
-Cc: bsingharora@gmail.com, Oliver O'Halloran <oohall@gmail.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-The mm zone mechanism was traditionally used by arch specific code to
-partition memory into allocation zones. However there are several zones
-that are managed by the mm subsystem rather than the architecture. Most
-architectures set the max PFN of these special zones to zero, however on
-powerpc we set them to ~0ul. This, in conjunction with a bug in
-free_area_init_nodes() results in all of system memory being placed in
-ZONE_DEVICE when enabled. Device memory cannot be used for regular kernel
-memory allocations so this will cause a kernel panic at boot. Given the
-planned addition of more mm managed zones (ZONE_CMA) we should aim to be
-consistent with every other architecture and set the max PFN for these
-zones to zero.
+On (05/09/16 14:01), Minchan Kim wrote:
+[..]
+> > no, we need cltd there. but ZS_MAX_PAGES_PER_ZSPAGE also affects
+> > ZS_MIN_ALLOC_SIZE, which is used in several places, like
+> > get_size_class_index(). that's why ZS_MAX_PAGES_PER_ZSPAGE data
+> > type change `improves' zs_malloc().
+> 
+> Why not if such simple improves zsmalloc? :)
+> Please send a patch.
+> 
+> Thanks a lot, Sergey!
 
-Signed-off-by: Oliver O'Halloran <oohall@gmail.com>
-Reviewed-by: Balbir Singh <bsingharora@gmail.com>
-Cc: linux-mm@kvack.org
----
- arch/powerpc/mm/mem.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+Hello Minchan,
 
-diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-index 879e0bc6f82e..f35e6605c422 100644
---- a/arch/powerpc/mm/mem.c
-+++ b/arch/powerpc/mm/mem.c
-@@ -239,8 +239,14 @@ static int __init mark_nonram_nosave(void)
- 
- static bool zone_limits_final;
- 
-+/*
-+ * The memory zones past TOP_ZONE are managed by generic mm code.
-+ * These should be set to zero since that's what every other
-+ * architecture does.
-+ */
- static unsigned long max_zone_pfns[MAX_NR_ZONES] = {
--	[0 ... MAX_NR_ZONES - 1] = ~0UL
-+	[0            ... TOP_ZONE        ] = ~0UL,
-+	[TOP_ZONE + 1 ... MAX_NR_ZONES - 1] = 0
- };
- 
- /*
--- 
-2.5.5
+sorry for long reply, I decided to investigate it a bit further.
+with this patch, gcc 6.1 -O2 generates "+13" instructions more,
+-Os "-25" instructions less. this +13 ins case is a no-no-no.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
