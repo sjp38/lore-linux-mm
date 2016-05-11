@@ -1,62 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 663186B0005
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 14:08:55 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id r185so103182112qkf.1
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 11:08:55 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 1si5987791qkk.154.2016.05.11.11.08.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 May 2016 11:08:54 -0700 (PDT)
-Date: Wed, 11 May 2016 20:08:47 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: Getting rid of dynamic TASK_SIZE (on x86, at least)
-Message-ID: <20160511180847.GA27195@redhat.com>
-References: <CALCETrWWZy0hngPU8MCiQvnH+s0awpFE8wNBrYsf_c+nz6ZsDg@mail.gmail.com>
- <20160510182055.GA24868@redhat.com>
- <CALCETrU4me1X7oTriLgFQpTqwaebMsT5sdYZzjC=_EERXNbqzA@mail.gmail.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EB5A56B0253
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 14:40:01 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 4so101048737pfw.0
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 11:40:01 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id in12si11423580pac.224.2016.05.11.11.40.00
+        for <linux-mm@kvack.org>;
+        Wed, 11 May 2016 11:40:01 -0700 (PDT)
+From: "Verma, Vishal L" <vishal.l.verma@intel.com>
+Subject: Re: [PATCH v6 4/5] dax: for truncate/hole-punch, do zeroing through
+ the driver if possible
+Date: Wed, 11 May 2016 18:39:59 +0000
+Message-ID: <1462991986.29294.29.camel@intel.com>
+References: <1462906156-22303-1-git-send-email-vishal.l.verma@intel.com>
+	 <1462906156-22303-5-git-send-email-vishal.l.verma@intel.com>
+In-Reply-To: <1462906156-22303-5-git-send-email-vishal.l.verma@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <5E1FB0B45FA4AB4A819E9443201F1C82@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrU4me1X7oTriLgFQpTqwaebMsT5sdYZzjC=_EERXNbqzA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Dmitry Safonov <0x7f454c46@gmail.com>, Borislav Petkov <bp@alien8.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Ruslan Kabatsayev <b7.10110111@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "jmoyer@redhat.com" <jmoyer@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "boaz@plexistor.com" <boaz@plexistor.com>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>
 
-On 05/10, Andy Lutomirski wrote:
->
-> On May 10, 2016 11:21 AM, "Oleg Nesterov" <oleg@redhat.com> wrote:
-> >
-> > On 05/10, Andy Lutomirski wrote:
-> > >
-> > >  - xol_add_vma: This one is weird: uprobes really is doing something
-> > > behind the task's back, and the addresses need to be consistent with
-> > > the address width.  I'm not quite sure what to do here.
-> >
-> > It can use mm->task_size instead, plus this is just a hint. And perhaps
-> > mm->task_size should have more users, say get_unmapped_area...
->
-> Ick.  I hadn't noticed mm->task_size.  We have a *lot* of different
-> indicators of task size.  mm->task_size appears to have basically no
-> useful uses except maybe for ppc.
->
-> On x86, bitness can change without telling the kernel, and tasks
-> running in 64-bit mode can do 32-bit syscalls.
-
-Sure, but imo this doesn't mean that mm->task_size or (say) is_64bit_mm()
-make no sense.
-
-> So maybe I should add mm->task_size to my list of things that would be
-> nice to remove.  Or maybe I'm just tilting at windmills.
-
-I dunno. But afaics there is no other way to look at foreign mm and find
-out its limit. Say, the usage of mm->task_size in validate_range() looks
-valid even if (afaics) nothing bad can happen if start/end >= task_size,
-so validate_range() could just check that len+start doesn't overflow.
-
-Oleg.
+T24gVHVlLCAyMDE2LTA1LTEwIGF0IDEyOjQ5IC0wNjAwLCBWaXNoYWwgVmVybWEgd3JvdGU6DQo+
+wqANCi4uLg0KDQo+IEBAIC0xMjQwLDExICsxMjU0LDE2IEBAIGludCBkYXhfemVyb19wYWdlX3Jh
+bmdlKHN0cnVjdCBpbm9kZSAqaW5vZGUsDQo+IGxvZmZfdCBmcm9tLCB1bnNpZ25lZCBsZW5ndGgs
+DQo+IMKgCQkJLnNpemUgPSBQQUdFX1NJWkUsDQo+IMKgCQl9Ow0KPiDCoA0KPiAtCQlpZiAoZGF4
+X21hcF9hdG9taWMoYmRldiwgJmRheCkgPCAwKQ0KPiAtCQkJcmV0dXJuIFBUUl9FUlIoZGF4LmFk
+ZHIpOw0KPiAtCQljbGVhcl9wbWVtKGRheC5hZGRyICsgb2Zmc2V0LCBsZW5ndGgpOw0KPiAtCQl3
+bWJfcG1lbSgpOw0KPiAtCQlkYXhfdW5tYXBfYXRvbWljKGJkZXYsICZkYXgpOw0KPiArCQlpZiAo
+ZGF4X3JhbmdlX2lzX2FsaWduZWQoYmRldiwgJmRheCwgb2Zmc2V0LCBsZW5ndGgpKQ0KPiArCQkJ
+cmV0dXJuIGJsa2Rldl9pc3N1ZV96ZXJvb3V0KGJkZXYsIGRheC5zZWN0b3IsDQo+ICsJCQkJCWxl
+bmd0aCA+PiA5LCBHRlBfTk9GUywgdHJ1ZSk7DQoNCkZvdW5kIGFub3RoZXIgYnVnIGhlcmUgd2hp
+bGUgdGVzdGluZy4gVGhlIHplcm9vdXQgbmVlZHMgdG8gYmUgZG9uZSBmb3INCnNlY3RvciArIChv
+ZmZzZXQgPj4gOSkuIFRoZSBhYm92ZSBqdXN0IHplcm9lZCBvdXQgdGhlIGZpcnN0IHNlY3RvciBv
+Zg0KdGhlIHBhZ2UgaXJyZXNwZWN0aXZlIG9mIG9mZnNldCwgd2hpY2ggaXMgd3Jvbmcu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
