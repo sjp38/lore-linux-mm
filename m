@@ -1,66 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CF7F96B007E
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 13:47:04 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id gw7so71606413pac.0
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 10:47:04 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id q6si11244545paq.16.2016.05.11.10.47.03
-        for <linux-mm@kvack.org>;
-        Wed, 11 May 2016 10:47:03 -0700 (PDT)
-From: "Verma, Vishal L" <vishal.l.verma@intel.com>
-Subject: Re: [PATCH v6 4/5] dax: for truncate/hole-punch, do zeroing through
- the driver if possible
-Date: Wed, 11 May 2016 17:47:00 +0000
-Message-ID: <1462988808.29294.26.camel@intel.com>
-References: <1462906156-22303-1-git-send-email-vishal.l.verma@intel.com>
-	 <1462906156-22303-5-git-send-email-vishal.l.verma@intel.com>
-	 <20160511081532.GB14744@quack2.suse.cz>
-In-Reply-To: <20160511081532.GB14744@quack2.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <A1E995196763DE4E964EAE4A2FA3201C@intel.com>
-Content-Transfer-Encoding: base64
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 663186B0005
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 14:08:55 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id r185so103182112qkf.1
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 11:08:55 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 1si5987791qkk.154.2016.05.11.11.08.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 May 2016 11:08:54 -0700 (PDT)
+Date: Wed, 11 May 2016 20:08:47 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: Getting rid of dynamic TASK_SIZE (on x86, at least)
+Message-ID: <20160511180847.GA27195@redhat.com>
+References: <CALCETrWWZy0hngPU8MCiQvnH+s0awpFE8wNBrYsf_c+nz6ZsDg@mail.gmail.com>
+ <20160510182055.GA24868@redhat.com>
+ <CALCETrU4me1X7oTriLgFQpTqwaebMsT5sdYZzjC=_EERXNbqzA@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrU4me1X7oTriLgFQpTqwaebMsT5sdYZzjC=_EERXNbqzA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "jack@suse.cz" <jack@suse.cz>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, "jmoyer@redhat.com" <jmoyer@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Williams, Dan J" <dan.j.williams@intel.com>, "axboe@fb.com" <axboe@fb.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "boaz@plexistor.com" <boaz@plexistor.com>, "david@fromorbit.com" <david@fromorbit.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Dmitry Safonov <0x7f454c46@gmail.com>, Borislav Petkov <bp@alien8.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Ruslan Kabatsayev <b7.10110111@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-T24gV2VkLCAyMDE2LTA1LTExIGF0IDEwOjE1ICswMjAwLCBKYW4gS2FyYSB3cm90ZToNCj4gT24g
-VHVlIDEwLTA1LTE2IDEyOjQ5OjE1LCBWaXNoYWwgVmVybWEgd3JvdGU6DQo+ID4gDQo+ID4gSW4g
-dGhlIHRydW5jYXRlIG9yIGhvbGUtcHVuY2ggcGF0aCBpbiBkYXgsIHdlIGNsZWFyIG91dCBzdWIt
-cGFnZQ0KPiA+IHJhbmdlcy4NCj4gPiBJZiB0aGVzZSBzdWItcGFnZSByYW5nZXMgYXJlIHNlY3Rv
-ciBhbGlnbmVkIGFuZCBzaXplZCwgd2UgY2FuIGRvIHRoZQ0KPiA+IHplcm9pbmcgdGhyb3VnaCB0
-aGUgZHJpdmVyIGluc3RlYWQgc28gdGhhdCBlcnJvci1jbGVhcmluZyBpcyBoYW5kbGVkDQo+ID4g
-YXV0b21hdGljYWxseS4NCj4gPiANCj4gPiBGb3Igc3ViLXNlY3RvciByYW5nZXMsIHdlIHN0aWxs
-IGhhdmUgdG8gcmVseSBvbiBjbGVhcl9wbWVtIGFuZCBoYXZlDQo+ID4gdGhlDQo+ID4gcG9zc2li
-aWxpdHkgb2YgdHJpcHBpbmcgb3ZlciBlcnJvcnMuDQo+ID4gDQo+ID4gQ2M6IERhbiBXaWxsaWFt
-cyA8ZGFuLmoud2lsbGlhbXNAaW50ZWwuY29tPg0KPiA+IENjOiBSb3NzIFp3aXNsZXIgPHJvc3Mu
-endpc2xlckBsaW51eC5pbnRlbC5jb20+DQo+ID4gQ2M6IEplZmYgTW95ZXIgPGptb3llckByZWRo
-YXQuY29tPg0KPiA+IENjOiBDaHJpc3RvcGggSGVsbHdpZyA8aGNoQGluZnJhZGVhZC5vcmc+DQo+
-ID4gQ2M6IERhdmUgQ2hpbm5lciA8ZGF2aWRAZnJvbW9yYml0LmNvbT4NCj4gPiBDYzogSmFuIEth
-cmEgPGphY2tAc3VzZS5jej4NCj4gPiBSZXZpZXdlZC1ieTogQ2hyaXN0b3BoIEhlbGx3aWcgPGhj
-aEBsc3QuZGU+DQo+ID4gU2lnbmVkLW9mZi1ieTogVmlzaGFsIFZlcm1hIDx2aXNoYWwubC52ZXJt
-YUBpbnRlbC5jb20+DQo+IC4uLg0KPiANCj4gPiANCj4gPiArc3RhdGljIGJvb2wgZGF4X3Jhbmdl
-X2lzX2FsaWduZWQoc3RydWN0IGJsb2NrX2RldmljZSAqYmRldiwNCj4gPiArCQkJCcKgc3RydWN0
-IGJsa19kYXhfY3RsICpkYXgsIHVuc2lnbmVkDQo+ID4gaW50IG9mZnNldCwNCj4gPiArCQkJCcKg
-dW5zaWduZWQgaW50IGxlbmd0aCkNCj4gPiArew0KPiA+ICsJdW5zaWduZWQgc2hvcnQgc2VjdG9y
-X3NpemUgPSBiZGV2X2xvZ2ljYWxfYmxvY2tfc2l6ZShiZGV2KTsNCj4gPiArDQo+ID4gKwlpZiAo
-IUlTX0FMSUdORUQoKCh1NjQpZGF4LT5hZGRyICsgb2Zmc2V0KSwgc2VjdG9yX3NpemUpKQ0KPiBP
-bmUgbW9yZSBxdWVzdGlvbjogJ2RheCcgaXMgaW5pdGlhbGl6ZWQgaW4gZGF4X3plcm9fcGFnZV9y
-YW5nZSgpIGFuZA0KPiBkYXgtPmFkZHIgaXMgZ29pbmcgdG8gYmUgYWx3YXlzIE5VTEwgaGVyZS4g
-U28gZWl0aGVyIHlvdSBmb3Jnb3QgdG8NCj4gY2FsbA0KPiBkYXhfbWFwX2F0b21pYygpIHRvIGdl
-dCB0aGUgYWRkciBvciB0aGUgdXNlIG9mIGRheC0+YWRkciBpcyBqdXN0IGJvZ3VzDQo+ICh3aGlj
-aCBpcyB3aGF0IEkgY3VycmVudGx5IGJlbGlldmUgc2luY2UgSSBzZWUgbm8gd2F5IGhvdyB0aGUg
-YWRkcmVzcw0KPiBjb3VsZA0KPiBiZSB1bmFsaWduZWQgd2l0aCB0aGUgc2VjdG9yX3NpemUpLi4u
-DQo+IA0KDQpHb29kIGNhdGNoLCBhbmQgeW91J3JlIHJpZ2h0LiBJIGRvbid0IHRoaW5rIEkgYWN0
-dWFsbHkgZXZlbiB3YW50IHRvIHVzZQ0KZGF4LT5hZGRyIGZvciB0aGUgYWxpZ25tZW50IGNoZWNr
-IGhlcmUgLSBJIHdhbnQgdG8gY2hlY2sgaWYgd2UncmUNCmFsaWduZWQgdG8gdGhlIGJsb2NrIGRl
-dmljZSBzZWN0b3IuIEknbSB0aGlua2luZyBzb21ldGhpbmcgbGlrZToNCg0KCWlmICghSVNfQUxJ
-R05FRChvZmZzZXQsIHNlY3Rvcl9zaXplKSkNCg0KVGVjaG5pY2FsbHkgd2Ugd2FudCB0byBjaGVj
-ayBpZiBzZWN0b3IgKiBzZWN0b3Jfc2l6ZSArIG9mZnNldCBpcw0KYWxpZ25lZCwgYnV0IHRoZSBm
-aXJzdCBwYXJ0IG9mIHRoYXQgaXMgYWxyZWFkeSBhIHNlY3RvciA6KQ==
+On 05/10, Andy Lutomirski wrote:
+>
+> On May 10, 2016 11:21 AM, "Oleg Nesterov" <oleg@redhat.com> wrote:
+> >
+> > On 05/10, Andy Lutomirski wrote:
+> > >
+> > >  - xol_add_vma: This one is weird: uprobes really is doing something
+> > > behind the task's back, and the addresses need to be consistent with
+> > > the address width.  I'm not quite sure what to do here.
+> >
+> > It can use mm->task_size instead, plus this is just a hint. And perhaps
+> > mm->task_size should have more users, say get_unmapped_area...
+>
+> Ick.  I hadn't noticed mm->task_size.  We have a *lot* of different
+> indicators of task size.  mm->task_size appears to have basically no
+> useful uses except maybe for ppc.
+>
+> On x86, bitness can change without telling the kernel, and tasks
+> running in 64-bit mode can do 32-bit syscalls.
+
+Sure, but imo this doesn't mean that mm->task_size or (say) is_64bit_mm()
+make no sense.
+
+> So maybe I should add mm->task_size to my list of things that would be
+> nice to remove.  Or maybe I'm just tilting at windmills.
+
+I dunno. But afaics there is no other way to look at foreign mm and find
+out its limit. Say, the usage of mm->task_size in validate_range() looks
+valid even if (afaics) nothing bad can happen if start/end >= task_size,
+so validate_range() could just check that len+start doesn't overflow.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
