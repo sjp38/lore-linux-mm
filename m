@@ -1,78 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 854156B0253
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 07:32:31 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id s63so40051064wme.2
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 04:32:31 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id k203si22459347wmd.110.2016.05.11.04.32.30
+	by kanga.kvack.org (Postfix) with ESMTP id 0257C6B0005
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 08:20:00 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w143so40713600wmw.3
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 05:19:59 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id um4si9026985wjc.139.2016.05.11.05.19.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 May 2016 04:32:30 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id n129so8849038wmn.1
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 04:32:30 -0700 (PDT)
-Date: Wed, 11 May 2016 13:32:29 +0200
+        Wed, 11 May 2016 05:19:58 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id r12so9091059wme.0
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 05:19:58 -0700 (PDT)
+Date: Wed, 11 May 2016 14:19:57 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mmap.2: clarify MAP_LOCKED semantic
-Message-ID: <20160511113228.GJ16677@dhcp22.suse.cz>
-References: <1431527892-2996-1-git-send-email-miso@dhcp22.suse.cz>
- <1431527892-2996-2-git-send-email-miso@dhcp22.suse.cz>
- <57331275.9000805@infradead.org>
+Subject: Re: [PATCH] vmstat: Get rid of the ugly cpu_stat_off variable V2
+Message-ID: <20160511121957.GK16677@dhcp22.suse.cz>
+References: <alpine.DEB.2.20.1605061306460.17934@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <57331275.9000805@infradead.org>
+In-Reply-To: <alpine.DEB.2.20.1605061306460.17934@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Tejun Heo <htejun@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-On Wed 11-05-16 13:07:33, Peter Zijlstra wrote:
+On Fri 06-05-16 13:09:49, Christoph Lameter wrote:
+> The cpu_stat_off variable is unecessary since we can check if
+> a workqueue request is pending otherwise. Removal of
+> cpu_stat_off makes it pretty easy for the vmstat shepherd to
+> ensure that the proper things happen.
+
+OK, this looks good to me. It is racy ...
+
+vmstat_shepherd						vmstat_update
+  delayed_work_pending() # false
+  need_update()						  refresh_cpu_vm_stats()
+  queue_delayed_work_on()				  queue_delayed_work_on()
+
+... but it doesn't matter because queue_delayed_work_on is a noop
+if the work is already queued.
+
+> Removing the state also removes all races related to it.
+
+Do we have any races left? I do not see any.
+
+> Should a workqueue not be scheduled as needed for vmstat_update
+> then the shepherd will notice and schedule it as needed.
+> Should a workqueue be unecessarily scheduled then the vmstat
+> updater will disable it.
+
+The code simplification is really nice!
+
+> V1->V2:
+>  - Rediff to proper upstream version
 > 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+A nit below
+
+> @@ -1475,20 +1454,11 @@ static void vmstat_shepherd(struct work_
 > 
-> On 05/13/2015 04:38 PM, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.cz>
-> > 
-> > MAP_LOCKED had a subtly different semantic from mmap(2)+mlock(2) since
-> > it has been introduced.
-> > mlock(2) fails if the memory range cannot get populated to guarantee
-> > that no future major faults will happen on the range. mmap(MAP_LOCKED) on
-> > the other hand silently succeeds even if the range was populated only
-> > partially.
-> > 
-> > Fixing this subtle difference in the kernel is rather awkward because
-> > the memory population happens after mm locks have been dropped and so
-> > the cleanup before returning failure (munlock) could operate on something
-> > else than the originally mapped area.
-> > 
-> > E.g. speculative userspace page fault handler catching SEGV and doing
-> > mmap(fault_addr, MAP_FIXED|MAP_LOCKED) might discard portion of a racing
-> > mmap and lead to lost data. Although it is not clear whether such a
-> > usage would be valid, mmap page doesn't explicitly describe requirements
-> > for threaded applications so we cannot exclude this possibility.
-> > 
-> > This patch makes the semantic of MAP_LOCKED explicit and suggest using
-> > mmap + mlock as the only way to guarantee no later major page faults.
-> > 
+>  	get_online_cpus();
+>  	/* Check processors whose vmstat worker threads have been disabled */
+> -	for_each_cpu(cpu, cpu_stat_off) {
+> +	for_each_online_cpu(cpu) {
+>  		struct delayed_work *dw = &per_cpu(vmstat_work, cpu);
 > 
-> URGH, this really blows chunks. It basically means MAP_LOCKED is pointless
-> cruft and we might as well remove it.
+> -		if (need_update(cpu)) {
+> -			if (cpumask_test_and_clear_cpu(cpu, cpu_stat_off))
+> +		if (!delayed_work_pending(dw) && need_update(cpu))
+>  				queue_delayed_work_on(cpu, vmstat_wq, dw, 0);
 
-Yeah, the usefulness of MAP_LOCKED is somehow reduced. Everybody who
-wants the full semantic really have to use mlock(2).
+Indentation here...
 
-> Why not fix it proper?
-
-I have tried but it turned out to be a problem because we are dropping
-mmap_sem after we initialized VMA and as Linus pointed out there
-are multithreaded applications which are doing opportunistic memory
-management[1]. So we would have to hold the mmap_sem for write during
-the whole VMA setup + population and that doesn't seem to be worth
-all the trouble when we are even not sure whether somebody relies on
-MAP_LOCKED to have the hard mlock semantic.
-
----
-[1] http://lkml.kernel.org/r/CA+55aFydkG-BgZzry5DrTzueVh9VvEcVJdLV8iOyUphQk=0vpw@mail.gmail.com
+> -		} else {
+> -			/*
+> -			 * Cancel the work if quiet_vmstat has put this
+> -			 * cpu on cpu_stat_off because the work item might
+> -			 * be still scheduled
+> -			 */
+> -			cancel_delayed_work(dw);
+> -		}
+>  	}
+>  	put_online_cpus();
+> 
 -- 
 Michal Hocko
 SUSE Labs
