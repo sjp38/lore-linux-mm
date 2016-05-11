@@ -1,209 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C333E6B025F
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 15:26:34 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 4so103347528pfw.0
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 12:26:34 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id o8si11433460pfi.251.2016.05.11.12.26.33
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B3FD6B0005
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 17:09:17 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id xm6so77609684pab.3
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 14:09:17 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id j9si12334420pan.36.2016.05.11.14.09.16
         for <linux-mm@kvack.org>;
-        Wed, 11 May 2016 12:26:33 -0700 (PDT)
-Date: Wed, 11 May 2016 13:26:32 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 16/18] dax: New fault locking
-Message-ID: <20160511192632.GA8841@linux.intel.com>
-References: <1461015341-20153-1-git-send-email-jack@suse.cz>
- <1461015341-20153-17-git-send-email-jack@suse.cz>
- <20160506041350.GA29628@linux.intel.com>
- <20160510122715.GK11897@quack2.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160510122715.GK11897@quack2.suse.cz>
+        Wed, 11 May 2016 14:09:16 -0700 (PDT)
+From: Vishal Verma <vishal.l.verma@intel.com>
+Subject: [PATCH v7 0/6] dax: handling media errors (clear-on-zero only)
+Date: Wed, 11 May 2016 15:08:46 -0600
+Message-Id: <1463000932-31680-1-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org, Matthew Wilcox <willy@linux.intel.com>
+To: linux-nvdimm@lists.01.org
+Cc: Vishal Verma <vishal.l.verma@intel.com>, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Boaz Harrosh <boaz@plexistor.com>
 
-On Tue, May 10, 2016 at 02:27:15PM +0200, Jan Kara wrote:
-> On Thu 05-05-16 22:13:50, Ross Zwisler wrote:
-> > On Mon, Apr 18, 2016 at 11:35:39PM +0200, Jan Kara wrote:
-> > > +/*
-> > > + * Find radix tree entry at given index. If it points to a page, return with
-> > > + * the page locked. If it points to the exceptional entry, return with the
-> > > + * radix tree entry locked. If the radix tree doesn't contain given index,
-> > > + * create empty exceptional entry for the index and return with it locked.
-> > > + *
-> > > + * Note: Unlike filemap_fault() we don't honor FAULT_FLAG_RETRY flags. For
-> > > + * persistent memory the benefit is doubtful. We can add that later if we can
-> > > + * show it helps.
-> > > + */
-> > > +static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index)
-> > > +{
-> > > +	void *ret, **slot;
-> > > +
-> > > +restart:
-> > > +	spin_lock_irq(&mapping->tree_lock);
-> > > +	ret = get_unlocked_mapping_entry(mapping, index, &slot);
-> > > +	/* No entry for given index? Make sure radix tree is big enough. */
-> > > +	if (!ret) {
-> > > +		int err;
-> > > +
-> > > +		spin_unlock_irq(&mapping->tree_lock);
-> > > +		err = radix_tree_preload(
-> > > +				mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM);
-> > 
-> > In the conversation about v2 of this series you said:
-> > 
-> > > Note that we take the hit for dropping the lock only if we really need to
-> > > allocate new radix tree node so about once per 64 new entries. So it is not
-> > > too bad.
-> > 
-> > I think this is incorrect.  We get here whenever we get a NULL return from
-> > __radix_tree_lookup().  I believe that this happens if we don't have a node,
-> > in which case we need an allocation, but I think it also happens in the case
-> > where we do have a node and we just have a NULL slot in that node.
-> > 
-> > For the behavior you're looking for (only preload if you need to do an
-> > allocation), you probably need to check the 'slot' we get back from
-> > get_unlocked_mapping_entry(), yea?
-> 
-> You are correct. However currently __radix_tree_lookup() doesn't return a
-> slot pointer if entry was not found so it is not easy to fix. So I'd leave
-> the code as is for now and we can later optimize the case where we don't
-> need to grow the radix tree...
+Until now, dax has been disabled if media errors were found on
+any device. This series attempts to address that.
 
-Ah, you're right.  Sure, that plan sounds good.
+The first two patches from Dan re-enable dax even when media
+errors are present.
 
-> > > +/*
-> > > + * Delete exceptional DAX entry at @index from @mapping. Wait for radix tree
-> > > + * entry to get unlocked before deleting it.
-> > > + */
-> > > +int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index)
-> > > +{
-> > > +	void *entry;
-> > > +
-> > > +	spin_lock_irq(&mapping->tree_lock);
-> > > +	entry = get_unlocked_mapping_entry(mapping, index, NULL);
-> > > +	/*
-> > > +	 * Caller should make sure radix tree modifications don't race and
-> > > +	 * we have seen exceptional entry here before.
-> > > +	 */
-> > > +	if (WARN_ON_ONCE(!entry || !radix_tree_exceptional_entry(entry))) {
-> > 
-> > dax_delete_mapping_entry() is only called from clear_exceptional_entry().
-> > With this new code we've changed the behavior of that call path a little.
-> > 
-> > In the various places where clear_exceptional_entry() is called, the code
-> > batches up a bunch of entries in a pvec via pagevec_lookup_entries().  We
-> > don't hold the mapping->tree_lock between the time this lookup happens and the
-> > time that the entry is passed to clear_exceptional_entry(). This is why the
-> > old code did a verification that the entry passed in matched what was still
-> > currently present in the radix tree.  This was done in the DAX case via
-> > radix_tree_delete_item(), and it was open coded in clear_exceptional_entry()
-> > for the page cache case.  In both cases if the entry didn't match what was
-> > currently in the tree, we bailed without doing anything.
-> > 
-> > This new code doesn't verify against the 'entry' passed to
-> > clear_exceptional_entry(), but instead makes sure it is an exceptional entry
-> > before removing, and if not it does a WARN_ON_ONCE().
-> > 
-> > This changes things because:
-> > 
-> > a) If the exceptional entry changed, say from a plain lock entry to an actual
-> > DAX entry, we wouldn't notice, and we would just clear the latter out.  My
-> > guess is that this is fine, I just wanted to call it out.
-> > 
-> > b) If we have a non-exceptional entry here now, say because our lock entry has
-> > been swapped out for a zero page, we will WARN_ON_ONCE() and return without a
-> > removal.  I think we may want to silence the WARN_ON_ONCE(), as I believe this
-> > could happen during normal operation and we don't want to scare anyone. :)
-> 
-> So your concerns are exactly why I have added a comment to
-> dax_delete_mapping_entry() that:
-> 
-> 	/*
-> 	 * Caller should make sure radix tree modifications don't race and
-> 	 * we have seen exceptional entry here before.
-> 	 */
-> 
-> The thing is dax_delete_mapping_entry() is called only from truncate /
-> punch hole path. Those should hold i_mmap_sem for writing and thus there
-> should be no modifications of the radix tree. If anything changes, between
-> what truncate_inode_pages() (or similar functions) finds and what
-> dax_delete_mapping_entry() sees, we have a locking bug and I want to know
-> about it :). Any suggestion how I should expand the comment so that this is
-> clearer?
+The third patch from Matthew removes the zeroout path from dax
+entirely, making zeroout operations always go through the driver
+(The motivation is that if a backing device has media errors,
+and we create a sparse file on it, we don't want the initial
+zeroing to happen via dax, we want to give the block driver a
+chance to clear the errors).
 
-Ah, I didn't understand all that.  :)  Given a bit more context the comment
-seems fine - if anything it could be a bit more specific, and include the
-text: "dax_delete_mapping_entry() is called only from truncate / punch hole
-path. Those should hold i_mmap_sem for writing and thus there should be no
-modifications of the radix tree."  Either way - thanks for explaining.
+Patch 4 from Christoph exports a low level dax helper for zeroing
 
-> > > +/*
-> > >   * The user has performed a load from a hole in the file.  Allocating
-> > >   * a new page in the file would cause excessive storage usage for
-> > >   * workloads with sparse files.  We allocate a page cache page instead.
-> > > @@ -307,15 +584,24 @@ EXPORT_SYMBOL_GPL(dax_do_io);
-> > >   * otherwise it will simply fall out of the page cache under memory
-> > >   * pressure without ever having been dirtied.
-> > >   */
-> > > -static int dax_load_hole(struct address_space *mapping, struct page *page,
-> > > -							struct vm_fault *vmf)
-> > > +static int dax_load_hole(struct address_space *mapping, void *entry,
-> > > +			 struct vm_fault *vmf)
-> > >  {
-> > > -	if (!page)
-> > > -		page = find_or_create_page(mapping, vmf->pgoff,
-> > > -						GFP_KERNEL | __GFP_ZERO);
-> > > -	if (!page)
-> > > -		return VM_FAULT_OOM;
-> > > +	struct page *page;
-> > > +
-> > > +	/* Hole page already exists? Return it...  */
-> > > +	if (!radix_tree_exceptional_entry(entry)) {
-> > > +		vmf->page = entry;
-> > > +		return VM_FAULT_LOCKED;
-> > > +	}
-> > >  
-> > > +	/* This will replace locked radix tree entry with a hole page */
-> > > +	page = find_or_create_page(mapping, vmf->pgoff,
-> > > +				   vmf->gfp_mask | __GFP_ZERO);
-> > 
-> > This replacement happens via page_cache_tree_insert(), correct?  In this case,
-> > who wakes up anyone waiting on the old lock entry that we just killed?  In the
-> > non-hole case we would traverse through put_locked_mapping_entry(), but I
-> > don't see that in the hole case.
-> 
-> Ha, good catch. We miss the wakeup. Fixed.
-> 
-> Attached is the diff resulting from your review of this patch. I still have
-> to hunt down that strange interaction with workingset code you've reported...
+Patch 5 reduces our calls to clear_pmem from dax in the
+truncate/hole-punch cases. We check if the range being truncated
+is sector aligned/sized, and if so, send blkdev_issue_zeroout
+instead of clear_pmem so that errors can be handled better by
+the driver.
 
-At the end of this mail I've attached one small fixup for the incremental diff
-you sent.  Aside from that, I think that you've addressed all my review
-feedback, thanks!
+Patch 6 fixes a redundant comment in DAX and is mostly unrelated
+to the rest of this series.
 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+This series also depends on/is based on Jan Kara's Ext4 and DAX
+fixups series:
+http://marc.info/?l=linux-ext4&m=146295959100848&w=2
+http://marc.info/?l=linux-ext4&m=146296078001307&w=2
 
-I'm going to try and get more info on the working set test failure.
+v7:
+ - Fix the dax alignment check to only check 'offset' and 'length'
+   for alignment as that's all that is needed. (Jan)
+ - Fix the blockdev_issue_zeroout call to zero the correct sector
+ - Rebase to v4.6-rc7 + the two patch-series from Jan linked above
+ - Add a patch from Christoph's iomap series:
+   http://www.spinics.net/lists/xfs/msg39656.html
 
----
+v6:
+ - Use IS_ALIGNED in dax_range_is_aligned instead of open coding
+   an alignment check (Jan)
+ - Collect all Reveiwed-by tags so far.
 
-diff --git a/fs/dax.c b/fs/dax.c
-index f496854..c4cb69b 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -406,7 +406,7 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
- 
-        init_wait(&ewait.wait);
-        ewait.wait.func = wake_exceptional_entry_func;
--       ewait.key.root = &mapping->page_tree;
-+       ewait.key.mapping = mapping;
-        ewait.key.index = index;
- 
-        for (;;) {
+v5:
+ - Drop the patch that attempts to clear-errors-on-write till we
+   reach consensus on how to handle that.
+ - Don't pass blk_dax_ctl to direct_access, instead pass in all the
+   required arguments individually (Christoph, Dan)
+
+v4:
+ - Remove the dax->direct_IO fallbacks entirely. Instead, go through
+   the usual direct_IO path when we're in O_DIRECT, and use dax_IO
+   for other, non O_DIRECT IO. (Dan, Christoph)
+
+v3:
+ - Wrapper-ize the direct_IO fallback again and make an exception
+   for -EIOCBQUEUED (Jeff, Dan)
+ - Reduce clear_pmem usage in DAX to the minimum
+
+
+
+Christoph Hellwig (1):
+  dax: export a low-level __dax_zero_page_range helper
+
+Dan Williams (2):
+  dax: fallback from pmd to pte on error
+  dax: enable dax in the presence of known media errors (badblocks)
+
+Matthew Wilcox (1):
+  dax: use sb_issue_zerout instead of calling dax_clear_sectors
+
+Vishal Verma (2):
+  dax: for truncate/hole-punch, do zeroing through the driver if
+    possible
+  dax: fix a comment in dax_zero_page_range and dax_truncate_page
+
+ Documentation/filesystems/dax.txt |  32 ++++++++++++
+ arch/powerpc/sysdev/axonram.c     |   2 +-
+ block/ioctl.c                     |   9 ----
+ drivers/block/brd.c               |   2 +-
+ drivers/nvdimm/pmem.c             |  10 +++-
+ drivers/s390/block/dcssblk.c      |   2 +-
+ fs/block_dev.c                    |   2 +-
+ fs/dax.c                          | 104 ++++++++++++++++----------------------
+ fs/ext2/inode.c                   |   7 ++-
+ fs/xfs/xfs_bmap_util.c            |  15 ++----
+ include/linux/blkdev.h            |   2 +-
+ include/linux/dax.h               |   8 ++-
+ 12 files changed, 103 insertions(+), 92 deletions(-)
+
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
