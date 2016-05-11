@@ -1,57 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B20C96B0005
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 17:26:19 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id gw7so79011258pac.0
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 14:26:19 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id v15si12186640pfa.20.2016.05.11.14.26.18
-        for <linux-mm@kvack.org>;
-        Wed, 11 May 2016 14:26:18 -0700 (PDT)
-Date: Wed, 11 May 2016 17:26:16 -0400
-From: Mike Marciniszyn <mike.marciniszyn@intel.com>
-Subject: Re: [1/1] mm: thp: calculate the mapcount correctly for THP pages during WP faults
-Message-ID: <20160511212552.GA20578@phlsvsds.ph.intel.com>
-References: <1462908082-12657-1-git-send-email-aarcange@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 5C53B6B0005
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 17:56:34 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id zy2so91125389pac.1
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 14:56:34 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id to9si12571089pab.69.2016.05.11.14.56.32
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 11 May 2016 14:56:33 -0700 (PDT)
+Subject: Re: x86_64 Question: Are concurrent IPI requests safe?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20160511133928.GF3192@twins.programming.kicks-ass.net>
+	<201605112309.AGJ18252.tOFMFQOJFLSOVH@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.11.1605111631430.3540@nanos>
+	<201605120019.CGI60411.OJSLHFQFtVMOOF@I-love.SAKURA.ne.jp>
+	<20160511174630.GI3192@twins.programming.kicks-ass.net>
+In-Reply-To: <20160511174630.GI3192@twins.programming.kicks-ass.net>
+Message-Id: <201605120656.BHB73494.tOFMOFOLFQHVJS@I-love.SAKURA.ne.jp>
+Date: Thu, 12 May 2016 06:56:25 +0900
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1462908082-12657-1-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-rdma@vger.kernel.org
+To: peterz@infradead.org
+Cc: tglx@linutronix.de, mingo@kernel.org, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
->
->Reviewed-by: "Kirill A. Shutemov" <kirill@shutemov.name>
->Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
->
+Peter Zijlstra wrote:
+> On Thu, May 12, 2016 at 12:19:07AM +0900, Tetsuo Handa wrote:
+> > Well, I came to feel that this is caused by down_write_killable() bug.
+> > I guess we should fix down_write_killable() bug first.
+> 
+> There's a patch you can try in that thread...
+> 
+>   lkml.kernel.org/r/20160511094128.GB3190@twins.programming.kicks-ass.net
+> 
 
-Our RDMA tests are seeing an issue with memory locking that bisects to
-commit 61f5d698cc97 ("mm: re-enable THP").
-
-The test program registers two rather large MRs (512M) and RDMA writes
-data to a passive peer using the first and RDMA reads it back into the
-second MR and compares that data.  The sizes are chosen randomly between
-0 and 1024 bytes.
-
-The test will get through a few (<= 4 iterations) and then gets a compare error.
-
-Tracing indicates the kernel logical addresses associated with the individual
-pages at registration ARE correct , the data in the "RDMA read response only"
-packets ARE correct.
-
-The a??corruptiona?? occurs when the packet crosse two pages that are not
-physically contiguous.   The second page reads back as zero in the program.
-
-It looks like the user VA at the point of the compare error no longer points
-to the same physical address as was registered.  
-
-This patch totally resolves the issue!
-
-Tested-by: Mike Marciniszyn <mike.marciniszy@intel.com>
-Tested-by: Josh Collier <josh.d.collier@intel.com>
+OK. Applying that patch on next-20160511 seems to fix this problem.
+Please send it to linux-next tree. Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
