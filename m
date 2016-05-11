@@ -1,86 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DCE7E6B0005
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 02:40:22 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r12so33420888wme.0
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 23:40:22 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id g129si36684167wmd.47.2016.05.10.23.40.21
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 41B3B6B0253
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 03:12:03 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b203so69347396pfb.1
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 00:12:03 -0700 (PDT)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id j7si7902433paj.199.2016.05.11.00.12.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 May 2016 23:40:21 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id w143so7390619wmw.3
-        for <linux-mm@kvack.org>; Tue, 10 May 2016 23:40:21 -0700 (PDT)
-Date: Wed, 11 May 2016 08:40:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] Documentation/memcg: update kmem limit doc as codes
- behavior
-Message-ID: <20160511064018.GB16677@dhcp22.suse.cz>
-References: <572B0105.50503@huawei.com>
- <20160505083221.GD4386@dhcp22.suse.cz>
- <5732CC23.2060101@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5732CC23.2060101@huawei.com>
+        Wed, 11 May 2016 00:12:02 -0700 (PDT)
+Received: by mail-pa0-x243.google.com with SMTP id gh9so2957008pac.0
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 00:12:02 -0700 (PDT)
+Message-ID: <1462950715.20338.3.camel@gmail.com>
+Subject: Re: [v2,2/2] powerpc/mm: Ensure "special" zones are empty
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Wed, 11 May 2016 17:11:55 +1000
+In-Reply-To: <3r3fQw4Xbnz9t79@ozlabs.org>
+References: <3r3fQw4Xbnz9t79@ozlabs.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qiang Huang <h.huangqiang@huawei.com>
-Cc: corbet@lwn.net, tj@kernel.org, Zefan Li <lizefan@huawei.com>, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Michael Ellerman <mpe@ellerman.id.au>, Oliver O'Halloran <oohall@gmail.com>, linuxppc-dev@lists.ozlabs.org
+Cc: linux-mm@kvack.org
 
-On Wed 11-05-16 14:07:31, Qiang Huang wrote:
-> The restriction of kmem setting is not there anymore because the
-> accounting is enabled by default even in the cgroup v1 - see
-> b313aeee2509 ("mm: memcontrol: enable kmem accounting for all
-> cgroups in the legacy hierarchy").
-> 
-> Update docs accordingly.
+On Tue, 2016-05-10 at 09:55 +1000, Michael Ellerman wrote:
+> On Thu, 2016-05-05 at 07:54:09 UTC, Oliver O'Halloran wrote:
+> >A 
+> > The mm zone mechanism was traditionally used by arch specific code to
+> > partition memory into allocation zones. However there are several zones
+> > that are managed by the mm subsystem rather than the architecture. Most
+> > architectures set the max PFN of these special zones to zero, however on
+> > powerpc we set them to ~0ul. This, in conjunction with a bug in
+> > free_area_init_nodes() results in all of system memory being placed in
+> > ZONE_DEVICE when enabled. Device memory cannot be used for regular kernel
+> > memory allocations so this will cause a kernel panic at boot.
+> This is breaking my freescale machine:
+>A 
+> A  Sorting __ex_table...
+> A  Unable to handle kernel paging request for data at address 0xc000000101e28020
+> A  Faulting instruction address: 0xc0000000009ab698
+> A  cpu 0x0: Vector: 300 (Data Access) at [c000000000acbb30]
+> A A A A A A pc: c0000000009ab698: .reserve_bootmem_region+0x64/0x8c
+> A A A A A A lr: c0000000009883d0: .free_all_bootmem+0x70/0x200
+> A A A A A A sp: c000000000acbdb0
+> A A A A A msr: 80021000
+> A A A A A dar: c000000101e28020
+> A A A dsisr: 800000
+> A A A A current = 0xc000000000a07640
+> A A A A pacaA A A A = 0xc00000003fff5000	A softe: 0	A irq_happened: 0x01
+> A A A A A A pidA A A = 0, comm = swapper
+> A  Linux version 4.6.0-rc3-00160-gc09920947f23 (michael@ka1) (gcc version 5.3.0 (GCC) ) #5 SMP Tue May 10 09:44:11 AEST 2016
+> A  enter ? for help
+> A  [link registerA A A ] c0000000009883d0 .free_all_bootmem+0x70/0x200
+> A  [c000000000acbdb0] c000000000988398 .free_all_bootmem+0x38/0x200 (unreliable)
+> A  [c000000000acbe80] c00000000097b700 .mem_init+0x5c/0x7c
+> A  [c000000000acbef0] c000000000971a0c .start_kernel+0x28c/0x4e4
+> A  [c000000000acbf90] c000000000000544 start_here_common+0x20/0x5c
+> A  0:mon> ?A 
+>A 
+> I can give you access some time if you need to debug it.
+>A 
 
-I am pretty sure there will be other things out of date in that file but
-this is an improvemtn already.
 
-> Signed-off-by: Qiang Huang <h.huangqiang@huawei.com>
+Could you also please post the bits on the boot containing the zone
+and node information. That would provide some information about what
+is broken. Or you could just send the whole dmesg
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
-
-> ---
->  Documentation/cgroup-v1/memory.txt | 14 +++-----------
->  1 file changed, 3 insertions(+), 11 deletions(-)
-> 
-> diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
-> index ff71e16..b14abf2 100644
-> --- a/Documentation/cgroup-v1/memory.txt
-> +++ b/Documentation/cgroup-v1/memory.txt
-> @@ -280,17 +280,9 @@ the amount of kernel memory used by the system. Kernel memory is fundamentally
->  different than user memory, since it can't be swapped out, which makes it
->  possible to DoS the system by consuming too much of this precious resource.
->  
-> -Kernel memory won't be accounted at all until limit on a group is set. This
-> -allows for existing setups to continue working without disruption.  The limit
-> -cannot be set if the cgroup have children, or if there are already tasks in the
-> -cgroup. Attempting to set the limit under those conditions will return -EBUSY.
-> -When use_hierarchy == 1 and a group is accounted, its children will
-> -automatically be accounted regardless of their limit value.
-> -
-> -After a group is first limited, it will be kept being accounted until it
-> -is removed. The memory limitation itself, can of course be removed by writing
-> --1 to memory.kmem.limit_in_bytes. In this case, kmem will be accounted, but not
-> -limited.
-> +Kernel memory accounting is enabled for all memory cgroups by default. But
-> +it can be disabled system-wide by passing cgroup.memory=nokmem to the kernel
-> +at boot time. In this case, kernel memory will not be accounted at all.
->  
->  Kernel memory limits are not imposed for the root cgroup. Usage for the root
->  cgroup may or may not be accounted. The memory used is accumulated into
-> -- 
-> 2.5.0
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Balbir Singh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
