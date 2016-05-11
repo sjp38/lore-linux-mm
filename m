@@ -1,59 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B77C06B0253
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 09:31:09 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id 68so5958946lfq.2
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 06:31:09 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.10])
-        by mx.google.com with ESMTPS id y9si9426801wje.220.2016.05.11.06.31.08
+Received: from mail-ig0-f198.google.com (mail-ig0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 325ED6B0253
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 09:39:33 -0400 (EDT)
+Received: by mail-ig0-f198.google.com with SMTP id kj7so83317371igb.3
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 06:39:33 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id bg5si8880554igb.68.2016.05.11.06.39.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 May 2016 06:31:08 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH] mm, compaction: avoid uninitialized variable use
-Date: Wed, 11 May 2016 15:24:44 +0200
-Message-Id: <1462973126-1183468-1-git-send-email-arnd@arndb.de>
+        Wed, 11 May 2016 06:39:32 -0700 (PDT)
+Date: Wed, 11 May 2016 15:39:28 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: x86_64 Question: Are concurrent IPI requests safe?
+Message-ID: <20160511133928.GF3192@twins.programming.kicks-ass.net>
+References: <201605061958.HHG48967.JVFtSLFQOFOOMH@I-love.SAKURA.ne.jp>
+ <201605092354.AHF82313.FtQFOMVOFJLOSH@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.11.1605091853130.3540@nanos>
+ <201605112219.HEB64012.FLQOFMJOVOtFHS@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201605112219.HEB64012.FLQOFMJOVOtFHS@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: tglx@linutronix.de, mingo@kernel.org, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-A recent rework of the compaction code introduced a warning about
-an uninitialized variable when CONFIG_COMPACTION is disabled and
-__alloc_pages_direct_compact() does not set its 'compact_result'
-output argument:
+On Wed, May 11, 2016 at 10:19:16PM +0900, Tetsuo Handa wrote:
+> [  180.434659] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
 
-mm/page_alloc.c: In function '__alloc_pages_nodemask':
-mm/page_alloc.c:3651:6: error: 'compact_result' may be used uninitialized in this function [-Werror=maybe-uninitialized]
-
-This adds another check for CONFIG_COMPACTION to ensure we never
-evaluate the uninitialized variable in this configuration, which
-is probably the simplest way to avoid the warning.
-
-A more elaborate rework might make this more readable.
-
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-Fixes: 13cff7b81275 ("mm, compaction: simplify __alloc_pages_direct_compact feedback interface")
----
- mm/page_alloc.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 477d9382f70d..bedadc686a22 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3640,7 +3640,8 @@ retry:
- 		goto got_pg;
- 
- 	/* Checks for THP-specific high-order allocations */
--	if (is_thp_gfp_mask(gfp_mask)) {
-+	if (IS_ENABLED(CONFIG_COMPACTION) &&
-+		is_thp_gfp_mask(gfp_mask)) {
- 		/*
- 		 * If compaction is deferred for high-order allocations, it is
- 		 * because sync compaction recently failed. If this is the case
--- 
-2.7.0
+can you reproduce on real hardware?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
