@@ -1,43 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5464D6B0260
-	for <linux-mm@kvack.org>; Wed, 11 May 2016 10:09:30 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id fk7so13119854obb.0
-        for <linux-mm@kvack.org>; Wed, 11 May 2016 07:09:30 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id m20si5238744ita.72.2016.05.11.07.09.29
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BDD86B0005
+	for <linux-mm@kvack.org>; Wed, 11 May 2016 10:30:55 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e201so43872898wme.1
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 07:30:55 -0700 (PDT)
+Received: from mail-lf0-x232.google.com (mail-lf0-x232.google.com. [2a00:1450:4010:c07::232])
+        by mx.google.com with ESMTPS id n87si6118239lfg.247.2016.05.11.07.30.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 May 2016 07:09:29 -0700 (PDT)
-Subject: Re: x86_64 Question: Are concurrent IPI requests safe?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201605061958.HHG48967.JVFtSLFQOFOOMH@I-love.SAKURA.ne.jp>
-	<201605092354.AHF82313.FtQFOMVOFJLOSH@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.11.1605091853130.3540@nanos>
-	<201605112219.HEB64012.FLQOFMJOVOtFHS@I-love.SAKURA.ne.jp>
-	<20160511133928.GF3192@twins.programming.kicks-ass.net>
-In-Reply-To: <20160511133928.GF3192@twins.programming.kicks-ass.net>
-Message-Id: <201605112309.AGJ18252.tOFMFQOJFLSOVH@I-love.SAKURA.ne.jp>
-Date: Wed, 11 May 2016 23:09:21 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 May 2016 07:30:54 -0700 (PDT)
+Received: by mail-lf0-x232.google.com with SMTP id u64so51707719lff.3
+        for <linux-mm@kvack.org>; Wed, 11 May 2016 07:30:53 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <57331368.9070101@virtuozzo.com>
+References: <1462887534-30428-1-git-send-email-aryabinin@virtuozzo.com>
+	<CAG_fn=UdD=gvFXOSMh3b+PzHerh6HD0ydrDYTEeXf1gPgMuBZw@mail.gmail.com>
+	<57331368.9070101@virtuozzo.com>
+Date: Wed, 11 May 2016 16:30:53 +0200
+Message-ID: <CAG_fn=Xuv_b7k9VCPu=93Ats6eG6LvJn9cFDW75D=_OD=eawQw@mail.gmail.com>
+Subject: Re: [PATCH] mm-kasan-initial-memory-quarantine-implementation-v8-fix
+From: Alexander Potapenko <glider@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org
-Cc: tglx@linutronix.de, mingo@kernel.org, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>
 
-Peter Zijlstra wrote:
-> On Wed, May 11, 2016 at 10:19:16PM +0900, Tetsuo Handa wrote:
-> > [  180.434659] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-> 
-> can you reproduce on real hardware?
-> 
-Unfortunately, I don't have a real hardware to run development kernels.
+On Wed, May 11, 2016 at 1:11 PM, Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
+> On 05/11/2016 01:18 PM, Alexander Potapenko wrote:
+>> On Tue, May 10, 2016 at 3:38 PM, Andrey Ryabinin
+>> <aryabinin@virtuozzo.com> wrote:
+>>>  * Fix comment styles,
+>>  yDid you remove the comments from include/linux/kasan.h because they
+>> were put inconsistently, or was there any other reason?
+>
+> We usually comment functions near definition, not declarations.
+> If you like, put comment back. Just place it near definition.
+>
+>>>  * Get rid of some ifdefs
+>> Thanks!
+>>>  * Revert needless functions renames in quarantine patch
+>> I believe right now the names are somewhat obscure. I agree however
+>> the change should be done in a separate patch.
+>
+> Besides that, I didn't like the fact that you made names longer and excee=
+ded
+> 80-char limit in some places.
+>
+>>>  * Remove needless local_irq_save()/restore() in per_cpu_remove_cache()
+>> Ack
+>>>  * Add new 'struct qlist_node' instead of 'void **' types. This makes
+>>>    code a bit more redable.
+>> Nice, thank you!
+>>
+>> How do I incorporate your changes? Is it ok if I merge it with the
+>> next version of my patch and add a "Signed-off-by: Andrey Ryabinin
+>> <aryabinin@virtuozzo.com>" line to the description?
+>>
+>
+> Ok, but I don't think that this is matters. Andrew will just craft a diff=
+ patch
+> on top of the current code anyways.
+> Or you can make such diff by yourself and send it, it's easier to review,=
+ after all.
+>
+The kernel crashed for me when I applied your patch.
 
-My Linux environment is limited to 4 CPUs / 1024MB or 2048MB RAM running
-as a VMware guest on Windows. Can somebody try KVM environment with
-4 CPUs / 1024MB or 2048MB RAM whith partition only plain /dev/sda1
-formatted as XFS?
+I also had to make the following change:
+
++++ b/mm/kasan/quarantine.c
+@@ -245,7 +245,7 @@ static void qlist_move_cache(struct qlist_head *from,
+
+        prev =3D from->head;
+        while (prev) {
+-               struct qlist_node *qlink =3D prev->next;
++               struct qlist_node *qlink =3D prev;
+                struct kmem_cache *obj_cache =3D qlink_to_cache(qlink);
+
+                if (obj_cache =3D=3D cache) {
+
+
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
