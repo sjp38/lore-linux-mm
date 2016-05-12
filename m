@@ -1,51 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 011FF6B007E
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 04:41:42 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id 68so20051175lfq.2
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 01:41:41 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 71si44108187wmr.122.2016.05.12.01.41.40
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E02C6B0005
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 05:29:26 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id xm6so97536247pab.3
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 02:29:26 -0700 (PDT)
+Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
+        by mx.google.com with ESMTPS id q6si10661329pfb.220.2016.05.12.02.29.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 May 2016 01:41:40 -0700 (PDT)
-Date: Thu, 12 May 2016 10:41:38 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v7 4/6] dax: export a low-level __dax_zero_page_range
- helper
-Message-ID: <20160512084138.GC10306@quack2.suse.cz>
-References: <1463000932-31680-1-git-send-email-vishal.l.verma@intel.com>
- <1463000932-31680-5-git-send-email-vishal.l.verma@intel.com>
+        Thu, 12 May 2016 02:29:25 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm: fix pfn spans two sections in has_unmovable_pages()
+Date: Thu, 12 May 2016 09:27:43 +0000
+Message-ID: <20160512092743.GA1165@hori1.linux.bs1.fc.nec.co.jp>
+References: <57304B9A.40504@huawei.com> <57305AD8.9090202@suse.cz>
+ <57306038.1070907@huawei.com>
+In-Reply-To: <57306038.1070907@huawei.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <9A74C2AE01358146B0E52D714334A235@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1463000932-31680-5-git-send-email-vishal.l.verma@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vishal Verma <vishal.l.verma@intel.com>
-Cc: linux-nvdimm@lists.01.org, Christoph Hellwig <hch@lst.de>, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@fb.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Boaz Harrosh <boaz@plexistor.com>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Alexander Duyck <alexander.h.duyck@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 11-05-16 15:08:50, Vishal Verma wrote:
-> From: Christoph Hellwig <hch@lst.de>
-> 
-> This allows XFS to perform zeroing using the iomap infrastructure and
-> avoid buffer heads.
-> 
-> [vishal: fix conflicts with dax-error-handling]
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
+On Mon, May 09, 2016 at 06:02:32PM +0800, Xishi Qiu wrote:
+> On 2016/5/9 17:39, Vlastimil Babka wrote:
+>=20
+> > On 05/09/2016 10:34 AM, Xishi Qiu wrote:
+> >> If the pfn is not aligned to pageblock, the check pfn may access a nex=
+t
+> >> pageblcok, and the next pageblock may belong to a next section. Becaus=
+e
+> >> struct page has not been alloced in the next section, so kernel panic.
+> >>
+> >> I find the caller of has_unmovable_pages() has passed a aligned pfn, s=
+o it
+> >> doesn't have this problem. But the earlier kernel version(e.g. v3.10) =
+has.
+> >> e.g. echo xxx > /sys/devices/system/memory/soft_offline_page could tri=
+gger
+> >> it. The following log is from RHEL v7.1
+> >=20
+> > I think has_unmovable_pages() is wrong layer where to fix such problem,=
+ as I'll explain below.
+> >=20
+> >> [14111.611492] Stack:
+> >> [14111.611494] ffffffff8115d952 0000000000000000 01ff880c393ebe40 ffff=
+880c7ffd9000
+> >> [14111.611500] ffffea0061ffffc0 ffff880c7ffd9068 0000000000000286 0000=
+000000000001
+> >> [14111.611505] ffff880c393ebe10 ffffffff811c265a 000000000187ffff 0000=
+000000000200
+> >> [14111.611511] Call Trace:
+> >> [14111.611516] [<ffffffff8115d952>] ? has_unmovable_pages+0xd2/0x130
+> >> [14111.611521] [<ffffffff811c265a>] set_migratetype_isolate+0xda/0x170
+> >> [14111.611526] [<ffffffff811c187a>] soft_offline_page+0x9a/0x590
+> >> [14111.611530] [<ffffffff812e7cab>] ? _kstrtoull+0x3b/0xa0
+> >> [14111.611535] [<ffffffff813e158f>] store_soft_offline_page+0xaf/0xf0
+> >> [14111.611539] [<ffffffff813cae18>] dev_attr_store+0x18/0x30
+> >> [14111.611544] [<ffffffff8123c046>] sysfs_write_file+0xc6/0x140
+> >> [14111.611548] [<ffffffff811c5b5d>] vfs_write+0xbd/0x1e0
+> >> [14111.611551] [<ffffffff811c65a8>] SyS_write+0x58/0xb0
+> >> [14111.611556] [<ffffffff8160f509>] system_call_fastpath+0x16/0x1b
+> >> [14111.611559] Code: 66 66 66 90 48 83 e0 fd 0c a0 5d c3 66 2e 0f 1f 8=
+4 00 00 00 00 00 48 89 f8 66 66 66 90 48 83 c8 42 0c a0 5d c3 90 66 66 66 6=
+6 90 <8b> 07 25 00 c0 00 00 75 02 f3 c3 48 8b 07 f6 c4 80 75 0f 48 81
+> >> [14111.611594] RIP [<ffffffff81199fc5>] PageHuge+0x5/0x40
+> >> [14111.611598] RSP <ffff880c393ebd80>
+> >> [14111.611600] CR2: ffffea0062000000
+> >> [14111.611604] ---[ end trace 9f780ed1def334c6 ]---
+> >> [14111.678586] Kernel panic - not syncing: Fatal exception
+> >>
+> >> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> >=20
+> > It's not CC'd stable, so how will this patch fix the older kernels? Als=
+o you should determine which upstream kernel versions are affected, not a R=
+HEL derivative.
+> > Also is the current upstream broken or not?
+> >=20
+>=20
+> OK, I'll resend it later. The current upstream has not this problem.
 
-Looks good. You can add:
+This is because soft offline has stopped changing migratetype at commit
+add05cecef80 ("mm: soft-offline: don't free target page in successful
+page migration") (or v4.1-3344-gadd05cecef80).
+# And the fix is available in RHEL7.2, but unfortunately not in RHEL7.1.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-BTW: You are supposed to add your Signed-off-by when forwarding patches
-like this...
-
-								Honza
-
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
