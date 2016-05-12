@@ -1,39 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9072E6B0005
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 16:13:31 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id gw7so120321187pac.0
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 13:13:31 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id x190si19315597pfx.222.2016.05.12.13.13.30
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 May 2016 13:13:30 -0700 (PDT)
-Date: Thu, 12 May 2016 13:13:28 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/19] get rid of superfluous __GFP_REPEAT
-Message-Id: <20160512131328.b2b45b2f6b6847b882286424@linux-foundation.org>
-In-Reply-To: <20160512165310.GB4940@dhcp22.suse.cz>
-References: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
-	<20160512165310.GB4940@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C56FA6B0005
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 19:41:21 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b203so174422380pfb.1
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 16:41:21 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id ey9si20609425pab.123.2016.05.12.16.41.20
+        for <linux-mm@kvack.org>;
+        Thu, 12 May 2016 16:41:20 -0700 (PDT)
+Date: Fri, 13 May 2016 08:41:43 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] zram: introduce per-device debug_stat sysfs node
+Message-ID: <20160512234143.GA27204@bbox>
+References: <20160511134553.12655-1-sergey.senozhatsky@gmail.com>
+MIME-Version: 1.0
+In-Reply-To: <20160511134553.12655-1-sergey.senozhatsky@gmail.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Chen Liqin <liqin.linux@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Heiko Carstens <heiko.carstens@de.ibm.com>, Helge Deller <deller@gmx.de>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, John Crispin <blogic@openwrt.org>, Lennox Wu <lennox.wu@gmail.com>, Ley Foon Tan <lftan@altera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Fleming <matt@codeblueprint.co.uk>, Mikulas Patocka <mpatocka@redhat.com>, Rich Felker <dalias@libc.org>, Russell King <linux@arm.linux.org.uk>, Shaohua Li <shli@kernel.org>, Theodore Ts'o <tytso@mit.edu>, Thomas Gleixner <tglx@linutronix.de>, Vineet Gupta <vgupta@synopsys.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Thu, 12 May 2016 18:53:11 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+Hello Sergey,
 
-> Andrew,
-> do you think this should go in in the next merge window or should I
-> repost after rc1 is out? I do not mind one way or the other. I would
-> obviously would like to get them in sooner rather than later but I can
-> certainly live with these wait a bit longer.
+On Wed, May 11, 2016 at 10:45:53PM +0900, Sergey Senozhatsky wrote:
+> debug_stat sysfs is read-only and represents various debugging
+> data that zram developers may need. This file is not meant to be
+> used by anyone else: its content is not documented and will change
+> any time w/o any notice. Therefore, the output of debug_stat file
+> contains a version string. To reduce the possibility of contusion,
 
-Yup, after -rc1 would suit.  Or resend them now and I'll queue them for
-4.7-rc2.
+                                                          confusion
+
+> etc. we would increase the version number every time we modify
+> the output.
+> 
+> At the moment this file exports only one value -- the number of
+> re-compressions, IOW, the number of times compression fast path
+> has failed; which is a temporarily stats, that we will be using
+> should any per-cpu regressions happen. It's excepted to go away.
+ 
+                                              expected
+
+> 
+> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> ---
+>  Documentation/ABI/testing/sysfs-block-zram |  7 +++++++
+>  Documentation/blockdev/zram.txt            |  1 +
+>  drivers/block/zram/zram_drv.c              | 21 +++++++++++++++++++++
+>  drivers/block/zram/zram_drv.h              |  1 +
+>  4 files changed, 30 insertions(+)
+> 
+> diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
+> index 2e69e83..740aada 100644
+> --- a/Documentation/ABI/testing/sysfs-block-zram
+> +++ b/Documentation/ABI/testing/sysfs-block-zram
+> @@ -166,3 +166,10 @@ Description:
+>  		The mm_stat file is read-only and represents device's mm
+>  		statistics (orig_data_size, compr_data_size, etc.) in a format
+>  		similar to block layer statistics file format.
+> +
+> +What:		/sys/block/zram<id>/debug_stat
+> +Date:		July 2016
+> +Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> +Description:
+> +		The debug_stat file is read-only and represents various
+> +		device's debugging info.
+                                        for zram kernel developer so
+
+                content is not documented for userspace intentionally
+                and will change anytime without any notice.
+
+would be more clear to waste user's time to read this. :)
+
+
+> diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
+> index d88f0c7..13100fb 100644
+> --- a/Documentation/blockdev/zram.txt
+> +++ b/Documentation/blockdev/zram.txt
+> @@ -172,6 +172,7 @@ mem_limit         RW    the maximum amount of memory ZRAM can use to store
+>  pages_compacted   RO    the number of pages freed during compaction
+>                          (available only via zram<id>/mm_stat node)
+>  compact           WO    trigger memory compaction
+> +debug_stat        RO    this file is used for zram debugging purposes
+>  
+>  WARNING
+>  =======
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index 8fcfbeb..a629bd8d 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -435,8 +435,26 @@ static ssize_t mm_stat_show(struct device *dev,
+>  	return ret;
+>  }
+>  
+> +static ssize_t debug_stat_show(struct device *dev,
+> +		struct device_attribute *attr, char *buf)
+> +{
+> +	unsigned int version = 1;
+> +	struct zram *zram = dev_to_zram(dev);
+> +	ssize_t ret;
+> +
+> +	down_read(&zram->init_lock);
+> +	ret = scnprintf(buf, PAGE_SIZE,
+> +			"version: %d\n%8llu\n",
+> +			version,
+> +			(u64)atomic64_read(&zram->stats.num_recompress));
+> +	up_read(&zram->init_lock);
+> +
+> +	return ret;
+> +}
+> +
+>  static DEVICE_ATTR_RO(io_stat);
+>  static DEVICE_ATTR_RO(mm_stat);
+> +static DEVICE_ATTR_RO(debug_stat);
+>  ZRAM_ATTR_RO(num_reads);
+>  ZRAM_ATTR_RO(num_writes);
+>  ZRAM_ATTR_RO(failed_reads);
+> @@ -719,6 +737,8 @@ compress_again:
+>  		zcomp_strm_release(zram->comp, zstrm);
+>  		zstrm = NULL;
+>  
+> +		atomic64_inc(&zram->stats.num_recompress);
+> +
+
+It should be below "goto compress_again".
+
+Other than that,
+
+Acked-by: Minchan Kim <minchan@kernel.org>
+
+Thanks!
+
+
+>  		handle = zs_malloc(meta->mem_pool, clen,
+>  				GFP_NOIO | __GFP_HIGHMEM);
+>  		if (handle)
+> @@ -1181,6 +1201,7 @@ static struct attribute *zram_disk_attrs[] = {
+>  	&dev_attr_comp_algorithm.attr,
+>  	&dev_attr_io_stat.attr,
+>  	&dev_attr_mm_stat.attr,
+> +	&dev_attr_debug_stat.attr,
+>  	NULL,
+>  };
+>  
+> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+> index 06b1636..1fb45f7 100644
+> --- a/drivers/block/zram/zram_drv.h
+> +++ b/drivers/block/zram/zram_drv.h
+> @@ -85,6 +85,7 @@ struct zram_stats {
+>  	atomic64_t zero_pages;		/* no. of zero filled pages */
+>  	atomic64_t pages_stored;	/* no. of pages currently stored */
+>  	atomic_long_t max_used_pages;	/* no. of maximum pages stored */
+> +	atomic64_t num_recompress;	/* no. of compression slow paths */
+>  };
+>  
+>  struct zram_meta {
+> -- 
+> 2.8.2.372.g63a3502
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
