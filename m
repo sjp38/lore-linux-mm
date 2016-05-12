@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 38BA0828DF
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D4D94828DF
 	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:48:43 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id xm6so109835105pab.3
+Received: by mail-pf0-f200.google.com with SMTP id 203so152345295pfy.2
         for <linux-mm@kvack.org>; Thu, 12 May 2016 08:48:43 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ae8si18334767pac.110.2016.05.12.08.41.48
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id vy4si18289353pab.231.2016.05.12.08.41.37
         for <linux-mm@kvack.org>;
-        Thu, 12 May 2016 08:41:48 -0700 (PDT)
+        Thu, 12 May 2016 08:41:37 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv8 06/32] mm: introduce do_set_pmd()
-Date: Thu, 12 May 2016 18:40:46 +0300
-Message-Id: <1463067672-134698-7-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv8 18/32] radix-tree: implement radix_tree_maybe_preload_order()
+Date: Thu, 12 May 2016 18:40:58 +0300
+Message-Id: <1463067672-134698-19-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,159 +19,167 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With postponed page table allocation we have chance to setup huge pages.
-do_set_pte() calls do_set_pmd() if following criteria met:
+The new helper is similar to radix_tree_maybe_preload(), but tries to
+preload number of nodes required to insert (1 << order) continuous
+naturally-aligned elements.
 
- - page is compound;
- - pmd entry in pmd_none();
- - vma has suitable size and alignment;
+This is required to push huge pages into pagecache.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/huge_mm.h |  2 ++
- mm/huge_memory.c        |  8 ------
- mm/memory.c             | 72 ++++++++++++++++++++++++++++++++++++++++++++++++-
- mm/migrate.c            |  3 +--
- 4 files changed, 74 insertions(+), 11 deletions(-)
+ include/linux/radix-tree.h |  1 +
+ lib/radix-tree.c           | 68 ++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 61 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 05efca1619b6..95f83770443c 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -142,6 +142,8 @@ static inline bool is_huge_zero_pmd(pmd_t pmd)
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 51a97ac8bfbf..b6e73ea314d9 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -296,6 +296,7 @@ unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
+ 			unsigned long first_index, unsigned int max_items);
+ int radix_tree_preload(gfp_t gfp_mask);
+ int radix_tree_maybe_preload(gfp_t gfp_mask);
++int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order);
+ void radix_tree_init(void);
+ void *radix_tree_tag_set(struct radix_tree_root *root,
+ 			unsigned long index, unsigned int tag);
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 1624c4117961..448abbf04e87 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -42,6 +42,9 @@
+  */
+ static unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH + 1] __read_mostly;
  
- struct page *get_huge_zero_page(void);
- 
-+#define mk_huge_pmd(page, prot) pmd_mkhuge(mk_pmd(page, prot))
++/* Number of nodes in fully populated tree of given height */
++static unsigned long height_to_maxnodes[RADIX_TREE_MAX_PATH + 1] __read_mostly;
 +
- #else /* CONFIG_TRANSPARENT_HUGEPAGE */
- #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
- #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index aab10c81de12..cece53a94192 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -793,14 +793,6 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
- 	return pmd;
- }
- 
--static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
--{
--	pmd_t entry;
--	entry = mk_pmd(page, prot);
--	entry = pmd_mkhuge(entry);
--	return entry;
--}
--
- static inline struct list_head *page_deferred_list(struct page *page)
+ /*
+  * Radix tree node cache.
+  */
+@@ -296,7 +299,7 @@ radix_tree_node_free(struct radix_tree_node *node)
+  * To make use of this facility, the radix tree must be initialised without
+  * __GFP_DIRECT_RECLAIM being passed to INIT_RADIX_TREE().
+  */
+-static int __radix_tree_preload(gfp_t gfp_mask)
++static int __radix_tree_preload(gfp_t gfp_mask, int nr)
  {
- 	/*
-diff --git a/mm/memory.c b/mm/memory.c
-index 49c55446576a..ca45e9b19ad9 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2859,6 +2859,66 @@ map_pte:
+ 	struct radix_tree_preload *rtp;
+ 	struct radix_tree_node *node;
+@@ -304,14 +307,14 @@ static int __radix_tree_preload(gfp_t gfp_mask)
+ 
+ 	preempt_disable();
+ 	rtp = this_cpu_ptr(&radix_tree_preloads);
+-	while (rtp->nr < RADIX_TREE_PRELOAD_SIZE) {
++	while (rtp->nr < nr) {
+ 		preempt_enable();
+ 		node = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
+ 		if (node == NULL)
+ 			goto out;
+ 		preempt_disable();
+ 		rtp = this_cpu_ptr(&radix_tree_preloads);
+-		if (rtp->nr < RADIX_TREE_PRELOAD_SIZE) {
++		if (rtp->nr < nr) {
+ 			node->private_data = rtp->nodes;
+ 			rtp->nodes = node;
+ 			rtp->nr++;
+@@ -337,7 +340,7 @@ int radix_tree_preload(gfp_t gfp_mask)
+ {
+ 	/* Warn on non-sensical use... */
+ 	WARN_ON_ONCE(!gfpflags_allow_blocking(gfp_mask));
+-	return __radix_tree_preload(gfp_mask);
++	return __radix_tree_preload(gfp_mask, RADIX_TREE_PRELOAD_SIZE);
+ }
+ EXPORT_SYMBOL(radix_tree_preload);
+ 
+@@ -349,7 +352,7 @@ EXPORT_SYMBOL(radix_tree_preload);
+ int radix_tree_maybe_preload(gfp_t gfp_mask)
+ {
+ 	if (gfpflags_allow_blocking(gfp_mask))
+-		return __radix_tree_preload(gfp_mask);
++		return __radix_tree_preload(gfp_mask, RADIX_TREE_PRELOAD_SIZE);
+ 	/* Preloading doesn't help anything with this gfp mask, skip it */
+ 	preempt_disable();
  	return 0;
+@@ -357,6 +360,51 @@ int radix_tree_maybe_preload(gfp_t gfp_mask)
+ EXPORT_SYMBOL(radix_tree_maybe_preload);
+ 
+ /*
++ * The same as function above, but preload number of nodes required to insert
++ * (1 << order) continuous naturally-aligned elements.
++ */
++int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
++{
++	unsigned long nr_subtrees;
++	int nr_nodes, subtree_height;
++
++	/* Preloading doesn't help anything with this gfp mask, skip it */
++	if (!gfpflags_allow_blocking(gfp_mask)) {
++		preempt_disable();
++		return 0;
++	}
++
++	/*
++	 * Calculate number and height of fully populated subtrees it takes to
++	 * store (1 << order) elements.
++	 */
++	nr_subtrees = 1 << order;
++	for (subtree_height = 0; nr_subtrees > RADIX_TREE_MAP_SIZE;
++			subtree_height++)
++		nr_subtrees >>= RADIX_TREE_MAP_SHIFT;
++
++	/*
++	 * The worst case is zero height tree with a single item at index 0 and
++	 * then inserting items starting at ULONG_MAX - (1 << order).
++	 *
++	 * This requires RADIX_TREE_MAX_PATH nodes to build branch from root to
++	 * 0-index item.
++	 */
++	nr_nodes = RADIX_TREE_MAX_PATH;
++
++	/* Plus branch to fully populated subtrees. */
++	nr_nodes += RADIX_TREE_MAX_PATH - subtree_height;
++
++	/* Root node is shared. */
++	nr_nodes--;
++
++	/* Plus nodes required to build subtrees. */
++	nr_nodes += nr_subtrees * height_to_maxnodes[subtree_height];
++
++	return __radix_tree_preload(gfp_mask, nr_nodes);
++}
++
++/*
+  *	Return the maximum key which can be store into a
+  *	radix tree with height HEIGHT.
+  */
+@@ -1576,12 +1624,16 @@ static __init unsigned long __maxindex(unsigned int height)
+ 	return ~0UL >> shift;
  }
  
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+
-+#define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
-+static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
-+		unsigned long haddr)
-+{
-+	if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
-+			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
-+		return false;
-+	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
-+		return false;
-+	return true;
-+}
-+
-+static int do_set_pmd(struct fault_env *fe, struct page *page)
-+{
-+	struct vm_area_struct *vma = fe->vma;
-+	bool write = fe->flags & FAULT_FLAG_WRITE;
-+	unsigned long haddr = fe->address & HPAGE_PMD_MASK;
-+	pmd_t entry;
-+	int i, ret;
-+
-+	if (!transhuge_vma_suitable(vma, haddr))
-+		return VM_FAULT_FALLBACK;
-+
-+	ret = VM_FAULT_FALLBACK;
-+	page = compound_head(page);
-+
-+	fe->ptl = pmd_lock(vma->vm_mm, fe->pmd);
-+	if (unlikely(!pmd_none(*fe->pmd)))
-+		goto out;
-+
-+	for (i = 0; i < HPAGE_PMD_NR; i++)
-+		flush_icache_page(vma, page + i);
-+
-+	entry = mk_huge_pmd(page, vma->vm_page_prot);
-+	if (write)
-+		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-+
-+	add_mm_counter(vma->vm_mm, MM_FILEPAGES, HPAGE_PMD_NR);
-+	page_add_file_rmap(page, true);
-+
-+	set_pmd_at(vma->vm_mm, haddr, fe->pmd, entry);
-+
-+	update_mmu_cache_pmd(vma, haddr, fe->pmd);
-+
-+	/* fault is handled */
-+	ret = 0;
-+out:
-+	spin_unlock(fe->ptl);
-+	return ret;
-+}
-+#else
-+static int do_set_pmd(struct fault_env *fe, struct page *page)
-+{
-+	BUILD_BUG();
-+	return 0;
-+}
-+#endif
-+
- /**
-  * alloc_set_pte - setup new PTE entry for given page and add reverse page
-  * mapping. If needed, the fucntion allocates page table or use pre-allocated.
-@@ -2878,9 +2938,19 @@ int alloc_set_pte(struct fault_env *fe, struct mem_cgroup *memcg,
- 	struct vm_area_struct *vma = fe->vma;
- 	bool write = fe->flags & FAULT_FLAG_WRITE;
- 	pte_t entry;
-+	int ret;
-+
-+	if (pmd_none(*fe->pmd) && PageTransCompound(page)) {
-+		/* THP on COW? */
-+		VM_BUG_ON_PAGE(memcg, page);
-+
-+		ret = do_set_pmd(fe, page);
-+		if (ret != VM_FAULT_FALLBACK)
-+			return ret;
+-static __init void radix_tree_init_maxindex(void)
++static __init void radix_tree_init_arrays(void)
+ {
+-	unsigned int i;
++	unsigned int i, j;
+ 
+ 	for (i = 0; i < ARRAY_SIZE(height_to_maxindex); i++)
+ 		height_to_maxindex[i] = __maxindex(i);
++	for (i = 0; i < ARRAY_SIZE(height_to_maxnodes); i++) {
++		for (j = i; j > 0; j--)
++			height_to_maxnodes[i] += height_to_maxindex[j - 1] + 1;
 +	}
+ }
  
- 	if (!fe->pte) {
--		int ret = pte_alloc_one_map(fe);
-+		ret = pte_alloc_one_map(fe);
- 		if (ret)
- 			return ret;
- 	}
-diff --git a/mm/migrate.c b/mm/migrate.c
-index b8f8363df8da..f3f65f00448f 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1820,8 +1820,7 @@ fail_putback:
- 	}
- 
- 	orig_entry = *pmd;
--	entry = mk_pmd(new_page, vma->vm_page_prot);
--	entry = pmd_mkhuge(entry);
-+	entry = mk_huge_pmd(new_page, vma->vm_page_prot);
- 	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
- 
- 	/*
+ static int radix_tree_callback(struct notifier_block *nfb,
+@@ -1611,6 +1663,6 @@ void __init radix_tree_init(void)
+ 			sizeof(struct radix_tree_node), 0,
+ 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
+ 			radix_tree_node_ctor);
+-	radix_tree_init_maxindex();
++	radix_tree_init_arrays();
+ 	hotcpu_notifier(radix_tree_callback, 0);
+ }
 -- 
 2.8.1
 
