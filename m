@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 846B9828E5
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:41:54 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 4so152103972pfw.0
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:41:54 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id 21si18103551pfi.15.2016.05.12.08.41.35
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C12CB828E5
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:41:56 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b203so152256579pfb.1
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:41:56 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id j19si18066987pfj.208.2016.05.12.08.41.35
         for <linux-mm@kvack.org>;
         Thu, 12 May 2016 08:41:35 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv8 28/32] khugepaged: move up_read(mmap_sem) out of khugepaged_alloc_page()
-Date: Thu, 12 May 2016 18:41:08 +0300
-Message-Id: <1463067672-134698-29-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv8 19/32] filemap: prepare find and delete operations for huge pages
+Date: Thu, 12 May 2016 18:40:59 +0300
+Message-Id: <1463067672-134698-20-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,68 +19,392 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Both variants of khugepaged_alloc_page() do up_read(&mm->mmap_sem)
-first: no point keep it inside the function.
+For now, we would have HPAGE_PMD_NR entries in radix tree for every huge
+page. That's suboptimal and it will be changed to use Matthew's
+multi-order entries later.
+
+'add' operation is not changed, because we don't need it to implement
+hugetmpfs: shmem uses its own implementation.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/khugepaged.c | 25 ++++++++++---------------
- 1 file changed, 10 insertions(+), 15 deletions(-)
+ mm/filemap.c | 187 ++++++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 134 insertions(+), 53 deletions(-)
 
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index ef229cdfe5b7..c4693fd12f76 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -736,19 +736,10 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
- }
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 7e982835d4ec..bf29ab4f87dc 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -110,43 +110,18 @@
+  *   ->tasklist_lock            (memory_failure, collect_procs_ao)
+  */
  
- static struct page *
--khugepaged_alloc_page(struct page **hpage, gfp_t gfp, struct mm_struct *mm,
--		       unsigned long address, int node)
-+khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
+-static void page_cache_tree_delete(struct address_space *mapping,
+-				   struct page *page, void *shadow)
++static void __page_cache_tree_delete(struct address_space *mapping,
++		struct radix_tree_node *node, void **slot, unsigned long index,
++		void *shadow)
  {
- 	VM_BUG_ON_PAGE(*hpage, *hpage);
- 
--	/*
--	 * Before allocating the hugepage, release the mmap_sem read lock.
--	 * The allocation can take potentially a long time if it involves
--	 * sync compaction, and we do not need to hold the mmap_sem during
--	 * that. We will recheck the vma after taking it again in write mode.
--	 */
--	up_read(&mm->mmap_sem);
+-	struct radix_tree_node *node;
+-	unsigned long index;
+-	unsigned int offset;
+ 	unsigned int tag;
+-	void **slot;
 -
- 	*hpage = __alloc_pages_node(node, gfp, HPAGE_PMD_ORDER);
- 	if (unlikely(!*hpage)) {
- 		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
-@@ -809,10 +800,8 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
+-	VM_BUG_ON(!PageLocked(page));
+ 
+-	__radix_tree_lookup(&mapping->page_tree, page->index, &node, &slot);
+-
+-	if (shadow) {
+-		mapping->nrexceptional++;
+-		/*
+-		 * Make sure the nrexceptional update is committed before
+-		 * the nrpages update so that final truncate racing
+-		 * with reclaim does not see both counters 0 at the
+-		 * same time and miss a shadow entry.
+-		 */
+-		smp_wmb();
+-	}
+-	mapping->nrpages--;
+-
+-	if (!node) {
+-		/* Clear direct pointer tags in root node */
+-		mapping->page_tree.gfp_mask &= __GFP_BITS_MASK;
+-		radix_tree_replace_slot(slot, shadow);
+-		return;
+-	}
++	VM_BUG_ON(node == NULL);
++	VM_BUG_ON(*slot == NULL);
+ 
+ 	/* Clear tree tags for the removed page */
+-	index = page->index;
+-	offset = index & RADIX_TREE_MAP_MASK;
+ 	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++) {
+-		if (test_bit(offset, node->tags[tag]))
++		if (test_bit(index & RADIX_TREE_MAP_MASK, node->tags[tag]))
+ 			radix_tree_tag_clear(&mapping->page_tree, index, tag);
+ 	}
+ 
+@@ -173,6 +148,54 @@ static void page_cache_tree_delete(struct address_space *mapping,
+ 	}
  }
  
- static struct page *
--khugepaged_alloc_page(struct page **hpage, gfp_t gfp, struct mm_struct *mm,
--		       unsigned long address, int node)
-+khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
++static void page_cache_tree_delete(struct address_space *mapping,
++				   struct page *page, void *shadow)
++{
++	struct radix_tree_node *node;
++	unsigned long index;
++	void **slot;
++	int i, nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
++
++	VM_BUG_ON_PAGE(!PageLocked(page), page);
++	VM_BUG_ON_PAGE(PageTail(page), page);
++
++	__radix_tree_lookup(&mapping->page_tree, page->index, &node, &slot);
++
++	if (shadow) {
++		mapping->nrexceptional += nr;
++		/*
++		 * Make sure the nrexceptional update is committed before
++		 * the nrpages update so that final truncate racing
++		 * with reclaim does not see both counters 0 at the
++		 * same time and miss a shadow entry.
++		 */
++		smp_wmb();
++	}
++	mapping->nrpages -= nr;
++
++	if (!node) {
++		/* Clear direct pointer tags in root node */
++		mapping->page_tree.gfp_mask &= __GFP_BITS_MASK;
++		VM_BUG_ON(nr != 1);
++		radix_tree_replace_slot(slot, shadow);
++		return;
++	}
++
++	index = page->index;
++	VM_BUG_ON_PAGE(index & (nr - 1), page);
++	for (i = 0; i < nr; i++) {
++		/* Cross node border */
++		if (i && ((index + i) & RADIX_TREE_MAP_MASK) == 0) {
++			__radix_tree_lookup(&mapping->page_tree,
++					page->index + i, &node, &slot);
++		}
++
++		__page_cache_tree_delete(mapping, node,
++				slot + (i & RADIX_TREE_MAP_MASK), index + i,
++				shadow);
++	}
++}
++
+ /*
+  * Delete a page from the page cache and free it. Caller has to make
+  * sure the page is locked and that nobody else uses it - or that usage
+@@ -181,6 +204,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
+ void __delete_from_page_cache(struct page *page, void *shadow)
  {
--	up_read(&mm->mmap_sem);
- 	VM_BUG_ON(!*hpage);
+ 	struct address_space *mapping = page->mapping;
++	int nr = hpage_nr_pages(page);
  
- 	return  *hpage;
-@@ -896,8 +885,14 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	/* Only allocate from the target node */
- 	gfp = alloc_hugepage_khugepaged_gfpmask() | __GFP_OTHER_NODE | __GFP_THISNODE;
+ 	trace_mm_filemap_delete_from_page_cache(page);
+ 	/*
+@@ -193,6 +217,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
+ 	else
+ 		cleancache_invalidate_page(mapping, page);
  
--	/* release the mmap_sem read lock. */
--	new_page = khugepaged_alloc_page(hpage, gfp, mm, address, node);
-+	/*
-+	 * Before allocating the hugepage, release the mmap_sem read lock.
-+	 * The allocation can take potentially a long time if it involves
-+	 * sync compaction, and we do not need to hold the mmap_sem during
-+	 * that. We will recheck the vma after taking it again in write mode.
-+	 */
-+	up_read(&mm->mmap_sem);
-+	new_page = khugepaged_alloc_page(hpage, gfp, node);
- 	if (!new_page) {
- 		result = SCAN_ALLOC_HUGE_PAGE_FAIL;
- 		goto out_nolock;
++	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	VM_BUG_ON_PAGE(page_mapped(page), page);
+ 	if (!IS_ENABLED(CONFIG_DEBUG_VM) && unlikely(page_mapped(page))) {
+ 		int mapcount;
+@@ -224,9 +249,9 @@ void __delete_from_page_cache(struct page *page, void *shadow)
+ 
+ 	/* hugetlb pages do not participate in page cache accounting. */
+ 	if (!PageHuge(page))
+-		__dec_zone_page_state(page, NR_FILE_PAGES);
++		__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, -nr);
+ 	if (PageSwapBacked(page))
+-		__dec_zone_page_state(page, NR_SHMEM);
++		__mod_zone_page_state(page_zone(page), NR_SHMEM, -nr);
+ 
+ 	/*
+ 	 * At this point page must be either written or cleaned by truncate.
+@@ -250,9 +275,8 @@ void __delete_from_page_cache(struct page *page, void *shadow)
+  */
+ void delete_from_page_cache(struct page *page)
+ {
+-	struct address_space *mapping = page->mapping;
++	struct address_space *mapping = page_mapping(page);
+ 	unsigned long flags;
+-
+ 	void (*freepage)(struct page *);
+ 
+ 	BUG_ON(!PageLocked(page));
+@@ -265,7 +289,13 @@ void delete_from_page_cache(struct page *page)
+ 
+ 	if (freepage)
+ 		freepage(page);
+-	put_page(page);
++
++	if (PageTransHuge(page) && !PageHuge(page)) {
++		page_ref_sub(page, HPAGE_PMD_NR);
++		VM_BUG_ON_PAGE(page_count(page) <= 0, page);
++	} else {
++		put_page(page);
++	}
+ }
+ EXPORT_SYMBOL(delete_from_page_cache);
+ 
+@@ -1054,7 +1084,7 @@ EXPORT_SYMBOL(page_cache_prev_hole);
+ struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
+ {
+ 	void **pagep;
+-	struct page *page;
++	struct page *head, *page;
+ 
+ 	rcu_read_lock();
+ repeat:
+@@ -1074,9 +1104,17 @@ repeat:
+ 			 */
+ 			goto out;
+ 		}
+-		if (!page_cache_get_speculative(page))
++
++		head = compound_head(page);
++		if (!page_cache_get_speculative(head))
+ 			goto repeat;
+ 
++		/* The page was split under us? */
++		if (compound_head(page) != head) {
++			put_page(page);
++			goto repeat;
++		}
++
+ 		/*
+ 		 * Has the page moved?
+ 		 * This is part of the lockless pagecache protocol. See
+@@ -1119,12 +1157,12 @@ repeat:
+ 	if (page && !radix_tree_exception(page)) {
+ 		lock_page(page);
+ 		/* Has the page been truncated? */
+-		if (unlikely(page->mapping != mapping)) {
++		if (unlikely(page_mapping(page) != mapping)) {
+ 			unlock_page(page);
+ 			put_page(page);
+ 			goto repeat;
+ 		}
+-		VM_BUG_ON_PAGE(page->index != offset, page);
++		VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
+ 	}
+ 	return page;
+ }
+@@ -1256,7 +1294,7 @@ unsigned find_get_entries(struct address_space *mapping,
+ 
+ 	rcu_read_lock();
+ 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+-		struct page *page;
++		struct page *head, *page;
+ repeat:
+ 		page = radix_tree_deref_slot(slot);
+ 		if (unlikely(!page))
+@@ -1273,8 +1311,16 @@ repeat:
+ 			 */
+ 			goto export;
+ 		}
+-		if (!page_cache_get_speculative(page))
++
++		head = compound_head(page);
++		if (!page_cache_get_speculative(head))
++			goto repeat;
++
++		/* The page was split under us? */
++		if (compound_head(page) != head) {
++			put_page(page);
+ 			goto repeat;
++		}
+ 
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *slot)) {
+@@ -1319,7 +1365,7 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
+ 
+ 	rcu_read_lock();
+ 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+-		struct page *page;
++		struct page *head, *page;
+ repeat:
+ 		page = radix_tree_deref_slot(slot);
+ 		if (unlikely(!page))
+@@ -1338,9 +1384,16 @@ repeat:
+ 			continue;
+ 		}
+ 
+-		if (!page_cache_get_speculative(page))
++		head = compound_head(page);
++		if (!page_cache_get_speculative(head))
+ 			goto repeat;
+ 
++		/* The page was split under us? */
++		if (compound_head(page) != head) {
++			put_page(page);
++			goto repeat;
++		}
++
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *slot)) {
+ 			put_page(page);
+@@ -1380,7 +1433,7 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
+ 
+ 	rcu_read_lock();
+ 	radix_tree_for_each_contig(slot, &mapping->page_tree, &iter, index) {
+-		struct page *page;
++		struct page *head, *page;
+ repeat:
+ 		page = radix_tree_deref_slot(slot);
+ 		/* The hole, there no reason to continue */
+@@ -1400,8 +1453,14 @@ repeat:
+ 			break;
+ 		}
+ 
+-		if (!page_cache_get_speculative(page))
++		head = compound_head(page);
++		if (!page_cache_get_speculative(head))
+ 			goto repeat;
++		/* The page was split under us? */
++		if (compound_head(page) != head) {
++			put_page(page);
++			goto repeat;
++		}
+ 
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *slot)) {
+@@ -1414,7 +1473,7 @@ repeat:
+ 		 * otherwise we can get both false positives and false
+ 		 * negatives, which is just confusing to the caller.
+ 		 */
+-		if (page->mapping == NULL || page->index != iter.index) {
++		if (page->mapping == NULL || page_to_pgoff(page) != iter.index) {
+ 			put_page(page);
+ 			break;
+ 		}
+@@ -1452,7 +1511,7 @@ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
+ 	rcu_read_lock();
+ 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
+ 				   &iter, *index, tag) {
+-		struct page *page;
++		struct page *head, *page;
+ repeat:
+ 		page = radix_tree_deref_slot(slot);
+ 		if (unlikely(!page))
+@@ -1477,8 +1536,15 @@ repeat:
+ 			continue;
+ 		}
+ 
+-		if (!page_cache_get_speculative(page))
++		head = compound_head(page);
++		if (!page_cache_get_speculative(head))
++			goto repeat;
++
++		/* The page was split under us? */
++		if (compound_head(page) != head) {
++			put_page(page);
+ 			goto repeat;
++		}
+ 
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *slot)) {
+@@ -1526,7 +1592,7 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
+ 	rcu_read_lock();
+ 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
+ 				   &iter, start, tag) {
+-		struct page *page;
++		struct page *head, *page;
+ repeat:
+ 		page = radix_tree_deref_slot(slot);
+ 		if (unlikely(!page))
+@@ -1544,9 +1610,17 @@ repeat:
+ 			 */
+ 			goto export;
+ 		}
+-		if (!page_cache_get_speculative(page))
++
++		head = compound_head(page);
++		if (!page_cache_get_speculative(head))
+ 			goto repeat;
+ 
++		/* The page was split under us? */
++		if (compound_head(page) != head) {
++			put_page(page);
++			goto repeat;
++		}
++
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *slot)) {
+ 			put_page(page);
+@@ -2140,7 +2214,7 @@ void filemap_map_pages(struct fault_env *fe,
+ 	struct address_space *mapping = file->f_mapping;
+ 	pgoff_t last_pgoff = start_pgoff;
+ 	loff_t size;
+-	struct page *page;
++	struct page *head, *page;
+ 
+ 	rcu_read_lock();
+ 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter,
+@@ -2159,8 +2233,15 @@ repeat:
+ 			goto next;
+ 		}
+ 
+-		if (!page_cache_get_speculative(page))
++		head = compound_head(page);
++		if (!page_cache_get_speculative(head))
++			goto repeat;
++
++		/* The page was split under us? */
++		if (compound_head(page) != head) {
++			put_page(page);
+ 			goto repeat;
++		}
+ 
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *slot)) {
 -- 
 2.8.1
 
