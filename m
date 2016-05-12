@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 11C98828DF
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:48:23 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 203so152333280pfy.2
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:48:23 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id yp3si18308519pac.120.2016.05.12.08.41.37
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E4A4828DF
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:48:36 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id gw7so110865930pac.0
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:48:36 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id m66si18095482pfm.117.2016.05.12.08.41.36
         for <linux-mm@kvack.org>;
-        Thu, 12 May 2016 08:41:37 -0700 (PDT)
+        Thu, 12 May 2016 08:41:36 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv8 26/32] thp: update Documentation/vm/transhuge.txt
-Date: Thu, 12 May 2016 18:41:06 +0300
-Message-Id: <1463067672-134698-27-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv8 25/32] shmem, thp: respect MADV_{NO,}HUGEPAGE for file mappings
+Date: Thu, 12 May 2016 18:41:05 +0300
+Message-Id: <1463067672-134698-26-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,227 +19,156 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Add info about tmpfs/shmem with huge pages.
+Let's wire up existing madvise() hugepage hints for file mappings.
+
+MADV_HUGEPAGE advise shmem to allocate huge page on page fault in the
+VMA. It only has effect if the filesystem is mounted with huge=advise or
+huge=within_size.
+
+MADV_NOHUGEPAGE prevents hugepage from being allocated on page fault in
+the VMA. It doesn't prevent a huge page from being allocated by other
+means, i.e. page fault into different mapping or write(2) into file.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- Documentation/vm/transhuge.txt | 130 +++++++++++++++++++++++++++++------------
- 1 file changed, 93 insertions(+), 37 deletions(-)
+ mm/huge_memory.c | 19 +++++--------------
+ mm/shmem.c       | 20 +++++++++++++++++---
+ 2 files changed, 22 insertions(+), 17 deletions(-)
 
-diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-index d9cb65cf5cfd..96a49f123cac 100644
---- a/Documentation/vm/transhuge.txt
-+++ b/Documentation/vm/transhuge.txt
-@@ -9,8 +9,8 @@ using huge pages for the backing of virtual memory with huge pages
- that supports the automatic promotion and demotion of page sizes and
- without the shortcomings of hugetlbfs.
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 648f60d55759..3658b7d2c424 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1837,7 +1837,7 @@ spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma)
+ 	return NULL;
+ }
  
--Currently it only works for anonymous memory mappings but in the
--future it can expand over the pagecache layer starting with tmpfs.
-+Currently it only works for anonymous memory mappings and tmpfs/shmem.
-+But in the future it can expand to other filesystems.
+-#define VM_NO_THP (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
++#define VM_NO_KHUGEPAGED (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
  
- The reason applications are running faster is because of two
- factors. The first factor is almost completely irrelevant and it's not
-@@ -48,7 +48,7 @@ miss is going to run faster.
- - if some task quits and more hugepages become available (either
-   immediately in the buddy or through the VM), guest physical memory
-   backed by regular pages should be relocated on hugepages
--  automatically (with khugepaged)
-+  automatically (with khugepaged, limited to anonymous huge pages for now)
+ int hugepage_madvise(struct vm_area_struct *vma,
+ 		     unsigned long *vm_flags, int advice)
+@@ -1853,11 +1853,6 @@ int hugepage_madvise(struct vm_area_struct *vma,
+ 		if (mm_has_pgste(vma->vm_mm))
+ 			return 0;
+ #endif
+-		/*
+-		 * Be somewhat over-protective like KSM for now!
+-		 */
+-		if (*vm_flags & VM_NO_THP)
+-			return -EINVAL;
+ 		*vm_flags &= ~VM_NOHUGEPAGE;
+ 		*vm_flags |= VM_HUGEPAGE;
+ 		/*
+@@ -1865,15 +1860,11 @@ int hugepage_madvise(struct vm_area_struct *vma,
+ 		 * register it here without waiting a page fault that
+ 		 * may not happen any time soon.
+ 		 */
+-		if (unlikely(khugepaged_enter_vma_merge(vma, *vm_flags)))
++		if (!(*vm_flags & VM_NO_KHUGEPAGED) &&
++				khugepaged_enter_vma_merge(vma, *vm_flags))
+ 			return -ENOMEM;
+ 		break;
+ 	case MADV_NOHUGEPAGE:
+-		/*
+-		 * Be somewhat over-protective like KSM for now!
+-		 */
+-		if (*vm_flags & VM_NO_THP)
+-			return -EINVAL;
+ 		*vm_flags &= ~VM_HUGEPAGE;
+ 		*vm_flags |= VM_NOHUGEPAGE;
+ 		/*
+@@ -1984,7 +1975,7 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
+ 	if (vma->vm_ops)
+ 		/* khugepaged not yet working on file or special mappings */
+ 		return 0;
+-	VM_BUG_ON_VMA(vm_flags & VM_NO_THP, vma);
++	VM_BUG_ON_VMA(vm_flags & VM_NO_KHUGEPAGED, vma);
+ 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
+ 	hend = vma->vm_end & HPAGE_PMD_MASK;
+ 	if (hstart < hend)
+@@ -2373,7 +2364,7 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
+ 		return false;
+ 	if (is_vma_temporary_stack(vma))
+ 		return false;
+-	VM_BUG_ON_VMA(vma->vm_flags & VM_NO_THP, vma);
++	VM_BUG_ON_VMA(vma->vm_flags & VM_NO_KHUGEPAGED, vma);
+ 	return true;
+ }
  
- - it doesn't require memory reservation and in turn it uses hugepages
-   whenever possible (the only possible reservation here is kernelcore=
-@@ -57,10 +57,6 @@ miss is going to run faster.
-   feature that applies to all dynamic high order allocations in the
-   kernel)
+diff --git a/mm/shmem.c b/mm/shmem.c
+index ec899b5ea9e6..872d658d37c0 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -101,6 +101,8 @@ struct shmem_falloc {
+ enum sgp_type {
+ 	SGP_READ,	/* don't exceed i_size, don't allocate page */
+ 	SGP_CACHE,	/* don't exceed i_size, may allocate page */
++	SGP_NOHUGE,	/* like SGP_CACHE, but no huge pages */
++	SGP_HUGE,	/* like SGP_CACHE, huge pages preferred */
+ 	SGP_WRITE,	/* may exceed i_size, may allocate !Uptodate page */
+ 	SGP_FALLOC,	/* like SGP_WRITE, but make existing page Uptodate */
+ };
+@@ -1409,6 +1411,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 	struct mem_cgroup *memcg;
+ 	struct page *page;
+ 	swp_entry_t swap;
++	enum sgp_type sgp_huge = sgp;
+ 	pgoff_t hindex = index;
+ 	int error;
+ 	int once = 0;
+@@ -1416,6 +1419,8 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
  
--- this initial support only offers the feature in the anonymous memory
--  regions but it'd be ideal to move it to tmpfs and the pagecache
--  later
--
- Transparent Hugepage Support maximizes the usefulness of free memory
- if compared to the reservation approach of hugetlbfs by allowing all
- unused memory to be used as cache or other movable (or even unmovable
-@@ -94,21 +90,21 @@ madvise(MADV_HUGEPAGE) on their critical mmapped regions.
+ 	if (index > (MAX_LFS_FILESIZE >> PAGE_SHIFT))
+ 		return -EFBIG;
++	if (sgp == SGP_NOHUGE || sgp == SGP_HUGE)
++		sgp = SGP_CACHE;
+ repeat:
+ 	swap.val = 0;
+ 	page = find_lock_entry(mapping, index);
+@@ -1534,7 +1539,7 @@ repeat:
+ 		/* shmem_symlink() */
+ 		if (mapping->a_ops != &shmem_aops)
+ 			goto alloc_nohuge;
+-		if (shmem_huge == SHMEM_HUGE_DENY)
++		if (shmem_huge == SHMEM_HUGE_DENY || sgp_huge == SGP_NOHUGE)
+ 			goto alloc_nohuge;
+ 		if (shmem_huge == SHMEM_HUGE_FORCE)
+ 			goto alloc_huge;
+@@ -1551,7 +1556,9 @@ repeat:
+ 				goto alloc_huge;
+ 			/* fallthrough */
+ 		case SHMEM_HUGE_ADVISE:
+-			/* TODO: wire up fadvise()/madvise() */
++			if (sgp_huge == SGP_HUGE)
++				goto alloc_huge;
++			/* TODO: implement fadvise() hints */
+ 			goto alloc_nohuge;
+ 		}
  
- == sysfs ==
+@@ -1680,6 +1687,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+ 	struct inode *inode = file_inode(vma->vm_file);
+ 	gfp_t gfp = mapping_gfp_mask(inode->i_mapping);
++	enum sgp_type sgp;
+ 	int error;
+ 	int ret = VM_FAULT_LOCKED;
  
--Transparent Hugepage Support can be entirely disabled (mostly for
--debugging purposes) or only enabled inside MADV_HUGEPAGE regions (to
--avoid the risk of consuming more memory resources) or enabled system
--wide. This can be achieved with one of:
-+Transparent Hugepage Support for anonymous memory can be entirely disabled
-+(mostly for debugging purposes) or only enabled inside MADV_HUGEPAGE
-+regions (to avoid the risk of consuming more memory resources) or enabled
-+system wide. This can be achieved with one of:
+@@ -1741,7 +1749,13 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 		spin_unlock(&inode->i_lock);
+ 	}
  
- echo always >/sys/kernel/mm/transparent_hugepage/enabled
- echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
- echo never >/sys/kernel/mm/transparent_hugepage/enabled
- 
- It's also possible to limit defrag efforts in the VM to generate
--hugepages in case they're not immediately free to madvise regions or
--to never try to defrag memory and simply fallback to regular pages
--unless hugepages are immediately available. Clearly if we spend CPU
--time to defrag memory, we would expect to gain even more by the fact
--we use hugepages later instead of regular pages. This isn't always
-+anonymous hugepages in case they're not immediately free to madvise
-+regions or to never try to defrag memory and simply fallback to regular
-+pages unless hugepages are immediately available. Clearly if we spend CPU
-+time to defrag memory, we would expect to gain even more by the fact we
-+use hugepages later instead of regular pages. This isn't always
- guaranteed, but it may be more likely in case the allocation is for a
- MADV_HUGEPAGE region.
- 
-@@ -133,9 +129,9 @@ that are have used madvise(MADV_HUGEPAGE). This is the default behaviour.
- 
- "never" should be self-explanatory.
- 
--By default kernel tries to use huge zero page on read page fault.
--It's possible to disable huge zero page by writing 0 or enable it
--back by writing 1:
-+By default kernel tries to use huge zero page on read page fault to
-+anonymous mapping. It's possible to disable huge zero page by writing 0
-+or enable it back by writing 1:
- 
- echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
- echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
-@@ -204,21 +200,67 @@ Support by passing the parameter "transparent_hugepage=always" or
- "transparent_hugepage=madvise" or "transparent_hugepage=never"
- (without "") to the kernel command line.
- 
-+== Hugepages in tmpfs/shmem ==
+-	error = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, SGP_CACHE,
++	sgp = SGP_CACHE;
++	if (vma->vm_flags & VM_HUGEPAGE)
++		sgp = SGP_HUGE;
++	else if (vma->vm_flags & VM_NOHUGEPAGE)
++		sgp = SGP_NOHUGE;
 +
-+You can control hugepage allocation policy in tmpfs with mount option
-+"huge=". It can have following values:
-+
-+  - "always":
-+    Attempt to allocate huge pages every time we need a new page;
-+
-+  - "never":
-+    Do not allocate huge pages;
-+
-+  - "within_size":
-+    Only allocate huge page if it will be fully within i_size.
-+    Also respect fadvise()/madvise() hints;
-+
-+  - "advise:
-+    Only allocate huge pages if requested with fadvise()/madvise();
-+
-+The default policy is "never".
-+
-+"mount -o remount,huge= /mountpoint" works fine after mount: remounting
-+huge=never will not attempt to break up huge pages at all, just stop more
-+from being allocated.
-+
-+There's also sysfs knob to control hugepage allocation policy for internal
-+shmem mount: /sys/kernel/mm/transparent_hugepage/shmem_enabled. The mount
-+is used for SysV SHM, memfds, shared anonymous mmaps (of /dev/zero or
-+MAP_ANONYMOUS), GPU drivers' DRM objects, Ashmem.
-+
-+In addition to policies listed above, shmem_enabled allows two further
-+values:
-+
-+  - "deny":
-+    For use in emergencies, to force the huge option off from
-+    all mounts;
-+  - "force":
-+    Force the huge option on for all - very useful for testing;
-+
- == Need of application restart ==
- 
--The transparent_hugepage/enabled values only affect future
--behavior. So to make them effective you need to restart any
--application that could have been using hugepages. This also applies to
--the regions registered in khugepaged.
-+The transparent_hugepage/enabled values and tmpfs mount option only affect
-+future behavior. So to make them effective you need to restart any
-+application that could have been using hugepages. This also applies to the
-+regions registered in khugepaged.
- 
- == Monitoring usage ==
- 
--The number of transparent huge pages currently used by the system is
--available by reading the AnonHugePages field in /proc/meminfo. To
--identify what applications are using transparent huge pages, it is
--necessary to read /proc/PID/smaps and count the AnonHugePages fields
--for each mapping. Note that reading the smaps file is expensive and
--reading it frequently will incur overhead.
-+The number of anonymous transparent huge pages currently used by the
-+system is available by reading the AnonHugePages field in /proc/meminfo.
-+To identify what applications are using anonymous transparent huge pages,
-+it is necessary to read /proc/PID/smaps and count the AnonHugePages fields
-+for each mapping.
-+
-+The number of file transparent huge pages mapped to userspace is available
-+by reading the FileHugeMapped field in /proc/meminfo.  To identify what
-+applications are mapping file  transparent huge pages, it is necessary
-+to read /proc/PID/smaps and count the FileHugeMapped fields for each
-+mapping.
-+
-+Note that reading the smaps file is expensive and reading it
-+frequently will incur overhead.
- 
- There are a number of counters in /proc/vmstat that may be used to
- monitor how successfully the system is providing huge pages for use.
-@@ -238,6 +280,12 @@ thp_collapse_alloc_failed is incremented if khugepaged found a range
- 	of pages that should be collapsed into one huge page but failed
- 	the allocation.
- 
-+thp_file_alloc is incremented every time a file huge page is successfully
-+i	allocated.
-+
-+thp_file_mapped is incremented every time a file huge page is mapped into
-+	user address space.
-+
- thp_split_page is incremented every time a huge page is split into base
- 	pages. This can happen for a variety of reasons but a common
- 	reason is that a huge page is old and is being reclaimed.
-@@ -403,19 +451,27 @@ pages:
-     on relevant sub-page of the compound page.
- 
-   - map/unmap of the whole compound page accounted in compound_mapcount
--    (stored in first tail page).
-+    (stored in first tail page). For file huge pages, we also increment
-+    ->_mapcount of all sub-pages in order to have race-free detection of
-+    last unmap of subpages.
- 
--PageDoubleMap() indicates that ->_mapcount in all subpages is offset up by one.
--This additional reference is required to get race-free detection of unmap of
--subpages when we have them mapped with both PMDs and PTEs.
-+PageDoubleMap() indicates that the page is *possibly* mapped with PTEs.
-+
-+For anonymous pages PageDoubleMap() also indicates ->_mapcount in all
-+subpages is offset up by one. This additional reference is required to
-+get race-free detection of unmap of subpages when we have them mapped with
-+both PMDs and PTEs.
- 
- This is optimization required to lower overhead of per-subpage mapcount
- tracking. The alternative is alter ->_mapcount in all subpages on each
- map/unmap of the whole compound page.
- 
--We set PG_double_map when a PMD of the page got split for the first time,
--but still have PMD mapping. The addtional references go away with last
--compound_mapcount.
-+For anonymous pages, we set PG_double_map when a PMD of the page got split
-+for the first time, but still have PMD mapping. The additional references
-+go away with last compound_mapcount.
-+
-+File pages get PG_double_map set on first map of the page with PTE and
-+goes away when the page gets evicted from page cache.
- 
- split_huge_page internally has to distribute the refcounts in the head
- page to the tail pages before clearing all PG_head/tail bits from the page
-@@ -427,7 +483,7 @@ sum of mapcount of all sub-pages plus one (split_huge_page caller must
- have reference for head page).
- 
- split_huge_page uses migration entries to stabilize page->_count and
--page->_mapcount.
-+page->_mapcount of anonymous pages. File pages just got unmapped.
- 
- We safe against physical memory scanners too: the only legitimate way
- scanner can get reference to a page is get_page_unless_zero().
++	error = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, sgp,
+ 				  gfp, vma->vm_mm, &ret);
+ 	if (error)
+ 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
 -- 
 2.8.1
 
