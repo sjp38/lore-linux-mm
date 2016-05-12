@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4983B6B026C
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:48:00 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id gw7so110850461pac.0
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:48:00 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id vy4si18289353pab.231.2016.05.12.08.41.37
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 11C98828DF
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:48:23 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 203so152333280pfy.2
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:48:23 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id yp3si18308519pac.120.2016.05.12.08.41.37
         for <linux-mm@kvack.org>;
         Thu, 12 May 2016 08:41:37 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv8 32/32] shmem: split huge pages beyond i_size under memory pressure
-Date: Thu, 12 May 2016 18:41:12 +0300
-Message-Id: <1463067672-134698-33-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv8 26/32] thp: update Documentation/vm/transhuge.txt
+Date: Thu, 12 May 2016 18:41:06 +0300
+Message-Id: <1463067672-134698-27-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,310 +19,227 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Even if user asked to allocate huge pages always (huge=always), we
-should be able to free up some memory by splitting pages which are
-partly byound i_size if memory presure comes or once we hit limit on
-filesystem size (-o size=).
-
-In order to do this we maintain per-superblock list of inodes, which
-potentially have huge pages on the border of file size.
-
-Per-fs shrinker can reclaim memory by splitting such pages.
-
-If we hit -ENOSPC during shmem_getpage_gfp(), we try to split a page to
-free up space on the filesystem and retry allocation if it succeed.
+Add info about tmpfs/shmem with huge pages.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/shmem_fs.h |   6 +-
- mm/shmem.c               | 175 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 180 insertions(+), 1 deletion(-)
+ Documentation/vm/transhuge.txt | 130 +++++++++++++++++++++++++++++------------
+ 1 file changed, 93 insertions(+), 37 deletions(-)
 
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 54fa28dfbd89..ff078e7043b6 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -16,8 +16,9 @@ struct shmem_inode_info {
- 	unsigned long		flags;
- 	unsigned long		alloced;	/* data pages alloced to file */
- 	unsigned long		swapped;	/* subtotal assigned to swap */
--	struct shared_policy	policy;		/* NUMA memory alloc policy */
-+	struct list_head        shrinklist;     /* shrinkable hpage inodes */
- 	struct list_head	swaplist;	/* chain of maybes on swap */
-+	struct shared_policy	policy;		/* NUMA memory alloc policy */
- 	struct simple_xattrs	xattrs;		/* list of xattrs */
- 	struct inode		vfs_inode;
- };
-@@ -33,6 +34,9 @@ struct shmem_sb_info {
- 	kuid_t uid;		    /* Mount uid for root directory */
- 	kgid_t gid;		    /* Mount gid for root directory */
- 	struct mempolicy *mpol;     /* default memory policy for mappings */
-+	spinlock_t shrinklist_lock;   /* Protects shrinklist */
-+	struct list_head shrinklist;  /* List of shinkable inodes */
-+	unsigned long shrinklist_len; /* Length of shrinklist */
- };
+diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
+index d9cb65cf5cfd..96a49f123cac 100644
+--- a/Documentation/vm/transhuge.txt
++++ b/Documentation/vm/transhuge.txt
+@@ -9,8 +9,8 @@ using huge pages for the backing of virtual memory with huge pages
+ that supports the automatic promotion and demotion of page sizes and
+ without the shortcomings of hugetlbfs.
  
- static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
-diff --git a/mm/shmem.c b/mm/shmem.c
-index a12867157dc3..37bd59176435 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -188,6 +188,7 @@ static const struct inode_operations shmem_inode_operations;
- static const struct inode_operations shmem_dir_inode_operations;
- static const struct inode_operations shmem_special_inode_operations;
- static const struct vm_operations_struct shmem_vm_ops;
-+static struct file_system_type shmem_fs_type;
+-Currently it only works for anonymous memory mappings but in the
+-future it can expand over the pagecache layer starting with tmpfs.
++Currently it only works for anonymous memory mappings and tmpfs/shmem.
++But in the future it can expand to other filesystems.
  
- static LIST_HEAD(shmem_swaplist);
- static DEFINE_MUTEX(shmem_swaplist_mutex);
-@@ -406,10 +407,122 @@ static const char *shmem_format_huge(int huge)
- 	}
- }
+ The reason applications are running faster is because of two
+ factors. The first factor is almost completely irrelevant and it's not
+@@ -48,7 +48,7 @@ miss is going to run faster.
+ - if some task quits and more hugepages become available (either
+   immediately in the buddy or through the VM), guest physical memory
+   backed by regular pages should be relocated on hugepages
+-  automatically (with khugepaged)
++  automatically (with khugepaged, limited to anonymous huge pages for now)
  
-+static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
-+		struct shrink_control *sc, unsigned long nr_to_split)
-+{
-+	LIST_HEAD(list), *pos, *next;
-+	struct inode *inode;
-+	struct shmem_inode_info *info;
-+	struct page *page;
-+	unsigned long batch = sc ? sc->nr_to_scan : 128;
-+	int failed = 0, split = 0;
-+
-+	if (list_empty(&sbinfo->shrinklist))
-+		return SHRINK_STOP;
-+
-+	spin_lock(&sbinfo->shrinklist_lock);
-+	list_for_each_safe(pos, next, &sbinfo->shrinklist) {
-+		info = list_entry(pos, struct shmem_inode_info, shrinklist);
-+		sbinfo->shrinklist_len--;
-+
-+		/* pin the inode */
-+		inode = igrab(&info->vfs_inode);
-+
-+		/* inode is about to be evicted */
-+		if (!inode) {
-+			list_del_init(&info->shrinklist);
-+			goto next;
-+		}
-+
-+		/* Check if there's anything to gain */
-+		if (round_up(inode->i_size, PAGE_SIZE) ==
-+				round_up(inode->i_size, HPAGE_PMD_SIZE)) {
-+			list_del_init(&info->shrinklist);
-+			iput(inode);
-+			goto next;
-+		}
-+
-+		list_move(&info->shrinklist, &list);
-+next:
-+		if (!--batch)
-+			break;
-+	}
-+	spin_unlock(&sbinfo->shrinklist_lock);
-+
-+	list_for_each_safe(pos, next, &list) {
-+		int ret;
-+
-+		info = list_entry(pos, struct shmem_inode_info, shrinklist);
-+		inode = &info->vfs_inode;
-+
-+		if (nr_to_split && split >= nr_to_split) {
-+			iput(inode);
-+			continue;
-+		}
-+
-+		page = find_lock_page(inode->i_mapping,
-+				inode->i_size >> PAGE_SHIFT);
-+
-+		if (!page)
-+			goto drop;
-+
-+		if (!PageTransHuge(page)) {
-+			unlock_page(page);
-+			put_page(page);
-+			goto drop;
-+		}
-+
-+		ret = split_huge_page(page);
-+		unlock_page(page);
-+		put_page(page);
-+
-+		if (ret) {
-+			/* split failed: leave it on the list */
-+			failed++;
-+			iput(inode);
-+			continue;
-+		}
-+
-+		split++;
-+drop:
-+		list_del_init(&info->shrinklist);
-+		iput(inode);
-+	}
-+
-+	spin_lock(&sbinfo->shrinklist_lock);
-+	list_splice_tail(&list, &sbinfo->shrinklist);
-+	sbinfo->shrinklist_len += failed;
-+	spin_unlock(&sbinfo->shrinklist_lock);
-+
-+	return split;
-+}
-+
-+static long shmem_unused_huge_scan(struct super_block *sb,
-+		struct shrink_control *sc)
-+{
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
-+
-+	if (!READ_ONCE(sbinfo->shrinklist_len))
-+		return SHRINK_STOP;
-+
-+	return shmem_unused_huge_shrink(sbinfo, sc, 0);
-+}
-+
-+static long shmem_unused_huge_count(struct super_block *sb,
-+		struct shrink_control *sc)
-+{
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
-+	return READ_ONCE(sbinfo->shrinklist_len);
-+}
- #else /* !CONFIG_TRANSPARENT_HUGE_PAGECACHE */
+ - it doesn't require memory reservation and in turn it uses hugepages
+   whenever possible (the only possible reservation here is kernelcore=
+@@ -57,10 +57,6 @@ miss is going to run faster.
+   feature that applies to all dynamic high order allocations in the
+   kernel)
  
- #define shmem_huge SHMEM_HUGE_DENY
+-- this initial support only offers the feature in the anonymous memory
+-  regions but it'd be ideal to move it to tmpfs and the pagecache
+-  later
+-
+ Transparent Hugepage Support maximizes the usefulness of free memory
+ if compared to the reservation approach of hugetlbfs by allowing all
+ unused memory to be used as cache or other movable (or even unmovable
+@@ -94,21 +90,21 @@ madvise(MADV_HUGEPAGE) on their critical mmapped regions.
  
-+static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
-+		struct shrink_control *sc, unsigned long nr_to_split)
-+{
-+	return 0;
-+}
- #endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE */
+ == sysfs ==
  
- /*
-@@ -843,6 +956,7 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
- {
- 	struct inode *inode = d_inode(dentry);
- 	struct shmem_inode_info *info = SHMEM_I(inode);
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
- 	int error;
+-Transparent Hugepage Support can be entirely disabled (mostly for
+-debugging purposes) or only enabled inside MADV_HUGEPAGE regions (to
+-avoid the risk of consuming more memory resources) or enabled system
+-wide. This can be achieved with one of:
++Transparent Hugepage Support for anonymous memory can be entirely disabled
++(mostly for debugging purposes) or only enabled inside MADV_HUGEPAGE
++regions (to avoid the risk of consuming more memory resources) or enabled
++system wide. This can be achieved with one of:
  
- 	error = inode_change_ok(inode, attr);
-@@ -878,6 +992,20 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
- 			if (oldsize > holebegin)
- 				unmap_mapping_range(inode->i_mapping,
- 							holebegin, 0, 1);
+ echo always >/sys/kernel/mm/transparent_hugepage/enabled
+ echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
+ echo never >/sys/kernel/mm/transparent_hugepage/enabled
+ 
+ It's also possible to limit defrag efforts in the VM to generate
+-hugepages in case they're not immediately free to madvise regions or
+-to never try to defrag memory and simply fallback to regular pages
+-unless hugepages are immediately available. Clearly if we spend CPU
+-time to defrag memory, we would expect to gain even more by the fact
+-we use hugepages later instead of regular pages. This isn't always
++anonymous hugepages in case they're not immediately free to madvise
++regions or to never try to defrag memory and simply fallback to regular
++pages unless hugepages are immediately available. Clearly if we spend CPU
++time to defrag memory, we would expect to gain even more by the fact we
++use hugepages later instead of regular pages. This isn't always
+ guaranteed, but it may be more likely in case the allocation is for a
+ MADV_HUGEPAGE region.
+ 
+@@ -133,9 +129,9 @@ that are have used madvise(MADV_HUGEPAGE). This is the default behaviour.
+ 
+ "never" should be self-explanatory.
+ 
+-By default kernel tries to use huge zero page on read page fault.
+-It's possible to disable huge zero page by writing 0 or enable it
+-back by writing 1:
++By default kernel tries to use huge zero page on read page fault to
++anonymous mapping. It's possible to disable huge zero page by writing 0
++or enable it back by writing 1:
+ 
+ echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
+ echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
+@@ -204,21 +200,67 @@ Support by passing the parameter "transparent_hugepage=always" or
+ "transparent_hugepage=madvise" or "transparent_hugepage=never"
+ (without "") to the kernel command line.
+ 
++== Hugepages in tmpfs/shmem ==
 +
-+			/*
-+			 * Part of the huge page can be beyond i_size: subject
-+			 * to shrink under memory pressure.
-+			 */
-+			if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE)) {
-+				spin_lock(&sbinfo->shrinklist_lock);
-+				if (list_empty(&info->shrinklist)) {
-+					list_add_tail(&info->shrinklist,
-+							&sbinfo->shrinklist);
-+					sbinfo->shrinklist_len++;
-+				}
-+				spin_unlock(&sbinfo->shrinklist_lock);
-+			}
- 		}
- 	}
- 
-@@ -890,11 +1018,20 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
- static void shmem_evict_inode(struct inode *inode)
- {
- 	struct shmem_inode_info *info = SHMEM_I(inode);
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
- 
- 	if (inode->i_mapping->a_ops == &shmem_aops) {
- 		shmem_unacct_size(info->flags, inode->i_size);
- 		inode->i_size = 0;
- 		shmem_truncate_range(inode, 0, (loff_t)-1);
-+		if (!list_empty(&info->shrinklist)) {
-+			spin_lock(&sbinfo->shrinklist_lock);
-+			if (!list_empty(&info->shrinklist)) {
-+				list_del_init(&info->shrinklist);
-+				sbinfo->shrinklist_len--;
-+			}
-+			spin_unlock(&sbinfo->shrinklist_lock);
-+		}
- 		if (!list_empty(&info->swaplist)) {
- 			mutex_lock(&shmem_swaplist_mutex);
- 			list_del_init(&info->swaplist);
-@@ -1563,8 +1700,23 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
- 					index, false);
- 		}
- 		if (IS_ERR(page)) {
-+			int retry = 5;
- 			error = PTR_ERR(page);
- 			page = NULL;
-+			if (error != -ENOSPC)
-+				goto failed;
-+			/*
-+			 * Try to reclaim some spece by splitting a huge page
-+			 * beyond i_size on the filesystem.
-+			 */
-+			while (retry--) {
-+				int ret;
-+				ret = shmem_unused_huge_shrink(sbinfo, NULL, 1);
-+				if (ret == SHRINK_STOP)
-+					break;
-+				if (ret)
-+					goto alloc_nohuge;
-+			}
- 			goto failed;
- 		}
- 
-@@ -1603,6 +1755,22 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
- 		spin_unlock_irq(&info->lock);
- 		alloced = true;
- 
-+		if (PageTransHuge(page) &&
-+				DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE) <
-+				hindex + HPAGE_PMD_NR - 1) {
-+			/*
-+			 * Part of the huge page is beyond i_size: subject
-+			 * to shrink under memory pressure.
-+			 */
-+			spin_lock(&sbinfo->shrinklist_lock);
-+			if (list_empty(&info->shrinklist)) {
-+				list_add_tail(&info->shrinklist,
-+						&sbinfo->shrinklist);
-+				sbinfo->shrinklist_len++;
-+			}
-+			spin_unlock(&sbinfo->shrinklist_lock);
-+		}
++You can control hugepage allocation policy in tmpfs with mount option
++"huge=". It can have following values:
 +
- 		/*
- 		 * Let SGP_FALLOC use the SGP_WRITE optimization on a new page.
- 		 */
-@@ -1920,6 +2088,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
- 		spin_lock_init(&info->lock);
- 		info->seals = F_SEAL_SEAL;
- 		info->flags = flags & VM_NORESERVE;
-+		INIT_LIST_HEAD(&info->shrinklist);
- 		INIT_LIST_HEAD(&info->swaplist);
- 		simple_xattrs_init(&info->xattrs);
- 		cache_no_acl(inode);
-@@ -3515,6 +3684,8 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
- 	if (percpu_counter_init(&sbinfo->used_blocks, 0, GFP_KERNEL))
- 		goto failed;
- 	sbinfo->free_inodes = sbinfo->max_inodes;
-+	spin_lock_init(&sbinfo->shrinklist_lock);
-+	INIT_LIST_HEAD(&sbinfo->shrinklist);
++  - "always":
++    Attempt to allocate huge pages every time we need a new page;
++
++  - "never":
++    Do not allocate huge pages;
++
++  - "within_size":
++    Only allocate huge page if it will be fully within i_size.
++    Also respect fadvise()/madvise() hints;
++
++  - "advise:
++    Only allocate huge pages if requested with fadvise()/madvise();
++
++The default policy is "never".
++
++"mount -o remount,huge= /mountpoint" works fine after mount: remounting
++huge=never will not attempt to break up huge pages at all, just stop more
++from being allocated.
++
++There's also sysfs knob to control hugepage allocation policy for internal
++shmem mount: /sys/kernel/mm/transparent_hugepage/shmem_enabled. The mount
++is used for SysV SHM, memfds, shared anonymous mmaps (of /dev/zero or
++MAP_ANONYMOUS), GPU drivers' DRM objects, Ashmem.
++
++In addition to policies listed above, shmem_enabled allows two further
++values:
++
++  - "deny":
++    For use in emergencies, to force the huge option off from
++    all mounts;
++  - "force":
++    Force the huge option on for all - very useful for testing;
++
+ == Need of application restart ==
  
- 	sb->s_maxbytes = MAX_LFS_FILESIZE;
- 	sb->s_blocksize = PAGE_SIZE;
-@@ -3676,6 +3847,10 @@ static const struct super_operations shmem_ops = {
- 	.evict_inode	= shmem_evict_inode,
- 	.drop_inode	= generic_delete_inode,
- 	.put_super	= shmem_put_super,
-+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-+	.nr_cached_objects	= shmem_unused_huge_count,
-+	.free_cached_objects	= shmem_unused_huge_scan,
-+#endif
- };
+-The transparent_hugepage/enabled values only affect future
+-behavior. So to make them effective you need to restart any
+-application that could have been using hugepages. This also applies to
+-the regions registered in khugepaged.
++The transparent_hugepage/enabled values and tmpfs mount option only affect
++future behavior. So to make them effective you need to restart any
++application that could have been using hugepages. This also applies to the
++regions registered in khugepaged.
  
- static const struct vm_operations_struct shmem_vm_ops = {
+ == Monitoring usage ==
+ 
+-The number of transparent huge pages currently used by the system is
+-available by reading the AnonHugePages field in /proc/meminfo. To
+-identify what applications are using transparent huge pages, it is
+-necessary to read /proc/PID/smaps and count the AnonHugePages fields
+-for each mapping. Note that reading the smaps file is expensive and
+-reading it frequently will incur overhead.
++The number of anonymous transparent huge pages currently used by the
++system is available by reading the AnonHugePages field in /proc/meminfo.
++To identify what applications are using anonymous transparent huge pages,
++it is necessary to read /proc/PID/smaps and count the AnonHugePages fields
++for each mapping.
++
++The number of file transparent huge pages mapped to userspace is available
++by reading the FileHugeMapped field in /proc/meminfo.  To identify what
++applications are mapping file  transparent huge pages, it is necessary
++to read /proc/PID/smaps and count the FileHugeMapped fields for each
++mapping.
++
++Note that reading the smaps file is expensive and reading it
++frequently will incur overhead.
+ 
+ There are a number of counters in /proc/vmstat that may be used to
+ monitor how successfully the system is providing huge pages for use.
+@@ -238,6 +280,12 @@ thp_collapse_alloc_failed is incremented if khugepaged found a range
+ 	of pages that should be collapsed into one huge page but failed
+ 	the allocation.
+ 
++thp_file_alloc is incremented every time a file huge page is successfully
++i	allocated.
++
++thp_file_mapped is incremented every time a file huge page is mapped into
++	user address space.
++
+ thp_split_page is incremented every time a huge page is split into base
+ 	pages. This can happen for a variety of reasons but a common
+ 	reason is that a huge page is old and is being reclaimed.
+@@ -403,19 +451,27 @@ pages:
+     on relevant sub-page of the compound page.
+ 
+   - map/unmap of the whole compound page accounted in compound_mapcount
+-    (stored in first tail page).
++    (stored in first tail page). For file huge pages, we also increment
++    ->_mapcount of all sub-pages in order to have race-free detection of
++    last unmap of subpages.
+ 
+-PageDoubleMap() indicates that ->_mapcount in all subpages is offset up by one.
+-This additional reference is required to get race-free detection of unmap of
+-subpages when we have them mapped with both PMDs and PTEs.
++PageDoubleMap() indicates that the page is *possibly* mapped with PTEs.
++
++For anonymous pages PageDoubleMap() also indicates ->_mapcount in all
++subpages is offset up by one. This additional reference is required to
++get race-free detection of unmap of subpages when we have them mapped with
++both PMDs and PTEs.
+ 
+ This is optimization required to lower overhead of per-subpage mapcount
+ tracking. The alternative is alter ->_mapcount in all subpages on each
+ map/unmap of the whole compound page.
+ 
+-We set PG_double_map when a PMD of the page got split for the first time,
+-but still have PMD mapping. The addtional references go away with last
+-compound_mapcount.
++For anonymous pages, we set PG_double_map when a PMD of the page got split
++for the first time, but still have PMD mapping. The additional references
++go away with last compound_mapcount.
++
++File pages get PG_double_map set on first map of the page with PTE and
++goes away when the page gets evicted from page cache.
+ 
+ split_huge_page internally has to distribute the refcounts in the head
+ page to the tail pages before clearing all PG_head/tail bits from the page
+@@ -427,7 +483,7 @@ sum of mapcount of all sub-pages plus one (split_huge_page caller must
+ have reference for head page).
+ 
+ split_huge_page uses migration entries to stabilize page->_count and
+-page->_mapcount.
++page->_mapcount of anonymous pages. File pages just got unmapped.
+ 
+ We safe against physical memory scanners too: the only legitimate way
+ scanner can get reference to a page is get_page_unless_zero().
 -- 
 2.8.1
 
