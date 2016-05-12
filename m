@@ -1,56 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B28926B007E
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 13:27:25 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 68so27151203lfq.2
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 10:27:25 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 198si12447767wmj.9.2016.05.12.10.27.23
+Received: from mail-ig0-f200.google.com (mail-ig0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C94D26B0005
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 14:20:53 -0400 (EDT)
+Received: by mail-ig0-f200.google.com with SMTP id sq19so81662555igc.0
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 11:20:53 -0700 (PDT)
+Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2on0098.outbound.protection.outlook.com. [207.46.100.98])
+        by mx.google.com with ESMTPS id w69si5668949oie.91.2016.05.12.11.20.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 May 2016 10:27:24 -0700 (PDT)
-Date: Thu, 12 May 2016 19:27:22 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Use after free in workingset LRU handling
-Message-ID: <20160512172722.GC30647@quack2.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 12 May 2016 11:20:52 -0700 (PDT)
+Subject: Re: [RFC PATCH v1 10/18] x86/efi: Access EFI related tables in the
+ clear
+References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
+ <20160426225740.13567.85438.stgit@tlendack-t1.amdoffice.net>
+ <20160510134358.GR2839@codeblueprint.co.uk> <20160510135758.GA16783@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <5734C97D.8060803@amd.com>
+Date: Thu, 12 May 2016 13:20:45 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20160510135758.GA16783@pd.tnic>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Borislav Petkov <bp@alien8.de>, Matt Fleming <matt@codeblueprint.co.uk>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-Hello,
+On 05/10/2016 08:57 AM, Borislav Petkov wrote:
+> On Tue, May 10, 2016 at 02:43:58PM +0100, Matt Fleming wrote:
+>> Is it not possible to maintain some kind of kernel virtual address
+>> mapping so memremap*() and friends can figure out when to twiddle the
+>> mapping attributes and map with/without encryption?
+> 
+> I guess we can move the sme_* specific stuff one indirection layer
+> below, i.e., in the *memremap() routines so that callers don't have to
+> care... That should keep the churn down...
+> 
 
-when testing recent DAX fixes, I was puzzled by shadow_lru_isolate()
-barfing on radix tree nodes attached to DAX mappings (as DAX mappings have
-no shadow entries and I took care to not insert radix tree nodes for such
-mappings into workingset_shadow_nodes LRU list. After some investigation, I
-think there is a use after free issue in the handling of radix tree nodes
-by workingset code. The following seems to be possible:
+We could do that, but we'll have to generate that list of addresses so
+that it can be checked against the range being mapped.  Since this is
+part of early memmap support searching that list every time might not be
+too bad. I'll have to look into that and see what that looks like.
 
-Radix tree node is created, is has two page pointers for indices 0 and 1.
-
-Page pointer for index 0 gets replaced with a shadow entry, radix tree
-node gets inserted into workingset_shadow_nodes
-
-Truncate happens removing page at index 1, __radix_tree_delete_node() in
-page_cache_tree_delete() frees the radix tree node (as it has only single
-entry at index 0 and thus we can shrink the tree) while it is still in LRU
-list!
-
-Am I missing something? I'm not sure how to best fix this issue since the
-shrinking / expanding of the radix tree is fully under control of
-lib/radix-tree.c which is completely agnostic to the private_list used by
-mm/workingset.c... Maybe we'd need some callback when radix tree node gets
-freed?
-
-								Honza
-
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Thanks,
+Tom
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
