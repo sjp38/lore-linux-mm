@@ -1,145 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B9F136B0005
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 09:43:52 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id j8so53471728lfd.0
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 06:43:52 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id a71si16957151wma.36.2016.05.12.06.43.51
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C50BF6B0005
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 09:53:04 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id d66so157211068vkb.0
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 06:53:04 -0700 (PDT)
+Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
+        by mx.google.com with ESMTPS id x145si8631763qkb.139.2016.05.12.06.53.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 May 2016 06:43:51 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id r12so16272567wme.0
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 06:43:51 -0700 (PDT)
-Date: Thu, 12 May 2016 15:43:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 05/13] mm, page_alloc: make THP-specific decisions more
- generic
-Message-ID: <20160512134348.GK4200@dhcp22.suse.cz>
-References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
- <1462865763-22084-6-git-send-email-vbabka@suse.cz>
+        Thu, 12 May 2016 06:53:03 -0700 (PDT)
+Received: by mail-qk0-x243.google.com with SMTP id i7so5510898qkd.1
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 06:53:03 -0700 (PDT)
+Date: Thu, 12 May 2016 15:52:53 +0200
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [Question] Missing data after DMA read transfer - mm issue with
+ transparent huge page?
+Message-ID: <20160512135253.GA17039@gmail.com>
+References: <15edf085-c21b-aa1c-9f1f-057d17b8a1a3@morey-chaisemartin.com>
+ <alpine.LSU.2.11.1605022020560.5004@eggly.anvils>
+ <20160503101153.GA7241@gmail.com>
+ <07619be9-e812-5459-26dd-ceb8c6490520@morey-chaisemartin.com>
+ <20160510100104.GA18820@gmail.com>
+ <60fc4f9f-fc8e-84a4-da84-a3c823b9b5bb@morey-chaisemartin.com>
+ <20160511145141.GA5288@gmail.com>
+ <432180fd-2faf-af37-7d99-4e24ab263d50@morey-chaisemartin.com>
+ <20160512093632.GA15092@gmail.com>
+ <e009b1e5-2fb2-0cc6-b065-932d7fa1c658@morey-chaisemartin.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1462865763-22084-6-git-send-email-vbabka@suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <e009b1e5-2fb2-0cc6-b065-932d7fa1c658@morey-chaisemartin.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Nicolas Morey-Chaisemartin <devel@morey-chaisemartin.com>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alex Williamson <alex.williamson@redhat.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 10-05-16 09:35:55, Vlastimil Babka wrote:
-> Since THP allocations during page faults can be costly, extra decisions are
-> employed for them to avoid excessive reclaim and compaction, if the initial
-> compaction doesn't look promising. The detection has never been perfect as
-> there is no gfp flag specific to THP allocations. At this moment it checks the
-> whole combination of flags that makes up GFP_TRANSHUGE, and hopes that no other
-> users of such combination exist, or would mind being treated the same way.
-> Extra care is also taken to separate allocations from khugepaged, where latency
-> doesn't matter that much.
+On Thu, May 12, 2016 at 03:30:24PM +0200, Nicolas Morey-Chaisemartin wrote:
+> Le 05/12/2016 a 11:36 AM, Jerome Glisse a ecrit :
+> > On Thu, May 12, 2016 at 08:07:59AM +0200, Nicolas Morey-Chaisemartin wrote:
+> >>
+> >> Le 05/11/2016 a 04:51 PM, Jerome Glisse a ecrit :
+> >>> On Wed, May 11, 2016 at 01:15:54PM +0200, Nicolas Morey Chaisemartin wrote:
+> >>>> Le 05/10/2016 a 12:01 PM, Jerome Glisse a ecrit :
+> >>>>> On Tue, May 10, 2016 at 09:04:36AM +0200, Nicolas Morey Chaisemartin wrote:
+> >>>>>> Le 05/03/2016 a 12:11 PM, Jerome Glisse a ecrit :
+> >>>>>>> On Mon, May 02, 2016 at 09:04:02PM -0700, Hugh Dickins wrote:
+> >>>>>>>> On Fri, 29 Apr 2016, Nicolas Morey Chaisemartin wrote:
+> >>>> [...]
+> >>>>>> Hi,
+> >>>>>>
+> >>>>>> I backported the patch to 3.10 (had to copy paste pmd_protnone defitinition from 4.5) and it's working !
+> >>>>>> I'll open a ticket in Redhat tracker to try and get this fixed in RHEL7.
+> >>>>>>
+> >>>>>> I have a dumb question though: how can we end up in numa/misplaced memory code on a single socket system?
+> >>>>>>
+> >>>>> This patch is not a fix, do you see bug message in kernel log ? Because if
+> >>>>> you do that it means we have a bigger issue.
+> >>>>>
+> >>>>> You did not answer one of my previous question, do you set get_user_pages
+> >>>>> with write = 1 as a paremeter ?
+> >>>>>
+> >>>>> Also it would be a lot easier if you were testing with lastest 4.6 or 4.5
+> >>>>> not RHEL kernel as they are far appart and what might looks like same issue
+> >>>>> on both might be totaly different bugs.
+> >>>>>
+> >>>>> If you only really care about RHEL kernel then open a bug with Red Hat and
+> >>>>> you can add me in bug-cc <jglisse@redhat.com>
+> >>>>>
+> >>>>> Cheers,
+> >>>>> Jerome
+> >>>> I finally managed to get a proper setup.
+> >>>> I build a vanilla 4.5 kernel from git tree using the Centos7 config, my test fails as usual.
+> >>>> I applied your patch, rebuild => still fails and no new messages in dmesg.
+> >>>>
+> >>>> Now that I don't have to go through the RPM repackaging, I can try out things much quicker if you have any ideas.
+> >>>>
+> >>> Still an issue if you boot with transparent_hugepage=never ?
+> >>>
+> >>> Also to simplify investigation force write to 1 all the time no matter what.
+> >>>
+> >>> Cheers,
+> >>> Jerome
+> >> With transparent_hugepage=never I can't see the bug anymore.
+> >>
+> > Can you test https://patchwork.kernel.org/patch/9061351/ with 4.5
+> > (does not apply to 3.10) and without transparent_hugepage=never
+> >
+> > Jerome
 > 
-> It is however possible to distinguish these allocations in a simpler and more
-> reliable way. The key observation is that after the initial compaction followed
-> by the first iteration of "standard" reclaim/compaction, both __GFP_NORETRY
-> allocations and costly allocations without __GFP_REPEAT are declared as
-> failures:
+> Fails with 4.5 + this patch and with 4.5 + this patch + yours
 > 
->         /* Do not loop if specifically requested */
->         if (gfp_mask & __GFP_NORETRY)
->                 goto nopage;
-> 
->         /*
->          * Do not retry costly high order allocations unless they are
->          * __GFP_REPEAT
->          */
->         if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
->                 goto nopage;
-> 
-> This means we can further distinguish allocations that are costly order *and*
-> additionally include the __GFP_NORETRY flag. As it happens, GFP_TRANSHUGE
-> allocations do already fall into this category. This will also allow other
-> costly allocations with similar high-order benefit vs latency considerations to
-> use this semantic. Furthermore, we can distinguish THP allocations that should
-> try a bit harder (such as from khugepageed) by removing __GFP_NORETRY, as will
-> be done in the next patch.
 
-Yes, using __GFP_NORETRY makes perfect sense. It is the weakest mode for
-the costly allocation which includes both compaction and reclaim. I am
-happy to see is_thp_gfp_mask going away.
+There must be some bug in your code, we have upstream user that works
+fine with the above combination (see drivers/vfio/vfio_iommu_type1.c)
+i suspect you might be releasing the page pin too early (put_page()).
 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+If you really believe it is bug upstream we would need a dumb kernel
+module that does gup like you do and that shows the issue. Right now
+looking at code (assuming above patches applied) i can't see anything
+that can go wrong with THP.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/page_alloc.c | 22 +++++++++-------------
->  1 file changed, 9 insertions(+), 13 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 88d680b3e7b6..f5d931e0854a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3182,7 +3182,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  	return page;
->  }
->  
-> -
->  /*
->   * Maximum number of compaction retries wit a progress before OOM
->   * killer is consider as the only way to move forward.
-> @@ -3447,11 +3446,6 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  	return !!(gfp_to_alloc_flags(gfp_mask) & ALLOC_NO_WATERMARKS);
->  }
->  
-> -static inline bool is_thp_gfp_mask(gfp_t gfp_mask)
-> -{
-> -	return (gfp_mask & (GFP_TRANSHUGE | __GFP_KSWAPD_RECLAIM)) == GFP_TRANSHUGE;
-> -}
-> -
->  /*
->   * Maximum number of reclaim retries without any progress before OOM killer
->   * is consider as the only way to move forward.
-> @@ -3610,8 +3604,11 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  		if (page)
->  			goto got_pg;
->  
-> -		/* Checks for THP-specific high-order allocations */
-> -		if (is_thp_gfp_mask(gfp_mask)) {
-> +		/*
-> +		 * Checks for costly allocations with __GFP_NORETRY, which
-> +		 * includes THP page fault allocations
-> +		 */
-> +		if (gfp_mask & __GFP_NORETRY) {
->  			/*
->  			 * If compaction is deferred for high-order allocations,
->  			 * it is because sync compaction recently failed. If
-> @@ -3631,11 +3628,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  				goto nopage;
->  
->  			/*
-> -			 * It can become very expensive to allocate transparent
-> -			 * hugepages at fault, so use asynchronous memory
-> -			 * compaction for THP unless it is khugepaged trying to
-> -			 * collapse. All other requests should tolerate at
-> -			 * least light sync migration.
-> +			 * Looks like reclaim/compaction is worth trying, but
-> +			 * sync compaction could be very expensive, so keep
-> +			 * using async compaction, unless it's khugepaged
-> +			 * trying to collapse.
->  			 */
->  			if (!(current->flags & PF_KTHREAD))
->  				migration_mode = MIGRATE_ASYNC;
-> -- 
-> 2.8.2
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
