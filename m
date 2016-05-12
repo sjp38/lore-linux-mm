@@ -1,93 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 85FFB6B0005
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 05:36:43 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id d66so145530052vkb.0
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 02:36:43 -0700 (PDT)
-Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
-        by mx.google.com with ESMTPS id r127si7998759qkc.8.2016.05.12.02.36.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 May 2016 02:36:42 -0700 (PDT)
-Received: by mail-qk0-x242.google.com with SMTP id q184so4970159qkf.0
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 02:36:42 -0700 (PDT)
-Date: Thu, 12 May 2016 11:36:32 +0200
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [Question] Missing data after DMA read transfer - mm issue with
- transparent huge page?
-Message-ID: <20160512093632.GA15092@gmail.com>
-References: <15edf085-c21b-aa1c-9f1f-057d17b8a1a3@morey-chaisemartin.com>
- <alpine.LSU.2.11.1605022020560.5004@eggly.anvils>
- <20160503101153.GA7241@gmail.com>
- <07619be9-e812-5459-26dd-ceb8c6490520@morey-chaisemartin.com>
- <20160510100104.GA18820@gmail.com>
- <60fc4f9f-fc8e-84a4-da84-a3c823b9b5bb@morey-chaisemartin.com>
- <20160511145141.GA5288@gmail.com>
- <432180fd-2faf-af37-7d99-4e24ab263d50@morey-chaisemartin.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <432180fd-2faf-af37-7d99-4e24ab263d50@morey-chaisemartin.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D6A526B0005
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 06:47:46 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id e201so59608909wme.1
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 03:47:46 -0700 (PDT)
+Received: from mail.sigma-star.at (mail.sigma-star.at. [95.130.255.111])
+        by mx.google.com with ESMTP id y9si15443241wje.220.2016.05.12.03.47.45
+        for <linux-mm@kvack.org>;
+        Thu, 12 May 2016 03:47:45 -0700 (PDT)
+From: Richard Weinberger <richard@nod.at>
+Subject: [PATCH 2/2] UBIFS: Implement ->migratepage()
+Date: Thu, 12 May 2016 12:47:36 +0200
+Message-Id: <1463050056-31513-1-git-send-email-richard@nod.at>
+In-Reply-To: <1462974823-3168-3-git-send-email-richard@nod.at>
+References: <1462974823-3168-3-git-send-email-richard@nod.at>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Morey-Chaisemartin <devel@morey-chaisemartin.com>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alex Williamson <alex.williamson@redhat.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-fsdevel@vger.kernel.org
+Cc: linux-mtd@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, boris.brezillon@free-electrons.com, maxime.ripard@free-electrons.com, david@sigma-star.at, david@fromorbit.com, dedekind1@gmail.com, alex@nextthing.co, akpm@linux-foundation.org, sasha.levin@oracle.com, iamjoonsoo.kim@lge.com, rvaswani@codeaurora.org, tony.luck@intel.com, shailendra.capricorn@gmail.com, kirill.shutemov@linux.intel.com, hch@infradead.org, hughd@google.com, mgorman@techsingularity.net, vbabka@suse.cz, Richard Weinberger <richard@nod.at>
 
-On Thu, May 12, 2016 at 08:07:59AM +0200, Nicolas Morey-Chaisemartin wrote:
-> 
-> 
-> Le 05/11/2016 a 04:51 PM, Jerome Glisse a ecrit :
-> > On Wed, May 11, 2016 at 01:15:54PM +0200, Nicolas Morey Chaisemartin wrote:
-> >>
-> >> Le 05/10/2016 a 12:01 PM, Jerome Glisse a ecrit :
-> >>> On Tue, May 10, 2016 at 09:04:36AM +0200, Nicolas Morey Chaisemartin wrote:
-> >>>> Le 05/03/2016 a 12:11 PM, Jerome Glisse a ecrit :
-> >>>>> On Mon, May 02, 2016 at 09:04:02PM -0700, Hugh Dickins wrote:
-> >>>>>> On Fri, 29 Apr 2016, Nicolas Morey Chaisemartin wrote:
-> >> [...]
-> >>>> Hi,
-> >>>>
-> >>>> I backported the patch to 3.10 (had to copy paste pmd_protnone defitinition from 4.5) and it's working !
-> >>>> I'll open a ticket in Redhat tracker to try and get this fixed in RHEL7.
-> >>>>
-> >>>> I have a dumb question though: how can we end up in numa/misplaced memory code on a single socket system?
-> >>>>
-> >>> This patch is not a fix, do you see bug message in kernel log ? Because if
-> >>> you do that it means we have a bigger issue.
-> >>>
-> >>> You did not answer one of my previous question, do you set get_user_pages
-> >>> with write = 1 as a paremeter ?
-> >>>
-> >>> Also it would be a lot easier if you were testing with lastest 4.6 or 4.5
-> >>> not RHEL kernel as they are far appart and what might looks like same issue
-> >>> on both might be totaly different bugs.
-> >>>
-> >>> If you only really care about RHEL kernel then open a bug with Red Hat and
-> >>> you can add me in bug-cc <jglisse@redhat.com>
-> >>>
-> >>> Cheers,
-> >>> Jerome
-> >> I finally managed to get a proper setup.
-> >> I build a vanilla 4.5 kernel from git tree using the Centos7 config, my test fails as usual.
-> >> I applied your patch, rebuild => still fails and no new messages in dmesg.
-> >>
-> >> Now that I don't have to go through the RPM repackaging, I can try out things much quicker if you have any ideas.
-> >>
-> > Still an issue if you boot with transparent_hugepage=never ?
-> >
-> > Also to simplify investigation force write to 1 all the time no matter what.
-> >
-> > Cheers,
-> > Jerome
-> 
-> With transparent_hugepage=never I can't see the bug anymore.
-> 
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Can you test https://patchwork.kernel.org/patch/9061351/ with 4.5
-(does not apply to 3.10) and without transparent_hugepage=never
+During page migrations UBIFS might get confused
+and the following assert triggers:
+[  213.480000] UBIFS assert failed in ubifs_set_page_dirty at 1451 (pid 436)
+[  213.490000] CPU: 0 PID: 436 Comm: drm-stress-test Not tainted 4.4.4-00176-geaa802524636-dirty #1008
+[  213.490000] Hardware name: Allwinner sun4i/sun5i Families
+[  213.490000] [<c0015e70>] (unwind_backtrace) from [<c0012cdc>] (show_stack+0x10/0x14)
+[  213.490000] [<c0012cdc>] (show_stack) from [<c02ad834>] (dump_stack+0x8c/0xa0)
+[  213.490000] [<c02ad834>] (dump_stack) from [<c0236ee8>] (ubifs_set_page_dirty+0x44/0x50)
+[  213.490000] [<c0236ee8>] (ubifs_set_page_dirty) from [<c00fa0bc>] (try_to_unmap_one+0x10c/0x3a8)
+[  213.490000] [<c00fa0bc>] (try_to_unmap_one) from [<c00fadb4>] (rmap_walk+0xb4/0x290)
+[  213.490000] [<c00fadb4>] (rmap_walk) from [<c00fb1bc>] (try_to_unmap+0x64/0x80)
+[  213.490000] [<c00fb1bc>] (try_to_unmap) from [<c010dc28>] (migrate_pages+0x328/0x7a0)
+[  213.490000] [<c010dc28>] (migrate_pages) from [<c00d0cb0>] (alloc_contig_range+0x168/0x2f4)
+[  213.490000] [<c00d0cb0>] (alloc_contig_range) from [<c010ec00>] (cma_alloc+0x170/0x2c0)
+[  213.490000] [<c010ec00>] (cma_alloc) from [<c001a958>] (__alloc_from_contiguous+0x38/0xd8)
+[  213.490000] [<c001a958>] (__alloc_from_contiguous) from [<c001ad44>] (__dma_alloc+0x23c/0x274)
+[  213.490000] [<c001ad44>] (__dma_alloc) from [<c001ae08>] (arm_dma_alloc+0x54/0x5c)
+[  213.490000] [<c001ae08>] (arm_dma_alloc) from [<c035cecc>] (drm_gem_cma_create+0xb8/0xf0)
+[  213.490000] [<c035cecc>] (drm_gem_cma_create) from [<c035cf20>] (drm_gem_cma_create_with_handle+0x1c/0xe8)
+[  213.490000] [<c035cf20>] (drm_gem_cma_create_with_handle) from [<c035d088>] (drm_gem_cma_dumb_create+0x3c/0x48)
+[  213.490000] [<c035d088>] (drm_gem_cma_dumb_create) from [<c0341ed8>] (drm_ioctl+0x12c/0x444)
+[  213.490000] [<c0341ed8>] (drm_ioctl) from [<c0121adc>] (do_vfs_ioctl+0x3f4/0x614)
+[  213.490000] [<c0121adc>] (do_vfs_ioctl) from [<c0121d30>] (SyS_ioctl+0x34/0x5c)
+[  213.490000] [<c0121d30>] (SyS_ioctl) from [<c000f2c0>] (ret_fast_syscall+0x0/0x34)
 
-Jerome
+UBIFS is using PagePrivate() which can have different meanings across
+filesystems. Therefore the generic page migration code cannot handle this
+case correctly.
+We have to implement our own migration function which basically does a
+plain copy but also duplicates the page private flag.
+UBIFS is not a block device filesystem and cannot use buffer_migrate_page().
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+[rw: Massaged changelog, build fixes, etc...]
+Signed-off-by: Richard Weinberger <richard@nod.at>
+---
+Christ, sent the wrong patch without the !CONFIG_MIGRATION build fixes.
+
+Thanks,
+//richard
+---
+ fs/ubifs/file.c | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
+index 446753d..5b5ec8d 100644
+--- a/fs/ubifs/file.c
++++ b/fs/ubifs/file.c
+@@ -52,6 +52,7 @@
+ #include "ubifs.h"
+ #include <linux/mount.h>
+ #include <linux/slab.h>
++#include <linux/migrate.h>
+ 
+ static int read_block(struct inode *inode, void *addr, unsigned int block,
+ 		      struct ubifs_data_node *dn)
+@@ -1452,6 +1453,26 @@ static int ubifs_set_page_dirty(struct page *page)
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_MIGRATION
++static int ubifs_migrate_page(struct address_space *mapping,
++		struct page *newpage, struct page *page, enum migrate_mode mode)
++{
++	int rc;
++
++	rc = migrate_page_move_mapping(mapping, newpage, page, NULL, mode, 0);
++	if (rc != MIGRATEPAGE_SUCCESS)
++		return rc;
++
++	if (PagePrivate(page)) {
++		ClearPagePrivate(page);
++		SetPagePrivate(newpage);
++	}
++
++	migrate_page_copy(newpage, page);
++	return MIGRATEPAGE_SUCCESS;
++}
++#endif
++
+ static int ubifs_releasepage(struct page *page, gfp_t unused_gfp_flags)
+ {
+ 	/*
+@@ -1591,6 +1612,9 @@ const struct address_space_operations ubifs_file_address_operations = {
+ 	.write_end      = ubifs_write_end,
+ 	.invalidatepage = ubifs_invalidatepage,
+ 	.set_page_dirty = ubifs_set_page_dirty,
++#ifdef CONFIG_MIGRATION
++	.migratepage	= ubifs_migrate_page,
++#endif
+ 	.releasepage    = ubifs_releasepage,
+ };
+ 
+-- 
+2.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
