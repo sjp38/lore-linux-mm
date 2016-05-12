@@ -1,227 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CCE5382963
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:50:01 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 203so152393638pfy.2
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:50:01 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ae8si18334767pac.110.2016.05.12.08.41.51
-        for <linux-mm@kvack.org>;
-        Thu, 12 May 2016 08:41:52 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv8 29/32] shmem: make shmem_inode_info::lock irq-safe
-Date: Thu, 12 May 2016 18:41:09 +0300
-Message-Id: <1463067672-134698-30-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6446882963
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:57:41 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id e126so163488340vkb.2
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:57:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t4si8959377qkc.66.2016.05.12.08.57.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 May 2016 08:57:40 -0700 (PDT)
+Date: Thu, 12 May 2016 17:57:37 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [Question] Missing data after DMA read transfer - mm issue with
+ transparent huge page?
+Message-ID: <20160512155737.GG19275@redhat.com>
+References: <20160503101153.GA7241@gmail.com>
+ <07619be9-e812-5459-26dd-ceb8c6490520@morey-chaisemartin.com>
+ <20160510100104.GA18820@gmail.com>
+ <60fc4f9f-fc8e-84a4-da84-a3c823b9b5bb@morey-chaisemartin.com>
+ <20160511145141.GA5288@gmail.com>
+ <432180fd-2faf-af37-7d99-4e24ab263d50@morey-chaisemartin.com>
+ <20160512093632.GA15092@gmail.com>
+ <e009b1e5-2fb2-0cc6-b065-932d7fa1c658@morey-chaisemartin.com>
+ <20160512135253.GA17039@gmail.com>
+ <db706ffa-2b61-de50-0118-9b0b6834ef68@morey-chaisemartin.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <db706ffa-2b61-de50-0118-9b0b6834ef68@morey-chaisemartin.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Nicolas Morey-Chaisemartin <devel@morey-chaisemartin.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alex Williamson <alex.williamson@redhat.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-We are going to need to call shmem_charge() under tree_lock to get
-accoutning right on collapse of small tmpfs pages into a huge one.
+Hello Nicolas,
 
-The problem is that tree_lock is irq-safe and lockdep is not happy, that
-we take irq-unsafe lock under irq-safe[1].
+On Thu, May 12, 2016 at 05:31:52PM +0200, Nicolas Morey-Chaisemartin wrote:
+> 
+> 
+> Le 05/12/2016 a 03:52 PM, Jerome Glisse a ecrit :
+> > On Thu, May 12, 2016 at 03:30:24PM +0200, Nicolas Morey-Chaisemartin wrote:
+> >> Le 05/12/2016 a 11:36 AM, Jerome Glisse a ecrit :
+> >>> On Thu, May 12, 2016 at 08:07:59AM +0200, Nicolas Morey-Chaisemartin wrote:
+> [...]
+> >>>> With transparent_hugepage=never I can't see the bug anymore.
+> >>>>
+> >>> Can you test https://patchwork.kernel.org/patch/9061351/ with 4.5
+> >>> (does not apply to 3.10) and without transparent_hugepage=never
+> >>>
+> >>> Jerome
+> >> Fails with 4.5 + this patch and with 4.5 + this patch + yours
+> >>
+> > There must be some bug in your code, we have upstream user that works
+> > fine with the above combination (see drivers/vfio/vfio_iommu_type1.c)
+> > i suspect you might be releasing the page pin too early (put_page()).
+> In my previous tests, I checked the page before calling put_page and it has already changed.
+> And I also checked that there is not multiple transfers in a single page at once.
+> So I doubt it's that.
+> >
+> > If you really believe it is bug upstream we would need a dumb kernel
+> > module that does gup like you do and that shows the issue. Right now
+> > looking at code (assuming above patches applied) i can't see anything
+> > that can go wrong with THP.
+> 
+> The issue is that I doubt I'll be able to do that. We have had code running in production for at least a year without the issue showing up and now a single test shows this.
+> And some tweak to the test (meaning memory footprint in the user space) can make the problem disappear.
+> 
+> Is there a way to track what is happening to the THP? From the looks of it, the refcount are changed behind my back? Would kgdb with watch point work on this?
+> Is there a less painful way?
 
-Let's convert the lock to irq-safe.
+Do you use fork()?
 
-[1] https://gist.github.com/kiryl/80c0149e03ed35dfaf26628b8e03cdbc
----
- ipc/shm.c  |  4 ++--
- mm/shmem.c | 50 ++++++++++++++++++++++++++------------------------
- 2 files changed, 28 insertions(+), 26 deletions(-)
+If you have threads and your DMA I/O granularity is smaller than
+PAGE_SIZE, and a thread of the application in parent or child is
+writing to another part of the page, the I/O can get lost (worse, it
+doesn't get really lost but it goes to the child by mistake, instead
+of sticking to the "mm" where you executed get_user_pages). This is
+practically a bug in fork() but it's known. It can affect any app that
+uses get_user_pages/O_DIRECT, fork() and uses thread and the I/O
+granularity is smaller than PAGE_SIZE.
 
-diff --git a/ipc/shm.c b/ipc/shm.c
-index b1ed484eeda1..6eb6f0416b70 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -766,10 +766,10 @@ static void shm_add_rss_swap(struct shmid_kernel *shp,
- 	} else {
- #ifdef CONFIG_SHMEM
- 		struct shmem_inode_info *info = SHMEM_I(inode);
--		spin_lock(&info->lock);
-+		spin_lock_irq(&info->lock);
- 		*rss_add += inode->i_mapping->nrpages;
- 		*swp_add += info->swapped;
--		spin_unlock(&info->lock);
-+		spin_unlock_irq(&info->lock);
- #else
- 		*rss_add += inode->i_mapping->nrpages;
- #endif
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 872d658d37c0..17339c12b48f 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -258,14 +258,15 @@ bool shmem_charge(struct inode *inode, long pages)
- {
- 	struct shmem_inode_info *info = SHMEM_I(inode);
- 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
-+	unsigned long flags;
- 
- 	if (shmem_acct_block(info->flags, pages))
- 		return false;
--	spin_lock(&info->lock);
-+	spin_lock_irqsave(&info->lock, flags);
- 	info->alloced += pages;
- 	inode->i_blocks += pages * BLOCKS_PER_PAGE;
- 	shmem_recalc_inode(inode);
--	spin_unlock(&info->lock);
-+	spin_unlock_irqrestore(&info->lock, flags);
- 	inode->i_mapping->nrpages += pages;
- 
- 	if (!sbinfo->max_blocks)
-@@ -273,10 +274,10 @@ bool shmem_charge(struct inode *inode, long pages)
- 	if (percpu_counter_compare(&sbinfo->used_blocks,
- 				sbinfo->max_blocks - pages) > 0) {
- 		inode->i_mapping->nrpages -= pages;
--		spin_lock(&info->lock);
-+		spin_lock_irqsave(&info->lock, flags);
- 		info->alloced -= pages;
- 		shmem_recalc_inode(inode);
--		spin_unlock(&info->lock);
-+		spin_unlock_irqrestore(&info->lock, flags);
- 
- 		return false;
- 	}
-@@ -288,12 +289,13 @@ void shmem_uncharge(struct inode *inode, long pages)
- {
- 	struct shmem_inode_info *info = SHMEM_I(inode);
- 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
-+	unsigned long flags;
- 
--	spin_lock(&info->lock);
-+	spin_lock_irqsave(&info->lock, flags);
- 	info->alloced -= pages;
- 	inode->i_blocks -= pages * BLOCKS_PER_PAGE;
- 	shmem_recalc_inode(inode);
--	spin_unlock(&info->lock);
-+	spin_unlock_irqrestore(&info->lock, flags);
- 
- 	if (sbinfo->max_blocks)
- 		percpu_counter_sub(&sbinfo->used_blocks, pages);
-@@ -818,10 +820,10 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
- 		index++;
- 	}
- 
--	spin_lock(&info->lock);
-+	spin_lock_irq(&info->lock);
- 	info->swapped -= nr_swaps_freed;
- 	shmem_recalc_inode(inode);
--	spin_unlock(&info->lock);
-+	spin_unlock_irq(&info->lock);
- }
- 
- void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
-@@ -838,9 +840,9 @@ static int shmem_getattr(struct vfsmount *mnt, struct dentry *dentry,
- 	struct shmem_inode_info *info = SHMEM_I(inode);
- 
- 	if (info->alloced - info->swapped != inode->i_mapping->nrpages) {
--		spin_lock(&info->lock);
-+		spin_lock_irq(&info->lock);
- 		shmem_recalc_inode(inode);
--		spin_unlock(&info->lock);
-+		spin_unlock_irq(&info->lock);
- 	}
- 	generic_fillattr(inode, stat);
- 	return 0;
-@@ -984,9 +986,9 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
- 		delete_from_swap_cache(*pagep);
- 		set_page_dirty(*pagep);
- 		if (!error) {
--			spin_lock(&info->lock);
-+			spin_lock_irq(&info->lock);
- 			info->swapped--;
--			spin_unlock(&info->lock);
-+			spin_unlock_irq(&info->lock);
- 			swap_free(swap);
- 		}
- 	}
-@@ -1134,10 +1136,10 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
- 		list_add_tail(&info->swaplist, &shmem_swaplist);
- 
- 	if (add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
--		spin_lock(&info->lock);
-+		spin_lock_irq(&info->lock);
- 		shmem_recalc_inode(inode);
- 		info->swapped++;
--		spin_unlock(&info->lock);
-+		spin_unlock_irq(&info->lock);
- 
- 		swap_shmem_alloc(swap);
- 		shmem_delete_from_page_cache(page, swp_to_radix_entry(swap));
-@@ -1523,10 +1525,10 @@ repeat:
- 
- 		mem_cgroup_commit_charge(page, memcg, true, false);
- 
--		spin_lock(&info->lock);
-+		spin_lock_irq(&info->lock);
- 		info->swapped--;
- 		shmem_recalc_inode(inode);
--		spin_unlock(&info->lock);
-+		spin_unlock_irq(&info->lock);
- 
- 		if (sgp == SGP_WRITE)
- 			mark_page_accessed(page);
-@@ -1603,11 +1605,11 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
- 				PageTransHuge(page));
- 		lru_cache_add_anon(page);
- 
--		spin_lock(&info->lock);
-+		spin_lock_irq(&info->lock);
- 		info->alloced += 1 << compound_order(page);
- 		inode->i_blocks += BLOCKS_PER_PAGE << compound_order(page);
- 		shmem_recalc_inode(inode);
--		spin_unlock(&info->lock);
-+		spin_unlock_irq(&info->lock);
- 		alloced = true;
- 
- 		/*
-@@ -1639,9 +1641,9 @@ clear:
- 		if (alloced) {
- 			ClearPageDirty(page);
- 			delete_from_page_cache(page);
--			spin_lock(&info->lock);
-+			spin_lock_irq(&info->lock);
- 			shmem_recalc_inode(inode);
--			spin_unlock(&info->lock);
-+			spin_unlock_irq(&info->lock);
- 		}
- 		error = -EINVAL;
- 		goto unlock;
-@@ -1673,9 +1675,9 @@ unlock:
- 	}
- 	if (error == -ENOSPC && !once++) {
- 		info = SHMEM_I(inode);
--		spin_lock(&info->lock);
-+		spin_lock_irq(&info->lock);
- 		shmem_recalc_inode(inode);
--		spin_unlock(&info->lock);
-+		spin_unlock_irq(&info->lock);
- 		goto repeat;
- 	}
- 	if (error == -EEXIST)	/* from above or from radix_tree_insert */
-@@ -1874,7 +1876,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
- 	struct shmem_inode_info *info = SHMEM_I(inode);
- 	int retval = -ENOMEM;
- 
--	spin_lock(&info->lock);
-+	spin_lock_irq(&info->lock);
- 	if (lock && !(info->flags & VM_LOCKED)) {
- 		if (!user_shm_lock(inode->i_size, user))
- 			goto out_nomem;
-@@ -1889,7 +1891,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
- 	retval = 0;
- 
- out_nomem:
--	spin_unlock(&info->lock);
-+	spin_unlock_irq(&info->lock);
- 	return retval;
- }
- 
--- 
-2.8.1
+The same bug cannot happen with KSM or other things that can wrprotect
+a page out of app control, because all things out of app control
+checks there are no page pins before wrprotecting the page. So it's up
+to the app to control "fork()".
+
+To fix it, you should do one of: 1) use MADV_DONTFORK on the pinned
+region, 2) prevent fork to run while you've pins taken with
+get_user_pages or anyway while get_user_pages may be running
+concurrently, 3) use a PAGE_SIZE I/O granularity and/or prevent the
+threads to write to the other part of the page while DMA is running.
+
+I'm not aware of other issues that could screw with page pins with THP
+on kernels <=4.4, if there were, everything should fall apart
+including O_DIRECT and qemu cache=none. The only issue I'm aware of
+that can cause DMA to get lost with page pins is the aforementioned
+one.
+
+To debug it further, I would suggest to start by searching for "fork"
+calls, and adding MADV_DONTFORK to the pinned region if there's any
+fork() in your testcase.
+
+Without being allowed to see the source there's not much else we can
+do considering there's no sign of unknown bugs in this area in kernels
+<=4.4.
+
+All there is, is the known bug above, but apps that could be affected
+by it, actively avoid it by using MADV_DONTFORK like with qemu
+cache=none.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
