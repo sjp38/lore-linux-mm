@@ -1,174 +1,275 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E4A4828DF
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:48:36 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id gw7so110865930pac.0
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:48:36 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id m66si18095482pfm.117.2016.05.12.08.41.36
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F3BF1828DF
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:48:38 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id yl2so110502639pac.2
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:48:38 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id ae8si18334767pac.110.2016.05.12.08.41.47
         for <linux-mm@kvack.org>;
-        Thu, 12 May 2016 08:41:36 -0700 (PDT)
+        Thu, 12 May 2016 08:41:48 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv8 25/32] shmem, thp: respect MADV_{NO,}HUGEPAGE for file mappings
-Date: Thu, 12 May 2016 18:41:05 +0300
-Message-Id: <1463067672-134698-26-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv8 00/32] THP-enabled tmpfs/shmem using compound pages
+Date: Thu, 12 May 2016 18:40:40 +0300
+Message-Id: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Let's wire up existing madvise() hugepage hints for file mappings.
+This update aimed to address my todo list from lsf/mm summit:
 
-MADV_HUGEPAGE advise shmem to allocate huge page on page fault in the
-VMA. It only has effect if the filesystem is mounted with huge=advise or
-huge=within_size.
+ - we now able to recovery memory by splitting huge pages partly beyond
+   i_size. This should address concern about small files.
 
-MADV_NOHUGEPAGE prevents hugepage from being allocated on page fault in
-the VMA. It doesn't prevent a huge page from being allocated by other
-means, i.e. page fault into different mapping or write(2) into file.
+ - bunch of bug fixes for khugepaged, including fix for data corruption
+   reported by Hugh.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- mm/huge_memory.c | 19 +++++--------------
- mm/shmem.c       | 20 +++++++++++++++++---
- 2 files changed, 22 insertions(+), 17 deletions(-)
+ - Disabled for Power as it requires deposited page table to get THP
+   mapped and we don't do deposit/withdraw for file THP.
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 648f60d55759..3658b7d2c424 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1837,7 +1837,7 @@ spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma)
- 	return NULL;
- }
- 
--#define VM_NO_THP (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
-+#define VM_NO_KHUGEPAGED (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
- 
- int hugepage_madvise(struct vm_area_struct *vma,
- 		     unsigned long *vm_flags, int advice)
-@@ -1853,11 +1853,6 @@ int hugepage_madvise(struct vm_area_struct *vma,
- 		if (mm_has_pgste(vma->vm_mm))
- 			return 0;
- #endif
--		/*
--		 * Be somewhat over-protective like KSM for now!
--		 */
--		if (*vm_flags & VM_NO_THP)
--			return -EINVAL;
- 		*vm_flags &= ~VM_NOHUGEPAGE;
- 		*vm_flags |= VM_HUGEPAGE;
- 		/*
-@@ -1865,15 +1860,11 @@ int hugepage_madvise(struct vm_area_struct *vma,
- 		 * register it here without waiting a page fault that
- 		 * may not happen any time soon.
- 		 */
--		if (unlikely(khugepaged_enter_vma_merge(vma, *vm_flags)))
-+		if (!(*vm_flags & VM_NO_KHUGEPAGED) &&
-+				khugepaged_enter_vma_merge(vma, *vm_flags))
- 			return -ENOMEM;
- 		break;
- 	case MADV_NOHUGEPAGE:
--		/*
--		 * Be somewhat over-protective like KSM for now!
--		 */
--		if (*vm_flags & VM_NO_THP)
--			return -EINVAL;
- 		*vm_flags &= ~VM_HUGEPAGE;
- 		*vm_flags |= VM_NOHUGEPAGE;
- 		/*
-@@ -1984,7 +1975,7 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
- 	if (vma->vm_ops)
- 		/* khugepaged not yet working on file or special mappings */
- 		return 0;
--	VM_BUG_ON_VMA(vm_flags & VM_NO_THP, vma);
-+	VM_BUG_ON_VMA(vm_flags & VM_NO_KHUGEPAGED, vma);
- 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
- 	hend = vma->vm_end & HPAGE_PMD_MASK;
- 	if (hstart < hend)
-@@ -2373,7 +2364,7 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
- 		return false;
- 	if (is_vma_temporary_stack(vma))
- 		return false;
--	VM_BUG_ON_VMA(vma->vm_flags & VM_NO_THP, vma);
-+	VM_BUG_ON_VMA(vma->vm_flags & VM_NO_KHUGEPAGED, vma);
- 	return true;
- }
- 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index ec899b5ea9e6..872d658d37c0 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -101,6 +101,8 @@ struct shmem_falloc {
- enum sgp_type {
- 	SGP_READ,	/* don't exceed i_size, don't allocate page */
- 	SGP_CACHE,	/* don't exceed i_size, may allocate page */
-+	SGP_NOHUGE,	/* like SGP_CACHE, but no huge pages */
-+	SGP_HUGE,	/* like SGP_CACHE, huge pages preferred */
- 	SGP_WRITE,	/* may exceed i_size, may allocate !Uptodate page */
- 	SGP_FALLOC,	/* like SGP_WRITE, but make existing page Uptodate */
- };
-@@ -1409,6 +1411,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
- 	struct mem_cgroup *memcg;
- 	struct page *page;
- 	swp_entry_t swap;
-+	enum sgp_type sgp_huge = sgp;
- 	pgoff_t hindex = index;
- 	int error;
- 	int once = 0;
-@@ -1416,6 +1419,8 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
- 
- 	if (index > (MAX_LFS_FILESIZE >> PAGE_SHIFT))
- 		return -EFBIG;
-+	if (sgp == SGP_NOHUGE || sgp == SGP_HUGE)
-+		sgp = SGP_CACHE;
- repeat:
- 	swap.val = 0;
- 	page = find_lock_entry(mapping, index);
-@@ -1534,7 +1539,7 @@ repeat:
- 		/* shmem_symlink() */
- 		if (mapping->a_ops != &shmem_aops)
- 			goto alloc_nohuge;
--		if (shmem_huge == SHMEM_HUGE_DENY)
-+		if (shmem_huge == SHMEM_HUGE_DENY || sgp_huge == SGP_NOHUGE)
- 			goto alloc_nohuge;
- 		if (shmem_huge == SHMEM_HUGE_FORCE)
- 			goto alloc_huge;
-@@ -1551,7 +1556,9 @@ repeat:
- 				goto alloc_huge;
- 			/* fallthrough */
- 		case SHMEM_HUGE_ADVISE:
--			/* TODO: wire up fadvise()/madvise() */
-+			if (sgp_huge == SGP_HUGE)
-+				goto alloc_huge;
-+			/* TODO: implement fadvise() hints */
- 			goto alloc_nohuge;
- 		}
- 
-@@ -1680,6 +1687,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	struct inode *inode = file_inode(vma->vm_file);
- 	gfp_t gfp = mapping_gfp_mask(inode->i_mapping);
-+	enum sgp_type sgp;
- 	int error;
- 	int ret = VM_FAULT_LOCKED;
- 
-@@ -1741,7 +1749,13 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 		spin_unlock(&inode->i_lock);
- 	}
- 
--	error = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, SGP_CACHE,
-+	sgp = SGP_CACHE;
-+	if (vma->vm_flags & VM_HUGEPAGE)
-+		sgp = SGP_HUGE;
-+	else if (vma->vm_flags & VM_NOHUGEPAGE)
-+		sgp = SGP_NOHUGE;
-+
-+	error = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, sgp,
- 				  gfp, vma->vm_mm, &ret);
- 	if (error)
- 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
+The main part of patchset (up to khugepaged stuff) is relatively stable --
+I fixed few minor bugs there, but nothing major.
+
+I would appreciate rigorous review of khugepaged and code to split huge
+pages under memory pressure.
+
+The patchset is on top of v4.6-rc3 plus Hugh's "easy preliminaries to
+THPagecache" and Ebru's khugepaged swapin patches form -mm tree.
+
+Git tree:
+
+git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git hugetmpfs/v8
+
+== Changelog ==
+
+v8:
+  - khugepaged updates:
+    + mark collapsed page dirty, otherwise vmscan would discard it;
+    + account pages to mapping->nrpages on shmem_charge;
+    + fix a situation when not all tail pages put on radix tree on collapse;
+    + fix off-by-one in loop-exit condition in khugepaged_scan_shmem();
+    + use radix_tree_iter_next/radix_tree_iter_retry instead of gotos;
+    + fix build withount CONFIG_SHMEM (again);
+  - split huge pages beyond i_size under memory pressure;
+  - disable huge tmpfs on Power, as it makes use of deposited page tables,
+    we don't have;
+  - fix filesystem size limit accouting;
+  - mark page referenced on split_huge_pmd() if the pmd is young;
+  - uncharge pages from shmem, removed during split_huge_page();
+  - make shmem_inode_info::lock irq-safe -- required by khugepaged;
+
+v7:
+  - khugepaged updates:
+    + fix page leak/page cache corruption on collapse fail;
+    + filter out VMAs not suitable for huge pages due misaligned vm_pgoff;
+    + fix build without CONFIG_SHMEM;
+    + drop few over-protective checks;
+  - fix bogus VM_BUG_ON() in __delete_from_page_cache();
+
+v6:
+  - experimental collapse support;
+  - fix swapout mapped huge pages;
+  - fix page leak in faularound code;
+  - fix exessive huge page allocation with huge=within_size;
+  - rename VM_NO_THP to VM_NO_KHUGEPAGED;
+  - fix condition in hugepage_madvise();
+  - accounting reworked again;
+
+v5:
+  - add FileHugeMapped to /proc/PID/smaps;
+  - make FileHugeMapped in meminfo aligned with other fields;
+  - Documentation/vm/transhuge.txt updated;
+
+v4:
+  - first four patch were applied to -mm tree;
+  - drop pages beyond i_size on split_huge_pages;
+  - few small random bugfixes;
+
+v3:
+  - huge= mountoption now can have values always, within_size, advice and
+    never;
+  - sysctl handle is replaced with sysfs knob;
+  - MADV_HUGEPAGE/MADV_NOHUGEPAGE is now respected on page allocation via
+    page fault;
+  - mlock() handling had been fixed;
+  - bunch of smaller bugfixes and cleanups.
+
+== Design overview ==
+
+Huge pages are allocated by shmem when it's allowed (by mount option) and
+there's no entries for the range in radix-tree. Huge page is represented by
+HPAGE_PMD_NR entries in radix-tree.
+
+MM core maps a page with PMD if ->fault() returns huge page and the VMA is
+suitable for huge pages (size, alignment). There's no need into two
+requests to file system: filesystem returns huge page if it can,
+graceful fallback to small pages otherwise.
+
+As with DAX, split_huge_pmd() is implemented by unmapping the PMD: we can
+re-fault the page with PTEs later.
+
+Basic scheme for split_huge_page() is the same as for anon-THP.
+Few differences:
+
+  - File pages are on radix-tree, so we have head->_count offset by
+    HPAGE_PMD_NR. The count got distributed to small pages during split.
+
+  - mapping->tree_lock prevents non-lockless access to pages under split
+    over radix-tree;
+
+  - Lockless access is prevented by setting the head->_count to 0 during
+    split, so get_page_unless_zero() would fail;
+
+  - After split, some pages can be beyond i_size. We drop them from
+    radix-tree.
+
+  - We don't setup migration entries. Just unmap pages. It helps
+    handling cases when i_size is in the middle of the page: no need
+    handle unmap pages beyond i_size manually.
+
+COW mapping handled on PTE-level. It's not clear how beneficial would be
+allocation of huge pages on COW faults. And it would require some code to
+make them work.
+
+I think at some point we can consider teaching khugepaged to collapse
+pages in COW mappings, but allocating huge on fault is probably overkill.
+
+As with anon THP, we mlock file huge page only if it mapped with PMD.
+PTE-mapped THPs are never mlocked. This way we can avoid all sorts of
+scenarios when we can leak mlocked page.
+
+As with anon THP, we split huge page on swap out.
+
+Truncate and punch hole that only cover part of THP range is implemented
+by zero out this part of THP.
+
+This have visible effect on fallocate(FALLOC_FL_PUNCH_HOLE) behaviour.
+As we don't really create hole in this case, lseek(SEEK_HOLE) may have
+inconsistent results depending what pages happened to be allocated.
+I don't think this will be a problem.
+
+We track per-super_block list of inodes which potentially have huge page
+partly beyond i_size. Under memory pressure or if we hit -ENOSPC, we split
+such pages in order to recovery memory.
+
+The list is per-sb, as we need to split a page from our filesystem if hit
+-ENOSPC (-o size= limit) during shmem_getpage_gfp() to free some space.
+
+Hugh Dickins (1):
+  shmem: get_unmapped_area align huge page
+
+Kirill A. Shutemov (31):
+  thp, mlock: update unevictable-lru.txt
+  mm: do not pass mm_struct into handle_mm_fault
+  mm: introduce fault_env
+  mm: postpone page table allocation until we have page to map
+  rmap: support file thp
+  mm: introduce do_set_pmd()
+  thp, vmstats: add counters for huge file pages
+  thp: support file pages in zap_huge_pmd()
+  thp: handle file pages in split_huge_pmd()
+  thp: handle file COW faults
+  thp: skip file huge pmd on copy_huge_pmd()
+  thp: prepare change_huge_pmd() for file thp
+  thp: run vma_adjust_trans_huge() outside i_mmap_rwsem
+  thp: file pages support for split_huge_page()
+  thp, mlock: do not mlock PTE-mapped file huge pages
+  vmscan: split file huge pages before paging them out
+  page-flags: relax policy for PG_mappedtodisk and PG_reclaim
+  radix-tree: implement radix_tree_maybe_preload_order()
+  filemap: prepare find and delete operations for huge pages
+  truncate: handle file thp
+  mm, rmap: account shmem thp pages
+  shmem: prepare huge= mount option and sysfs knob
+  shmem: add huge pages support
+  shmem, thp: respect MADV_{NO,}HUGEPAGE for file mappings
+  thp: update Documentation/vm/transhuge.txt
+  thp: extract khugepaged from mm/huge_memory.c
+  khugepaged: move up_read(mmap_sem) out of khugepaged_alloc_page()
+  shmem: make shmem_inode_info::lock irq-safe
+  khugepaged: add support of collapse for tmpfs/shmem pages
+  thp: introduce CONFIG_TRANSPARENT_HUGE_PAGECACHE
+  shmem: split huge pages beyond i_size under memory pressure
+
+ Documentation/filesystems/Locking    |   10 +-
+ Documentation/vm/transhuge.txt       |  130 ++-
+ Documentation/vm/unevictable-lru.txt |   21 +
+ arch/alpha/mm/fault.c                |    2 +-
+ arch/arc/mm/fault.c                  |    2 +-
+ arch/arm/mm/fault.c                  |    2 +-
+ arch/arm64/mm/fault.c                |    2 +-
+ arch/avr32/mm/fault.c                |    2 +-
+ arch/cris/mm/fault.c                 |    2 +-
+ arch/frv/mm/fault.c                  |    2 +-
+ arch/hexagon/mm/vm_fault.c           |    2 +-
+ arch/ia64/mm/fault.c                 |    2 +-
+ arch/m32r/mm/fault.c                 |    2 +-
+ arch/m68k/mm/fault.c                 |    2 +-
+ arch/metag/mm/fault.c                |    2 +-
+ arch/microblaze/mm/fault.c           |    2 +-
+ arch/mips/mm/fault.c                 |    2 +-
+ arch/mn10300/mm/fault.c              |    2 +-
+ arch/nios2/mm/fault.c                |    2 +-
+ arch/openrisc/mm/fault.c             |    2 +-
+ arch/parisc/mm/fault.c               |    2 +-
+ arch/powerpc/mm/copro_fault.c        |    2 +-
+ arch/powerpc/mm/fault.c              |    2 +-
+ arch/s390/mm/fault.c                 |    2 +-
+ arch/score/mm/fault.c                |    2 +-
+ arch/sh/mm/fault.c                   |    2 +-
+ arch/sparc/mm/fault_32.c             |    4 +-
+ arch/sparc/mm/fault_64.c             |    2 +-
+ arch/tile/mm/fault.c                 |    2 +-
+ arch/um/kernel/trap.c                |    2 +-
+ arch/unicore32/mm/fault.c            |    2 +-
+ arch/x86/mm/fault.c                  |    2 +-
+ arch/xtensa/mm/fault.c               |    2 +-
+ drivers/base/node.c                  |   13 +-
+ drivers/char/mem.c                   |   24 +
+ drivers/iommu/amd_iommu_v2.c         |    3 +-
+ drivers/iommu/intel-svm.c            |    2 +-
+ fs/proc/meminfo.c                    |    7 +-
+ fs/proc/task_mmu.c                   |   10 +-
+ fs/userfaultfd.c                     |   22 +-
+ include/linux/huge_mm.h              |   36 +-
+ include/linux/khugepaged.h           |    6 +
+ include/linux/mm.h                   |   51 +-
+ include/linux/mmzone.h               |    4 +-
+ include/linux/page-flags.h           |   19 +-
+ include/linux/radix-tree.h           |    1 +
+ include/linux/rmap.h                 |    2 +-
+ include/linux/shmem_fs.h             |   45 +-
+ include/linux/userfaultfd_k.h        |    8 +-
+ include/linux/vm_event_item.h        |    7 +
+ include/trace/events/huge_memory.h   |    3 +-
+ ipc/shm.c                            |   10 +-
+ lib/radix-tree.c                     |   68 +-
+ mm/Kconfig                           |    8 +
+ mm/Makefile                          |    2 +-
+ mm/filemap.c                         |  226 ++--
+ mm/gup.c                             |    7 +-
+ mm/huge_memory.c                     | 2032 ++++++----------------------------
+ mm/internal.h                        |    4 +-
+ mm/khugepaged.c                      | 1851 +++++++++++++++++++++++++++++++
+ mm/ksm.c                             |    5 +-
+ mm/memory.c                          |  860 +++++++-------
+ mm/mempolicy.c                       |    4 +-
+ mm/migrate.c                         |    5 +-
+ mm/mmap.c                            |   26 +-
+ mm/nommu.c                           |    3 +-
+ mm/page-writeback.c                  |    1 +
+ mm/page_alloc.c                      |   21 +
+ mm/rmap.c                            |   78 +-
+ mm/shmem.c                           |  918 +++++++++++++--
+ mm/swap.c                            |    2 +
+ mm/truncate.c                        |   22 +-
+ mm/util.c                            |    6 +
+ mm/vmscan.c                          |    6 +
+ mm/vmstat.c                          |    4 +
+ 75 files changed, 4240 insertions(+), 2415 deletions(-)
+ create mode 100644 mm/khugepaged.c
+
 -- 
 2.8.1
 
