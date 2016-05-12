@@ -1,103 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B6FC16B0005
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 08:48:26 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id m64so53413583lfd.1
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 05:48:26 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id b83si45505916wme.3.2016.05.12.05.48.25
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C843D6B0005
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 09:30:37 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id f14so12700745lbb.2
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 06:30:37 -0700 (PDT)
+Received: from 18.mo6.mail-out.ovh.net (18.mo6.mail-out.ovh.net. [46.105.73.110])
+        by mx.google.com with ESMTPS id 15si45647520wme.80.2016.05.12.06.30.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 May 2016 05:48:25 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id e201so15923794wme.2
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 05:48:25 -0700 (PDT)
-Date: Thu, 12 May 2016 14:48:24 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 03/13] mm, page_alloc: don't retry initial attempt in
- slowpath
-Message-ID: <20160512124823.GI4200@dhcp22.suse.cz>
-References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
- <1462865763-22084-4-git-send-email-vbabka@suse.cz>
+        Thu, 12 May 2016 06:30:36 -0700 (PDT)
+Received: from player795.ha.ovh.net (b9.ovh.net [213.186.33.59])
+	by mo6.mail-out.ovh.net (Postfix) with ESMTP id 16A5D1018D60
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 15:30:35 +0200 (CEST)
+Subject: Re: [Question] Missing data after DMA read transfer - mm issue with
+ transparent huge page?
+References: <15edf085-c21b-aa1c-9f1f-057d17b8a1a3@morey-chaisemartin.com>
+ <alpine.LSU.2.11.1605022020560.5004@eggly.anvils>
+ <20160503101153.GA7241@gmail.com>
+ <07619be9-e812-5459-26dd-ceb8c6490520@morey-chaisemartin.com>
+ <20160510100104.GA18820@gmail.com>
+ <60fc4f9f-fc8e-84a4-da84-a3c823b9b5bb@morey-chaisemartin.com>
+ <20160511145141.GA5288@gmail.com>
+ <432180fd-2faf-af37-7d99-4e24ab263d50@morey-chaisemartin.com>
+ <20160512093632.GA15092@gmail.com>
+From: Nicolas Morey-Chaisemartin <devel@morey-chaisemartin.com>
+Message-ID: <e009b1e5-2fb2-0cc6-b065-932d7fa1c658@morey-chaisemartin.com>
+Date: Thu, 12 May 2016 15:30:24 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1462865763-22084-4-git-send-email-vbabka@suse.cz>
+In-Reply-To: <20160512093632.GA15092@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alex Williamson <alex.williamson@redhat.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 10-05-16 09:35:53, Vlastimil Babka wrote:
-> After __alloc_pages_slowpath() sets up new alloc_flags and wakes up kswapd, it
-> first tries get_page_from_freelist() with the new alloc_flags, as it may
-> succeed e.g. due to using min watermark instead of low watermark. This attempt
-> does not have to be retried on each loop, since direct reclaim, direct
-> compaction and oom call get_page_from_freelist() themselves.
-> 
-> This patch therefore moves the initial attempt above the retry label. The
-> ALLOC_NO_WATERMARKS attempt is kept under retry label as it's special and
-> should be retried after each loop.
 
-Yes this makes code both more clear and more logical
 
-> Kswapd wakeups are also done on each retry
-> to be safe from potential races resulting in kswapd going to sleep while a
-> process (that may not be able to reclaim by itself) is still looping.
+Le 05/12/2016 a 11:36 AM, Jerome Glisse a ecrit :
+> On Thu, May 12, 2016 at 08:07:59AM +0200, Nicolas Morey-Chaisemartin wrote:
+>>
+>> Le 05/11/2016 a 04:51 PM, Jerome Glisse a ecrit :
+>>> On Wed, May 11, 2016 at 01:15:54PM +0200, Nicolas Morey Chaisemartin wrote:
+>>>> Le 05/10/2016 a 12:01 PM, Jerome Glisse a ecrit :
+>>>>> On Tue, May 10, 2016 at 09:04:36AM +0200, Nicolas Morey Chaisemartin wrote:
+>>>>>> Le 05/03/2016 a 12:11 PM, Jerome Glisse a ecrit :
+>>>>>>> On Mon, May 02, 2016 at 09:04:02PM -0700, Hugh Dickins wrote:
+>>>>>>>> On Fri, 29 Apr 2016, Nicolas Morey Chaisemartin wrote:
+>>>> [...]
+>>>>>> Hi,
+>>>>>>
+>>>>>> I backported the patch to 3.10 (had to copy paste pmd_protnone defitinition from 4.5) and it's working !
+>>>>>> I'll open a ticket in Redhat tracker to try and get this fixed in RHEL7.
+>>>>>>
+>>>>>> I have a dumb question though: how can we end up in numa/misplaced memory code on a single socket system?
+>>>>>>
+>>>>> This patch is not a fix, do you see bug message in kernel log ? Because if
+>>>>> you do that it means we have a bigger issue.
+>>>>>
+>>>>> You did not answer one of my previous question, do you set get_user_pages
+>>>>> with write = 1 as a paremeter ?
+>>>>>
+>>>>> Also it would be a lot easier if you were testing with lastest 4.6 or 4.5
+>>>>> not RHEL kernel as they are far appart and what might looks like same issue
+>>>>> on both might be totaly different bugs.
+>>>>>
+>>>>> If you only really care about RHEL kernel then open a bug with Red Hat and
+>>>>> you can add me in bug-cc <jglisse@redhat.com>
+>>>>>
+>>>>> Cheers,
+>>>>> Jerome
+>>>> I finally managed to get a proper setup.
+>>>> I build a vanilla 4.5 kernel from git tree using the Centos7 config, my test fails as usual.
+>>>> I applied your patch, rebuild => still fails and no new messages in dmesg.
+>>>>
+>>>> Now that I don't have to go through the RPM repackaging, I can try out things much quicker if you have any ideas.
+>>>>
+>>> Still an issue if you boot with transparent_hugepage=never ?
+>>>
+>>> Also to simplify investigation force write to 1 all the time no matter what.
+>>>
+>>> Cheers,
+>>> Jerome
+>> With transparent_hugepage=never I can't see the bug anymore.
+>>
+> Can you test https://patchwork.kernel.org/patch/9061351/ with 4.5
+> (does not apply to 3.10) and without transparent_hugepage=never
+>
+> Jerome
 
-I am not sure this is really necessary but it shouldn't be harmful. The
-comment clarifies the duplicity so we are not risking "cleanups to
-remove duplicated code" I guess.
+Fails with 4.5 + this patch and with 4.5 + this patch + yours
 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/page_alloc.c | 11 +++++++++--
->  1 file changed, 9 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 91fbf6f95403..7249949d65ca 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3586,16 +3586,23 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	 */
->  	alloc_flags = gfp_to_alloc_flags(gfp_mask);
->  
-> -retry:
->  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
->  		wake_all_kswapds(order, ac);
->  
-> -	/* This is the last chance, in general, before the goto nopage. */
-> +	/*
-> +	 * The adjusted alloc_flags might result in immediate success, so try
-> +	 * that first
-> +	 */
->  	page = get_page_from_freelist(gfp_mask, order,
->  				alloc_flags & ~ALLOC_NO_WATERMARKS, ac);
->  	if (page)
->  		goto got_pg;
->  
-> +retry:
-> +	/* Ensure kswapd doesn't accidentaly go to sleep as long as we loop */
-> +	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
-> +		wake_all_kswapds(order, ac);
-> +
->  	/* Allocate without watermarks if the context allows */
->  	if (alloc_flags & ALLOC_NO_WATERMARKS) {
->  		/*
-> -- 
-> 2.8.2
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+Nicolas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
