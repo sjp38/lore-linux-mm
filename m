@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 95082828E5
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:42:14 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 4so152116465pfw.0
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:42:14 -0700 (PDT)
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BA3B36B007E
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:46:53 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id gw7so110822014pac.0
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:46:53 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ae8si18334767pac.110.2016.05.12.08.41.51
+        by mx.google.com with ESMTP id yx4si18344608pac.109.2016.05.12.08.41.46
         for <linux-mm@kvack.org>;
-        Thu, 12 May 2016 08:41:51 -0700 (PDT)
+        Thu, 12 May 2016 08:41:47 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv8 15/32] thp, mlock: do not mlock PTE-mapped file huge pages
-Date: Thu, 12 May 2016 18:40:55 +0300
-Message-Id: <1463067672-134698-16-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv8 01/32] thp, mlock: update unevictable-lru.txt
+Date: Thu, 12 May 2016 18:40:41 +0300
+Message-Id: <1463067672-134698-2-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,165 +19,45 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-As with anon THP, we only mlock file huge pages if we can prove that the
-page is not mapped with PTE. This way we can avoid mlock leak into
-non-mlocked vma on split.
-
-We rely on PageDoubleMap() under lock_page() to check if the the page
-may be PTE mapped. PG_double_map is set by page_add_file_rmap() when the
-page mapped with PTEs.
+Add description of THP handling into unevictable-lru.txt.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/page-flags.h | 13 ++++++++++++-
- mm/huge_memory.c           | 27 ++++++++++++++++++++-------
- mm/mmap.c                  |  6 ++++++
- mm/page_alloc.c            |  2 ++
- mm/rmap.c                  | 16 ++++++++++++++--
- 5 files changed, 54 insertions(+), 10 deletions(-)
+ Documentation/vm/unevictable-lru.txt | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index f4ed4f1b0c77..517707ae8cd1 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -544,6 +544,17 @@ static inline int PageDoubleMap(struct page *page)
- 	return PageHead(page) && test_bit(PG_double_map, &page[1].flags);
- }
+diff --git a/Documentation/vm/unevictable-lru.txt b/Documentation/vm/unevictable-lru.txt
+index fa3b527086fa..0026a8d33fc0 100644
+--- a/Documentation/vm/unevictable-lru.txt
++++ b/Documentation/vm/unevictable-lru.txt
+@@ -461,6 +461,27 @@ unevictable LRU is enabled, the work of compaction is mostly handled by
+ the page migration code and the same work flow as described in MIGRATING
+ MLOCKED PAGES will apply.
  
-+static inline void SetPageDoubleMap(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	set_bit(PG_double_map, &page[1].flags);
-+}
++MLOCKING TRANSPARENT HUGE PAGES
++-------------------------------
 +
-+static inline void ClearPageDoubleMap(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	clear_bit(PG_double_map, &page[1].flags);
-+}
- static inline int TestSetPageDoubleMap(struct page *page)
- {
- 	VM_BUG_ON_PAGE(!PageHead(page), page);
-@@ -560,7 +571,7 @@ static inline int TestClearPageDoubleMap(struct page *page)
- TESTPAGEFLAG_FALSE(TransHuge)
- TESTPAGEFLAG_FALSE(TransCompound)
- TESTPAGEFLAG_FALSE(TransTail)
--TESTPAGEFLAG_FALSE(DoubleMap)
-+PAGEFLAG_FALSE(DoubleMap)
- 	TESTSETFLAG_FALSE(DoubleMap)
- 	TESTCLEARFLAG_FALSE(DoubleMap)
- #endif
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 5daad812d71e..001687987777 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1439,6 +1439,8 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 		 * We don't mlock() pte-mapped THPs. This way we can avoid
- 		 * leaking mlocked pages into non-VM_LOCKED VMAs.
- 		 *
-+		 * For anon THP:
-+		 *
- 		 * In most cases the pmd is the only mapping of the page as we
- 		 * break COW for the mlock() -- see gup_flags |= FOLL_WRITE for
- 		 * writable private mappings in populate_vma_page_range().
-@@ -1446,15 +1448,26 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 		 * The only scenario when we have the page shared here is if we
- 		 * mlocking read-only mapping shared over fork(). We skip
- 		 * mlocking such pages.
-+		 *
-+		 * For file THP:
-+		 *
-+		 * We can expect PageDoubleMap() to be stable under page lock:
-+		 * for file pages we set it in page_add_file_rmap(), which
-+		 * requires page to be locked.
- 		 */
--		if (compound_mapcount(page) == 1 && !PageDoubleMap(page) &&
--				page->mapping && trylock_page(page)) {
--			lru_add_drain();
--			if (page->mapping)
--				mlock_vma_page(page);
--			unlock_page(page);
--		}
++A transparent huge page is represented by a single entry on an LRU list.
++Therefore, we can only make unevictable an entire compound page, not
++individual subpages.
 +
-+		if (PageAnon(page) && compound_mapcount(page) != 1)
-+			goto skip_mlock;
-+		if (PageDoubleMap(page) || !page->mapping)
-+			goto skip_mlock;
-+		if (!trylock_page(page))
-+			goto skip_mlock;
-+		lru_add_drain();
-+		if (page->mapping && !PageDoubleMap(page))
-+			mlock_vma_page(page);
-+		unlock_page(page);
- 	}
-+skip_mlock:
- 	page += (addr & ~HPAGE_PMD_MASK) >> PAGE_SHIFT;
- 	VM_BUG_ON_PAGE(!PageCompound(page), page);
- 	if (flags & FOLL_GET)
-diff --git a/mm/mmap.c b/mm/mmap.c
-index df3976af9302..0a68cf0b37e7 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2584,6 +2584,12 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
- 		/* drop PG_Mlocked flag for over-mapped range */
- 		for (tmp = vma; tmp->vm_start >= start + size;
- 				tmp = tmp->vm_next) {
-+			/*
-+			 * Split pmd and munlock page on the border
-+			 * of the range.
-+			 */
-+			vma_adjust_trans_huge(tmp, start, start + size, 0);
++If a user tries to mlock() part of a huge page, we want the rest of the
++page to be reclaimable.
 +
- 			munlock_vma_pages_range(tmp,
- 					max(tmp->vm_start, start),
- 					min(tmp->vm_end, start + size));
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 59de90d5d3a3..4243b400b331 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1036,6 +1036,8 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
++We cannot just split the page on partial mlock() as split_huge_page() can
++fail and new intermittent failure mode for the syscall is undesirable.
++
++We handle this by keeping PTE-mapped huge pages on normal LRU lists: the
++PMD on border of VM_LOCKED VMA will be split into PTE table.
++
++This way the huge page is accessible for vmscan. Under memory pressure the
++page will be split, subpages which belong to VM_LOCKED VMAs will be moved
++to unevictable LRU and the rest can be reclaimed.
++
++See also comment in follow_trans_huge_pmd().
  
- 	if (PageAnon(page))
- 		page->mapping = NULL;
-+	if (compound)
-+		ClearPageDoubleMap(page);
- 	bad += free_pages_check(page);
- 	for (i = 1; i < (1 << order); i++) {
- 		if (compound)
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 76d8c9269ac6..f67e765869f3 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1285,6 +1285,12 @@ void page_add_file_rmap(struct page *page, bool compound)
- 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
- 			goto out;
- 	} else {
-+		if (PageTransCompound(page)) {
-+			VM_BUG_ON_PAGE(!PageLocked(page), page);
-+			SetPageDoubleMap(compound_head(page));
-+			if (PageMlocked(page))
-+				clear_page_mlock(compound_head(page));
-+		}
- 		if (!atomic_inc_and_test(&page->_mapcount))
- 			goto out;
- 	}
-@@ -1458,8 +1464,14 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	 */
- 	if (!(flags & TTU_IGNORE_MLOCK)) {
- 		if (vma->vm_flags & VM_LOCKED) {
--			/* Holding pte lock, we do *not* need mmap_sem here */
--			mlock_vma_page(page);
-+			/* PTE-mapped THP are never mlocked */
-+			if (!PageTransCompound(page)) {
-+				/*
-+				 * Holding pte lock, we do *not* need
-+				 * mmap_sem here
-+				 */
-+				mlock_vma_page(page);
-+			}
- 			ret = SWAP_MLOCK;
- 			goto out_unmap;
- 		}
+ mmap(MAP_LOCKED) SYSTEM CALL HANDLING
+ -------------------------------------
 -- 
 2.8.1
 
