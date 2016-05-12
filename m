@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 64F106B0261
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:41:50 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id yl2so110331925pac.2
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:41:50 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id vy4si18289353pab.231.2016.05.12.08.41.32
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 806846B0261
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:41:52 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b203so152254220pfb.1
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:41:52 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id 9si18093597pfc.127.2016.05.12.08.41.35
         for <linux-mm@kvack.org>;
-        Thu, 12 May 2016 08:41:32 -0700 (PDT)
+        Thu, 12 May 2016 08:41:35 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv8 07/32] thp, vmstats: add counters for huge file pages
-Date: Thu, 12 May 2016 18:40:47 +0300
-Message-Id: <1463067672-134698-8-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv8 17/32] page-flags: relax policy for PG_mappedtodisk and PG_reclaim
+Date: Thu, 12 May 2016 18:40:57 +0300
+Message-Id: <1463067672-134698-18-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,66 +19,32 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-THP_FILE_ALLOC: how many times huge page was allocated and put page
-cache.
-
-THP_FILE_MAPPED: how many times file huge page was mapped.
+These flags are in use for file THP.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/vm_event_item.h | 7 +++++++
- mm/memory.c                   | 1 +
- mm/vmstat.c                   | 2 ++
- 3 files changed, 10 insertions(+)
+ include/linux/page-flags.h | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index ec084321fe09..42604173f122 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -70,6 +70,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		THP_FAULT_FALLBACK,
- 		THP_COLLAPSE_ALLOC,
- 		THP_COLLAPSE_ALLOC_FAILED,
-+		THP_FILE_ALLOC,
-+		THP_FILE_MAPPED,
- 		THP_SPLIT_PAGE,
- 		THP_SPLIT_PAGE_FAILED,
- 		THP_DEFERRED_SPLIT_PAGE,
-@@ -100,4 +102,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		NR_VM_EVENT_ITEMS
- };
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 517707ae8cd1..9d518876dd6a 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -292,11 +292,11 @@ PAGEFLAG(OwnerPriv1, owner_priv_1, PF_ANY)
+  */
+ TESTPAGEFLAG(Writeback, writeback, PF_NO_COMPOUND)
+ 	TESTSCFLAG(Writeback, writeback, PF_NO_COMPOUND)
+-PAGEFLAG(MappedToDisk, mappedtodisk, PF_NO_COMPOUND)
++PAGEFLAG(MappedToDisk, mappedtodisk, PF_NO_TAIL)
  
-+#ifndef CONFIG_TRANSPARENT_HUGEPAGE
-+#define THP_FILE_ALLOC ({ BUILD_BUG(); 0; })
-+#define THP_FILE_MAPPED ({ BUILD_BUG(); 0; })
-+#endif
-+
- #endif		/* VM_EVENT_ITEM_H_INCLUDED */
-diff --git a/mm/memory.c b/mm/memory.c
-index ca45e9b19ad9..23de0567db18 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2907,6 +2907,7 @@ static int do_set_pmd(struct fault_env *fe, struct page *page)
+ /* PG_readahead is only used for reads; PG_reclaim is only for writes */
+-PAGEFLAG(Reclaim, reclaim, PF_NO_COMPOUND)
+-	TESTCLEARFLAG(Reclaim, reclaim, PF_NO_COMPOUND)
++PAGEFLAG(Reclaim, reclaim, PF_NO_TAIL)
++	TESTCLEARFLAG(Reclaim, reclaim, PF_NO_TAIL)
+ PAGEFLAG(Readahead, reclaim, PF_NO_COMPOUND)
+ 	TESTCLEARFLAG(Readahead, reclaim, PF_NO_COMPOUND)
  
- 	/* fault is handled */
- 	ret = 0;
-+	count_vm_event(THP_FILE_MAPPED);
- out:
- 	spin_unlock(fe->ptl);
- 	return ret;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 38ad49532b6f..904ac95fbf00 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -846,6 +846,8 @@ const char * const vmstat_text[] = {
- 	"thp_fault_fallback",
- 	"thp_collapse_alloc",
- 	"thp_collapse_alloc_failed",
-+	"thp_file_alloc",
-+	"thp_file_mapped",
- 	"thp_split_page",
- 	"thp_split_page_failed",
- 	"thp_deferred_split_page",
 -- 
 2.8.1
 
