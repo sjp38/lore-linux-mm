@@ -1,290 +1,607 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CD698828E5
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:42:07 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 203so152096303pfy.2
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:42:07 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id vy4si18289353pab.231.2016.05.12.08.41.38
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C14C828E5
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:42:10 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id zy2so126580643pac.1
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:42:10 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id yx4si18344608pac.109.2016.05.12.08.41.46
         for <linux-mm@kvack.org>;
-        Thu, 12 May 2016 08:41:38 -0700 (PDT)
+        Thu, 12 May 2016 08:41:46 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv8 31/32] thp: introduce CONFIG_TRANSPARENT_HUGE_PAGECACHE
-Date: Thu, 12 May 2016 18:41:11 +0300
-Message-Id: <1463067672-134698-32-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv8 02/32] mm: do not pass mm_struct into handle_mm_fault
+Date: Thu, 12 May 2016 18:40:42 +0300
+Message-Id: <1463067672-134698-3-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For file mappings, we don't deposit page tables on THP allocation
-because it's not strictly required to implement split_huge_pmd(): we
-can just clear pmd and let following page faults to reconstruct the
-page table.
-
-But Power makes use of deposited page table to address MMU quirk.
-
-Let's hide THP page cache, including huge tmpfs, under separate config
-option, so it can be forbidden on Power.
-
-We can revert the patch later once solution for Power found.
+We always have vma->vm_mm around.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- include/linux/shmem_fs.h | 10 +++++++++-
- mm/Kconfig               |  8 ++++++++
- mm/huge_memory.c         |  2 +-
- mm/khugepaged.c          | 11 +++++++----
- mm/memory.c              |  5 +++--
- mm/shmem.c               | 26 +++++++++++++-------------
- 6 files changed, 41 insertions(+), 21 deletions(-)
+ arch/alpha/mm/fault.c         |  2 +-
+ arch/arc/mm/fault.c           |  2 +-
+ arch/arm/mm/fault.c           |  2 +-
+ arch/arm64/mm/fault.c         |  2 +-
+ arch/avr32/mm/fault.c         |  2 +-
+ arch/cris/mm/fault.c          |  2 +-
+ arch/frv/mm/fault.c           |  2 +-
+ arch/hexagon/mm/vm_fault.c    |  2 +-
+ arch/ia64/mm/fault.c          |  2 +-
+ arch/m32r/mm/fault.c          |  2 +-
+ arch/m68k/mm/fault.c          |  2 +-
+ arch/metag/mm/fault.c         |  2 +-
+ arch/microblaze/mm/fault.c    |  2 +-
+ arch/mips/mm/fault.c          |  2 +-
+ arch/mn10300/mm/fault.c       |  2 +-
+ arch/nios2/mm/fault.c         |  2 +-
+ arch/openrisc/mm/fault.c      |  2 +-
+ arch/parisc/mm/fault.c        |  2 +-
+ arch/powerpc/mm/copro_fault.c |  2 +-
+ arch/powerpc/mm/fault.c       |  2 +-
+ arch/s390/mm/fault.c          |  2 +-
+ arch/score/mm/fault.c         |  2 +-
+ arch/sh/mm/fault.c            |  2 +-
+ arch/sparc/mm/fault_32.c      |  4 ++--
+ arch/sparc/mm/fault_64.c      |  2 +-
+ arch/tile/mm/fault.c          |  2 +-
+ arch/um/kernel/trap.c         |  2 +-
+ arch/unicore32/mm/fault.c     |  2 +-
+ arch/x86/mm/fault.c           |  2 +-
+ arch/xtensa/mm/fault.c        |  2 +-
+ drivers/iommu/amd_iommu_v2.c  |  3 +--
+ drivers/iommu/intel-svm.c     |  2 +-
+ include/linux/mm.h            |  9 ++++-----
+ mm/gup.c                      |  5 ++---
+ mm/ksm.c                      |  5 ++---
+ mm/memory.c                   | 13 +++++++------
+ 36 files changed, 48 insertions(+), 51 deletions(-)
 
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 0890f700a546..54fa28dfbd89 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -54,7 +54,6 @@ extern unsigned long shmem_get_unmapped_area(struct file *, unsigned long addr,
- 		unsigned long len, unsigned long pgoff, unsigned long flags);
- extern int shmem_lock(struct file *file, int lock, struct user_struct *user);
- extern bool shmem_mapping(struct address_space *mapping);
--extern bool shmem_huge_enabled(struct vm_area_struct *vma);
- extern void shmem_unlock_mapping(struct address_space *mapping);
- extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
- 					pgoff_t index, gfp_t gfp_mask);
-@@ -112,4 +111,13 @@ static inline long shmem_fcntl(struct file *f, unsigned int c, unsigned long a)
+diff --git a/arch/alpha/mm/fault.c b/arch/alpha/mm/fault.c
+index 4a905bd667e2..83e9eee57a55 100644
+--- a/arch/alpha/mm/fault.c
++++ b/arch/alpha/mm/fault.c
+@@ -147,7 +147,7 @@ retry:
+ 	/* If for any reason at all we couldn't handle the fault,
+ 	   make sure we exit gracefully rather than endlessly redo
+ 	   the fault.  */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
  
- #endif
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+diff --git a/arch/arc/mm/fault.c b/arch/arc/mm/fault.c
+index af63f4a13e60..e94e5aa33985 100644
+--- a/arch/arc/mm/fault.c
++++ b/arch/arc/mm/fault.c
+@@ -137,7 +137,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
  
-+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-+extern bool shmem_huge_enabled(struct vm_area_struct *vma);
-+#else
-+static inline bool shmem_huge_enabled(struct vm_area_struct *vma)
-+{
-+	return false;
-+}
-+#endif
-+
- #endif
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 989f8f3d77e0..084e7cb1e259 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -428,6 +428,14 @@ choice
- endchoice
- 
- #
-+# We don't deposit page tables on file THP mapping,
-+# but Power makes use of them to address MMU quirk.
-+#
-+config	TRANSPARENT_HUGE_PAGECACHE
-+	def_bool y
-+	depends on TRANSPARENT_HUGEPAGE && !PPC
-+
-+#
- # UP and nommu archs use km based percpu allocator
- #
- config NEED_PER_CPU_KM
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index c08d3d300f4c..9de18dbfd1f3 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -293,7 +293,7 @@ static struct attribute *hugepage_attr[] = {
- 	&enabled_attr.attr,
- 	&defrag_attr.attr,
- 	&use_zero_page_attr.attr,
--#ifdef CONFIG_SHMEM
-+#if defined(CONFIG_SHMEM) && defined(CONFIG_TRANSPARENT_HUGE_PAGECACHE)
- 	&shmem_enabled_attr.attr,
- #endif
- #ifdef CONFIG_DEBUG_VM
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index f8c971468d90..72b048e31aac 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -816,6 +816,8 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
- 	    (vma->vm_flags & VM_NOHUGEPAGE))
- 		return false;
- 	if (shmem_file(vma->vm_file)) {
-+		if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
-+			return false;
- 		return IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
- 				HPAGE_PMD_NR);
+ 	/* If Pagefault was interrupted by SIGKILL, exit page fault "early" */
+ 	if (unlikely(fatal_signal_pending(current))) {
+diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
+index ad5841856007..3a2e678b8d30 100644
+--- a/arch/arm/mm/fault.c
++++ b/arch/arm/mm/fault.c
+@@ -243,7 +243,7 @@ good_area:
+ 		goto out;
  	}
-@@ -1152,7 +1154,7 @@ out:
- 	return ret;
- }
  
--#ifdef CONFIG_SHMEM
-+#if defined(CONFIG_SHMEM) && defined(CONFIG_TRANSPARENT_HUGE_PAGECACHE)
- static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
+-	return handle_mm_fault(mm, vma, addr & PAGE_MASK, flags);
++	return handle_mm_fault(vma, addr & PAGE_MASK, flags);
+ 
+ check_stack:
+ 	/* Don't allow expansion below FIRST_USER_ADDRESS */
+diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
+index 95df28bc875f..4dbb076b9e1f 100644
+--- a/arch/arm64/mm/fault.c
++++ b/arch/arm64/mm/fault.c
+@@ -183,7 +183,7 @@ good_area:
+ 		goto out;
+ 	}
+ 
+-	return handle_mm_fault(mm, vma, addr & PAGE_MASK, mm_flags);
++	return handle_mm_fault(vma, addr & PAGE_MASK, mm_flags);
+ 
+ check_stack:
+ 	if (vma->vm_flags & VM_GROWSDOWN && !expand_stack(vma, addr))
+diff --git a/arch/avr32/mm/fault.c b/arch/avr32/mm/fault.c
+index c03533937a9f..a4b7edac8f10 100644
+--- a/arch/avr32/mm/fault.c
++++ b/arch/avr32/mm/fault.c
+@@ -134,7 +134,7 @@ good_area:
+ 	 * sure we exit gracefully rather than endlessly redo the
+ 	 * fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+diff --git a/arch/cris/mm/fault.c b/arch/cris/mm/fault.c
+index 3066d40a6db1..112ef26c7f2e 100644
+--- a/arch/cris/mm/fault.c
++++ b/arch/cris/mm/fault.c
+@@ -168,7 +168,7 @@ retry:
+ 	 * the fault.
+ 	 */
+ 
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+diff --git a/arch/frv/mm/fault.c b/arch/frv/mm/fault.c
+index 61d99767fe16..614a46c413d2 100644
+--- a/arch/frv/mm/fault.c
++++ b/arch/frv/mm/fault.c
+@@ -164,7 +164,7 @@ asmlinkage void do_page_fault(int datammu, unsigned long esr0, unsigned long ear
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, ear0, flags);
++	fault = handle_mm_fault(vma, ear0, flags);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/hexagon/mm/vm_fault.c b/arch/hexagon/mm/vm_fault.c
+index 8704c9320032..bd7c251e2bce 100644
+--- a/arch/hexagon/mm/vm_fault.c
++++ b/arch/hexagon/mm/vm_fault.c
+@@ -101,7 +101,7 @@ good_area:
+ 		break;
+ 	}
+ 
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+diff --git a/arch/ia64/mm/fault.c b/arch/ia64/mm/fault.c
+index 70b40d1205a6..fa6ad95e992e 100644
+--- a/arch/ia64/mm/fault.c
++++ b/arch/ia64/mm/fault.c
+@@ -159,7 +159,7 @@ retry:
+ 	 * sure we exit gracefully rather than endlessly redo the
+ 	 * fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+diff --git a/arch/m32r/mm/fault.c b/arch/m32r/mm/fault.c
+index 8f9875b7933d..a3785d3644c2 100644
+--- a/arch/m32r/mm/fault.c
++++ b/arch/m32r/mm/fault.c
+@@ -196,7 +196,7 @@ good_area:
+ 	 */
+ 	addr = (address & PAGE_MASK);
+ 	set_thread_fault_code(error_code);
+-	fault = handle_mm_fault(mm, vma, addr, flags);
++	fault = handle_mm_fault(vma, addr, flags);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/m68k/mm/fault.c b/arch/m68k/mm/fault.c
+index 6a94cdd0c830..bd66a0b20c6b 100644
+--- a/arch/m68k/mm/fault.c
++++ b/arch/m68k/mm/fault.c
+@@ -136,7 +136,7 @@ good_area:
+ 	 * the fault.
+ 	 */
+ 
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 	pr_debug("handle_mm_fault returns %d\n", fault);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+diff --git a/arch/metag/mm/fault.c b/arch/metag/mm/fault.c
+index f57edca63609..372783a67dda 100644
+--- a/arch/metag/mm/fault.c
++++ b/arch/metag/mm/fault.c
+@@ -133,7 +133,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return 0;
+diff --git a/arch/microblaze/mm/fault.c b/arch/microblaze/mm/fault.c
+index 177dfc003643..abb678ccde6f 100644
+--- a/arch/microblaze/mm/fault.c
++++ b/arch/microblaze/mm/fault.c
+@@ -216,7 +216,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+diff --git a/arch/mips/mm/fault.c b/arch/mips/mm/fault.c
+index 4b88fa031891..9560ad731120 100644
+--- a/arch/mips/mm/fault.c
++++ b/arch/mips/mm/fault.c
+@@ -153,7 +153,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+diff --git a/arch/mn10300/mm/fault.c b/arch/mn10300/mm/fault.c
+index 4a1d181ed32f..f23781d6bbb3 100644
+--- a/arch/mn10300/mm/fault.c
++++ b/arch/mn10300/mm/fault.c
+@@ -254,7 +254,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+diff --git a/arch/nios2/mm/fault.c b/arch/nios2/mm/fault.c
+index b51878b0c6b8..affc4eb3f89e 100644
+--- a/arch/nios2/mm/fault.c
++++ b/arch/nios2/mm/fault.c
+@@ -131,7 +131,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+diff --git a/arch/openrisc/mm/fault.c b/arch/openrisc/mm/fault.c
+index 230ac20ae794..e94cd225e816 100644
+--- a/arch/openrisc/mm/fault.c
++++ b/arch/openrisc/mm/fault.c
+@@ -163,7 +163,7 @@ good_area:
+ 	 * the fault.
+ 	 */
+ 
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+diff --git a/arch/parisc/mm/fault.c b/arch/parisc/mm/fault.c
+index 16dbe81c97c9..163af2c31d76 100644
+--- a/arch/parisc/mm/fault.c
++++ b/arch/parisc/mm/fault.c
+@@ -239,7 +239,7 @@ good_area:
+ 	 * fault.
+ 	 */
+ 
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+diff --git a/arch/powerpc/mm/copro_fault.c b/arch/powerpc/mm/copro_fault.c
+index 6527882ce05e..bb0354222b11 100644
+--- a/arch/powerpc/mm/copro_fault.c
++++ b/arch/powerpc/mm/copro_fault.c
+@@ -75,7 +75,7 @@ int copro_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
+ 	}
+ 
+ 	ret = 0;
+-	*flt = handle_mm_fault(mm, vma, ea, is_write ? FAULT_FLAG_WRITE : 0);
++	*flt = handle_mm_fault(vma, ea, is_write ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(*flt & VM_FAULT_ERROR)) {
+ 		if (*flt & VM_FAULT_OOM) {
+ 			ret = -ENOMEM;
+diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
+index a67c6d781c52..a4db22f65021 100644
+--- a/arch/powerpc/mm/fault.c
++++ b/arch/powerpc/mm/fault.c
+@@ -429,7 +429,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 	if (unlikely(fault & (VM_FAULT_RETRY|VM_FAULT_ERROR))) {
+ 		if (fault & VM_FAULT_SIGSEGV)
+ 			goto bad_area;
+diff --git a/arch/s390/mm/fault.c b/arch/s390/mm/fault.c
+index cce577feab1e..a9524531320e 100644
+--- a/arch/s390/mm/fault.c
++++ b/arch/s390/mm/fault.c
+@@ -455,7 +455,7 @@ retry:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 	/* No reason to continue if interrupted by SIGKILL. */
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
+ 		fault = VM_FAULT_SIGNAL;
+diff --git a/arch/score/mm/fault.c b/arch/score/mm/fault.c
+index 37a6c2e0e969..995b71e4db4b 100644
+--- a/arch/score/mm/fault.c
++++ b/arch/score/mm/fault.c
+@@ -111,7 +111,7 @@ good_area:
+ 	* make sure we exit gracefully rather than endlessly redo
+ 	* the fault.
+ 	*/
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/sh/mm/fault.c b/arch/sh/mm/fault.c
+index 79d8276377d1..9bf876780cef 100644
+--- a/arch/sh/mm/fault.c
++++ b/arch/sh/mm/fault.c
+@@ -487,7 +487,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if (unlikely(fault & (VM_FAULT_RETRY | VM_FAULT_ERROR)))
+ 		if (mm_fault_error(regs, error_code, address, fault))
+diff --git a/arch/sparc/mm/fault_32.c b/arch/sparc/mm/fault_32.c
+index b6c559cbd64d..4714061d6cd3 100644
+--- a/arch/sparc/mm/fault_32.c
++++ b/arch/sparc/mm/fault_32.c
+@@ -241,7 +241,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+@@ -411,7 +411,7 @@ good_area:
+ 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
+ 			goto bad_area;
+ 	}
+-	switch (handle_mm_fault(mm, vma, address, flags)) {
++	switch (handle_mm_fault(vma, address, flags)) {
+ 	case VM_FAULT_SIGBUS:
+ 	case VM_FAULT_OOM:
+ 		goto do_sigbus;
+diff --git a/arch/sparc/mm/fault_64.c b/arch/sparc/mm/fault_64.c
+index cb841a33da59..6c43b924a7a2 100644
+--- a/arch/sparc/mm/fault_64.c
++++ b/arch/sparc/mm/fault_64.c
+@@ -436,7 +436,7 @@ good_area:
+ 			goto bad_area;
+ 	}
+ 
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		goto exit_exception;
+diff --git a/arch/tile/mm/fault.c b/arch/tile/mm/fault.c
+index 26734214818c..beba986589e5 100644
+--- a/arch/tile/mm/fault.c
++++ b/arch/tile/mm/fault.c
+@@ -434,7 +434,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return 0;
+diff --git a/arch/um/kernel/trap.c b/arch/um/kernel/trap.c
+index 98783dd0fa2e..ad8f206ab5e8 100644
+--- a/arch/um/kernel/trap.c
++++ b/arch/um/kernel/trap.c
+@@ -73,7 +73,7 @@ good_area:
+ 	do {
+ 		int fault;
+ 
+-		fault = handle_mm_fault(mm, vma, address, flags);
++		fault = handle_mm_fault(vma, address, flags);
+ 
+ 		if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 			goto out_nosemaphore;
+diff --git a/arch/unicore32/mm/fault.c b/arch/unicore32/mm/fault.c
+index 2ec3d3adcefc..6c7f70bcaae3 100644
+--- a/arch/unicore32/mm/fault.c
++++ b/arch/unicore32/mm/fault.c
+@@ -194,7 +194,7 @@ good_area:
+ 	 * If for any reason at all we couldn't handle the fault, make
+ 	 * sure we exit gracefully rather than endlessly redo the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, addr & PAGE_MASK, flags);
++	fault = handle_mm_fault(vma, addr & PAGE_MASK, flags);
+ 	return fault;
+ 
+ check_stack:
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 5ce1ed02f7e8..2915b5b7bd7e 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -1348,7 +1348,7 @@ good_area:
+ 	 * the fault.  Since we never set FAULT_FLAG_RETRY_NOWAIT, if
+ 	 * we get VM_FAULT_RETRY back, the mmap_sem has been unlocked.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 	major |= fault & VM_FAULT_MAJOR;
+ 
+ 	/*
+diff --git a/arch/xtensa/mm/fault.c b/arch/xtensa/mm/fault.c
+index 7f4a1fdb1502..2725e08ef353 100644
+--- a/arch/xtensa/mm/fault.c
++++ b/arch/xtensa/mm/fault.c
+@@ -110,7 +110,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, flags);
++	fault = handle_mm_fault(vma, address, flags);
+ 
+ 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+ 		return;
+diff --git a/drivers/iommu/amd_iommu_v2.c b/drivers/iommu/amd_iommu_v2.c
+index 56999d2fac07..fbdaf81ae925 100644
+--- a/drivers/iommu/amd_iommu_v2.c
++++ b/drivers/iommu/amd_iommu_v2.c
+@@ -538,8 +538,7 @@ static void do_fault(struct work_struct *work)
+ 	if (access_error(vma, fault))
+ 		goto out;
+ 
+-	ret = handle_mm_fault(mm, vma, address, flags);
+-
++	ret = handle_mm_fault(vma, address, flags);
+ out:
+ 	up_read(&mm->mmap_sem);
+ 
+diff --git a/drivers/iommu/intel-svm.c b/drivers/iommu/intel-svm.c
+index d9939fa9b588..8ebb3530afa7 100644
+--- a/drivers/iommu/intel-svm.c
++++ b/drivers/iommu/intel-svm.c
+@@ -583,7 +583,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
+ 		if (access_error(vma, req))
+ 			goto invalid;
+ 
+-		ret = handle_mm_fault(svm->mm, vma, address,
++		ret = handle_mm_fault(vma, address,
+ 				      req->wr_req ? FAULT_FLAG_WRITE : 0);
+ 		if (ret & VM_FAULT_ERROR)
+ 			goto invalid;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ffcff53e3b2b..8fc68ed3c862 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1214,15 +1214,14 @@ int generic_error_remove_page(struct address_space *mapping, struct page *page);
+ int invalidate_inode_page(struct page *page);
+ 
+ #ifdef CONFIG_MMU
+-extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+-			unsigned long address, unsigned int flags);
++extern int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
++		unsigned int flags);
+ extern int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
+ 			    unsigned long address, unsigned int fault_flags,
+ 			    bool *unlocked);
+ #else
+-static inline int handle_mm_fault(struct mm_struct *mm,
+-			struct vm_area_struct *vma, unsigned long address,
+-			unsigned int flags)
++static inline int handle_mm_fault(struct vm_area_struct *vma,
++		unsigned long address, unsigned int flags)
  {
- 	struct vm_area_struct *vma;
-@@ -1634,8 +1636,6 @@ skip:
- 		if (khugepaged_scan.address < hstart)
- 			khugepaged_scan.address = hstart;
- 		VM_BUG_ON(khugepaged_scan.address & ~HPAGE_PMD_MASK);
--		if (shmem_file(vma->vm_file) && !shmem_huge_enabled(vma))
--			goto skip;
- 
- 		while (khugepaged_scan.address < hend) {
- 			int ret;
-@@ -1647,9 +1647,12 @@ skip:
- 				  khugepaged_scan.address + HPAGE_PMD_SIZE >
- 				  hend);
- 			if (shmem_file(vma->vm_file)) {
--				struct file *file = get_file(vma->vm_file);
-+				struct file *file;
- 				pgoff_t pgoff = linear_page_index(vma,
- 						khugepaged_scan.address);
-+				if (!shmem_huge_enabled(vma))
-+					goto skip;
-+				file = get_file(vma->vm_file);
- 				up_read(&mm->mmap_sem);
- 				ret = 1;
- 				khugepaged_scan_shmem(mm, file->f_mapping,
-diff --git a/mm/memory.c b/mm/memory.c
-index 8d8b1357e1d3..de2e66d8acb9 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2859,7 +2859,7 @@ map_pte:
- 	return 0;
- }
- 
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
- 
- #define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
- static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
-@@ -2941,7 +2941,8 @@ int alloc_set_pte(struct fault_env *fe, struct mem_cgroup *memcg,
- 	pte_t entry;
+ 	/* should never happen if there's no MMU */
+ 	BUG();
+diff --git a/mm/gup.c b/mm/gup.c
+index fb87aea9edc8..39f751e1cb33 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -351,7 +351,6 @@ unmap:
+ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+ 		unsigned long address, unsigned int *flags, int *nonblocking)
+ {
+-	struct mm_struct *mm = vma->vm_mm;
+ 	unsigned int fault_flags = 0;
  	int ret;
  
--	if (pmd_none(*fe->pmd) && PageTransCompound(page)) {
-+	if (pmd_none(*fe->pmd) && PageTransCompound(page) &&
-+			IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE)) {
- 		/* THP on COW? */
- 		VM_BUG_ON_PAGE(memcg, page);
- 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 1f942c1b4e61..a12867157dc3 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -363,7 +363,7 @@ static bool shmem_confirm_swap(struct address_space *mapping,
- #define SHMEM_HUGE_DENY		(-1)
- #define SHMEM_HUGE_FORCE	(-2)
- 
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
- /* ifdef here to avoid bloating shmem.o when not necessary */
- 
- int shmem_huge __read_mostly;
-@@ -406,11 +406,11 @@ static const char *shmem_format_huge(int huge)
+@@ -376,7 +375,7 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+ 		fault_flags |= FAULT_FLAG_TRIED;
  	}
- }
  
--#else /* !CONFIG_TRANSPARENT_HUGEPAGE */
-+#else /* !CONFIG_TRANSPARENT_HUGE_PAGECACHE */
+-	ret = handle_mm_fault(mm, vma, address, fault_flags);
++	ret = handle_mm_fault(vma, address, fault_flags);
+ 	if (ret & VM_FAULT_ERROR) {
+ 		if (ret & VM_FAULT_OOM)
+ 			return -ENOMEM;
+@@ -691,7 +690,7 @@ retry:
+ 	if (!vma_permits_fault(vma, fault_flags))
+ 		return -EFAULT;
  
- #define shmem_huge SHMEM_HUGE_DENY
- 
--#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+#endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE */
- 
- /*
-  * Like add_to_page_cache_locked, but error if expected item has gone.
-@@ -1229,7 +1229,7 @@ static struct page *shmem_alloc_hugepage(gfp_t gfp,
- 	void __rcu **results;
- 	struct page *page;
- 
--	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
- 		return NULL;
- 
- 	rcu_read_lock();
-@@ -1270,7 +1270,7 @@ static struct page *shmem_alloc_and_acct_page(gfp_t gfp,
- 	int nr;
- 	int err = -ENOSPC;
- 
--	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
- 		huge = false;
- 	nr = huge ? HPAGE_PMD_NR : 1;
- 
-@@ -1773,7 +1773,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
- 	get_area = current->mm->get_unmapped_area;
- 	addr = get_area(file, uaddr, len, pgoff, flags);
- 
--	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
- 		return addr;
- 	if (IS_ERR_VALUE(addr))
- 		return addr;
-@@ -1890,7 +1890,7 @@ static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
+-	ret = handle_mm_fault(mm, vma, address, fault_flags);
++	ret = handle_mm_fault(vma, address, fault_flags);
+ 	major |= ret & VM_FAULT_MAJOR;
+ 	if (ret & VM_FAULT_ERROR) {
+ 		if (ret & VM_FAULT_OOM)
+diff --git a/mm/ksm.c b/mm/ksm.c
+index b99e828172f6..c967d1b8df97 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -376,9 +376,8 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
+ 		if (IS_ERR_OR_NULL(page))
+ 			break;
+ 		if (PageKsm(page))
+-			ret = handle_mm_fault(vma->vm_mm, vma, addr,
+-							FAULT_FLAG_WRITE |
+-							FAULT_FLAG_REMOTE);
++			ret = handle_mm_fault(vma, addr,
++					FAULT_FLAG_WRITE | FAULT_FLAG_REMOTE);
+ 		else
+ 			ret = VM_FAULT_WRITE;
+ 		put_page(page);
+diff --git a/mm/memory.c b/mm/memory.c
+index 13dcc53f8fba..0002898341a3 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3363,9 +3363,10 @@ unlock:
+  * The mmap_sem may have been released depending on flags and our
+  * return value.  See filemap_fault() and __lock_page_or_retry().
+  */
+-static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+-			     unsigned long address, unsigned int flags)
++static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
++		unsigned int flags)
  {
- 	file_accessed(file);
- 	vma->vm_ops = &shmem_vm_ops;
--	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
-+	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE) &&
- 			((vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK) <
- 			(vma->vm_end & HPAGE_PMD_MASK)) {
- 		khugepaged_enter(vma, vma->vm_flags);
-@@ -3284,7 +3284,7 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
- 			sbinfo->gid = make_kgid(current_user_ns(), gid);
- 			if (!gid_valid(sbinfo->gid))
- 				goto bad_val;
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
- 		} else if (!strcmp(this_char, "huge")) {
- 			int huge;
- 			huge = shmem_parse_huge(value);
-@@ -3381,7 +3381,7 @@ static int shmem_show_options(struct seq_file *seq, struct dentry *root)
- 	if (!gid_eq(sbinfo->gid, GLOBAL_ROOT_GID))
- 		seq_printf(seq, ",gid=%u",
- 				from_kgid_munged(&init_user_ns, sbinfo->gid));
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
- 	/* Rightly or wrongly, show huge mount option unmasked by shmem_huge */
- 	if (sbinfo->huge)
- 		seq_printf(seq, ",huge=%s", shmem_format_huge(sbinfo->huge));
-@@ -3726,7 +3726,7 @@ int __init shmem_init(void)
- 		goto out1;
- 	}
- 
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
- 	if (has_transparent_hugepage() && shmem_huge < SHMEM_HUGE_DENY)
- 		SHMEM_SB(shm_mnt->mnt_sb)->huge = shmem_huge;
- 	else
-@@ -3743,7 +3743,7 @@ out3:
- 	return error;
- }
- 
--#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && defined(CONFIG_SYSFS)
-+#if defined(CONFIG_TRANSPARENT_HUGE_PAGECACHE) && defined(CONFIG_SYSFS)
- static ssize_t shmem_enabled_show(struct kobject *kobj,
- 		struct kobj_attribute *attr, char *buf)
++	struct mm_struct *mm = vma->vm_mm;
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+@@ -3452,15 +3453,15 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+  * The mmap_sem may have been released depending on flags and our
+  * return value.  See filemap_fault() and __lock_page_or_retry().
+  */
+-int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+-		    unsigned long address, unsigned int flags)
++int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
++		unsigned int flags)
  {
-@@ -3826,7 +3826,7 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
- 			return false;
- 	}
- }
--#endif /* CONFIG_TRANSPARENT_HUGEPAGE && CONFIG_SYSFS */
-+#endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE && CONFIG_SYSFS */
+ 	int ret;
  
- #else /* !CONFIG_SHMEM */
+ 	__set_current_state(TASK_RUNNING);
  
-@@ -4006,7 +4006,7 @@ int shmem_zero_setup(struct vm_area_struct *vma)
- 	vma->vm_file = file;
- 	vma->vm_ops = &shmem_vm_ops;
+ 	count_vm_event(PGFAULT);
+-	mem_cgroup_count_vm_event(mm, PGFAULT);
++	mem_cgroup_count_vm_event(vma->vm_mm, PGFAULT);
  
--	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
-+	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE) &&
- 			((vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK) <
- 			(vma->vm_end & HPAGE_PMD_MASK)) {
- 		khugepaged_enter(vma, vma->vm_flags);
+ 	/* do counter updates before entering really critical section. */
+ 	check_sync_rss_stat(current);
+@@ -3472,7 +3473,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (flags & FAULT_FLAG_USER)
+ 		mem_cgroup_oom_enable();
+ 
+-	ret = __handle_mm_fault(mm, vma, address, flags);
++	ret = __handle_mm_fault(vma, address, flags);
+ 
+ 	if (flags & FAULT_FLAG_USER) {
+ 		mem_cgroup_oom_disable();
 -- 
 2.8.1
 
