@@ -1,108 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C50BF6B0005
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 09:53:04 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id d66so157211068vkb.0
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 06:53:04 -0700 (PDT)
-Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
-        by mx.google.com with ESMTPS id x145si8631763qkb.139.2016.05.12.06.53.03
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DB4216B0005
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:09:24 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id x67so129691891oix.2
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:09:24 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id n18si14057000igi.63.2016.05.12.08.09.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 May 2016 06:53:03 -0700 (PDT)
-Received: by mail-qk0-x243.google.com with SMTP id i7so5510898qkd.1
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 06:53:03 -0700 (PDT)
-Date: Thu, 12 May 2016 15:52:53 +0200
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [Question] Missing data after DMA read transfer - mm issue with
- transparent huge page?
-Message-ID: <20160512135253.GA17039@gmail.com>
-References: <15edf085-c21b-aa1c-9f1f-057d17b8a1a3@morey-chaisemartin.com>
- <alpine.LSU.2.11.1605022020560.5004@eggly.anvils>
- <20160503101153.GA7241@gmail.com>
- <07619be9-e812-5459-26dd-ceb8c6490520@morey-chaisemartin.com>
- <20160510100104.GA18820@gmail.com>
- <60fc4f9f-fc8e-84a4-da84-a3c823b9b5bb@morey-chaisemartin.com>
- <20160511145141.GA5288@gmail.com>
- <432180fd-2faf-af37-7d99-4e24ab263d50@morey-chaisemartin.com>
- <20160512093632.GA15092@gmail.com>
- <e009b1e5-2fb2-0cc6-b065-932d7fa1c658@morey-chaisemartin.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <e009b1e5-2fb2-0cc6-b065-932d7fa1c658@morey-chaisemartin.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 12 May 2016 08:09:23 -0700 (PDT)
+Subject: Re: [PATCH v5] mm: Add memory allocation watchdog kernel thread.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <004b01d1a9d1$3817fc10$a847f430$@alibaba-inc.com>
+	<006e01d1a9d8$5c7a15f0$156e41d0$@alibaba-inc.com>
+In-Reply-To: <006e01d1a9d8$5c7a15f0$156e41d0$@alibaba-inc.com>
+Message-Id: <201605130009.EAJ35441.JLtFVOHFOSOMQF@I-love.SAKURA.ne.jp>
+Date: Fri, 13 May 2016 00:09:07 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Morey-Chaisemartin <devel@morey-chaisemartin.com>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alex Williamson <alex.williamson@redhat.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: hillf.zj@alibaba-inc.com, mhocko@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, May 12, 2016 at 03:30:24PM +0200, Nicolas Morey-Chaisemartin wrote:
-> Le 05/12/2016 a 11:36 AM, Jerome Glisse a ecrit :
-> > On Thu, May 12, 2016 at 08:07:59AM +0200, Nicolas Morey-Chaisemartin wrote:
-> >>
-> >> Le 05/11/2016 a 04:51 PM, Jerome Glisse a ecrit :
-> >>> On Wed, May 11, 2016 at 01:15:54PM +0200, Nicolas Morey Chaisemartin wrote:
-> >>>> Le 05/10/2016 a 12:01 PM, Jerome Glisse a ecrit :
-> >>>>> On Tue, May 10, 2016 at 09:04:36AM +0200, Nicolas Morey Chaisemartin wrote:
-> >>>>>> Le 05/03/2016 a 12:11 PM, Jerome Glisse a ecrit :
-> >>>>>>> On Mon, May 02, 2016 at 09:04:02PM -0700, Hugh Dickins wrote:
-> >>>>>>>> On Fri, 29 Apr 2016, Nicolas Morey Chaisemartin wrote:
-> >>>> [...]
-> >>>>>> Hi,
-> >>>>>>
-> >>>>>> I backported the patch to 3.10 (had to copy paste pmd_protnone defitinition from 4.5) and it's working !
-> >>>>>> I'll open a ticket in Redhat tracker to try and get this fixed in RHEL7.
-> >>>>>>
-> >>>>>> I have a dumb question though: how can we end up in numa/misplaced memory code on a single socket system?
-> >>>>>>
-> >>>>> This patch is not a fix, do you see bug message in kernel log ? Because if
-> >>>>> you do that it means we have a bigger issue.
-> >>>>>
-> >>>>> You did not answer one of my previous question, do you set get_user_pages
-> >>>>> with write = 1 as a paremeter ?
-> >>>>>
-> >>>>> Also it would be a lot easier if you were testing with lastest 4.6 or 4.5
-> >>>>> not RHEL kernel as they are far appart and what might looks like same issue
-> >>>>> on both might be totaly different bugs.
-> >>>>>
-> >>>>> If you only really care about RHEL kernel then open a bug with Red Hat and
-> >>>>> you can add me in bug-cc <jglisse@redhat.com>
-> >>>>>
-> >>>>> Cheers,
-> >>>>> Jerome
-> >>>> I finally managed to get a proper setup.
-> >>>> I build a vanilla 4.5 kernel from git tree using the Centos7 config, my test fails as usual.
-> >>>> I applied your patch, rebuild => still fails and no new messages in dmesg.
-> >>>>
-> >>>> Now that I don't have to go through the RPM repackaging, I can try out things much quicker if you have any ideas.
-> >>>>
-> >>> Still an issue if you boot with transparent_hugepage=never ?
-> >>>
-> >>> Also to simplify investigation force write to 1 all the time no matter what.
-> >>>
-> >>> Cheers,
-> >>> Jerome
-> >> With transparent_hugepage=never I can't see the bug anymore.
-> >>
-> > Can you test https://patchwork.kernel.org/patch/9061351/ with 4.5
-> > (does not apply to 3.10) and without transparent_hugepage=never
-> >
-> > Jerome
+Hillf Danton wrote:
+> > +struct memalloc_info {
+> > +	/*
+> > +	 * 0: not doing __GFP_RECLAIM allocation.
+> > +	 * 1: doing non-recursive __GFP_RECLAIM allocation.
+> > +	 * 2: doing recursive __GFP_RECLAIM allocation.
+> > +	 */
+> > +	u8 valid;
+> > +	/*
+> > +	 * bit 0: Will be reported as OOM victim.
+> > +	 * bit 1: Will be reported as dying task.
+> > +	 * bit 2: Will be reported as stalling task.
+> > +	 * bit 3: Will be reported as exiting task.
+> > +	 * bit 7: Will be reported unconditionally.
+> > +	 */
+> > +	u8 type;
+> > +	/* Index used for memalloc_in_flight[] counter. */
+> > +	u8 idx;
 > 
-> Fails with 4.5 + this patch and with 4.5 + this patch + yours
+> 	u8 __pad;	is also needed perhaps.
 > 
 
-There must be some bug in your code, we have upstream user that works
-fine with the above combination (see drivers/vfio/vfio_iommu_type1.c)
-i suspect you might be releasing the page pin too early (put_page()).
+Since this structure is not marked as __packed, I think that
+the compiler will automatically pad it.
 
-If you really believe it is bug upstream we would need a dumb kernel
-module that does gup like you do and that shows the issue. Right now
-looking at code (assuming above patches applied) i can't see anything
-that can go wrong with THP.
+> The numbers assigned to type may be replaced with texts, 
+> for instance,
+> 	MEMALLOC_TYPE_VICTIM 
+> 	MEMALLOC_TYPE_DYING 
+> 	MEMALLOC_TYPE_STALLING
+> 	MEMALLOC_TYPE_EXITING
+> 	MEMALLOC_TYPE_REPORT
+> 
 
-Cheers,
-Jerome
+I can define them as bit shift numbers. Thanks.
+
+
+
+Michal, this version eliminated overhead of walking the process list
+when nothing is wrong. You are aware of the possibility of
+debug_show_all_locks() failing to report the culprit, aren't you?
+So, what are unacceptable major problems for you?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
