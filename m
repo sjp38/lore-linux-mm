@@ -1,70 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DB4216B0005
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:09:24 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id x67so129691891oix.2
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:09:24 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id n18si14057000igi.63.2016.05.12.08.09.23
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F8C86B0005
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:32:05 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id k5so157339313qkd.3
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:32:05 -0700 (PDT)
+Received: from 6.mo6.mail-out.ovh.net (6.mo6.mail-out.ovh.net. [87.98.177.69])
+        by mx.google.com with ESMTPS id b73si934734wmb.1.2016.05.12.08.32.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 May 2016 08:09:23 -0700 (PDT)
-Subject: Re: [PATCH v5] mm: Add memory allocation watchdog kernel thread.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <004b01d1a9d1$3817fc10$a847f430$@alibaba-inc.com>
-	<006e01d1a9d8$5c7a15f0$156e41d0$@alibaba-inc.com>
-In-Reply-To: <006e01d1a9d8$5c7a15f0$156e41d0$@alibaba-inc.com>
-Message-Id: <201605130009.EAJ35441.JLtFVOHFOSOMQF@I-love.SAKURA.ne.jp>
-Date: Fri, 13 May 2016 00:09:07 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 May 2016 08:32:04 -0700 (PDT)
+Received: from player795.ha.ovh.net (b9.ovh.net [213.186.33.59])
+	by mo6.mail-out.ovh.net (Postfix) with ESMTP id CBF5B1005062
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 17:32:02 +0200 (CEST)
+Subject: Re: [Question] Missing data after DMA read transfer - mm issue with
+ transparent huge page?
+References: <15edf085-c21b-aa1c-9f1f-057d17b8a1a3@morey-chaisemartin.com>
+ <alpine.LSU.2.11.1605022020560.5004@eggly.anvils>
+ <20160503101153.GA7241@gmail.com>
+ <07619be9-e812-5459-26dd-ceb8c6490520@morey-chaisemartin.com>
+ <20160510100104.GA18820@gmail.com>
+ <60fc4f9f-fc8e-84a4-da84-a3c823b9b5bb@morey-chaisemartin.com>
+ <20160511145141.GA5288@gmail.com>
+ <432180fd-2faf-af37-7d99-4e24ab263d50@morey-chaisemartin.com>
+ <20160512093632.GA15092@gmail.com>
+ <e009b1e5-2fb2-0cc6-b065-932d7fa1c658@morey-chaisemartin.com>
+ <20160512135253.GA17039@gmail.com>
+From: Nicolas Morey-Chaisemartin <devel@morey-chaisemartin.com>
+Message-ID: <db706ffa-2b61-de50-0118-9b0b6834ef68@morey-chaisemartin.com>
+Date: Thu, 12 May 2016 17:31:52 +0200
+MIME-Version: 1.0
+In-Reply-To: <20160512135253.GA17039@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hillf.zj@alibaba-inc.com, mhocko@kernel.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-
-Hillf Danton wrote:
-> > +struct memalloc_info {
-> > +	/*
-> > +	 * 0: not doing __GFP_RECLAIM allocation.
-> > +	 * 1: doing non-recursive __GFP_RECLAIM allocation.
-> > +	 * 2: doing recursive __GFP_RECLAIM allocation.
-> > +	 */
-> > +	u8 valid;
-> > +	/*
-> > +	 * bit 0: Will be reported as OOM victim.
-> > +	 * bit 1: Will be reported as dying task.
-> > +	 * bit 2: Will be reported as stalling task.
-> > +	 * bit 3: Will be reported as exiting task.
-> > +	 * bit 7: Will be reported unconditionally.
-> > +	 */
-> > +	u8 type;
-> > +	/* Index used for memalloc_in_flight[] counter. */
-> > +	u8 idx;
-> 
-> 	u8 __pad;	is also needed perhaps.
-> 
-
-Since this structure is not marked as __packed, I think that
-the compiler will automatically pad it.
-
-> The numbers assigned to type may be replaced with texts, 
-> for instance,
-> 	MEMALLOC_TYPE_VICTIM 
-> 	MEMALLOC_TYPE_DYING 
-> 	MEMALLOC_TYPE_STALLING
-> 	MEMALLOC_TYPE_EXITING
-> 	MEMALLOC_TYPE_REPORT
-> 
-
-I can define them as bit shift numbers. Thanks.
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alex Williamson <alex.williamson@redhat.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 
 
-Michal, this version eliminated overhead of walking the process list
-when nothing is wrong. You are aware of the possibility of
-debug_show_all_locks() failing to report the culprit, aren't you?
-So, what are unacceptable major problems for you?
+Le 05/12/2016 a 03:52 PM, Jerome Glisse a ecrit :
+> On Thu, May 12, 2016 at 03:30:24PM +0200, Nicolas Morey-Chaisemartin wrote:
+>> Le 05/12/2016 a 11:36 AM, Jerome Glisse a ecrit :
+>>> On Thu, May 12, 2016 at 08:07:59AM +0200, Nicolas Morey-Chaisemartin wrote:
+[...]
+>>>> With transparent_hugepage=never I can't see the bug anymore.
+>>>>
+>>> Can you test https://patchwork.kernel.org/patch/9061351/ with 4.5
+>>> (does not apply to 3.10) and without transparent_hugepage=never
+>>>
+>>> Jerome
+>> Fails with 4.5 + this patch and with 4.5 + this patch + yours
+>>
+> There must be some bug in your code, we have upstream user that works
+> fine with the above combination (see drivers/vfio/vfio_iommu_type1.c)
+> i suspect you might be releasing the page pin too early (put_page()).
+In my previous tests, I checked the page before calling put_page and it has already changed.
+And I also checked that there is not multiple transfers in a single page at once.
+So I doubt it's that.
+>
+> If you really believe it is bug upstream we would need a dumb kernel
+> module that does gup like you do and that shows the issue. Right now
+> looking at code (assuming above patches applied) i can't see anything
+> that can go wrong with THP.
+
+The issue is that I doubt I'll be able to do that. We have had code running in production for at least a year without the issue showing up and now a single test shows this.
+And some tweak to the test (meaning memory footprint in the user space) can make the problem disappear.
+
+Is there a way to track what is happening to the THP? From the looks of it, the refcount are changed behind my back? Would kgdb with watch point work on this?
+Is there a less painful way?
+
+Thanks
+
+Nicolas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
