@@ -1,78 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F8C86B0005
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:32:05 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id k5so157339313qkd.3
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:32:05 -0700 (PDT)
-Received: from 6.mo6.mail-out.ovh.net (6.mo6.mail-out.ovh.net. [87.98.177.69])
-        by mx.google.com with ESMTPS id b73si934734wmb.1.2016.05.12.08.32.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 May 2016 08:32:04 -0700 (PDT)
-Received: from player795.ha.ovh.net (b9.ovh.net [213.186.33.59])
-	by mo6.mail-out.ovh.net (Postfix) with ESMTP id CBF5B1005062
-	for <linux-mm@kvack.org>; Thu, 12 May 2016 17:32:02 +0200 (CEST)
-Subject: Re: [Question] Missing data after DMA read transfer - mm issue with
- transparent huge page?
-References: <15edf085-c21b-aa1c-9f1f-057d17b8a1a3@morey-chaisemartin.com>
- <alpine.LSU.2.11.1605022020560.5004@eggly.anvils>
- <20160503101153.GA7241@gmail.com>
- <07619be9-e812-5459-26dd-ceb8c6490520@morey-chaisemartin.com>
- <20160510100104.GA18820@gmail.com>
- <60fc4f9f-fc8e-84a4-da84-a3c823b9b5bb@morey-chaisemartin.com>
- <20160511145141.GA5288@gmail.com>
- <432180fd-2faf-af37-7d99-4e24ab263d50@morey-chaisemartin.com>
- <20160512093632.GA15092@gmail.com>
- <e009b1e5-2fb2-0cc6-b065-932d7fa1c658@morey-chaisemartin.com>
- <20160512135253.GA17039@gmail.com>
-From: Nicolas Morey-Chaisemartin <devel@morey-chaisemartin.com>
-Message-ID: <db706ffa-2b61-de50-0118-9b0b6834ef68@morey-chaisemartin.com>
-Date: Thu, 12 May 2016 17:31:52 +0200
-MIME-Version: 1.0
-In-Reply-To: <20160512135253.GA17039@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ABFE66B0005
+	for <linux-mm@kvack.org>; Thu, 12 May 2016 11:41:31 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id yl2so110323445pac.2
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 08:41:31 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id 9si18093597pfc.127.2016.05.12.08.41.30
+        for <linux-mm@kvack.org>;
+        Thu, 12 May 2016 08:41:30 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv8 05/32] rmap: support file thp
+Date: Thu, 12 May 2016 18:40:45 +0300
+Message-Id: <1463067672-134698-6-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alex Williamson <alex.williamson@redhat.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
+Naive approach: on mapping/unmapping the page as compound we update
+->_mapcount on each 4k page. That's not efficient, but it's not obvious
+how we can optimize this. We can look into optimization later.
 
+PG_double_map optimization doesn't work for file pages since lifecycle
+of file pages is different comparing to anon pages: file page can be
+mapped again at any time.
 
-Le 05/12/2016 a 03:52 PM, Jerome Glisse a ecrit :
-> On Thu, May 12, 2016 at 03:30:24PM +0200, Nicolas Morey-Chaisemartin wrote:
->> Le 05/12/2016 a 11:36 AM, Jerome Glisse a ecrit :
->>> On Thu, May 12, 2016 at 08:07:59AM +0200, Nicolas Morey-Chaisemartin wrote:
-[...]
->>>> With transparent_hugepage=never I can't see the bug anymore.
->>>>
->>> Can you test https://patchwork.kernel.org/patch/9061351/ with 4.5
->>> (does not apply to 3.10) and without transparent_hugepage=never
->>>
->>> Jerome
->> Fails with 4.5 + this patch and with 4.5 + this patch + yours
->>
-> There must be some bug in your code, we have upstream user that works
-> fine with the above combination (see drivers/vfio/vfio_iommu_type1.c)
-> i suspect you might be releasing the page pin too early (put_page()).
-In my previous tests, I checked the page before calling put_page and it has already changed.
-And I also checked that there is not multiple transfers in a single page at once.
-So I doubt it's that.
->
-> If you really believe it is bug upstream we would need a dumb kernel
-> module that does gup like you do and that shows the issue. Right now
-> looking at code (assuming above patches applied) i can't see anything
-> that can go wrong with THP.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/rmap.h |  2 +-
+ mm/huge_memory.c     | 10 +++++++---
+ mm/memory.c          |  4 ++--
+ mm/migrate.c         |  2 +-
+ mm/rmap.c            | 48 +++++++++++++++++++++++++++++++++++-------------
+ mm/util.c            |  6 ++++++
+ 6 files changed, 52 insertions(+), 20 deletions(-)
 
-The issue is that I doubt I'll be able to do that. We have had code running in production for at least a year without the issue showing up and now a single test shows this.
-And some tweak to the test (meaning memory footprint in the user space) can make the problem disappear.
-
-Is there a way to track what is happening to the THP? From the looks of it, the refcount are changed behind my back? Would kgdb with watch point work on this?
-Is there a less painful way?
-
-Thanks
-
-Nicolas
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 49eb4f8ebac9..5704f101b52e 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -165,7 +165,7 @@ void do_page_add_anon_rmap(struct page *, struct vm_area_struct *,
+ 			   unsigned long, int);
+ void page_add_new_anon_rmap(struct page *, struct vm_area_struct *,
+ 		unsigned long, bool);
+-void page_add_file_rmap(struct page *);
++void page_add_file_rmap(struct page *, bool);
+ void page_remove_rmap(struct page *, bool);
+ 
+ void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a4014b484737..aab10c81de12 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -3262,18 +3262,22 @@ static void __split_huge_page(struct page *page, struct list_head *list)
+ 
+ int total_mapcount(struct page *page)
+ {
+-	int i, ret;
++	int i, compound, ret;
+ 
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+ 
+ 	if (likely(!PageCompound(page)))
+ 		return atomic_read(&page->_mapcount) + 1;
+ 
+-	ret = compound_mapcount(page);
++	compound = compound_mapcount(page);
+ 	if (PageHuge(page))
+-		return ret;
++		return compound;
++	ret = compound;
+ 	for (i = 0; i < HPAGE_PMD_NR; i++)
+ 		ret += atomic_read(&page[i]._mapcount) + 1;
++	/* File pages has compound_mapcount included in _mapcount */
++	if (!PageAnon(page))
++		return ret - compound * HPAGE_PMD_NR;
+ 	if (PageDoubleMap(page))
+ 		ret -= HPAGE_PMD_NR;
+ 	return ret;
+diff --git a/mm/memory.c b/mm/memory.c
+index c31c52507956..49c55446576a 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1438,7 +1438,7 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+ 	/* Ok, finally just insert the thing.. */
+ 	get_page(page);
+ 	inc_mm_counter_fast(mm, mm_counter_file(page));
+-	page_add_file_rmap(page);
++	page_add_file_rmap(page, false);
+ 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
+ 
+ 	retval = 0;
+@@ -2901,7 +2901,7 @@ int alloc_set_pte(struct fault_env *fe, struct mem_cgroup *memcg,
+ 		lru_cache_add_active_or_unevictable(page, vma);
+ 	} else {
+ 		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
+-		page_add_file_rmap(page);
++		page_add_file_rmap(page, false);
+ 	}
+ 	set_pte_at(vma->vm_mm, fe->address, fe->pte, entry);
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 3eafd17fb398..b8f8363df8da 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -170,7 +170,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+ 	} else if (PageAnon(new))
+ 		page_add_anon_rmap(new, vma, addr, false);
+ 	else
+-		page_add_file_rmap(new);
++		page_add_file_rmap(new, false);
+ 
+ 	if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
+ 		mlock_vma_page(new);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 7f8652720a25..76d8c9269ac6 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1271,18 +1271,34 @@ void page_add_new_anon_rmap(struct page *page,
+  *
+  * The caller needs to hold the pte lock.
+  */
+-void page_add_file_rmap(struct page *page)
++void page_add_file_rmap(struct page *page, bool compound)
+ {
++	int i, nr = 1;
++
++	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
+ 	lock_page_memcg(page);
+-	if (atomic_inc_and_test(&page->_mapcount)) {
+-		__inc_zone_page_state(page, NR_FILE_MAPPED);
+-		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
++	if (compound && PageTransHuge(page)) {
++		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
++			if (atomic_inc_and_test(&page[i]._mapcount))
++				nr++;
++		}
++		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
++			goto out;
++	} else {
++		if (!atomic_inc_and_test(&page->_mapcount))
++			goto out;
+ 	}
++	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, nr);
++	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
++out:
+ 	unlock_page_memcg(page);
+ }
+ 
+-static void page_remove_file_rmap(struct page *page)
++static void page_remove_file_rmap(struct page *page, bool compound)
+ {
++	int i, nr = 1;
++
++	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
+ 	lock_page_memcg(page);
+ 
+ 	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
+@@ -1293,15 +1309,24 @@ static void page_remove_file_rmap(struct page *page)
+ 	}
+ 
+ 	/* page still mapped by someone else? */
+-	if (!atomic_add_negative(-1, &page->_mapcount))
+-		goto out;
++	if (compound && PageTransHuge(page)) {
++		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
++			if (atomic_add_negative(-1, &page[i]._mapcount))
++				nr++;
++		}
++		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
++			goto out;
++	} else {
++		if (!atomic_add_negative(-1, &page->_mapcount))
++			goto out;
++	}
+ 
+ 	/*
+ 	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
+ 	 * these counters are not modified in interrupt context, and
+ 	 * pte lock(a spinlock) is held, which implies preemption disabled.
+ 	 */
+-	__dec_zone_page_state(page, NR_FILE_MAPPED);
++	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, -nr);
+ 	mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+ 
+ 	if (unlikely(PageMlocked(page)))
+@@ -1357,11 +1382,8 @@ static void page_remove_anon_compound_rmap(struct page *page)
+  */
+ void page_remove_rmap(struct page *page, bool compound)
+ {
+-	if (!PageAnon(page)) {
+-		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
+-		page_remove_file_rmap(page);
+-		return;
+-	}
++	if (!PageAnon(page))
++		return page_remove_file_rmap(page, compound);
+ 
+ 	if (compound)
+ 		return page_remove_anon_compound_rmap(page);
+diff --git a/mm/util.c b/mm/util.c
+index 6cc81e7b8705..b7ac1d708cb0 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -386,6 +386,12 @@ int __page_mapcount(struct page *page)
+ 	int ret;
+ 
+ 	ret = atomic_read(&page->_mapcount) + 1;
++	/*
++	 * For file THP page->_mapcount contains total number of mapping
++	 * of the page: no need to look into compound_mapcount.
++	 */
++	if (!PageAnon(page) && !PageHuge(page))
++		return ret;
+ 	page = compound_head(page);
+ 	ret += atomic_read(compound_mapcount_ptr(page)) + 1;
+ 	if (PageDoubleMap(page))
+-- 
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
