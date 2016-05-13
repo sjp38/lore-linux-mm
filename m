@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F0CE6B0005
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 10:23:49 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r12so10843549wme.0
-        for <linux-mm@kvack.org>; Fri, 13 May 2016 07:23:49 -0700 (PDT)
-Received: from smtp.laposte.net (smtpoutz25.laposte.net. [194.117.213.100])
-        by mx.google.com with ESMTPS id cl10si22472960wjc.19.2016.05.13.07.23.47
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C3086B0005
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 10:35:22 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e201so10938706wme.1
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 07:35:22 -0700 (PDT)
+Received: from smtp.laposte.net (smtpoutz26.laposte.net. [194.117.213.101])
+        by mx.google.com with ESMTPS id q19si3987602wmb.32.2016.05.13.07.35.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 May 2016 07:23:47 -0700 (PDT)
+        Fri, 13 May 2016 07:35:21 -0700 (PDT)
 Received: from smtp.laposte.net (localhost [127.0.0.1])
-	by lpn-prd-vrout013 (Postfix) with ESMTP id 90D3C1046C3
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 16:23:47 +0200 (CEST)
-Received: from lpn-prd-vrin002 (lpn-prd-vrin002.laposte [10.128.63.3])
-	by lpn-prd-vrout013 (Postfix) with ESMTP id 8F6331046CB
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 16:23:47 +0200 (CEST)
-Received: from lpn-prd-vrin002 (localhost [127.0.0.1])
-	by lpn-prd-vrin002 (Postfix) with ESMTP id 7A3DE5BF011
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 16:23:47 +0200 (CEST)
-Message-ID: <5735E372.1090609@laposte.net>
-Date: Fri, 13 May 2016 16:23:46 +0200
+	by lpn-prd-vrout014 (Postfix) with ESMTP id 034BE11F246
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 16:35:21 +0200 (CEST)
+Received: from lpn-prd-vrin001 (lpn-prd-vrin001.prosodie [10.128.63.2])
+	by lpn-prd-vrout014 (Postfix) with ESMTP id E770212097D
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 16:35:20 +0200 (CEST)
+Received: from lpn-prd-vrin001 (localhost [127.0.0.1])
+	by lpn-prd-vrin001 (Postfix) with ESMTP id D0341366A05
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 16:35:20 +0200 (CEST)
+Message-ID: <5735E628.9080306@laposte.net>
+Date: Fri, 13 May 2016 16:35:20 +0200
 From: Sebastian Frias <sf84@laposte.net>
 MIME-Version: 1.0
 Subject: Re: [PATCH] mm: add config option to select the initial overcommit
  mode
-References: <5731CC6E.3080807@laposte.net> <20160513080458.GF20141@dhcp22.suse.cz> <573593EE.6010502@free.fr> <5735A3DE.9030100@laposte.net> <20160513120042.GK20141@dhcp22.suse.cz> <5735CAE5.5010104@laposte.net> <935da2a3-1fda-bc71-48a5-bb212db305de@gmail.com> <5735D7FC.3070409@laposte.net> <f28d8bc3-a144-9a18-51de-5ac8ae38fd15@gmail.com>
-In-Reply-To: <f28d8bc3-a144-9a18-51de-5ac8ae38fd15@gmail.com>
+References: <5731CC6E.3080807@laposte.net> <20160513080458.GF20141@dhcp22.suse.cz> <573593EE.6010502@free.fr> <5735A3DE.9030100@laposte.net> <20160513120042.GK20141@dhcp22.suse.cz> <5735CAE5.5010104@laposte.net> <935da2a3-1fda-bc71-48a5-bb212db305de@gmail.com> <5735D77C.9090803@laposte.net> <50852f22-6030-7361-4273-91b5bea446ed@gmail.com>
+In-Reply-To: <50852f22-6030-7361-4273-91b5bea446ed@gmail.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -35,37 +35,45 @@ Cc: Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-fou
 
 Hi Austin,
 
-On 05/13/2016 04:14 PM, Austin S. Hemmelgarn wrote:
-> On 2016-05-13 09:34, Sebastian Frias wrote:
->> Hi Austin,
+On 05/13/2016 03:51 PM, Austin S. Hemmelgarn wrote:
+> On 2016-05-13 09:32, Sebastian Frias wrote:
+>> I didn't see that in Documentation/vm/overcommit-accounting or am I looking in the wrong place?
+> It's controlled by a sysctl value, so it's listed in Documentation/sysctl/vm.txt
+> The relevant sysctl is vm.oom_kill_allocating_task
+
+Thanks, I just read that.
+Does not look like a replacement for overcommit=never though.
+
 >>
->> On 05/13/2016 03:11 PM, Austin S. Hemmelgarn wrote:
->>> On 2016-05-13 08:39, Sebastian Frias wrote:
 >>>>
->>>> My point is that it seems to be possible to deal with such conditions in a more controlled way, ie: a way that is less random and less abrupt.
->>> There's an option for the OOM-killer to just kill the allocating task instead of using the scoring heuristic.  This is about as deterministic as things can get though.
+>>>> Well, it's hard to report, since it is essentially the result of a dynamic system.
+>>>> I could assume it killed terminals with a long history buffer, or editors with many buffers (or big buffers).
+>>>> Actually when it happened, I just turned overcommit off. I just checked and is on again on my desktop, probably forgot to make it a permanent setting.
+>>>>
+>>>> In the end, no processes is a good candidate for termination.
+>>>> What works for you may not work for me, that's the whole point, there's a heuristic (which conceptually can never be perfect), yet the mere fact that some process has to be killed is somewhat chilling.
+>>>> I mean, all running processes are supposedly there and running for a reason.
+>>> OTOH, just because something is there for a reason doesn't mean it's doing what it's supposed to be.  Bugs happen, including memory leaks, and if something is misbehaving enough that it impacts the rest of the system, it really should be dealt with.
 >>
->> By the way, why does it has to "kill" anything in that case?
->> I mean, shouldn't it just tell the allocating task that there's not enough memory by letting malloc return NULL?
-> In theory, that's a great idea.  In practice though, it only works if:
-> 1. The allocating task correctly handles malloc() (or whatever other function it uses) returning NULL, which a number of programs don't.
-> 2. The task actually has fallback options for memory limits.  Many programs that do handle getting a NULL pointer from malloc() handle it by exiting anyway, so there's not as much value in this case.
-> 3. There isn't a memory leak somewhere on the system.  Killing the allocating task doesn't help much if this is the case of course.
+>> Exactly, it's just that in this case, the system is deciding how to deal with the situation by itself.
+> On a busy server where uptime is critical, you can't wait for someone to notice and handle it manually, you need the issue resolved ASAP.  Now, this won't always kill the correct thing, but if it's due to a memory leak, it often will work like it should.
 
-Well, the thing is that the current behaviour, i.e.: overcommiting, does not improves the quality of those programs.
-I mean, what incentive do they have to properly handle situations 1, 2?
+The keyword is "'often' will work as expected".
+So you are saying that it will kill a program leaking memory in what, like 90% of the cases?
+I'm not sure if I would setup a server with critical uptime to have the OOM-killer enabled, do you think that'd be a good idea?
 
-Also, if there's a memory leak, the termination of any task, whether it is the allocating task or something random, does not help either, the system will eventually go down, right?
+Anyway, as a side note, I just want to say thank you guys for having this discussion.
+I think it is an interesting thread and hopefully it will advance the "knowledge" about this setting.
 
-> 
-> You have to keep in mind though, that on a properly provisioned system, the only situations where the OOM killer should be invoked are when there's a memory leak, or when someone is intentionally trying to DoS the system through memory exhaustion. 
+>>
+>>>
+>>> This brings to mind a complex bug involving Tor and GCC whereby building certain (old) versions of Tor with certain (old) versions of GCC with -Os would cause an infinite loop in GCC.  You obviously have GCC running for a reason, but that doesn't mean that it's doing what it should be.
+>>
+>> I'm not sure if I followed the analogy/example, but are you saying that the OOM-killer killed GCC in your example?
+>> This seems an odd example though, I mean, shouldn't the guy in front of the computer notice the loop and kill GCC by himself?
+> No, I didn't mean as an example of the OOM killer, I just meant as an example of software not doing what it should.  It's not as easy to find an example for the OOM killer, so I don't really have a good example. The general concept is the same though, the only difference is there isn't a kernel protection against infinite loops (because they aren't always bugs, while memory leaks and similar are).
 
-Exactly, the DoS attack is another reason why the OOM-killer does not seem a good idea, at least compared to just letting malloc return NULL and let the program fail.
-
->If you're hitting the OOM killer for any other reason than those or a kernel bug, then you just need more memory or more swap space.
-> 
-
-Indeed.
+So how does the kernel knows that a process is "leaking memory" as opposed to just "using lots of memory"? (wouldn't that be comparable to answering how does the kernel knows the difference between an infinite loop and one that is not?)
 
 Best regards,
 
