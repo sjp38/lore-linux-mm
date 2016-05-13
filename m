@@ -1,58 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B24366B0260
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 11:32:23 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id s63so11876920wme.2
-        for <linux-mm@kvack.org>; Fri, 13 May 2016 08:32:23 -0700 (PDT)
-Received: from smtp.laposte.net (smtpoutz25.laposte.net. [194.117.213.100])
-        by mx.google.com with ESMTPS id qa9si22724630wjc.112.2016.05.13.08.32.22
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D96926B0260
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 11:37:23 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w143so11882987wmw.3
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 08:37:23 -0700 (PDT)
+Received: from smtp.laposte.net (smtpoutz299.laposte.net. [178.22.154.199])
+        by mx.google.com with ESMTPS id k203si4188120wmd.110.2016.05.13.08.37.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 May 2016 08:32:22 -0700 (PDT)
+        Fri, 13 May 2016 08:37:22 -0700 (PDT)
 Received: from smtp.laposte.net (localhost [127.0.0.1])
-	by lpn-prd-vrout013 (Postfix) with ESMTP id 616BD1046DB
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 17:32:22 +0200 (CEST)
-Received: from lpn-prd-vrin001 (lpn-prd-vrin001.prosodie [10.128.63.2])
-	by lpn-prd-vrout013 (Postfix) with ESMTP id 5DBE6103E83
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 17:32:22 +0200 (CEST)
-Received: from lpn-prd-vrin001 (localhost [127.0.0.1])
-	by lpn-prd-vrin001 (Postfix) with ESMTP id 49B8D366A1A
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 17:32:22 +0200 (CEST)
-Message-ID: <5735F386.2070604@laposte.net>
-Date: Fri, 13 May 2016 17:32:22 +0200
+	by lpn-prd-vrout011 (Postfix) with ESMTP id 6398852A7B3
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 17:37:22 +0200 (CEST)
+Received: from lpn-prd-vrin004 (lpn-prd-vrin004.prosodie [10.128.63.5])
+	by lpn-prd-vrout011 (Postfix) with ESMTP id 6234152A742
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 17:37:22 +0200 (CEST)
+Received: from lpn-prd-vrin004 (localhost [127.0.0.1])
+	by lpn-prd-vrin004 (Postfix) with ESMTP id 4C0C770FF90
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 17:37:22 +0200 (CEST)
+Message-ID: <5735F4B1.1010704@laposte.net>
+Date: Fri, 13 May 2016 17:37:21 +0200
 From: Sebastian Frias <sf84@laposte.net>
 MIME-Version: 1.0
 Subject: Re: [PATCH] mm: add config option to select the initial overcommit
  mode
-References: <5731CC6E.3080807@laposte.net>	<20160513080458.GF20141@dhcp22.suse.cz>	<573593EE.6010502@free.fr>	<5735A3DE.9030100@laposte.net>	<20160513120042.GK20141@dhcp22.suse.cz>	<5735CAE5.5010104@laposte.net>	<20160513145101.GS20141@dhcp22.suse.cz>	<5735EBBC.6050705@free.fr> <20160513161104.330ab3d6@lxorguk.ukuu.org.uk>
-In-Reply-To: <20160513161104.330ab3d6@lxorguk.ukuu.org.uk>
+References: <5731CC6E.3080807@laposte.net>	<20160513080458.GF20141@dhcp22.suse.cz>	<573593EE.6010502@free.fr>	<20160513095230.GI20141@dhcp22.suse.cz>	<5735AA0E.5060605@free.fr>	<20160513114429.GJ20141@dhcp22.suse.cz>	<5735C567.6030202@free.fr>	<20160513140128.GQ20141@dhcp22.suse.cz> <20160513160410.10c6cea6@lxorguk.ukuu.org.uk>
+In-Reply-To: <20160513160410.10c6cea6@lxorguk.ukuu.org.uk>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, Mason <slash.tmp@free.fr>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, Michal Hocko <mhocko@kernel.org>
+Cc: Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
 Hi Alan,
 
-On 05/13/2016 05:11 PM, One Thousand Gnomes wrote:
->> It seems important to point out that Sebastian's patch does NOT change
->> the default behavior. It merely creates a knob allowing one to override
->> the default via Kconfig.
+On 05/13/2016 05:04 PM, One Thousand Gnomes wrote:
+>>> Perhaps Sebastian's choice could be made to depend on CONFIG_EMBEDDED,
+>>> rather than CONFIG_EXPERT?  
 >>
->> +choice
->> +	prompt "Overcommit Mode"
->> +	default OVERCOMMIT_GUESS
->> +	depends on EXPERT
+>> Even if the overcommit behavior is different on those systems the
+>> primary question hasn't been answered yet. Why cannot this be done from
+>> the userspace? In other words what wouldn't work properly?
 > 
-> Which is still completely pointless given that its a single sysctl value
-> set at early userspace time and most distributions ship with things like
-> sysctl and /etc/sysctl.conf
+> Most allocations in C have no mechanism to report failure.
 > 
+> Stakc expansion failure is not reportable. Copy on write failure is not
+> reportable and so on.
 
-You are right, and I said that when the thread started, but I think most people here are looking at this from a server/desktop perspective.
-Also, we wanted to have more background on this setting, its history, etc. thus this discussion.
-It would be interesting in know what other people working on embedded systems think about this subject, because most examples given are for much bigger systems.
+But wouldn't those affect a given process at at time?
+Does that means that the OOM-killer is woken up to kill process X when those situations arise on process Y?
+
+Also, under what conditions would copy-on-write fail?
 
 Best regards,
 
