@@ -1,159 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 61CA46B0253
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 08:39:04 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 68so38049037lfq.2
-        for <linux-mm@kvack.org>; Fri, 13 May 2016 05:39:04 -0700 (PDT)
-Received: from smtp.laposte.net (smtpoutz29.laposte.net. [194.117.213.104])
-        by mx.google.com with ESMTPS id a141si3534641wmd.7.2016.05.13.05.39.02
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 413616B0005
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 09:09:57 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 4so204023856pfw.0
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 06:09:57 -0700 (PDT)
+Received: from mail-pf0-f194.google.com (mail-pf0-f194.google.com. [209.85.192.194])
+        by mx.google.com with ESMTPS id c127si24432240pfa.69.2016.05.13.06.09.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 May 2016 05:39:03 -0700 (PDT)
-Received: from smtp.laposte.net (localhost [127.0.0.1])
-	by lpn-prd-vrout017 (Postfix) with ESMTP id 92835A01537
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 14:39:02 +0200 (CEST)
-Received: from lpn-prd-vrin004 (lpn-prd-vrin004.prosodie [10.128.63.5])
-	by lpn-prd-vrout017 (Postfix) with ESMTP id 8FC95A0150E
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 14:39:02 +0200 (CEST)
-Received: from lpn-prd-vrin004 (localhost [127.0.0.1])
-	by lpn-prd-vrin004 (Postfix) with ESMTP id 786C770FF7A
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 14:39:02 +0200 (CEST)
-Message-ID: <5735CAE5.5010104@laposte.net>
-Date: Fri, 13 May 2016 14:39:01 +0200
-From: Sebastian Frias <sf84@laposte.net>
+        Fri, 13 May 2016 06:09:56 -0700 (PDT)
+Received: by mail-pf0-f194.google.com with SMTP id 145so9381037pfz.1
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 06:09:56 -0700 (PDT)
+Date: Fri, 13 May 2016 15:09:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 08/13] mm, compaction: simplify contended compaction
+ handling
+Message-ID: <20160513130950.GN20141@dhcp22.suse.cz>
+References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
+ <1462865763-22084-9-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add config option to select the initial overcommit
- mode
-References: <5731CC6E.3080807@laposte.net> <20160513080458.GF20141@dhcp22.suse.cz> <573593EE.6010502@free.fr> <5735A3DE.9030100@laposte.net> <20160513120042.GK20141@dhcp22.suse.cz>
-In-Reply-To: <20160513120042.GK20141@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1462865763-22084-9-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-Hi Michal,
-
-On 05/13/2016 02:00 PM, Michal Hocko wrote:
-> On Fri 13-05-16 11:52:30, Sebastian Frias wrote:
->>
->> By the way, do you know what's the rationale to allow this setting to
->> be controlled by the userspace dynamically?  Was it for testing only?
+On Tue 10-05-16 09:35:58, Vlastimil Babka wrote:
+> Async compaction detects contention either due to failing trylock on zone->lock
+> or lru_lock, or by need_resched(). Since 1f9efdef4f3f ("mm, compaction:
+> khugepaged should not give up due to need_resched()") the code got quite
+> complicated to distinguish these two up to the __alloc_pages_slowpath() level,
+> so different decisions could be taken for khugepaged allocations.
 > 
-> Dunno, but I guess the default might be just too benevolent for some
-> specific workloads which are not so wasteful to their address space
-> and the strict overcommit is really helpful for them.
+> After the recent changes, khugepaged allocations don't check for contended
+> compaction anymore, so we again don't need to distinguish lock and sched
+> contention, and simplify the current convoluted code a lot.
 > 
-
-Exactly. That's why I was wondering what is the history behind enabling it by default.
-
-> OVERCOMMIT_ALWAYS is certainly useful for testing.
+> However, I believe it's also possible to simplify even more and completely
+> remove the check for contended compaction after the initial async compaction
+> for costly orders, which was originally aimed at THP page fault allocations.
+> There are several reasons why this can be done now:
 > 
->>> One thing I'm not quite clear on is: why was the default set
->>> to over-commit on?
->>
->> Indeed, I was hoping we could throw some light into that.
->> My patch had another note:
+> - with the new defaults, THP page faults no longer do reclaim/compaction at
+>   all, unless the system admin has overriden the default, or application has
+>   indicated via madvise that it can benefit from THP's. In both cases, it
+>   means that the potential extra latency is expected and worth the benefits.
+
+Yes this sounds reasonable to me. Especially when we consider the code bloat
+size this is causing.
+
+> - even if reclaim/compaction proceeds after this patch where it previously
+>   wouldn't, the second compaction attempt is still async and will detect the
+>   contention and back off, if the contention persists
+
+MIGRATE_ASYNC still backs off after this patch so I would be surprise to
+see more latency issues from this change.
+
+> - there are still heuristics like deferred compaction and pageblock skip bits
+>   in place that prevent excessive THP page fault latencies
 > 
-> I cannot really tell because this was way before my time but I guess the
-> reason was that userspace is usually very address space hungry while the
-> actual memory consumption is not that bad. See my other email.
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-Yes, I saw that, thanks for the example.
-It's just that it feels like the default value is there to deal with (what it should be?) very specific cases, right?
+I hope I haven't missed anything because the compaction is full of
+subtle traps but this seems the changes seem ok to me.
 
->> It'd be nice to know more about why was overcommit introduced.
->> Furthermore, it looks like allowing overcommit and the introduction of the OOM-killer has given rise to lots of other options to try to tame the OOM-killer.
->> Without context, that may seem like a form of "feature creep" around it.
->> Moreover, it makes Linux behave differently from let's say Solaris.
->>
->>    https://www.win.tue.nl/~aeb/linux/lk/lk-9.html#ss9.6
-> 
-> Well, those are some really strong statements which do not really
-> reflect the reality of the linux userspace. I am not going to argue with
-> those points because it doesn't make much sense. Yes in an ideal world
-> everybody consumes only so much he needs. Well the real life is a bit
-> different...
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-:-)
-I see, so basically it is a sort of workaround.
+> ---
+>  include/linux/compaction.h | 10 +------
+>  mm/compaction.c            | 72 +++++++++-------------------------------------
+>  mm/internal.h              |  5 +---
+>  mm/page_alloc.c            | 28 +-----------------
+>  4 files changed, 16 insertions(+), 99 deletions(-)
 
-Anyway, in the embedded world the memory and system requirements are usually controlled.
+This is really nice cleanup considering it doesn't introduce big
+behavior changes which is my understanding from the code.
 
-Would you agree to the option if it was dependent on CONFIG_EMBEDDED? Or if it was a hidden option?
-(I understand though that it wouldn't affect the size of config space)
+[...]
+> @@ -1564,14 +1564,11 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+>  	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
+>  				cc->free_pfn, end_pfn, sync, ret);
+>  
+> -	if (ret == COMPACT_CONTENDED)
+> -		ret = COMPACT_PARTIAL;
+> -
+>  	return ret;
+>  }
 
-> 
->> Hopefully this discussion could clear some of this up and maybe result
->> in more documentation around this subject.
-> 
-> What kind of documentation would help?
+This took me a while to grasp but then I realized this is correct
+because we shouldn't pretend progress when there was none in fact,
+especially when __alloc_pages_direct_compact basically replaced this
+"fake" COMPACT_PARTIAL by COMPACT_CONTENDED anyway.
 
-Well, mostly the history of this setting, why it was introduced, etc. more or less what we are discussing here.
-Because honestly, killing random processes does not seems like a straightforward idea, ie: it is not obvious.
-Like I was saying, without context, such behaviour looks a bit crazy.
-
->>
->> From what I remember, one of the LTP maintainers said that it is
->> highly unlikely people test (or run LTP for that matter) with
->> different settings for overcommit.
-> 
-> Yes this is sad and the result of a excessive configuration space.
-> That's why I was pushing back to adding yet another one without having
-> really good reasons...
-
-Well, a more urgent problem would be that in that case overcommit=never is not really well tested.
-
-> 
->> Years ago, while using MacOS X, a long running process apparently took
->> all the memory over night.  The next day when I checked the computer
->> I saw a dialog that said something like (I don't remember the exact
->> wording) "process X has been paused due to lack of memory (or is
->> requesting too much memory, I don't remember). If you think this is
->> not normal you can terminate process X, otherwise you can terminate
->> other processes to free memory and unpause process X to continue" and
->> then some options to proceed.
->>
->> If left unattended (thus the dialog unanswered), the computer would
->> still work, all other processes were left intact and only the
->> "offending" process was paused.  Arguably, if the "offending" process
->> is just left paused, it takes the memory away from other processes,
->> and if it was a server, maybe it wouldn't have enough memory to reply
->> to requests.  On the server world I can thus understand that some
->> setting could indicate that when the situation arises, the "dialog" is
->> automatically dismissed with some default action, like "terminate the
->> offending process".
-> 
-> Not sure what you are trying to tell here but it seems like killing such
-> a leaking task is a better option as the memory can be reused for others
-> rather than keep it blocked for an unbounded amount of time.
-
-My point is that it seems to be possible to deal with such conditions in a more controlled way, ie: a way that is less random and less abrupt.
-
-> 
->> To me it seems really strange for the "OOM-killer" to exist.  It has
->> happened to me that it kills my terminals or editors, how can people
->> deal with random processes being killed?  Doesn't it bother anybody?
-> 
-> Killing random tasks is definitely a misbehavior and it happened a lot
-> in the past when heuristics were based on multiple metrics (including
-> the run time etc.). Things have changed considerably since then and
-> seeing random tasks being selected shouldn't happen all that often and
-> if it happens it should be reported, understood and fixed.
-> 
-
-Well, it's hard to report, since it is essentially the result of a dynamic system.
-I could assume it killed terminals with a long history buffer, or editors with many buffers (or big buffers).
-Actually when it happened, I just turned overcommit off. I just checked and is on again on my desktop, probably forgot to make it a permanent setting.
-
-In the end, no processes is a good candidate for termination.
-What works for you may not work for me, that's the whole point, there's a heuristic (which conceptually can never be perfect), yet the mere fact that some process has to be killed is somewhat chilling.
-I mean, all running processes are supposedly there and running for a reason.
-
-Best regards,
-
-Sebastian
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
