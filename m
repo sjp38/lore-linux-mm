@@ -1,48 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BB0E6B0253
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 10:59:24 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id ga2so30092581lbc.0
-        for <linux-mm@kvack.org>; Fri, 13 May 2016 07:59:24 -0700 (PDT)
-Received: from smtp2-g21.free.fr (smtp2-g21.free.fr. [2a01:e0c:1:1599::11])
-        by mx.google.com with ESMTPS id q3si4062399wmg.48.2016.05.13.07.59.23
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0527B6B0005
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 11:02:03 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id ga2so30132899lbc.0
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 08:02:02 -0700 (PDT)
+Received: from lxorguk.ukuu.org.uk (lxorguk.ukuu.org.uk. [81.2.110.251])
+        by mx.google.com with ESMTPS id ko8si22554303wjc.212.2016.05.13.08.02.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 May 2016 07:59:23 -0700 (PDT)
+        Fri, 13 May 2016 08:02:01 -0700 (PDT)
+Date: Fri, 13 May 2016 16:01:42 +0100
+From: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
 Subject: Re: [PATCH] mm: add config option to select the initial overcommit
  mode
+Message-ID: <20160513160142.2cc7d695@lxorguk.ukuu.org.uk>
+In-Reply-To: <5735D7FC.3070409@laposte.net>
 References: <5731CC6E.3080807@laposte.net>
- <20160513080458.GF20141@dhcp22.suse.cz> <573593EE.6010502@free.fr>
- <5735A3DE.9030100@laposte.net> <20160513120042.GK20141@dhcp22.suse.cz>
- <5735CAE5.5010104@laposte.net> <20160513145101.GS20141@dhcp22.suse.cz>
-From: Mason <slash.tmp@free.fr>
-Message-ID: <5735EBBC.6050705@free.fr>
-Date: Fri, 13 May 2016 16:59:08 +0200
+	<20160513080458.GF20141@dhcp22.suse.cz>
+	<573593EE.6010502@free.fr>
+	<5735A3DE.9030100@laposte.net>
+	<20160513120042.GK20141@dhcp22.suse.cz>
+	<5735CAE5.5010104@laposte.net>
+	<935da2a3-1fda-bc71-48a5-bb212db305de@gmail.com>
+	<5735D7FC.3070409@laposte.net>
 MIME-Version: 1.0
-In-Reply-To: <20160513145101.GS20141@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Sebastian Frias <sf84@laposte.net>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sebastian Frias <sf84@laposte.net>
+Cc: "Austin S. Hemmelgarn" <ahferroin7@gmail.com>, Michal Hocko <mhocko@kernel.org>, Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 13/05/2016 16:51, Michal Hocko wrote:
+On Fri, 13 May 2016 15:34:52 +0200
+Sebastian Frias <sf84@laposte.net> wrote:
 
-> The default should cover the most use cases. If you can prove that the
-> vast majority of embedded systems are different and would _benefit_ from
-> a different default I wouldn't be opposed to change the default there.
+> Hi Austin,
+> 
+> On 05/13/2016 03:11 PM, Austin S. Hemmelgarn wrote:
+> > On 2016-05-13 08:39, Sebastian Frias wrote:  
+> >>
+> >> My point is that it seems to be possible to deal with such conditions in a more controlled way, ie: a way that is less random and less abrupt.  
+> > There's an option for the OOM-killer to just kill the allocating task instead of using the scoring heuristic.  This is about as deterministic as things can get though.  
+> 
+> By the way, why does it has to "kill" anything in that case?
+> I mean, shouldn't it just tell the allocating task that there's not enough memory by letting malloc return NULL?
 
-It seems important to point out that Sebastian's patch does NOT change
-the default behavior. It merely creates a knob allowing one to override
-the default via Kconfig.
+Just turn off overcommit and it will do that. With overcommit disabled
+the kernel will not hand out address space in excess of memory plus swap.
 
-+choice
-+	prompt "Overcommit Mode"
-+	default OVERCOMMIT_GUESS
-+	depends on EXPERT
-
-Regards.
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
