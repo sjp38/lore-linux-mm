@@ -1,103 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D3836B007E
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 02:22:33 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id yl2so136285456pac.2
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 23:22:33 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id e11si22572846pfb.36.2016.05.12.23.22.31
-        for <linux-mm@kvack.org>;
-        Thu, 12 May 2016 23:22:32 -0700 (PDT)
-Date: Fri, 13 May 2016 15:23:03 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] zram: introduce per-device debug_stat sysfs node
-Message-ID: <20160513062303.GA21204@bbox>
-References: <20160511134553.12655-1-sergey.senozhatsky@gmail.com>
- <20160512234143.GA27204@bbox>
- <20160513010929.GA615@swordfish>
+Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E5386B007E
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 02:58:23 -0400 (EDT)
+Received: by mail-lb0-f197.google.com with SMTP id tb5so23726852lbb.3
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 23:58:23 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id bs2si20629722wjb.154.2016.05.12.23.58.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 May 2016 23:58:22 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id n129so1754882wmn.1
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 23:58:22 -0700 (PDT)
+Date: Fri, 13 May 2016 08:58:20 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/19] get rid of superfluous __GFP_REPEAT
+Message-ID: <20160513065820.GD20141@dhcp22.suse.cz>
+References: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
+ <20160512165310.GB4940@dhcp22.suse.cz>
+ <20160512131328.b2b45b2f6b6847b882286424@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20160513010929.GA615@swordfish>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20160512131328.b2b45b2f6b6847b882286424@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Chen Liqin <liqin.linux@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Heiko Carstens <heiko.carstens@de.ibm.com>, Helge Deller <deller@gmx.de>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, John Crispin <blogic@openwrt.org>, Lennox Wu <lennox.wu@gmail.com>, Ley Foon Tan <lftan@altera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Fleming <matt@codeblueprint.co.uk>, Mikulas Patocka <mpatocka@redhat.com>, Rich Felker <dalias@libc.org>, Russell King <linux@arm.linux.org.uk>, Shaohua Li <shli@kernel.org>, Theodore Ts'o <tytso@mit.edu>, Thomas Gleixner <tglx@linutronix.de>, Vineet Gupta <vgupta@synopsys.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>
 
-On Fri, May 13, 2016 at 10:09:29AM +0900, Sergey Senozhatsky wrote:
-> Hello Minchan,
+On Thu 12-05-16 13:13:28, Andrew Morton wrote:
+> On Thu, 12 May 2016 18:53:11 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> On (05/13/16 08:41), Minchan Kim wrote:
-> [..]
+> > Andrew,
+> > do you think this should go in in the next merge window or should I
+> > repost after rc1 is out? I do not mind one way or the other. I would
+> > obviously would like to get them in sooner rather than later but I can
+> > certainly live with these wait a bit longer.
 > 
-> will fix and update, thanks!
-> 
-> 
-> > > @@ -719,6 +737,8 @@ compress_again:
-> > >  		zcomp_strm_release(zram->comp, zstrm);
-> > >  		zstrm = NULL;
-> > >  
-> > > +		atomic64_inc(&zram->stats.num_recompress);
-> > > +
-> > 
-> > It should be below "goto compress_again".
-> 
-> I moved it out of goto intentionally. this second zs_malloc()
-> 
-> 		handle = zs_malloc(meta->mem_pool, clen,
-> 				GFP_NOIO | __GFP_HIGHMEM |
-> 				__GFP_MOVABLE);
-> 
-> can take some time to complete, which will slow down zram for a bit,
-> and _theoretically_ this second zs_malloc() still can fail. yes, we
-> would do the error print out pr_err("Error allocating memory ... ")
-> and inc the `failed_writes' in zram_bvec_rw(), but zram_bvec_write()
-> has several more error return paths that can inc the `failed_writes'.
-> so by just looking at the stats we won't be able to tell that we had
-> failed fast path allocation combined with failed slow path allocation
-> (IOW, `goto recompress' never happened).
-> 
-> so I'm thinking about changing its name to num_failed_fast_compress
-> or num_failed_fast_write, or something similar and thus count the number
-> of times we fell to "!handle" branch, not the number of goto-s.
-> what do you think? or do you want it to be num_recompress specifically?
+> Yup, after -rc1 would suit.  Or resend them now and I'll queue them for
+> 4.7-rc2.
 
-Sorry, I don't get your point.
-What's the problem with below?
+OK, rc2 sounds good as well. It is mostly cleanup without any visible
+effect.
 
-        goto compress_again
-        so
-        atomic_inc(num_recompress)
-
-My concern isn't a performance or something but just want to be more
-readable and not error-prone which can increase num_compress although
-second zs_malloc could be failed. When I tested with heavy workload,
-I saw second zs_malloc can be fail but not frequently so it's not
-theoretical issue.
-
-What's the your concern with below?
-Sorry if I don't get your point. Please elaborate it more.
-
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index a629bd8d452b..8bdcc4b2b9b8 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -737,12 +737,12 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 		zcomp_strm_release(zram->comp, zstrm);
- 		zstrm = NULL;
- 
--		atomic64_inc(&zram->stats.num_recompress);
--
- 		handle = zs_malloc(meta->mem_pool, clen,
- 				GFP_NOIO | __GFP_HIGHMEM);
--		if (handle)
-+		if (handle) {
-+			atomic64_inc(&zram->stats.num_recompress);
- 			goto compress_again;
-+		}
- 
- 		pr_err("Error allocating memory for compressed page: %u, size=%zu\n",
- 			index, clen);
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
