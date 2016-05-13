@@ -1,52 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 55D786B007E
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 04:23:35 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id f14so24735018lbb.2
-        for <linux-mm@kvack.org>; Fri, 13 May 2016 01:23:35 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m8si21027024wjh.93.2016.05.13.01.23.33
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DCED76B007E
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 04:31:14 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id 68so35047442lfq.2
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 01:31:14 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id a8si21045108wjv.84.2016.05.13.01.31.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 May 2016 01:23:34 -0700 (PDT)
-Subject: Re: [RFC 06/13] mm, thp: remove __GFP_NORETRY from khugepaged and
- madvised allocations
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 May 2016 01:31:13 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id r12so2213166wme.0
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 01:31:13 -0700 (PDT)
+Date: Fri, 13 May 2016 10:31:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 04/13] mm, page_alloc: restructure direct compaction
+ handling in slowpath
+Message-ID: <20160513083110.GG20141@dhcp22.suse.cz>
 References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
- <1462865763-22084-7-git-send-email-vbabka@suse.cz>
- <20160512162043.GA4261@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <57358F03.5080707@suse.cz>
-Date: Fri, 13 May 2016 10:23:31 +0200
+ <1462865763-22084-5-git-send-email-vbabka@suse.cz>
+ <20160512132918.GJ4200@dhcp22.suse.cz>
+ <57358C0A.4020002@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160512162043.GA4261@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <57358C0A.4020002@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>
 
-On 05/12/2016 06:20 PM, Michal Hocko wrote:
-> On Tue 10-05-16 09:35:56, Vlastimil Babka wrote:
-> [...]
->> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
->> index 570383a41853..0cb09714d960 100644
->> --- a/include/linux/gfp.h
->> +++ b/include/linux/gfp.h
->> @@ -256,8 +256,7 @@ struct vm_area_struct;
->>   #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
->>   #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
->>   #define GFP_TRANSHUGE	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
->> -			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN) & \
->> -			 ~__GFP_RECLAIM)
->> +			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
->
-> I am not sure this is the right thing to do. I think we should keep
-> __GFP_NORETRY and clear it where we want a stronger semantic. This is
-> just too suble that all callsites are doing the right thing.
+On Fri 13-05-16 10:10:50, Vlastimil Babka wrote:
+> On 05/12/2016 03:29 PM, Michal Hocko wrote:
+> > On Tue 10-05-16 09:35:54, Vlastimil Babka wrote:
+> > > This patch attempts to restructure the code with only minimal functional
+> > > changes. The call to the first compaction and THP-specific checks are now
+> > > placed above the retry loop, and the "noretry" direct compaction is removed.
+> > > 
+> > > The initial compaction is additionally restricted only to costly orders, as we
+> > > can expect smaller orders to be held back by watermarks, and only larger orders
+> > > to suffer primarily from fragmentation. This better matches the checks in
+> > > reclaim's shrink_zones().
+> > > 
+> > > There are two other smaller functional changes. One is that the upgrade from
+> > > async migration to light sync migration will always occur after the initial
+> > > compaction.
+> > 
+> > I do not think this belongs to the patch. There are two reasons. First
+> > we do not need to do potentially more expensive sync mode when async is
+> > able to make some progress and the second
+> 
+> My concern was that __GFP_NORETRY non-costly allocations wouldn't otherwise
+> get a MIGRATE_SYNC_LIGHT pass at all. Previously they would get it in the
+> noretry: label.
 
-That would complicate alloc_hugepage_direct_gfpmask() a bit, but if you 
-think it's worth it, I can turn the default around, OK.
+OK, I haven't considered this. So scratch this then.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
