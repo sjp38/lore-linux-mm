@@ -1,45 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B47276B0253
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 12:03:45 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w143so12250906wmw.3
-        for <linux-mm@kvack.org>; Fri, 13 May 2016 09:03:45 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id jd1si22781146wjb.248.2016.05.13.09.03.43
+Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DA5B96B0253
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 13:01:33 -0400 (EDT)
+Received: by mail-ig0-f199.google.com with SMTP id i5so43220537ige.1
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 10:01:33 -0700 (PDT)
+Received: from mail-ig0-x243.google.com (mail-ig0-x243.google.com. [2607:f8b0:4001:c05::243])
+        by mx.google.com with ESMTPS id n2si2043494iga.78.2016.05.13.10.01.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 May 2016 09:03:43 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id w143so4564099wmw.3
-        for <linux-mm@kvack.org>; Fri, 13 May 2016 09:03:43 -0700 (PDT)
-Date: Fri, 13 May 2016 18:03:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20160513160341.GW20141@dhcp22.suse.cz>
-References: <94cea603-2782-1c5a-e2df-42db4459a8ce@cn.fujitsu.com>
- <20160512055756.GE6648@birch.djwong.org>
- <20160512080321.GA18496@dastard>
+        Fri, 13 May 2016 10:01:27 -0700 (PDT)
+Received: by mail-ig0-x243.google.com with SMTP id c3so1986337igl.3
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 10:01:27 -0700 (PDT)
+Subject: Re: [PATCH] mm: add config option to select the initial overcommit
+ mode
+References: <5731CC6E.3080807@laposte.net>
+ <20160513080458.GF20141@dhcp22.suse.cz> <573593EE.6010502@free.fr>
+ <20160513095230.GI20141@dhcp22.suse.cz> <5735AA0E.5060605@free.fr>
+ <20160513114429.GJ20141@dhcp22.suse.cz> <5735C567.6030202@free.fr>
+ <20160513140128.GQ20141@dhcp22.suse.cz>
+ <20160513160410.10c6cea6@lxorguk.ukuu.org.uk> <5735F4B1.1010704@laposte.net>
+From: "Austin S. Hemmelgarn" <ahferroin7@gmail.com>
+Message-ID: <979418b1-adde-7c8d-ce93-45d8cf59cfe2@gmail.com>
+Date: Fri, 13 May 2016 13:01:25 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160512080321.GA18496@dastard>
+In-Reply-To: <5735F4B1.1010704@laposte.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>
+To: Sebastian Frias <sf84@laposte.net>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, Michal Hocko <mhocko@kernel.org>
+Cc: Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 12-05-16 18:03:21, Dave Chinner wrote:
-> [ cc Michal Hocko, just so he can see a lockdep reclaim state false
-> positive ]
+On 2016-05-13 11:37, Sebastian Frias wrote:
+> Hi Alan,
+>
+> On 05/13/2016 05:04 PM, One Thousand Gnomes wrote:
+>>>> Perhaps Sebastian's choice could be made to depend on CONFIG_EMBEDDED,
+>>>> rather than CONFIG_EXPERT?
+>>>
+>>> Even if the overcommit behavior is different on those systems the
+>>> primary question hasn't been answered yet. Why cannot this be done from
+>>> the userspace? In other words what wouldn't work properly?
+>>
+>> Most allocations in C have no mechanism to report failure.
+>>
+>> Stakc expansion failure is not reportable. Copy on write failure is not
+>> reportable and so on.
+>
+> But wouldn't those affect a given process at at time?
+> Does that means that the OOM-killer is woken up to kill process X when those situations arise on process Y?
+Barring memory cgroups, if you have hit an OOM condition, it impacts the 
+entire system.  Some process other than the one which first hit the 
+failure may get killed, but every process will fail allocations until 
+the situation is resolved.
 
-Thank you for CCing me!
-
-I am sorry I didn't follow up on the previous discussion but I got side
-tracked by something else. I have tried to cook up something really
-simply. I didn't get to test it at all and it might be completely broken
-but I just wanted to throw an idea for the discussion. I am CCing Peter
-as well - he might have a better idea (the reference to the full email
-is in the changelog. Is something like the following correct/acceptable?
-
-This is on top of my scope gfp_nofs patch I have posted recently but I
-can reorder them if this looks ok.
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
