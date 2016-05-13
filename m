@@ -1,50 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E5386B007E
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 02:58:23 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id tb5so23726852lbb.3
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 23:58:23 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id bs2si20629722wjb.154.2016.05.12.23.58.22
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B90C56B0253
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 02:58:39 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 4so189304713pfw.0
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 23:58:39 -0700 (PDT)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id r193si22767334pfr.120.2016.05.12.23.58.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 May 2016 23:58:22 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id n129so1754882wmn.1
-        for <linux-mm@kvack.org>; Thu, 12 May 2016 23:58:22 -0700 (PDT)
-Date: Fri, 13 May 2016 08:58:20 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/19] get rid of superfluous __GFP_REPEAT
-Message-ID: <20160513065820.GD20141@dhcp22.suse.cz>
-References: <1461849846-27209-1-git-send-email-mhocko@kernel.org>
- <20160512165310.GB4940@dhcp22.suse.cz>
- <20160512131328.b2b45b2f6b6847b882286424@linux-foundation.org>
+        Thu, 12 May 2016 23:58:38 -0700 (PDT)
+Received: by mail-pa0-x243.google.com with SMTP id i5so7914167pag.3
+        for <linux-mm@kvack.org>; Thu, 12 May 2016 23:58:38 -0700 (PDT)
+Date: Fri, 13 May 2016 15:58:05 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] zram: introduce per-device debug_stat sysfs node
+Message-ID: <20160513065805.GB615@swordfish>
+References: <20160511134553.12655-1-sergey.senozhatsky@gmail.com>
+ <20160512234143.GA27204@bbox>
+ <20160513010929.GA615@swordfish>
+ <20160513062303.GA21204@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160512131328.b2b45b2f6b6847b882286424@linux-foundation.org>
+In-Reply-To: <20160513062303.GA21204@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Chen Liqin <liqin.linux@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Heiko Carstens <heiko.carstens@de.ibm.com>, Helge Deller <deller@gmx.de>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, John Crispin <blogic@openwrt.org>, Lennox Wu <lennox.wu@gmail.com>, Ley Foon Tan <lftan@altera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Fleming <matt@codeblueprint.co.uk>, Mikulas Patocka <mpatocka@redhat.com>, Rich Felker <dalias@libc.org>, Russell King <linux@arm.linux.org.uk>, Shaohua Li <shli@kernel.org>, Theodore Ts'o <tytso@mit.edu>, Thomas Gleixner <tglx@linutronix.de>, Vineet Gupta <vgupta@synopsys.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 12-05-16 13:13:28, Andrew Morton wrote:
-> On Thu, 12 May 2016 18:53:11 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > Andrew,
-> > do you think this should go in in the next merge window or should I
-> > repost after rc1 is out? I do not mind one way or the other. I would
-> > obviously would like to get them in sooner rather than later but I can
-> > certainly live with these wait a bit longer.
-> 
-> Yup, after -rc1 would suit.  Or resend them now and I'll queue them for
-> 4.7-rc2.
+On (05/13/16 15:23), Minchan Kim wrote:
+[..]
+> @@ -737,12 +737,12 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+>  		zcomp_strm_release(zram->comp, zstrm);
+>  		zstrm = NULL;
+>  
+> -		atomic64_inc(&zram->stats.num_recompress);
+> -
+>  		handle = zs_malloc(meta->mem_pool, clen,
+>  				GFP_NOIO | __GFP_HIGHMEM);
+> -		if (handle)
+> +		if (handle) {
+> +			atomic64_inc(&zram->stats.num_recompress);
+>  			goto compress_again;
+> +		}
 
-OK, rc2 sounds good as well. It is mostly cleanup without any visible
-effect.
+not like a real concern...
 
--- 
-Michal Hocko
-SUSE Labs
+the main (and only) purpose of num_recompress is to match performance
+slowdowns and failed fast write paths (when the first zs_malloc() fails).
+this matching is depending on successful second zs_malloc(), but if it's
+also unsuccessful we would only increase failed_writes; w/o increasing
+the failed fast write counter, while we actually would have failed fast
+write and extra zs_malloc() [unaccounted in this case]. yet it's probably
+a bit unlikely to happen, but still. well, just saying.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
