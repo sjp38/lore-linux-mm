@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BC3536B0253
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 09:32:47 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id f14so28874557lbb.2
-        for <linux-mm@kvack.org>; Fri, 13 May 2016 06:32:47 -0700 (PDT)
-Received: from smtp.laposte.net (smtpoutz26.laposte.net. [194.117.213.101])
-        by mx.google.com with ESMTPS id kp1si22208596wjc.153.2016.05.13.06.32.46
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AEC656B025F
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 09:34:54 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 68so38793248lfq.2
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 06:34:54 -0700 (PDT)
+Received: from smtp.laposte.net (smtpoutz25.laposte.net. [194.117.213.100])
+        by mx.google.com with ESMTPS id lw10si22230325wjb.190.2016.05.13.06.34.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 May 2016 06:32:46 -0700 (PDT)
+        Fri, 13 May 2016 06:34:53 -0700 (PDT)
 Received: from smtp.laposte.net (localhost [127.0.0.1])
-	by lpn-prd-vrout014 (Postfix) with ESMTP id 224E7120912
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 15:32:46 +0200 (CEST)
+	by lpn-prd-vrout013 (Postfix) with ESMTP id 3B848103D8D
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 15:34:53 +0200 (CEST)
 Received: from lpn-prd-vrin003 (lpn-prd-vrin003.laposte [10.128.63.4])
-	by lpn-prd-vrout014 (Postfix) with ESMTP id 1D31A11F05C
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 15:32:46 +0200 (CEST)
+	by lpn-prd-vrout013 (Postfix) with ESMTP id 37D8E103C4D
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 15:34:53 +0200 (CEST)
 Received: from lpn-prd-vrin003 (localhost [127.0.0.1])
-	by lpn-prd-vrin003 (Postfix) with ESMTP id 06A4D48DDC8
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 15:32:46 +0200 (CEST)
-Message-ID: <5735D77C.9090803@laposte.net>
-Date: Fri, 13 May 2016 15:32:44 +0200
+	by lpn-prd-vrin003 (Postfix) with ESMTP id 24DBB48DDED
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 15:34:53 +0200 (CEST)
+Message-ID: <5735D7FC.3070409@laposte.net>
+Date: Fri, 13 May 2016 15:34:52 +0200
 From: Sebastian Frias <sf84@laposte.net>
 MIME-Version: 1.0
 Subject: Re: [PATCH] mm: add config option to select the initial overcommit
@@ -37,39 +37,16 @@ Hi Austin,
 
 On 05/13/2016 03:11 PM, Austin S. Hemmelgarn wrote:
 > On 2016-05-13 08:39, Sebastian Frias wrote:
->> Well, a more urgent problem would be that in that case overcommit=never is not really well tested.
-> I know more people who use overcommit=never than overcommit=always.  I use it myself on all my personal systems, but I also allocate significant amounts of swap space (usually 64G, but I also have a big disks in my systems and don't often hit swap), don't use Java, and generally don't use a lot of the more wasteful programs either (many of them on desktop systems tend to be stuff like office software).  I know a number of people who use overcommit=never on their servers and give them a decent amount of swap space (and again, don't use Java).
-
-Then I'll look into LTP and the issues it has when overcommit=never.
-
 >>
 >> My point is that it seems to be possible to deal with such conditions in a more controlled way, ie: a way that is less random and less abrupt.
 > There's an option for the OOM-killer to just kill the allocating task instead of using the scoring heuristic.  This is about as deterministic as things can get though.
 
-I didn't see that in Documentation/vm/overcommit-accounting or am I looking in the wrong place?
-
->>
->> Well, it's hard to report, since it is essentially the result of a dynamic system.
->> I could assume it killed terminals with a long history buffer, or editors with many buffers (or big buffers).
->> Actually when it happened, I just turned overcommit off. I just checked and is on again on my desktop, probably forgot to make it a permanent setting.
->>
->> In the end, no processes is a good candidate for termination.
->> What works for you may not work for me, that's the whole point, there's a heuristic (which conceptually can never be perfect), yet the mere fact that some process has to be killed is somewhat chilling.
->> I mean, all running processes are supposedly there and running for a reason.
-> OTOH, just because something is there for a reason doesn't mean it's doing what it's supposed to be.  Bugs happen, including memory leaks, and if something is misbehaving enough that it impacts the rest of the system, it really should be dealt with.
-
-Exactly, it's just that in this case, the system is deciding how to deal with the situation by itself.
-
-> 
-> This brings to mind a complex bug involving Tor and GCC whereby building certain (old) versions of Tor with certain (old) versions of GCC with -Os would cause an infinite loop in GCC.  You obviously have GCC running for a reason, but that doesn't mean that it's doing what it should be.
-
-I'm not sure if I followed the analogy/example, but are you saying that the OOM-killer killed GCC in your example?
-This seems an odd example though, I mean, shouldn't the guy in front of the computer notice the loop and kill GCC by himself?
+By the way, why does it has to "kill" anything in that case?
+I mean, shouldn't it just tell the allocating task that there's not enough memory by letting malloc return NULL?
 
 Best regards,
 
 Sebastian
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
