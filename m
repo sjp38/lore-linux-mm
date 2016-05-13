@@ -1,52 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AEC656B025F
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 09:34:54 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id 68so38793248lfq.2
-        for <linux-mm@kvack.org>; Fri, 13 May 2016 06:34:54 -0700 (PDT)
-Received: from smtp.laposte.net (smtpoutz25.laposte.net. [194.117.213.100])
-        by mx.google.com with ESMTPS id lw10si22230325wjb.190.2016.05.13.06.34.53
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F1106B0260
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 09:38:54 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r12so10215811wme.0
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 06:38:54 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id v132si3740573wme.82.2016.05.13.06.38.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 May 2016 06:34:53 -0700 (PDT)
-Received: from smtp.laposte.net (localhost [127.0.0.1])
-	by lpn-prd-vrout013 (Postfix) with ESMTP id 3B848103D8D
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 15:34:53 +0200 (CEST)
-Received: from lpn-prd-vrin003 (lpn-prd-vrin003.laposte [10.128.63.4])
-	by lpn-prd-vrout013 (Postfix) with ESMTP id 37D8E103C4D
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 15:34:53 +0200 (CEST)
-Received: from lpn-prd-vrin003 (localhost [127.0.0.1])
-	by lpn-prd-vrin003 (Postfix) with ESMTP id 24DBB48DDED
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 15:34:53 +0200 (CEST)
-Message-ID: <5735D7FC.3070409@laposte.net>
-Date: Fri, 13 May 2016 15:34:52 +0200
-From: Sebastian Frias <sf84@laposte.net>
+        Fri, 13 May 2016 06:38:53 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id e201so3785963wme.2
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 06:38:53 -0700 (PDT)
+Date: Fri, 13 May 2016 15:38:51 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 11/13] mm, compaction: add the ultimate direct compaction
+ priority
+Message-ID: <20160513133851.GP20141@dhcp22.suse.cz>
+References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
+ <1462865763-22084-12-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add config option to select the initial overcommit
- mode
-References: <5731CC6E.3080807@laposte.net> <20160513080458.GF20141@dhcp22.suse.cz> <573593EE.6010502@free.fr> <5735A3DE.9030100@laposte.net> <20160513120042.GK20141@dhcp22.suse.cz> <5735CAE5.5010104@laposte.net> <935da2a3-1fda-bc71-48a5-bb212db305de@gmail.com>
-In-Reply-To: <935da2a3-1fda-bc71-48a5-bb212db305de@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1462865763-22084-12-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Austin S. Hemmelgarn" <ahferroin7@gmail.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-Hi Austin,
+On Tue 10-05-16 09:36:01, Vlastimil Babka wrote:
+> During reclaim/compaction loop, it's desirable to get a final answer from
+> unsuccessful compaction so we can either fail the allocation or invoke the OOM
+> killer. However, heuristics such as deferred compaction or pageblock skip bits
+> can cause compaction to skip parts or whole zones and lead to premature OOM's,
+> failures or excessive reclaim/compaction retries.
+> 
+> To remedy this, we introduce a new direct compaction priority called
+> COMPACT_PRIO_SYNC_FULL, which instructs direct compaction to:
+> 
+> - ignore deferred compaction status for a zone
+> - ignore pageblock skip hints
+> - ignore cached scanner positions and scan the whole zone
+> - use MIGRATE_SYNC migration mode
 
-On 05/13/2016 03:11 PM, Austin S. Hemmelgarn wrote:
-> On 2016-05-13 08:39, Sebastian Frias wrote:
->>
->> My point is that it seems to be possible to deal with such conditions in a more controlled way, ie: a way that is less random and less abrupt.
-> There's an option for the OOM-killer to just kill the allocating task instead of using the scoring heuristic.  This is about as deterministic as things can get though.
+I do not think we can do MIGRATE_SYNC because fallback_migrate_page
+would trigger pageout and we are in the allocation path and so we
+could blow up the stack.
 
-By the way, why does it has to "kill" anything in that case?
-I mean, shouldn't it just tell the allocating task that there's not enough memory by letting malloc return NULL?
+> The new priority should get eventually picked up by should_compact_retry() and
+> this should improve success rates for costly allocations using __GFP_RETRY,
 
-Best regards,
+s@__GFP_RETRY@__GFP_REPEAT@
 
-Sebastian
+> such as hugetlbfs allocations, and reduce some corner-case OOM's for non-costly
+> allocations.
+
+My testing has shown that even with the current implementation with
+deferring, skip hints and cached positions had (close to) 100% success
+rate even with close to OOM conditions.
+
+I am wondering whether this strongest priority should be done only for
+!costly high order pages. But we probably want less special cases
+between costly and !costly orders.
+
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  include/linux/compaction.h |  1 +
+>  mm/compaction.c            | 15 ++++++++++++---
+>  2 files changed, 13 insertions(+), 3 deletions(-)
+> 
+[...]
+> @@ -1631,7 +1639,8 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+>  								ac->nodemask) {
+>  		enum compact_result status;
+>  
+> -		if (compaction_deferred(zone, order)) {
+> +		if (prio > COMPACT_PRIO_SYNC_FULL
+> +					&& compaction_deferred(zone, order)) {
+>  			rc = max_t(enum compact_result, COMPACT_DEFERRED, rc);
+>  			continue;
+>  		}
+
+Wouldn't it be better to pull the prio check into compaction_deferred
+directly? There are more callers and I am not really sure all of them
+would behave consistently.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
