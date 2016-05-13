@@ -1,116 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 52C1B6B025E
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 03:35:38 -0400 (EDT)
-Received: by mail-ig0-f199.google.com with SMTP id sq19so19754729igc.0
-        for <linux-mm@kvack.org>; Fri, 13 May 2016 00:35:38 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id n79si6627939ota.43.2016.05.13.00.35.36
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A1736B025E
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 03:39:34 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 77so190902619pfz.3
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 00:39:34 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id p90si22984561pfa.74.2016.05.13.00.39.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 May 2016 00:35:37 -0700 (PDT)
-Message-ID: <573582DE.3030302@huawei.com>
-Date: Fri, 13 May 2016 15:31:42 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 May 2016 00:39:33 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id g132so8715386pfb.3
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 00:39:33 -0700 (PDT)
+Date: Fri, 13 May 2016 16:41:05 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] zram: introduce per-device debug_stat sysfs node
+Message-ID: <20160513074105.GD615@swordfish>
+References: <20160511134553.12655-1-sergey.senozhatsky@gmail.com>
+ <20160512234143.GA27204@bbox>
+ <20160513010929.GA615@swordfish>
+ <20160513062303.GA21204@bbox>
+ <20160513065805.GB615@swordfish>
+ <20160513070553.GC615@swordfish>
+ <20160513072006.GA21484@bbox>
 MIME-Version: 1.0
-Subject: Re: why the count nr_file_pages is not equal to nr_inactive_file
- + nr_active_file ?
-References: <573550D8.9030507@huawei.com> <dce01643-7aa9-e779-e4ac-b74439f5074d@intel.com>
-In-Reply-To: <dce01643-7aa9-e779-e4ac-b74439f5074d@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160513072006.GA21484@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 2016/5/13 15:00, Aaron Lu wrote:
+On (05/13/16 16:20), Minchan Kim wrote:
+[..]
+> > here I assume that the biggest contributor to re-compress latency is
+> > enabled preemption after zcomp_strm_release() and this second zs_malloc().
+> > the compression itself of a PAGE_SIZE buffer should be fast enough. so IOW
+> > we would pass down the slow path, but would not account it.
+> 
+> biggest contributors are 1. direct reclaim by second zsmalloc call +
+>                          2. recompression overhead.
 
-> On 05/13/2016 11:58 AM, Xishi Qiu wrote:
->> I find the count nr_file_pages is not equal to nr_inactive_file + nr_active_file.
->> There are 8 cpus, 2 zones in my system.
->>
->> I think may be the pagevec trigger the problem, but PAGEVEC_SIZE is only 14.
->> Does anyone know the reason?
-> 
-> One thing I can see is the ram backed filesystem where the page is
-> counted as NR_FILE_PAGE but go into the anonymous LRU list instead of
-> the file LRU list.
-> 
-> See function shmem_getpage_gfp.
-> 
-> An example:
-> [aaron@aaronlu ~]$ head -11 /proc/vmstat 
-> nr_free_pages 194472
-> nr_alloc_batch 58
-> nr_inactive_anon 483386
-> nr_active_anon 298161
-> nr_inactive_file 452791
-> nr_active_file 1942376
-> nr_unevictable 84
-> nr_mlock 84
-> nr_anon_pages 445332
-> nr_mapped 93553
-> nr_file_pages 2731481
-> [aaron@aaronlu ~]$ fallocate -l 400M /dev/shm/test
-> [aaron@aaronlu ~]$ head -11 /proc/vmstat 
-> nr_free_pages 94808
-> nr_alloc_batch 838
-> nr_inactive_anon 582385
-> nr_active_anon 298371
-> nr_inactive_file 452795
-> nr_active_file 1942380
-> nr_unevictable 84
-> nr_mlock 84
-> nr_anon_pages 445543
-> nr_mapped 93658
-> nr_file_pages 2830488
-> 
-> The nr_file_pages increased with nr_inactive_anon while the
-> nr_{in}active_file don't see much change.
-> 
-> Regards,
-> Aaron
-> 
+			   3. enabled preemption after zcomp_strm_release()
+			      we can be scheduled out for a long time.
 
-Hi Aaron,
+> If zram start to support high comp ratio but slow speed algorithm like zlib
+> 2 might be higher than 1 in the future so let's not ignore 2 overhead.
 
-Thanks for your reply, but I find the count of nr_shmem is very small
-in my system.
+hm, yes, good point. not arguing, just for notice -- 2) has an upper limit
+on its complexity, because we basically just do a number of arithmetical
+operations on a buffer that has upper size limit -- PAGE_SIZE; while reclaim
+in zsmalloc() can last an arbitrary amount of time. that's why I tend to
+think of a PAGE_SIZE compression contribution as of constant, that can be
+ignored.
 
-root@hi3650:/ # cat /proc/vmstat 
-nr_free_pages 54192
-nr_inactive_anon 39830
-nr_active_anon 28794
-nr_inactive_file 432444
-nr_active_file 20659
-nr_unevictable 2363
-nr_mlock 0
-nr_anon_pages 65249
-nr_mapped 19742
-nr_file_pages 462723
-nr_dirty 20
-nr_writeback 0
-nr_slab_reclaimable 259333
-nr_slab_unreclaimable 33463
-nr_page_table_pages 3456
-nr_kernel_stack 892
-nr_unstable 0
-nr_bounce 11
-nr_vmscan_write 292032
-nr_vmscan_immediate_reclaim 47204474
-nr_writeback_temp 0
-nr_isolated_anon 0
-nr_isolated_file 0
-nr_shmem 128
-nr_dirtied 69574
-nr_written 356299
-nr_anon_transparent_hugepages 0
-nr_free_cma 7519
-nr_swapcache 41972
-nr_dirty_threshold 6982
-nr_dirty_background_threshold 99297
 
+> Although 2 is smaller, your patch just accounts only direct reclaim but my
+> suggestion can count both 1 and 2 so isn't it better?
+> 
+> I don't know why it's arguable here. :)
+
+no objections to put it next to goto. just making sure that we have
+considered all the possibilities and cases.
+
+will resend shortly, thanks!
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
