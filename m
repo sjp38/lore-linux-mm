@@ -1,284 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C9B66B0005
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 11:10:50 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id ne4so30312636lbc.1
-        for <linux-mm@kvack.org>; Fri, 13 May 2016 08:10:49 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bb7si22645172wjc.82.2016.05.13.08.10.48
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 21D146B0253
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 11:10:53 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id m64so70224884lfd.1
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 08:10:53 -0700 (PDT)
+Received: from smtp.laposte.net (smtpoutz28.laposte.net. [194.117.213.103])
+        by mx.google.com with ESMTPS id ez7si22595133wjd.197.2016.05.13.08.10.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 May 2016 08:10:48 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH] mm, frontswap: convert frontswap_enabled to static key
-Date: Fri, 13 May 2016 17:10:35 +0200
-Message-Id: <1463152235-9717-1-git-send-email-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 May 2016 08:10:51 -0700 (PDT)
+Received: from smtp.laposte.net (localhost [127.0.0.1])
+	by lpn-prd-vrout016 (Postfix) with ESMTP id 898E4113CB0
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 17:10:51 +0200 (CEST)
+Received: from lpn-prd-vrin002 (lpn-prd-vrin002.laposte [10.128.63.3])
+	by lpn-prd-vrout016 (Postfix) with ESMTP id 83D6F113BD2
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 17:10:51 +0200 (CEST)
+Received: from lpn-prd-vrin002 (localhost [127.0.0.1])
+	by lpn-prd-vrin002 (Postfix) with ESMTP id 7218B5BF003
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 17:10:51 +0200 (CEST)
+Message-ID: <5735EE7A.4010600@laposte.net>
+Date: Fri, 13 May 2016 17:10:50 +0200
+From: Sebastian Frias <sf84@laposte.net>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: add config option to select the initial overcommit
+ mode
+References: <5731CC6E.3080807@laposte.net> <20160513080458.GF20141@dhcp22.suse.cz> <573593EE.6010502@free.fr> <5735A3DE.9030100@laposte.net> <20160513120042.GK20141@dhcp22.suse.cz> <5735CAE5.5010104@laposte.net> <20160513145101.GS20141@dhcp22.suse.cz>
+In-Reply-To: <20160513145101.GS20141@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Juergen Gross <jgross@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-I have noticed that frontswap.h first declares "frontswap_enabled" as extern
-bool variable, and then overrides it with "#define frontswap_enabled (1)" for
-CONFIG_FRONTSWAP=Y or (0) when disabled. The bool variable isn't actually
-instantiated anywhere.
+Hi Michal,
 
-This all looks like an unfinished attempt to make frontswap_enabled reflect
-whether a backend is instantiated. But in the current state, all frontswap
-hooks call unconditionally into frontswap.c just to check if frontswap_ops is
-non-NULL. This should at least be checked inline, but we can further eliminate
-the overhead when CONFIG_FRONTSWAP is enabled and no backend registered, using
-a static key that is initially disabled, and gets enabled only upon first
-backend registration.
+On 05/13/2016 04:51 PM, Michal Hocko wrote:
+> 
+> The default should cover the most use cases. If you can prove that the
+> vast majority of embeded systems are different and would _benefit_ from
+> a different default I wouldn't be opposed to change the default there.
 
-Thus, checks for "frontswap_enabled" are replaced with "frontswap_enabled()"
-wrapping the static key check. There are two exceptions:
+I'm unsure of a way to prove that.
+I mean, what was the way used to prove that "the most use cases" is ok with overcommit=guess? It seems it was an empirical thing.
 
-- xen's selfballoon_process() was testing frontswap_enabled in code guarded
-  by #ifdef CONFIG_FRONTSWAP, which was effectively always true when reachable.
-  The patch just removes this check. Using frontswap_enabled() does not sound
-  correct here, as this can be true even without xen's own backend being
-  registered.
+Also note that this is not changing any default.
+It is merely adding the option to change the initial mode without relying on the userspace.
 
-- in SYSCALL_DEFINE2(swapon), change the check to IS_ENABLED(CONFIG_FRONTSWAP)
-  as it seems the bitmap allocation cannot currently be postponed until a
-  backend is registered. This means that frontswap will still have some
-  memory overhead by being configured, but without a backend.
+>> :-)
+>> I see, so basically it is a sort of workaround.
+> 
+> No it is not a workaround. It is just serving the purpose of the
+> operating system. The allow using the HW as much as possible to the
+> existing userspace. You cannot expect userspace will change just because
+> we do not like the overcommiting the memory with all the fallouts.
 
-After the patch, we can expect that some functions in frontswap.c are called
-only when frontswap_ops is non-NULL. Change the checks there to VM_BUG_ONs.
-While at it, convert other BUG_ONs to VM_BUG_ONs as frontswap has been stable
-for some time.
+I agree, but that is one of the things that is fuzzy.
+My understanding is that there was a time when there was no overcommit at all.
+If that's the case, understanding why overcommit was introduced would be helpful.
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- drivers/xen/xen-selfballoon.c |  4 ++--
- include/linux/frontswap.h     | 34 ++++++++++++++++++++--------------
- mm/frontswap.c                | 35 +++++++++++++++--------------------
- mm/swapfile.c                 |  2 +-
- 4 files changed, 38 insertions(+), 37 deletions(-)
+>> Anyway, in the embedded world the memory and system requirements are
+>> usually controlled.
+> 
+> OK, but even when it is controlled does it suffer in any way just
+> because of the default setting? Do you see OOM killer invocation
+> when the overcommit would prevent from that?
 
-diff --git a/drivers/xen/xen-selfballoon.c b/drivers/xen/xen-selfballoon.c
-index 53a085fca00c..66620713242a 100644
---- a/drivers/xen/xen-selfballoon.c
-+++ b/drivers/xen/xen-selfballoon.c
-@@ -195,7 +195,7 @@ static void selfballoon_process(struct work_struct *work)
- 				MB2PAGES(selfballoon_reserved_mb);
- #ifdef CONFIG_FRONTSWAP
- 		/* allow space for frontswap pages to be repatriated */
--		if (frontswap_selfshrinking && frontswap_enabled)
-+		if (frontswap_selfshrinking)
- 			goal_pages += frontswap_curr_pages();
- #endif
- 		if (cur_pages > goal_pages)
-@@ -230,7 +230,7 @@ static void selfballoon_process(struct work_struct *work)
- 		reset_timer = true;
- 	}
- #ifdef CONFIG_FRONTSWAP
--	if (frontswap_selfshrinking && frontswap_enabled) {
-+	if (frontswap_selfshrinking) {
- 		frontswap_selfshrink();
- 		reset_timer = true;
- 	}
-diff --git a/include/linux/frontswap.h b/include/linux/frontswap.h
-index e65ef959546c..c46d2aa16d81 100644
---- a/include/linux/frontswap.h
-+++ b/include/linux/frontswap.h
-@@ -4,6 +4,7 @@
- #include <linux/swap.h>
- #include <linux/mm.h>
- #include <linux/bitops.h>
-+#include <linux/jump_label.h>
- 
- struct frontswap_ops {
- 	void (*init)(unsigned); /* this swap type was just swapon'ed */
-@@ -14,7 +15,6 @@ struct frontswap_ops {
- 	struct frontswap_ops *next; /* private pointer to next ops */
- };
- 
--extern bool frontswap_enabled;
- extern void frontswap_register_ops(struct frontswap_ops *ops);
- extern void frontswap_shrink(unsigned long);
- extern unsigned long frontswap_curr_pages(void);
-@@ -30,7 +30,12 @@ extern void __frontswap_invalidate_page(unsigned, pgoff_t);
- extern void __frontswap_invalidate_area(unsigned);
- 
- #ifdef CONFIG_FRONTSWAP
--#define frontswap_enabled (1)
-+extern struct static_key_false frontswap_enabled_key;
-+
-+static inline bool frontswap_enabled(void)
-+{
-+	return static_branch_unlikely(&frontswap_enabled_key);
-+}
- 
- static inline bool frontswap_test(struct swap_info_struct *sis, pgoff_t offset)
- {
-@@ -50,7 +55,10 @@ static inline unsigned long *frontswap_map_get(struct swap_info_struct *p)
- #else
- /* all inline routines become no-ops and all externs are ignored */
- 
--#define frontswap_enabled (0)
-+static inline bool frontswap_enabled(void)
-+{
-+	return false;
-+}
- 
- static inline bool frontswap_test(struct swap_info_struct *sis, pgoff_t offset)
- {
-@@ -70,37 +78,35 @@ static inline unsigned long *frontswap_map_get(struct swap_info_struct *p)
- 
- static inline int frontswap_store(struct page *page)
- {
--	int ret = -1;
-+	if (frontswap_enabled())
-+		return __frontswap_store(page);
- 
--	if (frontswap_enabled)
--		ret = __frontswap_store(page);
--	return ret;
-+	return -1;
- }
- 
- static inline int frontswap_load(struct page *page)
- {
--	int ret = -1;
-+	if (frontswap_enabled())
-+		return __frontswap_load(page);
- 
--	if (frontswap_enabled)
--		ret = __frontswap_load(page);
--	return ret;
-+	return -1;
- }
- 
- static inline void frontswap_invalidate_page(unsigned type, pgoff_t offset)
- {
--	if (frontswap_enabled)
-+	if (frontswap_enabled())
- 		__frontswap_invalidate_page(type, offset);
- }
- 
- static inline void frontswap_invalidate_area(unsigned type)
- {
--	if (frontswap_enabled)
-+	if (frontswap_enabled())
- 		__frontswap_invalidate_area(type);
- }
- 
- static inline void frontswap_init(unsigned type, unsigned long *map)
- {
--	if (frontswap_enabled)
-+	if (frontswap_enabled())
- 		__frontswap_init(type, map);
- }
- 
-diff --git a/mm/frontswap.c b/mm/frontswap.c
-index 27a9924caf61..f3294d7ba682 100644
---- a/mm/frontswap.c
-+++ b/mm/frontswap.c
-@@ -20,6 +20,8 @@
- #include <linux/frontswap.h>
- #include <linux/swapfile.h>
- 
-+DEFINE_STATIC_KEY_FALSE(frontswap_enabled_key);
-+
- /*
-  * frontswap_ops are added by frontswap_register_ops, and provide the
-  * frontswap "backend" implementation functions.  Multiple implementations
-@@ -139,6 +141,8 @@ void frontswap_register_ops(struct frontswap_ops *ops)
- 		ops->next = frontswap_ops;
- 	} while (cmpxchg(&frontswap_ops, ops->next, ops) != ops->next);
- 
-+	static_branch_inc(&frontswap_enabled_key);
-+
- 	spin_lock(&swap_lock);
- 	plist_for_each_entry(si, &swap_active_head, list) {
- 		if (si->frontswap_map)
-@@ -189,7 +193,7 @@ void __frontswap_init(unsigned type, unsigned long *map)
- 	struct swap_info_struct *sis = swap_info[type];
- 	struct frontswap_ops *ops;
- 
--	BUG_ON(sis == NULL);
-+	VM_BUG_ON(sis == NULL);
- 
- 	/*
- 	 * p->frontswap is a bitmap that we MUST have to figure out which page
-@@ -248,15 +252,9 @@ int __frontswap_store(struct page *page)
- 	pgoff_t offset = swp_offset(entry);
- 	struct frontswap_ops *ops;
- 
--	/*
--	 * Return if no backend registed.
--	 * Don't need to inc frontswap_failed_stores here.
--	 */
--	if (!frontswap_ops)
--		return -1;
--
--	BUG_ON(!PageLocked(page));
--	BUG_ON(sis == NULL);
-+	VM_BUG_ON (!frontswap_ops);
-+	VM_BUG_ON(!PageLocked(page));
-+	VM_BUG_ON(sis == NULL);
- 
- 	/*
- 	 * If a dup, we must remove the old page first; we can't leave the
-@@ -303,11 +301,10 @@ int __frontswap_load(struct page *page)
- 	pgoff_t offset = swp_offset(entry);
- 	struct frontswap_ops *ops;
- 
--	if (!frontswap_ops)
--		return -1;
-+	VM_BUG_ON(!frontswap_ops);
-+	VM_BUG_ON(!PageLocked(page));
-+	VM_BUG_ON(sis == NULL);
- 
--	BUG_ON(!PageLocked(page));
--	BUG_ON(sis == NULL);
- 	if (!__frontswap_test(sis, offset))
- 		return -1;
- 
-@@ -337,10 +334,9 @@ void __frontswap_invalidate_page(unsigned type, pgoff_t offset)
- 	struct swap_info_struct *sis = swap_info[type];
- 	struct frontswap_ops *ops;
- 
--	if (!frontswap_ops)
--		return;
-+	VM_BUG_ON(!frontswap_ops);
-+	VM_BUG_ON(sis == NULL);
- 
--	BUG_ON(sis == NULL);
- 	if (!__frontswap_test(sis, offset))
- 		return;
- 
-@@ -360,10 +356,9 @@ void __frontswap_invalidate_area(unsigned type)
- 	struct swap_info_struct *sis = swap_info[type];
- 	struct frontswap_ops *ops;
- 
--	if (!frontswap_ops)
--		return;
-+	VM_BUG_ON(!frontswap_ops);
-+	VM_BUG_ON(sis == NULL);
- 
--	BUG_ON(sis == NULL);
- 	if (sis->frontswap_map == NULL)
- 		return;
- 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 031713ab40ce..78cfa292a29a 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2493,7 +2493,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 		goto bad_swap;
- 	}
- 	/* frontswap enabled? set up bit-per-page map for frontswap */
--	if (frontswap_enabled)
-+	if (IS_ENABLED(CONFIG_FRONTSWAP))
- 		frontswap_map = vzalloc(BITS_TO_LONGS(maxpages) * sizeof(long));
- 
- 	if (p->bdev &&(swap_flags & SWAP_FLAG_DISCARD) && swap_discardable(p)) {
--- 
-2.8.2
+I'll have to check those LTP tests again, I'll come back to this question later then.
+
+>> Would you agree to the option if it was dependent on
+>> CONFIG_EMBEDDED? Or if it was a hidden option?
+>> (I understand though that it wouldn't affect the size of config space)
+> 
+> It could be done in the code and make the default depending on the
+> existing config. But first try to think about what would be an advantage
+> of such a change.
+
+:) Well, right now I'm just trying to understand the history of this setting, because it is not obvious why it is good.
+
+>>
+>> Well, mostly the history of this setting, why it was introduced, etc.
+>> more or less what we are discussing here.  Because honestly, killing
+>> random processes does not seems like a straightforward idea, ie: it is
+>> not obvious.  Like I was saying, without context, such behaviour looks
+>> a bit crazy.
+> 
+> But we are not killing a random process. The semantic is quite clear. We
+> are trying to kill the biggest memory hog and if it has some children
+> try to sacrifice them to save as much work as possible.
+
+Ok.
+That's not the impression I have considering in my case it killed terminals and editors, but I'll try to get some examples.
+
+>>
+>> Well, a more urgent problem would be that in that case
+>> overcommit=never is not really well tested.
+> 
+> This is a problem of the userspace and am really skeptical that a change
+> in default would make any existing bugs going away. It is more likely we
+> will see reports that ENOMEM has been returned even though there is
+> pletny of memory available.
+> 
+
+Again, I did not propose to change the default.
+The idea was just to allow setting the initial overcommit mode in the kernel without relying on the userspace.
+(also beause it is still not yet clear why it is left to the userspace)
+
+>>
+>> Well, it's hard to report, since it is essentially the result of a
+>> dynamic system.
+> 
+> Each oom killer invocation will provide a detailed report which will
+> help MM developers to debug what went wrong and why.
+> 
+
+Ok.
+
+Best regards,
+
+Sebastian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
