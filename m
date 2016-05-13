@@ -1,78 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 116E86B025F
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 10:15:17 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id tb5so29526714lbb.3
-        for <linux-mm@kvack.org>; Fri, 13 May 2016 07:15:17 -0700 (PDT)
-Received: from smtp.laposte.net (smtpoutz300.laposte.net. [178.22.154.200])
-        by mx.google.com with ESMTPS id l201si3903347wmd.25.2016.05.13.07.15.15
+Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C5F036B0260
+	for <linux-mm@kvack.org>; Fri, 13 May 2016 10:15:42 -0400 (EDT)
+Received: by mail-lb0-f198.google.com with SMTP id tb5so29531979lbb.3
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 07:15:42 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id uw10si22362582wjc.242.2016.05.13.07.15.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 May 2016 07:15:15 -0700 (PDT)
-Received: from smtp.laposte.net (localhost [127.0.0.1])
-	by lpn-prd-vrout012 (Postfix) with ESMTP id 7A4158CA44
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 16:15:15 +0200 (CEST)
-Received: from lpn-prd-vrin002 (lpn-prd-vrin002.laposte [10.128.63.3])
-	by lpn-prd-vrout012 (Postfix) with ESMTP id 761948CA10
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 16:15:15 +0200 (CEST)
-Received: from lpn-prd-vrin002 (localhost [127.0.0.1])
-	by lpn-prd-vrin002 (Postfix) with ESMTP id 644465BF001
-	for <linux-mm@kvack.org>; Fri, 13 May 2016 16:15:15 +0200 (CEST)
-Message-ID: <5735E171.3050407@laposte.net>
-Date: Fri, 13 May 2016 16:15:13 +0200
-From: Sebastian Frias <sf84@laposte.net>
+        Fri, 13 May 2016 07:15:41 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id w143so3978830wmw.3
+        for <linux-mm@kvack.org>; Fri, 13 May 2016 07:15:41 -0700 (PDT)
+Date: Fri, 13 May 2016 16:15:39 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 12/13] mm, compaction: more reliably increase direct
+ compaction priority
+Message-ID: <20160513141539.GR20141@dhcp22.suse.cz>
+References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
+ <1462865763-22084-13-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add config option to select the initial overcommit
- mode
-References: <5731CC6E.3080807@laposte.net> <20160513080458.GF20141@dhcp22.suse.cz> <573593EE.6010502@free.fr> <20160513095230.GI20141@dhcp22.suse.cz> <5735AA0E.5060605@free.fr> <20160513114429.GJ20141@dhcp22.suse.cz> <5735C567.6030202@free.fr> <20160513140128.GQ20141@dhcp22.suse.cz>
-In-Reply-To: <20160513140128.GQ20141@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1462865763-22084-13-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Mason <slash.tmp@free.fr>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-Hi Michal,
-
-On 05/13/2016 04:01 PM, Michal Hocko wrote:
-> On Fri 13-05-16 14:15:35, Mason wrote:
->> On 13/05/2016 13:44, Michal Hocko wrote:
->>
->>> Anyway, this is my laptop where I do not run anything really special
->>> (xfce, browser, few consoles, git, mutt):
->>> $ grep Commit /proc/meminfo
->>> CommitLimit:     3497288 kB
->>> Committed_AS:    3560804 kB
->>>
->>> I am running with the default overcommit setup so I do not care about
->>> the limit but the Committed_AS will tell you how much is actually
->>> committed. I am definitelly not out of memory:
->>> $ free
->>>               total        used        free      shared  buff/cache   available
->>> Mem:        3922584     1724120      217336      105264     1981128     2036164
->>> Swap:       1535996      386364     1149632
->>
->> I see. Thanks for the data point.
->>
->> I had a different type of system in mind.
->> 256 to 512 MB of RAM, no swap.
->> Perhaps Sebastian's choice could be made to depend on CONFIG_EMBEDDED,
->> rather than CONFIG_EXPERT?
+On Tue 10-05-16 09:36:02, Vlastimil Babka wrote:
+> During reclaim/compaction loop, compaction priority can be increased by the
+> should_compact_retry() function, but the current code is not optimal for
+> several reasons:
 > 
-> Even if the overcommit behavior is different on those systems the
-> primary question hasn't been answered yet. Why cannot this be done from
-> the userspace? In other words what wouldn't work properly?
+> - priority is only increased when compaction_failed() is true, which means
+>   that compaction has scanned the whole zone. This may not happen even after
+>   multiple attempts with the lower priority due to parallel activity, so we
+>   might needlessly struggle on the lower priority.
+
+OK, I can see that this can be changed if we have a guarantee that at
+least one full round is guaranteed. Which seems to be the case for the
+lowest priority.
+
 > 
+> - should_compact_retry() is only called when should_reclaim_retry() returns
+>   false. This means that compaction priority cannot get increased as long
+>   as reclaim makes sufficient progress. Theoretically, reclaim should stop
+>   retrying for high-order allocations as long as the high-order page doesn't
+>   exist but due to races, this may result in spurious retries when the
+>   high-order page momentarily does exist.
 
-You are right, and I said that since the beginning, nothing prevents the userspace from doing it.
+This is intentional behavior and I would like to preserve it if it is
+possible. For higher order pages should_reclaim_retry retries as long
+as there are some eligible high order pages present which are just hidden
+by the watermark check. So this is mostly to get us over watermarks to
+start carrying about fragmentation. If we race there then nothing really
+terrible should happen and we should eventually converge to a terminal
+state.
 
-But it'd be interesting to know the history of this option, for example, why it is left for userspace.
-Are there systems that dynamically change this setting?
-
-Best regards,
-
-Sebastian
+Does this make sense to you?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
