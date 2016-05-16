@@ -1,114 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E3FA6B007E
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 08:30:56 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id e201so42250936wme.1
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 05:30:56 -0700 (PDT)
-Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com. [74.125.82.44])
-        by mx.google.com with ESMTPS id k62si19841997wmf.79.2016.05.16.05.30.54
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B83D36B007E
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 08:44:26 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id j8so97653893lfd.0
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 05:44:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b193si19900933wmf.43.2016.05.16.05.44.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 May 2016 05:30:54 -0700 (PDT)
-Received: by mail-wm0-f44.google.com with SMTP id g17so133520914wme.1
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 05:30:54 -0700 (PDT)
-Date: Mon, 16 May 2016 14:30:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 13/13] mm, compaction: fix and improve watermark handling
-Message-ID: <20160516123053.GI23146@dhcp22.suse.cz>
-References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
- <1462865763-22084-14-git-send-email-vbabka@suse.cz>
- <20160516092505.GE23146@dhcp22.suse.cz>
- <573997DE.6010109@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 16 May 2016 05:44:25 -0700 (PDT)
+Subject: Re: [BUG] Null pointer dereference when freeing pages on 4.6-rc6
+References: <c1a35aab-1368-1164-f4e2-7e730acade15@linaro.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5739C0A7.6080906@suse.cz>
+Date: Mon, 16 May 2016 14:44:23 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <573997DE.6010109@suse.cz>
+In-Reply-To: <c1a35aab-1368-1164-f4e2-7e730acade15@linaro.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: "Shi, Yang" <yang.shi@linaro.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon 16-05-16 11:50:22, Vlastimil Babka wrote:
-> On 05/16/2016 11:25 AM, Michal Hocko wrote:
-> > On Tue 10-05-16 09:36:03, Vlastimil Babka wrote:
-> > > Compaction has been using watermark checks when deciding whether it was
-> > > successful, and whether compaction is at all suitable. There are few problems
-> > > with these checks.
-> > > 
-> > > - __compact_finished() uses low watermark in a check that has to pass if
-> > >    the direct compaction is to finish and allocation should succeed. This is
-> > >    too pessimistic, as the allocation will typically use min watermark. It
-> > >    may happen that during compaction, we drop below the low watermark (due to
-> > >    parallel activity), but still form the target high-order page. By checking
-> > >    against low watermark, we might needlessly continue compaction. After this
-> > >    patch, the check uses direct compactor's alloc_flags to determine the
-> > >    watermark, which is effectively the min watermark.
-> > 
-> > OK, this makes some sense. It would be great if we could have at least
-> > some clarification why the low wmark has been used previously. Probably
-> > Mel can remember?
-> > 
-> > > - __compaction_suitable has the same issue in the check whether the allocation
-> > >    is already supposed to succeed and we don't need to compact. Fix it the same
-> > >    way.
-> > > 
-> > > - __compaction_suitable() then checks the low watermark plus a (2 << order) gap
-> > >    to decide if there's enough free memory to perform compaction. This check
-> > 
-> > And this was a real head scratcher when I started looking into the
-> > compaction recently. Why do we need to be above low watermark to even
-> > start compaction.
-> 
-> Hmm, above you said you're fine with low wmark (maybe after clarification).
-> I don't know why it was used, can only guess.
+[+CC Joonsoo based on git blame]
 
-Yes I can imagine this would be a good backoff for costly orders without
-__GFP_REPEAT.
+On 05/05/2016 11:13 PM, Shi, Yang wrote:
+> Hi folks,
+>
+> When I enable the below kernel configs on 4.6-rc6, I came across null
+> pointer deference issue in boot stage.
+>
+> CONFIG_SPARSEMEM
+> CONFIG_DEFERRED_STRUCT_PAGE_INIT
+> CONFIG_DEBUG_PAGEALLOC
+> CONFIG_PAGE_EXTENSION
+> CONFIG_DEBUG_VM
+>
+>
+> The splat is:
+>
+> BUG: unable to handle kernel NULL pointer dereference at           (null)
+> IP: [<ffffffff8118934b>] page_is_buddy+0x7b/0xe0
+> PGD 0
+> Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> Modules linked in:
+> CPU: 3 PID: 106 Comm: pgdatinit1 Not tainted 4.6.0-rc6 #8
+> Hardware name: Intel Corporation S5520HC/S5520HC, BIOS
+> S5500.86B.01.10.0025.030220091519 03/02/2009
+> task: ffff88017c1d0040 ti: ffff88017c1d4000 task.ti: ffff88017c1d4000
+> RIP: 0010:[<ffffffff8118934b>]  [<ffffffff8118934b>] page_is_buddy+0x7b/0xe0
+> RSP: 0000:ffff88017c1d7bf0  EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: ffffea0019810040 RCX: 0000000000000000
+> RDX: 0000000000000000 RSI: ffffea0019810040 RDI: 0000000000660401
+> RBP: ffff88017c1d7c08 R08: 0000000000000001 R09: 0000000000000000
+> R10: 00000000000001af R11: 0000000000000001 R12: ffffea0019810000
+> R13: 0000000000000000 R14: 0000000000000009 R15: ffffea0019810000
+> FS:  0000000000000000(0000) GS:ffff88066cc40000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 0000000000000000 CR3: 0000000002406000 CR4: 00000000000006e0
+> Stack:
+>    0000000019810000 0000000000000000 ffff88066cfe6080 ffff88017c1d7c70
+>    ffffffff8118bfea 0000000a00000000 0000160000000000 0000000000000001
+>    0000000000000401 ffffea0019810040 0000000000000400 ffff88066cc5aca8
+> Call Trace:
+>    [<ffffffff8118bfea>] __free_one_page+0x23a/0x450
+>    [<ffffffff8118c586>] free_pcppages_bulk+0x136/0x360
+>    [<ffffffff8118cae8>] free_hot_cold_page+0x168/0x1b0
+>    [<ffffffff8118cd8c>] __free_pages+0x5c/0x90
+>    [<ffffffff8260fbf2>] __free_pages_boot_core.isra.70+0x11a/0x14d
+>    [<ffffffff8260ff09>] deferred_free_range+0x50/0x62
+>    [<ffffffff8261013b>] deferred_init_memmap+0x220/0x3c3
+>    [<ffffffff8260ff1b>] ? deferred_free_range+0x62/0x62
+>    [<ffffffff8108afc8>] kthread+0xf8/0x110
+>    [<ffffffff81c026b2>] ret_from_fork+0x22/0x40
+>    [<ffffffff8108aed0>] ? kthread_create_on_node+0x200/0x200
+> Code: 75 7b 48 89 d8 8b 40 1c 85 c0 74 50 48 c7 c6 38 bd 0d 82 48 89 df
+> e8 25 e2 02 00 0f 0b 48 89 f7 89 55 ec e8 18 cb 07 00 8b 55 ec <48> 8b
+> 00 a8 02 74 9d 3b 53 30 75 98 49 8b 14 24 48 8b 03 48 c1
+> RIP  [<ffffffff8118934b>] page_is_buddy+0x7b/0xe0
+>    RSP <ffff88017c1d7bf0>
+> CR2: 0000000000000000
+> ---[ end trace e0c05a86b43d97f9 ]---
+> note: pgdatinit1[106] exited with preempt_count 1
+>
+>
+> I changed page_is_buddy and __free_one_page to non-inline to get more
+> accurate stack trace.
+>
+>
+> Then I did some investigation on it with printing the address of page
+> and buddy, please see the below log:
+>
+> @@@@@@__free_one_page:715: page is at ffffea0005f05c00 buddy is at
+> ffffea0005f05c80, order is 1
+> @@@@@@__free_one_page:715: page is at ffffea0005f05c00 buddy is at
+> ffffea0005f05d00, order is 2
+> @@@@@@__free_one_page:715: page is at ffffea0005f05c00 buddy is at
+> ffffea0005f05e00, order is 3
+> @@@@@@__free_one_page:715: page is at ffffea0019810000 buddy is at
+> ffffea0019810040, order is 0
+>
+> call trace splat
+>
+> @@@@@@__free_one_page:715: page is at ffffea0005f05bc0 buddy is at
+> ffffea0005f05b80, order is 0
+> @@@@@@__free_one_page:715: page is at ffffea0005f05b80 buddy is at
+> ffffea0005f05bc0, order is 0
+> @@@@@@__free_one_page:715: page is at ffffea0005f05b80 buddy is at
+> ffffea0005f05b00, order is 1
+> @@@@@@__free_one_page:715: page is at ffffea0005f05b40 buddy is at
+> ffffea0005f05b00, order is 0
+> @@@@@@__free_one_page:715: page is at ffffea0005f05b00 buddy is at
+> ffffea0005f05b40, order is 0
+>
+> It shows just before the call trace splat, the page address jumped to
+> ffffea0019810000 from ffffea0005f05xxx, not sure why this is happening.
+> Any hint is appreciated.
 
-> > Compaction uses additional memory only for a short
-> > period of time and then releases the already migrated pages.
-> 
-> As for the 2 << order gap. I can imagine that e.g. order-5 compaction (32
-> pages) isolates 20 pages for migration and starts looking for free pages. It
-> collects 19 free pages and then reaches an order-4 free page. Splitting that
-> page to collect it would result in 19+16=35 pages isolated, thus exceed the
-> 1 << order gap, and fail. With 2 << order gap, chances of this happening are
-> reduced.
+I think the page address didn't jump, it was that the previous call of 
+__free_one_page() finished at order=3 and now another one was invoked 
+that started at order=0 page ffffea0019810000 and immediately hit the splat.
 
-OK, fair enough but that sounds like a case which is not worth optimize
-and introduce a subtle code for.
+> And, reading the code leads me to the below call path:
+>
+> page_is_buddy()
+> 	--> page_is_guard()
+> 		--> lookup_page_ext()
 
-[...]
+ From a quick decodecode I guess that's indeed the path that's crashed. 
+You could try verifying with e.g. addr2line on your vmlinux?
 
-> > > - __isolate_free_page uses low watermark check to decide if free page can be
-> > >    isolated. It also doesn't use ALLOC_CMA, so add it for the same reasons.
-> > 
-> > Why do we check the watermark at all? What would happen if this obscure
-> > if (!is_migrate_isolate(mt)) was gone? I remember I put some tracing
-> > there and it never hit for me even when I was testing close to OOM
-> > conditions. Maybe an earlier check bailed out but this code path looks
-> > really obscure so it should either deserve a large fat comment or to
-> > die.
-> 
-> The check is there so that compaction doesn't exhaust memory below reserves
-> during its work, just like any other non-privileged allocation.
+> Then lookup_page_ext() just returns null due to the below code:
+>
+> #if defined(CONFIG_DEBUG_VM) || defined(CONFIG_PAGE_POISONING)
+>           /*
+>            * The sanity checks the page allocator does upon freeing a
+>            * page can reach here before the page_ext arrays are
+>            * allocated when feeding a range of pages to the allocator
+>            * for the first time during bootup or memory hotplug.
+>            *
+>            * This check is also necessary for ensuring page poisoning
+>            * works as expected when enabled
+>            */
+>           if (!section->page_ext)
+>                   return NULL;
+> #endif
+>
+> So, according to the comment, it looks there should be a WARN or BUG if
+> it returns NULL?
 
-Hmm. OK this is a fair point. I would expect that the reclaim preceeding
-the compaction would compensate for the temporarily used memory but it
-is true that a) we might be in the optimistic async compaction which
-happens _before_ the reclaim and b) the reclaim might be not effective
-enough so some throttling is indeed appropriate.
+The comment reads like it's unlikely, but possible, so WARN/BUG doesn't 
+sounds right.
 
-I guess you do not want to rely on throttling only at the beginning of
-the compaction because it would be too racy, which would be true. So I
-guess it would be indeed safer to check for the watermark both when we
-attempt to compact and when we isolate free pages. Can we at least use a
-common helper so that we know that those checks are done same way?
- 
- Thanks!
--- 
-Michal Hocko
-SUSE Labs
+> And, almost no codes check if the return pointer is
+> null or not after lookup_page_ext() is called.
+
+Yep, the callers related to DEBUG_VM (includes page_is_guard()) and page 
+poisoning should probably check the return value. I hope Joonsoo knows 
+something more here :)
+
+> Thanks,
+> Yang
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
