@@ -1,50 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A99B36B007E
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 09:54:48 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id tb5so59946337lbb.3
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 06:54:48 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id 193si20229664wmh.122.2016.05.16.06.54.47
+Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FD736B0253
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 09:54:58 -0400 (EDT)
+Received: by mail-ig0-f199.google.com with SMTP id i5so177116074ige.1
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 06:54:58 -0700 (PDT)
+Received: from resqmta-po-12v.sys.comcast.net (resqmta-po-12v.sys.comcast.net. [2001:558:fe16:19:96:114:154:171])
+        by mx.google.com with ESMTPS id p74si25164681iod.206.2016.05.16.06.54.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 May 2016 06:54:47 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id w143so18245302wmw.3
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 06:54:47 -0700 (PDT)
-Date: Mon, 16 May 2016 15:54:42 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv8 resend 2/2] selftest/x86: add mremap vdso test
-Message-ID: <20160516135442.GA14452@gmail.com>
-References: <1462886951-23376-1-git-send-email-dsafonov@virtuozzo.com>
- <1462886951-23376-2-git-send-email-dsafonov@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1462886951-23376-2-git-send-email-dsafonov@virtuozzo.com>
+        Mon, 16 May 2016 06:54:57 -0700 (PDT)
+Date: Mon, 16 May 2016 08:54:55 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm: unhide vmstat_text definition for CONFIG_SMP
+In-Reply-To: <20160516073716.GB23146@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1605160854330.23895@east.gentwo.org>
+References: <1462978517-2972312-1-git-send-email-arnd@arndb.de> <20160516073716.GB23146@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>
-Cc: linux-kernel@vger.kernel.org, mingo@redhat.com, luto@amacapital.net, tglx@linutronix.de, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com, Shuah Khan <shuahkh@osg.samsung.com>, linux-kselftest@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Mon, 16 May 2016, Michal Hocko wrote:
 
-* Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+> I agree with Christoph that vmstat_refresh is PROC_FS only so we should
+> fix it there. It is not like this would be generally reusable helper...
+> Why don't we just do:
 
-> Should print on success:
-> [root@localhost ~]# ./test_mremap_vdso_32
-> 	AT_SYSINFO_EHDR is 0xf773f000
-> [NOTE]	Moving vDSO: [f773f000, f7740000] -> [a000000, a001000]
-> [OK]
-> Or segfault if landing was bad (before patches):
-> [root@localhost ~]# ./test_mremap_vdso_32
-> 	AT_SYSINFO_EHDR is 0xf774f000
-> [NOTE]	Moving vDSO: [f774f000, f7750000] -> [a000000, a001000]
-> Segmentation fault (core dumped)
+Looks good.
 
-Can the segfault be caught and recovered from, to print a proper failure message?
+Acked-by: Christoph Lameter <cl@linux.com>
 
-Thanks,
-
-	Ingo
+> ---
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 57a24e919907..c759b526287b 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1370,6 +1370,7 @@ static void refresh_vm_stats(struct work_struct *work)
+>  	refresh_cpu_vm_stats(true);
+>  }
+>
+> +#ifdef CONFIG_PROC_FS
+>  int vmstat_refresh(struct ctl_table *table, int write,
+>  		   void __user *buffer, size_t *lenp, loff_t *ppos)
+>  {
+> @@ -1422,6 +1423,7 @@ int vmstat_refresh(struct ctl_table *table, int write,
+>  		*lenp = 0;
+>  	return 0;
+>  }
+> +#endif
+>
+>  static void vmstat_update(struct work_struct *w)
+>  {
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
