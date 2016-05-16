@@ -1,84 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B98A36B025E
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 06:41:36 -0400 (EDT)
-Received: by mail-ig0-f197.google.com with SMTP id kj7so168201064igb.3
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 03:41:36 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id l4si24268062iof.91.2016.05.16.03.41.36
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A84F6B0260
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 06:54:34 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e201so40816291wme.1
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 03:54:34 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id n1si37955705wjz.36.2016.05.16.03.54.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 May 2016 03:41:36 -0700 (PDT)
-Date: Mon, 16 May 2016 12:41:30 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20160516104130.GK3193@twins.programming.kicks-ass.net>
-References: <94cea603-2782-1c5a-e2df-42db4459a8ce@cn.fujitsu.com>
- <20160512055756.GE6648@birch.djwong.org>
- <20160512080321.GA18496@dastard>
- <20160513160341.GW20141@dhcp22.suse.cz>
+        Mon, 16 May 2016 03:54:33 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id r12so17158767wme.0
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 03:54:33 -0700 (PDT)
+Date: Mon, 16 May 2016 12:54:29 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCHv8 resend 1/2] x86/vdso: add mremap hook to
+ vm_special_mapping
+Message-ID: <20160516105429.GA20440@gmail.com>
+References: <1462886951-23376-1-git-send-email-dsafonov@virtuozzo.com>
+ <79f9fe67-a343-43b8-0933-a79461900c1b@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160513160341.GW20141@dhcp22.suse.cz>
+In-Reply-To: <79f9fe67-a343-43b8-0933-a79461900c1b@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Dave Chinner <david@fromorbit.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org
+To: Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: linux-kernel@vger.kernel.org, mingo@redhat.com, luto@amacapital.net, tglx@linutronix.de, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com
 
-On Fri, May 13, 2016 at 06:03:41PM +0200, Michal Hocko wrote:
 
-> To quote Dave:
-> "
-> Ignoring whether reflink should be doing anything or not, that's a
-> "xfs_refcountbt_init_cursor() gets called both outside and inside
-> transactions" lockdep false positive case. The problem here is
-> lockdep has seen this allocation from within a transaction, hence a
-> GFP_NOFS allocation, and now it's seeing it in a GFP_KERNEL context.
-> Also note that we have an active reference to this inode.
+* Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
 
-So the only thing that distinguishes the good from the bad case is that
-reference; how should that then not do anything?
-
-> So, because the reclaim annotations overload the interrupt level
-> detections and it's seen the inode ilock been taken in reclaim
-> ("interrupt") context, this triggers a reclaim context warning where
-> it thinks it is unsafe to do this allocation in GFP_KERNEL context
-> holding the inode ilock...
-> "
+> On 05/10/2016 04:29 PM, Dmitry Safonov wrote:
+> >Add possibility for userspace 32-bit applications to move
+> >vdso mapping. Previously, when userspace app called
+> >mremap for vdso, in return path it would land on previous
+> >address of vdso page, resulting in segmentation violation.
+> >Now it lands fine and returns to userspace with remapped vdso.
+> >This will also fix context.vdso pointer for 64-bit, which does not
+> >affect the user of vdso after mremap by now, but this may change.
+> >
+> >As suggested by Andy, return EINVAL for mremap that splits vdso image.
+> >
+> >Renamed and moved text_mapping structure declaration inside
+> >map_vdso, as it used only there and now it complement
+> >vvar_mapping variable.
+> >
+> >There is still problem for remapping vdso in glibc applications:
+> >linker relocates addresses for syscalls on vdso page, so
+> >you need to relink with the new addresses. Or the next syscall
+> >through glibc may fail:
+> >  Program received signal SIGSEGV, Segmentation fault.
+> >  #0  0xf7fd9b80 in __kernel_vsyscall ()
+> >  #1  0xf7ec8238 in _exit () from /usr/lib32/libc.so.6
+> >
+> >Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+> >Acked-by: Andy Lutomirski <luto@kernel.org>
+> >---
+> >v8: add WARN_ON_ONCE on current->mm != new_vma->vm_mm
+> >v7: build fix
+> >v6: moved vdso_image_32 check and fixup code into vdso_fix_landing function
+> >    with ifdefs around
+> >v5: as Andy suggested, add a check that new_vma->vm_mm and current->mm are
+> >    the same, also check not only in_ia32_syscall() but image == &vdso_image_32
+> >v4: drop __maybe_unused & use image from mm->context instead vdso_image_32
+> >v3: as Andy suggested, return EINVAL in case of splitting vdso blob on mremap;
+> >    used is_ia32_task instead of ifdefs
+> >v2: added __maybe_unused for pt_regs in vdso_mremap
 > 
-> This sounds like a fundamental problem of the reclaim lock detection.
-> It is really impossible to annotate such a special usecase IMHO unless
-> the reclaim lockup detection is reworked completely.
+> Ping?
 
-How would you like to see it done? The interrupt model works well for
-reclaim because how is direct reclaim from a !GFP_NOWAIT allocation not
-an 'interrupt' like thing?
+There's no 0/2 boilerplate explaining the background of the changes - why do you 
+want to mremap() the vDSO?
 
-> Until then it
-> is much better to provide a way to add "I know what I am doing flag"
-> and mark problematic places. This would prevent from abusing GFP_NOFS
-> flag which has a runtime effect even on configurations which have
-> lockdep disabled.
+Thanks,
 
-So without more context; no. The mail you referenced mentions:
-
-"The reclaim -> lock context that it's complaining about here is on
-an inode being reclaimed - it has no active references and so, by
-definition, cannot deadlock with a context holding an active
-reference to an inode ilock. Hence there cannot possibly be a
-deadlock here, but we can't tell lockdep that easily in any way
-without going back to the bad old ways of creating a new lockdep
-class for inode ilocks the moment they enter ->evict. This then
-disables "entire lifecycle" lockdep checking on the xfs inode ilock,
-which is why we got rid of it in the first place."
-
-But fails to explain the problems with the 'old' approach.
-
-So clearly this is a 'problem' that has existed for quite a while, so I
-don't see any need to rush half baked solutions either.
-
-Please better explain things.
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
