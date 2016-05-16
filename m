@@ -1,173 +1,279 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EAE456B0253
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 10:18:32 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r12so44267103wme.0
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 07:18:32 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id bk7si38913518wjb.34.2016.05.16.07.18.31
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D68C6B0260
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 10:19:04 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id gw7so255514088pac.0
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 07:19:04 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id uy8si46275880pab.145.2016.05.16.07.19.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 May 2016 07:18:31 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id n129so18421686wmn.1
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 07:18:31 -0700 (PDT)
-Date: Mon, 16 May 2016 16:18:29 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timeout.
-Message-ID: <20160516141829.GK23146@dhcp22.suse.cz>
-References: <201604242319.GAF12996.tOJMOQFLFVOHSF@I-love.SAKURA.ne.jp>
- <20160425095508.GE23933@dhcp22.suse.cz>
- <20160426135402.GB20813@dhcp22.suse.cz>
- <201604271943.GAC60432.FFJHtFVSOQOOLM@I-love.SAKURA.ne.jp>
- <20160427111147.GI2179@dhcp22.suse.cz>
- <201605140939.BFG05745.FJOOOSVQtLFMHF@I-love.SAKURA.ne.jp>
+        Mon, 16 May 2016 07:19:03 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id b66so7917165pfb.2
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 07:19:03 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Date: Mon, 16 May 2016 23:18:54 +0900
+Subject: Re: [PATCH] mm: make fault_around_bytes configurable
+Message-ID: <20160516141854.GA2361@blaptop>
+References: <1460992636-711-1-git-send-email-vinmenon@codeaurora.org>
+ <20160421170150.b492ffe35d073270b53f0e4d@linux-foundation.org>
+ <5719E494.20302@codeaurora.org>
+ <20160422094430.GA7336@node.shutemov.name>
+ <fdc23a2a-b42a-f0af-d403-41ea4e755084@codeaurora.org>
+ <20160509073251.GA5434@blaptop>
+ <20160510024842.GC4426@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201605140939.BFG05745.FJOOOSVQtLFMHF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20160510024842.GC4426@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
+To: Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, mgorman@suse.de, vbabka@suse.cz, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, hughd@google.com
 
-On Sat 14-05-16 09:39:49, Tetsuo Handa wrote:
-[...]
-> What I got is that the OOM victim is blocked at
-> down_write(vma->file->f_mapping) in i_mmap_lock_write() called from
-> link_file_vma(vma) etc.
+On Tue, May 10, 2016 at 11:48:42AM +0900, Minchan Kim wrote:
+> On Mon, May 09, 2016 at 04:32:51PM +0900, Minchan Kim wrote:
+> > Hello,
+> > 
+> > On Mon, Apr 25, 2016 at 05:21:11PM +0530, Vinayak Menon wrote:
+> > > 
+> > > 
+> > > On 4/22/2016 3:14 PM, Kirill A. Shutemov wrote:
+> > > > On Fri, Apr 22, 2016 at 02:15:08PM +0530, Vinayak Menon wrote:
+> > > >> On 04/22/2016 05:31 AM, Andrew Morton wrote:
+> > > >>> On Mon, 18 Apr 2016 20:47:16 +0530 Vinayak Menon <vinmenon@codeaurora.org> wrote:
+> > > >>>
+> > > >>>> Mapping pages around fault is found to cause performance degradation
+> > > >>>> in certain use cases. The test performed here is launch of 10 apps
+> > > >>>> one by one, doing something with the app each time, and then repeating
+> > > >>>> the same sequence once more, on an ARM 64-bit Android device with 2GB
+> > > >>>> of RAM. The time taken to launch the apps is found to be better when
+> > > >>>> fault around feature is disabled by setting fault_around_bytes to page
+> > > >>>> size (4096 in this case).
+> > > >>> Well that's one workload, and a somewhat strange one.  What is the
+> > > >>> effect on other workloads (of which there are a lot!).
+> > > >>>
+> > > >> This workload emulates the way a user would use his mobile device, opening
+> > > >> an application, using it for some time, switching to next, and then coming
+> > > >> back to the same application later. Another stat which shows significant
+> > > >> degradation on Android with fault_around is device boot up time. I have not
+> > > >> tried any other workload other than these.
+> > > >>
+> > > >>>> The tests were done on 3.18 kernel. 4 extra vmstat counters were added
+> > > >>>> for debugging. pgpgoutclean accounts the clean pages reclaimed via
+> > > >>>> __delete_from_page_cache. pageref_activate, pageref_activate_vm_exec,
+> > > >>>> and pageref_keep accounts the mapped file pages activated and retained
+> > > >>>> by page_check_references.
+> > > >>>>
+> > > >>>> === Without swap ===
+> > > >>>>                           3.18             3.18-fault_around_bytes=4096
+> > > >>>> -----------------------------------------------------------------------
+> > > >>>> workingset_refault        691100           664339
+> > > >>>> workingset_activate       210379           179139
+> > > >>>> pgpgin                    4676096          4492780
+> > > >>>> pgpgout                   163967           96711
+> > > >>>> pgpgoutclean              1090664          990659
+> > > >>>> pgalloc_dma               3463111          3328299
+> > > >>>> pgfree                    3502365          3363866
+> > > >>>> pgactivate                568134           238570
+> > > >>>> pgdeactivate              752260           392138
+> > > >>>> pageref_activate          315078           121705
+> > > >>>> pageref_activate_vm_exec  162940           55815
+> > > >>>> pageref_keep              141354           51011
+> > > >>>> pgmajfault                24863            23633
+> > > >>>> pgrefill_dma              1116370          544042
+> > > >>>> pgscan_kswapd_dma         1735186          1234622
+> > > >>>> pgsteal_kswapd_dma        1121769          1005725
+> > > >>>> pgscan_direct_dma         12966            1090
+> > > >>>> pgsteal_direct_dma        6209             967
+> > > >>>> slabs_scanned             1539849          977351
+> > > >>>> pageoutrun                1260             1333
+> > > >>>> allocstall                47               7
+> > > >>>>
+> > > >>>> === With swap ===
+> > > >>>>                           3.18             3.18-fault_around_bytes=4096
+> > > >>>> -----------------------------------------------------------------------
+> > > >>>> workingset_refault        597687           878109
+> > > >>>> workingset_activate       167169           254037
+> > > >>>> pgpgin                    4035424          5157348
+> > > >>>> pgpgout                   162151           85231
+> > > >>>> pgpgoutclean              928587           1225029
+> > > >>>> pswpin                    46033            17100
+> > > >>>> pswpout                   237952           127686
+> > > >>>> pgalloc_dma               3305034          3542614
+> > > >>>> pgfree                    3354989          3592132
+> > > >>>> pgactivate                626468           355275
+> > > >>>> pgdeactivate              990205           771902
+> > > >>>> pageref_activate          294780           157106
+> > > >>>> pageref_activate_vm_exec  141722           63469
+> > > >>>> pageref_keep              121931           63028
+> > > >>>> pgmajfault                67818            45643
+> > > >>>> pgrefill_dma              1324023          977192
+> > > >>>> pgscan_kswapd_dma         1825267          1720322
+> > > >>>> pgsteal_kswapd_dma        1181882          1365500
+> > > >>>> pgscan_direct_dma         41957            9622
+> > > >>>> pgsteal_direct_dma        25136            6759
+> > > >>>> slabs_scanned             689575           542705
+> > > >>>> pageoutrun                1234             1538
+> > > >>>> allocstall                110              26
+> > > >>>>
+> > > >>>> Looks like with fault_around, there is more pressure on reclaim because
+> > > >>>> of the presence of more mapped pages, resulting in more IO activity,
+> > > >>>> more faults, more swapping, and allocstalls.
+> > > >>> A few of those things did get a bit worse?
+> > > >> I think some numbers (like workingset, pgpgin, pgpgoutclean etc) looks
+> > > >> better with fault_around because, increased number of mapped pages is
+> > > >> resulting in less number of file pages being reclaimed (pageref_activate,
+> > > >> pageref_activate_vm_exec, pageref_keep above), but increased swapping.
+> > > >> Latency numbers are far bad with fault_around_bytes + swap, possibly because
+> > > >> of increased swapping, decrease in kswapd efficiency and increase in
+> > > >> allocstalls.
+> > > >> So the problem looks to be that unwanted pages are mapped around the fault
+> > > >> and page_check_references is unaware of this.
+> > > > Hm. It makes me think we should make ptes setup by faultaround old.
+> > > >
+> > > > Although, it would defeat (to some extend) purpose of faultaround on
+> > > > architectures without HW accessed bit :-/
+> > > >
+> > > > Could you check if the patch below changes the situation?
+> > > > It would require some more work to not mark the pte we've got fault for old.
+> > > 
+> > > Column at the end shows the values with the patch
+> > > 
+> > >                   3.18   3.18-fab=4096  3.18-Kirill's-fix
+> > > 
+> > > ---------------------------------------------------------
+> > > 
+> > > workingset_refault        597687   878109   790207
+> > > 
+> > > workingset_activate       167169   254037   207912
+> > > 
+> > > pgpgin                    4035424  5157348  4793116
+> > > 
+> > > pgpgout                   162151   85231    85539
+> > > 
+> > > pgpgoutclean              928587   1225029  1129088
+> > > 
+> > > pswpin                    46033    17100    8926
+> > > 
+> > > pswpout                   237952   127686   103435
+> > > 
+> > > pgalloc_dma               3305034  3542614  3401000
+> > > 
+> > > pgfree                    3354989  3592132  3457783
+> > > 
+> > > pgactivate                626468   355275   326716
+> > > 
+> > > pgdeactivate              990205   771902   697392
+> > > 
+> > > pageref_activate          294780   157106   138451
+> > > 
+> > > pageref_activate_vm_exec  141722   63469    64585
+> > > 
+> > > pageref_keep              121931   63028    65811
+> > > 
+> > > pgmajfault                67818    45643    34944
+> > > 
+> > > pgrefill_dma              1324023  977192   874497
+> > > 
+> > > pgscan_kswapd_dma         1825267  1720322  1577483
+> > > 
+> > > pgsteal_kswapd_dma        1181882  1365500  1243968
+> > > 
+> > > pgscan_direct_dma         41957    9622     9387
+> > > 
+> > > pgsteal_direct_dma        25136    6759     7108
+> > > 
+> > > slabs_scanned             689575   542705   618839
+> > > 
+> > > pageoutrun                1234     1538     1450
+> > > 
+> > > allocstall                110      26       13
+> > > 
+> > > Everything seems to have improved except slabs_scanned, possibly because
+> > > of this check which Minchan pointed out, that results in higher pressure on slabs.
+> > > 
+> > > if (page_mapped(page) || PageSwapCache(page))
+> > > 
+> > >     sc->nr_scanned++;
+> > > 
+> > > I had added some traces to monitor the vmpressure values. Those also seems to
+> > > be high, possibly because of the same reason.
+> > > 
+> > > Should the pressure be doubled only if page is mapped and referenced ?
+> > 
+> > Yes, pte_mkold is not perfect at the moment.
+> > 
+> > Anyway, above heuristic has been in there for a long time since I was born
+> > maybe :) (I don't want to argue why it's there and whether it's right) So,
+> > I'm really hesitant to change it that it might bite some workloads.
+> > (But I don't mean I'm against it but just don't want to make it by myself
+> > to avoid potential blame). IOW, Kirill's fault_around broke it too so it
+> > could bite some workloads.
+> > 
+> > At least, as Vinayak mentioned, it would change vmpressure level so users of
+> > vmpressure can be affected. AFAIK, some vendors in embedded side relies on
+> > vmpressure to control memory management so it will hurt them.
+> > As well, slab shrinking behavior was changed, too. Unfortunately, I don't
+> > know any workload is dependent with it.
+> > 
+> > As other regression in my company product, we have snapshot a process
+> > with workingset for later fast resume. For that, we have considered
+> > pte-mapped pages as workingset for snapshot but snapshot start to include
+> > non-workingset pages since fault-around is merged. It means snapshot
+> > image size is increased so that we need more storage space and it starts
+> > the thing slow down. I guess mincore(2) users will be affected.
+> > 
+> > Additional Note: There are lots of products with ARM which is non-HW access
+> > bit system in embedded world although ARM start to support it recenlty and
+> > sequential file access workload is not important compared to memory reclaim
+> > So, fault_around's benefit could be higly limited compared to HW-access bit
+> > architectures on server workload.
+> > 
+> > I want to ask again.
+> > I guess we could disable fault_around by kernel parameter but does it
+> > sound reasonable to enable fault_around by default for every arches
+> > at the cost of above regression?
+> > 
+> > I'm not against for that. Just what I want is some fixes about the
+> > regression should go to -stable.
+> > 
+> > > 
+> > > There is big improvement in avg latency, but still 5% higher than with fault_around
+> > > disabled. I will try to debug this further.
 > 
-> Complete log is at http://I-love.SAKURA.ne.jp/tmp/serial-20160514.txt.xz .
-> ----------
-[...]
-> [  364.158972] Call Trace:
-> [  364.159979]  [<ffffffff8172b257>] ? _raw_spin_unlock_irq+0x27/0x50
-> [  364.161691]  [<ffffffff81725e1a>] schedule+0x3a/0x90
-> [  364.163170]  [<ffffffff8172a366>] rwsem_down_write_failed+0x106/0x220
-> [  364.164925]  [<ffffffff813bd2c7>] call_rwsem_down_write_failed+0x17/0x30
-> [  364.166737]  [<ffffffff81729877>] down_write+0x47/0x60
-> [  364.168258]  [<ffffffff811c3284>] ? vma_link+0x44/0xc0
-> [  364.169773]  [<ffffffff811c3284>] vma_link+0x44/0xc0
-> [  364.171255]  [<ffffffff811c5c05>] mmap_region+0x3a5/0x5b0
-> [  364.172822]  [<ffffffff811c6204>] do_mmap+0x3f4/0x4c0
-> [  364.174324]  [<ffffffff811a64dc>] vm_mmap_pgoff+0xbc/0x100
-> [  364.175894]  [<ffffffff811c4060>] SyS_mmap_pgoff+0x1c0/0x290
-> [  364.177499]  [<ffffffff81002c91>] ? do_syscall_64+0x21/0x170
-> [  364.179118]  [<ffffffff81022b7d>] SyS_mmap+0x1d/0x20
-> [  364.180592]  [<ffffffff81002ccc>] do_syscall_64+0x5c/0x170
-> [  364.182140]  [<ffffffff8172b9da>] entry_SYSCALL64_slow_path+0x25/0x25
-> [  364.183855] oom_reaper: unable to reap pid:5652 (tgid=5398)
-[...]
-> static inline void i_mmap_lock_write(struct address_space *mapping)
-> {
->         down_write(&mapping->i_mmap_rwsem);
-> }
+> I did quick test in my ARM machine.
 > 
-> static void vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
->                         struct vm_area_struct *prev, struct rb_node **rb_link,
->                         struct rb_node *rb_parent)
-> {
->         struct address_space *mapping = NULL;
+> 512M file mmap sequential every word read
 > 
->         if (vma->vm_file) {
->                 mapping = vma->vm_file->f_mapping;
->                 i_mmap_lock_write(mapping);
->         }
+> = vanilla fault_around=4096 =
+> minor fault: 131291
+> elapsed time(usec): 6686236
 > 
->         __vma_link(mm, vma, prev, rb_link, rb_parent); /* [<ffffffff811c3284>] vma_link+0x44/0xc0 */
->         __vma_link_file(vma);
+> = vanilla fault_around=65536 =
+> minor fault: 12577
+> elapsed time(usec): 6586959
 > 
->         if (mapping)
->                 i_mmap_unlock_write(mapping);
+> I tested 3 times and result seemed to be stable.
+> 90% minor fault was reduced. It's huge win but as looking at elapsed time,
+> it's not huge win. Just about 1.5%.
 > 
->         mm->map_count++;
->         validate_mm(mm);
-> }
+> = pte_mkold applied fault_around=4096 =
+> minor fault: 131291
+> elapsed time(usec): 6608358
 > 
-> As you said that "I consider unkillable sleep while holding mmap_sem
-> for write to be a _bug_ which should be fixed rather than worked around
-> by some timeout based heuristics.", you of course have a plan to rewrite
-> functions to return "int" which are currently "void" in order to use
-> killable waits, don't you?
+> = pte_mkold applied fault_around=65536 =
+> minor fault: 143609
+> elapsed time(usec): 6772520
+> 
+> I tested 3 times and result seemed to be stable.
+> minor fault was rather increased and elapsed time was slow with
+> fault_around.
+> Gain is really not clear.
 
-Thanks for the report. Yes this seems quite simple to fix actually. All
-the callers are able to handle the failure. Well, copy_vma is a bit
-complicated because it already did anon_vma_clone and other state
-related stuff so it would be slightly more tricky but nothing unfixable.
-
-> I think that clearing TIF_MEMDIE even if the OOM reaper failed to reap the
-> OOM vitctim's memory is confusing for panic_on_oom_timeout timer (which stops
-> itself when TIF_MEMDIE is cleared) and kmallocwd (which prints victim=0 in
-> MemAlloc-Info: line). Until you complete rewriting all functions which could
-> be called with mmap_sem held for write, we should allow the OOM killer to
-> select next OOM victim upon timeout; otherwise calling panic() is premature.
-
-I would agree if this was an easily triggerable issue in the real life.
-You are basically DoSing your machine and that leads to corner cases of
-course. We can and should try to plug them but I still do not see any
-reason to rush into any solutions.
-
-You seem to be bound to the timeout solution so much that you even
-refuse to think about any other potential ways to move on. I think that
-is counter productive. I have tried to explain many times that once you
-define a _user_ _visible_ knob you should better define a proper semantic
-for it. Do something with a random outcome is not it.
-
-So let's move on and try to think outside of the box:
----
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index df8778e72211..027d5bc1e874 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -513,6 +513,7 @@ static inline int get_dumpable(struct mm_struct *mm)
- #define MMF_HAS_UPROBES		19	/* has uprobes */
- #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
- #define MMF_OOM_REAPED		21	/* mm has been already reaped */
-+#define MMF_OOM_NOT_REAPABLE	22	/* mm couldn't be reaped */
- 
- #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
- 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index c0e37dd1422f..b1a1e3317231 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -538,8 +538,27 @@ static void oom_reap_task(struct task_struct *tsk)
- 		schedule_timeout_idle(HZ/10);
- 
- 	if (attempts > MAX_OOM_REAP_RETRIES) {
-+		struct task_struct *p;
-+
- 		pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
- 				task_pid_nr(tsk), tsk->comm);
-+
-+		/*
-+		 * If we've already tried to reap this task in the past and
-+		 * failed it probably doesn't make much sense to try yet again
-+		 * so hide the mm from the oom killer so that it can move on
-+		 * to another task with a different mm struct.
-+		 */
-+		p = find_lock_task_mm(tsk);
-+		if (p) {
-+			if (test_and_set_bit(MMF_OOM_NOT_REAPABLE, &p->mm->flags)) {
-+				pr_info("oom_reaper: giving up pid:%d (%s)\n",
-+						task_pid_nr(tsk), tsk->comm);
-+				set_bit(MMF_OOM_REAPED, &p->mm->flags);
-+			}
-+			task_unlock(p);
-+		}
-+
- 		debug_show_all_locks();
- 	}
- 
-
-See the difference? This is 11LOC and we do not have export any knobs
-which would tie us for future implementations. We will cap the number
-of times each mm struct is attempted for OOM killer and do not have
-to touch any subtle oom killer paths so the patch would be quite easy
-to review. We can change this implementation if it turns out to be
-impractical, too optimistic or pesimistic.
--- 
-Michal Hocko
-SUSE Labs
+Kirill,
+You wanted to test non-HW access bit system and I did.
+What's your opinion?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
