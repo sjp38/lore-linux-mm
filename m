@@ -1,105 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C9D39828E1
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 03:17:14 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r12so38321333wme.0
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 00:17:14 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c9si36980458wjj.56.2016.05.16.00.17.13
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EFAEE828E1
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 03:20:02 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 4so339077955pfw.0
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 00:20:02 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id l24si43835166pfb.246.2016.05.16.00.20.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 May 2016 00:17:13 -0700 (PDT)
-Subject: Re: [RFC 11/13] mm, compaction: add the ultimate direct compaction
- priority
-References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
- <1462865763-22084-12-git-send-email-vbabka@suse.cz>
- <20160513133851.GP20141@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <573973F7.7070202@suse.cz>
-Date: Mon, 16 May 2016 09:17:11 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 May 2016 00:20:02 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id 145so14960311pfz.1
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 00:20:02 -0700 (PDT)
+Date: Mon, 16 May 2016 16:17:51 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v5 02/12] mm: migrate: support non-lru movable page
+ migration
+Message-ID: <20160516071751.GA32079@swordfish>
+References: <1462760433-32357-1-git-send-email-minchan@kernel.org>
+ <1462760433-32357-3-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20160513133851.GP20141@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1462760433-32357-3-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rafael Aquini <aquini@redhat.com>, virtualization@lists.linux-foundation.org, Jonathan Corbet <corbet@lwn.net>, John Einar Reitan <john.reitan@foss.arm.com>, dri-devel@lists.freedesktop.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Gioh Kim <gi-oh.kim@profitbricks.com>
 
-On 05/13/2016 03:38 PM, Michal Hocko wrote:
-> On Tue 10-05-16 09:36:01, Vlastimil Babka wrote:
->> During reclaim/compaction loop, it's desirable to get a final answer from
->> unsuccessful compaction so we can either fail the allocation or invoke the OOM
->> killer. However, heuristics such as deferred compaction or pageblock skip bits
->> can cause compaction to skip parts or whole zones and lead to premature OOM's,
->> failures or excessive reclaim/compaction retries.
->>
->> To remedy this, we introduce a new direct compaction priority called
->> COMPACT_PRIO_SYNC_FULL, which instructs direct compaction to:
->>
->> - ignore deferred compaction status for a zone
->> - ignore pageblock skip hints
->> - ignore cached scanner positions and scan the whole zone
->> - use MIGRATE_SYNC migration mode
->
-> I do not think we can do MIGRATE_SYNC because fallback_migrate_page
-> would trigger pageout and we are in the allocation path and so we
-> could blow up the stack.
+On (05/09/16 11:20), Minchan Kim wrote:
+[..]
+> +++ b/include/linux/migrate.h
+> @@ -32,11 +32,16 @@ extern char *migrate_reason_names[MR_TYPES];
+>  
+>  #ifdef CONFIG_MIGRATION
+>  
+> +extern int PageMovable(struct page *page);
+> +extern void __SetPageMovable(struct page *page, struct address_space *mapping);
+> +extern void __ClearPageMovable(struct page *page);
+>  extern void putback_movable_pages(struct list_head *l);
+>  extern int migrate_page(struct address_space *,
+>  			struct page *, struct page *, enum migrate_mode);
+>  extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
+>  		unsigned long private, enum migrate_mode mode, int reason);
+> +extern bool isolate_movable_page(struct page *page, isolate_mode_t mode);
+> +extern void putback_movable_page(struct page *page);
+>  
+>  extern int migrate_prep(void);
+>  extern int migrate_prep_local(void);
 
-Ah, I thought it was just waiting for the writeout to complete, and you 
-wanted to introduce another migrate mode to actually do the writeout. 
-But looks like I misremembered.
+given that some of Movable users can be built as modules, shouldn't
+at least some of those symbols be exported via EXPORT_SYMBOL?
 
->> The new priority should get eventually picked up by should_compact_retry() and
->> this should improve success rates for costly allocations using __GFP_RETRY,
->
-> s@__GFP_RETRY@__GFP_REPEAT@
-
-Ah thanks. Depending on the patch timing it might be __GFP_RETRY_HARD in 
-the end, right :)
-
->> such as hugetlbfs allocations, and reduce some corner-case OOM's for non-costly
->> allocations.
->
-> My testing has shown that even with the current implementation with
-> deferring, skip hints and cached positions had (close to) 100% success
-> rate even with close to OOM conditions.
-
-Hmm, I thought you at one point said that ignoring skip hints was a 
-large improvement, because the current resetting of them is just too fuzzy.
-
-> I am wondering whether this strongest priority should be done only for
-> !costly high order pages. But we probably want less special cases
-> between costly and !costly orders.
-
-Yeah, if somebody wants to retry hard, let him.
-
->> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->
-> Acked-by: Michal Hocko <mhocko@suse.com>
->
->> ---
->>   include/linux/compaction.h |  1 +
->>   mm/compaction.c            | 15 ++++++++++++---
->>   2 files changed, 13 insertions(+), 3 deletions(-)
->>
-> [...]
->> @@ -1631,7 +1639,8 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
->>   								ac->nodemask) {
->>   		enum compact_result status;
->>
->> -		if (compaction_deferred(zone, order)) {
->> +		if (prio > COMPACT_PRIO_SYNC_FULL
->> +					&& compaction_deferred(zone, order)) {
->>   			rc = max_t(enum compact_result, COMPACT_DEFERRED, rc);
->>   			continue;
->>   		}
->
-> Wouldn't it be better to pull the prio check into compaction_deferred
-> directly? There are more callers and I am not really sure all of them
-> would behave consistently.
-
-I'll check, thanks.
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
