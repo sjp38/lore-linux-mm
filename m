@@ -1,64 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0188D828E1
-	for <linux-mm@kvack.org>; Sun, 15 May 2016 22:14:27 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id xm6so234359425pab.3
-        for <linux-mm@kvack.org>; Sun, 15 May 2016 19:14:26 -0700 (PDT)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id n11si39458270pfa.84.2016.05.15.19.14.26
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D0CD1828E1
+	for <linux-mm@kvack.org>; Sun, 15 May 2016 23:09:46 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 77so330473549pfz.3
+        for <linux-mm@kvack.org>; Sun, 15 May 2016 20:09:46 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id n73si42392743pfi.149.2016.05.15.20.09.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 15 May 2016 19:14:26 -0700 (PDT)
-Received: by mail-pa0-x244.google.com with SMTP id xm6so2590622pab.3
-        for <linux-mm@kvack.org>; Sun, 15 May 2016 19:14:26 -0700 (PDT)
-Date: Mon, 16 May 2016 11:14:20 +0900
+        Sun, 15 May 2016 20:09:45 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id 145so14490085pfz.1
+        for <linux-mm@kvack.org>; Sun, 15 May 2016 20:09:45 -0700 (PDT)
+Date: Mon, 16 May 2016 12:09:41 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v5 07/12] zsmalloc: factor page chain functionality out
-Message-ID: <20160516021420.GC504@swordfish>
+Subject: Re: [PATCH v5 08/12] zsmalloc: introduce zspage structure
+Message-ID: <20160516030941.GD504@swordfish>
 References: <1462760433-32357-1-git-send-email-minchan@kernel.org>
- <1462760433-32357-8-git-send-email-minchan@kernel.org>
+ <1462760433-32357-9-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1462760433-32357-8-git-send-email-minchan@kernel.org>
+In-Reply-To: <1462760433-32357-9-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
 On (05/09/16 11:20), Minchan Kim wrote:
-> For page migration, we need to create page chain of zspage dynamically
-> so this patch factors it out from alloc_zspage.
+> We have squeezed meta data of zspage into first page's descriptor.
+> So, to get meta data from subpage, we should get first page first
+> of all. But it makes trouble to implment page migration feature
+> of zsmalloc because any place where to get first page from subpage
+> can be raced with first page migration. IOW, first page it got
+> could be stale. For preventing it, I have tried several approahces
+> but it made code complicated so finally, I concluded to separate
+> metadata from first page. Of course, it consumes more memory. IOW,
+> 16bytes per zspage on 32bit at the moment. It means we lost 1%
+> at *worst case*(40B/4096B) which is not bad I think at the cost of
+> maintenance.
 > 
 > Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 > Signed-off-by: Minchan Kim <minchan@kernel.org>
+[..]
+> @@ -153,8 +138,6 @@
+>  enum fullness_group {
+>  	ZS_ALMOST_FULL,
+>  	ZS_ALMOST_EMPTY,
+> -	_ZS_NR_FULLNESS_GROUPS,
+> -
+>  	ZS_EMPTY,
+>  	ZS_FULL
+>  };
+> @@ -203,7 +186,7 @@ static const int fullness_threshold_frac = 4;
+>  
+>  struct size_class {
+>  	spinlock_t lock;
+> -	struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
+> +	struct list_head fullness_list[2];
 
-Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+seems that it also has some cleaup bits in it.
 
 [..]
-> +		page = alloc_page(flags);
-> +		if (!page) {
-> +			while (--i >= 0)
-> +				__free_page(pages[i]);
+> -static int create_handle_cache(struct zs_pool *pool)
+> +static int create_cache(struct zs_pool *pool)
+>  {
+>  	pool->handle_cachep = kmem_cache_create("zs_handle", ZS_HANDLE_SIZE,
+>  					0, 0, NULL);
+> -	return pool->handle_cachep ? 0 : 1;
+> +	if (!pool->handle_cachep)
+> +		return 1;
+> +
+> +	pool->zspage_cachep = kmem_cache_create("zspage", sizeof(struct zspage),
+> +					0, 0, NULL);
+> +	if (!pool->zspage_cachep) {
+> +		kmem_cache_destroy(pool->handle_cachep);
+		^^^^^
 
-				put_page() ?
+do you need to NULL a pool->handle_cachep here?
 
-a minor nit, put_page() here probably will be in alignment
-with __free_zspage(), which does put_page().
+zs_create_pool()
+	if (create_cache() == 1) {
+			pool->zspage_cachep NULL
+			pool->handle_cachep !NULL   already freed -> kmem_cache_destroy()
+			return 1;
+		goto err
+	}
+err:
+	zs_destroy_pool()
+		destroy_cache() {
+			kmem_cache_destroy(pool->handle_cachep);  !NULL and freed
+			kmem_cache_destroy(pool->zspage_cachep);  NULL ok
+		}
 
-	-ss
 
-> +			return NULL;
-> +		}
-> +		pages[i] = page;
+can we also switch create_cache() to errnos? I just like a bit
+better
+		return -ENOMEM;
+	else
+		return 0;
+
+than
+
+		return 1;
+	else
+		return 0;
+
+
+> @@ -997,44 +951,38 @@ static void init_zspage(struct size_class *class, struct page *first_page)
+>  		off %= PAGE_SIZE;
 >  	}
 >  
-> +	create_page_chain(pages, class->pages_per_zspage);
-> +	first_page = pages[0];
-> +	init_zspage(class, first_page);
+> -	set_freeobj(first_page, (unsigned long)location_to_obj(first_page, 0));
+> +	set_freeobj(zspage,
+> +		(unsigned long)location_to_obj(zspage->first_page, 0));
+
+	static unsigned long location_to_obj()
+
+it's already returning "(unsigned long)", so here and in several other places
+this cast can be dropped.
+
+[..]
+> +static struct zspage *isolate_zspage(struct size_class *class, bool source)
+>  {
+> +	struct zspage *zspage;
+> +	enum fullness_group fg[2] = {ZS_ALMOST_EMPTY, ZS_ALMOST_FULL};
+> +	if (!source) {
+> +		fg[0] = ZS_ALMOST_FULL;
+> +		fg[1] = ZS_ALMOST_EMPTY;
+> +	}
 > +
->  	return first_page;
+> +	for (i = 0; i < 2; i++) {
+
+sorry, why not "for (i = ZS_ALMOST_EMPTY; i <= ZS_ALMOST_FULL ..." ?
+
+> +		zspage = list_first_entry_or_null(&class->fullness_list[fg[i]],
+> +							struct zspage, list);
+> +		if (zspage) {
+> +			remove_zspage(class, zspage, fg[i]);
+> +			return zspage;
+>  		}
+>  	}
+>  
+> -	return page;
+> +	return zspage;
 >  }
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
