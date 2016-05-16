@@ -1,112 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 59B606B025E
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 09:55:29 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id y84so100436799lfc.3
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 06:55:29 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id w2si38813821wjs.32.2016.05.16.06.55.26
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BDFE86B025F
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 09:55:33 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id j8so98668106lfd.0
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 06:55:33 -0700 (PDT)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id e89si20280161wmc.42.2016.05.16.06.55.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 May 2016 06:55:27 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id r12so18332068wme.0
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 06:55:26 -0700 (PDT)
-Date: Mon, 16 May 2016 15:55:22 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv8 resend 1/2] x86/vdso: add mremap hook to
- vm_special_mapping
-Message-ID: <20160516135522.GB14452@gmail.com>
-References: <1462886951-23376-1-git-send-email-dsafonov@virtuozzo.com>
- <79f9fe67-a343-43b8-0933-a79461900c1b@virtuozzo.com>
- <20160516105429.GA20440@gmail.com>
- <d7ae8fe4-2177-8dc0-6087-bb64d74907f9@virtuozzo.com>
+        Mon, 16 May 2016 06:55:32 -0700 (PDT)
+Received: by mail-wm0-x22c.google.com with SMTP id e201so101984200wme.0
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 06:55:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d7ae8fe4-2177-8dc0-6087-bb64d74907f9@virtuozzo.com>
+In-Reply-To: <5739B60E.1090700@suse.cz>
+References: <1462713387-16724-1-git-send-email-anthony.romano@coreos.com>
+	<5739B60E.1090700@suse.cz>
+Date: Mon, 16 May 2016 06:55:32 -0700
+Message-ID: <CAENtvd4js+a3RnvyRJWyRaCU9p-xoQ5F1F-yX2FF9WmbDHiL7Q@mail.gmail.com>
+Subject: Re: [PATCH] tmpfs: don't undo fallocate past its last page
+From: Anthony Romano <anthony.romano@coreos.com>
+Content-Type: multipart/alternative; boundary=001a1147145c5d5b000532f5faa4
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>
-Cc: linux-kernel@vger.kernel.org, mingo@redhat.com, luto@amacapital.net, tglx@linutronix.de, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+--001a1147145c5d5b000532f5faa4
+Content-Type: text/plain; charset=UTF-8
 
-* Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+The code for shmem_undo_range is very similar to truncate_inode_pages_range
+so I assume that's why it's using an inclusive range.
 
-> On 05/16/2016 01:54 PM, Ingo Molnar wrote:
-> >
-> >* Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
-> >
-> >>On 05/10/2016 04:29 PM, Dmitry Safonov wrote:
-> >>>Add possibility for userspace 32-bit applications to move
-> >>>vdso mapping. Previously, when userspace app called
-> >>>mremap for vdso, in return path it would land on previous
-> >>>address of vdso page, resulting in segmentation violation.
-> >>>Now it lands fine and returns to userspace with remapped vdso.
-> >>>This will also fix context.vdso pointer for 64-bit, which does not
-> >>>affect the user of vdso after mremap by now, but this may change.
-> >>>
-> >>>As suggested by Andy, return EINVAL for mremap that splits vdso image.
-> >>>
-> >>>Renamed and moved text_mapping structure declaration inside
-> >>>map_vdso, as it used only there and now it complement
-> >>>vvar_mapping variable.
-> >>>
-> >>>There is still problem for remapping vdso in glibc applications:
-> >>>linker relocates addresses for syscalls on vdso page, so
-> >>>you need to relink with the new addresses. Or the next syscall
-> >>>through glibc may fail:
-> >>> Program received signal SIGSEGV, Segmentation fault.
-> >>> #0  0xf7fd9b80 in __kernel_vsyscall ()
-> >>> #1  0xf7ec8238 in _exit () from /usr/lib32/libc.so.6
-> >>>
-> >>>Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
-> >>>Acked-by: Andy Lutomirski <luto@kernel.org>
-> >>>---
-> >>>v8: add WARN_ON_ONCE on current->mm != new_vma->vm_mm
-> >>>v7: build fix
-> >>>v6: moved vdso_image_32 check and fixup code into vdso_fix_landing function
-> >>>   with ifdefs around
-> >>>v5: as Andy suggested, add a check that new_vma->vm_mm and current->mm are
-> >>>   the same, also check not only in_ia32_syscall() but image == &vdso_image_32
-> >>>v4: drop __maybe_unused & use image from mm->context instead vdso_image_32
-> >>>v3: as Andy suggested, return EINVAL in case of splitting vdso blob on mremap;
-> >>>   used is_ia32_task instead of ifdefs
-> >>>v2: added __maybe_unused for pt_regs in vdso_mremap
-> >>
-> >>Ping?
-> >
-> >There's no 0/2 boilerplate explaining the background of the changes - why do you
-> >want to mremap() the vDSO?
-> 
-> Thanks for the answer.
-> 
-> Well, one could move vdso vma before this patch, but doing fast
-> syscalls through it will not work because of code relying on
-> mm->context.vdso pointer.
-> So all this code is just fixup for that pointer on moving.
-> (Also adds preventing for splitting vdso vma).
-> As Andy notted, vDSO mremap for !i386 tasks also worked only by a chance
-> before this patch.
-> 
-> I need to move vdso vma in CRIU - on restore we need to choose it's
-> position:
-> - if vDSO blob of restoring application is the same as the kernel has,
-> we need to move it on the same place;
-> - if it differs, we need to choose place that wasn't tooken by other
-> vma of restoring application and add jump trampolines to it from the
-> place of vDSO in restoring application.
-> And CRIU code now relies on possibility on x86_64 to mremap vDSO.
-> Without this patch that may be broken in future.
-> And as I work on C/R of compatible 32-bit applications on x86_64,
-> I need this to work also for 32-bit vDSO. Which does not work,
-> because of pointer mentioned above.
+It appears the bug was introduced in
+1635f6a74152f1dcd1b888231609d64875f0a81a
 
-Ok, this looks useful - please add this information to the changelog (with typos 
-fixed).
+On Mon, May 16, 2016 at 4:59 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
 
-Thanks,
+> On 05/08/2016 03:16 PM, Anthony Romano wrote:
+>
+>> When fallocate is interrupted it will undo a range that extends one byte
+>> past its range of allocated pages. This can corrupt an in-use page by
+>> zeroing out its first byte. Instead, undo using the inclusive byte range.
+>>
+>
+> Huh, good catch. So why is shmem_undo_range() adding +1 to the value in
+> the first place? The only other caller is shmem_truncate_range() and all
+> *its* callers do subtract 1 to avoid the same issue. So a nicer fix would
+> be to remove all this +1/-1 madness. Or is there some subtle corner case
+> I'm missing?
+>
+> Signed-off-by: Anthony Romano <anthony.romano@coreos.com>
+>>
+>
+> Looks like a stable candidate patch. Can you point out the commit that
+> introduced the bug, for the Fixes: tag?
+>
+> Thanks,
+> Vlastimil
+>
+>
+> ---
+>>   mm/shmem.c | 2 +-
+>>   1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/mm/shmem.c b/mm/shmem.c
+>> index 719bd6b..f0f9405 100644
+>> --- a/mm/shmem.c
+>> +++ b/mm/shmem.c
+>> @@ -2238,7 +2238,7 @@ static long shmem_fallocate(struct file *file, int
+>> mode, loff_t offset,
+>>                         /* Remove the !PageUptodate pages we added */
+>>                         shmem_undo_range(inode,
+>>                                 (loff_t)start << PAGE_SHIFT,
+>> -                               (loff_t)index << PAGE_SHIFT, true);
+>> +                               ((loff_t)index << PAGE_SHIFT) - 1, true);
+>>                         goto undone;
+>>                 }
+>>
+>>
+>>
+>
 
-	Ingo
+--001a1147145c5d5b000532f5faa4
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">The code for shmem_undo_range is very similar to truncate_=
+inode_pages_range so I assume that&#39;s why it&#39;s using an inclusive ra=
+nge.<br><br>It appears the bug was introduced in 1635f6a74152f1dcd1b8882316=
+09d64875f0a81a<br></div><div class=3D"gmail_extra"><br><div class=3D"gmail_=
+quote">On Mon, May 16, 2016 at 4:59 AM, Vlastimil Babka <span dir=3D"ltr">&=
+lt;<a href=3D"mailto:vbabka@suse.cz" target=3D"_blank">vbabka@suse.cz</a>&g=
+t;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0=
+ .8ex;border-left:1px #ccc solid;padding-left:1ex"><span class=3D"">On 05/0=
+8/2016 03:16 PM, Anthony Romano wrote:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+When fallocate is interrupted it will undo a range that extends one byte<br=
+>
+past its range of allocated pages. This can corrupt an in-use page by<br>
+zeroing out its first byte. Instead, undo using the inclusive byte range.<b=
+r>
+</blockquote>
+<br></span>
+Huh, good catch. So why is shmem_undo_range() adding +1 to the value in the=
+ first place? The only other caller is shmem_truncate_range() and all *its*=
+ callers do subtract 1 to avoid the same issue. So a nicer fix would be to =
+remove all this +1/-1 madness. Or is there some subtle corner case I&#39;m =
+missing?<br>
+<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+Signed-off-by: Anthony Romano &lt;<a href=3D"mailto:anthony.romano@coreos.c=
+om" target=3D"_blank">anthony.romano@coreos.com</a>&gt;<br>
+</blockquote>
+<br>
+Looks like a stable candidate patch. Can you point out the commit that intr=
+oduced the bug, for the Fixes: tag?<br>
+<br>
+Thanks,<br>
+Vlastimil<div class=3D"HOEnZb"><div class=3D"h5"><br>
+<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+---<br>
+=C2=A0 mm/shmem.c | 2 +-<br>
+=C2=A0 1 file changed, 1 insertion(+), 1 deletion(-)<br>
+<br>
+diff --git a/mm/shmem.c b/mm/shmem.c<br>
+index 719bd6b..f0f9405 100644<br>
+--- a/mm/shmem.c<br>
++++ b/mm/shmem.c<br>
+@@ -2238,7 +2238,7 @@ static long shmem_fallocate(struct file *file, int mo=
+de, loff_t offset,<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 /* Remove the !PageUptodate pages we added */<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 shmem_undo_range(inode,<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 (loff_t)start &lt;&lt; PAGE_SHIFT,<b=
+r>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0(loff_t)index &lt;&lt; PAGE_SHIFT, tr=
+ue);<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0((loff_t)index &lt;&lt; PAGE_SHIFT) -=
+ 1, true);<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 goto undone;<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
+<br>
+<br>
+</blockquote>
+<br>
+</div></div></blockquote></div><br></div>
+
+--001a1147145c5d5b000532f5faa4--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
