@@ -1,57 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DBBE6B007E
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 12:20:43 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id v81so406477149ywa.1
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 09:20:43 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b81si9230348qkc.242.2016.05.16.09.20.42
+Received: from mail-ig0-f198.google.com (mail-ig0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 889606B007E
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 12:24:46 -0400 (EDT)
+Received: by mail-ig0-f198.google.com with SMTP id sq19so185324816igc.0
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 09:24:46 -0700 (PDT)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-eopbgr00119.outbound.protection.outlook.com. [40.107.0.119])
+        by mx.google.com with ESMTPS id e12si1670491otd.48.2016.05.16.09.24.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 May 2016 09:20:42 -0700 (PDT)
-Date: Mon, 16 May 2016 18:20:39 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 1/1] userfaultfd: don't pin the user memory in
- userfaultfd_file_create()
-Message-ID: <20160516162039.GA19459@redhat.com>
-References: <20160516152522.GA19120@redhat.com>
- <20160516152546.GA19129@redhat.com>
- <20160516155729.GH550@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 16 May 2016 09:24:45 -0700 (PDT)
+Subject: Re: [PATCHv8 resend 1/2] x86/vdso: add mremap hook to
+ vm_special_mapping
+References: <1462886951-23376-1-git-send-email-dsafonov@virtuozzo.com>
+ <79f9fe67-a343-43b8-0933-a79461900c1b@virtuozzo.com>
+ <20160516105429.GA20440@gmail.com>
+ <d7ae8fe4-2177-8dc0-6087-bb64d74907f9@virtuozzo.com>
+ <20160516135522.GB14452@gmail.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <1432af28-6be2-6d7f-2e21-a7da0c2dfe57@virtuozzo.com>
+Date: Mon, 16 May 2016 19:23:29 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160516155729.GH550@redhat.com>
+In-Reply-To: <20160516135522.GB14452@gmail.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, mingo@redhat.com, luto@amacapital.net, tglx@linutronix.de, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com
 
-On 05/16, Andrea Arcangeli wrote:
+On 05/16/2016 04:55 PM, Ingo Molnar wrote:
 >
-> Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-
-Thanks,
-
-> > +static inline bool userfaultfd_get_mm(struct userfaultfd_ctx *ctx)
-> > +{
-> > +	return atomic_inc_not_zero(&ctx->mm->mm_users);
-> > +}
 >
-> Nice cleanup, but wouldn't it be more generic to implement this as
-> mmget(&ctx->mm) (or maybe mmget_not_zero) in include/linux/mm.h
-> instead of userfaultfd.c, so then others can use it too, see:
+> Ok, this looks useful - please add this information to the changelog (with typos
+> fixed).
 
-Yes, agreed. userfaultfd_get_mm() doesn't look as good as I initially thought.
-
-So I guess it would be better to make V2 right now, to avoid another change in
-userfaultfd.c which changes the same code.
-
-Except I think mmget_not_zero() should go to linux/sched.h, until we move
-mmdrop/mmput/etc to linux/mm.h.
-
-I'll send V2 soon...
-
-Oleg.
+Thanks will add to v9.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
