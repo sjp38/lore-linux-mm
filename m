@@ -1,178 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 64DE86B007E
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 09:35:48 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id tb5so59703104lbb.3
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 06:35:48 -0700 (PDT)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id kv3si22425828lbc.126.2016.05.16.06.35.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 May 2016 06:35:46 -0700 (PDT)
-Received: by mail-lf0-x241.google.com with SMTP id y84so14654326lfc.3
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 06:35:46 -0700 (PDT)
-Date: Mon, 16 May 2016 16:35:43 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [Bug 117731] New: Doing mprotect for PROT_NONE and then for
- PROT_READ|PROT_WRITE reduces CPU write B/W on buffer
-Message-ID: <20160516133543.GA9540@node.shutemov.name>
-References: <bug-117731-27@https.bugzilla.kernel.org/>
- <20160506150112.9b27324b4b2b141146b0ff25@linux-foundation.org>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 98E2D6B007E
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 09:43:18 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id yl2so253582188pac.2
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 06:43:18 -0700 (PDT)
+Received: from m15-60.126.com (m15-60.126.com. [220.181.15.60])
+        by mx.google.com with ESMTP id e127si36494902pfa.13.2016.05.16.06.43.16
+        for <linux-mm@kvack.org>;
+        Mon, 16 May 2016 06:43:17 -0700 (PDT)
+Date: Mon, 16 May 2016 21:42:23 +0800 (CST)
+From: "Wang Xiaoqiang" <wang_xiaoq@126.com>
+Subject: Question About Functions "__free_pages_check" and "check_new_page"
+ in page_alloc.c
+Content-Type: multipart/alternative;
+	boundary="----=_Part_272048_1660379652.1463406143442"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160506150112.9b27324b4b2b141146b0ff25@linux-foundation.org>
+Message-ID: <7374bd2e.da35.154b9cda7d2.Coremail.wang_xiaoq@126.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, ashish0srivastava0@gmail.com
-Cc: bugzilla-daemon@bugzilla.kernel.org, Peter Feiner <pfeiner@google.com>, linux-mm@kvack.org
+To: vbabka@suse.cz, n-horiguchi@ah.jp.nec.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, May 06, 2016 at 03:01:12PM -0700, Andrew Morton wrote:
-> 
-> (switched to email.  Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
-> 
-> Great bug report, thanks.
-> 
-> I assume the breakage was caused by
-> 
-> commit 64e455079e1bd7787cc47be30b7f601ce682a5f6
-> Author:     Peter Feiner <pfeiner@google.com>
-> AuthorDate: Mon Oct 13 15:55:46 2014 -0700
-> Commit:     Linus Torvalds <torvalds@linux-foundation.org>
-> CommitDate: Tue Oct 14 02:18:28 2014 +0200
-> 
->     mm: softdirty: enable write notifications on VMAs after VM_SOFTDIRTY cleared
->     
-> 
-> Could someone (Peter, Kirill?) please take a look?
-> 
-> On Fri, 06 May 2016 13:15:19 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-> 
-> > https://bugzilla.kernel.org/show_bug.cgi?id=117731
-> > 
-> >             Bug ID: 117731
-> >            Summary: Doing mprotect for PROT_NONE and then for
-> >                     PROT_READ|PROT_WRITE reduces CPU write B/W on buffer
-> >            Product: Memory Management
-> >            Version: 2.5
-> >     Kernel Version: 3.18 and beyond
-> >           Hardware: All
-> >                 OS: Linux
-> >               Tree: Mainline
-> >             Status: NEW
-> >           Severity: high
-> >           Priority: P1
-> >          Component: Other
-> >           Assignee: akpm@linux-foundation.org
-> >           Reporter: ashish0srivastava0@gmail.com
-> >         Regression: No
-> > 
-> > Created attachment 215401
-> >   --> https://bugzilla.kernel.org/attachment.cgi?id=215401&action=edit
-> > Repro code
+------=_Part_272048_1660379652.1463406143442
+Content-Type: text/plain; charset=GBK
+Content-Transfer-Encoding: base64
 
-The code is somewhat broken: malloc doesn't guarantee to return
-page-aligned pointer. And in my case it leads -EINVAL from mprotect().
+SGkgYWxsLAoKICAgIEkgYW0gcmVhbGx5IGNvbmZ1c2VkIGFib3V0IHRoZXNlIHR3byBmdW5jdGlv
+bnMuIFRoZSBmb2xsb3dpbmcgY29kZSBzbmlwcGV0OgoKaWYodW5saWtlbHkoYXRvbWljX3JlYWQo
+JnBhZ2UtPl9tYXBjb3VudCkgIT0gLTEpKQoJCWJhZF9yZWFzb24gPSJub256ZXJvIG1hcGNvdW50
+IjtpZih1bmxpa2VseShwYWdlLT5tYXBwaW5nICE9IE5VTEwpKQoJCWJhZF9yZWFzb24gPSJub24t
+TlVMTCBtYXBwaW5nIjtpZih1bmxpa2VseShwYWdlX3JlZl9jb3VudChwYWdlKSAhPTApKQoJCWJh
+ZF9yZWFzb24gPSJub256ZXJvIF9jb3VudCI7CiAgICAgICAgLi4uCldvdWxkbid0IHRoZSBwcmV2
+aW91cyB2YWx1ZSBvZiAiYmFkX3JlYXNvbiIgYmUgb3ZlcndyaXR0ZW4gYnkgCnRoZSBsYXRlcj8g
+SG9wZSB0byByZWNlaXZlIGZyb20geW91LgoKLS0KCnRoeCEKV2FuZyBYaWFvcWlhbmc=
+------=_Part_272048_1660379652.1463406143442
+Content-Type: text/html; charset=GBK
+Content-Transfer-Encoding: base64
 
-Do you have a custom malloc()?
-
-> > This is a regression that is present in kernel 3.18 and beyond and not in
-> > previous ones.
-> > Attached is a simple repro case. It measures the time taken to write and then
-> > read all pages in a buffer, then it does mprotect for PROT_NONE and then
-> > mprotect for PROT_READ|PROT_WRITE, then it again measures time taken to write
-> > and then read all pages in a buffer. The 2nd time taken is much larger (20 to
-> > 30 times) than the first one.
-> > 
-> > I have looked at the code in the kernel tree that is causing this and it is
-> > because writes are causing faults, as pte_mkwrite is not being done during
-> > mprotect_fixup for PROT_READ|PROT_WRITE.
-> > 
-> > This is the code inside mprotect_fixup in a tree v3.16.35 or older:
-> >     /*
-> >      * vm_flags and vm_page_prot are protected by the mmap_sem
-> >      * held in write mode.
-> >      */
-> >     vma->vm_flags = newflags;
-> >     vma->vm_page_prot = pgprot_modify(vma->vm_page_prot,
-> >                       vm_get_page_prot(newflags));
-> > 
-> >     if (vma_wants_writenotify(vma)) {
-> >         vma->vm_page_prot = vm_get_page_prot(newflags & ~VM_SHARED);
-> >         dirty_accountable = 1;
-> >     }
-> > This is the code in the same region inside mprotect_fixup in a recent tree:
-> >     /*
-> >      * vm_flags and vm_page_prot are protected by the mmap_sem
-> >      * held in write mode.
-> >      */
-> >     vma->vm_flags = newflags;
-> >     dirty_accountable = vma_wants_writenotify(vma);
-> >     vma_set_page_prot(vma);
-> > 
-> > The difference is the setting of dirty_accountable. result of
-> > vma_wants_writenotify does not depend on vma->vm_flags alone but also depends
-> > on vma->vm_page_prot and following code will make it return 0 because in newer
-> > code we are setting dirty_accountable before setting vma->vm_page_prot.
-> >     /* The open routine did something to the protections that pgprot_modify
-> >      * won't preserve? */
-> >     if (pgprot_val(vma->vm_page_prot) !=
-> >         pgprot_val(vm_pgprot_modify(vma->vm_page_prot, vm_flags)))
-> >         return 0;
-
-The test-case will never hit this, as normal malloc() returns anonymous
-memory, which is handled by the first check in vma_wants_writenotify().
-
-The only case when the case can change anything for you is if your
-malloc() return file-backed memory. Which is possible, I guess, with
-custom malloc().
-
-> > Now, suppose we change code by calling vma_set_page_prot before setting
-> > dirty_accountable:
-> >     vma->vm_flags = newflags;
-> >     vma_set_page_prot(vma);
-> >     dirty_accountable = vma_wants_writenotify(vma);
-> > Still, dirty_accountable will be 0. This is because following code in
-> > vma_set_page_prot modifies vma->vm_page_prot without modifying vma->vm_flags:
-> >     if (vma_wants_writenotify(vma)) {
-> >         vm_flags &= ~VM_SHARED;
-> >         vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot,
-> >                              vm_flags);
-> >     }
-> > so this check in vma_wants_writenotify will again return 0: 
-> >     /* The open routine did something to the protections that pgprot_modify
-> >      * won't preserve? */
-> >     if (pgprot_val(vma->vm_page_prot) !=
-> >         pgprot_val(vm_pgprot_modify(vma->vm_page_prot, vm_flags)))
-> >         return 0;
-> > So dirty_accountable is still 0.
-> > 
-> > This code in change_pte_range decides whether to call pte_mkwrite or not:
-> >             /* Avoid taking write faults for known dirty pages */
-> >             if (dirty_accountable && pte_dirty(ptent) &&
-> >                     (pte_soft_dirty(ptent) ||
-> >                      !(vma->vm_flags & VM_SOFTDIRTY))) {
-> >                 ptent = pte_mkwrite(ptent);
-> >             }
-> > If dirty_accountable is 0 even though the pte was dirty already, pte_mkwrite
-> > will not be done.
-> > 
-> > I think the correct solution should be that dirty_accountable be set with the
-> > value of vma_wants_writenotify queried before vma->vm_page_prot is set with
-> > VM_SHARED removed from flags. One way to do so could be to have
-> > vma_set_page_prot return the value of dirty_accountable that it can set right
-> > after vma_wants_writenotify check. Another way could be to do
-> >     vma->vm_page_prot = pgprot_modify(vma->vm_page_prot,
-> >                       vm_get_page_prot(newflags));
-> > and then set dirty_accountable based on vma_wants_writenotify and then call
-> > vma_set_page_prot.
-
-Looks like a good catch, but I'm not sure if it's the root cause of your
-problem.
-
--- 
- Kirill A. Shutemov
+PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
+Zm9udC1mYW1pbHk6QXJpYWwiPkhpIDxzcGFuIGNsYXNzPSJsaWJyYXZhdGFyIj48L3NwYW4+YWxs
+LCA8YnI+PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXpl
+OjE0cHg7Zm9udC1mYW1pbHk6QXJpYWwiPiZuYnNwOyZuYnNwOyZuYnNwOyBJIGFtIHJlYWxseSBj
+b25mdXNlZCBhYm91dCB0aGVzZSB0d28gZnVuY3Rpb25zLiBUaGUgZm9sbG93aW5nIGNvZGUgc25p
+cHBldDo8YnI+PHByZT48Y29kZT4JPHNwYW4gY2xhc3M9ImhsIGt3YSI+aWY8L3NwYW4+IDxzcGFu
+IGNsYXNzPSJobCBvcHQiPig8L3NwYW4+PHNwYW4gY2xhc3M9ImhsIGt3ZCI+dW5saWtlbHk8L3Nw
+YW4+PHNwYW4gY2xhc3M9ImhsIG9wdCI+KDwvc3Bhbj48c3BhbiBjbGFzcz0iaGwga3dkIj5hdG9t
+aWNfcmVhZDwvc3Bhbj48c3BhbiBjbGFzcz0iaGwgb3B0Ij4oJmFtcDs8L3NwYW4+cGFnZTxzcGFu
+IGNsYXNzPSJobCBvcHQiPi0mZ3Q7PC9zcGFuPl9tYXBjb3VudDxzcGFuIGNsYXNzPSJobCBvcHQi
+PikgIT0gLTwvc3Bhbj48c3BhbiBjbGFzcz0iaGwgbnVtIj4xPC9zcGFuPjxzcGFuIGNsYXNzPSJo
+bCBvcHQiPikpPC9zcGFuPgoJCWJhZF9yZWFzb24gPHNwYW4gY2xhc3M9ImhsIG9wdCI+PTwvc3Bh
+bj4gPHNwYW4gY2xhc3M9ImhsIHN0ciI+Im5vbnplcm8gbWFwY291bnQiPC9zcGFuPjxzcGFuIGNs
+YXNzPSJobCBvcHQiPjs8L3NwYW4+Cgk8c3BhbiBjbGFzcz0iaGwga3dhIj5pZjwvc3Bhbj4gPHNw
+YW4gY2xhc3M9ImhsIG9wdCI+KDwvc3Bhbj48c3BhbiBjbGFzcz0iaGwga3dkIj51bmxpa2VseTwv
+c3Bhbj48c3BhbiBjbGFzcz0iaGwgb3B0Ij4oPC9zcGFuPnBhZ2U8c3BhbiBjbGFzcz0iaGwgb3B0
+Ij4tJmd0Ozwvc3Bhbj5tYXBwaW5nIDxzcGFuIGNsYXNzPSJobCBvcHQiPiE9PC9zcGFuPiBOVUxM
+PHNwYW4gY2xhc3M9ImhsIG9wdCI+KSk8L3NwYW4+CgkJYmFkX3JlYXNvbiA8c3BhbiBjbGFzcz0i
+aGwgb3B0Ij49PC9zcGFuPiA8c3BhbiBjbGFzcz0iaGwgc3RyIj4ibm9uLU5VTEwgbWFwcGluZyI8
+L3NwYW4+PHNwYW4gY2xhc3M9ImhsIG9wdCI+Ozwvc3Bhbj4KCTxzcGFuIGNsYXNzPSJobCBrd2Ei
+PmlmPC9zcGFuPiA8c3BhbiBjbGFzcz0iaGwgb3B0Ij4oPC9zcGFuPjxzcGFuIGNsYXNzPSJobCBr
+d2QiPnVubGlrZWx5PC9zcGFuPjxzcGFuIGNsYXNzPSJobCBvcHQiPig8L3NwYW4+PHNwYW4gY2xh
+c3M9ImhsIGt3ZCI+cGFnZV9yZWZfY291bnQ8L3NwYW4+PHNwYW4gY2xhc3M9ImhsIG9wdCI+KDwv
+c3Bhbj5wYWdlPHNwYW4gY2xhc3M9ImhsIG9wdCI+KSAhPTwvc3Bhbj4gPHNwYW4gY2xhc3M9Imhs
+IG51bSI+MDwvc3Bhbj48c3BhbiBjbGFzcz0iaGwgb3B0Ij4pKTwvc3Bhbj4KCQliYWRfcmVhc29u
+IDxzcGFuIGNsYXNzPSJobCBvcHQiPj08L3NwYW4+IDxzcGFuIGNsYXNzPSJobCBzdHIiPiJub256
+ZXJvIF9jb3VudCI8L3NwYW4+PHNwYW4gY2xhc3M9ImhsIG9wdCI+Ozxicj4gICAgICAgIC4uLjxi
+cj5Xb3VsZG4ndCB0aGUgcHJldmlvdXMgdmFsdWUgb2YgImJhZF9yZWFzb24iIGJlIG92ZXJ3cml0
+dGVuIGJ5IDxicj50aGUgbGF0ZXI/IEhvcGUgdG8gcmVjZWl2ZSBmcm9tIHlvdS48YnI+PC9zcGFu
+PjwvY29kZT48L3ByZT48ZGl2IHN0eWxlPSJwb3NpdGlvbjpyZWxhdGl2ZTt6b29tOjEiPi0tPGJy
+PjxkaXY+dGh4ITwvZGl2PjxkaXY+V2FuZyBYaWFvcWlhbmc8L2Rpdj48ZGl2IHN0eWxlPSJjbGVh
+cjpib3RoIj48L2Rpdj48L2Rpdj48L2Rpdj48L2Rpdj48YnI+PGJyPjxzcGFuIHRpdGxlPSJuZXRl
+YXNlZm9vdGVyIj48cD4mbmJzcDs8L3A+PC9zcGFuPg==
+------=_Part_272048_1660379652.1463406143442--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
