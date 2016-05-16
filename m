@@ -1,65 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BF4D46B025E
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 07:59:12 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id e201so41738573wme.1
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 04:59:12 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m8si38243664wjh.93.2016.05.16.04.59.11
+	by kanga.kvack.org (Postfix) with ESMTP id 0E3FA6B007E
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 08:30:56 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e201so42250936wme.1
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 05:30:56 -0700 (PDT)
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com. [74.125.82.44])
+        by mx.google.com with ESMTPS id k62si19841997wmf.79.2016.05.16.05.30.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 May 2016 04:59:11 -0700 (PDT)
-Subject: Re: [PATCH] tmpfs: don't undo fallocate past its last page
-References: <1462713387-16724-1-git-send-email-anthony.romano@coreos.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5739B60E.1090700@suse.cz>
-Date: Mon, 16 May 2016 13:59:10 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 May 2016 05:30:54 -0700 (PDT)
+Received: by mail-wm0-f44.google.com with SMTP id g17so133520914wme.1
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 05:30:54 -0700 (PDT)
+Date: Mon, 16 May 2016 14:30:53 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 13/13] mm, compaction: fix and improve watermark handling
+Message-ID: <20160516123053.GI23146@dhcp22.suse.cz>
+References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
+ <1462865763-22084-14-git-send-email-vbabka@suse.cz>
+ <20160516092505.GE23146@dhcp22.suse.cz>
+ <573997DE.6010109@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1462713387-16724-1-git-send-email-anthony.romano@coreos.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <573997DE.6010109@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anthony Romano <anthony.romano@coreos.com>, hughd@google.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 05/08/2016 03:16 PM, Anthony Romano wrote:
-> When fallocate is interrupted it will undo a range that extends one byte
-> past its range of allocated pages. This can corrupt an in-use page by
-> zeroing out its first byte. Instead, undo using the inclusive byte range.
+On Mon 16-05-16 11:50:22, Vlastimil Babka wrote:
+> On 05/16/2016 11:25 AM, Michal Hocko wrote:
+> > On Tue 10-05-16 09:36:03, Vlastimil Babka wrote:
+> > > Compaction has been using watermark checks when deciding whether it was
+> > > successful, and whether compaction is at all suitable. There are few problems
+> > > with these checks.
+> > > 
+> > > - __compact_finished() uses low watermark in a check that has to pass if
+> > >    the direct compaction is to finish and allocation should succeed. This is
+> > >    too pessimistic, as the allocation will typically use min watermark. It
+> > >    may happen that during compaction, we drop below the low watermark (due to
+> > >    parallel activity), but still form the target high-order page. By checking
+> > >    against low watermark, we might needlessly continue compaction. After this
+> > >    patch, the check uses direct compactor's alloc_flags to determine the
+> > >    watermark, which is effectively the min watermark.
+> > 
+> > OK, this makes some sense. It would be great if we could have at least
+> > some clarification why the low wmark has been used previously. Probably
+> > Mel can remember?
+> > 
+> > > - __compaction_suitable has the same issue in the check whether the allocation
+> > >    is already supposed to succeed and we don't need to compact. Fix it the same
+> > >    way.
+> > > 
+> > > - __compaction_suitable() then checks the low watermark plus a (2 << order) gap
+> > >    to decide if there's enough free memory to perform compaction. This check
+> > 
+> > And this was a real head scratcher when I started looking into the
+> > compaction recently. Why do we need to be above low watermark to even
+> > start compaction.
+> 
+> Hmm, above you said you're fine with low wmark (maybe after clarification).
+> I don't know why it was used, can only guess.
 
-Huh, good catch. So why is shmem_undo_range() adding +1 to the value in 
-the first place? The only other caller is shmem_truncate_range() and all 
-*its* callers do subtract 1 to avoid the same issue. So a nicer fix 
-would be to remove all this +1/-1 madness. Or is there some subtle 
-corner case I'm missing?
+Yes I can imagine this would be a good backoff for costly orders without
+__GFP_REPEAT.
 
-> Signed-off-by: Anthony Romano <anthony.romano@coreos.com>
+> > Compaction uses additional memory only for a short
+> > period of time and then releases the already migrated pages.
+> 
+> As for the 2 << order gap. I can imagine that e.g. order-5 compaction (32
+> pages) isolates 20 pages for migration and starts looking for free pages. It
+> collects 19 free pages and then reaches an order-4 free page. Splitting that
+> page to collect it would result in 19+16=35 pages isolated, thus exceed the
+> 1 << order gap, and fail. With 2 << order gap, chances of this happening are
+> reduced.
 
-Looks like a stable candidate patch. Can you point out the commit that 
-introduced the bug, for the Fixes: tag?
+OK, fair enough but that sounds like a case which is not worth optimize
+and introduce a subtle code for.
 
-Thanks,
-Vlastimil
+[...]
 
-> ---
->   mm/shmem.c | 2 +-
->   1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 719bd6b..f0f9405 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -2238,7 +2238,7 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
->   			/* Remove the !PageUptodate pages we added */
->   			shmem_undo_range(inode,
->   				(loff_t)start << PAGE_SHIFT,
-> -				(loff_t)index << PAGE_SHIFT, true);
-> +				((loff_t)index << PAGE_SHIFT) - 1, true);
->   			goto undone;
->   		}
->
->
+> > > - __isolate_free_page uses low watermark check to decide if free page can be
+> > >    isolated. It also doesn't use ALLOC_CMA, so add it for the same reasons.
+> > 
+> > Why do we check the watermark at all? What would happen if this obscure
+> > if (!is_migrate_isolate(mt)) was gone? I remember I put some tracing
+> > there and it never hit for me even when I was testing close to OOM
+> > conditions. Maybe an earlier check bailed out but this code path looks
+> > really obscure so it should either deserve a large fat comment or to
+> > die.
+> 
+> The check is there so that compaction doesn't exhaust memory below reserves
+> during its work, just like any other non-privileged allocation.
+
+Hmm. OK this is a fair point. I would expect that the reclaim preceeding
+the compaction would compensate for the temporarily used memory but it
+is true that a) we might be in the optimistic async compaction which
+happens _before_ the reclaim and b) the reclaim might be not effective
+enough so some throttling is indeed appropriate.
+
+I guess you do not want to rely on throttling only at the beginning of
+the compaction because it would be too racy, which would be true. So I
+guess it would be indeed safer to check for the watermark both when we
+attempt to compact and when we isolate free pages. Can we at least use a
+common helper so that we know that those checks are done same way?
+ 
+ Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
