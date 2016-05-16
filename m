@@ -1,71 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DCB49828E1
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 03:05:34 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id gw7so242703004pac.0
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 00:05:34 -0700 (PDT)
-Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
-        by mx.google.com with ESMTPS id zu17si43999776pab.174.2016.05.16.00.05.33
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F37B828E1
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 03:10:46 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id f14so54834110lbb.2
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 00:10:46 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ri9si16947570wjb.209.2016.05.16.00.10.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 May 2016 00:05:33 -0700 (PDT)
-Received: by mail-pa0-x242.google.com with SMTP id zy2so16187048pac.2
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 00:05:33 -0700 (PDT)
-Date: Mon, 16 May 2016 16:04:55 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v5 02/12] mm: migrate: support non-lru movable page
- migration
-Message-ID: <20160516070455.GA28813@swordfish>
-References: <1462760433-32357-1-git-send-email-minchan@kernel.org>
- <1462760433-32357-3-git-send-email-minchan@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 16 May 2016 00:10:45 -0700 (PDT)
+Subject: Re: [RFC 08/13] mm, compaction: simplify contended compaction
+ handling
+References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
+ <1462865763-22084-9-git-send-email-vbabka@suse.cz>
+ <20160513130950.GN20141@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <57397271.50504@suse.cz>
+Date: Mon, 16 May 2016 09:10:41 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1462760433-32357-3-git-send-email-minchan@kernel.org>
+In-Reply-To: <20160513130950.GN20141@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rafael Aquini <aquini@redhat.com>, virtualization@lists.linux-foundation.org, Jonathan Corbet <corbet@lwn.net>, John Einar Reitan <john.reitan@foss.arm.com>, dri-devel@lists.freedesktop.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Gioh Kim <gi-oh.kim@profitbricks.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On (05/09/16 11:20), Minchan Kim wrote:
-> +++ b/include/linux/migrate.h
-> @@ -32,11 +32,16 @@ extern char *migrate_reason_names[MR_TYPES];
->  
->  #ifdef CONFIG_MIGRATION
->  
-> +extern int PageMovable(struct page *page);
-> +extern void __SetPageMovable(struct page *page, struct address_space *mapping);
-> +extern void __ClearPageMovable(struct page *page);
->  extern void putback_movable_pages(struct list_head *l);
->  extern int migrate_page(struct address_space *,
->  			struct page *, struct page *, enum migrate_mode);
->  extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
->  		unsigned long private, enum migrate_mode mode, int reason);
-> +extern bool isolate_movable_page(struct page *page, isolate_mode_t mode);
-> +extern void putback_movable_page(struct page *page);
->  
->  extern int migrate_prep(void);
->  extern int migrate_prep_local(void);
+On 05/13/2016 03:09 PM, Michal Hocko wrote:
+>> >@@ -1564,14 +1564,11 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+>> >  	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
+>> >  				cc->free_pfn, end_pfn, sync, ret);
+>> >
+>> >-	if (ret == COMPACT_CONTENDED)
+>> >-		ret = COMPACT_PARTIAL;
+>> >-
+>> >  	return ret;
+>> >  }
+> This took me a while to grasp but then I realized this is correct
+> because we shouldn't pretend progress when there was none in fact,
+> especially when __alloc_pages_direct_compact basically replaced this
+> "fake" COMPACT_PARTIAL by COMPACT_CONTENDED anyway.
 
-__ClearPageMovable() is under CONFIG_MIGRATION in include/linux/migrate.h,
-but zsmalloc checks for CONFIG_COMPACTION.
-
-can we have stub declarations of movable functions for !CONFIG_MIGRATION builds?
-otherwise the users (zsmalloc, for example) have to do things like
-
-static void reset_page(struct page *page)
-{
-#ifdef CONFIG_COMPACTION
-        __ClearPageMovable(page);
-#endif
-        clear_bit(PG_private, &page->flags);
-        clear_bit(PG_private_2, &page->flags);
-        set_page_private(page, 0);
-        ClearPageHugeObject(page);
-        page->freelist = NULL;
-}
-
-	-ss
+Yes. Actually COMPACT_CONTENDED compact_result used to be just for the 
+tracepoint, and __alloc_pages_direct_compact used another function 
+parameter to signal contention. You changed it with the oom rework so 
+COMPACT_CONTENDED result value was used, so this hunk just makes sure 
+it's still reported correctly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
