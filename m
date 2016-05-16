@@ -1,91 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 333C96B0260
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 07:45:31 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id e201so41557317wme.1
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 04:45:31 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id m68si19622043wma.60.2016.05.16.04.45.29
+	by kanga.kvack.org (Postfix) with ESMTP id BF4D46B025E
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 07:59:12 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e201so41738573wme.1
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 04:59:12 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m8si38243664wjh.93.2016.05.16.04.59.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 May 2016 04:45:29 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id w143so17366968wmw.3
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 04:45:29 -0700 (PDT)
-Date: Mon, 16 May 2016 13:45:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] writeback: Avoid exhausting allocation reserves under
- memory pressure
-Message-ID: <20160516114528.GH23146@dhcp22.suse.cz>
-References: <1462436092-32665-1-git-send-email-jack@suse.cz>
- <20160505082433.GC4386@dhcp22.suse.cz>
- <20160505090750.GD1970@quack2.suse.cz>
- <20160505143751.06aa4223e266c1d92b3323a2@linux-foundation.org>
- <20160512160829.GA30647@quack2.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 16 May 2016 04:59:11 -0700 (PDT)
+Subject: Re: [PATCH] tmpfs: don't undo fallocate past its last page
+References: <1462713387-16724-1-git-send-email-anthony.romano@coreos.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5739B60E.1090700@suse.cz>
+Date: Mon, 16 May 2016 13:59:10 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160512160829.GA30647@quack2.suse.cz>
+In-Reply-To: <1462713387-16724-1-git-send-email-anthony.romano@coreos.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, tj@kernel.org
+To: Anthony Romano <anthony.romano@coreos.com>, hughd@google.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 12-05-16 18:08:29, Jan Kara wrote:
-> On Thu 05-05-16 14:37:51, Andrew Morton wrote:
-[...]
-> > bdi_split_work_to_wbs() does GFP_ATOMIC as well.  Problem?  (Why the
-> > heck don't we document the *reasons* for these things, sigh).
-> 
-> Heh, there are much more GFP_ATOMIC allocations in fs/fs-writeback.c after
-> Tejun's memcg aware writeback... I believe they are GFP_ATOMIC mostly
-> because they can already be called from direct reclaim (e.g. when
-> requesting pages to be written through wakeup_flusher_threads()) and so we
-> don't want to recurse into direct reclaim code again.
+On 05/08/2016 03:16 PM, Anthony Romano wrote:
+> When fallocate is interrupted it will undo a range that extends one byte
+> past its range of allocated pages. This can corrupt an in-use page by
+> zeroing out its first byte. Instead, undo using the inclusive byte range.
 
-If that is the case then __GFP_DIRECT_RECLAIM should be cleared rather
-than GFP_ATOMIC abused.
+Huh, good catch. So why is shmem_undo_range() adding +1 to the value in 
+the first place? The only other caller is shmem_truncate_range() and all 
+*its* callers do subtract 1 to avoid the same issue. So a nicer fix 
+would be to remove all this +1/-1 madness. Or is there some subtle 
+corner case I'm missing?
 
-> > I suspect it would be best to be proactive here and use some smarter
-> > data structure.  It appears that all the wb_writeback_work fields
-> > except sb can be squeezed into a single word so perhaps a radix-tree. 
-> > Or hash them all together and use a chained array or something.  Maybe
-> > fiddle at it for an hour or so, see how it's looking?  It's a lot of
-> > fuss to avoid one problematic kmalloc(), sigh.
-> > 
-> > We really don't want there to be *any* pathological workload which
-> > results in merging failures - if that's the case then someone will hit
-> > it.  They'll experience the ooms (perhaps) and the search complexity
-> > issues (for sure).
-> 
-> So the question is what is the desired outcome. After Tetsuo's patch
-> "mm,writeback: Don't use memory reserves for wb_start_writeback" we will
-> use GFP_NOWAIT | __GFP_NOMEMALLOC | __GFP_NOWARN instead of GFP_ATOMIC in
-> wb_start_writeback(). We can treat other places using GFP_ATOMIC in a
-> similar way. So my thought was that this is enough to avoid exhaustion of
-> reserves for writeback work items under memory pressure. And the merging of
-> writeback works I proposed was more like an optimization to avoid
-> unnecessary allocations. And in that case we can allow imperfection and
-> possibly large lists of queued works in pathological cases - I agree we
-> should not DoS the system by going through large linked lists in any case but
-> that is easily avoided if we are fine with the fact that merging won't happen
-> always when it could.
+> Signed-off-by: Anthony Romano <anthony.romano@coreos.com>
 
-Yes I think this is acceptable.
+Looks like a stable candidate patch. Can you point out the commit that 
+introduced the bug, for the Fixes: tag?
 
-> The question which is not clear to me is: Do we want to guard against
-> malicious attacker that may be consuming memory through writeback works
-> that are allocated via GFP_NOWAIT | __GFP_NOMEMALLOC | __GFP_NOWARN? 
-> If yes, then my patch needs further thought. Any opinions?
+Thanks,
+Vlastimil
 
-GFP_NOWAIT still kicks the kswapd so there is some reclaim activity
-on the background. Sure if we can reduce the number of those requests
-it would be better because we are losing natural throttling without
-the direct reclaim. But I am not sure I can see how this would cause a
-a major problem (slow down everybody - quite possible - but not DoS
-AFAICS).
--- 
-Michal Hocko
-SUSE Labs
+> ---
+>   mm/shmem.c | 2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 719bd6b..f0f9405 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -2238,7 +2238,7 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
+>   			/* Remove the !PageUptodate pages we added */
+>   			shmem_undo_range(inode,
+>   				(loff_t)start << PAGE_SHIFT,
+> -				(loff_t)index << PAGE_SHIFT, true);
+> +				((loff_t)index << PAGE_SHIFT) - 1, true);
+>   			goto undone;
+>   		}
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
