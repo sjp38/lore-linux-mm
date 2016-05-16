@@ -1,56 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 16B846B007E
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 05:52:39 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id y84so97169189lfc.3
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 02:52:39 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id t83si19148034wmf.28.2016.05.16.02.52.37
+	by kanga.kvack.org (Postfix) with ESMTP id B2E086B025E
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 05:57:22 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id m64so96370373lfd.1
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 02:57:22 -0700 (PDT)
+Received: from mail-wm0-f48.google.com (mail-wm0-f48.google.com. [74.125.82.48])
+        by mx.google.com with ESMTPS id n190si19116851wmg.90.2016.05.16.02.57.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 May 2016 02:52:37 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id w143so16758176wmw.3
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 02:52:37 -0700 (PDT)
-Date: Mon, 16 May 2016 11:52:36 +0200
+        Mon, 16 May 2016 02:57:21 -0700 (PDT)
+Received: by mail-wm0-f48.google.com with SMTP id n129so94441282wmn.1
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 02:57:21 -0700 (PDT)
+Date: Mon, 16 May 2016 11:57:20 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 12/13] mm, compaction: more reliably increase direct
- compaction priority
-Message-ID: <20160516095236.GF23146@dhcp22.suse.cz>
-References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
- <1462865763-22084-13-git-send-email-vbabka@suse.cz>
- <20160513141539.GR20141@dhcp22.suse.cz>
- <57397760.4060407@suse.cz>
- <20160516081439.GD23146@dhcp22.suse.cz>
- <5739929C.5000500@suse.cz>
+Subject: Re: why the count nr_file_pages is not equal to nr_inactive_file +
+ nr_active_file ?
+Message-ID: <20160516095720.GB23251@dhcp22.suse.cz>
+References: <573550D8.9030507@huawei.com>
+ <dce01643-7aa9-e779-e4ac-b74439f5074d@intel.com>
+ <573582DE.3030302@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5739929C.5000500@suse.cz>
+In-Reply-To: <573582DE.3030302@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Aaron Lu <aaron.lu@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 16-05-16 11:27:56, Vlastimil Babka wrote:
-> On 05/16/2016 10:14 AM, Michal Hocko wrote:
-> > On Mon 16-05-16 09:31:44, Vlastimil Babka wrote:
-[...]
-> > > Also my understanding of the initial compaction priorities is to lower the
-> > > latency if fragmentation is just light and there's enough memory. Once we
-> > > start struggling, I don't see much point in not switching to the full
-> > > compaction priority quickly.
-> > 
-> > That is true but why to compact when there are high order pages and they
-> > are just hidden by the watermark check.
+[Sorry I haven't noticed this answer before]
+
+On Fri 13-05-16 15:31:42, Xishi Qiu wrote:
+> On 2016/5/13 15:00, Aaron Lu wrote:
 > 
-> Compaction should skip such zone regardless of priority.
+> Hi Aaron,
+> 
+> Thanks for your reply, but I find the count of nr_shmem is very small
+> in my system.
 
-The point I've tried to raise is that we shouldn't conflate the purpose
-of the two. The reclaim is here primarily to get us over the watermarks
-while compaction is here to form high order pages. If we get both
-together the distinction is blured which, I believe, will lead to more
-complicated code in the end. I might be wrong here of course but let's
-try to have compaction as much wmark check free as possible.
+which kernel version is this? I remember that we used to account thp
+pages as NR_FILE_PAGE as well in the past.
+
+I didn't get to look at your number more closely though.
 -- 
 Michal Hocko
 SUSE Labs
