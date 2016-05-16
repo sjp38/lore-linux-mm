@@ -1,29 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D154D6B007E
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 15:17:59 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id b203so372832594pfb.1
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 12:17:59 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C8D0B6B007E
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 15:35:29 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b203so373598993pfb.1
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 12:35:29 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id e5si746442paf.167.2016.05.16.12.17.58
+        by mx.google.com with ESMTP id gh4si798452pac.8.2016.05.16.12.35.28
         for <linux-mm@kvack.org>;
-        Mon, 16 May 2016 12:17:58 -0700 (PDT)
-Date: Tue, 17 May 2016 03:16:13 +0800
+        Mon, 16 May 2016 12:35:28 -0700 (PDT)
+Date: Tue, 17 May 2016 03:33:55 +0800
 From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH v5 03/12] mm: balloon: use general non-lru movable page
- feature
-Message-ID: <201605170330.IfOoYTcs%fengguang.wu@intel.com>
+Subject: Re: [PATCH v5 11/12] zsmalloc: page migration support
+Message-ID: <201605170328.vwCNYZ9Q%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="Kj7319i9nmIyA2yE"
+Content-Type: multipart/mixed; boundary="huq684BweRXVnRxX"
 Content-Disposition: inline
-In-Reply-To: <1462760433-32357-4-git-send-email-minchan@kernel.org>
+In-Reply-To: <1462760433-32357-12-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, Rafael Aquini <aquini@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Gioh Kim <gi-oh.kim@profitbricks.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
 
---Kj7319i9nmIyA2yE
+--huq684BweRXVnRxX
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
@@ -42,19 +41,22 @@ reproduce:
 
 All errors (new ones prefixed by >>):
 
->> ERROR: "__ClearPageMovable" [drivers/virtio/virtio_balloon.ko] undefined!
->> ERROR: "__SetPageMovable" [drivers/virtio/virtio_balloon.ko] undefined!
+>> ERROR: "__SetPageMovable" [mm/zsmalloc.ko] undefined!
+>> ERROR: "PageMovable" [mm/zsmalloc.ko] undefined!
+>> ERROR: "__ClearPageMovable" [mm/zsmalloc.ko] undefined!
+   ERROR: "__ClearPageMovable" [drivers/virtio/virtio_balloon.ko] undefined!
+   ERROR: "__SetPageMovable" [drivers/virtio/virtio_balloon.ko] undefined!
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---Kj7319i9nmIyA2yE
+--huq684BweRXVnRxX
 Content-Type: application/octet-stream
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICBQYOlcAAy5jb25maWcAjFxLd9w2st7nV/Rx7mJm4dh6WPGce7RAk2A30gRBA2A/tOFR
+H4sICGgeOlcAAy5jb25maWcAjFxLd9w2st7nV/Rx7mJm4dh6WPGce7RAk2A30gRBA2A/tOFR
 pHaiM7KUUbcyzr+/VQDZBMCicr2RiSq8C4WvHugff/hxxl6Pz99ujw93t4+Pf81+2z/tX26P
 +/vZ14fH/f/OcjWrlJ3xXNifgLl8eHr9/uHh4vPV7PKnq58+vn+5u5qt9i9P+8dZ9vz09eG3
 V6j98Pz0w4/AnamqEIv26nIu7OzhMHt6Ps4O++MPXfn281V7cX79V/A9fIjKWN1kVqiqzXmm
@@ -531,7 +533,7 @@ tatVX5wK3//HrVMcaJbKSmt89E0+3e2Rs+TLMg8lyDIt9JRwK5uBIACh4UaptiC0FTeeMNEW
 fDddeBvW5RqX7AveuxIzyQP/F8PlWYKWI0ZIdZdbmiVWOpYE38MZRbLDvMoOIFeR6wMdRX5W
 SHWPhx0uQiotZJun3vxm7WYl+hkkrAgpMcg5T5jXKHG2hFtmrkPprNrWoP8/jJ58r1WIAQA=
 
---Kj7319i9nmIyA2yE--
+--huq684BweRXVnRxX--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
