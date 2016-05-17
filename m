@@ -1,103 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DE656B0005
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 03:05:59 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e201so5317470wme.1
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 00:05:59 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id i62si24673987wma.21.2016.05.17.00.05.57
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C22C6B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 03:43:00 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 77so16767980pfz.3
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 00:43:00 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id h8si2855035paz.143.2016.05.17.00.42.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 May 2016 00:05:57 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id w143so2170349wmw.3
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 00:05:57 -0700 (PDT)
-Date: Tue, 17 May 2016 09:05:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: unhide vmstat_text definition for CONFIG_SMP
-Message-ID: <20160517070555.GA14453@dhcp22.suse.cz>
-References: <1462978517-2972312-1-git-send-email-arnd@arndb.de>
- <20160516142332.GL23146@dhcp22.suse.cz>
- <20160516153656.2cf37a2f4af4b30cee6a7c86@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160516153656.2cf37a2f4af4b30cee6a7c86@linux-foundation.org>
+        Tue, 17 May 2016 00:42:59 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id 145so1054475pfz.1
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 00:42:59 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v1] mm: bad_page() checks bad_flags instead of page->flags for hwpoison page
+Date: Tue, 17 May 2016 16:42:55 +0900
+Message-Id: <1463470975-29972-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Mon 16-05-16 15:36:56, Andrew Morton wrote:
-> On Mon, 16 May 2016 16:23:33 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > Andrew, I think that the following is more straightforward fix and
-> > should be folded in to the patch which has introduced vmstat_refresh.
-> > ---
-> > >From b8dd18fb7df040e1bfe61aadde1d903589de15e4 Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.com>
-> > Date: Mon, 16 May 2016 16:19:53 +0200
-> > Subject: [PATCH] mmotm: mm-proc-sys-vm-stat_refresh-to-force-vmstat-update-fix
-> > 
-> > Arnd has reported:
-> > In randconfig builds with sysfs, procfs and numa all disabled,
-> > but SMP enabled, we now get a link error in the newly introduced
-> > vmstat_refresh function:
-> > 
-> > mm/built-in.o: In function `vmstat_refresh':
-> > :(.text+0x15c78): undefined reference to `vmstat_text'
-> > 
-> > vmstat_refresh is proc_fs specific so there is no reason to define it
-> > when !CONFIG_PROC_FS.
-> 
-> I already had this:
-> 
-> From: Christoph Lameter <cl@linux.com>
-> Subject: Do not build vmstat_refresh if there is no procfs support
-> 
-> It makes no sense to build functionality into the kernel that
-> cannot be used and causes build issues.
-> 
-> Link: http://lkml.kernel.org/r/alpine.DEB.2.20.1605111011260.9351@east.gentwo.org
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> Reported-by: Arnd Bergmann <arnd@arndb.de>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+There's a race window between checking page->flags and unpoisoning, which
+taints kernel with "BUG: Bad page state". That's overkill. It's safer to
+use bad_flags to detect hwpoisoned page.
 
-But this is broken:
-http://lkml.kernel.org/r/20160516073144.GA23146@dhcp22.suse.cz and
-kbuild robot agrees
-http://lkml.kernel.org/r/201605171333.ANqJcwpy%fengguang.wu@intel.com
-> ---
-> 
->  mm/vmstat.c |    4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff -puN mm/vmstat.c~mm-proc-sys-vm-stat_refresh-to-force-vmstat-update-fix mm/vmstat.c
-> --- a/mm/vmstat.c~mm-proc-sys-vm-stat_refresh-to-force-vmstat-update-fix
-> +++ a/mm/vmstat.c
-> @@ -1371,7 +1371,6 @@ static const struct file_operations proc
->  	.llseek		= seq_lseek,
->  	.release	= seq_release,
->  };
-> -#endif /* CONFIG_PROC_FS */
->  
->  #ifdef CONFIG_SMP
->  static struct workqueue_struct *vmstat_wq;
-> @@ -1436,7 +1435,10 @@ int vmstat_refresh(struct ctl_table *tab
->  		*lenp = 0;
->  	return 0;
->  }
-> +#endif /* CONFIG_SMP */
-> +#endif /* CONFIG_PROC_FS */
->  
-> +#ifdef CONFIG_SMP
->  static void vmstat_update(struct work_struct *w)
->  {
->  	if (refresh_cpu_vm_stats(true)) {
-> _
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/page_alloc.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
+diff --git tmp/mm/page_alloc.c tmp_patched/mm/page_alloc.c
+index 5b269bc..4e0fa37 100644
+--- tmp/mm/page_alloc.c
++++ tmp_patched/mm/page_alloc.c
+@@ -522,8 +522,8 @@ static void bad_page(struct page *page, const char *reason,
+ 	static unsigned long nr_shown;
+ 	static unsigned long nr_unshown;
+ 
+-	/* Don't complain about poisoned pages */
+-	if (PageHWPoison(page)) {
++	/* Don't complain about hwpoisoned pages */
++	if (bad_flags == __PG_HWPOISON) {
+ 		page_mapcount_reset(page); /* remove PageBuddy */
+ 		return;
+ 	}
 -- 
-Michal Hocko
-SUSE Labs
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
