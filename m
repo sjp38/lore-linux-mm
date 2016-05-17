@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D48B56B0005
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 21:16:09 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id d139so2716755oig.1
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 18:16:09 -0700 (PDT)
+Received: from mail-ob0-f197.google.com (mail-ob0-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 03F706B0005
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 21:18:50 -0400 (EDT)
+Received: by mail-ob0-f197.google.com with SMTP id aq1so2139518obc.2
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 18:18:49 -0700 (PDT)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id q66si547715iod.154.2016.05.16.18.16.08
+        by mx.google.com with ESMTP id k5si584897igv.5.2016.05.16.18.18.48
         for <linux-mm@kvack.org>;
-        Mon, 16 May 2016 18:16:09 -0700 (PDT)
-Date: Tue, 17 May 2016 10:16:08 +0900
+        Mon, 16 May 2016 18:18:49 -0700 (PDT)
+Date: Tue, 17 May 2016 10:18:50 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH v5 02/12] mm: migrate: support non-lru movable page
  migration
-Message-ID: <20160517011608.GC31335@bbox>
+Message-ID: <20160517011850.GD31335@bbox>
 References: <1462760433-32357-1-git-send-email-minchan@kernel.org>
  <1462760433-32357-3-git-send-email-minchan@kernel.org>
- <20160516070455.GA28813@swordfish>
+ <20160516071751.GA32079@swordfish>
 MIME-Version: 1.0
-In-Reply-To: <20160516070455.GA28813@swordfish>
+In-Reply-To: <20160516071751.GA32079@swordfish>
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
@@ -25,8 +25,9 @@ List-ID: <linux-mm.kvack.org>
 To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rafael Aquini <aquini@redhat.com>, virtualization@lists.linux-foundation.org, Jonathan Corbet <corbet@lwn.net>, John Einar Reitan <john.reitan@foss.arm.com>, dri-devel@lists.freedesktop.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Gioh Kim <gi-oh.kim@profitbricks.com>
 
-On Mon, May 16, 2016 at 04:04:55PM +0900, Sergey Senozhatsky wrote:
+On Mon, May 16, 2016 at 04:17:51PM +0900, Sergey Senozhatsky wrote:
 > On (05/09/16 11:20), Minchan Kim wrote:
+> [..]
 > > +++ b/include/linux/migrate.h
 > > @@ -32,11 +32,16 @@ extern char *migrate_reason_names[MR_TYPES];
 > >  
@@ -46,30 +47,14 @@ On Mon, May 16, 2016 at 04:04:55PM +0900, Sergey Senozhatsky wrote:
 > >  extern int migrate_prep(void);
 > >  extern int migrate_prep_local(void);
 > 
-> __ClearPageMovable() is under CONFIG_MIGRATION in include/linux/migrate.h,
-> but zsmalloc checks for CONFIG_COMPACTION.
+> given that some of Movable users can be built as modules, shouldn't
+> at least some of those symbols be exported via EXPORT_SYMBOL?
 
-Thanks!
+Those functions aim for VM compaction so driver shouldn't use it.
+Only driver should be aware of are __SetPageMovable and __CleraPageMovable.
+I will export them.
 
-PageMovable check function should be in compact.c, I think.
-I will fix it.
-
-
-> 
-> can we have stub declarations of movable functions for !CONFIG_MIGRATION builds?
-> otherwise the users (zsmalloc, for example) have to do things like
-> 
-> static void reset_page(struct page *page)
-> {
-> #ifdef CONFIG_COMPACTION
->         __ClearPageMovable(page);
-> #endif
->         clear_bit(PG_private, &page->flags);
->         clear_bit(PG_private_2, &page->flags);
->         set_page_private(page, 0);
->         ClearPageHugeObject(page);
->         page->freelist = NULL;
-> }
+Thanks for the review, Sergey!
 > 
 > 	-ss
 
