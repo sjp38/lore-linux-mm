@@ -1,120 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 808BF6B0005
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 03:58:18 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id w143so6007248wmw.3
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 00:58:18 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id kd6si1985439wjc.113.2016.05.17.00.58.16
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 May 2016 00:58:16 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id r12so2533119wme.0
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 00:58:16 -0700 (PDT)
-Date: Tue, 17 May 2016 09:58:15 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: + mm-thp-avoid-unnecessary-swapin-in-khugepaged.patch added to
- -mm tree
-Message-ID: <20160517075815.GC14453@dhcp22.suse.cz>
-References: <57212c60.fUSE244UFwhXE+az%akpm@linux-foundation.org>
- <20160428151921.GL31489@dhcp22.suse.cz>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ABCF6B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 04:19:47 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 203so18337079pfy.2
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 01:19:47 -0700 (PDT)
+Received: from m15-5.126.com (m15-5.126.com. [220.181.15.5])
+        by mx.google.com with ESMTP id x10si3107355pas.64.2016.05.17.01.19.45
+        for <linux-mm@kvack.org>;
+        Tue, 17 May 2016 01:19:46 -0700 (PDT)
+Date: Tue, 17 May 2016 16:17:15 +0800 (CST)
+From: "Wang Xiaoqiang" <wang_xiaoq@126.com>
+Subject: Re:Re: Question About Functions "__free_pages_check" and
+ "check_new_page" in page_alloc.c
+In-Reply-To: <573AA8C2.2060606@suse.cz>
+References: <7374bd2e.da35.154b9cda7d2.Coremail.wang_xiaoq@126.com>
+ <20160516151657.GC23251@dhcp22.suse.cz>
+ <5877fe6c.1e45.154bc401c81.Coremail.wang_xiaoq@126.com>
+ <573AA8C2.2060606@suse.cz>
+Content-Type: multipart/alternative;
+	boundary="----=_Part_207485_2036151241.1463473035147"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160428151921.GL31489@dhcp22.suse.cz>
+Message-ID: <48761067.9b95.154bdca578c.Coremail.wang_xiaoq@126.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: ebru.akagunduz@gmail.com, aarcange@redhat.com, aneesh.kumar@linux.vnet.ibm.com, boaz@plexistor.com, gorcunov@openvz.org, hannes@cmpxchg.org, hughd@google.com, iamjoonsoo.kim@lge.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, rientjes@google.com, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, n-horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Thu 28-04-16 17:19:21, Michal Hocko wrote:
-> On Wed 27-04-16 14:17:20, Andrew Morton wrote:
-> [...]
-> > @@ -2484,7 +2485,14 @@ static void collapse_huge_page(struct mm
-> >  		goto out;
-> >  	}
-> >  
-> > -	__collapse_huge_page_swapin(mm, vma, address, pmd);
-> > +	swap = get_mm_counter(mm, MM_SWAPENTS);
-> > +	curr_allocstall = sum_vm_event(ALLOCSTALL);
-> > +	/*
-> > +	 * When system under pressure, don't swapin readahead.
-> > +	 * So that avoid unnecessary resource consuming.
-> > +	 */
-> > +	if (allocstall == curr_allocstall && swap != 0)
-> > +		__collapse_huge_page_swapin(mm, vma, address, pmd);
-> >  
-> >  	anon_vma_lock_write(vma->anon_vma);
-> >  
-> 
-> I have mentioned that before already but this seems like a rather weak
-> heuristic. Don't we really rather teach __collapse_huge_page_swapin
-> (resp. do_swap_page) do to an optimistic GFP_NOWAIT allocations and
-> back off under the memory pressure?
+------=_Part_207485_2036151241.1463473035147
+Content-Type: text/plain; charset=GBK
+Content-Transfer-Encoding: base64
 
-I gave it a try and it doesn't seem really bad. Untested and I might
-have missed something really obvious but what do you think about this
-approach rather than relying on ALLOCSTALL which is really weak
-heuristic:
----
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 87f09dc986ab..1a4d4c807d92 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2389,7 +2389,8 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
- 		swapped_in++;
- 		ret = do_swap_page(mm, vma, _address, pte, pmd,
- 				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
--				   pteval);
-+				   pteval,
-+				   GFP_HIGHUSER_MOVABLE | ~__GFP_DIRECT_RECLAIM);
- 		if (ret & VM_FAULT_ERROR) {
- 			trace_mm_collapse_huge_page_swapin(mm, swapped_in, 0);
- 			return;
-diff --git a/mm/memory.c b/mm/memory.c
-index d79c6db41502..f897ec89bd79 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2490,7 +2490,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
-  */
- int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, pte_t *page_table, pmd_t *pmd,
--		unsigned int flags, pte_t orig_pte)
-+		unsigned int flags, pte_t orig_pte, gfp_t gfp_mask)
- {
- 	spinlock_t *ptl;
- 	struct page *page, *swapcache;
-@@ -2519,8 +2519,7 @@ int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
- 	page = lookup_swap_cache(entry);
- 	if (!page) {
--		page = swapin_readahead(entry,
--					GFP_HIGHUSER_MOVABLE, vma, address);
-+		page = swapin_readahead(entry, gfp_mask, vma, address);
- 		if (!page) {
- 			/*
- 			 * Back out if somebody else faulted in this pte
-@@ -2573,7 +2572,7 @@ int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		goto out_page;
- 	}
- 
--	if (mem_cgroup_try_charge(page, mm, GFP_KERNEL, &memcg, false)) {
-+	if (mem_cgroup_try_charge(page, mm, gfp_mask, &memcg, false)) {
- 		ret = VM_FAULT_OOM;
- 		goto out_page;
- 	}
-@@ -3349,7 +3348,7 @@ static int handle_pte_fault(struct mm_struct *mm,
- 						flags, entry);
- 		}
- 		return do_swap_page(mm, vma, address,
--					pte, pmd, flags, entry);
-+					pte, pmd, flags, entry, GFP_HIGHUSER_MOVABLE);
- 	}
- 
- 	if (pte_protnone(entry))
--- 
-Michal Hocko
-SUSE Labs
+dGhhbmsgeW91IHZlcnkgbXVjaCEgVmxhc3RpbWlsLgoKCkF0IDIwMTYtMDUtMTcgMTM6MTQ6NDIs
+ICJWbGFzdGltaWwgQmFia2EiIDx2YmFia2FAc3VzZS5jej4gd3JvdGU6Cj5PbiAwNS8xNy8yMDE2
+IDAzOjA2IEFNLCBXYW5nIFhpYW9xaWFuZyB3cm90ZToKPj4+eWVzIGl0IHdvdWxkLiBXaHkgdGhh
+dCB3b3VsZCBtYXR0ZXIuIFRoZSBjaGVja3Mgc2hvdWxkIGJlIGluIGFuIG9yZGVyCj4+PndoaWNo
+IGNvdWxkIGdpdmUgdXMgYSBtb3JlIHNwZWNpZmljIHJlYXNvbiB3aXRoIGxhdGVyIGNoZWNrcy4g
+YmFkX3BhZ2UoKQo+PiAKPj4gSSBzZWUsIHlvdSBtZWFuIHRoZSBsYXRlciAiYmFkX3JlYXNvbiIg
+aXMgdGhlIHN1cGVyc2V0IG9mIHRoZSBwcmV2aW91cyBvbmUuCj4KPk5vdCBleGFjdGx5LiBJdCdz
+IG5vdCBwb3NzaWJsZSB0byBzb3J0IGFsbCB0aGUgcmVhc29ucyBsaWtlIHRoYXQuIEJ1dCBhcwo+
+TWljaGFsIHNhaWQsIGJhZF9wYWdlKCkgd2lsbCBwcmludCBhbGwgdGhlIHJlbGV2YW50IGluZm8g
+c28geW91IGNhbgo+cmVjb25zdHJ1Y3QgYWxsIHJlYXNvbnMgZnJvbSBpdC4gVGhlIGJhZF9yZWFz
+b24gdGV4dCBpcyBtb3N0bHkgYSBoaW50Cj53aGF0IHRvIGNoZWNrIGZpcnN0Lgo+Cj4+PndpbGwg
+dGhlbiBwcmludCBtb3JlIGRldGFpbGVkIGluZm9ybWF0aW9uLgo+Pj4tLQo+Pj5NaWNoYWwgSG9j
+a28KPj4+U1VTRSBMYWJzCj4+IAo+PiB0aGFuayB5b3UsIE1pY2hhbC4K
+------=_Part_207485_2036151241.1463473035147
+Content-Type: text/html; charset=GBK
+Content-Transfer-Encoding: base64
+
+PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
+Zm9udC1mYW1pbHk6QXJpYWwiPjxkaXYgaWQ9ImRpdk5ldGVhc2VNYWlsQ2FyZCI+PC9kaXY+PGRp
+dj50aGFuayB5b3UgdmVyeSBtdWNoISBWbGFzdGltaWwuPGJyPjxicj48L2Rpdj48cHJlPkF0IDIw
+MTYtMDUtMTcgMTM6MTQ6NDIsICJWbGFzdGltaWwgQmFia2EiICZsdDt2YmFia2FAc3VzZS5jeiZn
+dDsgd3JvdGU6CiZndDtPbiAwNS8xNy8yMDE2IDAzOjA2IEFNLCBXYW5nIFhpYW9xaWFuZyB3cm90
+ZToKJmd0OyZndDsmZ3Q7eWVzIGl0IHdvdWxkLiBXaHkgdGhhdCB3b3VsZCBtYXR0ZXIuIFRoZSBj
+aGVja3Mgc2hvdWxkIGJlIGluIGFuIG9yZGVyCiZndDsmZ3Q7Jmd0O3doaWNoIGNvdWxkIGdpdmUg
+dXMgYSBtb3JlIHNwZWNpZmljIHJlYXNvbiB3aXRoIGxhdGVyIGNoZWNrcy4gYmFkX3BhZ2UoKQom
+Z3Q7Jmd0OyAKJmd0OyZndDsgSSBzZWUsIHlvdSBtZWFuIHRoZSBsYXRlciAiYmFkX3JlYXNvbiIg
+aXMgdGhlIHN1cGVyc2V0IG9mIHRoZSBwcmV2aW91cyBvbmUuCiZndDsKJmd0O05vdCBleGFjdGx5
+LiBJdCdzIG5vdCBwb3NzaWJsZSB0byBzb3J0IGFsbCB0aGUgcmVhc29ucyBsaWtlIHRoYXQuIEJ1
+dCBhcwomZ3Q7TWljaGFsIHNhaWQsIGJhZF9wYWdlKCkgd2lsbCBwcmludCBhbGwgdGhlIHJlbGV2
+YW50IGluZm8gc28geW91IGNhbgomZ3Q7cmVjb25zdHJ1Y3QgYWxsIHJlYXNvbnMgZnJvbSBpdC4g
+VGhlIGJhZF9yZWFzb24gdGV4dCBpcyBtb3N0bHkgYSBoaW50CiZndDt3aGF0IHRvIGNoZWNrIGZp
+cnN0LgomZ3Q7CiZndDsmZ3Q7Jmd0O3dpbGwgdGhlbiBwcmludCBtb3JlIGRldGFpbGVkIGluZm9y
+bWF0aW9uLgomZ3Q7Jmd0OyZndDstLQomZ3Q7Jmd0OyZndDtNaWNoYWwgSG9ja28KJmd0OyZndDsm
+Z3Q7U1VTRSBMYWJzCiZndDsmZ3Q7IAomZ3Q7Jmd0OyB0aGFuayB5b3UsIE1pY2hhbC4KPC9wcmU+
+PC9kaXY+PGJyPjxicj48c3BhbiB0aXRsZT0ibmV0ZWFzZWZvb3RlciI+PHA+Jm5ic3A7PC9wPjwv
+c3Bhbj4=
+------=_Part_207485_2036151241.1463473035147--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
