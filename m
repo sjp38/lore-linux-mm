@@ -1,93 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 59DE76B0253
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 11:53:39 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id y6so42288460ywe.0
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 08:53:39 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 10si2679319qho.34.2016.05.17.08.53.38
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 778E26B0253
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 12:17:01 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e201so13718253wme.1
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 09:17:01 -0700 (PDT)
+Received: from smtp.laposte.net (smtpoutz26.laposte.net. [194.117.213.101])
+        by mx.google.com with ESMTPS id 137si27441337wmp.46.2016.05.17.09.16.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 May 2016 08:53:38 -0700 (PDT)
-Date: Tue, 17 May 2016 17:53:35 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH] exec: remove the no longer needed
- remove_arg_zero()->free_arg_page()
-Message-ID: <20160517155335.GA31435@redhat.com>
-References: <20160516204339.GA26141@redhat.com>
- <20160516135534.98e241faa07d1d12d66ac3dd@linux-foundation.org>
+        Tue, 17 May 2016 09:17:00 -0700 (PDT)
+Received: from smtp.laposte.net (localhost [127.0.0.1])
+	by lpn-prd-vrout014 (Postfix) with ESMTP id BDBC6120B66
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 18:16:59 +0200 (CEST)
+Received: from lpn-prd-vrin001 (lpn-prd-vrin001.prosodie [10.128.63.2])
+	by lpn-prd-vrout014 (Postfix) with ESMTP id B97A51209A4
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 18:16:59 +0200 (CEST)
+Received: from lpn-prd-vrin001 (localhost [127.0.0.1])
+	by lpn-prd-vrin001 (Postfix) with ESMTP id A9CF0366A2C
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 18:16:59 +0200 (CEST)
+Message-ID: <573B43FA.7080503@laposte.net>
+Date: Tue, 17 May 2016 18:16:58 +0200
+From: Sebastian Frias <sf84@laposte.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160516135534.98e241faa07d1d12d66ac3dd@linux-foundation.org>
+Subject: Re: [PATCH] mm: add config option to select the initial overcommit
+ mode
+References: <573593EE.6010502@free.fr> <20160513095230.GI20141@dhcp22.suse.cz> <5735AA0E.5060605@free.fr> <20160513114429.GJ20141@dhcp22.suse.cz> <5735C567.6030202@free.fr> <20160513140128.GQ20141@dhcp22.suse.cz> <20160513160410.10c6cea6@lxorguk.ukuu.org.uk> <5735F4B1.1010704@laposte.net> <20160513164357.5f565d3c@lxorguk.ukuu.org.uk> <573AD534.6050703@laposte.net> <20160517085724.GD14453@dhcp22.suse.cz>
+In-Reply-To: <20160517085724.GD14453@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, hujunjie <jj.net@163.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, bsingharora@gmail.com
 
-remove_arg_zero() does free_arg_page() for no reason. This was needed
-before and only if CONFIG_MMU=y: see the commit 4fc75ff4 ("exec: fix
-remove_arg_zero"), install_arg_page() was called for every page != NULL
-in bprm->page[] array. Today install_arg_page() has already gone and
-free_arg_page() is nop after another commit b6a2fea39 ("mm: variable
-length argument support").
+Hi Michal,
 
-CONFIG_MMU=n does free_arg_pages() in free_bprm() and thus it doesn't
-need remove_arg_zero()->free_arg_page() too; apart from get_arg_page()
-it never checks if the page in bprm->page[] was allocated or not, so
-the "extra" non-freed page is fine. OTOH, this free_arg_page() can add
-the minor pessimization, the caller is going to do copy_strings_kernel()
-right after remove_arg_zero() which will likely need to re-allocate the
-same page again.
+On 05/17/2016 10:57 AM, Michal Hocko wrote:
+> On Tue 17-05-16 10:24:20, Sebastian Frias wrote:
+> [...]
+>>>> Also, under what conditions would copy-on-write fail?
+>>>
+>>> When you have no memory or swap pages free and you touch a COW page that
+>>> is currently shared. At that point there is no resource to back to the
+>>> copy so something must die - either the process doing the copy or
+>>> something else.
+>>
+>> Exactly, and why does "killing something else" makes more sense (or
+>> was chosen over) "killing the process doing the copy"?
+> 
+> Because that "something else" is usually a memory hog and so chances are
+> that the out of memory situation will get resolved. If you kill "process
+> doing the copy" then you might end up just not getting any memory back
+> because that might be a little forked process which doesn't own all that
+> much memory on its own. That would leave you in the oom situation for a
+> long time until somebody actually sitting on some memory happens to ask
+> for CoW... See the difference?
+> 
 
-And as Hujunjie pointed out, the "offset == PAGE_SIZE" check is wrong
-because we are going to increment bprm->p once again before return, so
-CONFIG_MMU=n "leaks" the page anyway if '\0' is the final byte in this
-page.
+I see the difference, your answer seems a bit like the one from Austin, basically:
+- killing a process is a sort of kernel protection attempting to deal "automatically" with some situation, like deciding what is a 'memory hog', or what is 'in infinite loop', "usually" in a correct way.
+It seems there's people who think its better to avoid having to take such decisions and/or they should be decided by the user, because "usually" != "always".
+And people who see that as a nice thing but complex thing to do.
+In this thread we've tried to explain why this heuristic (and/or OOM-killer) is/was needed and/or its history, which has been very enlightening by the way.
 
-NOTE: remove_arg_zero() assumes that argv[0] is null-terminated but this
-is not necessarily true. copy_strings() does "len = strnlen_user(...)",
-then copy_from_user(len) but another thread or debuger can overwrite the
-trailing '\0' in between. Afaics nothing really bad can happen because
-we must always have the null-terminated bprm->filename copied by the 1st
-copy_strings_kernel(), but perhaps we should change this code to check
-"bprm->p < bprm->exec" anyway, and/or change copy_strings() to ensure
-that the last byte in string is always zero.
+>From reading Documentation/cgroup-v1/memory.txt (and from a few replies here talking about cgroups), it looks like the OOM-killer is still being actively discussed, well, there's also "cgroup-v2".
+My understanding is that cgroup's memory control will pause processes in a given cgroup until the OOM situation is solved for that cgroup, right?
+If that is right, it means that there is indeed a way to deal with an OOM situation (stack expansion, COW failure, 'memory hog', etc.) in a better way than the OOM-killer, right?
+In which case, do you guys know if there is a way to make the whole system behave as if it was inside a cgroup? (*)
 
-Reported by: hujunjie <jj.net@163.com>
-Signed-off-by: Oleg Nesterov <oleg@redhat.com>
----
- fs/exec.c | 7 -------
- 1 file changed, 7 deletions(-)
+Best regards,
 
-diff --git a/fs/exec.c b/fs/exec.c
-index c4010b8..9b85c4d 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -243,10 +243,6 @@ static void put_arg_page(struct page *page)
- 	put_page(page);
- }
- 
--static void free_arg_page(struct linux_binprm *bprm, int i)
--{
--}
--
- static void free_arg_pages(struct linux_binprm *bprm)
- {
- }
-@@ -1481,9 +1477,6 @@ int remove_arg_zero(struct linux_binprm *bprm)
- 
- 		kunmap_atomic(kaddr);
- 		put_arg_page(page);
--
--		if (offset == PAGE_SIZE)
--			free_arg_page(bprm, (bprm->p >> PAGE_SHIFT) - 1);
- 	} while (offset == PAGE_SIZE);
- 
- 	bprm->p++;
--- 
-2.5.0
+Sebastian
 
+
+(*): I tried setting up a simple test but failed, so I think I need more reading :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
