@@ -1,214 +1,498 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A415E6B0005
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 07:08:22 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id u185so20640487oie.3
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 04:08:22 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id 46si993482oti.234.2016.05.17.04.08.20
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3161D6B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 07:26:04 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id ne4so7219954lbc.1
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 04:26:04 -0700 (PDT)
+Received: from mail-lb0-x241.google.com (mail-lb0-x241.google.com. [2a00:1450:4010:c04::241])
+        by mx.google.com with ESMTPS id i190si2095750lfi.147.2016.05.17.04.26.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 May 2016 04:08:21 -0700 (PDT)
-Subject: Re: [PATCH] mm,oom: Re-enable OOM killer using timeout.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160426135402.GB20813@dhcp22.suse.cz>
-	<201604271943.GAC60432.FFJHtFVSOQOOLM@I-love.SAKURA.ne.jp>
-	<20160427111147.GI2179@dhcp22.suse.cz>
-	<201605140939.BFG05745.FJOOOSVQtLFMHF@I-love.SAKURA.ne.jp>
-	<20160516141829.GK23146@dhcp22.suse.cz>
-In-Reply-To: <20160516141829.GK23146@dhcp22.suse.cz>
-Message-Id: <201605172008.FGB26547.OSMFVOQtLFHJOF@I-love.SAKURA.ne.jp>
-Date: Tue, 17 May 2016 20:08:09 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 May 2016 04:26:02 -0700 (PDT)
+Received: by mail-lb0-x241.google.com with SMTP id r5so742350lbj.3
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 04:26:02 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20160516133543.GA9540@node.shutemov.name>
+References: <bug-117731-27@https.bugzilla.kernel.org/>
+	<20160506150112.9b27324b4b2b141146b0ff25@linux-foundation.org>
+	<20160516133543.GA9540@node.shutemov.name>
+Date: Tue, 17 May 2016 16:56:02 +0530
+Message-ID: <CAGoWJG8mEwscwkUW31ejFyHR63Jm4eQKtUDpeADB2nUinrL59w@mail.gmail.com>
+Subject: Re: [Bug 117731] New: Doing mprotect for PROT_NONE and then for
+ PROT_READ|PROT_WRITE reduces CPU write B/W on buffer
+From: Ashish Srivastava <ashish0srivastava0@gmail.com>
+Content-Type: multipart/alternative; boundary=001a11c3f8868b3a810533080186
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, Peter Feiner <pfeiner@google.com>, linux-mm@kvack.org
 
-Michal Hocko wrote:
-> > I think that clearing TIF_MEMDIE even if the OOM reaper failed to reap the
-> > OOM vitctim's memory is confusing for panic_on_oom_timeout timer (which stops
-> > itself when TIF_MEMDIE is cleared) and kmallocwd (which prints victim=0 in
-> > MemAlloc-Info: line). Until you complete rewriting all functions which could
-> > be called with mmap_sem held for write, we should allow the OOM killer to
-> > select next OOM victim upon timeout; otherwise calling panic() is premature.
-> 
-> I would agree if this was an easily triggerable issue in the real life.
+--001a11c3f8868b3a810533080186
+Content-Type: text/plain; charset=UTF-8
 
-Please don't assume that this isn't an easily triggerable issue in the real life.
+Yes, the original repro was using a custom allocator but I was seeing the
+issue with malloc'd memory as well on my (ARMv7) platform.
+I agree that the repro code won't reliably work so have modified the repro
+code attached to the bug to use file backed memory.
 
-http://lkml.kernel.org/r/201409192053.IHJ35462.JLOMOSOFFVtQFH@I-love.SAKURA.ne.jp
-is a bug which was not identified for 5 years. I was not able to trigger it
-in my environment, but the customer was able to trigger it easily in his
-environment soon after he started testing his enterprise applications.
-Although the bug was fixed and the distributor's kernel was updated, he
-gave up using cpuset cgroup because it was too late to update the kernel
-for his environment.
+That really is the root cause of the problem. I can make the following
+change in the kernel that can make the slow writes problem go away.
+This makes vma_set_page_prot return the value of vma_wants_writenotify to
+the caller after setting vma->vmpage_prot.
 
-I haven't heard response from you about silent hangup bug where all
-allocating tasks are trapped at too_many_isolated() loop in shrink_inactive_list()
-( http://lkml.kernel.org/r/201602092349.ACG81273.OSVtMJQHLOFOFF@I-love.SAKURA.ne.jp ).
-His cpuset cgroup case was lucky because he had a workaround not to use
-cpuset cgroup. But regarding page allocator bugs, no one has a workaround
-not to use page allocator. Therefore, proactive detection is important.
+In vma_set_page_prot:
+-void vma_set_page_prot(struct vm_area_struct *vma)
++bool vma_set_page_prot(struct vm_area_struct *vma)
+{
+    unsigned long vm_flags = vma->vm_flags;
 
-You can't determine whether corner case bugs are triggerable before
-such bugs bite users. It is too late to wait for feedback from users.
+    vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
+    if (vma_wants_writenotify(vma)) {
+        vm_flags &= ~VM_SHARED;
+        vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot,
+                             vm_flags);
++        return 1;
+     }
++    return 0;
+}
 
-> You are basically DoSing your machine and that leads to corner cases of
-> course. We can and should try to plug them but I still do not see any
-> reason to rush into any solutions.
+In mprotect_fixup:
 
-My intent of doing what-you-call-DoS stress tests is
+     * held in write mode.
+      */
+     vma->vm_flags = newflags;
+-    dirty_accountable = vma_wants_writenotify(vma);
+-    vma_set_page_prot(vma);
++    dirty_accountable = vma_set_page_prot(vma);
 
-   You had better realize that we can't find all corner cases.
-   It is not a responsible attitude that you knowingly preserve
-   corner cases with "can you trigger it?".
+     change_protection(vma, start, end, vma->vm_page_prot,
+               dirty_accountable, 0)
 
-.
+Thanks!
+Ashish
 
-The OOM killer is a safety net in case something went wrong (e.g.
-a ranaway program). You refuse to care about corner cases. How can it be
-called "robust / reliable" without the ability to handle corner cases?
-As long as minimal infrastructure for handling the OOM situation (e.g.
-scheduler) is alive, we should strive for recovering from the OOM situation
-(as with you strive for making the OOM reaper context reliable as much as
-possible).
+On Mon, May 16, 2016 at 7:05 PM, Kirill A. Shutemov <kirill@shutemov.name>
+wrote:
 
-> 
-> You seem to be bound to the timeout solution so much that you even
-> refuse to think about any other potential ways to move on. I think that
-> is counter productive. I have tried to explain many times that once you
-> define a _user_ _visible_ knob you should better define a proper semantic
-> for it. Do something with a random outcome is not it.
+> On Fri, May 06, 2016 at 03:01:12PM -0700, Andrew Morton wrote:
+> >
+> > (switched to email.  Please respond via emailed reply-to-all, not via the
+> > bugzilla web interface).
+> >
+> > Great bug report, thanks.
+> >
+> > I assume the breakage was caused by
+> >
+> > commit 64e455079e1bd7787cc47be30b7f601ce682a5f6
+> > Author:     Peter Feiner <pfeiner@google.com>
+> > AuthorDate: Mon Oct 13 15:55:46 2014 -0700
+> > Commit:     Linus Torvalds <torvalds@linux-foundation.org>
+> > CommitDate: Tue Oct 14 02:18:28 2014 +0200
+> >
+> >     mm: softdirty: enable write notifications on VMAs after VM_SOFTDIRTY
+> cleared
+> >
+> >
+> > Could someone (Peter, Kirill?) please take a look?
+> >
+> > On Fri, 06 May 2016 13:15:19 +0000 bugzilla-daemon@bugzilla.kernel.org
+> wrote:
+> >
+> > > https://bugzilla.kernel.org/show_bug.cgi?id=117731
+> > >
+> > >             Bug ID: 117731
+> > >            Summary: Doing mprotect for PROT_NONE and then for
+> > >                     PROT_READ|PROT_WRITE reduces CPU write B/W on
+> buffer
+> > >            Product: Memory Management
+> > >            Version: 2.5
+> > >     Kernel Version: 3.18 and beyond
+> > >           Hardware: All
+> > >                 OS: Linux
+> > >               Tree: Mainline
+> > >             Status: NEW
+> > >           Severity: high
+> > >           Priority: P1
+> > >          Component: Other
+> > >           Assignee: akpm@linux-foundation.org
+> > >           Reporter: ashish0srivastava0@gmail.com
+> > >         Regression: No
+> > >
+> > > Created attachment 215401
+> > >   --> https://bugzilla.kernel.org/attachment.cgi?id=215401&action=edit
+> > > Repro code
+>
+> The code is somewhat broken: malloc doesn't guarantee to return
+> page-aligned pointer. And in my case it leads -EINVAL from mprotect().
+>
+> Do you have a custom malloc()?
+>
+> > > This is a regression that is present in kernel 3.18 and beyond and not
+> in
+> > > previous ones.
+> > > Attached is a simple repro case. It measures the time taken to write
+> and then
+> > > read all pages in a buffer, then it does mprotect for PROT_NONE and
+> then
+> > > mprotect for PROT_READ|PROT_WRITE, then it again measures time taken
+> to write
+> > > and then read all pages in a buffer. The 2nd time taken is much larger
+> (20 to
+> > > 30 times) than the first one.
+> > >
+> > > I have looked at the code in the kernel tree that is causing this and
+> it is
+> > > because writes are causing faults, as pte_mkwrite is not being done
+> during
+> > > mprotect_fixup for PROT_READ|PROT_WRITE.
+> > >
+> > > This is the code inside mprotect_fixup in a tree v3.16.35 or older:
+> > >     /*
+> > >      * vm_flags and vm_page_prot are protected by the mmap_sem
+> > >      * held in write mode.
+> > >      */
+> > >     vma->vm_flags = newflags;
+> > >     vma->vm_page_prot = pgprot_modify(vma->vm_page_prot,
+> > >                       vm_get_page_prot(newflags));
+> > >
+> > >     if (vma_wants_writenotify(vma)) {
+> > >         vma->vm_page_prot = vm_get_page_prot(newflags & ~VM_SHARED);
+> > >         dirty_accountable = 1;
+> > >     }
+> > > This is the code in the same region inside mprotect_fixup in a recent
+> tree:
+> > >     /*
+> > >      * vm_flags and vm_page_prot are protected by the mmap_sem
+> > >      * held in write mode.
+> > >      */
+> > >     vma->vm_flags = newflags;
+> > >     dirty_accountable = vma_wants_writenotify(vma);
+> > >     vma_set_page_prot(vma);
+> > >
+> > > The difference is the setting of dirty_accountable. result of
+> > > vma_wants_writenotify does not depend on vma->vm_flags alone but also
+> depends
+> > > on vma->vm_page_prot and following code will make it return 0 because
+> in newer
+> > > code we are setting dirty_accountable before setting vma->vm_page_prot.
+> > >     /* The open routine did something to the protections that
+> pgprot_modify
+> > >      * won't preserve? */
+> > >     if (pgprot_val(vma->vm_page_prot) !=
+> > >         pgprot_val(vm_pgprot_modify(vma->vm_page_prot, vm_flags)))
+> > >         return 0;
+>
+> The test-case will never hit this, as normal malloc() returns anonymous
+> memory, which is handled by the first check in vma_wants_writenotify().
+>
+> The only case when the case can change anything for you is if your
+> malloc() return file-backed memory. Which is possible, I guess, with
+> custom malloc().
+>
+> > > Now, suppose we change code by calling vma_set_page_prot before setting
+> > > dirty_accountable:
+> > >     vma->vm_flags = newflags;
+> > >     vma_set_page_prot(vma);
+> > >     dirty_accountable = vma_wants_writenotify(vma);
+> > > Still, dirty_accountable will be 0. This is because following code in
+> > > vma_set_page_prot modifies vma->vm_page_prot without modifying
+> vma->vm_flags:
+> > >     if (vma_wants_writenotify(vma)) {
+> > >         vm_flags &= ~VM_SHARED;
+> > >         vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot,
+> > >                              vm_flags);
+> > >     }
+> > > so this check in vma_wants_writenotify will again return 0:
+> > >     /* The open routine did something to the protections that
+> pgprot_modify
+> > >      * won't preserve? */
+> > >     if (pgprot_val(vma->vm_page_prot) !=
+> > >         pgprot_val(vm_pgprot_modify(vma->vm_page_prot, vm_flags)))
+> > >         return 0;
+> > > So dirty_accountable is still 0.
+> > >
+> > > This code in change_pte_range decides whether to call pte_mkwrite or
+> not:
+> > >             /* Avoid taking write faults for known dirty pages */
+> > >             if (dirty_accountable && pte_dirty(ptent) &&
+> > >                     (pte_soft_dirty(ptent) ||
+> > >                      !(vma->vm_flags & VM_SOFTDIRTY))) {
+> > >                 ptent = pte_mkwrite(ptent);
+> > >             }
+> > > If dirty_accountable is 0 even though the pte was dirty already,
+> pte_mkwrite
+> > > will not be done.
+> > >
+> > > I think the correct solution should be that dirty_accountable be set
+> with the
+> > > value of vma_wants_writenotify queried before vma->vm_page_prot is set
+> with
+> > > VM_SHARED removed from flags. One way to do so could be to have
+> > > vma_set_page_prot return the value of dirty_accountable that it can
+> set right
+> > > after vma_wants_writenotify check. Another way could be to do
+> > >     vma->vm_page_prot = pgprot_modify(vma->vm_page_prot,
+> > >                       vm_get_page_prot(newflags));
+> > > and then set dirty_accountable based on vma_wants_writenotify and then
+> call
+> > > vma_set_page_prot.
+>
+> Looks like a good catch, but I'm not sure if it's the root cause of your
+> problem.
+>
+> --
+>  Kirill A. Shutemov
+>
 
-Waiting for feedback without offering a workaround is counterproductive
-when we are already aware of bugs. Offering a workaround first and then
-trying to fix easily triggerable bugs is appreciated for those who can not
-update kernels for their systems due to their constraints. It is up to
-users to decide whether to use workarounds.
+--001a11c3f8868b3a810533080186
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-The reason I insist on the timeout based approach is the robustness.
+<div dir=3D"ltr"><div><div>Yes, the original repro was using a custom alloc=
+ator but I was seeing the issue with malloc&#39;d memory as well on my (ARM=
+v7) platform.<br>I agree that the repro code won&#39;t reliably work so hav=
+e modified the repro code attached to the bug to use file backed memory.<br=
+><br></div>That really is the root cause of the problem. I can make the fol=
+lowing change in the kernel that can make the slow writes problem go away.<=
+br></div><div>This makes vma_set_page_prot return the value of vma_wants_wr=
+itenotify to the caller after setting vma-&gt;vmpage_prot.<br></div><div><b=
+r></div>In vma_set_page_prot:<br>-void vma_set_page_prot(struct vm_area_str=
+uct *vma)<br>+bool vma_set_page_prot(struct vm_area_struct *vma)<br>{<br>=
+=C2=A0=C2=A0=C2=A0 unsigned long vm_flags =3D vma-&gt;vm_flags;<br><br>=C2=
+=A0=C2=A0=C2=A0 vma-&gt;vm_page_prot =3D vm_pgprot_modify(vma-&gt;vm_page_p=
+rot, vm_flags);<br>=C2=A0=C2=A0=C2=A0 if (vma_wants_writenotify(vma)) {<br>=
+=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 vm_flags &amp;=3D ~VM_SHARED;<br>=C2=
+=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 vma-&gt;vm_page_prot =3D vm_pgprot_modif=
+y(vma-&gt;vm_page_prot,<br>=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=
+=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=
+=C2=A0=C2=A0=C2=A0 vm_flags);<br>+=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 ret=
+urn 1;<br>=C2=A0=C2=A0=C2=A0=C2=A0 }<br>+=C2=A0=C2=A0=C2=A0 return 0;<br>}<=
+br><br><div>In mprotect_fixup:<br><br> =C2=A0=C2=A0=C2=A0=C2=A0 * held in w=
+rite mode.<br>=C2=A0=C2=A0=C2=A0=C2=A0 =C2=A0*/<br>=C2=A0=C2=A0=C2=A0=C2=A0=
+ vma-&gt;vm_flags =3D newflags;<br>-=C2=A0=C2=A0=C2=A0 dirty_accountable =
+=3D vma_wants_writenotify(vma);<br>-=C2=A0=C2=A0=C2=A0 vma_set_page_prot(vm=
+a);<br>+=C2=A0=C2=A0=C2=A0 dirty_accountable =3D vma_set_page_prot(vma);<br=
+>=C2=A0<br>=C2=A0=C2=A0=C2=A0=C2=A0 change_protection(vma, start, end, vma-=
+&gt;vm_page_prot,<br>=C2=A0=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=
+=A0=C2=A0 =C2=A0 dirty_accountable, 0)<br><br></div><div>Thanks!<br></div><=
+div>Ashish<br></div></div><div class=3D"gmail_extra"><br><div class=3D"gmai=
+l_quote">On Mon, May 16, 2016 at 7:05 PM, Kirill A. Shutemov <span dir=3D"l=
+tr">&lt;<a href=3D"mailto:kirill@shutemov.name" target=3D"_blank">kirill@sh=
+utemov.name</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" styl=
+e=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div cl=
+ass=3D"HOEnZb"><div class=3D"h5">On Fri, May 06, 2016 at 03:01:12PM -0700, =
+Andrew Morton wrote:<br>
+&gt;<br>
+&gt; (switched to email.=C2=A0 Please respond via emailed reply-to-all, not=
+ via the<br>
+&gt; bugzilla web interface).<br>
+&gt;<br>
+&gt; Great bug report, thanks.<br>
+&gt;<br>
+&gt; I assume the breakage was caused by<br>
+&gt;<br>
+&gt; commit 64e455079e1bd7787cc47be30b7f601ce682a5f6<br>
+&gt; Author:=C2=A0 =C2=A0 =C2=A0Peter Feiner &lt;<a href=3D"mailto:pfeiner@=
+google.com">pfeiner@google.com</a>&gt;<br>
+&gt; AuthorDate: Mon Oct 13 15:55:46 2014 -0700<br>
+&gt; Commit:=C2=A0 =C2=A0 =C2=A0Linus Torvalds &lt;<a href=3D"mailto:torval=
+ds@linux-foundation.org">torvalds@linux-foundation.org</a>&gt;<br>
+&gt; CommitDate: Tue Oct 14 02:18:28 2014 +0200<br>
+&gt;<br>
+&gt;=C2=A0 =C2=A0 =C2=A0mm: softdirty: enable write notifications on VMAs a=
+fter VM_SOFTDIRTY cleared<br>
+&gt;<br>
+&gt;<br>
+&gt; Could someone (Peter, Kirill?) please take a look?<br>
+&gt;<br>
+&gt; On Fri, 06 May 2016 13:15:19 +0000 <a href=3D"mailto:bugzilla-daemon@b=
+ugzilla.kernel.org">bugzilla-daemon@bugzilla.kernel.org</a> wrote:<br>
+&gt;<br>
+&gt; &gt; <a href=3D"https://bugzilla.kernel.org/show_bug.cgi?id=3D117731" =
+rel=3D"noreferrer" target=3D"_blank">https://bugzilla.kernel.org/show_bug.c=
+gi?id=3D117731</a><br>
+&gt; &gt;<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Bug ID: 117731<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Summary: Doing mprotect =
+for PROT_NONE and then for<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0PROT_READ|PROT_WRITE reduces CPU write B/W on buffer<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Product: Memory Manageme=
+nt<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Version: 2.5<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0Kernel Version: 3.18 and beyond<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Hardware: All<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0OS: =
+Linux<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Tree: Mainl=
+ine<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Status: NEW<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Severity: high<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Priority: P1<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Component: Other<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Assignee: <a href=3D"mail=
+to:akpm@linux-foundation.org">akpm@linux-foundation.org</a><br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Reporter: <a href=3D"mail=
+to:ashish0srivastava0@gmail.com">ashish0srivastava0@gmail.com</a><br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0Regression: No<br>
+&gt; &gt;<br>
+&gt; &gt; Created attachment 215401<br>
+&gt; &gt;=C2=A0 =C2=A0--&gt; <a href=3D"https://bugzilla.kernel.org/attachm=
+ent.cgi?id=3D215401&amp;action=3Dedit" rel=3D"noreferrer" target=3D"_blank"=
+>https://bugzilla.kernel.org/attachment.cgi?id=3D215401&amp;action=3Dedit</=
+a><br>
+&gt; &gt; Repro code<br>
+<br>
+</div></div>The code is somewhat broken: malloc doesn&#39;t guarantee to re=
+turn<br>
+page-aligned pointer. And in my case it leads -EINVAL from mprotect().<br>
+<br>
+Do you have a custom malloc()?<br>
+<div><div class=3D"h5"><br>
+&gt; &gt; This is a regression that is present in kernel 3.18 and beyond an=
+d not in<br>
+&gt; &gt; previous ones.<br>
+&gt; &gt; Attached is a simple repro case. It measures the time taken to wr=
+ite and then<br>
+&gt; &gt; read all pages in a buffer, then it does mprotect for PROT_NONE a=
+nd then<br>
+&gt; &gt; mprotect for PROT_READ|PROT_WRITE, then it again measures time ta=
+ken to write<br>
+&gt; &gt; and then read all pages in a buffer. The 2nd time taken is much l=
+arger (20 to<br>
+&gt; &gt; 30 times) than the first one.<br>
+&gt; &gt;<br>
+&gt; &gt; I have looked at the code in the kernel tree that is causing this=
+ and it is<br>
+&gt; &gt; because writes are causing faults, as pte_mkwrite is not being do=
+ne during<br>
+&gt; &gt; mprotect_fixup for PROT_READ|PROT_WRITE.<br>
+&gt; &gt;<br>
+&gt; &gt; This is the code inside mprotect_fixup in a tree v3.16.35 or olde=
+r:<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0/*<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 * vm_flags and vm_page_prot are protected by =
+the mmap_sem<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 * held in write mode.<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 */<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0vma-&gt;vm_flags =3D newflags;<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0vma-&gt;vm_page_prot =3D pgprot_modify(vma-&gt=
+;vm_page_prot,<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0vm_get_page_prot(newflags));<br>
+&gt; &gt;<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0if (vma_wants_writenotify(vma)) {<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0vma-&gt;vm_page_prot =3D vm_get_=
+page_prot(newflags &amp; ~VM_SHARED);<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0dirty_accountable =3D 1;<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0}<br>
+&gt; &gt; This is the code in the same region inside mprotect_fixup in a re=
+cent tree:<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0/*<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 * vm_flags and vm_page_prot are protected by =
+the mmap_sem<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 * held in write mode.<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 */<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0vma-&gt;vm_flags =3D newflags;<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0dirty_accountable =3D vma_wants_writenotify(vm=
+a);<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0vma_set_page_prot(vma);<br>
+&gt; &gt;<br>
+&gt; &gt; The difference is the setting of dirty_accountable. result of<br>
+&gt; &gt; vma_wants_writenotify does not depend on vma-&gt;vm_flags alone b=
+ut also depends<br>
+&gt; &gt; on vma-&gt;vm_page_prot and following code will make it return 0 =
+because in newer<br>
+&gt; &gt; code we are setting dirty_accountable before setting vma-&gt;vm_p=
+age_prot.<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0/* The open routine did something to the prote=
+ctions that pgprot_modify<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 * won&#39;t preserve? */<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0if (pgprot_val(vma-&gt;vm_page_prot) !=3D<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pgprot_val(vm_pgprot_modify(vma-=
+&gt;vm_page_prot, vm_flags)))<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;<br>
+<br>
+</div></div>The test-case will never hit this, as normal malloc() returns a=
+nonymous<br>
+memory, which is handled by the first check in vma_wants_writenotify().<br>
+<br>
+The only case when the case can change anything for you is if your<br>
+malloc() return file-backed memory. Which is possible, I guess, with<br>
+custom malloc().<br>
+<div><div class=3D"h5"><br>
+&gt; &gt; Now, suppose we change code by calling vma_set_page_prot before s=
+etting<br>
+&gt; &gt; dirty_accountable:<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0vma-&gt;vm_flags =3D newflags;<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0vma_set_page_prot(vma);<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0dirty_accountable =3D vma_wants_writenotify(vm=
+a);<br>
+&gt; &gt; Still, dirty_accountable will be 0. This is because following cod=
+e in<br>
+&gt; &gt; vma_set_page_prot modifies vma-&gt;vm_page_prot without modifying=
+ vma-&gt;vm_flags:<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0if (vma_wants_writenotify(vma)) {<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0vm_flags &amp;=3D ~VM_SHARED;<br=
+>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0vma-&gt;vm_page_prot =3D vm_pgpr=
+ot_modify(vma-&gt;vm_page_prot,<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 vm_flags);<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0}<br>
+&gt; &gt; so this check in vma_wants_writenotify will again return 0:<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0/* The open routine did something to the prote=
+ctions that pgprot_modify<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 * won&#39;t preserve? */<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0if (pgprot_val(vma-&gt;vm_page_prot) !=3D<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pgprot_val(vm_pgprot_modify(vma-=
+&gt;vm_page_prot, vm_flags)))<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return 0;<br>
+&gt; &gt; So dirty_accountable is still 0.<br>
+&gt; &gt;<br>
+&gt; &gt; This code in change_pte_range decides whether to call pte_mkwrite=
+ or not:<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/* Avoid taking wr=
+ite faults for known dirty pages */<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (dirty_accounta=
+ble &amp;&amp; pte_dirty(ptent) &amp;&amp;<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0(pte_soft_dirty(ptent) ||<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 !(vma-&gt;vm_flags &amp; VM_SOFTDIRTY))) {<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pten=
+t =3D pte_mkwrite(ptent);<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}<br>
+&gt; &gt; If dirty_accountable is 0 even though the pte was dirty already, =
+pte_mkwrite<br>
+&gt; &gt; will not be done.<br>
+&gt; &gt;<br>
+&gt; &gt; I think the correct solution should be that dirty_accountable be =
+set with the<br>
+&gt; &gt; value of vma_wants_writenotify queried before vma-&gt;vm_page_pro=
+t is set with<br>
+&gt; &gt; VM_SHARED removed from flags. One way to do so could be to have<b=
+r>
+&gt; &gt; vma_set_page_prot return the value of dirty_accountable that it c=
+an set right<br>
+&gt; &gt; after vma_wants_writenotify check. Another way could be to do<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0vma-&gt;vm_page_prot =3D pgprot_modify(vma-&gt=
+;vm_page_prot,<br>
+&gt; &gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0vm_get_page_prot(newflags));<br>
+&gt; &gt; and then set dirty_accountable based on vma_wants_writenotify and=
+ then call<br>
+&gt; &gt; vma_set_page_prot.<br>
+<br>
+</div></div>Looks like a good catch, but I&#39;m not sure if it&#39;s the r=
+oot cause of your<br>
+problem.<br>
+<span class=3D"HOEnZb"><font color=3D"#888888"><br>
+--<br>
+=C2=A0Kirill A. Shutemov<br>
+</font></span></blockquote></div><br></div>
 
-   (A) It can work on CONFIG_MMU=n kernels.
-
-   (B) It can work even if kthread_run(oom_reaper, NULL, "oom_reaper")
-       returned an error.
-
-   (C) It gives more accurately bounded delay (compared to waiting for
-       TIF_MEMDIE being sequentially cleared by the OOM reaper) even if
-       there are so many threads on the oom_reaper_list list.
-
-   (D) It can work even if the OOM reaper cannot run for long time
-       for unknown reasons (e.g. preempted by realtime priority tasks).
-
-   (E) We can handle all corner cases without proving that they are
-       triggerable issues in the real life.
-
-> 
-> So let's move on and try to think outside of the box:
-> ---
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index df8778e72211..027d5bc1e874 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -513,6 +513,7 @@ static inline int get_dumpable(struct mm_struct *mm)
->  #define MMF_HAS_UPROBES		19	/* has uprobes */
->  #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
->  #define MMF_OOM_REAPED		21	/* mm has been already reaped */
-> +#define MMF_OOM_NOT_REAPABLE	22	/* mm couldn't be reaped */
->  
->  #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
->  
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index c0e37dd1422f..b1a1e3317231 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -538,8 +538,27 @@ static void oom_reap_task(struct task_struct *tsk)
->  		schedule_timeout_idle(HZ/10);
->  
->  	if (attempts > MAX_OOM_REAP_RETRIES) {
-> +		struct task_struct *p;
-> +
->  		pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
->  				task_pid_nr(tsk), tsk->comm);
-> +
-> +		/*
-> +		 * If we've already tried to reap this task in the past and
-> +		 * failed it probably doesn't make much sense to try yet again
-> +		 * so hide the mm from the oom killer so that it can move on
-> +		 * to another task with a different mm struct.
-> +		 */
-> +		p = find_lock_task_mm(tsk);
-> +		if (p) {
-> +			if (test_and_set_bit(MMF_OOM_NOT_REAPABLE, &p->mm->flags)) {
-> +				pr_info("oom_reaper: giving up pid:%d (%s)\n",
-> +						task_pid_nr(tsk), tsk->comm);
-> +				set_bit(MMF_OOM_REAPED, &p->mm->flags);
-> +			}
-> +			task_unlock(p);
-> +		}
-> +
->  		debug_show_all_locks();
->  	}
->  
-> 
-> See the difference? This is 11LOC and we do not have export any knobs
-> which would tie us for future implementations. We will cap the number
-> of times each mm struct is attempted for OOM killer and do not have
-> to touch any subtle oom killer paths so the patch would be quite easy
-> to review. We can change this implementation if it turns out to be
-> impractical, too optimistic or pesimistic.
-
-Oh, this is a drastic change for you. You are trying to be very conservative
-and you refused to select next OOM victim unless progress are made.
-If you can accept selecting next OOM victim when progress are not made,
-I might be able to get away from timeout based approach.
-
-The requirements for getting me away from timeout based approach would be
-
-   (1) The OOM reaper is always invoked even if the OOM victim's mm is
-       known to be not reapable. That is, wake up the OOM reaper whenever
-       TIF_MEMDIE is set. mark_oom_victim() is a good place for doing so.
-
-   (2) The OOM reaper marks the OOM victim's mm_struct or signal_struct
-       as "not suitable for OOM victims" regardless of whether the OOM
-       reaper reaped the OOM victim's mm.
-
-       Marking the OOM victim's mm_struct might be unsafe because
-       it is possible that the OOM reaper is called without sending
-       SIGKILL to all thread groups sharing the OOM victim's mm_struct
-       (i.e. a situation where this reproducer tried to attack is
-       reproduced).
-
-       Marking the OOM victim's signal_struct might be unsafe unless
-       the OOM reaper is called with at least a thread group which
-       the OOM victim thread belongs to is guaranteed to be dying or
-       exiting. "oom: consider multi-threaded tasks in task_will_free_mem"
-       ( http://lkml.kernel.org/r/1460452756-15491-1-git-send-email-mhocko@kernel.org )
-       will help.
-
-   (3) The OOM reaper does not defer marking as "not suitable for OOM
-       victims" for unbounded duration.
-
-       Imagine a situation where a thread group with 1000 threads was
-       OOM killed, 1 thread is holding mmap_sem held for write and 999
-       threads are doing allocation. All 1000 threads will be queued to
-       the oom_reaper_list and 999 threads are blocked on mmap_sem at
-       exit_mm(). Since the OOM reaper waits for 1 second on each OOM
-       victim, the allocating task could wait for 1000 seconds.
-       If oom_reap_task() checks for "not suitable for OOM victims"
-       before calling __oom_reap_task(), we can shorten the delay to
-       1 second.
-
-       Imagine a situation where 100 thread groups in different memcg
-       are OOM killed, each thread group is holding mmap_sem for write.
-       Since the OOM reaper waits for 1 second on each memcg, the last
-       OOM victim could wait for 100 seconds. If oom_reap_task() does
-       parallel reaping, we can shorten the delay to 1 second.
-
-So, can you accept these requirements?
+--001a11c3f8868b3a810533080186--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
