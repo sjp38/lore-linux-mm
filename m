@@ -1,44 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7620D6B0005
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 07:27:15 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id ga2so7238524lbc.0
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 04:27:15 -0700 (PDT)
-Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
-        by mx.google.com with ESMTPS id y21si25855897wmd.12.2016.05.17.04.27.14
+Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A0E16B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 07:31:19 -0400 (EDT)
+Received: by mail-lb0-f197.google.com with SMTP id ne4so7292972lbc.1
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 04:31:19 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id n141si2097097lfb.227.2016.05.17.04.31.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 May 2016 04:27:14 -0700 (PDT)
-Subject: Re: UBIFS and page migration (take 3)
-References: <1462974823-3168-1-git-send-email-richard@nod.at>
- <20160512114948.GA25113@infradead.org> <5739C0C1.1090907@nod.at>
- <5739C53B.1010700@suse.cz>
-From: Richard Weinberger <richard@nod.at>
-Message-ID: <573B0009.3070004@nod.at>
-Date: Tue, 17 May 2016 13:27:05 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 May 2016 04:31:17 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id j8so862235lfd.0
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 04:31:17 -0700 (PDT)
+Date: Tue, 17 May 2016 14:31:14 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: + mm-thp-avoid-unnecessary-swapin-in-khugepaged.patch added to
+ -mm tree
+Message-ID: <20160517113114.GC9540@node.shutemov.name>
+References: <57212c60.fUSE244UFwhXE+az%akpm@linux-foundation.org>
+ <20160428151921.GL31489@dhcp22.suse.cz>
+ <20160517075815.GC14453@dhcp22.suse.cz>
+ <20160517090254.GE14453@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <5739C53B.1010700@suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160517090254.GE14453@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Christoph Hellwig <hch@infradead.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mtd@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, boris.brezillon@free-electrons.com, maxime.ripard@free-electrons.com, david@sigma-star.at, david@fromorbit.com, dedekind1@gmail.com, alex@nextthing.co, akpm@linux-foundation.org, sasha.levin@oracle.com, iamjoonsoo.kim@lge.com, rvaswani@codeaurora.org, tony.luck@intel.com, shailendra.capricorn@gmail.com, kirill.shutemov@linux.intel.com, hughd@google.com, mgorman@techsingularity.net
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, ebru.akagunduz@gmail.com, aarcange@redhat.com, aneesh.kumar@linux.vnet.ibm.com, boaz@plexistor.com, gorcunov@openvz.org, hannes@cmpxchg.org, hughd@google.com, iamjoonsoo.kim@lge.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, rientjes@google.com, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-Vlastimil,
-
-Am 16.05.2016 um 15:03 schrieb Vlastimil Babka:
-> On 05/16/2016 02:44 PM, Richard Weinberger wrote:
->> MM folks, do we have a way to force page migration?
+On Tue, May 17, 2016 at 11:02:54AM +0200, Michal Hocko wrote:
+> On Tue 17-05-16 09:58:15, Michal Hocko wrote:
+> > On Thu 28-04-16 17:19:21, Michal Hocko wrote:
+> > > On Wed 27-04-16 14:17:20, Andrew Morton wrote:
+> > > [...]
+> > > > @@ -2484,7 +2485,14 @@ static void collapse_huge_page(struct mm
+> > > >  		goto out;
+> > > >  	}
+> > > >  
+> > > > -	__collapse_huge_page_swapin(mm, vma, address, pmd);
+> > > > +	swap = get_mm_counter(mm, MM_SWAPENTS);
+> > > > +	curr_allocstall = sum_vm_event(ALLOCSTALL);
+> > > > +	/*
+> > > > +	 * When system under pressure, don't swapin readahead.
+> > > > +	 * So that avoid unnecessary resource consuming.
+> > > > +	 */
+> > > > +	if (allocstall == curr_allocstall && swap != 0)
+> > > > +		__collapse_huge_page_swapin(mm, vma, address, pmd);
+> > > >  
+> > > >  	anon_vma_lock_write(vma->anon_vma);
+> > > >  
+> > > 
+> > > I have mentioned that before already but this seems like a rather weak
+> > > heuristic. Don't we really rather teach __collapse_huge_page_swapin
+> > > (resp. do_swap_page) do to an optimistic GFP_NOWAIT allocations and
+> > > back off under the memory pressure?
+> > 
+> > I gave it a try and it doesn't seem really bad. Untested and I might
+> > have missed something really obvious but what do you think about this
+> > approach rather than relying on ALLOCSTALL which is really weak
+> > heuristic:
 > 
-> On NUMA we have migrate_pages(2).
+> Ups forgot to add mm/internal.h to the git index
+> ---
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 87f09dc986ab..1a4d4c807d92 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2389,7 +2389,8 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
+>  		swapped_in++;
+>  		ret = do_swap_page(mm, vma, _address, pte, pmd,
+>  				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
+> -				   pteval);
+> +				   pteval,
+> +				   GFP_HIGHUSER_MOVABLE | ~__GFP_DIRECT_RECLAIM);
 
-Doesn't this only migrate process (user) pages?
-AFAIK we need a way to force migration of pages which
-are in the page cache.
+Why only direct recliam? I'm not sure if triggering kswapd is justified
+for swapin. Maybe ~__GFP_RECLAIM?
 
-*confused*,
-//richard
+That said, I like the approach. ALLOCSTALL approach has locking issue[1].
+
+[1] http://lkml.kernel.org/r/20160505013245.GB10429@yexl-desktop
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
