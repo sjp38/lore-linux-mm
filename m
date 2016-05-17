@@ -1,52 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AB98F6B0005
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 21:41:14 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 77so3955143pfz.3
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 18:41:14 -0700 (PDT)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTP id l20si549145pfb.194.2016.05.16.18.41.12
-        for <linux-mm@kvack.org>;
-        Mon, 16 May 2016 18:41:13 -0700 (PDT)
-From: Li Peng <lip@dtdream.com>
-Subject: [PATCH] mm/slub.c: fix sysfs filename in comment
-Date: Tue, 17 May 2016 09:40:42 +0800
-Message-Id: <1463449242-5366-1-git-send-email-lip@dtdream.com>
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BDCA86B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 01:14:46 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id y84so2672711lfc.3
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 22:14:46 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l14si1916976wmb.12.2016.05.16.22.14.44
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 16 May 2016 22:14:45 -0700 (PDT)
+Subject: Re: Question About Functions "__free_pages_check" and
+ "check_new_page" in page_alloc.c
+References: <7374bd2e.da35.154b9cda7d2.Coremail.wang_xiaoq@126.com>
+ <20160516151657.GC23251@dhcp22.suse.cz>
+ <5877fe6c.1e45.154bc401c81.Coremail.wang_xiaoq@126.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <573AA8C2.2060606@suse.cz>
+Date: Tue, 17 May 2016 07:14:42 +0200
+MIME-Version: 1.0
+In-Reply-To: <5877fe6c.1e45.154bc401c81.Coremail.wang_xiaoq@126.com>
+Content-Type: text/plain; charset=gbk
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Li Peng <lip@dtdream.com>
+To: Wang Xiaoqiang <wang_xiaoq@126.com>, Michal Hocko <mhocko@kernel.org>, n-horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-/sys/kernel/slab/xx/defrag_ratio should be remote_node_defrag_ratio.
+On 05/17/2016 03:06 AM, Wang Xiaoqiang wrote:
+>>yes it would. Why that would matter. The checks should be in an order
+>>which could give us a more specific reason with later checks. bad_page()
+> 
+> I see, you mean the later "bad_reason" is the superset of the previous one.
 
-Signed-off-by: Li Peng <lip@dtdream.com>
----
- mm/slub.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+Not exactly. It's not possible to sort all the reasons like that. But as
+Michal said, bad_page() will print all the relevant info so you can
+reconstruct all reasons from it. The bad_reason text is mostly a hint
+what to check first.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 4dbb109e..6ef1540 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1735,11 +1735,11 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
- 	 * may return off node objects because partial slabs are obtained
- 	 * from other nodes and filled up.
- 	 *
--	 * If /sys/kernel/slab/xx/defrag_ratio is set to 100 (which makes
--	 * defrag_ratio = 1000) then every (well almost) allocation will
--	 * first attempt to defrag slab caches on other nodes. This means
--	 * scanning over all nodes to look for partial slabs which may be
--	 * expensive if we do it every time we are trying to find a slab
-+	 * If /sys/kernel/slab/xx/remote_node_defrag_ratio is set to 100
-+	 * (which makes defrag_ratio = 1000) then every (well almost)
-+	 * allocation will first attempt to defrag slab caches on other nodes.
-+	 * This means scanning over all nodes to look for partial slabs which
-+	 * may be expensive if we do it every time we are trying to find a slab
- 	 * with available objects.
- 	 */
- 	if (!s->remote_node_defrag_ratio ||
--- 
-1.8.3.1
+>>will then print more detailed information.
+>>--
+>>Michal Hocko
+>>SUSE Labs
+> 
+> thank you, Michal.
+> 
+> 
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
