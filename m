@@ -1,149 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DF646B0005
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 08:32:56 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 77so29096768pfz.3
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 05:32:56 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id dx9si4399314pab.59.2016.05.17.05.32.55
-        for <linux-mm@kvack.org>;
-        Tue, 17 May 2016 05:32:55 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] mm: make faultaround produce old ptes
-Date: Tue, 17 May 2016 15:32:46 +0300
-Message-Id: <1463488366-47723-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B62D6B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 08:34:29 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id u64so8553690lff.2
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 05:34:29 -0700 (PDT)
+Received: from mail-lf0-x22a.google.com (mail-lf0-x22a.google.com. [2a00:1450:4010:c07::22a])
+        by mx.google.com with ESMTPS id z3si2360812lfc.128.2016.05.17.05.34.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 May 2016 05:34:26 -0700 (PDT)
+Received: by mail-lf0-x22a.google.com with SMTP id y84so6172570lfc.0
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 05:34:26 -0700 (PDT)
+Date: Tue, 17 May 2016 15:34:23 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: make fault_around_bytes configurable
+Message-ID: <20160517123423.GF9540@node.shutemov.name>
+References: <1460992636-711-1-git-send-email-vinmenon@codeaurora.org>
+ <20160421170150.b492ffe35d073270b53f0e4d@linux-foundation.org>
+ <5719E494.20302@codeaurora.org>
+ <20160422094430.GA7336@node.shutemov.name>
+ <fdc23a2a-b42a-f0af-d403-41ea4e755084@codeaurora.org>
+ <20160509073251.GA5434@blaptop>
+ <20160510024842.GC4426@bbox>
+ <20160516141854.GA2361@blaptop>
+ <20160516142900.GB9540@node.shutemov.name>
+ <20160516145632.GA2342@blaptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160516145632.GA2342@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>, Vinayak Menon <vinmenon@codeaurora.org>, Minchan Kim <minchan@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Vinayak Menon <vinmenon@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, mgorman@suse.de, vbabka@suse.cz, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, hughd@google.com
 
-Currently, faultaround code produces young pte. This can screw up vmscan
-behaviour[1], as it makes vmscan think that these pages are hot and not
-push them out on first round.
+On Mon, May 16, 2016 at 11:56:32PM +0900, Minchan Kim wrote:
+> On Mon, May 16, 2016 at 05:29:00PM +0300, Kirill A. Shutemov wrote:
+> > > Kirill,
+> > > You wanted to test non-HW access bit system and I did.
+> > > What's your opinion?
+> > 
+> > Sorry, for late response.
+> > 
+> > My patch is incomlete: we need to find a way to not mark pte as old if we
+> > handle page fault for the address the pte represents.
+> 
+> I'm sure you can handle it but my point is there wouldn't be a big gain
+> although you can handle it in non-HW access bit system. Okay, let's be
+> more clear because I don't have every non-HW access bit architecture.
+> At least, current mobile workload in ARM which I have wouldn't be huge
+> benefit.
+> I will say one more.
+> I tested the workload on quad-core system and core speed is not so slow
+> compared to recent other mobile phone SoC. Even when I tested the benchmark
+> without pte_mkold, the benefit is within noise because storage is really
+> slow so major fault is dominant factor. So, I decide test storage from eMMC
+> to eSATA. And then finally, I manage to see the a little beneift with
+> fault_around without pte_mkold.
+> 
+> However, let's consider side-effect aspect from fault_around.
+> 
+> 1. Increase slab shrinking compard to old
+> 2. high level vmpressure compared to old
+> 
+> With considering that regressions on my system, it's really not worth to
+> try at the moment.
+> That's why I wanted to disable fault_around as default in non-HW access
+> bit system.
 
-Let modify faultaround to produce old pte, so they can easily be
-reclaimed under memory pressure.
+Feel free to post such patch. I guess it's reasonable.
 
-This can to some extend defeat purpose of faultaround on machines
-without hardware accessed bit as it will not help up with reducing
-number of minor page faults.
+> > Once this will be done, the number of page faults shouldn't be higher with
+> > fault-around enabled even on machines without hardware accessed bit. This
+> > will address performance regression with the patch on such machines.
+> 
+> Although you solves that, I guess the benefit would be marginal in
+> some architectures but we should solve above side-effects.
+> 
+> > 
+> > I'll try to find time to update the patch soon.
+> 
+> I hope you can solve above those regressions as well.
 
-We may want to disable faultaround on such machines altogether, but
-that's subject for separate patchset.
+The patch is posted. Please test.
 
-[1] https://lkml.kernel.org/r/1460992636-711-1-git-send-email-vinmenon@codeaurora.org
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>
-Cc: Minchan Kim <minchan@kernel.org>
----
- include/linux/mm.h |  2 +-
- mm/filemap.c       |  2 +-
- mm/memory.c        | 23 ++++++++++++++++++-----
- 3 files changed, 20 insertions(+), 7 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 573dfebddcca..a0e773204be0 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -591,7 +591,7 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
- }
- 
- void do_set_pte(struct vm_area_struct *vma, unsigned long address,
--		struct page *page, pte_t *pte, bool write, bool anon);
-+		struct page *page, pte_t *pte, bool write, bool anon, bool old);
- #endif
- 
- /*
-diff --git a/mm/filemap.c b/mm/filemap.c
-index b366a9902f1c..dd789e159a77 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2196,7 +2196,7 @@ repeat:
- 		if (file->f_ra.mmap_miss > 0)
- 			file->f_ra.mmap_miss--;
- 		addr = address + (page->index - vmf->pgoff) * PAGE_SIZE;
--		do_set_pte(vma, addr, page, pte, false, false);
-+		do_set_pte(vma, addr, page, pte, false, false, true);
- 		unlock_page(page);
- 		goto next;
- unlock:
-diff --git a/mm/memory.c b/mm/memory.c
-index d79c6db41502..67c03b2fe20c 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2855,7 +2855,7 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
-  * vm_ops->map_pages.
-  */
- void do_set_pte(struct vm_area_struct *vma, unsigned long address,
--		struct page *page, pte_t *pte, bool write, bool anon)
-+		struct page *page, pte_t *pte, bool write, bool anon, bool old)
- {
- 	pte_t entry;
- 
-@@ -2863,6 +2863,8 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
- 	entry = mk_pte(page, vma->vm_page_prot);
- 	if (write)
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+	if (old)
-+		entry = pte_mkold(entry);
- 	if (anon) {
- 		inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
- 		page_add_new_anon_rmap(page, vma, address, false);
-@@ -3000,9 +3002,20 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 */
- 	if (vma->vm_ops->map_pages && fault_around_bytes >> PAGE_SHIFT > 1) {
- 		pte = pte_offset_map_lock(mm, pmd, address, &ptl);
--		do_fault_around(vma, address, pte, pgoff, flags);
- 		if (!pte_same(*pte, orig_pte))
- 			goto unlock_out;
-+		do_fault_around(vma, address, pte, pgoff, flags);
-+		/* Check if the fault is handled by faultaround */
-+		if (!pte_same(*pte, orig_pte)) {
-+			/*
-+			 * Faultaround produce old pte, but the pte we've
-+			 * handler fault for should be young.
-+			 */
-+			pte_t entry = pte_mkyoung(*pte);
-+			if (ptep_set_access_flags(vma, address, pte, entry, 0))
-+				update_mmu_cache(vma, address, pte);
-+			goto unlock_out;
-+		}
- 		pte_unmap_unlock(pte, ptl);
- 	}
- 
-@@ -3017,7 +3030,7 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		put_page(fault_page);
- 		return ret;
- 	}
--	do_set_pte(vma, address, fault_page, pte, false, false);
-+	do_set_pte(vma, address, fault_page, pte, false, false, false);
- 	unlock_page(fault_page);
- unlock_out:
- 	pte_unmap_unlock(pte, ptl);
-@@ -3069,7 +3082,7 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		}
- 		goto uncharge_out;
- 	}
--	do_set_pte(vma, address, new_page, pte, true, true);
-+	do_set_pte(vma, address, new_page, pte, true, true, false);
- 	mem_cgroup_commit_charge(new_page, memcg, false, false);
- 	lru_cache_add_active_or_unevictable(new_page, vma);
- 	pte_unmap_unlock(pte, ptl);
-@@ -3126,7 +3139,7 @@ static int do_shared_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		put_page(fault_page);
- 		return ret;
- 	}
--	do_set_pte(vma, address, fault_page, pte, true, false);
-+	do_set_pte(vma, address, fault_page, pte, true, false, false);
- 	pte_unmap_unlock(pte, ptl);
- 
- 	if (set_page_dirty(fault_page))
 -- 
-2.8.1
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
