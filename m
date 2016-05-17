@@ -1,51 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C22C6B0005
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 03:43:00 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 77so16767980pfz.3
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 00:43:00 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id h8si2855035paz.143.2016.05.17.00.42.59
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 808BF6B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 03:58:18 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w143so6007248wmw.3
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 00:58:18 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id kd6si1985439wjc.113.2016.05.17.00.58.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 May 2016 00:42:59 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id 145so1054475pfz.1
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 00:42:59 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v1] mm: bad_page() checks bad_flags instead of page->flags for hwpoison page
-Date: Tue, 17 May 2016 16:42:55 +0900
-Message-Id: <1463470975-29972-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+        Tue, 17 May 2016 00:58:16 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id r12so2533119wme.0
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 00:58:16 -0700 (PDT)
+Date: Tue, 17 May 2016 09:58:15 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: + mm-thp-avoid-unnecessary-swapin-in-khugepaged.patch added to
+ -mm tree
+Message-ID: <20160517075815.GC14453@dhcp22.suse.cz>
+References: <57212c60.fUSE244UFwhXE+az%akpm@linux-foundation.org>
+ <20160428151921.GL31489@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160428151921.GL31489@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: akpm@linux-foundation.org
+Cc: ebru.akagunduz@gmail.com, aarcange@redhat.com, aneesh.kumar@linux.vnet.ibm.com, boaz@plexistor.com, gorcunov@openvz.org, hannes@cmpxchg.org, hughd@google.com, iamjoonsoo.kim@lge.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, rientjes@google.com, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-There's a race window between checking page->flags and unpoisoning, which
-taints kernel with "BUG: Bad page state". That's overkill. It's safer to
-use bad_flags to detect hwpoisoned page.
+On Thu 28-04-16 17:19:21, Michal Hocko wrote:
+> On Wed 27-04-16 14:17:20, Andrew Morton wrote:
+> [...]
+> > @@ -2484,7 +2485,14 @@ static void collapse_huge_page(struct mm
+> >  		goto out;
+> >  	}
+> >  
+> > -	__collapse_huge_page_swapin(mm, vma, address, pmd);
+> > +	swap = get_mm_counter(mm, MM_SWAPENTS);
+> > +	curr_allocstall = sum_vm_event(ALLOCSTALL);
+> > +	/*
+> > +	 * When system under pressure, don't swapin readahead.
+> > +	 * So that avoid unnecessary resource consuming.
+> > +	 */
+> > +	if (allocstall == curr_allocstall && swap != 0)
+> > +		__collapse_huge_page_swapin(mm, vma, address, pmd);
+> >  
+> >  	anon_vma_lock_write(vma->anon_vma);
+> >  
+> 
+> I have mentioned that before already but this seems like a rather weak
+> heuristic. Don't we really rather teach __collapse_huge_page_swapin
+> (resp. do_swap_page) do to an optimistic GFP_NOWAIT allocations and
+> back off under the memory pressure?
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+I gave it a try and it doesn't seem really bad. Untested and I might
+have missed something really obvious but what do you think about this
+approach rather than relying on ALLOCSTALL which is really weak
+heuristic:
 ---
- mm/page_alloc.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git tmp/mm/page_alloc.c tmp_patched/mm/page_alloc.c
-index 5b269bc..4e0fa37 100644
---- tmp/mm/page_alloc.c
-+++ tmp_patched/mm/page_alloc.c
-@@ -522,8 +522,8 @@ static void bad_page(struct page *page, const char *reason,
- 	static unsigned long nr_shown;
- 	static unsigned long nr_unshown;
- 
--	/* Don't complain about poisoned pages */
--	if (PageHWPoison(page)) {
-+	/* Don't complain about hwpoisoned pages */
-+	if (bad_flags == __PG_HWPOISON) {
- 		page_mapcount_reset(page); /* remove PageBuddy */
- 		return;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 87f09dc986ab..1a4d4c807d92 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2389,7 +2389,8 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
+ 		swapped_in++;
+ 		ret = do_swap_page(mm, vma, _address, pte, pmd,
+ 				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
+-				   pteval);
++				   pteval,
++				   GFP_HIGHUSER_MOVABLE | ~__GFP_DIRECT_RECLAIM);
+ 		if (ret & VM_FAULT_ERROR) {
+ 			trace_mm_collapse_huge_page_swapin(mm, swapped_in, 0);
+ 			return;
+diff --git a/mm/memory.c b/mm/memory.c
+index d79c6db41502..f897ec89bd79 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2490,7 +2490,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
+  */
+ int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		unsigned long address, pte_t *page_table, pmd_t *pmd,
+-		unsigned int flags, pte_t orig_pte)
++		unsigned int flags, pte_t orig_pte, gfp_t gfp_mask)
+ {
+ 	spinlock_t *ptl;
+ 	struct page *page, *swapcache;
+@@ -2519,8 +2519,7 @@ int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+ 	page = lookup_swap_cache(entry);
+ 	if (!page) {
+-		page = swapin_readahead(entry,
+-					GFP_HIGHUSER_MOVABLE, vma, address);
++		page = swapin_readahead(entry, gfp_mask, vma, address);
+ 		if (!page) {
+ 			/*
+ 			 * Back out if somebody else faulted in this pte
+@@ -2573,7 +2572,7 @@ int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		goto out_page;
  	}
+ 
+-	if (mem_cgroup_try_charge(page, mm, GFP_KERNEL, &memcg, false)) {
++	if (mem_cgroup_try_charge(page, mm, gfp_mask, &memcg, false)) {
+ 		ret = VM_FAULT_OOM;
+ 		goto out_page;
+ 	}
+@@ -3349,7 +3348,7 @@ static int handle_pte_fault(struct mm_struct *mm,
+ 						flags, entry);
+ 		}
+ 		return do_swap_page(mm, vma, address,
+-					pte, pmd, flags, entry);
++					pte, pmd, flags, entry, GFP_HIGHUSER_MOVABLE);
+ 	}
+ 
+ 	if (pte_protnone(entry))
 -- 
-2.7.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
