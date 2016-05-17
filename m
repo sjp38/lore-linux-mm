@@ -1,86 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A0E16B0005
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 07:31:19 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id ne4so7292972lbc.1
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 04:31:19 -0700 (PDT)
+Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D5F6F6B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 07:36:37 -0400 (EDT)
+Received: by mail-lb0-f198.google.com with SMTP id f14so7337765lbb.2
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 04:36:37 -0700 (PDT)
 Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id n141si2097097lfb.227.2016.05.17.04.31.17
+        by mx.google.com with ESMTPS id vx2si2120768lbb.180.2016.05.17.04.36.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 May 2016 04:31:17 -0700 (PDT)
-Received: by mail-lf0-x243.google.com with SMTP id j8so862235lfd.0
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 04:31:17 -0700 (PDT)
-Date: Tue, 17 May 2016 14:31:14 +0300
+        Tue, 17 May 2016 04:36:36 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id u64so874088lff.2
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 04:36:36 -0700 (PDT)
+Date: Tue, 17 May 2016 14:36:34 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: + mm-thp-avoid-unnecessary-swapin-in-khugepaged.patch added to
- -mm tree
-Message-ID: <20160517113114.GC9540@node.shutemov.name>
-References: <57212c60.fUSE244UFwhXE+az%akpm@linux-foundation.org>
- <20160428151921.GL31489@dhcp22.suse.cz>
- <20160517075815.GC14453@dhcp22.suse.cz>
- <20160517090254.GE14453@dhcp22.suse.cz>
+Subject: Re: [Bug 117731] New: Doing mprotect for PROT_NONE and then for
+ PROT_READ|PROT_WRITE reduces CPU write B/W on buffer
+Message-ID: <20160517113634.GD9540@node.shutemov.name>
+References: <bug-117731-27@https.bugzilla.kernel.org/>
+ <20160506150112.9b27324b4b2b141146b0ff25@linux-foundation.org>
+ <20160516133543.GA9540@node.shutemov.name>
+ <CAGoWJG8mEwscwkUW31ejFyHR63Jm4eQKtUDpeADB2nUinrL59w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160517090254.GE14453@dhcp22.suse.cz>
+In-Reply-To: <CAGoWJG8mEwscwkUW31ejFyHR63Jm4eQKtUDpeADB2nUinrL59w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, ebru.akagunduz@gmail.com, aarcange@redhat.com, aneesh.kumar@linux.vnet.ibm.com, boaz@plexistor.com, gorcunov@openvz.org, hannes@cmpxchg.org, hughd@google.com, iamjoonsoo.kim@lge.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, rientjes@google.com, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Ashish Srivastava <ashish0srivastava0@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, Peter Feiner <pfeiner@google.com>, linux-mm@kvack.org
 
-On Tue, May 17, 2016 at 11:02:54AM +0200, Michal Hocko wrote:
-> On Tue 17-05-16 09:58:15, Michal Hocko wrote:
-> > On Thu 28-04-16 17:19:21, Michal Hocko wrote:
-> > > On Wed 27-04-16 14:17:20, Andrew Morton wrote:
-> > > [...]
-> > > > @@ -2484,7 +2485,14 @@ static void collapse_huge_page(struct mm
-> > > >  		goto out;
-> > > >  	}
-> > > >  
-> > > > -	__collapse_huge_page_swapin(mm, vma, address, pmd);
-> > > > +	swap = get_mm_counter(mm, MM_SWAPENTS);
-> > > > +	curr_allocstall = sum_vm_event(ALLOCSTALL);
-> > > > +	/*
-> > > > +	 * When system under pressure, don't swapin readahead.
-> > > > +	 * So that avoid unnecessary resource consuming.
-> > > > +	 */
-> > > > +	if (allocstall == curr_allocstall && swap != 0)
-> > > > +		__collapse_huge_page_swapin(mm, vma, address, pmd);
-> > > >  
-> > > >  	anon_vma_lock_write(vma->anon_vma);
-> > > >  
-> > > 
-> > > I have mentioned that before already but this seems like a rather weak
-> > > heuristic. Don't we really rather teach __collapse_huge_page_swapin
-> > > (resp. do_swap_page) do to an optimistic GFP_NOWAIT allocations and
-> > > back off under the memory pressure?
-> > 
-> > I gave it a try and it doesn't seem really bad. Untested and I might
-> > have missed something really obvious but what do you think about this
-> > approach rather than relying on ALLOCSTALL which is really weak
-> > heuristic:
+On Tue, May 17, 2016 at 04:56:02PM +0530, Ashish Srivastava wrote:
+> Yes, the original repro was using a custom allocator but I was seeing the
+> issue with malloc'd memory as well on my (ARMv7) platform.
+
+Test-case for that would be helpful, as normal malloc()'ed anon memory
+cannot be subject for the bug. Unless I miss something obvious.
+
+> I agree that the repro code won't reliably work so have modified the repro
+> code attached to the bug to use file backed memory.
 > 
-> Ups forgot to add mm/internal.h to the git index
-> ---
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 87f09dc986ab..1a4d4c807d92 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2389,7 +2389,8 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
->  		swapped_in++;
->  		ret = do_swap_page(mm, vma, _address, pte, pmd,
->  				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
-> -				   pteval);
-> +				   pteval,
-> +				   GFP_HIGHUSER_MOVABLE | ~__GFP_DIRECT_RECLAIM);
+> That really is the root cause of the problem. I can make the following
+> change in the kernel that can make the slow writes problem go away.
+> This makes vma_set_page_prot return the value of vma_wants_writenotify to
+> the caller after setting vma->vmpage_prot.
+> 
+> In vma_set_page_prot:
+> -void vma_set_page_prot(struct vm_area_struct *vma)
+> +bool vma_set_page_prot(struct vm_area_struct *vma)
+> {
+>     unsigned long vm_flags = vma->vm_flags;
+> 
+>     vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
+>     if (vma_wants_writenotify(vma)) {
+>         vm_flags &= ~VM_SHARED;
+>         vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot,
+>                              vm_flags);
+> +        return 1;
+>      }
+> +    return 0;
+> }
+> 
+> In mprotect_fixup:
+> 
+>      * held in write mode.
+>       */
+>      vma->vm_flags = newflags;
+> -    dirty_accountable = vma_wants_writenotify(vma);
+> -    vma_set_page_prot(vma);
+> +    dirty_accountable = vma_set_page_prot(vma);
+> 
+>      change_protection(vma, start, end, vma->vm_page_prot,
+>                dirty_accountable, 0)
+> 
 
-Why only direct recliam? I'm not sure if triggering kswapd is justified
-for swapin. Maybe ~__GFP_RECLAIM?
-
-That said, I like the approach. ALLOCSTALL approach has locking issue[1].
-
-[1] http://lkml.kernel.org/r/20160505013245.GB10429@yexl-desktop
+That looks good to me. Please prepare proper patch.
 
 -- 
  Kirill A. Shutemov
