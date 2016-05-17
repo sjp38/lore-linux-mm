@@ -1,72 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ABCF6B0005
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 04:19:47 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 203so18337079pfy.2
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 01:19:47 -0700 (PDT)
-Received: from m15-5.126.com (m15-5.126.com. [220.181.15.5])
-        by mx.google.com with ESMTP id x10si3107355pas.64.2016.05.17.01.19.45
-        for <linux-mm@kvack.org>;
-        Tue, 17 May 2016 01:19:46 -0700 (PDT)
-Date: Tue, 17 May 2016 16:17:15 +0800 (CST)
-From: "Wang Xiaoqiang" <wang_xiaoq@126.com>
-Subject: Re:Re: Question About Functions "__free_pages_check" and
- "check_new_page" in page_alloc.c
-In-Reply-To: <573AA8C2.2060606@suse.cz>
-References: <7374bd2e.da35.154b9cda7d2.Coremail.wang_xiaoq@126.com>
- <20160516151657.GC23251@dhcp22.suse.cz>
- <5877fe6c.1e45.154bc401c81.Coremail.wang_xiaoq@126.com>
- <573AA8C2.2060606@suse.cz>
-Content-Type: multipart/alternative;
-	boundary="----=_Part_207485_2036151241.1463473035147"
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CDA5D6B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 04:24:23 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id ne4so4826057lbc.1
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 01:24:23 -0700 (PDT)
+Received: from smtp.laposte.net (smtpoutz28.laposte.net. [194.117.213.103])
+        by mx.google.com with ESMTPS id m8si2672814wma.116.2016.05.17.01.24.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 May 2016 01:24:22 -0700 (PDT)
+Received: from smtp.laposte.net (localhost [127.0.0.1])
+	by lpn-prd-vrout016 (Postfix) with ESMTP id 191D511364B
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 10:24:22 +0200 (CEST)
+Received: from lpn-prd-vrin002 (lpn-prd-vrin002.prosodie [10.128.63.3])
+	by lpn-prd-vrout016 (Postfix) with ESMTP id 16C47112A5A
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 10:24:22 +0200 (CEST)
+Received: from lpn-prd-vrin002 (localhost [127.0.0.1])
+	by lpn-prd-vrin002 (Postfix) with ESMTP id F090F5BF037
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 10:24:21 +0200 (CEST)
+Message-ID: <573AD534.6050703@laposte.net>
+Date: Tue, 17 May 2016 10:24:20 +0200
+From: Sebastian Frias <sf84@laposte.net>
 MIME-Version: 1.0
-Message-ID: <48761067.9b95.154bdca578c.Coremail.wang_xiaoq@126.com>
+Subject: Re: [PATCH] mm: add config option to select the initial overcommit
+ mode
+References: <5731CC6E.3080807@laposte.net>	<20160513080458.GF20141@dhcp22.suse.cz>	<573593EE.6010502@free.fr>	<20160513095230.GI20141@dhcp22.suse.cz>	<5735AA0E.5060605@free.fr>	<20160513114429.GJ20141@dhcp22.suse.cz>	<5735C567.6030202@free.fr>	<20160513140128.GQ20141@dhcp22.suse.cz>	<20160513160410.10c6cea6@lxorguk.ukuu.org.uk>	<5735F4B1.1010704@laposte.net> <20160513164357.5f565d3c@lxorguk.ukuu.org.uk>
+In-Reply-To: <20160513164357.5f565d3c@lxorguk.ukuu.org.uk>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, n-horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
+Cc: Michal Hocko <mhocko@kernel.org>, Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-------=_Part_207485_2036151241.1463473035147
-Content-Type: text/plain; charset=GBK
-Content-Transfer-Encoding: base64
+Hi Alan,
 
-dGhhbmsgeW91IHZlcnkgbXVjaCEgVmxhc3RpbWlsLgoKCkF0IDIwMTYtMDUtMTcgMTM6MTQ6NDIs
-ICJWbGFzdGltaWwgQmFia2EiIDx2YmFia2FAc3VzZS5jej4gd3JvdGU6Cj5PbiAwNS8xNy8yMDE2
-IDAzOjA2IEFNLCBXYW5nIFhpYW9xaWFuZyB3cm90ZToKPj4+eWVzIGl0IHdvdWxkLiBXaHkgdGhh
-dCB3b3VsZCBtYXR0ZXIuIFRoZSBjaGVja3Mgc2hvdWxkIGJlIGluIGFuIG9yZGVyCj4+PndoaWNo
-IGNvdWxkIGdpdmUgdXMgYSBtb3JlIHNwZWNpZmljIHJlYXNvbiB3aXRoIGxhdGVyIGNoZWNrcy4g
-YmFkX3BhZ2UoKQo+PiAKPj4gSSBzZWUsIHlvdSBtZWFuIHRoZSBsYXRlciAiYmFkX3JlYXNvbiIg
-aXMgdGhlIHN1cGVyc2V0IG9mIHRoZSBwcmV2aW91cyBvbmUuCj4KPk5vdCBleGFjdGx5LiBJdCdz
-IG5vdCBwb3NzaWJsZSB0byBzb3J0IGFsbCB0aGUgcmVhc29ucyBsaWtlIHRoYXQuIEJ1dCBhcwo+
-TWljaGFsIHNhaWQsIGJhZF9wYWdlKCkgd2lsbCBwcmludCBhbGwgdGhlIHJlbGV2YW50IGluZm8g
-c28geW91IGNhbgo+cmVjb25zdHJ1Y3QgYWxsIHJlYXNvbnMgZnJvbSBpdC4gVGhlIGJhZF9yZWFz
-b24gdGV4dCBpcyBtb3N0bHkgYSBoaW50Cj53aGF0IHRvIGNoZWNrIGZpcnN0Lgo+Cj4+PndpbGwg
-dGhlbiBwcmludCBtb3JlIGRldGFpbGVkIGluZm9ybWF0aW9uLgo+Pj4tLQo+Pj5NaWNoYWwgSG9j
-a28KPj4+U1VTRSBMYWJzCj4+IAo+PiB0aGFuayB5b3UsIE1pY2hhbC4K
-------=_Part_207485_2036151241.1463473035147
-Content-Type: text/html; charset=GBK
-Content-Transfer-Encoding: base64
+On 05/13/2016 05:43 PM, One Thousand Gnomes wrote:
+>> But wouldn't those affect a given process at at time?
+>> Does that means that the OOM-killer is woken up to kill process X when those situations arise on process Y?
+> 
+> Not sure I understand the question.
 
-PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
-Zm9udC1mYW1pbHk6QXJpYWwiPjxkaXYgaWQ9ImRpdk5ldGVhc2VNYWlsQ2FyZCI+PC9kaXY+PGRp
-dj50aGFuayB5b3UgdmVyeSBtdWNoISBWbGFzdGltaWwuPGJyPjxicj48L2Rpdj48cHJlPkF0IDIw
-MTYtMDUtMTcgMTM6MTQ6NDIsICJWbGFzdGltaWwgQmFia2EiICZsdDt2YmFia2FAc3VzZS5jeiZn
-dDsgd3JvdGU6CiZndDtPbiAwNS8xNy8yMDE2IDAzOjA2IEFNLCBXYW5nIFhpYW9xaWFuZyB3cm90
-ZToKJmd0OyZndDsmZ3Q7eWVzIGl0IHdvdWxkLiBXaHkgdGhhdCB3b3VsZCBtYXR0ZXIuIFRoZSBj
-aGVja3Mgc2hvdWxkIGJlIGluIGFuIG9yZGVyCiZndDsmZ3Q7Jmd0O3doaWNoIGNvdWxkIGdpdmUg
-dXMgYSBtb3JlIHNwZWNpZmljIHJlYXNvbiB3aXRoIGxhdGVyIGNoZWNrcy4gYmFkX3BhZ2UoKQom
-Z3Q7Jmd0OyAKJmd0OyZndDsgSSBzZWUsIHlvdSBtZWFuIHRoZSBsYXRlciAiYmFkX3JlYXNvbiIg
-aXMgdGhlIHN1cGVyc2V0IG9mIHRoZSBwcmV2aW91cyBvbmUuCiZndDsKJmd0O05vdCBleGFjdGx5
-LiBJdCdzIG5vdCBwb3NzaWJsZSB0byBzb3J0IGFsbCB0aGUgcmVhc29ucyBsaWtlIHRoYXQuIEJ1
-dCBhcwomZ3Q7TWljaGFsIHNhaWQsIGJhZF9wYWdlKCkgd2lsbCBwcmludCBhbGwgdGhlIHJlbGV2
-YW50IGluZm8gc28geW91IGNhbgomZ3Q7cmVjb25zdHJ1Y3QgYWxsIHJlYXNvbnMgZnJvbSBpdC4g
-VGhlIGJhZF9yZWFzb24gdGV4dCBpcyBtb3N0bHkgYSBoaW50CiZndDt3aGF0IHRvIGNoZWNrIGZp
-cnN0LgomZ3Q7CiZndDsmZ3Q7Jmd0O3dpbGwgdGhlbiBwcmludCBtb3JlIGRldGFpbGVkIGluZm9y
-bWF0aW9uLgomZ3Q7Jmd0OyZndDstLQomZ3Q7Jmd0OyZndDtNaWNoYWwgSG9ja28KJmd0OyZndDsm
-Z3Q7U1VTRSBMYWJzCiZndDsmZ3Q7IAomZ3Q7Jmd0OyB0aGFuayB5b3UsIE1pY2hhbC4KPC9wcmU+
-PC9kaXY+PGJyPjxicj48c3BhbiB0aXRsZT0ibmV0ZWFzZWZvb3RlciI+PHA+Jm5ic3A7PC9wPjwv
-c3Bhbj4=
-------=_Part_207485_2036151241.1463473035147--
+I'm sorry for the "at at time" typo.
+What I meant was that situations you described "Stakc expansion failure is not reportable. Copy on write failure is not reportable and so on.", should affect one process at the time, in that case:
+1) either process X with the COW failure happens could die
+2) either random process Y dies so that COW failure on process X can be handled.
+
+Do you know why was 2) chosen over 1)?
+
+> 
+>> Also, under what conditions would copy-on-write fail?
+> 
+> When you have no memory or swap pages free and you touch a COW page that
+> is currently shared. At that point there is no resource to back to the
+> copy so something must die - either the process doing the copy or
+> something else.
+
+Exactly, and why does "killing something else" makes more sense (or was chosen over) "killing the process doing the copy"?
+
+Best regards,
+
+Sebastian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
