@@ -1,59 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E3406B0005
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 04:57:28 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id ne4so5228150lbc.1
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 01:57:28 -0700 (PDT)
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id z191si2846886wme.56.2016.05.17.01.57.27
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A0136B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 05:02:56 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id w143so6986989wmw.3
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 02:02:56 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id 128si2877372wmt.50.2016.05.17.02.02.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 May 2016 01:57:27 -0700 (PDT)
-Received: by mail-wm0-f51.google.com with SMTP id n129so130806162wmn.1
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 01:57:27 -0700 (PDT)
-Date: Tue, 17 May 2016 10:57:25 +0200
+        Tue, 17 May 2016 02:02:55 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id n129so2959807wmn.1
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 02:02:55 -0700 (PDT)
+Date: Tue, 17 May 2016 11:02:54 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: add config option to select the initial overcommit
- mode
-Message-ID: <20160517085724.GD14453@dhcp22.suse.cz>
-References: <573593EE.6010502@free.fr>
- <20160513095230.GI20141@dhcp22.suse.cz>
- <5735AA0E.5060605@free.fr>
- <20160513114429.GJ20141@dhcp22.suse.cz>
- <5735C567.6030202@free.fr>
- <20160513140128.GQ20141@dhcp22.suse.cz>
- <20160513160410.10c6cea6@lxorguk.ukuu.org.uk>
- <5735F4B1.1010704@laposte.net>
- <20160513164357.5f565d3c@lxorguk.ukuu.org.uk>
- <573AD534.6050703@laposte.net>
+Subject: Re: + mm-thp-avoid-unnecessary-swapin-in-khugepaged.patch added to
+ -mm tree
+Message-ID: <20160517090254.GE14453@dhcp22.suse.cz>
+References: <57212c60.fUSE244UFwhXE+az%akpm@linux-foundation.org>
+ <20160428151921.GL31489@dhcp22.suse.cz>
+ <20160517075815.GC14453@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <573AD534.6050703@laposte.net>
+In-Reply-To: <20160517075815.GC14453@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Frias <sf84@laposte.net>
-Cc: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: ebru.akagunduz@gmail.com, aarcange@redhat.com, aneesh.kumar@linux.vnet.ibm.com, boaz@plexistor.com, gorcunov@openvz.org, hannes@cmpxchg.org, hughd@google.com, iamjoonsoo.kim@lge.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, rientjes@google.com, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 17-05-16 10:24:20, Sebastian Frias wrote:
-[...]
-> >> Also, under what conditions would copy-on-write fail?
+On Tue 17-05-16 09:58:15, Michal Hocko wrote:
+> On Thu 28-04-16 17:19:21, Michal Hocko wrote:
+> > On Wed 27-04-16 14:17:20, Andrew Morton wrote:
+> > [...]
+> > > @@ -2484,7 +2485,14 @@ static void collapse_huge_page(struct mm
+> > >  		goto out;
+> > >  	}
+> > >  
+> > > -	__collapse_huge_page_swapin(mm, vma, address, pmd);
+> > > +	swap = get_mm_counter(mm, MM_SWAPENTS);
+> > > +	curr_allocstall = sum_vm_event(ALLOCSTALL);
+> > > +	/*
+> > > +	 * When system under pressure, don't swapin readahead.
+> > > +	 * So that avoid unnecessary resource consuming.
+> > > +	 */
+> > > +	if (allocstall == curr_allocstall && swap != 0)
+> > > +		__collapse_huge_page_swapin(mm, vma, address, pmd);
+> > >  
+> > >  	anon_vma_lock_write(vma->anon_vma);
+> > >  
 > > 
-> > When you have no memory or swap pages free and you touch a COW page that
-> > is currently shared. At that point there is no resource to back to the
-> > copy so something must die - either the process doing the copy or
-> > something else.
+> > I have mentioned that before already but this seems like a rather weak
+> > heuristic. Don't we really rather teach __collapse_huge_page_swapin
+> > (resp. do_swap_page) do to an optimistic GFP_NOWAIT allocations and
+> > back off under the memory pressure?
 > 
-> Exactly, and why does "killing something else" makes more sense (or
-> was chosen over) "killing the process doing the copy"?
+> I gave it a try and it doesn't seem really bad. Untested and I might
+> have missed something really obvious but what do you think about this
+> approach rather than relying on ALLOCSTALL which is really weak
+> heuristic:
 
-Because that "something else" is usually a memory hog and so chances are
-that the out of memory situation will get resolved. If you kill "process
-doing the copy" then you might end up just not getting any memory back
-because that might be a little forked process which doesn't own all that
-much memory on its own. That would leave you in the oom situation for a
-long time until somebody actually sitting on some memory happens to ask
-for CoW... See the difference?
+Ups forgot to add mm/internal.h to the git index
+---
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 87f09dc986ab..1a4d4c807d92 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2389,7 +2389,8 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
+ 		swapped_in++;
+ 		ret = do_swap_page(mm, vma, _address, pte, pmd,
+ 				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
+-				   pteval);
++				   pteval,
++				   GFP_HIGHUSER_MOVABLE | ~__GFP_DIRECT_RECLAIM);
+ 		if (ret & VM_FAULT_ERROR) {
+ 			trace_mm_collapse_huge_page_swapin(mm, swapped_in, 0);
+ 			return;
+diff --git a/mm/internal.h b/mm/internal.h
+index b6ead95a0184..0b3cc643eced 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -37,7 +37,7 @@
+ 
+ extern int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, pte_t *page_table, pmd_t *pmd,
+-			unsigned int flags, pte_t orig_pte);
++			unsigned int flags, pte_t orig_pte, gfp_t gfp_mask);
+ 
+ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+diff --git a/mm/memory.c b/mm/memory.c
+index d79c6db41502..f897ec89bd79 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2490,7 +2490,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
+  */
+ int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		unsigned long address, pte_t *page_table, pmd_t *pmd,
+-		unsigned int flags, pte_t orig_pte)
++		unsigned int flags, pte_t orig_pte, gfp_t gfp_mask)
+ {
+ 	spinlock_t *ptl;
+ 	struct page *page, *swapcache;
+@@ -2519,8 +2519,7 @@ int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+ 	page = lookup_swap_cache(entry);
+ 	if (!page) {
+-		page = swapin_readahead(entry,
+-					GFP_HIGHUSER_MOVABLE, vma, address);
++		page = swapin_readahead(entry, gfp_mask, vma, address);
+ 		if (!page) {
+ 			/*
+ 			 * Back out if somebody else faulted in this pte
+@@ -2573,7 +2572,7 @@ int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		goto out_page;
+ 	}
+ 
+-	if (mem_cgroup_try_charge(page, mm, GFP_KERNEL, &memcg, false)) {
++	if (mem_cgroup_try_charge(page, mm, gfp_mask, &memcg, false)) {
+ 		ret = VM_FAULT_OOM;
+ 		goto out_page;
+ 	}
+@@ -3349,7 +3348,7 @@ static int handle_pte_fault(struct mm_struct *mm,
+ 						flags, entry);
+ 		}
+ 		return do_swap_page(mm, vma, address,
+-					pte, pmd, flags, entry);
++					pte, pmd, flags, entry, GFP_HIGHUSER_MOVABLE);
+ 	}
+ 
+ 	if (pte_protnone(entry))
 -- 
 Michal Hocko
 SUSE Labs
