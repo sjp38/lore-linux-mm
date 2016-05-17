@@ -1,251 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f200.google.com (mail-ig0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DD136B0005
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 10:49:20 -0400 (EDT)
-Received: by mail-ig0-f200.google.com with SMTP id i5so39566940ige.1
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 07:49:20 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id p6si15376063ige.39.2016.05.17.07.49.18
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E3F2B6B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 11:33:05 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id u64so11480412lff.2
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 08:33:05 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id cl10si4351573wjc.19.2016.05.17.08.33.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 May 2016 07:49:18 -0700 (PDT)
-Date: Tue, 17 May 2016 16:49:12 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20160517144912.GZ3193@twins.programming.kicks-ass.net>
-References: <94cea603-2782-1c5a-e2df-42db4459a8ce@cn.fujitsu.com>
- <20160512055756.GE6648@birch.djwong.org>
- <20160512080321.GA18496@dastard>
- <20160513160341.GW20141@dhcp22.suse.cz>
- <20160516104130.GK3193@twins.programming.kicks-ass.net>
- <20160516130519.GJ23146@dhcp22.suse.cz>
- <20160516132541.GP3193@twins.programming.kicks-ass.net>
- <20160516231056.GE18496@dastard>
+        Tue, 17 May 2016 08:33:04 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id n129so5682438wmn.1
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 08:33:03 -0700 (PDT)
+Date: Tue, 17 May 2016 17:33:02 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 1/1] userfaultfd: don't pin the user memory in
+ userfaultfd_file_create()
+Message-ID: <20160517153302.GE14446@dhcp22.suse.cz>
+References: <20160516152522.GA19120@redhat.com>
+ <20160516152546.GA19129@redhat.com>
+ <20160516172254.GA8595@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160516231056.GE18496@dastard>
+In-Reply-To: <20160516172254.GA8595@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Michal Hocko <mhocko@kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-
-Thanks for writing all that down Dave!
-
-On Tue, May 17, 2016 at 09:10:56AM +1000, Dave Chinner wrote:
-
-> The reason we don't have lock clases for the ilock is that we aren't
-> supposed to call memory reclaim with that lock held in exclusive
-> mode. This is because reclaim can run transactions, and that may
-> need to flush dirty inodes to make progress. Flushing dirty inode
-> requires taking the ilock in shared mode.
+On Mon 16-05-16 19:22:54, Oleg Nesterov wrote:
+> userfaultfd_file_create() increments mm->mm_users; this means that the memory
+> won't be unmapped/freed if mm owner exits/execs, and UFFDIO_COPY after that can
+> populate the orphaned mm more.
 > 
-> In the code path that was reported, we hold the ilock in /shared/
-> mode with no transaction context (we are doing a read-only
-> operation). This means we can run transactions in memory reclaim
-> because a) we can't deadlock on the inode we hold locks on, and b)
-> transaction reservations will be able to make progress as we don't
-> hold any locks it can block on.
+> Change userfaultfd_file_create() and userfaultfd_ctx_put() to use mm->mm_count
+> to pin mm_struct. This means that atomic_inc_not_zero(mm->mm_users) is needed
+> when we are going to actually play with this memory. Except handle_userfault()
+> path doesn't need this, the caller must already have a reference.
 
-Just to clarify; I read the above as that we cannot block on recursive
-shared locks, is this correct?
-
-Because we can in fact block on down_read()+down_read() just fine, so if
-you're assuming that, then something's busted.
-
-Otherwise, I'm not quite reading it right, which is, given the
-complexity of that stuff, entirely possible.
-
-The other possible reading is that we cannot deadlock on the inode we
-hold locks on because we hold a reference on it; and the reference
-avoids the inode from being reclaimed. But then the whole
-shared/exclusive thing doesn't seem to make sense.
-
-> For the ilock, the number of places where the ilock is held over
-> GFP_KERNEL allocations is pretty small. Hence we've simply added
-> GFP_NOFS to those allocations to - effectively - annotate those
-> allocations as "lockdep causes problems here". There are probably
-> 30-35 allocations in XFS that explicitly use KM_NOFS - some of these
-> are masking lockdep false positive reports.
-
-
-> In the end, like pretty much all the complex lockdep false positives
-> we've had to deal in XFS, we've ended up changing the locking or
-> allocation contexts because that's been far easier than trying to
-> make annotations cover everything or convince other people that
-> lockdep annotations are insufficient.
-
-Well, I don't mind creating lockdep annotations; but explanations of the
-exact details always go a long way towards helping me come up with
-something.
-
-While going over the code; I see there's complaining about
-MAX_SUBCLASSES being too small. Would it help if we doubled it? We
-cannot grow the thing without limits, but doubling it should be possible
-I think.
-
-
-In any case; would something like this work for you? Its entirely
-untested, but the idea is to mark an entire class to skip reclaim
-validation, instead of marking individual sites.
-
-We have to do the subclass loop because; as per the comment with
-XFS_ILOCK_* we use all 8 subclasses.
-
----
- fs/xfs/xfs_super.c       | 13 +++++++++++++
- include/linux/lockdep.h  |  8 +++++++-
- kernel/locking/lockdep.c | 47 +++++++++++++++++++++++++++++++++++++++++++----
- 3 files changed, 63 insertions(+), 5 deletions(-)
-
-diff --git a/fs/xfs/xfs_super.c b/fs/xfs/xfs_super.c
-index 187e14b696c2..ea55f87edad8 100644
---- a/fs/xfs/xfs_super.c
-+++ b/fs/xfs/xfs_super.c
-@@ -985,6 +985,19 @@ xfs_fs_inode_init_once(
- 		     "xfsino", ip->i_ino);
- 	mrlock_init(&ip->i_lock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
- 		     "xfsino", ip->i_ino);
-+
-+#ifdef CONFIG_LOCKDEP
-+	/*
-+	 * Disable reclaim tests for the i_lock; reclaim is guarded
-+	 * by a reference count... XXX write coherent comment.
-+	 */
-+	do {
-+		int i;
-+
-+		for (i = 0; i < MAX_LOCKDEP_SUBCLASSES; i++)
-+			lockdep_skip_reclaim(&ip->i_lock.mr_lock, i);
-+	} while (0);
-+#endif
- }
+We should definitely get rid of all unbound pinning via mm_users.
  
- STATIC void
-diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index eabe0138eb06..fbaa6c8bcff6 100644
---- a/include/linux/lockdep.h
-+++ b/include/linux/lockdep.h
-@@ -80,7 +80,8 @@ struct lock_class {
- 	/*
- 	 * IRQ/softirq usage tracking bits:
- 	 */
--	unsigned long			usage_mask;
-+	unsigned int			usage_mask;
-+	unsigned int			skip_mask;
- 	struct stack_trace		usage_traces[XXX_LOCK_USAGE_STATES];
- 
- 	/*
-@@ -281,6 +282,8 @@ extern void lockdep_on(void);
- extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
- 			     struct lock_class_key *key, int subclass);
- 
-+extern void lock_skip_reclaim(struct lockdep_map *lock, int subclass);
-+
- /*
-  * To initialize a lockdep_map statically use this macro.
-  * Note that _name must not be NULL.
-@@ -304,6 +307,9 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
- 		lockdep_init_map(&(lock)->dep_map, #lock, \
- 				 (lock)->dep_map.key, sub)
- 
-+#define lockdep_skip_reclaim(lock, sub) \
-+		lock_skip_reclaim(&(lock)->dep_map, sub)
-+
- #define lockdep_set_novalidate_class(lock) \
- 	lockdep_set_class_and_name(lock, &__lockdep_no_validate__, #lock)
- /*
-diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index 81f1a7107c0e..f3b3b3e7938a 100644
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -3022,13 +3022,17 @@ void lockdep_trace_alloc(gfp_t gfp_mask)
- static int mark_lock(struct task_struct *curr, struct held_lock *this,
- 			     enum lock_usage_bit new_bit)
- {
-+	struct lock_class *class = hlock_class(this);
- 	unsigned int new_mask = 1 << new_bit, ret = 1;
- 
- 	/*
- 	 * If already set then do not dirty the cacheline,
- 	 * nor do any checks:
- 	 */
--	if (likely(hlock_class(this)->usage_mask & new_mask))
-+	if (likely(class->usage_mask & new_mask))
-+		return 1;
-+
-+	if (class->skip_mask & (new_mask >> 2))
- 		return 1;
- 
- 	if (!graph_lock())
-@@ -3036,14 +3040,14 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
- 	/*
- 	 * Make sure we didn't race:
- 	 */
--	if (unlikely(hlock_class(this)->usage_mask & new_mask)) {
-+	if (unlikely(class->usage_mask & new_mask)) {
- 		graph_unlock();
- 		return 1;
- 	}
- 
--	hlock_class(this)->usage_mask |= new_mask;
-+	class->usage_mask |= new_mask;
- 
--	if (!save_trace(hlock_class(this)->usage_traces + new_bit))
-+	if (!save_trace(class->usage_traces + new_bit))
- 		return 0;
- 
- 	switch (new_bit) {
-@@ -3586,6 +3590,24 @@ static int __lock_is_held(struct lockdep_map *lock)
- 	return 0;
- }
- 
-+static void __lock_skip_reclaim(struct lockdep_map *lock, int subclass)
-+{
-+	struct lock_class *class = register_lock_class(lock, subclass, 0);
-+
-+	if (!class)
-+		return;
-+
-+	if (class->skip_mask & (1 << RECLAIM_FS))
-+		return;
-+
-+	if (!graph_lock())
-+		return;
-+
-+	class->skip_mask |= 1 << RECLAIM_FS;
-+
-+	graph_unlock();
-+}
-+
- static struct pin_cookie __lock_pin_lock(struct lockdep_map *lock)
- {
- 	struct pin_cookie cookie = NIL_COOKIE;
-@@ -3784,6 +3806,23 @@ int lock_is_held(struct lockdep_map *lock)
- }
- EXPORT_SYMBOL_GPL(lock_is_held);
- 
-+void lock_skip_reclaim(struct lockdep_map *lock, int subclass)
-+{
-+	unsigned long flags;
-+
-+	if (unlikely(current->lockdep_recursion))
-+		return;
-+
-+	raw_local_irq_save(flags);
-+	check_flags(flags);
-+
-+	current->lockdep_recursion = 1;
-+	__lock_skip_reclaim(lock, subclass);
-+	current->lockdep_recursion = 0;
-+	raw_local_irq_restore(flags);
-+}
-+EXPORT_SYMBOL_GPL(lock_skip_reclaim);
-+
- struct pin_cookie lock_pin_lock(struct lockdep_map *lock)
- {
- 	struct pin_cookie cookie = NIL_COOKIE;
+> The patch adds the new trivial helper, mmget_not_zero(), it can have more users.
+
+Is this really helpful?
+
+> Signed-off-by: Oleg Nesterov <oleg@redhat.com>
+
+The patch seems good to me but I am not familiar with the userfaultfd
+internals enought to give you reviewed-by nor acked-by. I welcome the
+change anyway.
+
+> ---
+>  fs/userfaultfd.c      | 41 ++++++++++++++++++++++++++++-------------
+>  include/linux/sched.h |  7 ++++++-
+>  2 files changed, 34 insertions(+), 14 deletions(-)
+> 
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> index 66cdb44..2d97952 100644
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -137,7 +137,7 @@ static void userfaultfd_ctx_put(struct userfaultfd_ctx *ctx)
+>  		VM_BUG_ON(waitqueue_active(&ctx->fault_wqh));
+>  		VM_BUG_ON(spin_is_locked(&ctx->fd_wqh.lock));
+>  		VM_BUG_ON(waitqueue_active(&ctx->fd_wqh));
+> -		mmput(ctx->mm);
+> +		mmdrop(ctx->mm);
+>  		kmem_cache_free(userfaultfd_ctx_cachep, ctx);
+>  	}
+>  }
+> @@ -434,6 +434,9 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+>  
+>  	ACCESS_ONCE(ctx->released) = true;
+>  
+> +	if (!mmget_not_zero(mm))
+> +		goto wakeup;
+> +
+>  	/*
+>  	 * Flush page faults out of all CPUs. NOTE: all page faults
+>  	 * must be retried without returning VM_FAULT_SIGBUS if
+> @@ -466,7 +469,8 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+>  		vma->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
+>  	}
+>  	up_write(&mm->mmap_sem);
+> -
+> +	mmput(mm);
+> +wakeup:
+>  	/*
+>  	 * After no new page faults can wait on this fault_*wqh, flush
+>  	 * the last page faults that may have been already waiting on
+> @@ -760,10 +764,12 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+>  	start = uffdio_register.range.start;
+>  	end = start + uffdio_register.range.len;
+>  
+> +	ret = -ENOMEM;
+> +	if (!mmget_not_zero(mm))
+> +		goto out;
+> +
+>  	down_write(&mm->mmap_sem);
+>  	vma = find_vma_prev(mm, start, &prev);
+> -
+> -	ret = -ENOMEM;
+>  	if (!vma)
+>  		goto out_unlock;
+>  
+> @@ -864,6 +870,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+>  	} while (vma && vma->vm_start < end);
+>  out_unlock:
+>  	up_write(&mm->mmap_sem);
+> +	mmput(mm);
+>  	if (!ret) {
+>  		/*
+>  		 * Now that we scanned all vmas we can already tell
+> @@ -902,10 +909,12 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+>  	start = uffdio_unregister.start;
+>  	end = start + uffdio_unregister.len;
+>  
+> +	ret = -ENOMEM;
+> +	if (!mmget_not_zero(mm))
+> +		goto out;
+> +
+>  	down_write(&mm->mmap_sem);
+>  	vma = find_vma_prev(mm, start, &prev);
+> -
+> -	ret = -ENOMEM;
+>  	if (!vma)
+>  		goto out_unlock;
+>  
+> @@ -998,6 +1007,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+>  	} while (vma && vma->vm_start < end);
+>  out_unlock:
+>  	up_write(&mm->mmap_sem);
+> +	mmput(mm);
+>  out:
+>  	return ret;
+>  }
+> @@ -1067,9 +1077,11 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
+>  		goto out;
+>  	if (uffdio_copy.mode & ~UFFDIO_COPY_MODE_DONTWAKE)
+>  		goto out;
+> -
+> -	ret = mcopy_atomic(ctx->mm, uffdio_copy.dst, uffdio_copy.src,
+> -			   uffdio_copy.len);
+> +	if (mmget_not_zero(ctx->mm)) {
+> +		ret = mcopy_atomic(ctx->mm, uffdio_copy.dst, uffdio_copy.src,
+> +				   uffdio_copy.len);
+> +		mmput(ctx->mm);
+> +	}
+>  	if (unlikely(put_user(ret, &user_uffdio_copy->copy)))
+>  		return -EFAULT;
+>  	if (ret < 0)
+> @@ -1110,8 +1122,11 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
+>  	if (uffdio_zeropage.mode & ~UFFDIO_ZEROPAGE_MODE_DONTWAKE)
+>  		goto out;
+>  
+> -	ret = mfill_zeropage(ctx->mm, uffdio_zeropage.range.start,
+> -			     uffdio_zeropage.range.len);
+> +	if (mmget_not_zero(ctx->mm)) {
+> +		ret = mfill_zeropage(ctx->mm, uffdio_zeropage.range.start,
+> +				     uffdio_zeropage.range.len);
+> +		mmput(ctx->mm);
+> +	}
+>  	if (unlikely(put_user(ret, &user_uffdio_zeropage->zeropage)))
+>  		return -EFAULT;
+>  	if (ret < 0)
+> @@ -1289,12 +1304,12 @@ static struct file *userfaultfd_file_create(int flags)
+>  	ctx->released = false;
+>  	ctx->mm = current->mm;
+>  	/* prevent the mm struct to be freed */
+> -	atomic_inc(&ctx->mm->mm_users);
+> +	atomic_inc(&ctx->mm->mm_count);
+>  
+>  	file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, ctx,
+>  				  O_RDWR | (flags & UFFD_SHARED_FCNTL_FLAGS));
+>  	if (IS_ERR(file)) {
+> -		mmput(ctx->mm);
+> +		mmdrop(ctx->mm);
+>  		kmem_cache_free(userfaultfd_ctx_cachep, ctx);
+>  	}
+>  out:
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index 52c4847..49997bf 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -2610,12 +2610,17 @@ extern struct mm_struct * mm_alloc(void);
+>  
+>  /* mmdrop drops the mm and the page tables */
+>  extern void __mmdrop(struct mm_struct *);
+> -static inline void mmdrop(struct mm_struct * mm)
+> +static inline void mmdrop(struct mm_struct *mm)
+>  {
+>  	if (unlikely(atomic_dec_and_test(&mm->mm_count)))
+>  		__mmdrop(mm);
+>  }
+>  
+> +static inline bool mmget_not_zero(struct mm_struct *mm)
+> +{
+> +	return atomic_inc_not_zero(&mm->mm_users);
+> +}
+> +
+>  /* mmput gets rid of the mappings and all user-space */
+>  extern void mmput(struct mm_struct *);
+>  /* Grab a reference to a task's mm, if it is not already going away */
+> -- 
+> 2.5.0
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
