@@ -1,71 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 471BB6B0005
-	for <linux-mm@kvack.org>; Mon, 16 May 2016 21:02:25 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id u185so2164408oie.3
-        for <linux-mm@kvack.org>; Mon, 16 May 2016 18:02:25 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id c5si517572igf.31.2016.05.16.18.02.23
+Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A8626B0005
+	for <linux-mm@kvack.org>; Mon, 16 May 2016 21:07:38 -0400 (EDT)
+Received: by mail-ob0-f200.google.com with SMTP id dh6so350636obb.1
+        for <linux-mm@kvack.org>; Mon, 16 May 2016 18:07:38 -0700 (PDT)
+Received: from m15-52.126.com (m15-52.126.com. [220.181.15.52])
+        by mx.google.com with ESMTP id vt10si69093obb.67.2016.05.16.18.07.36
         for <linux-mm@kvack.org>;
-        Mon, 16 May 2016 18:02:24 -0700 (PDT)
-Date: Tue, 17 May 2016 10:02:22 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v5 07/12] zsmalloc: factor page chain functionality out
-Message-ID: <20160517010222.GA31335@bbox>
-References: <1462760433-32357-1-git-send-email-minchan@kernel.org>
- <1462760433-32357-8-git-send-email-minchan@kernel.org>
- <20160516021420.GC504@swordfish>
+        Mon, 16 May 2016 18:07:37 -0700 (PDT)
+Date: Tue, 17 May 2016 09:06:38 +0800 (CST)
+From: "Wang Xiaoqiang" <wang_xiaoq@126.com>
+Subject: Re:Re: Question About Functions "__free_pages_check" and
+ "check_new_page" in page_alloc.c
+In-Reply-To: <20160516151657.GC23251@dhcp22.suse.cz>
+References: <7374bd2e.da35.154b9cda7d2.Coremail.wang_xiaoq@126.com>
+ <20160516151657.GC23251@dhcp22.suse.cz>
+Content-Type: multipart/alternative;
+	boundary="----=_Part_57699_1377556961.1463447198849"
 MIME-Version: 1.0
-In-Reply-To: <20160516021420.GC504@swordfish>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Message-ID: <5877fe6c.1e45.154bc401c81.Coremail.wang_xiaoq@126.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>, vbabka <vbabka@suse.cz>, n-horiguchi <n-horiguchi@ah.jp.nec.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Mon, May 16, 2016 at 11:14:20AM +0900, Sergey Senozhatsky wrote:
-> On (05/09/16 11:20), Minchan Kim wrote:
-> > For page migration, we need to create page chain of zspage dynamically
-> > so this patch factors it out from alloc_zspage.
-> > 
-> > Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> 
-> Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+------=_Part_57699_1377556961.1463447198849
+Content-Type: text/plain; charset=GBK
+Content-Transfer-Encoding: base64
 
-Thanks!
+PnllcyBpdCB3b3VsZC4gV2h5IHRoYXQgd291bGQgbWF0dGVyLiBUaGUgY2hlY2tzIHNob3VsZCBi
+ZSBpbiBhbiBvcmRlcgo+d2hpY2ggY291bGQgZ2l2ZSB1cyBhIG1vcmUgc3BlY2lmaWMgcmVhc29u
+IHdpdGggbGF0ZXIgY2hlY2tzLiBiYWRfcGFnZSgpCgpJIHNlZSwgeW91IG1lYW4gdGhlIGxhdGVy
+ICJiYWRfcmVhc29uIiBpcyB0aGUgc3VwZXJzZXQgb2YgdGhlIHByZXZpb3VzIG9uZS4KCj53aWxs
+IHRoZW4gcHJpbnQgbW9yZSBkZXRhaWxlZCBpbmZvcm1hdGlvbi4KPi0tCj5NaWNoYWwgSG9ja28K
+PlNVU0UgTGFicwoKdGhhbmsgeW91LCBNaWNoYWwuCg==
+------=_Part_57699_1377556961.1463447198849
+Content-Type: text/html; charset=GBK
+Content-Transfer-Encoding: base64
 
-> 
-> [..]
-> > +		page = alloc_page(flags);
-> > +		if (!page) {
-> > +			while (--i >= 0)
-> > +				__free_page(pages[i]);
-> 
-> 				put_page() ?
-> 
-> a minor nit, put_page() here probably will be in alignment
-> with __free_zspage(), which does put_page().
-
-Normally, we use put_page in case that someone can grab a referece of
-the page so we cannot free the page. Otherwise, alloc_page and
-__free_page is more straight to me code readability POV.
-
-> 
-> 	-ss
-> 
-> > +			return NULL;
-> > +		}
-> > +		pages[i] = page;
-> >  	}
-> >  
-> > +	create_page_chain(pages, class->pages_per_zspage);
-> > +	first_page = pages[0];
-> > +	init_zspage(class, first_page);
-> > +
-> >  	return first_page;
-> >  }
+PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
+Zm9udC1mYW1pbHk6QXJpYWwiPjxkaXY+CiZndDt5ZXMgaXQgd291bGQuIFdoeSB0aGF0IHdvdWxk
+IG1hdHRlci4gVGhlIGNoZWNrcyBzaG91bGQgYmUgaW4gYW4gb3JkZXIKPGJyPiZndDt3aGljaCBj
+b3VsZCBnaXZlIHVzIGEgbW9yZSBzcGVjaWZpYyByZWFzb24gd2l0aCBsYXRlciBjaGVja3MuIGJh
+ZF9wYWdlKCkKPGJyPjxicj5JIHNlZSwgeW91IG1lYW4gdGhlIGxhdGVyICJiYWRfcmVhc29uIiBp
+cyB0aGUgc3VwZXJzZXQgb2YgdGhlIHByZXZpb3VzIG9uZS48YnI+PGJyPiZndDt3aWxsIHRoZW4g
+cHJpbnQgbW9yZSBkZXRhaWxlZCBpbmZvcm1hdGlvbi4KPGJyPiZndDstLSAKPGJyPiZndDtNaWNo
+YWwgSG9ja28KPGJyPiZndDtTVVNFIExhYnM8YnI+PGJyPnRoYW5rIHlvdSwgTWljaGFsLjxicj48
+L2Rpdj48L2Rpdj48YnI+PGJyPjxzcGFuIHRpdGxlPSJuZXRlYXNlZm9vdGVyIj48cD4mbmJzcDs8
+L3A+PC9zcGFuPg==
+------=_Part_57699_1377556961.1463447198849--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
