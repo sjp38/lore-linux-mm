@@ -1,49 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A6996B0005
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 08:04:01 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id m64so8131712lfd.1
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 05:04:01 -0700 (PDT)
-Received: from mail-lb0-x242.google.com (mail-lb0-x242.google.com. [2a00:1450:4010:c04::242])
-        by mx.google.com with ESMTPS id kv18si2223041lbb.191.2016.05.17.05.04.00
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 52B596B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 08:15:14 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id t140so23332615oie.0
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 05:15:14 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0117.outbound.protection.outlook.com. [104.47.0.117])
+        by mx.google.com with ESMTPS id dh8si1130744oec.66.2016.05.17.05.15.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 May 2016 05:04:00 -0700 (PDT)
-Received: by mail-lb0-x242.google.com with SMTP id mx9so809564lbb.2
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 05:04:00 -0700 (PDT)
-Date: Tue, 17 May 2016 15:03:57 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [Bug 117731] New: Doing mprotect for PROT_NONE and then for
- PROT_READ|PROT_WRITE reduces CPU write B/W on buffer
-Message-ID: <20160517120357.GE9540@node.shutemov.name>
-References: <bug-117731-27@https.bugzilla.kernel.org/>
- <20160506150112.9b27324b4b2b141146b0ff25@linux-foundation.org>
- <20160516133543.GA9540@node.shutemov.name>
- <CAGoWJG8mEwscwkUW31ejFyHR63Jm4eQKtUDpeADB2nUinrL59w@mail.gmail.com>
- <20160517113634.GD9540@node.shutemov.name>
- <CAGoWJG-3-SSkr8CTrjOEBfMtiNEbyeo6ynbnC5FiOiMiy5n8fA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 17 May 2016 05:15:13 -0700 (PDT)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCHv9 0/2] mremap vDSO for 32-bit
+Date: Tue, 17 May 2016 15:13:50 +0300
+Message-ID: <1463487232-4377-1-git-send-email-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGoWJG-3-SSkr8CTrjOEBfMtiNEbyeo6ynbnC5FiOiMiy5n8fA@mail.gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ashish Srivastava <ashish0srivastava0@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, Peter Feiner <pfeiner@google.com>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, mingo@redhat.com
+Cc: luto@amacapital.net, tglx@linutronix.de, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com, Dmitry Safonov <dsafonov@virtuozzo.com>
 
-On Tue, May 17, 2016 at 05:17:23PM +0530, Ashish Srivastava wrote:
-> > Test-case for that would be helpful, as normal malloc()'ed anon memory
-> > cannot be subject for the bug. Unless I miss something obvious.
-> 
-> I've modified the test-case attached to the bug and now it doesn't use
-> malloc()'ed memory but file backed mmap shared memory.
+The first patch adds support of mremapping 32-bit vDSO.
+One could move vDSO vma before this patch, but fast syscalls
+on moved vDSO hasn't been working. It's because of code that
+relies on mm->context.vdso pointer.
+So all this code is just fixup for that pointer on moving.
+(Also adds preventing for splitting vDSO vma).
+As Andy notted, 64-bit vDSO mremap also has worked only by a chance
+before this patches.
+The second patch adds a test for the new functionality.
 
-Yes, that's consistent with your analysis.
+I need possibility to move vDSO in CRIU - on restore we need
+to choose vma's position:
+- if vDSO blob of restoring application is the same as the kernel has,
+  we need to move it on the same place;
+- if it differs, we need to choose place that wasn't tooken by other
+  vma of restoring application and than add jump trampolines to it
+  from the place of vDSO in restoring application.
 
-You can post the patch with my Acked-by.
+CRIU code now relies on possibility on x86_64 to mremap vDSO.
+Without this patch that may be broken in future.
+And as I work on C/R of compatible 32-bit applications on x86_64,
+I need mremap to work also for 32-bit vDSO. Which does not work,
+because of context.vdso pointer mentioned above. 
+
+Changes:
+v9: Added cover-letter with changelog and reasons for patches
+v8: Add WARN_ON_ONCE on current->mm != new_vma->vm_mm;
+    run test for x86_64 too;
+    removed fixed VDSO_SIZE - check EINVAL mremap return for partial remapping
+v7: Build fix
+v6: Moved vdso_image_32 check and fixup code into vdso_fix_landing function
+    with ifdefs around
+v5: As Andy suggested, add a check that new_vma->vm_mm and current->mm are
+    the same, also check not only in_ia32_syscall() but image == &vdso_image_32;
+    added test for mremapping vDSO
+v4: Drop __maybe_unused & use image from mm->context instead vdso_image_32
+v3: As Andy suggested, return EINVAL in case of splitting vdso blob on mremap;
+    used is_ia32_task instead of ifdefs 
+v2: Added __maybe_unused for pt_regs in vdso_mremap
+
+Dmitry Safonov (2):
+  x86/vdso: add mremap hook to vm_special_mapping
+  selftest/x86: add mremap vdso test
+
+ arch/x86/entry/vdso/vma.c                      | 47 ++++++++++--
+ include/linux/mm_types.h                       |  3 +
+ mm/mmap.c                                      | 10 +++
+ tools/testing/selftests/x86/Makefile           |  2 +-
+ tools/testing/selftests/x86/test_mremap_vdso.c | 99 ++++++++++++++++++++++++++
+ 5 files changed, 155 insertions(+), 6 deletions(-)
+ create mode 100644 tools/testing/selftests/x86/test_mremap_vdso.c
 
 -- 
- Kirill A. Shutemov
+2.8.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
