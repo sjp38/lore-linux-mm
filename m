@@ -1,76 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FFC66B0005
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 16:16:09 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id u64so14691111lff.2
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 13:16:09 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 09C236B0005
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 16:25:48 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id s63so16853930wme.2
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 13:25:47 -0700 (PDT)
 Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id s73si28496601wmd.77.2016.05.17.13.16.07
+        by mx.google.com with ESMTPS id 137si28594530wmp.46.2016.05.17.13.25.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 May 2016 13:16:07 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id r12so7580368wme.0
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 13:16:07 -0700 (PDT)
-Date: Tue, 17 May 2016 22:16:06 +0200
+        Tue, 17 May 2016 13:25:46 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id g17so1031269wme.2
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 13:25:46 -0700 (PDT)
+Date: Tue, 17 May 2016 22:25:45 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: add config option to select the initial overcommit
- mode
-Message-ID: <20160517201605.GC12220@dhcp22.suse.cz>
-References: <5735AA0E.5060605@free.fr>
- <20160513114429.GJ20141@dhcp22.suse.cz>
- <5735C567.6030202@free.fr>
- <20160513140128.GQ20141@dhcp22.suse.cz>
- <20160513160410.10c6cea6@lxorguk.ukuu.org.uk>
- <5735F4B1.1010704@laposte.net>
- <20160513164357.5f565d3c@lxorguk.ukuu.org.uk>
- <573AD534.6050703@laposte.net>
- <20160517085724.GD14453@dhcp22.suse.cz>
- <573B43FA.7080503@laposte.net>
+Subject: Re: [PATCH] oom: consider multi-threaded tasks in task_will_free_mem
+Message-ID: <20160517202544.GE12220@dhcp22.suse.cz>
+References: <1460452756-15491-1-git-send-email-mhocko@kernel.org>
+ <20160517184225.GB32068@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <573B43FA.7080503@laposte.net>
+In-Reply-To: <20160517184225.GB32068@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Frias <sf84@laposte.net>
-Cc: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, bsingharora@gmail.com
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 17-05-16 18:16:58, Sebastian Frias wrote:
-[...]
-> From reading Documentation/cgroup-v1/memory.txt (and from a few
-> replies here talking about cgroups), it looks like the OOM-killer is
-> still being actively discussed, well, there's also "cgroup-v2".
-> My understanding is that cgroup's memory control will pause processes
-> in a given cgroup until the OOM situation is solved for that cgroup,
-> right?
+On Tue 17-05-16 20:42:25, Oleg Nesterov wrote:
+> On 04/12, Michal Hocko wrote:
+> >
+> > We shouldn't consider the task
+> > unless the whole thread group is going down.
+> 
+> Yes, agreed. I'd even say that oom-killer should never look at individual
+> task/threads, it should work with mm's. And one of the big mistakes (imo)
+> was the s/for_each_process/for_each_thread/ change in select_bad_process()
+> a while ago.
+> 
+> Michal, I won't even try to actually review this patch, I lost any hope
+> to understand OOM-killer a long ago ;) But I do agree with this change,
+> we obviously should not rely on PF_EXITING.
+> 
+> >  static inline bool task_will_free_mem(struct task_struct *task)
+> >  {
+> > +	struct signal_struct *sig = task->signal;
+> > +
+> >  	/*
+> >  	 * A coredumping process may sleep for an extended period in exit_mm(),
+> >  	 * so the oom killer cannot assume that the process will promptly exit
+> >  	 * and release memory.
+> >  	 */
+> > -	return (task->flags & PF_EXITING) &&
+> > -		!(task->signal->flags & SIGNAL_GROUP_COREDUMP);
+> > +	if (sig->flags & SIGNAL_GROUP_COREDUMP)
+> > +		return false;
+> > +
+> > +	if (!(task->flags & PF_EXITING))
+> > +		return false;
+> > +
+> > +	/* Make sure that the whole thread group is going down */
+> > +	if (!thread_group_empty(task) && !(sig->flags & SIGNAL_GROUP_EXIT))
+> > +		return false;
+> > +
+> > +	return true;
+> 
+> So this looks certainly better to me, but perhaps it should do
+> 
+> 	if (SIGNAL_GROUP_COREDUMP)
+> 		return false;
+> 
+> 	if (SIGNAL_GROUP_EXIT)
+> 		return true;
+> 
+> 	if (thread_group_empty() && PF_EXITING)
+> 		return true;
+> 
+> 	return false;
+> 
+> ?
+> 
+> I won't insist, I do not even know if this would be better or not. But if
+> SIGNAL_GROUP_EXIT is set all sub-threads should go away even if PF_EXITING
+> is not set yet because this task didn't dequeue SIGKILL yet.
+> 
+> Up to you in any case.
 
-It will be blocked waiting either for some external action which would
-result in OOM codition going away or any other charge release. You have
-to configure memcg for that though. The default behavior is to invoke
-the same OOM killer algorithm which is just reduced to tasks from the
-memcg (hierarchy).
+I have structured the checks this way because I expect I would like to
+have all early break outs as false. This will help when we want to
+extend those with further more specific checks. E.g. if the task is
+sharing the mm with another thread group.
 
-> If that is right, it means that there is indeed a way to deal
-> with an OOM situation (stack expansion, COW failure, 'memory hog',
-> etc.) in a better way than the OOM-killer, right?
-> In which case, do you guys know if there is a way to make the whole
-> system behave as if it was inside a cgroup? (*)
-
-No it is not. You have to realize that the system wide and the memcg OOM
-situations are quite different. There is usually quite some memory free
-when you hit the memcg OOM so the administrator can actually do
-something. The global OOM means there is _no_ memory at all. Many kernel
-operations will need some memory to do something useful. Let's say you
-would want to do an educated guess about who to kill - most proc APIs
-will need to allocate. And this is just a beginning. Things are getting
-really nasty when you get deeper and deeper. E.g. the OOM killer has to
-give the oom victim access to memory reserves so that the task can exit
-because that path needs to allocate as well. So even if you wanted to
-give userspace some chance to resolve the OOM situation you would either
-need some special API to tell "this process is really special and it can
-access memory reserves and it has an absolute priority etc." or have a
-in kernel fallback to do something or your system could lockup really
-easily.
+Anyway thanks for the review Oleg!
 -- 
 Michal Hocko
 SUSE Labs
