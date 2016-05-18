@@ -1,90 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CAB396B007E
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 07:31:58 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id rs7so9286513lbb.2
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 04:31:58 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id k10si9813201wjf.224.2016.05.18.04.31.56
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7025C6B007E
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 07:59:58 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id ga2so22542222lbc.0
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 04:59:58 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t203si10608095wmg.31.2016.05.18.04.59.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 May 2016 04:31:57 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id g17so5512747wme.2
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 04:31:56 -0700 (PDT)
-Date: Wed, 18 May 2016 13:31:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20160518113155.GG21654@dhcp22.suse.cz>
-References: <20160513160341.GW20141@dhcp22.suse.cz>
- <20160516104130.GK3193@twins.programming.kicks-ass.net>
- <20160516130519.GJ23146@dhcp22.suse.cz>
- <20160516132541.GP3193@twins.programming.kicks-ass.net>
- <20160516231056.GE18496@dastard>
- <20160517144912.GZ3193@twins.programming.kicks-ass.net>
- <20160517223549.GV26977@dastard>
- <20160518072005.GA3193@twins.programming.kicks-ass.net>
- <20160518082538.GE21654@dhcp22.suse.cz>
- <20160518094952.GB3193@twins.programming.kicks-ass.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 18 May 2016 04:59:56 -0700 (PDT)
+Subject: Re: [RFC 06/13] mm, thp: remove __GFP_NORETRY from khugepaged and
+ madvised allocations
+References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
+ <1462865763-22084-7-git-send-email-vbabka@suse.cz>
+ <20160512162043.GA4261@dhcp22.suse.cz> <57358F03.5080707@suse.cz>
+ <20160513120558.GL20141@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <573C5939.1080909@suse.cz>
+Date: Wed, 18 May 2016 13:59:53 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160518094952.GB3193@twins.programming.kicks-ass.net>
+In-Reply-To: <20160513120558.GL20141@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Wed 18-05-16 11:49:52, Peter Zijlstra wrote:
-> On Wed, May 18, 2016 at 10:25:39AM +0200, Michal Hocko wrote:
-> > On Wed 18-05-16 09:20:05, Peter Zijlstra wrote:
-> > > On Wed, May 18, 2016 at 08:35:49AM +1000, Dave Chinner wrote:
-> > > > On Tue, May 17, 2016 at 04:49:12PM +0200, Peter Zijlstra wrote:
-> > [...]
-> > > > > In any case; would something like this work for you? Its entirely
-> > > > > untested, but the idea is to mark an entire class to skip reclaim
-> > > > > validation, instead of marking individual sites.
-> > > > 
-> > > > Probably would, but it seems like swatting a fly with runaway
-> > > > train. I'd much prefer a per-site annotation (e.g. as a GFP_ flag)
-> > > > so that we don't turn off something that will tell us we've made a
-> > > > mistake while developing new code...
-> > > 
-> > > Fair enough; if the mm folks don't object to 'wasting' a GFP flag on
-> > > this the below ought to do I think.
-> > 
-> > GFP flag space is quite scarse. 
+On 05/13/2016 02:05 PM, Michal Hocko wrote:
+> On Fri 13-05-16 10:23:31, Vlastimil Babka wrote:
+>> On 05/12/2016 06:20 PM, Michal Hocko wrote:
+>>> On Tue 10-05-16 09:35:56, Vlastimil Babka wrote:
+>>> [...]
+>>>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+>>>> index 570383a41853..0cb09714d960 100644
+>>>> --- a/include/linux/gfp.h
+>>>> +++ b/include/linux/gfp.h
+>>>> @@ -256,8 +256,7 @@ struct vm_area_struct;
+>>>>    #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
+>>>>    #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
+>>>>    #define GFP_TRANSHUGE	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
+>>>> -			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN) & \
+>>>> -			 ~__GFP_RECLAIM)
+>>>> +			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
+>>>
+>>> I am not sure this is the right thing to do. I think we should keep
+>>> __GFP_NORETRY and clear it where we want a stronger semantic. This is
+>>> just too suble that all callsites are doing the right thing.
+>>
+>> That would complicate alloc_hugepage_direct_gfpmask() a bit, but if you
+>> think it's worth it, I can turn the default around, OK.
 > 
-> There's still 5 or so bits available, and you could always make gfp_t
-> u64.
-
-It seems we have some places where we encode further data into the same
-word as gfp_mask (radix tree tags and mapping_flags). From a quick
-glance they should be OK even with __GFP_BITS_SHIFT increased to 27 but
-this tells us that we shouldn't consume them without a good reason.
+> Hmm, on the other hand it is true that GFP_TRANSHUGE is clearing both
+> reclaim flags by default and then overwrites that. This is just too
+> ugly. Can we make GFP_TRANSHUGE to only define flags we care about and
+> then tweak those that should go away at the callsites which matter now
+> that we do not rely on is_thp_gfp_mask?
  
-> > Especially when it would be used only
-> > for lockdep configurations which are mostly disabled. Why cannot we go
-> > with an explicit disable/enable API I have proposed? 
-> 
-> It has unbounded scope. And in that respect the GFP flag thingy is wider
-> than I'd like too, it avoids setting the state for all held locks, even
-> though we'd only like to avoid setting it for one class.
->
-> So ideally we'd combine the GFP flag with the previously proposed skip
-> flag to only avoid marking the one class while keeping everything
-> working for all other held locks.
+So the following patch attempts what you suggest, if I understand you
+correctly. GFP_TRANSHUGE includes all possible flag, and then they are
+removed as needed. I don't really think it helps code readability
+though. IMHO it's simpler to define GFP_TRANSHUGE as minimal subset and
+only add flags on top. You call the resulting #define ugly, but imho it's
+better to have ugliness at a single place, and not at multiple usage places
+(see the diff below).
 
-This is definitely your call but I would prefer starting with something
-simple and extend it when we find out that the scope/gfp opt-out hides
-real bugs or it is insufficient for other reasons. I do not this opt out
-to be used much, quite contrary. We do not hear about false positives
-reclaim lockdep lockups very often - except for very complex reclaim
-implementations which are quite uncommon.
+Note that this also affects the printk stuff.
+With GFP_TRANSHUGE including all possible flags, it's unlikely printk
+will ever print "GFP_TRANSHUGE", since most likely one or more flags
+will be always missing.
 
-Thanks!
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 570383a41853..e1998eb5c37f 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -256,8 +256,7 @@ struct vm_area_struct;
+ #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
+ #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
+ #define GFP_TRANSHUGE	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
+-			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN) & \
+-			 ~__GFP_RECLAIM)
++			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN)
+ 
+ /* Convert GFP flags to their corresponding migrate type */
+ #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 87f09dc986ab..370fbd3b24dd 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -216,7 +216,8 @@ struct page *get_huge_zero_page(void)
+ 	if (likely(atomic_inc_not_zero(&huge_zero_refcount)))
+ 		return READ_ONCE(huge_zero_page);
+ 
+-	zero_page = alloc_pages((GFP_TRANSHUGE | __GFP_ZERO) & ~__GFP_MOVABLE,
++	zero_page = alloc_pages((GFP_TRANSHUGE | __GFP_ZERO)
++			& ~(__GFP_MOVABLE | __GFP_NORETRY),
+ 			HPAGE_PMD_ORDER);
+ 	if (!zero_page) {
+ 		count_vm_event(THP_ZERO_PAGE_ALLOC_FAILED);
+@@ -882,9 +883,10 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ }
+ 
+ /*
+- * If THP is set to always then directly reclaim/compact as necessary
+- * If set to defer then do no reclaim and defer to khugepaged
++ * If THP defrag is set to always then directly reclaim/compact as necessary
++ * If set to defer then do only background reclaim/compact and defer to khugepaged
+  * If set to madvise and the VMA is flagged then directly reclaim/compact
++ * When direct reclaim/compact is allowed, try a bit harder for flagged VMA's
+  */
+ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+ {
+@@ -896,15 +898,21 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+ 	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
+ 		reclaim_flags = __GFP_KSWAPD_RECLAIM;
+ 	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+-		reclaim_flags = __GFP_DIRECT_RECLAIM;
++		reclaim_flags = __GFP_DIRECT_RECLAIM |
++					((vma->vm_flags & VM_HUGEPAGE) ? 0 : __GFP_NORETRY);
+ 
+-	return GFP_TRANSHUGE | reclaim_flags;
++	return (GFP_TRANSHUGE & ~(__GFP_RECLAIM | __GFP_NORETRY)) | reclaim_flags;
+ }
+ 
+ /* Defrag for khugepaged will enter direct reclaim/compaction if necessary */
+ static inline gfp_t alloc_hugepage_khugepaged_gfpmask(void)
+ {
+-	return GFP_TRANSHUGE | (khugepaged_defrag() ? __GFP_DIRECT_RECLAIM : 0);
++	/*
++	 * We don't want kswapd reclaim, and if khugepaged/defrag is disabled
++	 * we disable also direct reclaim. If we do direct reclaim, do retry.
++	 */
++	return GFP_TRANSHUGE & ~(khugepaged_defrag() ?
++			(__GFP_KSWAPD_RECLAIM | __GFP_NORETRY) : __GFP_RECLAIM);
+ }
+ 
+ /* Caller must hold page table lock. */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0cee863397e4..4a34187827ca 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3619,11 +3619,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 			/*
+ 			 * Looks like reclaim/compaction is worth trying, but
+ 			 * sync compaction could be very expensive, so keep
+-			 * using async compaction, unless it's khugepaged
+-			 * trying to collapse.
++			 * using async compaction.
+ 			 */
+-			if (!(current->flags & PF_KTHREAD))
+-				migration_mode = MIGRATE_ASYNC;
++			migration_mode = MIGRATE_ASYNC;
+ 		}
+ 	}
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.8.2
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
