@@ -1,54 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id ADA566B0005
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 17:09:34 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id gw7so85756361pac.0
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 14:09:34 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b66si14468876pfa.42.2016.05.18.14.09.33
+	by kanga.kvack.org (Postfix) with ESMTP id 8DA736B0005
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 17:53:49 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id yl2so86976381pac.2
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 14:53:49 -0700 (PDT)
+Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
+        by mx.google.com with ESMTPS id v80si605519pfj.199.2016.05.18.14.53.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 May 2016 14:09:33 -0700 (PDT)
-Date: Wed, 18 May 2016 14:09:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
-Message-Id: <20160518140932.6643b963e8d3fc49ff64df8d@linux-foundation.org>
-In-Reply-To: <20160518141545.GI21654@dhcp22.suse.cz>
-References: <1463574024-8372-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20160518125138.GH21654@dhcp22.suse.cz>
-	<201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
-	<20160518141545.GI21654@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 18 May 2016 14:53:48 -0700 (PDT)
+Received: by mail-pf0-x22c.google.com with SMTP id 206so22698994pfu.0
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 14:53:48 -0700 (PDT)
+Date: Wed, 18 May 2016 14:53:46 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, thp: khugepaged should scan when sleep value is
+ written
+Message-ID: <alpine.DEB.2.10.1605181453200.4786@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rientjes@google.com, linux-mm@kvack.org, oleg@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 18 May 2016 16:15:45 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+If a large value is written to scan_sleep_millisecs, for example, that
+period must lapse before khugepaged will wake up for periodic collapsing.
 
-> > This patch adds a counter to signal_struct for tracking how many
-> > TIF_MEMDIE threads are in a given thread group, and check it at
-> > oom_scan_process_thread() so that select_bad_process() can use
-> > for_each_process() rather than for_each_process_thread().
-> 
-> OK, this looks correct. Strictly speaking the patch is missing any note
-> on _why_ this is needed or an improvement. I would add something like
-> the following:
-> "
-> Although the original code was correct it was quite inefficient because
-> each thread group was scanned num_threads times which can be a lot
-> especially with processes with many threads. Even though the OOM is
-> extremely cold path it is always good to be as effective as possible
-> when we are inside rcu_read_lock() - aka unpreemptible context.
-> "
+If this value is tuned to 1 day, for example, and then re-tuned to its
+default 10s, khugepaged will still wait for a day before scanning again.
 
-This sounds quite rubbery to me.  Lots of code calls
-for_each_process_thread() and presumably that isn't causing problems. 
-We're bloating up the signal_struct to solve some problem on a
-rarely-called slowpath with no evidence that there is actually a
-problem to be solved.
+This patch causes khugepaged to wakeup immediately when the value is
+changed and then sleep until that value is rewritten or the new value
+lapses.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/huge_memory.c | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -89,6 +89,7 @@ static unsigned int khugepaged_full_scans;
+ static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
+ /* during fragmentation poll the hugepage allocator once every minute */
+ static unsigned int khugepaged_alloc_sleep_millisecs __read_mostly = 60000;
++static unsigned long khugepaged_sleep_expire;
+ static struct task_struct *khugepaged_thread __read_mostly;
+ static DEFINE_MUTEX(khugepaged_mutex);
+ static DEFINE_SPINLOCK(khugepaged_mm_lock);
+@@ -467,6 +468,7 @@ static ssize_t scan_sleep_millisecs_store(struct kobject *kobj,
+ 		return -EINVAL;
+ 
+ 	khugepaged_scan_sleep_millisecs = msecs;
++	khugepaged_sleep_expire = 0;
+ 	wake_up_interruptible(&khugepaged_wait);
+ 
+ 	return count;
+@@ -494,6 +496,7 @@ static ssize_t alloc_sleep_millisecs_store(struct kobject *kobj,
+ 		return -EINVAL;
+ 
+ 	khugepaged_alloc_sleep_millisecs = msecs;
++	khugepaged_sleep_expire = 0;
+ 	wake_up_interruptible(&khugepaged_wait);
+ 
+ 	return count;
+@@ -2797,15 +2800,25 @@ static void khugepaged_do_scan(void)
+ 		put_page(hpage);
+ }
+ 
++static bool khugepaged_should_wakeup(void)
++{
++	return kthread_should_stop() ||
++	       time_after_eq(jiffies, khugepaged_sleep_expire);
++}
++
+ static void khugepaged_wait_work(void)
+ {
+ 	if (khugepaged_has_work()) {
+-		if (!khugepaged_scan_sleep_millisecs)
++		const unsigned long scan_sleep_jiffies =
++			msecs_to_jiffies(khugepaged_scan_sleep_millisecs);
++
++		if (!scan_sleep_jiffies)
+ 			return;
+ 
++		khugepaged_sleep_expire = jiffies + scan_sleep_jiffies;
+ 		wait_event_freezable_timeout(khugepaged_wait,
+-					     kthread_should_stop(),
+-			msecs_to_jiffies(khugepaged_scan_sleep_millisecs));
++					     khugepaged_should_wakeup(),
++					     scan_sleep_jiffies);
+ 		return;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
