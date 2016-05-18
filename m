@@ -1,55 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2316C6B025F
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 10:03:41 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id r12so29886995wme.0
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 07:03:41 -0700 (PDT)
-Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
-        by mx.google.com with ESMTPS id h64si33510408wmf.112.2016.05.18.07.03.39
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9296B6B025E
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 10:15:48 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id m64so26234489lfd.1
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 07:15:48 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id ty10si9339261wjc.141.2016.05.18.07.15.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 May 2016 07:03:39 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 594E798D10
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 14:03:39 +0000 (UTC)
-Date: Wed, 18 May 2016 15:03:37 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH v2] mm: check_new_page_bad() directly returns in
- __PG_HWPOISON case
-Message-ID: <20160518140337.GG2527@techsingularity.net>
-References: <1463470975-29972-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20160518092100.GB2527@techsingularity.net>
- <573C365B.6020807@suse.cz>
- <20160518100949.GA17299@hori1.linux.bs1.fc.nec.co.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 May 2016 07:15:46 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id n129so13315918wmn.1
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 07:15:46 -0700 (PDT)
+Date: Wed, 18 May 2016 16:15:45 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
+Message-ID: <20160518141545.GI21654@dhcp22.suse.cz>
+References: <1463574024-8372-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20160518125138.GH21654@dhcp22.suse.cz>
+ <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160518100949.GA17299@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, oleg@redhat.com
 
-On Wed, May 18, 2016 at 10:09:50AM +0000, Naoya Horiguchi wrote:
-> From c600b1ee6c36b3df6973f5365b4179c92f3c08e3 Mon Sep 17 00:00:00 2001
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Date: Wed, 18 May 2016 18:42:57 +0900
-> Subject: [PATCH v2] mm: check_new_page_bad() directly returns in __PG_HWPOISON
->  case
+On Wed 18-05-16 22:30:14, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Wed 18-05-16 21:20:24, Tetsuo Handa wrote:
+> > > Since commit 3a5dda7a17cf3706 ("oom: prevent unnecessary oom kills or
+> > > kernel panics"), select_bad_process() is using for_each_process_thread().
+> > > 
+> > > Since oom_unkillable_task() scans all threads in the caller's thread group
+> > > and oom_task_origin() scans signal_struct of the caller's thread group, we
+> > > don't need to call oom_unkillable_task() and oom_task_origin() on each
+> > > thread. Also, since !mm test will be done later at oom_badness(), we don't
+> > > need to do !mm test on each thread. Therefore, we only need to do
+> > > TIF_MEMDIE test on each thread.
+> > > 
+> > > If we track number of TIF_MEMDIE threads inside signal_struct, we don't
+> > > need to do TIF_MEMDIE test on each thread. This will allow
+> > > select_bad_process() to use for_each_process().
+> > 
+> > I am wondering whether signal_struct is the best way forward. The oom
+> > killing is more about mm_struct than anything else. We can record that
+> > the mm was oom killed in mm->flags (similar to MMF_OOM_REAPED). I guess
+> > this would require more work at this stage so maybe starting with signal
+> > struct is not that bad afterall. Just thinking...
 > 
-> Currently we check page->flags twice for "HWPoisoned" case of
-> check_new_page_bad(), which can cause a race with unpoisoning.
-> This race unnecessarily taints kernel with "BUG: Bad page state".
-> check_new_page_bad() is the only caller of bad_page() which is interested
-> in __PG_HWPOISON, so let's move the hwpoison related code in bad_page()
-> to it.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Even if you call p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN case a bug,
+> (p->flags & PF_KTHREAD) || is_global_init(p) case is still possible.
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+I couldn't care less about such a case to be honest, and that is not a
+reason the cripple the code for such an insanity. There simply doesn't
+make any sense to share init's mm with a different task.
+
+> Thus, I think we can't mark the mm was oom killed in mm->flags.
+
+[...]
+> >From d770bd777e628e9d1ae250249433cf576aae8961 Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Wed, 18 May 2016 22:17:47 +0900
+> Subject: [PATCH v3] mm,oom: speed up select_bad_process() loop.
+> 
+> Since commit 3a5dda7a17cf3706 ("oom: prevent unnecessary oom kills or
+> kernel panics"), select_bad_process() is using for_each_process_thread().
+> 
+> Since oom_unkillable_task() scans all threads in the caller's thread group
+> and oom_task_origin() scans signal_struct of the caller's thread group, we
+> don't need to call oom_unkillable_task() and oom_task_origin() on each
+> thread. Also, since !mm test will be done later at oom_badness(), we don't
+> need to do !mm test on each thread. Therefore, we only need to do
+> TIF_MEMDIE test on each thread.
+> 
+> If we track number of TIF_MEMDIE threads inside signal_struct, we don't
+> need to do TIF_MEMDIE test on each thread. This will allow
+> select_bad_process() to use for_each_process().
+> 
+> This patch adds a counter to signal_struct for tracking how many
+> TIF_MEMDIE threads are in a given thread group, and check it at
+> oom_scan_process_thread() so that select_bad_process() can use
+> for_each_process() rather than for_each_process_thread().
+
+OK, this looks correct. Strictly speaking the patch is missing any note
+on _why_ this is needed or an improvement. I would add something like
+the following:
+"
+Although the original code was correct it was quite inefficient because
+each thread group was scanned num_threads times which can be a lot
+especially with processes with many threads. Even though the OOM is
+extremely cold path it is always good to be as effective as possible
+when we are inside rcu_read_lock() - aka unpreemptible context.
+"
+
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Oleg Nesterov <oleg@redhat.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  include/linux/sched.h |  1 +
+>  mm/oom_kill.c         | 14 ++++++--------
+>  2 files changed, 7 insertions(+), 8 deletions(-)
+> 
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index 870a700..1589f8e 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -794,6 +794,7 @@ struct signal_struct {
+>  	struct tty_audit_buf *tty_audit_buf;
+>  #endif
+>  
+> +	atomic_t oom_victims; /* # of TIF_MEDIE threads in this thread group */
+>  	/*
+>  	 * Thread is the potential origin of an oom condition; kill first on
+>  	 * oom
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index c0e37dd..8e151d0 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -283,12 +283,8 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+>  	 * This task already has access to memory reserves and is being killed.
+>  	 * Don't allow any other task to have access to the reserves.
+>  	 */
+> -	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
+> -		if (!is_sysrq_oom(oc))
+> -			return OOM_SCAN_ABORT;
+> -	}
+> -	if (!task->mm)
+> -		return OOM_SCAN_CONTINUE;
+> +	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims))
+> +		return OOM_SCAN_ABORT;
+>  
+>  	/*
+>  	 * If task is allocating a lot of memory and has been marked to be
+> @@ -307,12 +303,12 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+>  static struct task_struct *select_bad_process(struct oom_control *oc,
+>  		unsigned int *ppoints, unsigned long totalpages)
+>  {
+> -	struct task_struct *g, *p;
+> +	struct task_struct *p;
+>  	struct task_struct *chosen = NULL;
+>  	unsigned long chosen_points = 0;
+>  
+>  	rcu_read_lock();
+> -	for_each_process_thread(g, p) {
+> +	for_each_process(p) {
+>  		unsigned int points;
+>  
+>  		switch (oom_scan_process_thread(oc, p, totalpages)) {
+> @@ -673,6 +669,7 @@ void mark_oom_victim(struct task_struct *tsk)
+>  	/* OOM killer might race with memcg OOM */
+>  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+>  		return;
+> +	atomic_inc(&tsk->signal->oom_victims);
+>  	/*
+>  	 * Make sure that the task is woken up from uninterruptible sleep
+>  	 * if it is frozen because OOM killer wouldn't be able to free
+> @@ -690,6 +687,7 @@ void exit_oom_victim(struct task_struct *tsk)
+>  {
+>  	if (!test_and_clear_tsk_thread_flag(tsk, TIF_MEMDIE))
+>  		return;
+> +	atomic_dec(&tsk->signal->oom_victims);
+>  
+>  	if (!atomic_dec_return(&oom_victims))
+>  		wake_up_all(&oom_victims_wait);
+> -- 
+> 1.8.3.1
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
