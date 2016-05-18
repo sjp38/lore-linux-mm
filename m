@@ -1,164 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7025C6B007E
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 07:59:58 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id ga2so22542222lbc.0
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 04:59:58 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t203si10608095wmg.31.2016.05.18.04.59.56
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 418BE6B007E
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 08:21:19 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id u185so78923878oie.3
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 05:21:19 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id c207si3319502oig.183.2016.05.18.05.21.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 May 2016 04:59:56 -0700 (PDT)
-Subject: Re: [RFC 06/13] mm, thp: remove __GFP_NORETRY from khugepaged and
- madvised allocations
-References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
- <1462865763-22084-7-git-send-email-vbabka@suse.cz>
- <20160512162043.GA4261@dhcp22.suse.cz> <57358F03.5080707@suse.cz>
- <20160513120558.GL20141@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <573C5939.1080909@suse.cz>
-Date: Wed, 18 May 2016 13:59:53 +0200
-MIME-Version: 1.0
-In-Reply-To: <20160513120558.GL20141@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Wed, 18 May 2016 05:21:18 -0700 (PDT)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH v2] mm,oom: speed up select_bad_process() loop.
+Date: Wed, 18 May 2016 21:20:24 +0900
+Message-Id: <1463574024-8372-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: mhocko@kernel.org, akpm@linux-foundation.org, rientjes@google.com
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>
 
-On 05/13/2016 02:05 PM, Michal Hocko wrote:
-> On Fri 13-05-16 10:23:31, Vlastimil Babka wrote:
->> On 05/12/2016 06:20 PM, Michal Hocko wrote:
->>> On Tue 10-05-16 09:35:56, Vlastimil Babka wrote:
->>> [...]
->>>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
->>>> index 570383a41853..0cb09714d960 100644
->>>> --- a/include/linux/gfp.h
->>>> +++ b/include/linux/gfp.h
->>>> @@ -256,8 +256,7 @@ struct vm_area_struct;
->>>>    #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
->>>>    #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
->>>>    #define GFP_TRANSHUGE	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
->>>> -			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN) & \
->>>> -			 ~__GFP_RECLAIM)
->>>> +			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
->>>
->>> I am not sure this is the right thing to do. I think we should keep
->>> __GFP_NORETRY and clear it where we want a stronger semantic. This is
->>> just too suble that all callsites are doing the right thing.
->>
->> That would complicate alloc_hugepage_direct_gfpmask() a bit, but if you
->> think it's worth it, I can turn the default around, OK.
-> 
-> Hmm, on the other hand it is true that GFP_TRANSHUGE is clearing both
-> reclaim flags by default and then overwrites that. This is just too
-> ugly. Can we make GFP_TRANSHUGE to only define flags we care about and
-> then tweak those that should go away at the callsites which matter now
-> that we do not rely on is_thp_gfp_mask?
- 
-So the following patch attempts what you suggest, if I understand you
-correctly. GFP_TRANSHUGE includes all possible flag, and then they are
-removed as needed. I don't really think it helps code readability
-though. IMHO it's simpler to define GFP_TRANSHUGE as minimal subset and
-only add flags on top. You call the resulting #define ugly, but imho it's
-better to have ugliness at a single place, and not at multiple usage places
-(see the diff below).
+Since commit 3a5dda7a17cf3706 ("oom: prevent unnecessary oom kills or
+kernel panics"), select_bad_process() is using for_each_process_thread().
 
-Note that this also affects the printk stuff.
-With GFP_TRANSHUGE including all possible flags, it's unlikely printk
-will ever print "GFP_TRANSHUGE", since most likely one or more flags
-will be always missing.
+Since oom_unkillable_task() scans all threads in the caller's thread group
+and oom_task_origin() scans signal_struct of the caller's thread group, we
+don't need to call oom_unkillable_task() and oom_task_origin() on each
+thread. Also, since !mm test will be done later at oom_badness(), we don't
+need to do !mm test on each thread. Therefore, we only need to do
+TIF_MEMDIE test on each thread.
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 570383a41853..e1998eb5c37f 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -256,8 +256,7 @@ struct vm_area_struct;
- #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
- #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
- #define GFP_TRANSHUGE	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
--			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN) & \
--			 ~__GFP_RECLAIM)
-+			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN)
+If we track number of TIF_MEMDIE threads inside signal_struct, we don't
+need to do TIF_MEMDIE test on each thread. This will allow
+select_bad_process() to use for_each_process().
+
+This patch adds a counter to signal_struct for tracking how many
+TIF_MEMDIE threads are in a given thread group, and check it at
+oom_scan_process_thread() so that select_bad_process() can use
+for_each_process() rather than for_each_process_thread().
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
+---
+ include/linux/sched.h |  1 +
+ mm/oom_kill.c         | 12 ++++++------
+ 2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 870a700..1589f8e 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -794,6 +794,7 @@ struct signal_struct {
+ 	struct tty_audit_buf *tty_audit_buf;
+ #endif
  
- /* Convert GFP flags to their corresponding migrate type */
- #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 87f09dc986ab..370fbd3b24dd 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -216,7 +216,8 @@ struct page *get_huge_zero_page(void)
- 	if (likely(atomic_inc_not_zero(&huge_zero_refcount)))
- 		return READ_ONCE(huge_zero_page);
++	atomic_t oom_victims; /* # of TIF_MEDIE threads in this thread group */
+ 	/*
+ 	 * Thread is the potential origin of an oom condition; kill first on
+ 	 * oom
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index c0e37dd..1ac24e8 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -283,10 +283,8 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+ 	 * This task already has access to memory reserves and is being killed.
+ 	 * Don't allow any other task to have access to the reserves.
+ 	 */
+-	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
+-		if (!is_sysrq_oom(oc))
+-			return OOM_SCAN_ABORT;
+-	}
++	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims))
++		return OOM_SCAN_ABORT;
+ 	if (!task->mm)
+ 		return OOM_SCAN_CONTINUE;
  
--	zero_page = alloc_pages((GFP_TRANSHUGE | __GFP_ZERO) & ~__GFP_MOVABLE,
-+	zero_page = alloc_pages((GFP_TRANSHUGE | __GFP_ZERO)
-+			& ~(__GFP_MOVABLE | __GFP_NORETRY),
- 			HPAGE_PMD_ORDER);
- 	if (!zero_page) {
- 		count_vm_event(THP_ZERO_PAGE_ALLOC_FAILED);
-@@ -882,9 +883,10 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- }
- 
- /*
-- * If THP is set to always then directly reclaim/compact as necessary
-- * If set to defer then do no reclaim and defer to khugepaged
-+ * If THP defrag is set to always then directly reclaim/compact as necessary
-+ * If set to defer then do only background reclaim/compact and defer to khugepaged
-  * If set to madvise and the VMA is flagged then directly reclaim/compact
-+ * When direct reclaim/compact is allowed, try a bit harder for flagged VMA's
-  */
- static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+@@ -307,12 +305,12 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+ static struct task_struct *select_bad_process(struct oom_control *oc,
+ 		unsigned int *ppoints, unsigned long totalpages)
  {
-@@ -896,15 +898,21 @@ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
- 	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
- 		reclaim_flags = __GFP_KSWAPD_RECLAIM;
- 	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
--		reclaim_flags = __GFP_DIRECT_RECLAIM;
-+		reclaim_flags = __GFP_DIRECT_RECLAIM |
-+					((vma->vm_flags & VM_HUGEPAGE) ? 0 : __GFP_NORETRY);
+-	struct task_struct *g, *p;
++	struct task_struct *p;
+ 	struct task_struct *chosen = NULL;
+ 	unsigned long chosen_points = 0;
  
--	return GFP_TRANSHUGE | reclaim_flags;
-+	return (GFP_TRANSHUGE & ~(__GFP_RECLAIM | __GFP_NORETRY)) | reclaim_flags;
- }
+ 	rcu_read_lock();
+-	for_each_process_thread(g, p) {
++	for_each_process(p) {
+ 		unsigned int points;
  
- /* Defrag for khugepaged will enter direct reclaim/compaction if necessary */
- static inline gfp_t alloc_hugepage_khugepaged_gfpmask(void)
+ 		switch (oom_scan_process_thread(oc, p, totalpages)) {
+@@ -673,6 +671,7 @@ void mark_oom_victim(struct task_struct *tsk)
+ 	/* OOM killer might race with memcg OOM */
+ 	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+ 		return;
++	atomic_inc(&tsk->signal->oom_victims);
+ 	/*
+ 	 * Make sure that the task is woken up from uninterruptible sleep
+ 	 * if it is frozen because OOM killer wouldn't be able to free
+@@ -690,6 +689,7 @@ void exit_oom_victim(struct task_struct *tsk)
  {
--	return GFP_TRANSHUGE | (khugepaged_defrag() ? __GFP_DIRECT_RECLAIM : 0);
-+	/*
-+	 * We don't want kswapd reclaim, and if khugepaged/defrag is disabled
-+	 * we disable also direct reclaim. If we do direct reclaim, do retry.
-+	 */
-+	return GFP_TRANSHUGE & ~(khugepaged_defrag() ?
-+			(__GFP_KSWAPD_RECLAIM | __GFP_NORETRY) : __GFP_RECLAIM);
- }
+ 	if (!test_and_clear_tsk_thread_flag(tsk, TIF_MEMDIE))
+ 		return;
++	atomic_dec(&tsk->signal->oom_victims);
  
- /* Caller must hold page table lock. */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0cee863397e4..4a34187827ca 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3619,11 +3619,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 			/*
- 			 * Looks like reclaim/compaction is worth trying, but
- 			 * sync compaction could be very expensive, so keep
--			 * using async compaction, unless it's khugepaged
--			 * trying to collapse.
-+			 * using async compaction.
- 			 */
--			if (!(current->flags & PF_KTHREAD))
--				migration_mode = MIGRATE_ASYNC;
-+			migration_mode = MIGRATE_ASYNC;
- 		}
- 	}
- 
+ 	if (!atomic_dec_return(&oom_victims))
+ 		wake_up_all(&oom_victims_wait);
 -- 
-2.8.2
-
-
-
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
