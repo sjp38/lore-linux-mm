@@ -1,71 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B63716B025E
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 05:49:57 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ke5so61785715pad.1
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 02:49:57 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id c1si11160894pas.37.2016.05.18.02.49.56
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 68BCD6B025E
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 05:52:54 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id ne4so21093082lbc.1
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 02:52:54 -0700 (PDT)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
+        by mx.google.com with ESMTPS id m68si32200459wma.60.2016.05.18.02.52.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 May 2016 02:49:56 -0700 (PDT)
-Date: Wed, 18 May 2016 11:49:52 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20160518094952.GB3193@twins.programming.kicks-ass.net>
-References: <20160512080321.GA18496@dastard>
- <20160513160341.GW20141@dhcp22.suse.cz>
- <20160516104130.GK3193@twins.programming.kicks-ass.net>
- <20160516130519.GJ23146@dhcp22.suse.cz>
- <20160516132541.GP3193@twins.programming.kicks-ass.net>
- <20160516231056.GE18496@dastard>
- <20160517144912.GZ3193@twins.programming.kicks-ass.net>
- <20160517223549.GV26977@dastard>
- <20160518072005.GA3193@twins.programming.kicks-ass.net>
- <20160518082538.GE21654@dhcp22.suse.cz>
+        Wed, 18 May 2016 02:52:53 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 9C3931C17C1
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 10:52:52 +0100 (IST)
+Date: Wed, 18 May 2016 10:52:51 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH v1] mm: bad_page() checks bad_flags instead of
+ page->flags for hwpoison page
+Message-ID: <20160518095251.GD2527@techsingularity.net>
+References: <1463470975-29972-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20160518092100.GB2527@techsingularity.net>
+ <573C365B.6020807@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160518082538.GE21654@dhcp22.suse.cz>
+In-Reply-To: <573C365B.6020807@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Dave Chinner <david@fromorbit.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Wed, May 18, 2016 at 10:25:39AM +0200, Michal Hocko wrote:
-> On Wed 18-05-16 09:20:05, Peter Zijlstra wrote:
-> > On Wed, May 18, 2016 at 08:35:49AM +1000, Dave Chinner wrote:
-> > > On Tue, May 17, 2016 at 04:49:12PM +0200, Peter Zijlstra wrote:
-> [...]
-> > > > In any case; would something like this work for you? Its entirely
-> > > > untested, but the idea is to mark an entire class to skip reclaim
-> > > > validation, instead of marking individual sites.
-> > > 
-> > > Probably would, but it seems like swatting a fly with runaway
-> > > train. I'd much prefer a per-site annotation (e.g. as a GFP_ flag)
-> > > so that we don't turn off something that will tell us we've made a
-> > > mistake while developing new code...
-> > 
-> > Fair enough; if the mm folks don't object to 'wasting' a GFP flag on
-> > this the below ought to do I think.
+On Wed, May 18, 2016 at 11:31:07AM +0200, Vlastimil Babka wrote:
+> On 05/18/2016 11:21 AM, Mel Gorman wrote:
+> >On Tue, May 17, 2016 at 04:42:55PM +0900, Naoya Horiguchi wrote:
+> >>There's a race window between checking page->flags and unpoisoning, which
+> >>taints kernel with "BUG: Bad page state". That's overkill. It's safer to
+> >>use bad_flags to detect hwpoisoned page.
+> >>
+> >
+> >I'm not quite getting this one. Minimally, instead of = __PG_HWPOISON, it
+> >should have been (bad_flags & __PG_POISON). As Vlastimil already pointed
+> >out, __PG_HWPOISON can be 0. What I'm not getting is why this fixes the
+> >race. The current race is
+> >
+> >1. Check poison, set bad_flags
+> >2. poison clears in parallel
+> >3. Check page->flag state in bad_page and trigger warning
+> >
+> >The code changes it to
+> >
+> >1. Check poison, set bad_flags
+> >2. poison clears in parallel
+> >3. Check bad_flags and trigger warning
 > 
-> GFP flag space is quite scarse. 
+> I think you got step 3 here wrong. It's "skip the warning since we have set
+> bad_flags to hwpoison and bad_flags didn't change due to parallel unpoison".
+> 
 
-There's still 5 or so bits available, and you could always make gfp_t
-u64.
+I think the benefit is marginal. The race means that the patch will trigger
+a warning that might have been missed before due to a parallel unpoison
+but that's not necessary a Good Thing. It's inherently race-prone.
 
-> Especially when it would be used only
-> for lockdep configurations which are mostly disabled. Why cannot we go
-> with an explicit disable/enable API I have proposed? 
+Naoya, if you fix the check to (bad_flags & __PG_POISON) then I'll add my
+ack but I'm not convinced it's a real problem.
 
-It has unbounded scope. And in that respect the GFP flag thingy is wider
-than I'd like too, it avoids setting the state for all held locks, even
-though we'd only like to avoid setting it for one class.
-
-So ideally we'd combine the GFP flag with the previously proposed skip
-flag to only avoid marking the one class while keeping everything
-working for all other held locks.
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
