@@ -1,114 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A63A6B007E
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 22:36:33 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id xm6so49994693pab.3
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 19:36:33 -0700 (PDT)
-Received: from smtp2203-239.mail.aliyun.com (smtp2203-239.mail.aliyun.com. [121.197.203.239])
-        by mx.google.com with ESMTP id 20si8685528pfr.90.2016.05.17.19.36.30
-        for <linux-mm@kvack.org>;
-        Tue, 17 May 2016 19:36:31 -0700 (PDT)
-From: Li Peng <lip@dtdream.com>
-Subject: [PATCH] mm: fix duplicate words and typos
-Date: Wed, 18 May 2016 10:35:56 +0800
-Message-Id: <1463538956-7342-1-git-send-email-lip@dtdream.com>
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C01696B007E
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 22:39:17 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id yu3so8102561obb.3
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 19:39:17 -0700 (PDT)
+Received: from mail-io0-x229.google.com (mail-io0-x229.google.com. [2607:f8b0:4001:c06::229])
+        by mx.google.com with ESMTPS id qb7si5837129igb.60.2016.05.17.19.39.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 May 2016 19:39:17 -0700 (PDT)
+Received: by mail-io0-x229.google.com with SMTP id i75so48282223ioa.3
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 19:39:17 -0700 (PDT)
+Received: from [10.18.61.107] ([104.192.110.250])
+        by smtp.gmail.com with ESMTPSA id o201sm2034640ioe.15.2016.05.17.19.39.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1/SSLv3 cipher=OTHER);
+        Tue, 17 May 2016 19:39:16 -0700 (PDT)
+From: baotiao <baotiao@gmail.com>
+Content-Type: multipart/alternative; boundary="Apple-Mail=_28C43B34-7488-4E52-9AF4-8F3BC055A8AF"
+Subject: why the kmalloc return fail when there is free physical address but return success after dropping page caches
+Message-Id: <D64A3952-53D8-4B9D-98A1-C99D7E231D42@gmail.com>
+Date: Wed, 18 May 2016 10:38:52 +0800
+Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Li Peng <lip@dtdream.com>
+To: linux-mm@kvack.org
 
-Signed-off-by: Li Peng <lip@dtdream.com>
----
- mm/memcontrol.c | 2 +-
- mm/page_alloc.c | 6 +++---
- mm/vmscan.c     | 7 +++----
- mm/zswap.c      | 2 +-
- 4 files changed, 8 insertions(+), 9 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fe787f5..4b74255 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2293,7 +2293,7 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
- 
- 	/*
- 	 * If we are in a safe context (can wait, and not in interrupt
--	 * context), we could be be predictable and return right away.
-+	 * context), we could be predictable and return right away.
- 	 * This would guarantee that the allocation being performed
- 	 * already belongs in the new cache.
- 	 *
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c1069ef..93824cb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3030,7 +3030,7 @@ retry:
- 	/*
- 	 * If an allocation failed after direct reclaim, it could be because
- 	 * pages are pinned on the per-cpu lists or in high alloc reserves.
--	 * Shrink them them and try again
-+	 * Shrink them and try again.
- 	 */
- 	if (!page && !drained) {
- 		unreserve_highatomic_pageblock(ac);
-@@ -4812,7 +4812,7 @@ static int zone_batchsize(struct zone *zone)
-  * locking.
-  *
-  * Any new users of pcp->batch and pcp->high should ensure they can cope with
-- * those fields changing asynchronously (acording the the above rule).
-+ * those fields changing asynchronously (according to the above rule).
-  *
-  * mutex_is_locked(&pcp_batch_high_lock) required when calling this function
-  * outside of boot time (or some other assurance that no concurrent updaters
-@@ -5024,7 +5024,7 @@ int __meminit __early_pfn_to_nid(unsigned long pfn,
-  * @max_low_pfn: The highest PFN that will be passed to memblock_free_early_nid
-  *
-  * If an architecture guarantees that all ranges registered contain no holes
-- * and may be freed, this this function may be used instead of calling
-+ * and may be freed, this function may be used instead of calling
-  * memblock_free_early_nid() manually.
-  */
- void __init free_bootmem_with_active_regions(int nid, unsigned long max_low_pfn)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 142cb61..8ff5a79 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1683,8 +1683,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 			set_bit(ZONE_DIRTY, &zone->flags);
- 
- 		/*
--		 * If kswapd scans pages marked marked for immediate
--		 * reclaim and under writeback (nr_immediate), it implies
-+		 * If kswapd scans pages marked for immediate reclaim
-+		 * and under writeback (nr_immediate), it implies
- 		 * that pages are cycling through the LRU faster than
- 		 * they are written so also forcibly stall.
- 		 */
-@@ -3267,8 +3267,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
- 			/*
- 			 * There should be no need to raise the scanning
- 			 * priority if enough pages are already being scanned
--			 * that that high watermark would be met at 100%
--			 * efficiency.
-+			 * that high watermark would be met at 100% efficiency.
- 			 */
- 			if (kswapd_shrink_zone(zone, end_zone, &sc))
- 				raise_priority = false;
-diff --git a/mm/zswap.c b/mm/zswap.c
-index de0f119b..6d829d7 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -928,7 +928,7 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
- 	* a load may happening concurrently
- 	* it is safe and okay to not free the entry
- 	* if we free the entry in the following put
--	* it it either okay to return !0
-+	* it either okay to return !0
- 	*/
- fail:
- 	spin_lock(&tree->lock);
--- 
-1.8.3.1
+--Apple-Mail=_28C43B34-7488-4E52-9AF4-8F3BC055A8AF
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=us-ascii
+
+Hello every, I meet an interesting kernel memory problem. Can anyone =
+help me explain what happen under the kernel
+
+The machine's status is describe as blow:
+
+the machine has 96 physical memory. And the real use memory is about =
+64G, and the page cache use about 32G. we also use the swap area, at =
+that time we have about 10G(we set the swap max size to 32G). At that =
+moment, we find xfs report
+
+Apr 29 21:54:31 w-openstack86 kernel: XFS: possible memory allocation =
+deadlock in kmem_alloc (mode:0x250)
+
+after reading the source code. This message is display from this line
+
+ptr =3D kmalloc(size, lflags); if (ptr || (flags & =
+(KM_MAYFAIL|KM_NOSLEEP))) return ptr; if (!(++retries % 100)) =
+xfs_err(NULL, "possible memory allocation deadlock in %s (mode:0x%x)", =
+__func__, lflags); congestion_wait(BLK_RW_ASYNC, HZ/50);
+
+The error is cause by the kmalloc() function, there is not enough memory =
+in the system. But there is still 32G page cache.
+
+So I run
+
+echo 3 > /proc/sys/vm/drop_caches
+
+to drop the page cache.
+
+Then the system is fine. But I really don't know the reason. Why after I =
+run drop_caches operation the kmalloc() function will success? I think =
+even we use whole physical memory, but we only use 64 real momory, the =
+32G memory are page cache, further we have enough swap space. So why the =
+kernel don't flush the page cache or the swap to reserved the kmalloc =
+operation.
+
+
+----------------------------------------
+=20
+Github: https://github.com/baotiao
+Blog: http://baotiao.github.io/
+Stackoverflow: http://stackoverflow.com/users/634415/baotiao=20
+Linkedin: http://www.linkedin.com/profile/view?id=3D145231990
+
+
+--Apple-Mail=_28C43B34-7488-4E52-9AF4-8F3BC055A8AF
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html;
+	charset=us-ascii
+
+<html><head><meta http-equiv=3D"Content-Type" content=3D"text/html =
+charset=3Dus-ascii"></head><body style=3D"word-wrap: break-word; =
+-webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" =
+class=3D""><div class=3D"post-text" itemprop=3D"text"><p class=3D"">Hello =
+every, I meet an interesting kernel memory problem. Can anyone help me =
+explain what happen under the kernel</p><p class=3D"">The machine's =
+status is describe as blow:</p><p class=3D"">the machine has 96 physical =
+memory. And the real use memory is about=20
+64G, and the page cache use about 32G. we also use the swap area, at=20
+that time we have about 10G(we set the swap max size to 32G). At that=20
+moment, we find xfs report </p><p class=3D""><code class=3D"">
+Apr 29 21:54:31 w-openstack86 kernel: XFS: possible memory allocation =
+deadlock in kmem_alloc (mode:0x250)
+</code></p><p class=3D"">after reading the source code. This message is =
+display from this line </p><p class=3D""><code class=3D"">
+    ptr =3D kmalloc(size, lflags);
+    if (ptr || (flags &amp; (KM_MAYFAIL|KM_NOSLEEP)))
+      return ptr;
+    if (!(++retries % 100))
+      xfs_err(NULL,
+    "possible memory allocation deadlock in %s (mode:0x%x)",
+          __func__, lflags);
+    congestion_wait(BLK_RW_ASYNC, HZ/50);
+</code></p><p class=3D"">The error is cause by the kmalloc() function, =
+there is not enough memory in the system. But there is still 32G page =
+cache.</p><p class=3D"">So I run </p><p class=3D""><code class=3D"">
+echo 3 &gt; /proc/sys/vm/drop_caches
+</code></p><p class=3D"">to drop the page cache.</p><p class=3D"">Then =
+the system is fine. But I really don't know the reason.
+Why after I run drop_caches operation the kmalloc() function will=20
+success? I think even we use whole physical memory, but we only use 64=20=
+
+real momory, the 32G memory are page cache, further we have enough swap=20=
+
+space. So why the kernel don't flush the page cache or the swap to=20
+reserved the kmalloc operation.</p><div class=3D""><br =
+class=3D""></div></div><div class=3D"">
+<div style=3D"color: rgb(0, 0, 0); letter-spacing: normal; orphans: =
+auto; text-align: start; text-indent: 0px; text-transform: none; =
+white-space: normal; widows: auto; word-spacing: 0px; =
+-webkit-text-stroke-width: 0px; word-wrap: break-word; =
+-webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" =
+class=3D""><div style=3D"color: rgb(0, 0, 0); letter-spacing: normal; =
+orphans: auto; text-align: start; text-indent: 0px; text-transform: =
+none; white-space: normal; widows: auto; word-spacing: 0px; =
+-webkit-text-stroke-width: 0px; word-wrap: break-word; =
+-webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" =
+class=3D""><div style=3D"orphans: auto; text-align: start; text-indent: =
+0px; widows: auto; word-wrap: break-word; -webkit-nbsp-mode: space; =
+-webkit-line-break: after-white-space;" class=3D""><div style=3D"color: =
+rgb(0, 0, 0); letter-spacing: normal; text-transform: none; white-space: =
+normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; orphans: =
+auto; text-align: start; text-indent: 0px; widows: auto; word-wrap: =
+break-word; -webkit-nbsp-mode: space; -webkit-line-break: =
+after-white-space; font-size: 20px;" =
+class=3D"">----------------------------------------<br =
+class=3D"">&nbsp;</div><div style=3D"orphans: auto; text-align: start; =
+text-indent: 0px; widows: auto; word-wrap: break-word; =
+-webkit-nbsp-mode: space; -webkit-line-break: after-white-space; =
+font-size: 20px;" class=3D"">Github:&nbsp;<a =
+href=3D"https://github.com/baotiao" =
+class=3D"">https://github.com/baotiao</a><br class=3D"">Blog: <a =
+href=3D"http://baotiao.github.io/" =
+class=3D"">http://baotiao.github.io/</a><br class=3D"">Stackoverflow: <a =
+href=3D"http://stackoverflow.com/users/634415/baotiao" =
+class=3D"">http://stackoverflow.com/users/634415/baotiao</a>&nbsp;</div><d=
+iv style=3D"orphans: auto; text-align: start; text-indent: 0px; widows: =
+auto; word-wrap: break-word; -webkit-nbsp-mode: space; =
+-webkit-line-break: after-white-space; font-size: 20px;" =
+class=3D"">Linkedin: <a =
+href=3D"http://www.linkedin.com/profile/view?id=3D145231990" =
+class=3D"">http://www.linkedin.com/profile/view?id=3D145231990</a></div></=
+div></div></div>
+</div>
+<br class=3D""></body></html>=
+
+--Apple-Mail=_28C43B34-7488-4E52-9AF4-8F3BC055A8AF--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
