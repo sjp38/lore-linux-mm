@@ -1,167 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 539CB6B0253
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 11:24:26 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id a17so16476445wme.1
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 08:24:26 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id p184si33955457wmp.18.2016.05.18.08.24.24
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 06CED6B007E
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 11:36:39 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id e126so110704668vkb.2
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 08:36:39 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b205si7230490qhb.14.2016.05.18.08.36.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 May 2016 08:24:25 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id n129so13814303wmn.1
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 08:24:24 -0700 (PDT)
-Date: Wed, 18 May 2016 17:24:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 06/13] mm, thp: remove __GFP_NORETRY from khugepaged and
- madvised allocations
-Message-ID: <20160518152423.GK21654@dhcp22.suse.cz>
-References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
- <1462865763-22084-7-git-send-email-vbabka@suse.cz>
- <20160512162043.GA4261@dhcp22.suse.cz>
- <57358F03.5080707@suse.cz>
- <20160513120558.GL20141@dhcp22.suse.cz>
- <573C5939.1080909@suse.cz>
+        Wed, 18 May 2016 08:36:38 -0700 (PDT)
+Subject: Re: [PATCH v6 16/20] IB/fmr_pool: Convert the cleanup thread into
+ kthread worker API
+References: <1460646879-617-1-git-send-email-pmladek@suse.com>
+ <1460646879-617-17-git-send-email-pmladek@suse.com>
+From: Doug Ledford <dledford@redhat.com>
+Message-ID: <d62ae983-aa52-e60b-712f-e47708f2bfb7@redhat.com>
+Date: Wed, 18 May 2016 11:36:33 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <573C5939.1080909@suse.cz>
+In-Reply-To: <1460646879-617-17-git-send-email-pmladek@suse.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="B4jlfRJk9sh51sJDPxaeTFG9r0QdnC0nw"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Petr Mladek <pmladek@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, linux-rdma@vger.kernel.org
 
-On Wed 18-05-16 13:59:53, Vlastimil Babka wrote:
-> On 05/13/2016 02:05 PM, Michal Hocko wrote:
-> > On Fri 13-05-16 10:23:31, Vlastimil Babka wrote:
-> >> On 05/12/2016 06:20 PM, Michal Hocko wrote:
-> >>> On Tue 10-05-16 09:35:56, Vlastimil Babka wrote:
-> >>> [...]
-> >>>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> >>>> index 570383a41853..0cb09714d960 100644
-> >>>> --- a/include/linux/gfp.h
-> >>>> +++ b/include/linux/gfp.h
-> >>>> @@ -256,8 +256,7 @@ struct vm_area_struct;
-> >>>>    #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
-> >>>>    #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
-> >>>>    #define GFP_TRANSHUGE	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
-> >>>> -			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN) & \
-> >>>> -			 ~__GFP_RECLAIM)
-> >>>> +			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
-> >>>
-> >>> I am not sure this is the right thing to do. I think we should keep
-> >>> __GFP_NORETRY and clear it where we want a stronger semantic. This is
-> >>> just too suble that all callsites are doing the right thing.
-> >>
-> >> That would complicate alloc_hugepage_direct_gfpmask() a bit, but if you
-> >> think it's worth it, I can turn the default around, OK.
-> > 
-> > Hmm, on the other hand it is true that GFP_TRANSHUGE is clearing both
-> > reclaim flags by default and then overwrites that. This is just too
-> > ugly. Can we make GFP_TRANSHUGE to only define flags we care about and
-> > then tweak those that should go away at the callsites which matter now
-> > that we do not rely on is_thp_gfp_mask?
->  
-> So the following patch attempts what you suggest, if I understand you
-> correctly. GFP_TRANSHUGE includes all possible flag, and then they are
-> removed as needed. I don't really think it helps code readability
-> though.
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--B4jlfRJk9sh51sJDPxaeTFG9r0QdnC0nw
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
-yeah it is ugly has _hell_. I do not think this deserves too much time
-to discuss as the flag is mostly internal but one last proposal would be
-to define different THP allocations context explicitly. Some callers
-would still need some additional meddling but maybe it would be slightly
-better to read. Dunno. Anyway if you think this is not really an
-improvement then I won't insist on any change to your original patch.
----
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 570383a41853..e7926b466107 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -255,9 +255,14 @@ struct vm_area_struct;
- #define GFP_DMA32	__GFP_DMA32
- #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
- #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
--#define GFP_TRANSHUGE	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
-+
-+/* Optimistic or latency sensitive THP allocation - page fault path */
-+#define GFP_TRANSHUGE_LIGHT	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
- 			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN) & \
- 			 ~__GFP_RECLAIM)
-+/* More serious THP allocation request - kcompactd */
-+#define GFP_TRANSHUGE (GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM) & \
-+			~__GFP_NORETRY
- 
- /* Convert GFP flags to their corresponding migrate type */
- #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 1a4d4c807d92..937b89c6c0aa 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -216,7 +216,7 @@ struct page *get_huge_zero_page(void)
- 	if (likely(atomic_inc_not_zero(&huge_zero_refcount)))
- 		return READ_ONCE(huge_zero_page);
- 
--	zero_page = alloc_pages((GFP_TRANSHUGE | __GFP_ZERO) & ~__GFP_MOVABLE,
-+	zero_page = alloc_pages((GFP_TRANSHUGE_LIGHT | __GFP_ZERO) & ~__GFP_MOVABLE,
- 			HPAGE_PMD_ORDER);
- 	if (!zero_page) {
- 		count_vm_event(THP_ZERO_PAGE_ALLOC_FAILED);
-@@ -888,23 +888,31 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
-  */
- static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
- {
--	gfp_t reclaim_flags = 0;
-+	gfp_t gfp_mask = GFP_TRANSHUGE_LIGHT;
- 
- 	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags) &&
- 	    (vma->vm_flags & VM_HUGEPAGE))
--		reclaim_flags = __GFP_DIRECT_RECLAIM;
-+		gfp_mask = GFP_TRANSHUGE;
- 	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
--		reclaim_flags = __GFP_KSWAPD_RECLAIM;
--	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
--		reclaim_flags = __GFP_DIRECT_RECLAIM;
-+		gfp_mask |= __GFP_KSWAPD_RECLAIM;
-+	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags)) {
-+		if (vm->vm_flags & VM_HUGEPAGE)
-+			gfp_mask = GFP_TRANSHUGE;
-+		else
-+			gfp_mask = GFP_TRANSHUGE | __GFP_NORETRY;
-+	}
- 
--	return GFP_TRANSHUGE | reclaim_flags;
-+	return gfp_mask;
- }
- 
- /* Defrag for khugepaged will enter direct reclaim/compaction if necessary */
- static inline gfp_t alloc_hugepage_khugepaged_gfpmask(void)
- {
--	return GFP_TRANSHUGE | (khugepaged_defrag() ? __GFP_DIRECT_RECLAIM : 0);
-+	gfp_t gfp_mask = GFP_TRANSHUGE_LIGHT;
-+	if (khugepaged_defrag())
-+		gfp_mask = GFP_TRANSHUGE;
-+
-+	return gfp_mask;
- }
- 
- /* Caller must hold page table lock. */
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 53ab6398e7a2..1cd5c8c18343 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1771,7 +1771,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 		goto out_dropref;
- 
- 	new_page = alloc_pages_node(node,
--		(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
-+		(GFP_TRANSHUGE_LIGHT | __GFP_THISNODE) & ~__GFP_RECLAIM,
- 		HPAGE_PMD_ORDER);
- 	if (!new_page)
- 		goto out_fail;
--- 
-Michal Hocko
-SUSE Labs
+On 04/14/2016 11:14 AM, Petr Mladek wrote:
+> Kthreads are currently implemented as an infinite loop. Each
+> has its own variant of checks for terminating, freezing,
+> awakening. In many cases it is unclear to say in which state
+> it is and sometimes it is done a wrong way.
+>=20
+> The plan is to convert kthreads into kthread_worker or workqueues
+> API. It allows to split the functionality into separate operations.
+> It helps to make a better structure. Also it defines a clean state
+> where no locks are taken, IRQs blocked, the kthread might sleep
+> or even be safely migrated.
+>=20
+> The kthread worker API is useful when we want to have a dedicated
+> single thread for the work. It helps to make sure that it is
+> available when needed. Also it allows a better control, e.g.
+> define a scheduling priority.
+>=20
+> This patch converts the frm_pool kthread into the kthread worker
+> API because I am not sure how busy the thread is. It is well
+> possible that it does not need a dedicated kthread and workqueues
+> would be perfectly fine. Well, the conversion between kthread
+> worker API and workqueues is pretty trivial.
+>=20
+> The patch moves one iteration from the kthread into the work function.
+> It preserves the check for a spurious queuing (wake up). Then it
+> processes one request. Finally, it re-queues itself if more requests
+> are pending.
+>=20
+> Otherwise, wake_up_process() is replaced by queuing the work.
+>=20
+> Important: The change is only compile tested. I did not find an easy
+> way how to check it in a real life.
+
+I had to do some digging myself to figure out how to move forward on
+this patch.  The issue is that your conversion touches the fmr_pool code
+as your target.  That code is slowly being phased out.  Right now, only
+two drivers in the IB core support fmr: mthca and mlx4.  The generally
+preferred method of mem management is fr instead of fmr.  The mlx4
+driver support both fr and fmr, while the mthca driver is fmr only.  All
+of the other drivers are fr only.  The only code that uses the fmr pools
+are the upper layer iSER and SRP drivers.  So, if you have mthca
+hardware, you can test fmr using either iSER or SRP clients.  If you
+have mlx4 hardware, you can still test fmr by using the SRP client and
+setting prefer_fr to false when you load the module.
+
+Now that I know that, I can provide testing of this patch when the
+overall patchset is ready to be submitted next.
+
+--=20
+Doug Ledford <dledford@redhat.com>
+              GPG KeyID: 0E572FDD
+
+
+
+--B4jlfRJk9sh51sJDPxaeTFG9r0QdnC0nw
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
+
+iQIcBAEBCAAGBQJXPIwBAAoJELgmozMOVy/drgsP/jbdrRoWcMiq7FnAV/MGP7+C
+Pf8VqrSoMgF6RrdIRofcrpZP+eODYdBleTqq14fFpnN3tMvCnLGyKr2fpFlpw95C
+gKIt8TVLNWnGRkfOhgvtJ0L/VAraF4QFXvGHasKw8QGSuDCP2tXfM3O0OFeAnUNx
+MAXj6B0QIfhMGZTgRbSfZ+HS8O8gYYC50vMwzXGyRqsafh5GqmtVGWH6e1UQ7FfT
+zh+bt6WFJw6Y3fgZKQWnY9PuXdeMr1bXr5O2nf4JEhFfenP/D26CpkEwf+iAAQSi
+0R84T3tFFR6WCqB/RjnGHhcF358dWoXNyV6SJcgGlJ9pYfRQ5nWRpi50iLiak7eK
+QBRcBwlBl4eVFRuWB2GDAz6qovRWcZsCDjZCkNaJdH6/K7nd4n70moGEihoJ2GVd
+6yheYxn4Vg7Kv9r29O25S0/3WBHLchjeX+y10uQkxvyGW+/jdywWISI7j9Mt9G9G
+trs4OEyQsAb0x73ye548tkPtHm/jAEapcEwt+v6Ilb3lp2qCcd/2gm7SbIZIJlFe
+g8FDUdO5qo7nbK0sQW6UNkYwXweXMprSNy6dNgf6L1K46+EW3nRj/L5XhnEWTLZq
+3qzNudWCKD/xSS5LTUoEm23DUGeLBRQmH0Xdd4OxK67KDIwk8UrMJ344FCF1uxOa
+uLneBbe4G4ZHE9ZxdySO
+=T0xk
+-----END PGP SIGNATURE-----
+
+--B4jlfRJk9sh51sJDPxaeTFG9r0QdnC0nw--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
