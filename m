@@ -1,97 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DB3B6B007E
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 10:41:52 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id d139so85261224oig.1
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 07:41:52 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id v12si7922339ioi.108.2016.05.18.07.41.50
-        for <linux-mm@kvack.org>;
-        Wed, 18 May 2016 07:41:51 -0700 (PDT)
-Date: Thu, 19 May 2016 00:41:48 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: why the kmalloc return fail when there is free physical address
- but return success after dropping page caches
-Message-ID: <20160518144148.GD21200@dastard>
-References: <D64A3952-53D8-4B9D-98A1-C99D7E231D42@gmail.com>
- <573C2BB6.6070801@suse.cz>
- <78A99337-5542-4E59-A648-AB2A328957D3@gmail.com>
-MIME-Version: 1.0
+Received: from mail-ig0-f200.google.com (mail-ig0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 716CE6B025E
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 10:44:42 -0400 (EDT)
+Received: by mail-ig0-f200.google.com with SMTP id i5so100984550ige.1
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 07:44:42 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id 135si7941388ion.104.2016.05.18.07.44.40
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 18 May 2016 07:44:41 -0700 (PDT)
+Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1463574024-8372-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20160518125138.GH21654@dhcp22.suse.cz>
+	<201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
+In-Reply-To: <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
+Message-Id: <201605182344.IBJ06800.HLJMStFFFQVOOO@I-love.SAKURA.ne.jp>
+Date: Wed, 18 May 2016 23:44:29 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <78A99337-5542-4E59-A648-AB2A328957D3@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: baotiao <baotiao@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp
 
-On Wed, May 18, 2016 at 04:58:31PM +0800, baotiao wrote:
-> Thanks for your reply
+Michal Hocko wrote:
+> On Wed 18-05-16 22:30:14, Tetsuo Handa wrote:
+> > Even if you call p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN case a bug,
+> > (p->flags & PF_KTHREAD) || is_global_init(p) case is still possible.
 > 
-> >> Hello every, I meet an interesting kernel memory problem. Can anyone
-> >> help me explain what happen under the kernel
-> > 
-> > Which kernel version is that?
+> I couldn't care less about such a case to be honest, and that is not a
+> reason the cripple the code for such an insanity. There simply doesn't
+> make any sense to share init's mm with a different task.
+
+The global init called vfork(), and the child tried to call execve() with
+large argv/envp array, and the child got OOM-killed is possible.
+
+> OK, this looks correct. Strictly speaking the patch is missing any note
+> on _why_ this is needed or an improvement. I would add something like
+> the following:
+> "
+> Although the original code was correct it was quite inefficient because
+> each thread group was scanned num_threads times which can be a lot
+> especially with processes with many threads. Even though the OOM is
+> extremely cold path it is always good to be as effective as possible
+> when we are inside rcu_read_lock() - aka unpreemptible context.
+> "
+
+rcu_read_lock() is not always unpreemptible context. rcu_read_lock() says:
+
+  In non-preemptible RCU implementations (TREE_RCU and TINY_RCU),
+  it is illegal to block while in an RCU read-side critical section.
+  In preemptible RCU implementations (PREEMPT_RCU) in CONFIG_PREEMPT
+  kernel builds, RCU read-side critical sections may be preempted,
+  but explicit blocking is illegal.  Finally, in preemptible RCU
+  implementations in real-time (with -rt patchset) kernel builds, RCU
+  read-side critical sections may be preempted and they may also block, but
+  only when acquiring spinlocks that are subject to priority inheritance.
+
+We will need preempt_disable() if we want to make out_of_memory() return
+as fast as possible.
+
 > 
-> The kernel version is 3.10.0-327.4.5.el7.x86_64
-
-RHEL7 kernel. Best you report the problem to your RH support
-contact - the RHEL7 kernels are far different to upstream kernels..
-
-> >> The machine's status is describe as blow:
-> >> 
-> >> the machine has 96 physical memory. And the real use memory is about
-> >> 64G, and the page cache use about 32G. we also use the swap area, at
-> >> that time we have about 10G(we set the swap max size to 32G). At that
-> >> moment, we find xfs report
-> >> 
-> >> |Apr 29 21:54:31 w-openstack86 kernel: XFS: possible memory allocation
-> >> deadlock in kmem_alloc (mode:0x250) |
-
-Pretty sure that's a GFP_NOFS allocation context.
-
-> > Just once, or many times?
+> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > Cc: David Rientjes <rientjes@google.com>
+> > Cc: Oleg Nesterov <oleg@redhat.com>
 > 
-> the message appear many times
-> from the code, I know that xfs will try 100 time of kmalloc() function
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-The curent upstream kernels report much more information - process,
-size of allocation, etc.
-
-In general, the cause of such problems is memory fragmentation
-preventing a large contiguous allocation from taking place (e.g.
-when you try to read a file with millions of extents).
-
-> >> in the system. But there is still 32G page cache.
-> >> 
-> >> So I run
-> >> 
-> >> |echo 3 > /proc/sys/vm/drop_caches |
-> >> 
-> >> to drop the page cache.
-> >> 
-> >> Then the system is fine.
-> > 
-> > Are you saying that the error message was repeated infinitely until you did the drop_caches?
-> 
-> 
-> No. the error message don't appear after I drop_cache.
-
-Of course - freeing memory will cause contiguous free space to
-reform. then the allocation will succeed.
-
-IIRC, the reason the system can't recover itself is that memory
-compaction is not triggered from GFP_NOFS allocation context, which
-means memory reclaim won't try to create contiguous regions by
-moving things around and hence the allocation will not succeed until
-a significant amount of memory is freed by some other trigger....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
