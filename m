@@ -1,115 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 06CED6B007E
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 11:36:39 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id e126so110704668vkb.2
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 08:36:39 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b205si7230490qhb.14.2016.05.18.08.36.37
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BD1B6B007E
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 12:28:16 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id k129so113641286iof.0
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 09:28:16 -0700 (PDT)
+Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
+        by mx.google.com with ESMTPS id r4si8360128itb.80.2016.05.18.09.28.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 May 2016 08:36:38 -0700 (PDT)
-Subject: Re: [PATCH v6 16/20] IB/fmr_pool: Convert the cleanup thread into
- kthread worker API
-References: <1460646879-617-1-git-send-email-pmladek@suse.com>
- <1460646879-617-17-git-send-email-pmladek@suse.com>
-From: Doug Ledford <dledford@redhat.com>
-Message-ID: <d62ae983-aa52-e60b-712f-e47708f2bfb7@redhat.com>
-Date: Wed, 18 May 2016 11:36:33 -0400
+        Wed, 18 May 2016 09:28:15 -0700 (PDT)
+Received: by mail-io0-x234.google.com with SMTP id d62so72054819iof.2
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 09:28:15 -0700 (PDT)
+Subject: Re: [PATCH] mm: add config option to select the initial overcommit
+ mode
+References: <573593EE.6010502@free.fr> <20160513095230.GI20141@dhcp22.suse.cz>
+ <5735AA0E.5060605@free.fr> <20160513114429.GJ20141@dhcp22.suse.cz>
+ <5735C567.6030202@free.fr> <20160513140128.GQ20141@dhcp22.suse.cz>
+ <20160513160410.10c6cea6@lxorguk.ukuu.org.uk> <5735F4B1.1010704@laposte.net>
+ <20160513164357.5f565d3c@lxorguk.ukuu.org.uk> <573AD534.6050703@laposte.net>
+ <20160517085724.GD14453@dhcp22.suse.cz> <573B43FA.7080503@laposte.net>
+ <64a74ddc-c11b-75b9-c5f6-7e46be6f2122@gmail.com>
+ <573C87FB.3050301@laposte.net>
+From: "Austin S. Hemmelgarn" <ahferroin7@gmail.com>
+Message-ID: <59ca6360-abc4-5cc9-8873-b93cc2d8a898@gmail.com>
+Date: Wed, 18 May 2016 12:28:08 -0400
 MIME-Version: 1.0
-In-Reply-To: <1460646879-617-17-git-send-email-pmladek@suse.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="B4jlfRJk9sh51sJDPxaeTFG9r0QdnC0nw"
+In-Reply-To: <573C87FB.3050301@laposte.net>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, linux-rdma@vger.kernel.org
+To: Sebastian Frias <sf84@laposte.net>, Michal Hocko <mhocko@kernel.org>
+Cc: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, bsingharora@gmail.com
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---B4jlfRJk9sh51sJDPxaeTFG9r0QdnC0nw
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+On 2016-05-18 11:19, Sebastian Frias wrote:
+> Hi Austin,
+>
+> On 05/17/2016 07:29 PM, Austin S. Hemmelgarn wrote:
+>>> I see the difference, your answer seems a bit like the one from Austin, basically:
+>>> - killing a process is a sort of kernel protection attempting to deal "automatically" with some situation, like deciding what is a 'memory hog', or what is 'in infinite loop', "usually" in a correct way.
+>>> It seems there's people who think its better to avoid having to take such decisions and/or they should be decided by the user, because "usually" != "always".
+>> FWIW, it's really easy to see what's using a lot of memory, it's impossible to tell if something is stuck in an infinite loop without looking deep into the process state and possibly even at the source code (and even then it can be almost impossible to be certain).  This is why we have a OOM-Killer, and not a infinite-loop-killer.
+>>
+>> Again I reiterate, if a system is properly provisioned (that is, if you have put in enough RAM and possibly swap space to do what you want to use it for), the only reason the OOM-killer should be invoked is due to a bug.
+>
+> Are you sure that's the only possible reason?
+> I mean, what if somebody keeps opening tabs on Firefox?
+> If malloc() returned NULL maybe Firefox could say "hey, you have too many tabs open, please close some to free memory".
+That's an application issue, and I'm pretty sure that most browsers do 
+mention this.  That also falls within normal usage for a desktop system 
+(somewhat, if you're opening more than a few dozen tabs, you're asking 
+for trouble for other reasons too).
+>
+>> The non-default overcommit options still have the same issues they just change how and when they happen (overcommit=never will fire sooner, overcommit=always will fire later), and also can impact memory allocation performance (I have numbers somewhere that I can't find right now that demonstrated that overcommit=never gave more deterministic and (on average) marginally better malloc() performance, and simple logic would suggest that overcommit=always would make malloc() perform better too).
+>>> And people who see that as a nice thing but complex thing to do.
+>>> In this thread we've tried to explain why this heuristic (and/or OOM-killer) is/was needed and/or its history, which has been very enlightening by the way.
+>>>
+>>> From reading Documentation/cgroup-v1/memory.txt (and from a few replies here talking about cgroups), it looks like the OOM-killer is still being actively discussed, well, there's also "cgroup-v2".
+>>> My understanding is that cgroup's memory control will pause processes in a given cgroup until the OOM situation is solved for that cgroup, right?
+>>> If that is right, it means that there is indeed a way to deal with an OOM situation (stack expansion, COW failure, 'memory hog', etc.) in a better way than the OOM-killer, right?
+>>> In which case, do you guys know if there is a way to make the whole system behave as if it was inside a cgroup? (*)
+>> No, not with the process freeze behavior, because getting the group running again requires input from an external part of the system, which by definition doesn't exist if the group is the entire system;
+>
+> Do you mean that it pauses all processes in the cgroup?
+> I thought it would pause on a case-by-case basis, like first process to reach the limit gets paused, and so on.
+>
+> Honestly I thought it would work a bit like the filesystems, where 'root' usually has 5% reserved, so that a process (or processes) filling the disk does not disrupt the system to the point of preventing 'root' from performing administrative actions.
+>
+> That makes me think, why is disk space handled differently than memory in this case? I mean, why is disk space exhaustion handled differently than memory exhaustion?
+> We could imagine that both resources are required for proper system and process operation, so if OOM-killer is there to attempt to keep the system working at all costs (even if that means sacrificing processes), why isn't there an OOFS-killer (out-of-free-space killer)?
+There are actually sysctl's for this, vm/{admin,user}_reserve_kbytes. 
+The admin one is system-wide and provides a reserve for users with 
+CAP_SYS_ADMIN.  The user one is per-process and prevents a process from 
+allocating beyond a specific point, and is intended for overcommit=never 
+mode.
 
-On 04/14/2016 11:14 AM, Petr Mladek wrote:
-> Kthreads are currently implemented as an infinite loop. Each
-> has its own variant of checks for terminating, freezing,
-> awakening. In many cases it is unclear to say in which state
-> it is and sometimes it is done a wrong way.
->=20
-> The plan is to convert kthreads into kthread_worker or workqueues
-> API. It allows to split the functionality into separate operations.
-> It helps to make a better structure. Also it defines a clean state
-> where no locks are taken, IRQs blocked, the kthread might sleep
-> or even be safely migrated.
->=20
-> The kthread worker API is useful when we want to have a dedicated
-> single thread for the work. It helps to make sure that it is
-> available when needed. Also it allows a better control, e.g.
-> define a scheduling priority.
->=20
-> This patch converts the frm_pool kthread into the kthread worker
-> API because I am not sure how busy the thread is. It is well
-> possible that it does not need a dedicated kthread and workqueues
-> would be perfectly fine. Well, the conversion between kthread
-> worker API and workqueues is pretty trivial.
->=20
-> The patch moves one iteration from the kthread into the work function.
-> It preserves the check for a spurious queuing (wake up). Then it
-> processes one request. Finally, it re-queues itself if more requests
-> are pending.
->=20
-> Otherwise, wake_up_process() is replaced by queuing the work.
->=20
-> Important: The change is only compile tested. I did not find an easy
-> way how to check it in a real life.
-
-I had to do some digging myself to figure out how to move forward on
-this patch.  The issue is that your conversion touches the fmr_pool code
-as your target.  That code is slowly being phased out.  Right now, only
-two drivers in the IB core support fmr: mthca and mlx4.  The generally
-preferred method of mem management is fr instead of fmr.  The mlx4
-driver support both fr and fmr, while the mthca driver is fmr only.  All
-of the other drivers are fr only.  The only code that uses the fmr pools
-are the upper layer iSER and SRP drivers.  So, if you have mthca
-hardware, you can test fmr using either iSER or SRP clients.  If you
-have mlx4 hardware, you can still test fmr by using the SRP client and
-setting prefer_fr to false when you load the module.
-
-Now that I know that, I can provide testing of this patch when the
-overall patchset is ready to be submitted next.
-
---=20
-Doug Ledford <dledford@redhat.com>
-              GPG KeyID: 0E572FDD
-
-
-
---B4jlfRJk9sh51sJDPxaeTFG9r0QdnC0nw
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
-
-iQIcBAEBCAAGBQJXPIwBAAoJELgmozMOVy/drgsP/jbdrRoWcMiq7FnAV/MGP7+C
-Pf8VqrSoMgF6RrdIRofcrpZP+eODYdBleTqq14fFpnN3tMvCnLGyKr2fpFlpw95C
-gKIt8TVLNWnGRkfOhgvtJ0L/VAraF4QFXvGHasKw8QGSuDCP2tXfM3O0OFeAnUNx
-MAXj6B0QIfhMGZTgRbSfZ+HS8O8gYYC50vMwzXGyRqsafh5GqmtVGWH6e1UQ7FfT
-zh+bt6WFJw6Y3fgZKQWnY9PuXdeMr1bXr5O2nf4JEhFfenP/D26CpkEwf+iAAQSi
-0R84T3tFFR6WCqB/RjnGHhcF358dWoXNyV6SJcgGlJ9pYfRQ5nWRpi50iLiak7eK
-QBRcBwlBl4eVFRuWB2GDAz6qovRWcZsCDjZCkNaJdH6/K7nd4n70moGEihoJ2GVd
-6yheYxn4Vg7Kv9r29O25S0/3WBHLchjeX+y10uQkxvyGW+/jdywWISI7j9Mt9G9G
-trs4OEyQsAb0x73ye548tkPtHm/jAEapcEwt+v6Ilb3lp2qCcd/2gm7SbIZIJlFe
-g8FDUdO5qo7nbK0sQW6UNkYwXweXMprSNy6dNgf6L1K46+EW3nRj/L5XhnEWTLZq
-3qzNudWCKD/xSS5LTUoEm23DUGeLBRQmH0Xdd4OxK67KDIwk8UrMJ344FCF1uxOa
-uLneBbe4G4ZHE9ZxdySO
-=T0xk
------END PGP SIGNATURE-----
-
---B4jlfRJk9sh51sJDPxaeTFG9r0QdnC0nw--
+That said, there are a couple of reasons that disk space and memory are 
+handled differently:
+1. The kernel needs RAM to function, it does not need disk space to 
+function.  In other words, if we have no free RAM, the system is 
+guaranteed to be unusable, but if we have no disk space, the system may 
+or may not still be usable.
+2. Freeing disk space is usually an easy decision for the user, figuring 
+out what to kill to free RAM is not.
+3. Most end users have at least a basic understanding of disk space 
+being finite, while they don't necessarily have a similar understanding 
+of memory being finite (note that I'm not talking about sysadmins and 
+similar, I"m talking about people's grandmothers, and people who have no 
+low-level background with computers, and people like some of my friends 
+who still have trouble understanding the difference between memory and 
+persistent storage)
+>
+>> and, because our GUI isn't built into the kernel, we can't pause things and pop up a little dialog asking the user what to do to resolve the issue.
+>
+> :-) Yeah, I was thinking that could be handled with the cgroups' notification system + the reserved space (like on filesystems)
+> Maybe I was too optimistic (naive or just plain ignorant) about this.
+Ideally, we would have something that could check against some watermark 
+and notify like Windows does when virtual memory is getting low (most 
+people never see this, because they let windows manage the page file, 
+which means it just gleefully allocates whatever it needs on disk).  I 
+don't know of a way to do that right now without polling though, and 
+that level of inefficiency should ideally be avoided.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
