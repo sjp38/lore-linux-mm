@@ -1,78 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C0C6C6B007E
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 13:10:03 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id t140so91758782oie.0
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 10:10:03 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id 85si8493317iou.59.2016.05.18.10.10.02
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 228896B007E
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 13:56:51 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 77so108818295pfz.3
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 10:56:51 -0700 (PDT)
+Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
+        by mx.google.com with ESMTPS id ag3si13449702pad.44.2016.05.18.10.56.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 May 2016 10:10:02 -0700 (PDT)
-Date: Wed, 18 May 2016 19:09:51 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v12 04/13] task_isolation: add initial support
-Message-ID: <20160518170951.GM3193@twins.programming.kicks-ass.net>
-References: <1459877922-15512-1-git-send-email-cmetcalf@mellanox.com>
- <1459877922-15512-5-git-send-email-cmetcalf@mellanox.com>
- <20160518133420.GG3193@twins.programming.kicks-ass.net>
- <8e8b24ec-abc6-e599-ad50-218e350213ce@mellanox.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8e8b24ec-abc6-e599-ad50-218e350213ce@mellanox.com>
+        Wed, 18 May 2016 10:56:50 -0700 (PDT)
+Received: by mail-pf0-x22a.google.com with SMTP id b66so100242pfb.2
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 10:56:49 -0700 (PDT)
+From: Thomas Garnier <thgarnie@google.com>
+Subject: [RFC v1 0/2] mm: SLUB Freelist randomization
+Date: Wed, 18 May 2016 10:56:13 -0700
+Message-Id: <1463594175-111929-1-git-send-email-thgarnie@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@mellanox.com>
-Cc: Gilad Ben Yossef <giladb@ezchip.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Pranith Kumar <bobby.prani@gmail.com>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Woodhouse <David.Woodhouse@intel.com>, Thomas Garnier <thgarnie@google.com>, Petr Mladek <pmladek@suse.com>, Kees Cook <keescook@chromium.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gthelen@google.com, kernel-hardening@lists.openwall.com
 
-On Wed, May 18, 2016 at 12:34:22PM -0400, Chris Metcalf wrote:
-> On 5/18/2016 9:34 AM, Peter Zijlstra wrote:
-> >On Tue, Apr 05, 2016 at 01:38:33PM -0400, Chris Metcalf wrote:
-> >>diff --git a/kernel/signal.c b/kernel/signal.c
-> >>index aa9bf00749c1..53e4e62f2778 100644
-> >>--- a/kernel/signal.c
-> >>+++ b/kernel/signal.c
-> >>@@ -34,6 +34,7 @@
-> >>  #include <linux/compat.h>
-> >>  #include <linux/cn_proc.h>
-> >>  #include <linux/compiler.h>
-> >>+#include <linux/isolation.h>
-> >>  #define CREATE_TRACE_POINTS
-> >>  #include <trace/events/signal.h>
-> >>@@ -2213,6 +2214,9 @@ relock:
-> >>  		/* Trace actually delivered signals. */
-> >>  		trace_signal_deliver(signr, &ksig->info, ka);
-> >>+		/* Disable task isolation when delivering a signal. */
-> >Why !? Changelog is quiet on this.
-> 
-> There are really two reasons.
-> 
-> 1. If the task is receiving a signal, it will know it's not isolated
->    any more, so we don't need to worry about notifying it explicitly.
->    This behavior is easy to document and allows the application to decide
->    if the signal is unexpected and it should go straight to its error
->    handling path (likely outcome, and in that case you want task isolation
->    off anyway) or if it thinks it can plausibly re-enable isolation and
->    return to where the signal interrupted you at (hard to imagine how this
->    would ever make sense, but you could if you wanted to).
-> 
-> 2. When we are delivering a signal we may already be holding the lock
->    for the signal subsystem, and it gets hard to figure out whether it's
->    safe to send another signal to the application as a "task isolation
->    broken" notification.  For example, sending a signal to a task on
->    another core involves doing an IPI to that core to kick it; the IPI
->    normally is a generic point for notifying the remote core of broken
->    task isolation and sending a signal - except that at the point where
->    we would do that on the signal path we are already holding the lock,
->    so we end up deadlocked.  We could no doubt work around that, but it
->    seemed cleaner to decouple the existing signal mechanism from the
->    signal delivery for task isolation.
-> 
-> I will add more discussion of the rationale to the commit message.
+This is RFC v1 for the SLUB Freelist randomization.
 
-Please also expand the in-code comment, as that is what we'll see first
-when reading the code.
+***Background:
+This proposal follows the previous SLAB Freelist patch submitted to next.
+It resuses parts of previous implementation and keep a similar approach.
+
+The kernel heap allocators are using a sequential freelist making their
+allocation predictable. This predictability makes kernel heap overflow
+easier to exploit. An attacker can careful prepare the kernel heap to
+control the following chunk overflowed.
+
+For example these attacks exploit the predictability of the heap:
+ - Linux Kernel CAN SLUB overflow (https://goo.gl/oMNWkU)
+ - Exploiting Linux Kernel Heap corruptions (http://goo.gl/EXLn95)
+
+***Problems that needed solving:
+ - Randomize the Freelist used in the SLUB allocator.
+ - Ensure good performance to encourage usage.
+ - Get best entropy in early boot stage.
+
+***Parts:
+ - 01/02 Reorganize the SLAB Freelist randomization to share elements
+   with the SLUB implementation.
+ - 02/02 The SLUB Freelist randomization implementation. Similar approach
+   than the SLAB but tailored to the singled freelist used in SLUB.
+
+***Performance data (no major changes):
+
+slab_test, before:
+
+Single thread testing
+=====================
+1. Kmalloc: Repeatedly allocate then free test
+10000 times kmalloc(8) -> 67 cycles kfree -> 101 cycles
+10000 times kmalloc(16) -> 68 cycles kfree -> 109 cycles
+10000 times kmalloc(32) -> 76 cycles kfree -> 119 cycles
+10000 times kmalloc(64) -> 88 cycles kfree -> 114 cycles
+10000 times kmalloc(128) -> 100 cycles kfree -> 122 cycles
+10000 times kmalloc(256) -> 128 cycles kfree -> 149 cycles
+10000 times kmalloc(512) -> 108 cycles kfree -> 152 cycles
+10000 times kmalloc(1024) -> 112 cycles kfree -> 158 cycles
+10000 times kmalloc(2048) -> 161 cycles kfree -> 208 cycles
+10000 times kmalloc(4096) -> 231 cycles kfree -> 239 cycles
+10000 times kmalloc(8192) -> 341 cycles kfree -> 270 cycles
+10000 times kmalloc(16384) -> 481 cycles kfree -> 323 cycles
+2. Kmalloc: alloc/free test
+10000 times kmalloc(8)/kfree -> 90 cycles
+10000 times kmalloc(16)/kfree -> 89 cycles
+10000 times kmalloc(32)/kfree -> 88 cycles
+10000 times kmalloc(64)/kfree -> 88 cycles
+10000 times kmalloc(128)/kfree -> 94 cycles
+10000 times kmalloc(256)/kfree -> 87 cycles
+10000 times kmalloc(512)/kfree -> 91 cycles
+10000 times kmalloc(1024)/kfree -> 90 cycles
+10000 times kmalloc(2048)/kfree -> 90 cycles
+10000 times kmalloc(4096)/kfree -> 90 cycles
+10000 times kmalloc(8192)/kfree -> 90 cycles
+10000 times kmalloc(16384)/kfree -> 642 cycles
+
+After:
+
+Single thread testing
+=====================
+1. Kmalloc: Repeatedly allocate then free test
+10000 times kmalloc(8) -> 60 cycles kfree -> 74 cycles
+10000 times kmalloc(16) -> 63 cycles kfree -> 78 cycles
+10000 times kmalloc(32) -> 72 cycles kfree -> 85 cycles
+10000 times kmalloc(64) -> 91 cycles kfree -> 99 cycles
+10000 times kmalloc(128) -> 112 cycles kfree -> 109 cycles
+10000 times kmalloc(256) -> 127 cycles kfree -> 120 cycles
+10000 times kmalloc(512) -> 125 cycles kfree -> 121 cycles
+10000 times kmalloc(1024) -> 128 cycles kfree -> 125 cycles
+10000 times kmalloc(2048) -> 167 cycles kfree -> 141 cycles
+10000 times kmalloc(4096) -> 249 cycles kfree -> 174 cycles
+10000 times kmalloc(8192) -> 377 cycles kfree -> 225 cycles
+10000 times kmalloc(16384) -> 459 cycles kfree -> 247 cycles
+2. Kmalloc: alloc/free test
+10000 times kmalloc(8)/kfree -> 72 cycles
+10000 times kmalloc(16)/kfree -> 74 cycles
+10000 times kmalloc(32)/kfree -> 71 cycles
+10000 times kmalloc(64)/kfree -> 75 cycles
+10000 times kmalloc(128)/kfree -> 71 cycles
+10000 times kmalloc(256)/kfree -> 72 cycles
+10000 times kmalloc(512)/kfree -> 72 cycles
+10000 times kmalloc(1024)/kfree -> 73 cycles
+10000 times kmalloc(2048)/kfree -> 73 cycles
+10000 times kmalloc(4096)/kfree -> 72 cycles
+10000 times kmalloc(8192)/kfree -> 72 cycles
+10000 times kmalloc(16384)/kfree -> 546 cycles
+
+Kernbench, before:
+
+Average Optimal load -j 12 Run (std deviation):
+Elapsed Time 101.873 (1.16069)
+User Time 1045.22 (1.60447)
+System Time 88.969 (0.559195)
+Percent CPU 1112.9 (13.8279)
+Context Switches 189140 (2282.15)
+Sleeps 99008.6 (768.091)
+
+After:
+
+Average Optimal load -j 12 Run (std deviation):
+Elapsed Time 102.47 (0.562732)
+User Time 1045.3 (1.34263)
+System Time 88.311 (0.342554)
+Percent CPU 1105.8 (6.49444)
+Context Switches 189081 (2355.78)
+Sleeps 99231.5 (800.358)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
