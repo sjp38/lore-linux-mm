@@ -1,193 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 707F16B007E
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 14:41:38 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 4so111203499pfw.0
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 11:41:38 -0700 (PDT)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id v15si13652325pfi.153.2016.05.18.11.41.37
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DF426B007E
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 15:02:12 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id aq1so99729307obc.2
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 12:02:12 -0700 (PDT)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id n18si8867910igi.63.2016.05.18.12.02.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 May 2016 11:41:37 -0700 (PDT)
-Received: by mail-pf0-x22b.google.com with SMTP id b66so442236pfb.2
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 11:41:37 -0700 (PDT)
-Subject: Re: [BUG] Null pointer dereference when freeing pages on 4.6-rc6
-References: <c1a35aab-1368-1164-f4e2-7e730acade15@linaro.org>
- <5739C0A7.6080906@suse.cz>
-From: "Shi, Yang" <yang.shi@linaro.org>
-Message-ID: <f4b1b8d3-68cf-5739-efb4-43409b72623a@linaro.org>
-Date: Wed, 18 May 2016 11:41:35 -0700
-MIME-Version: 1.0
-In-Reply-To: <5739C0A7.6080906@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        Wed, 18 May 2016 12:02:11 -0700 (PDT)
+Date: Wed, 18 May 2016 14:02:08 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC v1 2/2] mm: SLUB Freelist randomization
+In-Reply-To: <CAJcbSZFhsZheqdZ5FD8auhiu8ozCyq-0xY1wjYu3j+Wc2R8nGg@mail.gmail.com>
+Message-ID: <alpine.DEB.2.20.1605181401560.29313@east.gentwo.org>
+References: <1463594175-111929-1-git-send-email-thgarnie@google.com> <1463594175-111929-3-git-send-email-thgarnie@google.com> <alpine.DEB.2.20.1605181323260.14349@east.gentwo.org> <CAJcbSZFhsZheqdZ5FD8auhiu8ozCyq-0xY1wjYu3j+Wc2R8nGg@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Thomas Garnier <thgarnie@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Pranith Kumar <bobby.prani@gmail.com>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Woodhouse <David.Woodhouse@intel.com>, Petr Mladek <pmladek@suse.com>, Kees Cook <keescook@chromium.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Thelen <gthelen@google.com>, kernel-hardening@lists.openwall.com
 
-On 5/16/2016 5:44 AM, Vlastimil Babka wrote:
-> [+CC Joonsoo based on git blame]
->
-> On 05/05/2016 11:13 PM, Shi, Yang wrote:
->> Hi folks,
->>
->> When I enable the below kernel configs on 4.6-rc6, I came across null
->> pointer deference issue in boot stage.
->>
->> CONFIG_SPARSEMEM
->> CONFIG_DEFERRED_STRUCT_PAGE_INIT
->> CONFIG_DEBUG_PAGEALLOC
->> CONFIG_PAGE_EXTENSION
->> CONFIG_DEBUG_VM
->>
->>
->> The splat is:
->>
->> BUG: unable to handle kernel NULL pointer dereference at           (null)
->> IP: [<ffffffff8118934b>] page_is_buddy+0x7b/0xe0
->> PGD 0
->> Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
->> Modules linked in:
->> CPU: 3 PID: 106 Comm: pgdatinit1 Not tainted 4.6.0-rc6 #8
->> Hardware name: Intel Corporation S5520HC/S5520HC, BIOS
->> S5500.86B.01.10.0025.030220091519 03/02/2009
->> task: ffff88017c1d0040 ti: ffff88017c1d4000 task.ti: ffff88017c1d4000
->> RIP: 0010:[<ffffffff8118934b>]  [<ffffffff8118934b>]
->> page_is_buddy+0x7b/0xe0
->> RSP: 0000:ffff88017c1d7bf0  EFLAGS: 00010046
->> RAX: 0000000000000000 RBX: ffffea0019810040 RCX: 0000000000000000
->> RDX: 0000000000000000 RSI: ffffea0019810040 RDI: 0000000000660401
->> RBP: ffff88017c1d7c08 R08: 0000000000000001 R09: 0000000000000000
->> R10: 00000000000001af R11: 0000000000000001 R12: ffffea0019810000
->> R13: 0000000000000000 R14: 0000000000000009 R15: ffffea0019810000
->> FS:  0000000000000000(0000) GS:ffff88066cc40000(0000)
->> knlGS:0000000000000000
->> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->> CR2: 0000000000000000 CR3: 0000000002406000 CR4: 00000000000006e0
->> Stack:
->>    0000000019810000 0000000000000000 ffff88066cfe6080 ffff88017c1d7c70
->>    ffffffff8118bfea 0000000a00000000 0000160000000000 0000000000000001
->>    0000000000000401 ffffea0019810040 0000000000000400 ffff88066cc5aca8
->> Call Trace:
->>    [<ffffffff8118bfea>] __free_one_page+0x23a/0x450
->>    [<ffffffff8118c586>] free_pcppages_bulk+0x136/0x360
->>    [<ffffffff8118cae8>] free_hot_cold_page+0x168/0x1b0
->>    [<ffffffff8118cd8c>] __free_pages+0x5c/0x90
->>    [<ffffffff8260fbf2>] __free_pages_boot_core.isra.70+0x11a/0x14d
->>    [<ffffffff8260ff09>] deferred_free_range+0x50/0x62
->>    [<ffffffff8261013b>] deferred_init_memmap+0x220/0x3c3
->>    [<ffffffff8260ff1b>] ? deferred_free_range+0x62/0x62
->>    [<ffffffff8108afc8>] kthread+0xf8/0x110
->>    [<ffffffff81c026b2>] ret_from_fork+0x22/0x40
->>    [<ffffffff8108aed0>] ? kthread_create_on_node+0x200/0x200
->> Code: 75 7b 48 89 d8 8b 40 1c 85 c0 74 50 48 c7 c6 38 bd 0d 82 48 89 df
->> e8 25 e2 02 00 0f 0b 48 89 f7 89 55 ec e8 18 cb 07 00 8b 55 ec <48> 8b
->> 00 a8 02 74 9d 3b 53 30 75 98 49 8b 14 24 48 8b 03 48 c1
->> RIP  [<ffffffff8118934b>] page_is_buddy+0x7b/0xe0
->>    RSP <ffff88017c1d7bf0>
->> CR2: 0000000000000000
->> ---[ end trace e0c05a86b43d97f9 ]---
->> note: pgdatinit1[106] exited with preempt_count 1
->>
->>
->> I changed page_is_buddy and __free_one_page to non-inline to get more
->> accurate stack trace.
->>
->>
->> Then I did some investigation on it with printing the address of page
->> and buddy, please see the below log:
->>
->> @@@@@@__free_one_page:715: page is at ffffea0005f05c00 buddy is at
->> ffffea0005f05c80, order is 1
->> @@@@@@__free_one_page:715: page is at ffffea0005f05c00 buddy is at
->> ffffea0005f05d00, order is 2
->> @@@@@@__free_one_page:715: page is at ffffea0005f05c00 buddy is at
->> ffffea0005f05e00, order is 3
->> @@@@@@__free_one_page:715: page is at ffffea0019810000 buddy is at
->> ffffea0019810040, order is 0
->>
->> call trace splat
->>
->> @@@@@@__free_one_page:715: page is at ffffea0005f05bc0 buddy is at
->> ffffea0005f05b80, order is 0
->> @@@@@@__free_one_page:715: page is at ffffea0005f05b80 buddy is at
->> ffffea0005f05bc0, order is 0
->> @@@@@@__free_one_page:715: page is at ffffea0005f05b80 buddy is at
->> ffffea0005f05b00, order is 1
->> @@@@@@__free_one_page:715: page is at ffffea0005f05b40 buddy is at
->> ffffea0005f05b00, order is 0
->> @@@@@@__free_one_page:715: page is at ffffea0005f05b00 buddy is at
->> ffffea0005f05b40, order is 0
->>
->> It shows just before the call trace splat, the page address jumped to
->> ffffea0019810000 from ffffea0005f05xxx, not sure why this is happening.
->> Any hint is appreciated.
->
-> I think the page address didn't jump, it was that the previous call of
-> __free_one_page() finished at order=3 and now another one was invoked
-> that started at order=0 page ffffea0019810000 and immediately hit the
-> splat.
->
->> And, reading the code leads me to the below call path:
->>
->> page_is_buddy()
->>     --> page_is_guard()
->>         --> lookup_page_ext()
->
-> From a quick decodecode I guess that's indeed the path that's crashed.
-> You could try verifying with e.g. addr2line on your vmlinux?
+On Wed, 18 May 2016, Thomas Garnier wrote:
 
-I tracked down there via gdb.
+> Yes, I agree that it is not related to the changes.
 
->
->> Then lookup_page_ext() just returns null due to the below code:
->>
->> #if defined(CONFIG_DEBUG_VM) || defined(CONFIG_PAGE_POISONING)
->>           /*
->>            * The sanity checks the page allocator does upon freeing a
->>            * page can reach here before the page_ext arrays are
->>            * allocated when feeding a range of pages to the allocator
->>            * for the first time during bootup or memory hotplug.
->>            *
->>            * This check is also necessary for ensuring page poisoning
->>            * works as expected when enabled
->>            */
->>           if (!section->page_ext)
->>                   return NULL;
->> #endif
->>
->> So, according to the comment, it looks there should be a WARN or BUG if
->> it returns NULL?
->
-> The comment reads like it's unlikely, but possible, so WARN/BUG doesn't
-> sounds right.
->
->> And, almost no codes check if the return pointer is
->> null or not after lookup_page_ext() is called.
->
-> Yep, the callers related to DEBUG_VM (includes page_is_guard()) and page
-> poisoning should probably check the return value. I hope Joonsoo knows
-> something more here :)
-
-Also DEBUG_ALLOC since page_is_guard just returns false if DEBUG_ALLOC 
-is disabled.
-
-So, page_is_guard should just return false if lookup_page_ext returns NULL?
-
-Thanks,
-Yang
-
->
->> Thanks,
->> Yang
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
->
+Could you please provide meaningful test data?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
