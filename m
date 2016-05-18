@@ -1,79 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B4EC6B007E
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 03:55:14 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id a17so9021480wme.1
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 00:55:14 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n184si9353576wmn.115.2016.05.18.00.55.13
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D18126B007E
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 04:04:37 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id ga2so19822095lbc.0
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 01:04:37 -0700 (PDT)
+Received: from mail-lb0-x22d.google.com (mail-lb0-x22d.google.com. [2a00:1450:4010:c04::22d])
+        by mx.google.com with ESMTPS id i4si6001093lbj.211.2016.05.18.01.04.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 May 2016 00:55:13 -0700 (PDT)
-Subject: Re: [PATCH 28/28] mm, page_alloc: Defer debugging checks of pages
- allocated from the PCP
-References: <1460710760-32601-1-git-send-email-mgorman@techsingularity.net>
- <1460711275-1130-1-git-send-email-mgorman@techsingularity.net>
- <1460711275-1130-16-git-send-email-mgorman@techsingularity.net>
- <20160517064153.GA23930@hori1.linux.bs1.fc.nec.co.jp>
- <573C1F1E.4040201@suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <573C1FE0.3010500@suse.cz>
-Date: Wed, 18 May 2016 09:55:12 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 May 2016 01:04:36 -0700 (PDT)
+Received: by mail-lb0-x22d.google.com with SMTP id h1so14457209lbj.3
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 01:04:36 -0700 (PDT)
+Date: Wed, 18 May 2016 11:04:33 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: make faultaround produce old ptes
+Message-ID: <20160518080432.GA22982@node.shutemov.name>
+References: <1463488366-47723-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20160518072550.GB21654@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <573C1F1E.4040201@suse.cz>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160518072550.GB21654@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vinayak Menon <vinmenon@codeaurora.org>, Minchan Kim <minchan@kernel.org>
 
-On 05/18/2016 09:51 AM, Vlastimil Babka wrote:
-> ----8<----
->  From f52f5e2a7dd65f2814183d8fd254ace43120b828 Mon Sep 17 00:00:00 2001
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Wed, 18 May 2016 09:41:01 +0200
-> Subject: [PATCH] mm, page_alloc: prevent infinite loop in buffered_rmqueue()
+On Wed, May 18, 2016 at 09:25:50AM +0200, Michal Hocko wrote:
+> On Tue 17-05-16 15:32:46, Kirill A. Shutemov wrote:
+> > Currently, faultaround code produces young pte. This can screw up vmscan
+> > behaviour[1], as it makes vmscan think that these pages are hot and not
+> > push them out on first round.
+> > 
+> > Let modify faultaround to produce old pte, so they can easily be
+> > reclaimed under memory pressure.
 > 
-> In DEBUG_VM kernel, we can hit infinite loop for order == 0 in
-> buffered_rmqueue() when check_new_pcp() returns 1, because the bad page is
-> never removed from the pcp list. Fix this by removing the page before retrying.
-> Also we don't need to check if page is non-NULL, because we simply grab it from
-> the list which was just tested for being non-empty.
-> 
-> Fixes: http://www.ozlabs.org/~akpm/mmotm/broken-out/mm-page_alloc-defer-debugging-checks-of-freed-pages-until-a-pcp-drain.patch
+> Could you be more specific about what was the original issue that led to
+> this patch? I can understand that marking all those pages new might be
+> too optimistic but when does it matter actually? Sparsely access file
+> mmap?
 
-Wrong.
-Fixes: http://www.ozlabs.org/~akpm/mmotm/broken-out/mm-page_alloc-defer-debugging-checks-of-pages-allocated-from-the-pcp.patch
+Yes, sparse file access. Faultaround gets more pages mapped and all of
+them are young. Under memory pressure, this makes vmscan to swap out anon
+pages instead or drop other page cache pages which otherwise stay
+resident.
 
-> Reported-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->   mm/page_alloc.c | 9 +++++----
->   1 file changed, 5 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 8c81e2e7b172..d5b93e5dd697 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2641,11 +2641,12 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
->   				page = list_last_entry(list, struct page, lru);
->   			else
->   				page = list_first_entry(list, struct page, lru);
-> -		} while (page && check_new_pcp(page));
->   
-> -		__dec_zone_state(zone, NR_ALLOC_BATCH);
-> -		list_del(&page->lru);
-> -		pcp->count--;
-> +			__dec_zone_state(zone, NR_ALLOC_BATCH);
-> +			list_del(&page->lru);
-> +			pcp->count--;
-> +
-> +		} while (check_new_pcp(page));
->   	} else {
->   		/*
->   		 * We most definitely don't want callers attempting to
-> 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
