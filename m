@@ -1,63 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 734AA6B007E
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 10:40:55 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id u64so26729818lff.2
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 07:40:55 -0700 (PDT)
-Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
-        by mx.google.com with ESMTPS id xt8si10825326wjc.129.2016.05.18.07.40.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 May 2016 07:40:54 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id C33891C13B8
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 15:40:53 +0100 (IST)
-Date: Wed, 18 May 2016 15:40:52 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC 13/13] mm, compaction: fix and improve watermark handling
-Message-ID: <20160518144052.GH2527@techsingularity.net>
-References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
- <1462865763-22084-14-git-send-email-vbabka@suse.cz>
- <20160516092505.GE23146@dhcp22.suse.cz>
- <20160518135004.GE2527@techsingularity.net>
- <20160518142753.GJ21654@dhcp22.suse.cz>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DB3B6B007E
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 10:41:52 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id d139so85261224oig.1
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 07:41:52 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id v12si7922339ioi.108.2016.05.18.07.41.50
+        for <linux-mm@kvack.org>;
+        Wed, 18 May 2016 07:41:51 -0700 (PDT)
+Date: Thu, 19 May 2016 00:41:48 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: why the kmalloc return fail when there is free physical address
+ but return success after dropping page caches
+Message-ID: <20160518144148.GD21200@dastard>
+References: <D64A3952-53D8-4B9D-98A1-C99D7E231D42@gmail.com>
+ <573C2BB6.6070801@suse.cz>
+ <78A99337-5542-4E59-A648-AB2A328957D3@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160518142753.GJ21654@dhcp22.suse.cz>
+In-Reply-To: <78A99337-5542-4E59-A648-AB2A328957D3@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: baotiao <baotiao@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
 
-On Wed, May 18, 2016 at 04:27:53PM +0200, Michal Hocko wrote:
-> > > > - __compaction_suitable() then checks the low watermark plus a (2 << order) gap
-> > > >   to decide if there's enough free memory to perform compaction. This check
-> > > 
-> > > And this was a real head scratcher when I started looking into the
-> > > compaction recently. Why do we need to be above low watermark to even
-> > > start compaction. Compaction uses additional memory only for a short
-> > > period of time and then releases the already migrated pages.
-> > > 
-> > 
-> > Simply minimising the risk that compaction would deplete the entire
-> > zone. Sure, it hands pages back shortly afterwards. At the time of the
-> > initial prototype, page migration was severely broken and the system was
-> > constantly crashing. The cautious checks were left in place after page
-> > migration was fixed as there wasn't a compelling reason to remove them
-> > at the time.
+On Wed, May 18, 2016 at 04:58:31PM +0800, baotiao wrote:
+> Thanks for your reply
 > 
-> OK, then moving to min_wmark + bias from low_wmark should work, right?
+> >> Hello every, I meet an interesting kernel memory problem. Can anyone
+> >> help me explain what happen under the kernel
+> > 
+> > Which kernel version is that?
+> 
+> The kernel version is 3.10.0-327.4.5.el7.x86_64
 
-Yes. I did recall there was another reason but it's marginal. I didn't
-want compaction isolation free pages to artifically push a process into
-direct reclaim but given that we are likely under memory pressure at
-that time anyway, it's unlikely that compaction is the sole reason
-processes are entering direct reclaim.
+RHEL7 kernel. Best you report the problem to your RH support
+contact - the RHEL7 kernels are far different to upstream kernels..
 
+> >> The machine's status is describe as blow:
+> >> 
+> >> the machine has 96 physical memory. And the real use memory is about
+> >> 64G, and the page cache use about 32G. we also use the swap area, at
+> >> that time we have about 10G(we set the swap max size to 32G). At that
+> >> moment, we find xfs report
+> >> 
+> >> |Apr 29 21:54:31 w-openstack86 kernel: XFS: possible memory allocation
+> >> deadlock in kmem_alloc (mode:0x250) |
+
+Pretty sure that's a GFP_NOFS allocation context.
+
+> > Just once, or many times?
+> 
+> the message appear many times
+> from the code, I know that xfs will try 100 time of kmalloc() function
+
+The curent upstream kernels report much more information - process,
+size of allocation, etc.
+
+In general, the cause of such problems is memory fragmentation
+preventing a large contiguous allocation from taking place (e.g.
+when you try to read a file with millions of extents).
+
+> >> in the system. But there is still 32G page cache.
+> >> 
+> >> So I run
+> >> 
+> >> |echo 3 > /proc/sys/vm/drop_caches |
+> >> 
+> >> to drop the page cache.
+> >> 
+> >> Then the system is fine.
+> > 
+> > Are you saying that the error message was repeated infinitely until you did the drop_caches?
+> 
+> 
+> No. the error message don't appear after I drop_cache.
+
+Of course - freeing memory will cause contiguous free space to
+reform. then the allocation will succeed.
+
+IIRC, the reason the system can't recover itself is that memory
+compaction is not triggered from GFP_NOFS allocation context, which
+means memory reclaim won't try to create contiguous regions by
+moving things around and hence the allocation will not succeed until
+a significant amount of memory is freed by some other trigger....
+
+Cheers,
+
+Dave.
 -- 
-Mel Gorman
-SUSE Labs
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
