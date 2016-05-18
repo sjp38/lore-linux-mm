@@ -1,176 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9296B6B025E
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 10:15:48 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id m64so26234489lfd.1
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 07:15:48 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id ty10si9339261wjc.141.2016.05.18.07.15.46
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DECE6B025E
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 10:27:56 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id a17so15384555wme.1
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 07:27:56 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id x9si10784486wjp.55.2016.05.18.07.27.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 May 2016 07:15:46 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id n129so13315918wmn.1
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 07:15:46 -0700 (PDT)
-Date: Wed, 18 May 2016 16:15:45 +0200
+        Wed, 18 May 2016 07:27:55 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id w143so13291813wmw.3
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 07:27:55 -0700 (PDT)
+Date: Wed, 18 May 2016 16:27:53 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
-Message-ID: <20160518141545.GI21654@dhcp22.suse.cz>
-References: <1463574024-8372-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160518125138.GH21654@dhcp22.suse.cz>
- <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
+Subject: Re: [RFC 13/13] mm, compaction: fix and improve watermark handling
+Message-ID: <20160518142753.GJ21654@dhcp22.suse.cz>
+References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
+ <1462865763-22084-14-git-send-email-vbabka@suse.cz>
+ <20160516092505.GE23146@dhcp22.suse.cz>
+ <20160518135004.GE2527@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20160518135004.GE2527@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, oleg@redhat.com
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Wed 18-05-16 22:30:14, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Wed 18-05-16 21:20:24, Tetsuo Handa wrote:
-> > > Since commit 3a5dda7a17cf3706 ("oom: prevent unnecessary oom kills or
-> > > kernel panics"), select_bad_process() is using for_each_process_thread().
+On Wed 18-05-16 14:50:04, Mel Gorman wrote:
+> On Mon, May 16, 2016 at 11:25:05AM +0200, Michal Hocko wrote:
+> > On Tue 10-05-16 09:36:03, Vlastimil Babka wrote:
+> > > Compaction has been using watermark checks when deciding whether it was
+> > > successful, and whether compaction is at all suitable. There are few problems
+> > > with these checks.
 > > > 
-> > > Since oom_unkillable_task() scans all threads in the caller's thread group
-> > > and oom_task_origin() scans signal_struct of the caller's thread group, we
-> > > don't need to call oom_unkillable_task() and oom_task_origin() on each
-> > > thread. Also, since !mm test will be done later at oom_badness(), we don't
-> > > need to do !mm test on each thread. Therefore, we only need to do
-> > > TIF_MEMDIE test on each thread.
-> > > 
-> > > If we track number of TIF_MEMDIE threads inside signal_struct, we don't
-> > > need to do TIF_MEMDIE test on each thread. This will allow
-> > > select_bad_process() to use for_each_process().
+> > > - __compact_finished() uses low watermark in a check that has to pass if
+> > >   the direct compaction is to finish and allocation should succeed. This is
+> > >   too pessimistic, as the allocation will typically use min watermark. It
+> > >   may happen that during compaction, we drop below the low watermark (due to
+> > >   parallel activity), but still form the target high-order page. By checking
+> > >   against low watermark, we might needlessly continue compaction. After this
+> > >   patch, the check uses direct compactor's alloc_flags to determine the
+> > >   watermark, which is effectively the min watermark.
 > > 
-> > I am wondering whether signal_struct is the best way forward. The oom
-> > killing is more about mm_struct than anything else. We can record that
-> > the mm was oom killed in mm->flags (similar to MMF_OOM_REAPED). I guess
-> > this would require more work at this stage so maybe starting with signal
-> > struct is not that bad afterall. Just thinking...
+> > OK, this makes some sense. It would be great if we could have at least
+> > some clarification why the low wmark has been used previously. Probably
+> > Mel can remember?
+> > 
 > 
-> Even if you call p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN case a bug,
-> (p->flags & PF_KTHREAD) || is_global_init(p) case is still possible.
-
-I couldn't care less about such a case to be honest, and that is not a
-reason the cripple the code for such an insanity. There simply doesn't
-make any sense to share init's mm with a different task.
-
-> Thus, I think we can't mark the mm was oom killed in mm->flags.
-
-[...]
-> >From d770bd777e628e9d1ae250249433cf576aae8961 Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Wed, 18 May 2016 22:17:47 +0900
-> Subject: [PATCH v3] mm,oom: speed up select_bad_process() loop.
+> Two reasons -- it was a very rough estimate of whether enough pages are free
+> for compaction to have any chance. Secondly, it was to minimise the risk
+> that compaction would isolate so many pages that the zone was completely
+> depleted. This was a concern during the initial prototype of compaction.
 > 
-> Since commit 3a5dda7a17cf3706 ("oom: prevent unnecessary oom kills or
-> kernel panics"), select_bad_process() is using for_each_process_thread().
+> > > - __compaction_suitable() then checks the low watermark plus a (2 << order) gap
+> > >   to decide if there's enough free memory to perform compaction. This check
+> > 
+> > And this was a real head scratcher when I started looking into the
+> > compaction recently. Why do we need to be above low watermark to even
+> > start compaction. Compaction uses additional memory only for a short
+> > period of time and then releases the already migrated pages.
+> > 
 > 
-> Since oom_unkillable_task() scans all threads in the caller's thread group
-> and oom_task_origin() scans signal_struct of the caller's thread group, we
-> don't need to call oom_unkillable_task() and oom_task_origin() on each
-> thread. Also, since !mm test will be done later at oom_badness(), we don't
-> need to do !mm test on each thread. Therefore, we only need to do
-> TIF_MEMDIE test on each thread.
-> 
-> If we track number of TIF_MEMDIE threads inside signal_struct, we don't
-> need to do TIF_MEMDIE test on each thread. This will allow
-> select_bad_process() to use for_each_process().
-> 
-> This patch adds a counter to signal_struct for tracking how many
-> TIF_MEMDIE threads are in a given thread group, and check it at
-> oom_scan_process_thread() so that select_bad_process() can use
-> for_each_process() rather than for_each_process_thread().
+> Simply minimising the risk that compaction would deplete the entire
+> zone. Sure, it hands pages back shortly afterwards. At the time of the
+> initial prototype, page migration was severely broken and the system was
+> constantly crashing. The cautious checks were left in place after page
+> migration was fixed as there wasn't a compelling reason to remove them
+> at the time.
 
-OK, this looks correct. Strictly speaking the patch is missing any note
-on _why_ this is needed or an improvement. I would add something like
-the following:
-"
-Although the original code was correct it was quite inefficient because
-each thread group was scanned num_threads times which can be a lot
-especially with processes with many threads. Even though the OOM is
-extremely cold path it is always good to be as effective as possible
-when we are inside rcu_read_lock() - aka unpreemptible context.
-"
+OK, then moving to min_wmark + bias from low_wmark should work, right?
+This would at least remove the discrepancy between the reclaim and
+compaction thresholds to some degree. Which is good IMHO.
 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  include/linux/sched.h |  1 +
->  mm/oom_kill.c         | 14 ++++++--------
->  2 files changed, 7 insertions(+), 8 deletions(-)
-> 
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 870a700..1589f8e 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -794,6 +794,7 @@ struct signal_struct {
->  	struct tty_audit_buf *tty_audit_buf;
->  #endif
->  
-> +	atomic_t oom_victims; /* # of TIF_MEDIE threads in this thread group */
->  	/*
->  	 * Thread is the potential origin of an oom condition; kill first on
->  	 * oom
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index c0e37dd..8e151d0 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -283,12 +283,8 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
->  	 * This task already has access to memory reserves and is being killed.
->  	 * Don't allow any other task to have access to the reserves.
->  	 */
-> -	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
-> -		if (!is_sysrq_oom(oc))
-> -			return OOM_SCAN_ABORT;
-> -	}
-> -	if (!task->mm)
-> -		return OOM_SCAN_CONTINUE;
-> +	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims))
-> +		return OOM_SCAN_ABORT;
->  
->  	/*
->  	 * If task is allocating a lot of memory and has been marked to be
-> @@ -307,12 +303,12 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
->  static struct task_struct *select_bad_process(struct oom_control *oc,
->  		unsigned int *ppoints, unsigned long totalpages)
->  {
-> -	struct task_struct *g, *p;
-> +	struct task_struct *p;
->  	struct task_struct *chosen = NULL;
->  	unsigned long chosen_points = 0;
->  
->  	rcu_read_lock();
-> -	for_each_process_thread(g, p) {
-> +	for_each_process(p) {
->  		unsigned int points;
->  
->  		switch (oom_scan_process_thread(oc, p, totalpages)) {
-> @@ -673,6 +669,7 @@ void mark_oom_victim(struct task_struct *tsk)
->  	/* OOM killer might race with memcg OOM */
->  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
->  		return;
-> +	atomic_inc(&tsk->signal->oom_victims);
->  	/*
->  	 * Make sure that the task is woken up from uninterruptible sleep
->  	 * if it is frozen because OOM killer wouldn't be able to free
-> @@ -690,6 +687,7 @@ void exit_oom_victim(struct task_struct *tsk)
->  {
->  	if (!test_and_clear_tsk_thread_flag(tsk, TIF_MEMDIE))
->  		return;
-> +	atomic_dec(&tsk->signal->oom_victims);
->  
->  	if (!atomic_dec_return(&oom_victims))
->  		wake_up_all(&oom_victims_wait);
-> -- 
-> 1.8.3.1
-
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
