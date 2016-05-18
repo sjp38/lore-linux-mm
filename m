@@ -1,58 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EBC806B0260
-	for <linux-mm@kvack.org>; Tue, 17 May 2016 21:42:25 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id d62so75720082iof.1
-        for <linux-mm@kvack.org>; Tue, 17 May 2016 18:42:25 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id a134si17597145itc.56.2016.05.17.18.42.24
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A63A6B007E
+	for <linux-mm@kvack.org>; Tue, 17 May 2016 22:36:33 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id xm6so49994693pab.3
+        for <linux-mm@kvack.org>; Tue, 17 May 2016 19:36:33 -0700 (PDT)
+Received: from smtp2203-239.mail.aliyun.com (smtp2203-239.mail.aliyun.com. [121.197.203.239])
+        by mx.google.com with ESMTP id 20si8685528pfr.90.2016.05.17.19.36.30
         for <linux-mm@kvack.org>;
-        Tue, 17 May 2016 18:42:25 -0700 (PDT)
-Date: Wed, 18 May 2016 10:42:29 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] mm: disable fault around on emulated access bit architecture
-Message-ID: <20160518014229.GB21538@bbox>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+        Tue, 17 May 2016 19:36:31 -0700 (PDT)
+From: Li Peng <lip@dtdream.com>
+Subject: [PATCH] mm: fix duplicate words and typos
+Date: Wed, 18 May 2016 10:35:56 +0800
+Message-Id: <1463538956-7342-1-git-send-email-lip@dtdream.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dan.j.williams@intel.com, mgorman@suse.de, vbabka@suse.cz, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, hughd@google.com, linux-arch@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Li Peng <lip@dtdream.com>
 
-On Tue, May 17, 2016 at 03:34:23PM +0300, Kirill A. Shutemov wrote:
-> On Mon, May 16, 2016 at 11:56:32PM +0900, Minchan Kim wrote:
-> > On Mon, May 16, 2016 at 05:29:00PM +0300, Kirill A. Shutemov wrote:
-> > > > Kirill,
-> > > > You wanted to test non-HW access bit system and I did.
-> > > > What's your opinion?
-> > > 
-> > > Sorry, for late response.
-> > > 
-> > > My patch is incomlete: we need to find a way to not mark pte as old if we
-> > > handle page fault for the address the pte represents.
-> > 
-> > I'm sure you can handle it but my point is there wouldn't be a big gain
-> > although you can handle it in non-HW access bit system. Okay, let's be
-> > more clear because I don't have every non-HW access bit architecture.
-> > At least, current mobile workload in ARM which I have wouldn't be huge
-> > benefit.
-> > I will say one more.
-> > I tested the workload on quad-core system and core speed is not so slow
-> > compared to recent other mobile phone SoC. Even when I tested the benchmark
-> > without pte_mkold, the benefit is within noise because storage is really
-> > slow so major fault is dominant factor. So, I decide test storage from eMMC
-> > to eSATA. And then finally, I manage to see the a little beneift with
-> > fault_around without pte_mkold.
-> > 
-> > However, let's consider side-effect aspect from fault_around.
-> > 
-> > 1. Increase slab shrinking compard to old
-> > 2. high level vmpressure compared to old
-> > 
-> > With considering that regressions on my system, it's really not worth to
-> > try at the moment.
-> > That's why I wanted to disable fault_around as default in non-HW access
-> > bit system.
-> 
-> Feel free to post such patch. I guess it's reasonable.
+Signed-off-by: Li Peng <lip@dtdream.com>
+---
+ mm/memcontrol.c | 2 +-
+ mm/page_alloc.c | 6 +++---
+ mm/vmscan.c     | 7 +++----
+ mm/zswap.c      | 2 +-
+ 4 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index fe787f5..4b74255 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2293,7 +2293,7 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+ 
+ 	/*
+ 	 * If we are in a safe context (can wait, and not in interrupt
+-	 * context), we could be be predictable and return right away.
++	 * context), we could be predictable and return right away.
+ 	 * This would guarantee that the allocation being performed
+ 	 * already belongs in the new cache.
+ 	 *
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c1069ef..93824cb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3030,7 +3030,7 @@ retry:
+ 	/*
+ 	 * If an allocation failed after direct reclaim, it could be because
+ 	 * pages are pinned on the per-cpu lists or in high alloc reserves.
+-	 * Shrink them them and try again
++	 * Shrink them and try again.
+ 	 */
+ 	if (!page && !drained) {
+ 		unreserve_highatomic_pageblock(ac);
+@@ -4812,7 +4812,7 @@ static int zone_batchsize(struct zone *zone)
+  * locking.
+  *
+  * Any new users of pcp->batch and pcp->high should ensure they can cope with
+- * those fields changing asynchronously (acording the the above rule).
++ * those fields changing asynchronously (according to the above rule).
+  *
+  * mutex_is_locked(&pcp_batch_high_lock) required when calling this function
+  * outside of boot time (or some other assurance that no concurrent updaters
+@@ -5024,7 +5024,7 @@ int __meminit __early_pfn_to_nid(unsigned long pfn,
+  * @max_low_pfn: The highest PFN that will be passed to memblock_free_early_nid
+  *
+  * If an architecture guarantees that all ranges registered contain no holes
+- * and may be freed, this this function may be used instead of calling
++ * and may be freed, this function may be used instead of calling
+  * memblock_free_early_nid() manually.
+  */
+ void __init free_bootmem_with_active_regions(int nid, unsigned long max_low_pfn)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 142cb61..8ff5a79 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1683,8 +1683,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 			set_bit(ZONE_DIRTY, &zone->flags);
+ 
+ 		/*
+-		 * If kswapd scans pages marked marked for immediate
+-		 * reclaim and under writeback (nr_immediate), it implies
++		 * If kswapd scans pages marked for immediate reclaim
++		 * and under writeback (nr_immediate), it implies
+ 		 * that pages are cycling through the LRU faster than
+ 		 * they are written so also forcibly stall.
+ 		 */
+@@ -3267,8 +3267,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 			/*
+ 			 * There should be no need to raise the scanning
+ 			 * priority if enough pages are already being scanned
+-			 * that that high watermark would be met at 100%
+-			 * efficiency.
++			 * that high watermark would be met at 100% efficiency.
+ 			 */
+ 			if (kswapd_shrink_zone(zone, end_zone, &sc))
+ 				raise_priority = false;
+diff --git a/mm/zswap.c b/mm/zswap.c
+index de0f119b..6d829d7 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -928,7 +928,7 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
+ 	* a load may happening concurrently
+ 	* it is safe and okay to not free the entry
+ 	* if we free the entry in the following put
+-	* it it either okay to return !0
++	* it either okay to return !0
+ 	*/
+ fail:
+ 	spin_lock(&tree->lock);
+-- 
+1.8.3.1
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
