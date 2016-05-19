@@ -1,67 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 665AF6B0005
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 19:26:12 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id yl2so134693073pac.2
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 16:26:12 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id 8si23168716pad.28.2016.05.19.16.26.11
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 May 2016 16:26:11 -0700 (PDT)
-Received: by mail-pa0-x233.google.com with SMTP id tb2so16134829pac.2
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 16:26:11 -0700 (PDT)
-Subject: Re: [PATCH] mm: move page_ext_init after all struct pages are
- initialized
-References: <1463693345-30842-1-git-send-email-yang.shi@linaro.org>
- <20160519153007.322150e4253656a3ac963656@linux-foundation.org>
- <6dd46bac-a0e4-d3c0-ded3-cbacc7f4a4ff@linaro.org>
- <20160519162107.372d19eac129d590ea160203@linux-foundation.org>
-From: "Shi, Yang" <yang.shi@linaro.org>
-Message-ID: <bf7c4532-40bb-69bb-41b0-ed08a424011e@linaro.org>
-Date: Thu, 19 May 2016 16:26:09 -0700
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 886B76B0005
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 19:48:21 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id gw7so135246540pac.0
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 16:48:21 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id w15si8871507pfa.169.2016.05.19.16.48.19
+        for <linux-mm@kvack.org>;
+        Thu, 19 May 2016 16:48:20 -0700 (PDT)
+Date: Fri, 20 May 2016 09:48:15 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: sharing page cache pages between multiple mappings
+Message-ID: <20160519234815.GH21200@dastard>
+References: <CAJfpeguD-S=CEogqcDOYAYJBzfyJG=MMKyFfpMo55bQk7d0_TQ@mail.gmail.com>
+ <20160519090521.GA26114@dhcp22.suse.cz>
+ <CAJfpegvqPrP=AtaOSwMX1s=-oVAEE97NMwEHUkg93dBWvOykHw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20160519162107.372d19eac129d590ea160203@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJfpegvqPrP=AtaOSwMX1s=-oVAEE97NMwEHUkg93dBWvOykHw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>
 
-On 5/19/2016 4:21 PM, Andrew Morton wrote:
-> On Thu, 19 May 2016 15:35:15 -0700 "Shi, Yang" <yang.shi@linaro.org> wrote:
+On Thu, May 19, 2016 at 12:17:14PM +0200, Miklos Szeredi wrote:
+> On Thu, May 19, 2016 at 11:05 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Thu 19-05-16 10:20:13, Miklos Szeredi wrote:
+> >> Has anyone thought about sharing pages between multiple files?
+> >>
+> >> The obvious application is for COW filesytems where there are
+> >> logically distinct files that physically share data and could easily
+> >> share the cache as well if there was infrastructure for it.
+> >
+> > FYI this has been discussed at LSFMM this year[1]. I wasn't at the
+> > session so cannot tell you any details but the LWN article covers it at
+> > least briefly.
+> 
+> Cool, so it's not such a crazy idea.
+
+Oh, it most certainly is crazy. :P
+
+> Darrick, would you mind briefly sharing your ideas regarding this?
+
+The current line of though is that we'll only attempt this in XFS on
+inodes that are known to share underlying physical extents. i.e.
+files that have blocks that have been reflinked or deduped.  That
+way we can overload the breaking of reflink blocks (via copy on
+write) with unsharing the pages in the page cache for that inode.
+i.e. shared pages can propagate upwards in overlay if it uses
+reflink for copy-up and writes will then break the sharing with the
+underlying source without overlay having to do anything special.
+
+Right now I'm not sure what mechanism we will use - we want to
+support files that have a mix of private and shared pages, so that
+implies we are not going to be sharing mappings but sharing pages
+instead.  However, we've been looking at this as being completely
+encapsulated within the filesystem because it's tightly linked to
+changes in the physical layout of the filesystem, not as general
+"share this mapping between two unrelated inodes" infrastructure.
+That may change as we dig deeper into it...
+
+> The use case I have is fixing overlayfs weird behavior. The following
+> may result in "buf" not matching "data":
+> 
+>     int fr = open("foo", O_RDONLY);
+>     int fw = open("foo", O_RDWR);
+>     write(fw, data, sizeof(data));
+>     read(fr, buf, sizeof(data));
+> 
+> The reason is that "foo" is on a read-only layer, and opening it for
+> read-write triggers copy-up into a read-write layer.  However the old,
+> read-only open still refers to the unmodified file.
 >
->> On 5/19/2016 3:30 PM, Andrew Morton wrote:
->>> On Thu, 19 May 2016 14:29:05 -0700 Yang Shi <yang.shi@linaro.org> wrote:
->>>
->>>> When DEFERRED_STRUCT_PAGE_INIT is enabled, just a subset of memmap at boot
->>>> are initialized, then the rest are initialized in parallel by starting one-off
->>>> "pgdatinitX" kernel thread for each node X.
->>>>
->>>> If page_ext_init is called before it, some pages will not have valid extension,
->>>> so move page_ext_init() after it.
->>>>
->>>
->>> <stdreply>When fixing a bug, please fully describe the end-user impact
->>> of that bug</>
->>
->> The kernel ran into the below oops which is same with the oops reported
->> in
->> http://ozlabs.org/~akpm/mmots/broken-out/mm-page_is_guard-return-false-when-page_ext-arrays-are-not-allocated-yet.patch.
->
-> So this patch makes
-> mm-page_is_guard-return-false-when-page_ext-arrays-are-not-allocated-yet.patch
-> obsolete?
+> Fixing this properly requires that when opening a file, we don't
+> delegate operations fully to the underlying file, but rather allow
+> sharing of pages from underlying file until the file is copied up.  At
+> that point we switch to sharing pages with the read-write copy.
 
-Actually, no. Checking the return value for lookup_page_ext() is still 
-needed. But, the commit log need to be amended since that bootup oops 
-won't happen anymore with this patch applied.
+Unless I'm missing something here (quite possible!), I'm not sure
+we can fix that problem with page cache sharing or reflink. It
+implies we are sharing pages in a downwards direction - private
+overlay pages/mappings from multiple inodes would need to be shared
+with a single underlying shared read-only inode, and I lack the
+imagination to see how that works...
 
-Thanks,
-Yang
+Cheers,
 
->
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
