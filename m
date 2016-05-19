@@ -1,87 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 27E506B0260
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 04:18:01 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id m101so6789428lfi.0
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 01:18:01 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id v9si16187830wjw.43.2016.05.19.01.17.59
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F6BE6B0260
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 04:20:14 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id u185so123015365oie.3
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 01:20:14 -0700 (PDT)
+Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
+        by mx.google.com with ESMTPS id t67si5656196oih.125.2016.05.19.01.20.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 May 2016 01:17:59 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id n129so18944575wmn.1
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 01:17:59 -0700 (PDT)
-Date: Thu, 19 May 2016 10:17:58 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
-Message-ID: <20160519081758.GF26110@dhcp22.suse.cz>
-References: <1463574024-8372-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160518125138.GH21654@dhcp22.suse.cz>
- <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
- <20160518141545.GI21654@dhcp22.suse.cz>
- <20160518140932.6643b963e8d3fc49ff64df8d@linux-foundation.org>
- <20160519065329.GA26110@dhcp22.suse.cz>
- <20160519071736.GD26110@dhcp22.suse.cz>
+        Thu, 19 May 2016 01:20:13 -0700 (PDT)
+Received: by mail-oi0-x244.google.com with SMTP id t140so14825687oie.0
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 01:20:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160519071736.GD26110@dhcp22.suse.cz>
+Date: Thu, 19 May 2016 10:20:13 +0200
+Message-ID: <CAJfpeguD-S=CEogqcDOYAYJBzfyJG=MMKyFfpMo55bQk7d0_TQ@mail.gmail.com>
+Subject: sharing page cache pages between multiple mappings
+From: Miklos Szeredi <miklos@szeredi.hu>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rientjes@google.com, linux-mm@kvack.org, oleg@redhat.com
+To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org
 
-[Sorry for spamming you]
+Has anyone thought about sharing pages between multiple files?
 
-On Thu 19-05-16 09:17:36, Michal Hocko wrote:
-> On Thu 19-05-16 08:53:29, Michal Hocko wrote:
-> > On Wed 18-05-16 14:09:32, Andrew Morton wrote:
-> > > On Wed, 18 May 2016 16:15:45 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> > > 
-> > > > > This patch adds a counter to signal_struct for tracking how many
-> > > > > TIF_MEMDIE threads are in a given thread group, and check it at
-> > > > > oom_scan_process_thread() so that select_bad_process() can use
-> > > > > for_each_process() rather than for_each_process_thread().
-> > > > 
-> > > > OK, this looks correct. Strictly speaking the patch is missing any note
-> > > > on _why_ this is needed or an improvement. I would add something like
-> > > > the following:
-> > > > "
-> > > > Although the original code was correct it was quite inefficient because
-> > > > each thread group was scanned num_threads times which can be a lot
-> > > > especially with processes with many threads. Even though the OOM is
-> > > > extremely cold path it is always good to be as effective as possible
-> > > > when we are inside rcu_read_lock() - aka unpreemptible context.
-> > > > "
-> > > 
-> > > This sounds quite rubbery to me.  Lots of code calls
-> > > for_each_process_thread() and presumably that isn't causing problems. 
-> > 
-> > Yeah, many paths call for_each_process_thread but they are
-> > O(num_threads) while this is O(num_threads^2).
-> 
-> And just to clarify the regular num_threads^2 is the absolute worst case
-> which doesn't happen normally. We would be closer to O(num_threads) but
-> there is no reason to risk pathological cases when we can simply use
-> for_each_process to achieve the same.
+The obvious application is for COW filesytems where there are
+logically distinct files that physically share data and could easily
+share the cache as well if there was infrastructure for it.
 
-Blee, fat fingers today... some vim-foo removed the rest of the
-paragraph which was:
-"
-Especially when calculating oom_badness for all threads in the same
-thread group is just pointless wasting of cycles (e.g. take task_lock
-etc.).
-"
-
-Tetsuo, btw. I guess you can safely drop
-		/* Prefer thread group leaders for display purposes */
-		if (points == chosen_points && thread_group_leader(chosen))
-			continue;
-
-from select_bad_process because you are iterating group leaders.
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
