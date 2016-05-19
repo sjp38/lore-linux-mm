@@ -1,185 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D4D3C6B0005
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 11:21:02 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id y6so174353787ywe.0
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 08:21:02 -0700 (PDT)
-Received: from mail-qg0-x243.google.com (mail-qg0-x243.google.com. [2607:f8b0:400d:c04::243])
-        by mx.google.com with ESMTPS id v19si13011726qkb.111.2016.05.19.08.21.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 May 2016 08:21:01 -0700 (PDT)
-Received: by mail-qg0-x243.google.com with SMTP id 90so7122400qgz.0
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 08:21:01 -0700 (PDT)
-From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCHv2] mm/zsmalloc: don't fail if can't create debugfs info
-Date: Thu, 19 May 2016 11:18:43 -0400
-Message-Id: <1463671123-5479-1-git-send-email-ddstreet@ieee.org>
-In-Reply-To: <CADAEsF-kaCQnNN_9gySw3J0UT4mGh8KFp75tGSJtaDAuN1T10A@mail.gmail.com>
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 829736B0005
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 12:20:07 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id gw7so120326217pac.0
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 09:20:07 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id i65si20919249pfb.183.2016.05.19.09.20.06
+        for <linux-mm@kvack.org>;
+        Thu, 19 May 2016 09:20:06 -0700 (PDT)
+Subject: Re: [PATCHv8 26/32] thp: update Documentation/vm/transhuge.txt
+References: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1463067672-134698-27-git-send-email-kirill.shutemov@linux.intel.com>
+From: Julien Grall <julien.grall@arm.com>
+Message-ID: <573DE7B1.4040303@arm.com>
+Date: Thu, 19 May 2016 17:20:01 +0100
+MIME-Version: 1.0
+In-Reply-To: <1463067672-134698-27-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Ganesh Mahendran <opensource.ganesh@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Seth Jennings <sjenning@redhat.com>, Yu Zhao <yuzhao@google.com>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <dan.streetman@canonical.com>, Dan Streetman <ddstreet@ieee.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Steve Capper <Steve.Capper@arm.com>
 
-Change the return type of zs_pool_stat_create() to void, and
-remove the logic to abort pool creation if the stat debugfs
-dir/file could not be created.
+Hello Kirill,
 
-The debugfs stat file is for debugging/information only, and doesn't
-affect operation of zsmalloc; there is no reason to abort creating
-the pool if the stat file can't be created.  This was seen with
-zswap, which used the same name for all pool creations, which caused
-zsmalloc to fail to create a second pool for zswap if
-CONFIG_ZSMALLOC_STAT was enabled.
+On 12/05/16 16:41, Kirill A. Shutemov wrote:
+> Add info about tmpfs/shmem with huge pages.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>   Documentation/vm/transhuge.txt | 130 +++++++++++++++++++++++++++++------------
+>   1 file changed, 93 insertions(+), 37 deletions(-)
+>
+> diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
+> index d9cb65cf5cfd..96a49f123cac 100644
+> --- a/Documentation/vm/transhuge.txt
+> +++ b/Documentation/vm/transhuge.txt
+> @@ -9,8 +9,8 @@ using huge pages for the backing of virtual memory with huge pages
+>   that supports the automatic promotion and demotion of page sizes and
+>   without the shortcomings of hugetlbfs.
+>
+> -Currently it only works for anonymous memory mappings but in the
+> -future it can expand over the pagecache layer starting with tmpfs.
+> +Currently it only works for anonymous memory mappings and tmpfs/shmem.
+> +But in the future it can expand to other filesystems.
+>
+>   The reason applications are running faster is because of two
+>   factors. The first factor is almost completely irrelevant and it's not
+> @@ -48,7 +48,7 @@ miss is going to run faster.
+>   - if some task quits and more hugepages become available (either
+>     immediately in the buddy or through the VM), guest physical memory
+>     backed by regular pages should be relocated on hugepages
+> -  automatically (with khugepaged)
+> +  automatically (with khugepaged, limited to anonymous huge pages for now)
 
-Signed-off-by: Dan Streetman <ddstreet@ieee.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Dan Streetman <dan.streetman@canonical.com>
-Cc: Minchan Kim <minchan@kernel.org>
+Is it still relevant? I think the patch #30 at the support for tmpfs/shmem.
 
----
-Changes since v1:
- -add pr_warn to all stat failure cases
- -do not prevent module loading on stat failure
+[...]
 
- mm/zsmalloc.c | 51 ++++++++++++++++++++++-----------------------------
- 1 file changed, 22 insertions(+), 29 deletions(-)
+>   == Need of application restart ==
+>
+> -The transparent_hugepage/enabled values only affect future
+> -behavior. So to make them effective you need to restart any
+> -application that could have been using hugepages. This also applies to
+> -the regions registered in khugepaged.
+> +The transparent_hugepage/enabled values and tmpfs mount option only affect
+> +future behavior. So to make them effective you need to restart any
+> +application that could have been using hugepages. This also applies to the
+> +regions registered in khugepaged.
+>
+>   == Monitoring usage ==
+>
+> -The number of transparent huge pages currently used by the system is
+> -available by reading the AnonHugePages field in /proc/meminfo. To
+> -identify what applications are using transparent huge pages, it is
+> -necessary to read /proc/PID/smaps and count the AnonHugePages fields
+> -for each mapping. Note that reading the smaps file is expensive and
+> -reading it frequently will incur overhead.
+> +The number of anonymous transparent huge pages currently used by the
+> +system is available by reading the AnonHugePages field in /proc/meminfo.
+> +To identify what applications are using anonymous transparent huge pages,
+> +it is necessary to read /proc/PID/smaps and count the AnonHugePages fields
+> +for each mapping.
+> +
+> +The number of file transparent huge pages mapped to userspace is available
+> +by reading the FileHugeMapped field in /proc/meminfo.  To identify what
+> +applications are mapping file  transparent huge pages, it is necessary
+> +to read /proc/PID/smaps and count the FileHugeMapped fields for each
+> +mapping.
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index aba39a2..b6d4f25 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -45,6 +45,8 @@
-  *
-  */
- 
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+
- #include <linux/module.h>
- #include <linux/kernel.h>
- #include <linux/sched.h>
-@@ -483,16 +485,16 @@ static inline unsigned long zs_stat_get(struct size_class *class,
- 
- #ifdef CONFIG_ZSMALLOC_STAT
- 
--static int __init zs_stat_init(void)
-+static void __init zs_stat_init(void)
- {
--	if (!debugfs_initialized())
--		return -ENODEV;
-+	if (!debugfs_initialized()) {
-+		pr_warn("debugfs not available, stat dir not created\n");
-+		return;
-+	}
- 
- 	zs_stat_root = debugfs_create_dir("zsmalloc", NULL);
- 	if (!zs_stat_root)
--		return -ENOMEM;
--
--	return 0;
-+		pr_warn("debugfs 'zsmalloc' stat dir creation failed\n");
- }
- 
- static void __exit zs_stat_exit(void)
-@@ -573,17 +575,19 @@ static const struct file_operations zs_stat_size_ops = {
- 	.release        = single_release,
- };
- 
--static int zs_pool_stat_create(struct zs_pool *pool, const char *name)
-+static void zs_pool_stat_create(struct zs_pool *pool, const char *name)
- {
- 	struct dentry *entry;
- 
--	if (!zs_stat_root)
--		return -ENODEV;
-+	if (!zs_stat_root) {
-+		pr_warn("no root stat dir, not creating <%s> stat dir\n", name);
-+		return;
-+	}
- 
- 	entry = debugfs_create_dir(name, zs_stat_root);
- 	if (!entry) {
- 		pr_warn("debugfs dir <%s> creation failed\n", name);
--		return -ENOMEM;
-+		return;
- 	}
- 	pool->stat_dentry = entry;
- 
-@@ -592,10 +596,9 @@ static int zs_pool_stat_create(struct zs_pool *pool, const char *name)
- 	if (!entry) {
- 		pr_warn("%s: debugfs file entry <%s> creation failed\n",
- 				name, "classes");
--		return -ENOMEM;
-+		debugfs_remove_recursive(pool->stat_dentry);
-+		pool->stat_dentry = NULL;
- 	}
--
--	return 0;
- }
- 
- static void zs_pool_stat_destroy(struct zs_pool *pool)
-@@ -604,18 +607,16 @@ static void zs_pool_stat_destroy(struct zs_pool *pool)
- }
- 
- #else /* CONFIG_ZSMALLOC_STAT */
--static int __init zs_stat_init(void)
-+static void __init zs_stat_init(void)
- {
--	return 0;
- }
- 
- static void __exit zs_stat_exit(void)
- {
- }
- 
--static inline int zs_pool_stat_create(struct zs_pool *pool, const char *name)
-+static inline void zs_pool_stat_create(struct zs_pool *pool, const char *name)
- {
--	return 0;
- }
- 
- static inline void zs_pool_stat_destroy(struct zs_pool *pool)
-@@ -623,7 +624,6 @@ static inline void zs_pool_stat_destroy(struct zs_pool *pool)
- }
- #endif
- 
--
- /*
-  * For each size class, zspages are divided into different groups
-  * depending on how "full" they are. This was done so that we could
-@@ -1952,8 +1952,8 @@ struct zs_pool *zs_create_pool(const char *name)
- 		prev_class = class;
- 	}
- 
--	if (zs_pool_stat_create(pool, name))
--		goto err;
-+	/* debug only, don't abort if it fails */
-+	zs_pool_stat_create(pool, name);
- 
- 	/*
- 	 * Not critical, we still can use the pool
-@@ -2015,17 +2015,10 @@ static int __init zs_init(void)
- 	zpool_register_driver(&zs_zpool_driver);
- #endif
- 
--	ret = zs_stat_init();
--	if (ret) {
--		pr_err("zs stat initialization failed\n");
--		goto stat_fail;
--	}
-+	zs_stat_init();
-+
- 	return 0;
- 
--stat_fail:
--#ifdef CONFIG_ZPOOL
--	zpool_unregister_driver(&zs_zpool_driver);
--#endif
- notifier_fail:
- 	zs_unregister_cpu_notifier();
- 
+I cannot find the field FileHugeMapped in /proc/meminfo and 
+/proc/PID/smaps. However, there are 2 new fields ShmemHugePages and 
+ShmemPmdMapped.
+
+Also I guess that filesystems/proc.txt has to be updated to explain the 
+new fields.
+
+Regards,
+
 -- 
-2.7.4
+Julien Grall
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
