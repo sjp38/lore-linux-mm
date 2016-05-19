@@ -1,61 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 422476B0005
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 17:56:14 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 77so181745208pfz.3
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 14:56:14 -0700 (PDT)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id z10si22654759pab.116.2016.05.19.14.56.11
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9187E6B0253
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 18:11:26 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 129so13953091pfx.0
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 15:11:26 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id sj6si5498384pac.205.2016.05.19.15.11.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 May 2016 14:56:12 -0700 (PDT)
-Received: by mail-pf0-x22b.google.com with SMTP id y69so34018277pfb.1
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 14:56:11 -0700 (PDT)
-From: Yang Shi <yang.shi@linaro.org>
-Subject: [PATCH] mm: move page_ext_init after all struct pages are initialized
-Date: Thu, 19 May 2016 14:29:05 -0700
-Message-Id: <1463693345-30842-1-git-send-email-yang.shi@linaro.org>
+        Thu, 19 May 2016 15:11:25 -0700 (PDT)
+Received: by mail-pa0-x235.google.com with SMTP id tb2so15622022pac.2
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 15:11:25 -0700 (PDT)
+Date: Thu, 19 May 2016 15:11:23 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, migrate: increment fail count on ENOMEM
+Message-ID: <alpine.DEB.2.10.1605191510230.32658@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When DEFERRED_STRUCT_PAGE_INIT is enabled, just a subset of memmap at boot
-are initialized, then the rest are initialized in parallel by starting one-off
-"pgdatinitX" kernel thread for each node X.
+If page migration fails due to -ENOMEM, nr_failed should still be
+incremented for proper statistics.
 
-If page_ext_init is called before it, some pages will not have valid extension,
-so move page_ext_init() after it.
+This was encountered recently when all page migration vmstats showed 0,
+and inferred that migrate_pages() was never called, although in reality
+the first page migration failed because compaction_alloc() failed to find
+a migration target.
 
-CC: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Signed-off-by: Yang Shi <yang.shi@linaro.org>
+This patch increments nr_failed so the vmstat is properly accounted on
+ENOMEM.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- init/main.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/migrate.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/init/main.c b/init/main.c
-index b3c6e36..2075faf 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -606,7 +606,6 @@ asmlinkage __visible void __init start_kernel(void)
- 		initrd_start = 0;
- 	}
- #endif
--	page_ext_init();
- 	debug_objects_mem_init();
- 	kmemleak_init();
- 	setup_per_cpu_pageset();
-@@ -1004,6 +1003,8 @@ static noinline void __init kernel_init_freeable(void)
- 	sched_init_smp();
+diff --git a/mm/migrate.c b/mm/migrate.c
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1171,6 +1171,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
  
- 	page_alloc_init_late();
-+	/* Initialize page ext after all struct pages are initializaed */
-+	page_ext_init();
- 
- 	do_basic_setup();
- 
--- 
-2.0.2
+ 			switch(rc) {
+ 			case -ENOMEM:
++				nr_failed++;
+ 				goto out;
+ 			case -EAGAIN:
+ 				retry++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
