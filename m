@@ -1,100 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CCC2F6B0005
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 20:27:44 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 4so126404328pfw.0
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 17:27:44 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EF506B0005
+	for <linux-mm@kvack.org>; Wed, 18 May 2016 20:51:36 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 4so127199432pfw.0
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 17:51:36 -0700 (PDT)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id m90si15521066pfj.201.2016.05.18.17.27.42
+        by mx.google.com with ESMTP id g65si15659790pfc.237.2016.05.18.17.51.34
         for <linux-mm@kvack.org>;
-        Wed, 18 May 2016 17:27:43 -0700 (PDT)
-Date: Thu, 19 May 2016 09:28:09 +0900
+        Wed, 18 May 2016 17:51:35 -0700 (PDT)
+Date: Thu, 19 May 2016 09:52:04 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm: page_is_guard return false when page_ext arrays are
- not allocated yet
-Message-ID: <20160519002809.GA10245@js1304-P5Q-DELUXE>
-References: <1463610225-29060-1-git-send-email-yang.shi@linaro.org>
+Subject: Re: malloc() size in CMA region seems to be aligned to CMA_ALIGNMENT
+Message-ID: <20160519005204.GB10245@js1304-P5Q-DELUXE>
+References: <CA+a3UFfGxJajS3Lqkp8M4kaikTWHprUXbUvECYC9dojgazQ8pg@mail.gmail.com>
+ <20160518084824.GA21680@dhcp22.suse.cz>
+ <CA+a3UFefby0+H2wfV9J27cs3waheUshWsEhs099c25cT6G-8Og@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1463610225-29060-1-git-send-email-yang.shi@linaro.org>
+In-Reply-To: <CA+a3UFefby0+H2wfV9J27cs3waheUshWsEhs099c25cT6G-8Og@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linaro.org>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: lunar12 lunartwix <lunartwix@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-Vlastiml, thanks for ccing me on original bug report.
+On Wed, May 18, 2016 at 09:15:13PM +0800, lunar12 lunartwix wrote:
+> 2016-05-18 16:48 GMT+08:00 Michal Hocko <mhocko@kernel.org>:
+> > [CC linux-mm and some usual suspects]
 
-On Wed, May 18, 2016 at 03:23:45PM -0700, Yang Shi wrote:
-> When enabling the below kernel configs:
+Michal, Thanks.
+
+> >
+> > On Tue 17-05-16 23:37:55, lunar12 lunartwix wrote:
+> >> A 4MB dma_alloc_coherent  in kernel after malloc(2*1024) 40 times in
+> >> CMA region by user space will cause an error on our ARM 3.18 kernel
+> >> platform with a 32MB CMA.
+> >>
+> >> It seems that the malloc in CMA region will be aligned to
+> >> CMA_ALIGNMENT everytime even if the requested malloc size is very
+> >> small so the CMA region is not available after the malloc operations.
+> >>
+> >> Is there any configuraiton that can change this behavior??
+> >>
+> >> Thanks
+> >>
+> >> Cheers
+> >> Ken
+> >
+> > --
+> > Michal Hocko
+> > SUSE Labs
 > 
-> CONFIG_DEFERRED_STRUCT_PAGE_INIT
-> CONFIG_DEBUG_PAGEALLOC
-> CONFIG_PAGE_EXTENSION
-> CONFIG_DEBUG_VM
+> Update more information and any comment would be very appreciated
 > 
-> kernel bootup may fail due to the following oops:
+> CMA region (from boot message):
+> Reserved memory: created CMA memory pool at 0x22e00000, size 80 MiB
 > 
-> BUG: unable to handle kernel NULL pointer dereference at           (null)
-> IP: [<ffffffff8118d982>] free_pcppages_bulk+0x2d2/0x8d0
-> PGD 0
-> Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> Modules linked in:
-> CPU: 11 PID: 106 Comm: pgdatinit1 Not tainted 4.6.0-rc5-next-20160427 #26
-> Hardware name: Intel Corporation S5520HC/S5520HC, BIOS S5500.86B.01.10.0025.030220091519 03/02/2009
-> task: ffff88017c080040 ti: ffff88017c084000 task.ti: ffff88017c084000
-> RIP: 0010:[<ffffffff8118d982>]  [<ffffffff8118d982>] free_pcppages_bulk+0x2d2/0x8d0
-> RSP: 0000:ffff88017c087c48  EFLAGS: 00010046
-> RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000001
-> RDX: 0000000000000980 RSI: 0000000000000080 RDI: 0000000000660401
-> RBP: ffff88017c087cd0 R08: 0000000000000401 R09: 0000000000000009
-> R10: ffff88017c080040 R11: 000000000000000a R12: 0000000000000400
-> R13: ffffea0019810000 R14: ffffea0019810040 R15: ffff88066cfe6080
-> FS:  0000000000000000(0000) GS:ffff88066cd40000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000000000000 CR3: 0000000002406000 CR4: 00000000000006e0
-> Stack:
->  ffff88066cd5bbd8 ffff88066cfe6640 0000000000000000 0000000000000000
->  0000001f0000001f ffff88066cd5bbe8 ffffea0019810000 000000008118f53e
->  0000000000000009 0000000000000401 ffffffff0000000a 0000000000000001
-> Call Trace:
->  [<ffffffff8118f602>] free_hot_cold_page+0x192/0x1d0
->  [<ffffffff8118f69c>] __free_pages+0x5c/0x90
->  [<ffffffff8262a676>] __free_pages_boot_core+0x11a/0x14e
->  [<ffffffff8262a6fa>] deferred_free_range+0x50/0x62
->  [<ffffffff8262aa46>] deferred_init_memmap+0x220/0x3c3
->  [<ffffffff8262a826>] ? setup_per_cpu_pageset+0x35/0x35
->  [<ffffffff8108b1f8>] kthread+0xf8/0x110
->  [<ffffffff81c1b732>] ret_from_fork+0x22/0x40
->  [<ffffffff8108b100>] ? kthread_create_on_node+0x200/0x200
-> Code: 49 89 d4 48 c1 e0 06 49 01 c5 e9 de fe ff ff 4c 89 f7 44 89 4d b8 4c 89 45 c0 44 89 5d c8 48 89 4d d0 e8 62 c7 07 00 48 8b 4d d0 <48> 8b 00 44 8b 5d c8 4c 8b 45 c0 44 8b 4d b8 a8 02 0f 84 05 ff
-> RIP  [<ffffffff8118d982>] free_pcppages_bulk+0x2d2/0x8d0
->  RSP <ffff88017c087c48>
-> CR2: 0000000000000000
+> User space test program:
 > 
-> The problem is lookup_page_ext() returns NULL then page_is_guard() tried to
-> access it in page freeing.
+>     do
+>     {
 > 
-> page_is_guard() depends on PAGE_EXT_DEBUG_GUARD bit of page extension flag, but
-> freeing page might reach here before the page_ext arrays are allocated when
-> feeding a range of pages to the allocator for the first time during bootup or
-> memory hotplug.
+>         addr = malloc(2*1024);
+>         memset((void *)addr,2*1024,0x5A);
+>         vaddr=(unsigned int)addr;
+> 
+>         //get_user_page & page_to_phys in kernel
+>         ioctl(devfd, IOCTL_MSYS_USER_TO_PHYSICAL, &addr)
+> 
+>         count++;
+>         paddr=(unsigned int)addr;
+> 
+>         if(paddr>0x22E00000)
+>         {
+>             printf("USR:0x%08X 0x%08X %d\n",vaddr,paddr,count);
+>         }
+>     } while(addr!=NULL);
+> 
+> 
+> System print out:
+> 
+> USR:0x0164B248 0x27C00000 11337
+> USR:0x0164BA50 0x27C00000 11338
+> USR:0x0164C258 0x27800000 11339
+> USR:0x0164CA60 0x27800000 11340
+> USR:0x0164D268 0x27600000 11341
+> USR:0x0164DA70 0x27600000 11342
+> USR:0x0164E278 0x27400000 11343
+> USR:0x0164EA80 0x27400000 11344
+> USR:0x0164F288 0x27200000 11345
+> USR:0x0164FA90 0x27200000 11346
+> ....
+> It seems that an 2MB CMA would be occpuied every 2 malloc()
 
-Patch itself looks find to me because I also found that this kind of
-problem happens during memory hotplug. So, we need to fix more sites,
-all callers of lookup_page_ext().
+I'm not familiar with device part of CMA but try to analyze.
 
-But, I'd like to know how your problem occurs during bootup.
-debug_guardpage_enabled() is turned to 'enable' after page_ext is
-initialized. Before that, page_is_guard() unconditionally returns
-false so I think that the problem what you mentioned can't happen.
+Above output means that your device maps 2 MB CMA mem to 1 page. I guess
+that your device requires such alignment. Could you check
+CONFIG_CMA_ALIGNMENT? And, insert to log to below snippet
+in drivers/base/dma-contiguous.c to check your device align requirement?
 
-Could you check that when debug_guardpage_enabled() returns 'enable'
-and init_section_page_ext() is called?
+struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
+                                       unsigned int align)
+{                                                                                          
+        if (align > CONFIG_CMA_ALIGNMENT)
+                align = CONFIG_CMA_ALIGNMENT;
+        return cma_alloc(dev_get_cma_area(dev), count, align);
+}
 
-And, above comment would be stale because it comes from when memcg uses
-this struct page extension funtionality. Now, memcg doesn't use it and
-there are some changes on this area so I'm not sure that is still true.
+I guess changing CONFIG_CMA_ALIGNMENT works for you, but, since it
+ignore your device align requirement, I'm not sure that it is right solution.
 
 Thanks.
 
