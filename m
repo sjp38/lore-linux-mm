@@ -1,85 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AE4E6B0005
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 03:14:29 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id m64so37004709lfd.1
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 00:14:29 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id e15si16489014wmi.67.2016.05.19.00.14.27
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F14326B0005
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 03:17:38 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w143so42407422wmw.3
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 00:17:38 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id 124si38716570wma.104.2016.05.19.00.17.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 May 2016 00:14:27 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id w143so18428933wmw.3
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 00:14:27 -0700 (PDT)
-Date: Thu, 19 May 2016 09:14:26 +0200
+        Thu, 19 May 2016 00:17:38 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id s63so3960174wme.2
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 00:17:37 -0700 (PDT)
+Date: Thu, 19 May 2016 09:17:36 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: add config option to select the initial overcommit
- mode
-Message-ID: <20160519071426.GC26110@dhcp22.suse.cz>
-References: <5735C567.6030202@free.fr>
- <20160513140128.GQ20141@dhcp22.suse.cz>
- <20160513160410.10c6cea6@lxorguk.ukuu.org.uk>
- <5735F4B1.1010704@laposte.net>
- <20160513164357.5f565d3c@lxorguk.ukuu.org.uk>
- <573AD534.6050703@laposte.net>
- <20160517085724.GD14453@dhcp22.suse.cz>
- <573B43FA.7080503@laposte.net>
- <20160517201605.GC12220@dhcp22.suse.cz>
- <573C87D5.6070304@laposte.net>
+Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
+Message-ID: <20160519071736.GD26110@dhcp22.suse.cz>
+References: <1463574024-8372-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20160518125138.GH21654@dhcp22.suse.cz>
+ <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
+ <20160518141545.GI21654@dhcp22.suse.cz>
+ <20160518140932.6643b963e8d3fc49ff64df8d@linux-foundation.org>
+ <20160519065329.GA26110@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <573C87D5.6070304@laposte.net>
+In-Reply-To: <20160519065329.GA26110@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Frias <sf84@laposte.net>
-Cc: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, bsingharora@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rientjes@google.com, linux-mm@kvack.org, oleg@redhat.com
 
-On Wed 18-05-16 17:18:45, Sebastian Frias wrote:
-> Hi Michal,
-> 
-> On 05/17/2016 10:16 PM, Michal Hocko wrote:
-> > On Tue 17-05-16 18:16:58, Sebastian Frias wrote:
-[...]
-> > The global OOM means there is _no_ memory at all. Many kernel
-> > operations will need some memory to do something useful. Let's say you
-> > would want to do an educated guess about who to kill - most proc APIs
-> > will need to allocate. And this is just a beginning. Things are getting
-> > really nasty when you get deeper and deeper. E.g. the OOM killer has to
-> > give the oom victim access to memory reserves so that the task can exit
-> > because that path needs to allocate as well. 
-> 
-> Really? I would have thought that once that SIGKILL is sent, the
-> victim process is not expected to do anything else and thus its
-> memory could be claimed immediately.  Or the OOM-killer is more of a
-> OOM-terminator? (i.e.: sends SIGTERM)
-
-Well, the path to exit is not exactly trivial. Resources have to be
-released and that requires memory sometimes. E.g. exit_robust_list
-needs to access the futex and that in turn means a page fault if the
-memory was swapped out...
- 
-> >So even if you wanted to
-> > give userspace some chance to resolve the OOM situation you would either
-> > need some special API to tell "this process is really special and it can
-> > access memory reserves and it has an absolute priority etc." or have a
-> > in kernel fallback to do something or your system could lockup really
-> > easily.
+On Thu 19-05-16 08:53:29, Michal Hocko wrote:
+> On Wed 18-05-16 14:09:32, Andrew Morton wrote:
+> > On Wed, 18 May 2016 16:15:45 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > > 
+> > > > This patch adds a counter to signal_struct for tracking how many
+> > > > TIF_MEMDIE threads are in a given thread group, and check it at
+> > > > oom_scan_process_thread() so that select_bad_process() can use
+> > > > for_each_process() rather than for_each_process_thread().
+> > > 
+> > > OK, this looks correct. Strictly speaking the patch is missing any note
+> > > on _why_ this is needed or an improvement. I would add something like
+> > > the following:
+> > > "
+> > > Although the original code was correct it was quite inefficient because
+> > > each thread group was scanned num_threads times which can be a lot
+> > > especially with processes with many threads. Even though the OOM is
+> > > extremely cold path it is always good to be as effective as possible
+> > > when we are inside rcu_read_lock() - aka unpreemptible context.
+> > > "
+> > 
+> > This sounds quite rubbery to me.  Lots of code calls
+> > for_each_process_thread() and presumably that isn't causing problems. 
 > 
-> I see, so basically at least two cgroups would be needed, one reserved
-> for handling the OOM situation through some API and another for the
-> "rest of the system".  Basically just like the 5% reserved for 'root'
-> on filesystems.
+> Yeah, many paths call for_each_process_thread but they are
+> O(num_threads) while this is O(num_threads^2).
 
-If you want to handle memcg OOM then you can use memory.oom_control (see
-Documentation/cgroup-v1/memory.txt for more information) and have the
-oom handler outside of that memcg.
-
-> Do you think that would work?
-
-But handling the _global_ oom from userspace is just insane with the
-current kernel implementation. It just cannot work reliably.
+And just to clarify the regular num_threads^2 is the absolute worst case
+which doesn't happen normally. We would be closer to O(num_threads) but
+there is no reason to risk pathological cases when we can simply use
+for_each_process to achieve the same.
 -- 
 Michal Hocko
 SUSE Labs
