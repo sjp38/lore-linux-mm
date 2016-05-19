@@ -1,89 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9215D6B025E
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 03:57:30 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 4so142228902pfw.0
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 00:57:30 -0700 (PDT)
-Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
-        by mx.google.com with ESMTPS id ey9si18328544pab.123.2016.05.19.00.57.29
+Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E45CC6B025E
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 04:05:44 -0400 (EDT)
+Received: by mail-ig0-f199.google.com with SMTP id i5so141963211ige.1
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 01:05:44 -0700 (PDT)
+Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
+        by mx.google.com with ESMTPS id lc4si5642550obb.74.2016.05.19.01.05.43
         for <linux-mm@kvack.org>
-        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 19 May 2016 00:57:29 -0700 (PDT)
-From: roy.qing.li@gmail.com
-Subject: [PATCH] mm: memcontrol: move comments for get_mctgt_type to proper position
-Date: Thu, 19 May 2016 15:57:18 +0800
-Message-Id: <1463644638-7446-1-git-send-email-roy.qing.li@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 May 2016 01:05:43 -0700 (PDT)
+Received: by mail-oi0-x241.google.com with SMTP id w198so14750237oiw.2
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 01:05:43 -0700 (PDT)
+MIME-Version: 1.0
+Date: Thu, 19 May 2016 10:05:43 +0200
+Message-ID: <CAJfpegv7N7WJkRJjGS_YRDvmgStLFz-fuxkdaVFFknOFuQwKng@mail.gmail.com>
+Subject: why does page_cache_pipe_buf_confirm() need to check page->mapping?
+From: Miklos Szeredi <miklos@szeredi.hu>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org, linux-mm@kvack.org
-Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov@virtuozzo.com
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Abhijith Das <adas@redhat.com>, Linux-Fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, Kernel Mailing List <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-From: Li RongQing <roy.qing.li@gmail.com>
+Hi Jens,
 
-move the comments for get_mctgt_type before the get_mctgt_type function
+I haven't done a great deal of research into this, but checking
+page->mapping in page_cache_pipe_buf_confirm() might be bogus.
 
-Signed-off-by: Li RongQing <roy.qing.li@gmail.com>
----
- mm/memcontrol.c | 37 +++++++++++++++++++------------------
- 1 file changed, 19 insertions(+), 18 deletions(-)
+If the page is truncated *after* being spliced into the pipe, why on
+earth does the buffer become invalid?
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fe787f5..00981d2 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4290,24 +4290,6 @@ static int mem_cgroup_do_precharge(unsigned long count)
- 	return 0;
- }
- 
--/**
-- * get_mctgt_type - get target type of moving charge
-- * @vma: the vma the pte to be checked belongs
-- * @addr: the address corresponding to the pte to be checked
-- * @ptent: the pte to be checked
-- * @target: the pointer the target page or swap ent will be stored(can be NULL)
-- *
-- * Returns
-- *   0(MC_TARGET_NONE): if the pte is not a target for move charge.
-- *   1(MC_TARGET_PAGE): if the page corresponding to this pte is a target for
-- *     move charge. if @target is not NULL, the page is stored in target->page
-- *     with extra refcnt got(Callers should handle it).
-- *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
-- *     target for charge migration. if @target is not NULL, the entry is stored
-- *     in target->ent.
-- *
-- * Called with pte lock held.
-- */
- union mc_target {
- 	struct page	*page;
- 	swp_entry_t	ent;
-@@ -4496,6 +4478,25 @@ out:
- 	return ret;
- }
- 
-+/**
-+ * get_mctgt_type - get target type of moving charge
-+ * @vma: the vma the pte to be checked belongs
-+ * @addr: the address corresponding to the pte to be checked
-+ * @ptent: the pte to be checked
-+ * @target: the pointer the target page or swap ent will be stored(can be NULL)
-+ *
-+ * Returns
-+ *   0(MC_TARGET_NONE): if the pte is not a target for move charge.
-+ *   1(MC_TARGET_PAGE): if the page corresponding to this pte is a target for
-+ *     move charge. if @target is not NULL, the page is stored in target->page
-+ *     with extra refcnt got(Callers should handle it).
-+ *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
-+ *     target for charge migration. if @target is not NULL, the entry is stored
-+ *     in target->ent.
-+ *
-+ * Called with pte lock held.
-+ */
-+
- static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
- 		unsigned long addr, pte_t ptent, union mc_target *target)
- {
--- 
-2.1.4
+This looks to be a problem for filesystems that invalidate pages
+(because the the data is possibly stale) and the pipe read returns
+-ENODATA even though the data is there, it's just possibly different
+from what was spliced into the pipe.  But I don't think that's a
+reason for throwing away that buffer and definitely not a reason to
+return an error.
+
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
