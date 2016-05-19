@@ -1,85 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AA916B0005
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 00:27:18 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id s68so141556117qkb.0
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 21:27:18 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o201si10349192qka.229.2016.05.18.21.27.17
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 May 2016 21:27:17 -0700 (PDT)
-Message-ID: <1463632033.16365.45.camel@redhat.com>
-Subject: Re: [PATCH] mm: make faultaround produce old ptes
-From: Rik van Riel <riel@redhat.com>
-Date: Thu, 19 May 2016 00:27:13 -0400
-In-Reply-To: <1463488366-47723-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: 
-	<1463488366-47723-1-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-0rnzZ3DHAZJ6q0C4zdBQ"
-Mime-Version: 1.0
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C2866B0005
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 01:00:31 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id i75so147494701ioa.3
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 22:00:31 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id l15si10809892igk.82.2016.05.18.22.00.29
+        for <linux-mm@kvack.org>;
+        Wed, 18 May 2016 22:00:30 -0700 (PDT)
+Date: Thu, 19 May 2016 14:00:38 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: + mm-thp-avoid-unnecessary-swapin-in-khugepaged.patch added to
+ -mm tree
+Message-ID: <20160519050038.GA16318@bbox>
+References: <57212c60.fUSE244UFwhXE+az%akpm@linux-foundation.org>
+ <20160428151921.GL31489@dhcp22.suse.cz>
+ <20160517075815.GC14453@dhcp22.suse.cz>
+ <20160517090254.GE14453@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160517090254.GE14453@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vinayak Menon <vinmenon@codeaurora.org>, Minchan Kim <minchan@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, ebru.akagunduz@gmail.com, aarcange@redhat.com, aneesh.kumar@linux.vnet.ibm.com, boaz@plexistor.com, gorcunov@openvz.org, hannes@cmpxchg.org, hughd@google.com, iamjoonsoo.kim@lge.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, rientjes@google.com, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
+On Tue, May 17, 2016 at 11:02:54AM +0200, Michal Hocko wrote:
+> On Tue 17-05-16 09:58:15, Michal Hocko wrote:
+> > On Thu 28-04-16 17:19:21, Michal Hocko wrote:
+> > > On Wed 27-04-16 14:17:20, Andrew Morton wrote:
+> > > [...]
+> > > > @@ -2484,7 +2485,14 @@ static void collapse_huge_page(struct mm
+> > > >  		goto out;
+> > > >  	}
+> > > >  
+> > > > -	__collapse_huge_page_swapin(mm, vma, address, pmd);
+> > > > +	swap = get_mm_counter(mm, MM_SWAPENTS);
+> > > > +	curr_allocstall = sum_vm_event(ALLOCSTALL);
+> > > > +	/*
+> > > > +	 * When system under pressure, don't swapin readahead.
+> > > > +	 * So that avoid unnecessary resource consuming.
+> > > > +	 */
+> > > > +	if (allocstall == curr_allocstall && swap != 0)
+> > > > +		__collapse_huge_page_swapin(mm, vma, address, pmd);
+> > > >  
+> > > >  	anon_vma_lock_write(vma->anon_vma);
+> > > >  
+> > > 
+> > > I have mentioned that before already but this seems like a rather weak
+> > > heuristic. Don't we really rather teach __collapse_huge_page_swapin
+> > > (resp. do_swap_page) do to an optimistic GFP_NOWAIT allocations and
+> > > back off under the memory pressure?
+> > 
+> > I gave it a try and it doesn't seem really bad. Untested and I might
+> > have missed something really obvious but what do you think about this
+> > approach rather than relying on ALLOCSTALL which is really weak
+> > heuristic:
 
---=-0rnzZ3DHAZJ6q0C4zdBQ
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+I like this approach rather than playing with allocstall diff of vmevent
+which can be disabled in some configuration and it's not a good indicator
+to represent current memory pressure situation.
 
-On Tue, 2016-05-17 at 15:32 +0300, Kirill A. Shutemov wrote:
-> Currently, faultaround code produces young pte. This can screw up
-> vmscan
-> behaviour[1], as it makes vmscan think that these pages are hot and
-> not
-> push them out on first round.
->=20
-> Let modify faultaround to produce old pte, so they can easily be
-> reclaimed under memory pressure.
->=20
-> This can to some extend defeat purpose of faultaround on machines
-> without hardware accessed bit as it will not help up with reducing
-> number of minor page faults.
->=20
-> We may want to disable faultaround on such machines altogether, but
-> that's subject for separate patchset.
->=20
-> [1] https://lkml.kernel.org/r/1460992636-711-1-git-send-email-vinmeno
-> n@codeaurora.org
->=20
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vinayak Menon <vinmenon@codeaurora.org>
-> Cc: Minchan Kim <minchan@kernel.org>
->=20
-Acked-by: Rik van Riel <riel@redhat.com>
+However, I agree with Rik's requirement which doesn't want to turn over
+page cache for collapsing THP page via swapin. So, your suggestion cannot
+prevent it because khugepaged can consume memory through this swapin
+operation continuously while kswapd is doing aging of LRU list in parallel.
+IOW, fluctuation between HIGH and LOW watermark.
 
---=20
-All Rights Reversed.
+So, How about using waitqueue_active(&pgdat->kswapd_wait) to detect
+current memory pressure? So if kswapd is active, we could avoid swapin
+for THP collapsing.
 
-
---=-0rnzZ3DHAZJ6q0C4zdBQ
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJXPUChAAoJEM553pKExN6DR8UH/2GVMDnYhoit2+qziDhfhefJ
-ynHlfPUrf9Yk9xnjkKbOcqrpxdnyc/RuvOdpZ6t/To7nHgYjM+sIFj9HHISJIkX2
-GwHD/s+fMmJ7eY6QAVLyMrDggH3vpQ66aNzWyTSyjayvuSj66WsvUEeN+gxqg8W/
-JrneMdZcKvDlX+kmOXAhVapTbbg3ByDWwqcfffU42DNK5WM5PRoXZDI7oaGG415d
-zTdPp7PcllW5FmY3KBWWjEJc7bNbOlO1du0cbtr1nkPLBIhj4C81qCIV68a1De2z
-4+8gBoj47DqN7Ow2gGmROIInReXDmtcXtYd4VC1JvfKhD2hX3s/clnfH5nifKQY=
-=EZyh
------END PGP SIGNATURE-----
-
---=-0rnzZ3DHAZJ6q0C4zdBQ--
+> 
+> Ups forgot to add mm/internal.h to the git index
+> ---
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 87f09dc986ab..1a4d4c807d92 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2389,7 +2389,8 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
+>  		swapped_in++;
+>  		ret = do_swap_page(mm, vma, _address, pte, pmd,
+>  				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
+> -				   pteval);
+> +				   pteval,
+> +				   GFP_HIGHUSER_MOVABLE | ~__GFP_DIRECT_RECLAIM);
+>  		if (ret & VM_FAULT_ERROR) {
+>  			trace_mm_collapse_huge_page_swapin(mm, swapped_in, 0);
+>  			return;
+> diff --git a/mm/internal.h b/mm/internal.h
+> index b6ead95a0184..0b3cc643eced 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -37,7 +37,7 @@
+>  
+>  extern int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			unsigned long address, pte_t *page_table, pmd_t *pmd,
+> -			unsigned int flags, pte_t orig_pte);
+> +			unsigned int flags, pte_t orig_pte, gfp_t gfp_mask);
+>  
+>  void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+>  		unsigned long floor, unsigned long ceiling);
+> diff --git a/mm/memory.c b/mm/memory.c
+> index d79c6db41502..f897ec89bd79 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2490,7 +2490,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
+>   */
+>  int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		unsigned long address, pte_t *page_table, pmd_t *pmd,
+> -		unsigned int flags, pte_t orig_pte)
+> +		unsigned int flags, pte_t orig_pte, gfp_t gfp_mask)
+>  {
+>  	spinlock_t *ptl;
+>  	struct page *page, *swapcache;
+> @@ -2519,8 +2519,7 @@ int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+>  	page = lookup_swap_cache(entry);
+>  	if (!page) {
+> -		page = swapin_readahead(entry,
+> -					GFP_HIGHUSER_MOVABLE, vma, address);
+> +		page = swapin_readahead(entry, gfp_mask, vma, address);
+>  		if (!page) {
+>  			/*
+>  			 * Back out if somebody else faulted in this pte
+> @@ -2573,7 +2572,7 @@ int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		goto out_page;
+>  	}
+>  
+> -	if (mem_cgroup_try_charge(page, mm, GFP_KERNEL, &memcg, false)) {
+> +	if (mem_cgroup_try_charge(page, mm, gfp_mask, &memcg, false)) {
+>  		ret = VM_FAULT_OOM;
+>  		goto out_page;
+>  	}
+> @@ -3349,7 +3348,7 @@ static int handle_pte_fault(struct mm_struct *mm,
+>  						flags, entry);
+>  		}
+>  		return do_swap_page(mm, vma, address,
+> -					pte, pmd, flags, entry);
+> +					pte, pmd, flags, entry, GFP_HIGHUSER_MOVABLE);
+>  	}
+>  
+>  	if (pte_protnone(entry))
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
