@@ -1,96 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BF7C66B0005
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 03:04:01 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id m101so5503739lfi.0
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 00:04:01 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id y189si38694021wmy.115.2016.05.19.00.03.59
+	by kanga.kvack.org (Postfix) with ESMTP id 5AE4E6B0005
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 03:14:29 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id m64so37004709lfd.1
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 00:14:29 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id e15si16489014wmi.67.2016.05.19.00.14.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 May 2016 00:03:59 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id w143so18371330wmw.3
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 00:03:59 -0700 (PDT)
-Date: Thu, 19 May 2016 09:03:57 +0200
+        Thu, 19 May 2016 00:14:27 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id w143so18428933wmw.3
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 00:14:27 -0700 (PDT)
+Date: Thu, 19 May 2016 09:14:26 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: + mm-thp-avoid-unnecessary-swapin-in-khugepaged.patch added to
- -mm tree
-Message-ID: <20160519070357.GB26110@dhcp22.suse.cz>
-References: <57212c60.fUSE244UFwhXE+az%akpm@linux-foundation.org>
- <20160428151921.GL31489@dhcp22.suse.cz>
- <20160517075815.GC14453@dhcp22.suse.cz>
- <20160517090254.GE14453@dhcp22.suse.cz>
- <20160519050038.GA16318@bbox>
+Subject: Re: [PATCH] mm: add config option to select the initial overcommit
+ mode
+Message-ID: <20160519071426.GC26110@dhcp22.suse.cz>
+References: <5735C567.6030202@free.fr>
+ <20160513140128.GQ20141@dhcp22.suse.cz>
+ <20160513160410.10c6cea6@lxorguk.ukuu.org.uk>
+ <5735F4B1.1010704@laposte.net>
+ <20160513164357.5f565d3c@lxorguk.ukuu.org.uk>
+ <573AD534.6050703@laposte.net>
+ <20160517085724.GD14453@dhcp22.suse.cz>
+ <573B43FA.7080503@laposte.net>
+ <20160517201605.GC12220@dhcp22.suse.cz>
+ <573C87D5.6070304@laposte.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160519050038.GA16318@bbox>
+In-Reply-To: <573C87D5.6070304@laposte.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: akpm@linux-foundation.org, ebru.akagunduz@gmail.com, aarcange@redhat.com, aneesh.kumar@linux.vnet.ibm.com, boaz@plexistor.com, gorcunov@openvz.org, hannes@cmpxchg.org, hughd@google.com, iamjoonsoo.kim@lge.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, rientjes@google.com, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Sebastian Frias <sf84@laposte.net>
+Cc: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, bsingharora@gmail.com
 
-On Thu 19-05-16 14:00:38, Minchan Kim wrote:
-> On Tue, May 17, 2016 at 11:02:54AM +0200, Michal Hocko wrote:
-> > On Tue 17-05-16 09:58:15, Michal Hocko wrote:
-> > > On Thu 28-04-16 17:19:21, Michal Hocko wrote:
-> > > > On Wed 27-04-16 14:17:20, Andrew Morton wrote:
-> > > > [...]
-> > > > > @@ -2484,7 +2485,14 @@ static void collapse_huge_page(struct mm
-> > > > >  		goto out;
-> > > > >  	}
-> > > > >  
-> > > > > -	__collapse_huge_page_swapin(mm, vma, address, pmd);
-> > > > > +	swap = get_mm_counter(mm, MM_SWAPENTS);
-> > > > > +	curr_allocstall = sum_vm_event(ALLOCSTALL);
-> > > > > +	/*
-> > > > > +	 * When system under pressure, don't swapin readahead.
-> > > > > +	 * So that avoid unnecessary resource consuming.
-> > > > > +	 */
-> > > > > +	if (allocstall == curr_allocstall && swap != 0)
-> > > > > +		__collapse_huge_page_swapin(mm, vma, address, pmd);
-> > > > >  
-> > > > >  	anon_vma_lock_write(vma->anon_vma);
-> > > > >  
-> > > > 
-> > > > I have mentioned that before already but this seems like a rather weak
-> > > > heuristic. Don't we really rather teach __collapse_huge_page_swapin
-> > > > (resp. do_swap_page) do to an optimistic GFP_NOWAIT allocations and
-> > > > back off under the memory pressure?
-> > > 
-> > > I gave it a try and it doesn't seem really bad. Untested and I might
-> > > have missed something really obvious but what do you think about this
-> > > approach rather than relying on ALLOCSTALL which is really weak
-> > > heuristic:
+On Wed 18-05-16 17:18:45, Sebastian Frias wrote:
+> Hi Michal,
 > 
-> I like this approach rather than playing with allocstall diff of vmevent
-> which can be disabled in some configuration and it's not a good indicator
-> to represent current memory pressure situation.
+> On 05/17/2016 10:16 PM, Michal Hocko wrote:
+> > On Tue 17-05-16 18:16:58, Sebastian Frias wrote:
+[...]
+> > The global OOM means there is _no_ memory at all. Many kernel
+> > operations will need some memory to do something useful. Let's say you
+> > would want to do an educated guess about who to kill - most proc APIs
+> > will need to allocate. And this is just a beginning. Things are getting
+> > really nasty when you get deeper and deeper. E.g. the OOM killer has to
+> > give the oom victim access to memory reserves so that the task can exit
+> > because that path needs to allocate as well. 
+> 
+> Really? I would have thought that once that SIGKILL is sent, the
+> victim process is not expected to do anything else and thus its
+> memory could be claimed immediately.  Or the OOM-killer is more of a
+> OOM-terminator? (i.e.: sends SIGTERM)
 
-Not only that it won't work for e.g. memcg configurations because we
-would end up reclaiming that memcg as the gfp mask tells us to do so and
-ALLOCSTALL would be quite about that.
+Well, the path to exit is not exactly trivial. Resources have to be
+released and that requires memory sometimes. E.g. exit_robust_list
+needs to access the futex and that in turn means a page fault if the
+memory was swapped out...
+ 
+> >So even if you wanted to
+> > give userspace some chance to resolve the OOM situation you would either
+> > need some special API to tell "this process is really special and it can
+> > access memory reserves and it has an absolute priority etc." or have a
+> > in kernel fallback to do something or your system could lockup really
+> > easily.
+> > 
+> 
+> I see, so basically at least two cgroups would be needed, one reserved
+> for handling the OOM situation through some API and another for the
+> "rest of the system".  Basically just like the 5% reserved for 'root'
+> on filesystems.
 
-> However, I agree with Rik's requirement which doesn't want to turn over
-> page cache for collapsing THP page via swapin. So, your suggestion cannot
-> prevent it because khugepaged can consume memory through this swapin
-> operation continuously while kswapd is doing aging of LRU list in parallel.
-> IOW, fluctuation between HIGH and LOW watermark.
+If you want to handle memcg OOM then you can use memory.oom_control (see
+Documentation/cgroup-v1/memory.txt for more information) and have the
+oom handler outside of that memcg.
 
-I am not sure this is actually a problem. We have other sources of
-opportunistic allocations with some fallback and those wake up kswapd
-(they only clear __GFP_DIRECT_RECLAIM). Also this swapin should happen
-only when a certain portion of the huge page is already populated so
-it won't happen all the time and sounds like we would benefit from the
-reclaimed page cache in favor of the THP.
+> Do you think that would work?
 
-> So, How about using waitqueue_active(&pgdat->kswapd_wait) to detect
-> current memory pressure? So if kswapd is active, we could avoid swapin
-> for THP collapsing.
-
-Dunno, this sounds quite arbitrary. And I am even not sure this all
-optimistic swap in is a huge win to be honest. I just really hate the
-ALLOCSTALL heuristic because it simply doesn't work.
+But handling the _global_ oom from userspace is just insane with the
+current kernel implementation. It just cannot work reliably.
 -- 
 Michal Hocko
 SUSE Labs
