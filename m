@@ -1,91 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f200.google.com (mail-ig0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 836756B0005
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 04:11:51 -0400 (EDT)
-Received: by mail-ig0-f200.google.com with SMTP id sq19so143407676igc.0
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 01:11:51 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id 68si11625735ioq.126.2016.05.19.01.11.50
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 27E506B0260
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 04:18:01 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id m101so6789428lfi.0
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 01:18:01 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id v9si16187830wjw.43.2016.05.19.01.17.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 May 2016 01:11:50 -0700 (PDT)
-Date: Thu, 19 May 2016 10:11:46 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20160519081146.GS3193@twins.programming.kicks-ass.net>
-References: <94cea603-2782-1c5a-e2df-42db4459a8ce@cn.fujitsu.com>
- <20160512055756.GE6648@birch.djwong.org>
- <20160512080321.GA18496@dastard>
- <20160513160341.GW20141@dhcp22.suse.cz>
- <20160516104130.GK3193@twins.programming.kicks-ass.net>
- <20160516130519.GJ23146@dhcp22.suse.cz>
- <20160516132541.GP3193@twins.programming.kicks-ass.net>
- <20160516231056.GE18496@dastard>
- <20160517144912.GZ3193@twins.programming.kicks-ass.net>
- <20160517223549.GV26977@dastard>
+        Thu, 19 May 2016 01:17:59 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id n129so18944575wmn.1
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 01:17:59 -0700 (PDT)
+Date: Thu, 19 May 2016 10:17:58 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
+Message-ID: <20160519081758.GF26110@dhcp22.suse.cz>
+References: <1463574024-8372-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20160518125138.GH21654@dhcp22.suse.cz>
+ <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
+ <20160518141545.GI21654@dhcp22.suse.cz>
+ <20160518140932.6643b963e8d3fc49ff64df8d@linux-foundation.org>
+ <20160519065329.GA26110@dhcp22.suse.cz>
+ <20160519071736.GD26110@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160517223549.GV26977@dastard>
+In-Reply-To: <20160519071736.GD26110@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Michal Hocko <mhocko@kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rientjes@google.com, linux-mm@kvack.org, oleg@redhat.com
 
-On Wed, May 18, 2016 at 08:35:49AM +1000, Dave Chinner wrote:
-> On Tue, May 17, 2016 at 04:49:12PM +0200, Peter Zijlstra wrote:
-> > On Tue, May 17, 2016 at 09:10:56AM +1000, Dave Chinner wrote:
-> > 
-> > > The reason we don't have lock clases for the ilock is that we aren't
-> > > supposed to call memory reclaim with that lock held in exclusive
-> > > mode. This is because reclaim can run transactions, and that may
-> > > need to flush dirty inodes to make progress. Flushing dirty inode
-> > > requires taking the ilock in shared mode.
+[Sorry for spamming you]
+
+On Thu 19-05-16 09:17:36, Michal Hocko wrote:
+> On Thu 19-05-16 08:53:29, Michal Hocko wrote:
+> > On Wed 18-05-16 14:09:32, Andrew Morton wrote:
+> > > On Wed, 18 May 2016 16:15:45 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > > > 
-> > > In the code path that was reported, we hold the ilock in /shared/
-> > > mode with no transaction context (we are doing a read-only
-> > > operation). This means we can run transactions in memory reclaim
-> > > because a) we can't deadlock on the inode we hold locks on, and b)
-> > > transaction reservations will be able to make progress as we don't
-> > > hold any locks it can block on.
+> > > > > This patch adds a counter to signal_struct for tracking how many
+> > > > > TIF_MEMDIE threads are in a given thread group, and check it at
+> > > > > oom_scan_process_thread() so that select_bad_process() can use
+> > > > > for_each_process() rather than for_each_process_thread().
+> > > > 
+> > > > OK, this looks correct. Strictly speaking the patch is missing any note
+> > > > on _why_ this is needed or an improvement. I would add something like
+> > > > the following:
+> > > > "
+> > > > Although the original code was correct it was quite inefficient because
+> > > > each thread group was scanned num_threads times which can be a lot
+> > > > especially with processes with many threads. Even though the OOM is
+> > > > extremely cold path it is always good to be as effective as possible
+> > > > when we are inside rcu_read_lock() - aka unpreemptible context.
+> > > > "
+> > > 
+> > > This sounds quite rubbery to me.  Lots of code calls
+> > > for_each_process_thread() and presumably that isn't causing problems. 
 > > 
-> > Just to clarify; I read the above as that we cannot block on recursive
-> > shared locks, is this correct?
-> > 
-> > Because we can in fact block on down_read()+down_read() just fine, so if
-> > you're assuming that, then something's busted.
+> > Yeah, many paths call for_each_process_thread but they are
+> > O(num_threads) while this is O(num_threads^2).
 > 
-> The transaction reservation path will run down_read_trylock() on the
-> inode, not down_read(). Hence if there are no pending writers, it
-> will happily take the lock twice and make progress, otherwise it
-> will skip the inode and there's no deadlock.  If there's a pending
-> writer, then we have another context that is already in a
-> transaction context and has already pushed the item, hence it is
-> only in the scope of the current push because IO hasn't completed
-> yet and removed it from the list.
-> 
-> > Otherwise, I'm not quite reading it right, which is, given the
-> > complexity of that stuff, entirely possible.
-> 
-> There's a maze of dark, grue-filled twisty passages here...
+> And just to clarify the regular num_threads^2 is the absolute worst case
+> which doesn't happen normally. We would be closer to O(num_threads) but
+> there is no reason to risk pathological cases when we can simply use
+> for_each_process to achieve the same.
 
-OK; I might need a bit more again.
+Blee, fat fingers today... some vim-foo removed the rest of the
+paragraph which was:
+"
+Especially when calculating oom_badness for all threads in the same
+thread group is just pointless wasting of cycles (e.g. take task_lock
+etc.).
+"
 
-So now the code does something like:
+Tetsuo, btw. I guess you can safely drop
+		/* Prefer thread group leaders for display purposes */
+		if (points == chosen_points && thread_group_leader(chosen))
+			continue;
 
-	down_read(&i_lock);		-- lockdep marks lock as held
-	kmalloc(GFP_KERNEL);		-- lockdep marks held locks as ENABLED_RECLAIM_FS
-	  --> reclaim()
-	     down_read_trylock(&i_lock); -- lockdep does _NOT_ mark as USED_IN_RECLAIM_FS
-
-Right?
-
-My 'problem' is that lockdep doesn't consider a trylock for the USED_IN
-annotation, so the i_lock class will only get the ENABLED tag but not
-get the USED_IN tag, and therefore _should_ not trigger the inversion.
-
-
-So what exactly is triggering the inversion?
+from select_bad_process because you are iterating group leaders.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
