@@ -1,74 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B98A56B0005
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 08:13:46 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id m64so42606072lfd.1
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 05:13:46 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m189si17984264wme.113.2016.05.19.05.13.45
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AE5B86B0005
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 08:58:55 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id a17so35024524wme.1
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 05:58:55 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id g2si17651443wjh.185.2016.05.19.05.58.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 May 2016 05:13:45 -0700 (PDT)
-Subject: Re: [PATCH] mm: compact: fix zoneindex in compact
-References: <1463659121-84124-1-git-send-email-puck.chen@hisilicon.com>
- <573DAD84.7020403@suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <573DADF7.4000109@suse.cz>
-Date: Thu, 19 May 2016 14:13:43 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 May 2016 05:58:54 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id w143so20748410wmw.3
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 05:58:54 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <573DAD84.7020403@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <573D9842.8040203@cn.fujitsu.com>
+References: <cover.1463652944.git.zhugh.fnst@cn.fujitsu.com>
+	<573D9842.8040203@cn.fujitsu.com>
+Date: Thu, 19 May 2016 14:58:54 +0200
+Message-ID: <CAJZ5v0hWdmQO_KukE7ewsPSWsYMi8K2B0rs0vRtE1t9jU=pWAQ@mail.gmail.com>
+Subject: Re: [PATCH v7 0/5] Make cpuid <-> nodeid mapping persistent
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Feng <puck.chen@hisilicon.com>, mhocko@suse.com, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, tj@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: suzhuangluan@hisilicon.com, dan.zhao@hisilicon.com, qijiwen@hisilicon.com, xuyiping@hisilicon.com, oliver.fu@hisilicon.com, puck.chen@foxmail.com
+To: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+Cc: cl@linux.com, Tejun Heo <tj@kernel.org>, mika.j.penttila@gmail.com, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "H. Peter Anvin" <hpa@zytor.com>, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, Len Brown <len.brown@intel.com>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, chen.tang@easystack.cn, "Rafael J. Wysocki" <rafael@kernel.org>, the arch/x86 maintainers <x86@kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On 05/19/2016 02:11 PM, Vlastimil Babka wrote:
-> On 05/19/2016 01:58 PM, Chen Feng wrote:
->> While testing the kcompactd in my platform 3G MEM only DMA ZONE.
->> I found the kcompactd never wakeup. It seems the zoneindex
->> has already minus 1 before. So the traverse here should be <=.
-> 
-> Ouch, thanks!
-> 
->> Signed-off-by: Chen Feng <puck.chen@hisilicon.com>
-> 
-> Fixes: 0f87baf4f7fb ("mm: wake kcompactd before kswapd's short sleep")
+On Thu, May 19, 2016 at 12:41 PM, Zhu Guihua <zhugh.fnst@cn.fujitsu.com> wrote:
+> Hi Rafael,
 
-Bah, not that one.
+Hi,
 
-Fixes: accf62422b3a ("mm, kswapd: replace kswapd compaction with waking
-up kcompactd")
+> This patch set was reported a kernel panic from Intel LKP team.
+> I do some investigation for this. I found that this panic was caused
+> because of Intel test machine. On their machine, the acpi tables has
+> something wrong. The proc_id of processors which are not present
+> cannot be assigned correctly, they are assigned the same value.
+> The wrong value will be used by our patch, and lead to panic.
 
-> Cc: stable@vger.kernel.org
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
->> ---
->>  mm/compaction.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/mm/compaction.c b/mm/compaction.c
->> index 8fa2540..e5122d9 100644
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -1742,7 +1742,7 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
->>  	struct zone *zone;
->>  	enum zone_type classzone_idx = pgdat->kcompactd_classzone_idx;
->>  
->> -	for (zoneid = 0; zoneid < classzone_idx; zoneid++) {
->> +	for (zoneid = 0; zoneid <= classzone_idx; zoneid++) {
->>  		zone = &pgdat->node_zones[zoneid];
->>  
->>  		if (!populated_zone(zone))
->>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Well, if there's a system that works before your patch and doesn't
+work after it, the patch has to be modified to let the system still
+work.
+
+Maybe you can detect the firmware defect in question and work around
+it so as to avoid the panic?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
