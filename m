@@ -1,86 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 06AE26B0005
-	for <linux-mm@kvack.org>; Wed, 18 May 2016 22:06:58 -0400 (EDT)
-Received: by mail-ig0-f197.google.com with SMTP id i5so129662418ige.1
-        for <linux-mm@kvack.org>; Wed, 18 May 2016 19:06:58 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id 199si21987515itx.64.2016.05.18.19.06.56
-        for <linux-mm@kvack.org>;
-        Wed, 18 May 2016 19:06:57 -0700 (PDT)
-Date: Thu, 19 May 2016 11:07:22 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC v1 2/2] mm: SLUB Freelist randomization
-Message-ID: <20160519020722.GC10245@js1304-P5Q-DELUXE>
-References: <1463594175-111929-1-git-send-email-thgarnie@google.com>
- <1463594175-111929-3-git-send-email-thgarnie@google.com>
- <alpine.DEB.2.20.1605181323260.14349@east.gentwo.org>
- <CAJcbSZFhsZheqdZ5FD8auhiu8ozCyq-0xY1wjYu3j+Wc2R8nGg@mail.gmail.com>
- <alpine.DEB.2.20.1605181401560.29313@east.gentwo.org>
- <CAJcbSZHwZxH=NN+xk7N+O-47QQHmRchgqMS5==_HzH1no5ho9g@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJcbSZHwZxH=NN+xk7N+O-47QQHmRchgqMS5==_HzH1no5ho9g@mail.gmail.com>
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AA916B0005
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 00:27:18 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id s68so141556117qkb.0
+        for <linux-mm@kvack.org>; Wed, 18 May 2016 21:27:18 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o201si10349192qka.229.2016.05.18.21.27.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 May 2016 21:27:17 -0700 (PDT)
+Message-ID: <1463632033.16365.45.camel@redhat.com>
+Subject: Re: [PATCH] mm: make faultaround produce old ptes
+From: Rik van Riel <riel@redhat.com>
+Date: Thu, 19 May 2016 00:27:13 -0400
+In-Reply-To: <1463488366-47723-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: 
+	<1463488366-47723-1-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-0rnzZ3DHAZJ6q0C4zdBQ"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Garnier <thgarnie@google.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Pranith Kumar <bobby.prani@gmail.com>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Woodhouse <David.Woodhouse@intel.com>, Petr Mladek <pmladek@suse.com>, Kees Cook <keescook@chromium.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Thelen <gthelen@google.com>, kernel-hardening@lists.openwall.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vinayak Menon <vinmenon@codeaurora.org>, Minchan Kim <minchan@kernel.org>
 
-On Wed, May 18, 2016 at 12:12:13PM -0700, Thomas Garnier wrote:
-> I thought the mix of slab_test & kernbench would show a diverse
-> picture on perf data. Is there another test that you think would be
-> useful?
 
-Single thread testing on slab_test would be meaningful because it also
-touch the slowpath. Problem is just unstable result of slab_test.
+--=-0rnzZ3DHAZJ6q0C4zdBQ
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-You can get more stable result of slab_test if you repeat same test
-sometimes and get average result.
+On Tue, 2016-05-17 at 15:32 +0300, Kirill A. Shutemov wrote:
+> Currently, faultaround code produces young pte. This can screw up
+> vmscan
+> behaviour[1], as it makes vmscan think that these pages are hot and
+> not
+> push them out on first round.
+>=20
+> Let modify faultaround to produce old pte, so they can easily be
+> reclaimed under memory pressure.
+>=20
+> This can to some extend defeat purpose of faultaround on machines
+> without hardware accessed bit as it will not help up with reducing
+> number of minor page faults.
+>=20
+> We may want to disable faultaround on such machines altogether, but
+> that's subject for separate patchset.
+>=20
+> [1] https://lkml.kernel.org/r/1460992636-711-1-git-send-email-vinmeno
+> n@codeaurora.org
+>=20
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vinayak Menon <vinmenon@codeaurora.org>
+> Cc: Minchan Kim <minchan@kernel.org>
+>=20
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Please use following slab_test. It will do each operations 100000
-times and repeat it 50 times.
+--=20
+All Rights Reversed.
 
-https://github.com/JoonsooKim/linux/blob/slab_test_robust-next-20160509/mm/slab_test.c
 
-I did a quick test for this patchset and get following result.
+--=-0rnzZ3DHAZJ6q0C4zdBQ
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
 
-- Before (With patch and randomization is disabled by config)
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
 
-Single thread testing
-=====================
-1. Kmalloc: Repeatedly allocate then free test
-100000 times kmalloc(8) -> 42 cycles kfree -> 67 cycles
-100000 times kmalloc(16) -> 43 cycles kfree -> 68 cycles
-100000 times kmalloc(32) -> 47 cycles kfree -> 72 cycles
-100000 times kmalloc(64) -> 54 cycles kfree -> 78 cycles
-100000 times kmalloc(128) -> 75 cycles kfree -> 87 cycles
-100000 times kmalloc(256) -> 84 cycles kfree -> 111 cycles
-100000 times kmalloc(512) -> 82 cycles kfree -> 112 cycles
-100000 times kmalloc(1024) -> 86 cycles kfree -> 113 cycles
-100000 times kmalloc(2048) -> 113 cycles kfree -> 127 cycles
-100000 times kmalloc(4096) -> 151 cycles kfree -> 154 cycles
+iQEcBAABCAAGBQJXPUChAAoJEM553pKExN6DR8UH/2GVMDnYhoit2+qziDhfhefJ
+ynHlfPUrf9Yk9xnjkKbOcqrpxdnyc/RuvOdpZ6t/To7nHgYjM+sIFj9HHISJIkX2
+GwHD/s+fMmJ7eY6QAVLyMrDggH3vpQ66aNzWyTSyjayvuSj66WsvUEeN+gxqg8W/
+JrneMdZcKvDlX+kmOXAhVapTbbg3ByDWwqcfffU42DNK5WM5PRoXZDI7oaGG415d
+zTdPp7PcllW5FmY3KBWWjEJc7bNbOlO1du0cbtr1nkPLBIhj4C81qCIV68a1De2z
+4+8gBoj47DqN7Ow2gGmROIInReXDmtcXtYd4VC1JvfKhD2hX3s/clnfH5nifKQY=
+=EZyh
+-----END PGP SIGNATURE-----
 
-- After (With patch and randomization is enabled by config)
-
-Single thread testing
-=====================
-1. Kmalloc: Repeatedly allocate then free test
-100000 times kmalloc(8) -> 51 cycles kfree -> 68 cycles
-100000 times kmalloc(16) -> 57 cycles kfree -> 70 cycles
-100000 times kmalloc(32) -> 70 cycles kfree -> 75 cycles
-100000 times kmalloc(64) -> 95 cycles kfree -> 84 cycles
-100000 times kmalloc(128) -> 142 cycles kfree -> 97 cycles
-100000 times kmalloc(256) -> 150 cycles kfree -> 107 cycles
-100000 times kmalloc(512) -> 151 cycles kfree -> 107 cycles
-100000 times kmalloc(1024) -> 154 cycles kfree -> 110 cycles
-100000 times kmalloc(2048) -> 230 cycles kfree -> 124 cycles
-100000 times kmalloc(4096) -> 423 cycles kfree -> 165 cycles
-
-It seems that performance decreases a lot but I don't care about it
-because it is a security feature and I don't have a better idea.
-
-Thanks.
+--=-0rnzZ3DHAZJ6q0C4zdBQ--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
