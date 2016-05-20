@@ -1,50 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A006B6B0005
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 21:30:57 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id dh6so166532943obb.1
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 18:30:57 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id fp9si2027569igb.56.2016.05.19.18.30.55
-        for <linux-mm@kvack.org>;
-        Thu, 19 May 2016 18:30:56 -0700 (PDT)
-Date: Fri, 20 May 2016 10:30:53 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/2] mm, oom_reaper: do not mmput synchronously from the
- oom reaper context
-Message-ID: <20160520013053.GB2224@bbox>
+Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A0A4A6B0005
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 21:32:58 -0400 (EDT)
+Received: by mail-ig0-f199.google.com with SMTP id sq19so189702121igc.0
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 18:32:58 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id vx9si2039585igc.92.2016.05.19.18.32.57
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 19 May 2016 18:32:58 -0700 (PDT)
+Subject: Re: [PATCH] mm: compact: fix zoneindex in compact
+References: <1463659121-84124-1-git-send-email-puck.chen@hisilicon.com>
+ <573DAD84.7020403@suse.cz> <573DADF7.4000109@suse.cz>
+ <alpine.LSU.2.11.1605191020470.12425@eggly.anvils>
+ <9741ef6d-b93b-a99b-e42f-9f510295dd3f@suse.cz>
+From: Chen Feng <puck.chen@hisilicon.com>
+Message-ID: <573E68AC.5070103@hisilicon.com>
+Date: Fri, 20 May 2016 09:30:20 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+In-Reply-To: <9741ef6d-b93b-a99b-e42f-9f510295dd3f@suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>
+Cc: mhocko@suse.com, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, tj@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, suzhuangluan@hisilicon.com, dan.zhao@hisilicon.com, qijiwen@hisilicon.com, xuyiping@hisilicon.com, oliver.fu@hisilicon.com, puck.chen@foxmail.com
 
-Forking new thread because my comment is not related to this patch's
-purpose but found a thing during reading this patch.
 
-On Tue, Apr 26, 2016 at 04:04:30PM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Tetsuo has properly noted that mmput slow path might get blocked waiting
-> for another party (e.g. exit_aio waits for an IO). If that happens the
-> oom_reaper would be put out of the way and will not be able to process
-> next oom victim. We should strive for making this context as reliable
-> and independent on other subsystems as much as possible.
-> 
-> Introduce mmput_async which will perform the slow path from an async
-> (WQ) context. This will delay the operation but that shouldn't be a
-> problem because the oom_reaper has reclaimed the victim's address space
-> for most cases as much as possible and the remaining context shouldn't
-> bind too much memory anymore. The only exception is when mmap_sem
-> trylock has failed which shouldn't happen too often.
-> 
-> The issue is only theoretical but not impossible.
 
-The mmput_async is used for only OOM reaper which is enabled on CONFIG_MMU.
-So until someone who want to use mmput_async in !CONFIG_MMU come out,
-we could save sizeof(struct work_struct) per mm in !CONFIG_MMU.
+On 2016/5/20 1:45, Vlastimil Babka wrote:
+> On 19.5.2016 19:23, Hugh Dickins wrote:
+>> On Thu, 19 May 2016, Vlastimil Babka wrote:
+>>> On 05/19/2016 02:11 PM, Vlastimil Babka wrote:
+>>>> On 05/19/2016 01:58 PM, Chen Feng wrote:
+>>>>> While testing the kcompactd in my platform 3G MEM only DMA ZONE.
+>>>>> I found the kcompactd never wakeup. It seems the zoneindex
+>>>>> has already minus 1 before. So the traverse here should be <=.
+>>>>
+>>>> Ouch, thanks!
+>>>>
+>>>>> Signed-off-by: Chen Feng <puck.chen@hisilicon.com>
+>>>>
+>>>> Fixes: 0f87baf4f7fb ("mm: wake kcompactd before kswapd's short sleep")
+>>>
+>>> Bah, not that one.
+>>>
+>>> Fixes: accf62422b3a ("mm, kswapd: replace kswapd compaction with waking
+>>> up kcompactd")
+>>>
+>>>> Cc: stable@vger.kernel.org
+>>>> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+>>>>
+>>>>> ---
+>>>>>  mm/compaction.c | 2 +-
+>>>>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>>>>
+>>>>> diff --git a/mm/compaction.c b/mm/compaction.c
+>>>>> index 8fa2540..e5122d9 100644
+>>>>> --- a/mm/compaction.c
+>>>>> +++ b/mm/compaction.c
+>>>>> @@ -1742,7 +1742,7 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
+>>>>>  	struct zone *zone;
+>>>>>  	enum zone_type classzone_idx = pgdat->kcompactd_classzone_idx;
+>>>>>  
+>>>>> -	for (zoneid = 0; zoneid < classzone_idx; zoneid++) {
+>>>>> +	for (zoneid = 0; zoneid <= classzone_idx; zoneid++) {
+>>>>>  		zone = &pgdat->node_zones[zoneid];
+>>>>>  
+>>>>>  		if (!populated_zone(zone))
+>>
+>> Ignorant question: kcompactd_do_work() just below has a similar loop:
+> 
+> You spelled "Important" wrong.
+> 
+>> should that one be saying "zoneid <= cc.classzone_idx" too?
+> 
+> Yes. Chen, can you send updated patch (also with the ack/cc/fixes tags I added?)
+> 
+kcompactd_do_work()
+
+This fix already added by Andrew Morton <akpm@linux-foundation.org>
+
+I will not sent it.
+
+> Thanks!
+> 
+>> Hugh
+>>
+> 
+> 
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
