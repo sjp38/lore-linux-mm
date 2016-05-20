@@ -1,102 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ED4C36B0005
-	for <linux-mm@kvack.org>; Fri, 20 May 2016 03:44:52 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id yl2so147281246pac.2
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 00:44:52 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id p17si26168902pfj.192.2016.05.20.00.44.51
-        for <linux-mm@kvack.org>;
-        Fri, 20 May 2016 00:44:51 -0700 (PDT)
-Date: Fri, 20 May 2016 16:44:50 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: + mm-thp-avoid-unnecessary-swapin-in-khugepaged.patch added to
- -mm tree
-Message-ID: <20160520074450.GA14049@bbox>
-References: <20160517075815.GC14453@dhcp22.suse.cz>
- <20160517090254.GE14453@dhcp22.suse.cz>
- <20160519050038.GA16318@bbox>
- <20160519070357.GB26110@dhcp22.suse.cz>
- <20160519072751.GB16318@bbox>
- <20160519073957.GE26110@dhcp22.suse.cz>
- <20160520002155.GA2224@bbox>
- <20160520063917.GC19172@dhcp22.suse.cz>
- <20160520072624.GD6808@bbox>
- <20160520073432.GE19172@dhcp22.suse.cz>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D54AB6B0005
+	for <linux-mm@kvack.org>; Fri, 20 May 2016 03:50:37 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id m138so5219117lfm.0
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 00:50:37 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id ee4si23947387wjd.121.2016.05.20.00.50.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 May 2016 00:50:36 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id 67so3804326wmg.0
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 00:50:36 -0700 (PDT)
+Date: Fri, 20 May 2016 09:50:35 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
+Message-ID: <20160520075035.GF19172@dhcp22.suse.cz>
+References: <1463574024-8372-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20160518125138.GH21654@dhcp22.suse.cz>
+ <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160520073432.GE19172@dhcp22.suse.cz>
+In-Reply-To: <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, ebru.akagunduz@gmail.com, aarcange@redhat.com, aneesh.kumar@linux.vnet.ibm.com, boaz@plexistor.com, gorcunov@openvz.org, hannes@cmpxchg.org, hughd@google.com, iamjoonsoo.kim@lge.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, rientjes@google.com, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, oleg@redhat.com
 
-On Fri, May 20, 2016 at 09:34:32AM +0200, Michal Hocko wrote:
-> On Fri 20-05-16 16:26:24, Minchan Kim wrote:
-> > On Fri, May 20, 2016 at 08:39:17AM +0200, Michal Hocko wrote:
-> > > On Fri 20-05-16 09:21:55, Minchan Kim wrote:
-> > > [...]
-> > > > I think other important thing we should consider is how the THP page is likely
-> > > > to be hot without split in a short time like KSM is doing double checking to
-> > > > merge stable page. Of course, it wouldn't be easyI to implement but I think
-> > > > algorithm is based on such *hotness* basically and then consider the number
-> > > > of max_swap_ptes. IOW, I think we should approach more conservative rather
-> > > > than optimistic because a page I/O overhead by wrong choice could be bigger
-> > > > than benefit of a few TLB hit.
-> > > > If we approach that way, maybe we don't need to detect memory pressure.
-> > > > 
-> > > > For that way, how about raising bar for swapin allowance?
-> > > > I mean now we allows swapin
-> > > > 
-> > > > from
-> > > >         64 pages below swap ptes and 1 page young in 512 ptes 
-> > > > to
-> > > >         64 pages below swap ptes and 256 page young in 512 ptes 
-> > > 
-> > > I agree that the current 1 page threshold for collapsing is way too
-> > > optimistic. Same as the defaults we had for the page fault THP faulting
-> > > which has caused many issues. So I would be all for changing it. I do
-> > 
-> > I don't know we should change all but if we change it for THP faulting,
-> > I believe THP swapin should be more conservative value rather than THP
-> > faulting because cost of THP swapin collapsing would be heavier.
-> > 
-> > > not have good benchmarks to back any "good" number unfortunately. So
-> > > such a change would be quite arbitrary based on feeling... If you have
-> > > some workload where collapsing THP pages causes some real issues that
-> > > would be great justification though.
-> > 
-> > Hope to have but our products never have turned on THP. :(
-> > I just wanted to say current problem and suggestion so a THP guy
-> > can have an interest on that.
-> > If it's not worth to do, simple igonore.
-> 
-> I guess this is worth changing I am just not sure about the
-> justification
-
-I agree with you about THP faulting which have been there for several
-years so changing without justification, it has risk. Howerver,
-swapin collapsing is new feature so it might be worth for the feature.
-
->  
-> > > That being said khugepaged_max_ptes_none = HPAGE_PMD_NR/2 sounds like a
-> > 
-> > max_ptes_none?
-> 
-> Not sure I understand what you mean here.
-
-We are talking about max_ptes_swap and max_active_pages(i.e., pte_young)
-but suddenly you are saying max_ptes_none so I was curious it was just
-typo.
-
-
-> -- 
-> Michal Hocko
-> SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Here is a follow up for this patch. As I've mentioned in the other
+email, I would like to mark oom victim in the mm_struct but that
+requires more changes and the patch simplifies select_bad_process
+nicely already so I like this patch even now.
+---
