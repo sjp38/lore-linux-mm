@@ -1,96 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A0A4A6B0005
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 21:32:58 -0400 (EDT)
-Received: by mail-ig0-f199.google.com with SMTP id sq19so189702121igc.0
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 18:32:58 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id vx9si2039585igc.92.2016.05.19.18.32.57
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AD2D6B0005
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 21:50:07 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id x7so224570883qkd.2
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 18:50:07 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g143si15515369qhc.45.2016.05.19.18.50.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 May 2016 18:32:58 -0700 (PDT)
-Subject: Re: [PATCH] mm: compact: fix zoneindex in compact
-References: <1463659121-84124-1-git-send-email-puck.chen@hisilicon.com>
- <573DAD84.7020403@suse.cz> <573DADF7.4000109@suse.cz>
- <alpine.LSU.2.11.1605191020470.12425@eggly.anvils>
- <9741ef6d-b93b-a99b-e42f-9f510295dd3f@suse.cz>
-From: Chen Feng <puck.chen@hisilicon.com>
-Message-ID: <573E68AC.5070103@hisilicon.com>
-Date: Fri, 20 May 2016 09:30:20 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 May 2016 18:50:04 -0700 (PDT)
+Date: Fri, 20 May 2016 03:50:01 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
+Message-ID: <20160520015000.GA20132@redhat.com>
+References: <1463574024-8372-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20160518125138.GH21654@dhcp22.suse.cz>
+ <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
+ <20160518141545.GI21654@dhcp22.suse.cz>
+ <20160518140932.6643b963e8d3fc49ff64df8d@linux-foundation.org>
+ <20160519065329.GA26110@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <9741ef6d-b93b-a99b-e42f-9f510295dd3f@suse.cz>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160519065329.GA26110@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>
-Cc: mhocko@suse.com, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, tj@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, suzhuangluan@hisilicon.com, dan.zhao@hisilicon.com, qijiwen@hisilicon.com, xuyiping@hisilicon.com, oliver.fu@hisilicon.com, puck.chen@foxmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rientjes@google.com, linux-mm@kvack.org
 
+On 05/19, Michal Hocko wrote:
+>
+> Long term I
+> would like to to move this logic into the mm_struct, it would be just
+> larger surgery I guess.
 
+Why we can't do this right now? Just another MMF_ flag set only once and
+never cleared.
 
-On 2016/5/20 1:45, Vlastimil Babka wrote:
-> On 19.5.2016 19:23, Hugh Dickins wrote:
->> On Thu, 19 May 2016, Vlastimil Babka wrote:
->>> On 05/19/2016 02:11 PM, Vlastimil Babka wrote:
->>>> On 05/19/2016 01:58 PM, Chen Feng wrote:
->>>>> While testing the kcompactd in my platform 3G MEM only DMA ZONE.
->>>>> I found the kcompactd never wakeup. It seems the zoneindex
->>>>> has already minus 1 before. So the traverse here should be <=.
->>>>
->>>> Ouch, thanks!
->>>>
->>>>> Signed-off-by: Chen Feng <puck.chen@hisilicon.com>
->>>>
->>>> Fixes: 0f87baf4f7fb ("mm: wake kcompactd before kswapd's short sleep")
->>>
->>> Bah, not that one.
->>>
->>> Fixes: accf62422b3a ("mm, kswapd: replace kswapd compaction with waking
->>> up kcompactd")
->>>
->>>> Cc: stable@vger.kernel.org
->>>> Acked-by: Vlastimil Babka <vbabka@suse.cz>
->>>>
->>>>> ---
->>>>>  mm/compaction.c | 2 +-
->>>>>  1 file changed, 1 insertion(+), 1 deletion(-)
->>>>>
->>>>> diff --git a/mm/compaction.c b/mm/compaction.c
->>>>> index 8fa2540..e5122d9 100644
->>>>> --- a/mm/compaction.c
->>>>> +++ b/mm/compaction.c
->>>>> @@ -1742,7 +1742,7 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
->>>>>  	struct zone *zone;
->>>>>  	enum zone_type classzone_idx = pgdat->kcompactd_classzone_idx;
->>>>>  
->>>>> -	for (zoneid = 0; zoneid < classzone_idx; zoneid++) {
->>>>> +	for (zoneid = 0; zoneid <= classzone_idx; zoneid++) {
->>>>>  		zone = &pgdat->node_zones[zoneid];
->>>>>  
->>>>>  		if (!populated_zone(zone))
->>
->> Ignorant question: kcompactd_do_work() just below has a similar loop:
-> 
-> You spelled "Important" wrong.
-> 
->> should that one be saying "zoneid <= cc.classzone_idx" too?
-> 
-> Yes. Chen, can you send updated patch (also with the ack/cc/fixes tags I added?)
-> 
-kcompactd_do_work()
+And. I personally like this change "in general", if nothing else I recently
+blamed this for_each_process_thread() loop. But if we do this, I think we
+should also shift find_lock_task_mm() into this loop.
 
-This fix already added by Andrew Morton <akpm@linux-foundation.org>
+And this makes me think again we need something like
 
-I will not sent it.
+	struct task_struct *next_task_with_mm(struct task_struct *p)
+	{
+		struct task_struct *t;
 
-> Thanks!
-> 
->> Hugh
->>
-> 
-> 
-> .
-> 
+		p = p->group_leader;
+		while ((p = next_task(p)) != &init_task) {
+			if (p->flags & PF_KTHREAD)
+				continue;
+
+			t = find_lock_task_mm(p);
+			if (t)
+				return t;
+		}
+
+		return NULL;
+	}
+
+	#define for_each_task_lock_mm(p)
+		for (p = &init_task; (p = next_task_with_mm(p)); task_unlock(p))
+
+Or we we can move task_unlock() into next_task_with_mm(), it can check mm != NULL
+or p != init_task.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
