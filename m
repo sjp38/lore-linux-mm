@@ -1,41 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 43C396B025E
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 23:27:37 -0400 (EDT)
-Received: by mail-ig0-f199.google.com with SMTP id sq19so193595669igc.0
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 20:27:37 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id d189si3211256iof.165.2016.05.19.20.27.35
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E1EB6B0005
+	for <linux-mm@kvack.org>; Fri, 20 May 2016 00:08:58 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 129so26572636pfx.0
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 21:08:58 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id pb2si24924449pac.41.2016.05.19.21.08.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 May 2016 20:27:36 -0700 (PDT)
-Date: Fri, 20 May 2016 13:27:30 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: mmotm 2016-05-19-19-59 uploaded
-Message-ID: <20160520132730.0022f233@canb.auug.org.au>
-In-Reply-To: <573e7da6.pLi6U/36fnX6Drn0%akpm@linux-foundation.org>
-References: <573e7da6.pLi6U/36fnX6Drn0%akpm@linux-foundation.org>
+        Thu, 19 May 2016 21:08:57 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id 145so10050295pfz.1
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 21:08:57 -0700 (PDT)
+Date: Fri, 20 May 2016 13:08:36 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCHv2] mm/zsmalloc: don't fail if can't create debugfs info
+Message-ID: <20160520040836.GA573@swordfish>
+References: <CADAEsF-kaCQnNN_9gySw3J0UT4mGh8KFp75tGSJtaDAuN1T10A@mail.gmail.com>
+ <1463671123-5479-1-git-send-email-ddstreet@ieee.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1463671123-5479-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, mhocko@suse.cz, broonie@kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Ganesh Mahendran <opensource.ganesh@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Seth Jennings <sjenning@redhat.com>, Yu Zhao <yuzhao@google.com>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <dan.streetman@canonical.com>
 
-Hi Andrew,
+On (05/19/16 11:18), Dan Streetman wrote:
+[..]
+>  	zs_stat_root = debugfs_create_dir("zsmalloc", NULL);
+>  	if (!zs_stat_root)
+> -		return -ENOMEM;
+> -
+> -	return 0;
+> +		pr_warn("debugfs 'zsmalloc' stat dir creation failed\n");
+>  }
+>  
+>  static void __exit zs_stat_exit(void)
+> @@ -573,17 +575,19 @@ static const struct file_operations zs_stat_size_ops = {
+>  	.release        = single_release,
+>  };
+>  
+> -static int zs_pool_stat_create(struct zs_pool *pool, const char *name)
+> +static void zs_pool_stat_create(struct zs_pool *pool, const char *name)
+>  {
+>  	struct dentry *entry;
+>  
+> -	if (!zs_stat_root)
+> -		return -ENODEV;
+> +	if (!zs_stat_root) {
+> +		pr_warn("no root stat dir, not creating <%s> stat dir\n", name);
+> +		return;
+> +	}
 
-On Thu, 19 May 2016 19:59:50 -0700 akpm@linux-foundation.org wrote:
->
-> The mm-of-the-moment snapshot 2016-05-19-19-59 has been uploaded to
-> 
->    http://www.ozlabs.org/~akpm/mmotm/
+just a small nit, there are basically two warn messages now for
+`!zs_stat_root':
 
-This one looks much better, thanks.
+	debugfs 'zsmalloc' stat dir creation failed
+	no root stat dir, not creating <%s> stat dir
 
--- 
-Cheers,
-Stephen Rothwell
+may be we need only one of them; but no strong opinions.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
