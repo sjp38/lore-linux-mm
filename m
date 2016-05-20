@@ -1,74 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6274D6B0253
-	for <linux-mm@kvack.org>; Fri, 20 May 2016 06:33:24 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id a17so50737493wme.1
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 03:33:24 -0700 (PDT)
-Received: from mail-lb0-x244.google.com (mail-lb0-x244.google.com. [2a00:1450:4010:c04::244])
-        by mx.google.com with ESMTPS id ml3si18104470lbc.61.2016.05.20.03.33.23
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C2A536B025E
+	for <linux-mm@kvack.org>; Fri, 20 May 2016 06:33:26 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id c67so230538321vkh.3
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 03:33:26 -0700 (PDT)
+Received: from mail-vk0-x243.google.com (mail-vk0-x243.google.com. [2607:f8b0:400c:c05::243])
+        by mx.google.com with ESMTPS id i1si10308426vkf.195.2016.05.20.03.33.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 May 2016 03:33:23 -0700 (PDT)
-Received: by mail-lb0-x244.google.com with SMTP id bg8so5341622lbc.1
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 03:33:23 -0700 (PDT)
-Date: Fri, 20 May 2016 13:33:19 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv8 26/32] thp: update Documentation/vm/transhuge.txt
-Message-ID: <20160520103319.GA4269@node.shutemov.name>
-References: <1463067672-134698-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1463067672-134698-27-git-send-email-kirill.shutemov@linux.intel.com>
- <573DE7B1.4040303@arm.com>
+        Fri, 20 May 2016 03:33:25 -0700 (PDT)
+Received: by mail-vk0-x243.google.com with SMTP id v68so15986483vka.1
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 03:33:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <573DE7B1.4040303@arm.com>
+In-Reply-To: <20160520040836.GA573@swordfish>
+References: <CADAEsF-kaCQnNN_9gySw3J0UT4mGh8KFp75tGSJtaDAuN1T10A@mail.gmail.com>
+ <1463671123-5479-1-git-send-email-ddstreet@ieee.org> <20160520040836.GA573@swordfish>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Fri, 20 May 2016 06:32:46 -0400
+Message-ID: <CALZtONCq-V-r7xYLmkJNsqYf3CbR=mPjRP7Fjp=n-9TaKvHqZw@mail.gmail.com>
+Subject: Re: [PATCHv2] mm/zsmalloc: don't fail if can't create debugfs info
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julien Grall <julien.grall@arm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Steve Capper <Steve.Capper@arm.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Ganesh Mahendran <opensource.ganesh@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@redhat.com>, Yu Zhao <yuzhao@google.com>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <dan.streetman@canonical.com>
 
-On Thu, May 19, 2016 at 05:20:01PM +0100, Julien Grall wrote:
-> Hello Kirill,
-> 
-> On 12/05/16 16:41, Kirill A. Shutemov wrote:
-> >Add info about tmpfs/shmem with huge pages.
-> >
-> >Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >---
-> >  Documentation/vm/transhuge.txt | 130 +++++++++++++++++++++++++++++------------
-> >  1 file changed, 93 insertions(+), 37 deletions(-)
-> >
-> >diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-> >index d9cb65cf5cfd..96a49f123cac 100644
-> >--- a/Documentation/vm/transhuge.txt
-> >+++ b/Documentation/vm/transhuge.txt
-> >@@ -9,8 +9,8 @@ using huge pages for the backing of virtual memory with huge pages
-> >  that supports the automatic promotion and demotion of page sizes and
-> >  without the shortcomings of hugetlbfs.
-> >
-> >-Currently it only works for anonymous memory mappings but in the
-> >-future it can expand over the pagecache layer starting with tmpfs.
-> >+Currently it only works for anonymous memory mappings and tmpfs/shmem.
-> >+But in the future it can expand to other filesystems.
-> >
-> >  The reason applications are running faster is because of two
-> >  factors. The first factor is almost completely irrelevant and it's not
-> >@@ -48,7 +48,7 @@ miss is going to run faster.
-> >  - if some task quits and more hugepages become available (either
-> >    immediately in the buddy or through the VM), guest physical memory
-> >    backed by regular pages should be relocated on hugepages
-> >-  automatically (with khugepaged)
-> >+  automatically (with khugepaged, limited to anonymous huge pages for now)
-> 
-> Is it still relevant? I think the patch #30 at the support for tmpfs/shmem.
+On Fri, May 20, 2016 at 12:08 AM, Sergey Senozhatsky
+<sergey.senozhatsky.work@gmail.com> wrote:
+> On (05/19/16 11:18), Dan Streetman wrote:
+> [..]
+>>       zs_stat_root = debugfs_create_dir("zsmalloc", NULL);
+>>       if (!zs_stat_root)
+>> -             return -ENOMEM;
+>> -
+>> -     return 0;
+>> +             pr_warn("debugfs 'zsmalloc' stat dir creation failed\n");
+>>  }
+>>
+>>  static void __exit zs_stat_exit(void)
+>> @@ -573,17 +575,19 @@ static const struct file_operations zs_stat_size_ops = {
+>>       .release        = single_release,
+>>  };
+>>
+>> -static int zs_pool_stat_create(struct zs_pool *pool, const char *name)
+>> +static void zs_pool_stat_create(struct zs_pool *pool, const char *name)
+>>  {
+>>       struct dentry *entry;
+>>
+>> -     if (!zs_stat_root)
+>> -             return -ENODEV;
+>> +     if (!zs_stat_root) {
+>> +             pr_warn("no root stat dir, not creating <%s> stat dir\n", name);
+>> +             return;
+>> +     }
+>
+> just a small nit, there are basically two warn messages now for
+> `!zs_stat_root':
+>
+>         debugfs 'zsmalloc' stat dir creation failed
+>         no root stat dir, not creating <%s> stat dir
 
-I forgot to update documentation. I'll do for the next round when rebase
-to v4.7-rc1.
+They're logged at different times though, the first at module load
+time, the second at every pool creation time.  So while they may be
+logged together if the module is loaded because a pool is being
+created, any later pools created will only log the second message.
 
-Thanks for noticing this.
+>
+> may be we need only one of them; but no strong opinions.
 
--- 
- Kirill A. Shutemov
+If we drop either, I'd drop the first, but I think it could be useful
+also in case zsmalloc is built-in or manually loaded without creating
+a pool.
+
+>
+>         -ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
