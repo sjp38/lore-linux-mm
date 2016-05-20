@@ -1,107 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 01BA26B025E
-	for <linux-mm@kvack.org>; Fri, 20 May 2016 11:23:34 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id n2so15275689wma.0
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 08:23:33 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id kk4si26290783wjb.75.2016.05.20.08.23.32
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B3F7A6B0005
+	for <linux-mm@kvack.org>; Fri, 20 May 2016 11:33:25 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id r11so2825202itd.2
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 08:33:25 -0700 (PDT)
+Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
+        by mx.google.com with ESMTPS id 42si10241776otz.13.2016.05.20.08.33.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 May 2016 08:23:32 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id 67so6907805wmg.0
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 08:23:32 -0700 (PDT)
-Date: Fri, 20 May 2016 17:23:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
-Message-ID: <20160520152331.GD5215@dhcp22.suse.cz>
-References: <20160518125138.GH21654@dhcp22.suse.cz>
- <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
- <20160520075035.GF19172@dhcp22.suse.cz>
- <201605202051.EBC82806.QLVMOtJOOFFFSH@I-love.SAKURA.ne.jp>
- <20160520120954.GA5215@dhcp22.suse.cz>
- <201605202241.CHG21813.FHtSFVJFMOQOLO@I-love.SAKURA.ne.jp>
+        Fri, 20 May 2016 08:33:24 -0700 (PDT)
+Received: by mail-oi0-x230.google.com with SMTP id x201so184752387oif.3
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 08:33:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201605202241.CHG21813.FHtSFVJFMOQOLO@I-love.SAKURA.ne.jp>
+In-Reply-To: <20160520064820.GB29418@gmail.com>
+References: <1463487232-4377-1-git-send-email-dsafonov@virtuozzo.com>
+ <1463487232-4377-3-git-send-email-dsafonov@virtuozzo.com> <20160520064820.GB29418@gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Fri, 20 May 2016 08:33:04 -0700
+Message-ID: <CALCETrWznziSzwu3gG6bcFAxPvboTF519iTS6F8+WVW0B4i4UQ@mail.gmail.com>
+Subject: Re: [PATCHv9 2/2] selftest/x86: add mremap vdso test
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, oleg@redhat.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Shuah Khan <shuahkh@osg.samsung.com>, linux-kselftest@vger.kernel.org
 
-On Fri 20-05-16 22:41:27, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Fri 20-05-16 20:51:56, Tetsuo Handa wrote:
-> > [...]
-> > > +static bool has_pending_victim(struct task_struct *p)
-> > > +{
-> > > +	struct task_struct *t;
-> > > +	bool ret = false;
-> > > +
-> > > +	rcu_read_lock();
-> > > +	for_each_thread(p, t) {
-> > > +		if (test_tsk_thread_flag(t, TIF_MEMDIE)) {
-> > > +			ret = true;
-> > > +			break;
-> > > +		}
-> > > +	}
-> > > +	rcu_read_unlock();
-> > > +	return ret;
-> > > +}
-> > 
-> > And so you do not speed up anything in the end because you have to
-> > iterate all threads anyway yet you add quite some code on top. No I do
-> > not like it. This is no longer a cleanup...
-> 
-> I changed for_each_process_thread() to for_each_process(). This means
-> O(num_threads^2) task_in_mem_cgroup()
+On Thu, May 19, 2016 at 11:48 PM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> * Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+>
+>> Should print on success:
+>> [root@localhost ~]# ./test_mremap_vdso_32
+>>       AT_SYSINFO_EHDR is 0xf773f000
+>> [NOTE]        Moving vDSO: [f773f000, f7740000] -> [a000000, a001000]
+>> [OK]
+>> Or segfault if landing was bad (before patches):
+>> [root@localhost ~]# ./test_mremap_vdso_32
+>>       AT_SYSINFO_EHDR is 0xf774f000
+>> [NOTE]        Moving vDSO: [f774f000, f7750000] -> [a000000, a001000]
+>> Segmentation fault (core dumped)
+>
+> So I still think that generating potential segfaults is not a proper way to test a
+> new feature. How are we supposed to tell the feature still works? I realize that
+> glibc is a problem here - but that doesn't really change the QA equation: we are
+> adding new kernel code to help essentially a single application out of tens of
+> thousands of applications.
+>
+> At minimum we should have a robust testcase ...
 
-oom_unkillable_task is called with NULL memcg so we do not call
-task_in_mem_cgroup.
+I think it's robust enough.  It will print "[OK]" and exit with 0 on
+success and it will crash on failure.  The latter should cause make
+run_tests to fail reliably.
 
-> and O(num_threads^2)
-> has_intersects_mems_allowed() are replaced with O(num_threads)
+There are some test cases in there that can't avoid crashing on
+failure unless they were to fork, fail in a child, and then print some
+text in the parent.  That seems like it would be more work than it's
+worth.
 
-I am really confused why has_intersects_mems_allowed has to iterate all
-threads. Do we really allow different mempolicies for threads in the
-same thread group?
-
-> task_in_mem_cgroup() and O(num_threads) has_intersects_mems_allowed()
-> at the cost of adding O(num_threads) has_pending_victim().
-> 
-> I expect that O(num_threads) (task_in_mem_cgroup() + has_intersects_mems_allowed() +
-> has_pending_victim()) is faster than O(num_threads^2) (task_in_mem_cgroup() +
-> has_intersects_mems_allowed()) + O(num_threads) test_tsk_thread_flag().
-
-I thought the whole point of the cleanup was to get rid of O(num_thread)
-because num_threads >> num_processes in most workloads. It seems that
-we are still not there because of has_intersects_mems_allowed but we
-should rather address that than add another O(num_threads) sources.
- 
-> > [...]
-> > > Note that "[PATCH v3] mm,oom: speed up select_bad_process() loop." temporarily
-> > > broke oom_task_origin(task) case, for oom_select_bad_process() might select
-> > > a task without mm because oom_badness() which checks for mm != NULL will not be
-> > > called.
-> > 
-> > How can we have oom_task_origin without mm? The flag is set explicitly
-> > while doing swapoff resp. writing to ksm. We clear the flag before
-> > exiting.
-> 
-> What if oom_task_origin(task) received SIGKILL, but task was unable to run for
-> very long period (e.g. 30 seconds) due to scheduling priority, and the OOM-reaper
-> reaped task's mm within a second. Next round of OOM-killer selects the same task
-> due to oom_task_origin(task) without doing MMF_OOM_REAPED test.
-
-Which is actuall the intended behavior. The whole point of
-oom_task_origin is to prevent from killing somebody because of
-potentially memory hungry operation (e.g. swapoff) and rather kill the
-initiator. 
-
--- 
-Michal Hocko
-SUSE Labs
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
