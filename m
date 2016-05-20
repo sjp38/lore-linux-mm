@@ -1,67 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 58D986B0005
-	for <linux-mm@kvack.org>; Fri, 20 May 2016 11:41:12 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 203so226436832pfy.2
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 08:41:12 -0700 (PDT)
-Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
-        by mx.google.com with ESMTPS id d62si28579094pfc.214.2016.05.20.08.41.11
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D4D7F6B0005
+	for <linux-mm@kvack.org>; Fri, 20 May 2016 11:56:37 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id dh6so202054820obb.1
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 08:56:37 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id e16si19908627ioi.138.2016.05.20.08.56.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 May 2016 08:41:11 -0700 (PDT)
-Received: by mail-pf0-x235.google.com with SMTP id c189so43712816pfb.3
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 08:41:11 -0700 (PDT)
-Subject: Re: [v2 PATCH] mm: move page_ext_init after all struct pages are
- initialized
-References: <1463696006-31360-1-git-send-email-yang.shi@linaro.org>
- <20160520131649.GC5197@dhcp22.suse.cz>
-From: "Shi, Yang" <yang.shi@linaro.org>
-Message-ID: <f0c27d67-3735-300b-76eb-e49d56ab7a10@linaro.org>
-Date: Fri, 20 May 2016 08:41:09 -0700
-MIME-Version: 1.0
-In-Reply-To: <20160520131649.GC5197@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 20 May 2016 08:56:36 -0700 (PDT)
+Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20160520075035.GF19172@dhcp22.suse.cz>
+	<201605202051.EBC82806.QLVMOtJOOFFFSH@I-love.SAKURA.ne.jp>
+	<20160520120954.GA5215@dhcp22.suse.cz>
+	<201605202241.CHG21813.FHtSFVJFMOQOLO@I-love.SAKURA.ne.jp>
+	<20160520152331.GD5215@dhcp22.suse.cz>
+In-Reply-To: <20160520152331.GD5215@dhcp22.suse.cz>
+Message-Id: <201605210056.CFD48413.VJFtOLFSMFHOQO@I-love.SAKURA.ne.jp>
+Date: Sat, 21 May 2016 00:56:26 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, oleg@redhat.com
 
-On 5/20/2016 6:16 AM, Michal Hocko wrote:
-> On Thu 19-05-16 15:13:26, Yang Shi wrote:
-> [...]
->> diff --git a/init/main.c b/init/main.c
->> index b3c6e36..2075faf 100644
->> --- a/init/main.c
->> +++ b/init/main.c
->> @@ -606,7 +606,6 @@ asmlinkage __visible void __init start_kernel(void)
->>  		initrd_start = 0;
->>  	}
->>  #endif
->> -	page_ext_init();
->>  	debug_objects_mem_init();
->>  	kmemleak_init();
->>  	setup_per_cpu_pageset();
->> @@ -1004,6 +1003,8 @@ static noinline void __init kernel_init_freeable(void)
->>  	sched_init_smp();
->>
->>  	page_alloc_init_late();
->> +	/* Initialize page ext after all struct pages are initializaed */
->> +	page_ext_init();
->>
->>  	do_basic_setup();
->
-> I might be missing something but don't we have the same problem with
-> CONFIG_FLATMEM? page_ext_init_flatmem is called way earlier. Or
-> CONFIG_DEFERRED_STRUCT_PAGE_INIT is never enabled for CONFIG_FLATMEM?
+Michal Hocko wrote:
+> > > > Note that "[PATCH v3] mm,oom: speed up select_bad_process() loop." temporarily
+> > > > broke oom_task_origin(task) case, for oom_select_bad_process() might select
+> > > > a task without mm because oom_badness() which checks for mm != NULL will not be
+> > > > called.
+> > > 
+> > > How can we have oom_task_origin without mm? The flag is set explicitly
+> > > while doing swapoff resp. writing to ksm. We clear the flag before
+> > > exiting.
+> > 
+> > What if oom_task_origin(task) received SIGKILL, but task was unable to run for
+> > very long period (e.g. 30 seconds) due to scheduling priority, and the OOM-reaper
+> > reaped task's mm within a second. Next round of OOM-killer selects the same task
+> > due to oom_task_origin(task) without doing MMF_OOM_REAPED test.
+> 
+> Which is actuall the intended behavior. The whole point of
+> oom_task_origin is to prevent from killing somebody because of
+> potentially memory hungry operation (e.g. swapoff) and rather kill the
+> initiator. 
 
-Yes, CONFIG_DEFERRED_STRUCT_PAGE_INIT depends on MEMORY_HOTPLUG which 
-depends on SPARSEMEM. So, this config is not valid for FLATMEM at all.
+Is it guaranteed that try_to_unuse() from swapoff is never blocked on memory
+allocation (e.g. mmput(), wait_on_page_*()) ?
 
-Thanks,
-Yang
-
->
+If there is possibility of being blocked on memory allocation, it is not safe to
+wait for oom_task_origin(task) unconditionally forever.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
