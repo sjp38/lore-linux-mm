@@ -1,89 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C3216B0005
-	for <linux-mm@kvack.org>; Fri, 20 May 2016 12:24:37 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id c67so255284847vkh.3
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 09:24:37 -0700 (PDT)
-Received: from mail-yw0-x235.google.com (mail-yw0-x235.google.com. [2607:f8b0:4002:c05::235])
-        by mx.google.com with ESMTPS id s203si9306693yws.61.2016.05.20.09.24.36
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AF8656B0005
+	for <linux-mm@kvack.org>; Fri, 20 May 2016 13:00:10 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ke5so167440546pad.1
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 10:00:10 -0700 (PDT)
+Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
+        by mx.google.com with ESMTPS id uw13si28957289pab.200.2016.05.20.10.00.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 May 2016 09:24:36 -0700 (PDT)
-Received: by mail-yw0-x235.google.com with SMTP id j74so114112292ywg.1
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 09:24:36 -0700 (PDT)
+        Fri, 20 May 2016 10:00:08 -0700 (PDT)
+Received: by mail-pf0-x232.google.com with SMTP id 206so43281019pfu.0
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 10:00:08 -0700 (PDT)
+Subject: Re: [PATCH] mm: page_is_guard return false when page_ext arrays are
+ not allocated yet
+References: <1463610225-29060-1-git-send-email-yang.shi@linaro.org>
+ <20160519002809.GA10245@js1304-P5Q-DELUXE>
+ <4cb2025a-1b62-9c66-3d61-b457c92a7401@linaro.org>
+ <CAAmzW4OUmyPwQjvd7QUfc6W1Aic__TyAuH80MLRZNMxKy0-wPQ@mail.gmail.com>
+From: "Shi, Yang" <yang.shi@linaro.org>
+Message-ID: <a1c9d2e7-6fdf-593a-58b1-928a71d647ef@linaro.org>
+Date: Fri, 20 May 2016 10:00:06 -0700
 MIME-Version: 1.0
-In-Reply-To: <CAAmzW4PN4wcPWbjf=Hws2qN_eZC1HCmn-gQC9_DB5ek5+bNksQ@mail.gmail.com>
-References: <1463594175-111929-1-git-send-email-thgarnie@google.com>
- <1463594175-111929-3-git-send-email-thgarnie@google.com> <alpine.DEB.2.20.1605181323260.14349@east.gentwo.org>
- <CAJcbSZFhsZheqdZ5FD8auhiu8ozCyq-0xY1wjYu3j+Wc2R8nGg@mail.gmail.com>
- <alpine.DEB.2.20.1605181401560.29313@east.gentwo.org> <CAJcbSZHwZxH=NN+xk7N+O-47QQHmRchgqMS5==_HzH1no5ho9g@mail.gmail.com>
- <20160519020722.GC10245@js1304-P5Q-DELUXE> <CAJcbSZGUTJdzRDno=+V+F4Yu_gaU_k0UJq5xhF5PPwgKGi3O7A@mail.gmail.com>
- <CAAmzW4PN4wcPWbjf=Hws2qN_eZC1HCmn-gQC9_DB5ek5+bNksQ@mail.gmail.com>
-From: Thomas Garnier <thgarnie@google.com>
-Date: Fri, 20 May 2016 09:24:35 -0700
-Message-ID: <CAJcbSZGTxWHJpvcp8s=KQTX9my4rw9Gmg8KDs=ajj5BiqkJQcw@mail.gmail.com>
-Subject: Re: [RFC v1 2/2] mm: SLUB Freelist randomization
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <CAAmzW4OUmyPwQjvd7QUfc6W1Aic__TyAuH80MLRZNMxKy0-wPQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <js1304@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Pranith Kumar <bobby.prani@gmail.com>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Woodhouse <David.Woodhouse@intel.com>, Petr Mladek <pmladek@suse.com>, Kees Cook <keescook@chromium.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Thelen <gthelen@google.com>, kernel-hardening@lists.openwall.com
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linaro-kernel@lists.linaro.org
 
-On Thu, May 19, 2016 at 7:15 PM, Joonsoo Kim <js1304@gmail.com> wrote:
-> 2016-05-20 5:20 GMT+09:00 Thomas Garnier <thgarnie@google.com>:
->> I ran the test given by Joonsoo and it gave me these minimum cycles
->> per size across 20 usage:
+On 5/19/2016 7:40 PM, Joonsoo Kim wrote:
+> 2016-05-20 2:18 GMT+09:00 Shi, Yang <yang.shi@linaro.org>:
+>> On 5/18/2016 5:28 PM, Joonsoo Kim wrote:
+>>>
+>>> Vlastiml, thanks for ccing me on original bug report.
+>>>
+>>> On Wed, May 18, 2016 at 03:23:45PM -0700, Yang Shi wrote:
+>>>>
+>>>> When enabling the below kernel configs:
+>>>>
+>>>> CONFIG_DEFERRED_STRUCT_PAGE_INIT
+>>>> CONFIG_DEBUG_PAGEALLOC
+>>>> CONFIG_PAGE_EXTENSION
+>>>> CONFIG_DEBUG_VM
+>>>>
+>>>> kernel bootup may fail due to the following oops:
+>>>>
+>>>> BUG: unable to handle kernel NULL pointer dereference at           (null)
+>>>> IP: [<ffffffff8118d982>] free_pcppages_bulk+0x2d2/0x8d0
+>>>> PGD 0
+>>>> Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+>>>> Modules linked in:
+>>>> CPU: 11 PID: 106 Comm: pgdatinit1 Not tainted 4.6.0-rc5-next-20160427 #26
+>>>> Hardware name: Intel Corporation S5520HC/S5520HC, BIOS
+>>>> S5500.86B.01.10.0025.030220091519 03/02/2009
+>>>> task: ffff88017c080040 ti: ffff88017c084000 task.ti: ffff88017c084000
+>>>> RIP: 0010:[<ffffffff8118d982>]  [<ffffffff8118d982>]
+>>>> free_pcppages_bulk+0x2d2/0x8d0
+>>>> RSP: 0000:ffff88017c087c48  EFLAGS: 00010046
+>>>> RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000001
+>>>> RDX: 0000000000000980 RSI: 0000000000000080 RDI: 0000000000660401
+>>>> RBP: ffff88017c087cd0 R08: 0000000000000401 R09: 0000000000000009
+>>>> R10: ffff88017c080040 R11: 000000000000000a R12: 0000000000000400
+>>>> R13: ffffea0019810000 R14: ffffea0019810040 R15: ffff88066cfe6080
+>>>> FS:  0000000000000000(0000) GS:ffff88066cd40000(0000)
+>>>> knlGS:0000000000000000
+>>>> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>>>> CR2: 0000000000000000 CR3: 0000000002406000 CR4: 00000000000006e0
+>>>> Stack:
+>>>>  ffff88066cd5bbd8 ffff88066cfe6640 0000000000000000 0000000000000000
+>>>>  0000001f0000001f ffff88066cd5bbe8 ffffea0019810000 000000008118f53e
+>>>>  0000000000000009 0000000000000401 ffffffff0000000a 0000000000000001
+>>>> Call Trace:
+>>>>  [<ffffffff8118f602>] free_hot_cold_page+0x192/0x1d0
+>>>>  [<ffffffff8118f69c>] __free_pages+0x5c/0x90
+>>>>  [<ffffffff8262a676>] __free_pages_boot_core+0x11a/0x14e
+>>>>  [<ffffffff8262a6fa>] deferred_free_range+0x50/0x62
+>>>>  [<ffffffff8262aa46>] deferred_init_memmap+0x220/0x3c3
+>>>>  [<ffffffff8262a826>] ? setup_per_cpu_pageset+0x35/0x35
+>>>>  [<ffffffff8108b1f8>] kthread+0xf8/0x110
+>>>>  [<ffffffff81c1b732>] ret_from_fork+0x22/0x40
+>>>>  [<ffffffff8108b100>] ? kthread_create_on_node+0x200/0x200
+>>>> Code: 49 89 d4 48 c1 e0 06 49 01 c5 e9 de fe ff ff 4c 89 f7 44 89 4d b8
+>>>> 4c 89 45 c0 44 89 5d c8 48 89 4d d0 e8 62 c7 07 00 48 8b 4d d0 <48> 8b 00 44
+>>>> 8b 5d c8 4c 8b 45 c0 44 8b 4d b8 a8 02 0f 84 05 ff
+>>>> RIP  [<ffffffff8118d982>] free_pcppages_bulk+0x2d2/0x8d0
+>>>>  RSP <ffff88017c087c48>
+>>>> CR2: 0000000000000000
+>>>>
+>>>> The problem is lookup_page_ext() returns NULL then page_is_guard() tried
+>>>> to
+>>>> access it in page freeing.
+>>>>
+>>>> page_is_guard() depends on PAGE_EXT_DEBUG_GUARD bit of page extension
+>>>> flag, but
+>>>> freeing page might reach here before the page_ext arrays are allocated
+>>>> when
+>>>> feeding a range of pages to the allocator for the first time during
+>>>> bootup or
+>>>> memory hotplug.
+>>>
+>>>
+>>> Patch itself looks find to me because I also found that this kind of
+>>> problem happens during memory hotplug. So, we need to fix more sites,
+>>> all callers of lookup_page_ext().
+>>
+>>
+>> Yes, I agree. I will come up with a patch or a couple of patches to check
+>> the return value of lookup_page_ext().
+>>
+>>>
+>>> But, I'd like to know how your problem occurs during bootup.
+>>> debug_guardpage_enabled() is turned to 'enable' after page_ext is
+>>> initialized. Before that, page_is_guard() unconditionally returns
+>>> false so I think that the problem what you mentioned can't happen.
+>>>
+>>> Could you check that when debug_guardpage_enabled() returns 'enable'
+>>> and init_section_page_ext() is called?
+>>
+>>
+>> I think the problem is I have CONFIG_DEFERRED_STRUCT_PAGE_INIT enabled,
+>> which will defer some struct pages initialization to "pgdatinitX" kernel
+>> thread in page_alloc_init_late(). But, page_ext_init() is called before it.
+>> So, it leads debug_guardpage_enabled() return true, but page extension is
+>> not allocated yet for the struct pages initialized by "pgdatinitX".
 >
-> I can't understand what you did here. Maybe, it's due to my poor Engling.
-> Please explain more. You did single thread test? Why minimum cycles
-> rather than average?
+> No. After page_ext_init(), it is ensured that all page extension is initialized.
 >
+>> It sounds page_ext_init() should be called after page_alloc_init_late(). Or
+>> it should be just incompatible with CONFIG_DEFERRED_STRUCT_PAGE_INIT.
+>>
+>> I will try to move the init call around.
+>
+> We need to investigate more. I guess that problem is introduced by
+> CONFIG_DEFERRED_STRUCT_PAGE_INIT. It makes pfn_to_nid() invalid
+> until page_alloc_init_late() is done. That is a big side-effect. If
+> there is pfn walker
+> and it uses pfn_to_nid() between memmap_init_zone() and page_alloc_init_late(),
+> it also has same problem. So, we need to think how to fix it more
+> carefully.
 
-I used your version of slab_test and ran it 20 times for each
-versions. I compared
-the minimum number of cycles as an optimal case for comparison. As you said
-slab_test results can be unreliable. Comparing the average across multiple runs
-always gave odd results.
+Thanks for the analysis. I think you are correct. Since pfn_to_nid() 
+depends on memmap which has not been fully setup yet until 
+page_alloc_init_late() is done.
 
->> size,before,after
->> 8,63.00,64.50 (102.38%)
->> 16,64.50,65.00 (100.78%)
->> 32,65.00,65.00 (100.00%)
->> 64,66.00,65.00 (98.48%)
->> 128,66.00,65.00 (98.48%)
->> 256,64.00,64.00 (100.00%)
->> 512,65.00,66.00 (101.54%)
->> 1024,68.00,64.00 (94.12%)
->> 2048,66.00,65.00 (98.48%)
->> 4096,66.00,66.00 (100.00%)
->
-> It looks like performance of all size classes are the same?
->
->> I assume the difference is bigger if you don't have RDRAND support.
->
-> What does RDRAND means? Kconfig? How can I check if I have RDRAND?
->
+So, for such usecase early_pfn_to_nid() should be used.
 
-Sorry, I was referring to the usage of get_random_bytes_arch which
-will be faster
-if the test machine support specific instructions (like RDRAND).
-
->> Christoph, Joonsoo: Do you think it would be valuable to add a CONFIG
->> to disable additional randomization per new page? It will remove
->> additional entropy but increase performance for machines without arch
->> specific randomization instructions.
 >
-> I don't think that it deserve another CONFIG. If performance is a matter,
-> I think that removing additional entropy is better until it is proved that
-> entropy is a problem.
+> Anyway, to make sure that my assumption is true, could you confirm that
+> below change fix your problem?
+
+Yes, it does.
+
 >
-
-I will do more testing before the next RFC to decide the best approach.
-
 > Thanks.
+>
+> ----->8----------
+> diff --git a/mm/page_ext.c b/mm/page_ext.c
+> index 2d864e6..cac5dc9 100644
+> --- a/mm/page_ext.c
+> +++ b/mm/page_ext.c
+> @@ -391,7 +391,7 @@ void __init page_ext_init(void)
+>                          * -------------pfn-------------->
+>                          * N0 | N1 | N2 | N0 | N1 | N2|....
+>                          */
+> -                       if (pfn_to_nid(pfn) != nid)
+> +                       if (!early_pfn_in_nid(pfn nid))
 
-Thanks for the comments,
-Thomas
+early_pfn_in_nid() is static function in page_alloc.c. I'm supposed 
+early_pfn_to_nid() should be used.
+
+Thanks,
+Yang
+
+>                                 continue;
+>                         if (init_section_page_ext(pfn, nid))
+>                                 goto oom;
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
