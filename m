@@ -1,34 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D54AB6B0005
-	for <linux-mm@kvack.org>; Fri, 20 May 2016 03:50:37 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id m138so5219117lfm.0
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 00:50:37 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id ee4si23947387wjd.121.2016.05.20.00.50.36
+Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4802D6B0005
+	for <linux-mm@kvack.org>; Fri, 20 May 2016 04:02:21 -0400 (EDT)
+Received: by mail-lb0-f197.google.com with SMTP id ga2so42860965lbc.0
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 01:02:21 -0700 (PDT)
+Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
+        by mx.google.com with ESMTPS id n66si5113538wmg.77.2016.05.20.01.02.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 May 2016 00:50:36 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id 67so3804326wmg.0
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 00:50:36 -0700 (PDT)
-Date: Fri, 20 May 2016 09:50:35 +0200
+        Fri, 20 May 2016 01:02:19 -0700 (PDT)
+Received: by mail-wm0-f41.google.com with SMTP id w143so18216359wmw.0
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 01:02:19 -0700 (PDT)
+Date: Fri, 20 May 2016 10:02:18 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
-Message-ID: <20160520075035.GF19172@dhcp22.suse.cz>
-References: <1463574024-8372-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160518125138.GH21654@dhcp22.suse.cz>
- <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
+Subject: Re: + mm-thp-avoid-unnecessary-swapin-in-khugepaged.patch added to
+ -mm tree
+Message-ID: <20160520080217.GG19172@dhcp22.suse.cz>
+References: <20160517090254.GE14453@dhcp22.suse.cz>
+ <20160519050038.GA16318@bbox>
+ <20160519070357.GB26110@dhcp22.suse.cz>
+ <20160519072751.GB16318@bbox>
+ <20160519073957.GE26110@dhcp22.suse.cz>
+ <20160520002155.GA2224@bbox>
+ <20160520063917.GC19172@dhcp22.suse.cz>
+ <20160520072624.GD6808@bbox>
+ <20160520073432.GE19172@dhcp22.suse.cz>
+ <20160520074450.GA14049@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201605182230.IDC73435.MVSOHLFOQFOJtF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20160520074450.GA14049@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, oleg@redhat.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: akpm@linux-foundation.org, ebru.akagunduz@gmail.com, aarcange@redhat.com, aneesh.kumar@linux.vnet.ibm.com, boaz@plexistor.com, gorcunov@openvz.org, hannes@cmpxchg.org, hughd@google.com, iamjoonsoo.kim@lge.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, rientjes@google.com, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-Here is a follow up for this patch. As I've mentioned in the other
-email, I would like to mark oom victim in the mm_struct but that
-requires more changes and the patch simplifies select_bad_process
-nicely already so I like this patch even now.
----
+On Fri 20-05-16 16:44:50, Minchan Kim wrote:
+> > > > That being said khugepaged_max_ptes_none = HPAGE_PMD_NR/2 sounds like a
+> > > 
+> > > max_ptes_none?
+> > 
+> > Not sure I understand what you mean here.
+> 
+> We are talking about max_ptes_swap and max_active_pages(i.e., pte_young)
+> but suddenly you are saying max_ptes_none so I was curious it was just
+> typo.
+
+Because the default for pte_none resp. zero pages collapsing into THP is
+khugepaged_max_ptes_none and the current default means that a single
+present page is sufficient. That is way too optimistic. So I consider
+this to be a good start. I am not so sure about minimum young pages
+because that would probably require yet another tunable and we have more
+than enough of them. Anyway I guess we are getting off-topic here...
+-- 
+Michal Hocko
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
