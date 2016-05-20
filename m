@@ -1,63 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B3F7A6B0005
-	for <linux-mm@kvack.org>; Fri, 20 May 2016 11:33:25 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id r11so2825202itd.2
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 08:33:25 -0700 (PDT)
-Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
-        by mx.google.com with ESMTPS id 42si10241776otz.13.2016.05.20.08.33.24
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 58D986B0005
+	for <linux-mm@kvack.org>; Fri, 20 May 2016 11:41:12 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 203so226436832pfy.2
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 08:41:12 -0700 (PDT)
+Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
+        by mx.google.com with ESMTPS id d62si28579094pfc.214.2016.05.20.08.41.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 May 2016 08:33:24 -0700 (PDT)
-Received: by mail-oi0-x230.google.com with SMTP id x201so184752387oif.3
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 08:33:24 -0700 (PDT)
+        Fri, 20 May 2016 08:41:11 -0700 (PDT)
+Received: by mail-pf0-x235.google.com with SMTP id c189so43712816pfb.3
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 08:41:11 -0700 (PDT)
+Subject: Re: [v2 PATCH] mm: move page_ext_init after all struct pages are
+ initialized
+References: <1463696006-31360-1-git-send-email-yang.shi@linaro.org>
+ <20160520131649.GC5197@dhcp22.suse.cz>
+From: "Shi, Yang" <yang.shi@linaro.org>
+Message-ID: <f0c27d67-3735-300b-76eb-e49d56ab7a10@linaro.org>
+Date: Fri, 20 May 2016 08:41:09 -0700
 MIME-Version: 1.0
-In-Reply-To: <20160520064820.GB29418@gmail.com>
-References: <1463487232-4377-1-git-send-email-dsafonov@virtuozzo.com>
- <1463487232-4377-3-git-send-email-dsafonov@virtuozzo.com> <20160520064820.GB29418@gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 20 May 2016 08:33:04 -0700
-Message-ID: <CALCETrWznziSzwu3gG6bcFAxPvboTF519iTS6F8+WVW0B4i4UQ@mail.gmail.com>
-Subject: Re: [PATCHv9 2/2] selftest/x86: add mremap vdso test
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20160520131649.GC5197@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Shuah Khan <shuahkh@osg.samsung.com>, linux-kselftest@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
 
-On Thu, May 19, 2016 at 11:48 PM, Ingo Molnar <mingo@kernel.org> wrote:
+On 5/20/2016 6:16 AM, Michal Hocko wrote:
+> On Thu 19-05-16 15:13:26, Yang Shi wrote:
+> [...]
+>> diff --git a/init/main.c b/init/main.c
+>> index b3c6e36..2075faf 100644
+>> --- a/init/main.c
+>> +++ b/init/main.c
+>> @@ -606,7 +606,6 @@ asmlinkage __visible void __init start_kernel(void)
+>>  		initrd_start = 0;
+>>  	}
+>>  #endif
+>> -	page_ext_init();
+>>  	debug_objects_mem_init();
+>>  	kmemleak_init();
+>>  	setup_per_cpu_pageset();
+>> @@ -1004,6 +1003,8 @@ static noinline void __init kernel_init_freeable(void)
+>>  	sched_init_smp();
+>>
+>>  	page_alloc_init_late();
+>> +	/* Initialize page ext after all struct pages are initializaed */
+>> +	page_ext_init();
+>>
+>>  	do_basic_setup();
 >
-> * Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
->
->> Should print on success:
->> [root@localhost ~]# ./test_mremap_vdso_32
->>       AT_SYSINFO_EHDR is 0xf773f000
->> [NOTE]        Moving vDSO: [f773f000, f7740000] -> [a000000, a001000]
->> [OK]
->> Or segfault if landing was bad (before patches):
->> [root@localhost ~]# ./test_mremap_vdso_32
->>       AT_SYSINFO_EHDR is 0xf774f000
->> [NOTE]        Moving vDSO: [f774f000, f7750000] -> [a000000, a001000]
->> Segmentation fault (core dumped)
->
-> So I still think that generating potential segfaults is not a proper way to test a
-> new feature. How are we supposed to tell the feature still works? I realize that
-> glibc is a problem here - but that doesn't really change the QA equation: we are
-> adding new kernel code to help essentially a single application out of tens of
-> thousands of applications.
->
-> At minimum we should have a robust testcase ...
+> I might be missing something but don't we have the same problem with
+> CONFIG_FLATMEM? page_ext_init_flatmem is called way earlier. Or
+> CONFIG_DEFERRED_STRUCT_PAGE_INIT is never enabled for CONFIG_FLATMEM?
 
-I think it's robust enough.  It will print "[OK]" and exit with 0 on
-success and it will crash on failure.  The latter should cause make
-run_tests to fail reliably.
+Yes, CONFIG_DEFERRED_STRUCT_PAGE_INIT depends on MEMORY_HOTPLUG which 
+depends on SPARSEMEM. So, this config is not valid for FLATMEM at all.
 
-There are some test cases in there that can't avoid crashing on
-failure unless they were to fork, fail in a child, and then print some
-text in the parent.  That seems like it would be more work than it's
-worth.
+Thanks,
+Yang
 
---Andy
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
