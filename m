@@ -1,159 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f197.google.com (mail-ob0-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A2296B0005
-	for <linux-mm@kvack.org>; Thu, 19 May 2016 20:25:14 -0400 (EDT)
-Received: by mail-ob0-f197.google.com with SMTP id yu3so111789768obb.3
-        for <linux-mm@kvack.org>; Thu, 19 May 2016 17:25:14 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id qb8si1811375igc.55.2016.05.19.17.25.12
-        for <linux-mm@kvack.org>;
-        Thu, 19 May 2016 17:25:13 -0700 (PDT)
-Date: Fri, 20 May 2016 10:17:14 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20160520001714.GC26977@dastard>
-References: <20160512055756.GE6648@birch.djwong.org>
- <20160512080321.GA18496@dastard>
- <20160513160341.GW20141@dhcp22.suse.cz>
- <20160516104130.GK3193@twins.programming.kicks-ass.net>
- <20160516130519.GJ23146@dhcp22.suse.cz>
- <20160516132541.GP3193@twins.programming.kicks-ass.net>
- <20160516231056.GE18496@dastard>
- <20160517144912.GZ3193@twins.programming.kicks-ass.net>
- <20160517223549.GV26977@dastard>
- <20160519081146.GS3193@twins.programming.kicks-ass.net>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B47E66B0005
+	for <linux-mm@kvack.org>; Thu, 19 May 2016 21:02:18 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id gw7so137242183pac.0
+        for <linux-mm@kvack.org>; Thu, 19 May 2016 18:02:18 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u2si23694511pan.192.2016.05.19.18.02.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 May 2016 18:02:17 -0700 (PDT)
+Date: Thu, 19 May 2016 18:02:16 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2016-05-19-18-01 uploaded
+Message-ID: <573e6218.YQH2A+YBUHmPqyvU%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160519081146.GS3193@twins.programming.kicks-ass.net>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
 
-On Thu, May 19, 2016 at 10:11:46AM +0200, Peter Zijlstra wrote:
-> On Wed, May 18, 2016 at 08:35:49AM +1000, Dave Chinner wrote:
-> > On Tue, May 17, 2016 at 04:49:12PM +0200, Peter Zijlstra wrote:
-> > > On Tue, May 17, 2016 at 09:10:56AM +1000, Dave Chinner wrote:
-> > > 
-> > > > The reason we don't have lock clases for the ilock is that we aren't
-> > > > supposed to call memory reclaim with that lock held in exclusive
-> > > > mode. This is because reclaim can run transactions, and that may
-> > > > need to flush dirty inodes to make progress. Flushing dirty inode
-> > > > requires taking the ilock in shared mode.
-> > > > 
-> > > > In the code path that was reported, we hold the ilock in /shared/
-> > > > mode with no transaction context (we are doing a read-only
-> > > > operation). This means we can run transactions in memory reclaim
-> > > > because a) we can't deadlock on the inode we hold locks on, and b)
-> > > > transaction reservations will be able to make progress as we don't
-> > > > hold any locks it can block on.
-> > > 
-> > > Just to clarify; I read the above as that we cannot block on recursive
-> > > shared locks, is this correct?
-> > > 
-> > > Because we can in fact block on down_read()+down_read() just fine, so if
-> > > you're assuming that, then something's busted.
-> > 
-> > The transaction reservation path will run down_read_trylock() on the
-> > inode, not down_read(). Hence if there are no pending writers, it
-> > will happily take the lock twice and make progress, otherwise it
-> > will skip the inode and there's no deadlock.  If there's a pending
-> > writer, then we have another context that is already in a
-> > transaction context and has already pushed the item, hence it is
-> > only in the scope of the current push because IO hasn't completed
-> > yet and removed it from the list.
-> > 
-> > > Otherwise, I'm not quite reading it right, which is, given the
-> > > complexity of that stuff, entirely possible.
-> > 
-> > There's a maze of dark, grue-filled twisty passages here...
-> 
-> OK; I might need a bit more again.
-> 
-> So now the code does something like:
-> 
-> 	down_read(&i_lock);		-- lockdep marks lock as held
-> 	kmalloc(GFP_KERNEL);		-- lockdep marks held locks as ENABLED_RECLAIM_FS
-> 	  --> reclaim()
-> 	     down_read_trylock(&i_lock); -- lockdep does _NOT_ mark as USED_IN_RECLAIM_FS
-> 
-> Right?
+The mm-of-the-moment snapshot 2016-05-19-18-01 has been uploaded to
 
-In the path that can deadlock the log, yes. It's actually way more
-complex than the above, because the down_read_trylock(&i_lock) that
-matters is run in a completely separate, async kthread that
-xfs_trans_reserve() will block waiting for.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-process context				xfsaild kthread(*)
----------------				------------------
-down_read(&i_lock);		-- lockdep marks lock as held
-kmalloc(GFP_KERNEL);		-- lockdep marks held locks as ENABLED_RECLAIM_FS
-  --> reclaim()
-     xfs_trans_reserve()
-     ....
-	  xfs_trans_push_ail()	---- called if no space in the log to kick the xfsaild into action
-	  ....
-       xlog_grant_head_wait()	---- blocks waiting for log space
-       .....
+mmotm-readme.txt says
 
-					xfsaild_push()   ----- iterates AIL
-					  grabs log item
-					    lock log item
-	>>>>>>>>>>>>>>>>>>>>>		      down_read_trylock(&i_lock);
-					      format item into buffer
-					      add to dirty buffer list
-					  ....
-					  submit dirty buffer list for IO
-					    buffer IO started
-					.....
-					<async IO completion context>
-					buffer callbacks
-					  mark inode clean
-					  remove inode from AIL
-					  move tail of log forwards
-					    wake grant head waiters
-	<woken by log tail moving>
-	<log space available>
-	transaction reservation granted
-     .....
-     down_write(some other inode ilock)
-     <modify some other inode>
-     xfs_trans_commit
-     .....
+README for mm-of-the-moment:
 
-(*) xfsaild runs with PF_MEMALLOC context.
+http://www.ozlabs.org/~akpm/mmotm/
 
-The problem is that if the ilock is held exclusively at GFP_KERNEL
-time, the xfsaild cannot lock the inode to flush it, so if that
-inode pins the tail of the log then we can't make space available
-for xfs_trans_reserve and there is the deadlock.
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
-Once xfs_trans_reserve completes, however, we'll take the ilock on
-*some other inode*, and that's where the "it can't be the inode we
-currently hold locked because we have references to it" and
-henceit's safe to have a pattern like:
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
-down_read(&i_lock);		-- lockdep marks lock as held
-kmalloc(GFP_KERNEL);		-- lockdep marks held locks as ENABLED_RECLAIM_FS
-  --> reclaim()
-    down_write(&ilock)
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
 
-because the lock within reclaim context is completely unrelated to
-the lock we already hold.
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
 
-Lockdep can't possibly know about this because the deadlock involves
-locking contexts that *aren't doing anything wrong within their own
-contexts*. It's only when you add the dependency of log space
-reservation requirements needed to make forwards progress that
-there's then an issue with locking and reclaim.
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
-Cheers,
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.6:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+  fsnotify-avoid-spurious-emfile-errors-from-inotify_init.patch
+  time-add-missing-implementation-for-timespec64_add_safe.patch
+  fs-poll-select-recvmmsg-use-timespec64-for-timeout-events.patch
+  time-remove-timespec_add_safe.patch
+  scripts-decode_stacktracesh-handle-symbols-in-modules.patch
+  scripts-spellingtxt-add-fimware-misspelling.patch
+  scripts-bloat-o-meter-print-percent-change.patch
+  debugobjects-make-fixup-functions-return-bool-instead-of-int.patch
+  debugobjects-correct-the-usage-of-fixup-call-results.patch
+  workqueue-update-debugobjects-fixup-callbacks-return-type.patch
+  timer-update-debugobjects-fixup-callbacks-return-type.patch
+  rcu-update-debugobjects-fixup-callbacks-return-type.patch
+  percpu_counter-update-debugobjects-fixup-callbacks-return-type.patch
+  documentation-update-debugobjects-doc.patch
+  debugobjects-insulate-non-fixup-logic-related-to-static-obj-from-fixup-callbacks.patch
+  ocfs2-error-code-comments-and-amendments-the-comment-of-ocfs2_extended_slot-should-be-0x08.patch
+  ocfs2-clean-up-an-unused-variable-wants_rotate-in-ocfs2_truncate_rec.patch
+  ocfs2-clean-up-unused-parameter-count-in-o2hb_read_block_input.patch
+  ocfs2-clean-up-an-unuseful-goto-in-ocfs2_put_slot-function.patch
+  padata-removed-unused-code.patch
+  kernel-padata-hide-unused-functions.patch
+  mm-slab-fix-the-theoretical-race-by-holding-proper-lock.patch
+  mm-slab-remove-bad_alien_magic-again.patch
+  mm-slab-drain-the-free-slab-as-much-as-possible.patch
+  mm-slab-factor-out-kmem_cache_node-initialization-code.patch
+  mm-slab-clean-up-kmem_cache_node-setup.patch
+  mm-slab-dont-keep-free-slabs-if-free_objects-exceeds-free_limit.patch
+  mm-slab-racy-access-modify-the-slab-color.patch
+  mm-slab-make-cache_grow-handle-the-page-allocated-on-arbitrary-node.patch
+  mm-slab-separate-cache_grow-to-two-parts.patch
+  mm-slab-refill-cpu-cache-through-a-new-slab-without-holding-a-node-lock.patch
+  mm-slab-lockless-decision-to-grow-cache.patch
+  mm-slub-replace-kick_all_cpus_sync-with-synchronize_sched-in-kmem_cache_shrink.patch
+  mm-slab-freelist-randomization-v4.patch
+  mm-slab-remove-zone_dma_flag.patch
+  mm-slubc-fix-sysfs-filename-in-comment.patch
+  mm-page_ref-use-page_ref-helper-instead-of-direct-modification-of-_count.patch
+  mm-rename-_count-field-of-the-struct-page-to-_refcount.patch
+  compilerh-add-support-for-malloc-attribute.patch
+  include-linux-apply-__malloc-attribute.patch
+  include-linux-nodemaskh-create-next_node_in-helper.patch
+  mm-hugetlb-optimize-minimum-size-min_size-accounting.patch
+  mm-hugetlb-introduce-hugetlb_bad_size.patch
+  arm64-mm-use-hugetlb_bad_size.patch
+  metag-mm-use-hugetlb_bad_size.patch
+  powerpc-mm-use-hugetlb_bad_size.patch
+  tile-mm-use-hugetlb_bad_size.patch
+  x86-mm-use-hugetlb_bad_size.patch
+  mm-hugetlb-is_vm_hugetlb_page-can-be-boolean.patch
+  mm-memory_hotplug-is_mem_section_removable-can-be-boolean.patch
+  mm-vmalloc-is_vmalloc_addr-can-be-boolean.patch
+  mm-mempolicy-vma_migratable-can-be-boolean.patch
+  mm-memcontrolc-mem_cgroup_select_victim_node-clarify-comment.patch
+  mm-page_alloc-remove-useless-parameter-of-__free_pages_boot_core.patch
+  mm-hugetlbc-use-first_memory_node.patch
+  mm-mempolicyc-offset_il_node-document-and-clarify.patch
+  mm-rmap-replace-bug_onanon_vma-degree-with-vm_warn_on.patch
+  mm-compaction-wrap-calculating-first-and-last-pfn-of-pageblock.patch
+  mm-compaction-reduce-spurious-pcplist-drains.patch
+  mm-compaction-skip-blocks-where-isolation-fails-in-async-direct-compaction.patch
+  mm-highmem-simplify-is_highmem.patch
+  mm-uninline-page_mapped.patch
+  mm-hugetlb-add-same-zone-check-in-pfn_range_valid_gigantic.patch
+  mm-memory_hotplug-add-comment-to-some-functions-related-to-memory-hotplug.patch
+  mm-vmstat-add-zone-range-overlapping-check.patch
+  mm-page_owner-add-zone-range-overlapping-check.patch
+  power-add-zone-range-overlapping-check.patch
+  mm-writeback-correct-dirty-page-calculation-for-highmem.patch
+  mm-page_alloc-correct-highmem-memory-statistics.patch
+  mm-highmem-make-nr_free_highpages-handles-all-highmem-zones-by-itself.patch
+  mm-vmstat-make-node_page_state-handles-all-zones-by-itself.patch
+  mm-mmap-kill-hook-arch_rebalance_pgtables.patch
+  mm-update_lru_size-warn-and-reset-bad-lru_size.patch
+  mm-update_lru_size-do-the-__mod_zone_page_state.patch
+  mm-use-__setpageswapbacked-and-dont-clearpageswapbacked.patch
+  tmpfs-preliminary-minor-tidyups.patch
+  tmpfs-mem_cgroup-charge-fault-to-vm_mm-not-current-mm.patch
+  mm-proc-sys-vm-stat_refresh-to-force-vmstat-update.patch
+  huge-mm-move_huge_pmd-does-not-need-new_vma.patch
+  huge-pagecache-extend-mremap-pmd-rmap-lockout-to-files.patch
+  arch-fix-has_transparent_hugepage.patch
+  memory_hotplug-introduce-config_memory_hotplug_default_online.patch
+  memory_hotplug-introduce-memhp_default_state=-command-line-parameter.patch
+  mm-oom-move-gfp_nofs-check-to-out_of_memory.patch
+  oom-oom_reaper-try-to-reap-tasks-which-skip-regular-oom-killer-path.patch
+  mm-oom_reaper-clear-tif_memdie-for-all-tasks-queued-for-oom_reaper.patch
+  mm-page_alloc-only-check-pagecompound-for-high-order-pages.patch
+  mm-page_alloc-use-new-pageanonhead-helper-in-the-free-page-fast-path.patch
+  mm-page_alloc-reduce-branches-in-zone_statistics.patch
+  mm-page_alloc-inline-zone_statistics.patch
+  mm-page_alloc-inline-the-fast-path-of-the-zonelist-iterator.patch
+  mm-page_alloc-use-__dec_zone_state-for-order-0-page-allocation.patch
+  mm-page_alloc-avoid-unnecessary-zone-lookups-during-pageblock-operations.patch
+  mm-page_alloc-convert-alloc_flags-to-unsigned.patch
+  mm-page_alloc-convert-nr_fair_skipped-to-bool.patch
+  mm-page_alloc-remove-unnecessary-local-variable-in-get_page_from_freelist.patch
+  mm-page_alloc-remove-unnecessary-initialisation-in-get_page_from_freelist.patch
+  mm-page_alloc-remove-unnecessary-initialisation-from-__alloc_pages_nodemask.patch
+  mm-page_alloc-simplify-last-cpupid-reset.patch
+  mm-page_alloc-move-__gfp_hardwall-modifications-out-of-the-fastpath.patch
+  mm-page_alloc-check-once-if-a-zone-has-isolated-pageblocks.patch
+  mm-page_alloc-shorten-the-page-allocator-fast-path.patch
+  mm-page_alloc-reduce-cost-of-fair-zone-allocation-policy-retry.patch
+  mm-page_alloc-shortcut-watermark-checks-for-order-0-pages.patch
+  mm-page_alloc-avoid-looking-up-the-first-zone-in-a-zonelist-twice.patch
+  mm-page_alloc-remove-field-from-alloc_context.patch
+  mm-page_alloc-check-multiple-page-fields-with-a-single-branch.patch
+  mm-page_alloc-un-inline-the-bad-part-of-free_pages_check.patch
+  mm-page_alloc-pull-out-side-effects-from-free_pages_check.patch
+  mm-page_alloc-remove-unnecessary-variable-from-free_pcppages_bulk.patch
+  mm-page_alloc-inline-pageblock-lookup-in-page-free-fast-paths.patch
+  cpuset-use-static-key-better-and-convert-to-new-api.patch
+  mm-page_alloc-defer-debugging-checks-of-freed-pages-until-a-pcp-drain.patch
+  mm-page_alloc-defer-debugging-checks-of-pages-allocated-from-the-pcp.patch
+  mm-page_alloc-dont-duplicate-code-in-free_pcp_prepare.patch
+  mm-page_alloc-uninline-the-bad-page-part-of-check_new_page.patch
+  mm-page_alloc-restore-the-original-nodemask-if-the-fast-path-allocation-failed.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
