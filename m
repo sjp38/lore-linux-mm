@@ -1,152 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CE8046B0260
-	for <linux-mm@kvack.org>; Fri, 20 May 2016 22:01:56 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id a143so100001977oii.2
-        for <linux-mm@kvack.org>; Fri, 20 May 2016 19:01:56 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BEBC6B0262
+	for <linux-mm@kvack.org>; Sat, 21 May 2016 00:07:57 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id u185so225510326oie.3
+        for <linux-mm@kvack.org>; Fri, 20 May 2016 21:07:57 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id vx9si509202igc.92.2016.05.20.19.01.55
+        by mx.google.com with ESMTPS id x53si11126273otx.167.2016.05.20.21.07.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 20 May 2016 19:01:56 -0700 (PDT)
+        Fri, 20 May 2016 21:07:56 -0700 (PDT)
+Subject: Re: zone_reclaimable() leads to livelock in __alloc_pages_slowpath()
+References: <20160520202817.GA22201@redhat.com>
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH 2/2] mm,oom: Do oom_task_origin() test in oom_badness().
-Date: Sat, 21 May 2016 11:01:30 +0900
-Message-Id: <1463796090-7948-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <237e1113-fca7-51c7-1271-fb48398fd599@I-love.SAKURA.ne.jp>
+Date: Sat, 21 May 2016 13:07:37 +0900
+MIME-Version: 1.0
+In-Reply-To: <20160520202817.GA22201@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, akpm@linux-foundation.org, rientjes@google.com
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Currently, oom_scan_process_thread() returns OOM_SCAN_SELECT if
-oom_task_origin() returned true. But this might cause OOM livelock.
+On 2016/05/21 5:28, Oleg Nesterov wrote:
+> Hello,
+> 
+> Recently I hit the problem, _sometimes_ the system just hangs in OOM situation.
+> Surprisingly, this time OOM-killer is innocent ;) and finally I can reproduce
+> this more-or-less reliably just running
+> 
+> 	#include <stdlib.h>
+> 	#include <string.h>
+> 
+> 	int main(void)
+> 	{
+> 		for (;;) {
+> 			void *p = malloc(1024 * 1024);
+> 			memset(p, 0, 1024 * 1024);
+> 		}
+> 	}
+> 
+> in a loop on the otherwise idle system. 512m RAM, one CPU (but CONFIG_SMP=y),
+> no swap, and only one user-space process (apart from test-case above), /bin/sh
+> runnning as init with pid==1. I am attaching my .config just in case, but I
+> think the problem is not really specific to this configuration.
+> 
+> --------------------------------------------------------------------------------
+> It spins in __alloc_pages_slowpath() forever, __alloc_pages_may_oom() is never
+> called, it doesn't react to SIGKILL, etc.
+> 
+> This is because zone_reclaimable() is always true in shrink_zones(), and the
+> problem goes away if I comment out this code
+> 
+> 	if (global_reclaim(sc) &&
+> 	    !reclaimable && zone_reclaimable(zone))
+> 		reclaimable = true;
+> 
+> in shrink_zones() which otherwise returns this "true" every time, and thus
+> __alloc_pages_slowpath() always sees did_some_progress != 0.
+> 
 
-If the OOM killer finds a task with oom_task_origin(task) == true,
-it means that that task is either inside try_to_unuse() from swapoff
-path or unmerge_and_remove_all_rmap_items() from ksm's run_store path.
-
-Let's take a look at try_to_unuse() as an example. Although there is
-signal_pending() test inside the iteration loop, there are operations
-(e.g. mmput(), wait_on_page_*()) which might block in unkillable state
-waiting for other threads which might allocate memory.
-
-Therefore, sending SIGKILL to a task with oom_task_origin(task) == true
-can not guarantee that that task shall not stuck at unkillable waits.
-Once the OOM reaper reaped that task's memory (or gave up reaping it),
-the OOM killer must not select that task again when oom_task_origin(task)
-returned true. We need to select different victims until that task can
-hit signal_pending() test or finish the iteration loop.
-
-Since oom_badness() is a function which returns score of the given thread
-group with eligibility/livelock test, it is more natural and safer to let
-oom_badness() return highest score when oom_task_origin(task) == true.
-
-This patch moves oom_task_origin() test from oom_scan_process_thread() to
-after MMF_OOM_REAPED test inside oom_badness(), changes the callers to
-receive the score using "unsigned long" variable, and eliminates
-OOM_SCAN_SELECT path in the callers.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- include/linux/oom.h |  1 -
- mm/memcontrol.c     |  9 +--------
- mm/oom_kill.c       | 26 ++++++++++++++------------
- 3 files changed, 15 insertions(+), 21 deletions(-)
-
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index c63de01..f6b37a4 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -47,7 +47,6 @@ enum oom_scan_t {
- 	OOM_SCAN_OK,		/* scan thread and find its badness */
- 	OOM_SCAN_CONTINUE,	/* do not consider thread for oom kill */
- 	OOM_SCAN_ABORT,		/* abort the iteration and return */
--	OOM_SCAN_SELECT,	/* always select this thread first */
- };
- 
- extern struct mutex oom_lock;
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 49cee6f..73c8c44 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1263,7 +1263,7 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	struct mem_cgroup *iter;
- 	unsigned long chosen_points = 0;
- 	unsigned long totalpages;
--	unsigned int points = 0;
-+	unsigned long points = 0;
- 	struct task_struct *chosen = NULL;
- 
- 	mutex_lock(&oom_lock);
-@@ -1288,13 +1288,6 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 		css_task_iter_start(&iter->css, &it);
- 		while ((task = css_task_iter_next(&it))) {
- 			switch (oom_scan_process_thread(&oc, task)) {
--			case OOM_SCAN_SELECT:
--				if (chosen)
--					put_task_struct(chosen);
--				chosen = task;
--				chosen_points = ULONG_MAX;
--				get_task_struct(chosen);
--				/* fall through */
- 			case OOM_SCAN_CONTINUE:
- 				continue;
- 			case OOM_SCAN_ABORT:
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 743afdd..c2ed496 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -186,6 +186,19 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
- 	}
- 
- 	/*
-+	 * If task is allocating a lot of memory and has been marked to be
-+	 * killed first if it triggers an oom, then select it.
-+	 *
-+	 * Score ULONG_MAX / 1000 rather than ULONG_MAX is used in order to
-+	 * avoid overflow when the caller multiplies this score later using
-+	 * "1000 / totalpages".
-+	 */
-+	if (oom_task_origin(p)) {
-+		task_unlock(p);
-+		return ULONG_MAX / 1000;
-+	}
-+
-+	/*
- 	 * The baseline for the badness score is the proportion of RAM that each
- 	 * task's rss, pagetable and swap space use.
- 	 */
-@@ -286,13 +299,6 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
- 	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims))
- 		return OOM_SCAN_ABORT;
- 
--	/*
--	 * If task is allocating a lot of memory and has been marked to be
--	 * killed first if it triggers an oom, then select it.
--	 */
--	if (oom_task_origin(task))
--		return OOM_SCAN_SELECT;
--
- 	return OOM_SCAN_OK;
- }
- 
-@@ -309,13 +315,9 @@ static struct task_struct *select_bad_process(struct oom_control *oc,
- 
- 	rcu_read_lock();
- 	for_each_process(p) {
--		unsigned int points;
-+		unsigned long points;
- 
- 		switch (oom_scan_process_thread(oc, p)) {
--		case OOM_SCAN_SELECT:
--			chosen = p;
--			chosen_points = ULONG_MAX;
--			/* fall through */
- 		case OOM_SCAN_CONTINUE:
- 			continue;
- 		case OOM_SCAN_ABORT:
--- 
-1.8.3.1
+Michal Hocko's OOM detection rework patchset that removes that code was sent
+to Linus 4 hours ago. ( https://marc.info/?l=linux-mm-commits&m=146378862415399 )
+Please wait for a few days and try reproducing using linux.git .
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
