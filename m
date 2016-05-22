@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 614AC6B0005
-	for <linux-mm@kvack.org>; Sun, 22 May 2016 01:44:14 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id 126so124562940qkl.0
-        for <linux-mm@kvack.org>; Sat, 21 May 2016 22:44:14 -0700 (PDT)
-Received: from mail-qg0-x242.google.com (mail-qg0-x242.google.com. [2607:f8b0:400d:c04::242])
-        by mx.google.com with ESMTPS id d7si25067063qge.124.2016.05.21.22.44.13
+Received: from mail-qg0-f70.google.com (mail-qg0-f70.google.com [209.85.192.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B0FBE6B0005
+	for <linux-mm@kvack.org>; Sun, 22 May 2016 17:17:42 -0400 (EDT)
+Received: by mail-qg0-f70.google.com with SMTP id e35so267192741qge.0
+        for <linux-mm@kvack.org>; Sun, 22 May 2016 14:17:42 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n134si20622694qka.10.2016.05.22.14.17.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 21 May 2016 22:44:13 -0700 (PDT)
-Received: by mail-qg0-x242.google.com with SMTP id 90so12639137qgz.0
-        for <linux-mm@kvack.org>; Sat, 21 May 2016 22:44:13 -0700 (PDT)
+        Sun, 22 May 2016 14:17:41 -0700 (PDT)
+Date: Sun, 22 May 2016 23:17:36 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: zone_reclaimable() leads to livelock in __alloc_pages_slowpath()
+Message-ID: <20160522211736.GA3161@redhat.com>
+References: <20160520202817.GA22201@redhat.com>
+ <237e1113-fca7-51c7-1271-fb48398fd599@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20160521202752.GA31710@gmail.com>
-References: <1463487232-4377-1-git-send-email-dsafonov@virtuozzo.com>
- <1463487232-4377-3-git-send-email-dsafonov@virtuozzo.com> <20160520064820.GB29418@gmail.com>
- <CALCETrWznziSzwu3gG6bcFAxPvboTF519iTS6F8+WVW0B4i4UQ@mail.gmail.com> <20160521202752.GA31710@gmail.com>
-From: Dmitry Safonov <0x7f454c46@gmail.com>
-Date: Sun, 22 May 2016 08:43:53 +0300
-Message-ID: <CAJwJo6a9j+AcQ4PVhW21V32EW9Ur4XqG8KSuAWPKmMrFhS3fhQ@mail.gmail.com>
-Subject: Re: [PATCHv9 2/2] selftest/x86: add mremap vdso test
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <237e1113-fca7-51c7-1271-fb48398fd599@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, Dmitry Safonov <dsafonov@virtuozzo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Shuah Khan <shuahkh@osg.samsung.com>, linux-kselftest@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-2016-05-21 23:27 GMT+03:00 Ingo Molnar <mingo@kernel.org>:
+On 05/21, Tetsuo Handa wrote:
 >
-> * Andy Lutomirski <luto@amacapital.net> wrote:
+> On 2016/05/21 5:28, Oleg Nesterov wrote:
+> > It spins in __alloc_pages_slowpath() forever, __alloc_pages_may_oom() is never
+> > called, it doesn't react to SIGKILL, etc.
+> >
+> > This is because zone_reclaimable() is always true in shrink_zones(), and the
+> > problem goes away if I comment out this code
+> >
+> > 	if (global_reclaim(sc) &&
+> > 	    !reclaimable && zone_reclaimable(zone))
+> > 		reclaimable = true;
+> >
+> > in shrink_zones() which otherwise returns this "true" every time, and thus
+> > __alloc_pages_slowpath() always sees did_some_progress != 0.
+> >
 >
->> On Thu, May 19, 2016 at 11:48 PM, Ingo Molnar <mingo@kernel.org> wrote:
->> >
->> > * Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
->> >
->> >> Should print on success:
->> >> [root@localhost ~]# ./test_mremap_vdso_32
->> >>       AT_SYSINFO_EHDR is 0xf773f000
->> >> [NOTE]        Moving vDSO: [f773f000, f7740000] -> [a000000, a001000]
->> >> [OK]
->> >> Or segfault if landing was bad (before patches):
->> >> [root@localhost ~]# ./test_mremap_vdso_32
->> >>       AT_SYSINFO_EHDR is 0xf774f000
->> >> [NOTE]        Moving vDSO: [f774f000, f7750000] -> [a000000, a001000]
->> >> Segmentation fault (core dumped)
->> >
->> > So I still think that generating potential segfaults is not a proper way to test a
->> > new feature. How are we supposed to tell the feature still works? I realize that
->> > glibc is a problem here - but that doesn't really change the QA equation: we are
->> > adding new kernel code to help essentially a single application out of tens of
->> > thousands of applications.
->> >
->> > At minimum we should have a robust testcase ...
->>
->> I think it's robust enough.  It will print "[OK]" and exit with 0 on
->> success and it will crash on failure.  The latter should cause make
->> run_tests to fail reliably.
->
-> Indeed, you are right - I somehow mis-read it as potentially segfaulting on fixed
-> kernels as well...
->
-> Will look at applying this after the merge window.
+> Michal Hocko's OOM detection rework patchset that removes that code was sent
+> to Linus 4 hours ago. ( https://marc.info/?l=linux-mm-commits&m=146378862415399 )
+> Please wait for a few days and try reproducing using linux.git .
 
-Great! Thanks, Ingo - maybe I should have wrote test's patch description better.
-Thanks again, Andy.
+I guess you mean
+http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/mm/vmscan.c?id=fa8c5f033ebb43f925d68c29d297bafd36af7114
+"mm, oom: rework oom detection"...
+
+Yes thanks a lot Tetsuo, it should fix the problem.
+
+Cough I can't resist I hate Michal^W the fact this was already fixed ;) Because
+it took me some time to understand whats going on, initially it looked like some
+subtle and hard-to-reproduce bug in userfaultfd.
+
+Thanks!
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
