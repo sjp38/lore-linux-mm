@@ -1,135 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CA2276B0005
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 19:08:07 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id v128so147950qkh.1
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 16:08:07 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r95si29200835qkr.150.2016.05.23.16.08.06
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EB54C6B0005
+	for <linux-mm@kvack.org>; Mon, 23 May 2016 19:39:35 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id dr7so838411pac.3
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 16:39:35 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id n65si55265952pfn.76.2016.05.23.16.39.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 May 2016 16:08:06 -0700 (PDT)
-Date: Tue, 24 May 2016 01:08:00 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 3/3] mm, thp: make swapin readahead under down_read of
- mmap_sem
-Message-ID: <20160523230800.GC20829@redhat.com>
-References: <1464023651-19420-1-git-send-email-ebru.akagunduz@gmail.com>
- <1464023651-19420-4-git-send-email-ebru.akagunduz@gmail.com>
- <20160523184246.GE32715@dhcp22.suse.cz>
- <1464029349.16365.58.camel@redhat.com>
- <20160523190154.GA79357@black.fi.intel.com>
- <1464031607.16365.60.camel@redhat.com>
- <20160523200244.GA4289@node.shutemov.name>
- <1464034383.16365.70.camel@redhat.com>
- <20160523214942.GA79646@black.fi.intel.com>
+        Mon, 23 May 2016 16:39:34 -0700 (PDT)
+Received: by mail-pa0-x22c.google.com with SMTP id tb2so226430pac.2
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 16:39:34 -0700 (PDT)
+Date: Mon, 23 May 2016 16:32:56 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [patch] mm, migrate: increment fail count on ENOMEM
+In-Reply-To: <20160523150202.70702708ce323b36ad94cbab@linux-foundation.org>
+Message-ID: <alpine.LSU.2.11.1605231618360.22555@eggly.anvils>
+References: <alpine.DEB.2.10.1605191510230.32658@chino.kir.corp.google.com> <20160520130649.GB5197@dhcp22.suse.cz> <573F0ED0.4010908@suse.cz> <20160520133121.GB5215@dhcp22.suse.cz> <20160523150202.70702708ce323b36ad94cbab@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160523214942.GA79646@black.fi.intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@kernel.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, hughd@google.com, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, boaz@plexistor.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, May 24, 2016 at 12:49:42AM +0300, Kirill A. Shutemov wrote:
-> That's what we do now and that's not enough.
+On Mon, 23 May 2016, Andrew Morton wrote:
+> On Fri, 20 May 2016 15:31:21 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+> > On Fri 20-05-16 15:19:12, Vlastimil Babka wrote:
+> > > On 05/20/2016 03:06 PM, Michal Hocko wrote:
+> > [...]
+> > > > Why don't we need also to count also retries?
+> > > 
+> > > We could, but not like you suggest.
+> > > 
+> > > > ---
+> > > > diff --git a/mm/migrate.c b/mm/migrate.c
+> > > > index 53ab6398e7a2..ef9c5211ae3c 100644
+> > > > --- a/mm/migrate.c
+> > > > +++ b/mm/migrate.c
+> > > > @@ -1190,9 +1190,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+> > > >   			}
+> > > >   		}
+> > > >   	}
+> > > > +out:
+> > > >   	nr_failed += retry;
+> > > >   	rc = nr_failed;
+> > > 
+> > > This overwrites rc == -ENOMEM, which at least compaction needs to recognize.
+> > > But we could duplicate "nr_failed += retry" in the case -ENOMEM.
+> > 
+> > Right you are. So we should do
+> > ---
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index 53ab6398e7a2..123fed94022b 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -1171,6 +1171,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+> >  
+> >  			switch(rc) {
+> >  			case -ENOMEM:
+> > +				nr_failed += retry + 1;
+> >  				goto out;
+> >  			case -EAGAIN:
+> >  				retry++;
+> > 	
+> > 
 > 
-> We would need to serialize against pmd_lock() during normal page-fault
-> path (and other pte manipulation), which we don't do now if pmd points to
-> page table.
+> argh, this was lost.  Please resend as a real patch sometime?
 
-Yes, mmap_sem for writing while converting the pmd to a
-pmd_trans_huge() in khugepaged, is so that the pagetable walk doesn't
-require the pmd_lock after holding the mmap_sem for reading if the pmd
-is found !pmd_trans_unstable, i.e. if the pmd points to a pte.
+It's not correct.  "retry" is reset to 0 each time around the
+loop, and it's only a meaningful number to add on to nr_failed, in
+the case when we've gone through the whole list: not in this "goto
+out" case.  We could add another loop to count how many are left
+when we hit -ENOMEM, and add that on to nr_failed; but I'm not
+convinced that it's worth the bother.
 
-This way the non-THP pte walk retains the identical cost it has with
-THP not compiled into the kernel (even when THP is enabled).
-
-khugepaged already starts by doing work with the mmap_sem for reading,
-then while holding the mmap_sem for reading if khugepaged_scan_pmd()
-finds a candidate pmd to collapse into a pmd_trans_huge(), it calls
-collapse_huge_page which at some point releases the mmap_sem for
-reading (before the THP memory allocation) and takes it again for
-writing if the allocation succeeded and we can go ahead with the
-atomic THP collapse (under mmap_sem for writing and under the anon_vma
-lock for writing too to serialize against split_huge_page which can be
-called on the physical page and doesn't hold any mmap_sem but just
-finds the pagetables through a rmap walk). The atomic part is all non
-blocking.
-
-The swapin loop can run under the mmap_sem for reading if it does the
-proper check to revalidate the vma, but it should move above the below
-comment.
-
-	/*
-	 * Prevent all access to pagetables with the exception of
-	 * gup_fast later hanlded by the ptep_clear_flush and the VM
-	 * handled by the anon_vma lock + PG_lock.
-	 */
-	down_write(&mm->mmap_sem);
-
-Which is more or less what the last patch was doing except by keeping
-the comment above the swapin stage, it made the comment wrong, as the
-comment was then followed by a down_read.
-
-Aside from the comment being wrong (which is not a kernel crashing
-issue), the real problem was lack of revalidates after releasing the
-mmap_sem and this revalidate attempt is also not correct:
-
-+                       vma = find_vma(mm, address);
-+                       /* vma is no longer available, don't continue to swapin */
-+                       if (vma != vma_orig)
-+                               return false;
-
-Because the mmap_sem was temporarily dropped, the vma may have been
-freed and reallocated at the same address, but it may be a completely
-different vma with different vm_start/end values or it may not be
-anonymous or mremap may have altered the vm_start/end too or the "mm"
-may have exited in the meanwhile.
-
-collapse_huge_page already shows how to correctly to revalidate the
-vma after dropping the mmap_sem temporarily:
-
-	down_write(&mm->mmap_sem);
-	if (unlikely(khugepaged_test_exit(mm))) {
-		result = SCAN_ANY_PROCESS;
-		goto out;
-	}
-
-	vma = find_vma(mm, address);
-	if (!vma) {
-		result = SCAN_VMA_NULL;
-		goto out;
-	}
-	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
-	hend = vma->vm_end & HPAGE_PMD_MASK;
-	if (address < hstart || address + HPAGE_PMD_SIZE > hend) {
-		result = SCAN_ADDRESS_RANGE;
-		goto out;
-	}
-	if (!hugepage_vma_check(vma)) {
-		result = SCAN_VMA_CHECK;
-		goto out;
-	}
-
-All checks above are needed for a correct revalidate, otherwise the
-above code could also have been replaced by a vma != vma_orig.
-
-If we move this swapin stage before the comment and after the THP
-allocation succeeded, and we do enough revalidates correctly (which
-are currently missing or incorrect, and find_vma is not enough for a
-revalidate, find_vma only says there's some random vma with vm_end >
-address), it should then work ok under only the mmap_sem for
-reading.
-
-Overall the last patch goes in the right direction just it needs to do
-all revalidates right and to move the swapin stage a bit more up to
-avoid invalidating the comment I think.
-
-Thanks,
-Andrea
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
