@@ -1,136 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D3EF6B0253
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 18:14:04 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 129so216432257pfx.0
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 15:14:04 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id g82si8424414pfj.143.2016.05.23.15.14.03
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CA2276B0005
+	for <linux-mm@kvack.org>; Mon, 23 May 2016 19:08:07 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id v128so147950qkh.1
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 16:08:07 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r95si29200835qkr.150.2016.05.23.16.08.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 May 2016 15:14:03 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id 145so20267340pfz.1
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 15:14:03 -0700 (PDT)
-Date: Mon, 23 May 2016 15:13:58 -0700
-From: Alexei Starovoitov <alexei.starovoitov@gmail.com>
-Subject: Re: bpf: use-after-free in array_map_alloc
-Message-ID: <20160523221356.GA35044@ast-mbp.thefacebook.com>
-References: <5713C0AD.3020102@oracle.com>
- <20160417172943.GA83672@ast-mbp.thefacebook.com>
- <5742F127.6080000@suse.cz>
- <5742F267.3000309@suse.cz>
- <20160523213501.GA5383@mtj.duckdns.org>
+        Mon, 23 May 2016 16:08:06 -0700 (PDT)
+Date: Tue, 24 May 2016 01:08:00 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 3/3] mm, thp: make swapin readahead under down_read of
+ mmap_sem
+Message-ID: <20160523230800.GC20829@redhat.com>
+References: <1464023651-19420-1-git-send-email-ebru.akagunduz@gmail.com>
+ <1464023651-19420-4-git-send-email-ebru.akagunduz@gmail.com>
+ <20160523184246.GE32715@dhcp22.suse.cz>
+ <1464029349.16365.58.camel@redhat.com>
+ <20160523190154.GA79357@black.fi.intel.com>
+ <1464031607.16365.60.camel@redhat.com>
+ <20160523200244.GA4289@node.shutemov.name>
+ <1464034383.16365.70.camel@redhat.com>
+ <20160523214942.GA79646@black.fi.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160523213501.GA5383@mtj.duckdns.org>
+In-Reply-To: <20160523214942.GA79646@black.fi.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Sasha Levin <sasha.levin@oracle.com>, ast@kernel.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Linux-MM layout <linux-mm@kvack.org>, Marco Grassi <marco.gra@gmail.com>, Daniel Borkmann <daniel@iogearbox.net>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@kernel.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, hughd@google.com, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, boaz@plexistor.com
 
-On Mon, May 23, 2016 at 05:35:01PM -0400, Tejun Heo wrote:
-> Hello,
+On Tue, May 24, 2016 at 12:49:42AM +0300, Kirill A. Shutemov wrote:
+> That's what we do now and that's not enough.
 > 
-> Can you please test whether this patch resolves the issue?  While
-> adding support for atomic allocations, I reduced alloc_mutex covered
-> region too much.
+> We would need to serialize against pmd_lock() during normal page-fault
+> path (and other pte manipulation), which we don't do now if pmd points to
+> page table.
 
-after the patch the use-after-free is no longer seen.
-Tested-by: Alexei Starovoitov <ast@kernel.org>
+Yes, mmap_sem for writing while converting the pmd to a
+pmd_trans_huge() in khugepaged, is so that the pagetable walk doesn't
+require the pmd_lock after holding the mmap_sem for reading if the pmd
+is found !pmd_trans_unstable, i.e. if the pmd points to a pte.
 
-> 
-> Thanks.
-> 
-> diff --git a/mm/percpu.c b/mm/percpu.c
-> index 0c59684..bd2df70 100644
-> --- a/mm/percpu.c
-> +++ b/mm/percpu.c
-> @@ -162,7 +162,7 @@ static struct pcpu_chunk *pcpu_reserved_chunk;
->  static int pcpu_reserved_chunk_limit;
->  
->  static DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
-> -static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop */
-> +static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop, map extension */
->  
->  static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
->  
-> @@ -435,6 +435,8 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
->  	size_t old_size = 0, new_size = new_alloc * sizeof(new[0]);
->  	unsigned long flags;
->  
-> +	lockdep_assert_held(&pcpu_alloc_mutex);
-> +
->  	new = pcpu_mem_zalloc(new_size);
->  	if (!new)
->  		return -ENOMEM;
-> @@ -895,6 +897,9 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
->  		return NULL;
->  	}
->  
-> +	if (!is_atomic)
-> +		mutex_lock(&pcpu_alloc_mutex);
-> +
->  	spin_lock_irqsave(&pcpu_lock, flags);
->  
->  	/* serve reserved allocations from the reserved chunk if available */
-> @@ -967,12 +972,11 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
->  	if (is_atomic)
->  		goto fail;
->  
-> -	mutex_lock(&pcpu_alloc_mutex);
-> +	lockdep_assert_held(&pcpu_alloc_mutex);
->  
->  	if (list_empty(&pcpu_slot[pcpu_nr_slots - 1])) {
->  		chunk = pcpu_create_chunk();
->  		if (!chunk) {
-> -			mutex_unlock(&pcpu_alloc_mutex);
->  			err = "failed to allocate new chunk";
->  			goto fail;
->  		}
-> @@ -983,7 +987,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
->  		spin_lock_irqsave(&pcpu_lock, flags);
->  	}
->  
-> -	mutex_unlock(&pcpu_alloc_mutex);
->  	goto restart;
->  
->  area_found:
-> @@ -993,8 +996,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
->  	if (!is_atomic) {
->  		int page_start, page_end, rs, re;
->  
-> -		mutex_lock(&pcpu_alloc_mutex);
-> -
->  		page_start = PFN_DOWN(off);
->  		page_end = PFN_UP(off + size);
->  
-> @@ -1005,7 +1006,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
->  
->  			spin_lock_irqsave(&pcpu_lock, flags);
->  			if (ret) {
-> -				mutex_unlock(&pcpu_alloc_mutex);
->  				pcpu_free_area(chunk, off, &occ_pages);
->  				err = "failed to populate";
->  				goto fail_unlock;
-> @@ -1045,6 +1045,8 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
->  		/* see the flag handling in pcpu_blance_workfn() */
->  		pcpu_atomic_alloc_failed = true;
->  		pcpu_schedule_balance_work();
-> +	} else {
-> +		mutex_unlock(&pcpu_alloc_mutex);
->  	}
->  	return NULL;
->  }
-> @@ -1137,6 +1139,8 @@ static void pcpu_balance_workfn(struct work_struct *work)
->  	list_for_each_entry_safe(chunk, next, &to_free, list) {
->  		int rs, re;
->  
-> +		cancel_work_sync(&chunk->map_extend_work);
-> +
->  		pcpu_for_each_pop_region(chunk, rs, re, 0, pcpu_unit_pages) {
->  			pcpu_depopulate_chunk(chunk, rs, re);
->  			spin_lock_irq(&pcpu_lock);
+This way the non-THP pte walk retains the identical cost it has with
+THP not compiled into the kernel (even when THP is enabled).
+
+khugepaged already starts by doing work with the mmap_sem for reading,
+then while holding the mmap_sem for reading if khugepaged_scan_pmd()
+finds a candidate pmd to collapse into a pmd_trans_huge(), it calls
+collapse_huge_page which at some point releases the mmap_sem for
+reading (before the THP memory allocation) and takes it again for
+writing if the allocation succeeded and we can go ahead with the
+atomic THP collapse (under mmap_sem for writing and under the anon_vma
+lock for writing too to serialize against split_huge_page which can be
+called on the physical page and doesn't hold any mmap_sem but just
+finds the pagetables through a rmap walk). The atomic part is all non
+blocking.
+
+The swapin loop can run under the mmap_sem for reading if it does the
+proper check to revalidate the vma, but it should move above the below
+comment.
+
+	/*
+	 * Prevent all access to pagetables with the exception of
+	 * gup_fast later hanlded by the ptep_clear_flush and the VM
+	 * handled by the anon_vma lock + PG_lock.
+	 */
+	down_write(&mm->mmap_sem);
+
+Which is more or less what the last patch was doing except by keeping
+the comment above the swapin stage, it made the comment wrong, as the
+comment was then followed by a down_read.
+
+Aside from the comment being wrong (which is not a kernel crashing
+issue), the real problem was lack of revalidates after releasing the
+mmap_sem and this revalidate attempt is also not correct:
+
++                       vma = find_vma(mm, address);
++                       /* vma is no longer available, don't continue to swapin */
++                       if (vma != vma_orig)
++                               return false;
+
+Because the mmap_sem was temporarily dropped, the vma may have been
+freed and reallocated at the same address, but it may be a completely
+different vma with different vm_start/end values or it may not be
+anonymous or mremap may have altered the vm_start/end too or the "mm"
+may have exited in the meanwhile.
+
+collapse_huge_page already shows how to correctly to revalidate the
+vma after dropping the mmap_sem temporarily:
+
+	down_write(&mm->mmap_sem);
+	if (unlikely(khugepaged_test_exit(mm))) {
+		result = SCAN_ANY_PROCESS;
+		goto out;
+	}
+
+	vma = find_vma(mm, address);
+	if (!vma) {
+		result = SCAN_VMA_NULL;
+		goto out;
+	}
+	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
+	hend = vma->vm_end & HPAGE_PMD_MASK;
+	if (address < hstart || address + HPAGE_PMD_SIZE > hend) {
+		result = SCAN_ADDRESS_RANGE;
+		goto out;
+	}
+	if (!hugepage_vma_check(vma)) {
+		result = SCAN_VMA_CHECK;
+		goto out;
+	}
+
+All checks above are needed for a correct revalidate, otherwise the
+above code could also have been replaced by a vma != vma_orig.
+
+If we move this swapin stage before the comment and after the THP
+allocation succeeded, and we do enough revalidates correctly (which
+are currently missing or incorrect, and find_vma is not enough for a
+revalidate, find_vma only says there's some random vma with vm_end >
+address), it should then work ok under only the mmap_sem for
+reading.
+
+Overall the last patch goes in the right direction just it needs to do
+all revalidates right and to move the swapin stage a bit more up to
+avoid invalidating the comment I think.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
