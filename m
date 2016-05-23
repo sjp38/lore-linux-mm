@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 149636B025E
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 18:08:35 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id o70so27953201lfg.1
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 15:08:35 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id az5si47073999wjc.89.2016.05.23.15.08.32
+	by kanga.kvack.org (Postfix) with ESMTP id F07476B0005
+	for <linux-mm@kvack.org>; Mon, 23 May 2016 18:09:28 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id k186so41268940lfe.3
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 15:09:28 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id i14si47083411wjn.237.2016.05.23.15.09.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 May 2016 15:08:32 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id n129so554972wmn.1
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 15:08:32 -0700 (PDT)
-Date: Tue, 24 May 2016 00:15:29 +0200
+        Mon, 23 May 2016 15:09:27 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id q62so539006wmg.3
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 15:09:27 -0700 (PDT)
+Date: Tue, 24 May 2016 00:16:29 +0200
 From: Emese Revfy <re.emese@gmail.com>
-Subject: [PATCH v1 1/3] Add the latent_entropy gcc plugin
-Message-Id: <20160524001529.0e69232eff0b1b5bc566a763@gmail.com>
+Subject: [PATCH v1 2/3] Mark functions with the latent_entropy attribute
+Message-Id: <20160524001629.7a9f0c5ce8427d0ad5e951fd@gmail.com>
 In-Reply-To: <20160524001405.3e6abd1d5a63a871cc366cff@gmail.com>
 References: <20160524001405.3e6abd1d5a63a871cc366cff@gmail.com>
 Mime-Version: 1.0
@@ -25,632 +25,336 @@ List-ID: <linux-mm.kvack.org>
 To: kernel-hardening@lists.openwall.com
 Cc: pageexec@freemail.hu, spender@grsecurity.net, mmarek@suse.com, keescook@chromium.org, linux-kernel@vger.kernel.org, yamada.masahiro@socionext.com, linux-kbuild@vger.kernel.org, tytso@mit.edu, akpm@linux-foundation.org, linux-mm@kvack.org, axboe@kernel.dk, viro@zeniv.linux.org.uk, paulmck@linux.vnet.ibm.com, mingo@redhat.com, tglx@linutronix.de, bart.vanassche@sandisk.com, davem@davemloft.net
 
-This plugin mitigates the problem of the kernel having too little entropy during
-and after boot for generating crypto keys.
-
-It creates a local variable in every marked function. The value of this variable is
-modified by randomly chosen operations (add, xor and rol) and
-random values (gcc generates them at compile time and the stack pointer at runtime).
-It depends on the control flow (e.g., loops, conditions).
-
-Before the function returns the plugin writes this local variable
-into the latent_entropy global variable. The value of this global variable is
-added to the kernel entropy pool in do_one_initcall() and _do_fork().
+These functions have been selected because they are init functions or
+are called at random times or they have variable loops.
 
 Based on work created by the PaX Team.
 
 Signed-off-by: Emese Revfy <re.emese@gmail.com>
 ---
- arch/Kconfig                                |  17 ++
- arch/powerpc/kernel/Makefile                |   8 +-
- include/linux/random.h                      |   8 +
- init/main.c                                 |   1 +
- kernel/fork.c                               |   1 +
- mm/page_alloc.c                             |   5 +
- scripts/Makefile.gcc-plugins                |  10 +-
- scripts/gcc-plugins/Makefile                |   1 +
- scripts/gcc-plugins/latent_entropy_plugin.c | 446 ++++++++++++++++++++++++++++
- 9 files changed, 491 insertions(+), 6 deletions(-)
- create mode 100644 scripts/gcc-plugins/latent_entropy_plugin.c
+ block/blk-softirq.c          |  2 +-
+ drivers/char/random.c        |  6 +++---
+ fs/namespace.c               |  2 +-
+ include/linux/compiler-gcc.h |  5 +++++
+ include/linux/compiler.h     |  4 ++++
+ include/linux/fdtable.h      |  2 +-
+ include/linux/genhd.h        |  2 +-
+ include/linux/init.h         | 10 ++++++++--
+ include/linux/random.h       |  4 ++--
+ kernel/fork.c                |  4 ++--
+ kernel/rcu/tiny.c            |  2 +-
+ kernel/rcu/tree.c            |  2 +-
+ kernel/sched/fair.c          |  2 +-
+ kernel/softirq.c             |  4 ++--
+ kernel/time/timer.c          |  2 +-
+ lib/irq_poll.c               |  2 +-
+ lib/random32.c               |  2 +-
+ mm/page_alloc.c              |  2 +-
+ net/core/dev.c               |  4 ++--
+ 19 files changed, 39 insertions(+), 24 deletions(-)
 
-diff --git a/arch/Kconfig b/arch/Kconfig
-index 5feadad..74489df 100644
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -393,6 +393,23 @@ config GCC_PLUGIN_SANCOV
- 	  gcc-4.5 on). It is based on the commit "Add fuzzing coverage support"
- 	  by Dmitry Vyukov <dvyukov@google.com>.
+diff --git a/block/blk-softirq.c b/block/blk-softirq.c
+index 53b1737..489eab8 100644
+--- a/block/blk-softirq.c
++++ b/block/blk-softirq.c
+@@ -18,7 +18,7 @@ static DEFINE_PER_CPU(struct list_head, blk_cpu_done);
+  * Softirq action handler - move entries to local list and loop over them
+  * while passing them to the queue registered handler.
+  */
+-static void blk_done_softirq(struct softirq_action *h)
++static __latent_entropy void blk_done_softirq(struct softirq_action *h)
+ {
+ 	struct list_head *cpu_list, local_list;
  
-+config GCC_PLUGIN_LATENT_ENTROPY
-+	bool "latent entropy"
-+	depends on GCC_PLUGINS
-+	help
-+	  By saying Y here the kernel will instrument some kernel code to
-+	  extract some entropy from both original and artificially created
-+	  program state.  This will help especially embedded systems where
-+	  there is little 'natural' source of entropy normally.  The cost
-+	  is some slowdown of the boot process and fork and irq processing.
-+
-+	  Note that entropy extracted this way is not known to be cryptographically
-+	  secure!
-+
-+	  This plugin was ported from grsecurity/PaX. More information at:
-+	   * https://grsecurity.net/
-+	   * https://pax.grsecurity.net/
-+
- config HAVE_CC_STACKPROTECTOR
- 	bool
- 	help
-diff --git a/arch/powerpc/kernel/Makefile b/arch/powerpc/kernel/Makefile
-index 2da380f..6c7e448 100644
---- a/arch/powerpc/kernel/Makefile
-+++ b/arch/powerpc/kernel/Makefile
-@@ -16,10 +16,10 @@ endif
- 
- ifdef CONFIG_FUNCTION_TRACER
- # Do not trace early boot code
--CFLAGS_REMOVE_cputable.o = -mno-sched-epilog $(CC_FLAGS_FTRACE)
--CFLAGS_REMOVE_prom_init.o = -mno-sched-epilog $(CC_FLAGS_FTRACE)
--CFLAGS_REMOVE_btext.o = -mno-sched-epilog $(CC_FLAGS_FTRACE)
--CFLAGS_REMOVE_prom.o = -mno-sched-epilog $(CC_FLAGS_FTRACE)
-+CFLAGS_REMOVE_cputable.o = -mno-sched-epilog $(CC_FLAGS_FTRACE) $(DISABLE_LATENT_ENTROPY_PLUGIN)
-+CFLAGS_REMOVE_prom_init.o = -mno-sched-epilog $(CC_FLAGS_FTRACE) $(DISABLE_LATENT_ENTROPY_PLUGIN)
-+CFLAGS_REMOVE_btext.o = -mno-sched-epilog $(CC_FLAGS_FTRACE) $(DISABLE_LATENT_ENTROPY_PLUGIN)
-+CFLAGS_REMOVE_prom.o = -mno-sched-epilog $(CC_FLAGS_FTRACE) $(DISABLE_LATENT_ENTROPY_PLUGIN)
- # do not trace tracer code
- CFLAGS_REMOVE_ftrace.o = -mno-sched-epilog $(CC_FLAGS_FTRACE)
- # timers used by tracing
-diff --git a/include/linux/random.h b/include/linux/random.h
-index e47e533..379f4bc 100644
---- a/include/linux/random.h
-+++ b/include/linux/random.h
-@@ -18,6 +18,14 @@ struct random_ready_callback {
+diff --git a/drivers/char/random.c b/drivers/char/random.c
+index 0158d3b..6cca3ed 100644
+--- a/drivers/char/random.c
++++ b/drivers/char/random.c
+@@ -443,9 +443,9 @@ struct entropy_store {
  };
  
- extern void add_device_randomness(const void *, unsigned int);
-+
-+static inline void add_latent_entropy(void)
-+{
-+#ifdef CONFIG_GCC_PLUGIN_LATENT_ENTROPY
-+	add_device_randomness((const void *)&latent_entropy, sizeof(latent_entropy));
-+#endif
-+}
-+
- extern void add_input_randomness(unsigned int type, unsigned int code,
- 				 unsigned int value);
- extern void add_interrupt_randomness(int irq, int irq_flags);
-diff --git a/init/main.c b/init/main.c
-index 4c17fda..07e4174 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -781,6 +781,7 @@ int __init_or_module do_one_initcall(initcall_t fn)
- 	}
- 	WARN(msgbuf[0], "initcall %pF returned with %s\n", fn, msgbuf);
+ static void push_to_pool(struct work_struct *work);
+-static __u32 input_pool_data[INPUT_POOL_WORDS];
+-static __u32 blocking_pool_data[OUTPUT_POOL_WORDS];
+-static __u32 nonblocking_pool_data[OUTPUT_POOL_WORDS];
++static __u32 input_pool_data[INPUT_POOL_WORDS] __latent_entropy;
++static __u32 blocking_pool_data[OUTPUT_POOL_WORDS] __latent_entropy;
++static __u32 nonblocking_pool_data[OUTPUT_POOL_WORDS] __latent_entropy;
  
-+	add_latent_entropy();
- 	return ret;
+ static struct entropy_store input_pool = {
+ 	.poolinfo = &poolinfo_table[0],
+diff --git a/fs/namespace.c b/fs/namespace.c
+index 4fb1691..eed930c 100644
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -2778,7 +2778,7 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns)
+ 	return new_ns;
  }
  
+-struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
++__latent_entropy struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+ 		struct user_namespace *user_ns, struct fs_struct *new_fs)
+ {
+ 	struct mnt_namespace *new_ns;
+diff --git a/include/linux/compiler-gcc.h b/include/linux/compiler-gcc.h
+index e294939..8d85907 100644
+--- a/include/linux/compiler-gcc.h
++++ b/include/linux/compiler-gcc.h
+@@ -188,6 +188,11 @@
+ #endif /* GCC_VERSION >= 40300 */
+ 
+ #if GCC_VERSION >= 40500
++
++#ifdef LATENT_ENTROPY_PLUGIN
++#define __latent_entropy __attribute__((latent_entropy))
++#endif
++
+ /*
+  * Mark a position in code as unreachable.  This can be used to
+  * suppress control flow warnings after asm blocks that transfer
+diff --git a/include/linux/compiler.h b/include/linux/compiler.h
+index 793c082..c65327b 100644
+--- a/include/linux/compiler.h
++++ b/include/linux/compiler.h
+@@ -425,6 +425,10 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
+ # define __attribute_const__	/* unimplemented */
+ #endif
+ 
++#ifndef __latent_entropy
++# define __latent_entropy
++#endif
++
+ /*
+  * Tell gcc if a function is cold. The compiler will assume any path
+  * directly leading to the call is unlikely.
+diff --git a/include/linux/fdtable.h b/include/linux/fdtable.h
+index 5295535..9852c7e 100644
+--- a/include/linux/fdtable.h
++++ b/include/linux/fdtable.h
+@@ -105,7 +105,7 @@ struct files_struct *get_files_struct(struct task_struct *);
+ void put_files_struct(struct files_struct *fs);
+ void reset_files_struct(struct files_struct *);
+ int unshare_files(struct files_struct **);
+-struct files_struct *dup_fd(struct files_struct *, int *);
++struct files_struct *dup_fd(struct files_struct *, int *) __latent_entropy;
+ void do_close_on_exec(struct files_struct *);
+ int iterate_fd(struct files_struct *, unsigned,
+ 		int (*)(const void *, struct file *, unsigned),
+diff --git a/include/linux/genhd.h b/include/linux/genhd.h
+index 359a8e4..8736c1f 100644
+--- a/include/linux/genhd.h
++++ b/include/linux/genhd.h
+@@ -433,7 +433,7 @@ extern void disk_flush_events(struct gendisk *disk, unsigned int mask);
+ extern unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask);
+ 
+ /* drivers/char/random.c */
+-extern void add_disk_randomness(struct gendisk *disk);
++extern void add_disk_randomness(struct gendisk *disk) __latent_entropy;
+ extern void rand_initialize_disk(struct gendisk *disk);
+ 
+ static inline sector_t get_start_sect(struct block_device *bdev)
+diff --git a/include/linux/init.h b/include/linux/init.h
+index aedb254..68df2c3 100644
+--- a/include/linux/init.h
++++ b/include/linux/init.h
+@@ -37,9 +37,15 @@
+  * section.
+  */
+ 
++#ifdef CONFIG_MEMORY_HOTPLUG
++#define add_meminit_latent_entropy
++#else
++#define add_meminit_latent_entropy __latent_entropy
++#endif
++
+ /* These are for everybody (although not all archs will actually
+    discard it in modules) */
+-#define __init		__section(.init.text) __cold notrace
++#define __init		__section(.init.text) __cold notrace __latent_entropy
+ #define __initdata	__section(.init.data)
+ #define __initconst	__constsection(.init.rodata)
+ #define __exitdata	__section(.exit.data)
+@@ -92,7 +98,7 @@
+ #define __exit          __section(.exit.text) __exitused __cold notrace
+ 
+ /* Used for MEMORY_HOTPLUG */
+-#define __meminit        __section(.meminit.text) __cold notrace
++#define __meminit        __section(.meminit.text) __cold notrace add_meminit_latent_entropy
+ #define __meminitdata    __section(.meminit.data)
+ #define __meminitconst   __constsection(.meminit.rodata)
+ #define __memexit        __section(.memexit.text) __exitused __cold notrace
+diff --git a/include/linux/random.h b/include/linux/random.h
+index 379f4bc..9fb07d1 100644
+--- a/include/linux/random.h
++++ b/include/linux/random.h
+@@ -27,8 +27,8 @@ static inline void add_latent_entropy(void)
+ }
+ 
+ extern void add_input_randomness(unsigned int type, unsigned int code,
+-				 unsigned int value);
+-extern void add_interrupt_randomness(int irq, int irq_flags);
++				 unsigned int value) __latent_entropy;
++extern void add_interrupt_randomness(int irq, int irq_flags) __latent_entropy;
+ 
+ extern void get_random_bytes(void *buf, int nbytes);
+ extern int add_random_ready_callback(struct random_ready_callback *rdy);
 diff --git a/kernel/fork.c b/kernel/fork.c
-index cdf520f..d07d5a6 100644
+index d07d5a6..9fba65c 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
-@@ -1766,6 +1766,7 @@ long _do_fork(unsigned long clone_flags,
- 
- 	p = copy_process(clone_flags, stack_start, stack_size,
- 			 child_tidptr, NULL, trace, tls, NUMA_NO_NODE);
-+	add_latent_entropy();
- 	/*
- 	 * Do this prior waking up the new thread - the thread pointer
- 	 * might get invalid after that point, if the thread exits quickly.
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f8f3bfc..d10324e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1234,6 +1234,11 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 	local_irq_restore(flags);
+@@ -406,7 +406,7 @@ free_tsk:
  }
  
-+#ifdef CONFIG_GCC_PLUGIN_LATENT_ENTROPY
-+volatile u64 latent_entropy;
-+EXPORT_SYMBOL(latent_entropy);
-+#endif
-+
- static void __init __free_pages_boot_core(struct page *page, unsigned int order)
+ #ifdef CONFIG_MMU
+-static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
++static __latent_entropy int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
  {
- 	unsigned int nr_pages = 1 << order;
-diff --git a/scripts/Makefile.gcc-plugins b/scripts/Makefile.gcc-plugins
-index ed37e9b..1540620 100644
---- a/scripts/Makefile.gcc-plugins
-+++ b/scripts/Makefile.gcc-plugins
-@@ -6,6 +6,12 @@ ifdef CONFIG_GCC_PLUGINS
+ 	struct vm_area_struct *mpnt, *tmp, *prev, **pprev;
+ 	struct rb_node **rb_link, *rb_parent;
+@@ -1281,7 +1281,7 @@ init_task_pid(struct task_struct *task, enum pid_type type, struct pid *pid)
+  * parts of the process environment (as per the clone
+  * flags). The actual kick-off is left to the caller.
+  */
+-static struct task_struct *copy_process(unsigned long clone_flags,
++static __latent_entropy struct task_struct *copy_process(unsigned long clone_flags,
+ 					unsigned long stack_start,
+ 					unsigned long stack_size,
+ 					int __user *child_tidptr,
+diff --git a/kernel/rcu/tiny.c b/kernel/rcu/tiny.c
+index 944b1b4..1898559 100644
+--- a/kernel/rcu/tiny.c
++++ b/kernel/rcu/tiny.c
+@@ -170,7 +170,7 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
+ 				      false));
+ }
  
-   gcc-plugin-$(CONFIG_GCC_PLUGIN_CYC_COMPLEXITY)	+= cyc_complexity_plugin.so
+-static void rcu_process_callbacks(struct softirq_action *unused)
++static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused)
+ {
+ 	__rcu_process_callbacks(&rcu_sched_ctrlblk);
+ 	__rcu_process_callbacks(&rcu_bh_ctrlblk);
+diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+index c7f1bc4..8821fce 100644
+--- a/kernel/rcu/tree.c
++++ b/kernel/rcu/tree.c
+@@ -3004,7 +3004,7 @@ __rcu_process_callbacks(struct rcu_state *rsp)
+ /*
+  * Do RCU core processing for the current CPU.
+  */
+-static void rcu_process_callbacks(struct softirq_action *unused)
++static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused)
+ {
+ 	struct rcu_state *rsp;
  
-+  gcc-plugin-$(CONFIG_GCC_PLUGIN_LATENT_ENTROPY)	+= latent_entropy_plugin.so
-+  gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_LATENT_ENTROPY)	+= -DLATENT_ENTROPY_PLUGIN
-+  ifdef CONFIG_PAX_LATENT_ENTROPY
-+    DISABLE_LATENT_ENTROPY_PLUGIN			+= -fplugin-arg-latent_entropy_plugin-disable
-+  endif
-+
-   ifdef CONFIG_GCC_PLUGIN_SANCOV
-     ifeq ($(CFLAGS_KCOV),)
-       # It is needed because of the gcc-plugin.sh and gcc version checks.
-@@ -19,9 +25,9 @@ ifdef CONFIG_GCC_PLUGINS
-     endif
-   endif
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 218f8e8..cd745c2 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -8205,7 +8205,7 @@ static void nohz_idle_balance(struct rq *this_rq, enum cpu_idle_type idle) { }
+  * run_rebalance_domains is triggered when needed from the scheduler tick.
+  * Also triggered for nohz idle balancing (with nohz_balancing_kick set).
+  */
+-static void run_rebalance_domains(struct softirq_action *h)
++static __latent_entropy void run_rebalance_domains(struct softirq_action *h)
+ {
+ 	struct rq *this_rq = this_rq();
+ 	enum cpu_idle_type idle = this_rq->idle_balance ?
+diff --git a/kernel/softirq.c b/kernel/softirq.c
+index 17caf4b..34033fd 100644
+--- a/kernel/softirq.c
++++ b/kernel/softirq.c
+@@ -482,7 +482,7 @@ void __tasklet_hi_schedule_first(struct tasklet_struct *t)
+ }
+ EXPORT_SYMBOL(__tasklet_hi_schedule_first);
  
--  GCC_PLUGINS_CFLAGS := $(addprefix -fplugin=$(objtree)/scripts/gcc-plugins/, $(gcc-plugin-y))
-+  GCC_PLUGINS_CFLAGS := $(strip $(addprefix -fplugin=$(objtree)/scripts/gcc-plugins/, $(gcc-plugin-y)) $(gcc-plugin-cflags-y))
+-static void tasklet_action(struct softirq_action *a)
++static __latent_entropy void tasklet_action(struct softirq_action *a)
+ {
+ 	struct tasklet_struct *list;
  
--  export PLUGINCC GCC_PLUGINS_CFLAGS GCC_PLUGIN SANCOV_PLUGIN
-+  export PLUGINCC GCC_PLUGINS_CFLAGS GCC_PLUGIN SANCOV_PLUGIN DISABLE_LATENT_ENTROPY_PLUGIN
+@@ -518,7 +518,7 @@ static void tasklet_action(struct softirq_action *a)
+ 	}
+ }
  
-   ifeq ($(PLUGINCC),)
-     ifneq ($(GCC_PLUGINS_CFLAGS),)
-diff --git a/scripts/gcc-plugins/Makefile b/scripts/gcc-plugins/Makefile
-index 88c8ec4..a3f8ca4a 100644
---- a/scripts/gcc-plugins/Makefile
-+++ b/scripts/gcc-plugins/Makefile
-@@ -23,5 +23,6 @@ always := $($(HOSTLIBS)-y)
+-static void tasklet_hi_action(struct softirq_action *a)
++static __latent_entropy void tasklet_hi_action(struct softirq_action *a)
+ {
+ 	struct tasklet_struct *list;
  
- cyc_complexity_plugin-objs := cyc_complexity_plugin.o
- sancov_plugin-objs := sancov_plugin.o
-+latent_entropy_plugin-objs := latent_entropy_plugin.o
+diff --git a/kernel/time/timer.c b/kernel/time/timer.c
+index 3a95f97..6008e7ae 100644
+--- a/kernel/time/timer.c
++++ b/kernel/time/timer.c
+@@ -1414,7 +1414,7 @@ void update_process_times(int user_tick)
+ /*
+  * This function runs timers and the timer-tq in bottom half context.
+  */
+-static void run_timer_softirq(struct softirq_action *h)
++static __latent_entropy void run_timer_softirq(struct softirq_action *h)
+ {
+ 	struct tvec_base *base = this_cpu_ptr(&tvec_bases);
  
- clean-files += *.so
-diff --git a/scripts/gcc-plugins/latent_entropy_plugin.c b/scripts/gcc-plugins/latent_entropy_plugin.c
-new file mode 100644
-index 0000000..7295c39
---- /dev/null
-+++ b/scripts/gcc-plugins/latent_entropy_plugin.c
-@@ -0,0 +1,446 @@
-+/*
-+ * Copyright 2012-2016 by the PaX Team <pageexec@freemail.hu>
-+ * Copyright 2016 by Emese Revfy <re.emese@gmail.com>
-+ * Licensed under the GPL v2
-+ *
-+ * Note: the choice of the license means that the compilation process is
-+ *       NOT 'eligible' as defined by gcc's library exception to the GPL v3,
-+ *       but for the kernel it doesn't matter since it doesn't link against
-+ *       any of the gcc libraries
-+ *
-+ * gcc plugin to help generate a little bit of entropy from program state,
-+ * used throughout the uptime of the kernel
-+ *
-+ * TODO:
-+ * - add ipa pass to identify not explicitly marked candidate functions
-+ * - mix in more program state (function arguments/return values, loop variables, etc)
-+ * - more instrumentation control via attribute parameters
-+ *
-+ * BUGS:
-+ * - none known
-+ */
-+
-+#include "gcc-common.h"
-+
-+int plugin_is_GPL_compatible;
-+
-+static bool enabled = true;
-+
-+static GTY(()) tree latent_entropy_decl;
-+
-+static struct plugin_info latent_entropy_plugin_info = {
-+	.version	= "201605222100",
-+	.help		= "disable\tturn off latent entropy instrumentation\n",
-+};
-+
-+static unsigned HOST_WIDE_INT seed;
-+static unsigned HOST_WIDE_INT get_random_const(void)
-+{
-+	unsigned int i;
-+	unsigned HOST_WIDE_INT ret = 0;
-+
-+	for (i = 0; i < 8 * sizeof ret; i++) {
-+		ret = (ret << 1) | (seed & 1);
-+		seed >>= 1;
-+		if (ret & 1)
-+			seed ^= 0xD800000000000000ULL;
-+	}
-+
-+	return ret;
-+}
-+
-+static tree handle_latent_entropy_attribute(tree *node, tree name, tree args __unused, int flags __unused, bool *no_add_attrs)
-+{
-+	tree type;
-+	unsigned long long mask;
-+#if BUILDING_GCC_VERSION <= 4007
-+	VEC(constructor_elt, gc) *vals;
-+#else
-+	vec<constructor_elt, va_gc> *vals;
-+#endif
-+
-+	switch (TREE_CODE(*node)) {
-+	default:
-+		*no_add_attrs = true;
-+		error("%qE attribute only applies to functions and variables", name);
-+		break;
-+
-+	case VAR_DECL:
-+		if (DECL_INITIAL(*node)) {
-+			*no_add_attrs = true;
-+			error("variable %qD with %qE attribute must not be initialized", *node, name);
-+			break;
-+		}
-+
-+		if (!TREE_STATIC(*node)) {
-+			*no_add_attrs = true;
-+			error("variable %qD with %qE attribute must not be local", *node, name);
-+			break;
-+		}
-+
-+		type = TREE_TYPE(*node);
-+		switch (TREE_CODE(type)) {
-+		default:
-+			*no_add_attrs = true;
-+			error("variable %qD with %qE attribute must be an integer or a fixed length integer array type"
-+				"or a fixed sized structure with integer fields", *node, name);
-+			break;
-+
-+		case RECORD_TYPE: {
-+			tree field;
-+			unsigned int nelt = 0;
-+
-+			for (field = TYPE_FIELDS(type); field; nelt++, field = TREE_CHAIN(field)) {
-+				tree fieldtype;
-+
-+				fieldtype = TREE_TYPE(field);
-+				if (TREE_CODE(fieldtype) == INTEGER_TYPE)
-+					continue;
-+
-+				*no_add_attrs = true;
-+				error("structure variable %qD with %qE attribute has a non-integer field %qE", *node, name, field);
-+				break;
-+			}
-+
-+			if (field)
-+				break;
-+
-+#if BUILDING_GCC_VERSION <= 4007
-+			vals = VEC_alloc(constructor_elt, gc, nelt);
-+#else
-+			vec_alloc(vals, nelt);
-+#endif
-+
-+			for (field = TYPE_FIELDS(type); field; field = TREE_CHAIN(field)) {
-+				tree fieldtype;
-+
-+				fieldtype = TREE_TYPE(field);
-+				mask = 1ULL << (TREE_INT_CST_LOW(TYPE_SIZE(fieldtype)) - 1);
-+				mask = 2 * (mask - 1) + 1;
-+
-+				if (TYPE_UNSIGNED(fieldtype))
-+					CONSTRUCTOR_APPEND_ELT(vals, field, build_int_cstu(fieldtype, mask & get_random_const()));
-+				else
-+					CONSTRUCTOR_APPEND_ELT(vals, field, build_int_cst(fieldtype, mask & get_random_const()));
-+			}
-+
-+			DECL_INITIAL(*node) = build_constructor(type, vals);
-+			break;
-+		}
-+
-+		case INTEGER_TYPE:
-+			mask = 1ULL << (TREE_INT_CST_LOW(TYPE_SIZE(type)) - 1);
-+			mask = 2 * (mask - 1) + 1;
-+
-+			if (TYPE_UNSIGNED(type))
-+				DECL_INITIAL(*node) = build_int_cstu(type, mask & get_random_const());
-+			else
-+				DECL_INITIAL(*node) = build_int_cst(type, mask & get_random_const());
-+			break;
-+
-+		case ARRAY_TYPE: {
-+			tree elt_type, array_size, elt_size;
-+			unsigned int i, nelt;
-+
-+			elt_type = TREE_TYPE(type);
-+			elt_size = TYPE_SIZE_UNIT(TREE_TYPE(type));
-+			array_size = TYPE_SIZE_UNIT(type);
-+
-+			if (TREE_CODE(elt_type) != INTEGER_TYPE || !array_size || TREE_CODE(array_size) != INTEGER_CST) {
-+				*no_add_attrs = true;
-+				error("array variable %qD with %qE attribute must be a fixed length integer array type", *node, name);
-+				break;
-+			}
-+
-+			nelt = TREE_INT_CST_LOW(array_size) / TREE_INT_CST_LOW(elt_size);
-+#if BUILDING_GCC_VERSION <= 4007
-+			vals = VEC_alloc(constructor_elt, gc, nelt);
-+#else
-+			vec_alloc(vals, nelt);
-+#endif
-+
-+			mask = 1ULL << (TREE_INT_CST_LOW(TYPE_SIZE(elt_type)) - 1);
-+			mask = 2 * (mask - 1) + 1;
-+
-+			for (i = 0; i < nelt; i++)
-+				if (TYPE_UNSIGNED(elt_type))
-+					CONSTRUCTOR_APPEND_ELT(vals, size_int(i), build_int_cstu(elt_type, mask & get_random_const()));
-+				else
-+					CONSTRUCTOR_APPEND_ELT(vals, size_int(i), build_int_cst(elt_type, mask & get_random_const()));
-+
-+			DECL_INITIAL(*node) = build_constructor(type, vals);
-+			break;
-+		}
-+		}
-+		break;
-+
-+	case FUNCTION_DECL:
-+		break;
-+	}
-+
-+	return NULL_TREE;
-+}
-+
-+static struct attribute_spec latent_entropy_attr = {
-+	.name				= "latent_entropy",
-+	.min_length			= 0,
-+	.max_length			= 0,
-+	.decl_required			= true,
-+	.type_required			= false,
-+	.function_type_required		= false,
-+	.handler			= handle_latent_entropy_attribute,
-+#if BUILDING_GCC_VERSION >= 4007
-+	.affects_type_identity		= false
-+#endif
-+};
-+
-+static void register_attributes(void *event_data __unused, void *data __unused)
-+{
-+	register_attribute(&latent_entropy_attr);
-+}
-+
-+static bool latent_entropy_gate(void)
-+{
-+	/* don't bother with noreturn functions for now */
-+	if (TREE_THIS_VOLATILE(current_function_decl))
-+		return false;
-+
-+	/* gcc-4.5 doesn't discover some trivial noreturn functions */
-+	if (EDGE_COUNT(EXIT_BLOCK_PTR_FOR_FN(cfun)->preds) == 0)
-+		return false;
-+
-+	return lookup_attribute("latent_entropy", DECL_ATTRIBUTES(current_function_decl)) != NULL_TREE;
-+}
-+
-+static tree create_a_tmp_var(tree type, const char *name)
-+{
-+	tree var;
-+
-+	var = create_tmp_var(type, name);
-+	add_referenced_var(var);
-+	mark_sym_for_renaming(var);
-+	return var;
-+}
-+
-+static enum tree_code get_op(tree *rhs)
-+{
-+	static enum tree_code op;
-+	unsigned HOST_WIDE_INT random_const;
-+
-+	random_const = get_random_const();
-+
-+	switch (op) {
-+	case BIT_XOR_EXPR:
-+		op = PLUS_EXPR;
-+		break;
-+
-+	case PLUS_EXPR:
-+		if (rhs) {
-+			op = LROTATE_EXPR;
-+			random_const &= HOST_BITS_PER_WIDE_INT - 1;
-+			break;
-+		}
-+
-+	case LROTATE_EXPR:
-+	default:
-+		op = BIT_XOR_EXPR;
-+		break;
-+	}
-+	if (rhs)
-+		*rhs = build_int_cstu(unsigned_intDI_type_node, random_const);
-+	return op;
-+}
-+
-+static void perturb_local_entropy(basic_block bb, tree local_entropy)
-+{
-+	gimple_stmt_iterator gsi;
-+	gimple assign;
-+	tree rhs;
-+	enum tree_code subcode;
-+
-+	subcode = get_op(&rhs);
-+	assign = gimple_build_assign_with_ops(subcode, local_entropy, local_entropy, rhs);
-+	gsi = gsi_after_labels(bb);
-+	gsi_insert_before(&gsi, assign, GSI_NEW_STMT);
-+	update_stmt(assign);
-+}
-+
-+static void perturb_latent_entropy(basic_block bb, tree rhs)
-+{
-+	gimple_stmt_iterator gsi;
-+	gimple assign;
-+	tree temp;
-+	enum tree_code subcode;
-+
-+	/* create temporary copy of latent_entropy */
-+	temp = create_a_tmp_var(unsigned_intDI_type_node, "temp_latent_entropy");
-+
-+	gsi = gsi_last_bb(bb);
-+
-+	/* 3. ...write latent_entropy */
-+	assign = gimple_build_assign(latent_entropy_decl, temp);
-+	gsi_insert_before(&gsi, assign, GSI_NEW_STMT);
-+	update_stmt(assign);
-+
-+	/* 2. ...modify... */
-+	subcode = get_op(NULL);
-+	assign = gimple_build_assign_with_ops(subcode, temp, temp, rhs);
-+	gsi_insert_before(&gsi, assign, GSI_NEW_STMT);
-+	update_stmt(assign);
-+
-+	/* 1. read... */
-+	add_referenced_var(latent_entropy_decl);
-+	mark_sym_for_renaming(latent_entropy_decl);
-+	assign = gimple_build_assign(temp, latent_entropy_decl);
-+	gsi_insert_before(&gsi, assign, GSI_NEW_STMT);
-+	update_stmt(assign);
-+}
-+
-+static void mix_in_sp(basic_block bb, tree local_entropy)
-+{
-+	gimple assign, call;
-+	tree frame_addr, rand_const;
-+	gimple_stmt_iterator gsi = gsi_after_labels(bb);
-+
-+	frame_addr = create_a_tmp_var(ptr_type_node, "local_entropy_frame_addr");
-+
-+	call = gimple_build_call(builtin_decl_implicit(BUILT_IN_FRAME_ADDRESS), 1, integer_zero_node);
-+	gimple_call_set_lhs(call, frame_addr);
-+	gsi_insert_before(&gsi, call, GSI_NEW_STMT);
-+	update_stmt(call);
-+
-+	assign = gimple_build_assign(local_entropy, fold_convert(unsigned_intDI_type_node, frame_addr));
-+	gsi_insert_after(&gsi, assign, GSI_NEW_STMT);
-+	update_stmt(assign);
-+
-+	rand_const = build_int_cstu(unsigned_intDI_type_node, get_random_const());
-+	assign = gimple_build_assign_with_ops(BIT_XOR_EXPR, local_entropy, local_entropy, rand_const);
-+	gsi_insert_after(&gsi, assign, GSI_NEW_STMT);
-+	update_stmt(assign);
-+}
-+
-+static unsigned int latent_entropy_execute(void)
-+{
-+	basic_block bb;
-+	tree local_entropy;
-+
-+	if (!latent_entropy_decl) {
-+		varpool_node_ptr node;
-+
-+		FOR_EACH_VARIABLE(node) {
-+			tree var = NODE_DECL(node);
-+
-+			if (DECL_NAME_LENGTH(var) < sizeof("latent_entropy") - 1)
-+				continue;
-+			if (strcmp(IDENTIFIER_POINTER(DECL_NAME(var)), "latent_entropy"))
-+				continue;
-+			latent_entropy_decl = var;
-+			break;
-+		}
-+		if (!latent_entropy_decl)
-+			return 0;
-+	}
-+
-+	gcc_assert(single_succ_p(ENTRY_BLOCK_PTR_FOR_FN(cfun)));
-+	bb = single_succ(ENTRY_BLOCK_PTR_FOR_FN(cfun));
-+	if (!single_pred_p(bb)) {
-+		split_edge(single_succ_edge(ENTRY_BLOCK_PTR_FOR_FN(cfun)));
-+		gcc_assert(single_succ_p(ENTRY_BLOCK_PTR_FOR_FN(cfun)));
-+		bb = single_succ(ENTRY_BLOCK_PTR_FOR_FN(cfun));
-+	}
-+
-+	/* create local entropy variable */
-+	local_entropy = create_a_tmp_var(unsigned_intDI_type_node, "local_entropy");
-+
-+	/* 1. stack pointer */
-+	mix_in_sp(bb, local_entropy);
-+
-+	bb = bb->next_bb;
-+	/* 2. instrument each BB with an operation on the local entropy variable */
-+	while (bb != EXIT_BLOCK_PTR_FOR_FN(cfun)) {
-+		perturb_local_entropy(bb, local_entropy);
-+		bb = bb->next_bb;
-+	};
-+
-+	/* 3. mix local entropy into the global entropy variable */
-+	gcc_assert(single_pred_p(EXIT_BLOCK_PTR_FOR_FN(cfun)));
-+	perturb_latent_entropy(single_pred(EXIT_BLOCK_PTR_FOR_FN(cfun)), local_entropy);
-+	return 0;
-+}
-+
-+static void latent_entropy_start_unit(void *gcc_data __unused, void *user_data __unused)
-+{
-+	tree latent_entropy_type;
-+
-+	seed = get_random_seed(false);
-+
-+	if (in_lto_p)
-+		return;
-+
-+	/* extern volatile u64 latent_entropy */
-+	gcc_assert(TYPE_PRECISION(long_long_unsigned_type_node) == 64);
-+	latent_entropy_type = build_qualified_type(long_long_unsigned_type_node, TYPE_QUALS(long_long_unsigned_type_node) | TYPE_QUAL_VOLATILE);
-+	latent_entropy_decl = build_decl(UNKNOWN_LOCATION, VAR_DECL, get_identifier("latent_entropy"), latent_entropy_type);
-+
-+	TREE_STATIC(latent_entropy_decl) = 1;
-+	TREE_PUBLIC(latent_entropy_decl) = 1;
-+	TREE_USED(latent_entropy_decl) = 1;
-+	DECL_PRESERVE_P(latent_entropy_decl) = 1;
-+	TREE_THIS_VOLATILE(latent_entropy_decl) = 1;
-+	DECL_EXTERNAL(latent_entropy_decl) = 1;
-+	DECL_ARTIFICIAL(latent_entropy_decl) = 1;
-+	lang_hooks.decls.pushdecl(latent_entropy_decl);
-+}
-+
-+#define PASS_NAME latent_entropy
-+#define PROPERTIES_REQUIRED PROP_gimple_leh | PROP_cfg
-+#define TODO_FLAGS_FINISH TODO_verify_ssa | TODO_verify_stmts | TODO_dump_func | TODO_update_ssa
-+#include "gcc-generate-gimple-pass.h"
-+
-+int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gcc_version *version)
-+{
-+	const char * const plugin_name = plugin_info->base_name;
-+	const int argc = plugin_info->argc;
-+	const struct plugin_argument * const argv = plugin_info->argv;
-+	int i;
-+
-+	struct register_pass_info latent_entropy_pass_info;
-+
-+	latent_entropy_pass_info.pass				= make_latent_entropy_pass();
-+	latent_entropy_pass_info.reference_pass_name		= "optimized";
-+	latent_entropy_pass_info.ref_pass_instance_number	= 1;
-+	latent_entropy_pass_info.pos_op				= PASS_POS_INSERT_BEFORE;
-+	static const struct ggc_root_tab gt_ggc_r_gt_latent_entropy[] = {
-+		{
-+			.base = &latent_entropy_decl,
-+			.nelt = 1,
-+			.stride = sizeof(latent_entropy_decl),
-+			.cb = &gt_ggc_mx_tree_node,
-+			.pchw = &gt_pch_nx_tree_node
-+		},
-+		LAST_GGC_ROOT_TAB
-+	};
-+
-+	if (!plugin_default_version_check(version, &gcc_version)) {
-+		error(G_("incompatible gcc/plugin versions"));
-+		return 1;
-+	}
-+
-+	for (i = 0; i < argc; ++i) {
-+		if (!(strcmp(argv[i].key, "disable"))) {
-+			enabled = false;
-+			continue;
-+		}
-+		error(G_("unkown option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
-+	}
-+
-+	register_callback(plugin_name, PLUGIN_INFO, NULL, &latent_entropy_plugin_info);
-+	if (enabled) {
-+		register_callback(plugin_name, PLUGIN_START_UNIT, &latent_entropy_start_unit, NULL);
-+		register_callback(plugin_name, PLUGIN_REGISTER_GGC_ROOTS, NULL, (void *)&gt_ggc_r_gt_latent_entropy);
-+		register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &latent_entropy_pass_info);
-+	}
-+	register_callback(plugin_name, PLUGIN_ATTRIBUTES, register_attributes, NULL);
-+
-+	return 0;
-+}
+diff --git a/lib/irq_poll.c b/lib/irq_poll.c
+index 836f7db..63be749 100644
+--- a/lib/irq_poll.c
++++ b/lib/irq_poll.c
+@@ -74,7 +74,7 @@ void irq_poll_complete(struct irq_poll *iop)
+ }
+ EXPORT_SYMBOL(irq_poll_complete);
+ 
+-static void irq_poll_softirq(struct softirq_action *h)
++static void __latent_entropy irq_poll_softirq(struct softirq_action *h)
+ {
+ 	struct list_head *list = this_cpu_ptr(&blk_cpu_iopoll);
+ 	int rearm = 0, budget = irq_poll_budget;
+diff --git a/lib/random32.c b/lib/random32.c
+index 510d1ce..722d2b6 100644
+--- a/lib/random32.c
++++ b/lib/random32.c
+@@ -47,7 +47,7 @@ static inline void prandom_state_selftest(void)
+ }
+ #endif
+ 
+-static DEFINE_PER_CPU(struct rnd_state, net_rand_state);
++static DEFINE_PER_CPU(struct rnd_state, net_rand_state) __latent_entropy;
+ 
+ /**
+  *	prandom_u32_state - seeded pseudo-random number generator.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d10324e..ffc4f4a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1235,7 +1235,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ }
+ 
+ #ifdef CONFIG_GCC_PLUGIN_LATENT_ENTROPY
+-volatile u64 latent_entropy;
++volatile u64 latent_entropy __latent_entropy;
+ EXPORT_SYMBOL(latent_entropy);
+ #endif
+ 
+diff --git a/net/core/dev.c b/net/core/dev.c
+index 904ff43..723d3af 100644
+--- a/net/core/dev.c
++++ b/net/core/dev.c
+@@ -3851,7 +3851,7 @@ int netif_rx_ni(struct sk_buff *skb)
+ }
+ EXPORT_SYMBOL(netif_rx_ni);
+ 
+-static void net_tx_action(struct softirq_action *h)
++static __latent_entropy void net_tx_action(struct softirq_action *h)
+ {
+ 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
+ 
+@@ -5175,7 +5175,7 @@ out_unlock:
+ 	return work;
+ }
+ 
+-static void net_rx_action(struct softirq_action *h)
++static __latent_entropy void net_rx_action(struct softirq_action *h)
+ {
+ 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
+ 	unsigned long time_limit = jiffies + 2;
 -- 
 2.8.1
 
