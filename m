@@ -1,83 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 683056B0005
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 09:11:48 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 81so27820021wms.3
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 06:11:48 -0700 (PDT)
-Received: from smtp.laposte.net (smtpoutz298.laposte.net. [178.22.154.198])
-        by mx.google.com with ESMTPS id gx6si44099641wjb.76.2016.05.23.06.11.45
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 95BA26B0005
+	for <linux-mm@kvack.org>; Mon, 23 May 2016 10:47:14 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id o70so22632511lfg.1
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 07:47:14 -0700 (PDT)
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
+        by mx.google.com with ESMTPS id bx8si34861102wjc.205.2016.05.23.07.47.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 May 2016 06:11:45 -0700 (PDT)
-Received: from smtp.laposte.net (localhost [127.0.0.1])
-	by lpn-prd-vrout010 (Postfix) with ESMTP id 5A1B445B093
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 15:11:45 +0200 (CEST)
-Received: from lpn-prd-vrin001 (lpn-prd-vrin001.prosodie [10.128.63.2])
-	by lpn-prd-vrout010 (Postfix) with ESMTP id 5482345B077
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 15:11:45 +0200 (CEST)
-Received: from lpn-prd-vrin001 (localhost [127.0.0.1])
-	by lpn-prd-vrin001 (Postfix) with ESMTP id 3003B366A57
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 15:11:45 +0200 (CEST)
-Subject: Re: [PATCH] mm: add config option to select the initial overcommit
- mode
-References: <5731CC6E.3080807@laposte.net>
- <20160513080458.GF20141@dhcp22.suse.cz> <573593EE.6010502@free.fr>
- <5735A3DE.9030100@laposte.net> <20160513120042.GK20141@dhcp22.suse.cz>
- <5735CAE5.5010104@laposte.net> <20160513145101.GS20141@dhcp22.suse.cz>
- <5735EE7A.4010600@laposte.net> <20160513164113.6317c491@lxorguk.ukuu.org.uk>
-From: Sebastian Frias <sf84@laposte.net>
-Message-ID: <57430190.1080401@laposte.net>
-Date: Mon, 23 May 2016 15:11:44 +0200
+        Mon, 23 May 2016 07:47:13 -0700 (PDT)
+Received: by mail-wm0-f49.google.com with SMTP id n129so82998009wmn.1
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 07:47:12 -0700 (PDT)
+Date: Mon, 23 May 2016 16:47:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: page order 0 allocation fail but free pages are enough
+Message-ID: <20160523144711.GV2278@dhcp22.suse.cz>
+References: <CADUS3okXhU5mW5Y2BC88zq2GtaVyK1i+i2uT34zHbWPw3hFPTA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20160513164113.6317c491@lxorguk.ukuu.org.uk>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CADUS3okXhU5mW5Y2BC88zq2GtaVyK1i+i2uT34zHbWPw3hFPTA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
-Cc: Michal Hocko <mhocko@kernel.org>, Mason <slash.tmp@free.fr>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: yoma sophian <sophian.yoma@gmail.com>
+Cc: linux-mm@kvack.org
 
-Hi Alan,
+On Mon 23-05-16 14:47:51, yoma sophian wrote:
+> hi all:
+> I got something wired that
+> 1. in softirq, there is a page order 0 allocation request
+> 2. Normal/High zone are free enough for order 0 page.
+> 3. but somehow kernel return order 0 allocation fail.
+> 
+> My kernel version is 3.10 and below is kernel log:
+> from memory info,
 
-On 05/13/2016 05:41 PM, One Thousand Gnomes wrote:
->> My understanding is that there was a time when there was no overcommit at all.
->> If that's the case, understanding why overcommit was introduced would be helpful.
-> 
-> Linux always had overcommit.
-> 
-> The origin of overcommit is virtual memory for the most part. In a
-> classic swapping system without VM the meaning of brk() and thus malloc()
-> is that it allocates memory (or swap). Likewise this is true of fork()
-> and stack extension.
-> 
-> In a virtual memory system these allocate _address space_. It does not
-> become populated except by page faulting, copy on write and the like. It
-> turns out that for most use cases on a virtual memory system we get huge
-> amounts of page sharing or untouched space.
-> 
-> Historically Linux did guess based overcommit and I added no overcommit
-> support way back when, along with 'anything is allowed' support for
-> certain HPC use cases.
-> 
-> The beancounter patches combined with this made the entire setup
-> completely robust but the beancounters never hit upstream although years
-> later they became part of the basis of the cgroups.
-> 
-> You can sort of set a current Linux up for definitely no overcommit using
-> cgroups and no overcommit settings. It works for most stuff although last
-> I checked most graphics drivers were terminally broken (and not just to
-> no overcommit but to the point you can remote DoS Linux boxes with a
-> suitably constructed web page and chrome browser)
-> 
-> Alan
-> 
+Can you reproduce it with the current vanlilla tree?
 
-Thanks for your comment, it certainly provides more clues and provided some history about the "overcommit" setting.
-I will see if we can do what we want with cgroups.
+[...]
+> [   94.586588] ksoftirqd/0: page allocation failure: order:0, mode:0x20
+[...]
+> [   94.865776] Normal free:63768kB min:2000kB low:2500kB high:3000kB
+[...]
+> [ 8606.701343] CompositorTileW: page allocation failure: order:0, mode:0x20
+[...]
+> [ 8606.703590] Normal free:60684kB min:2000kB low:2500kB high:3000kB
 
-Best regards,
-
-Sebastian
+This is a lot of free memory to block GFP_ATOMIC. One possible
+explanation would be that this is a race with somebody releasing a lot
+of memory. The free memory is surprisingly similar in both cases.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
