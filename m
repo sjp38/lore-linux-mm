@@ -1,117 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 55C266B0005
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 17:49:49 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 77so384036235pfz.3
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 14:49:49 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id nw12si13084632pab.179.2016.05.23.14.49.48
-        for <linux-mm@kvack.org>;
-        Mon, 23 May 2016 14:49:48 -0700 (PDT)
-Date: Tue, 24 May 2016 00:49:42 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH 3/3] mm, thp: make swapin readahead under down_read of
- mmap_sem
-Message-ID: <20160523214942.GA79646@black.fi.intel.com>
-References: <1464023651-19420-1-git-send-email-ebru.akagunduz@gmail.com>
- <1464023651-19420-4-git-send-email-ebru.akagunduz@gmail.com>
- <20160523184246.GE32715@dhcp22.suse.cz>
- <1464029349.16365.58.camel@redhat.com>
- <20160523190154.GA79357@black.fi.intel.com>
- <1464031607.16365.60.camel@redhat.com>
- <20160523200244.GA4289@node.shutemov.name>
- <1464034383.16365.70.camel@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1464034383.16365.70.camel@redhat.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 149BB6B0005
+	for <linux-mm@kvack.org>; Mon, 23 May 2016 18:02:05 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 203so384854725pfy.2
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 15:02:05 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j2si1071213paw.80.2016.05.23.15.02.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 May 2016 15:02:03 -0700 (PDT)
+Date: Mon, 23 May 2016 15:02:02 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm, migrate: increment fail count on ENOMEM
+Message-Id: <20160523150202.70702708ce323b36ad94cbab@linux-foundation.org>
+In-Reply-To: <20160520133121.GB5215@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1605191510230.32658@chino.kir.corp.google.com>
+	<20160520130649.GB5197@dhcp22.suse.cz>
+	<573F0ED0.4010908@suse.cz>
+	<20160520133121.GB5215@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@kernel.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, hughd@google.com, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, boaz@plexistor.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, May 23, 2016 at 04:13:03PM -0400, Rik van Riel wrote:
-> On Mon, 2016-05-23 at 23:02 +0300, Kirill A. Shutemov wrote:
-> > On Mon, May 23, 2016 at 03:26:47PM -0400, Rik van Riel wrote:
-> > > 
-> > > On Mon, 2016-05-23 at 22:01 +0300, Kirill A. Shutemov wrote:
-> > > > 
-> > > > On Mon, May 23, 2016 at 02:49:09PM -0400, Rik van Riel wrote:
-> > > > > 
-> > > > > 
-> > > > > On Mon, 2016-05-23 at 20:42 +0200, Michal Hocko wrote:
-> > > > > > 
-> > > > > > 
-> > > > > > On Mon 23-05-16 20:14:11, Ebru Akagunduz wrote:
-> > > > > > > 
-> > > > > > > 
-> > > > > > > 
-> > > > > > > Currently khugepaged makes swapin readahead under
-> > > > > > > down_write. This patch supplies to make swapin
-> > > > > > > readahead under down_read instead of down_write.
-> > > > > > You are still keeping down_write. Can we do without it
-> > > > > > altogether?
-> > > > > > Blocking mmap_sem of a remote proces for write is certainly
-> > > > > > not
-> > > > > > nice.
-> > > > > Maybe Andrea can explain why khugepaged requires
-> > > > > a down_write of mmap_sem?
-> > > > > 
-> > > > > If it were possible to have just down_read that
-> > > > > would make the code a lot simpler.
-> > > > You need a down_write() to retract page table. We need to make
-> > > > sure
-> > > > that
-> > > > nobody sees the page table before we can replace it with huge
-> > > > pmd.
-> > > Good point.
-> > > 
-> > > I guess the alternative is to have the page_table_lock
-> > > taken by a helper function (everywhere) that can return
-> > > failure if the page table was changed while the caller
-> > > was waiting for the lock.
-> > Not page table was changed, but pmd is now pointing to something
-> > else.
-> > Basically, we would need to nest all pte-ptl's within pmd_lock().
-> > That's not good for scalability.
+On Fri, 20 May 2016 15:31:21 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+
+> On Fri 20-05-16 15:19:12, Vlastimil Babka wrote:
+> > On 05/20/2016 03:06 PM, Michal Hocko wrote:
+> [...]
+> > > Why don't we need also to count also retries?
+> > 
+> > We could, but not like you suggest.
+> > 
+> > > ---
+> > > diff --git a/mm/migrate.c b/mm/migrate.c
+> > > index 53ab6398e7a2..ef9c5211ae3c 100644
+> > > --- a/mm/migrate.c
+> > > +++ b/mm/migrate.c
+> > > @@ -1190,9 +1190,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+> > >   			}
+> > >   		}
+> > >   	}
+> > > +out:
+> > >   	nr_failed += retry;
+> > >   	rc = nr_failed;
+> > 
+> > This overwrites rc == -ENOMEM, which at least compaction needs to recognize.
+> > But we could duplicate "nr_failed += retry" in the case -ENOMEM.
 > 
-> I can see a few alternatives here:
+> Right you are. So we should do
+> ---
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 53ab6398e7a2..123fed94022b 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1171,6 +1171,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+>  
+>  			switch(rc) {
+>  			case -ENOMEM:
+> +				nr_failed += retry + 1;
+>  				goto out;
+>  			case -EAGAIN:
+>  				retry++;
+> 	
 > 
-> 1) huge pmd collapsing takes both the pmd lock and the pte lock,
->    preventing pte updates from happening simultaneously
 
-That's what we do now and that's not enough.
+argh, this was lost.  Please resend as a real patch sometime?
 
-We would need to serialize against pmd_lock() during normal page-fault
-path (and other pte manipulation), which we don't do now if pmd points to
-page table.
-
-That's huge hit on scalability.
-
-> 
-> 2) code that (re-)acquires the pte lock can read a sequence number
->    at the pmd level, check that it did not change after the
->    pte lock has been acquired, and abort if it has - I believe most
->    of the code that re-acquires the pte lock already knows how to
->    abort if somebody else touched the pte while it was looking
->    elsewhere
-
-So, every pmd_lock() (and other means we take the lock) should bump the
-sequence number and we need to be able to read stable result  outside
-pmd_lock(), meaning it should be atomic_t or something similar.
-
-Not exactly free.
-
-And I'm not convinced the hassle worth the gain.
-
-> That way the (uncommon) thp collapse code should still exclude
-> pte level operations, at the cost of potentially teaching a few
-> more pte level operations to abort (chances are most already do,
-> considering a race with other pte-level manipulations requires that).
-
--- 
- Kirill A. Shutemov
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
