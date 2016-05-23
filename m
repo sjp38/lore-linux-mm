@@ -1,49 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D9B06B0253
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 06:38:12 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id 82so154297723ior.0
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 03:38:12 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0136.outbound.protection.outlook.com. [104.47.2.136])
-        by mx.google.com with ESMTPS id ea9si14503454oeb.37.2016.05.23.03.38.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 23 May 2016 03:38:10 -0700 (PDT)
-Date: Mon, 23 May 2016 13:37:58 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] mm: memcontrol: fix the return in mem_cgroup_margin
-Message-ID: <20160523103758.GB7917@esperanza>
-References: <1463556255-31892-1-git-send-email-roy.qing.li@gmail.com>
- <20160518073253.GC21654@dhcp22.suse.cz>
- <CAJFZqHwFtZa-Ec_0bie6ORTrgoW1kqGsq49-=ojsT-uyNUBhwg@mail.gmail.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 404F56B0260
+	for <linux-mm@kvack.org>; Mon, 23 May 2016 06:40:55 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 203so354400487pfy.2
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 03:40:55 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id g66si51057377pfb.195.2016.05.23.03.40.53
+        for <linux-mm@kvack.org>;
+        Mon, 23 May 2016 03:40:54 -0700 (PDT)
+Date: Mon, 23 May 2016 18:39:40 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH 7/8] pipe: account to kmemcg
+Message-ID: <201605231850.3CoT8OXo%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: multipart/mixed; boundary="sm4nu43k4a2Rpi4c"
 Content-Disposition: inline
-In-Reply-To: <CAJFZqHwFtZa-Ec_0bie6ORTrgoW1kqGsq49-=ojsT-uyNUBhwg@mail.gmail.com>
+In-Reply-To: <9e5dd7673dc37f198615b717fb1eae9309115134.1463997354.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li RongQing <roy.qing.li@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 19, 2016 at 09:44:53AM +0800, Li RongQing wrote:
-> On Wed, May 18, 2016 at 3:32 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > count should always be smaller than memsw.limit (this is a hard limit).
-> > Even if we have some temporary breach then the code should work as
-> > expected because margin is initialized to 0 and memsw.limit >= limit.
-> 
-> is it possible for this case? for example
-> 
-> memory count is 500, memory limit is 600; the margin is set to 100 firstly,
-> then check memory+swap limit, its count(1100) is bigger than its limit(1000),
-> then the margin 100 is returned wrongly.
 
-I guess it is possible, because try_charge forces charging __GFP_NOFAIL
-allocations, which may result in memsw.limit excess. If we are below
-memory.limit and there's nothing to reclaim to reduce memsw.usage, we
-might end up looping in try_charge forever. I've never seen that happen
-in practice, but I still think the patch is worth applying.
+--sm4nu43k4a2Rpi4c
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-Acked-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Hi,
+
+[auto build test ERROR on next-20160520]
+[cannot apply to tip/x86/core net-next/master v4.6-rc7 v4.6-rc6 v4.6-rc5 v4.6]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Vladimir-Davydov/mm-remove-pointless-struct-in-struct-page-definition/20160523-182939
+config: i386-tinyconfig (attached as .config)
+compiler: gcc-6 (Debian 6.1.1-1) 6.1.1 20160430
+reproduce:
+        # save the attached .config to linux build tree
+        make ARCH=i386 
+
+Note: the linux-review/Vladimir-Davydov/mm-remove-pointless-struct-in-struct-page-definition/20160523-182939 HEAD 08a247942f52ec5444ba2a0d3c951358640eccf5 builds fine.
+      It only hurts bisectibility.
+
+All errors (new ones prefixed by >>):
+
+   fs/built-in.o: In function `anon_pipe_buf_steal':
+>> pipe.c:(.text+0x5f8d): undefined reference to `memcg_kmem_uncharge'
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+--sm4nu43k4a2Rpi4c
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+H4sICJXdQlcAAy5jb25maWcAjFxZc9u4sn4/v4KVuQ8zVTeb7fhk6pYfIBAUMSJIhiAl2S8s
+jUwnqrElHy0zyb+/3QApbg3lTFVqLHRjb3y9oMFf/vWLx07H3cvquFmvnp9/eF+rbbVfHatH
+72nzXP2f5ydenOSe8GX+Dpijzfb0/f3m+vOtd/Pu9t0Hb1btt9Wzx3fbp83XE9Tc7Lb/+gU4
+eRIHclre3kxk7m0O3nZ39A7V8V91+fLzbXl9dfej87v9IWOdZwXPZRKXvuCJL7KWmBR5WuRl
+kGSK5Xdvquen66u3OKI3DQfLeAj1Avvz7s1qv/72/vvn2/drM8qDGX/5WD3Z3+d6UcJnvkhL
+XaRpkuVtlzpnfJZnjIsxTami/WF6VoqlZRb7Jcxcl0rGd58v0dny7uMtzcATlbL8p+302HrN
+xUL4pZ6WvmJlJOJpHrZjnYpYZJKXUjOkjwnhQshpmA9nx+7LkM1FmfIy8HlLzRZaqHLJwynz
+/ZJF0ySTeajG7XIWyUnGcgF7FLH7Qfsh0yVPizID2pKiMR6KMpIx7IV8EC2HGZQWeZGWqchM
+GywTnXmZxWhIQk3gVyAznZc8LOKZgy9lU0Gz2RHJichiZiQ1TbSWk0gMWHShUwG75CAvWJyX
+YQG9pAr2KoQxUxxm8VhkOPNoMurDSKUukzSXCpbFhzMEayTjqYvTF5NiaqbHIhD83kmEk1lG
+7OG+nOrhfK1MlDyIGBDfvH1C2Hh7WP1dPb6t1t+9fsHj9zd070WaJRPRaT2Qy1KwLLqH36US
+HbGxA80Sn+WdzUynOYPFBKmei0jfXbXcQXOapQZ4eP+8+fP9y+7x9Fwd3v9PETMlULQE0+L9
+u8H5l9mXcpFknT2eFDLyYUVFKZa2P20Pv4G4qcHKZ4S10yuUNJWyZCbiEuahVdoFNZmXIp7D
+SuDglMzvrs/D5hlIhznIEiTkzZsWQOuyMheawlHYOhbNRaZBAnv1uoSSFXlCVDZHZgYCLKJy
++iDTwWGqKROgXNGk6KELHF3K8sFVI3ERboBwHn5nVN2BD+lmbJcYcITEzLujHFdJLrd4QzQI
+cseKCE5yonMUsrs3v2532+q3zo7oez2XKSfbtvsPcp9k9yXLQd+EJF8QstiPBEkrtABgdW2z
+OX+sAD0O4wDRiBopBqn3Dqc/Dz8Ox+qlleKzeoBDYQ4roTmApMNk0ZFxKAHFzAF/8hDA1+8B
+kE5ZpgUytWUcla5OCqgDQJfz0E+GkNVl6YNAlzIHreKjUokYYvU9j4gRm6M8bxdgqJmwPQCU
+ONcXiaiMS+b/Ueic4FMJ4huOpVnifPNS7Q/UKocPqGlk4kvelcQ4QYp07bQhk5QQ0BnwTZuZ
+ZrrLY62ytHifrw5/eUcYkrfaPnqH4+p48Fbr9e60PW62X9ux5ZLPrBrlPCni3O7luSvca7Oe
+LXnUXcYLT49nDbz3JdC6zcFPAFlYDArl9IA5Z3qmsQq5CNgUmGxRhOCpkphkyjMhDKex65zt
+4JDgzIhykiQ5yWV0BBhf8RV9tOXM/uE6mAUYu1a1gGHjWzHrzpVPs6RINQ0boeCzNJFgIMCm
+50lGT8S2jErAtEVPFm0xeoLRDOBtbhRY5tPj4GfLA88/yrSxz+P+yjq4+3Yci0FhyRiMfj3Q
+FIX0P3a8BDzGeQQ7xEVqDDCzk4M6KdfpDAYUsRxH1FKtrHUXWgF+SwDRjF5DsLsUiF1ZowfN
+dK8DfZFjBgR9r+jtbIglm+gkKkDqYIxwAknmNINtnzlEckpX6S8GXRcsozIoHMMPYFBLkiLS
+xLUochqzKKAlx+CUg2bA1kGbpMHlnQhBmZIUJmn1zvy5hKnXjdIbhNJh9LxjVNDnhGWZ7MtQ
+Mx10OXzhDyUUmizPSsfAZu1Up9X+abd/WW3XlSf+rraA0wwQmyNSgz5p8bTfxHk0tYmPRBh4
+OVfG0icHPle2fmmgfKA5erYoOpoZLXY6YhMHoaDsEh0lk+54YelzcCFRx5dgucpAcuNZOcQ/
+CWQ0UDrddU0sRwcQmpIyVtIKXrf3PwqVgvEwEbRA1R4LrXWxPxPpAL8XpB3BlnOhtWtsIoC5
+SVxv8Eh6NQa2D+4bKhjQmOVEL9jQRJcA+RgGgMHlA9Js6GLZ0kzkJAEQma5gS9GdCSiAhbUc
+lJiBG9YwSWYDIkYi4Hcup0VSEFYWuEzG7qntR8IVBtf1HixstOYMHJtI0aCXTEwBRMHpNpGb
+emlLlg6HiqOBUntSBrRwAYIumFWvA5qSS9ixlqxNj0N1BWAB5XmRxWCx5SDO3TDW8OwTC2mo
+RMPNic7q6fmFGsqFWa1WokdxFLtxpWaBAIM1xajNoIW61PqRDpqfFI6ABvg5pbX2G9+UGJ8W
+HBEFfP8oHy0NGAlmdijZgoNp07OJhkTayujzwCbE4mIruNhFxGgDYMwNope48Yewjx0HJUbH
+SNRhIIzIdKKLiV9EcPoQB0SE0jDeS20pIO6JGkfExiHHAYNYAmyRp61f63N/e5L0vq5V5lGn
+TbBfY8AsWKgFy/wOIQErGUyBOhx2PSIwE+/t7Q/4HuDqtGAZBGOPZsqT+ds/V4fq0fvLqs3X
+/e5p89xzZc4rhdxlowZ6PqCZVYNCFqVCgbvSiQahaaRRi9597Oh8u0WEGDSbZ1yNCLCwSLvT
+m6ClT1QzkTvoKAXML2Jk6rvMNd0svaVfopF1Fxm6NI7KXWK/dj+Gx/IEUThTiwEHCuuXQhQY
+e4ZJGCfdzZItGobWyoQFe+jbUGav0/1uXR0Ou713/PFq3denanU87atD987hASXQ78d9WiND
+0f4Phj0DwQCtARqZcmh6w4UBhoYVw3I06xTkOpCajuNgO2KZw0HAWPMle7wOx8pM0t1Y3w52
+AsaUYXTTKCSHExPeg+4AMxfAa1rQAUU4cOjq2hBsK+Q3n29pi/fTBUKuaWsTaUotqSNza+6B
+Wk7ACnDKlJR0Q2fyZTq9tA31hqbOHBOb/dtR/pku51mhE9oxVwbbhMPEVQsZ8xBUqWMgNfna
+5YtEzNHuVIB3PV1+vEAtI9rNU/w+k0vnes8l49clHZE1RMfacbBjHbUQZpwnowZsxwWjOQgY
+SahvjXQog/zuU5cl+jig9ZpPQVXAUafDGMiAOGaYTCRGF50AA5LhAPQLasvp9mZYnMz7JUrG
+UhXK6MAArN3ovj9uY7HyPFK6ZxjBUNDUReNERGClUHYRtAgYbhano/+aYrO/vavZhsKUT7DD
+EWJFNiYYu0YJcOWotgrFbXkLTanIrVNGbravJAVW5pJOgzo+z18IleYjU68pnycRmGIsoyNd
+NZdT2nARUkljmtm0vpxYndVx4l92281xt7emSdtrxwmANQYAXzgWwQisAEvpHhx2B+46CXkC
+Ij6hlaL8THv02GEmUB8EcukKQoIRAFIHp8y9Lto9H9g/6VNbm2Ase6CG6qIbOrxVU29vKJt8
+rnQagZK87gWx21J0gB0Lalmu6E5b8k9b+EiNy1wwJ2DZivzuw3f+wf43gCFG4Y8xpAKwHWDO
+pYgZcfVsXDA32UBEc+sE1moXD2SEkhY15gTerxTi7sM5dnOpbjMoxeLCOI+ttXIekaUR06or
+91srDYrbeh1ft20OXLNcdsDWuulCTfombq+4brTboE0dkZqD79Kt3g/11AYSQGiQmEao4JbZ
+8jQ3HRmQuhkE0rg7thXeAxT4flbmzgSaucwAL8FYK3qm80wrgrm5nTQenb288rO7mw+/33Yv
+RMaOKNFUAg49XqvA5NCE7HXeobFowe5pvOhwxQB7lO/eS8GY9SCAR4LFRmXTXrrD7H9Ik4QO
+7D1MCtqAetDjgGlj29d+oslYaIJw7kyLQGQZOkMmVGVPPF6mdKdloBBtCHC2E8wEyLIiHQpI
+D5U1WPLoVi7ubjuSpfKMxlozJhskcGIxTNjtHBl7AWxm2i6sYzk0Lj+UHz98oOIkD+XVpw+9
+4/VQXvdZB63QzdxBM0OXKMzwApO+ZxFLQW0rnjvJAfQATTKE449DNM4ExsPMfd2l+iamC/Wv
+BtXrAPrc1/QdBFe+ccEnLmEFoJXBfRn5OXX7YQ2O3T/V3gODY/W1eqm2R+MmM55Kb/eK2Xk9
+V7mOxtAoRAuKDuSoT7yjCvbVf07Vdv3DO6xXzwMbx5ixmfhC1pSPz9WQ2Xn3beQY8UGf+fDS
+Io2EP2p8cjo0k/Z+Tbn0quP63W8924tTZmWdElcHjFsrSTtCChw3msa6yJHwARJCH6RY5J8+
+faBds5SjXnIf33sdTEaLIL5X69Nx9edzZVI6PWONHg/ee0+8nJ5XI5GYgFZTOcYU6Ys3S9Y8
+kymll2zQMSl66FZXwuJLjSrpCBige4hRbmd/NhQlEwvD3cUcrYdf/b0BW9zfb/62l2htLtdm
+XRd7yfioFPaCLBRR6vJRxDxXaeCI0+SAvQyDoy7XwzQfyEwtQAnbtAKSNVgA6jPfMQhUWQtz
+X08tWmeseDfoZ3LunIxhEPPMEQoDaevEk+gQWJMSAwcVWpKcDJN2uTBHock26vh+zCZG+rAq
+QUAEBvGgP5p97W2ZyukVTAJiGDbkbbIbm/xWsIbqZN92n2zRaARqc1hTQ4ANUPcYRSUHImIe
+JRrjiKjNh+vTLnXGaCzmV+RghIA1VN7h9Pq62x+7w7GU8vdrvrwdVcur76uDJ7eH4/70Yq6b
+D99W++rRO+5X2wM25QGuV94jzHXzin82p4c9H6v9ygvSKQOQ2b/8A9W8x90/2+fd6tGz6ZcN
+r9weq2cPjqvZNXveGprmMiCK50lKlLYNhbvD0Unkq/0j1Y2Tf/d6DjPr4+pYearVpb/yRKvf
+huCB4zs31641Dx1afhmZuwQnsc40BPXjZBEidIGh9M+JZ5prWUtlRxrOaktLNCh6/hmWuULn
+inEwAhMd1rgxvoyR29fTcdxhq0HjtBiLawg7ZCRGvk88rNI3UTA/7r87r4a1O50pU4I8IRwE
+e7UGoaXObJ7T4SGAMFdSCZBmLppMlSxt3qYjKr+4ZJjHc9fpT/nnf1/ffi+nqSOlJdbcTYQR
+Ta3H4Y665Rz+OexA8Ab48AbLCsEVJ/fekR+nHVKuU0UTQj02QNNUU32m6VhGsax+5bIzSZlN
+LUvNU2/9vFv/NSSIrTGhwMTHJFu0qcG4wGxxtPrNEoKGVykmpBx30FvlHb9V3urxcYOWxOrZ
+tnp4N7iUNLflifH0wG/AzYLmeyJsi8iVWDjMRAwgGv8zcsQ5DQO6kLQ5Zuls7sh2WThzKkOR
+KUZ7Lk1yLxUq0ZPu6wiLXLvtZn3w9OZ5s95tvclq/dfr82rb8xOgHtHahIO5MGxusgdFtN69
+eIfXar15AkOPqQnrmb2DyIHV6qfn4+bptF3jHja49ngG/xYZA9+YWzRsIjEDp17QByDM0dIA
+x/HaWX0mVOqwBpGs8tvr3x03K0DWyuVQsMny04cPl4eOfqbrggrIuSyZur7+tMTLDuY7LvyQ
+UTmAyCZd5A4bUglfsiaYMtqg6X71+g0FhTj8fv9G1RoqPPV+ZafHzQ70/Pk6+Tf3+zVoxATl
+seKwsWC/eqm8P09PT6BH/LEeCehTi7kRkdFbEfepmbWB4ynDuKYjqTcpYipwXsBpSkIuy0jm
+OTjH4N5L1sm/QfroFRsWnpMkQt6zCQo9diqxzBiEj31LCMvTbz8O+JrQi1Y/UMGOjwv2BqhJ
+66wkNfQlF3JOciB1yvypA7yKBb3sSjlkUyjtjBTFApwt4dNAaNPK5ETCSt8TOyF8xhvXFPzl
+ovNqy5DaXWhtRignWsoAIgZ6AYt4xDQ9NDDhCIfL+r+KgRdFBoPuY47JWI7AS7H0pU5dWeKF
+43SbOLXLXpxv9jAKSkSwmkxg0/rN1r7Wer877J6OXvjjtdq/nXtfTxV4AAQGwPGZDnJEeyGT
+JvWCck9bezsEn0mcecfTOBuw+nWzNcbD4FhwU6h3p31PfzTtRzOd8VJ+vvrUSYuCUjHPidJJ
+5J9L293JFXgMqaTPBJjsxsgrufoJg8oL+h7+zJErOh9dqJoBTpPDfZDRJKGjXjJRqnCifFa9
+7I4VumWUqOhcmAsoVWZ4/T2u/fpy+DrcEQ2Mv2rzLsVLtuAPbF5/a40Dn+iliJfS7YlDe6Vj
+3qmRrmH0s123Ze7Ur+Z2jV4wx3FLF9T9DwMJnwIKKbYs46ybvSYe4lQjzeG6YH7ppKDPhTEg
+TTZvlkQu5yZQ4x1B7O8+CxoFjFzKAU3tdMnKq8+xQj+AHnWPC7QFLdBg8JUzsLoNx7DHriHM
++zFFxcfqkLjkp9AoY2PsYNvH/W7z2GUDXzBLJG3uxU4XVOcO99Pc2+ThqGcTrekZPrApozEb
+rlHVJsZDHBThO8KWTWQTJuC6Z/JFFJXZhAYYn/sT5sq1S6aROHdBjBdcNytuHdz1beYPOHGd
+7Pt2vBq9CLkEkuMtDOaQogfsUjCBNmnfjmDCBZq0tNL5GClgF2p/KZKcDuAYCs/p6WDoNdA3
+pSN+HWCqk4OGN7pgF5REei5frb8NrGI9ur21Z+hQnR535o6i3an2TAOyu7o3NB7KyM8EDaQY
+UHPF5fHJFu2X2af2l6nl8Jq8tRrM/0CKHA3gZYeRIfvshWaKo/GS1q+DvoFL3H+vaT5QIbMv
+5m1+x7o0tV73m+3xLxO4eHypQCG2BuBZ22iNV9MRnqU5YEadNXB3U2/l7uUVNueteToKu7r+
+62CaW9vyPWVS2lsEzJOgdZ9JSynhzOKHPtJMcPB2HI/BLKsqzJcYBJk5bRNgsbW7jx+ubrrY
+mMm0ZFqVzrd3mDJtemCaxtEihhOA7rCaJI7nYTaXZxFfvFIJqDuQUOCFjrYzG7/h0sJ+DAVk
+RmEchZbkAZNd1iSOKM3WBp96WcODNOyf5RPXM0rM623BZk3OhsP+QxMEpL1/GdJryka+G5lV
+YPftf4Br/efp69dh1hyutUmh1q40msEnLtxbBlPUSeyCcdtMMvkD1tf5oqsePui2CNZhvIMN
+5UIP9jFPoV2AYrnmrgC0IYLXVDgCcJajTtjC9JPLUzGjQWAPIvPCnxpsQ3a1ZIQMZ+4S63Bw
+MVZf0MJ2exF4TKdXizDhavu1ByuodYsUWhm//ul0gUTA6di+F6ejkl/IwGRHPGKQWThUSZJS
+e9+jD3PkLBGdIrwOHyWoOFHRkq044JdjRnA3WEbsYSZESr3Ax2VsD5D366H2UA//672cjtX3
+Cv7ArIh3/byIen/q1xuX5AkfBDv8ZsuxWFgmfO65SFlOg5flNclyFw5rlswvm1ymAYyZXeik
+ichEsGQ/GQt0Y94HahEF7pceplMQw/ODEId93nxE6kKnMwszl4YlHe3XaCd/xqEvoVzzTvHS
+hvJM+PhwghG2CX6SgYZrs3WuLzbUXwbBDy5cUjc/XWPTAKZTX+T4r5r5yWchvtRfULok+PW3
+UMrMrROb9S5FliUZQMIfwp0WanM4SZ6uVscQbgPS4Ezn9qmoebBnXylQaE4yEj20z04d30Mz
+wB8UMW8/yTB82nmmTjOWhv8VT5Ca3Ro+360fApMPk/vEciHzkHpMW5OVeaMJDBy8wQFLnWln
+B2rf+w4fq9YVbSstEWsghhCR3mAkYPYA4VdY/r+PK9hNGIahvwRjmnZt0pZldKVqUwRcqm3i
+wGkSg8P+frZT0qTYOcIzpW1ix3H8HuTX9vR7nbkQvgBybhKh4msa07ggJ1Se4Io4iSLuQuTL
+sw98vDviDb0Ve7HJiAxwbtXrsW+KjytktwFDK5QHyYAEL/imNMKVsVJdgfAWHONNat10Ki75
+VndtpMQTMcTla/e5KJ8C6Y+8JmQfDc8dDfKndR4V/vFzyvV71WU1XBkyPBRYcSTXaReDaDpy
+7Ki1vXOdZEXcHuLiRKIRAovqkBWqbefa5AW1Gdc4nZAwoeK8xZkln05ONoko7ITj5Kk+xmp+
+3jmCO8XdVP5VqbLqBabnWNkGf5PlIPCUQwinZutUEgd7aIphsX9dTPnlHIOxWvKYm56TSl6M
+Ellq9YDRn4XtrxMg7NG9RcIdvE09a4X0r3Rc5sJbDJNn3WSP3jhiXlYoUD+cDRZkLkJJ3dPq
+YLURJHd61PDD4Ph4B+5U4fR9u5yvf1wpZFMIfAjYt/etsQeINUVHVXXysqQtW0S4v7rpglnA
+iJmjscpge2gSEoG7iIIx7jLNUVZnUabO2gMTst2m5Px1+YSN/eXnBovcKahBeRkQ29Ya8pAS
+uxUx52CUQsCkKmoBLU19l/dUhlFpa7Tx7cIzSPyaUV4gLjgJRzWVifVkdKsHrY3lBxLQJc/T
+w9/Z5SI3/FKHsLGQn0roij/uAITvEKmMol9JwoSapzUDAPlBIfFtSGlw1O9zpAeGqjvlI9T+
+tnpK5xv7I6oBJ6BB6Xd2Dnc4qCGnzH2FoTbmf9EKGGpa+pH2KRH+jynpbMCaXSwoAimg8IR5
+zm9pSF5RVM4aaWQSOOc0ze+5w7PrzNTM4+CSM9CqBeA/2QePFAdaAAA=
+
+--sm4nu43k4a2Rpi4c--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
