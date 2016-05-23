@@ -1,74 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F1CF6B0005
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 16:02:48 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 81so33643481wms.3
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 13:02:48 -0700 (PDT)
-Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
-        by mx.google.com with ESMTPS id f134si32029938lfe.186.2016.05.23.13.02.46
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A9EDF6B0005
+	for <linux-mm@kvack.org>; Mon, 23 May 2016 16:13:14 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id c127so208301706ywb.1
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 13:13:14 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u6si31296931qhu.109.2016.05.23.13.13.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 May 2016 13:02:46 -0700 (PDT)
-Received: by mail-lf0-x242.google.com with SMTP id z203so3906817lfd.0
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 13:02:46 -0700 (PDT)
-Date: Mon, 23 May 2016 23:02:44 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
+        Mon, 23 May 2016 13:13:13 -0700 (PDT)
+Message-ID: <1464034383.16365.70.camel@redhat.com>
 Subject: Re: [PATCH 3/3] mm, thp: make swapin readahead under down_read of
  mmap_sem
-Message-ID: <20160523200244.GA4289@node.shutemov.name>
+From: Rik van Riel <riel@redhat.com>
+Date: Mon, 23 May 2016 16:13:03 -0400
+In-Reply-To: <20160523200244.GA4289@node.shutemov.name>
 References: <1464023651-19420-1-git-send-email-ebru.akagunduz@gmail.com>
- <1464023651-19420-4-git-send-email-ebru.akagunduz@gmail.com>
- <20160523184246.GE32715@dhcp22.suse.cz>
- <1464029349.16365.58.camel@redhat.com>
- <20160523190154.GA79357@black.fi.intel.com>
- <1464031607.16365.60.camel@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1464031607.16365.60.camel@redhat.com>
+	 <1464023651-19420-4-git-send-email-ebru.akagunduz@gmail.com>
+	 <20160523184246.GE32715@dhcp22.suse.cz>
+	 <1464029349.16365.58.camel@redhat.com>
+	 <20160523190154.GA79357@black.fi.intel.com>
+	 <1464031607.16365.60.camel@redhat.com>
+	 <20160523200244.GA4289@node.shutemov.name>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-SrF+yg4cs6X39OcgVhmC"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, hughd@google.com, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, boaz@plexistor.com
 
-On Mon, May 23, 2016 at 03:26:47PM -0400, Rik van Riel wrote:
-> On Mon, 2016-05-23 at 22:01 +0300, Kirill A. Shutemov wrote:
-> > On Mon, May 23, 2016 at 02:49:09PM -0400, Rik van Riel wrote:
-> > > 
-> > > On Mon, 2016-05-23 at 20:42 +0200, Michal Hocko wrote:
-> > > > 
-> > > > On Mon 23-05-16 20:14:11, Ebru Akagunduz wrote:
-> > > > > 
-> > > > > 
-> > > > > Currently khugepaged makes swapin readahead under
-> > > > > down_write. This patch supplies to make swapin
-> > > > > readahead under down_read instead of down_write.
-> > > > You are still keeping down_write. Can we do without it
-> > > > altogether?
-> > > > Blocking mmap_sem of a remote proces for write is certainly not
-> > > > nice.
-> > > Maybe Andrea can explain why khugepaged requires
-> > > a down_write of mmap_sem?
-> > > 
-> > > If it were possible to have just down_read that
-> > > would make the code a lot simpler.
-> > You need a down_write() to retract page table. We need to make sure
-> > that
-> > nobody sees the page table before we can replace it with huge pmd.
-> 
-> Good point.
-> 
-> I guess the alternative is to have the page_table_lock
-> taken by a helper function (everywhere) that can return
-> failure if the page table was changed while the caller
-> was waiting for the lock.
 
-Not page table was changed, but pmd is now pointing to something else.
-Basically, we would need to nest all pte-ptl's within pmd_lock().
-That's not good for scalability.
+--=-SrF+yg4cs6X39OcgVhmC
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
--- 
- Kirill A. Shutemov
+On Mon, 2016-05-23 at 23:02 +0300, Kirill A. Shutemov wrote:
+> On Mon, May 23, 2016 at 03:26:47PM -0400, Rik van Riel wrote:
+> >=20
+> > On Mon, 2016-05-23 at 22:01 +0300, Kirill A. Shutemov wrote:
+> > >=20
+> > > On Mon, May 23, 2016 at 02:49:09PM -0400, Rik van Riel wrote:
+> > > >=20
+> > > >=20
+> > > > On Mon, 2016-05-23 at 20:42 +0200, Michal Hocko wrote:
+> > > > >=20
+> > > > >=20
+> > > > > On Mon 23-05-16 20:14:11, Ebru Akagunduz wrote:
+> > > > > >=20
+> > > > > >=20
+> > > > > >=20
+> > > > > > Currently khugepaged makes swapin readahead under
+> > > > > > down_write. This patch supplies to make swapin
+> > > > > > readahead under down_read instead of down_write.
+> > > > > You are still keeping down_write. Can we do without it
+> > > > > altogether?
+> > > > > Blocking mmap_sem of a remote proces for write is certainly
+> > > > > not
+> > > > > nice.
+> > > > Maybe Andrea can explain why khugepaged requires
+> > > > a down_write of mmap_sem?
+> > > >=20
+> > > > If it were possible to have just down_read that
+> > > > would make the code a lot simpler.
+> > > You need a down_write() to retract page table. We need to make
+> > > sure
+> > > that
+> > > nobody sees the page table before we can replace it with huge
+> > > pmd.
+> > Good point.
+> >=20
+> > I guess the alternative is to have the page_table_lock
+> > taken by a helper function (everywhere) that can return
+> > failure if the page table was changed while the caller
+> > was waiting for the lock.
+> Not page table was changed, but pmd is now pointing to something
+> else.
+> Basically, we would need to nest all pte-ptl's within pmd_lock().
+> That's not good for scalability.
+
+I can see a few alternatives here:
+
+1) huge pmd collapsing takes both the pmd lock and the pte lock,
+=C2=A0 =C2=A0preventing pte updates from happening simultaneously
+
+2) code that (re-)acquires the pte lock can read a sequence number
+=C2=A0 =C2=A0at the pmd level, check that it did not change after the
+=C2=A0 =C2=A0pte lock has been acquired, and abort if it has - I believe mo=
+st
+=C2=A0 =C2=A0of the code that re-acquires the pte lock already knows how to
+=C2=A0 =C2=A0abort if somebody else touched the pte while it was looking
+=C2=A0 =C2=A0elsewhere
+
+That way the (uncommon) thp collapse code should still exclude
+pte level operations, at the cost of potentially teaching a few
+more pte level operations to abort (chances are most already do,
+considering a race with other pte-level manipulations requires that).
+
+--=20
+All Rights Reversed.
+
+
+--=-SrF+yg4cs6X39OcgVhmC
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJXQ2RPAAoJEM553pKExN6DpdgH/Rgq7giwzjnzr5uFhYom2Ekv
+HibaJv2QzIKV3Dtamn4gvMmxeVxqnrtsN29phvE9rsYsulpMu0/KH6WpuZwExYW/
+vAoc0Da7EJmgCWpMbIEB4KEKPvJBRXxO2hDDyw781RQOFqCRXSG/es35OYs38Bqu
+XtteJj7OOXYTXkdp/hfhspJQorKMVdJPBlT7ELnf2cxD+LmZFs1tp3dELMG8SIQA
+DFC76nP1D5TZh75bpLpRGNbq0wqDAkC7nNgPjjnwqqRW9udLRqGG7vY3izbql99f
+iVWU25GOlZALTApIVZ27JEqjOhZY6Z6fdAFs9PhA48FRpEtySK9tPugGwhsnTFo=
+=dduE
+-----END PGP SIGNATURE-----
+
+--=-SrF+yg4cs6X39OcgVhmC--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
