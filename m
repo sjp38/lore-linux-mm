@@ -1,61 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A70D6B0005
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 03:55:27 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 81so23086115wms.3
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 00:55:27 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id f1si3055260wmi.55.2016.05.23.00.55.25
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E5F0A6B0005
+	for <linux-mm@kvack.org>; Mon, 23 May 2016 04:13:08 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id rs7so60377031lbb.2
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 01:13:08 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id c70si14400317wme.44.2016.05.23.01.13.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 May 2016 00:55:25 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id q62so12401180wmg.3
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 00:55:25 -0700 (PDT)
-Date: Mon, 23 May 2016 09:55:24 +0200
+        Mon, 23 May 2016 01:13:07 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id q62so12522588wmg.3
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 01:13:07 -0700 (PDT)
+Date: Mon, 23 May 2016 10:13:05 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm,oom: speed up select_bad_process() loop.
-Message-ID: <20160523075524.GG2278@dhcp22.suse.cz>
-References: <20160520075035.GF19172@dhcp22.suse.cz>
- <201605202051.EBC82806.QLVMOtJOOFFFSH@I-love.SAKURA.ne.jp>
- <20160520120954.GA5215@dhcp22.suse.cz>
- <201605202241.CHG21813.FHtSFVJFMOQOLO@I-love.SAKURA.ne.jp>
- <20160520152331.GD5215@dhcp22.suse.cz>
- <201605210056.CFD48413.VJFtOLFSMFHOQO@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH 1/2] mm,oom: Remove unused argument from
+ oom_scan_process_thread().
+Message-ID: <20160523081305.GH2278@dhcp22.suse.cz>
+References: <1463796041-7889-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201605210056.CFD48413.VJFtOLFSMFHOQO@I-love.SAKURA.ne.jp>
+In-Reply-To: <1463796041-7889-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org, oleg@redhat.com
+Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org
 
-On Sat 21-05-16 00:56:26, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > > > > Note that "[PATCH v3] mm,oom: speed up select_bad_process() loop." temporarily
-> > > > > broke oom_task_origin(task) case, for oom_select_bad_process() might select
-> > > > > a task without mm because oom_badness() which checks for mm != NULL will not be
-> > > > > called.
-> > > > 
-> > > > How can we have oom_task_origin without mm? The flag is set explicitly
-> > > > while doing swapoff resp. writing to ksm. We clear the flag before
-> > > > exiting.
-> > > 
-> > > What if oom_task_origin(task) received SIGKILL, but task was unable to run for
-> > > very long period (e.g. 30 seconds) due to scheduling priority, and the OOM-reaper
-> > > reaped task's mm within a second. Next round of OOM-killer selects the same task
-> > > due to oom_task_origin(task) without doing MMF_OOM_REAPED test.
-> > 
-> > Which is actuall the intended behavior. The whole point of
-> > oom_task_origin is to prevent from killing somebody because of
-> > potentially memory hungry operation (e.g. swapoff) and rather kill the
-> > initiator. 
+On Sat 21-05-16 11:00:41, Tetsuo Handa wrote:
+> oom_scan_process_thread() does not use totalpages argument.
+> oom_badness() uses it.
 > 
-> Is it guaranteed that try_to_unuse() from swapoff is never blocked on memory
-> allocation (e.g. mmput(), wait_on_page_*()) ?
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-It shouldn't. All the waiting should be killable. If not it is a bug and
-should be fixed.
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  include/linux/oom.h | 2 +-
+>  mm/memcontrol.c     | 2 +-
+>  mm/oom_kill.c       | 4 ++--
+>  3 files changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git a/include/linux/oom.h b/include/linux/oom.h
+> index 8346952..c63de01 100644
+> --- a/include/linux/oom.h
+> +++ b/include/linux/oom.h
+> @@ -90,7 +90,7 @@ extern void check_panic_on_oom(struct oom_control *oc,
+>  			       struct mem_cgroup *memcg);
+>  
+>  extern enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+> -		struct task_struct *task, unsigned long totalpages);
+> +					       struct task_struct *task);
+>  
+>  extern bool out_of_memory(struct oom_control *oc);
+>  
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index ab574d8..49cee6f 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1287,7 +1287,7 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  
+>  		css_task_iter_start(&iter->css, &it);
+>  		while ((task = css_task_iter_next(&it))) {
+> -			switch (oom_scan_process_thread(&oc, task, totalpages)) {
+> +			switch (oom_scan_process_thread(&oc, task)) {
+>  			case OOM_SCAN_SELECT:
+>  				if (chosen)
+>  					put_task_struct(chosen);
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 8e151d0..743afdd 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -274,7 +274,7 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc,
+>  #endif
+>  
+>  enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+> -			struct task_struct *task, unsigned long totalpages)
+> +					struct task_struct *task)
+>  {
+>  	if (oom_unkillable_task(task, NULL, oc->nodemask))
+>  		return OOM_SCAN_CONTINUE;
+> @@ -311,7 +311,7 @@ static struct task_struct *select_bad_process(struct oom_control *oc,
+>  	for_each_process(p) {
+>  		unsigned int points;
+>  
+> -		switch (oom_scan_process_thread(oc, p, totalpages)) {
+> +		switch (oom_scan_process_thread(oc, p)) {
+>  		case OOM_SCAN_SELECT:
+>  			chosen = p;
+>  			chosen_points = ULONG_MAX;
+> -- 
+> 1.8.3.1
+
 -- 
 Michal Hocko
 SUSE Labs
