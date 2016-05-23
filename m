@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E9ED828E2
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 06:20:51 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id d197so216139536ioe.1
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 03:20:51 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0129.outbound.protection.outlook.com. [157.56.112.129])
-        by mx.google.com with ESMTPS id h204si14404434oia.212.2016.05.23.03.20.45
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 64BC0828E2
+	for <linux-mm@kvack.org>; Mon, 23 May 2016 06:20:53 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id w143so55347806oiw.3
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 03:20:53 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0109.outbound.protection.outlook.com. [157.56.112.109])
+        by mx.google.com with ESMTPS id l2si14504693obh.64.2016.05.23.03.20.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 23 May 2016 03:20:45 -0700 (PDT)
+        Mon, 23 May 2016 03:20:47 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH 6/8] arch: x86: charge page tables to kmemcg
-Date: Mon, 23 May 2016 13:20:27 +0300
-Message-ID: <d54cc9e4c5a0b0afd6e003e71ed2c1e7b97a9b62.1463997354.git.vdavydov@virtuozzo.com>
+Subject: [PATCH 7/8] pipe: account to kmemcg
+Date: Mon, 23 May 2016 13:20:28 +0300
+Message-ID: <9e5dd7673dc37f198615b717fb1eae9309115134.1463997354.git.vdavydov@virtuozzo.com>
 In-Reply-To: <cover.1463997354.git.vdavydov@virtuozzo.com>
 References: <cover.1463997354.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
@@ -20,96 +20,104 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
- Peter Anvin" <hpa@zytor.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Page tables can bite a relatively big chunk off system memory and their
-allocations are easy to trigger from userspace, so they should be
-accounted to kmemcg.
+Pipes can consume a significant amount of system memory, hence they
+should be accounted to kmemcg.
 
-This patch marks page table allocations as __GFP_ACCOUNT for x86. Note
-we must not charge allocations of kernel page tables, because they can
-be shared among processes from different cgroups so accounting them to a
-particular one can pin other cgroups for indefinitely long. So we clear
-__GFP_ACCOUNT flag if a page table is allocated for the kernel.
+This patch marks pipe_inode_info and anonymous pipe buffer page
+allocations as __GFP_ACCOUNT so that they would be charged to kmemcg.
+Note, since a pipe buffer page can be "stolen" and get reused for other
+purposes, including mapping to userspace, we clear PageKmemcg thus
+resetting page->_mapcount and uncharge it in anon_pipe_buf_steal, which
+is introduced by this patch.
 
 Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 ---
- arch/x86/include/asm/pgalloc.h | 12 ++++++++++--
- arch/x86/mm/pgtable.c          | 11 ++++++++---
- 2 files changed, 18 insertions(+), 5 deletions(-)
+ fs/pipe.c | 27 ++++++++++++++++++++++-----
+ 1 file changed, 22 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
-index bf7f8b55b0f9..2f531633cb16 100644
---- a/arch/x86/include/asm/pgalloc.h
-+++ b/arch/x86/include/asm/pgalloc.h
-@@ -81,7 +81,11 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
- static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
- {
- 	struct page *page;
--	page = alloc_pages(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO, 0);
-+	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_REPEAT | __GFP_ZERO;
-+
-+	if (mm == &init_mm)
-+		gfp &= ~__GFP_ACCOUNT;
-+	page = alloc_pages(gfp, 0);
- 	if (!page)
- 		return NULL;
- 	if (!pgtable_pmd_page_ctor(page)) {
-@@ -125,7 +129,11 @@ static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+diff --git a/fs/pipe.c b/fs/pipe.c
+index 0d3f5165cb0b..6345f3543788 100644
+--- a/fs/pipe.c
++++ b/fs/pipe.c
+@@ -21,6 +21,7 @@
+ #include <linux/audit.h>
+ #include <linux/syscalls.h>
+ #include <linux/fcntl.h>
++#include <linux/memcontrol.h>
  
- static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
- {
--	return (pud_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
-+	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_REPEAT;
-+
-+	if (mm == &init_mm)
-+		gfp &= ~__GFP_ACCOUNT;
-+	return (pud_t *)get_zeroed_page(gfp);
+ #include <asm/uaccess.h>
+ #include <asm/ioctls.h>
+@@ -137,6 +138,20 @@ static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
+ 		put_page(page);
  }
  
- static inline void pud_free(struct mm_struct *mm, pud_t *pud)
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 4eb287e25043..421ac6b74d11 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -6,7 +6,8 @@
- #include <asm/fixmap.h>
- #include <asm/mtrr.h>
- 
--#define PGALLOC_GFP GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO
-+#define PGALLOC_GFP (GFP_KERNEL_ACCOUNT | __GFP_NOTRACK | __GFP_REPEAT | \
-+		     __GFP_ZERO)
- 
- #ifdef CONFIG_HIGHPTE
- #define PGALLOC_USER_GFP __GFP_HIGHMEM
-@@ -18,7 +19,7 @@ gfp_t __userpte_alloc_gfp = PGALLOC_GFP | PGALLOC_USER_GFP;
- 
- pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
- {
--	return (pte_t *)__get_free_page(PGALLOC_GFP);
-+	return (pte_t *)__get_free_page(PGALLOC_GFP & ~__GFP_ACCOUNT);
- }
- 
- pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
-@@ -207,9 +208,13 @@ static int preallocate_pmds(struct mm_struct *mm, pmd_t *pmds[])
- {
- 	int i;
- 	bool failed = false;
-+	gfp_t gfp = PGALLOC_GFP;
++static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
++			       struct pipe_buffer *buf)
++{
++	struct page *page = buf->page;
 +
-+	if (mm == &init_mm)
-+		gfp &= ~__GFP_ACCOUNT;
++	if (page_count(page) == 1) {
++		memcg_kmem_uncharge(page, 0);
++		__ClearPageKmemcg(page);
++		__SetPageLocked(page);
++		return 0;
++	}
++	return 1;
++}
++
+ /**
+  * generic_pipe_buf_steal - attempt to take ownership of a &pipe_buffer
+  * @pipe:	the pipe that the buffer belongs to
+@@ -219,7 +234,7 @@ static const struct pipe_buf_operations anon_pipe_buf_ops = {
+ 	.can_merge = 1,
+ 	.confirm = generic_pipe_buf_confirm,
+ 	.release = anon_pipe_buf_release,
+-	.steal = generic_pipe_buf_steal,
++	.steal = anon_pipe_buf_steal,
+ 	.get = generic_pipe_buf_get,
+ };
  
- 	for(i = 0; i < PREALLOCATED_PMDS; i++) {
--		pmd_t *pmd = (pmd_t *)__get_free_page(PGALLOC_GFP);
-+		pmd_t *pmd = (pmd_t *)__get_free_page(gfp);
- 		if (!pmd)
- 			failed = true;
- 		if (pmd && !pgtable_pmd_page_ctor(virt_to_page(pmd))) {
+@@ -227,7 +242,7 @@ static const struct pipe_buf_operations packet_pipe_buf_ops = {
+ 	.can_merge = 0,
+ 	.confirm = generic_pipe_buf_confirm,
+ 	.release = anon_pipe_buf_release,
+-	.steal = generic_pipe_buf_steal,
++	.steal = anon_pipe_buf_steal,
+ 	.get = generic_pipe_buf_get,
+ };
+ 
+@@ -405,7 +420,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
+ 			int copied;
+ 
+ 			if (!page) {
+-				page = alloc_page(GFP_HIGHUSER);
++				page = alloc_page(GFP_HIGHUSER | __GFP_ACCOUNT);
+ 				if (unlikely(!page)) {
+ 					ret = ret ? : -ENOMEM;
+ 					break;
+@@ -611,7 +626,7 @@ struct pipe_inode_info *alloc_pipe_info(void)
+ {
+ 	struct pipe_inode_info *pipe;
+ 
+-	pipe = kzalloc(sizeof(struct pipe_inode_info), GFP_KERNEL);
++	pipe = kzalloc(sizeof(struct pipe_inode_info), GFP_KERNEL_ACCOUNT);
+ 	if (pipe) {
+ 		unsigned long pipe_bufs = PIPE_DEF_BUFFERS;
+ 		struct user_struct *user = get_current_user();
+@@ -619,7 +634,9 @@ struct pipe_inode_info *alloc_pipe_info(void)
+ 		if (!too_many_pipe_buffers_hard(user)) {
+ 			if (too_many_pipe_buffers_soft(user))
+ 				pipe_bufs = 1;
+-			pipe->bufs = kzalloc(sizeof(struct pipe_buffer) * pipe_bufs, GFP_KERNEL);
++			pipe->bufs = kcalloc(pipe_bufs,
++					     sizeof(struct pipe_buffer),
++					     GFP_KERNEL_ACCOUNT);
+ 		}
+ 
+ 		if (pipe->bufs) {
 -- 
 2.1.4
 
