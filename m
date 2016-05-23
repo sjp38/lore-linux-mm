@@ -1,67 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BB8E36B025E
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 13:44:46 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id o70so25139766lfg.1
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 10:44:46 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id k6si45600607wji.151.2016.05.23.10.44.45
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AC8EE6B0005
+	for <linux-mm@kvack.org>; Mon, 23 May 2016 14:05:00 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id ga2so81143401lbc.0
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 11:05:00 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id wn2si45754019wjc.72.2016.05.23.11.04.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 May 2016 10:44:45 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id q62so17256751wmg.3
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 10:44:45 -0700 (PDT)
-Date: Mon, 23 May 2016 19:44:43 +0200
+        Mon, 23 May 2016 11:04:58 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id n129so17460859wmn.1
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 11:04:58 -0700 (PDT)
+Date: Mon, 23 May 2016 20:04:56 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: fix possible css ref leak on oom
-Message-ID: <20160523174441.GA32715@dhcp22.suse.cz>
-References: <1464019330-7579-1-git-send-email-vdavydov@virtuozzo.com>
+Subject: Re: [v2 PATCH] mm: move page_ext_init after all struct pages are
+ initialized
+Message-ID: <20160523180455.GC32715@dhcp22.suse.cz>
+References: <1463696006-31360-1-git-send-email-yang.shi@linaro.org>
+ <20160520131649.GC5197@dhcp22.suse.cz>
+ <f0c27d67-3735-300b-76eb-e49d56ab7a10@linaro.org>
+ <20160523073157.GD2278@dhcp22.suse.cz>
+ <dfdab52b-f6dc-b72a-58a3-2884aaa2254c@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1464019330-7579-1-git-send-email-vdavydov@virtuozzo.com>
+In-Reply-To: <dfdab52b-f6dc-b72a-58a3-2884aaa2254c@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Shi, Yang" <yang.shi@linaro.org>
+Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
 
-On Mon 23-05-16 19:02:10, Vladimir Davydov wrote:
-> mem_cgroup_oom may be invoked multiple times while a process is handling
-> a page fault, in which case current->memcg_in_oom will be overwritten
-> leaking the previously taken css reference.
-
-Have you seen this happening? I was under impression that the page fault
-paths that have oom enabled will not retry allocations.
- 
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-
-That being said I do not have anything against the patch. It is a good
-safety net I am just not sure this might happen right now and so the
-patch is not stable candidate.
-
-After clarification
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/memcontrol.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+On Mon 23-05-16 09:42:00, Shi, Yang wrote:
+> On 5/23/2016 12:31 AM, Michal Hocko wrote:
+> > On Fri 20-05-16 08:41:09, Shi, Yang wrote:
+> > > On 5/20/2016 6:16 AM, Michal Hocko wrote:
+> > > > On Thu 19-05-16 15:13:26, Yang Shi wrote:
+> > > > [...]
+> > > > > diff --git a/init/main.c b/init/main.c
+> > > > > index b3c6e36..2075faf 100644
+> > > > > --- a/init/main.c
+> > > > > +++ b/init/main.c
+> > > > > @@ -606,7 +606,6 @@ asmlinkage __visible void __init start_kernel(void)
+> > > > >  		initrd_start = 0;
+> > > > >  	}
+> > > > >  #endif
+> > > > > -	page_ext_init();
+> > > > >  	debug_objects_mem_init();
+> > > > >  	kmemleak_init();
+> > > > >  	setup_per_cpu_pageset();
+> > > > > @@ -1004,6 +1003,8 @@ static noinline void __init kernel_init_freeable(void)
+> > > > >  	sched_init_smp();
+> > > > > 
+> > > > >  	page_alloc_init_late();
+> > > > > +	/* Initialize page ext after all struct pages are initializaed */
+> > > > > +	page_ext_init();
+> > > > > 
+> > > > >  	do_basic_setup();
+> > > > 
+> > > > I might be missing something but don't we have the same problem with
+> > > > CONFIG_FLATMEM? page_ext_init_flatmem is called way earlier. Or
+> > > > CONFIG_DEFERRED_STRUCT_PAGE_INIT is never enabled for CONFIG_FLATMEM?
+> > > 
+> > > Yes, CONFIG_DEFERRED_STRUCT_PAGE_INIT depends on MEMORY_HOTPLUG which
+> > > depends on SPARSEMEM. So, this config is not valid for FLATMEM at all.
+> > 
+> > Well
+> > config MEMORY_HOTPLUG
+> >         bool "Allow for memory hot-add"
+> > 	depends on SPARSEMEM || X86_64_ACPI_NUMA
+> > 	depends on ARCH_ENABLE_MEMORY_HOTPLUG
+> > 
+> > I wasn't really sure about X86_64_ACPI_NUMA dependency branch which
+> > depends on X86_64 && NUMA && ACPI && PCI and that didn't sound like
+> > SPARSEMEM only. If the FLATMEM shouldn't exist with
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 5b48cd25951b..ef8797d34039 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1608,7 +1608,7 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
->  
->  static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
->  {
-> -	if (!current->memcg_may_oom)
-> +	if (!current->memcg_may_oom || current->memcg_in_oom)
->  		return;
->  	/*
->  	 * We are in the middle of the charge context here, so we
-> -- 
-> 2.1.4
+> Actually, FLATMEMT depends on !NUMA.
 
+Ahh, OK, you are right! Thanks for the clarification.
 -- 
 Michal Hocko
 SUSE Labs
