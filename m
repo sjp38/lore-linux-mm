@@ -1,49 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f198.google.com (mail-ig0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E1CE26B0005
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 12:02:18 -0400 (EDT)
-Received: by mail-ig0-f198.google.com with SMTP id f11so106170128igo.1
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 09:02:18 -0700 (PDT)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0140.outbound.protection.outlook.com. [157.55.234.140])
-        by mx.google.com with ESMTPS id m139si4536938oig.158.2016.05.23.09.02.17
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4191B6B0005
+	for <linux-mm@kvack.org>; Mon, 23 May 2016 12:28:51 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id m124so25180198itg.0
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 09:28:51 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0114.outbound.protection.outlook.com. [157.56.112.114])
+        by mx.google.com with ESMTPS id k21si11244206otb.176.2016.05.23.09.28.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 23 May 2016 09:02:17 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH] mm: memcontrol: fix possible css ref leak on oom
-Date: Mon, 23 May 2016 19:02:10 +0300
-Message-ID: <1464019330-7579-1-git-send-email-vdavydov@virtuozzo.com>
+        Mon, 23 May 2016 09:28:50 -0700 (PDT)
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Subject: [PATCH] mm: slub: remove unused virt_to_obj()
+Date: Mon, 23 May 2016 19:29:21 +0300
+Message-ID: <1464020961-2242-1-git-send-email-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-mem_cgroup_oom may be invoked multiple times while a process is handling
-a page fault, in which case current->memcg_in_oom will be overwritten
-leaking the previously taken css reference.
+It's unused since commit 7ed2f9e66385 ("mm, kasan: SLAB support")
 
-Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 ---
- mm/memcontrol.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/linux/slub_def.h | 16 ----------------
+ 1 file changed, 16 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 5b48cd25951b..ef8797d34039 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1608,7 +1608,7 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index 665cd0c..d1faa01 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -111,22 +111,6 @@ static inline void sysfs_slab_remove(struct kmem_cache *s)
+ }
+ #endif
  
- static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
- {
--	if (!current->memcg_may_oom)
-+	if (!current->memcg_may_oom || current->memcg_in_oom)
- 		return;
- 	/*
- 	 * We are in the middle of the charge context here, so we
+-
+-/**
+- * virt_to_obj - returns address of the beginning of object.
+- * @s: object's kmem_cache
+- * @slab_page: address of slab page
+- * @x: address within object memory range
+- *
+- * Returns address of the beginning of object
+- */
+-static inline void *virt_to_obj(struct kmem_cache *s,
+-				const void *slab_page,
+-				const void *x)
+-{
+-	return (void *)x - ((x - slab_page) % s->size);
+-}
+-
+ void object_err(struct kmem_cache *s, struct page *page,
+ 		u8 *object, char *reason);
+ 
 -- 
-2.1.4
+2.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
