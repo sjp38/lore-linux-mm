@@ -1,124 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A9EDF6B0005
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 16:13:14 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id c127so208301706ywb.1
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 13:13:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u6si31296931qhu.109.2016.05.23.13.13.13
+Received: from mail-qg0-f69.google.com (mail-qg0-f69.google.com [209.85.192.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 68DA06B0005
+	for <linux-mm@kvack.org>; Mon, 23 May 2016 17:35:04 -0400 (EDT)
+Received: by mail-qg0-f69.google.com with SMTP id e93so50949170qgf.3
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 14:35:04 -0700 (PDT)
+Received: from mail-yw0-x242.google.com (mail-yw0-x242.google.com. [2607:f8b0:4002:c05::242])
+        by mx.google.com with ESMTPS id t7si16745027ywb.112.2016.05.23.14.35.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 May 2016 13:13:13 -0700 (PDT)
-Message-ID: <1464034383.16365.70.camel@redhat.com>
-Subject: Re: [PATCH 3/3] mm, thp: make swapin readahead under down_read of
- mmap_sem
-From: Rik van Riel <riel@redhat.com>
-Date: Mon, 23 May 2016 16:13:03 -0400
-In-Reply-To: <20160523200244.GA4289@node.shutemov.name>
-References: <1464023651-19420-1-git-send-email-ebru.akagunduz@gmail.com>
-	 <1464023651-19420-4-git-send-email-ebru.akagunduz@gmail.com>
-	 <20160523184246.GE32715@dhcp22.suse.cz>
-	 <1464029349.16365.58.camel@redhat.com>
-	 <20160523190154.GA79357@black.fi.intel.com>
-	 <1464031607.16365.60.camel@redhat.com>
-	 <20160523200244.GA4289@node.shutemov.name>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-SrF+yg4cs6X39OcgVhmC"
-Mime-Version: 1.0
+        Mon, 23 May 2016 14:35:03 -0700 (PDT)
+Received: by mail-yw0-x242.google.com with SMTP id y6so25262452ywe.0
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 14:35:03 -0700 (PDT)
+Date: Mon, 23 May 2016 17:35:01 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: bpf: use-after-free in array_map_alloc
+Message-ID: <20160523213501.GA5383@mtj.duckdns.org>
+References: <5713C0AD.3020102@oracle.com>
+ <20160417172943.GA83672@ast-mbp.thefacebook.com>
+ <5742F127.6080000@suse.cz>
+ <5742F267.3000309@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5742F267.3000309@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, hughd@google.com, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, boaz@plexistor.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, ast@kernel.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Linux-MM layout <linux-mm@kvack.org>
 
+Hello,
 
---=-SrF+yg4cs6X39OcgVhmC
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Can you please test whether this patch resolves the issue?  While
+adding support for atomic allocations, I reduced alloc_mutex covered
+region too much.
 
-On Mon, 2016-05-23 at 23:02 +0300, Kirill A. Shutemov wrote:
-> On Mon, May 23, 2016 at 03:26:47PM -0400, Rik van Riel wrote:
-> >=20
-> > On Mon, 2016-05-23 at 22:01 +0300, Kirill A. Shutemov wrote:
-> > >=20
-> > > On Mon, May 23, 2016 at 02:49:09PM -0400, Rik van Riel wrote:
-> > > >=20
-> > > >=20
-> > > > On Mon, 2016-05-23 at 20:42 +0200, Michal Hocko wrote:
-> > > > >=20
-> > > > >=20
-> > > > > On Mon 23-05-16 20:14:11, Ebru Akagunduz wrote:
-> > > > > >=20
-> > > > > >=20
-> > > > > >=20
-> > > > > > Currently khugepaged makes swapin readahead under
-> > > > > > down_write. This patch supplies to make swapin
-> > > > > > readahead under down_read instead of down_write.
-> > > > > You are still keeping down_write. Can we do without it
-> > > > > altogether?
-> > > > > Blocking mmap_sem of a remote proces for write is certainly
-> > > > > not
-> > > > > nice.
-> > > > Maybe Andrea can explain why khugepaged requires
-> > > > a down_write of mmap_sem?
-> > > >=20
-> > > > If it were possible to have just down_read that
-> > > > would make the code a lot simpler.
-> > > You need a down_write() to retract page table. We need to make
-> > > sure
-> > > that
-> > > nobody sees the page table before we can replace it with huge
-> > > pmd.
-> > Good point.
-> >=20
-> > I guess the alternative is to have the page_table_lock
-> > taken by a helper function (everywhere) that can return
-> > failure if the page table was changed while the caller
-> > was waiting for the lock.
-> Not page table was changed, but pmd is now pointing to something
-> else.
-> Basically, we would need to nest all pte-ptl's within pmd_lock().
-> That's not good for scalability.
+Thanks.
 
-I can see a few alternatives here:
-
-1) huge pmd collapsing takes both the pmd lock and the pte lock,
-=C2=A0 =C2=A0preventing pte updates from happening simultaneously
-
-2) code that (re-)acquires the pte lock can read a sequence number
-=C2=A0 =C2=A0at the pmd level, check that it did not change after the
-=C2=A0 =C2=A0pte lock has been acquired, and abort if it has - I believe mo=
-st
-=C2=A0 =C2=A0of the code that re-acquires the pte lock already knows how to
-=C2=A0 =C2=A0abort if somebody else touched the pte while it was looking
-=C2=A0 =C2=A0elsewhere
-
-That way the (uncommon) thp collapse code should still exclude
-pte level operations, at the cost of potentially teaching a few
-more pte level operations to abort (chances are most already do,
-considering a race with other pte-level manipulations requires that).
-
---=20
-All Rights Reversed.
-
-
---=-SrF+yg4cs6X39OcgVhmC
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJXQ2RPAAoJEM553pKExN6DpdgH/Rgq7giwzjnzr5uFhYom2Ekv
-HibaJv2QzIKV3Dtamn4gvMmxeVxqnrtsN29phvE9rsYsulpMu0/KH6WpuZwExYW/
-vAoc0Da7EJmgCWpMbIEB4KEKPvJBRXxO2hDDyw781RQOFqCRXSG/es35OYs38Bqu
-XtteJj7OOXYTXkdp/hfhspJQorKMVdJPBlT7ELnf2cxD+LmZFs1tp3dELMG8SIQA
-DFC76nP1D5TZh75bpLpRGNbq0wqDAkC7nNgPjjnwqqRW9udLRqGG7vY3izbql99f
-iVWU25GOlZALTApIVZ27JEqjOhZY6Z6fdAFs9PhA48FRpEtySK9tPugGwhsnTFo=
-=dduE
------END PGP SIGNATURE-----
-
---=-SrF+yg4cs6X39OcgVhmC--
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 0c59684..bd2df70 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -162,7 +162,7 @@ static struct pcpu_chunk *pcpu_reserved_chunk;
+ static int pcpu_reserved_chunk_limit;
+ 
+ static DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
+-static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop */
++static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop, map extension */
+ 
+ static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
+ 
+@@ -435,6 +435,8 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
+ 	size_t old_size = 0, new_size = new_alloc * sizeof(new[0]);
+ 	unsigned long flags;
+ 
++	lockdep_assert_held(&pcpu_alloc_mutex);
++
+ 	new = pcpu_mem_zalloc(new_size);
+ 	if (!new)
+ 		return -ENOMEM;
+@@ -895,6 +897,9 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
+ 		return NULL;
+ 	}
+ 
++	if (!is_atomic)
++		mutex_lock(&pcpu_alloc_mutex);
++
+ 	spin_lock_irqsave(&pcpu_lock, flags);
+ 
+ 	/* serve reserved allocations from the reserved chunk if available */
+@@ -967,12 +972,11 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
+ 	if (is_atomic)
+ 		goto fail;
+ 
+-	mutex_lock(&pcpu_alloc_mutex);
++	lockdep_assert_held(&pcpu_alloc_mutex);
+ 
+ 	if (list_empty(&pcpu_slot[pcpu_nr_slots - 1])) {
+ 		chunk = pcpu_create_chunk();
+ 		if (!chunk) {
+-			mutex_unlock(&pcpu_alloc_mutex);
+ 			err = "failed to allocate new chunk";
+ 			goto fail;
+ 		}
+@@ -983,7 +987,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
+ 		spin_lock_irqsave(&pcpu_lock, flags);
+ 	}
+ 
+-	mutex_unlock(&pcpu_alloc_mutex);
+ 	goto restart;
+ 
+ area_found:
+@@ -993,8 +996,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
+ 	if (!is_atomic) {
+ 		int page_start, page_end, rs, re;
+ 
+-		mutex_lock(&pcpu_alloc_mutex);
+-
+ 		page_start = PFN_DOWN(off);
+ 		page_end = PFN_UP(off + size);
+ 
+@@ -1005,7 +1006,6 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
+ 
+ 			spin_lock_irqsave(&pcpu_lock, flags);
+ 			if (ret) {
+-				mutex_unlock(&pcpu_alloc_mutex);
+ 				pcpu_free_area(chunk, off, &occ_pages);
+ 				err = "failed to populate";
+ 				goto fail_unlock;
+@@ -1045,6 +1045,8 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
+ 		/* see the flag handling in pcpu_blance_workfn() */
+ 		pcpu_atomic_alloc_failed = true;
+ 		pcpu_schedule_balance_work();
++	} else {
++		mutex_unlock(&pcpu_alloc_mutex);
+ 	}
+ 	return NULL;
+ }
+@@ -1137,6 +1139,8 @@ static void pcpu_balance_workfn(struct work_struct *work)
+ 	list_for_each_entry_safe(chunk, next, &to_free, list) {
+ 		int rs, re;
+ 
++		cancel_work_sync(&chunk->map_extend_work);
++
+ 		pcpu_for_each_pop_region(chunk, rs, re, 0, pcpu_unit_pages) {
+ 			pcpu_depopulate_chunk(chunk, rs, re);
+ 			spin_lock_irq(&pcpu_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
