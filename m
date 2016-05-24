@@ -1,72 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DB73E6B0005
-	for <linux-mm@kvack.org>; Tue, 24 May 2016 16:55:54 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id s130so14753741lfs.2
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 13:55:54 -0700 (PDT)
-Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
-        by mx.google.com with ESMTPS id z71si7275006wmh.41.2016.05.24.13.55.53
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 823466B0005
+	for <linux-mm@kvack.org>; Tue, 24 May 2016 17:15:46 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 77so52069082pfz.3
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 14:15:46 -0700 (PDT)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id 192si1256125pfw.92.2016.05.24.14.15.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 May 2016 13:55:53 -0700 (PDT)
-Received: by mail-wm0-x234.google.com with SMTP id n129so39030563wmn.1
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 13:55:53 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160524224551.9a8aec90836b3866c3e5a232@gmail.com>
-References: <20160524001405.3e6abd1d5a63a871cc366cff@gmail.com>
- <20160524001629.7a9f0c5ce8427d0ad5e951fd@gmail.com> <CAGXu5j+RQnSu2GgiRFP7UhDpLiuP=becZ-GXPoVRfXk6_wh3Gg@mail.gmail.com>
- <20160524224551.9a8aec90836b3866c3e5a232@gmail.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 24 May 2016 13:55:51 -0700
-Message-ID: <CAGXu5jJ+e0CX3QBm-XWYJ6ViCuX-Pcbvm-he7FBqYJBScw1kPA@mail.gmail.com>
-Subject: Re: [PATCH v1 2/3] Mark functions with the latent_entropy attribute
-Content-Type: text/plain; charset=UTF-8
+        Tue, 24 May 2016 14:15:45 -0700 (PDT)
+Received: by mail-pa0-x232.google.com with SMTP id qo8so10245075pab.1
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 14:15:45 -0700 (PDT)
+From: Thomas Garnier <thgarnie@google.com>
+Subject: [RFC v2 0/2] mm: SLUB Freelist randomization
+Date: Tue, 24 May 2016 14:15:21 -0700
+Message-Id: <1464124523-43051-1-git-send-email-thgarnie@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Emese Revfy <re.emese@gmail.com>
-Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Michal Marek <mmarek@suse.com>, LKML <linux-kernel@vger.kernel.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, linux-kbuild <linux-kbuild@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>, Al Viro <viro@zeniv.linux.org.uk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, bart.vanassche@sandisk.com, "David S. Miller" <davem@davemloft.net>
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Pranith Kumar <bobby.prani@gmail.com>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Woodhouse <David.Woodhouse@intel.com>, Thomas Garnier <thgarnie@google.com>, Petr Mladek <pmladek@suse.com>, Kees Cook <keescook@chromium.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gthelen@google.com, kernel-hardening@lists.openwall.com
 
-On Tue, May 24, 2016 at 1:45 PM, Emese Revfy <re.emese@gmail.com> wrote:
-> On Tue, 24 May 2016 10:16:09 -0700
-> Kees Cook <keescook@chromium.org> wrote:
->
->> On Mon, May 23, 2016 at 3:16 PM, Emese Revfy <re.emese@gmail.com> wrote:
->> > +#ifdef CONFIG_MEMORY_HOTPLUG
->> > +#define add_meminit_latent_entropy
->> > +#else
->> > +#define add_meminit_latent_entropy __latent_entropy
->> > +#endif
->> > +
->> >  /* These are for everybody (although not all archs will actually
->> >     discard it in modules) */
->> > -#define __init         __section(.init.text) __cold notrace
->> > +#define __init         __section(.init.text) __cold notrace __latent_entropy
->> >  #define __initdata     __section(.init.data)
->> >  #define __initconst    __constsection(.init.rodata)
->> >  #define __exitdata     __section(.exit.data)
->> > @@ -92,7 +98,7 @@
->> >  #define __exit          __section(.exit.text) __exitused __cold notrace
->> >
->> >  /* Used for MEMORY_HOTPLUG */
->> > -#define __meminit        __section(.meminit.text) __cold notrace
->> > +#define __meminit        __section(.meminit.text) __cold notrace add_meminit_latent_entropy
->> >  #define __meminitdata    __section(.meminit.data)
->> >  #define __meminitconst   __constsection(.meminit.rodata)
->> >  #define __memexit        __section(.memexit.text) __exitused __cold notrace
->>
->> I was confused by these defines. :) Maybe "add_meminit_latent_entropy"
->> should be named "__memory_hotplug_only_latent_entropy" or something
->> like that?
->
-> I think the plugin doesn't cause a significant slowdown when CONFIG_MEMORY_HOTPLUG is enabled so I would rather always add the __latent_entropy attribute to __meminit.
+This is RFC v2 for the SLUB Freelist randomization. The patch is now based
+on the Linux master branch (as the based SLAB patch was merged).
 
-That seems fine to me. :)
+Changes since RFC v1:
+ - Redone slab_test testing to decide best entropy approach on new page
+   creation.
+ - Moved to use get_random_int as best approach to still use hardware
+   randomization when available but lower cost when not available.
+ - Update SLAB implementation to use get_random_long and get_random_int
+   on refactoring.
+ - Updated testing that highlight 3-4% impact on slab_test.
 
--Kees
+Based on 0e01df100b6bf22a1de61b66657502a6454153c5.
 
--- 
-Kees Cook
-Chrome OS & Brillo Security
+***Background:
+This proposal follows the previous SLAB Freelist patch submitted to next.
+It resuses parts of previous implementation and keep a similar approach.
+
+The kernel heap allocators are using a sequential freelist making their
+allocation predictable. This predictability makes kernel heap overflow
+easier to exploit. An attacker can careful prepare the kernel heap to
+control the following chunk overflowed.
+
+For example these attacks exploit the predictability of the heap:
+ - Linux Kernel CAN SLUB overflow (https://goo.gl/oMNWkU)
+ - Exploiting Linux Kernel Heap corruptions (http://goo.gl/EXLn95)
+
+***Problems that needed solving:
+ - Randomize the Freelist (singled linked) used in the SLUB allocator.
+ - Ensure good performance to encourage usage.
+ - Get best entropy in early boot stage.
+
+***Parts:
+ - 01/02 Reorganize the SLAB Freelist randomization to share elements
+   with the SLUB implementation.
+ - 02/02 The SLUB Freelist randomization implementation. Similar approach
+   than the SLAB but tailored to the singled freelist used in SLUB.
+
+***Performance data:
+
+slab_test impact is between 3% to 4% on average:
+
+Before:
+
+Single thread testing
+=====================
+1. Kmalloc: Repeatedly allocate then free test
+100000 times kmalloc(8) -> 49 cycles kfree -> 77 cycles
+100000 times kmalloc(16) -> 51 cycles kfree -> 79 cycles
+100000 times kmalloc(32) -> 53 cycles kfree -> 83 cycles
+100000 times kmalloc(64) -> 62 cycles kfree -> 90 cycles
+100000 times kmalloc(128) -> 81 cycles kfree -> 97 cycles
+100000 times kmalloc(256) -> 98 cycles kfree -> 121 cycles
+100000 times kmalloc(512) -> 95 cycles kfree -> 122 cycles
+100000 times kmalloc(1024) -> 96 cycles kfree -> 126 cycles
+100000 times kmalloc(2048) -> 115 cycles kfree -> 140 cycles
+100000 times kmalloc(4096) -> 149 cycles kfree -> 171 cycles
+2. Kmalloc: alloc/free test
+100000 times kmalloc(8)/kfree -> 70 cycles
+100000 times kmalloc(16)/kfree -> 70 cycles
+100000 times kmalloc(32)/kfree -> 70 cycles
+100000 times kmalloc(64)/kfree -> 70 cycles
+100000 times kmalloc(128)/kfree -> 70 cycles
+100000 times kmalloc(256)/kfree -> 69 cycles
+100000 times kmalloc(512)/kfree -> 70 cycles
+100000 times kmalloc(1024)/kfree -> 73 cycles
+100000 times kmalloc(2048)/kfree -> 72 cycles
+100000 times kmalloc(4096)/kfree -> 71 cycles
+
+After:
+
+Single thread testing
+=====================
+1. Kmalloc: Repeatedly allocate then free test
+100000 times kmalloc(8) -> 57 cycles kfree -> 78 cycles
+100000 times kmalloc(16) -> 61 cycles kfree -> 81 cycles
+100000 times kmalloc(32) -> 76 cycles kfree -> 93 cycles
+100000 times kmalloc(64) -> 83 cycles kfree -> 94 cycles
+100000 times kmalloc(128) -> 106 cycles kfree -> 107 cycles
+100000 times kmalloc(256) -> 118 cycles kfree -> 117 cycles
+100000 times kmalloc(512) -> 114 cycles kfree -> 116 cycles
+100000 times kmalloc(1024) -> 115 cycles kfree -> 118 cycles
+100000 times kmalloc(2048) -> 147 cycles kfree -> 131 cycles
+100000 times kmalloc(4096) -> 214 cycles kfree -> 161 cycles
+2. Kmalloc: alloc/free test
+100000 times kmalloc(8)/kfree -> 66 cycles
+100000 times kmalloc(16)/kfree -> 66 cycles
+100000 times kmalloc(32)/kfree -> 66 cycles
+100000 times kmalloc(64)/kfree -> 66 cycles
+100000 times kmalloc(128)/kfree -> 65 cycles
+100000 times kmalloc(256)/kfree -> 67 cycles
+100000 times kmalloc(512)/kfree -> 67 cycles
+100000 times kmalloc(1024)/kfree -> 64 cycles
+100000 times kmalloc(2048)/kfree -> 67 cycles
+100000 times kmalloc(4096)/kfree -> 67 cycles
+
+Kernbench, before:
+
+Average Optimal load -j 12 Run (std deviation):
+Elapsed Time 101.873 (1.16069)
+User Time 1045.22 (1.60447)
+System Time 88.969 (0.559195)
+Percent CPU 1112.9 (13.8279)
+Context Switches 189140 (2282.15)
+Sleeps 99008.6 (768.091)
+
+After:
+
+Average Optimal load -j 12 Run (std deviation):
+Elapsed Time 102.47 (0.562732)
+User Time 1045.3 (1.34263)
+System Time 88.311 (0.342554)
+Percent CPU 1105.8 (6.49444)
+Context Switches 189081 (2355.78)
+Sleeps 99231.5 (800.358)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
