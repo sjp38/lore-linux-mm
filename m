@@ -1,57 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BFF06B0005
-	for <linux-mm@kvack.org>; Tue, 24 May 2016 03:42:07 -0400 (EDT)
-Received: by mail-ob0-f200.google.com with SMTP id g6so12310154obn.0
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 00:42:07 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0121.outbound.protection.outlook.com. [104.47.1.121])
-        by mx.google.com with ESMTPS id a63si1109590oif.224.2016.05.24.00.42.05
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C615E6B0253
+	for <linux-mm@kvack.org>; Tue, 24 May 2016 04:05:22 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 129so18052089pfx.0
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 01:05:22 -0700 (PDT)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id sq4si3063712pab.243.2016.05.24.01.05.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 May 2016 00:42:06 -0700 (PDT)
-Date: Tue, 24 May 2016 10:41:56 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 8/8] af_unix: charge buffers to kmemcg
-Message-ID: <20160524074156.GG7917@esperanza>
-References: <cover.1463997354.git.vdavydov@virtuozzo.com>
- <ba7e91e4f7aaea4e4d3b4ce60bf8bb2a3eceba0a.1463997354.git.vdavydov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 May 2016 01:05:21 -0700 (PDT)
+Received: by mail-pa0-x243.google.com with SMTP id f8so1291258pag.0
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 01:05:21 -0700 (PDT)
+Date: Tue, 24 May 2016 17:05:11 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v6 11/12] zsmalloc: page migration support
+Message-ID: <20160524080511.GB496@swordfish>
+References: <1463754225-31311-1-git-send-email-minchan@kernel.org>
+ <1463754225-31311-12-git-send-email-minchan@kernel.org>
+ <20160524052824.GA496@swordfish>
+ <20160524062801.GB29094@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ba7e91e4f7aaea4e4d3b4ce60bf8bb2a3eceba0a.1463997354.git.vdavydov@virtuozzo.com>
+In-Reply-To: <20160524062801.GB29094@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "David S. Miller" <davem@davemloft.net>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-[adding netdev to Cc]
+Hello,
 
-On Mon, May 23, 2016 at 01:20:29PM +0300, Vladimir Davydov wrote:
-> Unix sockets can consume a significant amount of system memory, hence
-> they should be accounted to kmemcg.
+On (05/24/16 15:28), Minchan Kim wrote:
+[..]
+> Most important point to me is that it makes code *simple* at the cost of
+> addtional wasting memory. Now, every zspage lives in *a* list so we don't
+> need to check zspage groupness to use list_empty of zspage.
+> I'm not sure how you feel it makes code simple a lot.
+> However, while I implement page migration logic, the check with condition
+> that zspage's groupness is either almost_empty and almost_full is really
+> bogus and tricky to me so I should debug several time to find what's
+> wrong.
 > 
-> Since unix socket buffers are always allocated from process context,
-> all we need to do to charge them to kmemcg is set __GFP_ACCOUNT in
-> sock->sk_allocation mask.
+> Compared to old, zsmalloc is complicated day by day so I want to weight
+> on *simple* for easy maintainance.
 > 
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-> Cc: "David S. Miller" <davem@davemloft.net>
-> ---
->  net/unix/af_unix.c | 1 +
->  1 file changed, 1 insertion(+)
+> One more note:
+> Now, ZS_EMPTY is used as pool. Look at find_get_zspage. So adding
+> "empty" column in ZSMALLOC_STAT might be worth but I wanted to handle it
+> as another topic.
 > 
-> diff --git a/net/unix/af_unix.c b/net/unix/af_unix.c
-> index 80aa6a3e6817..022bdd3ab7d9 100644
-> --- a/net/unix/af_unix.c
-> +++ b/net/unix/af_unix.c
-> @@ -769,6 +769,7 @@ static struct sock *unix_create1(struct net *net, struct socket *sock, int kern)
->  	lockdep_set_class(&sk->sk_receive_queue.lock,
->  				&af_unix_sk_receive_queue_lock_key);
->  
-> +	sk->sk_allocation	= GFP_KERNEL_ACCOUNT;
->  	sk->sk_write_space	= unix_write_space;
->  	sk->sk_max_ack_backlog	= net->unx.sysctl_max_dgram_qlen;
->  	sk->sk_destruct		= unix_sock_destructor;
+> So if you don't feel strong the saving is really huge, I want to
+> go with this. And if we are adding more wasted memory in future,
+> let's handle it then.
+
+oh, sure, all those micro-optimizations can be done later,
+off the series.
+
+> About CONFIG_ZSMALLOC_STAT, It might be off-topic. Frankly speaking,
+> I have guided production team to enable it because when I profile the
+> overhead caused by ZSMALLOC_STAT, there is no performance lost
+> in real workload. However, the stat gives more detailed useful
+> information.
+
+ok, agree.
+good to know that you use stats in production, by the way.
+
+[..]
+> > > +	pos = (((class->objs_per_zspage * class->size) *
+> > > +		page_idx / class->pages_per_zspage) / class->size
+> > > +	      ) * class->size;
+> > 
+> > 
+> > something went wrong with the indentation here :)
+> > 
+> > so... it's
+> > 
+> > 	(((class->objs_per_zspage * class->size) * page_idx / class->pages_per_zspage) / class->size ) * class->size;
+> > 
+> > the last ' / class->size ) * class->size' can be dropped, I think.
+> 
+> You prove I didn't learn math.
+> Will drop it.
+
+haha, no, that wasn't the point :) great job with the series!
+
+[..]
+> > hm... zsmalloc is getting sooo complex now.
+> > 
+> > `system_wq' -- can we have problems here when the system is getting
+> > low on memory and workers are getting increasingly busy trying to
+> > allocate the memory for some other purposes?
+> > 
+> > _theoretically_ zsmalloc can stack a number of ready-to-release zspages,
+> > which won't be accessible to zsmalloc, nor will they be released. how likely
+> > is this? hm, can zsmalloc take zspages from that deferred release list when
+> > it wants to allocate a new zspage?
+> 
+> Done.
+
+oh, good. that was a purely theoretical thing, and to continue with the
+theories, I assume that zs_malloc() will improve with this change. the
+sort of kind of problem with zs_malloc(), *I think*, is that we release
+the class ->lock after failed find_get_zspage():
+
+	handle = cache_alloc_handle(pool, gfp);
+	if (!handle)
+		return 0;
+
+	zspage = find_get_zspage(class);
+	if (likely(zspage)) {
+		obj = obj_malloc(class, zspage, handle);
+		[..]
+		spin_unlock(&class->lock);
+
+		return handle;
+	}
+
+	spin_unlock(&class->lock);
+
+	zspage = alloc_zspage(pool, class, gfp);
+	if (!zspage) {
+		cache_free_handle(pool, handle);
+		return 0;
+	}
+
+	spin_lock(&class->lock);
+	obj = obj_malloc(class, zspage, handle);
+	[..]
+	spin_unlock(&class->lock);
+
+
+_theoretically_, on a not-really-huge system, let's say 64 CPUs for
+example, we can have 64 write paths trying to store objects of size
+OBJ_SZ to a ZS_FULL class-OBJSZ. the write path (each of them) will
+fail on find_get_zspage(), unlock the class ->lock (so another write
+path will have its chance to fail on find_get_zspage()), alloc_zspage(),
+create a page chain, spin on class ->lock to add the new zspage to the
+class. so we can end up allocating up to 64 zspages, each of them will
+carry N PAGE_SIZE pages. those zspages, at least at the beginning, will
+store only one object per-zspage; which will blastoff the internal
+fragmentation and can cause more compaction/migration/etc later on. well,
+it's a bit pessimistic, but I think to _some extent_ this scenario is
+quite possible.
+
+I assume that this "pick an already marked for release zspage" thing is
+happening as a fast path within the first class ->lock section, so the
+rest of concurrent write requests that are spinning on the class ->lock
+at the moment will see a zspage, instead of !find_get_zspage().
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
