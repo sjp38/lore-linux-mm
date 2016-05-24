@@ -1,73 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 12AD06B025E
-	for <linux-mm@kvack.org>; Tue, 24 May 2016 10:54:43 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fg1so24516272pad.1
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 07:54:43 -0700 (PDT)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1bon0085.outbound.protection.outlook.com. [157.56.111.85])
-        by mx.google.com with ESMTPS id qk1si5237584pac.100.2016.05.24.07.54.41
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AA506B025E
+	for <linux-mm@kvack.org>; Tue, 24 May 2016 11:05:18 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 77so34986605pfz.3
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 08:05:18 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id t81si29085760pfj.103.2016.05.24.08.05.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 May 2016 07:54:41 -0700 (PDT)
-Subject: Re: [RFC PATCH v1 10/18] x86/efi: Access EFI related tables in the
- clear
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225740.13567.85438.stgit@tlendack-t1.amdoffice.net>
- <20160510134358.GR2839@codeblueprint.co.uk> <20160510135758.GA16783@pd.tnic>
- <5734C97D.8060803@amd.com>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <57446B27.20406@amd.com>
-Date: Tue, 24 May 2016 09:54:31 -0500
-MIME-Version: 1.0
-In-Reply-To: <5734C97D.8060803@amd.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 24 May 2016 08:05:16 -0700 (PDT)
+Subject: Re: [PATCH] mm: oom_kill_process: do not abort if the victim is exiting
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1464092642-10363-1-git-send-email-vdavydov@virtuozzo.com>
+	<20160524135042.GK8259@dhcp22.suse.cz>
+In-Reply-To: <20160524135042.GK8259@dhcp22.suse.cz>
+Message-Id: <201605250005.GHH26082.JOtQOSLMFFOFVH@I-love.SAKURA.ne.jp>
+Date: Wed, 25 May 2016 00:05:09 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>, Matt Fleming <matt@codeblueprint.co.uk>, Leif Lindholm <leif.lindholm@linaro.org>, Mark Salter <msalter@redhat.com>, Daniel Kiper <daniel.kiper@oracle.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter
- Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: mhocko@kernel.org, vdavydov@virtuozzo.com
+Cc: akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 05/12/2016 01:20 PM, Tom Lendacky wrote:
-> On 05/10/2016 08:57 AM, Borislav Petkov wrote:
->> On Tue, May 10, 2016 at 02:43:58PM +0100, Matt Fleming wrote:
->>> Is it not possible to maintain some kind of kernel virtual address
->>> mapping so memremap*() and friends can figure out when to twiddle the
->>> mapping attributes and map with/without encryption?
->>
->> I guess we can move the sme_* specific stuff one indirection layer
->> below, i.e., in the *memremap() routines so that callers don't have to
->> care... That should keep the churn down...
->>
+Michal Hocko wrote:
+> On Tue 24-05-16 15:24:02, Vladimir Davydov wrote:
+> > After selecting an oom victim, we first check if it's already exiting
+> > and if it is, we don't bother killing tasks sharing its mm. We do try to
+> > reap its mm though, but we abort if any of the processes sharing it is
+> > still alive. This might result in oom deadlock if an exiting task got
+> > stuck trying to acquire a lock held by another task sharing the same mm
+> > which needs memory to continue: if oom killer happens to keep selecting
+> > the stuck task, we won't even try to kill other processes or reap the
+> > mm.
 > 
-> We could do that, but we'll have to generate that list of addresses so
-> that it can be checked against the range being mapped.  Since this is
-> part of early memmap support searching that list every time might not be
-> too bad. I'll have to look into that and see what that looks like.
+> I plan to extend task_will_free_mem to catch this case because we will
+> need it for other changes.
 
-I looked into this and this would be a large change also to parse tables
-and build lists.  It occurred to me that this could all be taken care of
-if the early_memremap calls were changed to early_ioremap calls. Looking
-in the git log I see that they were originally early_ioremap calls but
-were changed to early_memremap calls with this commit:
+Isn't mm_is_reapable() more useful than playing with fatal_signal_pending()
+or task_will_free_mem()?
 
-commit abc93f8eb6e4 ("efi: Use early_mem*() instead of early_io*()")
+bool mm_is_reapable(struct mm_struct *mm)
+{
+	struct task_struct *p;
 
-Looking at the early_memremap code and the early_ioremap code they both
-call __early_ioremap so I don't see how this change makes any
-difference (especially since FIXMAP_PAGE_NORMAL and FIXMAP_PAGE_IO are
-identical in this case).
+	if (!mm)
+		return false;
+	if (test_bit(MMF_OOM_REAPABLE, &mm->flags))
+		return true;
+	if (!down_read_trylock(&mm->mmap_sem))
+		return false;
+	up_read(&mm->mmap_sem);
+	/*
+	 * There might be other threads/processes which are either not
+	 * dying or even not killable.
+	 */
+	if (atomic_read(&mm->mm_users) > 1) {
+		rcu_read_lock();
+		for_each_process(p) {
+			bool exiting;
 
-Is it safe to change these back to early_ioremap calls (at least on
-x86)?
+			if (!process_shares_mm(p, mm))
+				continue;
+			if (fatal_signal_pending(p))
+				continue;
 
-Thanks,
-Tom
+			/*
+			 * If the task is exiting make sure the whole thread group
+			 * is exiting and cannot acces mm anymore.
+			 */
+			spin_lock_irq(&p->sighand->siglock);
+			exiting = signal_group_exit(p->signal);
+			spin_unlock_irq(&p->sighand->siglock);
+			if (exiting)
+				continue;
 
-> 
-> Thanks,
-> Tom
-> 
+			/* Give up */
+			rcu_read_unlock();
+			return false;
+		}
+		rcu_read_unlock();
+	}
+	set_bit(MMF_OOM_REAPABLE, &mm->flags);
+	return true;
+}
+
+ 	/*
+-	 * If the task is already exiting, don't alarm the sysadmin or kill
+-	 * its children or threads, just set TIF_MEMDIE so it can die quickly
++	 * If the victim's memory is already reapable, don't alarm the sysadmin
++	 * or kill its children or threads, just set TIF_MEMDIE and let the
++	 * OOM reaper reap the victim's memory.
+ 	 */
+ 	task_lock(p);
+-	if (p->mm && task_will_free_mem(p)) {
++	if (mm_is_reapable(p->mm)) {
+ 		mark_oom_victim(p);
+-		try_oom_reaper(p);
++		wake_oom_reaper(p);
+ 		task_unlock(p);
+ 		put_task_struct(p);
+ 		return;
+ 	}
+ 	task_unlock(p);
+
+I suggest doing mm_is_reapable() test at __oom_reap_task() side as well
+so that we can proceed to next victim by always calling wake_oom_reaper()
+whenever TIF_MEMDIE is set.
+
+-	if (can_oom_reap)
+-		wake_oom_reaper(victim);
++	wake_oom_reaper(victim);
+
+p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN is not a problem if that p is
+already killed (not by the OOM killer) or exiting. We don't need to needlessly
+make can_oom_reap false. mm_is_reapable() should do correct test.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
