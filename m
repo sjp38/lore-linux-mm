@@ -1,180 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F8B66B025E
-	for <linux-mm@kvack.org>; Tue, 24 May 2016 01:28:34 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id x1so3112633pav.3
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 22:28:34 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id t12si10707008pfj.44.2016.05.23.22.28.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 May 2016 22:28:33 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id 145so947155pfz.1
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 22:28:33 -0700 (PDT)
-Date: Tue, 24 May 2016 14:28:24 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v6 11/12] zsmalloc: page migration support
-Message-ID: <20160524052824.GA496@swordfish>
-References: <1463754225-31311-1-git-send-email-minchan@kernel.org>
- <1463754225-31311-12-git-send-email-minchan@kernel.org>
+Received: from mail-ig0-f198.google.com (mail-ig0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 089C06B025E
+	for <linux-mm@kvack.org>; Tue, 24 May 2016 01:36:27 -0400 (EDT)
+Received: by mail-ig0-f198.google.com with SMTP id f11so17291631igo.1
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 22:36:27 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id bx19si2433976igb.50.2016.05.23.22.36.25
+        for <linux-mm@kvack.org>;
+        Mon, 23 May 2016 22:36:26 -0700 (PDT)
+Date: Tue, 24 May 2016 14:37:14 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] mm: page_is_guard return false when page_ext arrays are
+ not allocated yet
+Message-ID: <20160524053714.GB32186@js1304-P5Q-DELUXE>
+References: <1463610225-29060-1-git-send-email-yang.shi@linaro.org>
+ <20160519002809.GA10245@js1304-P5Q-DELUXE>
+ <4cb2025a-1b62-9c66-3d61-b457c92a7401@linaro.org>
+ <CAAmzW4OUmyPwQjvd7QUfc6W1Aic__TyAuH80MLRZNMxKy0-wPQ@mail.gmail.com>
+ <a1c9d2e7-6fdf-593a-58b1-928a71d647ef@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1463754225-31311-12-git-send-email-minchan@kernel.org>
+In-Reply-To: <a1c9d2e7-6fdf-593a-58b1-928a71d647ef@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: "Shi, Yang" <yang.shi@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linaro-kernel@lists.linaro.org
 
-On (05/20/16 23:23), Minchan Kim wrote:
-[..]
-> +static int get_zspage_isolation(struct zspage *zspage)
-> +{
-> +	return zspage->isolated;
-> +}
-> +
+On Fri, May 20, 2016 at 10:00:06AM -0700, Shi, Yang wrote:
+> On 5/19/2016 7:40 PM, Joonsoo Kim wrote:
+> >2016-05-20 2:18 GMT+09:00 Shi, Yang <yang.shi@linaro.org>:
+> >>On 5/18/2016 5:28 PM, Joonsoo Kim wrote:
+> >>>
+> >>>Vlastiml, thanks for ccing me on original bug report.
+> >>>
+> >>>On Wed, May 18, 2016 at 03:23:45PM -0700, Yang Shi wrote:
+> >>>>
+> >>>>When enabling the below kernel configs:
+> >>>>
+> >>>>CONFIG_DEFERRED_STRUCT_PAGE_INIT
+> >>>>CONFIG_DEBUG_PAGEALLOC
+> >>>>CONFIG_PAGE_EXTENSION
+> >>>>CONFIG_DEBUG_VM
+> >>>>
+> >>>>kernel bootup may fail due to the following oops:
+> >>>>
+> >>>>BUG: unable to handle kernel NULL pointer dereference at           (null)
+> >>>>IP: [<ffffffff8118d982>] free_pcppages_bulk+0x2d2/0x8d0
+> >>>>PGD 0
+> >>>>Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> >>>>Modules linked in:
+> >>>>CPU: 11 PID: 106 Comm: pgdatinit1 Not tainted 4.6.0-rc5-next-20160427 #26
+> >>>>Hardware name: Intel Corporation S5520HC/S5520HC, BIOS
+> >>>>S5500.86B.01.10.0025.030220091519 03/02/2009
+> >>>>task: ffff88017c080040 ti: ffff88017c084000 task.ti: ffff88017c084000
+> >>>>RIP: 0010:[<ffffffff8118d982>]  [<ffffffff8118d982>]
+> >>>>free_pcppages_bulk+0x2d2/0x8d0
+> >>>>RSP: 0000:ffff88017c087c48  EFLAGS: 00010046
+> >>>>RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000001
+> >>>>RDX: 0000000000000980 RSI: 0000000000000080 RDI: 0000000000660401
+> >>>>RBP: ffff88017c087cd0 R08: 0000000000000401 R09: 0000000000000009
+> >>>>R10: ffff88017c080040 R11: 000000000000000a R12: 0000000000000400
+> >>>>R13: ffffea0019810000 R14: ffffea0019810040 R15: ffff88066cfe6080
+> >>>>FS:  0000000000000000(0000) GS:ffff88066cd40000(0000)
+> >>>>knlGS:0000000000000000
+> >>>>CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> >>>>CR2: 0000000000000000 CR3: 0000000002406000 CR4: 00000000000006e0
+> >>>>Stack:
+> >>>> ffff88066cd5bbd8 ffff88066cfe6640 0000000000000000 0000000000000000
+> >>>> 0000001f0000001f ffff88066cd5bbe8 ffffea0019810000 000000008118f53e
+> >>>> 0000000000000009 0000000000000401 ffffffff0000000a 0000000000000001
+> >>>>Call Trace:
+> >>>> [<ffffffff8118f602>] free_hot_cold_page+0x192/0x1d0
+> >>>> [<ffffffff8118f69c>] __free_pages+0x5c/0x90
+> >>>> [<ffffffff8262a676>] __free_pages_boot_core+0x11a/0x14e
+> >>>> [<ffffffff8262a6fa>] deferred_free_range+0x50/0x62
+> >>>> [<ffffffff8262aa46>] deferred_init_memmap+0x220/0x3c3
+> >>>> [<ffffffff8262a826>] ? setup_per_cpu_pageset+0x35/0x35
+> >>>> [<ffffffff8108b1f8>] kthread+0xf8/0x110
+> >>>> [<ffffffff81c1b732>] ret_from_fork+0x22/0x40
+> >>>> [<ffffffff8108b100>] ? kthread_create_on_node+0x200/0x200
+> >>>>Code: 49 89 d4 48 c1 e0 06 49 01 c5 e9 de fe ff ff 4c 89 f7 44 89 4d b8
+> >>>>4c 89 45 c0 44 89 5d c8 48 89 4d d0 e8 62 c7 07 00 48 8b 4d d0 <48> 8b 00 44
+> >>>>8b 5d c8 4c 8b 45 c0 44 8b 4d b8 a8 02 0f 84 05 ff
+> >>>>RIP  [<ffffffff8118d982>] free_pcppages_bulk+0x2d2/0x8d0
+> >>>> RSP <ffff88017c087c48>
+> >>>>CR2: 0000000000000000
+> >>>>
+> >>>>The problem is lookup_page_ext() returns NULL then page_is_guard() tried
+> >>>>to
+> >>>>access it in page freeing.
+> >>>>
+> >>>>page_is_guard() depends on PAGE_EXT_DEBUG_GUARD bit of page extension
+> >>>>flag, but
+> >>>>freeing page might reach here before the page_ext arrays are allocated
+> >>>>when
+> >>>>feeding a range of pages to the allocator for the first time during
+> >>>>bootup or
+> >>>>memory hotplug.
+> >>>
+> >>>
+> >>>Patch itself looks find to me because I also found that this kind of
+> >>>problem happens during memory hotplug. So, we need to fix more sites,
+> >>>all callers of lookup_page_ext().
+> >>
+> >>
+> >>Yes, I agree. I will come up with a patch or a couple of patches to check
+> >>the return value of lookup_page_ext().
+> >>
+> >>>
+> >>>But, I'd like to know how your problem occurs during bootup.
+> >>>debug_guardpage_enabled() is turned to 'enable' after page_ext is
+> >>>initialized. Before that, page_is_guard() unconditionally returns
+> >>>false so I think that the problem what you mentioned can't happen.
+> >>>
+> >>>Could you check that when debug_guardpage_enabled() returns 'enable'
+> >>>and init_section_page_ext() is called?
+> >>
+> >>
+> >>I think the problem is I have CONFIG_DEFERRED_STRUCT_PAGE_INIT enabled,
+> >>which will defer some struct pages initialization to "pgdatinitX" kernel
+> >>thread in page_alloc_init_late(). But, page_ext_init() is called before it.
+> >>So, it leads debug_guardpage_enabled() return true, but page extension is
+> >>not allocated yet for the struct pages initialized by "pgdatinitX".
+> >
+> >No. After page_ext_init(), it is ensured that all page extension is initialized.
+> >
+> >>It sounds page_ext_init() should be called after page_alloc_init_late(). Or
+> >>it should be just incompatible with CONFIG_DEFERRED_STRUCT_PAGE_INIT.
+> >>
+> >>I will try to move the init call around.
+> >
+> >We need to investigate more. I guess that problem is introduced by
+> >CONFIG_DEFERRED_STRUCT_PAGE_INIT. It makes pfn_to_nid() invalid
+> >until page_alloc_init_late() is done. That is a big side-effect. If
+> >there is pfn walker
+> >and it uses pfn_to_nid() between memmap_init_zone() and page_alloc_init_late(),
+> >it also has same problem. So, we need to think how to fix it more
+> >carefully.
+> 
+> Thanks for the analysis. I think you are correct. Since pfn_to_nid()
+> depends on memmap which has not been fully setup yet until
+> page_alloc_init_late() is done.
+> 
+> So, for such usecase early_pfn_to_nid() should be used.
+> 
+> >
+> >Anyway, to make sure that my assumption is true, could you confirm that
+> >below change fix your problem?
+> 
+> Yes, it does.
+> 
+> >
+> >Thanks.
+> >
+> >----->8----------
+> >diff --git a/mm/page_ext.c b/mm/page_ext.c
+> >index 2d864e6..cac5dc9 100644
+> >--- a/mm/page_ext.c
+> >+++ b/mm/page_ext.c
+> >@@ -391,7 +391,7 @@ void __init page_ext_init(void)
+> >                         * -------------pfn-------------->
+> >                         * N0 | N1 | N2 | N0 | N1 | N2|....
+> >                         */
+> >-                       if (pfn_to_nid(pfn) != nid)
+> >+                       if (!early_pfn_in_nid(pfn nid))
+> 
+> early_pfn_in_nid() is static function in page_alloc.c. I'm supposed
+> early_pfn_to_nid() should be used.
 
-may be is_zspage_isolated()?
+Thanks for checking. Then, please revert your patch "mm: call
+page_ext_init() after all struct pages are initialized" and apply this
+change, because deferring page_ext_init() would make page owner which
+uses page_ext miss some early page allocation callsites. Although it
+already miss some early page allocation callsites, we don't need to
+miss more.
 
-[..]
-> @@ -502,23 +556,19 @@ static int get_size_class_index(int size)
->  static inline void zs_stat_inc(struct size_class *class,
->  				enum zs_stat_type type, unsigned long cnt)
->  {
-> -	if (type < NR_ZS_STAT_TYPE)
-> -		class->stats.objs[type] += cnt;
-> +	class->stats.objs[type] += cnt;
->  }
->  
->  static inline void zs_stat_dec(struct size_class *class,
->  				enum zs_stat_type type, unsigned long cnt)
->  {
-> -	if (type < NR_ZS_STAT_TYPE)
-> -		class->stats.objs[type] -= cnt;
-> +	class->stats.objs[type] -= cnt;
->  }
->  
->  static inline unsigned long zs_stat_get(struct size_class *class,
->  				enum zs_stat_type type)
->  {
-> -	if (type < NR_ZS_STAT_TYPE)
-> -		return class->stats.objs[type];
-> -	return 0;
-> +	return class->stats.objs[type];
->  }
-
-hmm... the ordering of STAT types and those if-conditions were here for
-a reason:
-
-commit 6fe5186f0c7c18a8beb6d96c21e2390df7a12375
-Author: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Date:   Fri Nov 6 16:29:38 2015 -0800
-
-    zsmalloc: reduce size_class memory usage
-    
-    Each `struct size_class' contains `struct zs_size_stat': an array of
-    NR_ZS_STAT_TYPE `unsigned long'.  For zsmalloc built with no
-    CONFIG_ZSMALLOC_STAT this results in a waste of `2 * sizeof(unsigned
-    long)' per-class.
-    
-    The patch removes unneeded `struct zs_size_stat' members by redefining
-    NR_ZS_STAT_TYPE (max stat idx in array).
-    
-    Since both NR_ZS_STAT_TYPE and zs_stat_type are compile time constants,
-    GCC can eliminate zs_stat_inc()/zs_stat_dec() calls that use zs_stat_type
-    larger than NR_ZS_STAT_TYPE: CLASS_ALMOST_EMPTY and CLASS_ALMOST_FULL at
-    the moment.
-    
-    ./scripts/bloat-o-meter mm/zsmalloc.o.old mm/zsmalloc.o.new
-    add/remove: 0/0 grow/shrink: 0/3 up/down: 0/-39 (-39)
-    function                                     old     new   delta
-    fix_fullness_group                            97      94      -3
-    insert_zspage                                100      86     -14
-    remove_zspage                                141     119     -22
-    
-    To summarize:
-    a) each class now uses less memory
-    b) we avoid a number of dec/inc stats (a minor optimization,
-       but still).
-    
-    The gain will increase once we introduce additional stats.
-
-so it helped to eliminate instructions at compile time from a very hot
-path for !CONFIG_ZSMALLOC_STAT builds (which is 99% of the builds I think,
-I doubt anyone apart from us is using ZSMALLOC_STAT).
-
-
-[..]
-> +static int get_first_obj_offset(struct size_class *class,
-> +				struct page *first_page, struct page *page)
->  {
-> -	return page->next;
-> +	int pos, bound;
-> +	int page_idx = 0;
-> +	int ofs = 0;
-> +	struct page *cursor = first_page;
-> +
-> +	if (first_page == page)
-> +		goto out;
-> +
-> +	while (page != cursor) {
-> +		page_idx++;
-> +		cursor = get_next_page(cursor);
-> +	}
-> +
-> +	bound = PAGE_SIZE * page_idx;
-
-'bound' not used.
-
-
-> +	pos = (((class->objs_per_zspage * class->size) *
-> +		page_idx / class->pages_per_zspage) / class->size
-> +	      ) * class->size;
-
-
-something went wrong with the indentation here :)
-
-so... it's
-
-	(((class->objs_per_zspage * class->size) * page_idx / class->pages_per_zspage) / class->size ) * class->size;
-
-the last ' / class->size ) * class->size' can be dropped, I think.
-
-[..]
-> +		pos += class->size;
-> +	}
-> +
-> +	/*
-> +	 * Here, any user cannot access all objects in the zspage so let's move.
-                 "no one can access any object" ?
-
-[..]
-> +	spin_lock(&class->lock);
-> +	dec_zspage_isolation(zspage);
-> +	if (!get_zspage_isolation(zspage)) {
-> +		fg = putback_zspage(class, zspage);
-> +		/*
-> +		 * Due to page_lock, we cannot free zspage immediately
-> +		 * so let's defer.
-> +		 */
-> +		if (fg == ZS_EMPTY)
-> +			schedule_work(&pool->free_work);
-
-hm... zsmalloc is getting sooo complex now.
-
-`system_wq' -- can we have problems here when the system is getting
-low on memory and workers are getting increasingly busy trying to
-allocate the memory for some other purposes?
-
-_theoretically_ zsmalloc can stack a number of ready-to-release zspages,
-which won't be accessible to zsmalloc, nor will they be released. how likely
-is this? hm, can zsmalloc take zspages from that deferred release list when
-it wants to allocate a new zspage?
-
-do you also want to kick the deferred page release from the shrinker
-callback, for example?
-
-	-ss
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
