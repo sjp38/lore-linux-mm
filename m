@@ -1,108 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B761A6B0005
-	for <linux-mm@kvack.org>; Tue, 24 May 2016 03:16:22 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id a136so5964281wme.1
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 00:16:22 -0700 (PDT)
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
-        by mx.google.com with ESMTPS id m68si21690839wma.60.2016.05.24.00.16.21
+Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BFF06B0005
+	for <linux-mm@kvack.org>; Tue, 24 May 2016 03:42:07 -0400 (EDT)
+Received: by mail-ob0-f200.google.com with SMTP id g6so12310154obn.0
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 00:42:07 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0121.outbound.protection.outlook.com. [104.47.1.121])
+        by mx.google.com with ESMTPS id a63si1109590oif.224.2016.05.24.00.42.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 May 2016 00:16:21 -0700 (PDT)
-Received: by mail-wm0-f50.google.com with SMTP id n129so113526211wmn.1
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 00:16:21 -0700 (PDT)
-Date: Tue, 24 May 2016 09:16:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: zone_reclaimable() leads to livelock in __alloc_pages_slowpath()
-Message-ID: <20160524071619.GB8259@dhcp22.suse.cz>
-References: <20160520202817.GA22201@redhat.com>
- <20160523072904.GC2278@dhcp22.suse.cz>
- <20160523151419.GA8284@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 24 May 2016 00:42:06 -0700 (PDT)
+Date: Tue, 24 May 2016 10:41:56 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 8/8] af_unix: charge buffers to kmemcg
+Message-ID: <20160524074156.GG7917@esperanza>
+References: <cover.1463997354.git.vdavydov@virtuozzo.com>
+ <ba7e91e4f7aaea4e4d3b4ce60bf8bb2a3eceba0a.1463997354.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20160523151419.GA8284@redhat.com>
+In-Reply-To: <ba7e91e4f7aaea4e4d3b4ce60bf8bb2a3eceba0a.1463997354.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "David S. Miller" <davem@davemloft.net>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, netdev@vger.kernel.org
 
-On Mon 23-05-16 17:14:19, Oleg Nesterov wrote:
-> On 05/23, Michal Hocko wrote:
-[...]
-> > Could you add some tracing and see what are the numbers
-> > above?
+[adding netdev to Cc]
+
+On Mon, May 23, 2016 at 01:20:29PM +0300, Vladimir Davydov wrote:
+> Unix sockets can consume a significant amount of system memory, hence
+> they should be accounted to kmemcg.
 > 
-> with the patch below I can press Ctrl-C when it hangs, this breaks the
-> endless loop and the output looks like
+> Since unix socket buffers are always allocated from process context,
+> all we need to do to charge them to kmemcg is set __GFP_ACCOUNT in
+> sock->sk_allocation mask.
 > 
-> 	vmscan: ZONE=ffffffff8189f180 0 scanned=0 pages=6
-> 	vmscan: ZONE=ffffffff8189eb00 0 scanned=1 pages=0
-> 	...
-> 	vmscan: ZONE=ffffffff8189eb00 0 scanned=2 pages=1
-> 	vmscan: ZONE=ffffffff8189f180 0 scanned=4 pages=6
-> 	...
-> 	vmscan: ZONE=ffffffff8189f180 0 scanned=4 pages=6
-> 	vmscan: ZONE=ffffffff8189f180 0 scanned=4 pages=6
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> Cc: "David S. Miller" <davem@davemloft.net>
+> ---
+>  net/unix/af_unix.c | 1 +
+>  1 file changed, 1 insertion(+)
 > 
-> the numbers are always small.
-
-Small but scanned is not 0 and constant which means it either gets reset
-repeatedly (something gets freed) or we have stopped scanning. Which
-pattern can you see? I assume that the swap space is full at the time
-(could you add get_nr_swap_pages() to the output). Also zone->name would
-be better than the pointer.
-
-I am trying to reproduce but your test case always hits the oom killer:
-
-This is in a qemu x86_64 virtual machine:
-# free
-             total       used       free     shared    buffers     cached
-Mem:        490212      96788     393424          0       3196       9976
--/+ buffers/cache:      83616     406596
-Swap:       138236      57740      80496
-
-I have tried with much larger swap space but no change except for the
-run time of the test which is expected.
-
-# grep "^processor" /proc/cpuinfo | wc -l
-1
-
-[... Skipped several previous attempts ...]
-[  695.215235] vmscan: XXX: zone:DMA32 nr_pages_scanned:0 reclaimable:20
-[  695.215245] vmscan: XXX: zone:DMA32 nr_pages_scanned:0 reclaimable:20
-[  695.215255] vmscan: XXX: zone:DMA32 nr_pages_scanned:0 reclaimable:20
-[  695.215282] vmscan: XXX: zone:DMA32 nr_pages_scanned:1 reclaimable:27
-[  695.215303] vmscan: XXX: zone:DMA32 nr_pages_scanned:5 reclaimable:27
-[  695.215327] vmscan: XXX: zone:DMA32 nr_pages_scanned:18 reclaimable:27
-[  695.215351] vmscan: XXX: zone:DMA32 nr_pages_scanned:45 reclaimable:27
-[  695.215362] vmscan: XXX: zone:DMA32 nr_pages_scanned:45 reclaimable:27
-[  695.215373] vmscan: XXX: zone:DMA32 nr_pages_scanned:45 reclaimable:27
-[  695.215382] vmscan: XXX: zone:DMA32 nr_pages_scanned:45 reclaimable:27
-[  695.215392] vmscan: XXX: zone:DMA32 nr_pages_scanned:45 reclaimable:27
-[  695.215402] vmscan: XXX: zone:DMA32 nr_pages_scanned:45 reclaimable:27
-[  695.215412] vmscan: XXX: zone:DMA32 nr_pages_scanned:45 reclaimable:27
-[  695.215422] vmscan: XXX: zone:DMA32 nr_pages_scanned:45 reclaimable:27
-[  695.215431] vmscan: XXX: zone:DMA32 nr_pages_scanned:45 reclaimable:27
-[  695.215442] vmscan: XXX: zone:DMA32 nr_pages_scanned:46 reclaimable:27
-[  695.215462] vmscan: XXX: zone:DMA32 nr_pages_scanned:48 reclaimable:27
-[  695.215482] vmscan: XXX: zone:DMA32 nr_pages_scanned:53 reclaimable:27
-[  695.215504] vmscan: XXX: zone:DMA32 nr_pages_scanned:63 reclaimable:27
-[  695.215528] vmscan: XXX: zone:DMA32 nr_pages_scanned:90 reclaimable:27
-[...]
-[  695.215620] vmscan: XXX: zone:DMA32 nr_pages_scanned:91 reclaimable:27
-[  695.215640] vmscan: XXX: zone:DMA32 nr_pages_scanned:94 reclaimable:27
-[  695.215659] vmscan: XXX: zone:DMA32 nr_pages_scanned:100 reclaimable:27
-[  695.215683] vmscan: XXX: zone:DMA32 nr_pages_scanned:113 reclaimable:27
-[...]
-[  695.215786] vmscan: XXX: zone:DMA32 nr_pages_scanned:140 reclaimable:27
-[  695.215797] vmscan: XXX: zone:DMA32 nr_pages_scanned:141 reclaimable:27
-[  695.215816] vmscan: XXX: zone:DMA32 nr_pages_scanned:144 reclaimable:27
-[  695.215836] vmscan: XXX: zone:DMA32 nr_pages_scanned:150 reclaimable:27
-[  695.215906] test-oleg invoked oom-killer: gfp_mask=0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD), order=0, oom_score_adj=0
--- 
-Michal Hocko
-SUSE Labs
+> diff --git a/net/unix/af_unix.c b/net/unix/af_unix.c
+> index 80aa6a3e6817..022bdd3ab7d9 100644
+> --- a/net/unix/af_unix.c
+> +++ b/net/unix/af_unix.c
+> @@ -769,6 +769,7 @@ static struct sock *unix_create1(struct net *net, struct socket *sock, int kern)
+>  	lockdep_set_class(&sk->sk_receive_queue.lock,
+>  				&af_unix_sk_receive_queue_lock_key);
+>  
+> +	sk->sk_allocation	= GFP_KERNEL_ACCOUNT;
+>  	sk->sk_write_space	= unix_write_space;
+>  	sk->sk_max_ack_backlog	= net->unx.sysctl_max_dgram_qlen;
+>  	sk->sk_destruct		= unix_sock_destructor;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
