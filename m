@@ -1,65 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 582D66B0005
-	for <linux-mm@kvack.org>; Tue, 24 May 2016 06:05:34 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id d197so25162415ioe.1
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 03:05:34 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0124.outbound.protection.outlook.com. [157.56.112.124])
-        by mx.google.com with ESMTPS id p54si1417986otp.191.2016.05.24.03.05.33
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A68C86B0005
+	for <linux-mm@kvack.org>; Tue, 24 May 2016 06:14:13 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id k186so6684430lfe.3
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 03:14:13 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
+        by mx.google.com with ESMTPS id wj5si3149518wjb.240.2016.05.24.03.14.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 May 2016 03:05:33 -0700 (PDT)
-Date: Tue, 24 May 2016 13:05:23 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] mm: memcontrol: fix possible css ref leak on oom
-Message-ID: <20160524100523.GJ7917@esperanza>
-References: <1464019330-7579-1-git-send-email-vdavydov@virtuozzo.com>
- <20160523174441.GA32715@dhcp22.suse.cz>
- <20160524084319.GH7917@esperanza>
- <20160524084737.GC8259@dhcp22.suse.cz>
- <20160524090142.GI7917@esperanza>
- <20160524092202.GD8259@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 May 2016 03:14:12 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] mm: fix build problems from lookup_page_ext
+Date: Tue, 24 May 2016 12:08:51 +0200
+Message-ID: <6285269.2CksypHdYp@wuerfel>
+In-Reply-To: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
+References: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
 MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
 Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20160524092202.GD8259@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linaro-kernel@lists.linaro.org
+Cc: Yang Shi <yang.shi@linaro.org>, akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, May 24, 2016 at 11:22:02AM +0200, Michal Hocko wrote:
-> On Tue 24-05-16 12:01:42, Vladimir Davydov wrote:
-> > On Tue, May 24, 2016 at 10:47:37AM +0200, Michal Hocko wrote:
-> > > On Tue 24-05-16 11:43:19, Vladimir Davydov wrote:
-> > > > On Mon, May 23, 2016 at 07:44:43PM +0200, Michal Hocko wrote:
-> > > > > On Mon 23-05-16 19:02:10, Vladimir Davydov wrote:
-> > > > > > mem_cgroup_oom may be invoked multiple times while a process is handling
-> > > > > > a page fault, in which case current->memcg_in_oom will be overwritten
-> > > > > > leaking the previously taken css reference.
-> > > > > 
-> > > > > Have you seen this happening? I was under impression that the page fault
-> > > > > paths that have oom enabled will not retry allocations.
-> > > > 
-> > > > filemap_fault will, for readahead.
-> > > 
-> > > I thought that the readahead is __GFP_NORETRY so we do not trigger OOM
-> > > killer.
-> > 
-> > Hmm, interesting. We do allocate readahead pages with __GFP_NORETRY, but
-> > we add them to page cache and hence charge with GFP_KERNEL or GFP_NOFS
-> > mask, see __do_page_cache_readahaed -> read_pages.
-> 
-> I guess we do not want to trigger OOM just because of readahead. What do
+A patch for lookup_page_ext introduced several build errors and
+warnings, e.g.
 
-I agree this is how it should ideally work. Not sure if anybody would
-bother in practice.
+mm/page_owner.c: In function '__set_page_owner':
+mm/page_owner.c:71:2: error: ISO C90 forbids mixed declarations and code [-Werror=declaration-after-statement]
+include/linux/page_idle.h: In function 'set_page_young':
+include/linux/page_idle.h:62:3: error: expected ')' before 'return'
 
-> you think about the following? I will cook up a full patch if this
-> (untested) looks ok.
+This fixes all of them. Please fold into the original patch.
 
-It won't work for most filesystems as they define custom ->readpages. I
-wonder if it'd be OK to patch them all not to trigger oom.
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Fixes: 38c4fffbad3c ("mm: check the return value of lookup_page_ext for all call sites")
+
+diff --git a/include/linux/page_idle.h b/include/linux/page_idle.h
+index 569c3a180625..fec40271339f 100644
+--- a/include/linux/page_idle.h
++++ b/include/linux/page_idle.h
+@@ -48,7 +48,7 @@ static inline bool page_is_young(struct page *page)
+ {
+ 	struct page_ext *page_ext = lookup_page_ext(page);
+ 
+-	if (unlikely(!page_ext)
++	if (unlikely(!page_ext))
+ 		return false;
+ 
+ 	return test_bit(PAGE_EXT_YOUNG, &page_ext->flags);
+@@ -58,7 +58,7 @@ static inline void set_page_young(struct page *page)
+ {
+ 	struct page_ext *page_ext = lookup_page_ext(page);
+ 
+-	if (unlikely(!page_ext)
++	if (unlikely(!page_ext))
+ 		return;
+ 
+ 	set_bit(PAGE_EXT_YOUNG, &page_ext->flags);
+@@ -68,7 +68,7 @@ static inline bool test_and_clear_page_young(struct page *page)
+ {
+ 	struct page_ext *page_ext = lookup_page_ext(page);
+ 
+-	if (unlikely(!page_ext)
++	if (unlikely(!page_ext))
+ 		return false;
+ 
+ 	return test_and_clear_bit(PAGE_EXT_YOUNG, &page_ext->flags);
+@@ -78,7 +78,7 @@ static inline bool page_is_idle(struct page *page)
+ {
+ 	struct page_ext *page_ext = lookup_page_ext(page);
+ 
+-	if (unlikely(!page_ext)
++	if (unlikely(!page_ext))
+ 		return false;
+ 
+ 	return test_bit(PAGE_EXT_IDLE, &page_ext->flags);
+@@ -88,7 +88,7 @@ static inline void set_page_idle(struct page *page)
+ {
+ 	struct page_ext *page_ext = lookup_page_ext(page);
+ 
+-	if (unlikely(!page_ext)
++	if (unlikely(!page_ext))
+ 		return;
+ 
+ 	set_bit(PAGE_EXT_IDLE, &page_ext->flags);
+@@ -98,7 +98,7 @@ static inline void clear_page_idle(struct page *page)
+ {
+ 	struct page_ext *page_ext = lookup_page_ext(page);
+ 
+-	if (unlikely(!page_ext)
++	if (unlikely(!page_ext))
+ 		return;
+ 
+ 	clear_bit(PAGE_EXT_IDLE, &page_ext->flags);
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index 902e39813295..c6cda3e36212 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -65,9 +65,6 @@ void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
+ {
+ 	struct page_ext *page_ext = lookup_page_ext(page);
+ 
+-	if (unlikely(!page_ext))
+-		return;
+-
+ 	struct stack_trace trace = {
+ 		.nr_entries = 0,
+ 		.max_entries = ARRAY_SIZE(page_ext->trace_entries),
+@@ -75,6 +72,9 @@ void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
+ 		.skip = 3,
+ 	};
+ 
++	if (unlikely(!page_ext))
++		return;
++
+ 	save_stack_trace(&trace);
+ 
+ 	page_ext->order = order;
+@@ -111,12 +111,11 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
+ {
+ 	struct page_ext *old_ext = lookup_page_ext(oldpage);
+ 	struct page_ext *new_ext = lookup_page_ext(newpage);
++	int i;
+ 
+ 	if (unlikely(!old_ext || !new_ext))
+ 		return;
+ 
+-	int i;
+-
+ 	new_ext->order = old_ext->order;
+ 	new_ext->gfp_mask = old_ext->gfp_mask;
+ 	new_ext->nr_entries = old_ext->nr_entries;
+@@ -204,11 +203,6 @@ err:
+ void __dump_page_owner(struct page *page)
+ {
+ 	struct page_ext *page_ext = lookup_page_ext(page);
+-	if (unlikely(!page_ext)) {
+-		pr_alert("There is not page extension available.\n");
+-		return;
+-	}
+-
+ 	struct stack_trace trace = {
+ 		.nr_entries = page_ext->nr_entries,
+ 		.entries = &page_ext->trace_entries[0],
+@@ -216,6 +210,11 @@ void __dump_page_owner(struct page *page)
+ 	gfp_t gfp_mask = page_ext->gfp_mask;
+ 	int mt = gfpflags_to_migratetype(gfp_mask);
+ 
++	if (unlikely(!page_ext)) {
++		pr_alert("There is not page extension available.\n");
++		return;
++	}
++
+ 	if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags)) {
+ 		pr_alert("page_owner info is not active (free page?)\n");
+ 		return;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
