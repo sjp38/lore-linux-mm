@@ -1,54 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 18AAC6B026A
-	for <linux-mm@kvack.org>; Tue, 24 May 2016 04:49:54 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id 82so22561527ior.0
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 01:49:54 -0700 (PDT)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0135.outbound.protection.outlook.com. [157.55.234.135])
-        by mx.google.com with ESMTPS id u52si1243001otd.187.2016.05.24.01.49.48
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 459E86B0253
+	for <linux-mm@kvack.org>; Tue, 24 May 2016 05:01:54 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id yu3so14377816obb.3
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 02:01:54 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0109.outbound.protection.outlook.com. [104.47.2.109])
+        by mx.google.com with ESMTPS id t63si1303890oit.20.2016.05.24.02.01.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 May 2016 01:49:49 -0700 (PDT)
+        Tue, 24 May 2016 02:01:53 -0700 (PDT)
+Date: Tue, 24 May 2016 12:01:42 +0300
 From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH RESEND 8/8] af_unix: charge buffers to kmemcg
-Date: Tue, 24 May 2016 11:49:30 +0300
-Message-ID: <fcfe6cae27a59fbc5e40145664b3cf085a560c68.1464079538.git.vdavydov@virtuozzo.com>
-In-Reply-To: <cover.1464079537.git.vdavydov@virtuozzo.com>
-References: <cover.1464079537.git.vdavydov@virtuozzo.com>
+Subject: Re: [PATCH] mm: memcontrol: fix possible css ref leak on oom
+Message-ID: <20160524090142.GI7917@esperanza>
+References: <1464019330-7579-1-git-send-email-vdavydov@virtuozzo.com>
+ <20160523174441.GA32715@dhcp22.suse.cz>
+ <20160524084319.GH7917@esperanza>
+ <20160524084737.GC8259@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20160524084737.GC8259@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "David S. Miller" <davem@davemloft.net>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Unix sockets can consume a significant amount of system memory, hence
-they should be accounted to kmemcg.
+On Tue, May 24, 2016 at 10:47:37AM +0200, Michal Hocko wrote:
+> On Tue 24-05-16 11:43:19, Vladimir Davydov wrote:
+> > On Mon, May 23, 2016 at 07:44:43PM +0200, Michal Hocko wrote:
+> > > On Mon 23-05-16 19:02:10, Vladimir Davydov wrote:
+> > > > mem_cgroup_oom may be invoked multiple times while a process is handling
+> > > > a page fault, in which case current->memcg_in_oom will be overwritten
+> > > > leaking the previously taken css reference.
+> > > 
+> > > Have you seen this happening? I was under impression that the page fault
+> > > paths that have oom enabled will not retry allocations.
+> > 
+> > filemap_fault will, for readahead.
+> 
+> I thought that the readahead is __GFP_NORETRY so we do not trigger OOM
+> killer.
 
-Since unix socket buffers are always allocated from process context,
-all we need to do to charge them to kmemcg is set __GFP_ACCOUNT in
-sock->sk_allocation mask.
-
-Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: "David S. Miller" <davem@davemloft.net>
----
- net/unix/af_unix.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/net/unix/af_unix.c b/net/unix/af_unix.c
-index 80aa6a3e6817..022bdd3ab7d9 100644
---- a/net/unix/af_unix.c
-+++ b/net/unix/af_unix.c
-@@ -769,6 +769,7 @@ static struct sock *unix_create1(struct net *net, struct socket *sock, int kern)
- 	lockdep_set_class(&sk->sk_receive_queue.lock,
- 				&af_unix_sk_receive_queue_lock_key);
- 
-+	sk->sk_allocation	= GFP_KERNEL_ACCOUNT;
- 	sk->sk_write_space	= unix_write_space;
- 	sk->sk_max_ack_backlog	= net->unx.sysctl_max_dgram_qlen;
- 	sk->sk_destruct		= unix_sock_destructor;
--- 
-2.1.4
+Hmm, interesting. We do allocate readahead pages with __GFP_NORETRY, but
+we add them to page cache and hence charge with GFP_KERNEL or GFP_NOFS
+mask, see __do_page_cache_readahaed -> read_pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
