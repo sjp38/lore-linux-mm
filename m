@@ -1,98 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 06D9F6B025E
-	for <linux-mm@kvack.org>; Tue, 24 May 2016 11:30:34 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id d66so45793837vkb.0
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 08:30:34 -0700 (PDT)
-Received: from mail-yw0-x229.google.com (mail-yw0-x229.google.com. [2607:f8b0:4002:c05::229])
-        by mx.google.com with ESMTPS id n5si18687105ywe.69.2016.05.24.08.30.32
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A17416B0005
+	for <linux-mm@kvack.org>; Tue, 24 May 2016 12:13:48 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id g83so32505014oib.0
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 09:13:48 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0125.outbound.protection.outlook.com. [104.47.2.125])
+        by mx.google.com with ESMTPS id e111si2509009ote.185.2016.05.24.09.13.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 May 2016 08:30:32 -0700 (PDT)
-Received: by mail-yw0-x229.google.com with SMTP id h19so19431599ywc.0
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 08:30:32 -0700 (PDT)
-Date: Tue, 24 May 2016 11:30:29 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: bpf: use-after-free in array_map_alloc
-Message-ID: <20160524153029.GA3354@mtj.duckdns.org>
-References: <5713C0AD.3020102@oracle.com>
- <20160417172943.GA83672@ast-mbp.thefacebook.com>
- <5742F127.6080000@suse.cz>
- <5742F267.3000309@suse.cz>
- <20160523213501.GA5383@mtj.duckdns.org>
- <57441396.2050607@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 24 May 2016 09:13:47 -0700 (PDT)
+Date: Tue, 24 May 2016 19:13:36 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH RESEND 7/8] pipe: account to kmemcg
+Message-ID: <20160524161336.GA11150@esperanza>
+References: <cover.1464079537.git.vdavydov@virtuozzo.com>
+ <2c2545563b6201f118946f96dd8cfc90e564aff6.1464079538.git.vdavydov@virtuozzo.com>
+ <1464094742.5939.46.camel@edumazet-glaptop3.roam.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <57441396.2050607@suse.cz>
+In-Reply-To: <1464094742.5939.46.camel@edumazet-glaptop3.roam.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, ast@kernel.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Linux-MM layout <linux-mm@kvack.org>, marco.gra@gmail.com
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
 
-Hello,
-
-On Tue, May 24, 2016 at 10:40:54AM +0200, Vlastimil Babka wrote:
-> [+CC Marco who reported the CVE, forgot that earlier]
+On Tue, May 24, 2016 at 05:59:02AM -0700, Eric Dumazet wrote:
+...
+> > +static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
+> > +			       struct pipe_buffer *buf)
+> > +{
+> > +	struct page *page = buf->page;
+> > +
+> > +	if (page_count(page) == 1) {
 > 
-> On 05/23/2016 11:35 PM, Tejun Heo wrote:
-> > Hello,
-> > 
-> > Can you please test whether this patch resolves the issue?  While
-> > adding support for atomic allocations, I reduced alloc_mutex covered
-> > region too much.
-> > 
-> > Thanks.
+> This looks racy : some cpu could have temporarily elevated page count.
+
+All pipe operations (pipe_buf_operations->get, ->release, ->steal) are
+supposed to be called under pipe_lock. So, if we see a pipe_buffer->page
+with refcount of 1 in ->steal, that means that we are the only its user
+and it can't be spliced to another pipe.
+
+In fact, I just copied the code from generic_pipe_buf_steal, adding
+kmemcg related checks along the way, so it should be fine.
+
+Thanks,
+Vladimir
+
 > 
-> Ugh, this makes the code even more head-spinning than it was.
-
-Locking-wise, it isn't complicated.  It used to be a single mutex
-protecting everything.  Atomic alloc support required putting core
-allocation parts under spinlock.  It is messy because the two paths
-are mixed in the same function.  If we break out the core part to a
-separate function and let the sleepable path call into that, it should
-look okay, but that's for another patch.
-
-Also, I think protecting chunk's lifetime w/ alloc_mutex is making it
-a bit nasty.  Maybe we should do per-chunk "extending" completion and
-let pcpu_alloc_mutex just protect populating chunks.
-
-> > @@ -435,6 +435,8 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
-> >   	size_t old_size = 0, new_size = new_alloc * sizeof(new[0]);
-> >   	unsigned long flags;
-> > 
-> > +	lockdep_assert_held(&pcpu_alloc_mutex);
-> 
-> I don't see where the mutex gets locked when called via
-> pcpu_map_extend_workfn? (except via the new cancel_work_sync() call below?)
-
-Ah, right.
-
-> Also what protects chunks with scheduled work items from being removed?
-
-cancel_work_sync(), which now obviously should be called outside
-alloc_mutex.
-
-> > @@ -895,6 +897,9 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
-> >   		return NULL;
-> >   	}
-> > 
-> > +	if (!is_atomic)
-> > +		mutex_lock(&pcpu_alloc_mutex);
-> 
-> BTW I noticed that
-> 	bool is_atomic = (gfp & GFP_KERNEL) != GFP_KERNEL;
-> 
-> this is too pessimistic IMHO. Reclaim is possible even without __GFP_FS and
-> __GFP_IO. Could you just use gfpflags_allow_blocking(gfp) here?
-
-vmalloc hardcodes GFP_KERNEL, so getting more relaxed doesn't buy us
-much.
-
-Thanks.
-
--- 
-tejun
+> > +		if (memcg_kmem_enabled()) {
+> > +			memcg_kmem_uncharge(page, 0);
+> > +			__ClearPageKmemcg(page);
+> > +		}
+> > +		__SetPageLocked(page);
+> > +		return 0;
+> > +	}
+> > +	return 1;
+> > +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
