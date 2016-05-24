@@ -1,96 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 40BA56B0005
-	for <linux-mm@kvack.org>; Tue, 24 May 2016 18:43:46 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id c127so70640298ywb.1
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 15:43:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r81si4639677qha.65.2016.05.24.15.43.45
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C8E316B0005
+	for <linux-mm@kvack.org>; Tue, 24 May 2016 19:40:34 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id k186so16138591lfe.3
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 16:40:34 -0700 (PDT)
+Received: from r00tworld.com (r00tworld.com. [212.85.137.150])
+        by mx.google.com with ESMTPS id ad7si7144462wjc.239.2016.05.24.16.40.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 May 2016 15:43:45 -0700 (PDT)
-Date: Wed, 25 May 2016 00:43:41 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: zone_reclaimable() leads to livelock in __alloc_pages_slowpath()
-Message-ID: <20160524224341.GA11961@redhat.com>
-References: <20160520202817.GA22201@redhat.com>
- <20160523072904.GC2278@dhcp22.suse.cz>
- <20160523151419.GA8284@redhat.com>
- <20160524071619.GB8259@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 24 May 2016 16:40:33 -0700 (PDT)
+From: "PaX Team" <pageexec@freemail.hu>
+Date: Wed, 25 May 2016 01:40:21 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160524071619.GB8259@dhcp22.suse.cz>
+Subject: Re: [PATCH v1 1/3] Add the latent_entropy gcc plugin
+Reply-to: pageexec@freemail.hu
+Message-ID: <5744E665.28844.9DDA03D@pageexec.freemail.hu>
+In-reply-to: <CAGXu5jJHenHARDZt=51m1XbSStTxpG90Dv=Fpkn79A6pZYtGOw@mail.gmail.com>
+References: <20160524001405.3e6abd1d5a63a871cc366cff@gmail.com>, <20160524001529.0e69232eff0b1b5bc566a763@gmail.com>, <CAGXu5jJHenHARDZt=51m1XbSStTxpG90Dv=Fpkn79A6pZYtGOw@mail.gmail.com>
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7BIT
+Content-description: Mail message body
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Emese Revfy <re.emese@gmail.com>, Kees Cook <keescook@chromium.org>
+Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Brad Spengler <spender@grsecurity.net>, Michal Marek <mmarek@suse.com>, LKML <linux-kernel@vger.kernel.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, linux-kbuild <linux-kbuild@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>, Al Viro <viro@zeniv.linux.org.uk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, bart.vanassche@sandisk.com, "David S. Miller" <davem@davemloft.net>
 
-On 05/24, Michal Hocko wrote:
->
-> On Mon 23-05-16 17:14:19, Oleg Nesterov wrote:
-> > On 05/23, Michal Hocko wrote:
-> [...]
-> > > Could you add some tracing and see what are the numbers
-> > > above?
+On 24 May 2016 at 10:32, Kees Cook wrote:
+
+> On Mon, May 23, 2016 at 3:15 PM, Emese Revfy <re.emese@gmail.com> wrote:
+> > This plugin mitigates the problem of the kernel having too little entropy during
+> > and after boot for generating crypto keys.
 > >
-> > with the patch below I can press Ctrl-C when it hangs, this breaks the
-> > endless loop and the output looks like
-> >
-> > 	vmscan: ZONE=ffffffff8189f180 0 scanned=0 pages=6
-> > 	vmscan: ZONE=ffffffff8189eb00 0 scanned=1 pages=0
-> > 	...
-> > 	vmscan: ZONE=ffffffff8189eb00 0 scanned=2 pages=1
-> > 	vmscan: ZONE=ffffffff8189f180 0 scanned=4 pages=6
-> > 	...
-> > 	vmscan: ZONE=ffffffff8189f180 0 scanned=4 pages=6
-> > 	vmscan: ZONE=ffffffff8189f180 0 scanned=4 pages=6
-> >
-> > the numbers are always small.
->
-> Small but scanned is not 0 and constant which means it either gets reset
-> repeatedly (something gets freed) or we have stopped scanning. Which
-> pattern can you see? I assume that the swap space is full at the time
-> (could you add get_nr_swap_pages() to the output).
+> I'm excited to see this! This looks like it'll help a lot with early
+> entropy, which is something that'll be a problem for some
+> architectures that are trying to do early randomish things (e.g. the
+> heap layout randomization, various canaries, etc).
+> 
+> Do you have any good examples of a before/after case of early
+> randomness being fixed by this?
 
-no, I tested this without SWAP,
+unfortunately, i don't know of a way to quantify this kind of PRNG as the effective
+algorithm is not something simple and well-structured for which we have theories and
+tools to analyze already. of course this cuts both ways, an attacker faces the same
+barrier of non-analyzability.
 
-> Also zone->name would
-> be better than the pointer.
+what can at most be observed is the state of the latent_entropy global variable after
+init across many boots but that'd provide a rather low and useless lower estimate only
+(e.g., up to 20 bits for a million reboots, or 30 bits for a billion reboots, etc).
 
-Yes, forgot to mention, this is DMA32. To remind, only 512m of RAM so
-this is natural.
+to answer your question, i'd like to believe that there's enough latent entropy in
+program state that can be harnessed to (re)seed the entropy pool but we'll probably
+never know just how well we are doing it so accounting for it and claiming 'fixed'
+will stay in the realm of wishful thinking i'm afraid.
 
-> I am trying to reproduce but your test case always hits the oom killer:
-
-Did you try to run it in a loop? Usually it takes a while before the system
-hangs.
-
-> Swap:       138236      57740      80496
-
-perhaps this makes a difference? See above, I have no SWAP.
-
-
-So. I spent almost the whole day trying to understand whats going on, and
-of course I failed.
-
-But. It _seems to me_ that the kernel "leaks" some pages in LRU_INACTIVE_FILE
-list because inactive_file_is_low() returns the wrong value. And do not even
-ask me why I think so, unlikely I will be able to explain ;) to remind, I never
-tried to read vmscan.c before.
-
-But. if I change lruvec_lru_size()
-
-	-       return zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru);
-	+       return zone_page_state_snapshot(lruvec_zone(lruvec), NR_LRU_BASE + lru);
-
-the problem goes away too.
-
-To remind, it also goes away if I change calculate_normal_threshold() to return
-zero, and it was not clear why. Now we can probably conclude that that this is
-because the change obviouslt affects lruvec_lru_size().
-
-Oleg.
+cheers,
+ PaX Team
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
