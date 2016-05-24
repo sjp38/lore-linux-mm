@@ -1,42 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 82C686B0005
-	for <linux-mm@kvack.org>; Mon, 23 May 2016 23:07:17 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id 190so12421274iow.2
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 20:07:17 -0700 (PDT)
-Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
-        by mx.google.com with ESMTPS id q11si560014otb.49.2016.05.23.20.07.16
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 May 2016 20:07:16 -0700 (PDT)
-Received: by mail-oi0-x22c.google.com with SMTP id k23so6537117oih.0
-        for <linux-mm@kvack.org>; Mon, 23 May 2016 20:07:16 -0700 (PDT)
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 93A596B0005
+	for <linux-mm@kvack.org>; Tue, 24 May 2016 01:16:47 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id m124so6658016itg.0
+        for <linux-mm@kvack.org>; Mon, 23 May 2016 22:16:47 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id uh11si15130221igb.77.2016.05.23.22.16.45
+        for <linux-mm@kvack.org>;
+        Mon, 23 May 2016 22:16:46 -0700 (PDT)
+Date: Tue, 24 May 2016 14:17:34 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [RFC v1 2/2] mm: SLUB Freelist randomization
+Message-ID: <20160524051733.GA32186@js1304-P5Q-DELUXE>
+References: <1463594175-111929-1-git-send-email-thgarnie@google.com>
+ <1463594175-111929-3-git-send-email-thgarnie@google.com>
+ <alpine.DEB.2.20.1605181323260.14349@east.gentwo.org>
+ <CAJcbSZFhsZheqdZ5FD8auhiu8ozCyq-0xY1wjYu3j+Wc2R8nGg@mail.gmail.com>
+ <alpine.DEB.2.20.1605181401560.29313@east.gentwo.org>
+ <CAJcbSZHwZxH=NN+xk7N+O-47QQHmRchgqMS5==_HzH1no5ho9g@mail.gmail.com>
+ <20160519020722.GC10245@js1304-P5Q-DELUXE>
+ <CAJcbSZGUTJdzRDno=+V+F4Yu_gaU_k0UJq5xhF5PPwgKGi3O7A@mail.gmail.com>
+ <CAAmzW4PN4wcPWbjf=Hws2qN_eZC1HCmn-gQC9_DB5ek5+bNksQ@mail.gmail.com>
+ <CAJcbSZGTxWHJpvcp8s=KQTX9my4rw9Gmg8KDs=ajj5BiqkJQcw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20160523120620.GP2278@dhcp22.suse.cz>
-References: <1463556255-31892-1-git-send-email-roy.qing.li@gmail.com>
-	<20160518073253.GC21654@dhcp22.suse.cz>
-	<CAJFZqHwFtZa-Ec_0bie6ORTrgoW1kqGsq49-=ojsT-uyNUBhwg@mail.gmail.com>
-	<20160523103758.GB7917@esperanza>
-	<20160523120620.GP2278@dhcp22.suse.cz>
-Date: Tue, 24 May 2016 11:07:16 +0800
-Message-ID: <CAJFZqHzwqjzRriawoP92_v2VYxamCiVg2QjGpP7mmL1A1f9Cnw@mail.gmail.com>
-Subject: Re: [PATCH] mm: memcontrol: fix the return in mem_cgroup_margin
-From: Li RongQing <roy.qing.li@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJcbSZGTxWHJpvcp8s=KQTX9my4rw9Gmg8KDs=ajj5BiqkJQcw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
+To: Thomas Garnier <thgarnie@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Pranith Kumar <bobby.prani@gmail.com>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Woodhouse <David.Woodhouse@intel.com>, Petr Mladek <pmladek@suse.com>, Kees Cook <keescook@chromium.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Thelen <gthelen@google.com>, kernel-hardening@lists.openwall.com
 
-On Mon, May 23, 2016 at 8:06 PM, Michal Hocko <mhocko@kernel.org> wrote:
->
-> Can we have updated patch with all this useful information in the
-> changelog, please?
+On Fri, May 20, 2016 at 09:24:35AM -0700, Thomas Garnier wrote:
+> On Thu, May 19, 2016 at 7:15 PM, Joonsoo Kim <js1304@gmail.com> wrote:
+> > 2016-05-20 5:20 GMT+09:00 Thomas Garnier <thgarnie@google.com>:
+> >> I ran the test given by Joonsoo and it gave me these minimum cycles
+> >> per size across 20 usage:
+> >
+> > I can't understand what you did here. Maybe, it's due to my poor Engling.
+> > Please explain more. You did single thread test? Why minimum cycles
+> > rather than average?
+> >
+> 
+> I used your version of slab_test and ran it 20 times for each
+> versions. I compared
+> the minimum number of cycles as an optimal case for comparison. As you said
+> slab_test results can be unreliable. Comparing the average across multiple runs
+> always gave odd results.
 
+Hmm... With my version, slab_test results seems to be reliable for me. You
+can use average result in this case. Anyway, your minimum result looks
+odd even if my version is used. Large sized test would go slowpath
+more frequently so it should be worse.
 
-Ok, I will update this patch
+> 
+> >> size,before,after
+> >> 8,63.00,64.50 (102.38%)
+> >> 16,64.50,65.00 (100.78%)
+> >> 32,65.00,65.00 (100.00%)
+> >> 64,66.00,65.00 (98.48%)
+> >> 128,66.00,65.00 (98.48%)
+> >> 256,64.00,64.00 (100.00%)
+> >> 512,65.00,66.00 (101.54%)
+> >> 1024,68.00,64.00 (94.12%)
+> >> 2048,66.00,65.00 (98.48%)
+> >> 4096,66.00,66.00 (100.00%)
+> >
+> > It looks like performance of all size classes are the same?
+> >
+> >> I assume the difference is bigger if you don't have RDRAND support.
+> >
+> > What does RDRAND means? Kconfig? How can I check if I have RDRAND?
+> >
+> 
+> Sorry, I was referring to the usage of get_random_bytes_arch which
+> will be faster
+> if the test machine support specific instructions (like RDRAND).
 
--Roy
+Thanks! I checked that my test bed (QEMU) doesn't support rdrand.
+(/proc/cpuinfo)
+
+> >> Christoph, Joonsoo: Do you think it would be valuable to add a CONFIG
+> >> to disable additional randomization per new page? It will remove
+> >> additional entropy but increase performance for machines without arch
+> >> specific randomization instructions.
+> >
+> > I don't think that it deserve another CONFIG. If performance is a matter,
+> > I think that removing additional entropy is better until it is proved that
+> > entropy is a problem.
+> >
+> 
+> I will do more testing before the next RFC to decide the best approach.
+
+Okay.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
