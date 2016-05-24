@@ -1,75 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AE1E06B007E
-	for <linux-mm@kvack.org>; Tue, 24 May 2016 07:46:15 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id o70so7956863lfg.1
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 04:46:15 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id w15si23022756wmw.102.2016.05.24.04.46.14
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 464B56B0253
+	for <linux-mm@kvack.org>; Tue, 24 May 2016 07:50:52 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id m138so8023864lfm.0
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 04:50:52 -0700 (PDT)
+Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com. [74.125.82.54])
+        by mx.google.com with ESMTPS id 198si4527456wmj.9.2016.05.24.04.50.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 May 2016 04:46:14 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id 67so5279220wmg.0
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 04:46:14 -0700 (PDT)
-Date: Tue, 24 May 2016 13:46:12 +0200
+        Tue, 24 May 2016 04:50:51 -0700 (PDT)
+Received: by mail-wm0-f54.google.com with SMTP id n129so125632809wmn.1
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 04:50:50 -0700 (PDT)
+Date: Tue, 24 May 2016 13:50:49 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: oom: do not reap task if there are live threads in
- threadgroup
-Message-ID: <20160524114612.GG8259@dhcp22.suse.cz>
-References: <1464087628-7318-1-git-send-email-vdavydov@virtuozzo.com>
+Subject: Re: page order 0 allocation fail but free pages are enough
+Message-ID: <20160524115049.GH8259@dhcp22.suse.cz>
+References: <CADUS3okXhU5mW5Y2BC88zq2GtaVyK1i+i2uT34zHbWPw3hFPTA@mail.gmail.com>
+ <20160523144711.GV2278@dhcp22.suse.cz>
+ <CADUS3onEpdMF6Pi9-cHkf+hA6bqOc4mkXAci7ikeUhtaELx4WQ@mail.gmail.com>
+ <20160523190051.GF32715@dhcp22.suse.cz>
+ <CADUS3onbkOC=kSsHxVgwK-m-ftmrzH+73RHDAFw_mbLvPGBx6A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1464087628-7318-1-git-send-email-vdavydov@virtuozzo.com>
+In-Reply-To: <CADUS3onbkOC=kSsHxVgwK-m-ftmrzH+73RHDAFw_mbLvPGBx6A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: yoma sophian <sophian.yoma@gmail.com>
+Cc: linux-mm@kvack.org
 
-On Tue 24-05-16 14:00:28, Vladimir Davydov wrote:
-> If the current process is exiting, we don't invoke oom killer, instead
-> we give it access to memory reserves and try to reap its mm in case
-> nobody is going to use it. There's a mistake in the code performing this
-> check - we just ignore any process of the same thread group no matter if
-> it is exiting or not - see try_oom_reaper. Fix it.
+OK, I could have noticed that earlier...
 
-This is not a problem with the current code because of 98748bd72200
-("oom: consider multi-threaded tasks in task_will_free_mem") which got
-merged later on, however.
+On Tue 24-05-16 19:40:21, yoma sophian wrote:
+[...]
+> Normal free:56088kB min:2000kB low:2500kB high:3000kB
+> active_anon:148332kB inactive_anon:6040kB active_file:1356kB
+> inactive_file:5240kB unevictable:0kB isolated(anon):0kB
+> isolated(file):0kB present:329728kB managed:250408kB mlocked:0kB
+> dirty:120kB writeback:0kB mapped:8108kB shmem:6136kB
+> slab_reclaimable:5520kB slab_unreclaimable:26128kB kernel_stack:2720kB
+> pagetables:4424kB unstable:0kB bounce:0kB free_cma:55452kB
 
-The check is not needed so we can indeed drop it.
-
-Fixes: 3ef22dfff239 ("oom, oom_reaper: try to reap tasks which skip
-regular OOM killer path")
-
-Just in case somebody wants to backport only 3ef22dfff239.
-
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
-
-> ---
->  mm/oom_kill.c | 2 --
->  1 file changed, 2 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index c0e37dd1422f..03bf7a472296 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -618,8 +618,6 @@ void try_oom_reaper(struct task_struct *tsk)
->  
->  			if (!process_shares_mm(p, mm))
->  				continue;
-> -			if (same_thread_group(p, tsk))
-> -				continue;
->  			if (fatal_signal_pending(p))
->  				continue;
->  
-> -- 
-> 2.1.4
-
+free-free_cma = 636kB so you are way below the watermark and that is
+why your atomic allocation fails (see __zone_watermark_ok). I am not an
+expect on CMA but I guess your CMA pool is too large for your load.
 -- 
 Michal Hocko
 SUSE Labs
