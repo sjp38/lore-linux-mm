@@ -1,110 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F13776B025E
-	for <linux-mm@kvack.org>; Wed, 25 May 2016 10:30:42 -0400 (EDT)
-Received: by mail-ob0-f198.google.com with SMTP id g6so78437300obn.0
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 07:30:42 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id j66si176435oia.77.2016.05.25.07.30.41
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 06B836B025E
+	for <linux-mm@kvack.org>; Wed, 25 May 2016 10:39:18 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id g64so26636820pfb.2
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 07:39:17 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id vy4si13003744pab.231.2016.05.25.07.39.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 May 2016 07:30:42 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm, oom_reaper: do not mmput synchronously from the oom reaper context
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1461679470-8364-3-git-send-email-mhocko@kernel.org>
-	<201605192329.ABB17132.LFHOFJMVtOSFQO@I-love.SAKURA.ne.jp>
-	<20160519172056.GA5290@dhcp22.suse.cz>
-	<201605251952.EJF87514.SOJQMOVFOFHFLt@I-love.SAKURA.ne.jp>
-	<20160525135002.GI20132@dhcp22.suse.cz>
-In-Reply-To: <20160525135002.GI20132@dhcp22.suse.cz>
-Message-Id: <201605252330.IAC82384.OOSQHVtFFFLOMJ@I-love.SAKURA.ne.jp>
-Date: Wed, 25 May 2016 23:30:26 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 May 2016 07:39:16 -0700 (PDT)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 8CA1420411
+	for <linux-mm@kvack.org>; Wed, 25 May 2016 14:39:15 +0000 (UTC)
+Received: from mail-yw0-f173.google.com (mail-yw0-f173.google.com [209.85.161.173])
+	(using TLSv1.2 with cipher AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 8268E20172
+	for <linux-mm@kvack.org>; Wed, 25 May 2016 14:39:14 +0000 (UTC)
+Received: by mail-yw0-f173.google.com with SMTP id o16so49256882ywd.2
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 07:39:14 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1464150590-2703-1-git-send-email-jaewon31.kim@samsung.com>
+References: <1464150590-2703-1-git-send-email-jaewon31.kim@samsung.com>
+From: Rob Herring <robh+dt@kernel.org>
+Date: Wed, 25 May 2016 09:38:54 -0500
+Message-ID: <CAL_JsqLu+KxXdZseQiRFPr5MG0hSnwnQJpBLg0M5tgO-ap4F=g@mail.gmail.com>
+Subject: Re: [RESEND][PATCH] drivers: of: of_reserved_mem: fixup the CMA
+ alignment not to affect dma-coherent
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org
+To: Jaewon Kim <jaewon31.kim@samsung.com>
+Cc: r64343@freescale.com, Marek Szyprowski <m.szyprowski@samsung.com>, Grant Likely <grant.likely@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, jaewon31.kim@gmail.com
 
-Michal Hocko wrote:
-> On Wed 25-05-16 19:52:18, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > > Just a random thought, but after this patch is applied, do we still need to use
-> > > > a dedicated kernel thread for OOM-reap operation? If I recall correctly, the
-> > > > reason we decided to use a dedicated kernel thread was that calling
-> > > > down_read(&mm->mmap_sem) / mmput() from the OOM killer context is unsafe due to
-> > > > dependency. By replacing mmput() with mmput_async(), since __oom_reap_task() will
-> > > > no longer do operations that might block, can't we try OOM-reap operation from
-> > > > current thread which called mark_oom_victim() or oom_scan_process_thread() ?
-> > > 
-> > > I was already thinking about that. It is true that the main blocker
-> > > was the mmput, as you say, but the dedicated kernel thread seems to be
-> > > more robust locking and stack wise. So I would prefer staying with the
-> > > current approach until we see that it is somehow limitting. One pid and
-> > > kernel stack doesn't seem to be a terrible price to me. But as I've said
-> > > I am not bound to the kernel thread approach...
-> > > 
-> > 
-> > It seems to me that async OOM reaping widens race window for needlessly
-> > selecting next OOM victim, for the OOM reaper holding a reference of a
-> > TIF_MEMDIE thread's mm expedites clearing TIF_MEMDIE from that thread
-> > by making atomic_dec_and_test() in mmput() from exit_mm() false.
->  
-> AFAIU you mean
-> __oom_reap_task			exit_mm
->   atomic_inc_not_zero
-> 				  tsk->mm = NULL
-> 				  mmput
->   				    atomic_dec_and_test # > 0
-> 				  exit_oom_victim # New victim will be
-> 				  		  # selected
-> 				<OOM killer invoked>
-> 				  # no TIF_MEMDIE task so we can select a new one
->   unmap_page_range # to release the memory
-> 
+On Tue, May 24, 2016 at 11:29 PM, Jaewon Kim <jaewon31.kim@samsung.com> wrote:
+> From: Jaewon <jaewon31.kim@samsung.com>
+>
+> There was an alignment mismatch issue for CMA and it was fixed by
+> commit 1cc8e3458b51 ("drivers: of: of_reserved_mem: fixup the alignment with CMA setup").
+> However the way of the commit considers not only dma-contiguous(CMA) but also
+> dma-coherent which has no that requirement.
+>
+> This patch checks more to distinguish dma-contiguous(CMA) from dma-coherent.
+>
+> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
 
-Yes.
+I suppose this needs to go to stable? If so, adding the stable tag and
+kernel version would be nice so I don't have to.
 
-> Previously we were kind of protected by PF_EXITING check in
-> oom_scan_process_thread which is not there anymore. The race is possible
-> even without the oom reaper because many other call sites might pin
-> the address space and be preempted for an unbounded amount of time. We
+> ---
+>  drivers/of/of_reserved_mem.c | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
 
-It is true that there has been a race window even without the OOM reaper
-(and I tried to mitigate it using oomkiller_holdoff_timer).
-But until the OOM reaper kernel thread was introduced, the sequence
+I'm looking for an ack from Marek on this.
 
- 				  mmput
-   				    atomic_dec_and_test # > 0
- 				  exit_oom_victim # New victim will be
- 				  		  # selected
-
-was able to select another thread sharing that mm (with noisy dump_header()
-messages which I think should be suppressed after that thread group received
-SIGKILL from oom_kill_process()). Since the OOM reaper is a kernel thread,
-this sequence will simply select a different thread group not sharing that mm.
-In this regard, I think that async OOM reaping increased possibility of
-needlessly selecting next OOM victim.
-
-> could widen the race window by reintroducing the check or moving
-> exit_oom_victim later in do_exit after exit_notify which then removes
-> the task from the task_list (in __unhash_process) so the OOM killer
-> wouldn't see it anyway. Sounds ugly to me though.
-> 
-> > Maybe we should wait for first OOM reap attempt from the OOM killer context
-> > before releasing oom_lock mutex (sync OOM reaping) ?
-> 
-> I do not think we want to wait inside the oom_lock as it is a global
-> lock shared by all OOM killer contexts. Another option would be to use
-> the oom_lock inside __oom_reap_task. It is not super cool either because
-> now we have a dependency on the lock but looks like reasonably easy
-> solution.
-
-It would be nice if we can wait until memory reclaimed from the OOM victim's
-mm is queued to freelist for allocation. But I don't have idea other than
-oomkiller_holdoff_timer.
-
-I think this problem should be discussed another day in a new thread.
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
