@@ -1,74 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ADF76B0005
-	for <linux-mm@kvack.org>; Wed, 25 May 2016 12:10:45 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id a143so81603451oii.2
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 09:10:45 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 71si24577755itg.35.2016.05.25.09.10.43
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E89786B0005
+	for <linux-mm@kvack.org>; Wed, 25 May 2016 14:18:49 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id x1so70863530pav.3
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 11:18:49 -0700 (PDT)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id m127si164753pfb.118.2016.05.25.11.18.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 May 2016 09:10:44 -0700 (PDT)
-Date: Wed, 25 May 2016 18:09:30 +0200
-From: Daniel Kiper <daniel.kiper@oracle.com>
-Subject: Re: [RFC PATCH v1 10/18] x86/efi: Access EFI related tables in the
- clear
-Message-ID: <20160525160930.GJ5490@olila.local.net-space.pl>
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225740.13567.85438.stgit@tlendack-t1.amdoffice.net>
- <20160510134358.GR2839@codeblueprint.co.uk>
- <20160510135758.GA16783@pd.tnic>
- <5734C97D.8060803@amd.com>
- <57446B27.20406@amd.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <57446B27.20406@amd.com>
+        Wed, 25 May 2016 11:18:48 -0700 (PDT)
+Received: by mail-pa0-x22a.google.com with SMTP id xk12so19957080pac.0
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 11:18:48 -0700 (PDT)
+From: Yang Shi <yang.shi@linaro.org>
+Subject: [PATCH] mm: use early_pfn_to_nid in page_ext_init
+Date: Wed, 25 May 2016 10:51:29 -0700
+Message-Id: <1464198689-23458-1-git-send-email-yang.shi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Borislav Petkov <bp@alien8.de>, Matt Fleming <matt@codeblueprint.co.uk>, Leif Lindholm <leif.lindholm@linaro.org>, Mark Salter <msalter@redhat.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org
 
-On Tue, May 24, 2016 at 09:54:31AM -0500, Tom Lendacky wrote:
-> On 05/12/2016 01:20 PM, Tom Lendacky wrote:
-> > On 05/10/2016 08:57 AM, Borislav Petkov wrote:
-> >> On Tue, May 10, 2016 at 02:43:58PM +0100, Matt Fleming wrote:
-> >>> Is it not possible to maintain some kind of kernel virtual address
-> >>> mapping so memremap*() and friends can figure out when to twiddle the
-> >>> mapping attributes and map with/without encryption?
-> >>
-> >> I guess we can move the sme_* specific stuff one indirection layer
-> >> below, i.e., in the *memremap() routines so that callers don't have to
-> >> care... That should keep the churn down...
-> >>
-> >
-> > We could do that, but we'll have to generate that list of addresses so
-> > that it can be checked against the range being mapped.  Since this is
-> > part of early memmap support searching that list every time might not be
-> > too bad. I'll have to look into that and see what that looks like.
->
-> I looked into this and this would be a large change also to parse tables
-> and build lists.  It occurred to me that this could all be taken care of
-> if the early_memremap calls were changed to early_ioremap calls. Looking
-> in the git log I see that they were originally early_ioremap calls but
-> were changed to early_memremap calls with this commit:
->
-> commit abc93f8eb6e4 ("efi: Use early_mem*() instead of early_io*()")
->
-> Looking at the early_memremap code and the early_ioremap code they both
-> call __early_ioremap so I don't see how this change makes any
-> difference (especially since FIXMAP_PAGE_NORMAL and FIXMAP_PAGE_IO are
-> identical in this case).
->
-> Is it safe to change these back to early_ioremap calls (at least on
-> x86)?
+page_ext_init() checks suitable pages with pfn_to_nid(), but pfn_to_nid()
+depends on memmap which will not be setup fully until page_alloc_init_late()
+is done. Use early_pfn_to_nid() instead of pfn_to_nid() so that page extension
+could be still used early even though CONFIG_ DEFERRED_STRUCT_PAGE_INIT is
+enabled and catch early page allocation call sites.
 
-Commit f955371ca9d3986bca100666041fcfa9b6d21962 (x86: remove the Xen-specific
-_PAGE_IOMAP PTE flag) made commit abc93f8eb6e4 unnecessary. Though, IMO, it
-is still valid code cleanup. So, if it is not very strongly needed I would
-not revert this change.
+Suggested by Joonsoo Kim [1], this fix basically undoes the change introduced
+by commit b8f1a75d61d8405a753380c6fb17ba84a5603cd4 ("mm: call page_ext_init()
+after all struct pages are initialized") and fixes the same problem with
+a better approach.
 
-Daniel
+[1] http://lkml.kernel.org/r/CAAmzW4OUmyPwQjvd7QUfc6W1Aic__TyAuH80MLRZNMxKy0-wPQ@mail.gmail.com
+
+CC: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Signed-off-by: Yang Shi <yang.shi@linaro.org>
+---
+ init/main.c   | 3 +--
+ mm/page_ext.c | 4 +++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/init/main.c b/init/main.c
+index bc0f9e0..4c17fda 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -607,6 +607,7 @@ asmlinkage __visible void __init start_kernel(void)
+ 		initrd_start = 0;
+ 	}
+ #endif
++	page_ext_init();
+ 	debug_objects_mem_init();
+ 	kmemleak_init();
+ 	setup_per_cpu_pageset();
+@@ -1003,8 +1004,6 @@ static noinline void __init kernel_init_freeable(void)
+ 	sched_init_smp();
+ 
+ 	page_alloc_init_late();
+-	/* Initialize page ext after all struct pages are initializaed */
+-	page_ext_init();
+ 
+ 	do_basic_setup();
+ 
+diff --git a/mm/page_ext.c b/mm/page_ext.c
+index 2d864e6..44a4c02 100644
+--- a/mm/page_ext.c
++++ b/mm/page_ext.c
+@@ -390,8 +390,10 @@ void __init page_ext_init(void)
+ 			 * We know some arch can have a nodes layout such as
+ 			 * -------------pfn-------------->
+ 			 * N0 | N1 | N2 | N0 | N1 | N2|....
++			 *
++			 * Take into account DEFERRED_STRUCT_PAGE_INIT.
+ 			 */
+-			if (pfn_to_nid(pfn) != nid)
++			if (early_pfn_to_nid(pfn) != nid)
+ 				continue;
+ 			if (init_section_page_ext(pfn, nid))
+ 				goto oom;
+-- 
+2.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
