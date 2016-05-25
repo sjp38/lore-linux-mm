@@ -1,81 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D85CF6B0005
-	for <linux-mm@kvack.org>; Wed, 25 May 2016 10:26:24 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 77so89921452pfz.3
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 07:26:24 -0700 (PDT)
-Received: from mail-pf0-x22f.google.com (mail-pf0-x22f.google.com. [2607:f8b0:400e:c00::22f])
-        by mx.google.com with ESMTPS id d25si18022578pfj.149.2016.05.25.07.26.23
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F13776B025E
+	for <linux-mm@kvack.org>; Wed, 25 May 2016 10:30:42 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id g6so78437300obn.0
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 07:30:42 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id j66si176435oia.77.2016.05.25.07.30.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 May 2016 07:26:23 -0700 (PDT)
-Received: by mail-pf0-x22f.google.com with SMTP id y69so18995708pfb.1
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 07:26:23 -0700 (PDT)
-Date: Thu, 26 May 2016 00:23:45 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v6 11/12] zsmalloc: page migration support
-Message-ID: <20160525152345.GA515@swordfish>
-References: <1463754225-31311-1-git-send-email-minchan@kernel.org>
- <1463754225-31311-12-git-send-email-minchan@kernel.org>
- <20160524052824.GA496@swordfish>
- <20160524062801.GB29094@bbox>
- <20160525051438.GA14786@bbox>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 May 2016 07:30:42 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm, oom_reaper: do not mmput synchronously from the oom reaper context
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1461679470-8364-3-git-send-email-mhocko@kernel.org>
+	<201605192329.ABB17132.LFHOFJMVtOSFQO@I-love.SAKURA.ne.jp>
+	<20160519172056.GA5290@dhcp22.suse.cz>
+	<201605251952.EJF87514.SOJQMOVFOFHFLt@I-love.SAKURA.ne.jp>
+	<20160525135002.GI20132@dhcp22.suse.cz>
+In-Reply-To: <20160525135002.GI20132@dhcp22.suse.cz>
+Message-Id: <201605252330.IAC82384.OOSQHVtFFFLOMJ@I-love.SAKURA.ne.jp>
+Date: Wed, 25 May 2016 23:30:26 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160525051438.GA14786@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org
 
-Hello Minchan,
-
-On (05/25/16 14:14), Minchan Kim wrote:
-[..]
-> > > do you also want to kick the deferred page release from the shrinker
-> > > callback, for example?
+Michal Hocko wrote:
+> On Wed 25-05-16 19:52:18, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > > Just a random thought, but after this patch is applied, do we still need to use
+> > > > a dedicated kernel thread for OOM-reap operation? If I recall correctly, the
+> > > > reason we decided to use a dedicated kernel thread was that calling
+> > > > down_read(&mm->mmap_sem) / mmput() from the OOM killer context is unsafe due to
+> > > > dependency. By replacing mmput() with mmput_async(), since __oom_reap_task() will
+> > > > no longer do operations that might block, can't we try OOM-reap operation from
+> > > > current thread which called mark_oom_victim() or oom_scan_process_thread() ?
+> > > 
+> > > I was already thinking about that. It is true that the main blocker
+> > > was the mmput, as you say, but the dedicated kernel thread seems to be
+> > > more robust locking and stack wise. So I would prefer staying with the
+> > > current approach until we see that it is somehow limitting. One pid and
+> > > kernel stack doesn't seem to be a terrible price to me. But as I've said
+> > > I am not bound to the kernel thread approach...
+> > > 
 > > 
-> > Yeb, it can be. I will do it at next revision. :)
-> > Thanks!
-> > 
+> > It seems to me that async OOM reaping widens race window for needlessly
+> > selecting next OOM victim, for the OOM reaper holding a reference of a
+> > TIF_MEMDIE thread's mm expedites clearing TIF_MEMDIE from that thread
+> > by making atomic_dec_and_test() in mmput() from exit_mm() false.
+>  
+> AFAIU you mean
+> __oom_reap_task			exit_mm
+>   atomic_inc_not_zero
+> 				  tsk->mm = NULL
+> 				  mmput
+>   				    atomic_dec_and_test # > 0
+> 				  exit_oom_victim # New victim will be
+> 				  		  # selected
+> 				<OOM killer invoked>
+> 				  # no TIF_MEMDIE task so we can select a new one
+>   unmap_page_range # to release the memory
 > 
-> I tried it now but I feel strongly we want to fix shrinker first.
-> Now, shrinker doesn't consider VM's request(i.e., sc->nr_to_scan) but
-> shrink all objects which could make latency huge.
 
-hm... may be.
+Yes.
 
-I only briefly thought about it a while ago; and have no real data on
-hands. it was something as follows:
-between zs_shrinker_count() and zs_shrinker_scan() a lot can change;
-and _theoretically_ attempting to zs_shrinker_scan() even a smaller
-sc->nr_to_scan still may result in a "full" pool scan, taking all of
-the classes ->locks one by one just because classes are not the same
-as a moment ago. which is even more probable, I think, once the system
-is getting low on memory and begins to swap out, for instance. because
-in the latter case we increase the number of writes to zspool and,
-thus, reduce its chances to be compacted. if the system would still
-demand free memory, then it'd keep calling zs_shrinker_count() and
-zs_shrinker_scan() on us; at some point, I think, zs_shrinker_count()
-would start returning 0. ...if some of the classes would have huge
-fragmentation then we'd keep these class' ->locks for some time,
-moving objects. other than that we probably would just iterate the
-classes.
+> Previously we were kind of protected by PF_EXITING check in
+> oom_scan_process_thread which is not there anymore. The race is possible
+> even without the oom reaper because many other call sites might pin
+> the address space and be preempted for an unbounded amount of time. We
 
-purely theoretical.
+It is true that there has been a race window even without the OOM reaper
+(and I tried to mitigate it using oomkiller_holdoff_timer).
+But until the OOM reaper kernel thread was introduced, the sequence
 
-do you have any numbers?
+ 				  mmput
+   				    atomic_dec_and_test # > 0
+ 				  exit_oom_victim # New victim will be
+ 				  		  # selected
 
-hm, probably it makes sense to change it. but if the change will
-replace "1 full pool scan" to "2 scans of 1/2 of pool's classes",
-then I'm less sure.
+was able to select another thread sharing that mm (with noisy dump_header()
+messages which I think should be suppressed after that thread group received
+SIGKILL from oom_kill_process()). Since the OOM reaper is a kernel thread,
+this sequence will simply select a different thread group not sharing that mm.
+In this regard, I think that async OOM reaping increased possibility of
+needlessly selecting next OOM victim.
 
-> I want to fix it as another issue and then adding ZS_EMPTY pool pages
-> purging logic based on it because many works for zsmalloc stucked
-> with this patchset now which churns old code heavily. :(
+> could widen the race window by reintroducing the check or moving
+> exit_oom_victim later in do_exit after exit_notify which then removes
+> the task from the task_list (in __unhash_process) so the OOM killer
+> wouldn't see it anyway. Sounds ugly to me though.
+> 
+> > Maybe we should wait for first OOM reap attempt from the OOM killer context
+> > before releasing oom_lock mutex (sync OOM reaping) ?
+> 
+> I do not think we want to wait inside the oom_lock as it is a global
+> lock shared by all OOM killer contexts. Another option would be to use
+> the oom_lock inside __oom_reap_task. It is not super cool either because
+> now we have a dependency on the lock but looks like reasonably easy
+> solution.
 
-	-ss
+It would be nice if we can wait until memory reclaimed from the OOM victim's
+mm is queued to freelist for allocation. But I don't have idea other than
+oomkiller_holdoff_timer.
+
+I think this problem should be discussed another day in a new thread.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
