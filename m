@@ -1,62 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BE7B16B0262
-	for <linux-mm@kvack.org>; Wed, 25 May 2016 00:29:52 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id yu3so58600514obb.3
-        for <linux-mm@kvack.org>; Tue, 24 May 2016 21:29:52 -0700 (PDT)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id 17si8160944igh.17.2016.05.24.21.29.51
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 May 2016 21:29:51 -0700 (PDT)
-Received: from epcpsbgr4.samsung.com
- (u144.gpu120.samsung.co.kr [203.254.230.144])
- by mailout4.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
- 64bit (built May  5 2014))
- with ESMTP id <0O7P0293YTTFVH50@mailout4.samsung.com> for linux-mm@kvack.org;
- Wed, 25 May 2016 13:29:39 +0900 (KST)
-From: Jaewon Kim <jaewon31.kim@samsung.com>
-Subject: [RESEND][PATCH] drivers: of: of_reserved_mem: fixup the CMA alignment
- not to affect dma-coherent
-Date: Wed, 25 May 2016 13:29:50 +0900
-Message-id: <1464150590-2703-1-git-send-email-jaewon31.kim@samsung.com>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 528466B0264
+	for <linux-mm@kvack.org>; Wed, 25 May 2016 01:14:23 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id p81so28980155itd.3
+        for <linux-mm@kvack.org>; Tue, 24 May 2016 22:14:23 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id ck4si8346017igc.72.2016.05.24.22.14.21
+        for <linux-mm@kvack.org>;
+        Tue, 24 May 2016 22:14:22 -0700 (PDT)
+Date: Wed, 25 May 2016 14:14:38 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v6 11/12] zsmalloc: page migration support
+Message-ID: <20160525051438.GA14786@bbox>
+References: <1463754225-31311-1-git-send-email-minchan@kernel.org>
+ <1463754225-31311-12-git-send-email-minchan@kernel.org>
+ <20160524052824.GA496@swordfish>
+ <20160524062801.GB29094@bbox>
+MIME-Version: 1.0
+In-Reply-To: <20160524062801.GB29094@bbox>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: robh+dt@kernel.org
-Cc: r64343@freescale.com, m.szyprowski@samsung.com, grant.likely@linaro.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaewon31.kim@gmail.com, Jaewon <jaewon31.kim@samsung.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-From: Jaewon <jaewon31.kim@samsung.com>
+Hello Sergey,
 
-There was an alignment mismatch issue for CMA and it was fixed by
-commit 1cc8e3458b51 ("drivers: of: of_reserved_mem: fixup the alignment with CMA setup").
-However the way of the commit considers not only dma-contiguous(CMA) but also
-dma-coherent which has no that requirement.
+On Tue, May 24, 2016 at 03:28:01PM +0900, Minchan Kim wrote:
+<snip>
 
-This patch checks more to distinguish dma-contiguous(CMA) from dma-coherent.
+> > hm... zsmalloc is getting sooo complex now.
+> > 
+> > `system_wq' -- can we have problems here when the system is getting
+> > low on memory and workers are getting increasingly busy trying to
+> > allocate the memory for some other purposes?
+> > 
+> > _theoretically_ zsmalloc can stack a number of ready-to-release zspages,
+> > which won't be accessible to zsmalloc, nor will they be released. how likely
+> > is this? hm, can zsmalloc take zspages from that deferred release list when
+> > it wants to allocate a new zspage?
+> 
+> Done.
+> 
+> > 
+> > do you also want to kick the deferred page release from the shrinker
+> > callback, for example?
+> 
+> Yeb, it can be. I will do it at next revision. :)
+> Thanks!
+> 
 
-Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
----
- drivers/of/of_reserved_mem.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+I tried it now but I feel strongly we want to fix shrinker first.
+Now, shrinker doesn't consider VM's request(i.e., sc->nr_to_scan) but
+shrink all objects which could make latency huge.
 
-diff --git a/drivers/of/of_reserved_mem.c b/drivers/of/of_reserved_mem.c
-index ed01c01..45b873e 100644
---- a/drivers/of/of_reserved_mem.c
-+++ b/drivers/of/of_reserved_mem.c
-@@ -127,7 +127,10 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
- 	}
- 
- 	/* Need adjust the alignment to satisfy the CMA requirement */
--	if (IS_ENABLED(CONFIG_CMA) && of_flat_dt_is_compatible(node, "shared-dma-pool"))
-+	if (IS_ENABLED(CONFIG_CMA)
-+	    && of_flat_dt_is_compatible(node, "shared-dma-pool")
-+	    && of_get_flat_dt_prop(node, "reusable", NULL)
-+	    && !of_get_flat_dt_prop(node, "no-map", NULL)) {
- 		align = max(align, (phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order));
- 
- 	prop = of_get_flat_dt_prop(node, "alloc-ranges", &len);
--- 
-1.9.1
+I want to fix it as another issue and then adding ZS_EMPTY pool pages
+purging logic based on it because many works for zsmalloc stucked
+with this patchset now which churns old code heavily. :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
