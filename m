@@ -1,88 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F2EFF6B0005
-	for <linux-mm@kvack.org>; Wed, 25 May 2016 11:18:33 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id a136so30354620wme.1
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 08:18:33 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id a131si11383476wmc.4.2016.05.25.08.18.32
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 639886B0005
+	for <linux-mm@kvack.org>; Wed, 25 May 2016 11:20:49 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id 190so90494063iow.2
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 08:20:49 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0104.outbound.protection.outlook.com. [157.56.112.104])
+        by mx.google.com with ESMTPS id c50si5888243otd.98.2016.05.25.08.20.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 May 2016 08:18:32 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id f75so16585736wmf.2
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 08:18:32 -0700 (PDT)
-Date: Wed, 25 May 2016 17:18:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: remove the useless parameter for
- mc_handle_swap_pte
-Message-ID: <20160525151831.GJ20132@dhcp22.suse.cz>
-References: <1464145026-26693-1-git-send-email-roy.qing.li@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 25 May 2016 08:20:48 -0700 (PDT)
+Date: Wed, 25 May 2016 18:20:40 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH] mm: oom_kill_process: do not abort if the victim is
+ exiting
+Message-ID: <20160525152040.GA23127@esperanza>
+References: <1464092642-10363-1-git-send-email-vdavydov@virtuozzo.com>
+ <20160524135042.GK8259@dhcp22.suse.cz>
+ <20160524170746.GC11150@esperanza>
+ <20160525080946.GC20132@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1464145026-26693-1-git-send-email-roy.qing.li@gmail.com>
+In-Reply-To: <20160525080946.GC20132@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: roy.qing.li@gmail.com
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, vdavydov@virtuozzo.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 25-05-16 10:57:06, roy.qing.li@gmail.com wrote:
-> From: Li RongQing <roy.qing.li@gmail.com>
+On Wed, May 25, 2016 at 10:09:46AM +0200, Michal Hocko wrote:
+...
+> Well, my understanding of the OOM report is that it should tell you two
+> things. The first one is to give you an overview of the overal memory
+> situation when the system went OOM and the second one is o give you
+> information that something has been _killed_ and what was the criteria
+> why it has been selected (points). While the first one might be
+> interesting for what you write above the second is not and it might be
+> even misleading because we are not killing anything and the selected
+> task is dying without the kernel intervention.
 
-It is really trivial but I would add:
-"
-It reall seems like this parameter has never been used since introduced
-by 90254a65833b ("memcg: clean up move charge"). Not a big deal
-because I assume the function would get inlined into the caller anyway
-but why not to get rid of it.
-"
- 
-> Signed-off-by: Li RongQing <roy.qing.li@gmail.com>
+Fair enough. Printing that a task was killed while it actually died
+voluntarily is not good. And select_bad_process may select dying tasks.
+So let's leave it as is for now.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks
-> ---
->  mm/memcontrol.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 36b7ecf..c628c90 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4386,7 +4386,7 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
->  
->  #ifdef CONFIG_SWAP
->  static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
-> -			unsigned long addr, pte_t ptent, swp_entry_t *entry)
-> +			pte_t ptent, swp_entry_t *entry)
->  {
->  	struct page *page = NULL;
->  	swp_entry_t ent = pte_to_swp_entry(ptent);
-> @@ -4405,7 +4405,7 @@ static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
->  }
->  #else
->  static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
-> -			unsigned long addr, pte_t ptent, swp_entry_t *entry)
-> +			pte_t ptent, swp_entry_t *entry)
->  {
->  	return NULL;
->  }
-> @@ -4570,7 +4570,7 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
->  	if (pte_present(ptent))
->  		page = mc_handle_present_pte(vma, addr, ptent);
->  	else if (is_swap_pte(ptent))
-> -		page = mc_handle_swap_pte(vma, addr, ptent, &ent);
-> +		page = mc_handle_swap_pte(vma, ptent, &ent);
->  	else if (pte_none(ptent))
->  		page = mc_handle_file_pte(vma, addr, ptent, &ent);
->  
-> -- 
-> 2.1.4
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
