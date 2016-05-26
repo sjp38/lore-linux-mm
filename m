@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 40A096B0260
-	for <linux-mm@kvack.org>; Thu, 26 May 2016 16:37:37 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id b124so162159445pfb.1
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 13:37:37 -0700 (PDT)
-Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
-        by mx.google.com with ESMTPS id qz3si22792107pab.228.2016.05.26.13.37.35
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BD4CF6B0262
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 16:37:39 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id fg1so125377578pad.1
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 13:37:39 -0700 (PDT)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id w1si8852435pfj.95.2016.05.26.13.37.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 May 2016 13:37:35 -0700 (PDT)
-Received: by mail-pf0-x230.google.com with SMTP id y69so34114240pfb.1
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 13:37:35 -0700 (PDT)
+        Thu, 26 May 2016 13:37:37 -0700 (PDT)
+Received: by mail-pa0-x230.google.com with SMTP id fy7so16334388pac.2
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 13:37:37 -0700 (PDT)
 From: Thomas Garnier <thgarnie@google.com>
-Subject: [PATCH v1 1/2] mm: Reorganize SLAB freelist randomization
-Date: Thu, 26 May 2016 13:37:10 -0700
-Message-Id: <1464295031-26375-2-git-send-email-thgarnie@google.com>
+Subject: [PATCH v1 2/2] mm: SLUB Freelist randomization
+Date: Thu, 26 May 2016 13:37:11 -0700
+Message-Id: <1464295031-26375-3-git-send-email-thgarnie@google.com>
 In-Reply-To: <1464295031-26375-1-git-send-email-thgarnie@google.com>
 References: <1464295031-26375-1-git-send-email-thgarnie@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,259 +22,324 @@ List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Pranith Kumar <bobby.prani@gmail.com>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Woodhouse <David.Woodhouse@intel.com>, Thomas Garnier <thgarnie@google.com>, Petr Mladek <pmladek@suse.com>, Kees Cook <keescook@chromium.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gthelen@google.com, kernel-hardening@lists.openwall.com
 
-This commit reorganizes the previous SLAB freelist randomization to
-prepare for the SLUB implementation. It moves functions that will be
-shared to slab_common.
+Implements Freelist randomization for the SLUB allocator. It was
+previous implemented for the SLAB allocator. Both use the same
+configuration option (CONFIG_SLAB_FREELIST_RANDOM).
 
-The entropy functions are changed to align with the SLUB implementation,
-now using get_random_(int|long) functions. These functions were chosen
-because they provide a bit more entropy early on boot and better
-performance when specific arch instructions are not available.
+The list is randomized during initialization of a new set of pages. The
+order on different freelist sizes is pre-computed at boot for
+performance. Each kmem_cache has its own randomized freelist. This
+security feature reduces the predictability of the kernel SLUB allocator
+against heap overflows rendering attacks much less stable.
+
+For example these attacks exploit the predictability of the heap:
+ - Linux Kernel CAN SLUB overflow (https://goo.gl/oMNWkU)
+ - Exploiting Linux Kernel Heap corruptions (http://goo.gl/EXLn95)
+
+Performance results:
+
+slab_test impact is between 3% to 4% on average for 100000 attemps
+wihout smp. It is a very focused testing, kernbench show the overall
+impact on the system is way lower.
+
+Before:
+
+Single thread testing
+=====================
+1. Kmalloc: Repeatedly allocate then free test
+100000 times kmalloc(8) -> 49 cycles kfree -> 77 cycles
+100000 times kmalloc(16) -> 51 cycles kfree -> 79 cycles
+100000 times kmalloc(32) -> 53 cycles kfree -> 83 cycles
+100000 times kmalloc(64) -> 62 cycles kfree -> 90 cycles
+100000 times kmalloc(128) -> 81 cycles kfree -> 97 cycles
+100000 times kmalloc(256) -> 98 cycles kfree -> 121 cycles
+100000 times kmalloc(512) -> 95 cycles kfree -> 122 cycles
+100000 times kmalloc(1024) -> 96 cycles kfree -> 126 cycles
+100000 times kmalloc(2048) -> 115 cycles kfree -> 140 cycles
+100000 times kmalloc(4096) -> 149 cycles kfree -> 171 cycles
+2. Kmalloc: alloc/free test
+100000 times kmalloc(8)/kfree -> 70 cycles
+100000 times kmalloc(16)/kfree -> 70 cycles
+100000 times kmalloc(32)/kfree -> 70 cycles
+100000 times kmalloc(64)/kfree -> 70 cycles
+100000 times kmalloc(128)/kfree -> 70 cycles
+100000 times kmalloc(256)/kfree -> 69 cycles
+100000 times kmalloc(512)/kfree -> 70 cycles
+100000 times kmalloc(1024)/kfree -> 73 cycles
+100000 times kmalloc(2048)/kfree -> 72 cycles
+100000 times kmalloc(4096)/kfree -> 71 cycles
+
+After:
+
+Single thread testing
+=====================
+1. Kmalloc: Repeatedly allocate then free test
+100000 times kmalloc(8) -> 57 cycles kfree -> 78 cycles
+100000 times kmalloc(16) -> 61 cycles kfree -> 81 cycles
+100000 times kmalloc(32) -> 76 cycles kfree -> 93 cycles
+100000 times kmalloc(64) -> 83 cycles kfree -> 94 cycles
+100000 times kmalloc(128) -> 106 cycles kfree -> 107 cycles
+100000 times kmalloc(256) -> 118 cycles kfree -> 117 cycles
+100000 times kmalloc(512) -> 114 cycles kfree -> 116 cycles
+100000 times kmalloc(1024) -> 115 cycles kfree -> 118 cycles
+100000 times kmalloc(2048) -> 147 cycles kfree -> 131 cycles
+100000 times kmalloc(4096) -> 214 cycles kfree -> 161 cycles
+2. Kmalloc: alloc/free test
+100000 times kmalloc(8)/kfree -> 66 cycles
+100000 times kmalloc(16)/kfree -> 66 cycles
+100000 times kmalloc(32)/kfree -> 66 cycles
+100000 times kmalloc(64)/kfree -> 66 cycles
+100000 times kmalloc(128)/kfree -> 65 cycles
+100000 times kmalloc(256)/kfree -> 67 cycles
+100000 times kmalloc(512)/kfree -> 67 cycles
+100000 times kmalloc(1024)/kfree -> 64 cycles
+100000 times kmalloc(2048)/kfree -> 67 cycles
+100000 times kmalloc(4096)/kfree -> 67 cycles
+
+Kernbench, before:
+
+Average Optimal load -j 12 Run (std deviation):
+Elapsed Time 101.873 (1.16069)
+User Time 1045.22 (1.60447)
+System Time 88.969 (0.559195)
+Percent CPU 1112.9 (13.8279)
+Context Switches 189140 (2282.15)
+Sleeps 99008.6 (768.091)
+
+After:
+
+Average Optimal load -j 12 Run (std deviation):
+Elapsed Time 102.47 (0.562732)
+User Time 1045.3 (1.34263)
+System Time 88.311 (0.342554)
+Percent CPU 1105.8 (6.49444)
+Context Switches 189081 (2355.78)
+Sleeps 99231.5 (800.358)
 
 Signed-off-by: Thomas Garnier <thgarnie@google.com>
 Reviewed-by: Kees Cook <keescook@chromium.org>
 ---
 Based on next-20160526
 ---
- include/linux/slab_def.h |  2 +-
- mm/slab.c                | 80 ++++++++++++------------------------------------
- mm/slab.h                | 14 +++++++++
- mm/slab_common.c         | 47 ++++++++++++++++++++++++++++
- 4 files changed, 82 insertions(+), 61 deletions(-)
+ include/linux/slub_def.h |   5 ++
+ init/Kconfig             |   4 +-
+ mm/slub.c                | 133 ++++++++++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 133 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-index 8694f7a..339ba02 100644
---- a/include/linux/slab_def.h
-+++ b/include/linux/slab_def.h
-@@ -81,7 +81,7 @@ struct kmem_cache {
- #endif
- 
- #ifdef CONFIG_SLAB_FREELIST_RANDOM
--	void *random_seq;
-+	unsigned int *random_seq;
- #endif
- 
- 	struct kmem_cache_node *node[MAX_NUMNODES];
-diff --git a/mm/slab.c b/mm/slab.c
-index cc8bbc1..763096a 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1236,61 +1236,6 @@ static void __init set_up_node(struct kmem_cache *cachep, int index)
- 	}
- }
- 
--#ifdef CONFIG_SLAB_FREELIST_RANDOM
--static void freelist_randomize(struct rnd_state *state, freelist_idx_t *list,
--			size_t count)
--{
--	size_t i;
--	unsigned int rand;
--
--	for (i = 0; i < count; i++)
--		list[i] = i;
--
--	/* Fisher-Yates shuffle */
--	for (i = count - 1; i > 0; i--) {
--		rand = prandom_u32_state(state);
--		rand %= (i + 1);
--		swap(list[i], list[rand]);
--	}
--}
--
--/* Create a random sequence per cache */
--static int cache_random_seq_create(struct kmem_cache *cachep, gfp_t gfp)
--{
--	unsigned int seed, count = cachep->num;
--	struct rnd_state state;
--
--	if (count < 2)
--		return 0;
--
--	/* If it fails, we will just use the global lists */
--	cachep->random_seq = kcalloc(count, sizeof(freelist_idx_t), gfp);
--	if (!cachep->random_seq)
--		return -ENOMEM;
--
--	/* Get best entropy at this stage */
--	get_random_bytes_arch(&seed, sizeof(seed));
--	prandom_seed_state(&state, seed);
--
--	freelist_randomize(&state, cachep->random_seq, count);
--	return 0;
--}
--
--/* Destroy the per-cache random freelist sequence */
--static void cache_random_seq_destroy(struct kmem_cache *cachep)
--{
--	kfree(cachep->random_seq);
--	cachep->random_seq = NULL;
--}
--#else
--static inline int cache_random_seq_create(struct kmem_cache *cachep, gfp_t gfp)
--{
--	return 0;
--}
--static inline void cache_random_seq_destroy(struct kmem_cache *cachep) { }
--#endif /* CONFIG_SLAB_FREELIST_RANDOM */
--
--
- /*
-  * Initialisation.  Called after the page allocator have been initialised and
-  * before smp_init().
-@@ -2535,7 +2480,7 @@ static void cache_init_objs_debug(struct kmem_cache *cachep, struct page *page)
- union freelist_init_state {
- 	struct {
- 		unsigned int pos;
--		freelist_idx_t *list;
-+		unsigned int *list;
- 		unsigned int count;
- 		unsigned int rand;
- 	};
-@@ -2554,7 +2499,7 @@ static bool freelist_state_initialize(union freelist_init_state *state,
- 	unsigned int rand;
- 
- 	/* Use best entropy available to define a random shift */
--	get_random_bytes_arch(&rand, sizeof(rand));
-+	rand = get_random_int();
- 
- 	/* Use a random state if the pre-computed list is not available */
- 	if (!cachep->random_seq) {
-@@ -2576,13 +2521,20 @@ static freelist_idx_t next_random_slot(union freelist_init_state *state)
- 	return (state->list[state->pos++] + state->rand) % state->count;
- }
- 
-+/* Swap two freelist entries */
-+static void swap_free_obj(struct page *page, unsigned int a, unsigned int b)
-+{
-+	swap(((freelist_idx_t *)page->freelist)[a],
-+		((freelist_idx_t *)page->freelist)[b]);
-+}
-+
- /*
-  * Shuffle the freelist initialization state based on pre-computed lists.
-  * return true if the list was successfully shuffled, false otherwise.
-  */
- static bool shuffle_freelist(struct kmem_cache *cachep, struct page *page)
- {
--	unsigned int objfreelist = 0, i, count = cachep->num;
-+	unsigned int objfreelist = 0, i, rand, count = cachep->num;
- 	union freelist_init_state state;
- 	bool precomputed;
- 
-@@ -2607,7 +2559,15 @@ static bool shuffle_freelist(struct kmem_cache *cachep, struct page *page)
- 	 * Later use a pre-computed list for speed.
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index d1faa01..5624c1f 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -99,6 +99,11 @@ struct kmem_cache {
  	 */
- 	if (!precomputed) {
--		freelist_randomize(&state.rnd_state, page->freelist, count);
-+		for (i = 0; i < count; i++)
-+			set_free_obj(page, i, i);
-+
-+		/* Fisher-Yates shuffle */
-+		for (i = count - 1; i > 0; i--) {
-+			rand = prandom_u32_state(&state.rnd_state);
-+			rand %= (i + 1);
-+			swap_free_obj(page, i, rand);
-+		}
- 	} else {
- 		for (i = 0; i < count; i++)
- 			set_free_obj(page, i, next_random_slot(&state));
-@@ -3979,7 +3939,7 @@ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
- 	int shared = 0;
- 	int batchcount = 0;
- 
--	err = cache_random_seq_create(cachep, gfp);
-+	err = cache_random_seq_create(cachep, cachep->num, gfp);
- 	if (err)
- 		goto end;
- 
-diff --git a/mm/slab.h b/mm/slab.h
-index dedb1a9..5fa8b8f 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -42,6 +42,7 @@ struct kmem_cache {
- #include <linux/kmemcheck.h>
- #include <linux/kasan.h>
- #include <linux/kmemleak.h>
-+#include <linux/random.h>
- 
- /*
-  * State of the slab allocator.
-@@ -464,4 +465,17 @@ int memcg_slab_show(struct seq_file *m, void *p);
- 
- void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
- 
-+#ifdef CONFIG_SLAB_FREELIST_RANDOM
-+int cache_random_seq_create(struct kmem_cache *cachep, unsigned int count,
-+			gfp_t gfp);
-+void cache_random_seq_destroy(struct kmem_cache *cachep);
-+#else
-+static inline int cache_random_seq_create(struct kmem_cache *cachep,
-+					unsigned int count, gfp_t gfp)
-+{
-+	return 0;
-+}
-+static inline void cache_random_seq_destroy(struct kmem_cache *cachep) { }
-+#endif /* CONFIG_SLAB_FREELIST_RANDOM */
-+
- #endif /* MM_SLAB_H */
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index a65dad7..eb1789b 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1142,6 +1142,53 @@ int memcg_slab_show(struct seq_file *m, void *p)
- }
+ 	int remote_node_defrag_ratio;
  #endif
++
++#ifdef CONFIG_SLAB_FREELIST_RANDOM
++	unsigned int *random_seq;
++#endif
++
+ 	struct kmem_cache_node *node[MAX_NUMNODES];
+ };
+ 
+diff --git a/init/Kconfig b/init/Kconfig
+index 7b82f3f..4590629 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1784,10 +1784,10 @@ endchoice
+ 
+ config SLAB_FREELIST_RANDOM
+ 	default n
+-	depends on SLAB
++	depends on SLAB || SLUB
+ 	bool "SLAB freelist randomization"
+ 	help
+-	  Randomizes the freelist order used on creating new SLABs. This
++	  Randomizes the freelist order used on creating new pages. This
+ 	  security feature reduces the predictability of the kernel slab
+ 	  allocator against heap overflows.
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index 825ff45..f5b3114 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1405,6 +1405,109 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
+ 	return page;
+ }
  
 +#ifdef CONFIG_SLAB_FREELIST_RANDOM
-+/* Randomize a generic freelist */
-+static void freelist_randomize(struct rnd_state *state, unsigned int *list,
-+			size_t count)
++/* Pre-initialize the random sequence cache */
++static int init_cache_random_seq(struct kmem_cache *s)
 +{
-+	size_t i;
-+	unsigned int rand;
++	int err;
++	unsigned long i, count = oo_objects(s->oo);
 +
-+	for (i = 0; i < count; i++)
-+		list[i] = i;
-+
-+	/* Fisher-Yates shuffle */
-+	for (i = count - 1; i > 0; i--) {
-+		rand = prandom_u32_state(state);
-+		rand %= (i + 1);
-+		swap(list[i], list[rand]);
++	err = cache_random_seq_create(s, count, GFP_KERNEL);
++	if (err) {
++		pr_err("SLUB: Unable to initialize free list for %s\n",
++			s->name);
++		return err;
 +	}
-+}
 +
-+/* Create a random sequence per cache */
-+int cache_random_seq_create(struct kmem_cache *cachep, unsigned int count,
-+				    gfp_t gfp)
-+{
-+	struct rnd_state state;
-+
-+	if (count < 2 || cachep->random_seq)
-+		return 0;
-+
-+	cachep->random_seq = kcalloc(count, sizeof(unsigned int), gfp);
-+	if (!cachep->random_seq)
-+		return -ENOMEM;
-+
-+	/* Get best entropy at this stage of boot */
-+	prandom_seed_state(&state, get_random_long());
-+
-+	freelist_randomize(&state, cachep->random_seq, count);
++	/* Transform to an offset on the set of pages */
++	if (s->random_seq) {
++		for (i = 0; i < count; i++)
++			s->random_seq[i] *= s->size;
++	}
 +	return 0;
 +}
 +
-+/* Destroy the per-cache random freelist sequence */
-+void cache_random_seq_destroy(struct kmem_cache *cachep)
++/* Initialize each random sequence freelist per cache */
++static void __init init_freelist_randomization(void)
 +{
-+	kfree(cachep->random_seq);
-+	cachep->random_seq = NULL;
++	struct kmem_cache *s;
++
++	mutex_lock(&slab_mutex);
++
++	list_for_each_entry(s, &slab_caches, list)
++		init_cache_random_seq(s);
++
++	mutex_unlock(&slab_mutex);
++}
++
++/* Get the next entry on the pre-computed freelist randomized */
++static void *next_freelist_entry(struct kmem_cache *s, struct page *page,
++				unsigned long *pos, void *start,
++				unsigned long page_limit,
++				unsigned long freelist_count)
++{
++	unsigned int idx;
++
++	/*
++	 * If the target page allocation failed, the number of objects on the
++	 * page might be smaller than the usual size defined by the cache.
++	 */
++	do {
++		idx = s->random_seq[*pos];
++		*pos += 1;
++		if (*pos >= freelist_count)
++			*pos = 0;
++	} while (unlikely(idx >= page_limit));
++
++	return (char *)start + idx;
++}
++
++/* Shuffle the single linked freelist based on a random pre-computed sequence */
++static bool shuffle_freelist(struct kmem_cache *s, struct page *page)
++{
++	void *start;
++	void *cur;
++	void *next;
++	unsigned long idx, pos, page_limit, freelist_count;
++
++	if (page->objects < 2 || !s->random_seq)
++		return false;
++
++	freelist_count = oo_objects(s->oo);
++	pos = get_random_int() % freelist_count;
++
++	page_limit = page->objects * s->size;
++	start = fixup_red_left(s, page_address(page));
++
++	/* First entry is used as the base of the freelist */
++	cur = next_freelist_entry(s, page, &pos, start, page_limit,
++				freelist_count);
++	page->freelist = cur;
++
++	for (idx = 1; idx < page->objects; idx++) {
++		setup_object(s, page, cur);
++		next = next_freelist_entry(s, page, &pos, start, page_limit,
++			freelist_count);
++		set_freepointer(s, cur, next);
++		cur = next;
++	}
++	setup_object(s, page, cur);
++	set_freepointer(s, cur, NULL);
++
++	return true;
++}
++#else
++static inline int init_cache_random_seq(struct kmem_cache *s)
++{
++	return 0;
++}
++static inline void init_freelist_randomization(void) { }
++static inline bool shuffle_freelist(struct kmem_cache *s, struct page *page)
++{
++	return false;
 +}
 +#endif /* CONFIG_SLAB_FREELIST_RANDOM */
 +
- /*
-  * slabinfo_op - iterator that generates /proc/slabinfo
-  *
+ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ {
+ 	struct page *page;
+@@ -1412,6 +1515,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	gfp_t alloc_gfp;
+ 	void *start, *p;
+ 	int idx, order;
++	bool shuffle;
+ 
+ 	flags &= gfp_allowed_mask;
+ 
+@@ -1473,15 +1577,19 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 
+ 	kasan_poison_slab(page);
+ 
+-	for_each_object_idx(p, idx, s, start, page->objects) {
+-		setup_object(s, page, p);
+-		if (likely(idx < page->objects))
+-			set_freepointer(s, p, p + s->size);
+-		else
+-			set_freepointer(s, p, NULL);
++	shuffle = shuffle_freelist(s, page);
++
++	if (!shuffle) {
++		for_each_object_idx(p, idx, s, start, page->objects) {
++			setup_object(s, page, p);
++			if (likely(idx < page->objects))
++				set_freepointer(s, p, p + s->size);
++			else
++				set_freepointer(s, p, NULL);
++		}
++		page->freelist = fixup_red_left(s, start);
+ 	}
+ 
+-	page->freelist = fixup_red_left(s, start);
+ 	page->inuse = page->objects;
+ 	page->frozen = 1;
+ 
+@@ -3207,6 +3315,7 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
+ 
+ void __kmem_cache_release(struct kmem_cache *s)
+ {
++	cache_random_seq_destroy(s);
+ 	free_percpu(s->cpu_slab);
+ 	free_kmem_cache_nodes(s);
+ }
+@@ -3431,6 +3540,13 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
+ #ifdef CONFIG_NUMA
+ 	s->remote_node_defrag_ratio = 1000;
+ #endif
++
++	/* Initialize the pre-computed randomized freelist if slab is up */
++	if (slab_state >= UP) {
++		if (init_cache_random_seq(s))
++			goto error;
++	}
++
+ 	if (!init_kmem_cache_nodes(s))
+ 		goto error;
+ 
+@@ -3947,6 +4063,9 @@ void __init kmem_cache_init(void)
+ 	setup_kmalloc_cache_index_table();
+ 	create_kmalloc_caches(0);
+ 
++	/* Setup random freelists for each cache */
++	init_freelist_randomization();
++
+ #ifdef CONFIG_SMP
+ 	register_cpu_notifier(&slab_notifier);
+ #endif
 -- 
 2.8.0.rc3.226.g39d4020
 
