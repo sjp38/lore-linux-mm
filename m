@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D01F6B025F
-	for <linux-mm@kvack.org>; Wed, 25 May 2016 22:38:10 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c84so18156276pfc.3
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 19:38:10 -0700 (PDT)
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E1C26B025F
+	for <linux-mm@kvack.org>; Wed, 25 May 2016 22:38:13 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id yl2so92345562pac.2
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 19:38:13 -0700 (PDT)
 Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id g10si3004121pfa.159.2016.05.25.19.38.09
+        by mx.google.com with ESMTPS id p65si3038028pfa.60.2016.05.25.19.38.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 May 2016 19:38:09 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id f144so447078pfa.2
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 19:38:09 -0700 (PDT)
+        Wed, 25 May 2016 19:38:12 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id g132so447013pfb.3
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 19:38:12 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH v2 4/7] mm/page_owner: introduce split_page_owner and replace manual handling
-Date: Thu, 26 May 2016 11:37:52 +0900
-Message-Id: <1464230275-25791-4-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 5/7] tools/vm/page_owner: increase temporary buffer size
+Date: Thu, 26 May 2016 11:37:53 +0900
+Message-Id: <1464230275-25791-5-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,118 +24,45 @@ Cc: Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-split_page() calls set_page_owner() to set up page_owner to each pages.
-But, it has a drawback that head page and the others have different
-stacktrace because callsite of set_page_owner() is slightly differnt.
-To avoid this problem, this patch copies head page's page_owner to
-the others. It needs to introduce new function, split_page_owner() but
-it also remove the other function, get_page_owner_gfp() so looks good
-to do.
+Page owner will be changed to store more deep stacktrace
+so current temporary buffer size isn't enough. Increase it.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/page_owner.h | 12 +++++-------
- mm/page_alloc.c            |  8 ++------
- mm/page_owner.c            | 14 +++++++-------
- 3 files changed, 14 insertions(+), 20 deletions(-)
+ tools/vm/page_owner_sort.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
-index 46f1b93..30583ab 100644
---- a/include/linux/page_owner.h
-+++ b/include/linux/page_owner.h
-@@ -10,7 +10,7 @@ extern struct page_ext_operations page_owner_ops;
- extern void __reset_page_owner(struct page *page, unsigned int order);
- extern void __set_page_owner(struct page *page,
- 			unsigned int order, gfp_t gfp_mask);
--extern gfp_t __get_page_owner_gfp(struct page *page);
-+extern void __split_page_owner(struct page *page, unsigned int order);
- extern void __copy_page_owner(struct page *oldpage, struct page *newpage);
- extern void __set_page_owner_migrate_reason(struct page *page, int reason);
- extern void __dump_page_owner(struct page *page);
-@@ -28,12 +28,10 @@ static inline void set_page_owner(struct page *page,
- 		__set_page_owner(page, order, gfp_mask);
+diff --git a/tools/vm/page_owner_sort.c b/tools/vm/page_owner_sort.c
+index 77147b4..f1c055f 100644
+--- a/tools/vm/page_owner_sort.c
++++ b/tools/vm/page_owner_sort.c
+@@ -79,12 +79,12 @@ static void add_list(char *buf, int len)
+ 	}
  }
  
--static inline gfp_t get_page_owner_gfp(struct page *page)
-+static inline void split_page_owner(struct page *page, unsigned int order)
- {
- 	if (static_branch_unlikely(&page_owner_inited))
--		return __get_page_owner_gfp(page);
--	else
--		return 0;
-+		__split_page_owner(page, order);
- }
- static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
- {
-@@ -58,9 +56,9 @@ static inline void set_page_owner(struct page *page,
- 			unsigned int order, gfp_t gfp_mask)
- {
- }
--static inline gfp_t get_page_owner_gfp(struct page *page)
-+static inline void split_page_owner(struct page *page,
-+			unsigned int order)
- {
--	return 0;
- }
- static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
- {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1b1ca57..616ada9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2459,7 +2459,6 @@ void free_hot_cold_page_list(struct list_head *list, bool cold)
- void split_page(struct page *page, unsigned int order)
- {
- 	int i;
--	gfp_t gfp_mask;
+-#define BUF_SIZE	1024
++#define BUF_SIZE	(128 * 1024)
  
- 	VM_BUG_ON_PAGE(PageCompound(page), page);
- 	VM_BUG_ON_PAGE(!page_count(page), page);
-@@ -2473,12 +2472,9 @@ void split_page(struct page *page, unsigned int order)
- 		split_page(virt_to_page(page[0].shadow), order);
- #endif
- 
--	gfp_mask = get_page_owner_gfp(page);
--	set_page_owner(page, 0, gfp_mask);
--	for (i = 1; i < (1 << order); i++) {
-+	for (i = 1; i < (1 << order); i++)
- 		set_page_refcounted(page + i);
--		set_page_owner(page + i, 0, gfp_mask);
--	}
-+	split_page_owner(page, order);
- }
- EXPORT_SYMBOL_GPL(split_page);
- 
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 73e202f..499ad26 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -94,17 +94,17 @@ void __set_page_owner_migrate_reason(struct page *page, int reason)
- 	page_ext->last_migrate_reason = reason;
- }
- 
--gfp_t __get_page_owner_gfp(struct page *page)
-+void __split_page_owner(struct page *page, unsigned int order)
+ int main(int argc, char **argv)
  {
-+	int i;
- 	struct page_ext *page_ext = lookup_page_ext(page);
-+
- 	if (unlikely(!page_ext))
--		/*
--		 * The caller just returns 0 if no valid gfp
--		 * So return 0 here too.
--		 */
--		return 0;
-+		return;
+ 	FILE *fin, *fout;
+-	char buf[BUF_SIZE];
++	char *buf;
+ 	int ret, i, count;
+ 	struct block_list *list2;
+ 	struct stat st;
+@@ -107,6 +107,11 @@ int main(int argc, char **argv)
+ 	max_size = st.st_size / 100; /* hack ... */
  
--	return page_ext->gfp_mask;
-+	page_ext->order = 0;
-+	for (i = 1; i < (1 << order); i++)
-+		__copy_page_owner(page, page + i);
- }
+ 	list = malloc(max_size * sizeof(*list));
++	buf = malloc(BUF_SIZE);
++	if (!list || !buf) {
++		printf("Out of memory\n");
++		exit(1);
++	}
  
- void __copy_page_owner(struct page *oldpage, struct page *newpage)
+ 	for ( ; ; ) {
+ 		ret = read_block(buf, BUF_SIZE, fin);
 -- 
 1.9.1
 
