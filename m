@@ -1,97 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DAA9C6B0261
-	for <linux-mm@kvack.org>; Wed, 25 May 2016 20:32:22 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id m124so55352221itg.0
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 17:32:22 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id 34si13531268iot.168.2016.05.25.17.32.21
+Received: from mail-ig0-f198.google.com (mail-ig0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 393436B0261
+	for <linux-mm@kvack.org>; Wed, 25 May 2016 20:36:25 -0400 (EDT)
+Received: by mail-ig0-f198.google.com with SMTP id sq19so112569065igc.0
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 17:36:25 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id y187si776425itf.81.2016.05.25.17.36.23
         for <linux-mm@kvack.org>;
-        Wed, 25 May 2016 17:32:21 -0700 (PDT)
-Date: Thu, 26 May 2016 09:32:41 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v6 11/12] zsmalloc: page migration support
-Message-ID: <20160526003241.GA9661@bbox>
-References: <1463754225-31311-1-git-send-email-minchan@kernel.org>
- <1463754225-31311-12-git-send-email-minchan@kernel.org>
- <20160524052824.GA496@swordfish>
- <20160524062801.GB29094@bbox>
- <20160525051438.GA14786@bbox>
- <20160525152345.GA515@swordfish>
+        Wed, 25 May 2016 17:36:24 -0700 (PDT)
+Date: Thu, 26 May 2016 09:37:19 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] mm: use early_pfn_to_nid in
+ register_page_bootmem_info_node
+Message-ID: <20160526003718.GA9302@js1304-P5Q-DELUXE>
+References: <1464210007-30930-1-git-send-email-yang.shi@linaro.org>
+ <20160525152319.fa87b4cc0b8326fef89a1b92@linux-foundation.org>
+ <03d44563-3860-052b-1c49-e81208bdd697@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160525152345.GA515@swordfish>
+In-Reply-To: <03d44563-3860-052b-1c49-e81208bdd697@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Shi, Yang" <yang.shi@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, Mel Gorman <mgorman@techsingularity.net>
 
-Hi Sergey,
+Ccing Mel.
 
-On Thu, May 26, 2016 at 12:23:45AM +0900, Sergey Senozhatsky wrote:
-> Hello Minchan,
+On Wed, May 25, 2016 at 03:36:48PM -0700, Shi, Yang wrote:
+> On 5/25/2016 3:23 PM, Andrew Morton wrote:
+> >On Wed, 25 May 2016 14:00:07 -0700 Yang Shi <yang.shi@linaro.org> wrote:
+> >
+> >>register_page_bootmem_info_node() is invoked in mem_init(), so it will be
+> >>called before page_alloc_init_late() if CONFIG_DEFERRED_STRUCT_PAGE_INIT
+> >>is enabled. But, pfn_to_nid() depends on memmap which won't be fully setup
+> >>until page_alloc_init_late() is done, so replace pfn_to_nid() by
+> >>early_pfn_to_nid().
+> >
+> >What are the runtime effects of this fix?
 > 
-> On (05/25/16 14:14), Minchan Kim wrote:
-> [..]
-> > > > do you also want to kick the deferred page release from the shrinker
-> > > > callback, for example?
-> > > 
-> > > Yeb, it can be. I will do it at next revision. :)
-> > > Thanks!
-> > > 
-> > 
-> > I tried it now but I feel strongly we want to fix shrinker first.
-> > Now, shrinker doesn't consider VM's request(i.e., sc->nr_to_scan) but
-> > shrink all objects which could make latency huge.
+> I didn't experience any problem without the fix. During working on
+> the page_ext_init() fix (replace to early_pfn_to_nid()), I added
+> printk before each pfn_to_nid() calls to check which one might be
+> called before page_alloc_init_late(), then this one is caught.
 > 
-> hm... may be.
-> 
-> I only briefly thought about it a while ago; and have no real data on
-> hands. it was something as follows:
-> between zs_shrinker_count() and zs_shrinker_scan() a lot can change;
-> and _theoretically_ attempting to zs_shrinker_scan() even a smaller
-> sc->nr_to_scan still may result in a "full" pool scan, taking all of
-> the classes ->locks one by one just because classes are not the same
-> as a moment ago. which is even more probable, I think, once the system
-> is getting low on memory and begins to swap out, for instance. because
-> in the latter case we increase the number of writes to zspool and,
-> thus, reduce its chances to be compacted. if the system would still
-> demand free memory, then it'd keep calling zs_shrinker_count() and
-> zs_shrinker_scan() on us; at some point, I think, zs_shrinker_count()
-> would start returning 0. ...if some of the classes would have huge
-> fragmentation then we'd keep these class' ->locks for some time,
-> moving objects. other than that we probably would just iterate the
-> classes.
-> 
-> purely theoretical.
-> 
-> do you have any numbers?
+> From the code perspective, it sounds not right since
+> register_page_bootmem_info_section() may miss some pfns when
+> CONFIG_DEFERRED_STRUCT_PAGE_INIT is enabled, just like the problem
+> happened in page_ext_init().
 
-Unfortunately, I don't have now. However, I don't feel we need a data for
-that because *unbounded work* within VM interaction context is bad. ;-)
+Hello, Mel.
 
-> 
-> hm, probably it makes sense to change it. but if the change will
-> replace "1 full pool scan" to "2 scans of 1/2 of pool's classes",
-> then I'm less sure.
+There was an issue in page_ext [1] due to your deferred struct page init
+feature. Before your change, we assumed that we can use pfn_to_nid()
+after memmap init is called. But, after your change, we can use
+pfn_to_nid() after page_alloc_init_late(). Yang found two call sites
+that uses pfn_to_nid() before page_alloc_init_late() and they could be
+fixed by using early_pfn_to_nid(). I guess that there are more
+problems due to this change so it's better to check it by patch author.
 
-Other shrinker is on same page. They have *cache* which is helpful for
-performance but if it's not hot, it can lose performance if memory
-pressure is severe. For the balance, comprimise approach is shrinker.
+One thing I have noticed is that dirty_limit could be set wrongly. It
+is intialized by using freepage count. Since it is intialized before
+page_alloc_init_late(), freepages are not initialized yet and it could
+be wrong. If my analysis is correct, please fix it.
 
-We can see fragement space in zspage as wasted memory which is bad
-on the other hand we can see it as cache to store upcoming compressed
-page. So, too much freeing can hurt the performance so, let's obey
-VM's rule. If memory pressure goes severe, they want to reclaim more
-pages with proportional of memory pressure.
+And, could you check again that there is no more problem?
 
-> 
-> > I want to fix it as another issue and then adding ZS_EMPTY pool pages
-> > purging logic based on it because many works for zsmalloc stucked
-> > with this patchset now which churns old code heavily. :(
-> 
-> 	-ss
+Thanks.
+
+[1]
+http://lkml.kernel.org/r/CAAmzW4OUmyPwQjvd7QUfc6W1Aic__TyAuH80MLRZNMxKy0-wPQ@mail.gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
