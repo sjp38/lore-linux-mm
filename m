@@ -1,83 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 001CF6B007E
-	for <linux-mm@kvack.org>; Thu, 26 May 2016 09:46:15 -0400 (EDT)
-Received: by mail-ob0-f198.google.com with SMTP id dh6so126572573obb.1
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 06:46:15 -0700 (PDT)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1on0076.outbound.protection.outlook.com. [157.56.110.76])
-        by mx.google.com with ESMTPS id w189si5197745itc.91.2016.05.26.06.46.14
+	by kanga.kvack.org (Postfix) with ESMTP id A601D6B007E
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 09:59:39 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id yu3so127342835obb.3
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 06:59:39 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0113.outbound.protection.outlook.com. [157.56.112.113])
+        by mx.google.com with ESMTPS id t131si9881886oig.155.2016.05.26.06.59.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 26 May 2016 06:46:15 -0700 (PDT)
-Subject: Re: [RFC PATCH v1 10/18] x86/efi: Access EFI related tables in the
- clear
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225740.13567.85438.stgit@tlendack-t1.amdoffice.net>
- <20160510134358.GR2839@codeblueprint.co.uk> <20160510135758.GA16783@pd.tnic>
- <5734C97D.8060803@amd.com> <57446B27.20406@amd.com>
- <20160525193011.GC2984@codeblueprint.co.uk>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <5746FE16.9070408@amd.com>
-Date: Thu, 26 May 2016 08:45:58 -0500
+        Thu, 26 May 2016 06:59:38 -0700 (PDT)
+Date: Thu, 26 May 2016 16:59:30 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH RESEND 7/8] pipe: account to kmemcg
+Message-ID: <20160526135930.GA26059@esperanza>
+References: <cover.1464079537.git.vdavydov@virtuozzo.com>
+ <2c2545563b6201f118946f96dd8cfc90e564aff6.1464079538.git.vdavydov@virtuozzo.com>
+ <1464094742.5939.46.camel@edumazet-glaptop3.roam.corp.google.com>
+ <20160524161336.GA11150@esperanza>
+ <1464120273.5939.53.camel@edumazet-glaptop3.roam.corp.google.com>
+ <20160525103011.GF11150@esperanza>
+ <20160526070455.GF9661@bbox>
 MIME-Version: 1.0
-In-Reply-To: <20160525193011.GC2984@codeblueprint.co.uk>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20160526070455.GF9661@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matt Fleming <matt@codeblueprint.co.uk>
-Cc: Borislav Petkov <bp@alien8.de>, Leif Lindholm <leif.lindholm@linaro.org>, Mark Salter <msalter@redhat.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter
- Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
 
-On 05/25/2016 02:30 PM, Matt Fleming wrote:
-> On Tue, 24 May, at 09:54:31AM, Tom Lendacky wrote:
->>
->> I looked into this and this would be a large change also to parse tables
->> and build lists.  It occurred to me that this could all be taken care of
->> if the early_memremap calls were changed to early_ioremap calls. Looking
->> in the git log I see that they were originally early_ioremap calls but
->> were changed to early_memremap calls with this commit:
->>
->> commit abc93f8eb6e4 ("efi: Use early_mem*() instead of early_io*()")
->>
->> Looking at the early_memremap code and the early_ioremap code they both
->> call __early_ioremap so I don't see how this change makes any
->> difference (especially since FIXMAP_PAGE_NORMAL and FIXMAP_PAGE_IO are
->> identical in this case).
->>
->> Is it safe to change these back to early_ioremap calls (at least on
->> x86)?
+On Thu, May 26, 2016 at 04:04:55PM +0900, Minchan Kim wrote:
+> On Wed, May 25, 2016 at 01:30:11PM +0300, Vladimir Davydov wrote:
+> > On Tue, May 24, 2016 at 01:04:33PM -0700, Eric Dumazet wrote:
+> > > On Tue, 2016-05-24 at 19:13 +0300, Vladimir Davydov wrote:
+> > > > On Tue, May 24, 2016 at 05:59:02AM -0700, Eric Dumazet wrote:
+> > > > ...
+> > > > > > +static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
+> > > > > > +			       struct pipe_buffer *buf)
+> > > > > > +{
+> > > > > > +	struct page *page = buf->page;
+> > > > > > +
+> > > > > > +	if (page_count(page) == 1) {
+> > > > > 
+> > > > > This looks racy : some cpu could have temporarily elevated page count.
+> > > > 
+> > > > All pipe operations (pipe_buf_operations->get, ->release, ->steal) are
+> > > > supposed to be called under pipe_lock. So, if we see a pipe_buffer->page
+> > > > with refcount of 1 in ->steal, that means that we are the only its user
+> > > > and it can't be spliced to another pipe.
+> > > > 
+> > > > In fact, I just copied the code from generic_pipe_buf_steal, adding
+> > > > kmemcg related checks along the way, so it should be fine.
+> > > 
+> > > So you guarantee that no other cpu might have done
+> > > get_page_unless_zero() right before this test ?
+> > 
+> > Each pipe_buffer holds a reference to its page. If we find page's
+> > refcount to be 1 here, then it can be referenced only by our
+> > pipe_buffer. And the refcount cannot be increased by a parallel thread,
+> > because we hold pipe_lock, which rules out splice, and otherwise it's
+> > impossible to reach the page as it is not on lru. That said, I think I
+> > guarantee that this should be safe.
 > 
-> I really don't want to begin mixing early_ioremap() calls and
-> early_memremap() calls for any of the EFI code if it can be avoided.
-
-I definitely wouldn't mix them, it would be all or nothing.
-
+> I don't know kmemcg internal and pipe stuff so my comment might be
+> totally crap.
 > 
-> There is slow but steady progress to move more and more of the
-> architecture specific EFI code out into generic code. Swapping
-> early_memremap() for early_ioremap() would be a step backwards,
-> because FIXMAP_PAGE_NORMAL and FIXMAP_PAGE_IO are not identical on
-> ARM/arm64.
-
-Maybe adding something similar to __acpi_map_table would be more
-appropriate?
-
+> No one cannot guarantee any CPU cannot held a reference of a page.
+> Look at get_page_unless_zero usecases.
 > 
-> Could you point me at the patch that in this series that fixes up
-> early_ioremap() to work with mem encrypt/decrypt? I took another
-> (quick) look through but couldn't find it.
+> 1. balloon_page_isolate
+> 
+> It can hold a reference in random page and then verify the page
+> is balloon page. Otherwise, just put.
+> 
+> 2. page_idle_get_page
+> 
+> It has PageLRU check but it's racy so it can hold a reference
+> of randome page and then verify within zone->lru_lock. If it's
+> not LRU page, just put.
 
-The patch in question is patch 6/18 where PAGE_KERNEL is changed to
-include the _PAGE_ENC attribute (the encryption mask). This now
-makes FIXMAP_PAGE_NORMAL contain the encryption mask while
-FIXMAP_PAGE_IO does not. In this way, anything mapped using the
-early_ioremap call won't be mapped encrypted.
+Well, I see your concern now - even if a page is not on lru and we
+locked all structs pointing to it, it can always get accessed by pfn in
+a completely unrelated thread, like in examples you gave above. That's a
+fair point.
+
+However, I still think that it's OK in case of pipe buffers. What can
+happen if somebody takes a transient reference to a pipe buffer page? At
+worst, we'll see page_count > 1 due to temporary ref and abort stealing,
+falling back on copying instead. That's OK, because stealing is not
+guaranteed. Can a function that takes a transient ref to page by pfn
+mistakenly assume that this is a page it's interested in? I don't think
+so, because this page has no marks on it except special _mapcount value,
+which should only be set on kmemcg pages.
 
 Thanks,
-Tom
-
-> 
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
