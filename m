@@ -1,57 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1932A6B025E
-	for <linux-mm@kvack.org>; Thu, 26 May 2016 07:58:03 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id a136so44472991wme.1
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 04:58:03 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id qc10si17866726wjc.175.2016.05.26.04.58.01
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 608046B025E
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 08:40:26 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id 132so8834818lfz.3
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 05:40:26 -0700 (PDT)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
+        by mx.google.com with ESMTPS id r9si4487589wme.20.2016.05.26.05.40.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 May 2016 04:58:01 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id n129so4247528wmn.1
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 04:58:01 -0700 (PDT)
-Date: Thu, 26 May 2016 13:58:00 +0200
+        Thu, 26 May 2016 05:40:25 -0700 (PDT)
+Received: by mail-wm0-f53.google.com with SMTP id n129so98213674wmn.1
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 05:40:24 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Hold oom_victims counter while OOM reaping.
-Message-ID: <20160526115759.GB23675@dhcp22.suse.cz>
-References: <201605262047.JAB39598.OFOtQJVSFFOLMH@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201605262047.JAB39598.OFOtQJVSFFOLMH@I-love.SAKURA.ne.jp>
+Subject: [PATCH 0/5] Handle oom bypass more gracefully
+Date: Thu, 26 May 2016 14:40:09 +0200
+Message-Id: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, rientjes@google.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 26-05-16 20:47:47, Tetsuo Handa wrote:
-> Continued from http://lkml.kernel.org/r/201605252330.IAC82384.OOSQHVtFFFLOMJ@I-love.SAKURA.ne.jp :
-> > > I do not think we want to wait inside the oom_lock as it is a global
-> > > lock shared by all OOM killer contexts. Another option would be to use
-> > > the oom_lock inside __oom_reap_task. It is not super cool either because
-> > > now we have a dependency on the lock but looks like reasonably easy
-> > > solution.
-> > 
-> > It would be nice if we can wait until memory reclaimed from the OOM victim's
-> > mm is queued to freelist for allocation. But I don't have idea other than
-> > oomkiller_holdoff_timer.
-> > 
-> > I think this problem should be discussed another day in a new thread.
-> > 
-> 
-> Can we use per "struct signal_struct" oom_victims instead of global oom_lock?
+Hi,
+the following 6 patches should put some order to very rare cases of
+mm shared between processes and make the paths which bypass the oom
+killer oom reapable and so much more reliable finally.  Even though mm
+shared outside of threadgroup is rare (either use_mm by kernel threads
+or exotic clone(CLONE_VM) without CLONE_THREAD resp. CLONE_SIGHAND) it
+makes the current oom killer logic quite hard to follow and evaluate. It
+is possible to select an oom victim which shares the mm with unkillable
+process or bypass the oom killer even when other processes sharing the
+mm are still alive and other weird cases.
 
-The problem with signal_struct is that we will not help if the task gets
-unhashed from the task list which usually happens quite early after
-exit_mm. The oom_lock will keep other OOM killer activity away until we
-reap the address space and free up the memory so it would cover that
-case. So I think the oom_lock is a more robust solution. I plan to post
-the patch with the full changelog soon I just wanted to finish the other
-pile before.
--- 
-Michal Hocko
-SUSE Labs
+Patch 1 optimizes oom_kill_task to skip the costly process
+iteration when the current oom victim is not sharing mm with other
+processes. Patch 2 is a clean up of oom_score_adj handling and a
+preparatory work. Patch 3 enforces oom_adj_score to be consistent
+between processes sharing the mm to behave consistently with the regular
+thread groups. Patch 4 tries to handle vforked tasks better in the oom
+path, patch 5 ensures that all tasks sharing the mm are killed and
+finally patch 6 should guarantee that task_will_free_mem will always
+imply reapable bypass of the oom killer.
+
+The patchset is based on the current mmotm tree (mmotm-2016-05-23-16-51).
+I would really appreciate a deep review as this area is full of land
+mines but I hope I've made the code much cleaner with less kludges.
+
+I am CCing Oleg (sorry I know you hate this code) but I would feel much
+better if you double checked my assumptions about locking and vfork
+behavior.
+
+Michal Hocko (6):
+      mm, oom: do not loop over all tasks if there are no external tasks sharing mm
+      proc, oom_adj: extract oom_score_adj setting into a helper
+      mm, oom_adj: make sure processes sharing mm have same view of oom_score_adj
+      mm, oom: skip over vforked tasks
+      mm, oom: kill all tasks sharing the mm
+      mm, oom: fortify task_will_free_mem
+
+ fs/proc/base.c      | 168 +++++++++++++++++++++++++++++-----------------------
+ include/linux/mm.h  |   2 +
+ include/linux/oom.h |  72 ++++++++++++++++++++--
+ mm/memcontrol.c     |   4 +-
+ mm/oom_kill.c       |  96 ++++++++++--------------------
+ 5 files changed, 196 insertions(+), 146 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
