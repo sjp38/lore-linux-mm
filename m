@@ -1,68 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 608046B025E
-	for <linux-mm@kvack.org>; Thu, 26 May 2016 08:40:26 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 132so8834818lfz.3
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 05:40:26 -0700 (PDT)
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
-        by mx.google.com with ESMTPS id r9si4487589wme.20.2016.05.26.05.40.24
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 132616B025F
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 08:40:27 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id rs7so38988699lbb.2
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 05:40:27 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id gk7si18206391wjb.5.2016.05.26.05.40.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 26 May 2016 05:40:25 -0700 (PDT)
-Received: by mail-wm0-f53.google.com with SMTP id n129so98213674wmn.1
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 05:40:24 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id e3so5036902wme.2
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 05:40:25 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 0/5] Handle oom bypass more gracefully
-Date: Thu, 26 May 2016 14:40:09 +0200
-Message-Id: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 1/6] mm, oom: do not loop over all tasks if there are no external tasks sharing mm
+Date: Thu, 26 May 2016 14:40:10 +0200
+Message-Id: <1464266415-15558-2-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
+References: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-Hi,
-the following 6 patches should put some order to very rare cases of
-mm shared between processes and make the paths which bypass the oom
-killer oom reapable and so much more reliable finally.  Even though mm
-shared outside of threadgroup is rare (either use_mm by kernel threads
-or exotic clone(CLONE_VM) without CLONE_THREAD resp. CLONE_SIGHAND) it
-makes the current oom killer logic quite hard to follow and evaluate. It
-is possible to select an oom victim which shares the mm with unkillable
-process or bypass the oom killer even when other processes sharing the
-mm are still alive and other weird cases.
+From: Michal Hocko <mhocko@suse.com>
 
-Patch 1 optimizes oom_kill_task to skip the costly process
-iteration when the current oom victim is not sharing mm with other
-processes. Patch 2 is a clean up of oom_score_adj handling and a
-preparatory work. Patch 3 enforces oom_adj_score to be consistent
-between processes sharing the mm to behave consistently with the regular
-thread groups. Patch 4 tries to handle vforked tasks better in the oom
-path, patch 5 ensures that all tasks sharing the mm are killed and
-finally patch 6 should guarantee that task_will_free_mem will always
-imply reapable bypass of the oom killer.
+oom_kill_process makes sure to kill all processes outside of the thread
+group which are sharing the mm. This requires to iterate over all tasks.
+This is however not a common case so we can optimize it a bit and only
+do that path only if we know that there are external users of the mm
+struct outside of the thread group.
 
-The patchset is based on the current mmotm tree (mmotm-2016-05-23-16-51).
-I would really appreciate a deep review as this area is full of land
-mines but I hope I've made the code much cleaner with less kludges.
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/oom_kill.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-I am CCing Oleg (sorry I know you hate this code) but I would feel much
-better if you double checked my assumptions about locking and vfork
-behavior.
-
-Michal Hocko (6):
-      mm, oom: do not loop over all tasks if there are no external tasks sharing mm
-      proc, oom_adj: extract oom_score_adj setting into a helper
-      mm, oom_adj: make sure processes sharing mm have same view of oom_score_adj
-      mm, oom: skip over vforked tasks
-      mm, oom: kill all tasks sharing the mm
-      mm, oom: fortify task_will_free_mem
-
- fs/proc/base.c      | 168 +++++++++++++++++++++++++++++-----------------------
- include/linux/mm.h  |   2 +
- include/linux/oom.h |  72 ++++++++++++++++++++--
- mm/memcontrol.c     |   4 +-
- mm/oom_kill.c       |  96 ++++++++++--------------------
- 5 files changed, 196 insertions(+), 146 deletions(-)
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 5bb2f7698ad7..0e33e912f7e4 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -820,6 +820,13 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	task_unlock(victim);
+ 
+ 	/*
++	 * skip expensive iterations over all tasks if we know that there
++	 * are no users outside of threads in the same thread group
++	 */
++	if (atomic_read(&mm->mm_users) <= get_nr_threads(victim))
++		goto oom_reap;
++
++	/*
+ 	 * Kill all user processes sharing victim->mm in other thread groups, if
+ 	 * any.  They don't get access to memory reserves, though, to avoid
+ 	 * depletion of all memory.  This prevents mm->mmap_sem livelock when an
+@@ -848,6 +855,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	}
+ 	rcu_read_unlock();
+ 
++oom_reap:
+ 	if (can_oom_reap)
+ 		wake_oom_reaper(victim);
+ 
+-- 
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
