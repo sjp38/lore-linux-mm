@@ -1,185 +1,340 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A5966B007E
-	for <linux-mm@kvack.org>; Thu, 26 May 2016 18:52:00 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id yl2so131670442pac.2
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 15:52:00 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id dl2si19875935pab.163.2016.05.26.15.51.59
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 87A076B007E
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 19:15:32 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id fg1so130602286pad.1
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 16:15:32 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id b1si23715255pax.45.2016.05.26.16.15.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 May 2016 15:51:59 -0700 (PDT)
-Date: Thu, 26 May 2016 15:51:58 -0700
-From: akpm@linux-foundation.org
-Subject: mmotm 2016-05-26-15-51 uploaded
-Message-ID: <57477e0e.heHpk5aBP3qf0Iqj%akpm@linux-foundation.org>
+        Thu, 26 May 2016 16:15:31 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id b124so35254244pfb.0
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 16:15:31 -0700 (PDT)
+Subject: Re: [PATCH] mm: check the return value of lookup_page_ext for all
+ call sites
+References: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
+ <20160524025811.GA29094@bbox> <20160526003719.GB9661@bbox>
+From: "Shi, Yang" <yang.shi@linaro.org>
+Message-ID: <8ae0197c-47b7-e5d2-20c3-eb9d01e6b65c@linaro.org>
+Date: Thu, 26 May 2016 16:15:28 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20160526003719.GB9661@bbox>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
 
-The mm-of-the-moment snapshot 2016-05-26-15-51 has been uploaded to
+On 5/25/2016 5:37 PM, Minchan Kim wrote:
+> On Tue, May 24, 2016 at 11:58:11AM +0900, Minchan Kim wrote:
+>> On Mon, May 23, 2016 at 10:16:08AM -0700, Yang Shi wrote:
+>>> Per the discussion with Joonsoo Kim [1], we need check the return value of
+>>> lookup_page_ext() for all call sites since it might return NULL in some cases,
+>>> although it is unlikely, i.e. memory hotplug.
+>>>
+>>> Tested with ltp with "page_owner=0".
+>>>
+>>> [1] http://lkml.kernel.org/r/20160519002809.GA10245@js1304-P5Q-DELUXE
+>>>
+>>> Signed-off-by: Yang Shi <yang.shi@linaro.org>
+>>
+>> I didn't read code code in detail to see how page_ext memory space
+>> allocated in boot code and memory hotplug but to me, it's not good
+>> to check NULL whenever we calls lookup_page_ext.
+>>
+>> More dangerous thing is now page_ext is used by optionable feature(ie, not
+>> critical for system stability) but if we want to use page_ext as
+>> another important tool for the system in future,
+>> it could be a serious problem.
+>>
+>> Can we put some hooks of page_ext into memory-hotplug so guarantee
+>> that page_ext memory space is allocated with memmap space at the
+>> same time? IOW, once every PFN wakers find a page is valid, page_ext
+>> is valid, too so lookup_page_ext never returns NULL on valid page
+>> by design.
+>>
+>> I hope we consider this direction, too.
+>
+> Yang, Could you think about this?
 
-   http://www.ozlabs.org/~akpm/mmotm/
+Thanks a lot for the suggestion. Sorry for the late reply, I was busy on 
+preparing patches. I do agree this is a direction we should look into, 
+but I haven't got time to think about it deeper. I hope Joonsoo could 
+chime in too since he is the original author for page extension.
 
-mmotm-readme.txt says
+>
+> Even, your patch was broken, I think.
+> It doesn't work with !CONFIG_DEBUG_VM && !CONFIG_PAGE_POISONING because
+> lookup_page_ext doesn't return NULL in that case.
 
-README for mm-of-the-moment:
+Actually, I think the #ifdef should be removed if lookup_page_ext() is 
+possible to return NULL. It sounds not make sense returning NULL only 
+when DEBUG_VM is enabled. It should return NULL no matter what debug 
+config is selected. If Joonsoo agrees with me I'm going to come up with 
+a patch to fix it.
 
-http://www.ozlabs.org/~akpm/mmotm/
+Regards,
+Yang
 
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
-
-You will need quilt to apply these patches to the latest Linus release (4.x
-or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
-
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
-
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
-
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
-
-
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
-
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
-
-To develop on top of mmotm git:
-
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
-
-To rebase a branch with older patches to a new mmotm release:
-
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
-
-
-
-
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
-
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
-
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
-
-
-This mmotm tree contains the following patches against 4.6:
-(patches marked "*" will be included in linux-next)
-
-  origin.patch
-* seqlock-fix-raw_read_seqcount_latch.patch
-* mm-make-config_deferred_struct_page_init-depends-on-flatmem-explicitly.patch
-* mm-kasan-remove-unused-reserved-field-from-struct-kasan_alloc_meta.patch
-* mm-slub-remove-unused-virt_to_obj.patch
-* ocfs2-fix-improper-handling-of-return-errno.patch
-* memcg-fix-mem_cgroup_out_of_memory-return-value.patch
-* mm-oom_reaper-do-not-mmput-synchronously-from-the-oom-reaper-context-fix.patch
-* dma-debug-avoid-spinlock-recursion-when-disabling-dma-debug.patch
-* update-mm-zsmalloc-dont-fail-if-cant-create-debugfs-info.patch
-* drivers-pinctrl-intel-pinctrl-baytrailc-fix-build-with-gcc-44.patch
-  i-need-old-gcc.patch
-  arch-alpha-kernel-systblss-remove-debug-check.patch
-* direct-io-fix-direct-write-stale-data-exposure-from-concurrent-buffered-read.patch
-* mm-oom-do-not-reap-task-if-there-are-live-threads-in-threadgroup.patch
-* maintainers-add-kexec_corec-and-kexec_filec.patch
-* maintainers-kdump-maintainers-update.patch
-* mm-use-early_pfn_to_nid-in-page_ext_init.patch
-* mm-use-early_pfn_to_nid-in-register_page_bootmem_info_node.patch
-* oom_reaper-close-race-with-exiting-task.patch
-* oom_reaper-close-race-with-exiting-task-checkpatch-fixes.patch
-* mm-thp-avoid-false-positive-vm_bug_on_page-in-page_move_anon_rmap.patch
-* mm-cma-silence-warnings-due-to-max-usage.patch
-* mm-cma-silence-warnings-due-to-max-usage-checkpatch-fixes.patch
-* mm-memcontrol-fix-the-margin-computation-in-mem_cgroup_margin.patch
-* mm-memcontrol-move-comments-for-get_mctgt_type-to-proper-position.patch
-* mm-disable-deferred_struct_page_init-on-no_bootmem.patch
-* mm-fix-overflow-in-vm_map_ram.patch
-* kdump-fix-dmesg-gdbmacro-to-work-with-record-based-printk.patch
-* memcg-add-rcu-locking-around-css_for_each_descendant_pre-in-memcg_offline_kmem.patch
-* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
-* fs-ext4-fsyncc-generic_file_fsync-call-based-on-barrier-flag.patch
-* ocfs2-fix-a-redundant-re-initialization.patch
-* ocfs2-o2hb-add-negotiate-timer.patch
-* ocfs2-o2hb-add-nego_timeout-message.patch
-* ocfs2-o2hb-add-negotiate_approve-message.patch
-* ocfs2-o2hb-add-some-user-debug-log.patch
-* ocfs2-o2hb-dont-negotiate-if-last-hb-fail.patch
-* ocfs2-o2hb-fix-hb-hung-time.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-  mm.patch
-* mm-memcontrol-remove-the-useless-parameter-for-mc_handle_swap_pte.patch
-* mm-init-fix-zone-boundary-creation.patch
-* mm-check-the-return-value-of-lookup_page_ext-for-all-call-sites.patch
-* mm-check-the-return-value-of-lookup_page_ext-for-all-call-sites-fix.patch
-* mm-check-the-return-value-of-lookup_page_ext-for-all-call-sites-fix-2.patch
-* mm-check-the-return-value-of-lookup_page_ext-for-all-call-sites-checkpatch-fixes.patch
-* memory-hotplug-add-move_pfn_range.patch
-* memory-hotplug-more-general-validation-of-zone-during-online.patch
-* memory-hotplug-use-zone_can_shift-for-sysfs-valid_zones-attribute.patch
-* mm-memblock-if-nr_new-is-0-just-return.patch
-* mm-make-optimistic-check-for-swapin-readahead.patch
-* mm-make-optimistic-check-for-swapin-readahead-fix-2.patch
-* mm-make-swapin-readahead-to-improve-thp-collapse-rate.patch
-* mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix.patch
-* mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix-2.patch
-* mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix-3.patch
-* mm-vmstat-calculate-particular-vm-event.patch
-* mm-thp-avoid-unnecessary-swapin-in-khugepaged.patch
-* mm-thp-avoid-unnecessary-swapin-in-khugepaged-fix.patch
-* lib-switch-config_printk_time-to-int.patch
-* printk-allow-different-timestamps-for-printktime.patch
-* lib-add-crc64-ecma-module.patch
-* samples-kprobe-convert-the-printk-to-pr_info-pr_err.patch
-* samples-jprobe-convert-the-printk-to-pr_info-pr_err.patch
-* samples-kretprobe-convert-the-printk-to-pr_info-pr_err.patch
-* samples-kretprobe-fix-the-wrong-type.patch
-* kexec-return-error-number-directly.patch
-* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
-* futex-fix-shared-futex-operations-on-nommu.patch
-* kcov-allow-more-fine-grained-coverage-instrumentation.patch
-* ipc-semc-fix-complex_count-vs-simple-op-race.patch
-* ipc-msgc-msgsnd-use-freezable-blocking-call.patch
-* msgrcv-use-freezable-blocking-call.patch
-  linux-next.patch
-  linux-next-git-rejects.patch
-* mm-make-optimistic-check-for-swapin-readahead-fix.patch
-* drivers-net-wireless-intel-iwlwifi-dvm-calibc-fix-min-warning.patch
-* fs-nfs-nfs4statec-work-around-gcc-44-union-initialization-bug.patch
-  mm-add-strictlimit-knob-v2.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  make-frame_pointer-default=y.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  add-debugging-aid-for-memory-initialisation-problems.patch
-  workaround-for-a-pci-restoring-bug.patch
+>
+>>
+>> Thanks.
+>>
+>>> ---
+>>>  include/linux/page_idle.h | 43 ++++++++++++++++++++++++++++++++++++-------
+>>>  mm/page_alloc.c           |  6 ++++++
+>>>  mm/page_owner.c           | 27 +++++++++++++++++++++++++++
+>>>  mm/page_poison.c          |  8 +++++++-
+>>>  mm/vmstat.c               |  2 ++
+>>>  5 files changed, 78 insertions(+), 8 deletions(-)
+>>>
+>>> diff --git a/include/linux/page_idle.h b/include/linux/page_idle.h
+>>> index bf268fa..8f5d4ad 100644
+>>> --- a/include/linux/page_idle.h
+>>> +++ b/include/linux/page_idle.h
+>>> @@ -46,33 +46,62 @@ extern struct page_ext_operations page_idle_ops;
+>>>
+>>>  static inline bool page_is_young(struct page *page)
+>>>  {
+>>> -	return test_bit(PAGE_EXT_YOUNG, &lookup_page_ext(page)->flags);
+>>> +	struct page_ext *page_ext;
+>>> +	page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext)
+>>> +		return false;
+>>> +
+>>> +	return test_bit(PAGE_EXT_YOUNG, &page_ext->flags);
+>>>  }
+>>>
+>>>  static inline void set_page_young(struct page *page)
+>>>  {
+>>> -	set_bit(PAGE_EXT_YOUNG, &lookup_page_ext(page)->flags);
+>>> +	struct page_ext *page_ext;
+>>> +	page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext)
+>>> +		return;
+>>> +
+>>> +	set_bit(PAGE_EXT_YOUNG, &page_ext->flags);
+>>>  }
+>>>
+>>>  static inline bool test_and_clear_page_young(struct page *page)
+>>>  {
+>>> -	return test_and_clear_bit(PAGE_EXT_YOUNG,
+>>> -				  &lookup_page_ext(page)->flags);
+>>> +	struct page_ext *page_ext;
+>>> +	page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext)
+>>> +		return false;
+>>> +
+>>> +	return test_and_clear_bit(PAGE_EXT_YOUNG, &page_ext->flags);
+>>>  }
+>>>
+>>>  static inline bool page_is_idle(struct page *page)
+>>>  {
+>>> -	return test_bit(PAGE_EXT_IDLE, &lookup_page_ext(page)->flags);
+>>> +	struct page_ext *page_ext;
+>>> +	page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext)
+>>> +		return false;
+>>> +
+>>> +	return test_bit(PAGE_EXT_IDLE, &page_ext->flags);
+>>>  }
+>>>
+>>>  static inline void set_page_idle(struct page *page)
+>>>  {
+>>> -	set_bit(PAGE_EXT_IDLE, &lookup_page_ext(page)->flags);
+>>> +	struct page_ext *page_ext;
+>>> +	page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext)
+>>> +		return;
+>>> +
+>>> +	set_bit(PAGE_EXT_IDLE, &page_ext->flags);
+>>>  }
+>>>
+>>>  static inline void clear_page_idle(struct page *page)
+>>>  {
+>>> -	clear_bit(PAGE_EXT_IDLE, &lookup_page_ext(page)->flags);
+>>> +	struct page_ext *page_ext;
+>>> +	page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext)
+>>> +		return;
+>>> +
+>>> +	clear_bit(PAGE_EXT_IDLE, &page_ext->flags);
+>>>  }
+>>>  #endif /* CONFIG_64BIT */
+>>>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index f8f3bfc..d27e8b9 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -656,6 +656,9 @@ static inline void set_page_guard(struct zone *zone, struct page *page,
+>>>  		return;
+>>>
+>>>  	page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext))
+>>> +		return;
+>>> +
+>>>  	__set_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
+>>>
+>>>  	INIT_LIST_HEAD(&page->lru);
+>>> @@ -673,6 +676,9 @@ static inline void clear_page_guard(struct zone *zone, struct page *page,
+>>>  		return;
+>>>
+>>>  	page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext))
+>>> +		return;
+>>> +
+>>>  	__clear_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
+>>>
+>>>  	set_page_private(page, 0);
+>>> diff --git a/mm/page_owner.c b/mm/page_owner.c
+>>> index 792b56d..902e398 100644
+>>> --- a/mm/page_owner.c
+>>> +++ b/mm/page_owner.c
+>>> @@ -55,6 +55,8 @@ void __reset_page_owner(struct page *page, unsigned int order)
+>>>
+>>>  	for (i = 0; i < (1 << order); i++) {
+>>>  		page_ext = lookup_page_ext(page + i);
+>>> +		if (unlikely(!page_ext))
+>>> +			continue;
+>>>  		__clear_bit(PAGE_EXT_OWNER, &page_ext->flags);
+>>>  	}
+>>>  }
+>>> @@ -62,6 +64,10 @@ void __reset_page_owner(struct page *page, unsigned int order)
+>>>  void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
+>>>  {
+>>>  	struct page_ext *page_ext = lookup_page_ext(page);
+>>> +
+>>> +	if (unlikely(!page_ext))
+>>> +		return;
+>>> +
+>>>  	struct stack_trace trace = {
+>>>  		.nr_entries = 0,
+>>>  		.max_entries = ARRAY_SIZE(page_ext->trace_entries),
+>>> @@ -82,6 +88,8 @@ void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
+>>>  void __set_page_owner_migrate_reason(struct page *page, int reason)
+>>>  {
+>>>  	struct page_ext *page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext))
+>>> +		return;
+>>>
+>>>  	page_ext->last_migrate_reason = reason;
+>>>  }
+>>> @@ -89,6 +97,12 @@ void __set_page_owner_migrate_reason(struct page *page, int reason)
+>>>  gfp_t __get_page_owner_gfp(struct page *page)
+>>>  {
+>>>  	struct page_ext *page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext))
+>>> +		/*
+>>> +		 * The caller just returns 0 if no valid gfp
+>>> +		 * So return 0 here too.
+>>> +		 */
+>>> +		return 0;
+>>>
+>>>  	return page_ext->gfp_mask;
+>>>  }
+>>> @@ -97,6 +111,10 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
+>>>  {
+>>>  	struct page_ext *old_ext = lookup_page_ext(oldpage);
+>>>  	struct page_ext *new_ext = lookup_page_ext(newpage);
+>>> +
+>>> +	if (unlikely(!old_ext || !new_ext))
+>>> +		return;
+>>> +
+>>>  	int i;
+>>>
+>>>  	new_ext->order = old_ext->order;
+>>> @@ -186,6 +204,11 @@ err:
+>>>  void __dump_page_owner(struct page *page)
+>>>  {
+>>>  	struct page_ext *page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext)) {
+>>> +		pr_alert("There is not page extension available.\n");
+>>> +		return;
+>>> +	}
+>>> +
+>>>  	struct stack_trace trace = {
+>>>  		.nr_entries = page_ext->nr_entries,
+>>>  		.entries = &page_ext->trace_entries[0],
+>>> @@ -251,6 +274,8 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+>>>  		}
+>>>
+>>>  		page_ext = lookup_page_ext(page);
+>>> +		if (unlikely(!page_ext))
+>>> +			continue;
+>>>
+>>>  		/*
+>>>  		 * Some pages could be missed by concurrent allocation or free,
+>>> @@ -317,6 +342,8 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
+>>>  				continue;
+>>>
+>>>  			page_ext = lookup_page_ext(page);
+>>> +			if (unlikely(!page_ext))
+>>> +				continue;
+>>>
+>>>  			/* Maybe overraping zone */
+>>>  			if (test_bit(PAGE_EXT_OWNER, &page_ext->flags))
+>>> diff --git a/mm/page_poison.c b/mm/page_poison.c
+>>> index 1eae5fa..2e647c6 100644
+>>> --- a/mm/page_poison.c
+>>> +++ b/mm/page_poison.c
+>>> @@ -54,6 +54,9 @@ static inline void set_page_poison(struct page *page)
+>>>  	struct page_ext *page_ext;
+>>>
+>>>  	page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext))
+>>> +		return;
+>>> +
+>>>  	__set_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
+>>>  }
+>>>
+>>> @@ -62,6 +65,9 @@ static inline void clear_page_poison(struct page *page)
+>>>  	struct page_ext *page_ext;
+>>>
+>>>  	page_ext = lookup_page_ext(page);
+>>> +	if (unlikely(!page_ext))
+>>> +		return;
+>>> +
+>>>  	__clear_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
+>>>  }
+>>>
+>>> @@ -70,7 +76,7 @@ bool page_is_poisoned(struct page *page)
+>>>  	struct page_ext *page_ext;
+>>>
+>>>  	page_ext = lookup_page_ext(page);
+>>> -	if (!page_ext)
+>>> +	if (unlikely(!page_ext))
+>>>  		return false;
+>>>
+>>>  	return test_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
+>>> diff --git a/mm/vmstat.c b/mm/vmstat.c
+>>> index 77e42ef..cb2a67b 100644
+>>> --- a/mm/vmstat.c
+>>> +++ b/mm/vmstat.c
+>>> @@ -1061,6 +1061,8 @@ static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
+>>>  				continue;
+>>>
+>>>  			page_ext = lookup_page_ext(page);
+>>> +			if (unlikely(!page_ext))
+>>> +				continue;
+>>>
+>>>  			if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
+>>>  				continue;
+>>> --
+>>> 2.0.2
+>>>
+>>> --
+>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>> see: http://www.linux-mm.org/ .
+>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
