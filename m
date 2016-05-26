@@ -1,80 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AEC406B007E
-	for <linux-mm@kvack.org>; Thu, 26 May 2016 03:04:36 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id 190so124608575iow.2
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 00:04:36 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id 16si2934486itm.77.2016.05.26.00.04.34
-        for <linux-mm@kvack.org>;
-        Thu, 26 May 2016 00:04:35 -0700 (PDT)
-Date: Thu, 26 May 2016 16:04:55 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH RESEND 7/8] pipe: account to kmemcg
-Message-ID: <20160526070455.GF9661@bbox>
-References: <cover.1464079537.git.vdavydov@virtuozzo.com>
- <2c2545563b6201f118946f96dd8cfc90e564aff6.1464079538.git.vdavydov@virtuozzo.com>
- <1464094742.5939.46.camel@edumazet-glaptop3.roam.corp.google.com>
- <20160524161336.GA11150@esperanza>
- <1464120273.5939.53.camel@edumazet-glaptop3.roam.corp.google.com>
- <20160525103011.GF11150@esperanza>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 076216B007E
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 03:38:17 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id n2so40783795wma.0
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 00:38:16 -0700 (PDT)
+Received: from fnsib-smtp05.srv.cat (fnsib-smtp05.srv.cat. [46.16.61.54])
+        by mx.google.com with ESMTPS id r19si7105980lfe.307.2016.05.26.00.38.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 May 2016 00:38:14 -0700 (PDT)
+Received: from vostok.local.mail (boro.ii.uam.es [150.244.58.71])
+	by fnsib-smtp05.srv.cat (Postfix) with ESMTPA id 719431EF111
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 09:38:12 +0200 (CEST)
+Date: Thu, 26 May 2016 09:38:04 +0200
+From: =?utf-8?Q?Guillermo_Juli=C3=A1n_Moreno?=
+ <guillermo.julian@naudit.es>
+Message-ID: <etPan.5746a7e1.1cc53686.1602@naudit.es>
+In-Reply-To: <etPan.57175fb3.7a271c6b.2bd@naudit.es>
+References: <etPan.57175fb3.7a271c6b.2bd@naudit.es>
+Subject: Re: [PATCH] mm: fix overflow in vm_map_ram
 MIME-Version: 1.0
-In-Reply-To: <20160525103011.GF11150@esperanza>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 
-On Wed, May 25, 2016 at 01:30:11PM +0300, Vladimir Davydov wrote:
-> On Tue, May 24, 2016 at 01:04:33PM -0700, Eric Dumazet wrote:
-> > On Tue, 2016-05-24 at 19:13 +0300, Vladimir Davydov wrote:
-> > > On Tue, May 24, 2016 at 05:59:02AM -0700, Eric Dumazet wrote:
-> > > ...
-> > > > > +static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
-> > > > > +			       struct pipe_buffer *buf)
-> > > > > +{
-> > > > > +	struct page *page = buf->page;
-> > > > > +
-> > > > > +	if (page_count(page) == 1) {
-> > > > 
-> > > > This looks racy : some cpu could have temporarily elevated page count.
-> > > 
-> > > All pipe operations (pipe_buf_operations->get, ->release, ->steal) are
-> > > supposed to be called under pipe_lock. So, if we see a pipe_buffer->page
-> > > with refcount of 1 in ->steal, that means that we are the only its user
-> > > and it can't be spliced to another pipe.
-> > > 
-> > > In fact, I just copied the code from generic_pipe_buf_steal, adding
-> > > kmemcg related checks along the way, so it should be fine.
-> > 
-> > So you guarantee that no other cpu might have done
-> > get_page_unless_zero() right before this test ?
-> 
-> Each pipe_buffer holds a reference to its page. If we find page's
-> refcount to be 1 here, then it can be referenced only by our
-> pipe_buffer. And the refcount cannot be increased by a parallel thread,
-> because we hold pipe_lock, which rules out splice, and otherwise it's
-> impossible to reach the page as it is not on lru. That said, I think I
-> guarantee that this should be safe.
 
-I don't know kmemcg internal and pipe stuff so my comment might be
-totally crap.
+On 20 April 2016 at 12:53:41, Guillermo Juli=C3=A1n Moreno (guillermo.jul=
+ian=40naudit.es(mailto:guillermo.julian=40naudit.es)) wrote:
 
-No one cannot guarantee any CPU cannot held a reference of a page.
-Look at get_page_unless_zero usecases.
+> =20
+> When remapping pages accounting for 4G or more memory space, the
+> operation 'count << PAGE=5FSHI=46T' overflows as it is performed on an
+> integer. Solution: cast before doing the bitshift.
+> =20
+> Signed-off-by: Guillermo Juli=C3=A1n =20
+> ---
+> mm/vmalloc.c =7C 4 ++--
+> 1 file changed, 2 insertions(+), 2 deletions(-)
+> =20
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index ae7d20b..97257e4 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> =40=40 -1114,7 +1114,7 =40=40 EXPORT=5FSYMBOL(vm=5Funmap=5Fram);
+> */
+> void *vm=5Fmap=5Fram(struct page **pages, unsigned int count, int node,=
+ pgprot=5Ft prot)
+> =7B
+> - unsigned long size =3D count << PAGE=5FSHI=46T;
+> + unsigned long size =3D ((unsigned long) count) << PAGE=5FSHI=46T;
+> unsigned long addr;
+> void *mem;
+> =20
+> =40=40 -1484,7 +1484,7 =40=40 static void =5F=5Fvunmap(const void *addr=
+, int deallocate=5Fpages)
+> kfree(area);
+> return;
+> =7D
+> -
+> +
+> /**
+> * vfree - release memory allocated by vmalloc()
+> * =40addr: memory base address
+> --
+> 1.8.3.1
 
-1. balloon_page_isolate
+Hello, has anyone taken a look at this patch=3F
 
-It can hold a reference in random page and then verify the page
-is balloon page. Otherwise, just put.
+Guillermo Juli=C3=A1n
 
-2. page_idle_get_page
 
-It has PageLRU check but it's racy so it can hold a reference
-of randome page and then verify within zone->lru_lock. If it's
-not LRU page, just put.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
