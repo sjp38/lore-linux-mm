@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F2F6E6B007E
-	for <linux-mm@kvack.org>; Thu, 26 May 2016 10:56:10 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 132so11196474lfz.3
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 07:56:10 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id xx3si18897422wjc.200.2016.05.26.07.56.09
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C95F66B007E
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 10:59:32 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id f75so47388006wmf.2
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 07:59:32 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id z7si5269367wmz.39.2016.05.26.07.59.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 May 2016 07:56:09 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id q62so6214343wmg.3
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 07:56:09 -0700 (PDT)
-Date: Thu, 26 May 2016 16:56:08 +0200
+        Thu, 26 May 2016 07:59:31 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id e3so6228541wme.2
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 07:59:31 -0700 (PDT)
+Date: Thu, 26 May 2016 16:59:30 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 6/6] mm, oom: fortify task_will_free_mem
-Message-ID: <20160526145608.GE23675@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/6] mm, oom: do not loop over all tasks if there are no
+ external tasks sharing mm
+Message-ID: <20160526145930.GF23675@dhcp22.suse.cz>
 References: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
- <1464266415-15558-7-git-send-email-mhocko@kernel.org>
- <201605262311.FFF64092.FFQVtOLOOMJSFH@I-love.SAKURA.ne.jp>
- <20160526142317.GC23675@dhcp22.suse.cz>
- <201605262341.GFE48463.OOtLFFMQSVFHOJ@I-love.SAKURA.ne.jp>
+ <1464266415-15558-2-git-send-email-mhocko@kernel.org>
+ <201605262330.EEB52182.OtMFOJHFLOSFVQ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201605262341.GFE48463.OOtLFFMQSVFHOJ@I-love.SAKURA.ne.jp>
+In-Reply-To: <201605262330.EEB52182.OtMFOJHFLOSFVQ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Thu 26-05-16 23:41:54, Tetsuo Handa wrote:
+On Thu 26-05-16 23:30:06, Tetsuo Handa wrote:
 > Michal Hocko wrote:
-> > +/*
-> > + * Checks whether the given task is dying or exiting and likely to
-> > + * release its address space. This means that all threads and processes
-> > + * sharing the same mm have to be killed or exiting.
-> > + */
-> > +static inline bool task_will_free_mem(struct task_struct *task)
-> > +{
-> > +	struct mm_struct *mm = NULL;
-> > +	struct task_struct *p;
-> > +	bool ret = false;
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 5bb2f7698ad7..0e33e912f7e4 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -820,6 +820,13 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+> >  	task_unlock(victim);
+> >  
+> >  	/*
+> > +	 * skip expensive iterations over all tasks if we know that there
+> > +	 * are no users outside of threads in the same thread group
+> > +	 */
+> > +	if (atomic_read(&mm->mm_users) <= get_nr_threads(victim))
+> > +		goto oom_reap;
 > 
-> If atomic_read(&p->mm->mm_users) <= get_nr_threads(p), this returns "false".
-> According to previous version, I think this is "bool ret = true;".
+> Is this really safe? Isn't it possible that victim thread's thread group has
+> more than atomic_read(&mm->mm_users) threads which are past exit_mm() and blocked
+> at exit_task_work() which are before __exit_signal() from release_task() from
+> exit_notify()?
 
-true. Thanks for catching this. Fixed locally.
+You are right. The race window between exit_mm and __exit_signal is
+really large. I thought about == check instead but that wouldn't work
+for the same reason, dang, it looked so promissing.
+
+Scratch this patch then.
+
 -- 
 Michal Hocko
 SUSE Labs
