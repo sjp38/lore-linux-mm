@@ -1,148 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B94AA6B007E
-	for <linux-mm@kvack.org>; Thu, 26 May 2016 10:05:01 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id h68so2479400lfh.2
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 07:05:01 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id 71si4916078wmr.122.2016.05.26.07.05.00
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5353C6B007E
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 10:15:55 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id yl2so113141658pac.2
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 07:15:55 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id vx8si20979822pac.107.2016.05.26.07.15.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 May 2016 07:05:00 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id n129so5330646wmn.1
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 07:05:00 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] oom_reaper: close race with exiting task
-Date: Thu, 26 May 2016 16:04:53 +0200
-Message-Id: <1464271493-20008-1-git-send-email-mhocko@kernel.org>
+        Thu, 26 May 2016 07:15:54 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id f144so2524026pfa.2
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 07:15:54 -0700 (PDT)
+Message-ID: <1464272149.5939.92.camel@edumazet-glaptop3.roam.corp.google.com>
+Subject: Re: [PATCH RESEND 7/8] pipe: account to kmemcg
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Thu, 26 May 2016 07:15:49 -0700
+In-Reply-To: <20160526135930.GA26059@esperanza>
+References: <cover.1464079537.git.vdavydov@virtuozzo.com>
+	 <2c2545563b6201f118946f96dd8cfc90e564aff6.1464079538.git.vdavydov@virtuozzo.com>
+	 <1464094742.5939.46.camel@edumazet-glaptop3.roam.corp.google.com>
+	 <20160524161336.GA11150@esperanza>
+	 <1464120273.5939.53.camel@edumazet-glaptop3.roam.corp.google.com>
+	 <20160525103011.GF11150@esperanza> <20160526070455.GF9661@bbox>
+	 <20160526135930.GA26059@esperanza>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Thu, 2016-05-26 at 16:59 +0300, Vladimir Davydov wrote:
+> On Thu, May 26, 2016 at 04:04:55PM +0900, Minchan Kim wrote:
+> > On Wed, May 25, 2016 at 01:30:11PM +0300, Vladimir Davydov wrote:
+> > > On Tue, May 24, 2016 at 01:04:33PM -0700, Eric Dumazet wrote:
+> > > > On Tue, 2016-05-24 at 19:13 +0300, Vladimir Davydov wrote:
+> > > > > On Tue, May 24, 2016 at 05:59:02AM -0700, Eric Dumazet wrote:
+> > > > > ...
+> > > > > > > +static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
+> > > > > > > +			       struct pipe_buffer *buf)
+> > > > > > > +{
+> > > > > > > +	struct page *page = buf->page;
+> > > > > > > +
+> > > > > > > +	if (page_count(page) == 1) {
+> > > > > > 
+> > > > > > This looks racy : some cpu could have temporarily elevated page count.
+> > > > > 
+> > > > > All pipe operations (pipe_buf_operations->get, ->release, ->steal) are
+> > > > > supposed to be called under pipe_lock. So, if we see a pipe_buffer->page
+> > > > > with refcount of 1 in ->steal, that means that we are the only its user
+> > > > > and it can't be spliced to another pipe.
+> > > > > 
+> > > > > In fact, I just copied the code from generic_pipe_buf_steal, adding
+> > > > > kmemcg related checks along the way, so it should be fine.
+> > > > 
+> > > > So you guarantee that no other cpu might have done
+> > > > get_page_unless_zero() right before this test ?
+> > > 
+> > > Each pipe_buffer holds a reference to its page. If we find page's
+> > > refcount to be 1 here, then it can be referenced only by our
+> > > pipe_buffer. And the refcount cannot be increased by a parallel thread,
+> > > because we hold pipe_lock, which rules out splice, and otherwise it's
+> > > impossible to reach the page as it is not on lru. That said, I think I
+> > > guarantee that this should be safe.
+> > 
+> > I don't know kmemcg internal and pipe stuff so my comment might be
+> > totally crap.
+> > 
+> > No one cannot guarantee any CPU cannot held a reference of a page.
+> > Look at get_page_unless_zero usecases.
+> > 
+> > 1. balloon_page_isolate
+> > 
+> > It can hold a reference in random page and then verify the page
+> > is balloon page. Otherwise, just put.
+> > 
+> > 2. page_idle_get_page
+> > 
+> > It has PageLRU check but it's racy so it can hold a reference
+> > of randome page and then verify within zone->lru_lock. If it's
+> > not LRU page, just put.
+> 
+> Well, I see your concern now - even if a page is not on lru and we
+> locked all structs pointing to it, it can always get accessed by pfn in
+> a completely unrelated thread, like in examples you gave above. That's a
+> fair point.
+> 
+> However, I still think that it's OK in case of pipe buffers. What can
+> happen if somebody takes a transient reference to a pipe buffer page? At
+> worst, we'll see page_count > 1 due to temporary ref and abort stealing,
+> falling back on copying instead. That's OK, because stealing is not
+> guaranteed. Can a function that takes a transient ref to page by pfn
+> mistakenly assume that this is a page it's interested in? I don't think
+> so, because this page has no marks on it except special _mapcount value,
+> which should only be set on kmemcg pages.
 
-Tetsuo has reported:
-[   74.453958] Out of memory: Kill process 443 (oleg's-test) score 855 or sacrifice child
-[   74.456234] Killed process 443 (oleg's-test) total-vm:493248kB, anon-rss:423880kB, file-rss:4kB, shmem-rss:0kB
-[   74.459219] sh invoked oom-killer: gfp_mask=0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD), order=0, oom_score_adj=0
-[   74.462813] sh cpuset=/ mems_allowed=0
-[   74.465221] CPU: 2 PID: 1 Comm: sh Not tainted 4.6.0-rc7+ #51
-[   74.467037] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
-[   74.470207]  0000000000000286 00000000a17a86b0 ffff88001e673a18 ffffffff812c7cbd
-[   74.473422]  0000000000000000 ffff88001e673bd0 ffff88001e673ab8 ffffffff811b9e94
-[   74.475704]  ffff88001e66cbe0 ffff88001e673ab8 0000000000000246 0000000000000000
-[   74.477990] Call Trace:
-[   74.479170]  [<ffffffff812c7cbd>] dump_stack+0x85/0xc8
-[   74.480872]  [<ffffffff811b9e94>] dump_header+0x5b/0x394
-[   74.481837] oom_reaper: reaped process 443 (oleg's-test), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+Well, all this information deserve to be in the changelog.
 
-In other words:
-__oom_reap_task			exit_mm
-  atomic_inc_not_zero
-				  tsk->mm = NULL
-				  mmput
-				    atomic_dec_and_test # > 0
-				  exit_oom_victim # New victim will be
-						  # selected
-				<OOM killer invoked>
-				  # no TIF_MEMDIE task so we can select a new one
-  unmap_page_range # to release the memory
+Maybe in 6 months, this will be incredibly useful for bug hunting.
 
-The race exists even without the oom_reaper because anybody who pins the
-address space and gets preempted might race with exit_mm but oom_reaper
-made this race more probable.
+pipes can be used to exchange data (or pages) between processes in
+different domains.
 
-We can address the oom_reaper part by using oom_lock for __oom_reap_task
-because this would guarantee that a new oom victim will not be selected
-if the oom reaper might race with the exit path. This doesn't solve the
-original issue, though, because somebody else still might be pinning
-mm_users and so __mmput won't be called to release the memory but that
-is not really realiably solvable because the task will get away from the
-oom sight as soon as it is unhashed from the task_list and so we cannot
-guarantee a new victim won't be selected.
+If kmemcg is not precise, this could be used by some attackers to force
+some processes to consume all their budget and eventually not be able to
+allocate new pages.
 
-Fixes: aac453635549 ("mm, oom: introduce oom reaper")
-Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
 
-Hi,
-I haven't marked this for stable because the race is quite unlikely I
-believe. I have noted the original commit, though, for those who might
-want to backport it and consider this follow up fix as well.
-
-I guess this would be good to go in the current merge window, unless I
-have missed something subtle. It would be great if Tetsuo could try to
-reproduce and confirm this really solves his issue.
-
-Thanks!
-
- mm/oom_kill.c | 25 +++++++++++++++++++++----
- 1 file changed, 21 insertions(+), 4 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5bb2f7698ad7..d0f42cc88f6a 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -450,6 +450,22 @@ static bool __oom_reap_task(struct task_struct *tsk)
- 	bool ret = true;
- 
- 	/*
-+	 * We have to make sure to not race with the victim exit path
-+	 * and cause premature new oom victim selection:
-+	 * __oom_reap_task		exit_mm
-+	 *   atomic_inc_not_zero
-+	 *   				  mmput
-+	 *   				    atomic_dec_and_test
-+	 *				  exit_oom_victim
-+	 *				[...]
-+	 *				out_of_memory
-+	 *				  select_bad_process
-+	 *				    # no TIF_MEMDIE task select new victim
-+	 *  unmap_page_range # frees some memory
-+	 */
-+	mutex_lock(&oom_lock);
-+
-+	/*
- 	 * Make sure we find the associated mm_struct even when the particular
- 	 * thread has already terminated and cleared its mm.
- 	 * We might have race with exit path so consider our work done if there
-@@ -457,19 +473,19 @@ static bool __oom_reap_task(struct task_struct *tsk)
- 	 */
- 	p = find_lock_task_mm(tsk);
- 	if (!p)
--		return true;
-+		goto unlock_oom;
- 
- 	mm = p->mm;
- 	if (!atomic_inc_not_zero(&mm->mm_users)) {
- 		task_unlock(p);
--		return true;
-+		goto unlock_oom;
- 	}
- 
- 	task_unlock(p);
- 
- 	if (!down_read_trylock(&mm->mmap_sem)) {
- 		ret = false;
--		goto out;
-+		goto unlock_oom;
- 	}
- 
- 	tlb_gather_mmu(&tlb, mm, 0, -1);
-@@ -511,7 +527,8 @@ static bool __oom_reap_task(struct task_struct *tsk)
- 	 * to release its memory.
- 	 */
- 	set_bit(MMF_OOM_REAPED, &mm->flags);
--out:
-+unlock_oom:
-+	mutex_unlock(&oom_lock);
- 	/*
- 	 * Drop our reference but make sure the mmput slow path is called from a
- 	 * different context because we shouldn't risk we get stuck there and
--- 
-2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
