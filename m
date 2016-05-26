@@ -1,100 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A95FC6B0253
-	for <linux-mm@kvack.org>; Thu, 26 May 2016 16:30:21 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id y6so211923043ywe.0
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 13:30:21 -0700 (PDT)
-Received: from mail-yw0-x243.google.com (mail-yw0-x243.google.com. [2607:f8b0:4002:c05::243])
-        by mx.google.com with ESMTPS id a190si3290997ywh.409.2016.05.26.13.30.20
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 86B746B025F
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 16:37:36 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id s73so24371723pfs.0
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 13:37:36 -0700 (PDT)
+Received: from mail-pf0-x22f.google.com (mail-pf0-x22f.google.com. [2607:f8b0:400e:c00::22f])
+        by mx.google.com with ESMTPS id d10si22851295pap.88.2016.05.26.13.37.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 May 2016 13:30:20 -0700 (PDT)
-Received: by mail-yw0-x243.google.com with SMTP id y6so3753737ywe.0
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 13:30:20 -0700 (PDT)
-Date: Thu, 26 May 2016 16:30:18 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH] memcg: add RCU locking around css_for_each_descendant_pre()
- in memcg_offline_kmem()
-Message-ID: <20160526203018.GG23194@mtj.duckdns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
+        Thu, 26 May 2016 13:37:35 -0700 (PDT)
+Received: by mail-pf0-x22f.google.com with SMTP id f144so21031589pfa.3
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 13:37:34 -0700 (PDT)
+From: Thomas Garnier <thgarnie@google.com>
+Subject: [PATCH v1 0/2] mm: SLUB Freelist randomization
+Date: Thu, 26 May 2016 13:37:09 -0700
+Message-Id: <1464295031-26375-1-git-send-email-thgarnie@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Pranith Kumar <bobby.prani@gmail.com>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Woodhouse <David.Woodhouse@intel.com>, Thomas Garnier <thgarnie@google.com>, Petr Mladek <pmladek@suse.com>, Kees Cook <keescook@chromium.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gthelen@google.com, kernel-hardening@lists.openwall.com
 
-memcg_offline_kmem() may be called from memcg_free_kmem() after a css
-init failure.  memcg_free_kmem() is a ->css_free callback which is
-called without cgroup_mutex and memcg_offline_kmem() ends up using
-css_for_each_descendant_pre() without any locking.  Fix it by adding
-rcu read locking around it.
+This is PATCH v1 for the SLUB Freelist randomization. The patch is now based
+on the Linux master branch (as the based SLAB patch was merged).
 
- mkdir: cannot create directory a??65530a??: No space left on device
- [  527.241361] ===============================
- [  527.241845] [ INFO: suspicious RCU usage. ]
- [  527.242367] 4.6.0-work+ #321 Not tainted
- [  527.242730] -------------------------------
- [  527.243220] kernel/cgroup.c:4008 cgroup_mutex or RCU read lock required!
- [  527.243970]
- [  527.243970] other info that might help us debug this:
- [  527.243970]
- [  527.244715]
- [  527.244715] rcu_scheduler_active = 1, debug_locks = 0
- [  527.245463] 2 locks held by kworker/0:5/1664:
- [  527.245939]  #0:  ("cgroup_destroy"){.+.+..}, at: [<ffffffff81060ab5>] process_one_work+0x165/0x4a0
- [  527.246958]  #1:  ((&css->destroy_work)#3){+.+...}, at: [<ffffffff81060ab5>] process_one_work+0x165/0x4a0
- [  527.248098]
- [  527.248098] stack backtrace:
- [  527.249565] CPU: 0 PID: 1664 Comm: kworker/0:5 Not tainted 4.6.0-work+ #321
- [  527.250429] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.9.1-1.fc24 04/01/2014
- [  527.250555] Workqueue: cgroup_destroy css_free_work_fn
- [  527.250555]  0000000000000000 ffff880178747c68 ffffffff8128bfc7 ffff880178b8ac40
- [  527.250555]  0000000000000001 ffff880178747c98 ffffffff8108c297 0000000000000000
- [  527.250555]  ffff88010de54138 000000000000fffb ffff88010de537e8 ffff880178747cc0
- [  527.250555] Call Trace:
- [  527.250555]  [<ffffffff8128bfc7>] dump_stack+0x68/0xa1
- [  527.250555]  [<ffffffff8108c297>] lockdep_rcu_suspicious+0xd7/0x110
- [  527.250555]  [<ffffffff810ca03d>] css_next_descendant_pre+0x7d/0xb0
- [  527.250555]  [<ffffffff8114d14a>] memcg_offline_kmem.part.44+0x4a/0xc0
- [  527.250555]  [<ffffffff8114d3ac>] mem_cgroup_css_free+0x1ec/0x200
- [  527.250555]  [<ffffffff810ccdc9>] css_free_work_fn+0x49/0x5e0
- [  527.250555]  [<ffffffff81060b15>] process_one_work+0x1c5/0x4a0
- [  527.250555]  [<ffffffff81060ab5>] ? process_one_work+0x165/0x4a0
- [  527.250555]  [<ffffffff81060e39>] worker_thread+0x49/0x490
- [  527.250555]  [<ffffffff81060df0>] ? process_one_work+0x4a0/0x4a0
- [  527.250555]  [<ffffffff81060df0>] ? process_one_work+0x4a0/0x4a0
- [  527.250555]  [<ffffffff810672ba>] kthread+0xea/0x100
- [  527.250555]  [<ffffffff814cbcff>] ret_from_fork+0x1f/0x40
- [  527.250555]  [<ffffffff810671d0>] ? kthread_create_on_node+0x200/0x200
+Changes since RFC v2:
+ - Redone slab_test testing to decide best entropy approach on new page
+   creation.
+ - Moved to use get_random_int as best approach to still use hardware
+   randomization when available but lower cost when not available.
+ - Update SLAB implementation to use get_random_long and get_random_int
+   on refactoring.
+ - Updated testing that highlight 3-4% impact on slab_test for direct
+   testing on non-smp, 100000 iterations.
+ - Updated commit messages based on feedback.
+ - Use unsigned int* for random_seq for both SLUB & SLAB.
 
-Signed-off-by: Tejun Heo <tj@kernel.org>
----
- mm/memcontrol.c |    3 +++
- 1 file changed, 3 insertions(+)
+***Background:
+This proposal follows the previous SLAB Freelist patch submitted to next.
+It resuses parts of previous implementation and keep a similar approach.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index cf428d7..8d42c6d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2892,6 +2892,7 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
- 	 * ordering is imposed by list_lru_node->lock taken by
- 	 * memcg_drain_all_list_lrus().
- 	 */
-+	rcu_read_lock(); /* can be called from css_free w/o cgroup_mutex */
- 	css_for_each_descendant_pre(css, &memcg->css) {
- 		child = mem_cgroup_from_css(css);
- 		BUG_ON(child->kmemcg_id != kmemcg_id);
-@@ -2899,6 +2900,8 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
- 		if (!memcg->use_hierarchy)
- 			break;
- 	}
-+	rcu_read_unlock();
-+
- 	memcg_drain_all_list_lrus(kmemcg_id, parent->kmemcg_id);
- 
- 	memcg_free_cache_id(kmemcg_id);
+The kernel heap allocators are using a sequential freelist making their
+allocation predictable. This predictability makes kernel heap overflow
+easier to exploit. An attacker can careful prepare the kernel heap to
+control the following chunk overflowed.
+
+For example these attacks exploit the predictability of the heap:
+ - Linux Kernel CAN SLUB overflow (https://goo.gl/oMNWkU)
+ - Exploiting Linux Kernel Heap corruptions (http://goo.gl/EXLn95)
+
+***Problems that needed solving:
+ - Randomize the Freelist (singled linked) used in the SLUB allocator.
+ - Ensure good performance to encourage usage.
+ - Get best entropy in early boot stage.
+
+***Parts:
+ - 01/02 Reorganize the SLAB Freelist randomization to share elements
+   with the SLUB implementation.
+ - 02/02 The SLUB Freelist randomization implementation. Similar approach
+   than the SLAB but tailored to the singled freelist used in SLUB.
+
+***Performance data:
+
+slab_test impact is between 3% to 4% on average for 100000 attemps
+wihout smp. It is a very focused testing, kernbench show the overall
+impact on the system is way lower.
+
+Before:
+
+Single thread testing
+=====================
+1. Kmalloc: Repeatedly allocate then free test
+100000 times kmalloc(8) -> 49 cycles kfree -> 77 cycles
+100000 times kmalloc(16) -> 51 cycles kfree -> 79 cycles
+100000 times kmalloc(32) -> 53 cycles kfree -> 83 cycles
+100000 times kmalloc(64) -> 62 cycles kfree -> 90 cycles
+100000 times kmalloc(128) -> 81 cycles kfree -> 97 cycles
+100000 times kmalloc(256) -> 98 cycles kfree -> 121 cycles
+100000 times kmalloc(512) -> 95 cycles kfree -> 122 cycles
+100000 times kmalloc(1024) -> 96 cycles kfree -> 126 cycles
+100000 times kmalloc(2048) -> 115 cycles kfree -> 140 cycles
+100000 times kmalloc(4096) -> 149 cycles kfree -> 171 cycles
+2. Kmalloc: alloc/free test
+100000 times kmalloc(8)/kfree -> 70 cycles
+100000 times kmalloc(16)/kfree -> 70 cycles
+100000 times kmalloc(32)/kfree -> 70 cycles
+100000 times kmalloc(64)/kfree -> 70 cycles
+100000 times kmalloc(128)/kfree -> 70 cycles
+100000 times kmalloc(256)/kfree -> 69 cycles
+100000 times kmalloc(512)/kfree -> 70 cycles
+100000 times kmalloc(1024)/kfree -> 73 cycles
+100000 times kmalloc(2048)/kfree -> 72 cycles
+100000 times kmalloc(4096)/kfree -> 71 cycles
+
+After:
+
+Single thread testing
+=====================
+1. Kmalloc: Repeatedly allocate then free test
+100000 times kmalloc(8) -> 57 cycles kfree -> 78 cycles
+100000 times kmalloc(16) -> 61 cycles kfree -> 81 cycles
+100000 times kmalloc(32) -> 76 cycles kfree -> 93 cycles
+100000 times kmalloc(64) -> 83 cycles kfree -> 94 cycles
+100000 times kmalloc(128) -> 106 cycles kfree -> 107 cycles
+100000 times kmalloc(256) -> 118 cycles kfree -> 117 cycles
+100000 times kmalloc(512) -> 114 cycles kfree -> 116 cycles
+100000 times kmalloc(1024) -> 115 cycles kfree -> 118 cycles
+100000 times kmalloc(2048) -> 147 cycles kfree -> 131 cycles
+100000 times kmalloc(4096) -> 214 cycles kfree -> 161 cycles
+2. Kmalloc: alloc/free test
+100000 times kmalloc(8)/kfree -> 66 cycles
+100000 times kmalloc(16)/kfree -> 66 cycles
+100000 times kmalloc(32)/kfree -> 66 cycles
+100000 times kmalloc(64)/kfree -> 66 cycles
+100000 times kmalloc(128)/kfree -> 65 cycles
+100000 times kmalloc(256)/kfree -> 67 cycles
+100000 times kmalloc(512)/kfree -> 67 cycles
+100000 times kmalloc(1024)/kfree -> 64 cycles
+100000 times kmalloc(2048)/kfree -> 67 cycles
+100000 times kmalloc(4096)/kfree -> 67 cycles
+
+Kernbench, before:
+
+Average Optimal load -j 12 Run (std deviation):
+Elapsed Time 101.873 (1.16069)
+User Time 1045.22 (1.60447)
+System Time 88.969 (0.559195)
+Percent CPU 1112.9 (13.8279)
+Context Switches 189140 (2282.15)
+Sleeps 99008.6 (768.091)
+
+After:
+
+Average Optimal load -j 12 Run (std deviation):
+Elapsed Time 102.47 (0.562732)
+User Time 1045.3 (1.34263)
+System Time 88.311 (0.342554)
+Percent CPU 1105.8 (6.49444)
+Context Switches 189081 (2355.78)
+Sleeps 99231.5 (800.358)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
