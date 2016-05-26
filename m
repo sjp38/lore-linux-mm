@@ -1,371 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 30D366B025F
-	for <linux-mm@kvack.org>; Thu, 26 May 2016 14:40:58 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id l14so46789845qke.2
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 11:40:58 -0700 (PDT)
-Received: from mail-yw0-x236.google.com (mail-yw0-x236.google.com. [2607:f8b0:4002:c05::236])
-        by mx.google.com with ESMTPS id 124si3128577ybc.149.2016.05.26.11.40.57
+Received: from mail-qg0-f70.google.com (mail-qg0-f70.google.com [209.85.192.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C50386B025F
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 14:50:32 -0400 (EDT)
+Received: by mail-qg0-f70.google.com with SMTP id k63so145286284qgf.2
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 11:50:32 -0700 (PDT)
+Received: from mail-yw0-x22c.google.com (mail-yw0-x22c.google.com. [2607:f8b0:4002:c05::22c])
+        by mx.google.com with ESMTPS id w70si3147833yww.392.2016.05.26.11.50.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 May 2016 11:40:57 -0700 (PDT)
-Received: by mail-yw0-x236.google.com with SMTP id h19so85122690ywc.0
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 11:40:57 -0700 (PDT)
+        Thu, 26 May 2016 11:50:32 -0700 (PDT)
+Received: by mail-yw0-x22c.google.com with SMTP id o16so85251154ywd.2
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 11:50:32 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAAmzW4PMxA-o55KnKqAW=EvPCuEprqZGwK0F2O6V9ejN-QqLsQ@mail.gmail.com>
+In-Reply-To: <20160526010951.GC9302@js1304-P5Q-DELUXE>
 References: <1464124523-43051-1-git-send-email-thgarnie@google.com>
- <1464124523-43051-3-git-send-email-thgarnie@google.com> <CAAmzW4PMxA-o55KnKqAW=EvPCuEprqZGwK0F2O6V9ejN-QqLsQ@mail.gmail.com>
+ <1464124523-43051-2-git-send-email-thgarnie@google.com> <20160526010951.GC9302@js1304-P5Q-DELUXE>
 From: Thomas Garnier <thgarnie@google.com>
-Date: Thu, 26 May 2016 11:40:56 -0700
-Message-ID: <CAJcbSZF513mzpgoiHbApr8+Rj+V+B4hwLTYCoz4GMbfuZE4msA@mail.gmail.com>
-Subject: Re: [RFC v2 2/2] mm: SLUB Freelist randomization
+Date: Thu, 26 May 2016 11:50:31 -0700
+Message-ID: <CAJcbSZHgEr-vJ=yN+hwEzdc1ZpsLG2ZLfOo53yB8sB8e5wy+NA@mail.gmail.com>
+Subject: Re: [RFC v2 1/2] mm: Reorganize SLAB freelist randomization
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Pranith Kumar <bobby.prani@gmail.com>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Woodhouse <David.Woodhouse@intel.com>, Petr Mladek <pmladek@suse.com>, Kees Cook <keescook@chromium.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Thelen <gthelen@google.com>, kernel-hardening@lists.openwall.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Pranith Kumar <bobby.prani@gmail.com>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, David Woodhouse <David.Woodhouse@intel.com>, Petr Mladek <pmladek@suse.com>, Kees Cook <keescook@chromium.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Greg Thelen <gthelen@google.com>, kernel-hardening@lists.openwall.com
 
-On Wed, May 25, 2016 at 6:49 PM, Joonsoo Kim <js1304@gmail.com> wrote:
-> 2016-05-25 6:15 GMT+09:00 Thomas Garnier <thgarnie@google.com>:
->> Implements Freelist randomization for the SLUB allocator. It was
->> previous implemented for the SLAB allocator. Both use the same
->> configuration option (CONFIG_SLAB_FREELIST_RANDOM).
->>
->> The list is randomized during initialization of a new set of pages. The
->> order on different freelist sizes is pre-computed at boot for
->> performance. Each kmem_cache has its own randomized freelist. This
->> security feature reduces the predictability of the kernel SLUB allocator
->> against heap overflows rendering attacks much less stable.
->>
->> For example these attacks exploit the predictability of the heap:
->>  - Linux Kernel CAN SLUB overflow (https://goo.gl/oMNWkU)
->>  - Exploiting Linux Kernel Heap corruptions (http://goo.gl/EXLn95)
->>
->> Performance results:
->>
->> slab_test impact is between 3% to 4% on average:
->>
->> Before:
->>
->> Single thread testing
->> =====================
->> 1. Kmalloc: Repeatedly allocate then free test
->> 100000 times kmalloc(8) -> 49 cycles kfree -> 77 cycles
->> 100000 times kmalloc(16) -> 51 cycles kfree -> 79 cycles
->> 100000 times kmalloc(32) -> 53 cycles kfree -> 83 cycles
->> 100000 times kmalloc(64) -> 62 cycles kfree -> 90 cycles
->> 100000 times kmalloc(128) -> 81 cycles kfree -> 97 cycles
->> 100000 times kmalloc(256) -> 98 cycles kfree -> 121 cycles
->> 100000 times kmalloc(512) -> 95 cycles kfree -> 122 cycles
->> 100000 times kmalloc(1024) -> 96 cycles kfree -> 126 cycles
->> 100000 times kmalloc(2048) -> 115 cycles kfree -> 140 cycles
->> 100000 times kmalloc(4096) -> 149 cycles kfree -> 171 cycles
->> 2. Kmalloc: alloc/free test
->> 100000 times kmalloc(8)/kfree -> 70 cycles
->> 100000 times kmalloc(16)/kfree -> 70 cycles
->> 100000 times kmalloc(32)/kfree -> 70 cycles
->> 100000 times kmalloc(64)/kfree -> 70 cycles
->> 100000 times kmalloc(128)/kfree -> 70 cycles
->> 100000 times kmalloc(256)/kfree -> 69 cycles
->> 100000 times kmalloc(512)/kfree -> 70 cycles
->> 100000 times kmalloc(1024)/kfree -> 73 cycles
->> 100000 times kmalloc(2048)/kfree -> 72 cycles
->> 100000 times kmalloc(4096)/kfree -> 71 cycles
->>
->> After:
->>
->> Single thread testing
->> =====================
->> 1. Kmalloc: Repeatedly allocate then free test
->> 100000 times kmalloc(8) -> 57 cycles kfree -> 78 cycles
->> 100000 times kmalloc(16) -> 61 cycles kfree -> 81 cycles
->> 100000 times kmalloc(32) -> 76 cycles kfree -> 93 cycles
->> 100000 times kmalloc(64) -> 83 cycles kfree -> 94 cycles
->> 100000 times kmalloc(128) -> 106 cycles kfree -> 107 cycles
->> 100000 times kmalloc(256) -> 118 cycles kfree -> 117 cycles
->> 100000 times kmalloc(512) -> 114 cycles kfree -> 116 cycles
->> 100000 times kmalloc(1024) -> 115 cycles kfree -> 118 cycles
->> 100000 times kmalloc(2048) -> 147 cycles kfree -> 131 cycles
->> 100000 times kmalloc(4096) -> 214 cycles kfree -> 161 cycles
->> 2. Kmalloc: alloc/free test
->> 100000 times kmalloc(8)/kfree -> 66 cycles
->> 100000 times kmalloc(16)/kfree -> 66 cycles
->> 100000 times kmalloc(32)/kfree -> 66 cycles
->> 100000 times kmalloc(64)/kfree -> 66 cycles
->> 100000 times kmalloc(128)/kfree -> 65 cycles
->> 100000 times kmalloc(256)/kfree -> 67 cycles
->> 100000 times kmalloc(512)/kfree -> 67 cycles
->> 100000 times kmalloc(1024)/kfree -> 64 cycles
->> 100000 times kmalloc(2048)/kfree -> 67 cycles
->> 100000 times kmalloc(4096)/kfree -> 67 cycles
->>
->> Kernbench, before:
->>
->> Average Optimal load -j 12 Run (std deviation):
->> Elapsed Time 101.873 (1.16069)
->> User Time 1045.22 (1.60447)
->> System Time 88.969 (0.559195)
->> Percent CPU 1112.9 (13.8279)
->> Context Switches 189140 (2282.15)
->> Sleeps 99008.6 (768.091)
->>
->> After:
->>
->> Average Optimal load -j 12 Run (std deviation):
->> Elapsed Time 102.47 (0.562732)
->> User Time 1045.3 (1.34263)
->> System Time 88.311 (0.342554)
->> Percent CPU 1105.8 (6.49444)
->> Context Switches 189081 (2355.78)
->> Sleeps 99231.5 (800.358)
+On Wed, May 25, 2016 at 6:09 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> On Tue, May 24, 2016 at 02:15:22PM -0700, Thomas Garnier wrote:
+>> This commit reorganizes the previous SLAB freelist randomization to
+>> prepare for the SLUB implementation. It moves functions that will be
+>> shared to slab_common. It also move the definition of freelist_idx_t in
+>> the slab_def header so a similar type can be used for all common
+>> functions. The entropy functions are changed to align with the SLUB
+>> implementation, now using get_random_* functions.
+>
+> Could you explain more what's the difference between get_random_*
+> and get_random_bytes_arch() and why this change is needed?
+>
+> And, I think that it should be another patch.
+>
+
+Sure. From my test (limited scenario), get_random_bytes_arch was much
+slower than get_random_int when the random instructions were not
+available. It also seems from looking at both implementation that
+get_random_int may provide a bit more entropy at this early stage.
+
 >>
 >> Signed-off-by: Thomas Garnier <thgarnie@google.com>
 >> ---
 >> Based on 0e01df100b6bf22a1de61b66657502a6454153c5
 >> ---
->>  include/linux/slub_def.h |   8 +++
->>  init/Kconfig             |   4 +-
->>  mm/slub.c                | 133 ++++++++++++++++++++++++++++++++++++++++++++---
->>  3 files changed, 136 insertions(+), 9 deletions(-)
+>>  include/linux/slab_def.h | 11 +++++++-
+>>  mm/slab.c                | 68 ++----------------------------------------------
+>>  mm/slab.h                | 16 ++++++++++++
+>>  mm/slab_common.c         | 48 ++++++++++++++++++++++++++++++++++
+>>  4 files changed, 76 insertions(+), 67 deletions(-)
 >>
->> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
->> index 665cd0c..22d487e 100644
->> --- a/include/linux/slub_def.h
->> +++ b/include/linux/slub_def.h
->> @@ -56,6 +56,9 @@ struct kmem_cache_order_objects {
->>         unsigned long x;
->>  };
+>> diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
+>> index 8694f7a..e05a871 100644
+>> --- a/include/linux/slab_def.h
+>> +++ b/include/linux/slab_def.h
+>> @@ -3,6 +3,15 @@
 >>
->> +/* Index used for freelist randomization */
->> +typedef unsigned int freelist_idx_t;
+>>  #include <linux/reciprocal_div.h>
+>>
+>> +#define FREELIST_BYTE_INDEX (((PAGE_SIZE >> BITS_PER_BYTE) \
+>> +                             <= SLAB_OBJ_MIN_SIZE) ? 1 : 0)
 >> +
->>  /*
->>   * Slab cache management.
->>   */
->> @@ -99,6 +102,11 @@ struct kmem_cache {
->>          */
->>         int remote_node_defrag_ratio;
->>  #endif
->> +
->> +#ifdef CONFIG_SLAB_FREELIST_RANDOM
->> +       freelist_idx_t *random_seq;
+>> +#if FREELIST_BYTE_INDEX
+>> +typedef unsigned char freelist_idx_t;
+>> +#else
+>> +typedef unsigned short freelist_idx_t;
 >> +#endif
 >> +
->>         struct kmem_cache_node *node[MAX_NUMNODES];
->>  };
->>
->> diff --git a/init/Kconfig b/init/Kconfig
->> index a9c4aefd..fbb6678 100644
->> --- a/init/Kconfig
->> +++ b/init/Kconfig
->> @@ -1771,10 +1771,10 @@ endchoice
->>
->>  config SLAB_FREELIST_RANDOM
->>         default n
->> -       depends on SLAB
->> +       depends on SLAB || SLUB
->>         bool "SLAB freelist randomization"
->>         help
->> -         Randomizes the freelist order used on creating new SLABs. This
->> +         Randomizes the freelist order used on creating new pages. This
->>           security feature reduces the predictability of the kernel slab
->>           allocator against heap overflows.
->>
->> diff --git a/mm/slub.c b/mm/slub.c
->> index 825ff45..217aa8a 100644
->> --- a/mm/slub.c
->> +++ b/mm/slub.c
->> @@ -1405,6 +1405,109 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
->>         return page;
->>  }
->>
->> +#ifdef CONFIG_SLAB_FREELIST_RANDOM
->> +/* Pre-initialize the random sequence cache */
->> +static int init_cache_random_seq(struct kmem_cache *s)
->> +{
->> +       int err;
->> +       unsigned long i, count = oo_objects(s->oo);
->> +
->> +       err = cache_random_seq_create(s, count, GFP_KERNEL);
->> +       if (err) {
->> +               pr_err("SLUB: Unable to initialize free list for %s\n",
->> +                       s->name);
->> +               return err;
->> +       }
->> +
->> +       /* Transform to an offset on the set of pages */
->> +       if (s->random_seq) {
->> +               for (i = 0; i < count; i++)
->> +                       s->random_seq[i] *= s->size;
->> +       }
->> +       return 0;
->> +}
->> +
->> +/* Initialize each random sequence freelist per cache */
->> +static void __init init_freelist_randomization(void)
->> +{
->> +       struct kmem_cache *s;
->> +
->> +       mutex_lock(&slab_mutex);
->> +
->> +       list_for_each_entry(s, &slab_caches, list)
->> +               init_cache_random_seq(s);
->> +
->> +       mutex_unlock(&slab_mutex);
->> +}
->> +
->> +/* Get the next entry on the pre-computed freelist randomized */
->> +static void *next_freelist_entry(struct kmem_cache *s, struct page *page,
->> +                               unsigned long *pos, void *start,
->> +                               unsigned long page_limit,
->> +                               unsigned long freelist_count)
->> +{
->> +       freelist_idx_t idx;
->> +
->> +       /*
->> +        * If the target page allocation failed, the number of objects on the
->> +        * page might be smaller than the usual size defined by the cache.
->> +        */
->> +       do {
->> +               idx = s->random_seq[*pos];
->> +               *pos += 1;
->> +               if (*pos >= freelist_count)
->> +                       *pos = 0;
->> +       } while (unlikely(idx >= page_limit));
->> +
->> +       return (char *)start + idx;
->> +}
->> +
->> +/* Shuffle the single linked freelist based on a random pre-computed sequence */
->> +static bool shuffle_freelist(struct kmem_cache *s, struct page *page)
->> +{
->> +       void *start;
->> +       void *cur;
->> +       void *next;
->> +       unsigned long idx, pos, page_limit, freelist_count;
->> +
->> +       if (page->objects < 2 || !s->random_seq)
->> +               return false;
->> +
->> +       freelist_count = oo_objects(s->oo);
->> +       pos = get_random_int() % freelist_count;
->> +
->> +       page_limit = page->objects * s->size;
->> +       start = fixup_red_left(s, page_address(page));
->> +
->> +       /* First entry is used as the base of the freelist */
->> +       cur = next_freelist_entry(s, page, &pos, start, page_limit,
->> +                               freelist_count);
->> +       page->freelist = cur;
->> +
->> +       for (idx = 1; idx < page->objects; idx++) {
->> +               setup_object(s, page, cur);
->> +               next = next_freelist_entry(s, page, &pos, start, page_limit,
->> +                       freelist_count);
->> +               set_freepointer(s, cur, next);
->> +               cur = next;
->> +       }
->> +       setup_object(s, page, cur);
->> +       set_freepointer(s, cur, NULL);
->> +
->> +       return true;
->> +}
->> +#else
->> +static inline int init_cache_random_seq(struct kmem_cache *s)
->> +{
->> +       return 0;
->> +}
->> +static inline void init_freelist_randomization(void) { }
->> +static inline bool shuffle_freelist(struct kmem_cache *s, struct page *page)
->> +{
->> +       return false;
->> +}
->> +#endif /* CONFIG_SLAB_FREELIST_RANDOM */
->> +
->>  static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
->>  {
->>         struct page *page;
->> @@ -1412,6 +1515,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
->>         gfp_t alloc_gfp;
->>         void *start, *p;
->>         int idx, order;
->> +       bool shuffle;
->>
->>         flags &= gfp_allowed_mask;
->>
->> @@ -1473,15 +1577,19 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
->>
->>         kasan_poison_slab(page);
->>
->> -       for_each_object_idx(p, idx, s, start, page->objects) {
->> -               setup_object(s, page, p);
->> -               if (likely(idx < page->objects))
->> -                       set_freepointer(s, p, p + s->size);
->> -               else
->> -                       set_freepointer(s, p, NULL);
->> +       shuffle = shuffle_freelist(s, page);
->> +
->> +       if (!shuffle) {
->> +               for_each_object_idx(p, idx, s, start, page->objects) {
->> +                       setup_object(s, page, p);
->> +                       if (likely(idx < page->objects))
->> +                               set_freepointer(s, p, p + s->size);
->> +                       else
->> +                               set_freepointer(s, p, NULL);
->> +               }
->> +               page->freelist = fixup_red_left(s, start);
->>         }
->>
->> -       page->freelist = fixup_red_left(s, start);
->>         page->inuse = page->objects;
->>         page->frozen = 1;
->>
->> @@ -3207,6 +3315,7 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
->>
->>  void __kmem_cache_release(struct kmem_cache *s)
->>  {
->> +       cache_random_seq_destroy(s);
->>         free_percpu(s->cpu_slab);
->>         free_kmem_cache_nodes(s);
->>  }
->> @@ -3431,6 +3540,13 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
->>  #ifdef CONFIG_NUMA
->>         s->remote_node_defrag_ratio = 1000;
->>  #endif
->> +
->> +       /* Initialize the pre-computed randomized freelist if slab is up */
->> +       if (slab_state >= UP) {
->> +               if (init_cache_random_seq(s))
->> +                       goto error;
->> +       }
->> +
->>         if (!init_kmem_cache_nodes(s))
->>                 goto error;
->>
->> @@ -3947,6 +4063,9 @@ void __init kmem_cache_init(void)
->>         setup_kmalloc_cache_index_table();
->>         create_kmalloc_caches(0);
->>
->> +       /* Setup random freelists for each cache */
->> +       init_freelist_randomization();
 >
-> dma kmalloc caches are initialized with slab_state = UP.
-> That means that it's random_seq is initialized twice and
-> some memory would leak.
->
-> Maybe, you need to check if random_seq is already initialized
-> or not in init_cache_randome_seq().
-
-Thanks, I will look into that.
-
+> This is a SLAB specific index size definition and I don't want to export
+> it to SLUB. Please use 'void *random_seq' and allocate sizeof(void *)
+> memory for each entry. And, then do type casting when suffling in
+> SLAB. There is some memory waste but not that much so we can tolerate
+> it.
 >
 > Others look fine to me.
 >
 
-Thanks, I will move to PATCH on next iteration (based on linux-next
-related to the other thread).
+Ok, will do. Thanks.
 
 > Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
