@@ -1,154 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E670F6B025F
-	for <linux-mm@kvack.org>; Wed, 25 May 2016 22:38:19 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id gw7so92577180pac.0
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 19:38:19 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id a145si3033446pfa.80.2016.05.25.19.38.18
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 May 2016 19:38:19 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id f144so447585pfa.2
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 19:38:18 -0700 (PDT)
-From: js1304@gmail.com
-Subject: [PATCH v2 7/7] mm/page_alloc: introduce post allocation processing on page allocator
-Date: Thu, 26 May 2016 11:37:55 +0900
-Message-Id: <1464230275-25791-7-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EFCBB6B007E
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 00:37:02 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id fs8so96582999obb.2
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 21:37:02 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id 103si15545162iom.30.2016.05.25.21.37.01
+        for <linux-mm@kvack.org>;
+        Wed, 25 May 2016 21:37:02 -0700 (PDT)
+Date: Thu, 26 May 2016 13:37:16 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v6 11/12] zsmalloc: page migration support
+Message-ID: <20160526043716.GE9661@bbox>
+References: <1463754225-31311-1-git-send-email-minchan@kernel.org>
+ <1463754225-31311-12-git-send-email-minchan@kernel.org>
+ <20160524052824.GA496@swordfish>
+ <20160524062801.GB29094@bbox>
+ <20160525051438.GA14786@bbox>
+ <20160525152345.GA515@swordfish>
+ <20160526003241.GA9661@bbox>
+ <20160526005926.GA532@swordfish>
+MIME-Version: 1.0
+In-Reply-To: <20160526005926.GA532@swordfish>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Thu, May 26, 2016 at 09:59:26AM +0900, Sergey Senozhatsky wrote:
+<snip>
+> btw, I've uploaded zram-fio test script to
+>  https://github.com/sergey-senozhatsky/zram-perf-test
+> 
+> it's very minimalistic and half baked, but can be used
+> to some degree. open to patches, improvements, etc.
 
-This patch is motivated from Hugh and Vlastimil's concern [1].
+Awesome!
+Let's enhance it as zram benchmark tool.
+Maybe I will help something. :)
 
-There are two ways to get freepage from the allocator. One is using
-normal memory allocation API and the other is __isolate_free_page() which
-is internally used for compaction and pageblock isolation. Later usage is
-rather tricky since it doesn't do whole post allocation processing
-done by normal API.
-
-One problematic thing I already know is that poisoned page would not be
-checked if it is allocated by __isolate_free_page(). Perhaps, there would
-be more.
-
-We could add more debug logic for allocated page in the future and this
-separation would cause more problem. I'd like to fix this situation
-at this time. Solution is simple. This patch commonize some logic
-for newly allocated page and uses it on all sites. This will solve
-the problem.
-
-[1] http://marc.info/?i=alpine.LSU.2.11.1604270029350.7066%40eggly.anvils%3E
-
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/compaction.c     |  8 +-------
- mm/internal.h       |  2 ++
- mm/page_alloc.c     | 22 +++++++++++++---------
- mm/page_isolation.c |  4 +---
- 4 files changed, 17 insertions(+), 19 deletions(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 6043ef8..e15d350 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -75,14 +75,8 @@ static void map_pages(struct list_head *list)
- 
- 		order = page_private(page);
- 		nr_pages = 1 << order;
--		set_page_private(page, 0);
--		set_page_refcounted(page);
- 
--		arch_alloc_page(page, order);
--		kernel_map_pages(page, nr_pages, 1);
--		kasan_alloc_pages(page, order);
--
--		set_page_owner(page, order, __GFP_MOVABLE);
-+		post_alloc_hook(page, order, __GFP_MOVABLE);
- 		if (order)
- 			split_page(page, order);
- 
-diff --git a/mm/internal.h b/mm/internal.h
-index b6ead95..420bbe3 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -153,6 +153,8 @@ extern int __isolate_free_page(struct page *page, unsigned int order);
- extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
- 					unsigned int order);
- extern void prep_compound_page(struct page *page, unsigned int order);
-+extern void post_alloc_hook(struct page *page, unsigned int order,
-+					gfp_t gfp_flags);
- extern int user_min_free_kbytes;
- 
- #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 616ada9..baa5999 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1722,6 +1722,18 @@ static bool check_new_pages(struct page *page, unsigned int order)
- 	return false;
- }
- 
-+void post_alloc_hook(struct page *page, unsigned int order, gfp_t gfp_flags)
-+{
-+	set_page_private(page, 0);
-+	set_page_refcounted(page);
-+
-+	arch_alloc_page(page, order);
-+	kernel_map_pages(page, 1 << order, 1);
-+	kernel_poison_pages(page, 1 << order, 1);
-+	kasan_alloc_pages(page, order);
-+	set_page_owner(page, order, gfp_flags);
-+}
-+
- static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
- 							unsigned int alloc_flags)
- {
-@@ -1734,13 +1746,7 @@ static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags
- 			poisoned &= page_is_poisoned(p);
- 	}
- 
--	set_page_private(page, 0);
--	set_page_refcounted(page);
--
--	arch_alloc_page(page, order);
--	kernel_map_pages(page, 1 << order, 1);
--	kernel_poison_pages(page, 1 << order, 1);
--	kasan_alloc_pages(page, order);
-+	post_alloc_hook(page, order, gfp_flags);
- 
- 	if (!free_pages_prezeroed(poisoned) && (gfp_flags & __GFP_ZERO))
- 		for (i = 0; i < (1 << order); i++)
-@@ -1749,8 +1755,6 @@ static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags
- 	if (order && (gfp_flags & __GFP_COMP))
- 		prep_compound_page(page, order);
- 
--	set_page_owner(page, order, gfp_flags);
--
- 	/*
- 	 * page is set pfmemalloc when ALLOC_NO_WATERMARKS was necessary to
- 	 * allocate the page. The expectation is that the caller is taking
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 927f5ee..4639163 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -128,9 +128,7 @@ static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
- out:
- 	spin_unlock_irqrestore(&zone->lock, flags);
- 	if (isolated_page) {
--		kernel_map_pages(page, (1 << order), 1);
--		set_page_refcounted(page);
--		set_page_owner(page, order, __GFP_MOVABLE);
-+		post_alloc_hook(page, order, __GFP_MOVABLE);
- 		__free_pages(isolated_page, order);
- 	}
- }
--- 
-1.9.1
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
