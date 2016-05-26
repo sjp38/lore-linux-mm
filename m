@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 250936B025F
-	for <linux-mm@kvack.org>; Wed, 25 May 2016 22:38:17 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c84so18162158pfc.3
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 19:38:17 -0700 (PDT)
-Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
-        by mx.google.com with ESMTPS id f63si3012214pfb.141.2016.05.25.19.38.15
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E670F6B025F
+	for <linux-mm@kvack.org>; Wed, 25 May 2016 22:38:19 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id gw7so92577180pac.0
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 19:38:19 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id a145si3033446pfa.80.2016.05.25.19.38.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 May 2016 19:38:15 -0700 (PDT)
-Received: by mail-pa0-x241.google.com with SMTP id gp3so455614pac.2
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 19:38:15 -0700 (PDT)
+        Wed, 25 May 2016 19:38:19 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id f144so447585pfa.2
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 19:38:18 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH v2 6/7] mm/page_owner: use stackdepot to store stacktrace
-Date: Thu, 26 May 2016 11:37:54 +0900
-Message-Id: <1464230275-25791-6-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 7/7] mm/page_alloc: introduce post allocation processing on page allocator
+Date: Thu, 26 May 2016 11:37:55 +0900
+Message-Id: <1464230275-25791-7-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,346 +24,129 @@ Cc: Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Currently, we store each page's allocation stacktrace on corresponding
-page_ext structure and it requires a lot of memory. This causes the problem
-that memory tight system doesn't work well if page_owner is enabled.
-Moreover, even with this large memory consumption, we cannot get full
-stacktrace because we allocate memory at boot time and just maintain
-8 stacktrace slots to balance memory consumption. We could increase it
-to more but it would make system unusable or change system behaviour.
+This patch is motivated from Hugh and Vlastimil's concern [1].
 
-To solve the problem, this patch uses stackdepot to store stacktrace.
-It obviously provides memory saving but there is a drawback that
-stackdepot could fail.
+There are two ways to get freepage from the allocator. One is using
+normal memory allocation API and the other is __isolate_free_page() which
+is internally used for compaction and pageblock isolation. Later usage is
+rather tricky since it doesn't do whole post allocation processing
+done by normal API.
 
-stackdepot allocates memory at runtime so it could fail if system has
-not enough memory. But, most of allocation stack are generated at very
-early time and there are much memory at this time. So, failure would not
-happen easily. And, one failure means that we miss just one page's
-allocation stacktrace so it would not be a big problem. In this patch,
-when memory allocation failure happens, we store special stracktrace
-handle to the page that is failed to save stacktrace. With it, user
-can guess memory usage properly even if failure happens.
+One problematic thing I already know is that poisoned page would not be
+checked if it is allocated by __isolate_free_page(). Perhaps, there would
+be more.
 
-Memory saving looks as following. (4GB memory system with page_owner)
+We could add more debug logic for allocated page in the future and this
+separation would cause more problem. I'd like to fix this situation
+at this time. Solution is simple. This patch commonize some logic
+for newly allocated page and uses it on all sites. This will solve
+the problem.
 
-static allocation:
-92274688 bytes -> 25165824 bytes
-
-dynamic allocation after kernel build:
-0 bytes -> 327680 bytes
-
-total:
-92274688 bytes -> 25493504 bytes
-
-72% reduction in total.
-
-Note that implementation looks complex than someone would imagine because
-there is recursion issue. stackdepot uses page allocator and page_owner
-is called at page allocation. Using stackdepot in page_owner could re-call
-page allcator and then page_owner. That is a recursion. To detect and
-avoid it, whenever we obtain stacktrace, recursion is checked and
-page_owner is set to dummy information if found. Dummy information means
-that this page is allocated for page_owner feature itself
-(such as stackdepot) and it's understandable behavior for user.
-
-v2:
-o calculate memory saving with including dynamic allocation
-after kernel build
-o change maximum stacktrace entry size due to possible stack overflow
+[1] http://marc.info/?i=alpine.LSU.2.11.1604270029350.7066%40eggly.anvils%3E
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/page_ext.h |   4 +-
- lib/Kconfig.debug        |   1 +
- mm/page_owner.c          | 138 ++++++++++++++++++++++++++++++++++++++++-------
- 3 files changed, 122 insertions(+), 21 deletions(-)
+ mm/compaction.c     |  8 +-------
+ mm/internal.h       |  2 ++
+ mm/page_alloc.c     | 22 +++++++++++++---------
+ mm/page_isolation.c |  4 +---
+ 4 files changed, 17 insertions(+), 19 deletions(-)
 
-diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
-index e1fe7cf..03f2a3e 100644
---- a/include/linux/page_ext.h
-+++ b/include/linux/page_ext.h
-@@ -3,6 +3,7 @@
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 6043ef8..e15d350 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -75,14 +75,8 @@ static void map_pages(struct list_head *list)
  
- #include <linux/types.h>
- #include <linux/stacktrace.h>
-+#include <linux/stackdepot.h>
+ 		order = page_private(page);
+ 		nr_pages = 1 << order;
+-		set_page_private(page, 0);
+-		set_page_refcounted(page);
  
- struct pglist_data;
- struct page_ext_operations {
-@@ -44,9 +45,8 @@ struct page_ext {
- #ifdef CONFIG_PAGE_OWNER
- 	unsigned int order;
- 	gfp_t gfp_mask;
--	unsigned int nr_entries;
- 	int last_migrate_reason;
--	unsigned long trace_entries[8];
-+	depot_stack_handle_t handle;
- #endif
- };
+-		arch_alloc_page(page, order);
+-		kernel_map_pages(page, nr_pages, 1);
+-		kasan_alloc_pages(page, order);
+-
+-		set_page_owner(page, order, __GFP_MOVABLE);
++		post_alloc_hook(page, order, __GFP_MOVABLE);
+ 		if (order)
+ 			split_page(page, order);
  
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 930bf8e..fc37c66 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -248,6 +248,7 @@ config PAGE_OWNER
- 	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
- 	select DEBUG_FS
- 	select STACKTRACE
-+	select STACKDEPOT
- 	select PAGE_EXTENSION
- 	help
- 	  This keeps track of what call chain is the owner of a page, may
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 499ad26..587dcca 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -7,11 +7,18 @@
- #include <linux/page_owner.h>
- #include <linux/jump_label.h>
- #include <linux/migrate.h>
-+#include <linux/stackdepot.h>
-+
- #include "internal.h"
+diff --git a/mm/internal.h b/mm/internal.h
+index b6ead95..420bbe3 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -153,6 +153,8 @@ extern int __isolate_free_page(struct page *page, unsigned int order);
+ extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
+ 					unsigned int order);
+ extern void prep_compound_page(struct page *page, unsigned int order);
++extern void post_alloc_hook(struct page *page, unsigned int order,
++					gfp_t gfp_flags);
+ extern int user_min_free_kbytes;
  
-+#define PAGE_OWNER_STACK_DEPTH (16)
-+
- static bool page_owner_disabled = true;
- DEFINE_STATIC_KEY_FALSE(page_owner_inited);
- 
-+static depot_stack_handle_t dummy_handle;
-+static depot_stack_handle_t failure_handle;
-+
- static void init_early_allocated_pages(void);
- 
- static int early_page_owner_param(char *buf)
-@@ -34,11 +41,41 @@ static bool need_page_owner(void)
- 	return true;
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 616ada9..baa5999 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1722,6 +1722,18 @@ static bool check_new_pages(struct page *page, unsigned int order)
+ 	return false;
  }
  
-+static noinline void register_dummy_stack(void)
++void post_alloc_hook(struct page *page, unsigned int order, gfp_t gfp_flags)
 +{
-+	unsigned long entries[4];
-+	struct stack_trace dummy;
++	set_page_private(page, 0);
++	set_page_refcounted(page);
 +
-+	dummy.nr_entries = 0;
-+	dummy.max_entries = ARRAY_SIZE(entries);
-+	dummy.entries = &entries[0];
-+	dummy.skip = 0;
-+
-+	save_stack_trace(&dummy);
-+	dummy_handle = depot_save_stack(&dummy, GFP_KERNEL);
++	arch_alloc_page(page, order);
++	kernel_map_pages(page, 1 << order, 1);
++	kernel_poison_pages(page, 1 << order, 1);
++	kasan_alloc_pages(page, order);
++	set_page_owner(page, order, gfp_flags);
 +}
 +
-+static noinline void register_failure_stack(void)
-+{
-+	unsigned long entries[4];
-+	struct stack_trace failure;
-+
-+	failure.nr_entries = 0;
-+	failure.max_entries = ARRAY_SIZE(entries);
-+	failure.entries = &entries[0];
-+	failure.skip = 0;
-+
-+	save_stack_trace(&failure);
-+	failure_handle = depot_save_stack(&failure, GFP_KERNEL);
-+}
-+
- static void init_page_owner(void)
+ static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+ 							unsigned int alloc_flags)
  {
- 	if (page_owner_disabled)
- 		return;
- 
-+	register_dummy_stack();
-+	register_failure_stack();
- 	static_branch_enable(&page_owner_inited);
- 	init_early_allocated_pages();
- }
-@@ -61,25 +98,66 @@ void __reset_page_owner(struct page *page, unsigned int order)
+@@ -1734,13 +1746,7 @@ static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags
+ 			poisoned &= page_is_poisoned(p);
  	}
- }
  
--void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
-+static inline bool check_recursive_alloc(struct stack_trace *trace,
-+					unsigned long ip)
- {
--	struct page_ext *page_ext = lookup_page_ext(page);
-+	int i, count;
-+
-+	if (!trace->nr_entries)
-+		return false;
-+
-+	for (i = 0, count = 0; i < trace->nr_entries; i++) {
-+		if (trace->entries[i] == ip && ++count == 2)
-+			return true;
-+	}
- 
-+	return false;
-+}
-+
-+static noinline depot_stack_handle_t save_stack(gfp_t flags)
-+{
-+	unsigned long entries[PAGE_OWNER_STACK_DEPTH];
- 	struct stack_trace trace = {
- 		.nr_entries = 0,
--		.max_entries = ARRAY_SIZE(page_ext->trace_entries),
--		.entries = &page_ext->trace_entries[0],
--		.skip = 3,
-+		.entries = entries,
-+		.max_entries = PAGE_OWNER_STACK_DEPTH,
-+		.skip = 0
- 	};
-+	depot_stack_handle_t handle;
-+
-+	save_stack_trace(&trace);
-+	if (trace.nr_entries != 0 &&
-+	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
-+		trace.nr_entries--;
-+
-+	/*
-+	 * We need to check recursion here because our request to stackdepot
-+	 * could trigger memory allocation to save new entry. New memory
-+	 * allocation would reach here and call depot_save_stack() again
-+	 * if we don't catch it. There is still not enough memory in stackdepot
-+	 * so it would try to allocate memory again and loop forever.
-+	 */
-+	if (check_recursive_alloc(&trace, _RET_IP_))
-+		return dummy_handle;
-+
-+	handle = depot_save_stack(&trace, flags);
-+	if (!handle)
-+		handle = failure_handle;
-+
-+	return handle;
-+}
-+
-+noinline void __set_page_owner(struct page *page, unsigned int order,
-+					gfp_t gfp_mask)
-+{
-+	struct page_ext *page_ext = lookup_page_ext(page);
- 
- 	if (unlikely(!page_ext))
- 		return;
- 
--	save_stack_trace(&trace);
+-	set_page_private(page, 0);
+-	set_page_refcounted(page);
 -
-+	page_ext->handle = save_stack(gfp_mask);
- 	page_ext->order = order;
- 	page_ext->gfp_mask = gfp_mask;
--	page_ext->nr_entries = trace.nr_entries;
- 	page_ext->last_migrate_reason = -1;
+-	arch_alloc_page(page, order);
+-	kernel_map_pages(page, 1 << order, 1);
+-	kernel_poison_pages(page, 1 << order, 1);
+-	kasan_alloc_pages(page, order);
++	post_alloc_hook(page, order, gfp_flags);
  
- 	__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
-@@ -111,7 +189,6 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
- {
- 	struct page_ext *old_ext = lookup_page_ext(oldpage);
- 	struct page_ext *new_ext = lookup_page_ext(newpage);
--	int i;
+ 	if (!free_pages_prezeroed(poisoned) && (gfp_flags & __GFP_ZERO))
+ 		for (i = 0; i < (1 << order); i++)
+@@ -1749,8 +1755,6 @@ static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags
+ 	if (order && (gfp_flags & __GFP_COMP))
+ 		prep_compound_page(page, order);
  
- 	if (unlikely(!old_ext || !new_ext))
- 		return;
-@@ -119,10 +196,7 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
- 	new_ext->order = old_ext->order;
- 	new_ext->gfp_mask = old_ext->gfp_mask;
- 	new_ext->last_migrate_reason = old_ext->last_migrate_reason;
--	new_ext->nr_entries = old_ext->nr_entries;
+-	set_page_owner(page, order, gfp_flags);
 -
--	for (i = 0; i < ARRAY_SIZE(new_ext->trace_entries); i++)
--		new_ext->trace_entries[i] = old_ext->trace_entries[i];
-+	new_ext->handle = old_ext->handle;
- 
  	/*
- 	 * We don't clear the bit on the oldpage as it's going to be freed
-@@ -138,14 +212,18 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
- 
- static ssize_t
- print_page_owner(char __user *buf, size_t count, unsigned long pfn,
--		struct page *page, struct page_ext *page_ext)
-+		struct page *page, struct page_ext *page_ext,
-+		depot_stack_handle_t handle)
- {
- 	int ret;
- 	int pageblock_mt, page_mt;
- 	char *kbuf;
-+	unsigned long entries[PAGE_OWNER_STACK_DEPTH];
- 	struct stack_trace trace = {
--		.nr_entries = page_ext->nr_entries,
--		.entries = &page_ext->trace_entries[0],
-+		.nr_entries = 0,
-+		.entries = entries,
-+		.max_entries = PAGE_OWNER_STACK_DEPTH,
-+		.skip = 0
- 	};
- 
- 	kbuf = kmalloc(count, GFP_KERNEL);
-@@ -174,6 +252,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
- 	if (ret >= count)
- 		goto err;
- 
-+	depot_fetch_stack(handle, &trace);
- 	ret += snprint_stack_trace(kbuf + ret, count - ret, &trace, 0);
- 	if (ret >= count)
- 		goto err;
-@@ -204,10 +283,14 @@ err:
- void __dump_page_owner(struct page *page)
- {
- 	struct page_ext *page_ext = lookup_page_ext(page);
-+	unsigned long entries[PAGE_OWNER_STACK_DEPTH];
- 	struct stack_trace trace = {
--		.nr_entries = page_ext->nr_entries,
--		.entries = &page_ext->trace_entries[0],
-+		.nr_entries = 0,
-+		.entries = entries,
-+		.max_entries = PAGE_OWNER_STACK_DEPTH,
-+		.skip = 0
- 	};
-+	depot_stack_handle_t handle;
- 	gfp_t gfp_mask = page_ext->gfp_mask;
- 	int mt = gfpflags_to_migratetype(gfp_mask);
- 
-@@ -221,6 +304,13 @@ void __dump_page_owner(struct page *page)
- 		return;
+ 	 * page is set pfmemalloc when ALLOC_NO_WATERMARKS was necessary to
+ 	 * allocate the page. The expectation is that the caller is taking
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 927f5ee..4639163 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -128,9 +128,7 @@ static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+ out:
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ 	if (isolated_page) {
+-		kernel_map_pages(page, (1 << order), 1);
+-		set_page_refcounted(page);
+-		set_page_owner(page, order, __GFP_MOVABLE);
++		post_alloc_hook(page, order, __GFP_MOVABLE);
+ 		__free_pages(isolated_page, order);
  	}
- 
-+	handle = READ_ONCE(page_ext->handle);
-+	if (!handle) {
-+		pr_alert("page_owner info is not active (free page?)\n");
-+		return;
-+	}
-+
-+	depot_fetch_stack(handle, &trace);
- 	pr_alert("page allocated via order %u, migratetype %s, gfp_mask %#x(%pGg)\n",
- 		 page_ext->order, migratetype_names[mt], gfp_mask, &gfp_mask);
- 	print_stack_trace(&trace, 0);
-@@ -236,6 +326,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
- 	unsigned long pfn;
- 	struct page *page;
- 	struct page_ext *page_ext;
-+	depot_stack_handle_t handle;
- 
- 	if (!static_branch_unlikely(&page_owner_inited))
- 		return -EINVAL;
-@@ -284,10 +375,19 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
- 		if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
- 			continue;
- 
-+		/*
-+		 * Access to page_ext->handle isn't synchronous so we should
-+		 * be careful to access it.
-+		 */
-+		handle = READ_ONCE(page_ext->handle);
-+		if (!handle)
-+			continue;
-+
- 		/* Record the next PFN to read in the file offset */
- 		*ppos = (pfn - min_low_pfn) + 1;
- 
--		return print_page_owner(buf, count, pfn, page, page_ext);
-+		return print_page_owner(buf, count, pfn, page,
-+				page_ext, handle);
- 	}
- 
- 	return 0;
+ }
 -- 
 1.9.1
 
