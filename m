@@ -1,47 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EFCBB6B007E
-	for <linux-mm@kvack.org>; Thu, 26 May 2016 00:37:02 -0400 (EDT)
-Received: by mail-ob0-f198.google.com with SMTP id fs8so96582999obb.2
-        for <linux-mm@kvack.org>; Wed, 25 May 2016 21:37:02 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id 103si15545162iom.30.2016.05.25.21.37.01
-        for <linux-mm@kvack.org>;
-        Wed, 25 May 2016 21:37:02 -0700 (PDT)
-Date: Thu, 26 May 2016 13:37:16 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v6 11/12] zsmalloc: page migration support
-Message-ID: <20160526043716.GE9661@bbox>
-References: <1463754225-31311-1-git-send-email-minchan@kernel.org>
- <1463754225-31311-12-git-send-email-minchan@kernel.org>
- <20160524052824.GA496@swordfish>
- <20160524062801.GB29094@bbox>
- <20160525051438.GA14786@bbox>
- <20160525152345.GA515@swordfish>
- <20160526003241.GA9661@bbox>
- <20160526005926.GA532@swordfish>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CC2F6B007E
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 01:07:55 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id a143so108157296oii.2
+        for <linux-mm@kvack.org>; Wed, 25 May 2016 22:07:55 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id w191si2596310ita.11.2016.05.25.22.07.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 May 2016 22:07:53 -0700 (PDT)
+Date: Thu, 26 May 2016 15:07:48 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: [PATCH] mm/cma: silence warnings due to max() usage
+Message-ID: <20160526150748.5be38a4f@canb.auug.org.au>
 MIME-Version: 1.0
-In-Reply-To: <20160526005926.GA532@swordfish>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 26, 2016 at 09:59:26AM +0900, Sergey Senozhatsky wrote:
-<snip>
-> btw, I've uploaded zram-fio test script to
->  https://github.com/sergey-senozhatsky/zram-perf-test
-> 
-> it's very minimalistic and half baked, but can be used
-> to some degree. open to patches, improvements, etc.
+pageblock_order can be (at least) an unsigned int or an unsigned long
+depending on the kernel config and architecture, so use max_t(unsigned
+long, ...) when comparing it.
 
-Awesome!
-Let's enhance it as zram benchmark tool.
-Maybe I will help something. :)
+fixes these warnings:
 
-Thanks.
+In file included from include/asm-generic/bug.h:13:0,
+                 from arch/powerpc/include/asm/bug.h:127,
+                 from include/linux/bug.h:4,
+                 from include/linux/mmdebug.h:4,
+                 from include/linux/mm.h:8,
+                 from include/linux/memblock.h:18,
+                 from mm/cma.c:28:
+mm/cma.c: In function 'cma_init_reserved_mem':
+include/linux/kernel.h:748:17: warning: comparison of distinct pointer types lacks a cast
+  (void) (&_max1 == &_max2);  \
+                 ^
+mm/cma.c:186:27: note: in expansion of macro 'max'
+  alignment = PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
+                           ^
+mm/cma.c: In function 'cma_declare_contiguous':
+include/linux/kernel.h:748:17: warning: comparison of distinct pointer types lacks a cast
+  (void) (&_max1 == &_max2);  \
+                 ^
+include/linux/kernel.h:747:9: note: in definition of macro 'max'
+  typeof(y) _max2 = (y);   \
+         ^
+mm/cma.c:270:29: note: in expansion of macro 'max'
+   (phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order));
+                             ^
+include/linux/kernel.h:748:17: warning: comparison of distinct pointer types lacks a cast
+  (void) (&_max1 == &_max2);  \
+                 ^
+include/linux/kernel.h:747:21: note: in definition of macro 'max'
+  typeof(y) _max2 = (y);   \
+                     ^
+mm/cma.c:270:29: note: in expansion of macro 'max'
+   (phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order));
+                             ^
+
+Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
+---
+ mm/cma.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+These warnings have been irking me for some time now ... applies to
+Linus' tree and linux-next (and so to the mmotm tree).
+
+diff --git a/mm/cma.c b/mm/cma.c
+index ea506eb18cd6..fa823dc2ff15 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -183,7 +183,7 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
+ 		return -EINVAL;
+ 
+ 	/* ensure minimal alignment required by mm core */
+-	alignment = PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
++	alignment = PAGE_SIZE << max_t(unsigned long, MAX_ORDER - 1, pageblock_order);
+ 
+ 	/* alignment should be aligned with order_per_bit */
+ 	if (!IS_ALIGNED(alignment >> PAGE_SHIFT, 1 << order_per_bit))
+@@ -267,7 +267,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
+ 	 * you couldn't get a contiguous memory, which is not what we want.
+ 	 */
+ 	alignment = max(alignment,
+-		(phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order));
++		(phys_addr_t)PAGE_SIZE << max_t(unsigned long, MAX_ORDER - 1, pageblock_order));
+ 	base = ALIGN(base, alignment);
+ 	size = ALIGN(size, alignment);
+ 	limit &= ~(alignment - 1);
+-- 
+2.8.1
+
+
+
+-- 
+Cheers,
+Stephen Rothwell
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
