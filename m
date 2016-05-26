@@ -1,69 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 71D316B0253
-	for <linux-mm@kvack.org>; Thu, 26 May 2016 15:21:57 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id o14so33634996qke.3
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 12:21:57 -0700 (PDT)
-Received: from mail-yw0-x233.google.com (mail-yw0-x233.google.com. [2607:f8b0:4002:c05::233])
-        by mx.google.com with ESMTPS id h4si8639046ybb.133.2016.05.26.12.21.56
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A95FC6B0253
+	for <linux-mm@kvack.org>; Thu, 26 May 2016 16:30:21 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id y6so211923043ywe.0
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 13:30:21 -0700 (PDT)
+Received: from mail-yw0-x243.google.com (mail-yw0-x243.google.com. [2607:f8b0:4002:c05::243])
+        by mx.google.com with ESMTPS id a190si3290997ywh.409.2016.05.26.13.30.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 May 2016 12:21:56 -0700 (PDT)
-Received: by mail-yw0-x233.google.com with SMTP id h19so86144256ywc.0
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 12:21:56 -0700 (PDT)
-Date: Thu, 26 May 2016 15:21:54 -0400
+        Thu, 26 May 2016 13:30:20 -0700 (PDT)
+Received: by mail-yw0-x243.google.com with SMTP id y6so3753737ywe.0
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 13:30:20 -0700 (PDT)
+Date: Thu, 26 May 2016 16:30:18 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH percpu/for-4.7-fixes 1/2] percpu: fix synchronization
- between chunk->map_extend_work and chunk destruction
-Message-ID: <20160526192154.GC23194@mtj.duckdns.org>
-References: <20160417172943.GA83672@ast-mbp.thefacebook.com>
- <5742F127.6080000@suse.cz>
- <5742F267.3000309@suse.cz>
- <20160523213501.GA5383@mtj.duckdns.org>
- <57441396.2050607@suse.cz>
- <20160524153029.GA3354@mtj.duckdns.org>
- <20160524190433.GC3354@mtj.duckdns.org>
- <CAADnVQ+GprFZJkvCKHVN1gmBMO6uORimsNZ4tE-jgPPOcZhCfA@mail.gmail.com>
- <20160525154419.GE3354@mtj.duckdns.org>
- <ced75777-583e-9444-c59f-6cdeb468f1bf@suse.cz>
+Subject: [PATCH] memcg: add RCU locking around css_for_each_descendant_pre()
+ in memcg_offline_kmem()
+Message-ID: <20160526203018.GG23194@mtj.duckdns.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <ced75777-583e-9444-c59f-6cdeb468f1bf@suse.cz>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Alexei Starovoitov <ast@kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Linux-MM layout <linux-mm@kvack.org>, Marco Grassi <marco.gra@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
 
-Hello,
+memcg_offline_kmem() may be called from memcg_free_kmem() after a css
+init failure.  memcg_free_kmem() is a ->css_free callback which is
+called without cgroup_mutex and memcg_offline_kmem() ends up using
+css_for_each_descendant_pre() without any locking.  Fix it by adding
+rcu read locking around it.
 
-On Thu, May 26, 2016 at 11:19:06AM +0200, Vlastimil Babka wrote:
-> >  	if (is_atomic) {
-> >  		margin = 3;
-> > 
-> >  		if (chunk->map_alloc <
-> > -		    chunk->map_used + PCPU_ATOMIC_MAP_MARGIN_LOW &&
-> > -		    pcpu_async_enabled)
-> > -			schedule_work(&chunk->map_extend_work);
-> > +		    chunk->map_used + PCPU_ATOMIC_MAP_MARGIN_LOW) {
-> > +			if (list_empty(&chunk->map_extend_list)) {
+ mkdir: cannot create directory a??65530a??: No space left on device
+ [  527.241361] ===============================
+ [  527.241845] [ INFO: suspicious RCU usage. ]
+ [  527.242367] 4.6.0-work+ #321 Not tainted
+ [  527.242730] -------------------------------
+ [  527.243220] kernel/cgroup.c:4008 cgroup_mutex or RCU read lock required!
+ [  527.243970]
+ [  527.243970] other info that might help us debug this:
+ [  527.243970]
+ [  527.244715]
+ [  527.244715] rcu_scheduler_active = 1, debug_locks = 0
+ [  527.245463] 2 locks held by kworker/0:5/1664:
+ [  527.245939]  #0:  ("cgroup_destroy"){.+.+..}, at: [<ffffffff81060ab5>] process_one_work+0x165/0x4a0
+ [  527.246958]  #1:  ((&css->destroy_work)#3){+.+...}, at: [<ffffffff81060ab5>] process_one_work+0x165/0x4a0
+ [  527.248098]
+ [  527.248098] stack backtrace:
+ [  527.249565] CPU: 0 PID: 1664 Comm: kworker/0:5 Not tainted 4.6.0-work+ #321
+ [  527.250429] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.9.1-1.fc24 04/01/2014
+ [  527.250555] Workqueue: cgroup_destroy css_free_work_fn
+ [  527.250555]  0000000000000000 ffff880178747c68 ffffffff8128bfc7 ffff880178b8ac40
+ [  527.250555]  0000000000000001 ffff880178747c98 ffffffff8108c297 0000000000000000
+ [  527.250555]  ffff88010de54138 000000000000fffb ffff88010de537e8 ffff880178747cc0
+ [  527.250555] Call Trace:
+ [  527.250555]  [<ffffffff8128bfc7>] dump_stack+0x68/0xa1
+ [  527.250555]  [<ffffffff8108c297>] lockdep_rcu_suspicious+0xd7/0x110
+ [  527.250555]  [<ffffffff810ca03d>] css_next_descendant_pre+0x7d/0xb0
+ [  527.250555]  [<ffffffff8114d14a>] memcg_offline_kmem.part.44+0x4a/0xc0
+ [  527.250555]  [<ffffffff8114d3ac>] mem_cgroup_css_free+0x1ec/0x200
+ [  527.250555]  [<ffffffff810ccdc9>] css_free_work_fn+0x49/0x5e0
+ [  527.250555]  [<ffffffff81060b15>] process_one_work+0x1c5/0x4a0
+ [  527.250555]  [<ffffffff81060ab5>] ? process_one_work+0x165/0x4a0
+ [  527.250555]  [<ffffffff81060e39>] worker_thread+0x49/0x490
+ [  527.250555]  [<ffffffff81060df0>] ? process_one_work+0x4a0/0x4a0
+ [  527.250555]  [<ffffffff81060df0>] ? process_one_work+0x4a0/0x4a0
+ [  527.250555]  [<ffffffff810672ba>] kthread+0xea/0x100
+ [  527.250555]  [<ffffffff814cbcff>] ret_from_fork+0x1f/0x40
+ [  527.250555]  [<ffffffff810671d0>] ? kthread_create_on_node+0x200/0x200
 
-> So why this list_empty condition? Doesn't it deserve a comment then? And
+Signed-off-by: Tejun Heo <tj@kernel.org>
+---
+ mm/memcontrol.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-Because doing list_add() twice corrupts the list.  I'm not sure that
-deserves a comment.  We can do list_move() instead but that isn't
-necessarily better.
-
-> isn't using a list an overkill in that case?
-
-That would require rebalance work to scan all chunks whenever it's
-scheduled and if a lot of atomic allocations are taking place, it has
-some possibility to become expensive with a lot of chunks.
-
-Thanks.
-
--- 
-tejun
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index cf428d7..8d42c6d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2892,6 +2892,7 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
+ 	 * ordering is imposed by list_lru_node->lock taken by
+ 	 * memcg_drain_all_list_lrus().
+ 	 */
++	rcu_read_lock(); /* can be called from css_free w/o cgroup_mutex */
+ 	css_for_each_descendant_pre(css, &memcg->css) {
+ 		child = mem_cgroup_from_css(css);
+ 		BUG_ON(child->kmemcg_id != kmemcg_id);
+@@ -2899,6 +2900,8 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
+ 		if (!memcg->use_hierarchy)
+ 			break;
+ 	}
++	rcu_read_unlock();
++
+ 	memcg_drain_all_list_lrus(kmemcg_id, parent->kmemcg_id);
+ 
+ 	memcg_free_cache_id(kmemcg_id);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
