@@ -1,62 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E5726B007E
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 13:32:23 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id q17so57521557lbn.3
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:32:23 -0700 (PDT)
-Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
-        by mx.google.com with ESMTPS id c9si13674058wme.91.2016.05.27.10.32.21
+Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 650DC6B007E
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 13:38:37 -0400 (EDT)
+Received: by mail-lb0-f198.google.com with SMTP id q17so57593785lbn.3
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:38:37 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id p137si13285742wmg.68.2016.05.27.10.38.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 May 2016 10:32:21 -0700 (PDT)
-Received: by mail-wm0-x22a.google.com with SMTP id z87so1299710wmh.0
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:32:21 -0700 (PDT)
-Subject: Re: [PATCH] xfs: fail ->bmap for reflink inodes
-References: <1464267724-31423-1-git-send-email-hch@lst.de>
- <1464267724-31423-2-git-send-email-hch@lst.de>
-From: Avi Kivity <avi@scylladb.com>
-Message-ID: <71afd256-5dfe-2ff9-ac25-b7519dadd5f9@scylladb.com>
-Date: Fri, 27 May 2016 20:32:18 +0300
+        Fri, 27 May 2016 10:38:36 -0700 (PDT)
+Date: Fri, 27 May 2016 13:36:29 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: memcontrol: fix possible css ref leak on oom
+Message-ID: <20160527173629.GE2531@cmpxchg.org>
+References: <1464019330-7579-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <1464267724-31423-2-git-send-email-hch@lst.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1464019330-7579-1-git-send-email-vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, darrick.wong@oracle.com
-Cc: linux-mm@kvack.org, xfs@oss.sgi.com
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 05/26/2016 04:02 PM, Christoph Hellwig wrote:
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->   fs/xfs/xfs_aops.c | 11 +++++++++++
->   1 file changed, 11 insertions(+)
->
-> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-> index a955552..d053a9e 100644
-> --- a/fs/xfs/xfs_aops.c
-> +++ b/fs/xfs/xfs_aops.c
-> @@ -1829,6 +1829,17 @@ xfs_vm_bmap(
->   
->   	trace_xfs_vm_bmap(XFS_I(inode));
->   	xfs_ilock(ip, XFS_IOLOCK_SHARED);
-> +
-> +	/*
-> +	 * The swap code (ab-)uses ->bmap to get a block mapping and then
-> +	 * bypasseN? the file system for actual I/O.  We really can't allow
-> +	 * that on reflinks inodes, so we have to skip out here.  And yes,
-> +	 * 0 is the magic code for a bmap error..
-> +	 */
-> +	if (xfs_is_reflink_inode(ip)) {
-> +		xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-> +		return 0;
-> +	}
->   	filemap_write_and_wait(mapping);
->   	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
->   	return generic_block_bmap(mapping, block, xfs_get_blocks);
+On Mon, May 23, 2016 at 07:02:10PM +0300, Vladimir Davydov wrote:
+> mem_cgroup_oom may be invoked multiple times while a process is handling
+> a page fault, in which case current->memcg_in_oom will be overwritten
+> leaking the previously taken css reference.
 
-Don't you also have to prevent a swapfile from being reflinked after 
-it's bmapped?  Or is that already taken care of?
+There is a task_in_memcg_oom() check before calling mem_cgroup_oom().
+
+How can this happen?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
