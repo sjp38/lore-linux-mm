@@ -1,30 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 877326B0253
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 13:22:44 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id q17so57412149lbn.3
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:22:44 -0700 (PDT)
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 09BB26B025F
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 13:23:00 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id h68so20423708lfh.2
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:22:59 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 201si13612478wmf.118.2016.05.27.10.22.25
+        by mx.google.com with ESMTPS id i14si27300736wjn.237.2016.05.27.10.22.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 May 2016 10:22:25 -0700 (PDT)
-Date: Fri, 27 May 2016 13:20:20 -0400
+        Fri, 27 May 2016 10:22:58 -0700 (PDT)
+Date: Fri, 27 May 2016 13:20:55 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: zap ZONE_OOM_LOCKED
-Message-ID: <20160527172020.GB2531@cmpxchg.org>
-References: <1464358093-22663-1-git-send-email-vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 1/2] mm: oom: add memcg to oom_control
+Message-ID: <20160527172055.GC2531@cmpxchg.org>
+References: <40e03fd7aaf1f55c75d787128d6d17c5a71226c2.1464358556.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1464358093-22663-1-git-send-email-vdavydov@virtuozzo.com>
+In-Reply-To: <40e03fd7aaf1f55c75d787128d6d17c5a71226c2.1464358556.git.vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, May 27, 2016 at 05:08:13PM +0300, Vladimir Davydov wrote:
-> Not used since oom_lock was instroduced.
+On Fri, May 27, 2016 at 05:17:41PM +0300, Vladimir Davydov wrote:
+> It's a part of oom context just like allocation order and nodemask, so
+> let's move it to oom_control instead of passing it in the argument list.
 > 
 > Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
 
