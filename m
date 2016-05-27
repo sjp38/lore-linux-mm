@@ -1,127 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E90F76B007E
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 08:38:27 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c84so91101152pfc.3
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 05:38:27 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r74si14198028pfb.45.2016.05.27.05.38.26
-        for <linux-mm@kvack.org>;
-        Fri, 27 May 2016 05:38:26 -0700 (PDT)
-Date: Fri, 27 May 2016 13:38:10 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH] arm64: kasan: instrument user memory access API
-Message-ID: <20160527123809.GD24469@leverpostej>
-References: <1464288231-11304-1-git-send-email-yang.shi@linaro.org>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 75D546B007E
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 09:12:50 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id n2so60924466wma.0
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 06:12:50 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id g129si12224354wmd.66.2016.05.27.06.12.49
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 May 2016 06:12:49 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id e3so14785528wme.2
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 06:12:49 -0700 (PDT)
+Date: Fri, 27 May 2016 15:12:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/3] mm, thp: remove duplication and fix locking issues
+ in swapin
+Message-ID: <20160527131247.GM27686@dhcp22.suse.cz>
+References: <1464023651-19420-1-git-send-email-ebru.akagunduz@gmail.com>
+ <20160523172929.GA4406@debian>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1464288231-11304-1-git-send-email-yang.shi@linaro.org>
+In-Reply-To: <20160523172929.GA4406@debian>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linaro.org>
-Cc: aryabinin@virtuozzo.com, will.deacon@arm.com, catalin.marinas@arm.com, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, boaz@plexistor.com
 
-Hi,
-
-On Thu, May 26, 2016 at 11:43:51AM -0700, Yang Shi wrote:
-> The upstream commit 1771c6e1a567ea0ba2cccc0a4ffe68a1419fd8ef
-> ("x86/kasan: instrument user memory access API") added KASAN instrument to
-> x86 user memory access API, so added such instrument to ARM64 too.
+On Mon 23-05-16 20:29:29, Ebru Akagunduz wrote:
+> On Mon, May 23, 2016 at 08:14:08PM +0300, Ebru Akagunduz wrote:
+> > This patch series removes duplication of included header
+> > and fixes locking inconsistency in khugepaged swapin
+> > 
+> > Ebru Akagunduz (3):
+> >   mm, thp: remove duplication of included header
+> >   mm, thp: fix possible circular locking dependency caused by
+> >     sum_vm_event()
+> >   mm, thp: make swapin readahead under down_read of mmap_sem
+> > 
+> >  mm/huge_memory.c | 39 ++++++++++++++++++++++++++++++---------
+> >  1 file changed, 30 insertions(+), 9 deletions(-)
+> > 
 > 
-> Tested by test_kasan module.
-
-I just gave this a go atop of the current HEAD (dc03c0f9d12d8528) on a
-Juno R1 board. I hit the expected exceptions when using the test_kasan
-module (once I remembered to rebuild it), and things seem to run
-smoothly otherwise.
-
-I don't see any built issues when !CONFIG_KASAN, and the patch itself
-looks right to me.
-
-So FWIW:
-
-Acked-by: Mark Rutland <mark.rutland@arm.com>
-Tested-by: Mark Rutland <mark.rutland@arm.com>
-
-As an aside, it's a shame that each architecture has to duplicate this
-logic, rather than having something in the generic code like:
-
-static inline unsigned long __must_check
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	kasan_check_read(from, n);
-	arch_copy_from_user(to, from, n);
-}
-
-Thanks,
-Mark.
-
+> Hi Andrew,
 > 
-> Signed-off-by: Yang Shi <yang.shi@linaro.org>
-> ---
->  arch/arm64/include/asm/uaccess.h | 18 ++++++++++++++++--
->  1 file changed, 16 insertions(+), 2 deletions(-)
+> I prepared this patch series to solve rest of
+> problems of khugepaged swapin.
 > 
-> diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
-> index 0685d74..ec352fa 100644
-> --- a/arch/arm64/include/asm/uaccess.h
-> +++ b/arch/arm64/include/asm/uaccess.h
-> @@ -23,6 +23,7 @@
->   */
->  #include <linux/string.h>
->  #include <linux/thread_info.h>
-> +#include <linux/kasan-checks.h>
->  
->  #include <asm/alternative.h>
->  #include <asm/cpufeature.h>
-> @@ -276,6 +277,8 @@ extern unsigned long __must_check __clear_user(void __user *addr, unsigned long
->  
->  static inline unsigned long __must_check copy_from_user(void *to, const void __user *from, unsigned long n)
->  {
-> +	kasan_check_write(to, n);
-> +
->  	if (access_ok(VERIFY_READ, from, n))
->  		n = __copy_from_user(to, from, n);
->  	else /* security hole - plug it */
-> @@ -285,6 +288,8 @@ static inline unsigned long __must_check copy_from_user(void *to, const void __u
->  
->  static inline unsigned long __must_check copy_to_user(void __user *to, const void *from, unsigned long n)
->  {
-> +	kasan_check_read(from, n);
-> +
->  	if (access_ok(VERIFY_WRITE, to, n))
->  		n = __copy_to_user(to, from, n);
->  	return n;
-> @@ -297,8 +302,17 @@ static inline unsigned long __must_check copy_in_user(void __user *to, const voi
->  	return n;
->  }
->  
-> -#define __copy_to_user_inatomic __copy_to_user
-> -#define __copy_from_user_inatomic __copy_from_user
-> +static inline unsigned long __copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
-> +{
-> +	kasan_check_read(from, n);
-> +	return __copy_to_user(to, from, n);
-> +}
-> +
-> +static inline unsigned long __copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
-> +{
-> +	kasan_check_write(to, n);
-> +	return __copy_from_user(to, from, n);
-> +}
->  
->  static inline unsigned long __must_check clear_user(void __user *to, unsigned long n)
->  {
-> -- 
-> 2.0.2
+> I have seen the discussion:
+> http://marc.info/?l=linux-mm&m=146373278424897&w=2
 > 
-> 
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
-> 
+> In my opinion, checking whether kswapd is wake up
+> could be good.
+
+This is still not enough because it doesn't help memcg loads. kswapd
+might be sleeping but the memcg reclaim can still be active. So I think
+we really need to do ~__GFP_DIRECT_RECLAIM thing.
+
+> It's up to you. I can take an action according to community's decision.
+
+IMHO we should drop the current ALLOCSTALL heuristic and replace it with
+~__GFP_DIRECT_RECLAIM.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
