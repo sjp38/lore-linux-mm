@@ -1,86 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FD366B007E
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 04:01:25 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id rs7so50535737lbb.2
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 01:01:25 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.133])
-        by mx.google.com with ESMTPS id v8si24300548wjf.38.2016.05.27.01.01.24
+	by kanga.kvack.org (Postfix) with ESMTP id 948536B007E
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 04:03:22 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id rs7so50558823lbb.2
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 01:03:22 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id he4si24220487wjb.207.2016.05.27.01.03.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 May 2016 01:01:24 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH] oom_reaper: don't call mmput_async() on uninitialized mm
-Date: Fri, 27 May 2016 10:00:48 +0200
-Message-Id: <1464336081-994232-1-git-send-email-arnd@arndb.de>
+        Fri, 27 May 2016 01:03:21 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id n129so11933310wmn.1
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 01:03:21 -0700 (PDT)
+Date: Fri, 27 May 2016 10:03:20 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/6] mm, oom: do not loop over all tasks if there are no
+ external tasks sharing mm
+Message-ID: <20160527080319.GD27686@dhcp22.suse.cz>
+References: <1464266415-15558-2-git-send-email-mhocko@kernel.org>
+ <201605262330.EEB52182.OtMFOJHFLOSFVQ@I-love.SAKURA.ne.jp>
+ <20160526145930.GF23675@dhcp22.suse.cz>
+ <201605270025.IAC48454.QSHOOMFOLtFJFV@I-love.SAKURA.ne.jp>
+ <20160526153532.GG23675@dhcp22.suse.cz>
+ <201605270114.IEI48969.MFFtFOJLQOOHSV@I-love.SAKURA.ne.jp>
+ <20160527064510.GA27686@dhcp22.suse.cz>
+ <20160527071507.GC27686@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160527071507.GC27686@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-The change to the oom_reaper to hold a mutex inside __oom_reap_task()
-accidentally started calling mmput_async() on the local
-mm before that variable got initialized, as reported by gcc
-in linux-next:
+On Fri 27-05-16 09:15:07, Michal Hocko wrote:
+> On Fri 27-05-16 08:45:10, Michal Hocko wrote:
+> [...]
+> > It is still an operation which is not needed for 99% of situations. So
+> > if we do not need it for correctness then I do not think this is worth
+> > bothering.
+> 
+> Since you have pointed out exit_mm vs. __exit_signal race yesterday I
+> was thinking how to make the check reliable. Even
+> atomic_read(mm->mm_users) > get_nr_threads() is not reliable and we can
+> miss other tasks just because the current thread group is mostly past
+> exit_mm. So far I couldn't find a way to tweak this around though.
 
-mm/oom_kill.c: In function '__oom_reap_task':
-mm/oom_kill.c:537:2: error: 'mm' may be used uninitialized in this function [-Werror=maybe-uninitialized]
-
-This rearranges the code slightly back to the state before patch
-but leaves the lock in place. The error handling in the function
-still looks a bit confusing and could probably be improved
-but I could not come up with a solution that made me happy
-for now.
-
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-Fixes: mmotm ("oom_reaper: close race with exiting task")
+Just for the record I was playing with the following yesterday but I
+couldn't convince myself that this is safe and reasonable in the first
+place (I do not like it to be honest).
 ---
- mm/oom_kill.c | 12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
-
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 1685890d424e..255cb5f48019 100644
+index 1685890d424e..db027eca8be5 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -447,7 +447,7 @@ static bool __oom_reap_task(struct task_struct *tsk)
- 	struct task_struct *p;
- 	struct zap_details details = {.check_swap_entries = true,
- 				      .ignore_dirty = true};
--	bool ret = true;
-+	bool ret;
+@@ -123,6 +123,35 @@ struct task_struct *find_lock_task_mm(struct task_struct *p)
+ 	return t;
+ }
  
- 	/*
- 	 * We have to make sure to not race with the victim exit path
-@@ -472,13 +472,16 @@ static bool __oom_reap_task(struct task_struct *tsk)
- 	 * is no mm.
- 	 */
- 	p = find_lock_task_mm(tsk);
--	if (!p)
--		goto unlock_oom;
-+	if (!p) {
-+		mutex_unlock(&oom_lock);
-+		return true;
++bool task_has_external_users(struct task_struct *p)
++{
++	struct mm_struct *mm = NULL;
++	struct task_struct *t;
++	int active_threads = 0;
++	bool ret = true;	/* be pessimistic */
++
++	rcu_read_lock();
++	for_each_thread(p, t) {
++		task_lock(t);
++		if (likely(t->mm)) {
++			active_threads++;
++			if (!mm) {
++				mm = t->mm;
++				atomic_inc(&mm->mm_count);
++			}
++		}
++		task_unlock(t);
 +	}
- 
- 	mm = p->mm;
- 	if (!atomic_inc_not_zero(&mm->mm_users)) {
- 		task_unlock(p);
--		goto unlock_oom;
-+		mutex_unlock(&oom_lock);
-+		return true;
- 	}
- 
- 	task_unlock(p);
-@@ -527,6 +530,7 @@ static bool __oom_reap_task(struct task_struct *tsk)
- 	 * to release its memory.
- 	 */
- 	set_bit(MMF_OOM_REAPED, &mm->flags);
-+	ret = true;
- unlock_oom:
- 	mutex_unlock(&oom_lock);
- 	/*
++	rcu_read_unlock();
++
++	if (mm) {
++		if (atomic_read(&mm->mm_users) <= active_threads)
++			ret = false;
++		mmdrop(mm);
++	}
++	return ret;
++}
++
+ /*
+  * order == -1 means the oom kill is required by sysrq, otherwise only
+  * for display purposes.
 -- 
-2.7.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
