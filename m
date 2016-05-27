@@ -1,81 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C23F6B0264
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 12:06:08 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id h68so19544556lfh.2
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 09:06:08 -0700 (PDT)
-Received: from mail-lb0-x241.google.com (mail-lb0-x241.google.com. [2a00:1450:4010:c04::241])
-        by mx.google.com with ESMTPS id h10si28723lbs.137.2016.05.27.09.06.05
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 53F726B0265
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 12:18:32 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id w143so173776374oiw.3
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 09:18:32 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0137.outbound.protection.outlook.com. [157.56.112.137])
+        by mx.google.com with ESMTPS id e189si14355486oig.162.2016.05.27.09.18.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 May 2016 09:06:06 -0700 (PDT)
-Received: by mail-lb0-x241.google.com with SMTP id rs7so1574176lbb.0
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 09:06:05 -0700 (PDT)
-From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCH] z3fold: avoid modifying HEADLESS page and minor cleanup
-Message-ID: <5748706F.9020208@gmail.com>
-Date: Fri, 27 May 2016 18:06:07 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 27 May 2016 09:18:31 -0700 (PDT)
+Date: Fri, 27 May 2016 19:18:21 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 3/6] mm, oom_adj: make sure processes sharing mm have
+ same view of oom_score_adj
+Message-ID: <20160527161821.GE26059@esperanza>
+References: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
+ <1464266415-15558-4-git-send-email-mhocko@kernel.org>
+ <20160527111803.GG27686@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20160527111803.GG27686@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Cc: Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-This patch fixes erroneous z3fold header access in a HEADLESS page
-in reclaim function, and changes one remaining direct
-handle-to-buddy conversion to use the appropriate helper.
+On Fri, May 27, 2016 at 01:18:03PM +0200, Michal Hocko wrote:
+...
+> @@ -1087,7 +1105,25 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+>  	unlock_task_sighand(task, &flags);
+>  err_put_task:
+>  	put_task_struct(task);
+> +
+> +	if (mm) {
+> +		struct task_struct *p;
+> +
+> +		rcu_read_lock();
+> +		for_each_process(p) {
+> +			task_lock(p);
+> +			if (!p->vfork_done && process_shares_mm(p, mm)) {
+> +				p->signal->oom_score_adj = oom_adj;
+> +				if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
+> +					p->signal->oom_score_adj_min = (short)oom_adj;
+> +			}
+> +			task_unlock(p);
 
-Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
----
-  mm/z3fold.c | 24 ++++++++++++++----------
-  1 file changed, 14 insertions(+), 10 deletions(-)
+I.e. you write to /proc/pid1/oom_score_adj and get
+/proc/pid2/oom_score_adj updated if pid1 and pid2 share mm?
+IMO that looks unexpected from userspace pov.
 
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index 34917d5..8f9e89c 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -412,7 +412,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
-  		/* HEADLESS page stored */
-  		bud = HEADLESS;
-  	} else {
--		bud = (handle - zhdr->first_num) & BUDDY_MASK;
-+		bud = handle_to_buddy(handle);
-  
-  		switch (bud) {
-  		case FIRST:
-@@ -572,15 +572,19 @@ next:
-  			pool->pages_nr--;
-  			spin_unlock(&pool->lock);
-  			return 0;
--		} else if (zhdr->first_chunks != 0 &&
--			   zhdr->last_chunks != 0 && zhdr->middle_chunks != 0) {
--			/* Full, add to buddied list */
--			list_add(&zhdr->buddy, &pool->buddied);
--		} else if (!test_bit(PAGE_HEADLESS, &page->private)) {
--			z3fold_compact_page(zhdr);
--			/* add to unbuddied list */
--			freechunks = num_free_chunks(zhdr);
--			list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
-+		}  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
-+			if (zhdr->first_chunks != 0 &&
-+			    zhdr->last_chunks != 0 &&
-+			    zhdr->middle_chunks != 0) {
-+				/* Full, add to buddied list */
-+				list_add(&zhdr->buddy, &pool->buddied);
-+			} else {
-+				z3fold_compact_page(zhdr);
-+				/* add to unbuddied list */
-+				freechunks = num_free_chunks(zhdr);
-+				list_add(&zhdr->buddy,
-+					 &pool->unbuddied[freechunks]);
-+			}
-  		}
-  
-  		/* add to beginning of LRU */
--- 
-2.5.0
+May be, we'd better add mm->oom_score_adj and set it to the min
+signal->oom_score_adj over all processes sharing it? This would
+require iterating over all processes every time oom_score_adj gets
+updated, but that's a slow path.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
