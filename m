@@ -1,36 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AC2876B0264
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 12:00:28 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id rs7so56528325lbb.2
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 09:00:28 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id ck5si26913779wjb.78.2016.05.27.09.00.27
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C23F6B0264
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 12:06:08 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id h68so19544556lfh.2
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 09:06:08 -0700 (PDT)
+Received: from mail-lb0-x241.google.com (mail-lb0-x241.google.com. [2a00:1450:4010:c04::241])
+        by mx.google.com with ESMTPS id h10si28723lbs.137.2016.05.27.09.06.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 May 2016 09:00:27 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id n129so15709835wmn.1
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 09:00:27 -0700 (PDT)
-Date: Fri, 27 May 2016 18:00:26 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/5] Handle oom bypass more gracefully
-Message-ID: <20160527160026.GA29337@dhcp22.suse.cz>
-References: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
+        Fri, 27 May 2016 09:06:06 -0700 (PDT)
+Received: by mail-lb0-x241.google.com with SMTP id rs7so1574176lbb.0
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 09:06:05 -0700 (PDT)
+From: Vitaly Wool <vitalywool@gmail.com>
+Subject: [PATCH] z3fold: avoid modifying HEADLESS page and minor cleanup
+Message-ID: <5748706F.9020208@gmail.com>
+Date: Fri, 27 May 2016 18:06:07 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
 
-JFYI, I plan to repost the series early next week after I review all the
-pieces again properly with a clean head. If some parts are not sound or
-completely unacceptable in principle then let me know of course.
+This patch fixes erroneous z3fold header access in a HEADLESS page
+in reclaim function, and changes one remaining direct
+handle-to-buddy conversion to use the appropriate helper.
+
+Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+---
+  mm/z3fold.c | 24 ++++++++++++++----------
+  1 file changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index 34917d5..8f9e89c 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -412,7 +412,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+  		/* HEADLESS page stored */
+  		bud = HEADLESS;
+  	} else {
+-		bud = (handle - zhdr->first_num) & BUDDY_MASK;
++		bud = handle_to_buddy(handle);
+  
+  		switch (bud) {
+  		case FIRST:
+@@ -572,15 +572,19 @@ next:
+  			pool->pages_nr--;
+  			spin_unlock(&pool->lock);
+  			return 0;
+-		} else if (zhdr->first_chunks != 0 &&
+-			   zhdr->last_chunks != 0 && zhdr->middle_chunks != 0) {
+-			/* Full, add to buddied list */
+-			list_add(&zhdr->buddy, &pool->buddied);
+-		} else if (!test_bit(PAGE_HEADLESS, &page->private)) {
+-			z3fold_compact_page(zhdr);
+-			/* add to unbuddied list */
+-			freechunks = num_free_chunks(zhdr);
+-			list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
++		}  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
++			if (zhdr->first_chunks != 0 &&
++			    zhdr->last_chunks != 0 &&
++			    zhdr->middle_chunks != 0) {
++				/* Full, add to buddied list */
++				list_add(&zhdr->buddy, &pool->buddied);
++			} else {
++				z3fold_compact_page(zhdr);
++				/* add to unbuddied list */
++				freechunks = num_free_chunks(zhdr);
++				list_add(&zhdr->buddy,
++					 &pool->unbuddied[freechunks]);
++			}
+  		}
+  
+  		/* add to beginning of LRU */
 -- 
-Michal Hocko
-SUSE Labs
+2.5.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
