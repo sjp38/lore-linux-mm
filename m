@@ -1,49 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B8816B007E
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 13:25:09 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id o70so60716075lfg.1
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:25:09 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id n66si13730198wmg.5.2016.05.27.10.25.07
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C66A16B007E
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 13:30:45 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id m124so1187600itg.0
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:30:45 -0700 (PDT)
+Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
+        by mx.google.com with ESMTPS id j42si27101301iod.197.2016.05.27.10.30.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 May 2016 10:25:08 -0700 (PDT)
-Date: Fri, 27 May 2016 13:23:04 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/2] mm: oom: deduplicate victim selection code for memcg
- and global oom
-Message-ID: <20160527172304.GD2531@cmpxchg.org>
-References: <40e03fd7aaf1f55c75d787128d6d17c5a71226c2.1464358556.git.vdavydov@virtuozzo.com>
- <3bbc7b70dae6ace0b8751e0140e878acfdfffd74.1464358556.git.vdavydov@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3bbc7b70dae6ace0b8751e0140e878acfdfffd74.1464358556.git.vdavydov@virtuozzo.com>
+        Fri, 27 May 2016 10:30:45 -0700 (PDT)
+Date: Fri, 27 May 2016 12:30:43 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v1] [mm] Set page->slab_cache for every page allocated
+ for a kmem_cache.
+In-Reply-To: <1464369240-35844-1-git-send-email-glider@google.com>
+Message-ID: <alpine.DEB.2.20.1605271229330.30511@east.gentwo.org>
+References: <1464369240-35844-1-git-send-email-glider@google.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alexander Potapenko <glider@google.com>
+Cc: adech.fo@gmail.com, dvyukov@google.com, akpm@linux-foundation.org, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, aryabinin@virtuozzo.com, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, May 27, 2016 at 05:17:42PM +0300, Vladimir Davydov wrote:
-> When selecting an oom victim, we use the same heuristic for both memory
-> cgroup and global oom. The only difference is the scope of tasks to
-> select the victim from. So we could just export an iterator over all
-> memcg tasks and keep all oom related logic in oom_kill.c, but instead we
-> duplicate pieces of it in memcontrol.c reusing some initially private
-> functions of oom_kill.c in order to not duplicate all of it. That looks
-> ugly and error prone, because any modification of select_bad_process
-> should also be propagated to mem_cgroup_out_of_memory.
-> 
-> Let's rework this as follows: keep all oom heuristic related code
-> private to oom_kill.c and make oom_kill.c use exported memcg functions
-> when it's really necessary (like in case of iterating over memcg tasks).
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+On Fri, 27 May 2016, Alexander Potapenko wrote:
 
-Cool work!
+> It's reasonable to rely on the fact that for every page allocated for a
+> kmem_cache the |slab_cache| field points to that cache. Without that it's
+> hard to figure out which cache does an allocated object belong to.
 
-I'll do a full review after the rebase on top of Michal's stuff.
+The flags are set only in the head page of a coumpound page which is used
+by SLAB. No need to do this. This would just mean unnecessarily dirtying
+struct page cachelines on allocation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
