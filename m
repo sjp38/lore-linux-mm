@@ -1,95 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 478AA6B007E
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 16:20:37 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id di3so55437102pab.0
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 13:20:37 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BCF566B007E
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 16:30:02 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b124so214180376pfb.1
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 13:30:02 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id sk6si30479838pab.145.2016.05.27.13.20.36
+        by mx.google.com with ESMTPS id w13si30520214pas.206.2016.05.27.13.30.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 May 2016 13:20:36 -0700 (PDT)
-Date: Fri, 27 May 2016 13:20:35 -0700
+        Fri, 27 May 2016 13:30:01 -0700 (PDT)
+Date: Fri, 27 May 2016 13:30:00 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: fix overflow in vm_map_ram
-Message-Id: <20160527132035.0239af56b4887e89e7c3b962@linux-foundation.org>
-In-Reply-To: <08d280dc9c9fe037805e3ff74d7dad02@naudit.es>
-References: <etPan.57175fb3.7a271c6b.2bd@naudit.es>
-	<20160526142837.662100b01ff094be9a28f01b@linux-foundation.org>
-	<08d280dc9c9fe037805e3ff74d7dad02@naudit.es>
+Subject: Re: [PATCH] mm: check the return value of lookup_page_ext for all
+ call sites
+Message-Id: <20160527133000.84a887b7ce8d2e6387145b4d@linux-foundation.org>
+In-Reply-To: <ab9cf30c-4979-07af-6732-e647078ef579@linaro.org>
+References: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
+	<20160524025811.GA29094@bbox>
+	<20160526003719.GB9661@bbox>
+	<8ae0197c-47b7-e5d2-20c3-eb9d01e6b65c@linaro.org>
+	<20160527130246.4adb78f29e15d19fae80419a@linux-foundation.org>
+	<ab9cf30c-4979-07af-6732-e647078ef579@linaro.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: guillermo.julian@naudit.es
-Cc: linux-mm@kvack.org
+To: "Shi, Yang" <yang.shi@linaro.org>
+Cc: Minchan Kim <minchan@kernel.org>, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
 
-On Fri, 27 May 2016 10:25:59 +0200 "guillermo.julian" <guillermo.julian@naudit.es> wrote:
+On Fri, 27 May 2016 13:17:19 -0700 "Shi, Yang" <yang.shi@linaro.org> wrote:
 
-> El 2016-05-26 23:28, Andrew Morton escribi__:
-> > On Wed, 20 Apr 2016 12:53:33 +0200 Guillermo Juli__n Moreno
-> > <guillermo.julian@naudit.es> wrote:
-> > 
-> >> 
-> >> When remapping pages accounting for 4G or more memory space, the
-> >> operation 'count << PAGE_SHIFT' overflows as it is performed on an
-> >> integer. Solution: cast before doing the bitshift.
-> > 
-> > Yup.
-> > 
-> > We need to work out which kernel versions to fix.  What are the runtime
-> > effects of this?  Are there real drivers in the tree which actually map
-> > more than 4G?
+> >> Actually, I think the #ifdef should be removed if lookup_page_ext() is
+> >> possible to return NULL. It sounds not make sense returning NULL only
+> >> when DEBUG_VM is enabled. It should return NULL no matter what debug
+> >> config is selected. If Joonsoo agrees with me I'm going to come up with
+> >> a patch to fix it.
+> >>
+> >
+> > I've lost the plot here.  What is the status of this patch?
+> >
+> > Latest version:
 > 
-> Looking at the references of vm_map_ram, it is only used in three 
-> drivers (XFS, v4l2-core and android/ion). However, in the vmap() code, 
-> the same bug is likely to occur (vmalloc.c:1557), and that function is 
-> more frequently used. But if it has gone unnoticed until now, most 
-> probably it isn't a critical issue (4G memory allocations are usually 
-> not needed. In fact this bug surfaced during a performance test in a 
-> modified driver, not in a regular configuration.
+> Yes, this is the latest version. We are discussing about some future 
+> optimization.
+> 
+> And, Minchan Kim pointed out a possible race condition which exists even 
+> before this patch. I proposed a quick fix, as long as they are happy to 
+> the fix, I will post it to the mailing list.
 
-Yup.  I'll add this as well:
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-fix-overflow-in-vm_map_ram-fix
-
-fix vmap() as well, per Guillermo
-
-Cc: Guillermo Juli_n Moreno <guillermo.julian@naudit.es>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/vmalloc.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff -puN mm/vmalloc.c~mm-fix-overflow-in-vm_map_ram-fix mm/vmalloc.c
---- a/mm/vmalloc.c~mm-fix-overflow-in-vm_map_ram-fix
-+++ a/mm/vmalloc.c
-@@ -1574,14 +1574,15 @@ void *vmap(struct page **pages, unsigned
- 		unsigned long flags, pgprot_t prot)
- {
- 	struct vm_struct *area;
-+	unsigned long size;		/* In bytes */
- 
- 	might_sleep();
- 
- 	if (count > totalram_pages)
- 		return NULL;
- 
--	area = get_vm_area_caller((count << PAGE_SHIFT), flags,
--					__builtin_return_address(0));
-+	size = (unsigned long)count << PAGE_SHIFT;
-+	area = get_vm_area_caller(size, flags, __builtin_return_address(0));
- 	if (!area)
- 		return NULL;
- 
-_
-
-
-I checked all other instances of "<< PAGE" in vmalloc.c and we're good.
-Thanks.
+OK, thanks - I've moved it into the for-Linus-next-week queue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
