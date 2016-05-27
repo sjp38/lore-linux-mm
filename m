@@ -1,59 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B0846B025F
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 13:41:39 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f75so604035wmf.2
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:41:39 -0700 (PDT)
-Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com. [2a00:1450:4010:c04::233])
-        by mx.google.com with ESMTPS id q199si14315559lfd.113.2016.05.27.10.41.37
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 May 2016 10:41:38 -0700 (PDT)
-Received: by mail-lb0-x233.google.com with SMTP id ww9so33203286lbc.2
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:41:37 -0700 (PDT)
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F381E6B025F
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 13:46:52 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id fg1so165404866pad.1
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:46:52 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id r64si15620872pfj.240.2016.05.27.10.46.51
+        for <linux-mm@kvack.org>;
+        Fri, 27 May 2016 10:46:51 -0700 (PDT)
+Date: Fri, 27 May 2016 18:46:36 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH] arm64: kasan: instrument user memory access API
+Message-ID: <20160527174635.GL24469@leverpostej>
+References: <1464288231-11304-1-git-send-email-yang.shi@linaro.org>
+ <57482930.6020608@virtuozzo.com>
+ <cea39367-65b6-62df-7e4c-57ae1ce36dcc@linaro.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1605271229330.30511@east.gentwo.org>
-References: <1464369240-35844-1-git-send-email-glider@google.com> <alpine.DEB.2.20.1605271229330.30511@east.gentwo.org>
-From: Alexander Potapenko <glider@google.com>
-Date: Fri, 27 May 2016 19:41:37 +0200
-Message-ID: <CAG_fn=V5pTXzPvRGd4PfGp33q8dD7gyNRF8p9W+JXS054Y+RXw@mail.gmail.com>
-Subject: Re: [PATCH v1] [mm] Set page->slab_cache for every page allocated for
- a kmem_cache.
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cea39367-65b6-62df-7e4c-57ae1ce36dcc@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Shi, Yang" <yang.shi@linaro.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, will.deacon@arm.com, catalin.marinas@arm.com, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-On Fri, May 27, 2016 at 7:30 PM, Christoph Lameter <cl@linux.com> wrote:
-> On Fri, 27 May 2016, Alexander Potapenko wrote:
->
->> It's reasonable to rely on the fact that for every page allocated for a
->> kmem_cache the |slab_cache| field points to that cache. Without that it'=
-s
->> hard to figure out which cache does an allocated object belong to.
->
-> The flags are set only in the head page of a coumpound page which is used
-> by SLAB. No need to do this. This would just mean unnecessarily dirtying
-> struct page cachelines on allocation.
->
+On Fri, May 27, 2016 at 09:34:03AM -0700, Shi, Yang wrote:
+> On 5/27/2016 4:02 AM, Andrey Ryabinin wrote:
+> >
+> >
+> >On 05/26/2016 09:43 PM, Yang Shi wrote:
+> >>The upstream commit 1771c6e1a567ea0ba2cccc0a4ffe68a1419fd8ef
+> >>("x86/kasan: instrument user memory access API") added KASAN instrument to
+> >>x86 user memory access API, so added such instrument to ARM64 too.
+> >>
+> >>Tested by test_kasan module.
+> >>
+> >>Signed-off-by: Yang Shi <yang.shi@linaro.org>
+> >>---
+> >> arch/arm64/include/asm/uaccess.h | 18 ++++++++++++++++--
+> >> 1 file changed, 16 insertions(+), 2 deletions(-)
+> >
+> >Please, cover __copy_from_user() and __copy_to_user() too.
+> >Unlike x86, your patch doesn't instrument these two.
 
-Got it, thank you.
-Looks like I just need to make sure my code uses
-virt_to_head_page()->page_slab to get the cache for an object.
+Argh, I missed those when reviewing. My bad.
 
---=20
-Alexander Potapenko
-Software Engineer
+> I should elaborated this in my review. Yes, I did think about it,
+> but unlike x86, __copy_to/from_user are implemented by asm code on
+> ARM64. If I add kasan_check_read/write into them, I have to move the
+> registers around to prepare the parameters for kasan calls, then
+> restore them after the call, for example the below code for
+> __copy_to_user:
+> 
+>         mov     x9, x0
+>         mov     x10, x1
+>         mov     x11, x2
+>         mov     x0, x10
+>         mov     x1, x11
+>         bl      kasan_check_read
+>         mov     x0, x9
+>         mov     x1, x10
 
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
+There's no need to alter the assembly.
 
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+Rename the functions (e.g. have __arch_raw_copy_from_user), and add
+static inline wrappers in uaccess.h that do the kasan calls before
+calling the assembly functions.
+
+That gives the compiler the freedom to do the right thing, and avoids
+horrible ifdeffery in the assembly code.
+
+> So, I'm wondering if it is worth or not since __copy_to/from_user
+> are just called at a couple of places, i.e. sctp, a couple of
+> drivers, etc and not used too much.
+
+[mark@leverpostej:~/src/linux]% git grep -w __copy_to_user -- ^arch | wc -l
+63
+[mark@leverpostej:~/src/linux]% git grep -w __copy_from_user -- ^arch | wc -l
+47
+
+That's a reasonable number of callsites.
+
+If we're going to bother adding this, it should be complete. So please
+do update __copy_from_user and __copy_to_user.
+
+> Actually, I think some of them
+> could be replaced by __copy_to/from_user_inatomic.
+
+Given the number of existing callers outside of arch code, I think we'll
+get far more traction reworking the arm64 parts for now.
+
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
