@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f198.google.com (mail-ig0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5381E6B0253
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 13:40:56 -0400 (EDT)
-Received: by mail-ig0-f198.google.com with SMTP id q18so2017164igr.2
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:40:56 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id t185si14100205itg.88.2016.05.27.10.40.55
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B0846B025F
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 13:41:39 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id f75so604035wmf.2
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:41:39 -0700 (PDT)
+Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com. [2a00:1450:4010:c04::233])
+        by mx.google.com with ESMTPS id q199si14315559lfd.113.2016.05.27.10.41.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 May 2016 10:40:55 -0700 (PDT)
-Date: Fri, 27 May 2016 10:40:50 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH] xfs: fail ->bmap for reflink inodes
-Message-ID: <20160527174050.GA3509@birch.djwong.org>
-References: <1464267724-31423-1-git-send-email-hch@lst.de>
- <1464267724-31423-2-git-send-email-hch@lst.de>
- <71afd256-5dfe-2ff9-ac25-b7519dadd5f9@scylladb.com>
+        Fri, 27 May 2016 10:41:38 -0700 (PDT)
+Received: by mail-lb0-x233.google.com with SMTP id ww9so33203286lbc.2
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:41:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <71afd256-5dfe-2ff9-ac25-b7519dadd5f9@scylladb.com>
+In-Reply-To: <alpine.DEB.2.20.1605271229330.30511@east.gentwo.org>
+References: <1464369240-35844-1-git-send-email-glider@google.com> <alpine.DEB.2.20.1605271229330.30511@east.gentwo.org>
+From: Alexander Potapenko <glider@google.com>
+Date: Fri, 27 May 2016 19:41:37 +0200
+Message-ID: <CAG_fn=V5pTXzPvRGd4PfGp33q8dD7gyNRF8p9W+JXS054Y+RXw@mail.gmail.com>
+Subject: Re: [PATCH v1] [mm] Set page->slab_cache for every page allocated for
+ a kmem_cache.
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Avi Kivity <avi@scylladb.com>
-Cc: Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org, xfs@oss.sgi.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, May 27, 2016 at 08:32:18PM +0300, Avi Kivity wrote:
-> On 05/26/2016 04:02 PM, Christoph Hellwig wrote:
-> >Signed-off-by: Christoph Hellwig <hch@lst.de>
-> >---
-> >  fs/xfs/xfs_aops.c | 11 +++++++++++
-> >  1 file changed, 11 insertions(+)
-> >
-> >diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-> >index a955552..d053a9e 100644
-> >--- a/fs/xfs/xfs_aops.c
-> >+++ b/fs/xfs/xfs_aops.c
-> >@@ -1829,6 +1829,17 @@ xfs_vm_bmap(
-> >  	trace_xfs_vm_bmap(XFS_I(inode));
-> >  	xfs_ilock(ip, XFS_IOLOCK_SHARED);
-> >+
-> >+	/*
-> >+	 * The swap code (ab-)uses ->bmap to get a block mapping and then
-> >+	 * bypasseN? the file system for actual I/O.  We really can't allow
-> >+	 * that on reflinks inodes, so we have to skip out here.  And yes,
-> >+	 * 0 is the magic code for a bmap error..
-> >+	 */
-> >+	if (xfs_is_reflink_inode(ip)) {
-> >+		xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-> >+		return 0;
-> >+	}
-> >  	filemap_write_and_wait(mapping);
-> >  	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-> >  	return generic_block_bmap(mapping, block, xfs_get_blocks);
-> 
-> Don't you also have to prevent a swapfile from being reflinked after it's
-> bmapped?  Or is that already taken care of?
+On Fri, May 27, 2016 at 7:30 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Fri, 27 May 2016, Alexander Potapenko wrote:
+>
+>> It's reasonable to rely on the fact that for every page allocated for a
+>> kmem_cache the |slab_cache| field points to that cache. Without that it'=
+s
+>> hard to figure out which cache does an allocated object belong to.
+>
+> The flags are set only in the head page of a coumpound page which is used
+> by SLAB. No need to do this. This would just mean unnecessarily dirtying
+> struct page cachelines on allocation.
+>
 
-Already taken care of, at least for XFS.
+Got it, thank you.
+Looks like I just need to make sure my code uses
+virt_to_head_page()->page_slab to get the cache for an object.
 
---D
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
