@@ -1,65 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CC4E06B007E
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 03:56:55 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id h144so98047137ita.1
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 00:56:55 -0700 (PDT)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id ke3si11009200igc.21.2016.05.27.00.56.54
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B73F56B007E
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 03:59:37 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id f75so56953312wmf.2
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 00:59:37 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id j16si10578780wmi.23.2016.05.27.00.59.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 27 May 2016 00:56:55 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0O7T00G0JSQRCH70@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 27 May 2016 08:56:51 +0100 (BST)
-Subject: Re: [RESEND][PATCH] drivers: of: of_reserved_mem: fixup the CMA
- alignment not to affect dma-coherent
-References: <1464150590-2703-1-git-send-email-jaewon31.kim@samsung.com>
- <CAL_JsqLu+KxXdZseQiRFPr5MG0hSnwnQJpBLg0M5tgO-ap4F=g@mail.gmail.com>
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Message-id: <0a1e9e76-9506-a0c3-e3c5-521c7a89bfbc@samsung.com>
-Date: Fri, 27 May 2016 09:56:50 +0200
-MIME-version: 1.0
-In-reply-to: 
- <CAL_JsqLu+KxXdZseQiRFPr5MG0hSnwnQJpBLg0M5tgO-ap4F=g@mail.gmail.com>
-Content-type: text/plain; charset=utf-8; format=flowed
-Content-transfer-encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 May 2016 00:59:36 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id n129so11904744wmn.1
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 00:59:36 -0700 (PDT)
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: [PATCH v2 0/3] mm, thp: remove duplication and fix locking issues in swapin
+Date: Fri, 27 May 2016 10:59:21 +0300
+Message-Id: <1464335964-6510-1-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Herring <robh+dt@kernel.org>, Jaewon Kim <jaewon31.kim@samsung.com>
-Cc: r64343@freescale.com, Grant Likely <grant.likely@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, jaewon31.kim@gmail.com
+To: linux-mm@kvack.org
+Cc: hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
-Hello,
+This patch series removes duplication of included header
+and fixes locking inconsistency in khugepaged swapin.
 
+Ebru Akagunduz (3):
+  mm, thp: remove duplication of included header
+  mm, thp: fix possible circular locking dependency caused by
+    sum_vm_event()
+  mm, thp: make swapin readahead under down_read of mmap_sem
 
-On 2016-05-25 16:38, Rob Herring wrote:
-> On Tue, May 24, 2016 at 11:29 PM, Jaewon Kim <jaewon31.kim@samsung.com> wrote:
->> From: Jaewon <jaewon31.kim@samsung.com>
->>
->> There was an alignment mismatch issue for CMA and it was fixed by
->> commit 1cc8e3458b51 ("drivers: of: of_reserved_mem: fixup the alignment with CMA setup").
->> However the way of the commit considers not only dma-contiguous(CMA) but also
->> dma-coherent which has no that requirement.
->>
->> This patch checks more to distinguish dma-contiguous(CMA) from dma-coherent.
->>
->> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
-> I suppose this needs to go to stable? If so, adding the stable tag and
-> kernel version would be nice so I don't have to.
->
->> ---
->>   drivers/of/of_reserved_mem.c | 5 ++++-
->>   1 file changed, 4 insertions(+), 1 deletion(-)
-> I'm looking for an ack from Marek on this.
+ mm/huge_memory.c | 101 +++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 68 insertions(+), 33 deletions(-)
 
-Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
-
-Best regards
 -- 
-Marek Szyprowski, PhD
-Samsung R&D Institute Poland
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
