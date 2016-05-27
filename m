@@ -1,55 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BCF566B007E
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 16:30:02 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b124so214180376pfb.1
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 13:30:02 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id w13si30520214pas.206.2016.05.27.13.30.01
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B1A96B007E
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 17:28:35 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id x1so171066156pav.3
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 14:28:35 -0700 (PDT)
+Received: from mail-pf0-x236.google.com (mail-pf0-x236.google.com. [2607:f8b0:400e:c00::236])
+        by mx.google.com with ESMTPS id dt12si30897856pac.0.2016.05.27.14.28.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 May 2016 13:30:01 -0700 (PDT)
-Date: Fri, 27 May 2016 13:30:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: check the return value of lookup_page_ext for all
- call sites
-Message-Id: <20160527133000.84a887b7ce8d2e6387145b4d@linux-foundation.org>
-In-Reply-To: <ab9cf30c-4979-07af-6732-e647078ef579@linaro.org>
-References: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
-	<20160524025811.GA29094@bbox>
-	<20160526003719.GB9661@bbox>
-	<8ae0197c-47b7-e5d2-20c3-eb9d01e6b65c@linaro.org>
-	<20160527130246.4adb78f29e15d19fae80419a@linux-foundation.org>
-	<ab9cf30c-4979-07af-6732-e647078ef579@linaro.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 27 May 2016 14:28:33 -0700 (PDT)
+Received: by mail-pf0-x236.google.com with SMTP id 62so909322pfd.1
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 14:28:33 -0700 (PDT)
+From: Yang Shi <yang.shi@linaro.org>
+Subject: [v2 PATCH] arm64: kasan: instrument user memory access API
+Date: Fri, 27 May 2016 14:01:03 -0700
+Message-Id: <1464382863-11879-1-git-send-email-yang.shi@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Shi, Yang" <yang.shi@linaro.org>
-Cc: Minchan Kim <minchan@kernel.org>, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: aryabinin@virtuozzo.com, will.deacon@arm.com, catalin.marinas@arm.com, mark.rutland@arm.com
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, yang.shi@linaro.org
 
-On Fri, 27 May 2016 13:17:19 -0700 "Shi, Yang" <yang.shi@linaro.org> wrote:
+The upstream commit 1771c6e1a567ea0ba2cccc0a4ffe68a1419fd8ef
+("x86/kasan: instrument user memory access API") added KASAN instrument to
+x86 user memory access API, so added such instrument to ARM64 too.
 
-> >> Actually, I think the #ifdef should be removed if lookup_page_ext() is
-> >> possible to return NULL. It sounds not make sense returning NULL only
-> >> when DEBUG_VM is enabled. It should return NULL no matter what debug
-> >> config is selected. If Joonsoo agrees with me I'm going to come up with
-> >> a patch to fix it.
-> >>
-> >
-> > I've lost the plot here.  What is the status of this patch?
-> >
-> > Latest version:
-> 
-> Yes, this is the latest version. We are discussing about some future 
-> optimization.
-> 
-> And, Minchan Kim pointed out a possible race condition which exists even 
-> before this patch. I proposed a quick fix, as long as they are happy to 
-> the fix, I will post it to the mailing list.
+Define __copy_to/from_user in C in order to add kasan_check_read/write call,
+rename assembly implementation to __arch_copy_to/from_user.
 
-OK, thanks - I've moved it into the for-Linus-next-week queue.
+Tested by test_kasan module.
+
+Signed-off-by: Yang Shi <yang.shi@linaro.org>
+---
+v2:
+ Adopted the comment from Andrey and Mark to add kasan_check_read/write into
+ __copy_to/from_user.
+
+ arch/arm64/include/asm/uaccess.h | 25 +++++++++++++++++++++----
+ arch/arm64/kernel/arm64ksyms.c   |  4 ++--
+ arch/arm64/lib/copy_from_user.S  |  4 ++--
+ arch/arm64/lib/copy_to_user.S    |  4 ++--
+ 4 files changed, 27 insertions(+), 10 deletions(-)
+
+diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
+index 0685d74..4dc9a8f 100644
+--- a/arch/arm64/include/asm/uaccess.h
++++ b/arch/arm64/include/asm/uaccess.h
+@@ -23,6 +23,7 @@
+  */
+ #include <linux/string.h>
+ #include <linux/thread_info.h>
++#include <linux/kasan-checks.h>
+ 
+ #include <asm/alternative.h>
+ #include <asm/cpufeature.h>
+@@ -269,15 +270,29 @@ do {									\
+ 		-EFAULT;						\
+ })
+ 
+-extern unsigned long __must_check __copy_from_user(void *to, const void __user *from, unsigned long n);
+-extern unsigned long __must_check __copy_to_user(void __user *to, const void *from, unsigned long n);
++extern unsigned long __must_check __arch_copy_from_user(void *to, const void __user *from, unsigned long n);
++extern unsigned long __must_check __arch_copy_to_user(void __user *to, const void *from, unsigned long n);
+ extern unsigned long __must_check __copy_in_user(void __user *to, const void __user *from, unsigned long n);
+ extern unsigned long __must_check __clear_user(void __user *addr, unsigned long n);
+ 
++static inline unsigned long __must_check __copy_from_user(void *to, const void __user *from, unsigned long n)
++{
++	kasan_check_write(to, n);
++	return  __arch_copy_from_user(to, from, n);
++}
++
++static inline unsigned long __must_check __copy_to_user(void __user *to, const void *from, unsigned long n)
++{
++	kasan_check_read(from, n);
++	return  __arch_copy_to_user(to, from, n);
++}
++
+ static inline unsigned long __must_check copy_from_user(void *to, const void __user *from, unsigned long n)
+ {
++	kasan_check_write(to, n);
++
+ 	if (access_ok(VERIFY_READ, from, n))
+-		n = __copy_from_user(to, from, n);
++		n = __arch_copy_from_user(to, from, n);
+ 	else /* security hole - plug it */
+ 		memset(to, 0, n);
+ 	return n;
+@@ -285,8 +300,10 @@ static inline unsigned long __must_check copy_from_user(void *to, const void __u
+ 
+ static inline unsigned long __must_check copy_to_user(void __user *to, const void *from, unsigned long n)
+ {
++	kasan_check_read(from, n);
++
+ 	if (access_ok(VERIFY_WRITE, to, n))
+-		n = __copy_to_user(to, from, n);
++		n = __arch_copy_to_user(to, from, n);
+ 	return n;
+ }
+ 
+diff --git a/arch/arm64/kernel/arm64ksyms.c b/arch/arm64/kernel/arm64ksyms.c
+index 678f30b0..2dc4440 100644
+--- a/arch/arm64/kernel/arm64ksyms.c
++++ b/arch/arm64/kernel/arm64ksyms.c
+@@ -34,8 +34,8 @@ EXPORT_SYMBOL(copy_page);
+ EXPORT_SYMBOL(clear_page);
+ 
+ 	/* user mem (segment) */
+-EXPORT_SYMBOL(__copy_from_user);
+-EXPORT_SYMBOL(__copy_to_user);
++EXPORT_SYMBOL(__arch_copy_from_user);
++EXPORT_SYMBOL(__arch_copy_to_user);
+ EXPORT_SYMBOL(__clear_user);
+ EXPORT_SYMBOL(__copy_in_user);
+ 
+diff --git a/arch/arm64/lib/copy_from_user.S b/arch/arm64/lib/copy_from_user.S
+index 17e8306..0b90497 100644
+--- a/arch/arm64/lib/copy_from_user.S
++++ b/arch/arm64/lib/copy_from_user.S
+@@ -66,7 +66,7 @@
+ 	.endm
+ 
+ end	.req	x5
+-ENTRY(__copy_from_user)
++ENTRY(__arch_copy_from_user)
+ ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(0)), ARM64_ALT_PAN_NOT_UAO, \
+ 	    CONFIG_ARM64_PAN)
+ 	add	end, x0, x2
+@@ -75,7 +75,7 @@ ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(1)), ARM64_ALT_PAN_NOT_UAO, \
+ 	    CONFIG_ARM64_PAN)
+ 	mov	x0, #0				// Nothing to copy
+ 	ret
+-ENDPROC(__copy_from_user)
++ENDPROC(__arch_copy_from_user)
+ 
+ 	.section .fixup,"ax"
+ 	.align	2
+diff --git a/arch/arm64/lib/copy_to_user.S b/arch/arm64/lib/copy_to_user.S
+index 21faae6..7a7efe2 100644
+--- a/arch/arm64/lib/copy_to_user.S
++++ b/arch/arm64/lib/copy_to_user.S
+@@ -65,7 +65,7 @@
+ 	.endm
+ 
+ end	.req	x5
+-ENTRY(__copy_to_user)
++ENTRY(__arch_copy_to_user)
+ ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(0)), ARM64_ALT_PAN_NOT_UAO, \
+ 	    CONFIG_ARM64_PAN)
+ 	add	end, x0, x2
+@@ -74,7 +74,7 @@ ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(1)), ARM64_ALT_PAN_NOT_UAO, \
+ 	    CONFIG_ARM64_PAN)
+ 	mov	x0, #0
+ 	ret
+-ENDPROC(__copy_to_user)
++ENDPROC(__arch_copy_to_user)
+ 
+ 	.section .fixup,"ax"
+ 	.align	2
+-- 
+2.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
