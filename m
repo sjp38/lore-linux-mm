@@ -1,349 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9ABAA6B007E
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 01:14:10 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id yu3so157153192obb.3
-        for <linux-mm@kvack.org>; Thu, 26 May 2016 22:14:10 -0700 (PDT)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4317B6B025F
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 01:27:24 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id 85so168986619ioq.3
+        for <linux-mm@kvack.org>; Thu, 26 May 2016 22:27:24 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id o205si10135799itd.60.2016.05.26.22.14.08
+        by mx.google.com with ESMTP id kp2si10170601igc.102.2016.05.26.22.27.22
         for <linux-mm@kvack.org>;
-        Thu, 26 May 2016 22:14:09 -0700 (PDT)
-Date: Fri, 27 May 2016 14:14:32 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: check the return value of lookup_page_ext for all
- call sites
-Message-ID: <20160527051432.GF2322@bbox>
-References: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
- <20160524025811.GA29094@bbox>
- <20160526003719.GB9661@bbox>
- <8ae0197c-47b7-e5d2-20c3-eb9d01e6b65c@linaro.org>
+        Thu, 26 May 2016 22:27:23 -0700 (PDT)
+Date: Fri, 27 May 2016 14:28:20 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v3 0/6] Introduce ZONE_CMA
+Message-ID: <20160527052820.GA13661@js1304-P5Q-DELUXE>
+References: <1464243748-16367-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20160526080454.GA11823@shbuild888>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8ae0197c-47b7-e5d2-20c3-eb9d01e6b65c@linaro.org>
+In-Reply-To: <20160526080454.GA11823@shbuild888>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Shi, Yang" <yang.shi@linaro.org>
-Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Feng Tang <feng.tang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Rui Teng <rui.teng@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu, May 26, 2016 at 04:15:28PM -0700, Shi, Yang wrote:
-> On 5/25/2016 5:37 PM, Minchan Kim wrote:
-> >On Tue, May 24, 2016 at 11:58:11AM +0900, Minchan Kim wrote:
-> >>On Mon, May 23, 2016 at 10:16:08AM -0700, Yang Shi wrote:
-> >>>Per the discussion with Joonsoo Kim [1], we need check the return value of
-> >>>lookup_page_ext() for all call sites since it might return NULL in some cases,
-> >>>although it is unlikely, i.e. memory hotplug.
-> >>>
-> >>>Tested with ltp with "page_owner=0".
-> >>>
-> >>>[1] http://lkml.kernel.org/r/20160519002809.GA10245@js1304-P5Q-DELUXE
-> >>>
-> >>>Signed-off-by: Yang Shi <yang.shi@linaro.org>
-> >>
-> >>I didn't read code code in detail to see how page_ext memory space
-> >>allocated in boot code and memory hotplug but to me, it's not good
-> >>to check NULL whenever we calls lookup_page_ext.
-> >>
-> >>More dangerous thing is now page_ext is used by optionable feature(ie, not
-> >>critical for system stability) but if we want to use page_ext as
-> >>another important tool for the system in future,
-> >>it could be a serious problem.
-> >>
-> >>Can we put some hooks of page_ext into memory-hotplug so guarantee
-> >>that page_ext memory space is allocated with memmap space at the
-> >>same time? IOW, once every PFN wakers find a page is valid, page_ext
-> >>is valid, too so lookup_page_ext never returns NULL on valid page
-> >>by design.
-> >>
-> >>I hope we consider this direction, too.
-> >
-> >Yang, Could you think about this?
+On Thu, May 26, 2016 at 04:04:54PM +0800, Feng Tang wrote:
+> On Thu, May 26, 2016 at 02:22:22PM +0800, js1304@gmail.com wrote:
+> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> Thanks a lot for the suggestion. Sorry for the late reply, I was
-> busy on preparing patches. I do agree this is a direction we should
-> look into, but I haven't got time to think about it deeper. I hope
-> Joonsoo could chime in too since he is the original author for page
-> extension.
+> Hi Joonsoo,
 > 
-> >
-> >Even, your patch was broken, I think.
-> >It doesn't work with !CONFIG_DEBUG_VM && !CONFIG_PAGE_POISONING because
-> >lookup_page_ext doesn't return NULL in that case.
-> 
-> Actually, I think the #ifdef should be removed if lookup_page_ext()
-> is possible to return NULL. It sounds not make sense returning NULL
-> only when DEBUG_VM is enabled. It should return NULL no matter what
-> debug config is selected. If Joonsoo agrees with me I'm going to
-> come up with a patch to fix it.
+> Nice work!
 
-I don't know what lock protects race section->page_ext storing/tearing
-during memory hotplug while random thread accesses pege_ext,
-for example, kpageflags->page_is_idle.
+Thanks!
 
-Please consider that, too if you want to go with this approach.
+> > FYI, there is another attempt [3] trying to solve this problem in lkml.
+> > And, as far as I know, Qualcomm also has out-of-tree solution for this
+> > problem.
+> 
+> This may be a little off-topic :) Actually, we have used another way in
+> our products, that we disable the fallback from MIGRATETYE_MOVABLE to
+> MIGRATETYPE_CMA completely, and only allow free CMA memory to be used
+> by file page cache (which is easy to be reclaimed by its nature). 
+> We did it by adding a GFP_PAGE_CACHE to every allocation request for
+> page cache, and the MM will try to pick up an available free CMA page
+> first, and goes to normal path when fail. 
 
+Just wonder, why do you allow CMA memory to file page cache rather
+than anonymous page? I guess that anonymous pages would be more easily
+migrated/reclaimed than file page cache. In fact, some of our product
+uses anonymous page adaptation to satisfy similar requirement by
+introducing GFP_CMA. AFAIK, some of chip vendor also uses "anonymous
+page first adaptation" to get better success rate.
+
+> It works fine on our products, though we still see some cases that
+> some page can't be reclaimed. 
 > 
-> Regards,
-> Yang
-> 
-> >
-> >>
-> >>Thanks.
-> >>
-> >>>---
-> >>> include/linux/page_idle.h | 43 ++++++++++++++++++++++++++++++++++++-------
-> >>> mm/page_alloc.c           |  6 ++++++
-> >>> mm/page_owner.c           | 27 +++++++++++++++++++++++++++
-> >>> mm/page_poison.c          |  8 +++++++-
-> >>> mm/vmstat.c               |  2 ++
-> >>> 5 files changed, 78 insertions(+), 8 deletions(-)
-> >>>
-> >>>diff --git a/include/linux/page_idle.h b/include/linux/page_idle.h
-> >>>index bf268fa..8f5d4ad 100644
-> >>>--- a/include/linux/page_idle.h
-> >>>+++ b/include/linux/page_idle.h
-> >>>@@ -46,33 +46,62 @@ extern struct page_ext_operations page_idle_ops;
-> >>>
-> >>> static inline bool page_is_young(struct page *page)
-> >>> {
-> >>>-	return test_bit(PAGE_EXT_YOUNG, &lookup_page_ext(page)->flags);
-> >>>+	struct page_ext *page_ext;
-> >>>+	page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext)
-> >>>+		return false;
-> >>>+
-> >>>+	return test_bit(PAGE_EXT_YOUNG, &page_ext->flags);
-> >>> }
-> >>>
-> >>> static inline void set_page_young(struct page *page)
-> >>> {
-> >>>-	set_bit(PAGE_EXT_YOUNG, &lookup_page_ext(page)->flags);
-> >>>+	struct page_ext *page_ext;
-> >>>+	page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext)
-> >>>+		return;
-> >>>+
-> >>>+	set_bit(PAGE_EXT_YOUNG, &page_ext->flags);
-> >>> }
-> >>>
-> >>> static inline bool test_and_clear_page_young(struct page *page)
-> >>> {
-> >>>-	return test_and_clear_bit(PAGE_EXT_YOUNG,
-> >>>-				  &lookup_page_ext(page)->flags);
-> >>>+	struct page_ext *page_ext;
-> >>>+	page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext)
-> >>>+		return false;
-> >>>+
-> >>>+	return test_and_clear_bit(PAGE_EXT_YOUNG, &page_ext->flags);
-> >>> }
-> >>>
-> >>> static inline bool page_is_idle(struct page *page)
-> >>> {
-> >>>-	return test_bit(PAGE_EXT_IDLE, &lookup_page_ext(page)->flags);
-> >>>+	struct page_ext *page_ext;
-> >>>+	page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext)
-> >>>+		return false;
-> >>>+
-> >>>+	return test_bit(PAGE_EXT_IDLE, &page_ext->flags);
-> >>> }
-> >>>
-> >>> static inline void set_page_idle(struct page *page)
-> >>> {
-> >>>-	set_bit(PAGE_EXT_IDLE, &lookup_page_ext(page)->flags);
-> >>>+	struct page_ext *page_ext;
-> >>>+	page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext)
-> >>>+		return;
-> >>>+
-> >>>+	set_bit(PAGE_EXT_IDLE, &page_ext->flags);
-> >>> }
-> >>>
-> >>> static inline void clear_page_idle(struct page *page)
-> >>> {
-> >>>-	clear_bit(PAGE_EXT_IDLE, &lookup_page_ext(page)->flags);
-> >>>+	struct page_ext *page_ext;
-> >>>+	page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext)
-> >>>+		return;
-> >>>+
-> >>>+	clear_bit(PAGE_EXT_IDLE, &page_ext->flags);
-> >>> }
-> >>> #endif /* CONFIG_64BIT */
-> >>>
-> >>>diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >>>index f8f3bfc..d27e8b9 100644
-> >>>--- a/mm/page_alloc.c
-> >>>+++ b/mm/page_alloc.c
-> >>>@@ -656,6 +656,9 @@ static inline void set_page_guard(struct zone *zone, struct page *page,
-> >>> 		return;
-> >>>
-> >>> 	page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext))
-> >>>+		return;
-> >>>+
-> >>> 	__set_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
-> >>>
-> >>> 	INIT_LIST_HEAD(&page->lru);
-> >>>@@ -673,6 +676,9 @@ static inline void clear_page_guard(struct zone *zone, struct page *page,
-> >>> 		return;
-> >>>
-> >>> 	page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext))
-> >>>+		return;
-> >>>+
-> >>> 	__clear_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
-> >>>
-> >>> 	set_page_private(page, 0);
-> >>>diff --git a/mm/page_owner.c b/mm/page_owner.c
-> >>>index 792b56d..902e398 100644
-> >>>--- a/mm/page_owner.c
-> >>>+++ b/mm/page_owner.c
-> >>>@@ -55,6 +55,8 @@ void __reset_page_owner(struct page *page, unsigned int order)
-> >>>
-> >>> 	for (i = 0; i < (1 << order); i++) {
-> >>> 		page_ext = lookup_page_ext(page + i);
-> >>>+		if (unlikely(!page_ext))
-> >>>+			continue;
-> >>> 		__clear_bit(PAGE_EXT_OWNER, &page_ext->flags);
-> >>> 	}
-> >>> }
-> >>>@@ -62,6 +64,10 @@ void __reset_page_owner(struct page *page, unsigned int order)
-> >>> void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
-> >>> {
-> >>> 	struct page_ext *page_ext = lookup_page_ext(page);
-> >>>+
-> >>>+	if (unlikely(!page_ext))
-> >>>+		return;
-> >>>+
-> >>> 	struct stack_trace trace = {
-> >>> 		.nr_entries = 0,
-> >>> 		.max_entries = ARRAY_SIZE(page_ext->trace_entries),
-> >>>@@ -82,6 +88,8 @@ void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
-> >>> void __set_page_owner_migrate_reason(struct page *page, int reason)
-> >>> {
-> >>> 	struct page_ext *page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext))
-> >>>+		return;
-> >>>
-> >>> 	page_ext->last_migrate_reason = reason;
-> >>> }
-> >>>@@ -89,6 +97,12 @@ void __set_page_owner_migrate_reason(struct page *page, int reason)
-> >>> gfp_t __get_page_owner_gfp(struct page *page)
-> >>> {
-> >>> 	struct page_ext *page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext))
-> >>>+		/*
-> >>>+		 * The caller just returns 0 if no valid gfp
-> >>>+		 * So return 0 here too.
-> >>>+		 */
-> >>>+		return 0;
-> >>>
-> >>> 	return page_ext->gfp_mask;
-> >>> }
-> >>>@@ -97,6 +111,10 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
-> >>> {
-> >>> 	struct page_ext *old_ext = lookup_page_ext(oldpage);
-> >>> 	struct page_ext *new_ext = lookup_page_ext(newpage);
-> >>>+
-> >>>+	if (unlikely(!old_ext || !new_ext))
-> >>>+		return;
-> >>>+
-> >>> 	int i;
-> >>>
-> >>> 	new_ext->order = old_ext->order;
-> >>>@@ -186,6 +204,11 @@ err:
-> >>> void __dump_page_owner(struct page *page)
-> >>> {
-> >>> 	struct page_ext *page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext)) {
-> >>>+		pr_alert("There is not page extension available.\n");
-> >>>+		return;
-> >>>+	}
-> >>>+
-> >>> 	struct stack_trace trace = {
-> >>> 		.nr_entries = page_ext->nr_entries,
-> >>> 		.entries = &page_ext->trace_entries[0],
-> >>>@@ -251,6 +274,8 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
-> >>> 		}
-> >>>
-> >>> 		page_ext = lookup_page_ext(page);
-> >>>+		if (unlikely(!page_ext))
-> >>>+			continue;
-> >>>
-> >>> 		/*
-> >>> 		 * Some pages could be missed by concurrent allocation or free,
-> >>>@@ -317,6 +342,8 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
-> >>> 				continue;
-> >>>
-> >>> 			page_ext = lookup_page_ext(page);
-> >>>+			if (unlikely(!page_ext))
-> >>>+				continue;
-> >>>
-> >>> 			/* Maybe overraping zone */
-> >>> 			if (test_bit(PAGE_EXT_OWNER, &page_ext->flags))
-> >>>diff --git a/mm/page_poison.c b/mm/page_poison.c
-> >>>index 1eae5fa..2e647c6 100644
-> >>>--- a/mm/page_poison.c
-> >>>+++ b/mm/page_poison.c
-> >>>@@ -54,6 +54,9 @@ static inline void set_page_poison(struct page *page)
-> >>> 	struct page_ext *page_ext;
-> >>>
-> >>> 	page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext))
-> >>>+		return;
-> >>>+
-> >>> 	__set_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
-> >>> }
-> >>>
-> >>>@@ -62,6 +65,9 @@ static inline void clear_page_poison(struct page *page)
-> >>> 	struct page_ext *page_ext;
-> >>>
-> >>> 	page_ext = lookup_page_ext(page);
-> >>>+	if (unlikely(!page_ext))
-> >>>+		return;
-> >>>+
-> >>> 	__clear_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
-> >>> }
-> >>>
-> >>>@@ -70,7 +76,7 @@ bool page_is_poisoned(struct page *page)
-> >>> 	struct page_ext *page_ext;
-> >>>
-> >>> 	page_ext = lookup_page_ext(page);
-> >>>-	if (!page_ext)
-> >>>+	if (unlikely(!page_ext))
-> >>> 		return false;
-> >>>
-> >>> 	return test_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
-> >>>diff --git a/mm/vmstat.c b/mm/vmstat.c
-> >>>index 77e42ef..cb2a67b 100644
-> >>>--- a/mm/vmstat.c
-> >>>+++ b/mm/vmstat.c
-> >>>@@ -1061,6 +1061,8 @@ static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
-> >>> 				continue;
-> >>>
-> >>> 			page_ext = lookup_page_ext(page);
-> >>>+			if (unlikely(!page_ext))
-> >>>+				continue;
-> >>>
-> >>> 			if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
-> >>> 				continue;
-> >>>--
-> >>>2.0.2
-> >>>
-> >>>--
-> >>>To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >>>the body to majordomo@kvack.org.  For more info on Linux MM,
-> >>>see: http://www.linux-mm.org/ .
-> >>>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >>
-> >>--
-> >>To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >>the body to majordomo@kvack.org.  For more info on Linux MM,
-> >>see: http://www.linux-mm.org/ .
-> >>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> Our product has a special user case of CMA, that sometimes it will
+> need to use the whole CMA memory (say 256MB on a phone), then all
+
+I don't think this usecase is so special. Our product also has similar
+usecase. And, I already knows one another.
+
+> share out CMA pages need to be reclaimed all at once. Don't know if
+> this new ZONE_CMA approach could meet this request? (our page cache
+> solution can't ganrantee to meet this request all the time).
+
+This ZONE_CMA approach would be better than before, since CMA memory
+is not be used for blockdev page cache. Blockdev page cache is one of
+the frequent failure points in my experience.
+
+I'm not sure that ZONE_CMA works better than your GFP_PAGE_CACHE
+adaptation for your system. In ZONE_CMA, CMA memory is used for file
+page cache or anonymous pages. If my assumption that anonymous pages
+are easier to be migrated/reclaimed is correct, ZONE_CMA would work
+better than your adaptation since there is less file page cache pages
+in CMA memory.
+
+Anyway, it also doesn't guarantee to succeed all the time. There is
+different kind of problem that prevents CMA allocation success and we
+need to solve it. I will try it after problems that this patchset try
+to fix is solved.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
