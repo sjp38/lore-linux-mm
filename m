@@ -1,78 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 262D96B007E
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 04:17:42 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id w143so157503813oiw.3
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 01:17:42 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0091.outbound.protection.outlook.com. [104.47.0.91])
-        by mx.google.com with ESMTPS id s67si6487010oia.89.2016.05.27.01.17.41
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E6C1D6B007E
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 04:26:02 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id w16so43304692lfd.0
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 01:26:02 -0700 (PDT)
+Received: from fnsib-smtp01.srv.cat (fnsib-smtp01.srv.cat. [46.16.60.186])
+        by mx.google.com with ESMTPS id x124si8153386lfd.231.2016.05.27.01.26.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 27 May 2016 01:17:41 -0700 (PDT)
-Date: Fri, 27 May 2016 11:17:32 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] memcg: add RCU locking around
- css_for_each_descendant_pre() in memcg_offline_kmem()
-Message-ID: <20160527081732.GB26059@esperanza>
-References: <20160526203018.GG23194@mtj.duckdns.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 May 2016 01:26:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Disposition: inline
+Content-Type: text/plain; charset=UTF-8;
+ format=flowed
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20160526203018.GG23194@mtj.duckdns.org>
+Date: Fri, 27 May 2016 10:25:59 +0200
+From: "guillermo.julian" <guillermo.julian@naudit.es>
+Subject: Re: [PATCH] mm: fix overflow in vm_map_ram
+Reply-To: guillermo.julian@naudit.es
+In-Reply-To: <20160526142837.662100b01ff094be9a28f01b@linux-foundation.org>
+References: <etPan.57175fb3.7a271c6b.2bd@naudit.es>
+ <20160526142837.662100b01ff094be9a28f01b@linux-foundation.org>
+Message-ID: <08d280dc9c9fe037805e3ff74d7dad02@naudit.es>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-On Thu, May 26, 2016 at 04:30:18PM -0400, Tejun Heo wrote:
-> memcg_offline_kmem() may be called from memcg_free_kmem() after a css
-> init failure.  memcg_free_kmem() is a ->css_free callback which is
-> called without cgroup_mutex and memcg_offline_kmem() ends up using
-> css_for_each_descendant_pre() without any locking.  Fix it by adding
-> rcu read locking around it.
+El 2016-05-26 23:28, Andrew Morton escribiA3:
+> On Wed, 20 Apr 2016 12:53:33 +0200 Guillermo Juli__n Moreno
+> <guillermo.julian@naudit.es> wrote:
 > 
->  mkdir: cannot create directory a??65530a??: No space left on device
->  [  527.241361] ===============================
->  [  527.241845] [ INFO: suspicious RCU usage. ]
->  [  527.242367] 4.6.0-work+ #321 Not tainted
->  [  527.242730] -------------------------------
->  [  527.243220] kernel/cgroup.c:4008 cgroup_mutex or RCU read lock required!
->  [  527.243970]
->  [  527.243970] other info that might help us debug this:
->  [  527.243970]
->  [  527.244715]
->  [  527.244715] rcu_scheduler_active = 1, debug_locks = 0
->  [  527.245463] 2 locks held by kworker/0:5/1664:
->  [  527.245939]  #0:  ("cgroup_destroy"){.+.+..}, at: [<ffffffff81060ab5>] process_one_work+0x165/0x4a0
->  [  527.246958]  #1:  ((&css->destroy_work)#3){+.+...}, at: [<ffffffff81060ab5>] process_one_work+0x165/0x4a0
->  [  527.248098]
->  [  527.248098] stack backtrace:
->  [  527.249565] CPU: 0 PID: 1664 Comm: kworker/0:5 Not tainted 4.6.0-work+ #321
->  [  527.250429] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.9.1-1.fc24 04/01/2014
->  [  527.250555] Workqueue: cgroup_destroy css_free_work_fn
->  [  527.250555]  0000000000000000 ffff880178747c68 ffffffff8128bfc7 ffff880178b8ac40
->  [  527.250555]  0000000000000001 ffff880178747c98 ffffffff8108c297 0000000000000000
->  [  527.250555]  ffff88010de54138 000000000000fffb ffff88010de537e8 ffff880178747cc0
->  [  527.250555] Call Trace:
->  [  527.250555]  [<ffffffff8128bfc7>] dump_stack+0x68/0xa1
->  [  527.250555]  [<ffffffff8108c297>] lockdep_rcu_suspicious+0xd7/0x110
->  [  527.250555]  [<ffffffff810ca03d>] css_next_descendant_pre+0x7d/0xb0
->  [  527.250555]  [<ffffffff8114d14a>] memcg_offline_kmem.part.44+0x4a/0xc0
->  [  527.250555]  [<ffffffff8114d3ac>] mem_cgroup_css_free+0x1ec/0x200
->  [  527.250555]  [<ffffffff810ccdc9>] css_free_work_fn+0x49/0x5e0
->  [  527.250555]  [<ffffffff81060b15>] process_one_work+0x1c5/0x4a0
->  [  527.250555]  [<ffffffff81060ab5>] ? process_one_work+0x165/0x4a0
->  [  527.250555]  [<ffffffff81060e39>] worker_thread+0x49/0x490
->  [  527.250555]  [<ffffffff81060df0>] ? process_one_work+0x4a0/0x4a0
->  [  527.250555]  [<ffffffff81060df0>] ? process_one_work+0x4a0/0x4a0
->  [  527.250555]  [<ffffffff810672ba>] kthread+0xea/0x100
->  [  527.250555]  [<ffffffff814cbcff>] ret_from_fork+0x1f/0x40
->  [  527.250555]  [<ffffffff810671d0>] ? kthread_create_on_node+0x200/0x200
+>> 
+>> When remapping pages accounting for 4G or more memory space, the
+>> operation 'count << PAGE_SHIFT' overflows as it is performed on an
+>> integer. Solution: cast before doing the bitshift.
 > 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Yup.
+> 
+> We need to work out which kernel versions to fix.  What are the runtime
+> effects of this?  Are there real drivers in the tree which actually map
+> more than 4G?
 
-Acked-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Looking at the references of vm_map_ram, it is only used in three 
+drivers (XFS, v4l2-core and android/ion). However, in the vmap() code, 
+the same bug is likely to occur (vmalloc.c:1557), and that function is 
+more frequently used. But if it has gone unnoticed until now, most 
+probably it isn't a critical issue (4G memory allocations are usually 
+not needed. In fact this bug surfaced during a performance test in a 
+modified driver, not in a regular configuration.
+
+> 
+> I fixed vm_unmap_ram() as well, but I didn't test it.  I wonder why you
+> missed that...
+
+The initial test didn't fail so I didn't notice the unmap was not 
+working, so I completely forgot to check that function.
+
+> 
+>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>> index ae7d20b..97257e4 100644
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -1114,7 +1114,7 @@ EXPORT_SYMBOL(vm_unmap_ram);
+>> */
+>> void *vm_map_ram(struct page **pages, unsigned int count, int node, 
+>> pgprot_t prot)
+>> {
+>> - unsigned long size = count << PAGE_SHIFT;
+>> + unsigned long size = ((unsigned long) count) << PAGE_SHIFT;
+>> unsigned long addr;
+>> void *mem;
+>> 
+> 
+> Your email client totally messes up the patches.  Please fix that for
+> next time.
+
+Sorry about that, I didn't notice it ate the tabs. I checked and this 
+time it shouldn't happen.
+
+> 
+> 
+> From: Guillermo Juli_n Moreno <guillermo.julian@naudit.es>
+> Subject: mm: fix overflow in vm_map_ram()
+> 
+> When remapping pages accounting for 4G or more memory space, the
+> operation 'count << PAGE_SHIFT' overflows as it is performed on an
+> integer. Solution: cast before doing the bitshift.
+> 
+> [akpm@linux-foundation.org: fix vm_unmap_ram() also]
+> Link: http://lkml.kernel.org/r/etPan.57175fb3.7a271c6b.2bd@naudit.es
+> Signed-off-by: Guillermo Juli_n Moreno <guillermo.julian@naudit.es>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  mm/vmalloc.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff -puN mm/vmalloc.c~mm-fix-overflow-in-vm_map_ram mm/vmalloc.c
+> --- a/mm/vmalloc.c~mm-fix-overflow-in-vm_map_ram
+> +++ a/mm/vmalloc.c
+> @@ -1105,7 +1105,7 @@ EXPORT_SYMBOL_GPL(vm_unmap_aliases);
+>   */
+>  void vm_unmap_ram(const void *mem, unsigned int count)
+>  {
+> -	unsigned long size = count << PAGE_SHIFT;
+> +	unsigned long size = (unsigned long)count << PAGE_SHIFT;
+>  	unsigned long addr = (unsigned long)mem;
+> 
+>  	BUG_ON(!addr);
+> @@ -1140,7 +1140,7 @@ EXPORT_SYMBOL(vm_unmap_ram);
+>   */
+>  void *vm_map_ram(struct page **pages, unsigned int count, int node,
+> pgprot_t prot)
+>  {
+> -	unsigned long size = count << PAGE_SHIFT;
+> +	unsigned long size = (unsigned long)count << PAGE_SHIFT;
+>  	unsigned long addr;
+>  	void *mem;
+> 
+> _
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
