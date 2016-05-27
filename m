@@ -1,124 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E6C1D6B007E
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 04:26:02 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id w16so43304692lfd.0
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 01:26:02 -0700 (PDT)
-Received: from fnsib-smtp01.srv.cat (fnsib-smtp01.srv.cat. [46.16.60.186])
-        by mx.google.com with ESMTPS id x124si8153386lfd.231.2016.05.27.01.26.01
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BF12C6B007E
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 04:33:54 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 132so21611788lfz.3
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 01:33:54 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a199si10697217wmd.114.2016.05.27.01.33.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 May 2016 01:26:01 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 27 May 2016 01:33:53 -0700 (PDT)
+Date: Fri, 27 May 2016 10:33:51 +0200
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v6 13/20] hung_task: Convert hungtaskd into kthread
+ worker API
+Message-ID: <20160527083351.GJ23103@pathway.suse.cz>
+References: <1460646879-617-1-git-send-email-pmladek@suse.com>
+ <1460646879-617-14-git-send-email-pmladek@suse.com>
+ <47fb67eb-1756-7189-0245-f59c5a4c5f41@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8;
- format=flowed
-Content-Transfer-Encoding: 8bit
-Date: Fri, 27 May 2016 10:25:59 +0200
-From: "guillermo.julian" <guillermo.julian@naudit.es>
-Subject: Re: [PATCH] mm: fix overflow in vm_map_ram
-Reply-To: guillermo.julian@naudit.es
-In-Reply-To: <20160526142837.662100b01ff094be9a28f01b@linux-foundation.org>
-References: <etPan.57175fb3.7a271c6b.2bd@naudit.es>
- <20160526142837.662100b01ff094be9a28f01b@linux-foundation.org>
-Message-ID: <08d280dc9c9fe037805e3ff74d7dad02@naudit.es>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <47fb67eb-1756-7189-0245-f59c5a4c5f41@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Tejun Heo <tj@kernel.org>, linux-mm <linux-mm@kvack.org>, linux-watchdog@vger.kernel.org
 
-El 2016-05-26 23:28, Andrew Morton escribiA3:
-> On Wed, 20 Apr 2016 12:53:33 +0200 Guillermo Juli__n Moreno
-> <guillermo.julian@naudit.es> wrote:
+On Thu 2016-05-26 06:56:38, Tetsuo Handa wrote:
+> On 2016/04/15 0:14, Petr Mladek wrote:
+> > This patch converts hungtaskd() in kthread worker API because
+> > it modifies the priority.
+> > 
+> > This patch moves one iteration of the main cycle into a self-queuing
+> > delayed kthread work. It does not longer check if it was called
+> > earlier. Instead, the work is scheduled only when needed. This
+> > requires storing the time of the last check into a global
+> > variable.
 > 
->> 
->> When remapping pages accounting for 4G or more memory space, the
->> operation 'count << PAGE_SHIFT' overflows as it is performed on an
->> integer. Solution: cast before doing the bitshift.
+> Is it guaranteed that that work is fired when timeout expires? It is
+> common that tasks sleep in uninterruptible state due to waiting for
+> memory allocations. Unless a dedicated worker like vmstat_wq is used
+> for watchdog, I think it might fail to report such tasks due to all
+> workers being busy but the system is under OOM.
 > 
-> Yup.
-> 
-> We need to work out which kernel versions to fix.  What are the runtime
-> effects of this?  Are there real drivers in the tree which actually map
-> more than 4G?
+>   vmstat_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
 
-Looking at the references of vm_map_ram, it is only used in three 
-drivers (XFS, v4l2-core and android/ion). However, in the vmap() code, 
-the same bug is likely to occur (vmalloc.c:1557), and that function is 
-more frequently used. But if it has gone unnoticed until now, most 
-probably it isn't a critical issue (4G memory allocations are usually 
-not needed. In fact this bug surfaced during a performance test in a 
-modified driver, not in a regular configuration.
+We are on the safe side. You might be confused because the kthread
+worker API has similar semantic like workqueues (using workers and
+works).  The main difference is that each kthread worker has its
+own dedicated kthread. There are no pools, no dynamic assignment,
+and no further allocations needed.
 
-> 
-> I fixed vm_unmap_ram() as well, but I didn't test it.  I wonder why you
-> missed that...
+Thanks a lot for looking at it.
 
-The initial test didn't fail so I didn't notice the unmap was not 
-working, so I completely forgot to check that function.
-
-> 
->> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->> index ae7d20b..97257e4 100644
->> --- a/mm/vmalloc.c
->> +++ b/mm/vmalloc.c
->> @@ -1114,7 +1114,7 @@ EXPORT_SYMBOL(vm_unmap_ram);
->> */
->> void *vm_map_ram(struct page **pages, unsigned int count, int node, 
->> pgprot_t prot)
->> {
->> - unsigned long size = count << PAGE_SHIFT;
->> + unsigned long size = ((unsigned long) count) << PAGE_SHIFT;
->> unsigned long addr;
->> void *mem;
->> 
-> 
-> Your email client totally messes up the patches.  Please fix that for
-> next time.
-
-Sorry about that, I didn't notice it ate the tabs. I checked and this 
-time it shouldn't happen.
-
-> 
-> 
-> From: Guillermo Juli_n Moreno <guillermo.julian@naudit.es>
-> Subject: mm: fix overflow in vm_map_ram()
-> 
-> When remapping pages accounting for 4G or more memory space, the
-> operation 'count << PAGE_SHIFT' overflows as it is performed on an
-> integer. Solution: cast before doing the bitshift.
-> 
-> [akpm@linux-foundation.org: fix vm_unmap_ram() also]
-> Link: http://lkml.kernel.org/r/etPan.57175fb3.7a271c6b.2bd@naudit.es
-> Signed-off-by: Guillermo Juli_n Moreno <guillermo.julian@naudit.es>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/vmalloc.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff -puN mm/vmalloc.c~mm-fix-overflow-in-vm_map_ram mm/vmalloc.c
-> --- a/mm/vmalloc.c~mm-fix-overflow-in-vm_map_ram
-> +++ a/mm/vmalloc.c
-> @@ -1105,7 +1105,7 @@ EXPORT_SYMBOL_GPL(vm_unmap_aliases);
->   */
->  void vm_unmap_ram(const void *mem, unsigned int count)
->  {
-> -	unsigned long size = count << PAGE_SHIFT;
-> +	unsigned long size = (unsigned long)count << PAGE_SHIFT;
->  	unsigned long addr = (unsigned long)mem;
-> 
->  	BUG_ON(!addr);
-> @@ -1140,7 +1140,7 @@ EXPORT_SYMBOL(vm_unmap_ram);
->   */
->  void *vm_map_ram(struct page **pages, unsigned int count, int node,
-> pgprot_t prot)
->  {
-> -	unsigned long size = count << PAGE_SHIFT;
-> +	unsigned long size = (unsigned long)count << PAGE_SHIFT;
->  	unsigned long addr;
->  	void *mem;
-> 
-> _
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
