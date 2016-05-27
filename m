@@ -1,99 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F89F6B0005
-	for <linux-mm@kvack.org>; Fri, 27 May 2016 13:14:06 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 132so28330772lfz.3
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:14:06 -0700 (PDT)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id v8si27346211wjf.38.2016.05.27.10.14.04
+Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B46C46B0253
+	for <linux-mm@kvack.org>; Fri, 27 May 2016 13:15:18 -0400 (EDT)
+Received: by mail-lb0-f198.google.com with SMTP id rs7so57362977lbb.2
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:15:18 -0700 (PDT)
+Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com. [2a00:1450:4010:c04::233])
+        by mx.google.com with ESMTPS id f22si4361359lji.23.2016.05.27.10.15.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 May 2016 10:14:04 -0700 (PDT)
-Received: by mail-wm0-x236.google.com with SMTP id z87so793492wmh.0
-        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:14:04 -0700 (PDT)
+        Fri, 27 May 2016 10:15:17 -0700 (PDT)
+Received: by mail-lb0-x233.google.com with SMTP id k7so33226627lbm.0
+        for <linux-mm@kvack.org>; Fri, 27 May 2016 10:15:17 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAG_fn=UYn=0BBNhqS_O97WF64Dwv2jpuV-bt_CEgWdq_vje25A@mail.gmail.com>
+References: <CAG_fn=UYn=0BBNhqS_O97WF64Dwv2jpuV-bt_CEgWdq_vje25A@mail.gmail.com>
 From: Alexander Potapenko <glider@google.com>
-Subject: [PATCH v1] [mm] Set page->slab_cache for every page allocated for a kmem_cache.
-Date: Fri, 27 May 2016 19:14:00 +0200
-Message-Id: <1464369240-35844-1-git-send-email-glider@google.com>
+Date: Fri, 27 May 2016 19:15:16 +0200
+Message-ID: <CAG_fn=UpmYka1w_TW=OYknDkqAx2eiXGmFuNdPzzQy97exAQjw@mail.gmail.com>
+Subject: Re: Value of page->slab_cache in objects allocated from a cache?
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, aryabinin@virtuozzo.com
-Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linux Memory Management List <linux-mm@kvack.org>
 
-It's reasonable to rely on the fact that for every page allocated for a
-kmem_cache the |slab_cache| field points to that cache. Without that it's
-hard to figure out which cache does an allocated object belong to.
+On Fri, May 27, 2016 at 12:04 PM, Alexander Potapenko <glider@google.com> w=
+rote:
+> Hi everyone,
+>
+> I'm debugging some crashes in the KASAN quarantine, and I've noticed
+> that for certain objects something which I assumed to be invariant
+> does not hold.
+>
+> In particular, my understanding was that for an object returned by
+> kmem_cache_zalloc(cache, gfp_flags) the value of
+> virt_to_page(object)->slab_cache must be always equal to |cache|.
 
-Fixes: 55834c59098d0c5a97b0f324 ("mm: kasan: initial memory quarantine
-implementation")
-Signed-off-by: Alexander Potapenko <glider@google.com>
----
- mm/slab.c | 7 ++++++-
- mm/slub.c | 8 +++++---
- 2 files changed, 11 insertions(+), 4 deletions(-)
+Sent out a patch for this ("[mm] Set page->slab_cache for every page
+allocated for a kmem_cache.")
 
-diff --git a/mm/slab.c b/mm/slab.c
-index cc8bbc1..ac6c251 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2703,8 +2703,13 @@ static void slab_put_obj(struct kmem_cache *cachep,
- static void slab_map_pages(struct kmem_cache *cache, struct page *page,
- 			   void *freelist)
- {
--	page->slab_cache = cache;
-+	int i, nr_pages;
-+	char *start = page_address(page);
-+
- 	page->freelist = freelist;
-+	nr_pages = (1 << cache->gfporder);
-+	for (i = 0; i < nr_pages; i++)
-+		virt_to_page(start + PAGE_SIZE * i)->slab_cache = cache;
- }
- 
- /*
-diff --git a/mm/slub.c b/mm/slub.c
-index 825ff45..fc75ddb 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1411,7 +1411,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	struct kmem_cache_order_objects oo = s->oo;
- 	gfp_t alloc_gfp;
- 	void *start, *p;
--	int idx, order;
-+	int idx, order, i, pages;
- 
- 	flags &= gfp_allowed_mask;
- 
-@@ -1442,9 +1442,9 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 		stat(s, ORDER_FALLBACK);
- 	}
- 
-+	pages = 1 << oo_order(oo);
- 	if (kmemcheck_enabled &&
- 	    !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
--		int pages = 1 << oo_order(oo);
- 
- 		kmemcheck_alloc_shadow(page, oo_order(oo), alloc_gfp, node);
- 
-@@ -1461,13 +1461,15 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	page->objects = oo_objects(oo);
- 
- 	order = compound_order(page);
--	page->slab_cache = s;
- 	__SetPageSlab(page);
- 	if (page_is_pfmemalloc(page))
- 		SetPageSlabPfmemalloc(page);
- 
- 	start = page_address(page);
- 
-+	for (i = 0; i < pages; i++)
-+		virt_to_page(start + PAGE_SIZE * i)->slab_cache = s;
-+
- 	if (unlikely(s->flags & SLAB_POISON))
- 		memset(start, POISON_INUSE, PAGE_SIZE << order);
- 
--- 
-2.8.0.rc3.226.g39d4020
+> However this isn't true for at least idr_free_cache in lib/idr.c
+> If I apply the attached patch, build a x86_64 kernel with defconfig,
+> and run the resulting kernel in QEMU, I get the following log:
+>
+> [    0.007022] HERE: lib/idr.c:198 allocated ffff88001ddc8008 from
+> idr_layer_cache
+> [    0.007478] idr_layer_cache: ffff88001dc0b6c0, slab_cache: ffff88001dc=
+0b6c0
+> [    0.007920] HERE: lib/idr.c:198 allocated ffff88001ddcf1a8 from
+> idr_layer_cache
+> [    0.008002] idr_layer_cache: ffff88001dc0b6c0, slab_cache:           (=
+null)
+> [    0.008445] ------------[ cut here ]------------
+> [    0.008791] kernel BUG at lib/idr.c:200!
+>
+> Am I misunderstanding the purpose of slab_cache in struct page, or is
+> there really a bug in initializing it?
+>
+> Thanks,
+>
+> --
+> Alexander Potapenko
+> Software Engineer
+>
+> Google Germany GmbH
+> Erika-Mann-Stra=C3=9Fe, 33
+> 80636 M=C3=BCnchen
+>
+> Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+> Registergericht und -nummer: Hamburg, HRB 86891
+> Sitz der Gesellschaft: Hamburg
+
+
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
