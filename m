@@ -1,69 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 47D756B007E
-	for <linux-mm@kvack.org>; Sat, 28 May 2016 07:25:05 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id 85so226195308ioq.3
-        for <linux-mm@kvack.org>; Sat, 28 May 2016 04:25:05 -0700 (PDT)
+Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 615C76B007E
+	for <linux-mm@kvack.org>; Sat, 28 May 2016 08:22:23 -0400 (EDT)
+Received: by mail-ig0-f199.google.com with SMTP id i11so19483533igh.0
+        for <linux-mm@kvack.org>; Sat, 28 May 2016 05:22:23 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id i6si13941128oih.238.2016.05.28.04.25.03
+        by mx.google.com with ESMTPS id t84si16841109oig.52.2016.05.28.05.22.21
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 28 May 2016 04:25:04 -0700 (PDT)
+        Sat, 28 May 2016 05:22:22 -0700 (PDT)
+Subject: Re: [RFC PATCH] mm, oom_reaper: do not attempt to reap a task more than twice
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH] mm,oom: Allow SysRq-f to always select !TIF_MEMDIE thread group.
-Date: Sat, 28 May 2016 19:53:04 +0900
-Message-Id: <1464432784-6058-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201605271931.AGD82810.QFOFOOFLMVtHSJ@I-love.SAKURA.ne.jp>
+	<20160527122308.GJ27686@dhcp22.suse.cz>
+	<201605272218.JID39544.tFOQHJOMVFLOSF@I-love.SAKURA.ne.jp>
+	<20160527133502.GN27686@dhcp22.suse.cz>
+	<201605280124.EJB71319.SHOtOVFFFQMOJL@I-love.SAKURA.ne.jp>
+In-Reply-To: <201605280124.EJB71319.SHOtOVFFFQMOJL@I-love.SAKURA.ne.jp>
+Message-Id: <201605282122.HAD09894.SFOFHtOVJLOQMF@I-love.SAKURA.ne.jp>
+Date: Sat, 28 May 2016 21:22:08 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, oleg@redhat.com, vdavydov@parallels.com
 
-There has been two problems about SysRq-f (manual invocation of the OOM
-killer). One is that moom_callback() is not called by moom_work under OOM
-livelock situation because it does not have a dedicated WQ like vmstat_wq.
-The other is that select_bad_process() selects a thread group which
-already has a TIF_MEMDIE thread because oom_scan_process_thread() was
-scanning all threads of all thread groups and find_lock_task_mm() can
-return a TIF_MEMDIE thread.
+Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > We could very well do 
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index bcb6d3b26c94..d9017b8c7300 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -813,6 +813,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+> >  			 * memory might be still used.
+> >  			 */
+> >  			can_oom_reap = false;
+> > +			set_bit(MMF_OOM_REAPED, mm->flags);
+> >  			continue;
+> >  		}
+> >  		if (p->signal->oom_score_adj == OOM_ADJUST_MIN)
+> > 
+> > with the same result. If you _really_ think that this would make a
+> > difference I could live with that. But I am highly skeptical this
+> > matters all that much.
 
-Since commit f44666b04605d1c7 ("mm,oom: speed up select_bad_process()
-loop") changed oom_scan_process_group() to use task->signal->oom_victims,
-the OOM killer will no longer select a thread group which already has a
-TIF_MEMDIE thread. But SysRq-f will select such thread group due to
-returning OOM_SCAN_OK.
+Usage of set_bit() above and below are both wrong. The mm used by
+kernel thread via use_mm() will become OOM reapable after unuse_mm().
+Thus, setting MMF_OOM_REAPED is a mistake as with MMF_OOM_KILLED
+( http://lkml.kernel.org/r/201603152015.JAE86937.VFOLtQFOFJOSHM@I-love.SAKURA.ne.jp ).
 
-Although we will change oom_badness() to return 0 after the OOM reaper
-gave up reaping the OOM victim's mm, currently there is possibility that
-the OOM reaper is not called (due to "the OOM victim's mm is shared by
-unkillable threads" or "the OOM reaper thread is not available due to
-kthread_run() failure or CONFIG_MMU=n"). Therefore, we need to make sure
-that SysRq-f will skip oom_badness() if such thread group has a TIF_MEMDIE
-thread.
+> I think the lines needed for the guarantee are something like
+> 
+> 	rcu_read_lock();
+> 	for_each_process(p) {
+> 		if (!process_shares_mm(p, mm))
+> 			continue;
+> 		if (same_thread_group(p, victim))
+> 			continue;
+> 		/*
+> 		 * It is not safe to reap memory used by global init or
+> 		 * kernel threads.
+> 		 */
+> 		if (unlikely(p->flags & PF_KTHREAD) || is_global_init(p)) {
+> 			set_bit(MMF_OOM_REAPED, mm->flags);
+> 			continue;
+> 		}
+> 		/*
+> 		 * Memory used by OOM_SCORE_ADJ_MIN is still OOM reapable
+> 		 * if they are already killed or exiting. Just don't
+> 		 * send SIGKILL.
+> 		 */
+> 		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+> 			continue;
+> 
+> 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+> 	}
+> 	rcu_read_unlock();
+> 
+> 	wake_oom_reaper(victim);
+> 
+> but doing set_bit(MMF_OOM_REAPED, mm->flags) here makes sense?
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 1685890..c16331c 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -283,8 +283,8 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
- 	 * This task already has access to memory reserves and is being killed.
- 	 * Don't allow any other task to have access to the reserves.
+
+I also realized that my
+
+	if (task_is_reapable(current))
+		return true;
+
+is wrong. task_is_reapable() depends on all threads using current->mm are
+dying or exiting, but select_bad_process() (which is needed for calling
+mark_oom_victim() from oom_kill_process() after oom_badness() > 0 by
+oom_scan_process_thread() returning OOM_SCAN_OK) depends on there is no
+TIF_MEMDIE thread.
+
+If there is a TIF_MEMDIE thread, current thread which will (as of Linux 4.6)
+be able to get TIF_MEMDIE by
+
+  fatal_signal_pending(current) || ((current->flags & PF_EXITING) && !(current->signal->flags & SIGNAL_GROUP_COREDUMP))
+
+condition will fail to get TIF_MEMDIE because oom_scan_process_thread() will
+return OOM_SCAN_ABORT. The logic of setting TIF_MEMDIE to only one thread
+
+	/*
+	 * Kill all user processes sharing victim->mm in other thread groups, if
+	 * any.  They don't get access to memory reserves, though, to avoid
+	 * depletion of all memory.  This prevents mm->mmap_sem livelock when an
+	 * oom killed thread cannot exit because it requires the semaphore and
+	 * its contended by another thread trying to allocate memory itself.
+	 * That thread will now get access to memory reserves since it has a
+	 * pending fatal signal.
+	 */
+
+does not allow the shortcuts to require that current->mm is reapable.
+
+It seems to me that your "[PATCH 6/6] mm, oom: fortify task_will_free_mem"
+expects that current->mm is reapable as well as my patch.
+If so, [PATCH 6/6] will not work.
+
++static inline bool task_will_free_mem(struct task_struct *task)
++{
+(...snipped...)
++		rcu_read_lock();
++		for_each_process(p) {
++			bool vfork;
++
++			/*
++			 * skip over vforked tasks because they are mostly
++			 * independent and will drop the mm soon
++			 */
++			task_lock(p);
++			vfork = p->vfork_done;
++			task_unlock(p);
++			if (vfork)
++				continue;
++
++			ret = __task_will_free_mem(p);
++			if (!ret)
++				break;
++		}
++		rcu_read_unlock();
+(...snipped...)
++}
+
+@@ -945,14 +894,10 @@ bool out_of_memory(struct oom_control *oc)
+ 	 * If current has a pending SIGKILL or is exiting, then automatically
+ 	 * select it.  The goal is to allow it to allocate so that it may
+ 	 * quickly exit and free its memory.
+-	 *
+-	 * But don't select if current has already released its mm and cleared
+-	 * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
  	 */
--	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims))
--		return OOM_SCAN_ABORT;
-+	if (atomic_read(&task->signal->oom_victims))
-+		return !is_sysrq_oom(oc) ? OOM_SCAN_ABORT : OOM_SCAN_CONTINUE;
+-	if (current->mm &&
+-	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
++	if (task_will_free_mem(current)) {
+ 		mark_oom_victim(current);
+-		try_oom_reaper(current);
++		wake_oom_reaper(current);
+ 		return true;
+ 	}
  
- 	/*
- 	 * If task is allocating a lot of memory and has been marked to be
--- 
-1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
