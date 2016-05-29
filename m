@@ -1,86 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 834B16B0253
-	for <linux-mm@kvack.org>; Sun, 29 May 2016 10:45:55 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id v125so59941296itc.0
-        for <linux-mm@kvack.org>; Sun, 29 May 2016 07:45:55 -0700 (PDT)
-Received: from g4t3428.houston.hpe.com (g4t3428.houston.hpe.com. [15.241.140.76])
-        by mx.google.com with ESMTPS id v134si18133836oia.169.2016.05.29.07.45.54
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E3916B025F
+	for <linux-mm@kvack.org>; Sun, 29 May 2016 10:57:00 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id h68so39705130lfh.2
+        for <linux-mm@kvack.org>; Sun, 29 May 2016 07:57:00 -0700 (PDT)
+Received: from mail-lf0-x22f.google.com (mail-lf0-x22f.google.com. [2a00:1450:4010:c07::22f])
+        by mx.google.com with ESMTPS id e11si1047100lji.43.2016.05.29.07.56.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 29 May 2016 07:45:54 -0700 (PDT)
-From: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>
-Subject: RE: [PATCH v3 1/2] mm, kasan: improve double-free detection
-Date: Sun, 29 May 2016 14:45:51 +0000
-Message-ID: <20E775CA4D599049A25800DE5799F6DD1F635901@G9W0759.americas.hpqcorp.net>
-References: <20160524183018.GA4769@cherokee.in.rdlabs.hpecorp.net>
- <CACT4Y+ZBSEpqi+aUFdKZk9ncRzAxPpBRLV8DGrEuSWSBNbdpAQ@mail.gmail.com>
-In-Reply-To: <CACT4Y+ZBSEpqi+aUFdKZk9ncRzAxPpBRLV8DGrEuSWSBNbdpAQ@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        Sun, 29 May 2016 07:56:58 -0700 (PDT)
+Received: by mail-lf0-x22f.google.com with SMTP id k98so63152796lfi.1
+        for <linux-mm@kvack.org>; Sun, 29 May 2016 07:56:58 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20E775CA4D599049A25800DE5799F6DD1F635901@G9W0759.americas.hpqcorp.net>
+References: <20160524183018.GA4769@cherokee.in.rdlabs.hpecorp.net>
+ <CACT4Y+ZBSEpqi+aUFdKZk9ncRzAxPpBRLV8DGrEuSWSBNbdpAQ@mail.gmail.com> <20E775CA4D599049A25800DE5799F6DD1F635901@G9W0759.americas.hpqcorp.net>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Sun, 29 May 2016 16:56:38 +0200
+Message-ID: <CACT4Y+Yd4kvqg90NsOWPpAc7ijGLfFn2Bn6CTVVDSm07k8eX9w@mail.gmail.com>
+Subject: Re: [PATCH v3 1/2] mm, kasan: improve double-free detection
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
+To: "Luruo, Kuthonuzo" <kuthonuzo.luruo@hpe.com>
 Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Yury Norov <ynorov@caviumnetworks.com>
 
-PiA+ICsvKiBmbGFncyBzaGFkb3cgZm9yIG9iamVjdCBoZWFkZXIgaWYgaXQgaGFzIGJlZW4gb3Zl
-cndyaXR0ZW4uICovDQo+ID4gK3ZvaWQga2FzYW5fbWFya19iYWRfbWV0YShzdHJ1Y3Qga2FzYW5f
-YWxsb2NfbWV0YSAqYWxsb2NfaW5mbywNCj4gPiArICAgICAgICAgICAgICAgc3RydWN0IGthc2Fu
-X2FjY2Vzc19pbmZvICppbmZvKQ0KPiA+ICt7DQo+ID4gKyAgICAgICB1OCAqZGF0YXAgPSAodTgg
-KikmYWxsb2NfaW5mby0+ZGF0YTsNCj4gPiArDQo+ID4gKyAgICAgICBpZiAoKCgodTggKilpbmZv
-LT5hY2Nlc3NfYWRkciArIGluZm8tPmFjY2Vzc19zaXplKSA+IGRhdGFwKSAmJg0KPiA+ICsgICAg
-ICAgICAgICAgICAgICAgICAgICgodTggKilpbmZvLT5maXJzdF9iYWRfYWRkciA8PSBkYXRhcCkg
-JiYNCj4gPiArICAgICAgICAgICAgICAgICAgICAgICBpbmZvLT5pc193cml0ZSkNCj4gPiArICAg
-ICAgICAgICAgICAga2FzYW5fcG9pc29uX3NoYWRvdygodm9pZCAqKWRhdGFwLCBLQVNBTl9TSEFE
-T1dfU0NBTEVfU0laRSwNCj4gPiArICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIEtBU0FO
-X0tNQUxMT0NfQkFEX01FVEEpOw0KPiANCj4gDQo+IElzIGl0IG9ubHkgdG8gcHJldmVudCBkZWFk
-bG9ja3MgaW4ga2FzYW5fbWV0YV9sb2NrPw0KPiANCj4gSWYgc28sIGl0IGlzIHN0aWxsIHVucmVs
-YWJsZSBiZWNhdXNlIGFuIE9PQiB3cml0ZSBjYW4gaGFwcGVuIGluDQo+IG5vbi1pbnN0cnVtZW50
-ZWQgY29kZS4gT3IsIGthc2FuX21ldGFfbG9jayBjYW4gc3VjY2Vzc2Z1bGx5IGxvY2sNCj4gb3Zl
-cndyaXR0ZW4gZ2FyYmFnZSBiZWZvcmUgbm90aWNpbmcgS0FTQU5fS01BTExPQ19CQURfTUVUQS4g
-T3IsIHR3bw0KPiB0aHJlYWRzIGNhbiBhc3N1bWUgbG9jayBvd25lcnNoaXAgYWZ0ZXIgbm90aWNp
-bmcNCj4gS0FTQU5fS01BTExPQ19CQURfTUVUQS4NCj4gDQo+IEFmdGVyIHRoZSBmaXJzdCByZXBv
-cnQgd2UgY29udGludWUgd29ya2luZyBpbiBraW5kIG9mIGJlc3QgZWZmb3J0DQo+IG1vZGU6IHdl
-IGNhbiB0cnkgdG8gbWl0aWdhdGUgc29tZSB0aGluZ3MsIGJ1dCBnZW5lcmFsbHkgYWxsIGJldHMg
-YXJlDQo+IG9mZi4gQmVjYXVzZSBvZiB0aGF0IHRoZXJlIGlzIG5vIG5lZWQgdG8gYnVpbGQgc29t
-ZXRoaW5nIGNvbXBsZXgsDQo+IGdsb2JhbCAoYW5kIHN0aWxsIHVucmVsYWJsZSkuIEkgd291bGQg
-anVzdCB3YWl0IGZvciBhdCBtb3N0LCBzYXksIDEwDQo+IHNlY29uZHMgaW4ga2FzYW5fbWV0YV9s
-b2NrLCBpZiB3ZSBjYW4ndCBnZXQgdGhlIGxvY2sgLS0gcHJpbnQgYW4gZXJyb3INCj4gYW5kIHJl
-dHVybi4gVGhhdCdzIHNpbXBsZSwgbG9jYWwgYW5kIHdvbid0IGRlYWRsb2NrIHVuZGVyIGFueQ0K
-PiBjaXJjdW1zdGFuY2VzLg0KPiBUaGUgZXJyb3IgbWVzc2FnZSB3aWxsIGJlIGhlbHBmdWwsIGJl
-Y2F1c2UgdGhlcmUgYXJlIGNoYW5jZXMgd2Ugd2lsbA0KPiByZXBvcnQgYSBkb3VibGUtZnJlZSBv
-biBmcmVlIG9mIHRoZSBjb3JydXB0ZWQgb2JqZWN0Lg0KPiAgZQ0KPiBUZXN0cyBjYW4gYmUgYXJy
-YW5nZWQgc28gdGhhdCB0aGV5IHdyaXRlIDAgKHVubG9ja2VkKSBpbnRvIHRoZSBtZXRhDQo+IChp
-ZiBuZWNlc3NhcnkpLg0KDQpEbWl0cnksDQoNClRoYW5rcyB2ZXJ5IG11Y2ggZm9yIHJldmlldyAm
-IGNvbW1lbnRzLiBZZXMsIHRoZSBsb2NraW5nIHNjaGVtZSBpbiB2Mw0KaXMgZmxhd2VkIGluIHRo
-ZSBwcmVzZW5jZSBvZiBPT0Igd3JpdGVzIG9uIGhlYWRlciwgc2FmZXR5IHZhbHZlDQpub3R3aXRo
-c3RhbmRpbmcuIFRoZSBjb3JlIGlzc3VlIGlzIHRoYXQgd2hlbiB0aHJlYWQgZmluZHMgbG9jayBo
-ZWxkLCBpdCBpcw0KZGlmZmljdWx0IHRvIHRlbGwgd2hldGhlciBhIGxlZ2l0IGxvY2sgaG9sZGVy
-IGV4aXN0cyBvciBsb2NrIGJpdCBnb3QgZmxpcHBlZA0KZnJvbSBPT0IuIEVhcmxpZXIsIEkgZGlk
-IGNvbnNpZGVyIGEgbG9jayB0aW1lb3V0IGJ1dCBmZWx0IGl0IHRvIGJlIGEgYml0IHVnbHkuLi4N
-Cg0KSG93ZXZlciwgSSBiZWxpZXZlIEkndmUgZm91bmQgYSBzb2x1dGlvbiBhbmQgd2FzIGFib3V0
-IHRvIHB1c2ggb3V0IHY0DQp3aGVuIHlvdXIgY29tbWVudHMgY2FtZSBpbi4gSXQgdGFrZXMgY29u
-Y2VwdCBmcm9tIHYzIC0gZXhwbG9pdGluZw0Kc2hhZG93IG1lbW9yeSAtIHRvIG1ha2UgbG9jayBt
-dWNoIG1vcmUgcmVsaWFibGUvcmVzaWxpZW50IGV2ZW4gaW4gdGhlDQpwcmVzZW5jZSBvZiBPT0Ig
-d3JpdGVzLiBJJ2xsIHB1c2ggb3V0IHY0IHdpdGhpbiB0aGUgaG91ci4uLg0KDQo+ID4gKyAgICAg
-ICBzd2l0Y2ggKGFsbG9jX2luZm8tPnN0YXRlKSB7DQo+ID4gICAgICAgICAgICAgICAgIGNhc2Ug
-S0FTQU5fU1RBVEVfUVVBUkFOVElORToNCj4gPiAgICAgICAgICAgICAgICAgY2FzZSBLQVNBTl9T
-VEFURV9GUkVFOg0KPiA+IC0gICAgICAgICAgICAgICAgICAgICAgIHByX2VycigiRG91YmxlIGZy
-ZWUiKTsNCj4gPiAtICAgICAgICAgICAgICAgICAgICAgICBkdW1wX3N0YWNrKCk7DQo+ID4gLSAg
-ICAgICAgICAgICAgICAgICAgICAgYnJlYWs7DQo+ID4gKyAgICAgICAgICAgICAgICAgICAgICAg
-a2FzYW5fcmVwb3J0KCh1bnNpZ25lZCBsb25nKW9iamVjdCwgMCwgZmFsc2UsIGNhbGxlcik7DQo+
-ID4gKyAgICAgICAgICAgICAgICAgICAgICAga2FzYW5fbWV0YV91bmxvY2soYWxsb2NfaW5mbyk7
-DQo+ID4gKyAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIHRydWU7DQo+ID4gICAgICAgICAg
-ICAgICAgIGRlZmF1bHQ6DQo+IA0KPiBQbGVhc2UgYXQgbGVhc3QgcHJpbnQgc29tZSBoZXJlIChp
-dCBpcyBub3QgbWVhbnQgdG8gaGFwcGVuLCByaWdodD8pLg0KDQpvay4NCg0KPiA+ICBzdHJ1Y3Qg
-a2FzYW5fYWxsb2NfbWV0YSB7DQo+ID4gKyAgICAgICB1bmlvbiB7DQo+ID4gKyAgICAgICAgICAg
-ICAgIHU2NCBkYXRhOw0KPiA+ICsgICAgICAgICAgICAgICBzdHJ1Y3Qgew0KPiA+ICsgICAgICAg
-ICAgICAgICAgICAgICAgIHUzMiBsb2NrIDogMTsgICAgICAgICAgIC8qIGxvY2sgYml0ICovDQo+
-IA0KPiANCj4gQWRkIGEgY29tbWVudCB0aGF0IGthc2FuX21ldGFfbG9jayBleHBlY3RzIHRoaXMg
-dG8gYmUgdGhlIGZpcnN0IGJpdC4NCg0KTm90IHJlcXVpcmVkIGluIHY0Li4uDQoNClRoYW5rIHlv
-dSwgb25jZSBhZ2Fpbi4NCg0KS3V0aG9udXpvDQo=
+On Sun, May 29, 2016 at 4:45 PM, Luruo, Kuthonuzo
+<kuthonuzo.luruo@hpe.com> wrote:
+>> > +/* flags shadow for object header if it has been overwritten. */
+>> > +void kasan_mark_bad_meta(struct kasan_alloc_meta *alloc_info,
+>> > +               struct kasan_access_info *info)
+>> > +{
+>> > +       u8 *datap = (u8 *)&alloc_info->data;
+>> > +
+>> > +       if ((((u8 *)info->access_addr + info->access_size) > datap) &&
+>> > +                       ((u8 *)info->first_bad_addr <= datap) &&
+>> > +                       info->is_write)
+>> > +               kasan_poison_shadow((void *)datap, KASAN_SHADOW_SCALE_SIZE,
+>> > +                               KASAN_KMALLOC_BAD_META);
+>>
+>>
+>> Is it only to prevent deadlocks in kasan_meta_lock?
+>>
+>> If so, it is still unrelable because an OOB write can happen in
+>> non-instrumented code. Or, kasan_meta_lock can successfully lock
+>> overwritten garbage before noticing KASAN_KMALLOC_BAD_META. Or, two
+>> threads can assume lock ownership after noticing
+>> KASAN_KMALLOC_BAD_META.
+>>
+>> After the first report we continue working in kind of best effort
+>> mode: we can try to mitigate some things, but generally all bets are
+>> off. Because of that there is no need to build something complex,
+>> global (and still unrelable). I would just wait for at most, say, 10
+>> seconds in kasan_meta_lock, if we can't get the lock -- print an error
+>> and return. That's simple, local and won't deadlock under any
+>> circumstances.
+>> The error message will be helpful, because there are chances we will
+>> report a double-free on free of the corrupted object.
+>>  e
+>> Tests can be arranged so that they write 0 (unlocked) into the meta
+>> (if necessary).
+>
+> Dmitry,
+>
+> Thanks very much for review & comments. Yes, the locking scheme in v3
+> is flawed in the presence of OOB writes on header, safety valve
+> notwithstanding. The core issue is that when thread finds lock held, it is
+> difficult to tell whether a legit lock holder exists or lock bit got flipped
+> from OOB. Earlier, I did consider a lock timeout but felt it to be a bit ugly...
+>
+> However, I believe I've found a solution and was about to push out v4
+> when your comments came in. It takes concept from v3 - exploiting
+> shadow memory - to make lock much more reliable/resilient even in the
+> presence of OOB writes. I'll push out v4 within the hour...
+
+
+Locking shadow will probably work. Need to think more.
+
+
+>> > +       switch (alloc_info->state) {
+>> >                 case KASAN_STATE_QUARANTINE:
+>> >                 case KASAN_STATE_FREE:
+>> > -                       pr_err("Double free");
+>> > -                       dump_stack();
+>> > -                       break;
+>> > +                       kasan_report((unsigned long)object, 0, false, caller);
+>> > +                       kasan_meta_unlock(alloc_info);
+>> > +                       return true;
+>> >                 default:
+>>
+>> Please at least print some here (it is not meant to happen, right?).
+>
+> ok.
+>
+>> >  struct kasan_alloc_meta {
+>> > +       union {
+>> > +               u64 data;
+>> > +               struct {
+>> > +                       u32 lock : 1;           /* lock bit */
+>>
+>>
+>> Add a comment that kasan_meta_lock expects this to be the first bit.
+>
+> Not required in v4...
+>
+> Thank you, once again.
+>
+> Kuthonuzo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
