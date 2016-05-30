@@ -1,293 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 874866B0253
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 02:17:27 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id di3so146809608pab.0
-        for <linux-mm@kvack.org>; Sun, 29 May 2016 23:17:27 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id z6si48483975pas.133.2016.05.29.23.17.25
-        for <linux-mm@kvack.org>;
-        Sun, 29 May 2016 23:17:26 -0700 (PDT)
-Date: Mon, 30 May 2016 15:17:53 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: check the return value of lookup_page_ext for all
- call sites
-Message-ID: <20160530061753.GC28624@bbox>
-References: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D9E0A6B0253
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 02:43:05 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id o70so86104665lfg.1
+        for <linux-mm@kvack.org>; Sun, 29 May 2016 23:43:05 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id v132si29104424wme.82.2016.05.29.23.43.04
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 29 May 2016 23:43:04 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id a136so19488921wme.0
+        for <linux-mm@kvack.org>; Sun, 29 May 2016 23:43:04 -0700 (PDT)
+Date: Mon, 30 May 2016 08:43:02 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] oom_reaper: don't call mmput_async() on uninitialized mm
+Message-ID: <20160530064302.GA22928@dhcp22.suse.cz>
+References: <1464336081-994232-1-git-send-email-arnd@arndb.de>
+ <20160527081059.GE27686@dhcp22.suse.cz>
+ <20160527125534.b8be57b284599f5424512d09@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20160527125534.b8be57b284599f5424512d09@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linaro.org>
-Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, May 23, 2016 at 10:16:08AM -0700, Yang Shi wrote:
-> Per the discussion with Joonsoo Kim [1], we need check the return value of
-> lookup_page_ext() for all call sites since it might return NULL in some cases,
-> although it is unlikely, i.e. memory hotplug.
+On Fri 27-05-16 12:55:34, Andrew Morton wrote:
+> On Fri, 27 May 2016 10:10:59 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> Tested with ltp with "page_owner=0".
+> > On Fri 27-05-16 10:00:48, Arnd Bergmann wrote:
+> > > The change to the oom_reaper to hold a mutex inside __oom_reap_task()
+> > > accidentally started calling mmput_async() on the local
+> > > mm before that variable got initialized, as reported by gcc
+> > > in linux-next:
+> > > 
+> > > mm/oom_kill.c: In function '__oom_reap_task':
+> > > mm/oom_kill.c:537:2: error: 'mm' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+> > > 
+> > > This rearranges the code slightly back to the state before patch
+> > > but leaves the lock in place. The error handling in the function
+> > > still looks a bit confusing and could probably be improved
+> > > but I could not come up with a solution that made me happy
+> > > for now.
+> > > 
+> > > Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> > > Fixes: mmotm ("oom_reaper: close race with exiting task")
+> > 
+> > Thanks for catching that Arnd?
+> > 
+> > Acked-by: Michal Hocko <mhocko@suse.com>
 > 
-> [1] http://lkml.kernel.org/r/20160519002809.GA10245@js1304-P5Q-DELUXE
-> 
-> Signed-off-by: Yang Shi <yang.shi@linaro.org>
-> ---
->  include/linux/page_idle.h | 43 ++++++++++++++++++++++++++++++++++++-------
->  mm/page_alloc.c           |  6 ++++++
->  mm/page_owner.c           | 27 +++++++++++++++++++++++++++
->  mm/page_poison.c          |  8 +++++++-
->  mm/vmstat.c               |  2 ++
->  5 files changed, 78 insertions(+), 8 deletions(-)
-> 
-> diff --git a/include/linux/page_idle.h b/include/linux/page_idle.h
-> index bf268fa..8f5d4ad 100644
-> --- a/include/linux/page_idle.h
-> +++ b/include/linux/page_idle.h
-> @@ -46,33 +46,62 @@ extern struct page_ext_operations page_idle_ops;
->  
->  static inline bool page_is_young(struct page *page)
->  {
-> -	return test_bit(PAGE_EXT_YOUNG, &lookup_page_ext(page)->flags);
-> +	struct page_ext *page_ext;
-> +	page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext)
-> +		return false;
-> +
-> +	return test_bit(PAGE_EXT_YOUNG, &page_ext->flags);
->  }
->  
->  static inline void set_page_young(struct page *page)
->  {
-> -	set_bit(PAGE_EXT_YOUNG, &lookup_page_ext(page)->flags);
-> +	struct page_ext *page_ext;
-> +	page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext)
-> +		return;
-> +
-> +	set_bit(PAGE_EXT_YOUNG, &page_ext->flags);
->  }
->  
->  static inline bool test_and_clear_page_young(struct page *page)
->  {
-> -	return test_and_clear_bit(PAGE_EXT_YOUNG,
-> -				  &lookup_page_ext(page)->flags);
-> +	struct page_ext *page_ext;
-> +	page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext)
-> +		return false;
-> +
-> +	return test_and_clear_bit(PAGE_EXT_YOUNG, &page_ext->flags);
->  }
->  
->  static inline bool page_is_idle(struct page *page)
->  {
-> -	return test_bit(PAGE_EXT_IDLE, &lookup_page_ext(page)->flags);
-> +	struct page_ext *page_ext;
-> +	page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext)
-> +		return false;
-> +
-> +	return test_bit(PAGE_EXT_IDLE, &page_ext->flags);
->  }
->  
->  static inline void set_page_idle(struct page *page)
->  {
-> -	set_bit(PAGE_EXT_IDLE, &lookup_page_ext(page)->flags);
-> +	struct page_ext *page_ext;
-> +	page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext)
-> +		return;
-> +
-> +	set_bit(PAGE_EXT_IDLE, &page_ext->flags);
->  }
->  
->  static inline void clear_page_idle(struct page *page)
->  {
-> -	clear_bit(PAGE_EXT_IDLE, &lookup_page_ext(page)->flags);
-> +	struct page_ext *page_ext;
-> +	page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext)
-> +		return;
-> +
-> +	clear_bit(PAGE_EXT_IDLE, &page_ext->flags);
->  }
->  #endif /* CONFIG_64BIT */
->  
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index f8f3bfc..d27e8b9 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -656,6 +656,9 @@ static inline void set_page_guard(struct zone *zone, struct page *page,
->  		return;
->  
->  	page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext))
-> +		return;
-> +
->  	__set_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
->  
->  	INIT_LIST_HEAD(&page->lru);
-> @@ -673,6 +676,9 @@ static inline void clear_page_guard(struct zone *zone, struct page *page,
->  		return;
->  
->  	page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext))
-> +		return;
-> +
->  	__clear_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
->  
->  	set_page_private(page, 0);
-> diff --git a/mm/page_owner.c b/mm/page_owner.c
-> index 792b56d..902e398 100644
-> --- a/mm/page_owner.c
-> +++ b/mm/page_owner.c
-> @@ -55,6 +55,8 @@ void __reset_page_owner(struct page *page, unsigned int order)
->  
->  	for (i = 0; i < (1 << order); i++) {
->  		page_ext = lookup_page_ext(page + i);
-> +		if (unlikely(!page_ext))
-> +			continue;
->  		__clear_bit(PAGE_EXT_OWNER, &page_ext->flags);
->  	}
->  }
-> @@ -62,6 +64,10 @@ void __reset_page_owner(struct page *page, unsigned int order)
->  void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
->  {
->  	struct page_ext *page_ext = lookup_page_ext(page);
-> +
-> +	if (unlikely(!page_ext))
-> +		return;
-> +
->  	struct stack_trace trace = {
->  		.nr_entries = 0,
->  		.max_entries = ARRAY_SIZE(page_ext->trace_entries),
-> @@ -82,6 +88,8 @@ void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
->  void __set_page_owner_migrate_reason(struct page *page, int reason)
->  {
->  	struct page_ext *page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext))
-> +		return;
->  
->  	page_ext->last_migrate_reason = reason;
->  }
-> @@ -89,6 +97,12 @@ void __set_page_owner_migrate_reason(struct page *page, int reason)
->  gfp_t __get_page_owner_gfp(struct page *page)
->  {
->  	struct page_ext *page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext))
-> +		/*
-> +		 * The caller just returns 0 if no valid gfp
-> +		 * So return 0 here too.
-> +		 */
-> +		return 0;
->  
->  	return page_ext->gfp_mask;
->  }
-> @@ -97,6 +111,10 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
->  {
->  	struct page_ext *old_ext = lookup_page_ext(oldpage);
->  	struct page_ext *new_ext = lookup_page_ext(newpage);
-> +
-> +	if (unlikely(!old_ext || !new_ext))
-> +		return;
-> +
->  	int i;
->  
->  	new_ext->order = old_ext->order;
-> @@ -186,6 +204,11 @@ err:
->  void __dump_page_owner(struct page *page)
->  {
->  	struct page_ext *page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext)) {
-> +		pr_alert("There is not page extension available.\n");
-> +		return;
-> +	}
-> +
->  	struct stack_trace trace = {
->  		.nr_entries = page_ext->nr_entries,
->  		.entries = &page_ext->trace_entries[0],
-> @@ -251,6 +274,8 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
->  		}
->  
->  		page_ext = lookup_page_ext(page);
-> +		if (unlikely(!page_ext))
-> +			continue;
->  
->  		/*
->  		 * Some pages could be missed by concurrent allocation or free,
-> @@ -317,6 +342,8 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
->  				continue;
->  
->  			page_ext = lookup_page_ext(page);
-> +			if (unlikely(!page_ext))
-> +				continue;
->  
->  			/* Maybe overraping zone */
->  			if (test_bit(PAGE_EXT_OWNER, &page_ext->flags))
-> diff --git a/mm/page_poison.c b/mm/page_poison.c
-> index 1eae5fa..2e647c6 100644
-> --- a/mm/page_poison.c
-> +++ b/mm/page_poison.c
-> @@ -54,6 +54,9 @@ static inline void set_page_poison(struct page *page)
->  	struct page_ext *page_ext;
->  
->  	page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext))
-> +		return;
-> +
->  	__set_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
->  }
->  
-> @@ -62,6 +65,9 @@ static inline void clear_page_poison(struct page *page)
->  	struct page_ext *page_ext;
->  
->  	page_ext = lookup_page_ext(page);
-> +	if (unlikely(!page_ext))
-> +		return;
-> +
->  	__clear_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
->  }
->  
-> @@ -70,7 +76,7 @@ bool page_is_poisoned(struct page *page)
->  	struct page_ext *page_ext;
->  
->  	page_ext = lookup_page_ext(page);
-> -	if (!page_ext)
-> +	if (unlikely(!page_ext))
->  		return false;
->  
->  	return test_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 77e42ef..cb2a67b 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1061,6 +1061,8 @@ static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
->  				continue;
->  
->  			page_ext = lookup_page_ext(page);
-> +			if (unlikely(!page_ext))
-> +				continue;
->  
->  			if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
->  				continue;
-> -- 
+> I think I preferred my version - all those unwinding return statements
+> can cause problems..
 
-There is another race with here.
+looks good to me as well.
 
+Thanks!
 
-                                        init_section_page_ext
-                                        < reordering >
-                                        section->page_ext = base - pfn
+> --- a/mm/oom_kill.c~oom_reaper-close-race-with-exiting-task-fix
+> +++ a/mm/oom_kill.c
+> @@ -443,7 +443,7 @@ static bool __oom_reap_task(struct task_
+>  {
+>  	struct mmu_gather tlb;
+>  	struct vm_area_struct *vma;
+> -	struct mm_struct *mm;
+> +	struct mm_struct *mm = NULL;
+>  	struct task_struct *p;
+>  	struct zap_details details = {.check_swap_entries = true,
+>  				      .ignore_dirty = true};
+> @@ -534,7 +534,8 @@ unlock_oom:
+>  	 * different context because we shouldn't risk we get stuck there and
+>  	 * put the oom_reaper out of the way.
+>  	 */
+> -	mmput_async(mm);
+> +	if (mm)
+> +		mmput_async(mm);
+>  	return ret;
+>  }
+>  
+> _
 
-lookup_page_ext
-if (section->page_ext)
-  section->page_ext + pfn
-                                        base = alloc_page_ext
-
-I guess alloc_page_ext doesn't make sure to prevent such reordering so
-caller of memory allocating APIB should provide right memory barrier.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
