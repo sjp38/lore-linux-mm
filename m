@@ -1,140 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B4A936B007E
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 13:35:10 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id i185so187157746ywg.3
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 10:35:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x44si23451066qtb.108.2016.05.30.10.35.09
+Received: from mail-ig0-f198.google.com (mail-ig0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B1806B025E
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 13:37:41 -0400 (EDT)
+Received: by mail-ig0-f198.google.com with SMTP id lp2so121871408igb.3
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 10:37:41 -0700 (PDT)
+Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
+        by mx.google.com with ESMTPS id j9si39819228iof.177.2016.05.30.10.37.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 May 2016 10:35:09 -0700 (PDT)
-Date: Mon, 30 May 2016 19:35:05 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 6/6] mm, oom: fortify task_will_free_mem
-Message-ID: <20160530173505.GA25287@redhat.com>
-References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
- <1464613556-16708-7-git-send-email-mhocko@kernel.org>
+        Mon, 30 May 2016 10:37:40 -0700 (PDT)
+Received: by mail-it0-x242.google.com with SMTP id z123so6930958itg.2
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 10:37:40 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1464613556-16708-7-git-send-email-mhocko@kernel.org>
+In-Reply-To: <20160530155644.GP2527@techsingularity.net>
+References: <CAMuHMdV00vJJxoA7XABw+mFF+2QUd1MuQbPKKgkmGnK_NySZpg@mail.gmail.com>
+	<20160530155644.GP2527@techsingularity.net>
+Date: Mon, 30 May 2016 19:37:39 +0200
+Message-ID: <CAMuHMdWioTRo1PGymqCEv+3CoQYH8qnhP2T__orSbMw1q-CBMA@mail.gmail.com>
+Subject: Re: BUG: scheduling while atomic: cron/668/0x10c9a0c0 (was: Re: mm,
+ page_alloc: avoid looking up the first zone in a zonelist twice)
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
 
-On 05/30, Michal Hocko wrote:
+Hi Mel,
+
+On Mon, May 30, 2016 at 5:56 PM, Mel Gorman <mgorman@techsingularity.net> wrote:
+> On Mon, May 30, 2016 at 03:13:40PM +0200, Geert Uytterhoeven wrote:
+>> >     The benefit is negligible and the results are within the noise but each
+>> >     cycle counts.
+>> >
+>> >     Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+>> >     Cc: Vlastimil Babka <vbabka@suse.cz>
+>> >     Cc: Jesper Dangaard Brouer <brouer@redhat.com>
+>> >     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>> >     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+>>
+>> About one week ago, I started seeing an obscure intermittent crash during
+>> system shutdown on m68k/ARAnyM using atari_defconfig.
+>> The crash isn't 100% reproducible, but it happens during ca. 1 out of 5
+>> shutdowns.
+>>
+>> I finally managed to bisect it to the above commit.
+>> I did verify that the parent commit didn't crash after 60 tries.
+>> Unfortunately I couldn't revert the offending commit on top of v4.7-rc1, due to
+>> conflicting changes.
+>>
+>> Do you have any idea what's going wrong?
 >
-> task_will_free_mem is rather weak.
+> There isn't anything obvious from the crash log you showed but can you
+> try the following just in case?
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index dba8cfd0b2d6..f2c1e47adc11 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3232,6 +3232,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>                  * allocations are system rather than user orientated
+>                  */
+>                 ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
+> +               ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+> +                                       ac->high_zoneidx, ac->nodemask);
+> +               ac->classzone_idx = zonelist_zone_idx(ac->preferred_zoneref);
+>                 page = get_page_from_freelist(gfp_mask, order,
+>                                                 ALLOC_NO_WATERMARKS, ac);
+>                 if (page)
 
-I was thinking about the similar change because I noticed that try_oom_reaper()
-is very, very wrong.
+Thanks, but unfortunately it doesn't help.
 
-To the point I think that we need another change for stable which simply removes
-spin_lock_irq(sighand->siglock) from try_oom_reaper(). It buys nothing, we can
-check signal_group_exit() (which is wrong too ;) lockless, and at the same time
-the kernel can crash because we can hit ->siglock == NULL.
+Gr{oetje,eeting}s,
 
-So I do think this change is good in general.
+                        Geert
 
-I think that task_will_free_mem() should be un-inlined, and __task_will_free_mem()
-should go into mm/oom-kill.c... but this is minor.
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
 
-> -static inline bool task_will_free_mem(struct task_struct *task)
-> +static inline bool __task_will_free_mem(struct task_struct *task)
->  {
->  	struct signal_struct *sig = task->signal;
->  
-> @@ -119,16 +119,69 @@ static inline bool task_will_free_mem(struct task_struct *task)
->  	if (sig->flags & SIGNAL_GROUP_COREDUMP)
->  		return false;
->  
-> -	if (!(task->flags & PF_EXITING))
-> +	if (!(task->flags & PF_EXITING || fatal_signal_pending(task)))
->  		return false;
->  
->  	/* Make sure that the whole thread group is going down */
-> -	if (!thread_group_empty(task) && !(sig->flags & SIGNAL_GROUP_EXIT))
-> +	if (!thread_group_empty(task) &&
-> +		!(sig->flags & SIGNAL_GROUP_EXIT || fatal_signal_pending(task)))
->  		return false;
->  
->  	return true;
->  }
-
-Well, let me suggest this again. I think it should do
-
-
-	if (SIGNAL_GROUP_COREDUMP)
-		return false;
-
-	if (SIGNAL_GROUP_EXIT)
-		return true;
-
-	if (thread_group_empty() && PF_EXITING)
-		return true;
-
-	return false;
-
-we do not need fatal_signal_pending(), in this case SIGNAL_GROUP_EXIT should
-be set (ignoring some bugs with sub-namespaces which we need to fix anyway).
-
-At the same time, we do not want to return false if PF_EXITING is not set
-if SIGNAL_GROUP_EXIT is set.
-
-> +static inline bool task_will_free_mem(struct task_struct *task)
-> +{
-> +	struct mm_struct *mm = NULL;
-> +	struct task_struct *p;
-> +	bool ret;
-> +
-> +	/*
-> +	 * If the process has passed exit_mm we have to skip it because
-> +	 * we have lost a link to other tasks sharing this mm, we do not
-> +	 * have anything to reap and the task might then get stuck waiting
-> +	 * for parent as zombie and we do not want it to hold TIF_MEMDIE
-> +	 */
-> +	p = find_lock_task_mm(task);
-> +	if (!p)
-> +		return false;
-> +
-> +	if (!__task_will_free_mem(p)) {
-> +		task_unlock(p);
-> +		return false;
-> +	}
-> +
-> +	mm = p->mm;
-> +	if (atomic_read(&mm->mm_users) <= 1) {
-
-this is sub-optimal, we should probably take signal->live or ->nr_threads
-into account... but OK, we can do this later.
-
-> +	rcu_read_lock();
-> +	for_each_process(p) {
-> +		ret = __task_will_free_mem(p);
-> +		if (!ret)
-> +			break;
-> +	}
-> +	rcu_read_unlock();
-
-Yes, I agree very much.
-
-But it seems you forgot to add the process_shares_mm() check into this loop?
-
-and perhaps it also makes sense to add
-
-	if (same_thread_group(tsk, p))
-		continue;
-
-This should not really matter, we know that __task_will_free_mem(p) should return
-true. Just to make it more clear.
-
-And. I think this needs smp_rmb() at the end of the loop (assuming we have the
-process_shares_mm() check here). We need it to ensure that we read p->mm before
-we read next_task(), to avoid the race with exit() + clone(CLONE_VM).
-
-Oleg.
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
