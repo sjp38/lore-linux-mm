@@ -1,49 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E0D3E6B0253
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 04:46:04 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id yu3so276394400obb.3
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 01:46:04 -0700 (PDT)
-Received: from m50-133.163.com (m50-133.163.com. [123.125.50.133])
-        by mx.google.com with ESMTP id h206si20652076oif.189.2016.05.30.01.46.02
-        for <linux-mm@kvack.org>;
-        Mon, 30 May 2016 01:46:04 -0700 (PDT)
-From: Wenwei Tao <wwtao0320@163.com>
-Subject: [PATCH] mm/memcontrol.c: add memory allocation result check
-Date: Mon, 30 May 2016 16:45:51 +0800
-Message-Id: <1464597951-2976-1-git-send-email-wwtao0320@163.com>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0354C6B0253
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 04:48:04 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id v125so85681836itc.0
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 01:48:03 -0700 (PDT)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0131.outbound.protection.outlook.com. [157.55.234.131])
+        by mx.google.com with ESMTPS id w39si20656964otd.90.2016.05.30.01.48.02
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 30 May 2016 01:48:03 -0700 (PDT)
+Date: Mon, 30 May 2016 11:47:53 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH 3/6] mm, oom_adj: make sure processes sharing mm have
+ same view of oom_score_adj
+Message-ID: <20160530084753.GH26059@esperanza>
+References: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
+ <1464266415-15558-4-git-send-email-mhocko@kernel.org>
+ <20160527111803.GG27686@dhcp22.suse.cz>
+ <20160527161821.GE26059@esperanza>
+ <20160530070705.GD22928@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20160530070705.GD22928@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov@virtuozzo.com
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ww.tao0320@gmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Wenwei Tao <ww.tao0320@gmail.com>
+On Mon, May 30, 2016 at 09:07:05AM +0200, Michal Hocko wrote:
+> On Fri 27-05-16 19:18:21, Vladimir Davydov wrote:
+> > On Fri, May 27, 2016 at 01:18:03PM +0200, Michal Hocko wrote:
+> > ...
+> > > @@ -1087,7 +1105,25 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+> > >  	unlock_task_sighand(task, &flags);
+> > >  err_put_task:
+> > >  	put_task_struct(task);
+> > > +
+> > > +	if (mm) {
+> > > +		struct task_struct *p;
+> > > +
+> > > +		rcu_read_lock();
+> > > +		for_each_process(p) {
+> > > +			task_lock(p);
+> > > +			if (!p->vfork_done && process_shares_mm(p, mm)) {
+> > > +				p->signal->oom_score_adj = oom_adj;
+> > > +				if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
+> > > +					p->signal->oom_score_adj_min = (short)oom_adj;
+> > > +			}
+> > > +			task_unlock(p);
+> > 
+> > I.e. you write to /proc/pid1/oom_score_adj and get
+> > /proc/pid2/oom_score_adj updated if pid1 and pid2 share mm?
+> > IMO that looks unexpected from userspace pov.
+> 
+> How much different it is from threads in the same thread group?
+> Processes sharing the mm without signals is a rather weird threading
+> model isn't it?
 
-The mem_cgroup_tree_per_node allocation might fail,
-check that before continue the memcg init. Since it
-is in the init phase, trigger the panic if that failure
-happens.
+I think so too. I wouldn't be surprised if it turned out that nobody had
+ever used it. But may be there's someone out there who does.
 
-Signed-off-by: Wenwei Tao <ww.tao0320@gmail.com>
----
- mm/memcontrol.c | 1 +
- 1 file changed, 1 insertion(+)
+> Currently we just lie to users about their oom_score_adj
+> in this weird corner case.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 925b431..6385c62 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5712,6 +5712,7 @@ static int __init mem_cgroup_init(void)
- 
- 		rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL,
- 				    node_online(node) ? node : NUMA_NO_NODE);
-+		BUG_ON(!rtpn);
- 
- 		for (zone = 0; zone < MAX_NR_ZONES; zone++) {
- 			struct mem_cgroup_tree_per_zone *rtpz;
--- 
-1.8.3.1
+Hmm, looks like a bug, but nobody has ever complained about it.
 
+> The only exception was OOM_SCORE_ADJ_MIN
+> where we really didn't kill the task but all other values are simply
+> ignored in practice.
+> 
+> > May be, we'd better add mm->oom_score_adj and set it to the min
+> > signal->oom_score_adj over all processes sharing it? This would
+> > require iterating over all processes every time oom_score_adj gets
+> > updated, but that's a slow path.
+> 
+> Not sure I understand. So you would prefer that mm->oom_score_adj might
+> disagree with p->signal->oom_score_adj?
+
+No, I wouldn't. I'd rather agree that oom_score_adj should be per mm,
+because we choose the victim basing solely on mm stats.
+
+What I mean is we don't touch p->signal->oom_score_adj of other tasks
+sharing mm, but instead store minimal oom_score_adj over all tasks
+sharing mm in the mm_struct whenever a task's oom_score_adj is modified.
+And use mm->oom_score_adj instead of signal->oom_score_adj in oom killer
+code. This would save us from any accusations of user API modifications
+and it would also make the oom code a bit easier to follow IMHO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
