@@ -1,73 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 04A546B007E
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 15:29:02 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id f190so180201973qke.0
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 12:29:02 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e14si23509623qkj.71.2016.05.30.12.29.01
+Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DDE8A6B0253
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 18:33:02 -0400 (EDT)
+Received: by mail-lb0-f197.google.com with SMTP id rs7so90322559lbb.2
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 15:33:02 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id m72si27673714wma.60.2016.05.30.15.33.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 May 2016 12:29:01 -0700 (PDT)
-Date: Mon, 30 May 2016 21:28:57 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 4/6] mm, oom: skip vforked tasks from being selected
-Message-ID: <20160530192856.GA25696@redhat.com>
-References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
- <1464613556-16708-5-git-send-email-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1464613556-16708-5-git-send-email-mhocko@kernel.org>
+        Mon, 30 May 2016 15:33:01 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id a136so26912550wme.0
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 15:33:01 -0700 (PDT)
+Date: Tue, 31 May 2016 00:39:55 +0200
+From: Emese Revfy <re.emese@gmail.com>
+Subject: Re: [PATCH v1 1/3] Add the latent_entropy gcc plugin
+Message-Id: <20160531003955.032d11cad95c4439328b0128@gmail.com>
+In-Reply-To: <CAGXu5jJ4iOHw+9khys3HVKAJH6q4Vu+8aSabycYWUCdK9GonKw@mail.gmail.com>
+References: <20160524001405.3e6abd1d5a63a871cc366cff@gmail.com>
+	<20160524001529.0e69232eff0b1b5bc566a763@gmail.com>
+	<CAGXu5jJHenHARDZt=51m1XbSStTxpG90Dv=Fpkn79A6pZYtGOw@mail.gmail.com>
+	<5744E665.28844.9DDA03D@pageexec.freemail.hu>
+	<CAGXu5jJ4iOHw+9khys3HVKAJH6q4Vu+8aSabycYWUCdK9GonKw@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: PaX Team <pageexec@freemail.hu>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Brad Spengler <spender@grsecurity.net>, Michal Marek <mmarek@suse.com>, LKML <linux-kernel@vger.kernel.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, linux-kbuild <linux-kbuild@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>, Al Viro <viro@zeniv.linux.org.uk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, bart.vanassche@sandisk.com, "David S. Miller" <davem@davemloft.net>
 
-On 05/30, Michal Hocko wrote:
->
-> Make sure to not select vforked task as an oom victim by checking
-> vfork_done in oom_badness.
+On Tue, 24 May 2016 19:55:17 -0700
+Kees Cook <keescook@chromium.org> wrote:
+ 
+> Yeah, answering "how random is this?" is not easy, but that's not what
+> I meant. I'm more curious about specific build configs or hardware
+> where calling get_random_int() early enough would always produce the
+> same value (or the same value across all threads, etc), and in these
+> cases, the new entropy should be visible when using the latent entropy
+> plugin.
 
-I agree, this look like a good change to me... But.
+I booted minimal configs (not allnoconfig because it can't boot in qemu)
+many times. I couldn't produce same values.
 
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -176,11 +176,13 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
->  
->  	/*
->  	 * Do not even consider tasks which are explicitly marked oom
-> -	 * unkillable or have been already oom reaped.
-> +	 * unkillable or have been already oom reaped or the are in
-> +	 * the middle of vfork
->  	 */
->  	adj = (long)p->signal->oom_score_adj;
->  	if (adj == OOM_SCORE_ADJ_MIN ||
-> -			test_bit(MMF_OOM_REAPED, &p->mm->flags)) {
-> +			test_bit(MMF_OOM_REAPED, &p->mm->flags) ||
-> +			p->vfork_done) {
-
-I don't think we can trust vfork_done != NULL.
-
-copy_process() doesn't disallow CLONE_VFORK without CLONE_VM, so with this patch
-it would be trivial to make the exploit which hides a memory hog from oom-killer.
-
-So perhaps we need something like
-
-		bool in_vfork(p)
-		{
-			return	p->vfork_done &&
-				p->real_parent->mm == mm;
-
-			
-		}
-
-task_lock() is not enough if CLONE_VM was used along with CLONE_PARENT... so this
-also needs rcu_read_lock() to access ->real_parent.
-
-Or I am totally confused?
-
-Oleg.
+-- 
+Emese
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
