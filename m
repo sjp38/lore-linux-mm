@@ -1,71 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 01CB06B007E
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 14:56:20 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id q17so88703986lbn.3
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 11:56:19 -0700 (PDT)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id gs6si45984160wjc.83.2016.05.30.11.56.18
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 04A546B007E
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 15:29:02 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id f190so180201973qke.0
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 12:29:02 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e14si23509623qkj.71.2016.05.30.12.29.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 May 2016 11:56:18 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id F219B1C1DC2
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 19:56:17 +0100 (IST)
-Date: Mon, 30 May 2016 19:56:16 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: BUG: scheduling while atomic: cron/668/0x10c9a0c0 (was: Re: mm,
- page_alloc: avoid looking up the first zone in a zonelist twice)
-Message-ID: <20160530185616.GQ2527@techsingularity.net>
-References: <CAMuHMdV00vJJxoA7XABw+mFF+2QUd1MuQbPKKgkmGnK_NySZpg@mail.gmail.com>
- <20160530155644.GP2527@techsingularity.net>
- <CAMuHMdWioTRo1PGymqCEv+3CoQYH8qnhP2T__orSbMw1q-CBMA@mail.gmail.com>
+        Mon, 30 May 2016 12:29:01 -0700 (PDT)
+Date: Mon, 30 May 2016 21:28:57 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 4/6] mm, oom: skip vforked tasks from being selected
+Message-ID: <20160530192856.GA25696@redhat.com>
+References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
+ <1464613556-16708-5-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAMuHMdWioTRo1PGymqCEv+3CoQYH8qnhP2T__orSbMw1q-CBMA@mail.gmail.com>
+In-Reply-To: <1464613556-16708-5-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon, May 30, 2016 at 07:37:39PM +0200, Geert Uytterhoeven wrote:
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index dba8cfd0b2d6..f2c1e47adc11 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -3232,6 +3232,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> >                  * allocations are system rather than user orientated
-> >                  */
-> >                 ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
-> > +               ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
-> > +                                       ac->high_zoneidx, ac->nodemask);
-> > +               ac->classzone_idx = zonelist_zone_idx(ac->preferred_zoneref);
-> >                 page = get_page_from_freelist(gfp_mask, order,
-> >                                                 ALLOC_NO_WATERMARKS, ac);
-> >                 if (page)
-> 
-> Thanks, but unfortunately it doesn't help.
-> 
+On 05/30, Michal Hocko wrote:
+>
+> Make sure to not select vforked task as an oom victim by checking
+> vfork_done in oom_badness.
 
-Thanks. Please try the following instead
+I agree, this look like a good change to me... But.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bb320cde4d6d..557549c81083 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3024,6 +3024,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
- 		apply_fair = false;
- 		fair_skipped = false;
- 		reset_alloc_batches(ac->preferred_zoneref->zone);
-+		z = ac->preferred_zoneref;
- 		goto zonelist_scan;
- 	}
- 
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -176,11 +176,13 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+>  
+>  	/*
+>  	 * Do not even consider tasks which are explicitly marked oom
+> -	 * unkillable or have been already oom reaped.
+> +	 * unkillable or have been already oom reaped or the are in
+> +	 * the middle of vfork
+>  	 */
+>  	adj = (long)p->signal->oom_score_adj;
+>  	if (adj == OOM_SCORE_ADJ_MIN ||
+> -			test_bit(MMF_OOM_REAPED, &p->mm->flags)) {
+> +			test_bit(MMF_OOM_REAPED, &p->mm->flags) ||
+> +			p->vfork_done) {
 
--- 
-Mel Gorman
-SUSE Labs
+I don't think we can trust vfork_done != NULL.
+
+copy_process() doesn't disallow CLONE_VFORK without CLONE_VM, so with this patch
+it would be trivial to make the exploit which hides a memory hog from oom-killer.
+
+So perhaps we need something like
+
+		bool in_vfork(p)
+		{
+			return	p->vfork_done &&
+				p->real_parent->mm == mm;
+
+			
+		}
+
+task_lock() is not enough if CLONE_VM was used along with CLONE_PARENT... so this
+also needs rcu_read_lock() to access ->real_parent.
+
+Or I am totally confused?
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
