@@ -1,51 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DA2E26B0253
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 09:49:23 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id p194so37766729iod.2
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 06:49:23 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0124.outbound.protection.outlook.com. [104.47.2.124])
-        by mx.google.com with ESMTPS id t17si11340979otd.30.2016.05.30.06.49.22
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 28F7E6B0253
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 10:59:54 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id a136so30457848wme.1
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 07:59:54 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o8si3462354wjo.159.2016.05.30.07.59.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 30 May 2016 06:49:23 -0700 (PDT)
-Date: Mon, 30 May 2016 16:49:15 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 1/6] proc, oom: drop bogus task_lock and mm check
-Message-ID: <20160530134915.GD8293@esperanza>
-References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
- <1464613556-16708-2-git-send-email-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <1464613556-16708-2-git-send-email-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 30 May 2016 07:59:52 -0700 (PDT)
+From: Petr Mladek <pmladek@suse.com>
+Subject: [PATCH v7 00/10] kthread: Kthread worker API improvements
+Date: Mon, 30 May 2016 16:59:21 +0200
+Message-Id: <1464620371-31346-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-watchdog@vger.kernel.org, Corey Minyard <minyard@acm.org>, openipmi-developer@lists.sourceforge.net, Doug Ledford <dledford@redhat.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, linux-rdma@vger.kernel.org, Maxim Levitsky <maximlevitsky@gmail.com>, Zhang Rui <rui.zhang@intel.com>, Eduardo Valentin <edubezval@gmail.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-pm@vger.kernel.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-On Mon, May 30, 2016 at 03:05:51PM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> both oom_adj_write and oom_score_adj_write are using task_lock,
-> check for task->mm and fail if it is NULL. This is not needed because
-> the oom_score_adj is per signal struct so we do not need mm at all.
-> The code has been introduced by 3d5992d2ac7d ("oom: add per-mm oom
-> disable count") but we do not do per-mm oom disable since c9f01245b6a7
-> ("oom: remove oom_disable_count").
-> 
-> The task->mm check is even not correct because the current thread might
-> have exited but the thread group might be still alive - e.g. thread
-> group leader would lead that echo $VAL > /proc/pid/oom_score_adj would
-> always fail with EINVAL while /proc/pid/task/$other_tid/oom_score_adj
-> would succeed. This is unexpected at best.
-> 
-> Remove the lock along with the check to fix the unexpected behavior
-> and also because there is not real need for the lock in the first place.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+I send the kthread worker API improvements separately as discussed
+in v6, see
+https://lkml.kernel.org/g/<20160511105224.GE2749@pathway.suse.cz>
+They seem to be ready for inclusion in 4.8.
 
-Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+I will send the conversion of the particular kthreads once
+the API changes are in some maintainers three (-mm?) and
+visible in linux-next. If nobody suggests some other approach.
+
+Also I plan to continue with conversion of more kthreads.
+
+Just to remember. The intention of this patchset is to make
+it easier to manipulate and maintain kthreads. Especially, I want
+to replace all the custom main cycles with a generic one.
+Also I want to make the kthreads sleep in a consistent
+state in a common place when there is no work.
+
+
+Changes against v6:
+
+  + no changes.
+
+
+Changes against v5:
+
+  + removed spin_trylock() from delayed_kthread_work_timer_fn();
+    instead temporary released worked->lock() when calling
+    del_timer_sync(); made sure that any queueing was blocked
+    by work->canceling in the meatime
+
+  + used 0th byte for KTW_FREEZABLE to reduce confusion
+
+  + fixed warnings in comments reported by make htmldocs
+
+  + sigh, there was no easy way to create an empty va_list
+    that would work on all architectures; decided to make
+    @namefmt generic in create_kthread_worker_on_cpu()
+
+  + converted khungtaskd a better way; it was inspired by
+    the recent changes that appeared in 4.6-rc1
+
+
+Changes against v4:
+
+  + added worker->delayed_work_list; it simplified the check
+    for pending work; we do not longer need the new timer_active()
+    function; also we do not need the link work->timer. On the
+    other hand we need to distinguish between the normal and
+    the delayed work by a boolean parameter passed to
+    the common functions, e.g. __cancel_kthread_work_sync()
+    
+  + replaced most try_lock repeat cycles with a WARN_ON();
+    the API does not allow to use the work with more workers;
+    so such a situation would be a bug; it removed the
+    complex try_lock_kthread_work() function that supported
+    more modes;
+
+  + renamed kthread_work_pending() to queuing_blocked();
+    added this function later when really needed
+
+  + renamed try_to_cancel_kthread_work() to __cancel_kthread_work();
+    in fact, this a common implementation for the async cancel()
+    function
+
+  + removed a dull check for invalid cpu number in
+    create_kthread_worker_on_cpu(); removed some other unnecessary
+    code structures as suggested by Tejun
+
+  + consistently used bool return value in all new __cancel functions
+
+  + fixed ordering of cpu and flags parameters in
+    create_kthread_worker_on_cpu() vs. create_kthread_worker()
+
+  + used memset in the init_kthread_worker()
+
+  + updated many comments as suggested by Tejun and as
+    required the above changes
+
+  + removed obsolete patch adding timer_active()
+
+  + removed obsolete patch for using try_lock in flush_kthread_worker()
+
+  + double checked all existing users of kthread worker API
+    that they reinitialized the work when the worker was started
+    and would not print false warnings; all looked fine
+
+  + added taken acks for the Intel Powerclamp conversion
+    
+
+Changes against v3:
+
+  + allow to free struct kthread_work from its callback; do not touch
+    the struct from the worker post-mortem; as a side effect, the structure
+    must be reinitialized when the worker gets restarted; updated
+    khugepaged, and kmemleak accordingly
+
+  + call del_timer_sync() with worker->lock; instead, detect canceling
+    in the timer callback and give up an attempt to get the lock there;
+    do busy loop with spin_is_locked() to reduce cache bouncing
+
+  + renamed ipmi+func() -> ipmi_kthread_worker_func() as suggested
+    by Corey
+
+  + added some collected Reviewed-by
+
+  
+Changes against v2:
+
+  + used worker->lock to synchronize the operations with the work
+    instead of the PENDING bit as suggested by Tejun Heo; it simplified
+    the implementation in several ways
+
+  + added timer_active(); used it together with del_timer_sync()
+    to cancel the work a less tricky way
+
+  + removed the controversial conversion of the RCU kthreads
+
+  + added several other examples: hung_task, kmemleak, ipmi,
+    IB/fmr_pool, memstick/r592, intel_powerclamp
+
+  + the helper fixes for the ring buffer benchmark has been improved
+    as suggested by Steven; they already are in the Linus tree now
+
+  + fixed a possible race between the check for existing khugepaged
+    worker and queuing the work
+ 
+
+Changes against v1:
+
+  + remove wrappers to manipulate the scheduling policy and priority
+
+  + remove questionable wakeup_and_destroy_kthread_worker() variant
+
+  + do not check for chained work when draining the queue
+
+  + allocate struct kthread worker in create_kthread_work() and
+    use more simple checks for running worker
+
+  + add support for delayed kthread works and use them instead
+    of waiting inside the works
+
+  + rework the "unrelated" fixes for the ring buffer benchmark
+    as discussed in the 1st RFC; also sent separately
+
+  + convert also the consumer in the ring buffer benchmark
+
+
+I have tested this patch set against the stable Linus tree
+for 4.7-rc1.
+
+Comments against v6 can be found at
+https://lkml.kernel.org/g/<1460646879-617-1-git-send-email-pmladek@suse.com>
+
+Petr Mladek (10):
+  kthread/smpboot: Do not park in kthread_create_on_cpu()
+  kthread: Allow to call __kthread_create_on_node() with va_list args
+  kthread: Add create_kthread_worker*()
+  kthread: Add drain_kthread_worker()
+  kthread: Add destroy_kthread_worker()
+  kthread: Detect when a kthread work is used by more workers
+  kthread: Initial support for delayed kthread work
+  kthread: Allow to cancel kthread work
+  kthread: Allow to modify delayed kthread work
+  kthread: Better support freezable kthread workers
+
+ include/linux/kthread.h |  57 +++++
+ kernel/kthread.c        | 571 +++++++++++++++++++++++++++++++++++++++++++-----
+ kernel/smpboot.c        |   5 +
+ 3 files changed, 581 insertions(+), 52 deletions(-)
+
+CC: Catalin Marinas <catalin.marinas@arm.com>
+CC: linux-watchdog@vger.kernel.org
+CC: Corey Minyard <minyard@acm.org>
+CC: openipmi-developer@lists.sourceforge.net
+CC: Doug Ledford <dledford@redhat.com>
+CC: Sean Hefty <sean.hefty@intel.com>
+CC: Hal Rosenstock <hal.rosenstock@gmail.com>
+CC: linux-rdma@vger.kernel.org
+CC: Maxim Levitsky <maximlevitsky@gmail.com>
+CC: Zhang Rui <rui.zhang@intel.com>
+CC: Eduardo Valentin <edubezval@gmail.com>
+CC: Jacob Pan <jacob.jun.pan@linux.intel.com>
+CC: linux-pm@vger.kernel.org
+CC: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+
+-- 
+1.8.5.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
