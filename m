@@ -1,202 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B3F46B0253
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 01:37:58 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g64so245000934pfb.2
-        for <linux-mm@kvack.org>; Sun, 29 May 2016 22:37:58 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id yw6si48274316pab.52.2016.05.29.22.37.56
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EAB86B025F
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 01:43:58 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id f8so55872438pag.2
+        for <linux-mm@kvack.org>; Sun, 29 May 2016 22:43:58 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id vb10si48335449pab.56.2016.05.29.22.43.56
         for <linux-mm@kvack.org>;
-        Sun, 29 May 2016 22:37:56 -0700 (PDT)
-Date: Mon, 30 May 2016 14:39:06 +0900
+        Sun, 29 May 2016 22:43:56 -0700 (PDT)
+Date: Mon, 30 May 2016 14:45:06 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm: check the return value of lookup_page_ext for all
- call sites
-Message-ID: <20160530053906.GA25079@js1304-P5Q-DELUXE>
-References: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
- <20160524025811.GA29094@bbox>
- <20160526003719.GB9661@bbox>
- <8ae0197c-47b7-e5d2-20c3-eb9d01e6b65c@linaro.org>
- <20160527051432.GF2322@bbox>
- <20160527060839.GC13661@js1304-P5Q-DELUXE>
- <20160527081108.GG2322@bbox>
+Subject: Re: [PATCH v3 0/6] Introduce ZONE_CMA
+Message-ID: <20160530054506.GB25079@js1304-P5Q-DELUXE>
+References: <1464243748-16367-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20160526080454.GA11823@shbuild888>
+ <20160527052820.GA13661@js1304-P5Q-DELUXE>
+ <20160527062527.GA32297@shbuild888>
+ <20160527064218.GA14858@js1304-P5Q-DELUXE>
+ <20160527072702.GA7782@shbuild888>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160527081108.GG2322@bbox>
+In-Reply-To: <20160527072702.GA7782@shbuild888>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Shi, Yang" <yang.shi@linaro.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Feng Tang <feng.tang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Rui Teng <rui.teng@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Fri, May 27, 2016 at 05:11:08PM +0900, Minchan Kim wrote:
-> On Fri, May 27, 2016 at 03:08:39PM +0900, Joonsoo Kim wrote:
-> > On Fri, May 27, 2016 at 02:14:32PM +0900, Minchan Kim wrote:
-> > > On Thu, May 26, 2016 at 04:15:28PM -0700, Shi, Yang wrote:
-> > > > On 5/25/2016 5:37 PM, Minchan Kim wrote:
-> > > > >On Tue, May 24, 2016 at 11:58:11AM +0900, Minchan Kim wrote:
-> > > > >>On Mon, May 23, 2016 at 10:16:08AM -0700, Yang Shi wrote:
-> > > > >>>Per the discussion with Joonsoo Kim [1], we need check the return value of
-> > > > >>>lookup_page_ext() for all call sites since it might return NULL in some cases,
-> > > > >>>although it is unlikely, i.e. memory hotplug.
-> > > > >>>
-> > > > >>>Tested with ltp with "page_owner=0".
-> > > > >>>
-> > > > >>>[1] http://lkml.kernel.org/r/20160519002809.GA10245@js1304-P5Q-DELUXE
-> > > > >>>
-> > > > >>>Signed-off-by: Yang Shi <yang.shi@linaro.org>
-> > > > >>
-> > > > >>I didn't read code code in detail to see how page_ext memory space
-> > > > >>allocated in boot code and memory hotplug but to me, it's not good
-> > > > >>to check NULL whenever we calls lookup_page_ext.
-> > > > >>
-> > > > >>More dangerous thing is now page_ext is used by optionable feature(ie, not
-> > > > >>critical for system stability) but if we want to use page_ext as
-> > > > >>another important tool for the system in future,
-> > > > >>it could be a serious problem.
-> > 
-> > Hello, Minchan.
-> 
-> Hi Joonsoo,
-> 
-> > 
-> > I wonder how pages that isn't managed by kernel yet will cause serious
-> > problem. Until onlining, these pages are out of our scope. Any
-> > information about them would be useless until it is actually
-> > activated. I guess that returning NULL for those pages will not hurt
-> > any functionality. Do you have any possible scenario that this causes the
-> > serious problem?
-> 
-> I don't have any specific usecase now. That's why I said "in future".
-> And I don't want to argue whether there is possible scenario or not
-> to make the feature useful but if you want, I should write novel.
-> One of example, pop up my mind, xen, hv and even memory_hotplug itself
-> might want to use page_ext for their functionality extension to hook
-> guest pages.
-
-There is no detail so I can't guess how to use it and how it causes
-the serious problem. But, we can do it when it is really needed.
-
-> 
-> My opinion is that page_ext is extension of struct page so it would
-> be better to allow any operation on struct page without any limitation
-> if we can do it. Whether it's useful or useless depend on random
-> usecase and we don't need to limit that way from the beginning.
-
-If there is no drawback, it would be a better design. But, we have
-trade-off that for some case that the memory is added but not
-onlined, there is memory saving if we allocate page_ext later.
-So, in current situation that there is no user to require such
-guarantee, I don't think it's worth doing right now.
-
-> However, current design allows deferred page_ext population so any user
-> of page_ext should keep it in mind and should either make fallback plan
-> or don't use page_ext for those cases. If we decide go this way through
-> discussion, at least, we should make such limitation more clear to
-> somewhere in this chance, maybe around page_ext_operation->need comment.
-
-Agreed.
-
-> My comment's point is that we should consider that way at least. It's
-> worth to discuss pros and cons, what's the best and what makes that way
-> hesitate if we can't.
-
-Yes, your suggestion would be good for future direction, but, for now,
-I think that inserting NULL to all callers is right fix.
-
-1) Current design that page_ext is allocated when online is design
-decision of page_ext to save memory as much as possible. Fixing
-possible problem within this design decision looks good to me.
-
-2) Maybe, we need to backport fixes because it would crash older
-kernels. In this case, fix with NULL is easy to backport.
-
-> > 
-> > And, allocation such memory space doesn't come from free. If someone
-> > just add the memory device and don't online it, these memory will be
-> 
-> Here goes several questions.
-> Cced hotplug guys
-> 
-> 1.
-> If someone just add the memory device without onlining, kernel code
-> can return pfn_valid == true on the offlined page?
-
-AFAIK, yes.
-> 
-> 2.
-> If so, it means memmap on offline memory is already populated somewhere.
-> Where is the memmap allocated? part of offlined memory space or other memory?
-
-Other memory.
-
-> 3. Could we allocate page_ext in part of offline memory space so that
-> it doesn't consume online memory.
-> 
-> > wasted. I don't know if there is such a usecase but it's possible
-> > scenario.
-> 
-> > 
-> > > > >>
-> > > > >>Can we put some hooks of page_ext into memory-hotplug so guarantee
-> > > > >>that page_ext memory space is allocated with memmap space at the
-> > > > >>same time? IOW, once every PFN wakers find a page is valid, page_ext
-> > > > >>is valid, too so lookup_page_ext never returns NULL on valid page
-> > > > >>by design.
-> > > > >>
-> > > > >>I hope we consider this direction, too.
-> > > > >
-> > > > >Yang, Could you think about this?
+On Fri, May 27, 2016 at 03:27:02PM +0800, Feng Tang wrote:
+> On Fri, May 27, 2016 at 02:42:18PM +0800, Joonsoo Kim wrote:
+> > On Fri, May 27, 2016 at 02:25:27PM +0800, Feng Tang wrote:
+> > > On Fri, May 27, 2016 at 01:28:20PM +0800, Joonsoo Kim wrote:
+> > > > On Thu, May 26, 2016 at 04:04:54PM +0800, Feng Tang wrote:
+> > > > > On Thu, May 26, 2016 at 02:22:22PM +0800, js1304@gmail.com wrote:
+> > > > > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > > > 
+> > >  
+> > > > > > FYI, there is another attempt [3] trying to solve this problem in lkml.
+> > > > > > And, as far as I know, Qualcomm also has out-of-tree solution for this
+> > > > > > problem.
+> > > > > 
+> > > > > This may be a little off-topic :) Actually, we have used another way in
+> > > > > our products, that we disable the fallback from MIGRATETYE_MOVABLE to
+> > > > > MIGRATETYPE_CMA completely, and only allow free CMA memory to be used
+> > > > > by file page cache (which is easy to be reclaimed by its nature). 
+> > > > > We did it by adding a GFP_PAGE_CACHE to every allocation request for
+> > > > > page cache, and the MM will try to pick up an available free CMA page
+> > > > > first, and goes to normal path when fail. 
 > > > > 
-> > > > Thanks a lot for the suggestion. Sorry for the late reply, I was
-> > > > busy on preparing patches. I do agree this is a direction we should
-> > > > look into, but I haven't got time to think about it deeper. I hope
-> > > > Joonsoo could chime in too since he is the original author for page
-> > > > extension.
-> > > > 
-> > > > >
-> > > > >Even, your patch was broken, I think.
-> > > > >It doesn't work with !CONFIG_DEBUG_VM && !CONFIG_PAGE_POISONING because
-> > > > >lookup_page_ext doesn't return NULL in that case.
-> > > > 
-> > > > Actually, I think the #ifdef should be removed if lookup_page_ext()
-> > > > is possible to return NULL. It sounds not make sense returning NULL
-> > > > only when DEBUG_VM is enabled. It should return NULL no matter what
-> > > > debug config is selected. If Joonsoo agrees with me I'm going to
-> > > > come up with a patch to fix it.
+> > > > Just wonder, why do you allow CMA memory to file page cache rather
+> > > > than anonymous page? I guess that anonymous pages would be more easily
+> > > > migrated/reclaimed than file page cache. In fact, some of our product
+> > > > uses anonymous page adaptation to satisfy similar requirement by
+> > > > introducing GFP_CMA. AFAIK, some of chip vendor also uses "anonymous
+> > > > page first adaptation" to get better success rate.
+> > > 
+> > > The biggest problem we faced is to allocate big chunk of CMA memory,
+> > > say 256MB in a whole, or 9 pieces of 20MB buffers, so the speed
+> > > is not the biggest concern, but whether all the cma pages be reclaimed.
 > > 
-> > Agreed but let's wait for Minchan's response.
+> > Okay. Our product have similar workload.
+> > 
+> > > With the MOVABLE fallback, there may be many types of bad guys from device
+> > > drivers/kernel or different subsystems, who refuse to return the borrowed
+> > > cma pages, so I took a lazy way by only allowing page cache to use free
+> > > cma pages, and we see good results which could pass most of the test for
+> > > allocating big chunks. 
+> > 
+> > Could you explain more about why file page cache rather than anonymous page?
+> > If there is a reason, I'd like to test it by myself.
 > 
-> If we goes this way, how to guarantee this race?
+> I didn't make it clear. This is not for anonymous page, but for MIGRATETYPE_MOVABLE.
+
+Anonymous page is one of the pages with MIGRATETYPE_MOVABLE. So, you
+can also restrict CMA memory only for anonymous page like as you did
+for file page cache. Some of our product used this work around so I'd
+like to know if there is a reason.
+
 > 
->                                 kpageflags_read
->                                 stable_page_flags
->                                 page_is_idle
->                                   lookup_page_ext
->                                   section = __pfn_to_section(pfn)
-> offline_pages
-> memory_notify(MEM_OFFLINE)
->   offline_page_ext
->   ms->page_ext = NULL
->                                   section->page_ext + pfn
+> following is the patch to disable the kernel default sharing (kernel 3.14)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 1b5f20e..a5e698f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -974,7 +974,11 @@ static int fallbacks[MIGRATE_TYPES][4] = {
+>  	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,     MIGRATE_RESERVE },
+>  	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,     MIGRATE_RESERVE },
+>  #ifdef CONFIG_CMA
+> -	[MIGRATE_MOVABLE]     = { MIGRATE_CMA,         MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_RESERVE },
+> +	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_RESERVE },
+>  	[MIGRATE_CMA]         = { MIGRATE_RESERVE }, /* Never used */
+>  	[MIGRATE_CMA_ISOLATE] = { MIGRATE_RESERVE }, /* Never used */
+>  #else
+> @@ -1414,6 +1418,18 @@ void free_hot_cold_page(struct page *page, int cold)
+>  	local_irq_save(flags);
+>  	__count_vm_event(PGFREE);
+>  
+> +#ifndef CONFIG_USE_CMA_FALLBACK
+> +	if (migratetype == MIGRATE_CMA) {
+> +		free_one_page(zone, page, 0, MIGRATE_CMA);
+> +		local_irq_restore(flags);
+> +		return;
+> +	}
+> +#endif
+> +
+> 
+> > 
+> > > One of the customer used to use a CMA sharing patch from another vendor
+> > > on our Socs, which can't pass these tests and finally took our page cache
+> > > approach.
+> > 
+> > CMA has too many problems so each vendor uses their own adaptation. I'd
+> > like to solve this code fragmentation by fixing problems on upstream
+> > kernel and this ZONE_CMA is one of that effort. If you can share the
+> > pointer for your adaptation, it would be very helpful to me.
+> 
+> As I said, I started to work on CMA problem back in 2014, and faced many
+> of these failure in reclamation problems. I didn't have time and capability
+> to track/analyze each and every failure, but decided to go another way by
+> only allowing the page cache to use CMA.  And frankly speaking, I don't have
+> detailed data for performance measurement, but some rough one, that it
+> did improve the cma page reclaiming and the usage rate.
 
-I think that it is a fundamental problem of memory hotplug.
-There is similar race with struct page for offlined memory.
+Okay!
 
+> Our patches was based on 3.14 (the Android Mashmallow kenrel). Earlier this
+> year I finally got some free time, and worked on cleaning them for submission
+> to LKML, and found your cma improving patches merged in 4.1 or 4.2, so I gave
+> up as my patches is more hacky :)
+> 
+> The sharing patch is here FYI:
 
-                                 
-                                 kpageflags_read
-                                 pfn_valid
-remove_memory
-                                 stable_page_flags
-                                 crash!
-
-I already reported similar race problem to memory hotplug guys but
-didn't get any answer.
-
-lkml.kernel.org/r/20151221031501.GA32524@js1304-P5Q-DELUXE
-
-Thanks.
+Thanks for sharing!! It will be helpful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
