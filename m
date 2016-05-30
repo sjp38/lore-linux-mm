@@ -1,159 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 817546B025E
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 05:39:53 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id e3so26696761wme.3
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:39:53 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id e10si43511095wjd.194.2016.05.30.02.39.52
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DBD66B025E
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 05:46:09 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 132so56115988lfz.3
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:46:09 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l201si29806731wmd.25.2016.05.30.02.46.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 May 2016 02:39:52 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id q62so20844838wmg.3
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:39:52 -0700 (PDT)
-Date: Mon, 30 May 2016 11:39:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/6] mm, oom_adj: make sure processes sharing mm have
- same view of oom_score_adj
-Message-ID: <20160530093950.GN22928@dhcp22.suse.cz>
-References: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
- <1464266415-15558-4-git-send-email-mhocko@kernel.org>
- <20160527111803.GG27686@dhcp22.suse.cz>
- <20160527161821.GE26059@esperanza>
- <20160530070705.GD22928@dhcp22.suse.cz>
- <20160530084753.GH26059@esperanza>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 30 May 2016 02:46:07 -0700 (PDT)
+Subject: Re: [PATCH] mm, page_alloc: prevent infinite loop in
+ buffered_rmqueue()
+References: <20160530090154.GM2527@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a4da34ff-cda2-a9a9-d586-277eb6f8797e@suse.cz>
+Date: Mon, 30 May 2016 11:46:05 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160530084753.GH26059@esperanza>
+In-Reply-To: <20160530090154.GM2527@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 30-05-16 11:47:53, Vladimir Davydov wrote:
-> On Mon, May 30, 2016 at 09:07:05AM +0200, Michal Hocko wrote:
-> > On Fri 27-05-16 19:18:21, Vladimir Davydov wrote:
-> > > On Fri, May 27, 2016 at 01:18:03PM +0200, Michal Hocko wrote:
-> > > ...
-> > > > @@ -1087,7 +1105,25 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
-> > > >  	unlock_task_sighand(task, &flags);
-> > > >  err_put_task:
-> > > >  	put_task_struct(task);
-> > > > +
-> > > > +	if (mm) {
-> > > > +		struct task_struct *p;
-> > > > +
-> > > > +		rcu_read_lock();
-> > > > +		for_each_process(p) {
-> > > > +			task_lock(p);
-> > > > +			if (!p->vfork_done && process_shares_mm(p, mm)) {
-> > > > +				p->signal->oom_score_adj = oom_adj;
-> > > > +				if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
-> > > > +					p->signal->oom_score_adj_min = (short)oom_adj;
-> > > > +			}
-> > > > +			task_unlock(p);
-> > > 
-> > > I.e. you write to /proc/pid1/oom_score_adj and get
-> > > /proc/pid2/oom_score_adj updated if pid1 and pid2 share mm?
-> > > IMO that looks unexpected from userspace pov.
-> > 
-> > How much different it is from threads in the same thread group?
-> > Processes sharing the mm without signals is a rather weird threading
-> > model isn't it?
-> 
-> I think so too. I wouldn't be surprised if it turned out that nobody had
-> ever used it. But may be there's someone out there who does.
+On 05/30/2016 11:01 AM, Mel Gorman wrote:
+> From: Vlastimil Babka <vbabka@suse.cz>
+>
+> In DEBUG_VM kernel, we can hit infinite loop for order == 0 in
+> buffered_rmqueue() when check_new_pcp() returns 1, because the bad page is
+> never removed from the pcp list. Fix this by removing the page before retrying.
+> Also we don't need to check if page is non-NULL, because we simply grab it from
+> the list which was just tested for being non-empty.
+>
+> Fixes: http://www.ozlabs.org/~akpm/mmotm/broken-out/mm-page_alloc-defer-debugging-checks-of-freed-pages-until-a-pcp-drain.patch
 
-I have heard some rumors about users. But I haven't heard anything about
-their oom_score_adj usage patterns.
+That was a wrong one, which I corrected later. Also it's no longer 
+mmotm. Correction below:
 
-> > Currently we just lie to users about their oom_score_adj
-> > in this weird corner case.
-> 
-> Hmm, looks like a bug, but nobody has ever complained about it.
+Fixes: 479f854a207c ("mm, page_alloc: defer debugging checks of pages 
+allocated from the PCP")
 
-Yes and that leads me to a suspicion that we can do that. Maybe I should
-just add a note into the log that we are doing that so that people can
-complain? Something like the following
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index fa0b3ca94dfb..7f3495415719 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -1104,7 +1104,6 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
- err_sighand:
- 	unlock_task_sighand(task, &flags);
- err_put_task:
--	put_task_struct(task);
- 
- 	if (mm) {
- 		struct task_struct *p;
-@@ -1113,6 +1112,10 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
- 		for_each_process(p) {
- 			task_lock(p);
- 			if (!p->vfork_done && process_shares_mm(p, mm)) {
-+				pr_info("updating oom_score_adj for %d (%s) from %d to %d because it shares mm with %d (%s). Report if this is unexpected.\n",
-+						task_pid_nr(p), p->comm,
-+						p->signal->oom_score_adj, oom_adj,
-+						task_pid_nr(task), task->comm);
- 				p->signal->oom_score_adj = oom_adj;
- 				if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
- 					p->signal->oom_score_adj_min = (short)oom_adj;
-@@ -1122,6 +1125,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
- 		rcu_read_unlock();
- 		mmdrop(mm);
- 	}
-+	put_task_struct(task);
- out:
- 	mutex_unlock(&oom_adj_mutex);
- 	return err;
+> Reported-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-> > The only exception was OOM_SCORE_ADJ_MIN
-> > where we really didn't kill the task but all other values are simply
-> > ignored in practice.
-> > 
-> > > May be, we'd better add mm->oom_score_adj and set it to the min
-> > > signal->oom_score_adj over all processes sharing it? This would
-> > > require iterating over all processes every time oom_score_adj gets
-> > > updated, but that's a slow path.
-> > 
-> > Not sure I understand. So you would prefer that mm->oom_score_adj might
-> > disagree with p->signal->oom_score_adj?
-> 
-> No, I wouldn't. I'd rather agree that oom_score_adj should be per mm,
-> because we choose the victim basing solely on mm stats.
-> 
-> What I mean is we don't touch p->signal->oom_score_adj of other tasks
-> sharing mm, but instead store minimal oom_score_adj over all tasks
-> sharing mm in the mm_struct whenever a task's oom_score_adj is modified.
-> And use mm->oom_score_adj instead of signal->oom_score_adj in oom killer
-> code. This would save us from any accusations of user API modifications
-> and it would also make the oom code a bit easier to follow IMHO.
+Thanks Mel, I've missed that the patch didn't go in.
 
-I understand your point but this is essentially lying because we
-consider a different value than the user can observe in userspace.
-Consider somebody doing insanity like
-
-current->oom_score_adj = OOM_SCORE_ADJ_MIN
-p = clone(CLONE_VM)
-p->oom_score_adj = OOM_SCORE_ADJ_MAX
-
-so one process would want to be always selected while the other one
-doesn't want to get killed. All they can see is that everything is
-put in place until the oom killer comes over and ignores that.
-
-I think we should just be explicit. Maybe we want to treat
-OOM_SCORE_ADJ_MIN special - e.g. do not even try to set oom_score_adj if
-one of the sharing tasks is oom disabled. But I would rather wait for
-somebody to complain and explain why the usecase really makes sense than
-be all silent with implicit behavior.
-
-Btw. we have already had per mm oom_core_adj but we had to revert it due
-to vfork behavior. See 0753ba01e126 ("mm: revert "oom: move oom_adj
-value""). This patch gets us back except it handles the vfork issue.
--- 
-Michal Hocko
-SUSE Labs
+> ---
+>  mm/page_alloc.c | 9 +++++----
+>  1 file changed, 5 insertions(+), 4 deletions(-)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index f8f3bfc435ee..bb320cde4d6d 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2609,11 +2609,12 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
+>  				page = list_last_entry(list, struct page, lru);
+>  			else
+>  				page = list_first_entry(list, struct page, lru);
+> -		} while (page && check_new_pcp(page));
+>
+> -		__dec_zone_state(zone, NR_ALLOC_BATCH);
+> -		list_del(&page->lru);
+> -		pcp->count--;
+> +			__dec_zone_state(zone, NR_ALLOC_BATCH);
+> +			list_del(&page->lru);
+> +			pcp->count--;
+> +
+> +		} while (check_new_pcp(page));
+>  	} else {
+>  		/*
+>  		 * We most definitely don't want callers attempting to
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
