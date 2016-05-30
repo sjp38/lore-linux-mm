@@ -1,43 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 406686B0253
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 04:26:02 -0400 (EDT)
-Received: by mail-ob0-f200.google.com with SMTP id g6so274502026obn.0
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 01:26:02 -0700 (PDT)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0139.outbound.protection.outlook.com. [157.55.234.139])
-        by mx.google.com with ESMTPS id 53si4544877otf.86.2016.05.30.01.26.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 30 May 2016 01:26:01 -0700 (PDT)
-Subject: Re: [v2 PATCH] arm64: kasan: instrument user memory access API
-References: <1464382863-11879-1-git-send-email-yang.shi@linaro.org>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <574BF941.7090906@virtuozzo.com>
-Date: Mon, 30 May 2016 11:26:41 +0300
-MIME-Version: 1.0
-In-Reply-To: <1464382863-11879-1-git-send-email-yang.shi@linaro.org>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E0D3E6B0253
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 04:46:04 -0400 (EDT)
+Received: by mail-ob0-f199.google.com with SMTP id yu3so276394400obb.3
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 01:46:04 -0700 (PDT)
+Received: from m50-133.163.com (m50-133.163.com. [123.125.50.133])
+        by mx.google.com with ESMTP id h206si20652076oif.189.2016.05.30.01.46.02
+        for <linux-mm@kvack.org>;
+        Mon, 30 May 2016 01:46:04 -0700 (PDT)
+From: Wenwei Tao <wwtao0320@163.com>
+Subject: [PATCH] mm/memcontrol.c: add memory allocation result check
+Date: Mon, 30 May 2016 16:45:51 +0800
+Message-Id: <1464597951-2976-1-git-send-email-wwtao0320@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.shi@linaro.org>, will.deacon@arm.com, catalin.marinas@arm.com, mark.rutland@arm.com
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
+To: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov@virtuozzo.com
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ww.tao0320@gmail.com
 
+From: Wenwei Tao <ww.tao0320@gmail.com>
 
-On 05/28/2016 12:01 AM, Yang Shi wrote:
-> The upstream commit 1771c6e1a567ea0ba2cccc0a4ffe68a1419fd8ef
-> ("x86/kasan: instrument user memory access API") added KASAN instrument to
-> x86 user memory access API, so added such instrument to ARM64 too.
-> 
-> Define __copy_to/from_user in C in order to add kasan_check_read/write call,
-> rename assembly implementation to __arch_copy_to/from_user.
-> 
-> Tested by test_kasan module.
-> 
-> Signed-off-by: Yang Shi <yang.shi@linaro.org>
-> 
+The mem_cgroup_tree_per_node allocation might fail,
+check that before continue the memcg init. Since it
+is in the init phase, trigger the panic if that failure
+happens.
 
-Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Signed-off-by: Wenwei Tao <ww.tao0320@gmail.com>
+---
+ mm/memcontrol.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 925b431..6385c62 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5712,6 +5712,7 @@ static int __init mem_cgroup_init(void)
+ 
+ 		rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL,
+ 				    node_online(node) ? node : NUMA_NO_NODE);
++		BUG_ON(!rtpn);
+ 
+ 		for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+ 			struct mem_cgroup_tree_per_zone *rtpz;
+-- 
+1.8.3.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
