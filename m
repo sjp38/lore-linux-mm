@@ -1,65 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D09F6B025E
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 04:48:46 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id h68so47357919lfh.2
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 01:48:46 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id v74si26878455wmv.34.2016.05.30.01.48.44
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E4A206B0253
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 04:53:13 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id w16so77193609lfd.0
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 01:53:13 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id uw10si43253085wjc.242.2016.05.30.01.53.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 May 2016 01:48:44 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id a136so20447295wme.0
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 01:48:44 -0700 (PDT)
-Date: Mon, 30 May 2016 10:48:43 +0200
+        Mon, 30 May 2016 01:53:12 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id n129so20390434wmn.1
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 01:53:12 -0700 (PDT)
+Date: Mon, 30 May 2016 10:53:11 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/7] mm: Cleanup - Reorganize the shrink_page_list code
- into smaller functions
-Message-ID: <20160530084843.GL22928@dhcp22.suse.cz>
-References: <cover.1462306228.git.tim.c.chen@linux.intel.com>
- <1462309280.21143.8.camel@linux.intel.com>
- <1464367227.22178.147.camel@linux.intel.com>
+Subject: Re: [PATCH] mm/memcontrol.c: add memory allocation result check
+Message-ID: <20160530085311.GM22928@dhcp22.suse.cz>
+References: <1464597951-2976-1-git-send-email-wwtao0320@163.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1464367227.22178.147.camel@linux.intel.com>
+In-Reply-To: <1464597951-2976-1-git-send-email-wwtao0320@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: "Kirill A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>
+To: Wenwei Tao <wwtao0320@163.com>
+Cc: hannes@cmpxchg.org, vdavydov@virtuozzo.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ww.tao0320@gmail.com
 
-On Fri 27-05-16 09:40:27, Tim Chen wrote:
-> On Tue, 2016-05-03 at 14:01 -0700, Tim Chen wrote:
-> > This patch prepares the code for being able to batch the anonymous
-> > pages
-> > to be swapped out.  It reorganizes shrink_page_list function with
-> > 2 new functions: handle_pgout and pg_finish.
-> > 
-> > The paging operation in shrink_page_list is consolidated into
-> > handle_pgout function.
-> > 
-> > After we have scanned a page shrink_page_list and completed any
-> > paging,
-> > the final disposition and clean up of the page is conslidated into
-> > pg_finish.  The designated disposition of the page from page scanning
-> > in shrink_page_list is marked with one of the designation in
-> > pg_result.
-> > 
-> > This is a clean up patch and there is no change in functionality or
-> > logic of the code.
+On Mon 30-05-16 16:45:51, Wenwei Tao wrote:
+> From: Wenwei Tao <ww.tao0320@gmail.com>
 > 
-> Hi Michal,
-> 
-> We've talked about doing the clean up of shrink_page_list code
-> before attempting to do batching on the swap out path as those
-> set of patches I've previously posted are quit intrusive.  Wonder
-> if you have a chance to look at this patch and has any comments?
+> The mem_cgroup_tree_per_node allocation might fail,
+> check that before continue the memcg init. Since it
+> is in the init phase, trigger the panic if that failure
+> happens.
 
-I have noticed your
-http://lkml.kernel.org/r/1463779979.22178.142.camel@linux.intel.com but
-still haven't found time to look at it. Sorry about that. There is
-rather a lot on my pile...
+We would blow up in the very same function so what is the point of the
+explicit BUG_ON?
+
+> Signed-off-by: Wenwei Tao <ww.tao0320@gmail.com>
+> ---
+>  mm/memcontrol.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 925b431..6385c62 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5712,6 +5712,7 @@ static int __init mem_cgroup_init(void)
+>  
+>  		rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL,
+>  				    node_online(node) ? node : NUMA_NO_NODE);
+> +		BUG_ON(!rtpn);
+>  
+>  		for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+>  			struct mem_cgroup_tree_per_zone *rtpz;
+> -- 
+> 1.8.3.1
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
