@@ -1,45 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F3FB36B0253
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 02:57:16 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id i127so82931484ita.2
-        for <linux-mm@kvack.org>; Sun, 29 May 2016 23:57:16 -0700 (PDT)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTP id t63si4560979itd.56.2016.05.29.23.57.14
-        for <linux-mm@kvack.org>;
-        Sun, 29 May 2016 23:57:16 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <001401d1ba3f$897a88b0$9c6f9a10$@alibaba-inc.com>
-In-Reply-To: <001401d1ba3f$897a88b0$9c6f9a10$@alibaba-inc.com>
-Subject: Re: [RFC PATCH 1/4] mm/hugetlb: Simplify hugetlb unmap
-Date: Mon, 30 May 2016 14:56:59 +0800
-Message-ID: <001501d1ba40$76c350c0$6449f240$@alibaba-inc.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 09A3A6B0253
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 03:07:08 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id n2so24836937wma.0
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 00:07:07 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id z71si29296039wmh.41.2016.05.30.00.07.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 May 2016 00:07:06 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id e3so19524989wme.2
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 00:07:06 -0700 (PDT)
+Date: Mon, 30 May 2016 09:07:05 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 3/6] mm, oom_adj: make sure processes sharing mm have
+ same view of oom_score_adj
+Message-ID: <20160530070705.GD22928@dhcp22.suse.cz>
+References: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
+ <1464266415-15558-4-git-send-email-mhocko@kernel.org>
+ <20160527111803.GG27686@dhcp22.suse.cz>
+ <20160527161821.GE26059@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160527161821.GE26059@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "'Aneesh Kumar K.V'" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-> @@ -3157,19 +3156,22 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  	tlb_start_vma(tlb, vma);
->  	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
->  	address = start;
-> -again:
->  	for (; address < end; address += sz) {
+On Fri 27-05-16 19:18:21, Vladimir Davydov wrote:
+> On Fri, May 27, 2016 at 01:18:03PM +0200, Michal Hocko wrote:
+> ...
+> > @@ -1087,7 +1105,25 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+> >  	unlock_task_sighand(task, &flags);
+> >  err_put_task:
+> >  	put_task_struct(task);
+> > +
+> > +	if (mm) {
+> > +		struct task_struct *p;
+> > +
+> > +		rcu_read_lock();
+> > +		for_each_process(p) {
+> > +			task_lock(p);
+> > +			if (!p->vfork_done && process_shares_mm(p, mm)) {
+> > +				p->signal->oom_score_adj = oom_adj;
+> > +				if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
+> > +					p->signal->oom_score_adj_min = (short)oom_adj;
+> > +			}
+> > +			task_unlock(p);
+> 
+> I.e. you write to /proc/pid1/oom_score_adj and get
+> /proc/pid2/oom_score_adj updated if pid1 and pid2 share mm?
+> IMO that looks unexpected from userspace pov.
 
-With the again label cut off, you can also make a change in the for line.
+How much different it is from threads in the same thread group?
+Processes sharing the mm without signals is a rather weird threading
+model isn't it? Currently we just lie to users about their oom_score_adj
+in this weird corner case. The only exception was OOM_SCORE_ADJ_MIN
+where we really didn't kill the task but all other values are simply
+ignored in practice.
 
-thanks
-Hillf
->  		ptep = huge_pte_offset(mm, address);
->  		if (!ptep)
->  			continue;
+> May be, we'd better add mm->oom_score_adj and set it to the min
+> signal->oom_score_adj over all processes sharing it? This would
+> require iterating over all processes every time oom_score_adj gets
+> updated, but that's a slow path.
 
+Not sure I understand. So you would prefer that mm->oom_score_adj might
+disagree with p->signal->oom_score_adj?
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
