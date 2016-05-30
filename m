@@ -1,57 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 38210828E1
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 05:15:42 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id h68so47703743lfh.2
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:15:42 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id v1si9862049wjf.225.2016.05.30.02.15.18
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 46C08828E1
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 05:15:44 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id n2so26427917wma.0
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:15:44 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id fd8si43321304wjb.155.2016.05.30.02.15.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 May 2016 02:15:18 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id q62so20633359wmg.3
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:15:18 -0700 (PDT)
+        Mon, 30 May 2016 02:15:20 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id n129so20578630wmn.1
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:15:20 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 15/17] tile: get rid of superfluous __GFP_REPEAT
-Date: Mon, 30 May 2016 11:14:57 +0200
-Message-Id: <1464599699-30131-16-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 17/17] jbd2: get rid of superfluous __GFP_REPEAT
+Date: Mon, 30 May 2016 11:14:59 +0200
+Message-Id: <1464599699-30131-18-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1464599699-30131-1-git-send-email-mhocko@kernel.org>
 References: <1464599699-30131-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>
 
 From: Michal Hocko <mhocko@suse.com>
 
-__GFP_REPEAT has a rather weak semantic but since it has been introduced
-around 2.6.12 it has been ignored for low order allocations.
+jbd2_alloc is explicit about its allocation preferences wrt. the
+allocation size. Sub page allocations go to the slab allocator
+and larger are using either the page allocator or vmalloc. This
+is all good but the logic is unnecessarily complex.
+1) as per Ted, the vmalloc fallback is a left-over:
+: jbd2_alloc is only passed in the bh->b_size, which can't be >
+: PAGE_SIZE, so the code path that calls vmalloc() should never get
+: called.  When we conveted jbd2_alloc() to suppor sub-page size
+: allocations in commit d2eecb039368, there was an assumption that it
+: could be called with a size greater than PAGE_SIZE, but that's
+: certaily not true today.
+Moreover vmalloc allocation might even lead to a deadlock because
+the callers expect GFP_NOFS context while vmalloc is GFP_KERNEL.
 
-pgtable_alloc_one uses __GFP_REPEAT flag for L2_USER_PGTABLE_ORDER but
-the order is either 0 or 3 if L2_KERNEL_PGTABLE_SHIFT for HPAGE_SHIFT.
-This means that this flag has never been actually useful here because it
-has always been used only for PAGE_ALLOC_COSTLY requests.
+2) __GFP_REPEAT for requests <= PAGE_ALLOC_COSTLY_ORDER is ignored
+since the flag was introduced.
 
-Cc: linux-arch@vger.kernel.org
-Acked-by: Chris Metcalf <cmetcalf@mellanox.com> [for tile]
+Let's simplify the code flow and use the slab allocator for sub-page
+requests and the page allocator for others. Even though order > 0 is
+not currently used as per above leave that option open.
+
+Cc: "Theodore Ts'o" <tytso@mit.edu>
+Cc: Jan Kara <jack@suse.cz>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- arch/tile/mm/pgtable.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ fs/jbd2/journal.c | 32 +++++++-------------------------
+ 1 file changed, 7 insertions(+), 25 deletions(-)
 
-diff --git a/arch/tile/mm/pgtable.c b/arch/tile/mm/pgtable.c
-index 7bf2491a9c1f..c4d5bf841a7f 100644
---- a/arch/tile/mm/pgtable.c
-+++ b/arch/tile/mm/pgtable.c
-@@ -231,7 +231,7 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
- struct page *pgtable_alloc_one(struct mm_struct *mm, unsigned long address,
- 			       int order)
- {
--	gfp_t flags = GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO;
-+	gfp_t flags = GFP_KERNEL|__GFP_ZERO;
- 	struct page *p;
- 	int i;
+diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
+index b31852f76f46..e3ca4b4cac84 100644
+--- a/fs/jbd2/journal.c
++++ b/fs/jbd2/journal.c
+@@ -2329,18 +2329,10 @@ void *jbd2_alloc(size_t size, gfp_t flags)
  
+ 	BUG_ON(size & (size-1)); /* Must be a power of 2 */
+ 
+-	flags |= __GFP_REPEAT;
+-	if (size == PAGE_SIZE)
+-		ptr = (void *)__get_free_pages(flags, 0);
+-	else if (size > PAGE_SIZE) {
+-		int order = get_order(size);
+-
+-		if (order < 3)
+-			ptr = (void *)__get_free_pages(flags, order);
+-		else
+-			ptr = vmalloc(size);
+-	} else
++	if (size < PAGE_SIZE)
+ 		ptr = kmem_cache_alloc(get_slab(size), flags);
++	else
++		ptr = (void *)__get_free_pages(flags, get_order(size));
+ 
+ 	/* Check alignment; SLUB has gotten this wrong in the past,
+ 	 * and this can lead to user data corruption! */
+@@ -2351,20 +2343,10 @@ void *jbd2_alloc(size_t size, gfp_t flags)
+ 
+ void jbd2_free(void *ptr, size_t size)
+ {
+-	if (size == PAGE_SIZE) {
+-		free_pages((unsigned long)ptr, 0);
+-		return;
+-	}
+-	if (size > PAGE_SIZE) {
+-		int order = get_order(size);
+-
+-		if (order < 3)
+-			free_pages((unsigned long)ptr, order);
+-		else
+-			vfree(ptr);
+-		return;
+-	}
+-	kmem_cache_free(get_slab(size), ptr);
++	if (size < PAGE_SIZE)
++		kmem_cache_free(get_slab(size), ptr);
++	else
++		free_pages((unsigned long)ptr, get_order(size));
+ };
+ 
+ /*
 -- 
 2.8.1
 
