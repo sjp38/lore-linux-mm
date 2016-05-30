@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EFD66B0261
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 09:06:14 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id h68so50439551lfh.2
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 06:06:14 -0700 (PDT)
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E5A566B0262
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 09:06:16 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id w16so80206363lfd.0
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 06:06:16 -0700 (PDT)
 Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id el5si44405119wjd.31.2016.05.30.06.06.08
+        by mx.google.com with ESMTPS id cb2si44328253wjc.188.2016.05.30.06.06.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 May 2016 06:06:08 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id a136so22622841wme.0
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 06:06:08 -0700 (PDT)
+        Mon, 30 May 2016 06:06:09 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id q62so22583941wmg.3
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 06:06:09 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 4/6] mm, oom: skip vforked tasks from being selected
-Date: Mon, 30 May 2016 15:05:54 +0200
-Message-Id: <1464613556-16708-5-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 5/6] mm, oom: kill all tasks sharing the mm
+Date: Mon, 30 May 2016 15:05:55 +0200
+Message-Id: <1464613556-16708-6-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
 References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,42 +24,59 @@ Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@
 
 From: Michal Hocko <mhocko@suse.com>
 
-vforked tasks are not really sitting on any memory. They are sharing
-the mm with parent until they exec into a new code. Until then it is
-just pinning the address space. OOM killer will kill the vforked task
-along with its parent but we still can end up selecting vforked task
-when the parent wouldn't be selected. E.g. init doing vfork to launch
-a task or vforked being a child of oom unkillable task with an updated
-oom_score_adj to be killable.
+Currently oom_kill_process skips both the oom reaper and SIG_KILL if a
+process sharing the same mm is unkillable via OOM_ADJUST_MIN. After "mm,
+oom_adj: make sure processes sharing mm have same view of oom_score_adj"
+all such processes are sharing the same value so we shouldn't see such a
+task at all (oom_badness would rule them out).
 
-Make sure to not select vforked task as an oom victim by checking
-vfork_done in oom_badness.
+We can still encounter oom disabled vforked task which has to be killed
+as well if we want to have other tasks sharing the mm reapable
+because it can access the memory before doing exec. Killing such a task
+should be acceptable because it is highly unlikely it has done anything
+useful because it cannot modify any memory before it calls exec. An
+alternative would be to keep the task alive and skip the oom reaper and
+risk all the weird corner cases where the OOM killer cannot make forward
+progress because the oom victim hung somewhere on the way to exit.
+
+There is a potential race where we kill the oom disabled task which is
+highly unlikely but possible. It would happen if __set_oom_adj raced
+with select_bad_process and then it is OK to consider the old value or
+with fork when it should be acceptable as well.
+Let's add a little note to the log so that people would tell us that
+this really happens in the real life and it matters.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/oom_kill.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ mm/oom_kill.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 6bb322577fc6..92bc8c3ec97b 100644
+index 92bc8c3ec97b..d296f4467500 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -176,11 +176,13 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
- 
- 	/*
- 	 * Do not even consider tasks which are explicitly marked oom
--	 * unkillable or have been already oom reaped.
-+	 * unkillable or have been already oom reaped or the are in
-+	 * the middle of vfork
- 	 */
- 	adj = (long)p->signal->oom_score_adj;
- 	if (adj == OOM_SCORE_ADJ_MIN ||
--			test_bit(MMF_OOM_REAPED, &p->mm->flags)) {
-+			test_bit(MMF_OOM_REAPED, &p->mm->flags) ||
-+			p->vfork_done) {
- 		task_unlock(p);
- 		return 0;
+@@ -852,8 +852,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 			continue;
+ 		if (same_thread_group(p, victim))
+ 			continue;
+-		if (unlikely(p->flags & PF_KTHREAD) || is_global_init(p) ||
+-		    p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
++		if (unlikely(p->flags & PF_KTHREAD) || is_global_init(p)) {
+ 			/*
+ 			 * We cannot use oom_reaper for the mm shared by this
+ 			 * process because it wouldn't get killed and so the
+@@ -862,6 +861,11 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 			can_oom_reap = false;
+ 			continue;
+ 		}
++		if (p->signal->oom_score_adj == OOM_ADJUST_MIN)
++			pr_warn("%s pid=%d shares mm with oom disabled %s pid=%d. Seems like misconfiguration, killing anyway!"
++					" Report at linux-mm@kvack.org\n",
++					victim->comm, task_pid_nr(victim),
++					p->comm, task_pid_nr(p));
+ 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
  	}
+ 	rcu_read_unlock();
 -- 
 2.8.1
 
