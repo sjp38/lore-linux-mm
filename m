@@ -1,73 +1,592 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C74F76B0260
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 05:15:08 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id j12so52431562lbo.0
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:15:08 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id 63si29681656wml.88.2016.05.30.02.15.07
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 08B226B0261
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 05:15:12 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id a136so26434315wme.1
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:15:11 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id yy1si43365882wjb.106.2016.05.30.02.15.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 May 2016 02:15:07 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id n129so20576774wmn.1
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:15:07 -0700 (PDT)
+        Mon, 30 May 2016 02:15:08 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id a136so20671658wme.0
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:15:08 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 0/19] get rid of superfluous __GFP_REPEAT
-Date: Mon, 30 May 2016 11:14:42 +0200
-Message-Id: <1464599699-30131-1-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 01/17] tree wide: get rid of __GFP_REPEAT for order-0 allocations part I
+Date: Mon, 30 May 2016 11:14:43 +0200
+Message-Id: <1464599699-30131-2-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1464599699-30131-1-git-send-email-mhocko@kernel.org>
+References: <1464599699-30131-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Chen Liqin <liqin.linux@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, "David S. Miller" <davem@davemloft.net>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Heiko Carstens <heiko.carstens@de.ibm.com>, Helge Deller <deller@gmx.de>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jan Kara <jack@suse.cz>, John Crispin <blogic@openwrt.org>, Lennox Wu <lennox.wu@gmail.com>, Ley Foon Tan <lftan@altera.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Fleming <matt@codeblueprint.co.uk>, Michal Hocko <mhocko@suse.com>, Rich Felker <dalias@libc.org>, Russell King <linux@arm.linux.org.uk>, Theodore Ts'o <tytso@mit.edu>, Thomas Gleixner <tglx@linutronix.de>, Vineet Gupta <vgupta@synopsys.com>, Will Deacon <will.deacon@arm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org
 
-Hi,
-this is the thrid version of the patchset previously sent [1]. I have
-basically only rebased it on top of 4.7-rc1 tree and dropped "dm: get
-rid of superfluous gfp flags" which went through dm tree. I am sending
-it now because it is tree wide and chances for conflicts are reduced
-considerably when we want to target rc2.  I plan to send the next step
-and rename the flag and move to a better semantic later during this
-release cycle so we will have a new semantic ready for 4.8 merge window
-hopefully.
+From: Michal Hocko <mhocko@suse.com>
 
-Motivation:
-While working on something unrelated I've checked the current usage
-of __GFP_REPEAT in the tree. It seems that a majority of the usage is
-and always has been bogus because __GFP_REPEAT has always been about
-costly high order allocations while we are using it for order-0 or very
-small orders very often. It seems that a big pile of them is just a
-copy&paste when a code has been adopted from one arch to another.
+__GFP_REPEAT has a rather weak semantic but since it has been introduced
+around 2.6.12 it has been ignored for low order allocations. Yet we have
+the full kernel tree with its usage for apparently order-0 allocations.
+This is really confusing because __GFP_REPEAT is explicitly documented
+to allow allocation failures which is a weaker semantic than the current
+order-0 has (basically nofail).
 
-I think it makes some sense to get rid of them because they are just
-making the semantic more unclear. Please note that GFP_REPEAT is
-documented as
- * __GFP_REPEAT: Try hard to allocate the memory, but the allocation attempt
- *   _might_ fail.  This depends upon the particular VM implementation.
-while !costly requests have basically nofail semantic. So one could
-reasonably expect that order-0 request with __GFP_REPEAT will not loop
-for ever. This is not implemented right now though.
+Let's simply drop __GFP_REPEAT from those places. This would allow
+to identify place which really need allocator to retry harder and
+formulate a more specific semantic for what the flag is supposed to do
+actually.
 
-I would like to move on with __GFP_REPEAT and define a better
-semantic for it.
+Cc: linux-arch@vger.kernel.org
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ arch/alpha/include/asm/pgalloc.h             | 4 ++--
+ arch/arm/include/asm/pgalloc.h               | 2 +-
+ arch/avr32/include/asm/pgalloc.h             | 6 +++---
+ arch/cris/include/asm/pgalloc.h              | 4 ++--
+ arch/frv/mm/pgalloc.c                        | 6 +++---
+ arch/hexagon/include/asm/pgalloc.h           | 4 ++--
+ arch/m68k/include/asm/mcf_pgalloc.h          | 4 ++--
+ arch/m68k/include/asm/motorola_pgalloc.h     | 4 ++--
+ arch/m68k/include/asm/sun3_pgalloc.h         | 4 ++--
+ arch/metag/include/asm/pgalloc.h             | 5 ++---
+ arch/microblaze/include/asm/pgalloc.h        | 4 ++--
+ arch/microblaze/mm/pgtable.c                 | 3 +--
+ arch/mn10300/mm/pgtable.c                    | 6 +++---
+ arch/openrisc/include/asm/pgalloc.h          | 2 +-
+ arch/openrisc/mm/ioremap.c                   | 2 +-
+ arch/parisc/include/asm/pgalloc.h            | 4 ++--
+ arch/powerpc/include/asm/book3s/64/pgalloc.h | 2 +-
+ arch/powerpc/include/asm/nohash/64/pgalloc.h | 2 +-
+ arch/powerpc/mm/pgtable_32.c                 | 4 ++--
+ arch/powerpc/mm/pgtable_64.c                 | 3 +--
+ arch/sh/include/asm/pgalloc.h                | 4 ++--
+ arch/sparc/mm/init_64.c                      | 6 ++----
+ arch/um/kernel/mem.c                         | 4 ++--
+ arch/x86/include/asm/pgalloc.h               | 4 ++--
+ arch/x86/xen/p2m.c                           | 2 +-
+ arch/xtensa/include/asm/pgalloc.h            | 2 +-
+ drivers/block/aoe/aoecmd.c                   | 2 +-
+ 27 files changed, 47 insertions(+), 52 deletions(-)
 
-$ git grep __GFP_REPEAT origin/master | wc -l
-111
-$ git grep __GFP_REPEAT | wc -l
-36
-
-So we are down to the third after this patch series. The remaining places
-really seem to be relying on __GFP_REPEAT due to large allocation requests.
-This still needs some double checking which I will do later after all the
-simple ones are sorted out.
-
-I am touching a lot of arch specific code here and I hope I got it right
-but as a matter of fact I even didn't compile test for some archs as I
-do not have cross compiler for them. Patches should be quite trivial to
-review for stupid compile mistakes though. The tricky parts are usually
-hidden by macro definitions and thats where I would appreciate help from
-arch maintainers.
-
-[1] http://lkml.kernel.org/r/1461849846-27209-1-git-send-email-mhocko@kernel.org
+diff --git a/arch/alpha/include/asm/pgalloc.h b/arch/alpha/include/asm/pgalloc.h
+index aab14a019c20..c2ebb6f36c9d 100644
+--- a/arch/alpha/include/asm/pgalloc.h
++++ b/arch/alpha/include/asm/pgalloc.h
+@@ -40,7 +40,7 @@ pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ static inline pmd_t *
+ pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+ {
+-	pmd_t *ret = (pmd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
++	pmd_t *ret = (pmd_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+ 	return ret;
+ }
+ 
+@@ -53,7 +53,7 @@ pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ static inline pte_t *
+ pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+ {
+-	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
++	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+ 	return pte;
+ }
+ 
+diff --git a/arch/arm/include/asm/pgalloc.h b/arch/arm/include/asm/pgalloc.h
+index 19cfab526d13..20febb368844 100644
+--- a/arch/arm/include/asm/pgalloc.h
++++ b/arch/arm/include/asm/pgalloc.h
+@@ -29,7 +29,7 @@
+ 
+ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+-	return (pmd_t *)get_zeroed_page(GFP_KERNEL | __GFP_REPEAT);
++	return (pmd_t *)get_zeroed_page(GFP_KERNEL);
+ }
+ 
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+diff --git a/arch/avr32/include/asm/pgalloc.h b/arch/avr32/include/asm/pgalloc.h
+index 1aba19d68c5e..db039cb368be 100644
+--- a/arch/avr32/include/asm/pgalloc.h
++++ b/arch/avr32/include/asm/pgalloc.h
+@@ -43,7 +43,7 @@ static inline void pgd_ctor(void *x)
+  */
+ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
+ {
+-	return quicklist_alloc(QUICK_PGD, GFP_KERNEL | __GFP_REPEAT, pgd_ctor);
++	return quicklist_alloc(QUICK_PGD, GFP_KERNEL, pgd_ctor);
+ }
+ 
+ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+@@ -54,7 +54,7 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
+-	return quicklist_alloc(QUICK_PT, GFP_KERNEL | __GFP_REPEAT, NULL);
++	return quicklist_alloc(QUICK_PT, GFP_KERNEL, NULL);
+ }
+ 
+ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+@@ -63,7 +63,7 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+ 	struct page *page;
+ 	void *pg;
+ 
+-	pg = quicklist_alloc(QUICK_PT, GFP_KERNEL | __GFP_REPEAT, NULL);
++	pg = quicklist_alloc(QUICK_PT, GFP_KERNEL, NULL);
+ 	if (!pg)
+ 		return NULL;
+ 
+diff --git a/arch/cris/include/asm/pgalloc.h b/arch/cris/include/asm/pgalloc.h
+index 235ece437ddd..42f1affb9c2d 100644
+--- a/arch/cris/include/asm/pgalloc.h
++++ b/arch/cris/include/asm/pgalloc.h
+@@ -24,14 +24,14 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ 
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+ {
+-  	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
++	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+  	return pte;
+ }
+ 
+ static inline pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
+ {
+ 	struct page *pte;
+-	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
++	pte = alloc_pages(GFP_KERNEL|__GFP_ZERO, 0);
+ 	if (!pte)
+ 		return NULL;
+ 	if (!pgtable_page_ctor(pte)) {
+diff --git a/arch/frv/mm/pgalloc.c b/arch/frv/mm/pgalloc.c
+index 41907d25ed38..c9ed14f6c67d 100644
+--- a/arch/frv/mm/pgalloc.c
++++ b/arch/frv/mm/pgalloc.c
+@@ -22,7 +22,7 @@ pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((aligned(PAGE_SIZE)));
+ 
+ pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+ {
+-	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
++	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL);
+ 	if (pte)
+ 		clear_page(pte);
+ 	return pte;
+@@ -33,9 +33,9 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
+ 	struct page *page;
+ 
+ #ifdef CONFIG_HIGHPTE
+-	page = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT, 0);
++	page = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM, 0);
+ #else
+-	page = alloc_pages(GFP_KERNEL|__GFP_REPEAT, 0);
++	page = alloc_pages(GFP_KERNEL, 0);
+ #endif
+ 	if (!page)
+ 		return NULL;
+diff --git a/arch/hexagon/include/asm/pgalloc.h b/arch/hexagon/include/asm/pgalloc.h
+index 77da3b0ae3c2..eeebf862c46c 100644
+--- a/arch/hexagon/include/asm/pgalloc.h
++++ b/arch/hexagon/include/asm/pgalloc.h
+@@ -64,7 +64,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
+ {
+ 	struct page *pte;
+ 
+-	pte = alloc_page(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO);
++	pte = alloc_page(GFP_KERNEL | __GFP_ZERO);
+ 	if (!pte)
+ 		return NULL;
+ 	if (!pgtable_page_ctor(pte)) {
+@@ -78,7 +78,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
+-	gfp_t flags =  GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO;
++	gfp_t flags =  GFP_KERNEL | __GFP_ZERO;
+ 	return (pte_t *) __get_free_page(flags);
+ }
+ 
+diff --git a/arch/m68k/include/asm/mcf_pgalloc.h b/arch/m68k/include/asm/mcf_pgalloc.h
+index f9924fbcfe42..fb95aed5f428 100644
+--- a/arch/m68k/include/asm/mcf_pgalloc.h
++++ b/arch/m68k/include/asm/mcf_pgalloc.h
+@@ -14,7 +14,7 @@ extern const char bad_pmd_string[];
+ extern inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 	unsigned long address)
+ {
+-	unsigned long page = __get_free_page(GFP_DMA|__GFP_REPEAT);
++	unsigned long page = __get_free_page(GFP_DMA);
+ 
+ 	if (!page)
+ 		return NULL;
+@@ -51,7 +51,7 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t page,
+ static inline struct page *pte_alloc_one(struct mm_struct *mm,
+ 	unsigned long address)
+ {
+-	struct page *page = alloc_pages(GFP_DMA|__GFP_REPEAT, 0);
++	struct page *page = alloc_pages(GFP_DMA, 0);
+ 	pte_t *pte;
+ 
+ 	if (!page)
+diff --git a/arch/m68k/include/asm/motorola_pgalloc.h b/arch/m68k/include/asm/motorola_pgalloc.h
+index 24bcba496c75..c895b987202c 100644
+--- a/arch/m68k/include/asm/motorola_pgalloc.h
++++ b/arch/m68k/include/asm/motorola_pgalloc.h
+@@ -11,7 +11,7 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long ad
+ {
+ 	pte_t *pte;
+ 
+-	pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
++	pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+ 	if (pte) {
+ 		__flush_page_to_ram(pte);
+ 		flush_tlb_kernel_page(pte);
+@@ -32,7 +32,7 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addres
+ 	struct page *page;
+ 	pte_t *pte;
+ 
+-	page = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
++	page = alloc_pages(GFP_KERNEL|__GFP_ZERO, 0);
+ 	if(!page)
+ 		return NULL;
+ 	if (!pgtable_page_ctor(page)) {
+diff --git a/arch/m68k/include/asm/sun3_pgalloc.h b/arch/m68k/include/asm/sun3_pgalloc.h
+index 0931388de47f..1901f61f926f 100644
+--- a/arch/m68k/include/asm/sun3_pgalloc.h
++++ b/arch/m68k/include/asm/sun3_pgalloc.h
+@@ -37,7 +37,7 @@ do {							\
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
+-	unsigned long page = __get_free_page(GFP_KERNEL|__GFP_REPEAT);
++	unsigned long page = __get_free_page(GFP_KERNEL);
+ 
+ 	if (!page)
+ 		return NULL;
+@@ -49,7 +49,7 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+ 					unsigned long address)
+ {
+-        struct page *page = alloc_pages(GFP_KERNEL|__GFP_REPEAT, 0);
++        struct page *page = alloc_pages(GFP_KERNEL, 0);
+ 
+ 	if (page == NULL)
+ 		return NULL;
+diff --git a/arch/metag/include/asm/pgalloc.h b/arch/metag/include/asm/pgalloc.h
+index 3104df0a4822..c2caa1ee4360 100644
+--- a/arch/metag/include/asm/pgalloc.h
++++ b/arch/metag/include/asm/pgalloc.h
+@@ -42,8 +42,7 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
+-	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL | __GFP_REPEAT |
+-					      __GFP_ZERO);
++	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+ 	return pte;
+ }
+ 
+@@ -51,7 +50,7 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+ 				      unsigned long address)
+ {
+ 	struct page *pte;
+-	pte = alloc_pages(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO, 0);
++	pte = alloc_pages(GFP_KERNEL  | __GFP_ZERO, 0);
+ 	if (!pte)
+ 		return NULL;
+ 	if (!pgtable_page_ctor(pte)) {
+diff --git a/arch/microblaze/include/asm/pgalloc.h b/arch/microblaze/include/asm/pgalloc.h
+index 61436d69775c..7c89390c0c13 100644
+--- a/arch/microblaze/include/asm/pgalloc.h
++++ b/arch/microblaze/include/asm/pgalloc.h
+@@ -116,9 +116,9 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
+ 	struct page *ptepage;
+ 
+ #ifdef CONFIG_HIGHPTE
+-	int flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_REPEAT;
++	int flags = GFP_KERNEL | __GFP_HIGHMEM;
+ #else
+-	int flags = GFP_KERNEL | __GFP_REPEAT;
++	int flags = GFP_KERNEL;
+ #endif
+ 
+ 	ptepage = alloc_pages(flags, 0);
+diff --git a/arch/microblaze/mm/pgtable.c b/arch/microblaze/mm/pgtable.c
+index 4f4520e779a5..eb99fcc76088 100644
+--- a/arch/microblaze/mm/pgtable.c
++++ b/arch/microblaze/mm/pgtable.c
+@@ -239,8 +239,7 @@ __init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ {
+ 	pte_t *pte;
+ 	if (mem_init_done) {
+-		pte = (pte_t *)__get_free_page(GFP_KERNEL |
+-					__GFP_REPEAT | __GFP_ZERO);
++		pte = (pte_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+ 	} else {
+ 		pte = (pte_t *)early_get_page();
+ 		if (pte)
+diff --git a/arch/mn10300/mm/pgtable.c b/arch/mn10300/mm/pgtable.c
+index e77a7c728081..9577cf768875 100644
+--- a/arch/mn10300/mm/pgtable.c
++++ b/arch/mn10300/mm/pgtable.c
+@@ -63,7 +63,7 @@ void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
+ 
+ pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+ {
+-	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
++	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL);
+ 	if (pte)
+ 		clear_page(pte);
+ 	return pte;
+@@ -74,9 +74,9 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
+ 	struct page *pte;
+ 
+ #ifdef CONFIG_HIGHPTE
+-	pte = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT, 0);
++	pte = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM, 0);
+ #else
+-	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT, 0);
++	pte = alloc_pages(GFP_KERNEL, 0);
+ #endif
+ 	if (!pte)
+ 		return NULL;
+diff --git a/arch/openrisc/include/asm/pgalloc.h b/arch/openrisc/include/asm/pgalloc.h
+index 21484e5b9e9a..87eebd185089 100644
+--- a/arch/openrisc/include/asm/pgalloc.h
++++ b/arch/openrisc/include/asm/pgalloc.h
+@@ -77,7 +77,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
+ 					 unsigned long address)
+ {
+ 	struct page *pte;
+-	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT, 0);
++	pte = alloc_pages(GFP_KERNEL, 0);
+ 	if (!pte)
+ 		return NULL;
+ 	clear_page(page_address(pte));
+diff --git a/arch/openrisc/mm/ioremap.c b/arch/openrisc/mm/ioremap.c
+index 62b08ef392be..5b2a95116e8f 100644
+--- a/arch/openrisc/mm/ioremap.c
++++ b/arch/openrisc/mm/ioremap.c
+@@ -122,7 +122,7 @@ pte_t __init_refok *pte_alloc_one_kernel(struct mm_struct *mm,
+ 	pte_t *pte;
+ 
+ 	if (likely(mem_init_done)) {
+-		pte = (pte_t *) __get_free_page(GFP_KERNEL | __GFP_REPEAT);
++		pte = (pte_t *) __get_free_page(GFP_KERNEL);
+ 	} else {
+ 		pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
+ #if 0
+diff --git a/arch/parisc/include/asm/pgalloc.h b/arch/parisc/include/asm/pgalloc.h
+index f2fd327dce2e..52c3defb40c9 100644
+--- a/arch/parisc/include/asm/pgalloc.h
++++ b/arch/parisc/include/asm/pgalloc.h
+@@ -124,7 +124,7 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
+ static inline pgtable_t
+ pte_alloc_one(struct mm_struct *mm, unsigned long address)
+ {
+-	struct page *page = alloc_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
++	struct page *page = alloc_page(GFP_KERNEL|__GFP_ZERO);
+ 	if (!page)
+ 		return NULL;
+ 	if (!pgtable_page_ctor(page)) {
+@@ -137,7 +137,7 @@ pte_alloc_one(struct mm_struct *mm, unsigned long address)
+ static inline pte_t *
+ pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr)
+ {
+-	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
++	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+ 	return pte;
+ }
+ 
+diff --git a/arch/powerpc/include/asm/book3s/64/pgalloc.h b/arch/powerpc/include/asm/book3s/64/pgalloc.h
+index 488279edb1f0..049b80359db6 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgalloc.h
++++ b/arch/powerpc/include/asm/book3s/64/pgalloc.h
+@@ -151,7 +151,7 @@ static inline pgtable_t pmd_pgtable(pmd_t pmd)
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
+-	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO);
++	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+ }
+ 
+ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+diff --git a/arch/powerpc/include/asm/nohash/64/pgalloc.h b/arch/powerpc/include/asm/nohash/64/pgalloc.h
+index 0c12a3bfe2ab..a50981293d06 100644
+--- a/arch/powerpc/include/asm/nohash/64/pgalloc.h
++++ b/arch/powerpc/include/asm/nohash/64/pgalloc.h
+@@ -88,7 +88,7 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
+-	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO);
++	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+ }
+ 
+ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+diff --git a/arch/powerpc/mm/pgtable_32.c b/arch/powerpc/mm/pgtable_32.c
+index bf7bf32b54f8..7f922f557936 100644
+--- a/arch/powerpc/mm/pgtable_32.c
++++ b/arch/powerpc/mm/pgtable_32.c
+@@ -84,7 +84,7 @@ __init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long add
+ 	pte_t *pte;
+ 
+ 	if (slab_is_available()) {
+-		pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
++		pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+ 	} else {
+ 		pte = __va(memblock_alloc(PAGE_SIZE, PAGE_SIZE));
+ 		if (pte)
+@@ -97,7 +97,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
+ {
+ 	struct page *ptepage;
+ 
+-	gfp_t flags = GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO;
++	gfp_t flags = GFP_KERNEL | __GFP_ZERO;
+ 
+ 	ptepage = alloc_pages(flags, 0);
+ 	if (!ptepage)
+diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
+index e009e0604a8a..f5e8d4edb808 100644
+--- a/arch/powerpc/mm/pgtable_64.c
++++ b/arch/powerpc/mm/pgtable_64.c
+@@ -350,8 +350,7 @@ static pte_t *get_from_cache(struct mm_struct *mm)
+ static pte_t *__alloc_for_cache(struct mm_struct *mm, int kernel)
+ {
+ 	void *ret = NULL;
+-	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
+-				       __GFP_REPEAT | __GFP_ZERO);
++	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
+ 	if (!page)
+ 		return NULL;
+ 	if (!kernel && !pgtable_page_ctor(page)) {
+diff --git a/arch/sh/include/asm/pgalloc.h b/arch/sh/include/asm/pgalloc.h
+index a33673b3687d..f3f42c84c40f 100644
+--- a/arch/sh/include/asm/pgalloc.h
++++ b/arch/sh/include/asm/pgalloc.h
+@@ -34,7 +34,7 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
+-	return quicklist_alloc(QUICK_PT, GFP_KERNEL | __GFP_REPEAT, NULL);
++	return quicklist_alloc(QUICK_PT, GFP_KERNEL, NULL);
+ }
+ 
+ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+@@ -43,7 +43,7 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+ 	struct page *page;
+ 	void *pg;
+ 
+-	pg = quicklist_alloc(QUICK_PT, GFP_KERNEL | __GFP_REPEAT, NULL);
++	pg = quicklist_alloc(QUICK_PT, GFP_KERNEL, NULL);
+ 	if (!pg)
+ 		return NULL;
+ 	page = virt_to_page(pg);
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index 652683cb4b4b..fe72d6b23641 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -2704,8 +2704,7 @@ void __flush_tlb_all(void)
+ pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 			    unsigned long address)
+ {
+-	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
+-				       __GFP_REPEAT | __GFP_ZERO);
++	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
+ 	pte_t *pte = NULL;
+ 
+ 	if (page)
+@@ -2717,8 +2716,7 @@ pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ pgtable_t pte_alloc_one(struct mm_struct *mm,
+ 			unsigned long address)
+ {
+-	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
+-				       __GFP_REPEAT | __GFP_ZERO);
++	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
+ 	if (!page)
+ 		return NULL;
+ 	if (!pgtable_page_ctor(page)) {
+diff --git a/arch/um/kernel/mem.c b/arch/um/kernel/mem.c
+index b2a2dff50b4e..e7437ec62710 100644
+--- a/arch/um/kernel/mem.c
++++ b/arch/um/kernel/mem.c
+@@ -204,7 +204,7 @@ pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
+ {
+ 	pte_t *pte;
+ 
+-	pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
++	pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+ 	return pte;
+ }
+ 
+@@ -212,7 +212,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
+ {
+ 	struct page *pte;
+ 
+-	pte = alloc_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
++	pte = alloc_page(GFP_KERNEL|__GFP_ZERO);
+ 	if (!pte)
+ 		return NULL;
+ 	if (!pgtable_page_ctor(pte)) {
+diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
+index bf7f8b55b0f9..574c23cf761a 100644
+--- a/arch/x86/include/asm/pgalloc.h
++++ b/arch/x86/include/asm/pgalloc.h
+@@ -81,7 +81,7 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
+ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+ 	struct page *page;
+-	page = alloc_pages(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO, 0);
++	page = alloc_pages(GFP_KERNEL |  __GFP_ZERO, 0);
+ 	if (!page)
+ 		return NULL;
+ 	if (!pgtable_pmd_page_ctor(page)) {
+@@ -125,7 +125,7 @@ static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+ 
+ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+-	return (pud_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
++	return (pud_t *)get_zeroed_page(GFP_KERNEL);
+ }
+ 
+ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
+diff --git a/arch/x86/xen/p2m.c b/arch/x86/xen/p2m.c
+index cab9f766bb06..dd2a49a8aacc 100644
+--- a/arch/x86/xen/p2m.c
++++ b/arch/x86/xen/p2m.c
+@@ -182,7 +182,7 @@ static void * __ref alloc_p2m_page(void)
+ 	if (unlikely(!slab_is_available()))
+ 		return alloc_bootmem_align(PAGE_SIZE, PAGE_SIZE);
+ 
+-	return (void *)__get_free_page(GFP_KERNEL | __GFP_REPEAT);
++	return (void *)__get_free_page(GFP_KERNEL);
+ }
+ 
+ static void __ref free_p2m_page(void *p)
+diff --git a/arch/xtensa/include/asm/pgalloc.h b/arch/xtensa/include/asm/pgalloc.h
+index d38eb9237e64..1065bc8bcae5 100644
+--- a/arch/xtensa/include/asm/pgalloc.h
++++ b/arch/xtensa/include/asm/pgalloc.h
+@@ -44,7 +44,7 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 	pte_t *ptep;
+ 	int i;
+ 
+-	ptep = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
++	ptep = (pte_t *)__get_free_page(GFP_KERNEL);
+ 	if (!ptep)
+ 		return NULL;
+ 	for (i = 0; i < 1024; i++)
+diff --git a/drivers/block/aoe/aoecmd.c b/drivers/block/aoe/aoecmd.c
+index d597e432e195..ab19adb07a12 100644
+--- a/drivers/block/aoe/aoecmd.c
++++ b/drivers/block/aoe/aoecmd.c
+@@ -1750,7 +1750,7 @@ aoecmd_init(void)
+ 	int ret;
+ 
+ 	/* get_zeroed_page returns page with ref count 1 */
+-	p = (void *) get_zeroed_page(GFP_KERNEL | __GFP_REPEAT);
++	p = (void *) get_zeroed_page(GFP_KERNEL);
+ 	if (!p)
+ 		return -ENOMEM;
+ 	empty_page = virt_to_page(p);
+-- 
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
