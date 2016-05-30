@@ -1,75 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A12806B0253
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 05:28:41 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id w143so266355185oiw.3
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:28:41 -0700 (PDT)
-Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
-        by mx.google.com with ESMTPS id r16si24380316ign.98.2016.05.30.02.28.41
+Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AA1D6B025E
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 05:36:12 -0400 (EDT)
+Received: by mail-lb0-f198.google.com with SMTP id q17so83151396lbn.3
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:36:12 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l1si31789895wjy.221.2016.05.30.02.36.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 May 2016 02:28:41 -0700 (PDT)
-Received: by mail-it0-x241.google.com with SMTP id k76so6136383ita.1
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:28:41 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 30 May 2016 02:36:10 -0700 (PDT)
+Subject: Re: PATCH v6v2 02/12] mm: migrate: support non-lru movable page
+ migration
+References: <1463754225-31311-1-git-send-email-minchan@kernel.org>
+ <1463754225-31311-3-git-send-email-minchan@kernel.org>
+ <20160530013926.GB8683@bbox>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <2bc277c4-4257-c6cb-2e37-ee5de985410b@suse.cz>
+Date: Mon, 30 May 2016 11:36:07 +0200
 MIME-Version: 1.0
-In-Reply-To: <20160530085311.GM22928@dhcp22.suse.cz>
-References: <1464597951-2976-1-git-send-email-wwtao0320@163.com>
-	<20160530085311.GM22928@dhcp22.suse.cz>
-Date: Mon, 30 May 2016 17:28:40 +0800
-Message-ID: <CACygaLCupPNRMWUpRe3WSCHWtAFH3MYKzppbjaX3As6EKKnVQQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/memcontrol.c: add memory allocation result check
-From: Wenwei Tao <ww.tao0320@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20160530013926.GB8683@bbox>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Wenwei Tao <wwtao0320@163.com>, hannes@cmpxchg.org, vdavydov@virtuozzo.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rafael Aquini <aquini@redhat.com>, virtualization@lists.linux-foundation.org, Jonathan Corbet <corbet@lwn.net>, John Einar Reitan <john.reitan@foss.arm.com>, dri-devel@lists.freedesktop.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Gioh Kim <gi-oh.kim@profitbricks.com>
 
-I think explicit BUG_ON may make the debug easier, since it can point
-out the wrong line.
+On 05/30/2016 03:39 AM, Minchan Kim wrote:
+> After isolation, VM calls migratepage of driver with isolated page.
+> The function of migratepage is to move content of the old page to new page
+> and set up fields of struct page newpage. Keep in mind that you should
+> clear PG_movable of oldpage via __ClearPageMovable under page_lock if you
+> migrated the oldpage successfully and returns 0.
 
-2016-05-30 16:53 GMT+08:00 Michal Hocko <mhocko@kernel.org>:
-> On Mon 30-05-16 16:45:51, Wenwei Tao wrote:
->> From: Wenwei Tao <ww.tao0320@gmail.com>
->>
->> The mem_cgroup_tree_per_node allocation might fail,
->> check that before continue the memcg init. Since it
->> is in the init phase, trigger the panic if that failure
->> happens.
+This "clear PG_movable" is one of the reasons I was confused about what 
+__ClearPageMovable() really does. There's no actual "PG_movable" page 
+flag and the function doesn't clear even the actual mapping flag :) Also 
+same thing in the Documentation/ part.
+
+Something like "... you should indicate to the VM that the oldpage is no 
+longer movable via __ClearPageMovable() ..."?
+
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -81,6 +81,39 @@ static inline bool migrate_async_suitable(int migratetype)
 >
-> We would blow up in the very same function so what is the point of the
-> explicit BUG_ON?
+>  #ifdef CONFIG_COMPACTION
 >
->> Signed-off-by: Wenwei Tao <ww.tao0320@gmail.com>
->> ---
->>  mm/memcontrol.c | 1 +
->>  1 file changed, 1 insertion(+)
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 925b431..6385c62 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -5712,6 +5712,7 @@ static int __init mem_cgroup_init(void)
->>
->>               rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL,
->>                                   node_online(node) ? node : NUMA_NO_NODE);
->> +             BUG_ON(!rtpn);
->>
->>               for (zone = 0; zone < MAX_NR_ZONES; zone++) {
->>                       struct mem_cgroup_tree_per_zone *rtpz;
->> --
->> 1.8.3.1
->>
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> +int PageMovable(struct page *page)
+> +{
+> +	struct address_space *mapping;
+> +
+> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
+> +	if (!__PageMovable(page))
+> +		return 0;
+> +
+> +	mapping = page_mapping(page);
+> +	if (mapping && mapping->a_ops && mapping->a_ops->isolate_page)
+> +		return 1;
+> +
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL(PageMovable);
+> +
+> +void __SetPageMovable(struct page *page, struct address_space *mapping)
+> +{
+> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
+> +	VM_BUG_ON_PAGE((unsigned long)mapping & PAGE_MAPPING_MOVABLE, page);
+> +	page->mapping = (void *)((unsigned long)mapping | PAGE_MAPPING_MOVABLE);
+> +}
+> +EXPORT_SYMBOL(__SetPageMovable);
+> +
+> +void __ClearPageMovable(struct page *page)
+> +{
+> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
+> +	VM_BUG_ON_PAGE(!PageMovable(page), page);
+> +	page->mapping = (void *)((unsigned long)page->mapping &
+> +				PAGE_MAPPING_MOVABLE);
+> +}
+> +EXPORT_SYMBOL(__ClearPageMovable);
+
+The second confusing thing is that the function is named 
+__ClearPageMovable(), but what it really clears is the mapping pointer,
+which is not at all the opposite of what __SetPageMovable() does.
+
+I know it's explained in the documentation, but it also deserves a 
+comment here so it doesn't confuse everyone who looks at it.
+Even better would be a less confusing name for the function, but I can't 
+offer one right now.
+
+> diff --git a/mm/util.c b/mm/util.c
+> index 917e0e3d0f8e..b756ee36f7f0 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -399,10 +399,12 @@ struct address_space *page_mapping(struct page *page)
+>  	}
 >
-> --
-> Michal Hocko
-> SUSE Labs
+>  	mapping = page->mapping;
+
+I'd probably use READ_ONCE() here to be safe. Not all callers are under 
+page lock?
+
+> -	if ((unsigned long)mapping & PAGE_MAPPING_FLAGS)
+> +	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+>  		return NULL;
+> -	return mapping;
+> +
+> +	return (void *)((unsigned long)mapping & ~PAGE_MAPPING_FLAGS);
+>  }
+> +EXPORT_SYMBOL(page_mapping);
+>
+>  /* Slow path of page_mapcount() for compound pages */
+>  int __page_mapcount(struct page *page)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
