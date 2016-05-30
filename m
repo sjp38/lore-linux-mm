@@ -1,92 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0354C6B0253
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 04:48:04 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id v125so85681836itc.0
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 01:48:03 -0700 (PDT)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0131.outbound.protection.outlook.com. [157.55.234.131])
-        by mx.google.com with ESMTPS id w39si20656964otd.90.2016.05.30.01.48.02
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D09F6B025E
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 04:48:46 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id h68so47357919lfh.2
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 01:48:46 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id v74si26878455wmv.34.2016.05.30.01.48.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 30 May 2016 01:48:03 -0700 (PDT)
-Date: Mon, 30 May 2016 11:47:53 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 3/6] mm, oom_adj: make sure processes sharing mm have
- same view of oom_score_adj
-Message-ID: <20160530084753.GH26059@esperanza>
-References: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
- <1464266415-15558-4-git-send-email-mhocko@kernel.org>
- <20160527111803.GG27686@dhcp22.suse.cz>
- <20160527161821.GE26059@esperanza>
- <20160530070705.GD22928@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 May 2016 01:48:44 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id a136so20447295wme.0
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 01:48:44 -0700 (PDT)
+Date: Mon, 30 May 2016 10:48:43 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/7] mm: Cleanup - Reorganize the shrink_page_list code
+ into smaller functions
+Message-ID: <20160530084843.GL22928@dhcp22.suse.cz>
+References: <cover.1462306228.git.tim.c.chen@linux.intel.com>
+ <1462309280.21143.8.camel@linux.intel.com>
+ <1464367227.22178.147.camel@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20160530070705.GD22928@dhcp22.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1464367227.22178.147.camel@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: "Kirill A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>
 
-On Mon, May 30, 2016 at 09:07:05AM +0200, Michal Hocko wrote:
-> On Fri 27-05-16 19:18:21, Vladimir Davydov wrote:
-> > On Fri, May 27, 2016 at 01:18:03PM +0200, Michal Hocko wrote:
-> > ...
-> > > @@ -1087,7 +1105,25 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
-> > >  	unlock_task_sighand(task, &flags);
-> > >  err_put_task:
-> > >  	put_task_struct(task);
-> > > +
-> > > +	if (mm) {
-> > > +		struct task_struct *p;
-> > > +
-> > > +		rcu_read_lock();
-> > > +		for_each_process(p) {
-> > > +			task_lock(p);
-> > > +			if (!p->vfork_done && process_shares_mm(p, mm)) {
-> > > +				p->signal->oom_score_adj = oom_adj;
-> > > +				if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
-> > > +					p->signal->oom_score_adj_min = (short)oom_adj;
-> > > +			}
-> > > +			task_unlock(p);
+On Fri 27-05-16 09:40:27, Tim Chen wrote:
+> On Tue, 2016-05-03 at 14:01 -0700, Tim Chen wrote:
+> > This patch prepares the code for being able to batch the anonymous
+> > pages
+> > to be swapped out.  It reorganizes shrink_page_list function with
+> > 2 new functions: handle_pgout and pg_finish.
 > > 
-> > I.e. you write to /proc/pid1/oom_score_adj and get
-> > /proc/pid2/oom_score_adj updated if pid1 and pid2 share mm?
-> > IMO that looks unexpected from userspace pov.
+> > The paging operation in shrink_page_list is consolidated into
+> > handle_pgout function.
+> > 
+> > After we have scanned a page shrink_page_list and completed any
+> > paging,
+> > the final disposition and clean up of the page is conslidated into
+> > pg_finish.  The designated disposition of the page from page scanning
+> > in shrink_page_list is marked with one of the designation in
+> > pg_result.
+> > 
+> > This is a clean up patch and there is no change in functionality or
+> > logic of the code.
 > 
-> How much different it is from threads in the same thread group?
-> Processes sharing the mm without signals is a rather weird threading
-> model isn't it?
-
-I think so too. I wouldn't be surprised if it turned out that nobody had
-ever used it. But may be there's someone out there who does.
-
-> Currently we just lie to users about their oom_score_adj
-> in this weird corner case.
-
-Hmm, looks like a bug, but nobody has ever complained about it.
-
-> The only exception was OOM_SCORE_ADJ_MIN
-> where we really didn't kill the task but all other values are simply
-> ignored in practice.
+> Hi Michal,
 > 
-> > May be, we'd better add mm->oom_score_adj and set it to the min
-> > signal->oom_score_adj over all processes sharing it? This would
-> > require iterating over all processes every time oom_score_adj gets
-> > updated, but that's a slow path.
-> 
-> Not sure I understand. So you would prefer that mm->oom_score_adj might
-> disagree with p->signal->oom_score_adj?
+> We've talked about doing the clean up of shrink_page_list code
+> before attempting to do batching on the swap out path as those
+> set of patches I've previously posted are quit intrusive.  Wonder
+> if you have a chance to look at this patch and has any comments?
 
-No, I wouldn't. I'd rather agree that oom_score_adj should be per mm,
-because we choose the victim basing solely on mm stats.
+I have noticed your
+http://lkml.kernel.org/r/1463779979.22178.142.camel@linux.intel.com but
+still haven't found time to look at it. Sorry about that. There is
+rather a lot on my pile...
 
-What I mean is we don't touch p->signal->oom_score_adj of other tasks
-sharing mm, but instead store minimal oom_score_adj over all tasks
-sharing mm in the mm_struct whenever a task's oom_score_adj is modified.
-And use mm->oom_score_adj instead of signal->oom_score_adj in oom killer
-code. This would save us from any accusations of user API modifications
-and it would also make the oom code a bit easier to follow IMHO.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
