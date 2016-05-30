@@ -1,118 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AA1D6B025E
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 05:36:12 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id q17so83151396lbn.3
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:36:12 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l1si31789895wjy.221.2016.05.30.02.36.10
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 817546B025E
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 05:39:53 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id e3so26696761wme.3
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:39:53 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id e10si43511095wjd.194.2016.05.30.02.39.52
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 May 2016 02:36:10 -0700 (PDT)
-Subject: Re: PATCH v6v2 02/12] mm: migrate: support non-lru movable page
- migration
-References: <1463754225-31311-1-git-send-email-minchan@kernel.org>
- <1463754225-31311-3-git-send-email-minchan@kernel.org>
- <20160530013926.GB8683@bbox>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <2bc277c4-4257-c6cb-2e37-ee5de985410b@suse.cz>
-Date: Mon, 30 May 2016 11:36:07 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 May 2016 02:39:52 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id q62so20844838wmg.3
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:39:52 -0700 (PDT)
+Date: Mon, 30 May 2016 11:39:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 3/6] mm, oom_adj: make sure processes sharing mm have
+ same view of oom_score_adj
+Message-ID: <20160530093950.GN22928@dhcp22.suse.cz>
+References: <1464266415-15558-1-git-send-email-mhocko@kernel.org>
+ <1464266415-15558-4-git-send-email-mhocko@kernel.org>
+ <20160527111803.GG27686@dhcp22.suse.cz>
+ <20160527161821.GE26059@esperanza>
+ <20160530070705.GD22928@dhcp22.suse.cz>
+ <20160530084753.GH26059@esperanza>
 MIME-Version: 1.0
-In-Reply-To: <20160530013926.GB8683@bbox>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160530084753.GH26059@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rafael Aquini <aquini@redhat.com>, virtualization@lists.linux-foundation.org, Jonathan Corbet <corbet@lwn.net>, John Einar Reitan <john.reitan@foss.arm.com>, dri-devel@lists.freedesktop.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Gioh Kim <gi-oh.kim@profitbricks.com>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 05/30/2016 03:39 AM, Minchan Kim wrote:
-> After isolation, VM calls migratepage of driver with isolated page.
-> The function of migratepage is to move content of the old page to new page
-> and set up fields of struct page newpage. Keep in mind that you should
-> clear PG_movable of oldpage via __ClearPageMovable under page_lock if you
-> migrated the oldpage successfully and returns 0.
+On Mon 30-05-16 11:47:53, Vladimir Davydov wrote:
+> On Mon, May 30, 2016 at 09:07:05AM +0200, Michal Hocko wrote:
+> > On Fri 27-05-16 19:18:21, Vladimir Davydov wrote:
+> > > On Fri, May 27, 2016 at 01:18:03PM +0200, Michal Hocko wrote:
+> > > ...
+> > > > @@ -1087,7 +1105,25 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+> > > >  	unlock_task_sighand(task, &flags);
+> > > >  err_put_task:
+> > > >  	put_task_struct(task);
+> > > > +
+> > > > +	if (mm) {
+> > > > +		struct task_struct *p;
+> > > > +
+> > > > +		rcu_read_lock();
+> > > > +		for_each_process(p) {
+> > > > +			task_lock(p);
+> > > > +			if (!p->vfork_done && process_shares_mm(p, mm)) {
+> > > > +				p->signal->oom_score_adj = oom_adj;
+> > > > +				if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
+> > > > +					p->signal->oom_score_adj_min = (short)oom_adj;
+> > > > +			}
+> > > > +			task_unlock(p);
+> > > 
+> > > I.e. you write to /proc/pid1/oom_score_adj and get
+> > > /proc/pid2/oom_score_adj updated if pid1 and pid2 share mm?
+> > > IMO that looks unexpected from userspace pov.
+> > 
+> > How much different it is from threads in the same thread group?
+> > Processes sharing the mm without signals is a rather weird threading
+> > model isn't it?
+> 
+> I think so too. I wouldn't be surprised if it turned out that nobody had
+> ever used it. But may be there's someone out there who does.
 
-This "clear PG_movable" is one of the reasons I was confused about what 
-__ClearPageMovable() really does. There's no actual "PG_movable" page 
-flag and the function doesn't clear even the actual mapping flag :) Also 
-same thing in the Documentation/ part.
+I have heard some rumors about users. But I haven't heard anything about
+their oom_score_adj usage patterns.
 
-Something like "... you should indicate to the VM that the oldpage is no 
-longer movable via __ClearPageMovable() ..."?
+> > Currently we just lie to users about their oom_score_adj
+> > in this weird corner case.
+> 
+> Hmm, looks like a bug, but nobody has ever complained about it.
 
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -81,6 +81,39 @@ static inline bool migrate_async_suitable(int migratetype)
->
->  #ifdef CONFIG_COMPACTION
->
-> +int PageMovable(struct page *page)
-> +{
-> +	struct address_space *mapping;
-> +
-> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
-> +	if (!__PageMovable(page))
-> +		return 0;
-> +
-> +	mapping = page_mapping(page);
-> +	if (mapping && mapping->a_ops && mapping->a_ops->isolate_page)
-> +		return 1;
-> +
-> +	return 0;
-> +}
-> +EXPORT_SYMBOL(PageMovable);
-> +
-> +void __SetPageMovable(struct page *page, struct address_space *mapping)
-> +{
-> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
-> +	VM_BUG_ON_PAGE((unsigned long)mapping & PAGE_MAPPING_MOVABLE, page);
-> +	page->mapping = (void *)((unsigned long)mapping | PAGE_MAPPING_MOVABLE);
-> +}
-> +EXPORT_SYMBOL(__SetPageMovable);
-> +
-> +void __ClearPageMovable(struct page *page)
-> +{
-> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
-> +	VM_BUG_ON_PAGE(!PageMovable(page), page);
-> +	page->mapping = (void *)((unsigned long)page->mapping &
-> +				PAGE_MAPPING_MOVABLE);
-> +}
-> +EXPORT_SYMBOL(__ClearPageMovable);
+Yes and that leads me to a suspicion that we can do that. Maybe I should
+just add a note into the log that we are doing that so that people can
+complain? Something like the following
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index fa0b3ca94dfb..7f3495415719 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -1104,7 +1104,6 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+ err_sighand:
+ 	unlock_task_sighand(task, &flags);
+ err_put_task:
+-	put_task_struct(task);
+ 
+ 	if (mm) {
+ 		struct task_struct *p;
+@@ -1113,6 +1112,10 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+ 		for_each_process(p) {
+ 			task_lock(p);
+ 			if (!p->vfork_done && process_shares_mm(p, mm)) {
++				pr_info("updating oom_score_adj for %d (%s) from %d to %d because it shares mm with %d (%s). Report if this is unexpected.\n",
++						task_pid_nr(p), p->comm,
++						p->signal->oom_score_adj, oom_adj,
++						task_pid_nr(task), task->comm);
+ 				p->signal->oom_score_adj = oom_adj;
+ 				if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
+ 					p->signal->oom_score_adj_min = (short)oom_adj;
+@@ -1122,6 +1125,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+ 		rcu_read_unlock();
+ 		mmdrop(mm);
+ 	}
++	put_task_struct(task);
+ out:
+ 	mutex_unlock(&oom_adj_mutex);
+ 	return err;
 
-The second confusing thing is that the function is named 
-__ClearPageMovable(), but what it really clears is the mapping pointer,
-which is not at all the opposite of what __SetPageMovable() does.
+> > The only exception was OOM_SCORE_ADJ_MIN
+> > where we really didn't kill the task but all other values are simply
+> > ignored in practice.
+> > 
+> > > May be, we'd better add mm->oom_score_adj and set it to the min
+> > > signal->oom_score_adj over all processes sharing it? This would
+> > > require iterating over all processes every time oom_score_adj gets
+> > > updated, but that's a slow path.
+> > 
+> > Not sure I understand. So you would prefer that mm->oom_score_adj might
+> > disagree with p->signal->oom_score_adj?
+> 
+> No, I wouldn't. I'd rather agree that oom_score_adj should be per mm,
+> because we choose the victim basing solely on mm stats.
+> 
+> What I mean is we don't touch p->signal->oom_score_adj of other tasks
+> sharing mm, but instead store minimal oom_score_adj over all tasks
+> sharing mm in the mm_struct whenever a task's oom_score_adj is modified.
+> And use mm->oom_score_adj instead of signal->oom_score_adj in oom killer
+> code. This would save us from any accusations of user API modifications
+> and it would also make the oom code a bit easier to follow IMHO.
 
-I know it's explained in the documentation, but it also deserves a 
-comment here so it doesn't confuse everyone who looks at it.
-Even better would be a less confusing name for the function, but I can't 
-offer one right now.
+I understand your point but this is essentially lying because we
+consider a different value than the user can observe in userspace.
+Consider somebody doing insanity like
 
-> diff --git a/mm/util.c b/mm/util.c
-> index 917e0e3d0f8e..b756ee36f7f0 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -399,10 +399,12 @@ struct address_space *page_mapping(struct page *page)
->  	}
->
->  	mapping = page->mapping;
+current->oom_score_adj = OOM_SCORE_ADJ_MIN
+p = clone(CLONE_VM)
+p->oom_score_adj = OOM_SCORE_ADJ_MAX
 
-I'd probably use READ_ONCE() here to be safe. Not all callers are under 
-page lock?
+so one process would want to be always selected while the other one
+doesn't want to get killed. All they can see is that everything is
+put in place until the oom killer comes over and ignores that.
 
-> -	if ((unsigned long)mapping & PAGE_MAPPING_FLAGS)
-> +	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
->  		return NULL;
-> -	return mapping;
-> +
-> +	return (void *)((unsigned long)mapping & ~PAGE_MAPPING_FLAGS);
->  }
-> +EXPORT_SYMBOL(page_mapping);
->
->  /* Slow path of page_mapcount() for compound pages */
->  int __page_mapcount(struct page *page)
->
+I think we should just be explicit. Maybe we want to treat
+OOM_SCORE_ADJ_MIN special - e.g. do not even try to set oom_score_adj if
+one of the sharing tasks is oom disabled. But I would rather wait for
+somebody to complain and explain why the usecase really makes sense than
+be all silent with implicit behavior.
+
+Btw. we have already had per mm oom_core_adj but we had to revert it due
+to vfork behavior. See 0753ba01e126 ("mm: revert "oom: move oom_adj
+value""). This patch gets us back except it handles the vfork issue.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
