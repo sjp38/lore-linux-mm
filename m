@@ -1,72 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F8A66B025E
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 09:18:04 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id v128so467672279qkh.1
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 06:18:04 -0700 (PDT)
-Received: from mail-qk0-x233.google.com (mail-qk0-x233.google.com. [2607:f8b0:400d:c09::233])
-        by mx.google.com with ESMTPS id g42si11033041qtg.87.2016.05.30.06.18.03
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9343A6B025E
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 09:21:09 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id 82so291070344ior.0
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 06:21:09 -0700 (PDT)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0077.outbound.protection.outlook.com. [157.55.234.77])
+        by mx.google.com with ESMTPS id j2si15205764oib.210.2016.05.30.06.21.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 May 2016 06:18:03 -0700 (PDT)
-Received: by mail-qk0-x233.google.com with SMTP id y126so122109902qke.1
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 06:18:03 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 30 May 2016 06:21:08 -0700 (PDT)
+From: Hui Liu <jason.hui.liu@nxp.com>
+Subject: =?gb2312?B?tPC4tDogW1JFU0VORF1bUEFUQ0hdIGRyaXZlcnM6IG9mOiBvZl9yZXNlcnZl?=
+ =?gb2312?B?ZF9tZW06IGZpeHVwIHRoZSBDTUEgYWxpZ25tZW50IG5vdCB0byBhZmZlY3Qg?=
+ =?gb2312?Q?dma-coherent?=
+Date: Mon, 30 May 2016 13:21:06 +0000
+Message-ID: <DBXPR04MB3843F9C5C15E1F4A9A58DB0AE450@DBXPR04MB384.eurprd04.prod.outlook.com>
+References: <1464150590-2703-1-git-send-email-jaewon31.kim@samsung.com>
+In-Reply-To: <1464150590-2703-1-git-send-email-jaewon31.kim@samsung.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20160530091504.GN2527@techsingularity.net>
-References: <1462435033-15601-1-git-send-email-oohall@gmail.com>
-	<20160526142142.b16f7f3f18204faf0823ac65@linux-foundation.org>
-	<20160530091504.GN2527@techsingularity.net>
-Date: Mon, 30 May 2016 23:18:03 +1000
-Message-ID: <CAOSf1CGCMxExXztXZ233DTDSEVbrd7Kj7U4JRY_rP2KFmXtY5g@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm/init: fix zone boundary creation
-From: oliver <oohall@gmail.com>
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Jaewon Kim <jaewon31.kim@samsung.com>, "robh+dt@kernel.org" <robh+dt@kernel.org>
+Cc: "r64343@freescale.com" <r64343@freescale.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "grant.likely@linaro.org" <grant.likely@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jaewon31.kim@gmail.com" <jaewon31.kim@gmail.com>
 
-On Mon, May 30, 2016 at 7:15 PM, Mel Gorman <mgorman@techsingularity.net> wrote:
-> On Thu, May 26, 2016 at 02:21:42PM -0700, Andrew Morton wrote:
->> On Thu,  5 May 2016 17:57:13 +1000 "Oliver O'Halloran" <oohall@gmail.com> wrote:
->>
->> > As a part of memory initialisation the architecture passes an array to
->> > free_area_init_nodes() which specifies the max PFN of each memory zone.
->> > This array is not necessarily monotonic (due to unused zones) so this
->> > array is parsed to build monotonic lists of the min and max PFN for
->> > each zone. ZONE_MOVABLE is special cased here as its limits are managed by
->> > the mm subsystem rather than the architecture. Unfortunately, this special
->> > casing is broken when ZONE_MOVABLE is the not the last zone in the zone
->> > list. The core of the issue is:
->> >
->> >     if (i == ZONE_MOVABLE)
->> >             continue;
->> >     arch_zone_lowest_possible_pfn[i] =
->> >             arch_zone_highest_possible_pfn[i-1];
->> >
->> > As ZONE_MOVABLE is skipped the lowest_possible_pfn of the next zone
->> > will be set to zero. This patch fixes this bug by adding explicitly
->> > tracking where the next zone should start rather than relying on the
->> > contents arch_zone_highest_possible_pfn[].
->>
->> hm, this is all ten year old Mel code.
->>
->
-> ZONE_MOVABLE at the time always existed at the end of a node during
-> initialisation time. It was allowed because the memory was always "stolen"
-> from the end of the node where it could have the same limitations as
-> ZONE_HIGHMEM if necessary. It was also safe to assume that zones never
-> overlapped as zones were about addressing limitations. If ZONE_CMA or
-> ZONE_DEVICE can overlap with other zones during initialisation time then
-> there may be a few gremlins hiding in there. Unfortunately I have not
-> done an audit searching for problems with overlapping zones.
-
-I think it's still reasonable to assume there is no overlap in early init. The
-interface to free_area_init_nodes() ensures that zones are disjoint and as far
-as I can tell the only way to get an overlapping zone at that point is to hit
-the bug this patch fixes. ZONE_CMA is only populated when core_initcall()s are
-processed and ZONE_DEVICE is hotplugged by drivers so it should appear even
-later.
+DQotLS0tLdPKvP7Urbz+LS0tLS0NCreivP7IyzogSmFld29uIEtpbSBbbWFpbHRvOmphZXdvbjMx
+LmtpbUBzYW1zdW5nLmNvbV0gDQq3osvNyrG85DogMjAxNsTqNdTCMjXI1SAxMjozMA0KytW8/sjL
+OiByb2JoK2R0QGtlcm5lbC5vcmcNCrOty806IHI2NDM0M0BmcmVlc2NhbGUuY29tOyBtLnN6eXBy
+b3dza2lAc2Ftc3VuZy5jb207IGdyYW50Lmxpa2VseUBsaW5hcm8ub3JnOyBsaW51eC1rZXJuZWxA
+dmdlci5rZXJuZWwub3JnOyBsaW51eC1tbUBrdmFjay5vcmc7IGphZXdvbjMxLmtpbUBnbWFpbC5j
+b207IEphZXdvbiA8amFld29uMzEua2ltQHNhbXN1bmcuY29tPg0K1vfM4jogW1JFU0VORF1bUEFU
+Q0hdIGRyaXZlcnM6IG9mOiBvZl9yZXNlcnZlZF9tZW06IGZpeHVwIHRoZSBDTUEgYWxpZ25tZW50
+IG5vdCB0byBhZmZlY3QgZG1hLWNvaGVyZW50DQoNCkZyb206IEphZXdvbiA8amFld29uMzEua2lt
+QHNhbXN1bmcuY29tPg0KDQpUaGVyZSB3YXMgYW4gYWxpZ25tZW50IG1pc21hdGNoIGlzc3VlIGZv
+ciBDTUEgYW5kIGl0IHdhcyBmaXhlZCBieSBjb21taXQgMWNjOGUzNDU4YjUxICgiZHJpdmVyczog
+b2Y6IG9mX3Jlc2VydmVkX21lbTogZml4dXAgdGhlIGFsaWdubWVudCB3aXRoIENNQSBzZXR1cCIp
+Lg0KSG93ZXZlciB0aGUgd2F5IG9mIHRoZSBjb21taXQgY29uc2lkZXJzIG5vdCBvbmx5IGRtYS1j
+b250aWd1b3VzKENNQSkgYnV0IGFsc28gZG1hLWNvaGVyZW50IHdoaWNoIGhhcyBubyB0aGF0IHJl
+cXVpcmVtZW50Lg0KDQpUaGlzIHBhdGNoIGNoZWNrcyBtb3JlIHRvIGRpc3Rpbmd1aXNoIGRtYS1j
+b250aWd1b3VzKENNQSkgZnJvbSBkbWEtY29oZXJlbnQuDQoNClNpZ25lZC1vZmYtYnk6IEphZXdv
+biBLaW0gPGphZXdvbjMxLmtpbUBzYW1zdW5nLmNvbT4NCi0tLQ0KIGRyaXZlcnMvb2Yvb2ZfcmVz
+ZXJ2ZWRfbWVtLmMgfCA1ICsrKystDQogMSBmaWxlIGNoYW5nZWQsIDQgaW5zZXJ0aW9ucygrKSwg
+MSBkZWxldGlvbigtKQ0KDQoNCkFja2VkLWJ5OiBKYXNvbiBMaXUgPHI2NDM0M0BmcmVlc2NhbGUu
+Y29tPg0KDQpKYXNvbg0KDQpkaWZmIC0tZ2l0IGEvZHJpdmVycy9vZi9vZl9yZXNlcnZlZF9tZW0u
+YyBiL2RyaXZlcnMvb2Yvb2ZfcmVzZXJ2ZWRfbWVtLmMgaW5kZXggZWQwMWMwMS4uNDViODczZSAx
+MDA2NDQNCi0tLSBhL2RyaXZlcnMvb2Yvb2ZfcmVzZXJ2ZWRfbWVtLmMNCisrKyBiL2RyaXZlcnMv
+b2Yvb2ZfcmVzZXJ2ZWRfbWVtLmMNCkBAIC0xMjcsNyArMTI3LDEwIEBAIHN0YXRpYyBpbnQgX19p
+bml0IF9fcmVzZXJ2ZWRfbWVtX2FsbG9jX3NpemUodW5zaWduZWQgbG9uZyBub2RlLA0KIAl9DQog
+DQogCS8qIE5lZWQgYWRqdXN0IHRoZSBhbGlnbm1lbnQgdG8gc2F0aXNmeSB0aGUgQ01BIHJlcXVp
+cmVtZW50ICovDQotCWlmIChJU19FTkFCTEVEKENPTkZJR19DTUEpICYmIG9mX2ZsYXRfZHRfaXNf
+Y29tcGF0aWJsZShub2RlLCAic2hhcmVkLWRtYS1wb29sIikpDQorCWlmIChJU19FTkFCTEVEKENP
+TkZJR19DTUEpDQorCSAgICAmJiBvZl9mbGF0X2R0X2lzX2NvbXBhdGlibGUobm9kZSwgInNoYXJl
+ZC1kbWEtcG9vbCIpDQorCSAgICAmJiBvZl9nZXRfZmxhdF9kdF9wcm9wKG5vZGUsICJyZXVzYWJs
+ZSIsIE5VTEwpDQorCSAgICAmJiAhb2ZfZ2V0X2ZsYXRfZHRfcHJvcChub2RlLCAibm8tbWFwIiwg
+TlVMTCkpIHsNCiAJCWFsaWduID0gbWF4KGFsaWduLCAocGh5c19hZGRyX3QpUEFHRV9TSVpFIDw8
+IG1heChNQVhfT1JERVIgLSAxLCBwYWdlYmxvY2tfb3JkZXIpKTsNCiANCiAJcHJvcCA9IG9mX2dl
+dF9mbGF0X2R0X3Byb3Aobm9kZSwgImFsbG9jLXJhbmdlcyIsICZsZW4pOw0KLS0NCjEuOS4xDQoN
+Cg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
