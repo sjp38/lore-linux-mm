@@ -1,178 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 18119828E4
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 11:01:22 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id q17so86752784lbn.3
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 08:01:22 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l62si31261674wmg.32.2016.05.30.08.01.20
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F0FB66B007E
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 11:34:34 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id w143so275976206oiw.3
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 08:34:34 -0700 (PDT)
+Received: from e33.co.us.ibm.com (e33.co.us.ibm.com. [32.97.110.151])
+        by mx.google.com with ESMTPS id 101si39218877iok.146.2016.05.30.08.34.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 May 2016 08:01:20 -0700 (PDT)
-From: Petr Mladek <pmladek@suse.com>
-Subject: [PATCH v7 10/10] kthread: Better support freezable kthread workers
-Date: Mon, 30 May 2016 16:59:31 +0200
-Message-Id: <1464620371-31346-11-git-send-email-pmladek@suse.com>
-In-Reply-To: <1464620371-31346-1-git-send-email-pmladek@suse.com>
-References: <1464620371-31346-1-git-send-email-pmladek@suse.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 30 May 2016 08:34:34 -0700 (PDT)
+Received: from localhost
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 30 May 2016 09:34:32 -0600
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 2/4] mm: Change the interface for __tlb_remove_page
+In-Reply-To: <001901d1ba4a$514eccc0$f3ec6640$@alibaba-inc.com>
+References: <001701d1ba44$b9c0d560$2d428020$@alibaba-inc.com> <001901d1ba4a$514eccc0$f3ec6640$@alibaba-inc.com>
+Date: Mon, 30 May 2016 21:04:27 +0530
+Message-ID: <87mvn71rwc.fsf@skywalker.in.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-This patch allows to make kthread worker freezable via a new @flags
-parameter. It will allow to avoid an init work in some kthreads.
+Hillf Danton <hillf.zj@alibaba-inc.com> writes:
 
-It currently does not affect the function of kthread_worker_fn()
-but it might help to do some optimization or fixes eventually.
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index 15322b73636b..a01db5bc756b 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -292,23 +292,24 @@ void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long e
+>>   *	handling the additional races in SMP caused by other CPUs caching valid
+>>   *	mappings in their TLBs. Returns the number of free page slots left.
+>>   *	When out of page slots we must call tlb_flush_mmu().
+>> + *returns true if the caller should flush.
+>>   */
+>> -int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+>> +bool __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+>>  {
+>>  	struct mmu_gather_batch *batch;
+>> 
+>>  	VM_BUG_ON(!tlb->end);
+>> 
+>>  	batch = tlb->active;
+>> -	batch->pages[batch->nr++] = page;
+>>  	if (batch->nr == batch->max) {
+>>  		if (!tlb_next_batch(tlb))
+>> -			return 0;
+>> +			return true;
+>>  		batch = tlb->active;
+>>  	}
+>>  	VM_BUG_ON_PAGE(batch->nr > batch->max, page);
+>
+> Still needed?
 
-I currently do not know about any other use for the @flags
-parameter but I believe that we will want more flags
-in the future.
+yes, we need to make sure the batch we picked doesn't have a wrong
+batch->nr value.
 
-Finally, I hope that it will not cause confusion with @flags member
-in struct kthread. Well, I guess that we will want to rework the
-basic kthreads implementation once all kthreads are converted into
-kthread workers or workqueues. It is possible that we will merge
-the two structures.
+>> 
+>> -	return batch->max - batch->nr;
+>> +	batch->pages[batch->nr++] = page;
+>> +	return false;
+>>  }
+>> 
+>>  #endif /* HAVE_GENERIC_MMU_GATHER */
+>> @@ -1109,6 +1110,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+>>  	pte_t *start_pte;
+>>  	pte_t *pte;
+>>  	swp_entry_t entry;
+>> +	struct page *pending_page = NULL;
+>> 
+>>  again:
+>>  	init_rss_vec(rss);
+>> @@ -1160,8 +1162,9 @@ again:
+>>  			page_remove_rmap(page, false);
+>>  			if (unlikely(page_mapcount(page) < 0))
+>>  				print_bad_pte(vma, addr, ptent, page);
+>> -			if (unlikely(!__tlb_remove_page(tlb, page))) {
+>> +			if (unlikely(__tlb_remove_page(tlb, page))) {
+>>  				force_flush = 1;
+>> +				pending_page = page;
+>>  				addr += PAGE_SIZE;
+>>  				break;
+>>  			}
+>> @@ -1202,7 +1205,12 @@ again:
+>>  	if (force_flush) {
+>>  		force_flush = 0;
+>>  		tlb_flush_mmu_free(tlb);
+>> -
+>> +		if (pending_page) {
+>> +			/* remove the page with new size */
+>> +			__tlb_adjust_range(tlb, tlb->addr);
+>
+> Would you please specify why tlb->addr is used here?
+>
 
-Signed-off-by: Petr Mladek <pmladek@suse.com>
----
- include/linux/kthread.h | 12 +++++++++---
- kernel/kthread.c        | 21 +++++++++++++++------
- 2 files changed, 24 insertions(+), 9 deletions(-)
+That is needed because tlb_flush_mmu_tlbonly() does a __tlb_reset_range().
 
-diff --git a/include/linux/kthread.h b/include/linux/kthread.h
-index 1d5ca191562f..edad163b26d0 100644
---- a/include/linux/kthread.h
-+++ b/include/linux/kthread.h
-@@ -65,7 +65,12 @@ struct kthread_work;
- typedef void (*kthread_work_func_t)(struct kthread_work *work);
- void delayed_kthread_work_timer_fn(unsigned long __data);
- 
-+enum {
-+	KTW_FREEZABLE		= 1 << 0,	/* freeze during suspend */
-+};
-+
- struct kthread_worker {
-+	unsigned int		flags;
- 	spinlock_t		lock;
- 	struct list_head	work_list;
- 	struct list_head	delayed_work_list;
-@@ -154,12 +159,13 @@ extern void __init_kthread_worker(struct kthread_worker *worker,
- 
- int kthread_worker_fn(void *worker_ptr);
- 
--__printf(1, 2)
-+__printf(2, 3)
- struct kthread_worker *
--create_kthread_worker(const char namefmt[], ...);
-+create_kthread_worker(unsigned int flags, const char namefmt[], ...);
- 
- struct kthread_worker *
--create_kthread_worker_on_cpu(int cpu, const char namefmt[], ...);
-+create_kthread_worker_on_cpu(int cpu, unsigned int flags,
-+			     const char namefmt[], ...);
- 
- bool queue_kthread_work(struct kthread_worker *worker,
- 			struct kthread_work *work);
-diff --git a/kernel/kthread.c b/kernel/kthread.c
-index 2cc32cad66ef..4ee4c05f8bf7 100644
---- a/kernel/kthread.c
-+++ b/kernel/kthread.c
-@@ -556,11 +556,11 @@ void __init_kthread_worker(struct kthread_worker *worker,
- 				const char *name,
- 				struct lock_class_key *key)
- {
-+	memset(worker, 0, sizeof(struct kthread_worker));
- 	spin_lock_init(&worker->lock);
- 	lockdep_set_class_and_name(&worker->lock, key, name);
- 	INIT_LIST_HEAD(&worker->work_list);
- 	INIT_LIST_HEAD(&worker->delayed_work_list);
--	worker->task = NULL;
- }
- EXPORT_SYMBOL_GPL(__init_kthread_worker);
- 
-@@ -590,6 +590,10 @@ int kthread_worker_fn(void *worker_ptr)
- 	 */
- 	WARN_ON(worker->task && worker->task != current);
- 	worker->task = current;
-+
-+	if (worker->flags & KTW_FREEZABLE)
-+		set_freezable();
-+
- repeat:
- 	set_current_state(TASK_INTERRUPTIBLE);	/* mb paired w/ kthread_stop */
- 
-@@ -623,7 +627,8 @@ repeat:
- EXPORT_SYMBOL_GPL(kthread_worker_fn);
- 
- static struct kthread_worker *
--__create_kthread_worker(int cpu, const char namefmt[], va_list args)
-+__create_kthread_worker(int cpu, unsigned int flags,
-+			const char namefmt[], va_list args)
- {
- 	struct kthread_worker *worker;
- 	struct task_struct *task;
-@@ -653,6 +658,7 @@ __create_kthread_worker(int cpu, const char namefmt[], va_list args)
- 	if (IS_ERR(task))
- 		goto fail_task;
- 
-+	worker->flags = flags;
- 	worker->task = task;
- 	wake_up_process(task);
- 	return worker;
-@@ -664,6 +670,7 @@ fail_task:
- 
- /**
-  * create_kthread_worker - create a kthread worker
-+ * @flags: flags modifying the default behavior of the worker
-  * @namefmt: printf-style name for the kthread worker (task).
-  *
-  * Returns a pointer to the allocated worker on success, ERR_PTR(-ENOMEM)
-@@ -671,13 +678,13 @@ fail_task:
-  * when the worker was SIGKILLed.
-  */
- struct kthread_worker *
--create_kthread_worker(const char namefmt[], ...)
-+create_kthread_worker(unsigned int flags, const char namefmt[], ...)
- {
- 	struct kthread_worker *worker;
- 	va_list args;
- 
- 	va_start(args, namefmt);
--	worker = __create_kthread_worker(-1, namefmt, args);
-+	worker = __create_kthread_worker(-1, flags, namefmt, args);
- 	va_end(args);
- 
- 	return worker;
-@@ -688,6 +695,7 @@ EXPORT_SYMBOL(create_kthread_worker);
-  * create_kthread_worker_on_cpu - create a kthread worker and bind it
-  *	it to a given CPU and the associated NUMA node.
-  * @cpu: CPU number
-+ * @flags: flags modifying the default behavior of the worker
-  * @namefmt: printf-style name for the kthread worker (task).
-  *
-  * Use a valid CPU number if you want to bind the kthread worker
-@@ -701,13 +709,14 @@ EXPORT_SYMBOL(create_kthread_worker);
-  * when the worker was SIGKILLed.
-  */
- struct kthread_worker *
--create_kthread_worker_on_cpu(int cpu, const char namefmt[], ...)
-+create_kthread_worker_on_cpu(int cpu, unsigned int flags,
-+			     const char namefmt[], ...)
- {
- 	struct kthread_worker *worker;
- 	va_list args;
- 
- 	va_start(args, namefmt);
--	worker = __create_kthread_worker(cpu, namefmt, args);
-+	worker = __create_kthread_worker(cpu, flags, namefmt, args);
- 	va_end(args);
- 
- 	return worker;
--- 
-1.8.5.6
+
+>> +			__tlb_remove_page(tlb, pending_page);
+>> +			pending_page = NULL;
+>> +		}
+>>  		if (addr != end)
+>>  			goto again;
+>>  	}
+>> --
+>> 2.7.4
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
