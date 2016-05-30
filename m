@@ -1,66 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B2DAA6B025E
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 05:01:57 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id w16so77304651lfd.0
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:01:57 -0700 (PDT)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E135D6B025F
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 05:15:07 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id 132so55739239lfz.3
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 02:15:07 -0700 (PDT)
 Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id yy9si43283342wjc.217.2016.05.30.02.01.56
+        by mx.google.com with ESMTPS id l5si43460562wjj.53.2016.05.30.02.15.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 May 2016 02:01:56 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id E032C98C38
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 09:01:55 +0000 (UTC)
-Date: Mon, 30 May 2016 10:01:54 +0100
+        Mon, 30 May 2016 02:15:06 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 2917E98B95
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 09:15:06 +0000 (UTC)
+Date: Mon, 30 May 2016 10:15:04 +0100
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH] mm, page_alloc: prevent infinite loop in buffered_rmqueue()
-Message-ID: <20160530090154.GM2527@techsingularity.net>
+Subject: Re: [RFC PATCH] mm/init: fix zone boundary creation
+Message-ID: <20160530091504.GN2527@techsingularity.net>
+References: <1462435033-15601-1-git-send-email-oohall@gmail.com>
+ <20160526142142.b16f7f3f18204faf0823ac65@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <20160526142142.b16f7f3f18204faf0823ac65@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Oliver O'Halloran <oohall@gmail.com>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-From: Vlastimil Babka <vbabka@suse.cz>
+On Thu, May 26, 2016 at 02:21:42PM -0700, Andrew Morton wrote:
+> On Thu,  5 May 2016 17:57:13 +1000 "Oliver O'Halloran" <oohall@gmail.com> wrote:
+> 
+> > As a part of memory initialisation the architecture passes an array to
+> > free_area_init_nodes() which specifies the max PFN of each memory zone.
+> > This array is not necessarily monotonic (due to unused zones) so this
+> > array is parsed to build monotonic lists of the min and max PFN for
+> > each zone. ZONE_MOVABLE is special cased here as its limits are managed by
+> > the mm subsystem rather than the architecture. Unfortunately, this special
+> > casing is broken when ZONE_MOVABLE is the not the last zone in the zone
+> > list. The core of the issue is:
+> > 
+> > 	if (i == ZONE_MOVABLE)
+> > 		continue;
+> > 	arch_zone_lowest_possible_pfn[i] =
+> > 		arch_zone_highest_possible_pfn[i-1];
+> > 
+> > As ZONE_MOVABLE is skipped the lowest_possible_pfn of the next zone
+> > will be set to zero. This patch fixes this bug by adding explicitly
+> > tracking where the next zone should start rather than relying on the
+> > contents arch_zone_highest_possible_pfn[].
+> 
+> hm, this is all ten year old Mel code.
+> 
 
-In DEBUG_VM kernel, we can hit infinite loop for order == 0 in
-buffered_rmqueue() when check_new_pcp() returns 1, because the bad page is
-never removed from the pcp list. Fix this by removing the page before retrying.
-Also we don't need to check if page is non-NULL, because we simply grab it from
-the list which was just tested for being non-empty.
+ZONE_MOVABLE at the time always existed at the end of a node during
+initialisation time. It was allowed because the memory was always "stolen"
+from the end of the node where it could have the same limitations as
+ZONE_HIGHMEM if necessary. It was also safe to assume that zones never
+overlapped as zones were about addressing limitations.  If ZONE_CMA or
+ZONE_DEVICE can overlap with other zones during initialisation time then
+there may be a few gremlins hiding in there. Unfortunately I have not
+done an audit searching for problems with overlapping zones.
 
-Fixes: http://www.ozlabs.org/~akpm/mmotm/broken-out/mm-page_alloc-defer-debugging-checks-of-freed-pages-until-a-pcp-drain.patch
-Reported-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/page_alloc.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f8f3bfc435ee..bb320cde4d6d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2609,11 +2609,12 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
- 				page = list_last_entry(list, struct page, lru);
- 			else
- 				page = list_first_entry(list, struct page, lru);
--		} while (page && check_new_pcp(page));
- 
--		__dec_zone_state(zone, NR_ALLOC_BATCH);
--		list_del(&page->lru);
--		pcp->count--;
-+			__dec_zone_state(zone, NR_ALLOC_BATCH);
-+			list_del(&page->lru);
-+			pcp->count--;
-+
-+		} while (check_new_pcp(page));
- 	} else {
- 		/*
- 		 * We most definitely don't want callers attempting to
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
