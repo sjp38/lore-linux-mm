@@ -1,71 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 286FE6B025E
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 05:33:54 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id n2so40396064wma.0
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 02:33:54 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id 8si35827470wmu.15.2016.05.31.02.33.52
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F4E76B025E
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 05:36:34 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id q17so96136277lbn.3
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 02:36:34 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id gg1si49460382wjd.214.2016.05.31.02.36.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 May 2016 02:33:53 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id q62so30759620wmg.3
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 02:33:52 -0700 (PDT)
-Date: Tue, 31 May 2016 11:33:51 +0200
+        Tue, 31 May 2016 02:36:33 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id q62so30782013wmg.3
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 02:36:33 -0700 (PDT)
+Date: Tue, 31 May 2016 11:36:31 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] memcg: add RCU locking around
- css_for_each_descendant_pre() in memcg_offline_kmem()
-Message-ID: <20160531093351.GG26128@dhcp22.suse.cz>
-References: <20160526203018.GG23194@mtj.duckdns.org>
- <20160526140202.077d611dbe0926ce290b4e53@linux-foundation.org>
- <20160527153124.GT27686@dhcp22.suse.cz>
- <20160527155140.GN23194@mtj.duckdns.org>
+Subject: Re: [PATCH] reusing of mapping page supplies a way for file page
+ allocation under low memory due to pagecache over size and is controlled by
+ sysctl parameters. it is used only for rw page allocation rather than fault
+ or readahead allocation. it is like relclaim but is lighter than reclaim. it
+ only reuses clean and zero mapcount pages of mapping. for special
+ filesystems using this feature like below:
+Message-ID: <20160531093631.GH26128@dhcp22.suse.cz>
+References: <1464685702-100211-1-git-send-email-zhouxianrong@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160527155140.GN23194@mtj.duckdns.org>
+In-Reply-To: <1464685702-100211-1-git-send-email-zhouxianrong@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: zhouxianrong@huawei.com
+Cc: viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, zhouxiyu@huawei.com, wanghaijun5@huawei.com, yuchao0@huawei.com
 
-Sorry for a late response.
-
-On Fri 27-05-16 11:51:40, Tejun Heo wrote:
-> On Fri, May 27, 2016 at 05:31:24PM +0200, Michal Hocko wrote:
-> > On Thu 26-05-16 14:02:02, Andrew Morton wrote:
-> > > On Thu, 26 May 2016 16:30:18 -0400 Tejun Heo <tj@kernel.org> wrote:
-> > > 
-> > > > memcg_offline_kmem() may be called from memcg_free_kmem() after a css
-> > > > init failure.  memcg_free_kmem() is a ->css_free callback which is
-> > > > called without cgroup_mutex and memcg_offline_kmem() ends up using
-> > > > css_for_each_descendant_pre() without any locking.  Fix it by adding
-> > > > rcu read locking around it.
-> > > > 
-> > > >  mkdir: cannot create directory ___65530___: No space left on device
-> > > >  [  527.241361] ===============================
-> > > >  [  527.241845] [ INFO: suspicious RCU usage. ]
-> > > >  [  527.242367] 4.6.0-work+ #321 Not tainted
-> > > >  [  527.242730] -------------------------------
-> > > >  [  527.243220] kernel/cgroup.c:4008 cgroup_mutex or RCU read lock required!
-> > > 
-> > > cc:stable?
-> > 
-> > Also which kernel versions would be affected? I have tried to look and
-> > got lost in the indirection of the css_free path.
+On Tue 31-05-16 17:08:22, zhouxianrong@huawei.com wrote:
+> From: z00281421 <z00281421@notesmail.huawei.com>
 > 
-> I think it's actually from 0b8f73e10428 ("mm: memcontrol: clean up
-> alloc, online, offline, free functions") which got merged during this
-> cycle, so no need for -stable.
+> const struct address_space_operations special_aops = {
+>     ...
+> 	.reuse_mapping_page = generic_reuse_mapping_page,
+> }
 
-yes you are right! memcg_free_kmem didn't call memcg_offline_kmem before
-that commit. Thanks for the clarification.
-
-Anyway
-$ git describe --contains 0b8f73e10428
-v4.5-rc1~30^2~11
-
-So it would be stable # 4.5+
+Please try to write a proper changelog which explains what is the
+change, why do we need it and who is it going to use.
 -- 
 Michal Hocko
 SUSE Labs
