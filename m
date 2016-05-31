@@ -1,63 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F30126B025E
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 02:51:04 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id w185so238134420vkf.3
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 23:51:04 -0700 (PDT)
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
-        by mx.google.com with ESMTPS id a75si30069148qhb.113.2016.05.30.23.51.04
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6742C6B0005
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 03:23:52 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e3so38520514wme.3
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 00:23:52 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id wp4si48895955wjb.173.2016.05.31.00.23.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 30 May 2016 23:51:04 -0700 (PDT)
-Received: from localhost
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 31 May 2016 00:51:03 -0600
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 2/4] mm: Change the interface for __tlb_remove_page
-In-Reply-To: <002b01d1baef$e6246530$b26d2f90$@alibaba-inc.com>
-References: <001701d1ba44$b9c0d560$2d428020$@alibaba-inc.com> <001901d1ba4a$514eccc0$f3ec6640$@alibaba-inc.com> <87mvn71rwc.fsf@skywalker.in.ibm.com> <002b01d1baef$e6246530$b26d2f90$@alibaba-inc.com>
-Date: Tue, 31 May 2016 12:20:49 +0530
-Message-ID: <87h9de201i.fsf@skywalker.in.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 May 2016 00:23:51 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id n129so29631583wmn.1
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 00:23:51 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] mm, oom_reaper: do not use siglock in try_oom_reaper
+Date: Tue, 31 May 2016 09:23:43 +0200
+Message-Id: <1464679423-30218-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: 'linux-kernel' <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-Hillf Danton <hillf.zj@alibaba-inc.com> writes:
+From: Michal Hocko <mhocko@suse.com>
 
->> >> @@ -1202,7 +1205,12 @@ again:
->> >>  	if (force_flush) {
->> >>  		force_flush = 0;
->> >>  		tlb_flush_mmu_free(tlb);
->> >> -
->> >> +		if (pending_page) {
->> >> +			/* remove the page with new size */
->> >> +			__tlb_adjust_range(tlb, tlb->addr);
->> >
->> > Would you please specify why tlb->addr is used here?
->> >
->> 
->> That is needed because tlb_flush_mmu_tlbonly() does a __tlb_reset_range().
->> 
-> If ->addr is updated in resetting, then it is a noop here to deliver tlb->addr to
-> __tlb_adjust_range().
-> On the other hand, if ->addr is not updated in resetting, then it is also a noop here.
->
-> Do you want to update ->addr here?
->
+Oleg has noted that siglock usage in try_oom_reaper is both pointless
+and dangerous. signal_group_exit can be checked lockless. The problem
+is that sighand becomes NULL in __exit_signal so we can crash.
 
-I don't get that question. We wanted to track the alst adjusted addr in
-tlb->addr because when we do a tlb_flush_mmu_tlbonly() we does a
-__tlb_reset_range(), which clears tlb->start and tlb->end. Now we need
-to update the range again with the last adjusted addr before we can call
-__tlb_remove_page(). Look for VM_BUG_ON(!tlb->end); in
-__tlb_remove_page().
+Fixes: 3ef22dfff239 ("oom, oom_reaper: try to reap tasks which skip regular OOM killer path")
+Suggested-by: Oleg Nesterov <oleg@redhat.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+Hi Andrew,
+Oleg has noticed this while reviewing http://lkml.kernel.org/r/20160530173505.GA25287@redhat.com
+this should go in 4.7.
 
--aneesh
+ mm/oom_kill.c | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index e01cc3e2e755..25eac62c190c 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -625,8 +625,6 @@ void try_oom_reaper(struct task_struct *tsk)
+ 	if (atomic_read(&mm->mm_users) > 1) {
+ 		rcu_read_lock();
+ 		for_each_process(p) {
+-			bool exiting;
+-
+ 			if (!process_shares_mm(p, mm))
+ 				continue;
+ 			if (fatal_signal_pending(p))
+@@ -636,10 +634,7 @@ void try_oom_reaper(struct task_struct *tsk)
+ 			 * If the task is exiting make sure the whole thread group
+ 			 * is exiting and cannot acces mm anymore.
+ 			 */
+-			spin_lock_irq(&p->sighand->siglock);
+-			exiting = signal_group_exit(p->signal);
+-			spin_unlock_irq(&p->sighand->siglock);
+-			if (exiting)
++			if (signal_group_exit(p->signal))
+ 				continue;
+ 
+ 			/* Give up */
+-- 
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
