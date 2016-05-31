@@ -1,217 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E3236B0005
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 05:50:36 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id h68so61670744lfh.2
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 02:50:36 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j16si35895056wmi.23.2016.05.31.02.50.34
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DB9446B0005
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 06:08:51 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id a136so41013986wme.1
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 03:08:51 -0700 (PDT)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
+        by mx.google.com with ESMTPS id a195si36072975wma.36.2016.05.31.03.08.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 May 2016 02:50:34 -0700 (PDT)
-Date: Tue, 31 May 2016 11:50:31 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: shrink_active_list/try_to_release_page bug? (was Re: xfs trace
- in 4.4.2 / also in 4.3.3 WARNING fs/xfs/xfs_aops.c:1232 xfs_vm_releasepage)
-Message-ID: <20160531095031.GA5912@quack2.suse.cz>
-References: <20160511155951.GF42410@bfoster.bfoster>
- <5738576B.4010208@profihost.ag>
- <20160515115017.GA6433@laptop.bfoster>
- <57386E84.3090606@profihost.ag>
- <20160516010602.GA24980@bfoster.bfoster>
- <57420A47.2000700@profihost.ag>
- <20160522213850.GE26977@dastard>
- <574BEA84.3010206@profihost.ag>
- <20160530223657.GP26977@dastard>
- <20160531010724.GA9616@bbox>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 May 2016 03:08:50 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 01AB01C34EB
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 11:08:50 +0100 (IST)
+Date: Tue, 31 May 2016 11:08:48 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH] mm, page_alloc: Reset zonelist iterator after resetting fair
+ zone allocation policy
+Message-ID: <20160531100848.GR2527@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160531010724.GA9616@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Brian Foster <bfoster@redhat.com>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, linux-kernel@vger.kernel.org, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
 
-On Tue 31-05-16 10:07:24, Minchan Kim wrote:
-> On Tue, May 31, 2016 at 08:36:57AM +1000, Dave Chinner wrote:
-> > [adding lkml and linux-mm to the cc list]
-> > 
-> > On Mon, May 30, 2016 at 09:23:48AM +0200, Stefan Priebe - Profihost AG wrote:
-> > > Hi Dave,
-> > >   Hi Brian,
-> > > 
-> > > below are the results with a vanilla 4.4.11 kernel.
-> > 
-> > Thanks for persisting with the testing, Stefan.
-> > 
-> > ....
-> > 
-> > > i've now used a vanilla 4.4.11 Kernel and the issue remains. After a
-> > > fresh reboot it has happened again on the root FS for a debian apt file:
-> > > 
-> > > XFS (md127p3): ino 0x41221d1 delalloc 1 unwritten 0 pgoff 0x0 size 0x12b990
-> > > ------------[ cut here ]------------
-> > > WARNING: CPU: 1 PID: 111 at fs/xfs/xfs_aops.c:1239
-> > > xfs_vm_releasepage+0x10f/0x140()
-> > > Modules linked in: netconsole ipt_REJECT nf_reject_ipv4 xt_multiport
-> > > iptable_filter ip_tables x_tables bonding coretemp 8021q garp fuse
-> > > sb_edac edac_core i2c_i801 i40e(O) xhci_pci xhci_hcd shpchp vxlan
-> > > ip6_udp_tunnel udp_tunnel ipmi_si ipmi_msghandler button btrfs xor
-> > > raid6_pq dm_mod raid1 md_mod usbhid usb_storage ohci_hcd sg sd_mod
-> > > ehci_pci ehci_hcd usbcore usb_common igb ahci i2c_algo_bit libahci
-> > > i2c_core mpt3sas ptp pps_core raid_class scsi_transport_sas
-> > > CPU: 1 PID: 111 Comm: kswapd0 Tainted: G           O    4.4.11 #1
-> > > Hardware name: Supermicro Super Server/X10SRH-CF, BIOS 1.0b 05/18/2015
-> > >  0000000000000000 ffff880c4dacfa88 ffffffffa23c5b8f 0000000000000000
-> > >  ffffffffa2a51ab4 ffff880c4dacfac8 ffffffffa20837a7 ffff880c4dacfae8
-> > >  0000000000000001 ffffea00010c3640 ffff8802176b49d0 ffffea00010c3660
-> > > Call Trace:
-> > >  [<ffffffffa23c5b8f>] dump_stack+0x63/0x84
-> > >  [<ffffffffa20837a7>] warn_slowpath_common+0x97/0xe0
-> > >  [<ffffffffa208380a>] warn_slowpath_null+0x1a/0x20
-> > >  [<ffffffffa2326caf>] xfs_vm_releasepage+0x10f/0x140
-> > >  [<ffffffffa218c680>] ? page_mkclean_one+0xd0/0xd0
-> > >  [<ffffffffa218d3a0>] ? anon_vma_prepare+0x150/0x150
-> > >  [<ffffffffa21521c2>] try_to_release_page+0x32/0x50
-> > >  [<ffffffffa2166b2e>] shrink_active_list+0x3ce/0x3e0
-> > >  [<ffffffffa21671c7>] shrink_lruvec+0x687/0x7d0
-> > >  [<ffffffffa21673ec>] shrink_zone+0xdc/0x2c0
-> > >  [<ffffffffa2168539>] kswapd+0x4f9/0x970
-> > >  [<ffffffffa2168040>] ? mem_cgroup_shrink_node_zone+0x1a0/0x1a0
-> > >  [<ffffffffa20a0d99>] kthread+0xc9/0xe0
-> > >  [<ffffffffa20a0cd0>] ? kthread_stop+0x100/0x100
-> > >  [<ffffffffa26b404f>] ret_from_fork+0x3f/0x70
-> > >  [<ffffffffa20a0cd0>] ? kthread_stop+0x100/0x100
-> > > ---[ end trace c9d679f8ed4d7610 ]---
-> > > XFS (md127p3): ino 0x41221d1 delalloc 1 unwritten 0 pgoff 0x1000 size
-> > > 0x12b990
-> > > XFS (md127p3): ino 0x41221d1 delalloc 1 unwritten 0 pgoff 0x2000 size
-> > .....
-> > 
-> > Ok, I suspect this may be a VM bug. I've been looking at the 4.6
-> > code (so please try to reproduce on that kernel!) but it looks to me
-> > like the only way we can get from shrink_active_list() direct to
-> > try_to_release_page() is if we are over the maximum bufferhead
-> > threshold (i.e buffer_heads_over_limit = true) and we are trying to
-> > reclaim pages direct from the active list.
-> > 
-> > Because we are called from kswapd()->balance_pgdat(), we have:
-> > 
-> >         struct scan_control sc = {
-> >                 .gfp_mask = GFP_KERNEL,
-> >                 .order = order,
-> >                 .priority = DEF_PRIORITY,
-> >                 .may_writepage = !laptop_mode,
-> >                 .may_unmap = 1,
-> >                 .may_swap = 1,
-> >         };
-> > 
-> > The key point here is reclaim is being run with .may_writepage =
-> > true for default configuration kernels. when we get to
-> > shrink_active_list():
-> > 
-> > 	if (!sc->may_writepage)
-> > 		isolate_mode |= ISOLATE_CLEAN;
-> > 
-> > But sc->may_writepage = true and this allows isolate_lru_pages() to
-> > isolate dirty pages from the active list. Normally this isn't a
-> > problem, because the isolated active list pages are rotated to the
-> > inactive list, and nothing else happens to them. *Except when
-> > buffer_heads_over_limit = true*. This special condition would
-> > explain why I have never seen apt/dpkg cause this problem on any of
-> > my (many) Debian systems that all use XFS....
-> > 
-> > In that case, shrink_active_list() runs:
-> > 
-> > 	if (unlikely(buffer_heads_over_limit)) {
-> > 		if (page_has_private(page) && trylock_page(page)) {
-> > 			if (page_has_private(page))
-> > 				try_to_release_page(page, 0);
-> > 			unlock_page(page);
-> > 		}
-> > 	}
-> > 
-> > i.e. it locks the page, and if it has buffer heads it trys to get
-> > the bufferheads freed from the page.
-> > 
-> > But this is a dirty page, which means it may have delalloc or
-> > unwritten state on it's buffers, both of which indicate that there
-> > is dirty data in teh page that hasn't been written. XFS issues a
-> > warning on this because neither shrink_active_list nor
-> > try_to_release_page() check for whether the page is dirty or not.
-> > 
-> > Hence it seems to me that shrink_active_list() is calling
-> > try_to_release_page() inappropriately, and XFS is just the
-> > messenger. If you turn laptop mode on, it is likely the problem will
-> > go away as kswapd will run with .may_writepage = false, but that
-> > will also cause other behavioural changes relating to writeback and
-> > memory reclaim. It might be worth trying as a workaround for now.
-> > 
-> > MM-folk - is this analysis correct? If so, why is
-> > shrink_active_list() calling try_to_release_page() on dirty pages?
-> > Is this just an oversight or is there some problem that this is
-> > trying to work around? It seems trivial to fix to me (add a
-> > !PageDirty check), but I don't know why the check is there in the
-> > first place...
-> 
-> It seems to be latter.
-> Below commit seems to be related.
-> [ecdfc9787fe527, Resurrect 'try_to_free_buffers()' VM hackery.]
-> 
-> At that time, even shrink_page_list works like this.
-> 
-> shrink_page_list
->         while (!list_empty(page_list)) {
->                 ..
->                 ..
->                 if (PageDirty(page)) {
->                         ..
->                 }
-> 
->                 /*
->                  * If the page has buffers, try to free the buffer mappings
->                  * associated with this page. If we succeed we try to free
->                  * the page as well.
->                  *
->                  * We do this even if the page is PageDirty().
->                  * try_to_release_page() does not perform I/O, but it is
->                  * possible for a page to have PageDirty set, but it is actually
->                  * clean (all its buffers are clean).  This happens if the
->                  * buffers were written out directly, with submit_bh(). ext3
->                  * will do this, as well as the blockdev mapping. 
->                  * try_to_release_page() will discover that cleanness and will
->                  * drop the buffers and mark the page clean - it can be freed.
->                  * ..
->                  */
->                 if (PagePrivate(page)) {
->                         if (!try_to_release_page(page, sc->gfp_mask))
->                                 goto activate_locked;
->                         if (!mapping && page_count(page) == 1)
->                                 goto free_it;
->                 }
->                 ..
->         }
-> 
-> I wonder whether it's valid or not with on ext4.
+Geert Uytterhoeven reported the following problem that bisected to commit
+c33d6c06f60f ("mm, page_alloc: avoid looking up the first zone in a
+zonelist twice") on m68k/ARAnyM
 
-Actually, we've already discussed this about an year ago:
-http://oss.sgi.com/archives/xfs/2015-06/msg00119.html
+    BUG: scheduling while atomic: cron/668/0x10c9a0c0
+    Modules linked in:
+    CPU: 0 PID: 668 Comm: cron Not tainted 4.6.0-atari-05133-gc33d6c06f60f710f #364
+    Stack from 10c9a074:
+            10c9a074 003763ca 0003d7d0 00361a58 00bcf834 0000029c 10c9a0c0 10c9a0c0
+            002f0f42 00bcf5e0 00000000 00000082 0048e018 00000000 00000000 002f0c30
+            000410de 00000000 00000000 10c9a0e0 002f112c 00000000 7fffffff 10c9a180
+            003b1490 00bcf60c 10c9a1f0 10c9a118 002f2d30 00000000 10c9a174 10c9a180
+            0003ef56 003b1490 00bcf60c 003b1490 00bcf60c 0003eff6 003b1490 00bcf60c
+            003b1490 10c9a128 002f118e 7fffffff 00000082 002f1612 002f1624 7fffffff
+    Call Trace: [<0003d7d0>] __schedule_bug+0x40/0x54
+     [<002f0f42>] __schedule+0x312/0x388
+     [<002f0c30>] __schedule+0x0/0x388
+     [<000410de>] prepare_to_wait+0x0/0x52
+     [<002f112c>] schedule+0x64/0x82
+     [<002f2d30>] schedule_timeout+0xda/0x104
+     [<0003ef56>] set_next_entity+0x18/0x40
+     [<0003eff6>] pick_next_task_fair+0x78/0xda
+     [<002f118e>] io_schedule_timeout+0x36/0x4a
+     [<002f1612>] bit_wait_io+0x0/0x40
+     [<002f1624>] bit_wait_io+0x12/0x40
+     [<002f12c4>] __wait_on_bit+0x46/0x76
+     [<0006a06a>] wait_on_page_bit_killable+0x64/0x6c
+     [<002f1612>] bit_wait_io+0x0/0x40
+     [<000411fe>] wake_bit_function+0x0/0x4e
+     [<0006a1b8>] __lock_page_or_retry+0xde/0x124
+     [<00217000>] do_scan_async+0x114/0x17c
+     [<00098856>] lookup_swap_cache+0x24/0x4e
+     [<0008b7c8>] handle_mm_fault+0x626/0x7de
+     [<0008ef46>] find_vma+0x0/0x66
+     [<002f2612>] down_read+0x0/0xe
+     [<0006a001>] wait_on_page_bit_killable_timeout+0x77/0x7c
+     [<0008ef5c>] find_vma+0x16/0x66
+     [<00006b44>] do_page_fault+0xe6/0x23a
+     [<0000c350>] res_func+0xa3c/0x141a
+     [<00005bb8>] buserr_c+0x190/0x6d4
+     [<0000c350>] res_func+0xa3c/0x141a
+     [<000028ec>] buserr+0x20/0x28
+     [<0000c350>] res_func+0xa3c/0x141a
+     [<000028ec>] buserr+0x20/0x28
 
-And it was the last drop that made me remove ext3 from the tree. ext4 can
-also clean dirty buffers while keeping pages dirty but it is limited only
-to metadata (and data in data=journal mode) so the scope of the problem is
-much smaller. So just avoiding calling ->releasepage for dirty pages may
-work fine these days.
+The relationship is not obvious but it's due to a failure to rescan the full
+zonelist after the fair zone allocation policy exhausts the batch count. While
+this is a functional problem, it's also a performance issue. A page allocator
+microbenchmark showed the following
 
-Also it is possible to change ext4 checkpointing code to completely avoid
-doing this but I never got to rewriting that code. Probably I should give
-it higher priority on my todo list...
+                                 4.7.0-rc1                  4.7.0-rc1
+                                   vanilla                 reset-v1r2
+Min      alloc-odr0-1     327.00 (  0.00%)           326.00 (  0.31%)
+Min      alloc-odr0-2     235.00 (  0.00%)           235.00 (  0.00%)
+Min      alloc-odr0-4     198.00 (  0.00%)           198.00 (  0.00%)
+Min      alloc-odr0-8     170.00 (  0.00%)           170.00 (  0.00%)
+Min      alloc-odr0-16    156.00 (  0.00%)           156.00 (  0.00%)
+Min      alloc-odr0-32    150.00 (  0.00%)           150.00 (  0.00%)
+Min      alloc-odr0-64    146.00 (  0.00%)           146.00 (  0.00%)
+Min      alloc-odr0-128   145.00 (  0.00%)           145.00 (  0.00%)
+Min      alloc-odr0-256   155.00 (  0.00%)           155.00 (  0.00%)
+Min      alloc-odr0-512   168.00 (  0.00%)           165.00 (  1.79%)
+Min      alloc-odr0-1024  175.00 (  0.00%)           174.00 (  0.57%)
+Min      alloc-odr0-2048  180.00 (  0.00%)           180.00 (  0.00%)
+Min      alloc-odr0-4096  187.00 (  0.00%)           186.00 (  0.53%)
+Min      alloc-odr0-8192  190.00 (  0.00%)           190.00 (  0.00%)
+Min      alloc-odr0-16384 191.00 (  0.00%)           191.00 (  0.00%)
+Min      alloc-odr1-1     736.00 (  0.00%)           445.00 ( 39.54%)
+Min      alloc-odr1-2     343.00 (  0.00%)           335.00 (  2.33%)
+Min      alloc-odr1-4     277.00 (  0.00%)           270.00 (  2.53%)
+Min      alloc-odr1-8     238.00 (  0.00%)           233.00 (  2.10%)
+Min      alloc-odr1-16    224.00 (  0.00%)           218.00 (  2.68%)
+Min      alloc-odr1-32    210.00 (  0.00%)           208.00 (  0.95%)
+Min      alloc-odr1-64    207.00 (  0.00%)           203.00 (  1.93%)
+Min      alloc-odr1-128   276.00 (  0.00%)           202.00 ( 26.81%)
+Min      alloc-odr1-256   206.00 (  0.00%)           202.00 (  1.94%)
+Min      alloc-odr1-512   207.00 (  0.00%)           202.00 (  2.42%)
+Min      alloc-odr1-1024  208.00 (  0.00%)           205.00 (  1.44%)
+Min      alloc-odr1-2048  213.00 (  0.00%)           212.00 (  0.47%)
+Min      alloc-odr1-4096  218.00 (  0.00%)           216.00 (  0.92%)
+Min      alloc-odr1-8192  341.00 (  0.00%)           219.00 ( 35.78%)
+.
+Note that order-0 allocations are unaffected but higher orders get
+a small boost from this patch and a large reduction in system CPU
+usage overall as can be seen here
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+           4.7.0-rc1   4.7.0-rc1
+             vanilla  reset-v1r2
+User           85.32       86.31
+System       2221.39     2053.36
+Elapsed      2368.89     2202.47
+
+Fixes: c33d6c06f60f ("mm, page_alloc: avoid looking up the first zone in a zonelist twice")
+Reported-and-tested-by: Geert Uytterhoeven <geert@linux-m68k.org>
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ mm/page_alloc.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index bb320cde4d6d..557549c81083 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3024,6 +3024,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
+ 		apply_fair = false;
+ 		fair_skipped = false;
+ 		reset_alloc_batches(ac->preferred_zoneref->zone);
++		z = ac->preferred_zoneref;
+ 		goto zonelist_scan;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
