@@ -1,96 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 086A56B0005
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 18:25:07 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id s73so1154725pfs.0
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 15:25:07 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id s15si46321328pfj.65.2016.05.31.15.25.05
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EC70C6B0005
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 18:29:37 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id l14so6100368qke.2
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 15:29:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y190si20542604qhb.111.2016.05.31.15.29.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 May 2016 15:25:05 -0700 (PDT)
-Subject: Re: [PATCH v2] mm,oom: Allow SysRq-f to always select !TIF_MEMDIE thread group.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1464432784-6058-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<1464452714-5126-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20160531131159.GL26128@dhcp22.suse.cz>
-In-Reply-To: <20160531131159.GL26128@dhcp22.suse.cz>
-Message-Id: <201606010635.HJI86975.JOFOFFMQHLVtSO@I-love.SAKURA.ne.jp>
-Date: Wed, 1 Jun 2016 06:35:30 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 May 2016 15:29:37 -0700 (PDT)
+Date: Wed, 1 Jun 2016 00:29:33 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 6/6] mm, oom: fortify task_will_free_mem
+Message-ID: <20160531222933.GD26582@redhat.com>
+References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
+ <1464613556-16708-7-git-send-email-mhocko@kernel.org>
+ <20160530173505.GA25287@redhat.com>
+ <20160531074624.GE26128@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160531074624.GE26128@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-Michal Hocko wrote:
-> On Sun 29-05-16 01:25:14, Tetsuo Handa wrote:
-> > There has been three problems about SysRq-f (manual invocation of the OOM
-> > killer) case. To make description simple, this patch assumes situation
-> > where the OOM reaper is not called (because the OOM victim's mm is shared
-> > by unkillable threads) or not available (due to kthread_run() failure or
-> > CONFIG_MMU=n).
-> > 
-> > First is that moom_callback() is not called by moom_work under OOM
-> > livelock situation because it does not have a dedicated WQ like vmstat_wq.
-> > This problem is not fixed yet.
-> 
-> Why do you mention it in the changelog when it is not related to the
-> patch then?
+On 05/31, Michal Hocko wrote:
+>
+> On Mon 30-05-16 19:35:05, Oleg Nesterov wrote:
+> >
+> > Well, let me suggest this again. I think it should do
+> >
+> >
+> > 	if (SIGNAL_GROUP_COREDUMP)
+> > 		return false;
+> >
+> > 	if (SIGNAL_GROUP_EXIT)
+> > 		return true;
+> >
+> > 	if (thread_group_empty() && PF_EXITING)
+> > 		return true;
+> >
+> > 	return false;
+> >
+> > we do not need fatal_signal_pending(), in this case SIGNAL_GROUP_EXIT should
+> > be set (ignoring some bugs with sub-namespaces which we need to fix anyway).
+>
+> OK, so we shouldn't care about race when the fatal_signal is set on the
+> task until it reaches do_group_exit?
 
-Just we won't forget about it.
+if fatal_signal() is true then (ignoring exec and coredump) SIGNAL_GROUP_EXIT
+is already set (again, ignoring the bugs with sub-namespace inits).
 
-> 
-> Btw. you can (ab)use oom_reaper for that purpose. The patch would be
-> quite trivial.
+At the same time, SIGKILL can be already dequeued when the task exits, so
+fatal_signal_pending() can be "false negative".
 
-How do you handle CONFIG_MMU=n case?
-Are we going to provide oom_reaper for CONFIG_MMU=n case?
+> > And. I think this needs smp_rmb() at the end of the loop (assuming we have the
+> > process_shares_mm() check here). We need it to ensure that we read p->mm before
+> > we read next_task(), to avoid the race with exit() + clone(CLONE_VM).
+>
+> Why don't we need the same barrier in oom_kill_process?
 
-> 
-> > Second is that select_bad_process() chooses a thread group which already
-> > has a TIF_MEMDIE thread. Since commit f44666b04605d1c7 ("mm,oom: speed up
-> > select_bad_process() loop") changed oom_scan_process_group() to use
-> > task->signal->oom_victims, non SysRq-f case will no longer select a
-> > thread group which already has a TIF_MEMDIE thread.
-> 
-> I am not sure the reference to the commit is really helpful. The
-> behavior you are describing below was there before this commit, the only
-> thing that has changed is the scope of the TIF_MEMDIE check.
+Because it calls do_send_sig_info() which takes ->siglock and copy_process()
+takes the same lock. Not a barrier, but acts the same way.
 
-Indeed. Traversing on all threads can always find a thread group which
-already has a TIF_MEMDIE thread when there is already a TIF_MEMDIE thread.
+> Which barrier it
+> would pair with?
 
-> 
-> > But SysRq-f case will
-> > select such thread group due to returning OOM_SCAN_OK. This patch makes
-> > sure that oom_badness() is skipped by making oom_scan_process_group() to
-> > return OOM_SCAN_CONTINUE for SysRq-f case.
-> 
-> I am OK with this part. I was suggesting something similar except I
-> wanted to skip over tasks which have fatal_signal_pending and that part
-> got nacked by David AFAIR. Could you make this a separate patch, please?
+With the barrier implied by list_add_tail_rcu(&p->tasks, &init_task.tasks).
 
-I think it is better to change both part with this patch.
+> Anyway I think this would deserve it's own patch.
+> Barriers are always tricky and it is better to have them in a small
+> patch with a full explanation.
 
-> 
-> > Third is that oom_kill_process() chooses a thread group which already
-> > has a TIF_MEMDIE thread when the candidate select_bad_process() chose
-> > has children because oom_badness() does not take TIF_MEMDIE into account.
-> > This patch checks child->signal->oom_victims before calling oom_badness()
-> > if oom_kill_process() was called by SysRq-f case. This resembles making
-> > sure that oom_badness() is skipped by returning OOM_SCAN_CONTINUE.
-> 
-> This makes sense to me as well but why should be limit this to sysrq case?
-> Does it make any sense to select a child which already got killed for
-> normal OOM killer? Anyway I think it would be better to split this into
-> its own patch as well.
+OK, agreed.
 
-The reason is described in next paragraph.
-Do we prefer immediately killing all children of the allocating task?
-If yes, I think it should be a separate patch on top of this patch because
-somebody might complain such behavior as a regression.
+
+I am not sure I can read the new patch correctly, it depends on the previous
+changes... but afaics it looks good.
+
+Cosmetic/subjective nit, feel free to ignore,
+
+> +bool task_will_free_mem(struct task_struct *task)
+> +{
+> +	struct mm_struct *mm = NULL;
+
+unnecessary initialization ;)
+
+> +	struct task_struct *p;
+> +	bool ret;
+> +
+> +	/*
+> +	 * If the process has passed exit_mm we have to skip it because
+> +	 * we have lost a link to other tasks sharing this mm, we do not
+> +	 * have anything to reap and the task might then get stuck waiting
+> +	 * for parent as zombie and we do not want it to hold TIF_MEMDIE
+> +	 */
+> +	p = find_lock_task_mm(task);
+> +	if (!p)
+> +		return false;
+> +
+> +	if (!__task_will_free_mem(p)) {
+> +		task_unlock(p);
+> +		return false;
+> +	}
+
+We can call the 1st __task_will_free_mem(p) before find_lock_task_mm(). In the
+likely case (I think) it should return false.
+
+And since __task_will_free_mem() has no other callers perhaps it should go into
+oom_kill.c too.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
