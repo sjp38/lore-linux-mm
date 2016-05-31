@@ -1,174 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 765C66B0261
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 03:46:27 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id rs7so94793125lbb.2
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 00:46:27 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id y19si49034975wjw.14.2016.05.31.00.46.26
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 18DCF6B0261
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 03:51:53 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id ne4so94858432lbc.1
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 00:51:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g126si17327074wmd.89.2016.05.31.00.51.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 May 2016 00:46:26 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id a136so29927780wme.0
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 00:46:26 -0700 (PDT)
-Date: Tue, 31 May 2016 09:46:24 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 6/6] mm, oom: fortify task_will_free_mem
-Message-ID: <20160531074624.GE26128@dhcp22.suse.cz>
-References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
- <1464613556-16708-7-git-send-email-mhocko@kernel.org>
- <20160530173505.GA25287@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 May 2016 00:51:50 -0700 (PDT)
+Subject: Re: PATCH v6v2 02/12] mm: migrate: support non-lru movable page
+ migration
+References: <1463754225-31311-1-git-send-email-minchan@kernel.org>
+ <1463754225-31311-3-git-send-email-minchan@kernel.org>
+ <20160530013926.GB8683@bbox> <2bc277c4-4257-c6cb-2e37-ee5de985410b@suse.cz>
+ <20160530162523.GA18314@bbox>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <bbc87219-d86d-d7a5-2a78-9f09a1549d65@suse.cz>
+Date: Tue, 31 May 2016 09:51:47 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160530173505.GA25287@redhat.com>
+In-Reply-To: <20160530162523.GA18314@bbox>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rafael Aquini <aquini@redhat.com>, virtualization@lists.linux-foundation.org, Jonathan Corbet <corbet@lwn.net>, John Einar Reitan <john.reitan@foss.arm.com>, dri-devel@lists.freedesktop.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Gioh Kim <gi-oh.kim@profitbricks.com>
 
-On Mon 30-05-16 19:35:05, Oleg Nesterov wrote:
-> On 05/30, Michal Hocko wrote:
-> >
-> > task_will_free_mem is rather weak.
-> 
-> I was thinking about the similar change because I noticed that try_oom_reaper()
-> is very, very wrong.
-> 
-> To the point I think that we need another change for stable which simply removes
-> spin_lock_irq(sighand->siglock) from try_oom_reaper(). It buys nothing, we can
-> check signal_group_exit() (which is wrong too ;) lockless, and at the same time
-> the kernel can crash because we can hit ->siglock == NULL.
+On 05/30/2016 06:25 PM, Minchan Kim wrote:
+>>> --- a/mm/compaction.c
+>>> +++ b/mm/compaction.c
+>>> @@ -81,6 +81,39 @@ static inline bool migrate_async_suitable(int migratetype)
+>>>
+>>> #ifdef CONFIG_COMPACTION
+>>>
+>>> +int PageMovable(struct page *page)
+>>> +{
+>>> +	struct address_space *mapping;
+>>> +
+>>> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
+>>> +	if (!__PageMovable(page))
+>>> +		return 0;
+>>> +
+>>> +	mapping = page_mapping(page);
+>>> +	if (mapping && mapping->a_ops && mapping->a_ops->isolate_page)
+>>> +		return 1;
+>>> +
+>>> +	return 0;
+>>> +}
+>>> +EXPORT_SYMBOL(PageMovable);
+>>> +
+>>> +void __SetPageMovable(struct page *page, struct address_space *mapping)
+>>> +{
+>>> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
+>>> +	VM_BUG_ON_PAGE((unsigned long)mapping & PAGE_MAPPING_MOVABLE, page);
+>>> +	page->mapping = (void *)((unsigned long)mapping | PAGE_MAPPING_MOVABLE);
+>>> +}
+>>> +EXPORT_SYMBOL(__SetPageMovable);
+>>> +
+>>> +void __ClearPageMovable(struct page *page)
+>>> +{
+>>> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
+>>> +	VM_BUG_ON_PAGE(!PageMovable(page), page);
+>>> +	page->mapping = (void *)((unsigned long)page->mapping &
+>>> +				PAGE_MAPPING_MOVABLE);
+>>> +}
+>>> +EXPORT_SYMBOL(__ClearPageMovable);
+>>
+>> The second confusing thing is that the function is named
+>> __ClearPageMovable(), but what it really clears is the mapping
+>> pointer,
+>> which is not at all the opposite of what __SetPageMovable() does.
+>>
+>> I know it's explained in the documentation, but it also deserves a
+>> comment here so it doesn't confuse everyone who looks at it.
+>> Even better would be a less confusing name for the function, but I
+>> can't offer one right now.
+>
+> To me, __ClearPageMovable naming is suitable for user POV.
+> It effectively makes the page unmovable. The confusion is just caused
+> by the implementation and I don't prefer exported API depends on the
+> implementation. So I want to add just comment.
+>
+> I didn't add comment above the function because I don't want to export
+> internal implementation to the user. I think they don't need to know it.
+>
+> index a7df2ae71f2a..d1d2063b4fd9 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -108,6 +108,11 @@ void __ClearPageMovable(struct page *page)
+>  {
+>         VM_BUG_ON_PAGE(!PageLocked(page), page);
+>         VM_BUG_ON_PAGE(!PageMovable(page), page);
+> +       /*
+> +        * Clear registered address_space val with keeping PAGE_MAPPING_MOVABLE
+> +        * flag so that VM can catch up released page by driver after isolation.
+> +        * With it, VM migration doesn't try to put it back.
+> +        */
+>         page->mapping = (void *)((unsigned long)page->mapping &
+>                                 PAGE_MAPPING_MOVABLE);
 
-OK, I have sent a separate patch
-http://lkml.kernel.org/r/1464679423-30218-1-git-send-email-mhocko@kernel.org
-and rebase the series on top. This would be 4.7 material. Thanks for
-catching that!
+OK, that's fine!
 
-> So I do think this change is good in general.
-> 
-> I think that task_will_free_mem() should be un-inlined, and __task_will_free_mem()
-> should go into mm/oom-kill.c... but this is minor.
+>>
+>>> diff --git a/mm/util.c b/mm/util.c
+>>> index 917e0e3d0f8e..b756ee36f7f0 100644
+>>> --- a/mm/util.c
+>>> +++ b/mm/util.c
+>>> @@ -399,10 +399,12 @@ struct address_space *page_mapping(struct page *page)
+>>> 	}
+>>>
+>>> 	mapping = page->mapping;
+>>
+>> I'd probably use READ_ONCE() here to be safe. Not all callers are
+>> under page lock?
+>
+> I don't understand. Yeah, all caller are not under page lock but at least,
+> new user of movable pages should call it under page_lock.
+> Yeah, I will write the rule down in document.
+> In this case, what kinds of problem do you see?
 
-I was thinking about it as well but then thought that this would be
-harder to review. But OK, I will do that.
- 
-> > -static inline bool task_will_free_mem(struct task_struct *task)
-> > +static inline bool __task_will_free_mem(struct task_struct *task)
-> >  {
-> >  	struct signal_struct *sig = task->signal;
-> >  
-> > @@ -119,16 +119,69 @@ static inline bool task_will_free_mem(struct task_struct *task)
-> >  	if (sig->flags & SIGNAL_GROUP_COREDUMP)
-> >  		return false;
-> >  
-> > -	if (!(task->flags & PF_EXITING))
-> > +	if (!(task->flags & PF_EXITING || fatal_signal_pending(task)))
-> >  		return false;
-> >  
-> >  	/* Make sure that the whole thread group is going down */
-> > -	if (!thread_group_empty(task) && !(sig->flags & SIGNAL_GROUP_EXIT))
-> > +	if (!thread_group_empty(task) &&
-> > +		!(sig->flags & SIGNAL_GROUP_EXIT || fatal_signal_pending(task)))
-> >  		return false;
-> >  
-> >  	return true;
-> >  }
-> 
-> Well, let me suggest this again. I think it should do
-> 
-> 
-> 	if (SIGNAL_GROUP_COREDUMP)
-> 		return false;
-> 
-> 	if (SIGNAL_GROUP_EXIT)
-> 		return true;
-> 
-> 	if (thread_group_empty() && PF_EXITING)
-> 		return true;
-> 
-> 	return false;
-> 
-> we do not need fatal_signal_pending(), in this case SIGNAL_GROUP_EXIT should
-> be set (ignoring some bugs with sub-namespaces which we need to fix anyway).
+After more thinking, probably none. It wouldn't prevent any extra races. 
+Sorry for the noise.
 
-OK, so we shouldn't care about race when the fatal_signal is set on the
-task until it reaches do_group_exit?
-
-> At the same time, we do not want to return false if PF_EXITING is not set
-> if SIGNAL_GROUP_EXIT is set.
-
-makes sense.
-
-> > +static inline bool task_will_free_mem(struct task_struct *task)
-> > +{
-> > +	struct mm_struct *mm = NULL;
-> > +	struct task_struct *p;
-> > +	bool ret;
-> > +
-> > +	/*
-> > +	 * If the process has passed exit_mm we have to skip it because
-> > +	 * we have lost a link to other tasks sharing this mm, we do not
-> > +	 * have anything to reap and the task might then get stuck waiting
-> > +	 * for parent as zombie and we do not want it to hold TIF_MEMDIE
-> > +	 */
-> > +	p = find_lock_task_mm(task);
-> > +	if (!p)
-> > +		return false;
-> > +
-> > +	if (!__task_will_free_mem(p)) {
-> > +		task_unlock(p);
-> > +		return false;
-> > +	}
-> > +
-> > +	mm = p->mm;
-> > +	if (atomic_read(&mm->mm_users) <= 1) {
-> 
-> this is sub-optimal, we should probably take signal->live or ->nr_threads
-> into account... but OK, we can do this later.
-
-Yes I would prefer to add a more complex checks later. We want
-mm_has_external_refs for other purposes as well.
- 
-> > +	rcu_read_lock();
-> > +	for_each_process(p) {
-> > +		ret = __task_will_free_mem(p);
-> > +		if (!ret)
-> > +			break;
-> > +	}
-> > +	rcu_read_unlock();
-> 
-> Yes, I agree very much.
-> 
-> But it seems you forgot to add the process_shares_mm() check into this loop?
-
-Yes. Dunno where it got lost but it surely wasn't in the previous
-version either. I definitely screwed somewhere...
-
-> and perhaps it also makes sense to add
-> 
-> 	if (same_thread_group(tsk, p))
-> 		continue;
-> 
-> This should not really matter, we know that __task_will_free_mem(p) should return
-> true. Just to make it more clear.
-
-ok
-
-> And. I think this needs smp_rmb() at the end of the loop (assuming we have the
-> process_shares_mm() check here). We need it to ensure that we read p->mm before
-> we read next_task(), to avoid the race with exit() + clone(CLONE_VM).
-
-Why don't we need the same barrier in oom_kill_process? Which barrier it
-would pair with? Anyway I think this would deserve it's own patch.
-Barriers are always tricky and it is better to have them in a small
-patch with a full explanation.
-
-Thanks for your review. It was really helpful!
-
-The whole pile is currently in my k.org git tree in
-attempts/process-share-mm-oom-sanitization branch if somebody wants to
-see the full series.
-
-My current diff on top of the patch
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
