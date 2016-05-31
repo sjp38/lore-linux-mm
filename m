@@ -1,47 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 59D58828E1
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:15:08 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id g64so308140821pfb.2
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:15:08 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p184si7669051pfb.252.2016.05.31.06.15.07
-        for <linux-mm@kvack.org>;
-        Tue, 31 May 2016 06:15:07 -0700 (PDT)
-Date: Tue, 31 May 2016 14:15:20 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [BUG] Page allocation failures with newest kernels
-Message-ID: <20160531131520.GI24936@arm.com>
-References: <CAPv3WKcVsWBgHHC3UPNcbka2JUmN4CTw1Ym4BR1=1V9=B9av5Q@mail.gmail.com>
- <574D64A0.2070207@arm.com>
- <CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
- <60e8df74202e40b28a4d53dbc7fd0b22@IL-EXCH02.marvell.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <60e8df74202e40b28a4d53dbc7fd0b22@IL-EXCH02.marvell.com>
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FA2C828E1
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:15:24 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id 132so72581424lfz.3
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:15:24 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ca3si41155944wjd.21.2016.05.31.06.08.37
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 May 2016 06:08:37 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH v2 14/18] mm, compaction: create compact_gap wrapper
+Date: Tue, 31 May 2016 15:08:14 +0200
+Message-Id: <20160531130818.28724-15-vbabka@suse.cz>
+In-Reply-To: <20160531130818.28724-1-vbabka@suse.cz>
+References: <20160531130818.28724-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yehuda Yitschak <yehuday@marvell.com>
-Cc: Marcin Wojtas <mw@semihalf.com>, Robin Murphy <robin.murphy@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Lior Amsalem <alior@marvell.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>, Grzegorz Jaszczyk <jaz@semihalf.com>, Nadav Haklai <nadavh@marvell.com>, Tomasz Nowicki <tn@semihalf.com>, Gregory =?iso-8859-1?Q?Cl=E9ment?= <gregory.clement@free-electrons.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, May 31, 2016 at 01:10:44PM +0000, Yehuda Yitschak wrote:
-> During some of the stress tests we also came across a different warning
-> from the arm64  page management code
-> It looks like a race is detected between HW and SW marking a bit in the PTE
+Compaction uses a watermark gap of (2UL << order) pages at various places and
+it's not immediately obvious why. Abstract it through a compact_gap() wrapper
+to create a single place with a thorough explanation.
 
-A72 (which I believe is the CPU in that SoC) is a v8.0 CPU and therefore
-doesn't have hardware DBM.
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ include/linux/compaction.h | 16 ++++++++++++++++
+ mm/compaction.c            |  7 +++----
+ mm/vmscan.c                |  4 ++--
+ 3 files changed, 21 insertions(+), 6 deletions(-)
 
-> Not sure it's really related but I thought it might give a clue on the issue
-> http://pastebin.com/ASv19vZP
-
-There have been a few patches from Catalin to fix up the hardware DBM
-patches, so it might be worth trying to reproduce this failure with a
-more recent kernel. I doubt this is related to the allocation failures,
-however.
-
-Will
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index 4bef69a83f8f..654cb74418c4 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -58,6 +58,22 @@ enum compact_result {
+ 
+ struct alloc_context; /* in mm/internal.h */
+ 
++/*
++ * Number of free order-0 pages that should be available above given watermark
++ * to make sure compaction has reasonable chance of not running out of free
++ * pages that it needs to isolate as migration target during its work.
++ */
++static inline unsigned long compact_gap(unsigned int order)
++{
++	/*
++	 * Although all the isolations for migration are temporary, compaction
++	 * may have up to 1 << order pages on its list and then try to split
++	 * an (order - 1) free page. At that point, a gap of 1 << order might
++	 * not be enough, so it's safer to require twice that amount.
++	 */
++	return 2UL << order;
++}
++
+ #ifdef CONFIG_COMPACTION
+ extern int sysctl_compact_memory;
+ extern int sysctl_compaction_handler(struct ctl_table *table, int write,
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 4b21a26694a2..bcab680ccb8a 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1337,11 +1337,10 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 		return COMPACT_PARTIAL;
+ 
+ 	/*
+-	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
+-	 * This is because during migration, copies of pages need to be
+-	 * allocated and for a short time, the footprint is higher
++	 * Watermarks for order-0 must be met for compaction to be able to
++	 * isolate free pages for migration targets.
+ 	 */
+-	watermark = low_wmark_pages(zone) + (2UL << order);
++	watermark = low_wmark_pages(zone) + compact_gap(order);
+ 	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
+ 				 alloc_flags, wmark_target))
+ 		return COMPACT_SKIPPED;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index c4a2f4512fca..00034ec9229b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2345,7 +2345,7 @@ static inline bool should_continue_reclaim(struct zone *zone,
+ 	 * If we have not reclaimed enough pages for compaction and the
+ 	 * inactive lists are large enough, continue reclaiming
+ 	 */
+-	pages_for_compaction = (2UL << sc->order);
++	pages_for_compaction = compact_gap(sc->order);
+ 	inactive_lru_pages = zone_page_state(zone, NR_INACTIVE_FILE);
+ 	if (get_nr_swap_pages() > 0)
+ 		inactive_lru_pages += zone_page_state(zone, NR_INACTIVE_ANON);
+@@ -2472,7 +2472,7 @@ static inline bool compaction_ready(struct zone *zone, int order, int classzone_
+ 	 */
+ 	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
+ 			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
+-	watermark = high_wmark_pages(zone) + balance_gap + (2UL << order);
++	watermark = high_wmark_pages(zone) + balance_gap + compact_gap(order);
+ 	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, classzone_idx);
+ 
+ 	/*
+-- 
+2.8.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
