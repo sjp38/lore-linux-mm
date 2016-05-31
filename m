@@ -1,32 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EFB96B0253
-	for <linux-mm@kvack.org>; Mon, 30 May 2016 20:00:45 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c84so242918826pfc.3
-        for <linux-mm@kvack.org>; Mon, 30 May 2016 17:00:45 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 92D806B0005
+	for <linux-mm@kvack.org>; Mon, 30 May 2016 21:06:49 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id s73so208239892pfs.0
+        for <linux-mm@kvack.org>; Mon, 30 May 2016 18:06:49 -0700 (PDT)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id d63si37802362pfc.180.2016.05.30.17.00.42
+        by mx.google.com with ESMTP id g13si39968165pfg.160.2016.05.30.18.06.47
         for <linux-mm@kvack.org>;
-        Mon, 30 May 2016 17:00:43 -0700 (PDT)
-Date: Tue, 31 May 2016 09:01:17 +0900
+        Mon, 30 May 2016 18:06:48 -0700 (PDT)
+Date: Tue, 31 May 2016 10:07:24 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v6v3 02/12] mm: migrate: support non-lru movable page
- migration
-Message-ID: <20160531000117.GB18314@bbox>
-References: <1463754225-31311-1-git-send-email-minchan@kernel.org>
- <1463754225-31311-3-git-send-email-minchan@kernel.org>
- <20160530013926.GB8683@bbox>
+Subject: Re: shrink_active_list/try_to_release_page bug? (was Re: xfs trace
+ in 4.4.2 / also in 4.3.3 WARNING fs/xfs/xfs_aops.c:1232 xfs_vm_releasepage)
+Message-ID: <20160531010724.GA9616@bbox>
+References: <57333BA4.4040402@profihost.ag>
+ <20160511155951.GF42410@bfoster.bfoster>
+ <5738576B.4010208@profihost.ag>
+ <20160515115017.GA6433@laptop.bfoster>
+ <57386E84.3090606@profihost.ag>
+ <20160516010602.GA24980@bfoster.bfoster>
+ <57420A47.2000700@profihost.ag>
+ <20160522213850.GE26977@dastard>
+ <574BEA84.3010206@profihost.ag>
+ <20160530223657.GP26977@dastard>
 MIME-Version: 1.0
-In-Reply-To: <20160530013926.GB8683@bbox>
+In-Reply-To: <20160530223657.GP26977@dastard>
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rafael Aquini <aquini@redhat.com>, virtualization@lists.linux-foundation.org, Jonathan Corbet <corbet@lwn.net>, John Einar Reitan <john.reitan@foss.arm.com>, dri-devel@lists.freedesktop.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Gioh Kim <gi-oh.kim@profitbricks.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, Brian Foster <bfoster@redhat.com>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Per Vlastimi's review comment.
+On Tue, May 31, 2016 at 08:36:57AM +1000, Dave Chinner wrote:
+> [adding lkml and linux-mm to the cc list]
+> 
+> On Mon, May 30, 2016 at 09:23:48AM +0200, Stefan Priebe - Profihost AG wrote:
+> > Hi Dave,
+> >   Hi Brian,
+> > 
+> > below are the results with a vanilla 4.4.11 kernel.
+> 
+> Thanks for persisting with the testing, Stefan.
+> 
+> ....
+> 
+> > i've now used a vanilla 4.4.11 Kernel and the issue remains. After a
+> > fresh reboot it has happened again on the root FS for a debian apt file:
+> > 
+> > XFS (md127p3): ino 0x41221d1 delalloc 1 unwritten 0 pgoff 0x0 size 0x12b990
+> > ------------[ cut here ]------------
+> > WARNING: CPU: 1 PID: 111 at fs/xfs/xfs_aops.c:1239
+> > xfs_vm_releasepage+0x10f/0x140()
+> > Modules linked in: netconsole ipt_REJECT nf_reject_ipv4 xt_multiport
+> > iptable_filter ip_tables x_tables bonding coretemp 8021q garp fuse
+> > sb_edac edac_core i2c_i801 i40e(O) xhci_pci xhci_hcd shpchp vxlan
+> > ip6_udp_tunnel udp_tunnel ipmi_si ipmi_msghandler button btrfs xor
+> > raid6_pq dm_mod raid1 md_mod usbhid usb_storage ohci_hcd sg sd_mod
+> > ehci_pci ehci_hcd usbcore usb_common igb ahci i2c_algo_bit libahci
+> > i2c_core mpt3sas ptp pps_core raid_class scsi_transport_sas
+> > CPU: 1 PID: 111 Comm: kswapd0 Tainted: G           O    4.4.11 #1
+> > Hardware name: Supermicro Super Server/X10SRH-CF, BIOS 1.0b 05/18/2015
+> >  0000000000000000 ffff880c4dacfa88 ffffffffa23c5b8f 0000000000000000
+> >  ffffffffa2a51ab4 ffff880c4dacfac8 ffffffffa20837a7 ffff880c4dacfae8
+> >  0000000000000001 ffffea00010c3640 ffff8802176b49d0 ffffea00010c3660
+> > Call Trace:
+> >  [<ffffffffa23c5b8f>] dump_stack+0x63/0x84
+> >  [<ffffffffa20837a7>] warn_slowpath_common+0x97/0xe0
+> >  [<ffffffffa208380a>] warn_slowpath_null+0x1a/0x20
+> >  [<ffffffffa2326caf>] xfs_vm_releasepage+0x10f/0x140
+> >  [<ffffffffa218c680>] ? page_mkclean_one+0xd0/0xd0
+> >  [<ffffffffa218d3a0>] ? anon_vma_prepare+0x150/0x150
+> >  [<ffffffffa21521c2>] try_to_release_page+0x32/0x50
+> >  [<ffffffffa2166b2e>] shrink_active_list+0x3ce/0x3e0
+> >  [<ffffffffa21671c7>] shrink_lruvec+0x687/0x7d0
+> >  [<ffffffffa21673ec>] shrink_zone+0xdc/0x2c0
+> >  [<ffffffffa2168539>] kswapd+0x4f9/0x970
+> >  [<ffffffffa2168040>] ? mem_cgroup_shrink_node_zone+0x1a0/0x1a0
+> >  [<ffffffffa20a0d99>] kthread+0xc9/0xe0
+> >  [<ffffffffa20a0cd0>] ? kthread_stop+0x100/0x100
+> >  [<ffffffffa26b404f>] ret_from_fork+0x3f/0x70
+> >  [<ffffffffa20a0cd0>] ? kthread_stop+0x100/0x100
+> > ---[ end trace c9d679f8ed4d7610 ]---
+> > XFS (md127p3): ino 0x41221d1 delalloc 1 unwritten 0 pgoff 0x1000 size
+> > 0x12b990
+> > XFS (md127p3): ino 0x41221d1 delalloc 1 unwritten 0 pgoff 0x2000 size
+> .....
+> 
+> Ok, I suspect this may be a VM bug. I've been looking at the 4.6
+> code (so please try to reproduce on that kernel!) but it looks to me
+> like the only way we can get from shrink_active_list() direct to
+> try_to_release_page() is if we are over the maximum bufferhead
+> threshold (i.e buffer_heads_over_limit = true) and we are trying to
+> reclaim pages direct from the active list.
+> 
+> Because we are called from kswapd()->balance_pgdat(), we have:
+> 
+>         struct scan_control sc = {
+>                 .gfp_mask = GFP_KERNEL,
+>                 .order = order,
+>                 .priority = DEF_PRIORITY,
+>                 .may_writepage = !laptop_mode,
+>                 .may_unmap = 1,
+>                 .may_swap = 1,
+>         };
+> 
+> The key point here is reclaim is being run with .may_writepage =
+> true for default configuration kernels. when we get to
+> shrink_active_list():
+> 
+> 	if (!sc->may_writepage)
+> 		isolate_mode |= ISOLATE_CLEAN;
+> 
+> But sc->may_writepage = true and this allows isolate_lru_pages() to
+> isolate dirty pages from the active list. Normally this isn't a
+> problem, because the isolated active list pages are rotated to the
+> inactive list, and nothing else happens to them. *Except when
+> buffer_heads_over_limit = true*. This special condition would
+> explain why I have never seen apt/dpkg cause this problem on any of
+> my (many) Debian systems that all use XFS....
+> 
+> In that case, shrink_active_list() runs:
+> 
+> 	if (unlikely(buffer_heads_over_limit)) {
+> 		if (page_has_private(page) && trylock_page(page)) {
+> 			if (page_has_private(page))
+> 				try_to_release_page(page, 0);
+> 			unlock_page(page);
+> 		}
+> 	}
+> 
+> i.e. it locks the page, and if it has buffer heads it trys to get
+> the bufferheads freed from the page.
+> 
+> But this is a dirty page, which means it may have delalloc or
+> unwritten state on it's buffers, both of which indicate that there
+> is dirty data in teh page that hasn't been written. XFS issues a
+> warning on this because neither shrink_active_list nor
+> try_to_release_page() check for whether the page is dirty or not.
+> 
+> Hence it seems to me that shrink_active_list() is calling
+> try_to_release_page() inappropriately, and XFS is just the
+> messenger. If you turn laptop mode on, it is likely the problem will
+> go away as kswapd will run with .may_writepage = false, but that
+> will also cause other behavioural changes relating to writeback and
+> memory reclaim. It might be worth trying as a workaround for now.
+> 
+> MM-folk - is this analysis correct? If so, why is
+> shrink_active_list() calling try_to_release_page() on dirty pages?
+> Is this just an oversight or is there some problem that this is
+> trying to work around? It seems trivial to fix to me (add a
+> !PageDirty check), but I don't know why the check is there in the
+> first place...
 
-Thanks for the detail review, Vlastimi!
-If you have another concern, feel free to say.
-After I resolve all thing, I will send v7 rebased on recent mmotm.
+It seems to be latter.
+Below commit seems to be related.
+[ecdfc9787fe527, Resurrect 'try_to_free_buffers()' VM hackery.]
+
+At that time, even shrink_page_list works like this.
+
+shrink_page_list
+        while (!list_empty(page_list)) {
+                ..
+                ..
+                if (PageDirty(page)) {
+                        ..
+                }
+
+                /*
+                 * If the page has buffers, try to free the buffer mappings
+                 * associated with this page. If we succeed we try to free
+                 * the page as well.
+                 *
+                 * We do this even if the page is PageDirty().
+                 * try_to_release_page() does not perform I/O, but it is
+                 * possible for a page to have PageDirty set, but it is actually
+                 * clean (all its buffers are clean).  This happens if the
+                 * buffers were written out directly, with submit_bh(). ext3
+                 * will do this, as well as the blockdev mapping. 
+                 * try_to_release_page() will discover that cleanness and will
+                 * drop the buffers and mark the page clean - it can be freed.
+                 * ..
+                 */
+                if (PagePrivate(page)) {
+                        if (!try_to_release_page(page, sc->gfp_mask))
+                                goto activate_locked;
+                        if (!mapping && page_count(page) == 1)
+                                goto free_it;
+                }
+                ..
+        }
+
+I wonder whether it's valid or not with on ext4.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
