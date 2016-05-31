@@ -1,60 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B9A56828E1
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:10:56 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id x1so317277241pav.3
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:10:56 -0700 (PDT)
-Received: from mx0b-0016f401.pphosted.com (mx0b-0016f401.pphosted.com. [67.231.156.173])
-        by mx.google.com with ESMTPS id q27si43766004pfj.25.2016.05.31.06.10.55
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C9D1828E1
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:12:02 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id h68so64476014lfh.2
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:12:02 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k190si35955347wme.85.2016.05.31.06.12.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 May 2016 06:10:55 -0700 (PDT)
-From: Yehuda Yitschak <yehuday@marvell.com>
-Subject: RE: [BUG] Page allocation failures with newest kernels
-Date: Tue, 31 May 2016 13:10:44 +0000
-Message-ID: <60e8df74202e40b28a4d53dbc7fd0b22@IL-EXCH02.marvell.com>
-References: <CAPv3WKcVsWBgHHC3UPNcbka2JUmN4CTw1Ym4BR1=1V9=B9av5Q@mail.gmail.com>
-	<574D64A0.2070207@arm.com>
- <CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
-In-Reply-To: <CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 May 2016 06:12:01 -0700 (PDT)
+Date: Tue, 31 May 2016 15:11:59 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] mm,oom: Allow SysRq-f to always select !TIF_MEMDIE
+ thread group.
+Message-ID: <20160531131159.GL26128@dhcp22.suse.cz>
+References: <1464432784-6058-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <1464452714-5126-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1464452714-5126-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcin Wojtas <mw@semihalf.com>, Robin Murphy <robin.murphy@arm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Lior Amsalem <alior@marvell.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>, Grzegorz Jaszczyk <jaz@semihalf.com>, Will Deacon <will.deacon@arm.com>, Nadav Haklai <nadavh@marvell.com>, Tomasz Nowicki <tn@semihalf.com>, =?utf-8?B?R3JlZ29yeSBDbMOpbWVudA==?= <gregory.clement@free-electrons.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-SGkgUm9iaW4gDQoNCkR1cmluZyBzb21lIG9mIHRoZSBzdHJlc3MgdGVzdHMgd2UgYWxzbyBjYW1l
-IGFjcm9zcyBhIGRpZmZlcmVudCB3YXJuaW5nIGZyb20gdGhlIGFybTY0ICBwYWdlIG1hbmFnZW1l
-bnQgY29kZQ0KSXQgbG9va3MgbGlrZSBhIHJhY2UgaXMgZGV0ZWN0ZWQgYmV0d2VlbiBIVyBhbmQg
-U1cgbWFya2luZyBhIGJpdCBpbiB0aGUgUFRFDQoNCk5vdCBzdXJlIGl0J3MgcmVhbGx5IHJlbGF0
-ZWQgYnV0IEkgdGhvdWdodCBpdCBtaWdodCBnaXZlIGEgY2x1ZSBvbiB0aGUgaXNzdWUNCmh0dHA6
-Ly9wYXN0ZWJpbi5jb20vQVN2MTl2WlANCg0KVGhhbmtzDQoNClllaHVkYSANCg0KDQo+IC0tLS0t
-T3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+IEZyb206IE1hcmNpbiBXb2p0YXMgW21haWx0bzptd0Bz
-ZW1paGFsZi5jb21dDQo+IFNlbnQ6IFR1ZXNkYXksIE1heSAzMSwgMjAxNiAxMzozMA0KPiBUbzog
-Um9iaW4gTXVycGh5DQo+IENjOiBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2Vy
-Lmtlcm5lbC5vcmc7IGxpbnV4LWFybS0NCj4ga2VybmVsQGxpc3RzLmluZnJhZGVhZC5vcmc7IExp
-b3IgQW1zYWxlbTsgVGhvbWFzIFBldGF6em9uaTsgWWVodWRhDQo+IFlpdHNjaGFrOyBDYXRhbGlu
-IE1hcmluYXM7IEFybmQgQmVyZ21hbm47IEdyemVnb3J6IEphc3pjenlrOyBXaWxsIERlYWNvbjsN
-Cj4gTmFkYXYgSGFrbGFpOyBUb21hc3ogTm93aWNraTsgR3JlZ29yeSBDbMOpbWVudA0KPiBTdWJq
-ZWN0OiBSZTogW0JVR10gUGFnZSBhbGxvY2F0aW9uIGZhaWx1cmVzIHdpdGggbmV3ZXN0IGtlcm5l
-bHMNCj4gDQo+IEhpIFJvYmluLA0KPiANCj4gPg0KPiA+IEkgcmVtZW1iZXIgdGhlcmUgd2VyZSBz
-b21lIGlzc3VlcyBhcm91bmQgNC4yIHdpdGggdGhlIHJldmlzaW9uIG9mIHRoZQ0KPiA+IGFybTY0
-IGF0b21pYyBpbXBsZW1lbnRhdGlvbnMgYWZmZWN0aW5nIHRoZSBjbXB4Y2hnX2RvdWJsZSgpIGlu
-IFNMVUIsDQo+ID4gYnV0IHRob3NlIHNob3VsZCBhbGwgYmUgZml4ZWQgKGFuZCB0aGUgc3ltcHRv
-bXMgdGVuZGVkIHRvIGJlDQo+IGNvbnNpZGVyYWJseSBtb3JlIGZhdGFsKS4NCj4gPiBBIHN0cm9u
-Z2VyIGNhbmRpZGF0ZSB3b3VsZCBiZSA5NzMwMzQ4MDc1M2UgKHdoaWNoIGxhbmRlZCBpbiA0LjQp
-LA0KPiA+IHdoaWNoIGhhcyB2YXJpb3VzIGtub2NrLW9uIGVmZmVjdHMgb24gdGhlIGxheW91dCBv
-ZiBTTFVCIGludGVybmFscyAtDQo+ID4gZG9lcyBmaWRkbGluZyB3aXRoIEwxX0NBQ0hFX1NISUZU
-IG1ha2UgYW55IGRpZmZlcmVuY2U/DQo+ID4NCj4gDQo+IEknbGwgY2hlY2sgdGhlIGNvbW1pdHMs
-IHRoYW5rcy4gSSBmb3Jnb3QgdG8gYWRkIEwxX0NBQ0hFX1NISUZUIHdhcyBteSBmaXJzdA0KPiBz
-dXNwZWN0IC0gSSBoYWQgc3BlbnQgYSBsb25nIHRpbWUgZGVidWdnaW5nIG5ldHdvcmsgY29udHJv
-bGxlciwgd2hpY2gNCj4gc3RvcHBlZCB3b3JraW5nIGJlY2F1c2Ugb2YgdGhpcyBjaGFuZ2UgLSBM
-MV9DQUNIRV9CWVRFUyAoYW5kIGhlbmNlDQo+IE5FVF9TS0JfUEFEKSBub3QgZml0dGluZyBIVyBj
-b25zdHJhaW50cy4gQW55d2F5IHJldmVydGluZyBpdCBkaWRuJ3QgaGVscCBhdA0KPiBhbGwgZm9y
-IHBhZ2UgYWxsb2MgaXNzdWUuDQo+IA0KPiBCZXN0IHJlZ2FyZHMsDQo+IE1hcmNpbg0K
+On Sun 29-05-16 01:25:14, Tetsuo Handa wrote:
+> There has been three problems about SysRq-f (manual invocation of the OOM
+> killer) case. To make description simple, this patch assumes situation
+> where the OOM reaper is not called (because the OOM victim's mm is shared
+> by unkillable threads) or not available (due to kthread_run() failure or
+> CONFIG_MMU=n).
+> 
+> First is that moom_callback() is not called by moom_work under OOM
+> livelock situation because it does not have a dedicated WQ like vmstat_wq.
+> This problem is not fixed yet.
+
+Why do you mention it in the changelog when it is not related to the
+patch then?
+
+Btw. you can (ab)use oom_reaper for that purpose. The patch would be
+quite trivial.
+
+> Second is that select_bad_process() chooses a thread group which already
+> has a TIF_MEMDIE thread. Since commit f44666b04605d1c7 ("mm,oom: speed up
+> select_bad_process() loop") changed oom_scan_process_group() to use
+> task->signal->oom_victims, non SysRq-f case will no longer select a
+> thread group which already has a TIF_MEMDIE thread.
+
+I am not sure the reference to the commit is really helpful. The
+behavior you are describing below was there before this commit, the only
+thing that has changed is the scope of the TIF_MEMDIE check.
+
+> But SysRq-f case will
+> select such thread group due to returning OOM_SCAN_OK. This patch makes
+> sure that oom_badness() is skipped by making oom_scan_process_group() to
+> return OOM_SCAN_CONTINUE for SysRq-f case.
+
+I am OK with this part. I was suggesting something similar except I
+wanted to skip over tasks which have fatal_signal_pending and that part
+got nacked by David AFAIR. Could you make this a separate patch, please?
+
+> Third is that oom_kill_process() chooses a thread group which already
+> has a TIF_MEMDIE thread when the candidate select_bad_process() chose
+> has children because oom_badness() does not take TIF_MEMDIE into account.
+> This patch checks child->signal->oom_victims before calling oom_badness()
+> if oom_kill_process() was called by SysRq-f case. This resembles making
+> sure that oom_badness() is skipped by returning OOM_SCAN_CONTINUE.
+
+This makes sense to me as well but why should be limit this to sysrq case?
+Does it make any sense to select a child which already got killed for
+normal OOM killer? Anyway I think it would be better to split this into
+its own patch as well.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
