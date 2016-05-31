@@ -1,77 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 10AAB6B025F
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:16:41 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f75so43793234wmf.2
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:16:41 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b7si50583486wjj.94.2016.05.31.06.08.37
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D6866B0005
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:40:42 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id p194so71857158iod.2
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:40:42 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id u28si17439184otu.215.2016.05.31.06.40.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 May 2016 06:08:37 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 13/18] mm, compaction: use correct watermark when checking allocation success
-Date: Tue, 31 May 2016 15:08:13 +0200
-Message-Id: <20160531130818.28724-14-vbabka@suse.cz>
-In-Reply-To: <20160531130818.28724-1-vbabka@suse.cz>
-References: <20160531130818.28724-1-vbabka@suse.cz>
+        Tue, 31 May 2016 06:40:41 -0700 (PDT)
+From: zhouxianrong <zhouxianrong@huawei.com>
+Subject: =?gb2312?B?tPC4tDogW1BBVENIXSByZXVzaW5nIG9mIG1hcHBpbmcgcGFnZSBzdXBwbGll?=
+ =?gb2312?B?cyBhIHdheSBmb3IgZmlsZSBwYWdlIGFsbG9jYXRpb24gdW5kZXIgbG93IG1l?=
+ =?gb2312?B?bW9yeSBkdWUgdG8gcGFnZWNhY2hlIG92ZXIgc2l6ZSBhbmQgaXMgY29udHJv?=
+ =?gb2312?B?bGxlZCBieSBzeXNjdGwgcGFyYW1ldGVycy4gaXQgaXMgdXNlZCBvbmx5IGZv?=
+ =?gb2312?B?ciBydyBwYWdlIGFsbG9jYXRpb24gcmF0aGVyIHRoYW4gZmF1bHQgb3IgcmVh?=
+ =?gb2312?Q?dahead_allocation._it_is_like...?=
+Date: Tue, 31 May 2016 13:35:37 +0000
+Message-ID: <AE94847B1D9E864B8593BD8051012AF36D70EA02@SZXEML505-MBS.china.huawei.com>
+References: <1464685702-100211-1-git-send-email-zhouxianrong@huawei.com>
+ <20160531093631.GH26128@dhcp22.suse.cz>
+In-Reply-To: <20160531093631.GH26128@dhcp22.suse.cz>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Zhouxiyu <zhouxiyu@huawei.com>, "wanghaijun (E)" <wanghaijun5@huawei.com>, "Yuchao (T)" <yuchao0@huawei.com>
 
-The __compact_finished() function uses low watermark in a check that has to
-pass if the direct compaction is to finish and allocation should succeed. This
-is too pessimistic, as the allocation will typically use min watermark. It may
-happen that during compaction, we drop below the low watermark (due to parallel
-activity), but still form the target high-order page. By checking against low
-watermark, we might needlessly continue compaction.
-
-Similarly, __compaction_suitable() uses low watermark in a check whether
-allocation can succeed without compaction. Again, this is unnecessarily
-pessimistic.
-
-After this patch, these check will use direct compactor's alloc_flags to
-determine the watermark, which is effectively the min watermark.
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/compaction.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index a399e7ca4630..4b21a26694a2 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1262,7 +1262,7 @@ static enum compact_result __compact_finished(struct zone *zone, struct compact_
- 		return COMPACT_CONTINUE;
- 
- 	/* Compaction run is not finished if the watermark is not met */
--	watermark = low_wmark_pages(zone);
-+	watermark = zone->watermark[cc->alloc_flags & ALLOC_WMARK_MASK];
- 
- 	if (!zone_watermark_ok(zone, cc->order, watermark, cc->classzone_idx,
- 							cc->alloc_flags))
-@@ -1327,7 +1327,7 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
- 	if (is_via_compact_memory(order))
- 		return COMPACT_CONTINUE;
- 
--	watermark = low_wmark_pages(zone);
-+	watermark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
- 	/*
- 	 * If watermarks for high-order allocation are already met, there
- 	 * should be no need for compaction at all.
-@@ -1341,7 +1341,7 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
- 	 * This is because during migration, copies of pages need to be
- 	 * allocated and for a short time, the footprint is higher
- 	 */
--	watermark += (2UL << order);
-+	watermark = low_wmark_pages(zone) + (2UL << order);
- 	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
- 				 alloc_flags, wmark_target))
- 		return COMPACT_SKIPPED;
--- 
-2.8.3
+SGV5IDoNCgl0aGUgY29uc2lkZXJhdGlvbiBvZiB0aGlzIHBhdGNoIGlzIHRoYXQgcmV1c2luZyBt
+YXBwaW5nIHBhZ2UgcmF0aGVyIHRoYW4gYWxsb2NhdGluZyBhIG5ldyBwYWdlIGZvciBwYWdlIGNh
+Y2hlIHdoZW4gc3lzdGVtIGJlIHBsYWNlZCBpbiBzb21lIHN0YXRlcy4NCkZvciBsb29rdXAgcGFn
+ZXMgcXVpY2tseSBhZGQgYSBuZXcgdGFnIFBBR0VDQUNIRV9UQUdfUkVVU0UgZm9yIHJhZGl4IHRy
+ZWUgd2hpY2ggdGFnIHRoZSBwYWdlcyB0aGF0IGlzIHN1aXRhYmxlIGZvciByZXVzaW5nLg0KDQpB
+IHBhZ2Ugc3VpdGFibGUgZm9yIHJldXNpbmcgd2l0aGluIG1hcHBpbmcgaXMNCjEuIGNsZWFuDQoy
+LiBtYXAgY291bnQgaXMgemVybw0KMy4gd2hvc2UgbWFwcGluZyBpcyBldmljdGFibGUNCg0KQSBw
+YWdlIHRhZ2dlZCBhcyBQQUdFQ0FDSEVfVEFHX1JFVVNFIHdoZW4NCjEuIGFmdGVyIHdyaXRlYmFj
+ayBhIHBhZ2Ugd2l0aGluIGVuZF9wYWdlX3dyaXRlYmFjayBzZXR0aW5nIHRoZSBwYWdlIGFzIFBB
+R0VDQUNIRV9UQUdfUkVVU0UNCjIuIGluIGdlbmVyaWMgdmZzIHJlYWQgcGF0aCBkZWZhdWx0IHRv
+IHNldHRpbmcgcGFnZSBhcyBQQUdFQ0FDSEVfVEFHX1JFVVNFDQoNCkEgcGFnZSBjbGVhcmVkIFBB
+R0VDQUNIRV9UQUdfUkVVU0Ugd2hlbg0KMS4gcGFnZSBiZWNvbWUgZGlyeSB3aXRoaW4gX19zZXRf
+cGFnZV9kaXJ0eSBhbmQgX19zZXRfcGFnZV9kaXJ0eV9ub2J1ZmZlcnMgKGRpcnR5IHBhZ2UgaXMg
+bm90IHN1aXRhYmxlIGZvciByZXVzaW5nKQ0KDQpUaGUgc3RlcHMgb2YgcmVzdWluZyBhIHBhZ2Ug
+aXMNCjEuIGludmFsaWQgYSBwYWdlIGJ5IGludmFsaWRhdGVfaW5vZGVfcGFnZSAocmVtb3ZlIGZv
+cm0gbWFwcGluZykNCjIuIGlzb2xhdGUgZnJvbSBscnUgbGlzdCBieSBpc29sYXRlX2xydV9wYWdl
+DQozLiBjbGVhciBwYWdlIHVwdG9kYXRlIGFuZCBvdGhlciBwYWdlIGZsYWdzDQoNCkhvdyB0byBz
+dGFydHVwIHRoZSBmdW5jdGlvbmFsDQoxLiB0aGUgc3lzdGVtIGlzIHVuZGVyIGxvdyBtZW1vcnkg
+c3RhdGUgYW5kIHRoZXJlIGFyZSBmcyBydyBvcGVyYXRpb25zDQoyLiBwYWdlIGNhY2hlIHNpemUg
+aXMgZ2V0IGJpZ2dlciBvdmVyIHN5c2N0bCBsaW1pdA0KDQpJZiBhIGZpbGVzeXN0ZW0gd2FudGVk
+IHRvIGludHJvZHVjZSB0aGlzIGZ1bmN0aW9uYWwsIGZvciBleGFtcGxlIGV4dDQsIGRvIGxpa2Ug
+YmVsb3c6DQoNCnN0YXRpYyBjb25zdCBzdHJ1Y3QgYWRkcmVzc19zcGFjZV9vcGVyYXRpb25zIGV4
+dDRfYW9wcyA9IHsNCgkuLi4NCgkucmVhZHBhZ2UJCT0gZXh0NF9yZWFkcGFnZSwNCgkucmVhZHBh
+Z2VzCQk9IGV4dDRfcmVhZHBhZ2VzLA0KCS53cml0ZXBhZ2UJCT0gZXh0NF93cml0ZXBhZ2UsDQoJ
+LndyaXRlX2JlZ2luCQk9IGV4dDRfd3JpdGVfYmVnaW4sDQoJLndyaXRlX2VuZAkJPSBleHQ0X3dy
+aXRlX2VuZCwNCgkuLi4NCgkucmV1c2VfbWFwcGluZ19wYWdlID0gZ2VuZXJpY19yZXVzZV9tYXBw
+aW5nX3BhZ2UsDQp9Ow0KDQotLS0tLdPKvP7Urbz+LS0tLS0NCreivP7IyzogTWljaGFsIEhvY2tv
+IFttYWlsdG86bWhvY2tvQGtlcm5lbC5vcmddIA0Kt6LLzcqxvOQ6IDIwMTbE6jXUwjMxyNUgMTc6
+MzcNCsrVvP7IyzogemhvdXhpYW5yb25nDQqzrcvNOiB2aXJvQHplbml2LmxpbnV4Lm9yZy51azsg
+bGludXgtZnNkZXZlbEB2Z2VyLmtlcm5lbC5vcmc7IGxpbnV4LW1tQGt2YWNrLm9yZzsgWmhvdXhp
+eXU7IHdhbmdoYWlqdW4gKEUpOyBZdWNoYW8gKFQpDQrW98ziOiBSZTogW1BBVENIXSByZXVzaW5n
+IG9mIG1hcHBpbmcgcGFnZSBzdXBwbGllcyBhIHdheSBmb3IgZmlsZSBwYWdlIGFsbG9jYXRpb24g
+dW5kZXIgbG93IG1lbW9yeSBkdWUgdG8gcGFnZWNhY2hlIG92ZXIgc2l6ZSBhbmQgaXMgY29udHJv
+bGxlZCBieSBzeXNjdGwgcGFyYW1ldGVycy4gaXQgaXMgdXNlZCBvbmx5IGZvciBydyBwYWdlIGFs
+bG9jYXRpb24gcmF0aGVyIHRoYW4gZmF1bHQgb3IgcmVhZGFoZWFkIGFsbG9jYXRpb24uIGl0IGlz
+IGxpa2UuLi4NCg0KT24gVHVlIDMxLTA1LTE2IDE3OjA4OjIyLCB6aG91eGlhbnJvbmdAaHVhd2Vp
+LmNvbSB3cm90ZToNCj4gRnJvbTogejAwMjgxNDIxIDx6MDAyODE0MjFAbm90ZXNtYWlsLmh1YXdl
+aS5jb20+DQo+IA0KPiBjb25zdCBzdHJ1Y3QgYWRkcmVzc19zcGFjZV9vcGVyYXRpb25zIHNwZWNp
+YWxfYW9wcyA9IHsNCj4gICAgIC4uLg0KPiAJLnJldXNlX21hcHBpbmdfcGFnZSA9IGdlbmVyaWNf
+cmV1c2VfbWFwcGluZ19wYWdlLCB9DQoNClBsZWFzZSB0cnkgdG8gd3JpdGUgYSBwcm9wZXIgY2hh
+bmdlbG9nIHdoaWNoIGV4cGxhaW5zIHdoYXQgaXMgdGhlIGNoYW5nZSwgd2h5IGRvIHdlIG5lZWQg
+aXQgYW5kIHdobyBpcyBpdCBnb2luZyB0byB1c2UuDQotLQ0KTWljaGFsIEhvY2tvDQpTVVNFIExh
+YnMNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
