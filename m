@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 378246B025E
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:14:28 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id h68so64509021lfh.2
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:14:28 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 800B4828E1
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:14:33 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id e3so43640832wme.3
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:14:33 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y8si50583079wjy.88.2016.05.31.06.08.38
+        by mx.google.com with ESMTPS id a195si36991910wma.36.2016.05.31.06.08.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 31 May 2016 06:08:38 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 18/18] mm, vmscan: use proper classzone_idx in should_continue_reclaim()
-Date: Tue, 31 May 2016 15:08:18 +0200
-Message-Id: <20160531130818.28724-19-vbabka@suse.cz>
+Subject: [PATCH v2 17/18] mm, vmscan: make compaction_ready() more accurate and readable
+Date: Tue, 31 May 2016 15:08:17 +0200
+Message-Id: <20160531130818.28724-18-vbabka@suse.cz>
 In-Reply-To: <20160531130818.28724-1-vbabka@suse.cz>
 References: <20160531130818.28724-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,113 +20,98 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-The should_continue_reclaim() function decides during direct reclaim/compaction
-whether shrink_zone() should continue reclaming, or whether compaction is ready
-to proceed in that zone. This relies mainly on the compaction_suitable() check,
-but by passing a zero classzone_idx, there can be false positives and reclaim
-terminates prematurely. Fix this by passing proper classzone_idx.
+The compaction_ready() is used during direct reclaim for costly order
+allocations to skip reclaim for zones where compaction should be attempted
+instead. It's combining the standard compaction_suitable() check with its own
+watermark check based on high watermark with extra gap, and the result is
+confusing at best.
 
-Additionally, the function checks whether (2UL << pages) were reclaimed. This
-however overlaps with the same gap used by compaction_suitable(), and since the
-number sc->nr_reclaimed is accumulated over all reclaimed zones, it doesn't
-make much sense for deciding about a given single zone anyway. So just drop
-this code.
+This patch attempts to better structure and document the checks involved.
+First, compaction_suitable() can determine that the allocation should either
+succeed already, or that compaction doesn't have enough free pages to proceed.
+The third possibility is that compaction has enough free pages, but we still
+decide to reclaim first - unless we are already above the high watermark with
+gap.  This does not mean that the reclaim will actually reach this watermark
+during single attempt, this is rather an over-reclaim protection. So document
+the code as such. The check for compaction_deferred() is removed completely, as
+it in fact had no proper role here.
+
+The result after this patch is mainly a less confusing code. We also skip some
+over-reclaim in cases where the allocation should already succed.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/vmscan.c | 31 +++++++++----------------------
- 1 file changed, 9 insertions(+), 22 deletions(-)
+ mm/vmscan.c | 49 +++++++++++++++++++++++--------------------------
+ 1 file changed, 23 insertions(+), 26 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 640d2e615c36..391e5d2c4e32 100644
+index 00034ec9229b..640d2e615c36 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2309,11 +2309,9 @@ static bool in_reclaim_compaction(struct scan_control *sc)
- static inline bool should_continue_reclaim(struct zone *zone,
- 					unsigned long nr_reclaimed,
- 					unsigned long nr_scanned,
--					struct scan_control *sc)
-+					struct scan_control *sc,
-+					int classzone_idx)
+@@ -2456,40 +2456,37 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+ }
+ 
+ /*
+- * Returns true if compaction should go ahead for a high-order request, or
+- * the high-order allocation would succeed without compaction.
++ * Returns true if compaction should go ahead for a costly-order request, or
++ * the allocation would already succeed without compaction. Return false if we
++ * should reclaim first.
+  */
+ static inline bool compaction_ready(struct zone *zone, int order, int classzone_idx)
  {
--	unsigned long pages_for_compaction;
--	unsigned long inactive_lru_pages;
--
- 	/* If not in reclaim/compaction mode, stop */
- 	if (!in_reclaim_compaction(sc))
- 		return false;
-@@ -2341,20 +2339,8 @@ static inline bool should_continue_reclaim(struct zone *zone,
- 			return false;
- 	}
+-	unsigned long balance_gap, watermark;
+-	bool watermark_ok;
++	unsigned long watermark;
++	enum compact_result suitable;
  
 -	/*
--	 * If we have not reclaimed enough pages for compaction and the
--	 * inactive lists are large enough, continue reclaiming
+-	 * Compaction takes time to run and there are potentially other
+-	 * callers using the pages just freed. Continue reclaiming until
+-	 * there is a buffer of free pages available to give compaction
+-	 * a reasonable chance of completing and allocating the page
 -	 */
--	pages_for_compaction = compact_gap(sc->order);
--	inactive_lru_pages = zone_page_state(zone, NR_INACTIVE_FILE);
--	if (get_nr_swap_pages() > 0)
--		inactive_lru_pages += zone_page_state(zone, NR_INACTIVE_ANON);
--	if (sc->nr_reclaimed < pages_for_compaction &&
--			inactive_lru_pages > pages_for_compaction)
--		return true;
+-	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
+-			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
+-	watermark = high_wmark_pages(zone) + balance_gap + compact_gap(order);
+-	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, classzone_idx);
 -
- 	/* If compaction would go ahead or the allocation would succeed, stop */
--	switch (compaction_suitable(zone, sc->order, 0, 0)) {
-+	switch (compaction_suitable(zone, sc->order, 0, classzone_idx)) {
- 	case COMPACT_PARTIAL:
- 	case COMPACT_CONTINUE:
- 		return false;
-@@ -2364,11 +2350,12 @@ static inline bool should_continue_reclaim(struct zone *zone,
- }
- 
- static bool shrink_zone(struct zone *zone, struct scan_control *sc,
--			bool is_classzone)
-+			int classzone_idx)
- {
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long nr_reclaimed, nr_scanned;
- 	bool reclaimable = false;
-+	bool is_classzone = (classzone_idx == zone_idx(zone));
- 
- 	do {
- 		struct mem_cgroup *root = sc->target_mem_cgroup;
-@@ -2450,7 +2437,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 			reclaimable = true;
- 
- 	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
--					 sc->nr_scanned - nr_scanned, sc));
-+			 sc->nr_scanned - nr_scanned, sc, classzone_idx));
- 
- 	return reclaimable;
- }
-@@ -2580,7 +2567,7 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 			/* need some check for avoid more shrink_zone() */
- 		}
- 
--		shrink_zone(zone, sc, zone_idx(zone) == classzone_idx);
-+		shrink_zone(zone, sc, classzone_idx);
- 	}
+-	/*
+-	 * If compaction is deferred, reclaim up to a point where
+-	 * compaction will have a chance of success when re-enabled
+-	 */
+-	if (compaction_deferred(zone, order))
+-		return watermark_ok;
++	suitable = compaction_suitable(zone, order, 0, classzone_idx);
++	if (suitable == COMPACT_PARTIAL)
++		/* Allocation should succeed already. Don't reclaim. */
++		return true;
++	if (suitable == COMPACT_SKIPPED)
++		/* Compaction cannot yet proceed. Do reclaim. */
++		return false;
  
  	/*
-@@ -3076,7 +3063,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
- 						balance_gap, classzone_idx))
- 		return true;
+-	 * If compaction is not ready to start and allocation is not likely
+-	 * to succeed without it, then keep reclaiming.
++	 * Compaction is already possible, but it takes time to run and there
++	 * are potentially other callers using the pages just freed. So proceed
++	 * with reclaim to make a buffer of free pages available to give
++	 * compaction a reasonable chance of completing and allocating the page.
++	 * Note that we won't actually reclaim the whole buffer in one attempt
++	 * as the target watermark in should_continue_reclaim() is lower. But if
++	 * we are already above the high+gap watermark, don't reclaim at all.
+ 	 */
+-	if (compaction_suitable(zone, order, 0, classzone_idx) == COMPACT_SKIPPED)
+-		return false;
++	watermark = high_wmark_pages(zone) + compact_gap(order);
++	watermark += min(low_wmark_pages(zone), DIV_ROUND_UP(
++			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
  
--	shrink_zone(zone, sc, zone_idx(zone) == classzone_idx);
-+	shrink_zone(zone, sc, classzone_idx);
+-	return watermark_ok;
++	return zone_watermark_ok_safe(zone, 0, watermark, classzone_idx);
+ }
  
- 	clear_bit(ZONE_WRITEBACK, &zone->flags);
- 
-@@ -3678,7 +3665,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 		 * priorities until we have enough memory freed.
- 		 */
- 		do {
--			shrink_zone(zone, &sc, true);
-+			shrink_zone(zone, &sc, zone_idx(zone));
- 		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
- 	}
- 
+ /*
 -- 
 2.8.3
 
