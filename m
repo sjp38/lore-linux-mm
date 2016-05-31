@@ -1,60 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D0356B0263
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 04:03:43 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id h68so60249750lfh.2
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 01:03:43 -0700 (PDT)
-Received: from mail-ph.de-nserver.de (mail-ph.de-nserver.de. [85.158.179.214])
-        by mx.google.com with ESMTPS id gx6si49062954wjb.76.2016.05.31.01.03.42
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7337D6B0005
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 04:45:16 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id p194so64208226iod.2
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 01:45:16 -0700 (PDT)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id o198si43184443ioe.212.2016.05.31.01.45.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 May 2016 01:03:42 -0700 (PDT)
-Subject: Re: shrink_active_list/try_to_release_page bug? (was Re: xfs trace in
- 4.4.2 / also in 4.3.3 WARNING fs/xfs/xfs_aops.c:1232 xfs_vm_releasepage)
-References: <20160516010602.GA24980@bfoster.bfoster>
- <57420A47.2000700@profihost.ag> <20160522213850.GE26977@dastard>
- <574BEA84.3010206@profihost.ag> <20160530223657.GP26977@dastard>
- <20160531010724.GA9616@bbox> <20160531025509.GA12670@dastard>
- <20160531035904.GA17371@bbox> <20160531060712.GC12670@dastard>
- <574D2B1E.2040002@profihost.ag> <20160531073119.GD12670@dastard>
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Message-ID: <574D455D.8050101@profihost.ag>
-Date: Tue, 31 May 2016 10:03:41 +0200
-MIME-Version: 1.0
-In-Reply-To: <20160531073119.GD12670@dastard>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 May 2016 01:45:15 -0700 (PDT)
+Received: from epcpsbgr3.samsung.com
+ (u143.gpu120.samsung.co.kr [203.254.230.143])
+ by mailout2.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ 64bit (built May  5 2014))
+ with ESMTP id <0O8101S0B9ND8T80@mailout2.samsung.com> for linux-mm@kvack.org;
+ Tue, 31 May 2016 17:45:14 +0900 (KST)
+From: Jaewon Kim <jaewon31.kim@samsung.com>
+Subject: Re: Re: [RESEND][PATCH] drivers: of: of_reserved_mem: fixup the CMA
+ alignment not to affect dma-coherent
+Message-id: <574D4F1B.4000702@samsung.com>
+Date: Tue, 31 May 2016 17:45:15 +0900
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Minchan Kim <minchan@kernel.org>, Brian Foster <bfoster@redhat.com>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: robh+dt@kernel.org, m.szyprowski@samsung.com
+Cc: r64343@freescale.com, grant.likely@linaro.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaewon31.kim@gmail.com
 
-Am 31.05.2016 um 09:31 schrieb Dave Chinner:
-> On Tue, May 31, 2016 at 08:11:42AM +0200, Stefan Priebe - Profihost AG wrote:
->>> I'm half tempted at this point to mostly ignore this mm/ behavour
->>> because we are moving down the path of removing buffer heads from
->>> XFS. That will require us to do different things in ->releasepage
->>> and so just skipping dirty pages in the XFS code is the best thing
->>> to do....
+>Hello,
+>
+>
+>On 2016-05-25 16:38, Rob Herring wrote:
+>> On Tue, May 24, 2016 at 11:29 PM, Jaewon Kim <jaewon31.kim@samsung.com> wrote:
+>>> From: Jaewon <jaewon31.kim@samsung.com>
+>>>
+>>> There was an alignment mismatch issue for CMA and it was fixed by
+>>> commit 1cc8e3458b51 ("drivers: of: of_reserved_mem: fixup the alignment with CMA setup").
+>>> However the way of the commit considers not only dma-contiguous(CMA) but also
+>>> dma-coherent which has no that requirement.
+>>>
+>>> This patch checks more to distinguish dma-contiguous(CMA) from dma-coherent.
+>>>
+>>> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
+>> I suppose this needs to go to stable? If so, adding the stable tag and
+>> kernel version would be nice so I don't have to.
+
+Hello
+
+In my opinion, this patch is not that critical.
+Commit 1cc8e3458b51 might move unaligned(pageblock size) dma-coherent region.
+And this patch will move the region back to different address which is aligned less than pageblock size.
+But if you think it need to stable branch, please let me know how to add the stable tag.
+
 >>
->> does this change anything i should test? Or is 4.6 still the way to go?
-> 
-> Doesn't matter now - the warning will still be there on 4.6. I think
-> you can simply ignore it as the XFS code appears to be handling the
-> dirty page that is being passed to it correctly. We'll work out what
-> needs to be done to get rid of the warning for this case, wether it
-> be a mm/ change or an XFS change.
+>>> ---
+>>>   drivers/of/of_reserved_mem.c | 5 ++++-
+>>>   1 file changed, 4 insertions(+), 1 deletion(-)
+>> I'm looking for an ack from Marek on this.
+>
+>Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
 
-So is it OK to remove the WARN_ONCE in kernel code? So i don't get
-alarms from our monitoring systems for the trace.
-
-Stefan
-
-> 
-> Cheers,
-> 
-> Dave.
-> 
+Thank you for your Ack
+>
+>Best regards
+>--
+>Marek Szyprowski, PhD
+>Samsung R&D Institute Poland
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
