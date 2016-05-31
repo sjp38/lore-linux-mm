@@ -1,176 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A21E36B026B
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:09:02 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id e3so43555972wme.3
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:09:02 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l8si22954910wjm.189.2016.05.31.06.08.37
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B9A56828E1
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:10:56 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id x1so317277241pav.3
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:10:56 -0700 (PDT)
+Received: from mx0b-0016f401.pphosted.com (mx0b-0016f401.pphosted.com. [67.231.156.173])
+        by mx.google.com with ESMTPS id q27si43766004pfj.25.2016.05.31.06.10.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 May 2016 06:08:37 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 12/18] mm, compaction: more reliably increase direct compaction priority
-Date: Tue, 31 May 2016 15:08:12 +0200
-Message-Id: <20160531130818.28724-13-vbabka@suse.cz>
-In-Reply-To: <20160531130818.28724-1-vbabka@suse.cz>
-References: <20160531130818.28724-1-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 May 2016 06:10:55 -0700 (PDT)
+From: Yehuda Yitschak <yehuday@marvell.com>
+Subject: RE: [BUG] Page allocation failures with newest kernels
+Date: Tue, 31 May 2016 13:10:44 +0000
+Message-ID: <60e8df74202e40b28a4d53dbc7fd0b22@IL-EXCH02.marvell.com>
+References: <CAPv3WKcVsWBgHHC3UPNcbka2JUmN4CTw1Ym4BR1=1V9=B9av5Q@mail.gmail.com>
+	<574D64A0.2070207@arm.com>
+ <CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
+In-Reply-To: <CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Marcin Wojtas <mw@semihalf.com>, Robin Murphy <robin.murphy@arm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Lior Amsalem <alior@marvell.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>, Grzegorz Jaszczyk <jaz@semihalf.com>, Will Deacon <will.deacon@arm.com>, Nadav Haklai <nadavh@marvell.com>, Tomasz Nowicki <tn@semihalf.com>, =?utf-8?B?R3JlZ29yeSBDbMOpbWVudA==?= <gregory.clement@free-electrons.com>
 
-During reclaim/compaction loop, compaction priority can be increased by the
-should_compact_retry() function, but the current code is not optimal. Priority
-is only increased when compaction_failed() is true, which means that compaction
-has scanned the whole zone. This may not happen even after multiple attempts
-with the lower priority due to parallel activity, so we might needlessly
-struggle on the lower priority.
-
-We can remove these corner cases by increasing compaction priority regardless
-of compaction_failed(). Examining further the compaction result can be
-postponed only after reaching the highest priority. This is a simple solution
-and we don't need to worry about reaching the highest priority "too soon" here,
-because hen should_compact_retry() is called it means that the system is
-already struggling and the allocation is supposed to either try as hard as
-possible, or it cannot fail at all. There's not much point staying at lower
-priorities with heuristics that may result in only partial compaction.
-
-The only exception here is the COMPACT_SKIPPED result, which means that
-compaction could not run at all due to being below order-0 watermarks. In that
-case, don't increase compaction priority, and check if compaction could proceed
-when everything reclaimable was reclaimed. Before this patch, this was tied to
-compaction_withdrawn(), but the other results considered there are in fact only
-possible due to low compaction priority so we can ignore them thanks to the
-patch. Since there are no other callers of compaction_withdrawn(), remove it.
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- include/linux/compaction.h | 46 ----------------------------------------------
- mm/page_alloc.c            | 37 ++++++++++++++++++++++---------------
- 2 files changed, 22 insertions(+), 61 deletions(-)
-
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 29dc7c05bd3b..4bef69a83f8f 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -105,47 +105,6 @@ static inline bool compaction_failed(enum compact_result result)
- 	return false;
- }
- 
--/*
-- * Compaction  has backed off for some reason. It might be throttling or
-- * lock contention. Retrying is still worthwhile.
-- */
--static inline bool compaction_withdrawn(enum compact_result result)
--{
--	/*
--	 * Compaction backed off due to watermark checks for order-0
--	 * so the regular reclaim has to try harder and reclaim something.
--	 */
--	if (result == COMPACT_SKIPPED)
--		return true;
--
--	/*
--	 * If compaction is deferred for high-order allocations, it is
--	 * because sync compaction recently failed. If this is the case
--	 * and the caller requested a THP allocation, we do not want
--	 * to heavily disrupt the system, so we fail the allocation
--	 * instead of entering direct reclaim.
--	 */
--	if (result == COMPACT_DEFERRED)
--		return true;
--
--	/*
--	 * If compaction in async mode encounters contention or blocks higher
--	 * priority task we back off early rather than cause stalls.
--	 */
--	if (result == COMPACT_CONTENDED)
--		return true;
--
--	/*
--	 * Page scanners have met but we haven't scanned full zones so this
--	 * is a back off in fact.
--	 */
--	if (result == COMPACT_PARTIAL_SKIPPED)
--		return true;
--
--	return false;
--}
--
--
- bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
- 					int alloc_flags);
- 
-@@ -183,11 +142,6 @@ static inline bool compaction_failed(enum compact_result result)
- 	return false;
- }
- 
--static inline bool compaction_withdrawn(enum compact_result result)
--{
--	return true;
--}
--
- static inline int kcompactd_run(int nid)
- {
- 	return 0;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 27923af8e534..dee486936ccf 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3235,28 +3235,35 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
- 		return false;
- 
- 	/*
--	 * compaction considers all the zone as desperately out of memory
--	 * so it doesn't really make much sense to retry except when the
--	 * failure could be caused by insufficient priority
-+	 * Compaction backed off due to watermark checks for order-0
-+	 * so the regular reclaim has to try harder and reclaim something
-+	 * Retry only if it looks like reclaim might have a chance.
- 	 */
--	if (compaction_failed(compact_result)) {
--		if (*compact_priority > MIN_COMPACT_PRIORITY) {
--			(*compact_priority)--;
--			return true;
--		}
--		return false;
-+	if (compact_result == COMPACT_SKIPPED)
-+		return compaction_zonelist_suitable(ac, order, alloc_flags);
-+
-+	/*
-+	 * Compaction could have withdrawn early or skip some zones or
-+	 * pageblocks. We were asked to retry, which means the allocation
-+	 * should try really hard, so increase the priority if possible.
-+	 */
-+	if (*compact_priority > MIN_COMPACT_PRIORITY) {
-+		(*compact_priority)--;
-+		return true;
- 	}
- 
- 	/*
--	 * make sure the compaction wasn't deferred or didn't bail out early
--	 * due to locks contention before we declare that we should give up.
--	 * But do not retry if the given zonelist is not suitable for
--	 * compaction.
-+	 * Compaction considers all the zones as unfixably fragmented and we
-+	 * are on the highest priority, which means it can't be due to
-+	 * heuristics and it doesn't really make much sense to retry.
- 	 */
--	if (compaction_withdrawn(compact_result))
--		return compaction_zonelist_suitable(ac, order, alloc_flags);
-+	if (compaction_failed(compact_result))
-+		return false;
- 
- 	/*
-+	 * The remaining possibility is that compaction made progress and
-+	 * created a high-order page, but it was allocated by somebody else.
-+	 * To prevent thrashing, limit the number of retries in such case.
- 	 * !costly requests are much more important than __GFP_REPEAT
- 	 * costly ones because they are de facto nofail and invoke OOM
- 	 * killer to move on while costly can fail and users are ready
--- 
-2.8.3
+SGkgUm9iaW4gDQoNCkR1cmluZyBzb21lIG9mIHRoZSBzdHJlc3MgdGVzdHMgd2UgYWxzbyBjYW1l
+IGFjcm9zcyBhIGRpZmZlcmVudCB3YXJuaW5nIGZyb20gdGhlIGFybTY0ICBwYWdlIG1hbmFnZW1l
+bnQgY29kZQ0KSXQgbG9va3MgbGlrZSBhIHJhY2UgaXMgZGV0ZWN0ZWQgYmV0d2VlbiBIVyBhbmQg
+U1cgbWFya2luZyBhIGJpdCBpbiB0aGUgUFRFDQoNCk5vdCBzdXJlIGl0J3MgcmVhbGx5IHJlbGF0
+ZWQgYnV0IEkgdGhvdWdodCBpdCBtaWdodCBnaXZlIGEgY2x1ZSBvbiB0aGUgaXNzdWUNCmh0dHA6
+Ly9wYXN0ZWJpbi5jb20vQVN2MTl2WlANCg0KVGhhbmtzDQoNClllaHVkYSANCg0KDQo+IC0tLS0t
+T3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+IEZyb206IE1hcmNpbiBXb2p0YXMgW21haWx0bzptd0Bz
+ZW1paGFsZi5jb21dDQo+IFNlbnQ6IFR1ZXNkYXksIE1heSAzMSwgMjAxNiAxMzozMA0KPiBUbzog
+Um9iaW4gTXVycGh5DQo+IENjOiBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2Vy
+Lmtlcm5lbC5vcmc7IGxpbnV4LWFybS0NCj4ga2VybmVsQGxpc3RzLmluZnJhZGVhZC5vcmc7IExp
+b3IgQW1zYWxlbTsgVGhvbWFzIFBldGF6em9uaTsgWWVodWRhDQo+IFlpdHNjaGFrOyBDYXRhbGlu
+IE1hcmluYXM7IEFybmQgQmVyZ21hbm47IEdyemVnb3J6IEphc3pjenlrOyBXaWxsIERlYWNvbjsN
+Cj4gTmFkYXYgSGFrbGFpOyBUb21hc3ogTm93aWNraTsgR3JlZ29yeSBDbMOpbWVudA0KPiBTdWJq
+ZWN0OiBSZTogW0JVR10gUGFnZSBhbGxvY2F0aW9uIGZhaWx1cmVzIHdpdGggbmV3ZXN0IGtlcm5l
+bHMNCj4gDQo+IEhpIFJvYmluLA0KPiANCj4gPg0KPiA+IEkgcmVtZW1iZXIgdGhlcmUgd2VyZSBz
+b21lIGlzc3VlcyBhcm91bmQgNC4yIHdpdGggdGhlIHJldmlzaW9uIG9mIHRoZQ0KPiA+IGFybTY0
+IGF0b21pYyBpbXBsZW1lbnRhdGlvbnMgYWZmZWN0aW5nIHRoZSBjbXB4Y2hnX2RvdWJsZSgpIGlu
+IFNMVUIsDQo+ID4gYnV0IHRob3NlIHNob3VsZCBhbGwgYmUgZml4ZWQgKGFuZCB0aGUgc3ltcHRv
+bXMgdGVuZGVkIHRvIGJlDQo+IGNvbnNpZGVyYWJseSBtb3JlIGZhdGFsKS4NCj4gPiBBIHN0cm9u
+Z2VyIGNhbmRpZGF0ZSB3b3VsZCBiZSA5NzMwMzQ4MDc1M2UgKHdoaWNoIGxhbmRlZCBpbiA0LjQp
+LA0KPiA+IHdoaWNoIGhhcyB2YXJpb3VzIGtub2NrLW9uIGVmZmVjdHMgb24gdGhlIGxheW91dCBv
+ZiBTTFVCIGludGVybmFscyAtDQo+ID4gZG9lcyBmaWRkbGluZyB3aXRoIEwxX0NBQ0hFX1NISUZU
+IG1ha2UgYW55IGRpZmZlcmVuY2U/DQo+ID4NCj4gDQo+IEknbGwgY2hlY2sgdGhlIGNvbW1pdHMs
+IHRoYW5rcy4gSSBmb3Jnb3QgdG8gYWRkIEwxX0NBQ0hFX1NISUZUIHdhcyBteSBmaXJzdA0KPiBz
+dXNwZWN0IC0gSSBoYWQgc3BlbnQgYSBsb25nIHRpbWUgZGVidWdnaW5nIG5ldHdvcmsgY29udHJv
+bGxlciwgd2hpY2gNCj4gc3RvcHBlZCB3b3JraW5nIGJlY2F1c2Ugb2YgdGhpcyBjaGFuZ2UgLSBM
+MV9DQUNIRV9CWVRFUyAoYW5kIGhlbmNlDQo+IE5FVF9TS0JfUEFEKSBub3QgZml0dGluZyBIVyBj
+b25zdHJhaW50cy4gQW55d2F5IHJldmVydGluZyBpdCBkaWRuJ3QgaGVscCBhdA0KPiBhbGwgZm9y
+IHBhZ2UgYWxsb2MgaXNzdWUuDQo+IA0KPiBCZXN0IHJlZ2FyZHMsDQo+IE1hcmNpbg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
