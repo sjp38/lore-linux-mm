@@ -1,57 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C0F6C6B025E
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 07:05:12 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id i185so233767411ywg.3
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 04:05:12 -0700 (PDT)
-Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com. [129.33.205.208])
-        by mx.google.com with ESMTPS id f65si21560713qge.28.2016.05.31.04.05.11
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D0236B0005
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 07:52:09 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id h5so33216722ioh.1
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 04:52:09 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0108.outbound.protection.outlook.com. [157.56.112.108])
+        by mx.google.com with ESMTPS id n3si2210603oia.131.2016.05.31.04.52.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 31 May 2016 04:05:11 -0700 (PDT)
-Received: from localhost
-	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 31 May 2016 07:05:11 -0400
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH 2/2] powerpc/mm: check for irq disabled() only if DEBUG_VM is enabled.
-Date: Tue, 31 May 2016 16:34:48 +0530
-Message-Id: <1464692688-6612-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1464692688-6612-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1464692688-6612-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 31 May 2016 04:52:07 -0700 (PDT)
+Subject: Re: [PATCH] mm, kasan: introduce a special shadow value for allocator
+ metadata
+References: <1464691466-59010-1-git-send-email-glider@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <574D7B11.8090709@virtuozzo.com>
+Date: Tue, 31 May 2016 14:52:49 +0300
+MIME-Version: 1.0
+In-Reply-To: <1464691466-59010-1-git-send-email-glider@google.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mpe@ellerman.id.au
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Alexander Potapenko <glider@google.com>, adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-We don't need to check this always. The idea here is to capture the
-wrong usage of find_linux_pte_or_hugepte and we can do that by
-occasionally running with DEBUG_VM enabled.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/powerpc/include/asm/pgtable.h | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
-index ee09e99097f0..9bd87f269d6d 100644
---- a/arch/powerpc/include/asm/pgtable.h
-+++ b/arch/powerpc/include/asm/pgtable.h
-@@ -71,10 +71,8 @@ pte_t *__find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
- static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
- 					       bool *is_thp, unsigned *shift)
- {
--	if (!arch_irqs_disabled()) {
--		pr_info("%s called with irq enabled\n", __func__);
--		dump_stack();
--	}
-+	VM_WARN(!arch_irqs_disabled(),
-+		"%s called with irq enabled\n", __func__);
- 	return __find_linux_pte_or_hugepte(pgdir, ea, is_thp, shift);
- }
- 
--- 
-2.7.4
+On 05/31/2016 01:44 PM, Alexander Potapenko wrote:
+> Add a special shadow value to distinguish accesses to KASAN-specific
+> allocator metadata.
+> 
+> Unlike AddressSanitizer in the userspace, KASAN lets the kernel proceed
+> after a memory error. However a write to the kmalloc metadata may cause
+> memory corruptions that will make the tool itself unreliable and induce
+> crashes later on. Warning about such corruptions will ease the
+> debugging.
+
+It will not. Whether out-of-bounds hits metadata or not is absolutely irrelevant
+to the bug itself. This information doesn't help to understand, analyze or fix the bug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
