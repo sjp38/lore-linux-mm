@@ -1,69 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6742C6B0005
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 03:23:52 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e3so38520514wme.3
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 00:23:52 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id wp4si48895955wjb.173.2016.05.31.00.23.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 May 2016 00:23:51 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id n129so29631583wmn.1
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 00:23:51 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm, oom_reaper: do not use siglock in try_oom_reaper
-Date: Tue, 31 May 2016 09:23:43 +0200
-Message-Id: <1464679423-30218-1-git-send-email-mhocko@kernel.org>
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EC5AF6B0253
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 03:26:52 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id 85so315209401ioq.3
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 00:26:52 -0700 (PDT)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTP id p73si42815654ioe.171.2016.05.31.00.26.51
+        for <linux-mm@kvack.org>;
+        Tue, 31 May 2016 00:26:52 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <001701d1ba44$b9c0d560$2d428020$@alibaba-inc.com> <001901d1ba4a$514eccc0$f3ec6640$@alibaba-inc.com> <87mvn71rwc.fsf@skywalker.in.ibm.com> <002b01d1baef$e6246530$b26d2f90$@alibaba-inc.com> <87h9de201i.fsf@skywalker.in.ibm.com>
+In-Reply-To: <87h9de201i.fsf@skywalker.in.ibm.com>
+Subject: Re: [RFC PATCH 2/4] mm: Change the interface for __tlb_remove_page
+Date: Tue, 31 May 2016 15:26:36 +0800
+Message-ID: <004f01d1bb0d$c4537db0$4cfa7910$@alibaba-inc.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: "'Aneesh Kumar K.V'" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: 'linux-kernel' <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-From: Michal Hocko <mhocko@suse.com>
+> > Do you want to update ->addr here?
+> >
+> 
+> I don't get that question. We wanted to track the alst adjusted addr in
+> tlb->addr because when we do a tlb_flush_mmu_tlbonly() we does a
+> __tlb_reset_range(), which clears tlb->start and tlb->end. Now we need
+> to update the range again with the last adjusted addr before we can call
+> __tlb_remove_page(). Look for VM_BUG_ON(!tlb->end); in
+> __tlb_remove_page().
+> 
+Got, thanks.
 
-Oleg has noted that siglock usage in try_oom_reaper is both pointless
-and dangerous. signal_group_exit can be checked lockless. The problem
-is that sighand becomes NULL in __exit_signal so we can crash.
+Hillf
 
-Fixes: 3ef22dfff239 ("oom, oom_reaper: try to reap tasks which skip regular OOM killer path")
-Suggested-by: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-Hi Andrew,
-Oleg has noticed this while reviewing http://lkml.kernel.org/r/20160530173505.GA25287@redhat.com
-this should go in 4.7.
-
- mm/oom_kill.c | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index e01cc3e2e755..25eac62c190c 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -625,8 +625,6 @@ void try_oom_reaper(struct task_struct *tsk)
- 	if (atomic_read(&mm->mm_users) > 1) {
- 		rcu_read_lock();
- 		for_each_process(p) {
--			bool exiting;
--
- 			if (!process_shares_mm(p, mm))
- 				continue;
- 			if (fatal_signal_pending(p))
-@@ -636,10 +634,7 @@ void try_oom_reaper(struct task_struct *tsk)
- 			 * If the task is exiting make sure the whole thread group
- 			 * is exiting and cannot acces mm anymore.
- 			 */
--			spin_lock_irq(&p->sighand->siglock);
--			exiting = signal_group_exit(p->signal);
--			spin_unlock_irq(&p->sighand->siglock);
--			if (exiting)
-+			if (signal_group_exit(p->signal))
- 				continue;
- 
- 			/* Give up */
--- 
-2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
