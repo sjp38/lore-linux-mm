@@ -1,80 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C9D1828E1
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:12:02 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id h68so64476014lfh.2
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:12:02 -0700 (PDT)
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 378246B025E
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:14:28 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id h68so64509021lfh.2
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:14:28 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k190si35955347wme.85.2016.05.31.06.12.01
+        by mx.google.com with ESMTPS id y8si50583079wjy.88.2016.05.31.06.08.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 May 2016 06:12:01 -0700 (PDT)
-Date: Tue, 31 May 2016 15:11:59 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2] mm,oom: Allow SysRq-f to always select !TIF_MEMDIE
- thread group.
-Message-ID: <20160531131159.GL26128@dhcp22.suse.cz>
-References: <1464432784-6058-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <1464452714-5126-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1464452714-5126-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        Tue, 31 May 2016 06:08:38 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH v2 18/18] mm, vmscan: use proper classzone_idx in should_continue_reclaim()
+Date: Tue, 31 May 2016 15:08:18 +0200
+Message-Id: <20160531130818.28724-19-vbabka@suse.cz>
+In-Reply-To: <20160531130818.28724-1-vbabka@suse.cz>
+References: <20160531130818.28724-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Sun 29-05-16 01:25:14, Tetsuo Handa wrote:
-> There has been three problems about SysRq-f (manual invocation of the OOM
-> killer) case. To make description simple, this patch assumes situation
-> where the OOM reaper is not called (because the OOM victim's mm is shared
-> by unkillable threads) or not available (due to kthread_run() failure or
-> CONFIG_MMU=n).
-> 
-> First is that moom_callback() is not called by moom_work under OOM
-> livelock situation because it does not have a dedicated WQ like vmstat_wq.
-> This problem is not fixed yet.
+The should_continue_reclaim() function decides during direct reclaim/compaction
+whether shrink_zone() should continue reclaming, or whether compaction is ready
+to proceed in that zone. This relies mainly on the compaction_suitable() check,
+but by passing a zero classzone_idx, there can be false positives and reclaim
+terminates prematurely. Fix this by passing proper classzone_idx.
 
-Why do you mention it in the changelog when it is not related to the
-patch then?
+Additionally, the function checks whether (2UL << pages) were reclaimed. This
+however overlaps with the same gap used by compaction_suitable(), and since the
+number sc->nr_reclaimed is accumulated over all reclaimed zones, it doesn't
+make much sense for deciding about a given single zone anyway. So just drop
+this code.
 
-Btw. you can (ab)use oom_reaper for that purpose. The patch would be
-quite trivial.
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/vmscan.c | 31 +++++++++----------------------
+ 1 file changed, 9 insertions(+), 22 deletions(-)
 
-> Second is that select_bad_process() chooses a thread group which already
-> has a TIF_MEMDIE thread. Since commit f44666b04605d1c7 ("mm,oom: speed up
-> select_bad_process() loop") changed oom_scan_process_group() to use
-> task->signal->oom_victims, non SysRq-f case will no longer select a
-> thread group which already has a TIF_MEMDIE thread.
-
-I am not sure the reference to the commit is really helpful. The
-behavior you are describing below was there before this commit, the only
-thing that has changed is the scope of the TIF_MEMDIE check.
-
-> But SysRq-f case will
-> select such thread group due to returning OOM_SCAN_OK. This patch makes
-> sure that oom_badness() is skipped by making oom_scan_process_group() to
-> return OOM_SCAN_CONTINUE for SysRq-f case.
-
-I am OK with this part. I was suggesting something similar except I
-wanted to skip over tasks which have fatal_signal_pending and that part
-got nacked by David AFAIR. Could you make this a separate patch, please?
-
-> Third is that oom_kill_process() chooses a thread group which already
-> has a TIF_MEMDIE thread when the candidate select_bad_process() chose
-> has children because oom_badness() does not take TIF_MEMDIE into account.
-> This patch checks child->signal->oom_victims before calling oom_badness()
-> if oom_kill_process() was called by SysRq-f case. This resembles making
-> sure that oom_badness() is skipped by returning OOM_SCAN_CONTINUE.
-
-This makes sense to me as well but why should be limit this to sysrq case?
-Does it make any sense to select a child which already got killed for
-normal OOM killer? Anyway I think it would be better to split this into
-its own patch as well.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 640d2e615c36..391e5d2c4e32 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2309,11 +2309,9 @@ static bool in_reclaim_compaction(struct scan_control *sc)
+ static inline bool should_continue_reclaim(struct zone *zone,
+ 					unsigned long nr_reclaimed,
+ 					unsigned long nr_scanned,
+-					struct scan_control *sc)
++					struct scan_control *sc,
++					int classzone_idx)
+ {
+-	unsigned long pages_for_compaction;
+-	unsigned long inactive_lru_pages;
+-
+ 	/* If not in reclaim/compaction mode, stop */
+ 	if (!in_reclaim_compaction(sc))
+ 		return false;
+@@ -2341,20 +2339,8 @@ static inline bool should_continue_reclaim(struct zone *zone,
+ 			return false;
+ 	}
+ 
+-	/*
+-	 * If we have not reclaimed enough pages for compaction and the
+-	 * inactive lists are large enough, continue reclaiming
+-	 */
+-	pages_for_compaction = compact_gap(sc->order);
+-	inactive_lru_pages = zone_page_state(zone, NR_INACTIVE_FILE);
+-	if (get_nr_swap_pages() > 0)
+-		inactive_lru_pages += zone_page_state(zone, NR_INACTIVE_ANON);
+-	if (sc->nr_reclaimed < pages_for_compaction &&
+-			inactive_lru_pages > pages_for_compaction)
+-		return true;
+-
+ 	/* If compaction would go ahead or the allocation would succeed, stop */
+-	switch (compaction_suitable(zone, sc->order, 0, 0)) {
++	switch (compaction_suitable(zone, sc->order, 0, classzone_idx)) {
+ 	case COMPACT_PARTIAL:
+ 	case COMPACT_CONTINUE:
+ 		return false;
+@@ -2364,11 +2350,12 @@ static inline bool should_continue_reclaim(struct zone *zone,
+ }
+ 
+ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+-			bool is_classzone)
++			int classzone_idx)
+ {
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	unsigned long nr_reclaimed, nr_scanned;
+ 	bool reclaimable = false;
++	bool is_classzone = (classzone_idx == zone_idx(zone));
+ 
+ 	do {
+ 		struct mem_cgroup *root = sc->target_mem_cgroup;
+@@ -2450,7 +2437,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+ 			reclaimable = true;
+ 
+ 	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
+-					 sc->nr_scanned - nr_scanned, sc));
++			 sc->nr_scanned - nr_scanned, sc, classzone_idx));
+ 
+ 	return reclaimable;
+ }
+@@ -2580,7 +2567,7 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 			/* need some check for avoid more shrink_zone() */
+ 		}
+ 
+-		shrink_zone(zone, sc, zone_idx(zone) == classzone_idx);
++		shrink_zone(zone, sc, classzone_idx);
+ 	}
+ 
+ 	/*
+@@ -3076,7 +3063,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
+ 						balance_gap, classzone_idx))
+ 		return true;
+ 
+-	shrink_zone(zone, sc, zone_idx(zone) == classzone_idx);
++	shrink_zone(zone, sc, classzone_idx);
+ 
+ 	clear_bit(ZONE_WRITEBACK, &zone->flags);
+ 
+@@ -3678,7 +3665,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 		 * priorities until we have enough memory freed.
+ 		 */
+ 		do {
+-			shrink_zone(zone, &sc, true);
++			shrink_zone(zone, &sc, zone_idx(zone));
+ 		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
+ 	}
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.8.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
