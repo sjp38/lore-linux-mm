@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CCDE96B0267
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:08:55 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id ne4so99081073lbc.1
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:08:55 -0700 (PDT)
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C7C66B0269
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 09:08:58 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id h68so64433120lfh.2
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 06:08:57 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q8si36931254wmg.57.2016.05.31.06.08.36
+        by mx.google.com with ESMTPS id x187si36847657wmd.86.2016.05.31.06.08.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 31 May 2016 06:08:36 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 09/18] mm, compaction: make whole_zone flag ignore cached scanner positions
-Date: Tue, 31 May 2016 15:08:09 +0200
-Message-Id: <20160531130818.28724-10-vbabka@suse.cz>
+Subject: [PATCH v2 10/18] mm, compaction: cleanup unused functions
+Date: Tue, 31 May 2016 15:08:10 +0200
+Message-Id: <20160531130818.28724-11-vbabka@suse.cz>
 In-Reply-To: <20160531130818.28724-1-vbabka@suse.cz>
 References: <20160531130818.28724-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,84 +20,126 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-A recent patch has added whole_zone flag that compaction sets when scanning
-starts from the zone boundary, in order to report that zone has been fully
-scanned in one attempt. For allocations that want to try really hard or cannot
-fail, we will want to introduce a mode where scanning whole zone is guaranteed
-regardless of the cached positions.
-
-This patch reuses the whole_zone flag in a way that if it's already passed true
-to compaction, the cached scanner positions are ignored. Employing this flag
-during reclaim/compaction loop will be done in the next patch. This patch
-however converts compaction invoked from userspace via procfs to use this flag.
-Before this patch, the cached positions were first reset to zone boundaries and
-then read back from struct zone, so there was a window where a parallel
-compaction could replace the reset values, making the manual compaction less
-effective. Using the flag instead of performing reset is more robust.
+Since kswapd compaction moved to kcompactd, compact_pgdat() is not called
+anymore, so we remove it. The only caller of __compact_pgdat() is
+compact_node(), so we merge them and remove code that was only reachable from
+kswapd.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/compaction.c | 15 +++++----------
- mm/internal.h   |  2 +-
- 2 files changed, 6 insertions(+), 11 deletions(-)
+ include/linux/compaction.h |  5 ----
+ mm/compaction.c            | 60 +++++++++++++---------------------------------
+ 2 files changed, 17 insertions(+), 48 deletions(-)
 
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index b3bb66e7ce55..22a5fb9c509c 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -70,7 +70,6 @@ extern int fragmentation_index(struct zone *zone, unsigned int order);
+ extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
+ 		unsigned int order, unsigned int alloc_flags,
+ 		const struct alloc_context *ac, enum compact_priority prio);
+-extern void compact_pgdat(pg_data_t *pgdat, int order);
+ extern void reset_isolation_suitable(pg_data_t *pgdat);
+ extern enum compact_result compaction_suitable(struct zone *zone, int order,
+ 		unsigned int alloc_flags, int classzone_idx);
+@@ -154,10 +153,6 @@ extern void kcompactd_stop(int nid);
+ extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx);
+ 
+ #else
+-static inline void compact_pgdat(pg_data_t *pgdat, int order)
+-{
+-}
+-
+ static inline void reset_isolation_suitable(pg_data_t *pgdat)
+ {
+ }
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 826b6d95a05b..78c99300b911 100644
+index 78c99300b911..af50f20de369 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1443,11 +1443,13 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 	 */
- 	cc->migrate_pfn = zone->compact_cached_migrate_pfn[sync];
- 	cc->free_pfn = zone->compact_cached_free_pfn;
--	if (cc->free_pfn < start_pfn || cc->free_pfn >= end_pfn) {
-+	if (cc->whole_zone || cc->free_pfn < start_pfn ||
-+						cc->free_pfn >= end_pfn) {
- 		cc->free_pfn = pageblock_start_pfn(end_pfn - 1);
- 		zone->compact_cached_free_pfn = cc->free_pfn;
- 	}
--	if (cc->migrate_pfn < start_pfn || cc->migrate_pfn >= end_pfn) {
-+	if (cc->whole_zone || cc->migrate_pfn < start_pfn ||
-+						cc->migrate_pfn >= end_pfn) {
- 		cc->migrate_pfn = start_pfn;
- 		zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
- 		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
-@@ -1693,14 +1695,6 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
- 		INIT_LIST_HEAD(&cc->freepages);
- 		INIT_LIST_HEAD(&cc->migratepages);
+@@ -1678,10 +1678,18 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
  
--		/*
--		 * When called via /proc/sys/vm/compact_memory
--		 * this makes sure we compact the whole zone regardless of
--		 * cached scanner positions.
--		 */
--		if (is_via_compact_memory(cc->order))
--			__reset_isolation_suitable(zone);
--
- 		if (is_via_compact_memory(cc->order) ||
- 				!compaction_deferred(zone, cc->order))
- 			compact_zone(zone, cc);
-@@ -1736,6 +1730,7 @@ static void compact_node(int nid)
- 		.order = -1,
- 		.mode = MIGRATE_SYNC,
- 		.ignore_skip_hint = true,
+ 
+ /* Compact all zones within a node */
+-static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
++static void compact_node(int nid)
+ {
++	pg_data_t *pgdat = NODE_DATA(nid);
+ 	int zoneid;
+ 	struct zone *zone;
++	struct compact_control cc = {
++		.order = -1,
++		.mode = MIGRATE_SYNC,
++		.ignore_skip_hint = true,
 +		.whole_zone = true,
- 	};
++	};
++
  
- 	__compact_pgdat(NODE_DATA(nid), &cc);
-diff --git a/mm/internal.h b/mm/internal.h
-index c7d6a395385b..a4d3ce761839 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -174,7 +174,7 @@ struct compact_control {
- 	enum migrate_mode mode;		/* Async or sync migration mode */
- 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
- 	bool direct_compaction;		/* False from kcompactd or /proc/... */
--	bool whole_zone;		/* Whole zone has been scanned */
-+	bool whole_zone;		/* Whole zone should/has been scanned */
- 	int order;			/* order a direct compactor needs */
- 	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
- 	const unsigned int alloc_flags;	/* alloc flags of a direct compactor */
+ 	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
+ 
+@@ -1689,53 +1697,19 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
+ 		if (!populated_zone(zone))
+ 			continue;
+ 
+-		cc->nr_freepages = 0;
+-		cc->nr_migratepages = 0;
+-		cc->zone = zone;
+-		INIT_LIST_HEAD(&cc->freepages);
+-		INIT_LIST_HEAD(&cc->migratepages);
+-
+-		if (is_via_compact_memory(cc->order) ||
+-				!compaction_deferred(zone, cc->order))
+-			compact_zone(zone, cc);
+-
+-		VM_BUG_ON(!list_empty(&cc->freepages));
+-		VM_BUG_ON(!list_empty(&cc->migratepages));
++		cc.nr_freepages = 0;
++		cc.nr_migratepages = 0;
++		cc.zone = zone;
++		INIT_LIST_HEAD(&cc.freepages);
++		INIT_LIST_HEAD(&cc.migratepages);
+ 
+-		if (is_via_compact_memory(cc->order))
+-			continue;
++		compact_zone(zone, &cc);
+ 
+-		if (zone_watermark_ok(zone, cc->order,
+-				low_wmark_pages(zone), 0, 0))
+-			compaction_defer_reset(zone, cc->order, false);
++		VM_BUG_ON(!list_empty(&cc.freepages));
++		VM_BUG_ON(!list_empty(&cc.migratepages));
+ 	}
+ }
+ 
+-void compact_pgdat(pg_data_t *pgdat, int order)
+-{
+-	struct compact_control cc = {
+-		.order = order,
+-		.mode = MIGRATE_ASYNC,
+-	};
+-
+-	if (!order)
+-		return;
+-
+-	__compact_pgdat(pgdat, &cc);
+-}
+-
+-static void compact_node(int nid)
+-{
+-	struct compact_control cc = {
+-		.order = -1,
+-		.mode = MIGRATE_SYNC,
+-		.ignore_skip_hint = true,
+-		.whole_zone = true,
+-	};
+-
+-	__compact_pgdat(NODE_DATA(nid), &cc);
+-}
+-
+ /* Compact all nodes in the system */
+ static void compact_nodes(void)
+ {
 -- 
 2.8.3
 
