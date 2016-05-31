@@ -1,85 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qg0-f70.google.com (mail-qg0-f70.google.com [209.85.192.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CA216B0005
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 17:43:43 -0400 (EDT)
-Received: by mail-qg0-f70.google.com with SMTP id e93so385241352qgf.3
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 14:43:43 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p11si1942134qgp.50.2016.05.31.14.43.42
+	by kanga.kvack.org (Postfix) with ESMTP id EBFC16B0253
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 17:44:26 -0400 (EDT)
+Received: by mail-qg0-f70.google.com with SMTP id k63so384490198qgf.2
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 14:44:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o2si2069788wme.2.2016.05.31.14.44.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 May 2016 14:43:42 -0700 (PDT)
-Date: Tue, 31 May 2016 23:43:38 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 4/6] mm, oom: skip vforked tasks from being selected
-Message-ID: <20160531214338.GB26582@redhat.com>
-References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
- <1464613556-16708-5-git-send-email-mhocko@kernel.org>
- <20160530192856.GA25696@redhat.com>
- <20160531074247.GC26128@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 May 2016 14:44:26 -0700 (PDT)
+Subject: Re: BUG: scheduling while atomic: cron/668/0x10c9a0c0 (was: Re: mm,
+ page_alloc: avoid looking up the first zone in a zonelist twice)
+References: <CAMuHMdV00vJJxoA7XABw+mFF+2QUd1MuQbPKKgkmGnK_NySZpg@mail.gmail.com>
+ <20160530155644.GP2527@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <574E05B8.3060009@suse.cz>
+Date: Tue, 31 May 2016 23:44:24 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160531074247.GC26128@dhcp22.suse.cz>
+In-Reply-To: <20160530155644.GP2527@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>, Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
 
-On 05/31, Michal Hocko wrote:
->
-> On Mon 30-05-16 21:28:57, Oleg Nesterov wrote:
-> >
-> > I don't think we can trust vfork_done != NULL.
-> >
-> > copy_process() doesn't disallow CLONE_VFORK without CLONE_VM, so with this patch
-> > it would be trivial to make the exploit which hides a memory hog from oom-killer.
->
-> OK, I wasn't aware of this possibility.
+On 05/30/2016 05:56 PM, Mel Gorman wrote:
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index dba8cfd0b2d6..f2c1e47adc11 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3232,6 +3232,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		 * allocations are system rather than user orientated
+>  		 */
+>  		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
+> +		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+> +					ac->high_zoneidx, ac->nodemask);
+> +		ac->classzone_idx = zonelist_zone_idx(ac->preferred_zoneref);
+>  		page = get_page_from_freelist(gfp_mask, order,
+>  						ALLOC_NO_WATERMARKS, ac);
+>  		if (page)
+> 
 
-Neither was me ;) I noticed this during this review.
+Even if that didn't help for this report, I think it's needed too
+(except the classzone_idx which doesn't exist anymore?).
 
-> > Or I am totally confused?
->
-> I cannot judge I am afraid. You are definitely much more familiar with
-> all these subtle details than me.
+And I think the following as well. (the changed comment could be also
+just deleted).
 
-OK, I just verified that clone(CLONE_VFORK|SIGCHLD) really works to be sure.
 
-> +/* expects to be called with task_lock held */
-> +static inline bool in_vfork(struct task_struct *tsk)
-> +{
-> +	bool ret;
-> +
-> +	/*
-> +	 * need RCU to access ->real_parent if CLONE_VM was used along with
-> +	 * CLONE_PARENT
-> +	 */
-> +	rcu_read_lock();
-> +	ret = tsk->vfork_done && tsk->real_parent->mm == tsk->mm;
-> +	rcu_read_unlock();
-> +
-> +	return ret;
-> +}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f8f3bfc435ee..0a8d8e2bf331 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3808,7 +3808,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned
+int order,
+        /* Dirty zone balancing only done in the fast path */
+        ac.spread_dirty_pages = (gfp_mask & __GFP_WRITE);
 
-Yes, but may I ask to add a comment? And note that "expects to be called with
-task_lock held" looks misleading, we do not need the "stable" tsk->vfork_done
-since we only need to check if it is NULL or not.
-
-It would be nice to explain that
-
-	1. we check real_parent->mm == tsk->mm because CLONE_VFORK does not
-	   imply CLONE_VM
-
-	2. CLONE_VFORK can be used with CLONE_PARENT/CLONE_THREAD and thus
-	   ->real_parent is not necessarily the task doing vfork(), so in
-	   theory we can't rely on task_lock() if we want to dereference it.
-
-	   And in this case we can't trust the real_parent->mm == tsk->mm
-	   check, it can be false negative. But we do not care, if init or
-	   another oom-unkillable task does this it should blame itself.
-
-Oleg.
+-       /* The preferred zone is used for statistics later */
++       /* The preferred zone is crucial for get_page_from_freelist */
+        ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
+                                        ac.high_zoneidx, ac.nodemask);
+        if (!ac.preferred_zoneref) {
+@@ -3832,8 +3832,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned
+int order,
+         * Restore the original nodemask if it was potentially replaced with
+         * &cpuset_current_mems_allowed to optimize the fast-path attempt.
+         */
+-       if (cpusets_enabled())
++       if (cpusets_enabled()) {
+                ac.nodemask = nodemask;
++               ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
++                                       ac.high_zoneidx, ac.nodemask);
++       }
+        page = __alloc_pages_slowpath(alloc_mask, order, &ac);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
