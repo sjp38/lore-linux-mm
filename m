@@ -1,91 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A542F6B0005
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 13:49:47 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f75so47723191wmf.2
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 10:49:47 -0700 (PDT)
-Received: from mail-lf0-x232.google.com (mail-lf0-x232.google.com. [2a00:1450:4010:c07::232])
-        by mx.google.com with ESMTPS id mu6si24882461lbb.123.2016.05.31.10.49.45
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 588226B0253
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 14:56:20 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id p194so81704545iod.2
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 11:56:20 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id i201si33628425itb.43.2016.05.31.11.56.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 May 2016 10:49:46 -0700 (PDT)
-Received: by mail-lf0-x232.google.com with SMTP id s64so72031551lfe.0
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 10:49:45 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <574D7B11.8090709@virtuozzo.com>
-References: <1464691466-59010-1-git-send-email-glider@google.com> <574D7B11.8090709@virtuozzo.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Tue, 31 May 2016 19:49:45 +0200
-Message-ID: <CAG_fn=UuSs=aUst5Ww3RGF-SvOprUYPs2Y3-dD=w1b80-D_R-A@mail.gmail.com>
-Subject: Re: [PATCH] mm, kasan: introduce a special shadow value for allocator metadata
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        Tue, 31 May 2016 11:56:19 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [PATCH] mm/hugetlb: fix huge page reserve accounting for private mappings
+Date: Tue, 31 May 2016 11:55:57 -0700
+Message-Id: <1464720957-15698-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Tue, May 31, 2016 at 1:52 PM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
->
->
-> On 05/31/2016 01:44 PM, Alexander Potapenko wrote:
->> Add a special shadow value to distinguish accesses to KASAN-specific
->> allocator metadata.
->>
->> Unlike AddressSanitizer in the userspace, KASAN lets the kernel proceed
->> after a memory error. However a write to the kmalloc metadata may cause
->> memory corruptions that will make the tool itself unreliable and induce
->> crashes later on. Warning about such corruptions will ease the
->> debugging.
->
-> It will not. Whether out-of-bounds hits metadata or not is absolutely irr=
-elevant
-> to the bug itself. This information doesn't help to understand, analyze o=
-r fix the bug.
->
-Here's the example that made me think the opposite.
+When creating a private mapping of a hugetlbfs file, it is possible to
+unmap pages via ftruncate or fallocate hole punch.  If subsequent faults
+repopulate these mappings, the reserve counts will go negative.  This
+is because the code currently assumes all faults to private mappings will
+consume reserves.  The problem can be recreated as follows:
+- mmap(MAP_PRIVATE) a file in hugetlbfs filesystem
+- write fault in pages in the mapping
+- fallocate(FALLOC_FL_PUNCH_HOLE) some pages in the mapping
+- write fault in pages in the hole
+This will result in negative huge page reserve counts and negative subpool
+usage counts for the hugetlbfs.  Note that this can also be recreated with
+ftruncate, but fallocate is more straight forward.
 
-I've been reworking KASAN hooks for mempool and added a test that did
-a write-after-free to an object allocated from a mempool.
-This resulted in flaky kernel crashes somewhere in quarantine
-shrinking after several attempts to `insmod test_kasan.ko`.
-Because there already were numerous KASAN errors in the test, it
-wasn't evident that the crashes were related to the new test, so I
-thought the problem was in the buggy quarantine implementation.
-However the problem was indeed in the new test, which corrupted the
-quarantine pointer in the object and caused a crash while traversing
-the quarantine list.
+This patch modifies the routines vma_needs_reserves and vma_has_reserves
+to examine the reserve map associated with private mappings similar to that
+for shared mappings.  However, the reserve map semantics for private and
+shared mappings are very different.  This results in subtly different code
+that is explained in the comments.
 
-My previous experience with userspace ASan shows that crashes in the
-tool code itself puzzle the developers.
-As a result, the users think that the tool is broken and don't believe
-its reports.
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+ mm/hugetlb.c | 42 ++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 40 insertions(+), 2 deletions(-)
 
-I first thought about hardening the quarantine list by checksumming
-the pointers and validating them on each traversal.
-This prevents the crashes, but doesn't give the users any idea about
-what went wrong.
-On the other hand, reporting the pointer corruption right when it happens d=
-oes.
-Distinguishing between a regular UAF and a quarantine corruption
-(which is what the patch in question is about) helps to prioritize the
-KASAN reports and give the developers better understanding of the
-consequences.
-
-
-
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 949d806..0949d0d 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -831,8 +831,27 @@ static bool vma_has_reserves(struct vm_area_struct *vma, long chg)
+ 	 * Only the process that called mmap() has reserves for
+ 	 * private mappings.
+ 	 */
+-	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+-		return true;
++	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
++		/*
++		 * Like the shared case above, a hole punch or truncate
++		 * could have been performed on the private mapping.
++		 * Examine the value of chg to determine if reserves
++		 * actually exist or were previously consumed.
++		 * Very Subtle - The value of chg comes from a previous
++		 * call to vma_needs_reserves().  The reserve map for
++		 * private mappings has different (opposite) semantics
++		 * than that of shared mappings.  vma_needs_reserves()
++		 * has already taken this difference in semantics into
++		 * account.  Therefore, the meaning of chg is the same
++		 * as in the shared case above.  Code could easily be
++		 * combined, but keeping it separate draws attention to
++		 * subtle differences.
++		 */
++		if (chg)
++			return false;
++		else
++			return true;
++	}
+ 
+ 	return false;
+ }
+@@ -1815,6 +1834,25 @@ static long __vma_reservation_common(struct hstate *h,
+ 
+ 	if (vma->vm_flags & VM_MAYSHARE)
+ 		return ret;
++	else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER) && ret >= 0) {
++		/*
++		 * In most cases, reserves always exist for private mappings.
++		 * However, a file associated with mapping could have been
++		 * hole punched or truncated after reserves were consumed.
++		 * As subsequent fault on such a range will not use reserves.
++		 * Subtle - The reserve map for private mappings has the
++		 * opposite meaning than that of shared mappings.  If NO
++		 * entry is in the reserve map, it means a reservation exists.
++		 * If an entry exists in the reserve map, it means the
++		 * reservation has already been consumed.  As a result, the
++		 * return value of this routine is the opposite of the
++		 * value returned from reserve map manipulation routines above.
++		 */
++		if (ret)
++			return 0;
++		else
++			return 1;
++	}
+ 	else
+ 		return ret < 0 ? ret : 0;
+ }
+-- 
+2.4.11
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
