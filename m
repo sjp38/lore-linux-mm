@@ -1,48 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F4E76B025E
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 05:36:34 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id q17so96136277lbn.3
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 02:36:34 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id gg1si49460382wjd.214.2016.05.31.02.36.33
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CFC936B025E
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 05:38:41 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id di3so197365374pab.0
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 02:38:41 -0700 (PDT)
+Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
+        by mx.google.com with ESMTPS id k9si42776430pfa.57.2016.05.31.02.38.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 May 2016 02:36:33 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id q62so30782013wmg.3
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 02:36:33 -0700 (PDT)
-Date: Tue, 31 May 2016 11:36:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] reusing of mapping page supplies a way for file page
- allocation under low memory due to pagecache over size and is controlled by
- sysctl parameters. it is used only for rw page allocation rather than fault
- or readahead allocation. it is like relclaim but is lighter than reclaim. it
- only reuses clean and zero mapcount pages of mapping. for special
- filesystems using this feature like below:
-Message-ID: <20160531093631.GH26128@dhcp22.suse.cz>
-References: <1464685702-100211-1-git-send-email-zhouxianrong@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1464685702-100211-1-git-send-email-zhouxianrong@huawei.com>
+        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 31 May 2016 02:38:40 -0700 (PDT)
+From: roy.qing.li@gmail.com
+Subject: [PATCH][RFC] mm: memcontrol: fix a unbalance uncharged count
+Date: Tue, 31 May 2016 17:38:32 +0800
+Message-Id: <1464687512-10695-1-git-send-email-roy.qing.li@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhouxianrong@huawei.com
-Cc: viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, zhouxiyu@huawei.com, wanghaijun5@huawei.com, yuchao0@huawei.com
+To: cgroups@vger.kernel.org, linux-mm@kvack.org
+Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov@virtuozzo.com
 
-On Tue 31-05-16 17:08:22, zhouxianrong@huawei.com wrote:
-> From: z00281421 <z00281421@notesmail.huawei.com>
-> 
-> const struct address_space_operations special_aops = {
->     ...
-> 	.reuse_mapping_page = generic_reuse_mapping_page,
-> }
+From: Li RongQing <roy.qing.li@gmail.com>
 
-Please try to write a proper changelog which explains what is the
-change, why do we need it and who is it going to use.
+I see the number of page of hpage_nr_pages(page) is charged if page is
+transparent huge or hugetlbfs pages; but when uncharge a huge page,
+(1<<compound_order) page is uncharged, and maybe hpage_nr_pages(page) is
+not same as 1<<compound_order.
+
+And remove VM_BUG_ON_PAGE(!PageTransHuge(page), page); since
+PageTransHuge(page) always is true, when this VM_BUG_ON_PAGE is called.
+
+Signed-off-by: Li RongQing <roy.qing.li@gmail.com>
+---
+ mm/memcontrol.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 12aaadd..28c0137 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5453,8 +5453,7 @@ static void uncharge_list(struct list_head *page_list)
+ 		}
+ 
+ 		if (PageTransHuge(page)) {
+-			nr_pages <<= compound_order(page);
+-			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
++			nr_pages = hpage_nr_pages(page);
+ 			nr_huge += nr_pages;
+ 		}
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
