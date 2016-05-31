@@ -1,61 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A2756B0005
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 17:48:27 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id q79so2494164qke.3
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 14:48:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x10si32560449qtc.54.2016.05.31.14.48.26
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 086A56B0005
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 18:25:07 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id s73so1154725pfs.0
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 15:25:07 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id s15si46321328pfj.65.2016.05.31.15.25.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 May 2016 14:48:26 -0700 (PDT)
-Date: Tue, 31 May 2016 23:48:23 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 5/6] mm, oom: kill all tasks sharing the mm
-Message-ID: <20160531214823.GC26582@redhat.com>
-References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
- <1464613556-16708-6-git-send-email-mhocko@kernel.org>
- <20160530181816.GA25480@redhat.com>
- <20160531074318.GD26128@dhcp22.suse.cz>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 May 2016 15:25:05 -0700 (PDT)
+Subject: Re: [PATCH v2] mm,oom: Allow SysRq-f to always select !TIF_MEMDIE thread group.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1464432784-6058-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<1464452714-5126-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20160531131159.GL26128@dhcp22.suse.cz>
+In-Reply-To: <20160531131159.GL26128@dhcp22.suse.cz>
+Message-Id: <201606010635.HJI86975.JOFOFFMQHLVtSO@I-love.SAKURA.ne.jp>
+Date: Wed, 1 Jun 2016 06:35:30 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160531074318.GD26128@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: mhocko@suse.cz
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com
 
-On 05/31, Michal Hocko wrote:
->
-> On Mon 30-05-16 20:18:16, Oleg Nesterov wrote:
-> >
-> > perhaps the is_global_init() == T case needs a warning too? the previous changes
-> > take care about vfork() from /sbin/init, so the only reason we can see it true
-> > is that /sbin/init shares the memory with a memory hog... Nevermind, forget.
->
-> I have another two patches waiting for this to settle and one of them
-> adds a warning to that path.
+Michal Hocko wrote:
+> On Sun 29-05-16 01:25:14, Tetsuo Handa wrote:
+> > There has been three problems about SysRq-f (manual invocation of the OOM
+> > killer) case. To make description simple, this patch assumes situation
+> > where the OOM reaper is not called (because the OOM victim's mm is shared
+> > by unkillable threads) or not available (due to kthread_run() failure or
+> > CONFIG_MMU=n).
+> > 
+> > First is that moom_callback() is not called by moom_work under OOM
+> > livelock situation because it does not have a dedicated WQ like vmstat_wq.
+> > This problem is not fixed yet.
+> 
+> Why do you mention it in the changelog when it is not related to the
+> patch then?
 
-Good,
+Just we won't forget about it.
 
-> > This is a bit off-topic, but perhaps we can also change the PF_KTHREAD check later.
-> > Of course we should not try to kill this kthread, but can_oom_reap can be true in
-> > this case. A kernel thread which does use_mm() should handle the errors correctly
-> > if (say) get_user() fails because we unmap the memory.
->
-> I was worried that the kernel thread would see a zero page so this could
-> lead to a data corruption.
+> 
+> Btw. you can (ab)use oom_reaper for that purpose. The patch would be
+> quite trivial.
 
-We can't avoid this anyway. use_mm(victim->mm) can be called after we decide to kill
-the victim.
+How do you handle CONFIG_MMU=n case?
+Are we going to provide oom_reaper for CONFIG_MMU=n case?
 
-So I think that we should always ignore kthreads, and in task_will_free_mem() too.
+> 
+> > Second is that select_bad_process() chooses a thread group which already
+> > has a TIF_MEMDIE thread. Since commit f44666b04605d1c7 ("mm,oom: speed up
+> > select_bad_process() loop") changed oom_scan_process_group() to use
+> > task->signal->oom_victims, non SysRq-f case will no longer select a
+> > thread group which already has a TIF_MEMDIE thread.
+> 
+> I am not sure the reference to the commit is really helpful. The
+> behavior you are describing below was there before this commit, the only
+> thing that has changed is the scope of the TIF_MEMDIE check.
 
-But let me repeat, I agree we should discuss this later, I am not trying to suggest
-this change right now.
+Indeed. Traversing on all threads can always find a thread group which
+already has a TIF_MEMDIE thread when there is already a TIF_MEMDIE thread.
 
-Oleg.
+> 
+> > But SysRq-f case will
+> > select such thread group due to returning OOM_SCAN_OK. This patch makes
+> > sure that oom_badness() is skipped by making oom_scan_process_group() to
+> > return OOM_SCAN_CONTINUE for SysRq-f case.
+> 
+> I am OK with this part. I was suggesting something similar except I
+> wanted to skip over tasks which have fatal_signal_pending and that part
+> got nacked by David AFAIR. Could you make this a separate patch, please?
+
+I think it is better to change both part with this patch.
+
+> 
+> > Third is that oom_kill_process() chooses a thread group which already
+> > has a TIF_MEMDIE thread when the candidate select_bad_process() chose
+> > has children because oom_badness() does not take TIF_MEMDIE into account.
+> > This patch checks child->signal->oom_victims before calling oom_badness()
+> > if oom_kill_process() was called by SysRq-f case. This resembles making
+> > sure that oom_badness() is skipped by returning OOM_SCAN_CONTINUE.
+> 
+> This makes sense to me as well but why should be limit this to sysrq case?
+> Does it make any sense to select a child which already got killed for
+> normal OOM killer? Anyway I think it would be better to split this into
+> its own patch as well.
+
+The reason is described in next paragraph.
+Do we prefer immediately killing all children of the allocating task?
+If yes, I think it should be a separate patch on top of this patch because
+somebody might complain such behavior as a regression.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
