@@ -1,63 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D52516B025E
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 10:03:57 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id a136so44541655wme.1
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 07:03:57 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id y1si50863066wjm.132.2016.05.31.07.03.56
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A5DF76B0005
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 11:04:10 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id r64so308054753oie.1
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 08:04:10 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id u123si4647716itc.36.2016.05.31.08.04.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 May 2016 07:03:56 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id q62so33086856wmg.3
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 07:03:56 -0700 (PDT)
-Date: Tue, 31 May 2016 16:03:54 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: =?utf-8?B?562U5aSNOiBbUEFUQ0hdIHJldXNp?=
- =?utf-8?Q?ng_of_mapping_page_supplies_a_way_for_file_page_allocation_und?=
- =?utf-8?Q?er_low_memory_due_to_pagecache_over_size_and_is_controlled_by_?=
- =?utf-8?Q?sysctl_parameters=2E_it_is_used_only_for_rw_page_allocatio?=
- =?utf-8?Q?n?= rather than fault or readahead allocation. it is like...
-Message-ID: <20160531140354.GM26128@dhcp22.suse.cz>
-References: <1464685702-100211-1-git-send-email-zhouxianrong@huawei.com>
- <20160531093631.GH26128@dhcp22.suse.cz>
- <AE94847B1D9E864B8593BD8051012AF36D70EA02@SZXEML505-MBS.china.huawei.com>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 May 2016 08:04:08 -0700 (PDT)
+Subject: Re: [PATCH 6/6] mm, oom: fortify task_will_free_mem
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
+	<1464613556-16708-7-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1464613556-16708-7-git-send-email-mhocko@kernel.org>
+Message-Id: <201606010003.CAH18706.LFHOFVOJtQOSFM@I-love.SAKURA.ne.jp>
+Date: Wed, 1 Jun 2016 00:03:53 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AE94847B1D9E864B8593BD8051012AF36D70EA02@SZXEML505-MBS.china.huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhouxianrong <zhouxianrong@huawei.com>
-Cc: "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Zhouxiyu <zhouxiyu@huawei.com>, "wanghaijun (E)" <wanghaijun5@huawei.com>, "Yuchao (T)" <yuchao0@huawei.com>
+To: mhocko@kernel.org, linux-mm@kvack.org
+Cc: rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, mhocko@suse.com
 
-On Tue 31-05-16 13:35:37, zhouxianrong wrote:
-> Hey :
-> the consideration of this patch is that reusing mapping page
-> rather than allocating a new page for page cache when system be
-> placed in some states.  For lookup pages quickly add a new tag
-> PAGECACHE_TAG_REUSE for radix tree which tag the pages that is
-> suitable for reusing.
+Michal Hocko wrote:
+> task_will_free_mem is rather weak. It doesn't really tell whether
+> the task has chance to drop its mm. 98748bd72200 ("oom: consider
+> multi-threaded tasks in task_will_free_mem") made a first step
+> into making it more robust for multi-threaded applications so now we
+> know that the whole process is going down and probably drop the mm.
 > 
-> A page suitable for reusing within mapping is
-> 1. clean
-> 2. map count is zero
-> 3. whose mapping is evictable
+> This patch builds on top for more complex scenarios where mm is shared
+> between different processes - CLONE_VM without CLONE_THREAD resp
+> CLONE_SIGHAND, or in kernel use_mm().
+> 
+> Make sure that all processes sharing the mm are killed or exiting. This
+> will allow us to replace try_oom_reaper by wake_oom_reaper. Therefore
+> all paths which bypass the oom killer are now reapable and so they
+> shouldn't lock up the oom killer.
 
-Those pages are trivially reclaimable so why should we tag them in a
-special way?
+Really? The can_oom_reap variable was not removed before this patch.
+It means that oom_kill_process() might fail to call wake_oom_reaper()
+while setting TIF_MEMDIE to one of threads using that mm_struct.
+If use_mm() or global init keeps that mm_struct not OOM reapable, other
+threads sharing that mm_struct will get task_will_free_mem() == false,
+won't it?
 
-[...]
-
-> How to startup the functional
-> 1. the system is under low memory state and there are fs rw operations
-> 2. page cache size is get bigger over sysctl limit
-
-So is this a form of a page cache limit to trigger the reclaim earlier
-than on the global memory pressure?
--- 
-Michal Hocko
-SUSE Labs
+How is it guaranteed that task_will_free_mem() == false && oom_victims > 0
+shall not lock up the OOM killer?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
