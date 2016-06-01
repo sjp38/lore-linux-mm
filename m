@@ -1,86 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 95F9E6B0005
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 03:39:29 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id a143so17547003oii.2
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 00:39:29 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id g18si31591923iog.23.2016.06.01.00.39.28
-        for <linux-mm@kvack.org>;
-        Wed, 01 Jun 2016 00:39:29 -0700 (PDT)
-Date: Wed, 1 Jun 2016 16:40:10 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: Why __alloc_contig_migrate_range calls  migrate_prep() at first?
-Message-ID: <20160601074010.GO19976@bbox>
-References: <tencent_29E1A2CA78CE0C9046C1494E@qq.com>
+Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 07BA76B0005
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 04:18:23 -0400 (EDT)
+Received: by mail-lb0-f198.google.com with SMTP id j12so5767946lbo.0
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 01:18:22 -0700 (PDT)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
+        by mx.google.com with ESMTPS id wx8si55491256wjb.149.2016.06.01.01.18.21
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Jun 2016 01:18:21 -0700 (PDT)
+Received: by mail-wm0-f45.google.com with SMTP id a136so169168522wme.0
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 01:18:21 -0700 (PDT)
+Date: Wed, 1 Jun 2016 10:18:20 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: =?utf-8?B?562U5aSNOiBbUEFUQ0hdIHJldXNp?=
+ =?utf-8?Q?ng_of_mapping_page_supplies_a_way_for_file_page_allocation_und?=
+ =?utf-8?Q?er_low_memory_due_to_pagecache_over_size_and_is_controlled_by_?=
+ =?utf-8?Q?sysctl_parameters=2E_it_is_used_only_for_rw_page_allocatio?=
+ =?utf-8?Q?n?= rather than fault or readahead allocation. it is like...
+Message-ID: <20160601081820.GG26601@dhcp22.suse.cz>
+References: <1464685702-100211-1-git-send-email-zhouxianrong@huawei.com>
+ <20160531093631.GH26128@dhcp22.suse.cz>
+ <AE94847B1D9E864B8593BD8051012AF36D70EA02@SZXEML505-MBS.china.huawei.com>
+ <20160531140354.GM26128@dhcp22.suse.cz>
+ <ea553117-3735-fccb-0e7a-e289633cdd9f@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <tencent_29E1A2CA78CE0C9046C1494E@qq.com>
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain; charset="iso-8859-1"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <ea553117-3735-fccb-0e7a-e289633cdd9f@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Sheng-Hui <shhuiw@foxmail.com>
-Cc: akpm <akpm@linux-foundation.org>, mgorman <mgorman@techsingularity.net>, "iamjoonsoo.kim" <iamjoonsoo.kim@lge.com>, linux-mm <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
+To: zhouxianrong <zhouxianrong@huawei.com>
+Cc: "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Zhouxiyu <zhouxiyu@huawei.com>, "wanghaijun (E)" <wanghaijun5@huawei.com>, "Yuchao (T)" <yuchao0@huawei.com>
 
-On Wed, Jun 01, 2016 at 11:42:29AM +0800, Wang Sheng-Hui wrote:
-> Dear,
->=20
-> Sorry to trouble you.
->=20
-> I noticed cma_alloc would turn to  __alloc_contig_migrate_range for alloc=
-ating pages.
-> But  __alloc_contig_migrate_range calls  migrate_prep() at first, even if=
- the requested page
-> is single and free, lru_add_drain_all still run (called by  migrate_prep(=
-))?
->=20
-> Image a large chunk of free contig pages for CMA, various drivers may req=
-uest a single page from
-> the CMA area, we'll get  lru_add_drain_all run for each page.
->=20
-> Should we detect if the required pages are free before migrate_prep(), or=
- detect at least for single=20
-> page allocation?
+On Wed 01-06-16 09:52:45, zhouxianrong wrote:
+> >> A page suitable for reusing within mapping is
+> >> 1. clean
+> >> 2. map count is zero
+> >> 3. whose mapping is evictable
+> >
+> > Those pages are trivially reclaimable so why should we tag them in a
+> > special way?
+> yes, those pages can be reclaimed by reclaim procedure. i think in low memory
+> case for a process that doing file rw directly-reusing-mapping-page may be
+> a choice than alloc_page just like directly reclaim. alloc_page could failed return
+> due to gfp and watermark in low memory. for reusing-mapping-page procedure quickly
+> select a page that is be reused so introduce a tag for this purpose.
 
-That makes sense to me.
+Why would you want to reuse a page about which you have no idea about
+its age compared to the LRU pages which would be mostly clean as well?
+I mean this needs a deep justification!
 
-How about calling migrate_prep once migrate_pages fails in the first trial?
+> > So is this a form of a page cache limit to trigger the reclaim earlier
+> > than on the global memory pressure?
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9d666df5ef95..c504c1a623d2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6623,8 +6623,6 @@ static int __alloc_contig_migrate_range(struct compac=
-t_control *cc,
- 	unsigned int tries =3D 0;
- 	int ret =3D 0;
-=20
--	migrate_prep();
--
- 	while (pfn < end || !list_empty(&cc->migratepages)) {
- 		if (fatal_signal_pending(current)) {
- 			ret =3D -EINTR;
-@@ -6650,6 +6648,8 @@ static int __alloc_contig_migrate_range(struct compac=
-t_control *cc,
-=20
- 		ret =3D migrate_pages(&cc->migratepages, alloc_migrate_target,
- 				    NULL, 0, cc->mode, MR_CMA);
-+		if (ret)
-+			migrate_prep();
- 	}
- 	if (ret < 0) {
- 		putback_movable_pages(&cc->migratepages);
+> my thinking is that page cache limit trigger reuse-mapping-page. the
+> limit is earlier than on the global memory pressure.
+> reuse-mapping-page can suppress increment of page cache size and big page cache size
+> is one reason of low memory and fragment.
 
-
->=20
-> ------------------
-> Regards,
-> Wang Sheng-HuiN=8B=A7=B2=E6=ECr=B8=9Bz=C7=A7u=A9=9E=B2=C6=A0{=08=AD=86=E9=
-=EC=B9=BB=1C=AE&=DE=96)=EE=C6i=A2=9E=D8^n=87r=B6=89=9A=8E=8A=DD=A2j$=BD=A7$=
-=A2=B8=05=A2=B9=A8=AD=E8=A7~=8A'.)=EE=C4=C3,y=E8m=B6=9F=FF=C3=0C%=8A{=B1=9A=
-j+=83=F0=E8=9E=D7=A6j)Z=86=B7=9F=FEf=A2=96=DA=1D=A2{d=BD=A7$=A2=B8=1E=99=A8=
-=A5=92=F6=9C=92=8A=E0
+But why would you want to limit the amount of the page cache in the
+first place when it should be trivially reclaimable most of the time?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
