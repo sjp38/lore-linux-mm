@@ -1,138 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 56BE16B0005
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 03:09:36 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id n2so6583283wma.0
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 00:09:36 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id p4si14171946wmp.45.2016.06.01.00.03.42
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 019DD6B0253
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 03:09:57 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id a136so6587619wme.1
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 00:09:56 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id d8si4488970wju.41.2016.06.01.00.09.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jun 2016 00:03:42 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id a136so3902431wme.0
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 00:03:42 -0700 (PDT)
-Date: Wed, 1 Jun 2016 09:03:40 +0200
+        Wed, 01 Jun 2016 00:09:55 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id n184so3329226wmn.1
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 00:09:55 -0700 (PDT)
+Date: Wed, 1 Jun 2016 09:09:54 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 6/6] mm, oom: fortify task_will_free_mem
-Message-ID: <20160601070340.GB26601@dhcp22.suse.cz>
+Subject: Re: [PATCH 4/6] mm, oom: skip vforked tasks from being selected
+Message-ID: <20160601070954.GC26601@dhcp22.suse.cz>
 References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
- <1464613556-16708-7-git-send-email-mhocko@kernel.org>
- <20160530173505.GA25287@redhat.com>
- <20160531074624.GE26128@dhcp22.suse.cz>
- <20160531222933.GD26582@redhat.com>
+ <1464613556-16708-5-git-send-email-mhocko@kernel.org>
+ <20160530192856.GA25696@redhat.com>
+ <20160531074247.GC26128@dhcp22.suse.cz>
+ <20160531214338.GB26582@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160531222933.GD26582@redhat.com>
+In-Reply-To: <20160531214338.GB26582@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Oleg Nesterov <oleg@redhat.com>
 Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 01-06-16 00:29:33, Oleg Nesterov wrote:
+On Tue 31-05-16 23:43:38, Oleg Nesterov wrote:
 > On 05/31, Michal Hocko wrote:
 > >
-> > On Mon 30-05-16 19:35:05, Oleg Nesterov wrote:
+> > On Mon 30-05-16 21:28:57, Oleg Nesterov wrote:
 > > >
-> > > Well, let me suggest this again. I think it should do
+> > > I don't think we can trust vfork_done != NULL.
 > > >
-> > >
-> > > 	if (SIGNAL_GROUP_COREDUMP)
-> > > 		return false;
-> > >
-> > > 	if (SIGNAL_GROUP_EXIT)
-> > > 		return true;
-> > >
-> > > 	if (thread_group_empty() && PF_EXITING)
-> > > 		return true;
-> > >
-> > > 	return false;
-> > >
-> > > we do not need fatal_signal_pending(), in this case SIGNAL_GROUP_EXIT should
-> > > be set (ignoring some bugs with sub-namespaces which we need to fix anyway).
+> > > copy_process() doesn't disallow CLONE_VFORK without CLONE_VM, so with this patch
+> > > it would be trivial to make the exploit which hides a memory hog from oom-killer.
 > >
-> > OK, so we shouldn't care about race when the fatal_signal is set on the
-> > task until it reaches do_group_exit?
+> > OK, I wasn't aware of this possibility.
 > 
-> if fatal_signal() is true then (ignoring exec and coredump) SIGNAL_GROUP_EXIT
-> is already set (again, ignoring the bugs with sub-namespace inits).
-> 
-> At the same time, SIGKILL can be already dequeued when the task exits, so
-> fatal_signal_pending() can be "false negative".
+> Neither was me ;) I noticed this during this review.
 
-Thanks for the clarification. I guess I got the point but this is a land
-of surprises so one can never be sure...
-
-> > > And. I think this needs smp_rmb() at the end of the loop (assuming we have the
-> > > process_shares_mm() check here). We need it to ensure that we read p->mm before
-> > > we read next_task(), to avoid the race with exit() + clone(CLONE_VM).
+Heh, as I've said in other email, this is a land of dragons^Wsurprises.
+ 
+> > > Or I am totally confused?
 > >
-> > Why don't we need the same barrier in oom_kill_process?
+> > I cannot judge I am afraid. You are definitely much more familiar with
+> > all these subtle details than me.
 > 
-> Because it calls do_send_sig_info() which takes ->siglock and copy_process()
-> takes the same lock. Not a barrier, but acts the same way.
+> OK, I just verified that clone(CLONE_VFORK|SIGCHLD) really works to be sure.
 
-Ahh ok, so an implicit barrier.
+great, thanks
 
-> > Which barrier it
-> > would pair with?
-> 
-> With the barrier implied by list_add_tail_rcu(&p->tasks, &init_task.tasks).
-
-Ahh I see. rcu_assign_pointer that is, right?
-
-> > Anyway I think this would deserve it's own patch.
-> > Barriers are always tricky and it is better to have them in a small
-> > patch with a full explanation.
-> 
-> OK, agreed.
-
-cool
-
-> I am not sure I can read the new patch correctly, it depends on the previous
-> changes... but afaics it looks good.
-> 
-> Cosmetic/subjective nit, feel free to ignore,
-> 
-> > +bool task_will_free_mem(struct task_struct *task)
+> > +/* expects to be called with task_lock held */
+> > +static inline bool in_vfork(struct task_struct *tsk)
 > > +{
-> > +	struct mm_struct *mm = NULL;
-> 
-> unnecessary initialization ;)
-
-fixed
-
-> > +	struct task_struct *p;
 > > +	bool ret;
 > > +
 > > +	/*
-> > +	 * If the process has passed exit_mm we have to skip it because
-> > +	 * we have lost a link to other tasks sharing this mm, we do not
-> > +	 * have anything to reap and the task might then get stuck waiting
-> > +	 * for parent as zombie and we do not want it to hold TIF_MEMDIE
+> > +	 * need RCU to access ->real_parent if CLONE_VM was used along with
+> > +	 * CLONE_PARENT
 > > +	 */
-> > +	p = find_lock_task_mm(task);
-> > +	if (!p)
-> > +		return false;
+> > +	rcu_read_lock();
+> > +	ret = tsk->vfork_done && tsk->real_parent->mm == tsk->mm;
+> > +	rcu_read_unlock();
 > > +
-> > +	if (!__task_will_free_mem(p)) {
-> > +		task_unlock(p);
-> > +		return false;
-> > +	}
+> > +	return ret;
+> > +}
 > 
-> We can call the 1st __task_will_free_mem(p) before find_lock_task_mm(). In the
-> likely case (I think) it should return false.
+> Yes, but may I ask to add a comment? And note that "expects to be called with
+> task_lock held" looks misleading, we do not need the "stable" tsk->vfork_done
+> since we only need to check if it is NULL or not.
 
-OK
+OK, I thought it was needed for the stability but as you explain below
+this is not really true...
 
+> It would be nice to explain that
 > 
-> And since __task_will_free_mem() has no other callers perhaps it should go into
-> oom_kill.c too.
+> 	1. we check real_parent->mm == tsk->mm because CLONE_VFORK does not
+> 	   imply CLONE_VM
+> 
+> 	2. CLONE_VFORK can be used with CLONE_PARENT/CLONE_THREAD and thus
+> 	   ->real_parent is not necessarily the task doing vfork(), so in
+> 	   theory we can't rely on task_lock() if we want to dereference it.
+> 
+> 	   And in this case we can't trust the real_parent->mm == tsk->mm
+> 	   check, it can be false negative. But we do not care, if init or
+> 	   another oom-unkillable task does this it should blame itself.
 
-ok
-
-I will resend the whole series with the fixups later during this week.
-Thanks again for your review.
+I've stolen this explanation and put it right there.
 -- 
 Michal Hocko
 SUSE Labs
