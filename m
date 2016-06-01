@@ -1,120 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E0966B0005
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 23:09:30 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id dh6so4462090obb.1
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 20:09:30 -0700 (PDT)
-Received: from out4133-82.mail.aliyun.com (out4133-82.mail.aliyun.com. [42.120.133.82])
-        by mx.google.com with ESMTP id l133si35371098itd.105.2016.05.31.20.09.28
-        for <linux-mm@kvack.org>;
-        Tue, 31 May 2016 20:09:29 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1464720957-15698-1-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1464720957-15698-1-git-send-email-mike.kravetz@oracle.com>
-Subject: Re: [PATCH] mm/hugetlb: fix huge page reserve accounting for private mappings
-Date: Wed, 01 Jun 2016 11:09:23 +0800
-Message-ID: <00a801d1bbb3$00980d40$01c827c0$@alibaba-inc.com>
-MIME-Version: 1.0
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 962EF6B0005
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 23:42:36 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id di3so5059362pab.0
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 20:42:36 -0700 (PDT)
+Received: from smtpbgau1.qq.com (smtpbgau1.qq.com. [54.206.16.166])
+        by mx.google.com with ESMTPS id o90si47914609pfa.151.2016.05.31.20.42.34
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 May 2016 20:42:35 -0700 (PDT)
+From: "=?ISO-8859-1?B?V2FuZyBTaGVuZy1IdWk=?=" <shhuiw@foxmail.com>
+Subject: Why __alloc_contig_migrate_range calls  migrate_prep() at first?
+Mime-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+	charset="ISO-8859-1"
+Content-Transfer-Encoding: base64
+Date: Wed, 1 Jun 2016 11:42:29 +0800
+Message-ID: <tencent_29E1A2CA78CE0C9046C1494E@qq.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mike Kravetz' <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Kirill Shutemov' <kirill.shutemov@linux.intel.com>, 'Michal Hocko' <mhocko@suse.cz>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Aneesh Kumar' <aneesh.kumar@linux.vnet.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+To: =?ISO-8859-1?B?YWtwbQ==?= <akpm@linux-foundation.org>, =?ISO-8859-1?B?bWdvcm1hbg==?= <mgorman@techsingularity.net>, =?ISO-8859-1?B?aWFtam9vbnNvby5raW0=?= <iamjoonsoo.kim@lge.com>
+Cc: =?ISO-8859-1?B?bGludXgtbW0=?= <linux-mm@kvack.org>
 
-> 
-> When creating a private mapping of a hugetlbfs file, it is possible to
-> unmap pages via ftruncate or fallocate hole punch.  If subsequent faults
-> repopulate these mappings, the reserve counts will go negative.  This
-> is because the code currently assumes all faults to private mappings will
-> consume reserves.  The problem can be recreated as follows:
-> - mmap(MAP_PRIVATE) a file in hugetlbfs filesystem
-> - write fault in pages in the mapping
-> - fallocate(FALLOC_FL_PUNCH_HOLE) some pages in the mapping
-> - write fault in pages in the hole
-> This will result in negative huge page reserve counts and negative subpool
-> usage counts for the hugetlbfs.  Note that this can also be recreated with
-> ftruncate, but fallocate is more straight forward.
-> 
-> This patch modifies the routines vma_needs_reserves and vma_has_reserves
-> to examine the reserve map associated with private mappings similar to that
-> for shared mappings.  However, the reserve map semantics for private and
-> shared mappings are very different.  This results in subtly different code
-> that is explained in the comments.
-> 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
+RGVhciwKClNvcnJ5IHRvIHRyb3VibGUgeW91LgoKSSBub3RpY2VkIGNtYV9hbGxvYyB3b3Vs
+ZCB0dXJuIHRvICBfX2FsbG9jX2NvbnRpZ19taWdyYXRlX3JhbmdlIGZvciBhbGxvY2F0aW5n
+IHBhZ2VzLgpCdXQgIF9fYWxsb2NfY29udGlnX21pZ3JhdGVfcmFuZ2UgY2FsbHMgIG1pZ3Jh
+dGVfcHJlcCgpIGF0IGZpcnN0LCBldmVuIGlmIHRoZSByZXF1ZXN0ZWQgcGFnZQppcyBzaW5n
+bGUgYW5kIGZyZWUsIGxydV9hZGRfZHJhaW5fYWxsIHN0aWxsIHJ1biAoY2FsbGVkIGJ5ICBt
+aWdyYXRlX3ByZXAoKSk/CgpJbWFnZSBhIGxhcmdlIGNodW5rIG9mIGZyZWUgY29udGlnIHBh
+Z2VzIGZvciBDTUEsIHZhcmlvdXMgZHJpdmVycyBtYXkgcmVxdWVzdCBhIHNpbmdsZSBwYWdl
+IGZyb20KdGhlIENNQSBhcmVhLCB3ZSdsbCBnZXQgIGxydV9hZGRfZHJhaW5fYWxsIHJ1biBm
+b3IgZWFjaCBwYWdlLgoKU2hvdWxkIHdlIGRldGVjdCBpZiB0aGUgcmVxdWlyZWQgcGFnZXMg
+YXJlIGZyZWUgYmVmb3JlIG1pZ3JhdGVfcHJlcCgpLCBvciBkZXRlY3QgYXQgbGVhc3QgZm9y
+IHNpbmdsZSAKcGFnZSBhbGxvY2F0aW9uPwoKLS0tLS0tLS0tLS0tLS0tLS0tClJlZ2FyZHMs
+CldhbmcgU2hlbmctSHVp
 
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
->  mm/hugetlb.c | 42 ++++++++++++++++++++++++++++++++++++++++--
->  1 file changed, 40 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 949d806..0949d0d 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -831,8 +831,27 @@ static bool vma_has_reserves(struct vm_area_struct *vma, long chg)
->  	 * Only the process that called mmap() has reserves for
->  	 * private mappings.
->  	 */
-> -	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER))
-> -		return true;
-> +	if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
-> +		/*
-> +		 * Like the shared case above, a hole punch or truncate
-> +		 * could have been performed on the private mapping.
-> +		 * Examine the value of chg to determine if reserves
-> +		 * actually exist or were previously consumed.
-> +		 * Very Subtle - The value of chg comes from a previous
-> +		 * call to vma_needs_reserves().  The reserve map for
-> +		 * private mappings has different (opposite) semantics
-> +		 * than that of shared mappings.  vma_needs_reserves()
-> +		 * has already taken this difference in semantics into
-> +		 * account.  Therefore, the meaning of chg is the same
-> +		 * as in the shared case above.  Code could easily be
-> +		 * combined, but keeping it separate draws attention to
-> +		 * subtle differences.
-> +		 */
-> +		if (chg)
-> +			return false;
-> +		else
-> +			return true;
-> +	}
-> 
->  	return false;
->  }
-> @@ -1815,6 +1834,25 @@ static long __vma_reservation_common(struct hstate *h,
-> 
->  	if (vma->vm_flags & VM_MAYSHARE)
->  		return ret;
-> +	else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER) && ret >= 0) {
-> +		/*
-> +		 * In most cases, reserves always exist for private mappings.
-> +		 * However, a file associated with mapping could have been
-> +		 * hole punched or truncated after reserves were consumed.
-> +		 * As subsequent fault on such a range will not use reserves.
-> +		 * Subtle - The reserve map for private mappings has the
-> +		 * opposite meaning than that of shared mappings.  If NO
-> +		 * entry is in the reserve map, it means a reservation exists.
-> +		 * If an entry exists in the reserve map, it means the
-> +		 * reservation has already been consumed.  As a result, the
-> +		 * return value of this routine is the opposite of the
-> +		 * value returned from reserve map manipulation routines above.
-> +		 */
-> +		if (ret)
-> +			return 0;
-> +		else
-> +			return 1;
-> +	}
->  	else
->  		return ret < 0 ? ret : 0;
->  }
-> --
-> 2.4.11
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
