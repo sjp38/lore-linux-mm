@@ -1,94 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 409856B0253
-	for <linux-mm@kvack.org>; Tue, 31 May 2016 19:56:31 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id g77so4643472qke.3
-        for <linux-mm@kvack.org>; Tue, 31 May 2016 16:56:31 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o70si17440064qki.85.2016.05.31.16.56.30
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 888B86B0005
+	for <linux-mm@kvack.org>; Tue, 31 May 2016 20:36:45 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id i127so13542366ita.2
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 17:36:45 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id h5si7476405pah.28.2016.05.31.17.36.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 May 2016 16:56:30 -0700 (PDT)
-Date: Wed, 1 Jun 2016 01:56:26 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: zone_reclaimable() leads to livelock in __alloc_pages_slowpath()
-Message-ID: <20160531235626.GA24319@redhat.com>
-References: <20160520202817.GA22201@redhat.com>
- <20160523072904.GC2278@dhcp22.suse.cz>
- <20160523151419.GA8284@redhat.com>
- <20160524071619.GB8259@dhcp22.suse.cz>
- <20160524224341.GA11961@redhat.com>
- <20160525120957.GH20132@dhcp22.suse.cz>
- <20160529212540.GA15180@redhat.com>
- <20160531125253.GK26128@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160531125253.GK26128@dhcp22.suse.cz>
+        Tue, 31 May 2016 17:36:44 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id b124so653677pfb.0
+        for <linux-mm@kvack.org>; Tue, 31 May 2016 17:36:44 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v1] mm: thp: check pmd_trans_unstable() after split_huge_pmd()
+Date: Wed,  1 Jun 2016 09:36:40 +0900
+Message-Id: <1464741400-12143-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On 05/31, Michal Hocko wrote:
->
-> On Sun 29-05-16 23:25:40, Oleg Nesterov wrote:
-> >
-> > This single change in get_scan_count() under for_each_evictable_lru() loop
-> >
-> > 	-	size = lruvec_lru_size(lruvec, lru);
-> > 	+	size = zone_page_state_snapshot(lruvec_zone(lruvec), NR_LRU_BASE + lru);
-> >
-> > fixes the problem too.
-> >
-> > Without this change shrink*() continues to scan the LRU_ACTIVE_FILE list
-> > while it is empty. LRU_INACTIVE_FILE is not empty (just a few pages) but
-> > we do not even try to scan it, lruvec_lru_size() returns zero.
->
-> OK, you seem to be really seeing a different issue than me.
+split_huge_pmd() doesn't guarantee that the pmd is normal pmd pointing to
+pte entries, which can be checked with pmd_trans_unstable(). Some callers
+of split_huge_pmd() don't have the check, so let's add it.
 
-quite possibly, but
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/gup.c       | 2 ++
+ mm/mempolicy.c | 2 ++
+ mm/mprotect.c  | 2 +-
+ mm/mremap.c    | 3 +--
+ 4 files changed, 6 insertions(+), 3 deletions(-)
 
-> My debugging
-> patch was showing when nothing was really isolated from the LRU lists
-> (both for shrink_{in}active_list.
-
-in my debugging session too. LRU_ACTIVE_FILE was empty, so there is nothing to
-isolate even if shrink_active_list() is (wrongly called) with nr_to_scan != 0.
-LRU_INACTIVE_FILE is not empty but it is not scanned because nr_to_scan == 0.
-
-But I am afraid I misunderstood you, and you meant something else.
-
-> > Then later we recheck zone_reclaimable() and it notices the INACTIVE_FILE
-> > counter because it uses the _snapshot variant, this leads to livelock.
-> >
-> > I guess this doesn't really matter, but in my particular case these
-> > ACTIVE/INACTIVE counters were screwed by the recent putback_inactive_pages()
-> > logic. The pages we "leak" in INACTIVE list were recently moved from ACTIVE
-> > to INACTIVE list, and this updated only the per-cpu ->vm_stat_diff[] counters,
-> > so the "non snapshot" lruvec_lru_size() in get_scan_count() sees the "old"
-> > numbers.
->
-> Hmm. I am not really sure we can use the _snapshot version in lruvec_lru_size.
-
-Yes, yes, I  understand,
-
-> But I am thinking whether we should simply revert 0db2cb8da89d ("mm,
-> vmscan: make zone_reclaimable_pages more precise") in 4.6 stable tree.
-> Does that help as well?
-
-I'll test this tomorrow, but even if it helps I am not sure... Yes, this
-way zone_reclaimable() and get_scan_count() will see the same numbers, but
-how this can help to make zone_reclaimable() == F at the end?
-
-Again, suppose that (say) ACTIVE list is empty but zone->vm_stat != 0
-because there is something in per-cpu counter (so that _snapshot == 0).
-This means that we sill continue to try to scan this list for no reason.
-
-But Michal, let me repeat that I do not understand this code, so I can
-be easily wrong.
-
-Oleg.
+diff --git v4.6-mmotm-2016-05-27-15-19/mm/gup.c v4.6-mmotm-2016-05-27-15-19_patched/mm/gup.c
+index c057784..dee142e 100644
+--- v4.6-mmotm-2016-05-27-15-19/mm/gup.c
++++ v4.6-mmotm-2016-05-27-15-19_patched/mm/gup.c
+@@ -279,6 +279,8 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+ 			spin_unlock(ptl);
+ 			ret = 0;
+ 			split_huge_pmd(vma, pmd, address);
++			if (pmd_trans_unstable(pmd))
++				ret = -EBUSY;
+ 		} else {
+ 			get_page(page);
+ 			spin_unlock(ptl);
+diff --git v4.6-mmotm-2016-05-27-15-19/mm/mempolicy.c v4.6-mmotm-2016-05-27-15-19_patched/mm/mempolicy.c
+index 297d685..fe90e50 100644
+--- v4.6-mmotm-2016-05-27-15-19/mm/mempolicy.c
++++ v4.6-mmotm-2016-05-27-15-19_patched/mm/mempolicy.c
+@@ -512,6 +512,8 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+ 		}
+ 	}
+ 
++	if (pmd_trans_unstable(pmd))
++		return 0;
+ retry:
+ 	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
+ 	for (; addr != end; pte++, addr += PAGE_SIZE) {
+diff --git v4.6-mmotm-2016-05-27-15-19/mm/mprotect.c v4.6-mmotm-2016-05-27-15-19_patched/mm/mprotect.c
+index 5019a1e..a4830f0 100644
+--- v4.6-mmotm-2016-05-27-15-19/mm/mprotect.c
++++ v4.6-mmotm-2016-05-27-15-19_patched/mm/mprotect.c
+@@ -163,7 +163,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+ 			if (next - addr != HPAGE_PMD_SIZE) {
+ 				split_huge_pmd(vma, pmd, addr);
+-				if (pmd_none(*pmd))
++				if (pmd_trans_unstable(pmd))
+ 					continue;
+ 			} else {
+ 				int nr_ptes = change_huge_pmd(vma, pmd, addr,
+diff --git v4.6-mmotm-2016-05-27-15-19/mm/mremap.c v4.6-mmotm-2016-05-27-15-19_patched/mm/mremap.c
+index 1f157ad..da22ad2 100644
+--- v4.6-mmotm-2016-05-27-15-19/mm/mremap.c
++++ v4.6-mmotm-2016-05-27-15-19_patched/mm/mremap.c
+@@ -210,9 +210,8 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
+ 				}
+ 			}
+ 			split_huge_pmd(vma, old_pmd, old_addr);
+-			if (pmd_none(*old_pmd))
++			if (pmd_trans_unstable(old_pmd))
+ 				continue;
+-			VM_BUG_ON(pmd_trans_huge(*old_pmd));
+ 		}
+ 		if (pte_alloc(new_vma->vm_mm, new_pmd, new_addr))
+ 			break;
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
