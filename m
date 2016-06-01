@@ -1,77 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 517A26B0005
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 03:25:52 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id f75so6757723wmf.2
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 00:25:52 -0700 (PDT)
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
-        by mx.google.com with ESMTPS id s68si24165394wme.28.2016.06.01.00.25.50
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 71EDA6B0005
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 03:34:45 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id j12so5253795lbo.0
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 00:34:45 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d76si41721586wma.63.2016.06.01.00.34.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jun 2016 00:25:51 -0700 (PDT)
-Received: by mail-wm0-f47.google.com with SMTP id a20so14123950wma.1
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 00:25:50 -0700 (PDT)
-Date: Wed, 1 Jun 2016 09:25:49 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 6/6] mm, oom: fortify task_will_free_mem
-Message-ID: <20160601072549.GD26601@dhcp22.suse.cz>
-References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
- <1464613556-16708-7-git-send-email-mhocko@kernel.org>
- <201606010003.CAH18706.LFHOFVOJtQOSFM@I-love.SAKURA.ne.jp>
- <20160531151019.GN26128@dhcp22.suse.cz>
- <201606010029.AHH64521.SOOQFMJFLOVFHt@I-love.SAKURA.ne.jp>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Jun 2016 00:34:43 -0700 (PDT)
+Date: Wed, 1 Jun 2016 09:34:42 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] mm,oom: Allow SysRq-f to always select !TIF_MEMDIE
+ thread group.
+Message-ID: <20160601073441.GE26601@dhcp22.suse.cz>
+References: <1464432784-6058-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <1464452714-5126-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20160531131159.GL26128@dhcp22.suse.cz>
+ <201606010635.HJI86975.JOFOFFMQHLVtSO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201606010029.AHH64521.SOOQFMJFLOVFHt@I-love.SAKURA.ne.jp>
+In-Reply-To: <201606010635.HJI86975.JOFOFFMQHLVtSO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com
 
-On Wed 01-06-16 00:29:45, Tetsuo Handa wrote:
+On Wed 01-06-16 06:35:30, Tetsuo Handa wrote:
 > Michal Hocko wrote:
-> > On Wed 01-06-16 00:03:53, Tetsuo Handa wrote:
-[...]
-> > > How is it guaranteed that task_will_free_mem() == false && oom_victims > 0
-> > > shall not lock up the OOM killer?
+> > On Sun 29-05-16 01:25:14, Tetsuo Handa wrote:
+> > > There has been three problems about SysRq-f (manual invocation of the OOM
+> > > killer) case. To make description simple, this patch assumes situation
+> > > where the OOM reaper is not called (because the OOM victim's mm is shared
+> > > by unkillable threads) or not available (due to kthread_run() failure or
+> > > CONFIG_MMU=n).
+> > > 
+> > > First is that moom_callback() is not called by moom_work under OOM
+> > > livelock situation because it does not have a dedicated WQ like vmstat_wq.
+> > > This problem is not fixed yet.
 > > 
-> > But this patch is talking about task_will_free_mem == true. Is the
-> > description confusing? Should I reword the changelog?
+> > Why do you mention it in the changelog when it is not related to the
+> > patch then?
 > 
-> The situation I'm talking about is
+> Just we won't forget about it.
+
+OK, then this belongs to a cover letter. Discussing unrelated things in
+the patch description might end up being just confusing.
+ 
+> > Btw. you can (ab)use oom_reaper for that purpose. The patch would be
+> > quite trivial.
 > 
->   (1) out_of_memory() is called.
->   (2) select_bad_process() is called because task_will_free_mem(current) == false.
->   (3) oom_kill_process() is called because select_bad_process() chose a victim.
->   (4) oom_kill_process() sets TIF_MEMDIE on that victim.
->   (5) oom_kill_process() fails to call wake_oom_reaper() because that victim's
->       memory was shared by use_mm() or global init.
->   (6) other !TIF_MEMDIE threads sharing that victim's memory call out_of_memory().
->   (7) select_bad_process() is called because task_will_free_mem(current) == false.
->   (8) oom_scan_process_thread() returns OOM_SCAN_ABORT because it finds TIF_MEMDIE
->       set at (4).
->   (9) other !TIF_MEMDIE threads sharing that victim's memory fail to get TIF_MEMDIE.
->   (10) How other !TIF_MEMDIE threads sharing that victim's memory will release
->        that memory?
+> How do you handle CONFIG_MMU=n case?
+
+void schedule_sysrq_oom(void)
+{
+	if (IS_ENABLED(CONFIG_MMU) && oom_reaper_th)
+		kick_oom_reaper()
+	else
+		schedule_work(&moom_work);
+}
+
+[...]
+> > > But SysRq-f case will
+> > > select such thread group due to returning OOM_SCAN_OK. This patch makes
+> > > sure that oom_badness() is skipped by making oom_scan_process_group() to
+> > > return OOM_SCAN_CONTINUE for SysRq-f case.
+> > 
+> > I am OK with this part. I was suggesting something similar except I
+> > wanted to skip over tasks which have fatal_signal_pending and that part
+> > got nacked by David AFAIR. Could you make this a separate patch, please?
 > 
-> I'm fine with task_will_free_mem(current) == true case. My question is that
-> "doesn't this patch break task_will_free_mem(current) == false case when there is
-> already TIF_MEMDIE thread" ?
+> I think it is better to change both part with this patch.
 
-OK, I see your point now. This is certainly possible, albeit unlikely. I
-think calling this a regression would be a bit an overstatement. We are
-basically replacing one unreliable heuristic by another one which is
-more likely to lead to a deterministic behavior.
+They are semantically different (one is sysrq specific while the other
+is not) so I would prefer to split them up.
+ 
+> > > Third is that oom_kill_process() chooses a thread group which already
+> > > has a TIF_MEMDIE thread when the candidate select_bad_process() chose
+> > > has children because oom_badness() does not take TIF_MEMDIE into account.
+> > > This patch checks child->signal->oom_victims before calling oom_badness()
+> > > if oom_kill_process() was called by SysRq-f case. This resembles making
+> > > sure that oom_badness() is skipped by returning OOM_SCAN_CONTINUE.
+> > 
+> > This makes sense to me as well but why should be limit this to sysrq case?
+> > Does it make any sense to select a child which already got killed for
+> > normal OOM killer? Anyway I think it would be better to split this into
+> > its own patch as well.
+> 
+> The reason is described in next paragraph.
+> Do we prefer immediately killing all children of the allocating task?
 
-If you are worried about locking up the oom killer I have another 2
-patches on top of this series which should deal with that (one of them
-was already posted [1] and another one was drafted in [2]. Both of them
-on top of this series should remove the concern of the lockup. I just
-wait to post them until this thread settles down.
-
-[1] http://lkml.kernel.org/r/1464276476-25136-1-git-send-email-mhocko@kernel.org
-[2] http://lkml.kernel.org/r/20160527133502.GN27686@dhcp22.suse.cz
+I do not think we want to select them _all_. We haven't been doing that
+and I do not see a reason we should start now. But it surely doesn't
+make any sense to select a task which has already TIF_MEMDIE set.
 -- 
 Michal Hocko
 SUSE Labs
