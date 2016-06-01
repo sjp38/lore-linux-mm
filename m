@@ -1,78 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C16C96B0253
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 06:01:28 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f75so8855016wmf.2
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 03:01:28 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b80si14051074wmf.119.2016.06.01.03.01.27
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E90136B0005
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 06:41:19 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id g64so11440834pfb.2
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 03:41:19 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id wl5si19303128pab.81.2016.06.01.03.41.18
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Jun 2016 03:01:27 -0700 (PDT)
-Subject: Re: BUG: scheduling while atomic: cron/668/0x10c9a0c0
-References: <CAMuHMdV00vJJxoA7XABw+mFF+2QUd1MuQbPKKgkmGnK_NySZpg@mail.gmail.com>
- <20160530155644.GP2527@techsingularity.net> <574E05B8.3060009@suse.cz>
- <20160601091921.GT2527@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <574EB274.4030408@suse.cz>
-Date: Wed, 1 Jun 2016 12:01:24 +0200
-MIME-Version: 1.0
-In-Reply-To: <20160601091921.GT2527@techsingularity.net>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+        Wed, 01 Jun 2016 03:41:18 -0700 (PDT)
+Subject: Re: [PATCH 1/6] proc, oom: drop bogus task_lock and mm check
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1464613556-16708-2-git-send-email-mhocko@kernel.org>
+	<20160530174324.GA25382@redhat.com>
+	<20160531073227.GA26128@dhcp22.suse.cz>
+	<20160531225303.GE26582@redhat.com>
+	<20160601065339.GA26601@dhcp22.suse.cz>
+In-Reply-To: <20160601065339.GA26601@dhcp22.suse.cz>
+Message-Id: <201606011941.DJJ09369.FSFtQVMLFOJOOH@I-love.SAKURA.ne.jp>
+Date: Wed, 1 Jun 2016 19:41:09 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
+To: mhocko@kernel.org, oleg@redhat.com
+Cc: linux-mm@kvack.org, rientjes@google.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On 06/01/2016 11:19 AM, Mel Gorman wrote:
-> On Tue, May 31, 2016 at 11:44:24PM +0200, Vlastimil Babka wrote:
->> On 05/30/2016 05:56 PM, Mel Gorman wrote:
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index dba8cfd0b2d6..f2c1e47adc11 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -3232,6 +3232,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->>>  		 * allocations are system rather than user orientated
->>>  		 */
->>>  		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
->>> +		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
->>> +					ac->high_zoneidx, ac->nodemask);
->>> +		ac->classzone_idx = zonelist_zone_idx(ac->preferred_zoneref);
->>>  		page = get_page_from_freelist(gfp_mask, order,
->>>  						ALLOC_NO_WATERMARKS, ac);
->>>  		if (page)
->>>
->>
->> Even if that didn't help for this report, I think it's needed too
->> (except the classzone_idx which doesn't exist anymore?).
+Michal Hocko wrote:
+> On Wed 01-06-16 00:53:03, Oleg Nesterov wrote:
+> > On 05/31, Michal Hocko wrote:
+> > >
+> > > Oleg has pointed out that can simplify both oom_adj_write and
+> > > oom_score_adj_write even further and drop the sighand lock. The only
+> > > purpose of the lock was to protect p->signal from going away but this
+> > > will not happen since ea6d290ca34c ("signals: make task_struct->signal
+> > > immutable/refcountable").
+> > 
+> > Sorry for confusion, I meant oom_adj_read() and oom_score_adj_read().
+> > 
+> > As for oom_adj_write/oom_score_adj_write we can remove it too, but then
+> > we need to ensure (say, using cmpxchg) that unpriviliged user can not
+> > not decrease signal->oom_score_adj_min if its oom_score_adj_write()
+> > races with someone else (say, admin) which tries to increase the same
+> > oom_score_adj_min.
+> 
+> I am introducing oom_adj_mutex in a later patch so I will move it here.
 
-But you agree that the hunk above should be merged?
+Can't we reuse oom_lock like
 
->> And I think the following as well. (the changed comment could be also
->> just deleted).
->>
-> 
-> Why?
-> 
-> The comment is fine but I do not see why the recalculation would occur.
-> 
-> In the original code, the preferred_zoneref for statistics is calculated
-> based on either the supplied nodemask or cpuset_current_mems_allowed during
-> the initial attempt. It then relies on the cpuset checks in the slowpath
-> to encorce mems_allowed but the preferred zone doesn't change.
-> 
-> With your proposed change, it's possible that the
-> preferred_zoneref recalculation points to a zoneref disallowed by
-> cpuset_current_mems_sllowed. While it'll be skipped during allocation,
-> the statistics will still be against a zone that is potentially outside
-> what is allowed.
+	if (mutex_lock_killable(&oom_lock))
+		return -EINTR;
 
-Hmm that's true and I was ready to agree. But then I noticed  that
-gfp_to_alloc_flags() can mask out ALLOC_CPUSET for GFP_ATOMIC. So it's
-like a lighter version of the ALLOC_NO_WATERMARKS situation. In that
-case it's wrong if we leave ac->preferred_zoneref at a position that has
-skipped some zones due to mempolicies?
+? I think that updating oom_score_adj unlikely races with OOM killer
+invocation, and updating oom_score_adj should be a killable operation.
+
+> 
+> > If you think this is not a problem - I am fine with this change. But
+> > please also update oom_adj_read/oom_score_adj_read ;)
+> 
+> will do. It stayed in the blind spot... Thanks for pointing that out
+> 
+> Thanks!
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
