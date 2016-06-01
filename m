@@ -1,57 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BEBD6B0267
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 10:25:06 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id e3so12716689wme.3
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 07:25:06 -0700 (PDT)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id l185si43492935wmf.120.2016.06.01.07.25.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jun 2016 07:25:05 -0700 (PDT)
-Received: by mail-wm0-f52.google.com with SMTP id a136so185192803wme.0
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 07:25:04 -0700 (PDT)
-Date: Wed, 1 Jun 2016 16:25:03 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/6] mm, oom: skip vforked tasks from being selected
-Message-ID: <20160601142502.GY26601@dhcp22.suse.cz>
-References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
- <1464613556-16708-5-git-send-email-mhocko@kernel.org>
- <201606012312.BIF26006.MLtFVQSJOHOFOF@I-love.SAKURA.ne.jp>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8099F6B0268
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 10:26:41 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b124so15273387pfb.1
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 07:26:41 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id 187si20057491pff.129.2016.06.01.07.26.40
+        for <linux-mm@kvack.org>;
+        Wed, 01 Jun 2016 07:26:40 -0700 (PDT)
+Date: Wed, 1 Jun 2016 10:34:12 -0400
+From: Keith Busch <keith.busch@intel.com>
+Subject: Re: Re: why use alloc_workqueue instead of
+ create_singlethread_workqueue to create nvme_workq
+Message-ID: <20160601143412.GJ24107@localhost.localdomain>
+References: <tencent_4323E1CE03D759181B6B4507@qq.com>
+ <20160531145306.GB24107@localhost.localdomain>
+ <2016060110542407705011@foxmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201606012312.BIF26006.MLtFVQSJOHOFOF@I-love.SAKURA.ne.jp>
+In-Reply-To: <2016060110542407705011@foxmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org
+To: "shhuiw@foxmail.com" <shhuiw@foxmail.com>
+Cc: "iamjoonsoo.kim" <iamjoonsoo.kim@lge.com>, linux-mm <linux-mm@kvack.org>
 
-On Wed 01-06-16 23:12:20, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > vforked tasks are not really sitting on any memory. They are sharing
-> > the mm with parent until they exec into a new code. Until then it is
-> > just pinning the address space. OOM killer will kill the vforked task
-> > along with its parent but we still can end up selecting vforked task
-> > when the parent wouldn't be selected. E.g. init doing vfork to launch
-> > a task or vforked being a child of oom unkillable task with an updated
-> > oom_score_adj to be killable.
-> > 
-> > Make sure to not select vforked task as an oom victim by checking
-> > vfork_done in oom_badness.
+On Wed, Jun 01, 2016 at 10:54:27AM +0800, shhuiw@foxmail.com wrote:
+> Thanks, Keith!
 > 
-> While vfork()ed task cannot modify userspace memory, can't such task
-> allocate significant amount of kernel memory inside execve() operation
-> (as demonstrated by CVE-2010-4243 64bit_dos.c )?
-> 
-> It is possible that killing vfork()ed task releases a lot of memory,
-> isn't it?
+> Any idea on how to fix the warning? Just drop the WQ_MEM_RECLAIM for nvme_workq, or
+> lru drain work schedule should be changed?
 
-I am not familiar with the above CVE but doesn't that allocated memory
-come after flush_old_exec (and so mm_release)?
--- 
-Michal Hocko
-SUSE Labs
+I sent request to lkml and linux-mm list, trying to resurrect this older
+proposal from Tejun Heo:
+
+  https://patchwork.ozlabs.org/patch/574623/
+
+Not much interest yet, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
