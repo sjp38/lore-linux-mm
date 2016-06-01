@@ -1,102 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 71EDA6B0005
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 03:34:45 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id j12so5253795lbo.0
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 00:34:45 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d76si41721586wma.63.2016.06.01.00.34.43
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Jun 2016 00:34:43 -0700 (PDT)
-Date: Wed, 1 Jun 2016 09:34:42 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2] mm,oom: Allow SysRq-f to always select !TIF_MEMDIE
- thread group.
-Message-ID: <20160601073441.GE26601@dhcp22.suse.cz>
-References: <1464432784-6058-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <1464452714-5126-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160531131159.GL26128@dhcp22.suse.cz>
- <201606010635.HJI86975.JOFOFFMQHLVtSO@I-love.SAKURA.ne.jp>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 95F9E6B0005
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 03:39:29 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id a143so17547003oii.2
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 00:39:29 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id g18si31591923iog.23.2016.06.01.00.39.28
+        for <linux-mm@kvack.org>;
+        Wed, 01 Jun 2016 00:39:29 -0700 (PDT)
+Date: Wed, 1 Jun 2016 16:40:10 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: Why __alloc_contig_migrate_range calls  migrate_prep() at first?
+Message-ID: <20160601074010.GO19976@bbox>
+References: <tencent_29E1A2CA78CE0C9046C1494E@qq.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <tencent_29E1A2CA78CE0C9046C1494E@qq.com>
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="iso-8859-1"
 Content-Disposition: inline
-In-Reply-To: <201606010635.HJI86975.JOFOFFMQHLVtSO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com
+To: Wang Sheng-Hui <shhuiw@foxmail.com>
+Cc: akpm <akpm@linux-foundation.org>, mgorman <mgorman@techsingularity.net>, "iamjoonsoo.kim" <iamjoonsoo.kim@lge.com>, linux-mm <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed 01-06-16 06:35:30, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Sun 29-05-16 01:25:14, Tetsuo Handa wrote:
-> > > There has been three problems about SysRq-f (manual invocation of the OOM
-> > > killer) case. To make description simple, this patch assumes situation
-> > > where the OOM reaper is not called (because the OOM victim's mm is shared
-> > > by unkillable threads) or not available (due to kthread_run() failure or
-> > > CONFIG_MMU=n).
-> > > 
-> > > First is that moom_callback() is not called by moom_work under OOM
-> > > livelock situation because it does not have a dedicated WQ like vmstat_wq.
-> > > This problem is not fixed yet.
-> > 
-> > Why do you mention it in the changelog when it is not related to the
-> > patch then?
-> 
-> Just we won't forget about it.
+On Wed, Jun 01, 2016 at 11:42:29AM +0800, Wang Sheng-Hui wrote:
+> Dear,
+>=20
+> Sorry to trouble you.
+>=20
+> I noticed cma_alloc would turn to  __alloc_contig_migrate_range for alloc=
+ating pages.
+> But  __alloc_contig_migrate_range calls  migrate_prep() at first, even if=
+ the requested page
+> is single and free, lru_add_drain_all still run (called by  migrate_prep(=
+))?
+>=20
+> Image a large chunk of free contig pages for CMA, various drivers may req=
+uest a single page from
+> the CMA area, we'll get  lru_add_drain_all run for each page.
+>=20
+> Should we detect if the required pages are free before migrate_prep(), or=
+ detect at least for single=20
+> page allocation?
 
-OK, then this belongs to a cover letter. Discussing unrelated things in
-the patch description might end up being just confusing.
- 
-> > Btw. you can (ab)use oom_reaper for that purpose. The patch would be
-> > quite trivial.
-> 
-> How do you handle CONFIG_MMU=n case?
+That makes sense to me.
 
-void schedule_sysrq_oom(void)
-{
-	if (IS_ENABLED(CONFIG_MMU) && oom_reaper_th)
-		kick_oom_reaper()
-	else
-		schedule_work(&moom_work);
-}
+How about calling migrate_prep once migrate_pages fails in the first trial?
 
-[...]
-> > > But SysRq-f case will
-> > > select such thread group due to returning OOM_SCAN_OK. This patch makes
-> > > sure that oom_badness() is skipped by making oom_scan_process_group() to
-> > > return OOM_SCAN_CONTINUE for SysRq-f case.
-> > 
-> > I am OK with this part. I was suggesting something similar except I
-> > wanted to skip over tasks which have fatal_signal_pending and that part
-> > got nacked by David AFAIR. Could you make this a separate patch, please?
-> 
-> I think it is better to change both part with this patch.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 9d666df5ef95..c504c1a623d2 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6623,8 +6623,6 @@ static int __alloc_contig_migrate_range(struct compac=
+t_control *cc,
+ 	unsigned int tries =3D 0;
+ 	int ret =3D 0;
+=20
+-	migrate_prep();
+-
+ 	while (pfn < end || !list_empty(&cc->migratepages)) {
+ 		if (fatal_signal_pending(current)) {
+ 			ret =3D -EINTR;
+@@ -6650,6 +6648,8 @@ static int __alloc_contig_migrate_range(struct compac=
+t_control *cc,
+=20
+ 		ret =3D migrate_pages(&cc->migratepages, alloc_migrate_target,
+ 				    NULL, 0, cc->mode, MR_CMA);
++		if (ret)
++			migrate_prep();
+ 	}
+ 	if (ret < 0) {
+ 		putback_movable_pages(&cc->migratepages);
 
-They are semantically different (one is sysrq specific while the other
-is not) so I would prefer to split them up.
- 
-> > > Third is that oom_kill_process() chooses a thread group which already
-> > > has a TIF_MEMDIE thread when the candidate select_bad_process() chose
-> > > has children because oom_badness() does not take TIF_MEMDIE into account.
-> > > This patch checks child->signal->oom_victims before calling oom_badness()
-> > > if oom_kill_process() was called by SysRq-f case. This resembles making
-> > > sure that oom_badness() is skipped by returning OOM_SCAN_CONTINUE.
-> > 
-> > This makes sense to me as well but why should be limit this to sysrq case?
-> > Does it make any sense to select a child which already got killed for
-> > normal OOM killer? Anyway I think it would be better to split this into
-> > its own patch as well.
-> 
-> The reason is described in next paragraph.
-> Do we prefer immediately killing all children of the allocating task?
 
-I do not think we want to select them _all_. We haven't been doing that
-and I do not see a reason we should start now. But it surely doesn't
-make any sense to select a task which has already TIF_MEMDIE set.
--- 
-Michal Hocko
-SUSE Labs
+>=20
+> ------------------
+> Regards,
+> Wang Sheng-HuiN=8B=A7=B2=E6=ECr=B8=9Bz=C7=A7u=A9=9E=B2=C6=A0{=08=AD=86=E9=
+=EC=B9=BB=1C=AE&=DE=96)=EE=C6i=A2=9E=D8^n=87r=B6=89=9A=8E=8A=DD=A2j$=BD=A7$=
+=A2=B8=05=A2=B9=A8=AD=E8=A7~=8A'.)=EE=C4=C3,y=E8m=B6=9F=FF=C3=0C%=8A{=B1=9A=
+j+=83=F0=E8=9E=D7=A6j)Z=86=B7=9F=FEf=A2=96=DA=1D=A2{d=BD=A7$=A2=B8=1E=99=A8=
+=A5=92=F6=9C=92=8A=E0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
