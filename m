@@ -1,140 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 07BA36B0005
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 12:21:35 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id i127so48598212ita.2
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 09:21:35 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0092.outbound.protection.outlook.com. [104.47.1.92])
-        by mx.google.com with ESMTPS id g58si3223400ote.168.2016.06.01.09.21.33
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 473426B0005
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 12:24:35 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 132so12391339lfz.3
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 09:24:35 -0700 (PDT)
+Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id j82si44183427wmg.76.2016.06.01.09.24.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 01 Jun 2016 09:21:34 -0700 (PDT)
-Subject: Re: [PATCH] mm: kasan: don't touch metadata in
- kasan_[un]poison_element()
-References: <1464785606-20349-1-git-send-email-glider@google.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <574F0BB6.1040400@virtuozzo.com>
-Date: Wed, 1 Jun 2016 19:22:14 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Jun 2016 09:24:33 -0700 (PDT)
+Date: Wed, 1 Jun 2016 17:24:24 +0100
+From: Russell King - ARM Linux <linux@armlinux.org.uk>
+Subject: Re: [PATCH 04/17] arm: get rid of superfluous __GFP_REPEAT
+Message-ID: <20160601162424.GD19428@n2100.arm.linux.org.uk>
+References: <1464599699-30131-1-git-send-email-mhocko@kernel.org>
+ <1464599699-30131-5-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <1464785606-20349-1-git-send-email-glider@google.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1464599699-30131-5-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>, adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, kuthonuzo.luruo@hpe.com
-Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, linux-arch@vger.kernel.org
 
-
-
-On 06/01/2016 03:53 PM, Alexander Potapenko wrote:
-> To avoid draining the mempools, KASAN shouldn't put the mempool elements
-> into the quarantine upon mempool_free().
-
-Correct, but unfortunately this patch doesn't fix that.
-
-> It shouldn't store
-> allocation/deallocation stacks upon mempool_alloc()/mempool_free() either.
-
-Why not?
-
-> Therefore make kasan_[un]poison_element() just change the shadow memory,
-> not the metadata.
+On Mon, May 30, 2016 at 11:14:46AM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Signed-off-by: Alexander Potapenko <glider@google.com>
-> Reported-by: Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>
-> ---
+> __GFP_REPEAT has a rather weak semantic but since it has been introduced
+> around 2.6.12 it has been ignored for low order allocations.
+> 
+> PGALLOC_GFP uses __GFP_REPEAT but none of the allocation which uses
+> this flag is for more than order-2. This means that this flag has never
+> been actually useful here because it has always been used only for
+> PAGE_ALLOC_COSTLY requests.
 
-[...]
+I hear what you say, but...
 
-> +void kasan_slab_alloc(struct kmem_cache *cache, void *object,
-> +			bool just_unpoison, gfp_t flags)
->  {
-> -	kasan_kmalloc(cache, object, cache->object_size, flags);
-> +	if (just_unpoison)
+commit 8c65da6dc89ccb605d73773b1dd617e72982d971
+Author: Russell King <rmk+kernel@arm.linux.org.uk>
+Date:   Sat Nov 30 12:52:31 2013 +0000
 
-This set to 'false' in all call sites.
+    ARM: pgd allocation: retry on failure
 
-> +		kasan_unpoison_shadow(object, cache->object_size);
-> +	else
-> +		kasan_kmalloc(cache, object, cache->object_size, flags);
->  }
->  
->  void kasan_poison_slab_free(struct kmem_cache *cache, void *object)
-> @@ -611,6 +615,31 @@ void kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags)
->  		KASAN_PAGE_REDZONE);
->  }
->  
-> +void kasan_unpoison_kmalloc(const void *object, size_t size, gfp_t flags)
-> +{
-> +	struct page *page;
-> +	unsigned long redzone_start;
-> +	unsigned long redzone_end;
-> +
-> +	if (unlikely(object == ZERO_SIZE_PTR) || (object == NULL))
-> +		return;
-> +
-> +	page = virt_to_head_page(object);
-> +	redzone_start = round_up((unsigned long)(object + size),
-> +				KASAN_SHADOW_SCALE_SIZE);
-> +
-> +	if (unlikely(!PageSlab(page)))
-> +		redzone_end = (unsigned long)object +
-> +			(PAGE_SIZE << compound_order(page));
-> +	else
-> +		redzone_end = round_up(
-> +			(unsigned long)object + page->slab_cache->object_size,
-> +			KASAN_SHADOW_SCALE_SIZE);
-> +	kasan_unpoison_shadow(object, size);
-> +	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
-> +		KASAN_KMALLOC_REDZONE);
-> +}
-> +
->  void kasan_krealloc(const void *object, size_t size, gfp_t flags)
->  {
->  	struct page *page;
-> @@ -636,7 +665,20 @@ void kasan_kfree(void *ptr)
->  		kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
->  				KASAN_FREE_PAGE);
->  	else
-> -		kasan_slab_free(page->slab_cache, ptr);
-> +		kasan_poison_slab_free(page->slab_cache, ptr);
-> +}
-> +
-> +void kasan_poison_kfree(void *ptr)
+    Make pgd allocation retry on failure; we really need this to succeed
+    otherwise fork() can trigger OOMs.
 
-Unused
+    Signed-off-by: Russell King <rmk+kernel@arm.linux.org.uk>
 
-> +{
-> +	struct page *page;
-> +
-> +	page = virt_to_head_page(ptr);
-> +
-> +	if (unlikely(!PageSlab(page)))
-> +		kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
-> +				KASAN_FREE_PAGE);
-> +	else
-> +		kasan_poison_slab_free(page->slab_cache, ptr);
->  }
->  
->  void kasan_kfree_large(const void *ptr)
-> diff --git a/mm/mempool.c b/mm/mempool.c
-> index 9e075f8..bcd48c6 100644
-> --- a/mm/mempool.c
-> +++ b/mm/mempool.c
-> @@ -115,9 +115,10 @@ static void kasan_poison_element(mempool_t *pool, void *element)
->  static void kasan_unpoison_element(mempool_t *pool, void *element, gfp_t flags)
->  {
->  	if (pool->alloc == mempool_alloc_slab)
-> -		kasan_slab_alloc(pool->pool_data, element, flags);
-> +		kasan_slab_alloc(pool->pool_data, element,
-> +				/*just_unpoison*/ false, flags);
->  	if (pool->alloc == mempool_kmalloc)
-> -		kasan_krealloc(element, (size_t)pool->pool_data, flags);
-> +		kasan_unpoison_kmalloc(element, (size_t)pool->pool_data, flags);
+and that's the change which introduced this, and it did solve a problem
+for me.  So I'm not happy to give an ack for this change unless someone
+can tell me why adding __GFP_REPEAT back then had a beneficial effect.
+Maybe there was some other bug in the MM layer in 2013 which this change
+happened to solve?
 
-I think, that the current code here is fine.
-We only need to fix kasan_poison_element() which calls kasan_kfree() that puts objects into quarantine.
-
+-- 
+RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line: currently at 9.6Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
