@@ -1,45 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3416A6B007E
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 15:42:30 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id um11so18908623pab.2
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 12:42:30 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j2si17564604paw.80.2016.06.01.12.42.29
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B0C86B007E
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 16:40:52 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id w143so43922602oiw.3
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 13:40:52 -0700 (PDT)
+Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
+        by mx.google.com with ESMTPS id bk3si9155846pad.27.2016.06.01.13.40.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jun 2016 12:42:29 -0700 (PDT)
-Date: Wed, 1 Jun 2016 12:42:27 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 1/3] Add the latent_entropy gcc plugin
-Message-Id: <20160601124227.e922af8299168c09308d5e1b@linux-foundation.org>
-In-Reply-To: <20160531013145.612696c12f2ef744af739803@gmail.com>
-References: <20160531013029.4c5db8b570d86527b0b53fe4@gmail.com>
-	<20160531013145.612696c12f2ef744af739803@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 01 Jun 2016 13:40:51 -0700 (PDT)
+Received: by mail-pf0-x230.google.com with SMTP id 62so21707823pfd.1
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 13:40:51 -0700 (PDT)
+Subject: Re: [PATCH] mm: check the return value of lookup_page_ext for all
+ call sites
+References: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
+ <20160524025811.GA29094@bbox> <20160526003719.GB9661@bbox>
+ <8ae0197c-47b7-e5d2-20c3-eb9d01e6b65c@linaro.org>
+ <20160527051432.GF2322@bbox> <20160527060839.GC13661@js1304-P5Q-DELUXE>
+ <20160527081108.GG2322@bbox>
+ <aa33f1e4-5a91-aaaf-70f1-557148b29b38@linaro.org>
+ <20160530061117.GB28624@bbox>
+From: "Shi, Yang" <yang.shi@linaro.org>
+Message-ID: <b8858801-af06-9b80-1b29-f9ece515d1bf@linaro.org>
+Date: Wed, 1 Jun 2016 13:40:48 -0700
+MIME-Version: 1.0
+In-Reply-To: <20160530061117.GB28624@bbox>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Emese Revfy <re.emese@gmail.com>
-Cc: kernel-hardening@lists.openwall.com, pageexec@freemail.hu, spender@grsecurity.net, mmarek@suse.com, keescook@chromium.org, linux-kernel@vger.kernel.org, yamada.masahiro@socionext.com, linux-kbuild@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org, axboe@kernel.dk, viro@zeniv.linux.org.uk, paulmck@linux.vnet.ibm.com, mingo@redhat.com, tglx@linutronix.de, bart.vanassche@sandisk.com, davem@davemloft.net
+To: Minchan Kim <minchan@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Tue, 31 May 2016 01:31:45 +0200 Emese Revfy <re.emese@gmail.com> wrote:
+On 5/29/2016 11:11 PM, Minchan Kim wrote:
+> On Fri, May 27, 2016 at 11:16:41AM -0700, Shi, Yang wrote:
+>
+> <snip>
+>
+>>>
+>>> If we goes this way, how to guarantee this race?
+>>
+>> Thanks for pointing out this. It sounds reasonable. However, this
+>> should be only possible to happen on 32 bit since just 32 bit
+>> version page_is_idle() calls lookup_page_ext(), it doesn't do it on
+>> 64 bit.
+>>
+>> And, such race condition should exist regardless of whether DEBUG_VM
+>> is enabled or not, right?
+>>
+>> rcu might be good enough to protect it.
+>>
+>> A quick fix may look like:
+>>
+>> diff --git a/include/linux/page_idle.h b/include/linux/page_idle.h
+>> index 8f5d4ad..bf0cd6a 100644
+>> --- a/include/linux/page_idle.h
+>> +++ b/include/linux/page_idle.h
+>> @@ -77,8 +77,12 @@ static inline bool
+>> test_and_clear_page_young(struct page *page)
+>>  static inline bool page_is_idle(struct page *page)
+>>  {
+>>         struct page_ext *page_ext;
+>> +
+>> +       rcu_read_lock();
+>>         page_ext = lookup_page_ext(page);
+>> +       rcu_read_unlock();
+>> +
+>> 	if (unlikely(!page_ext))
+>>                 return false;
+>>
+>> diff --git a/mm/page_ext.c b/mm/page_ext.c
+>> index 56b160f..94927c9 100644
+>> --- a/mm/page_ext.c
+>> +++ b/mm/page_ext.c
+>> @@ -183,7 +183,6 @@ struct page_ext *lookup_page_ext(struct page *page)
+>>  {
+>>         unsigned long pfn = page_to_pfn(page);
+>>         struct mem_section *section = __pfn_to_section(pfn);
+>> -#if defined(CONFIG_DEBUG_VM) || defined(CONFIG_PAGE_POISONING)
+>>         /*
+>>          * The sanity checks the page allocator does upon freeing a
+>>          * page can reach here before the page_ext arrays are
+>> @@ -195,7 +194,7 @@ struct page_ext *lookup_page_ext(struct page *page)
+>>          */
+>>         if (!section->page_ext)
+>>                 return NULL;
+>> -#endif
+>> +
+>>         return section->page_ext + pfn;
+>>  }
+>>
+>> @@ -279,7 +278,8 @@ static void __free_page_ext(unsigned long pfn)
+>>                 return;
+>>         base = ms->page_ext + pfn;
+>>         free_page_ext(base);
+>> -       ms->page_ext = NULL;
+>> +       rcu_assign_pointer(ms->page_ext, NULL);
+>> +       synchronize_rcu();
+>
+> How does it fix the problem?
+> I cannot understand your point.
 
-> This plugin mitigates the problem of the kernel having too little entropy during
-> and after boot for generating crypto keys.
-> 
-> It creates a local variable in every marked function. The value of this variable is
-> modified by randomly chosen operations (add, xor and rol) and
-> random values (gcc generates them at compile time and the stack pointer at runtime).
-> It depends on the control flow (e.g., loops, conditions).
-> 
-> Before the function returns the plugin writes this local variable
-> into the latent_entropy global variable. The value of this global variable is
-> added to the kernel entropy pool in do_one_initcall() and _do_fork().
+Assigning NULL pointer to page_Ext will be blocked until rcu_read_lock 
+critical section is done, so the lookup and writing operations will be 
+serialized. And, rcu_read_lock disables preempt too.
 
-I don't think I'm really understanding.  Won't this produce the same
-value on each and every boot?
+Yang
+
+>
+>>  }
+>>
+>>  static int __meminit online_page_ext(unsigned long start_pfn,
+>>
+>> Thanks,
+>> Yang
+>>
+>>>
+>>>                                kpageflags_read
+>>>                                stable_page_flags
+>>>                                page_is_idle
+>>>                                  lookup_page_ext
+>>>                                  section = __pfn_to_section(pfn)
+>>> offline_pages
+>>> memory_notify(MEM_OFFLINE)
+>>>  offline_page_ext
+>>>  ms->page_ext = NULL
+>>>                                  section->page_ext + pfn
+>>>
+>>>>
+>>>> Thanks.
+>>>>
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
