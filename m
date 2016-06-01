@@ -1,130 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 097B86B0005
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 08:11:49 -0400 (EDT)
-Received: by mail-ig0-f199.google.com with SMTP id i11so33090385igh.0
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 05:11:49 -0700 (PDT)
-Received: from smtpbgau1.qq.com (smtpbgau1.qq.com. [54.206.16.166])
-        by mx.google.com with ESMTPS id z9si10442004pau.40.2016.06.01.05.11.47
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AC9F6B025E
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 08:26:51 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id w185so50869610vkf.3
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 05:26:51 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p4si30308710qkd.70.2016.06.01.05.26.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Jun 2016 05:11:48 -0700 (PDT)
-From: "=?utf-8?B?V2FuZyBTaGVuZy1IdWk=?=" <shhuiw@foxmail.com>
-Subject: Re:  Why __alloc_contig_migrate_range calls  migrate_prep() at first?
-Mime-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_574ED0FD_0B1A79B0_42FD6724"
-Content-Transfer-Encoding: 8Bit
-Date: Wed, 1 Jun 2016 20:11:41 +0800
-Message-ID: <tencent_67BF47520FE5A3977D2A212F@qq.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Jun 2016 05:26:50 -0700 (PDT)
+Date: Wed, 1 Jun 2016 08:26:47 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: The patch "mm, page_alloc: avoid looking up the first zone in
+ a zonelist twice" breaks memory management
+In-Reply-To: <574E0687.5050201@suse.cz>
+Message-ID: <alpine.LRH.2.02.1606010817550.6561@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1605311706040.16635@file01.intranet.prod.int.rdu2.redhat.com> <574E0687.5050201@suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?TWluY2hhbiBLaW0=?= <minchan@kernel.org>
-Cc: =?utf-8?B?YWtwbQ==?= <akpm@linux-foundation.org>, =?utf-8?B?bWdvcm1hbg==?= <mgorman@techsingularity.net>, =?utf-8?B?aWFtam9vbnNvby5raW0=?= <iamjoonsoo.kim@lge.com>, =?utf-8?B?bGludXgtbW0=?= <linux-mm@kvack.org>, =?utf-8?B?Vmxhc3RpbWlsIEJhYmth?= <vbabka@suse.cz>
-
-This is a multi-part message in MIME format.
-
-------=_NextPart_574ED0FD_0B1A79B0_42FD6724
-Content-Type: text/plain;
-	charset="utf-8"
-Content-Transfer-Encoding: base64
-
-TWluY2hhbiwNCg0KVGhhdCBzb3VuZHMgZ29vZCB0byBtZS4gDQoNClRoYW5rcywNCldhbmcg
-U2hlbmctSHVpDQoNCg0KLS0tLS0tLS0tLS0tLS0tLS0tIE9yaWdpbmFsIC0tLS0tLS0tLS0t
-LS0tLS0tLQ0KRnJvbTogICJNaW5jaGFuIEtpbSI7PG1pbmNoYW5Aa2VybmVsLm9yZz47DQpE
-YXRlOiAgV2VkLCBKdW4gMSwgMjAxNiAwMzo0MCBQTQ0KVG86ICAiV2FuZyBTaGVuZy1IdWki
-PHNoaHVpd0Bmb3htYWlsLmNvbT47IA0KQ2M6ICAiYWtwbSI8YWtwbUBsaW51eC1mb3VuZGF0
-aW9uLm9yZz47ICJtZ29ybWFuIjxtZ29ybWFuQHRlY2hzaW5ndWxhcml0eS5uZXQ+OyAiaWFt
-am9vbnNvby5raW0iPGlhbWpvb25zb28ua2ltQGxnZS5jb20+OyAibGludXgtbW0iPGxpbnV4
-LW1tQGt2YWNrLm9yZz47ICJWbGFzdGltaWwgQmFia2EiPHZiYWJrYUBzdXNlLmN6PjsgDQpT
-dWJqZWN0OiAgUmU6IFdoeSBfX2FsbG9jX2NvbnRpZ19taWdyYXRlX3JhbmdlIGNhbGxzICBt
-aWdyYXRlX3ByZXAoKSBhdCBmaXJzdD8NCg0KDQoNCk9uIFdlZCwgSnVuIDAxLCAyMDE2IGF0
-IDExOjQyOjI5QU0gKzA4MDAsIFdhbmcgU2hlbmctSHVpIHdyb3RlOg0KPiBEZWFyLA0KPiAN
-Cj4gU29ycnkgdG8gdHJvdWJsZSB5b3UuDQo+IA0KPiBJIG5vdGljZWQgY21hX2FsbG9jIHdv
-dWxkIHR1cm4gdG8gIF9fYWxsb2NfY29udGlnX21pZ3JhdGVfcmFuZ2UgZm9yIGFsbG9jYXRp
-bmcgcGFnZXMuDQo+IEJ1dCAgX19hbGxvY19jb250aWdfbWlncmF0ZV9yYW5nZSBjYWxscyAg
-bWlncmF0ZV9wcmVwKCkgYXQgZmlyc3QsIGV2ZW4gaWYgdGhlIHJlcXVlc3RlZCBwYWdlDQo+
-IGlzIHNpbmdsZSBhbmQgZnJlZSwgbHJ1X2FkZF9kcmFpbl9hbGwgc3RpbGwgcnVuIChjYWxs
-ZWQgYnkgIG1pZ3JhdGVfcHJlcCgpKT8NCj4gDQo+IEltYWdlIGEgbGFyZ2UgY2h1bmsgb2Yg
-ZnJlZSBjb250aWcgcGFnZXMgZm9yIENNQSwgdmFyaW91cyBkcml2ZXJzIG1heSByZXF1ZXN0
-IGEgc2luZ2xlIHBhZ2UgZnJvbQ0KPiB0aGUgQ01BIGFyZWEsIHdlJ2xsIGdldCAgbHJ1X2Fk
-ZF9kcmFpbl9hbGwgcnVuIGZvciBlYWNoIHBhZ2UuDQo+IA0KPiBTaG91bGQgd2UgZGV0ZWN0
-IGlmIHRoZSByZXF1aXJlZCBwYWdlcyBhcmUgZnJlZSBiZWZvcmUgbWlncmF0ZV9wcmVwKCks
-IG9yIGRldGVjdCBhdCBsZWFzdCBmb3Igc2luZ2xlIA0KPiBwYWdlIGFsbG9jYXRpb24/DQoN
-ClRoYXQgbWFrZXMgc2Vuc2UgdG8gbWUuDQoNCkhvdyBhYm91dCBjYWxsaW5nIG1pZ3JhdGVf
-cHJlcCBvbmNlIG1pZ3JhdGVfcGFnZXMgZmFpbHMgaW4gdGhlIGZpcnN0IHRyaWFsPw0KDQpk
-aWZmIC0tZ2l0IGEvbW0vcGFnZV9hbGxvYy5jIGIvbW0vcGFnZV9hbGxvYy5jDQppbmRleCA5
-ZDY2NmRmNWVmOTUuLmM1MDRjMWE2MjNkMiAxMDA2NDQNCi0tLSBhL21tL3BhZ2VfYWxsb2Mu
-Yw0KKysrIGIvbW0vcGFnZV9hbGxvYy5jDQpAQCAtNjYyMyw4ICs2NjIzLDYgQEAgc3RhdGlj
-IGludCBfX2FsbG9jX2NvbnRpZ19taWdyYXRlX3JhbmdlKHN0cnVjdCBjb21wYWN0X2NvbnRy
-b2wgKmNjLA0KdW5zaWduZWQgaW50IHRyaWVzID0gMDsNCmludCByZXQgPSAwOw0KDQotIG1p
-Z3JhdGVfcHJlcCgpOw0KLQ0Kd2hpbGUgKHBmbiA8IGVuZCB8fCAhbGlzdF9lbXB0eSgmY2Mt
-Pm1pZ3JhdGVwYWdlcykpIHsNCmlmIChmYXRhbF9zaWduYWxfcGVuZGluZyhjdXJyZW50KSkg
-ew0KcmV0ID0gLUVJTlRSOw0KQEAgLTY2NTAsNiArNjY0OCw4IEBAIHN0YXRpYyBpbnQgX19h
-bGxvY19jb250aWdfbWlncmF0ZV9yYW5nZShzdHJ1Y3QgY29tcGFjdF9jb250cm9sICpjYywN
-Cg0KcmV0ID0gbWlncmF0ZV9wYWdlcygmY2MtPm1pZ3JhdGVwYWdlcywgYWxsb2NfbWlncmF0
-ZV90YXJnZXQsDQogTlVMTCwgMCwgY2MtPm1vZGUsIE1SX0NNQSk7DQoraWYgKHJldCkNCisg
-bWlncmF0ZV9wcmVwKCk7DQp9DQppZiAocmV0IDwgMCkgew0KcHV0YmFja19tb3ZhYmxlX3Bh
-Z2VzKCZjYy0+bWlncmF0ZXBhZ2VzKTsNCg0KDQo+IA0KPiAtLS0tLS0tLS0tLS0tLS0tLS0N
-Cj4gUmVnYXJkcywNCj4gV2FuZyBTaGVuZy1IdWlO4oC5wqfCssOmw6xywrjigLp6w4fCp3XC
-qcW+wrLDhiB7wq3igKDDqcOswrnCu8KuJsOe4oCTKcOuw4ZpwqLFvsOYXm7igKFywrbigLDF
-ocW9xaDDncKiaiTCvcKnJMKiwrjCosK5wqjCrcOowqd+xaAnLinDrsOE
-
-------=_NextPart_574ED0FD_0B1A79B0_42FD6724
-Content-Type: text/html;
-	charset="utf-8"
-Content-Transfer-Encoding: base64
-
-TWluY2hhbiw8YnI+PGJyPlRoYXQgc291bmRzIGdvb2QgdG8gbWUuIDxicj48YnI+VGhhbmtz
-LDxicj5XYW5nIFNoZW5nLUh1aTxicj48YnI+PGJyPi0tLS0tLS0tLS0tLS0tLS0tLSBPcmln
-aW5hbCAtLS0tLS0tLS0tLS0tLS0tLS08YnI+RnJvbTombmJzcDsgIk1pbmNoYW4gS2ltIjsm
-bHQ7bWluY2hhbkBrZXJuZWwub3JnJmd0Ozs8YnI+RGF0ZTombmJzcDsgV2VkLCBKdW4gMSwg
-MjAxNiAwMzo0MCBQTTxicj5UbzombmJzcDsgIldhbmcgU2hlbmctSHVpIiZsdDtzaGh1aXdA
-Zm94bWFpbC5jb20mZ3Q7OyA8YnI+Q2M6Jm5ic3A7ICJha3BtIiZsdDtha3BtQGxpbnV4LWZv
-dW5kYXRpb24ub3JnJmd0OzsgIm1nb3JtYW4iJmx0O21nb3JtYW5AdGVjaHNpbmd1bGFyaXR5
-Lm5ldCZndDs7ICJpYW1qb29uc29vLmtpbSImbHQ7aWFtam9vbnNvby5raW1AbGdlLmNvbSZn
-dDs7ICJsaW51eC1tbSImbHQ7bGludXgtbW1Aa3ZhY2sub3JnJmd0OzsgIlZsYXN0aW1pbCBC
-YWJrYSImbHQ7dmJhYmthQHN1c2UuY3omZ3Q7OyA8YnI+U3ViamVjdDombmJzcDsgUmU6IFdo
-eSBfX2FsbG9jX2NvbnRpZ19taWdyYXRlX3JhbmdlIGNhbGxzJm5ic3A7IG1pZ3JhdGVfcHJl
-cCgpIGF0IGZpcnN0Pzxicj48YnI+PGJyPjxicj5PbiBXZWQsIEp1biAwMSwgMjAxNiBhdCAx
-MTo0MjoyOUFNICswODAwLCBXYW5nIFNoZW5nLUh1aSB3cm90ZTo8YnI+Jmd0OyBEZWFyLDxi
-cj4mZ3Q7IDxicj4mZ3Q7IFNvcnJ5IHRvIHRyb3VibGUgeW91Ljxicj4mZ3Q7IDxicj4mZ3Q7
-IEkgbm90aWNlZCBjbWFfYWxsb2Mgd291bGQgdHVybiB0byZuYnNwOyBfX2FsbG9jX2NvbnRp
-Z19taWdyYXRlX3JhbmdlIGZvciBhbGxvY2F0aW5nIHBhZ2VzLjxicj4mZ3Q7IEJ1dCZuYnNw
-OyBfX2FsbG9jX2NvbnRpZ19taWdyYXRlX3JhbmdlIGNhbGxzJm5ic3A7IG1pZ3JhdGVfcHJl
-cCgpIGF0IGZpcnN0LCBldmVuIGlmIHRoZSByZXF1ZXN0ZWQgcGFnZTxicj4mZ3Q7IGlzIHNp
-bmdsZSBhbmQgZnJlZSwgbHJ1X2FkZF9kcmFpbl9hbGwgc3RpbGwgcnVuIChjYWxsZWQgYnkm
-bmJzcDsgbWlncmF0ZV9wcmVwKCkpPzxicj4mZ3Q7IDxicj4mZ3Q7IEltYWdlIGEgbGFyZ2Ug
-Y2h1bmsgb2YgZnJlZSBjb250aWcgcGFnZXMgZm9yIENNQSwgdmFyaW91cyBkcml2ZXJzIG1h
-eSByZXF1ZXN0IGEgc2luZ2xlIHBhZ2UgZnJvbTxicj4mZ3Q7IHRoZSBDTUEgYXJlYSwgd2Un
-bGwgZ2V0Jm5ic3A7IGxydV9hZGRfZHJhaW5fYWxsIHJ1biBmb3IgZWFjaCBwYWdlLjxicj4m
-Z3Q7IDxicj4mZ3Q7IFNob3VsZCB3ZSBkZXRlY3QgaWYgdGhlIHJlcXVpcmVkIHBhZ2VzIGFy
-ZSBmcmVlIGJlZm9yZSBtaWdyYXRlX3ByZXAoKSwgb3IgZGV0ZWN0IGF0IGxlYXN0IGZvciBz
-aW5nbGUgPGJyPiZndDsgcGFnZSBhbGxvY2F0aW9uPzxicj48YnI+VGhhdCBtYWtlcyBzZW5z
-ZSB0byBtZS48YnI+PGJyPkhvdyBhYm91dCBjYWxsaW5nIG1pZ3JhdGVfcHJlcCBvbmNlIG1p
-Z3JhdGVfcGFnZXMgZmFpbHMgaW4gdGhlIGZpcnN0IHRyaWFsPzxicj48YnI+ZGlmZiAtLWdp
-dCBhL21tL3BhZ2VfYWxsb2MuYyBiL21tL3BhZ2VfYWxsb2MuYzxicj5pbmRleCA5ZDY2NmRm
-NWVmOTUuLmM1MDRjMWE2MjNkMiAxMDA2NDQ8YnI+LS0tIGEvbW0vcGFnZV9hbGxvYy5jPGJy
-PisrKyBiL21tL3BhZ2VfYWxsb2MuYzxicj5AQCAtNjYyMyw4ICs2NjIzLDYgQEAgc3RhdGlj
-IGludCBfX2FsbG9jX2NvbnRpZ19taWdyYXRlX3JhbmdlKHN0cnVjdCBjb21wYWN0X2NvbnRy
-b2wgKmNjLDxicj51bnNpZ25lZCBpbnQgdHJpZXMgPSAwOzxicj5pbnQgcmV0ID0gMDs8YnI+
-PGJyPi0gbWlncmF0ZV9wcmVwKCk7PGJyPi08YnI+d2hpbGUgKHBmbiAmbHQ7IGVuZCB8fCAh
-bGlzdF9lbXB0eSgmYW1wO2NjLSZndDttaWdyYXRlcGFnZXMpKSB7PGJyPmlmIChmYXRhbF9z
-aWduYWxfcGVuZGluZyhjdXJyZW50KSkgezxicj5yZXQgPSAtRUlOVFI7PGJyPkBAIC02NjUw
-LDYgKzY2NDgsOCBAQCBzdGF0aWMgaW50IF9fYWxsb2NfY29udGlnX21pZ3JhdGVfcmFuZ2Uo
-c3RydWN0IGNvbXBhY3RfY29udHJvbCAqY2MsPGJyPjxicj5yZXQgPSBtaWdyYXRlX3BhZ2Vz
-KCZhbXA7Y2MtJmd0O21pZ3JhdGVwYWdlcywgYWxsb2NfbWlncmF0ZV90YXJnZXQsPGJyPiBO
-VUxMLCAwLCBjYy0mZ3Q7bW9kZSwgTVJfQ01BKTs8YnI+K2lmIChyZXQpPGJyPisgbWlncmF0
-ZV9wcmVwKCk7PGJyPn08YnI+aWYgKHJldCAmbHQ7IDApIHs8YnI+cHV0YmFja19tb3ZhYmxl
-X3BhZ2VzKCZhbXA7Y2MtJmd0O21pZ3JhdGVwYWdlcyk7PGJyPjxicj48YnI+Jmd0OyA8YnI+
-Jmd0OyAtLS0tLS0tLS0tLS0tLS0tLS08YnI+Jmd0OyBSZWdhcmRzLDxicj4mZ3Q7IFdhbmcg
-U2hlbmctSHVpTuKAucKnwrLDpsOscsK44oC6esOHwqd1wqnFvsKyw4Yge8Kt4oCgw6nDrMK5
-wrvCriZhbXA7w57igJMpw67DhmnCosW+w5hebuKAoXLCtuKAsMWhxb3FoMOdwqJqJMK9wqck
-wqLCuMKiwrnCqMKtw6jCp37FoCcuKcOuw4Q=
-
-------=_NextPart_574ED0FD_0B1A79B0_42FD6724--
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Jesper Dangaard Brouer <brouer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-parisc@vger.kernel.org, Helge Deller <deller@gmx.de>
 
 
+
+On Tue, 31 May 2016, Vlastimil Babka wrote:
+
+> On 05/31/2016 11:20 PM, Mikulas Patocka wrote:
+> > Hi
+> > 
+> > The patch c33d6c06f60f710f0305ae792773e1c2560e1e51 ("mm, page_alloc: avoid 
+> > looking up the first zone in a zonelist twice") breaks memory management 
+> > on PA-RISC.
+> 
+> Hi,
+> 
+> I think the linked patch should help. Please try and report.
+> 
+> http://marc.info/?i=20160531100848.GR2527%40techsingularity.net
+> 
+> Thanks,
+> Vlastimil
+
+Thanks, that patch fixes it.
+
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
