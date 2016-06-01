@@ -1,145 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EF75C6B0262
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 09:18:01 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id n2so11741650wma.0
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 06:18:01 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id kh5si56959211wjb.185.2016.06.01.06.18.00
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 408516B0264
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 09:26:46 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id j12so9879224lbo.0
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 06:26:46 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id 198si21157921wmw.2.2016.06.01.06.26.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jun 2016 06:18:00 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id q62so6718437wmg.3
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 06:18:00 -0700 (PDT)
-Date: Wed, 1 Jun 2016 15:17:58 +0200
+        Wed, 01 Jun 2016 06:26:45 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id q62so6793315wmg.3
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 06:26:44 -0700 (PDT)
+Date: Wed, 1 Jun 2016 15:26:43 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20160601131758.GO26601@dhcp22.suse.cz>
-References: <20160512080321.GA18496@dastard>
- <20160513160341.GW20141@dhcp22.suse.cz>
- <20160516104130.GK3193@twins.programming.kicks-ass.net>
- <20160516130519.GJ23146@dhcp22.suse.cz>
- <20160516132541.GP3193@twins.programming.kicks-ass.net>
- <20160516231056.GE18496@dastard>
- <20160517144912.GZ3193@twins.programming.kicks-ass.net>
- <20160517223549.GV26977@dastard>
- <20160519081146.GS3193@twins.programming.kicks-ass.net>
- <20160520001714.GC26977@dastard>
+Subject: Re: [PATCH v2 03/18] mm, page_alloc: don't retry initial attempt in
+ slowpath
+Message-ID: <20160601132643.GP26601@dhcp22.suse.cz>
+References: <20160531130818.28724-1-vbabka@suse.cz>
+ <20160531130818.28724-4-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160520001714.GC26977@dastard>
+In-Reply-To: <20160531130818.28724-4-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Dave Chinner <david@fromorbit.com>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 
-Thanks Dave for your detailed explanation again! Peter do you have any
-other idea how to deal with these situations other than opt out from
-lockdep reclaim machinery?
-
-If not I would rather go with an annotation than a gfp flag to be honest
-but if you absolutely hate that approach then I will try to check wheter
-a CONFIG_LOCKDEP GFP_FOO doesn't break something else. Otherwise I would
-steal the description from Dave's email and repost my patch.
-
-I plan to repost my scope gfp patches in few days and it would be good
-to have some mechanism to drop those GFP_NOFS to paper over lockdep
-false positives for that.
-
-[keeping Dave's explanation for reference]
-
-On Fri 20-05-16 10:17:14, Dave Chinner wrote:
-> On Thu, May 19, 2016 at 10:11:46AM +0200, Peter Zijlstra wrote:
-> > On Wed, May 18, 2016 at 08:35:49AM +1000, Dave Chinner wrote:
+On Tue 31-05-16 15:08:03, Vlastimil Babka wrote:
 [...]
-> > > There's a maze of dark, grue-filled twisty passages here...
-> > 
-> > OK; I might need a bit more again.
-> > 
-> > So now the code does something like:
-> > 
-> > 	down_read(&i_lock);		-- lockdep marks lock as held
-> > 	kmalloc(GFP_KERNEL);		-- lockdep marks held locks as ENABLED_RECLAIM_FS
-> > 	  --> reclaim()
-> > 	     down_read_trylock(&i_lock); -- lockdep does _NOT_ mark as USED_IN_RECLAIM_FS
-> > 
-> > Right?
-> 
-> In the path that can deadlock the log, yes. It's actually way more
-> complex than the above, because the down_read_trylock(&i_lock) that
-> matters is run in a completely separate, async kthread that
-> xfs_trans_reserve() will block waiting for.
-> 
-> process context				xfsaild kthread(*)
-> ---------------				------------------
-> down_read(&i_lock);		-- lockdep marks lock as held
-> kmalloc(GFP_KERNEL);		-- lockdep marks held locks as ENABLED_RECLAIM_FS
->   --> reclaim()
->      xfs_trans_reserve()
->      ....
-> 	  xfs_trans_push_ail()	---- called if no space in the log to kick the xfsaild into action
-> 	  ....
->        xlog_grant_head_wait()	---- blocks waiting for log space
->        .....
-> 
-> 					xfsaild_push()   ----- iterates AIL
-> 					  grabs log item
-> 					    lock log item
-> 	>>>>>>>>>>>>>>>>>>>>>		      down_read_trylock(&i_lock);
-> 					      format item into buffer
-> 					      add to dirty buffer list
-> 					  ....
-> 					  submit dirty buffer list for IO
-> 					    buffer IO started
-> 					.....
-> 					<async IO completion context>
-> 					buffer callbacks
-> 					  mark inode clean
-> 					  remove inode from AIL
-> 					  move tail of log forwards
-> 					    wake grant head waiters
-> 	<woken by log tail moving>
-> 	<log space available>
-> 	transaction reservation granted
->      .....
->      down_write(some other inode ilock)
->      <modify some other inode>
->      xfs_trans_commit
->      .....
-> 
-> (*) xfsaild runs with PF_MEMALLOC context.
-> 
-> The problem is that if the ilock is held exclusively at GFP_KERNEL
-> time, the xfsaild cannot lock the inode to flush it, so if that
-> inode pins the tail of the log then we can't make space available
-> for xfs_trans_reserve and there is the deadlock.
-> 
-> Once xfs_trans_reserve completes, however, we'll take the ilock on
-> *some other inode*, and that's where the "it can't be the inode we
-> currently hold locked because we have references to it" and
-> henceit's safe to have a pattern like:
-> 
-> down_read(&i_lock);		-- lockdep marks lock as held
-> kmalloc(GFP_KERNEL);		-- lockdep marks held locks as ENABLED_RECLAIM_FS
->   --> reclaim()
->     down_write(&ilock)
-> 
-> because the lock within reclaim context is completely unrelated to
-> the lock we already hold.
-> 
-> Lockdep can't possibly know about this because the deadlock involves
-> locking contexts that *aren't doing anything wrong within their own
-> contexts*. It's only when you add the dependency of log space
-> reservation requirements needed to make forwards progress that
-> there's then an issue with locking and reclaim.
-> 
-> Cheers,
-> 
-> Dave.
-> -- 
-> Dave Chinner
-> david@fromorbit.com
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index da3a62a94b4a..9f83259a18a8 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3367,10 +3367,9 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+>  	bool drained = false;
+>  
+>  	*did_some_progress = __perform_reclaim(gfp_mask, order, ac);
+> -	if (unlikely(!(*did_some_progress)))
+> -		return NULL;
+>  
+>  retry:
+> +	/* We attempt even when no progress, as kswapd might have done some */
+>  	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
+
+Is this really likely to happen, though? Sure we might have last few
+reclaimable pages on the LRU lists but I am not sure this would make a
+large difference then.
+
+That being said, I do not think this is harmful but I find it a bit
+weird to invoke a reclaim and then ignore the feedback... Will leave the
+decision up to you but the original patch seemed neater.
+
+>  
+>  	/*
+> @@ -3378,7 +3377,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+>  	 * pages are pinned on the per-cpu lists or in high alloc reserves.
+>  	 * Shrink them them and try again
+>  	 */
+> -	if (!page && !drained) {
+> +	if (!page && *did_some_progress && !drained) {
+>  		unreserve_highatomic_pageblock(ac);
+>  		drain_all_pages(NULL);
+>  		drained = true;
+
+I do not remember this in the previous version. Why shouldn't we
+unreserve highatomic reserves when there was no progress?
 
 -- 
 Michal Hocko
