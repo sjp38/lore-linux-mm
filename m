@@ -1,133 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D5A46B0005
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 08:04:31 -0400 (EDT)
-Received: by mail-ig0-f197.google.com with SMTP id lp2so32536753igb.3
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 05:04:31 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id t83si13963966oig.89.2016.06.01.05.04.29
+Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 097B86B0005
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 08:11:49 -0400 (EDT)
+Received: by mail-ig0-f199.google.com with SMTP id i11so33090385igh.0
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 05:11:49 -0700 (PDT)
+Received: from smtpbgau1.qq.com (smtpbgau1.qq.com. [54.206.16.166])
+        by mx.google.com with ESMTPS id z9si10442004pau.40.2016.06.01.05.11.47
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Jun 2016 05:04:30 -0700 (PDT)
-Subject: Re: [PATCH 6/6] mm, oom: fortify task_will_free_mem
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1464613556-16708-7-git-send-email-mhocko@kernel.org>
-	<201606010003.CAH18706.LFHOFVOJtQOSFM@I-love.SAKURA.ne.jp>
-	<20160531151019.GN26128@dhcp22.suse.cz>
-	<201606010029.AHH64521.SOOQFMJFLOVFHt@I-love.SAKURA.ne.jp>
-	<20160601072549.GD26601@dhcp22.suse.cz>
-In-Reply-To: <20160601072549.GD26601@dhcp22.suse.cz>
-Message-Id: <201606012104.FIC12458.FOFHtOFMOSLVJQ@I-love.SAKURA.ne.jp>
-Date: Wed, 1 Jun 2016 21:04:18 +0900
+        Wed, 01 Jun 2016 05:11:48 -0700 (PDT)
+From: "=?utf-8?B?V2FuZyBTaGVuZy1IdWk=?=" <shhuiw@foxmail.com>
+Subject: Re:  Why __alloc_contig_migrate_range calls  migrate_prep() at first?
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_574ED0FD_0B1A79B0_42FD6724"
+Content-Transfer-Encoding: 8Bit
+Date: Wed, 1 Jun 2016 20:11:41 +0800
+Message-ID: <tencent_67BF47520FE5A3977D2A212F@qq.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org
+To: =?utf-8?B?TWluY2hhbiBLaW0=?= <minchan@kernel.org>
+Cc: =?utf-8?B?YWtwbQ==?= <akpm@linux-foundation.org>, =?utf-8?B?bWdvcm1hbg==?= <mgorman@techsingularity.net>, =?utf-8?B?aWFtam9vbnNvby5raW0=?= <iamjoonsoo.kim@lge.com>, =?utf-8?B?bGludXgtbW0=?= <linux-mm@kvack.org>, =?utf-8?B?Vmxhc3RpbWlsIEJhYmth?= <vbabka@suse.cz>
 
-Michal Hocko wrote:
-> On Wed 01-06-16 00:29:45, Tetsuo Handa wrote:
-> > I'm fine with task_will_free_mem(current) == true case. My question is that
-> > "doesn't this patch break task_will_free_mem(current) == false case when there is
-> > already TIF_MEMDIE thread" ?
-> 
-> OK, I see your point now. This is certainly possible, albeit unlikely. I
-> think calling this a regression would be a bit an overstatement. We are
-> basically replacing one unreliable heuristic by another one which is
-> more likely to lead to a deterministic behavior.
-> 
-> If you are worried about locking up the oom killer I have another 2
-> patches on top of this series which should deal with that (one of them
-> was already posted [1] and another one was drafted in [2]. Both of them
-> on top of this series should remove the concern of the lockup. I just
-> wait to post them until this thread settles down.
-> 
-> [1] http://lkml.kernel.org/r/1464276476-25136-1-git-send-email-mhocko@kernel.org
-> [2] http://lkml.kernel.org/r/20160527133502.GN27686@dhcp22.suse.cz
+This is a multi-part message in MIME format.
 
-I want [1] though I don't know we should try twice. But I still can't
-understand why [2] works. Setting MMF_OOM_REAPED on victim's mm_struct
-allows oom_scan_process_thread() to call oom_badness() only after TIF_MEMDIE
-was removed from that victim. Since oom_reap_task() is not called due to
-can_oom_reap == false, nobody will be able to remove TIF_MEMDIE from that
-victim if that victim got stuck at unkillable wait.
-down_write_killable(&mm->mmap_sem) might not reduce possibility of lockup
-when oom_reap_task() is not called.
+------=_NextPart_574ED0FD_0B1A79B0_42FD6724
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: base64
 
-Quoting from http://lkml.kernel.org/r/20160530115551.GU22928@dhcp22.suse.cz :
-> But your bottom half would just decide to back off the same way I do
-> here. And as for the bonus your bottom half would have to do the rather
-> costly process iteration to find that out.
+TWluY2hhbiwNCg0KVGhhdCBzb3VuZHMgZ29vZCB0byBtZS4gDQoNClRoYW5rcywNCldhbmcg
+U2hlbmctSHVpDQoNCg0KLS0tLS0tLS0tLS0tLS0tLS0tIE9yaWdpbmFsIC0tLS0tLS0tLS0t
+LS0tLS0tLQ0KRnJvbTogICJNaW5jaGFuIEtpbSI7PG1pbmNoYW5Aa2VybmVsLm9yZz47DQpE
+YXRlOiAgV2VkLCBKdW4gMSwgMjAxNiAwMzo0MCBQTQ0KVG86ICAiV2FuZyBTaGVuZy1IdWki
+PHNoaHVpd0Bmb3htYWlsLmNvbT47IA0KQ2M6ICAiYWtwbSI8YWtwbUBsaW51eC1mb3VuZGF0
+aW9uLm9yZz47ICJtZ29ybWFuIjxtZ29ybWFuQHRlY2hzaW5ndWxhcml0eS5uZXQ+OyAiaWFt
+am9vbnNvby5raW0iPGlhbWpvb25zb28ua2ltQGxnZS5jb20+OyAibGludXgtbW0iPGxpbnV4
+LW1tQGt2YWNrLm9yZz47ICJWbGFzdGltaWwgQmFia2EiPHZiYWJrYUBzdXNlLmN6PjsgDQpT
+dWJqZWN0OiAgUmU6IFdoeSBfX2FsbG9jX2NvbnRpZ19taWdyYXRlX3JhbmdlIGNhbGxzICBt
+aWdyYXRlX3ByZXAoKSBhdCBmaXJzdD8NCg0KDQoNCk9uIFdlZCwgSnVuIDAxLCAyMDE2IGF0
+IDExOjQyOjI5QU0gKzA4MDAsIFdhbmcgU2hlbmctSHVpIHdyb3RlOg0KPiBEZWFyLA0KPiAN
+Cj4gU29ycnkgdG8gdHJvdWJsZSB5b3UuDQo+IA0KPiBJIG5vdGljZWQgY21hX2FsbG9jIHdv
+dWxkIHR1cm4gdG8gIF9fYWxsb2NfY29udGlnX21pZ3JhdGVfcmFuZ2UgZm9yIGFsbG9jYXRp
+bmcgcGFnZXMuDQo+IEJ1dCAgX19hbGxvY19jb250aWdfbWlncmF0ZV9yYW5nZSBjYWxscyAg
+bWlncmF0ZV9wcmVwKCkgYXQgZmlyc3QsIGV2ZW4gaWYgdGhlIHJlcXVlc3RlZCBwYWdlDQo+
+IGlzIHNpbmdsZSBhbmQgZnJlZSwgbHJ1X2FkZF9kcmFpbl9hbGwgc3RpbGwgcnVuIChjYWxs
+ZWQgYnkgIG1pZ3JhdGVfcHJlcCgpKT8NCj4gDQo+IEltYWdlIGEgbGFyZ2UgY2h1bmsgb2Yg
+ZnJlZSBjb250aWcgcGFnZXMgZm9yIENNQSwgdmFyaW91cyBkcml2ZXJzIG1heSByZXF1ZXN0
+IGEgc2luZ2xlIHBhZ2UgZnJvbQ0KPiB0aGUgQ01BIGFyZWEsIHdlJ2xsIGdldCAgbHJ1X2Fk
+ZF9kcmFpbl9hbGwgcnVuIGZvciBlYWNoIHBhZ2UuDQo+IA0KPiBTaG91bGQgd2UgZGV0ZWN0
+IGlmIHRoZSByZXF1aXJlZCBwYWdlcyBhcmUgZnJlZSBiZWZvcmUgbWlncmF0ZV9wcmVwKCks
+IG9yIGRldGVjdCBhdCBsZWFzdCBmb3Igc2luZ2xlIA0KPiBwYWdlIGFsbG9jYXRpb24/DQoN
+ClRoYXQgbWFrZXMgc2Vuc2UgdG8gbWUuDQoNCkhvdyBhYm91dCBjYWxsaW5nIG1pZ3JhdGVf
+cHJlcCBvbmNlIG1pZ3JhdGVfcGFnZXMgZmFpbHMgaW4gdGhlIGZpcnN0IHRyaWFsPw0KDQpk
+aWZmIC0tZ2l0IGEvbW0vcGFnZV9hbGxvYy5jIGIvbW0vcGFnZV9hbGxvYy5jDQppbmRleCA5
+ZDY2NmRmNWVmOTUuLmM1MDRjMWE2MjNkMiAxMDA2NDQNCi0tLSBhL21tL3BhZ2VfYWxsb2Mu
+Yw0KKysrIGIvbW0vcGFnZV9hbGxvYy5jDQpAQCAtNjYyMyw4ICs2NjIzLDYgQEAgc3RhdGlj
+IGludCBfX2FsbG9jX2NvbnRpZ19taWdyYXRlX3JhbmdlKHN0cnVjdCBjb21wYWN0X2NvbnRy
+b2wgKmNjLA0KdW5zaWduZWQgaW50IHRyaWVzID0gMDsNCmludCByZXQgPSAwOw0KDQotIG1p
+Z3JhdGVfcHJlcCgpOw0KLQ0Kd2hpbGUgKHBmbiA8IGVuZCB8fCAhbGlzdF9lbXB0eSgmY2Mt
+Pm1pZ3JhdGVwYWdlcykpIHsNCmlmIChmYXRhbF9zaWduYWxfcGVuZGluZyhjdXJyZW50KSkg
+ew0KcmV0ID0gLUVJTlRSOw0KQEAgLTY2NTAsNiArNjY0OCw4IEBAIHN0YXRpYyBpbnQgX19h
+bGxvY19jb250aWdfbWlncmF0ZV9yYW5nZShzdHJ1Y3QgY29tcGFjdF9jb250cm9sICpjYywN
+Cg0KcmV0ID0gbWlncmF0ZV9wYWdlcygmY2MtPm1pZ3JhdGVwYWdlcywgYWxsb2NfbWlncmF0
+ZV90YXJnZXQsDQogTlVMTCwgMCwgY2MtPm1vZGUsIE1SX0NNQSk7DQoraWYgKHJldCkNCisg
+bWlncmF0ZV9wcmVwKCk7DQp9DQppZiAocmV0IDwgMCkgew0KcHV0YmFja19tb3ZhYmxlX3Bh
+Z2VzKCZjYy0+bWlncmF0ZXBhZ2VzKTsNCg0KDQo+IA0KPiAtLS0tLS0tLS0tLS0tLS0tLS0N
+Cj4gUmVnYXJkcywNCj4gV2FuZyBTaGVuZy1IdWlO4oC5wqfCssOmw6xywrjigLp6w4fCp3XC
+qcW+wrLDhiB7wq3igKDDqcOswrnCu8KuJsOe4oCTKcOuw4ZpwqLFvsOYXm7igKFywrbigLDF
+ocW9xaDDncKiaiTCvcKnJMKiwrjCosK5wqjCrcOowqd+xaAnLinDrsOE
 
-Doing the rather costly process iteration for up to one second (though most
-of duration is schedule_timeout_idle(HZ/10)) gives that victim some reasonable
-grace period for termination before the OOM killer selects next OOM victim.
+------=_NextPart_574ED0FD_0B1A79B0_42FD6724
+Content-Type: text/html;
+	charset="utf-8"
+Content-Transfer-Encoding: base64
 
-If we set MMF_OOM_REAPED as of oom_kill_process() while also setting
-TIF_MEMDIE, the OOM killer can lock up like described above.
-If we set MMF_OOM_REAPED as of oom_kill_process() while not setting
-TIF_MEMDIE, the OOM killer will immediately select next OOM victim
-which is almost
+TWluY2hhbiw8YnI+PGJyPlRoYXQgc291bmRzIGdvb2QgdG8gbWUuIDxicj48YnI+VGhhbmtz
+LDxicj5XYW5nIFNoZW5nLUh1aTxicj48YnI+PGJyPi0tLS0tLS0tLS0tLS0tLS0tLSBPcmln
+aW5hbCAtLS0tLS0tLS0tLS0tLS0tLS08YnI+RnJvbTombmJzcDsgIk1pbmNoYW4gS2ltIjsm
+bHQ7bWluY2hhbkBrZXJuZWwub3JnJmd0Ozs8YnI+RGF0ZTombmJzcDsgV2VkLCBKdW4gMSwg
+MjAxNiAwMzo0MCBQTTxicj5UbzombmJzcDsgIldhbmcgU2hlbmctSHVpIiZsdDtzaGh1aXdA
+Zm94bWFpbC5jb20mZ3Q7OyA8YnI+Q2M6Jm5ic3A7ICJha3BtIiZsdDtha3BtQGxpbnV4LWZv
+dW5kYXRpb24ub3JnJmd0OzsgIm1nb3JtYW4iJmx0O21nb3JtYW5AdGVjaHNpbmd1bGFyaXR5
+Lm5ldCZndDs7ICJpYW1qb29uc29vLmtpbSImbHQ7aWFtam9vbnNvby5raW1AbGdlLmNvbSZn
+dDs7ICJsaW51eC1tbSImbHQ7bGludXgtbW1Aa3ZhY2sub3JnJmd0OzsgIlZsYXN0aW1pbCBC
+YWJrYSImbHQ7dmJhYmthQHN1c2UuY3omZ3Q7OyA8YnI+U3ViamVjdDombmJzcDsgUmU6IFdo
+eSBfX2FsbG9jX2NvbnRpZ19taWdyYXRlX3JhbmdlIGNhbGxzJm5ic3A7IG1pZ3JhdGVfcHJl
+cCgpIGF0IGZpcnN0Pzxicj48YnI+PGJyPjxicj5PbiBXZWQsIEp1biAwMSwgMjAxNiBhdCAx
+MTo0MjoyOUFNICswODAwLCBXYW5nIFNoZW5nLUh1aSB3cm90ZTo8YnI+Jmd0OyBEZWFyLDxi
+cj4mZ3Q7IDxicj4mZ3Q7IFNvcnJ5IHRvIHRyb3VibGUgeW91Ljxicj4mZ3Q7IDxicj4mZ3Q7
+IEkgbm90aWNlZCBjbWFfYWxsb2Mgd291bGQgdHVybiB0byZuYnNwOyBfX2FsbG9jX2NvbnRp
+Z19taWdyYXRlX3JhbmdlIGZvciBhbGxvY2F0aW5nIHBhZ2VzLjxicj4mZ3Q7IEJ1dCZuYnNw
+OyBfX2FsbG9jX2NvbnRpZ19taWdyYXRlX3JhbmdlIGNhbGxzJm5ic3A7IG1pZ3JhdGVfcHJl
+cCgpIGF0IGZpcnN0LCBldmVuIGlmIHRoZSByZXF1ZXN0ZWQgcGFnZTxicj4mZ3Q7IGlzIHNp
+bmdsZSBhbmQgZnJlZSwgbHJ1X2FkZF9kcmFpbl9hbGwgc3RpbGwgcnVuIChjYWxsZWQgYnkm
+bmJzcDsgbWlncmF0ZV9wcmVwKCkpPzxicj4mZ3Q7IDxicj4mZ3Q7IEltYWdlIGEgbGFyZ2Ug
+Y2h1bmsgb2YgZnJlZSBjb250aWcgcGFnZXMgZm9yIENNQSwgdmFyaW91cyBkcml2ZXJzIG1h
+eSByZXF1ZXN0IGEgc2luZ2xlIHBhZ2UgZnJvbTxicj4mZ3Q7IHRoZSBDTUEgYXJlYSwgd2Un
+bGwgZ2V0Jm5ic3A7IGxydV9hZGRfZHJhaW5fYWxsIHJ1biBmb3IgZWFjaCBwYWdlLjxicj4m
+Z3Q7IDxicj4mZ3Q7IFNob3VsZCB3ZSBkZXRlY3QgaWYgdGhlIHJlcXVpcmVkIHBhZ2VzIGFy
+ZSBmcmVlIGJlZm9yZSBtaWdyYXRlX3ByZXAoKSwgb3IgZGV0ZWN0IGF0IGxlYXN0IGZvciBz
+aW5nbGUgPGJyPiZndDsgcGFnZSBhbGxvY2F0aW9uPzxicj48YnI+VGhhdCBtYWtlcyBzZW5z
+ZSB0byBtZS48YnI+PGJyPkhvdyBhYm91dCBjYWxsaW5nIG1pZ3JhdGVfcHJlcCBvbmNlIG1p
+Z3JhdGVfcGFnZXMgZmFpbHMgaW4gdGhlIGZpcnN0IHRyaWFsPzxicj48YnI+ZGlmZiAtLWdp
+dCBhL21tL3BhZ2VfYWxsb2MuYyBiL21tL3BhZ2VfYWxsb2MuYzxicj5pbmRleCA5ZDY2NmRm
+NWVmOTUuLmM1MDRjMWE2MjNkMiAxMDA2NDQ8YnI+LS0tIGEvbW0vcGFnZV9hbGxvYy5jPGJy
+PisrKyBiL21tL3BhZ2VfYWxsb2MuYzxicj5AQCAtNjYyMyw4ICs2NjIzLDYgQEAgc3RhdGlj
+IGludCBfX2FsbG9jX2NvbnRpZ19taWdyYXRlX3JhbmdlKHN0cnVjdCBjb21wYWN0X2NvbnRy
+b2wgKmNjLDxicj51bnNpZ25lZCBpbnQgdHJpZXMgPSAwOzxicj5pbnQgcmV0ID0gMDs8YnI+
+PGJyPi0gbWlncmF0ZV9wcmVwKCk7PGJyPi08YnI+d2hpbGUgKHBmbiAmbHQ7IGVuZCB8fCAh
+bGlzdF9lbXB0eSgmYW1wO2NjLSZndDttaWdyYXRlcGFnZXMpKSB7PGJyPmlmIChmYXRhbF9z
+aWduYWxfcGVuZGluZyhjdXJyZW50KSkgezxicj5yZXQgPSAtRUlOVFI7PGJyPkBAIC02NjUw
+LDYgKzY2NDgsOCBAQCBzdGF0aWMgaW50IF9fYWxsb2NfY29udGlnX21pZ3JhdGVfcmFuZ2Uo
+c3RydWN0IGNvbXBhY3RfY29udHJvbCAqY2MsPGJyPjxicj5yZXQgPSBtaWdyYXRlX3BhZ2Vz
+KCZhbXA7Y2MtJmd0O21pZ3JhdGVwYWdlcywgYWxsb2NfbWlncmF0ZV90YXJnZXQsPGJyPiBO
+VUxMLCAwLCBjYy0mZ3Q7bW9kZSwgTVJfQ01BKTs8YnI+K2lmIChyZXQpPGJyPisgbWlncmF0
+ZV9wcmVwKCk7PGJyPn08YnI+aWYgKHJldCAmbHQ7IDApIHs8YnI+cHV0YmFja19tb3ZhYmxl
+X3BhZ2VzKCZhbXA7Y2MtJmd0O21pZ3JhdGVwYWdlcyk7PGJyPjxicj48YnI+Jmd0OyA8YnI+
+Jmd0OyAtLS0tLS0tLS0tLS0tLS0tLS08YnI+Jmd0OyBSZWdhcmRzLDxicj4mZ3Q7IFdhbmcg
+U2hlbmctSHVpTuKAucKnwrLDpsOscsK44oC6esOHwqd1wqnFvsKyw4Yge8Kt4oCgw6nDrMK5
+wrvCriZhbXA7w57igJMpw67DhmnCosW+w5hebuKAoXLCtuKAsMWhxb3FoMOdwqJqJMK9wqck
+wqLCuMKiwrnCqMKtw6jCp37FoCcuKcOuw4Q=
 
- enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
- 			struct task_struct *task, unsigned long totalpages)
- {
- 	if (oom_unkillable_task(task, NULL, oc->nodemask))
- 		return OOM_SCAN_CONTINUE;
- 
--	/*
--	 * This task already has access to memory reserves and is being killed.
--	 * Don't allow any other task to have access to the reserves.
--	 */
--	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims))
--		return OOM_SCAN_ABORT;
- 
- 	/*
- 	 * If task is allocating a lot of memory and has been marked to be
- 	 * killed first if it triggers an oom, then select it.
- 	 */
- 	if (oom_task_origin(task))
- 		return OOM_SCAN_SELECT;
- 
- 	return OOM_SCAN_OK;
- }
+------=_NextPart_574ED0FD_0B1A79B0_42FD6724--
 
-situation when we hit can_oom_reap == false. Since not many thread groups
-will hit can_oom_reap == false condition, above situation won't kill all
-thread groups. But I think that waiting for one second before backing off
-is acceptable from the point of view of least killing. This resembles
 
-Quoting from http://lkml.kernel.org/r/20160601073441.GE26601@dhcp22.suse.cz :
-> > > > Third is that oom_kill_process() chooses a thread group which already
-> > > > has a TIF_MEMDIE thread when the candidate select_bad_process() chose
-> > > > has children because oom_badness() does not take TIF_MEMDIE into account.
-> > > > This patch checks child->signal->oom_victims before calling oom_badness()
-> > > > if oom_kill_process() was called by SysRq-f case. This resembles making
-> > > > sure that oom_badness() is skipped by returning OOM_SCAN_CONTINUE.
-> > > 
-> > > This makes sense to me as well but why should be limit this to sysrq case?
-> > > Does it make any sense to select a child which already got killed for
-> > > normal OOM killer? Anyway I think it would be better to split this into
-> > > its own patch as well.
-> > 
-> > The reason is described in next paragraph.
-> > Do we prefer immediately killing all children of the allocating task?
-> 
-> I do not think we want to select them _all_. We haven't been doing that
-> and I do not see a reason we should start now. But it surely doesn't
-> make any sense to select a task which has already TIF_MEMDIE set.
-
-"although selecting a TIF_MEMDIE thread group forever does not make any
-sense, we haven't tried selecting next thread group as soon as some thread
-group got TIF_MEMDIE".
-
-Setting MMF_OOM_REAPED and clearing TIF_MEMDIE after some period is the key.
-
-My bottom half does not require user visible changes. If some programs use
-clone(CLONE_VM without CLONE_SIGHAND) and mix OOM_SCORE_ADJ_MIN /
-OOM_SCORE_ADJ_MAX, I think they have reason they want to do so (e.g.
-shrink memory usage when OOM_SCORE_ADJ_MAX thread group was OOM-killed).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
