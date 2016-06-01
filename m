@@ -1,75 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EA84D6B0005
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 05:36:27 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id di3so9357994pab.0
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 02:36:27 -0700 (PDT)
-Received: from szxga01-in.huawei.com ([58.251.152.64])
-        by mx.google.com with ESMTPS id qz13si5912115pac.50.2016.06.01.02.36.25
+Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0618B6B0005
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 05:40:02 -0400 (EDT)
+Received: by mail-lb0-f197.google.com with SMTP id ne4so6772932lbc.1
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 02:40:01 -0700 (PDT)
+Received: from mail-lf0-x232.google.com (mail-lf0-x232.google.com. [2a00:1450:4010:c07::232])
+        by mx.google.com with ESMTPS id f87si15773968lji.20.2016.06.01.02.40.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Jun 2016 02:36:27 -0700 (PDT)
-Subject: =?UTF-8?Q?Re:_=e7=ad=94=e5=a4=8d:_[PATCH]_reusing_of_mapping_page_s?=
- =?UTF-8?Q?upplies_a_way_for_file_page_allocation_under_low_memory_due_to_pa?=
- =?UTF-8?Q?gecache_over_size_and_is_controlled_by_sysctl_parameters._it_is_u?=
- =?UTF-8?Q?sed_only_for_rw_page_allocation_rather_than_fault_or_readahead_al?=
- =?UTF-8?Q?location._it_is_like...?=
-References: <1464685702-100211-1-git-send-email-zhouxianrong@huawei.com>
- <20160531093631.GH26128@dhcp22.suse.cz>
- <AE94847B1D9E864B8593BD8051012AF36D70EA02@SZXEML505-MBS.china.huawei.com>
- <20160531140354.GM26128@dhcp22.suse.cz>
- <ea553117-3735-fccb-0e7a-e289633cdd9f@huawei.com>
- <20160601081820.GG26601@dhcp22.suse.cz>
-From: zhouxianrong <zhouxianrong@huawei.com>
-Message-ID: <ecdbca17-84b0-7762-5210-e4b449db7b06@huawei.com>
-Date: Wed, 1 Jun 2016 17:28:34 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Jun 2016 02:40:00 -0700 (PDT)
+Received: by mail-lf0-x232.google.com with SMTP id s64so8933434lfe.0
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 02:40:00 -0700 (PDT)
+Date: Wed, 1 Jun 2016 12:39:57 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v1] mm: thp: check pmd_trans_unstable() after
+ split_huge_pmd()
+Message-ID: <20160601093957.GA8493@node.shutemov.name>
+References: <1464741400-12143-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-In-Reply-To: <20160601081820.GG26601@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1464741400-12143-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Zhouxiyu <zhouxiyu@huawei.com>, "wanghaijun (E)" <wanghaijun5@huawei.com>, "Yuchao (T)" <yuchao0@huawei.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
- > Why would you want to reuse a page about which you have no idea about
- > its age compared to the LRU pages which would be mostly clean as well?
- > I mean this needs a deep justification!
- >
+On Wed, Jun 01, 2016 at 09:36:40AM +0900, Naoya Horiguchi wrote:
+> split_huge_pmd() doesn't guarantee that the pmd is normal pmd pointing to
+> pte entries, which can be checked with pmd_trans_unstable().
 
-pages only dirtied by rw syscall can be reused
-pages dirtied by fault due to page_mkwrite or bdi-dirty-account now does not be reused
+Could you be more specific on when we don't have normal ptes after
+split_huge_pmd? Race with other thread? DAX?
 
-On 2016/6/1 16:18, Michal Hocko wrote:
-> On Wed 01-06-16 09:52:45, zhouxianrong wrote:
->>>> A page suitable for reusing within mapping is
->>>> 1. clean
->>>> 2. map count is zero
->>>> 3. whose mapping is evictable
->>>
->>> Those pages are trivially reclaimable so why should we tag them in a
->>> special way?
->> yes, those pages can be reclaimed by reclaim procedure. i think in low memory
->> case for a process that doing file rw directly-reusing-mapping-page may be
->> a choice than alloc_page just like directly reclaim. alloc_page could failed return
->> due to gfp and watermark in low memory. for reusing-mapping-page procedure quickly
->> select a page that is be reused so introduce a tag for this purpose.
->
-> Why would you want to reuse a page about which you have no idea about
-> its age compared to the LRU pages which would be mostly clean as well?
-> I mean this needs a deep justification!
->
->>> So is this a form of a page cache limit to trigger the reclaim earlier
->>> than on the global memory pressure?
->
->> my thinking is that page cache limit trigger reuse-mapping-page. the
->> limit is earlier than on the global memory pressure.
->> reuse-mapping-page can suppress increment of page cache size and big page cache size
->> is one reason of low memory and fragment.
->
-> But why would you want to limit the amount of the page cache in the
-> first place when it should be trivially reclaimable most of the time?
->
+I guess we can modify split_huge_pmd() to return if the pmd was split or
+not.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
