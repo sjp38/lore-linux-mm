@@ -1,178 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 416E56B007E
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 10:06:52 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id q79so46092263qke.0
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 07:06:52 -0700 (PDT)
-Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
-        by mx.google.com with ESMTPS id f30si34937013qtc.26.2016.06.01.07.06.51
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C32F6B0264
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 10:08:04 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id 85so34260619ioq.3
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 07:08:04 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id ip4si1030309wjb.126.2016.06.01.07.08.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jun 2016 07:06:51 -0700 (PDT)
-Received: by mail-qk0-x243.google.com with SMTP id q79so2062678qke.2
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 07:06:51 -0700 (PDT)
-From: Chas Williams <3chas3@gmail.com>
-Subject: [PATCH 3.14.y 3/5] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
-Date: Wed,  1 Jun 2016 10:06:20 -0400
-Message-Id: <1464789982-4244-3-git-send-email-3chas3@gmail.com>
-In-Reply-To: <1464789982-4244-1-git-send-email-3chas3@gmail.com>
-References: <1464789982-4244-1-git-send-email-3chas3@gmail.com>
+        Wed, 01 Jun 2016 07:08:03 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id q62so7146962wmg.3
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 07:08:03 -0700 (PDT)
+Date: Wed, 1 Jun 2016 16:08:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 16/18] mm, compaction: require only min watermarks for
+ non-costly orders
+Message-ID: <20160601140801.GV26601@dhcp22.suse.cz>
+References: <20160531130818.28724-1-vbabka@suse.cz>
+ <20160531130818.28724-17-vbabka@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160531130818.28724-17-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org
-Cc: Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Luis Henriques <luis.henriques@canonical.com>, Chas Williams <3chas3@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 
-From: Andy Lutomirski <luto@kernel.org>
+On Tue 31-05-16 15:08:16, Vlastimil Babka wrote:
+> The __compaction_suitable() function checks the low watermark plus a
+> compact_gap() gap to decide if there's enough free memory to perform
+> compaction. Then __isolate_free_page uses low watermark check to decide if
+> particular free page can be isolated. In the latter case, using low watermark
+> is needlessly pessimistic, as the free page isolations are only temporary. For
+> __compaction_suitable() the higher watermark makes sense for high-order
+> allocations where more freepages increase the chance of success, and we can
+> typically fail with some order-0 fallback when the system is struggling to
+> reach that watermark. But for low-order allocation, forming the page should not
+> be that hard. So using low watermark here might just prevent compaction from
+> even trying, and eventually lead to OOM killer even if we are above min
+> watermarks.
+> 
+> So after this patch, we use min watermark for non-costly orders in
+> __compaction_suitable(), and for all orders in __isolate_free_page().
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-When switch_mm() activates a new PGD, it also sets a bit that
-tells other CPUs that the PGD is in use so that TLB flush IPIs
-will be sent.  In order for that to work correctly, the bit
-needs to be visible prior to loading the PGD and therefore
-starting to fill the local TLB.
+> ---
+>  mm/compaction.c | 6 +++++-
+>  mm/page_alloc.c | 2 +-
+>  2 files changed, 6 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 4ffa0870192b..d854519a5302 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1345,10 +1345,14 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+>  	 * isolation. We however do use the direct compactor's classzone_idx to
+>  	 * skip over zones where lowmem reserves would prevent allocation even
+>  	 * if compaction succeeds.
+> +	 * For costly orders, we require low watermark instead of min for
+> +	 * compaction to proceed to increase its chances.
+>  	 * ALLOC_CMA is used, as pages in CMA pageblocks are considered
+>  	 * suitable migration targets
+>  	 */
+> -	watermark = low_wmark_pages(zone) + compact_gap(order);
+> +	watermark = (order > PAGE_ALLOC_COSTLY_ORDER) ?
+> +				low_wmark_pages(zone) : min_wmark_pages(zone);
+> +	watermark += compact_gap(order);
+>  	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
+>  						ALLOC_CMA, wmark_target))
+>  		return COMPACT_SKIPPED;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 09dc9db8a7e9..5b4c9e567fc1 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2489,7 +2489,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
+>  
+>  	if (!is_migrate_isolate(mt)) {
+>  		/* Obey watermarks as if the page was being allocated */
+> -		watermark = low_wmark_pages(zone) + (1 << order);
+> +		watermark = min_wmark_pages(zone) + (1UL << order);
+>  		if (!zone_watermark_ok(zone, 0, watermark, 0, ALLOC_CMA))
+>  			return 0;
+>  
+> -- 
+> 2.8.3
 
-Document all the barriers that make this work correctly and add
-a couple that were missing.
-
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-[ luis: backported to 3.16:
-  - dropped N/A comment in flush_tlb_mm_range()
-  - adjusted context ]
-Signed-off-by: Luis Henriques <luis.henriques@canonical.com>
-(cherry picked from commit bab48cc44e14c26385de1f887f4bf320e8c3a6f0)
-Signed-off-by: Chas Williams <3chas3@gmail.com>
----
- arch/x86/include/asm/mmu_context.h | 32 +++++++++++++++++++++++++++++++-
- arch/x86/mm/tlb.c                  | 25 ++++++++++++++++++++++---
- 2 files changed, 53 insertions(+), 4 deletions(-)
-
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index be12c53..c0d2f6b 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -42,7 +42,32 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- #endif
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
- 
--		/* Re-load page tables */
-+		/*
-+		 * Re-load page tables.
-+		 *
-+		 * This logic has an ordering constraint:
-+		 *
-+		 *  CPU 0: Write to a PTE for 'next'
-+		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
-+		 *  CPU 1: set bit 1 in next's mm_cpumask
-+		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
-+		 *
-+		 * We need to prevent an outcome in which CPU 1 observes
-+		 * the new PTE value and CPU 0 observes bit 1 clear in
-+		 * mm_cpumask.  (If that occurs, then the IPI will never
-+		 * be sent, and CPU 0's TLB will contain a stale entry.)
-+		 *
-+		 * The bad outcome can occur if either CPU's load is
-+		 * reordered before that CPU's store, so both CPUs much
-+		 * execute full barriers to prevent this from happening.
-+		 *
-+		 * Thus, switch_mm needs a full barrier between the
-+		 * store to mm_cpumask and any operation that could load
-+		 * from next->pgd.  This barrier synchronizes with
-+		 * remote TLB flushers.  Fortunately, load_cr3 is
-+		 * serializing and thus acts as a full barrier.
-+		 *
-+		 */
- 		load_cr3(next->pgd);
- 
- 		/* Stop flush ipis for the previous mm */
-@@ -65,10 +90,15 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 			 * schedule, protecting us from simultaneous changes.
- 			 */
- 			cpumask_set_cpu(cpu, mm_cpumask(next));
-+
- 			/*
- 			 * We were in lazy tlb mode and leave_mm disabled
- 			 * tlb flush IPI delivery. We must reload CR3
- 			 * to make sure to use no freed page tables.
-+			 *
-+			 * As above, this is a barrier that forces
-+			 * TLB repopulation to be ordered after the
-+			 * store to mm_cpumask.
- 			 */
- 			load_cr3(next->pgd);
- 			load_LDT_nolock(&next->context);
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index dd8dda1..46e82e7 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -152,7 +152,10 @@ void flush_tlb_current_task(void)
- 	preempt_disable();
- 
- 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-+
-+	/* This is an implicit full barrier that synchronizes with switch_mm. */
- 	local_flush_tlb();
-+
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
- 	preempt_enable();
-@@ -166,11 +169,19 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 	unsigned long nr_base_pages;
- 
- 	preempt_disable();
--	if (current->active_mm != mm)
-+	if (current->active_mm != mm) {
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto flush_all;
-+	}
- 
- 	if (!current->mm) {
- 		leave_mm(smp_processor_id());
-+
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto flush_all;
- 	}
- 
-@@ -222,10 +233,18 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
- 	preempt_disable();
- 
- 	if (current->active_mm == mm) {
--		if (current->mm)
-+		if (current->mm) {
-+			/*
-+			 * Implicit full barrier (INVLPG) that synchronizes
-+			 * with switch_mm.
-+			 */
- 			__flush_tlb_one(start);
--		else
-+		} else {
- 			leave_mm(smp_processor_id());
-+
-+			/* Synchronize with switch_mm. */
-+			smp_mb();
-+		}
- 	}
- 
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
 -- 
-2.5.5
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
