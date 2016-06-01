@@ -1,66 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B48706B0264
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 10:21:41 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id ne4so10633313lbc.1
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 07:21:41 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id n143si4110839wmd.96.2016.06.01.07.21.40
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BEBD6B0267
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 10:25:06 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e3so12716689wme.3
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 07:25:06 -0700 (PDT)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
+        by mx.google.com with ESMTPS id l185si43492935wmf.120.2016.06.01.07.25.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jun 2016 07:21:40 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id n184so6732231wmn.1
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 07:21:40 -0700 (PDT)
-Date: Wed, 1 Jun 2016 16:21:38 +0200
+        Wed, 01 Jun 2016 07:25:05 -0700 (PDT)
+Received: by mail-wm0-f52.google.com with SMTP id a136so185192803wme.0
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 07:25:04 -0700 (PDT)
+Date: Wed, 1 Jun 2016 16:25:03 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 18/18] mm, vmscan: use proper classzone_idx in
- should_continue_reclaim()
-Message-ID: <20160601142138.GX26601@dhcp22.suse.cz>
-References: <20160531130818.28724-1-vbabka@suse.cz>
- <20160531130818.28724-19-vbabka@suse.cz>
+Subject: Re: [PATCH 4/6] mm, oom: skip vforked tasks from being selected
+Message-ID: <20160601142502.GY26601@dhcp22.suse.cz>
+References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
+ <1464613556-16708-5-git-send-email-mhocko@kernel.org>
+ <201606012312.BIF26006.MLtFVQSJOHOFOF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160531130818.28724-19-vbabka@suse.cz>
+In-Reply-To: <201606012312.BIF26006.MLtFVQSJOHOFOF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org
 
-On Tue 31-05-16 15:08:18, Vlastimil Babka wrote:
-[...]
-> @@ -2364,11 +2350,12 @@ static inline bool should_continue_reclaim(struct zone *zone,
->  }
->  
->  static bool shrink_zone(struct zone *zone, struct scan_control *sc,
-> -			bool is_classzone)
-> +			int classzone_idx)
->  {
->  	struct reclaim_state *reclaim_state = current->reclaim_state;
->  	unsigned long nr_reclaimed, nr_scanned;
->  	bool reclaimable = false;
-> +	bool is_classzone = (classzone_idx == zone_idx(zone));
->  
->  	do {
->  		struct mem_cgroup *root = sc->target_mem_cgroup;
-> @@ -2450,7 +2437,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
->  			reclaimable = true;
->  
->  	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
-> -					 sc->nr_scanned - nr_scanned, sc));
-> +			 sc->nr_scanned - nr_scanned, sc, classzone_idx));
->  
->  	return reclaimable;
->  }
-> @@ -2580,7 +2567,7 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
->  			/* need some check for avoid more shrink_zone() */
->  		}
->  
-> -		shrink_zone(zone, sc, zone_idx(zone) == classzone_idx);
-> +		shrink_zone(zone, sc, classzone_idx);
+On Wed 01-06-16 23:12:20, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > vforked tasks are not really sitting on any memory. They are sharing
+> > the mm with parent until they exec into a new code. Until then it is
+> > just pinning the address space. OOM killer will kill the vforked task
+> > along with its parent but we still can end up selecting vforked task
+> > when the parent wouldn't be selected. E.g. init doing vfork to launch
+> > a task or vforked being a child of oom unkillable task with an updated
+> > oom_score_adj to be killable.
+> > 
+> > Make sure to not select vforked task as an oom victim by checking
+> > vfork_done in oom_badness.
+> 
+> While vfork()ed task cannot modify userspace memory, can't such task
+> allocate significant amount of kernel memory inside execve() operation
+> (as demonstrated by CVE-2010-4243 64bit_dos.c )?
+> 
+> It is possible that killing vfork()ed task releases a lot of memory,
+> isn't it?
 
-this should be is_classzone, right?
-
+I am not familiar with the above CVE but doesn't that allocated memory
+come after flush_old_exec (and so mm_release)?
 -- 
 Michal Hocko
 SUSE Labs
