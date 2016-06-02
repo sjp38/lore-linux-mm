@@ -1,34 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 75F5B6B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 05:32:46 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id g64so46109792pfb.2
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 02:32:46 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id fk7si18952296pab.97.2016.06.02.02.32.45
-        for <linux-mm@kvack.org>;
-        Thu, 02 Jun 2016 02:32:45 -0700 (PDT)
-Date: Thu, 2 Jun 2016 10:32:41 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH 2/4] mm: kmemleak: remove unused header cpumask.h
-Message-ID: <20160602093241.GA24938@e104818-lin.cambridge.arm.com>
-References: <7cc1b41351a96e7d67fcf4bd2a6987b71793cb27.1464847139.git.geliangtang@gmail.com>
- <f0fa3738403f886988141182e8e4bac7efed05c7.1464847139.git.geliangtang@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f0fa3738403f886988141182e8e4bac7efed05c7.1464847139.git.geliangtang@gmail.com>
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B811D6B025E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 05:40:10 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id w185so122298198vkf.3
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 02:40:10 -0700 (PDT)
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com. [129.33.205.207])
+        by mx.google.com with ESMTPS id 82si21853411qhu.0.2016.06.02.02.40.09
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 02 Jun 2016 02:40:09 -0700 (PDT)
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 2 Jun 2016 05:40:09 -0400
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH 1/4] mm/hugetlb: Simplify hugetlb unmap
+Date: Thu,  2 Jun 2016 15:09:46 +0530
+Message-Id: <1464860389-29019-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geliang Tang <geliangtang@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, mpe@ellerman.id.au
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Thu, Jun 02, 2016 at 02:15:34PM +0800, Geliang Tang wrote:
-> Remove unused header cpumask.h from mm/kmemleak.c.
-> 
-> Signed-off-by: Geliang Tang <geliangtang@gmail.com>
+For hugetlb like THP (and unlike regular page), we do tlb flush after
+dropping ptl. Because of the above, we don't need to track force_flush
+like we do now. Instead we can simply call tlb_remove_page() which
+will do the flush if needed.
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+No functionality change in this patch.
+
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ mm/hugetlb.c | 54 +++++++++++++++++++++---------------------------------
+ 1 file changed, 21 insertions(+), 33 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index e4168484f249..8dd91cd5571c 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3138,7 +3138,6 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 			    unsigned long start, unsigned long end,
+ 			    struct page *ref_page)
+ {
+-	int force_flush = 0;
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	unsigned long address;
+ 	pte_t *ptep;
+@@ -3157,19 +3156,22 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 	tlb_start_vma(tlb, vma);
+ 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+ 	address = start;
+-again:
+ 	for (; address < end; address += sz) {
+ 		ptep = huge_pte_offset(mm, address);
+ 		if (!ptep)
+ 			continue;
+ 
+ 		ptl = huge_pte_lock(h, mm, ptep);
+-		if (huge_pmd_unshare(mm, &address, ptep))
+-			goto unlock;
++		if (huge_pmd_unshare(mm, &address, ptep)) {
++			spin_unlock(ptl);
++			continue;
++		}
+ 
+ 		pte = huge_ptep_get(ptep);
+-		if (huge_pte_none(pte))
+-			goto unlock;
++		if (huge_pte_none(pte)) {
++			spin_unlock(ptl);
++			continue;
++		}
+ 
+ 		/*
+ 		 * Migrating hugepage or HWPoisoned hugepage is already
+@@ -3177,7 +3179,8 @@ again:
+ 		 */
+ 		if (unlikely(!pte_present(pte))) {
+ 			huge_pte_clear(mm, address, ptep);
+-			goto unlock;
++			spin_unlock(ptl);
++			continue;
+ 		}
+ 
+ 		page = pte_page(pte);
+@@ -3187,9 +3190,10 @@ again:
+ 		 * are about to unmap is the actual page of interest.
+ 		 */
+ 		if (ref_page) {
+-			if (page != ref_page)
+-				goto unlock;
+-
++			if (page != ref_page) {
++				spin_unlock(ptl);
++				continue;
++			}
+ 			/*
+ 			 * Mark the VMA as having unmapped its page so that
+ 			 * future faults in this VMA will fail rather than
+@@ -3205,30 +3209,14 @@ again:
+ 
+ 		hugetlb_count_sub(pages_per_huge_page(h), mm);
+ 		page_remove_rmap(page, true);
+-		force_flush = !__tlb_remove_page(tlb, page);
+-		if (force_flush) {
+-			address += sz;
+-			spin_unlock(ptl);
+-			break;
+-		}
+-		/* Bail out after unmapping reference page if supplied */
+-		if (ref_page) {
+-			spin_unlock(ptl);
+-			break;
+-		}
+-unlock:
++
+ 		spin_unlock(ptl);
+-	}
+-	/*
+-	 * mmu_gather ran out of room to batch pages, we break out of
+-	 * the PTE lock to avoid doing the potential expensive TLB invalidate
+-	 * and page-free while holding it.
+-	 */
+-	if (force_flush) {
+-		force_flush = 0;
+-		tlb_flush_mmu(tlb);
+-		if (address < end && !ref_page)
+-			goto again;
++		tlb_remove_page(tlb, page);
++		/*
++		 * Bail out after unmapping reference page if supplied
++		 */
++		if (ref_page)
++			break;
+ 	}
+ 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+ 	tlb_end_vma(tlb, vma);
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
