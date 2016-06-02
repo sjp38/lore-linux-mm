@@ -1,115 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 836E76B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 14:59:03 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id e3so31243745wme.3
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 11:59:03 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id g207si37433735wme.16.2016.06.02.11.59.02
+Received: from mail-ob0-f197.google.com (mail-ob0-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 127D66B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 15:01:57 -0400 (EDT)
+Received: by mail-ob0-f197.google.com with SMTP id jt9so34685071obc.2
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 12:01:57 -0700 (PDT)
+Received: from mail-it0-x22c.google.com (mail-it0-x22c.google.com. [2607:f8b0:4001:c0b::22c])
+        by mx.google.com with ESMTPS id a15si1106336oib.120.2016.06.02.12.01.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Jun 2016 11:59:02 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id n184so17632067wmn.1
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 11:59:02 -0700 (PDT)
-Date: Thu, 2 Jun 2016 21:58:56 +0300
-From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: Re: [linux-next: Tree for Jun 1] __khugepaged_exit
- rwsem_down_write_failed lockup
-Message-ID: <20160602185856.GA3854@debian>
-References: <20160601131122.7dbb0a65@canb.auug.org.au>
- <20160602014835.GA635@swordfish>
- <0c47a3a0-5530-b257-1c1f-28ed44ba97e6@suse.cz>
+        Thu, 02 Jun 2016 12:01:55 -0700 (PDT)
+Received: by mail-it0-x22c.google.com with SMTP id e62so134728839ita.1
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 12:01:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0c47a3a0-5530-b257-1c1f-28ed44ba97e6@suse.cz>
+In-Reply-To: <20160602135226.GX2527@techsingularity.net>
+References: <CAPv3WKcVsWBgHHC3UPNcbka2JUmN4CTw1Ym4BR1=1V9=B9av5Q@mail.gmail.com>
+	<574D64A0.2070207@arm.com>
+	<CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
+	<60e8df74202e40b28a4d53dbc7fd0b22@IL-EXCH02.marvell.com>
+	<20160531131520.GI24936@arm.com>
+	<CAPv3WKftqsEXbdU-geAcUKXBSskhA0V72N61a1a+5DfahLK_Dg@mail.gmail.com>
+	<20160602135226.GX2527@techsingularity.net>
+Date: Thu, 2 Jun 2016 21:01:55 +0200
+Message-ID: <CAPv3WKd8Zdcv5nhr2euN7L4W5JYLex_Hmn+9AVd6reyD-Vw4kg@mail.gmail.com>
+Subject: Re: [BUG] Page allocation failures with newest kernels
+From: Marcin Wojtas <mw@semihalf.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vbabka@suse.cz, sergey.senozhatsky.work@gmail.com, akpm@linux-foundation.org
-Cc: mhocko@kernel.org, kirill.shutemov@linux.intel.com, sfr@canb.auug.org.au, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Will Deacon <will.deacon@arm.com>, Yehuda Yitschak <yehuday@marvell.com>, Robin Murphy <robin.murphy@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Lior Amsalem <alior@marvell.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>, Grzegorz Jaszczyk <jaz@semihalf.com>, Nadav Haklai <nadavh@marvell.com>, Tomasz Nowicki <tn@semihalf.com>, =?UTF-8?Q?Gregory_Cl=C3=A9ment?= <gregory.clement@free-electrons.com>
 
-On Thu, Jun 02, 2016 at 03:24:05PM +0200, Vlastimil Babka wrote:
-> [+CC's]
-> 
-> On 06/02/2016 03:48 AM, Sergey Senozhatsky wrote:
-> >On (06/01/16 13:11), Stephen Rothwell wrote:
-> >>Hi all,
-> >>
-> >>Changes since 20160531:
-> >>
-> >>My fixes tree contains:
-> >>
-> >>  of: silence warnings due to max() usage
-> >>
-> >>The arm tree gained a conflict against Linus' tree.
-> >>
-> >>Non-merge commits (relative to Linus' tree): 1100
-> >> 936 files changed, 38159 insertions(+), 17475 deletions(-)
-> >
-> >Hello,
-> >
-> >the cc1 process ended up in DN state during kernel -j4 compilation.
-> >
-> >...
-> >[ 2856.323052] INFO: task cc1:4582 blocked for more than 21 seconds.
-> >[ 2856.323055]       Not tainted 4.7.0-rc1-next-20160601-dbg-00012-g52c180e-dirty #453
-> >[ 2856.323056] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> >[ 2856.323059] cc1             D ffff880057e9fd78     0  4582   4575 0x00000000
-> >[ 2856.323062]  ffff880057e9fd78 ffff880057e08000 ffff880057e9fd90 ffff880057ea0000
-> >[ 2856.323065]  ffff88005dc3dc68 ffffffff00000001 ffff880057e09500 ffff88005dc3dc80
-> >[ 2856.323067]  ffff880057e9fd90 ffffffff81441e33 ffff88005dc3dc68 ffff880057e9fe00
-> >[ 2856.323068] Call Trace:
-> >[ 2856.323074]  [<ffffffff81441e33>] schedule+0x83/0x98
-> >[ 2856.323077]  [<ffffffff81443d9b>] rwsem_down_write_failed+0x18e/0x1d3
-> >[ 2856.323080]  [<ffffffff810a87cf>] ? unlock_page+0x2b/0x2d
-> >[ 2856.323083]  [<ffffffff811bdb77>] call_rwsem_down_write_failed+0x17/0x30
-> >[ 2856.323084]  [<ffffffff811bdb77>] ? call_rwsem_down_write_failed+0x17/0x30
-> >[ 2856.323086]  [<ffffffff81443630>] down_write+0x1f/0x2e
-> >[ 2856.323089]  [<ffffffff810ea4f3>] __khugepaged_exit+0x104/0x11a
-> >[ 2856.323091]  [<ffffffff8103702a>] mmput+0x29/0xc5
-> >[ 2856.323093]  [<ffffffff8103bbd8>] do_exit+0x34c/0x894
-> >[ 2856.323095]  [<ffffffff8102f9e0>] ? __do_page_fault+0x2f7/0x399
-> >[ 2856.323097]  [<ffffffff8103c188>] do_group_exit+0x3c/0x98
-> >[ 2856.323099]  [<ffffffff8103c1f3>] SyS_exit_group+0xf/0xf
-> >[ 2856.323101]  [<ffffffff81444cdb>] entry_SYSCALL_64_fastpath+0x13/0x8f
-> >
-> >[ 2877.322853] INFO: task cc1:4582 blocked for more than 21 seconds.
-> >[ 2877.322858]       Not tainted 4.7.0-rc1-next-20160601-dbg-00012-g52c180e-dirty #453
-> >[ 2877.322858] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> >[ 2877.322861] cc1             D ffff880057e9fd78     0  4582   4575 0x00000000
-> >[ 2877.322865]  ffff880057e9fd78 ffff880057e08000 ffff880057e9fd90 ffff880057ea0000
-> >[ 2877.322867]  ffff88005dc3dc68 ffffffff00000001 ffff880057e09500 ffff88005dc3dc80
-> >[ 2877.322867]  ffff880057e9fd90 ffffffff81441e33 ffff88005dc3dc68 ffff880057e9fe00
-> >[ 2877.322870] Call Trace:
-> >[ 2877.322875]  [<ffffffff81441e33>] schedule+0x83/0x98
-> >[ 2877.322878]  [<ffffffff81443d9b>] rwsem_down_write_failed+0x18e/0x1d3
-> >[ 2877.322881]  [<ffffffff810a87cf>] ? unlock_page+0x2b/0x2d
-> >[ 2877.322884]  [<ffffffff811bdb77>] call_rwsem_down_write_failed+0x17/0x30
-> >[ 2877.322885]  [<ffffffff811bdb77>] ? call_rwsem_down_write_failed+0x17/0x30
-> >[ 2877.322887]  [<ffffffff81443630>] down_write+0x1f/0x2e
-> >[ 2877.322890]  [<ffffffff810ea4f3>] __khugepaged_exit+0x104/0x11a
-> >[ 2877.322892]  [<ffffffff8103702a>] mmput+0x29/0xc5
-> >[ 2877.322894]  [<ffffffff8103bbd8>] do_exit+0x34c/0x894
-> >[ 2877.322896]  [<ffffffff8102f9e0>] ? __do_page_fault+0x2f7/0x399
-> >[ 2877.322898]  [<ffffffff8103c188>] do_group_exit+0x3c/0x98
-> >[ 2877.322900]  [<ffffffff8103c1f3>] SyS_exit_group+0xf/0xf
-> >[ 2877.322902]  [<ffffffff81444cdb>] entry_SYSCALL_64_fastpath+0x13/0x8f
-> 
-> I think it's this patch:
-> 
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-thp-make-swapin-readahead-under-down_read-of-mmap_sem.patch
-> 
-> Some parts of the code in collapse_huge_page() that were under
-> down_write(mmap_sem) are under down_read() after the patch. But
-> there's "goto out" which continues via "goto out_up_write" which
-> does up_write(mmap_sem) so there's an imbalance. One path seems to
-> go via both up_read() and up_write(). I can imagine this can cause a
-> stuck down_write() among other things?
-Recently, I realized the same imbalance, it is an obvious
-inconsistency. I don't know, this issue can be related with
-mine. I'll send a fix patch.
+Hi Mel,
 
-Kind regards.
+2016-06-02 15:52 GMT+02:00 Mel Gorman <mgorman@techsingularity.net>:
+> On Thu, Jun 02, 2016 at 07:48:38AM +0200, Marcin Wojtas wrote:
+>> Hi Will,
+>>
+>> I think I found a right trace. Following one-liner fixes the issue
+>> beginning from v4.2-rc1 up to v4.4 included:
+>>
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -294,7 +294,7 @@ static inline bool
+>> early_page_uninitialised(unsigned long pfn)
+>>
+>>  static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
+>>  {
+>> -       return false;
+>> +       return true;
+>>  }
+>>
+>
+> How does that make a difference in v4.4 since commit
+> 974a786e63c96a2401a78ddba926f34c128474f1 removed the only
+> early_page_nid_uninitialised() ? It further doesn't make sense if deferred
+> memory initialisation is not enabled as the pages will always be
+> initialised.
+>
+
+Right, it should be "v4.3 included". Your changes were merged to
+v4.4-rc1 and indeed deferred initialization doesn't play a role from
+then, but the behavior remained identical.
+
+>> From what I understood, now order-0 allocation keep no reserve at all.
+>
+> Watermarks should still be preserved. zone_watermark_ok is still there.
+> What might change is the size of reserves for high-order atomic
+> allocations only. Fragmentation shouldn't be a factor. I'm missing some
+> major part of the picture.
+>
+
+I CC'ed you in the last email, as I found out your authorship of
+interesting patches - please see problem description
+https://lkml.org/lkml/2016/5/30/1056
+
+Anyway when using v4.4.8 baseline, after reverting below patches:
+97a16fc - mm, page_alloc: only enforce watermarks for order-0 allocations
+0aaa29a - mm, page_alloc: reserve pageblocks for high-order atomic
+allocations on demand
+974a786 - mm, page_alloc: remove MIGRATE_RESERVE
++ adding early_page_nid_uninitialised() modification
+
+I stop receiving page alloc fail dumps like this one
+http://pastebin.com/FhRW5DsF, also performance in my test looks very
+similar. I'd like to understand this phenomenon and check if it's
+possible to avoid such page-alloc-fail hickups in a nice way.
+Afterwards, once the dumps finish, the kernel remain stable, but is
+such behavior expected and intended?
+
+What interested me from above-mentioned patches is that last-resort
+migration on page-alloc fail ('retry_reserve') was removed from
+rmqueue() in patch:
+974a786 - mm, page_alloc: remove MIGRATE_RESERVE
+Also a section next commit log (0aaa29a - mm, page_alloc: reserve
+pageblocks for high-order atomic allocations on demand) caught my
+attention - it began from words: "The reserved pageblocks can not be
+used for order-0 allocations." This is why I understood that for this
+kind of allocation there is no reserve kept and we need to count on
+successful reclaim. However under big stress it seems that the
+mechanism may not be sufficient. Am I interpreting it correctly?
+
+For the record: the newest kernel I was able to reproduce the dumps
+was v4.6: http://pastebin.com/ekDdACn5. I've just checked v4.7-rc1,
+which comprise a lot (mainly yours) changes in mm, and I'm wondering
+if there may be a spot fix or rather a series of improvements. I'm
+looking forward to your opinion and would be grateful for any advice.
+
+Best regards,
+Marcin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
