@@ -1,63 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DD996B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 02:44:32 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id ne4so19580092lbc.1
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 23:44:32 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id w81si48003187wmd.93.2016.06.01.23.44.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Jun 2016 23:44:31 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id n184so12407984wmn.1
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 23:44:31 -0700 (PDT)
-Date: Thu, 2 Jun 2016 08:44:29 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/4] mm/vmstat: remove unused header cpumask.h
-Message-ID: <20160602064428.GE1995@dhcp22.suse.cz>
-References: <7cc1b41351a96e7d67fcf4bd2a6987b71793cb27.1464847139.git.geliangtang@gmail.com>
- <f0fa3738403f886988141182e8e4bac7efed05c7.1464847139.git.geliangtang@gmail.com>
- <866efd744a89b6e16c9d3acd1a00b011adbd59af.1464847139.git.geliangtang@gmail.com>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CDE736B0253
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 02:46:02 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id um11so36283509pab.2
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 23:46:02 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id m81si56356266pfa.117.2016.06.01.23.46.01
+        for <linux-mm@kvack.org>;
+        Wed, 01 Jun 2016 23:46:01 -0700 (PDT)
+Date: Thu, 2 Jun 2016 15:46:44 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: Why __alloc_contig_migrate_range calls migrate_prep() at first?
+Message-ID: <20160602064644.GB3304@bbox>
+References: <tencent_29E1A2CA78CE0C9046C1494E@qq.com>
+ <20160601074010.GO19976@bbox>
+ <231748d4-6d9b-85d9-6796-e4625582e148@foxmail.com>
+ <20160602022242.GB9133@js1304-P5Q-DELUXE>
+ <20160602042916.GB3024@bbox>
+ <20160602062918.GA9770@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20160602062918.GA9770@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <866efd744a89b6e16c9d3acd1a00b011adbd59af.1464847139.git.geliangtang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geliang Tang <geliangtang@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Wang Sheng-Hui <shhuiw@foxmail.com>, akpm <akpm@linux-foundation.org>, mgorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu 02-06-16 14:15:35, Geliang Tang wrote:
-> Remove unused header cpumask.h from mm/vmstat.c.
-
-what about for_each_online_cpu? Maybe it will get included transitively
-from other header but I guess it is better to have a direct include
-because transitive includes lead to unexpected compilation issues.
-
-> Signed-off-by: Geliang Tang <geliangtang@gmail.com>
-> ---
->  mm/vmstat.c | 1 -
->  1 file changed, 1 deletion(-)
+On Thu, Jun 02, 2016 at 03:29:18PM +0900, Joonsoo Kim wrote:
+> On Thu, Jun 02, 2016 at 01:29:16PM +0900, Minchan Kim wrote:
+> > On Thu, Jun 02, 2016 at 11:22:43AM +0900, Joonsoo Kim wrote:
+> > > On Thu, Jun 02, 2016 at 09:19:19AM +0800, Wang Sheng-Hui wrote:
+> > > > 
+> > > > 
+> > > > On 6/1/2016 3:40 PM, Minchan Kim wrote:
+> > > > > On Wed, Jun 01, 2016 at 11:42:29AM +0800, Wang Sheng-Hui wrote:
+> > > > >> Dear,
+> > > > >>
+> > > > >> Sorry to trouble you.
+> > > > >>
+> > > > >> I noticed cma_alloc would turn to  __alloc_contig_migrate_range for allocating pages.
+> > > > >> But  __alloc_contig_migrate_range calls  migrate_prep() at first, even if the requested page
+> > > > >> is single and free, lru_add_drain_all still run (called by  migrate_prep())?
+> > > > >>
+> > > > >> Image a large chunk of free contig pages for CMA, various drivers may request a single page from
+> > > > >> the CMA area, we'll get  lru_add_drain_all run for each page.
+> > > > >>
+> > > > >> Should we detect if the required pages are free before migrate_prep(), or detect at least for single 
+> > > > >> page allocation?
+> > > > > That makes sense to me.
+> > > > >
+> > > > > How about calling migrate_prep once migrate_pages fails in the first trial?
+> > > > 
+> > > > Minchan,
+> > > > 
+> > > > I tried your patch in my env, and the number of calling migrate_prep() dropped a lot.
+> > > > 
+> > > > In my case, CMA reserved 512MB, and the linux will call migrate_prep() 40~ times during bootup,
+> > > > most are single page allocation request to CMA.
+> > > > With your patch, migrate_prep() is not called for the single pages allocation requests as the free
+> > > > pages in CMA area is enough.
+> > > > 
+> > > > Will you please push the patch to upstream?
+> > > 
+> > > It is not correct.
+> > > 
+> > > migrate_prep() is called to move lru pages in lruvec to LRU. In
+> > > isolate_migratepages_range(), non LRU pages are just skipped so if
+> > > page is on the lruvec it will not be isolated and error isn't returned.
+> > > So, "if (ret) migrate_prep()" will not be called and we can't catch
+> > > the page in lruvec.
+> > 
+> > Ah,, true. Thanks for correcting.
+> > 
+> > Simple fix is to remove migrate_prep in there and retry if test_pages_isolated
+> > found migration is failed at least once.
 > 
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 1b585f8..3653449 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -15,7 +15,6 @@
->  #include <linux/module.h>
->  #include <linux/slab.h>
->  #include <linux/cpu.h>
-> -#include <linux/cpumask.h>
->  #include <linux/vmstat.h>
->  #include <linux/proc_fs.h>
->  #include <linux/seq_file.h>
-> -- 
-> 1.9.1
-> 
+> Hmm...much better than before. But, it makes me wonder what his
+> painpoint is. He want to remove migrate_prep() which calls
+> lru_add_drain_all() needlessly. But, we already have one in alloc_contig_range().
+> So, he will not be happy entirely with following change.
 
--- 
-Michal Hocko
-SUSE Labs
+It will reduce the numer of drain IPI call so it would be win compared to old.
+
+> Moreover, lru_add_drain_all() is there without any validation. It is there
+> since we need to gather migrated pages in lruvec but I think that it
+> is sufficient to call lru_add_drain_cpu() and drain_local_pages(), respectively.
+
+Maybe, it is heritage of memory hotplugging. :(
+Should be more optimized. Hope you will look into that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
