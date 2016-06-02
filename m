@@ -1,121 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 17D196B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 00:59:56 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id b124so37601272pfb.1
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 21:59:56 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id z67si55780276pfj.116.2016.06.01.21.59.54
-        for <linux-mm@kvack.org>;
-        Wed, 01 Jun 2016 21:59:55 -0700 (PDT)
-Date: Thu, 2 Jun 2016 14:00:39 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: check the return value of lookup_page_ext for all
- call sites
-Message-ID: <20160602050039.GA3304@bbox>
-References: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
- <20160524025811.GA29094@bbox>
- <20160526003719.GB9661@bbox>
- <8ae0197c-47b7-e5d2-20c3-eb9d01e6b65c@linaro.org>
- <20160527051432.GF2322@bbox>
- <20160527060839.GC13661@js1304-P5Q-DELUXE>
- <20160527081108.GG2322@bbox>
- <aa33f1e4-5a91-aaaf-70f1-557148b29b38@linaro.org>
- <20160530061117.GB28624@bbox>
- <b8858801-af06-9b80-1b29-f9ece515d1bf@linaro.org>
+Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FA686B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 01:48:39 -0400 (EDT)
+Received: by mail-ig0-f199.google.com with SMTP id lp2so65353110igb.3
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 22:48:39 -0700 (PDT)
+Received: from mail-io0-x22a.google.com (mail-io0-x22a.google.com. [2607:f8b0:4001:c06::22a])
+        by mx.google.com with ESMTPS id f3si55880141ioa.19.2016.06.01.22.48.38
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Jun 2016 22:48:38 -0700 (PDT)
+Received: by mail-io0-x22a.google.com with SMTP id k19so23847811ioi.3
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 22:48:38 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <b8858801-af06-9b80-1b29-f9ece515d1bf@linaro.org>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+In-Reply-To: <20160531131520.GI24936@arm.com>
+References: <CAPv3WKcVsWBgHHC3UPNcbka2JUmN4CTw1Ym4BR1=1V9=B9av5Q@mail.gmail.com>
+	<574D64A0.2070207@arm.com>
+	<CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
+	<60e8df74202e40b28a4d53dbc7fd0b22@IL-EXCH02.marvell.com>
+	<20160531131520.GI24936@arm.com>
+Date: Thu, 2 Jun 2016 07:48:38 +0200
+Message-ID: <CAPv3WKftqsEXbdU-geAcUKXBSskhA0V72N61a1a+5DfahLK_Dg@mail.gmail.com>
+Subject: Re: [BUG] Page allocation failures with newest kernels
+From: Marcin Wojtas <mw@semihalf.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Shi, Yang" <yang.shi@linaro.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Yehuda Yitschak <yehuday@marvell.com>, Robin Murphy <robin.murphy@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Lior Amsalem <alior@marvell.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>, Grzegorz Jaszczyk <jaz@semihalf.com>, Nadav Haklai <nadavh@marvell.com>, Tomasz Nowicki <tn@semihalf.com>, =?UTF-8?Q?Gregory_Cl=C3=A9ment?= <gregory.clement@free-electrons.com>, mgorman@techsingularity.net
 
-On Wed, Jun 01, 2016 at 01:40:48PM -0700, Shi, Yang wrote:
-> On 5/29/2016 11:11 PM, Minchan Kim wrote:
-> >On Fri, May 27, 2016 at 11:16:41AM -0700, Shi, Yang wrote:
-> >
-> ><snip>
-> >
-> >>>
-> >>>If we goes this way, how to guarantee this race?
-> >>
-> >>Thanks for pointing out this. It sounds reasonable. However, this
-> >>should be only possible to happen on 32 bit since just 32 bit
-> >>version page_is_idle() calls lookup_page_ext(), it doesn't do it on
-> >>64 bit.
-> >>
-> >>And, such race condition should exist regardless of whether DEBUG_VM
-> >>is enabled or not, right?
-> >>
-> >>rcu might be good enough to protect it.
-> >>
-> >>A quick fix may look like:
-> >>
-> >>diff --git a/include/linux/page_idle.h b/include/linux/page_idle.h
-> >>index 8f5d4ad..bf0cd6a 100644
-> >>--- a/include/linux/page_idle.h
-> >>+++ b/include/linux/page_idle.h
-> >>@@ -77,8 +77,12 @@ static inline bool
-> >>test_and_clear_page_young(struct page *page)
-> >> static inline bool page_is_idle(struct page *page)
-> >> {
-> >>        struct page_ext *page_ext;
-> >>+
-> >>+       rcu_read_lock();
-> >>        page_ext = lookup_page_ext(page);
-> >>+       rcu_read_unlock();
-> >>+
-> >>	if (unlikely(!page_ext))
-> >>                return false;
-> >>
-> >>diff --git a/mm/page_ext.c b/mm/page_ext.c
-> >>index 56b160f..94927c9 100644
-> >>--- a/mm/page_ext.c
-> >>+++ b/mm/page_ext.c
-> >>@@ -183,7 +183,6 @@ struct page_ext *lookup_page_ext(struct page *page)
-> >> {
-> >>        unsigned long pfn = page_to_pfn(page);
-> >>        struct mem_section *section = __pfn_to_section(pfn);
-> >>-#if defined(CONFIG_DEBUG_VM) || defined(CONFIG_PAGE_POISONING)
-> >>        /*
-> >>         * The sanity checks the page allocator does upon freeing a
-> >>         * page can reach here before the page_ext arrays are
-> >>@@ -195,7 +194,7 @@ struct page_ext *lookup_page_ext(struct page *page)
-> >>         */
-> >>        if (!section->page_ext)
-> >>                return NULL;
-> >>-#endif
-> >>+
-> >>        return section->page_ext + pfn;
-> >> }
-> >>
-> >>@@ -279,7 +278,8 @@ static void __free_page_ext(unsigned long pfn)
-> >>                return;
-> >>        base = ms->page_ext + pfn;
-> >>        free_page_ext(base);
-> >>-       ms->page_ext = NULL;
-> >>+       rcu_assign_pointer(ms->page_ext, NULL);
-> >>+       synchronize_rcu();
-> >
-> >How does it fix the problem?
-> >I cannot understand your point.
-> 
-> Assigning NULL pointer to page_Ext will be blocked until
-> rcu_read_lock critical section is done, so the lookup and writing
-> operations will be serialized. And, rcu_read_lock disables preempt
-> too.
+Hi Will,
 
-I meant your rcu_read_lock in page_idle should cover test_bit op.
-One more thing, you should use rcu_dereference.
+I think I found a right trace. Following one-liner fixes the issue
+beginning from v4.2-rc1 up to v4.4 included:
 
-As well, please cover memory onlining case I mentioned in another
-thread as well as memory offlining.
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -294,7 +294,7 @@ static inline bool
+early_page_uninitialised(unsigned long pfn)
 
-Anyway, to me, every caller of page_ext should prepare lookup_page_ext
-can return NULL anytime and they should use rcu_read_[un]lock, which
-is not good. :(
+ static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
+ {
+-       return false;
++       return true;
+ }
+
+The regression was introduced by commit 7e18adb4f80b ("mm: meminit:
+initialise remaining struct pages in parallel with kswapd"), which in
+fact disabled memblock reserve at all for all platfroms not using
+CONFIG_DEFERRED_STRUCT_PAGE_INIT (x86 is the only user), hence
+temporary shortage of memory possible to allocate during my test.
+
+Since v4.4-rc1 following changes of approach have been introduced:
+97a16fc - mm, page_alloc: only enforce watermarks for order-0 allocations
+0aaa29a - mm, page_alloc: reserve pageblocks for high-order atomic
+allocations on demand
+974a786 - mm, page_alloc: remove MIGRATE_RESERVE
+
+>From what I understood, now order-0 allocation keep no reserve at all.
+I checked all gathered logs and indeed it was order-0 which failed and
+apparently weren't able to reclaim successfully. Since the problem is
+very easy to reproduce (at least in my test, as well as stressing
+device in NAS setup) is there any chance to avoid destiny of page
+alloc failures? Or any trick to play with fragmentation parameters,
+etc.?
+
+I would be grateful for any hint.
+
+Best regards,
+Marcin
+
+2016-05-31 15:15 GMT+02:00 Will Deacon <will.deacon@arm.com>:
+> On Tue, May 31, 2016 at 01:10:44PM +0000, Yehuda Yitschak wrote:
+>> During some of the stress tests we also came across a different warning
+>> from the arm64  page management code
+>> It looks like a race is detected between HW and SW marking a bit in the PTE
+>
+> A72 (which I believe is the CPU in that SoC) is a v8.0 CPU and therefore
+> doesn't have hardware DBM.
+>
+>> Not sure it's really related but I thought it might give a clue on the issue
+>> http://pastebin.com/ASv19vZP
+>
+> There have been a few patches from Catalin to fix up the hardware DBM
+> patches, so it might be worth trying to reproduce this failure with a
+> more recent kernel. I doubt this is related to the allocation failures,
+> however.
+>
+> Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
