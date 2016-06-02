@@ -1,67 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 904236B0253
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 08:44:33 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id ne4so23693684lbc.1
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:44:33 -0700 (PDT)
-Received: from mail02.iobjects.de (mail02.iobjects.de. [188.40.134.68])
-        by mx.google.com with ESMTPS id v132si1152501wme.82.2016.06.02.05.44.31
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EA9076B0253
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 08:56:00 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id w16so23809409lfd.0
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:56:00 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id n124si1264818wma.8.2016.06.02.05.55.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Jun 2016 05:44:32 -0700 (PDT)
-Subject: Re: shrink_active_list/try_to_release_page bug? (was Re: xfs trace in
- 4.4.2 / also in 4.3.3 WARNING fs/xfs/xfs_aops.c:1232 xfs_vm_releasepage)
-References: <20160516010602.GA24980@bfoster.bfoster>
- <57420A47.2000700@profihost.ag> <20160522213850.GE26977@dastard>
- <574BEA84.3010206@profihost.ag> <20160530223657.GP26977@dastard>
- <20160531010724.GA9616@bbox> <20160531025509.GA12670@dastard>
- <20160531035904.GA17371@bbox> <20160531060712.GC12670@dastard>
- <574D2B1E.2040002@profihost.ag> <20160531073119.GD12670@dastard>
- <575022D2.7030502@profihost.ag>
-From: =?UTF-8?Q?Holger_Hoffst=c3=a4tte?= <holger@applied-asynchrony.com>
-Message-ID: <57502A2E.60702@applied-asynchrony.com>
-Date: Thu, 2 Jun 2016 14:44:30 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Jun 2016 05:55:59 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id a136so15664891wme.0
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:55:59 -0700 (PDT)
+Date: Thu, 2 Jun 2016 14:55:57 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/6] mm, oom: skip vforked tasks from being selected
+Message-ID: <20160602125556.GO1995@dhcp22.suse.cz>
+References: <1464613556-16708-5-git-send-email-mhocko@kernel.org>
+ <201606012312.BIF26006.MLtFVQSJOHOFOF@I-love.SAKURA.ne.jp>
+ <20160601142502.GY26601@dhcp22.suse.cz>
+ <201606021945.AFH26572.OJMVLFOHFFtOSQ@I-love.SAKURA.ne.jp>
+ <20160602112057.GI1995@dhcp22.suse.cz>
+ <201606022031.BIB56744.OFSFQOOtLJMFVH@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <575022D2.7030502@profihost.ag>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201606022031.BIB56744.OFSFQOOtLJMFVH@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, Dave Chinner <david@fromorbit.com>
-Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Brian Foster <bfoster@redhat.com>, linux-kernel@vger.kernel.org, "xfs@oss.sgi.com" <xfs@oss.sgi.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org
 
-On 06/02/16 14:13, Stefan Priebe - Profihost AG wrote:
+On Thu 02-06-16 20:31:57, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > OK, but the memory is allocated on behalf of the parent already, right?
 > 
-> Am 31.05.2016 um 09:31 schrieb Dave Chinner:
->> On Tue, May 31, 2016 at 08:11:42AM +0200, Stefan Priebe - Profihost AG wrote:
->>>> I'm half tempted at this point to mostly ignore this mm/ behavour
->>>> because we are moving down the path of removing buffer heads from
->>>> XFS. That will require us to do different things in ->releasepage
->>>> and so just skipping dirty pages in the XFS code is the best thing
->>>> to do....
->>>
->>> does this change anything i should test? Or is 4.6 still the way to go?
->>
->> Doesn't matter now - the warning will still be there on 4.6. I think
->> you can simply ignore it as the XFS code appears to be handling the
->> dirty page that is being passed to it correctly. We'll work out what
->> needs to be done to get rid of the warning for this case, wether it
->> be a mm/ change or an XFS change.
+> What does "the memory is allocated on behalf of the parent already" mean?
+
+It means that vforked task cannot allocate a new memory directly. Sure
+it can get a copy of what parent already has allocated during execve but
+that is under control of the parent. If the parent is OOM_SCORE_ADJ_MIN
+then it should better be careful how it spawns new tasks.
+
+> The memory used for argv[]/envp[] may not yet be visible from mm_struct when
+> the OOM killer is invoked.
+>
+> > And the patch doesn't prevent parent from being selected and the vfroked
+> > child being killed along the way as sharing the mm with it. So what
+> > exactly this patch changes for this test case? What am I missing?
 > 
-> Any idea what i could do with 4.4.X? Can i safely remove the WARN_ONCE
-> statement?
+> If the parent is OOM_SCORE_ADJ_MIN and vfork()ed child doing execve()
+> with large argv[]/envp[] is not OOM_SCORE_ADJ_MIN, we should not hesitate
+> to OOM-kill vfork()ed child even if the parent is not OOM-killable.
+> 
+> 	vfork()
+> 	set_oom_adj()
+> 	exec()
 
-By definition it won't break anything since it's just a heads-up message,
-so yes, it should be "safe". However if my understanding of the situation
-is correct, mainline commit f0281a00fe "mm: workingset: only do workingset
-activations on reads" (+ friends) in 4.7 should effectively prevent this
-from happenning. Can someone confirm or deny this?
-
--h
-
-PS: Stefan: I backported that commit (and friends) to my 4.4.x patch queue,
-so if you want to try that for today's 4.4.12 the warning should be gone.
-No guarantees though :)
+Well the whole point of this patch is to not select such a task because
+it makes only very limitted sense. It cannot really free much memory -
+well except when parent is doing something realy stupid which I am not
+really sure we should care about.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
