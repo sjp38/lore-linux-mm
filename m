@@ -1,100 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A1CEA6B0263
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 08:21:46 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id w16so23410320lfd.0
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:21:46 -0700 (PDT)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id v9si420322wjw.43.2016.06.02.05.21.44
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 904236B0253
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 08:44:33 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id ne4so23693684lbc.1
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:44:33 -0700 (PDT)
+Received: from mail02.iobjects.de (mail02.iobjects.de. [188.40.134.68])
+        by mx.google.com with ESMTPS id v132si1152501wme.82.2016.06.02.05.44.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Jun 2016 05:21:44 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 862821C12A8
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 13:21:44 +0100 (IST)
-Date: Thu, 2 Jun 2016 13:21:42 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH] mm, page_alloc: Recalculate the preferred zoneref if the
- context can ignore memory policies
-Message-ID: <20160602122142.GW2527@techsingularity.net>
+        (version=TLS1_2 cipher=AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Jun 2016 05:44:32 -0700 (PDT)
+Subject: Re: shrink_active_list/try_to_release_page bug? (was Re: xfs trace in
+ 4.4.2 / also in 4.3.3 WARNING fs/xfs/xfs_aops.c:1232 xfs_vm_releasepage)
+References: <20160516010602.GA24980@bfoster.bfoster>
+ <57420A47.2000700@profihost.ag> <20160522213850.GE26977@dastard>
+ <574BEA84.3010206@profihost.ag> <20160530223657.GP26977@dastard>
+ <20160531010724.GA9616@bbox> <20160531025509.GA12670@dastard>
+ <20160531035904.GA17371@bbox> <20160531060712.GC12670@dastard>
+ <574D2B1E.2040002@profihost.ag> <20160531073119.GD12670@dastard>
+ <575022D2.7030502@profihost.ag>
+From: =?UTF-8?Q?Holger_Hoffst=c3=a4tte?= <holger@applied-asynchrony.com>
+Message-ID: <57502A2E.60702@applied-asynchrony.com>
+Date: Thu, 2 Jun 2016 14:44:30 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+In-Reply-To: <575022D2.7030502@profihost.ag>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Geert Uytterhoeven <geert@linux-m68k.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
+To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, Dave Chinner <david@fromorbit.com>
+Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Brian Foster <bfoster@redhat.com>, linux-kernel@vger.kernel.org, "xfs@oss.sgi.com" <xfs@oss.sgi.com>
 
-The optimistic fast path may use cpuset_current_mems_allowed instead of
-of a NULL nodemask supplied by the caller for cpuset allocations. The
-preferred zone is calculated on this basis for statistic purposes and
-as a starting point in the zonelist iterator.
+On 06/02/16 14:13, Stefan Priebe - Profihost AG wrote:
+> 
+> Am 31.05.2016 um 09:31 schrieb Dave Chinner:
+>> On Tue, May 31, 2016 at 08:11:42AM +0200, Stefan Priebe - Profihost AG wrote:
+>>>> I'm half tempted at this point to mostly ignore this mm/ behavour
+>>>> because we are moving down the path of removing buffer heads from
+>>>> XFS. That will require us to do different things in ->releasepage
+>>>> and so just skipping dirty pages in the XFS code is the best thing
+>>>> to do....
+>>>
+>>> does this change anything i should test? Or is 4.6 still the way to go?
+>>
+>> Doesn't matter now - the warning will still be there on 4.6. I think
+>> you can simply ignore it as the XFS code appears to be handling the
+>> dirty page that is being passed to it correctly. We'll work out what
+>> needs to be done to get rid of the warning for this case, wether it
+>> be a mm/ change or an XFS change.
+> 
+> Any idea what i could do with 4.4.X? Can i safely remove the WARN_ONCE
+> statement?
 
-However, if the context can ignore memory policies due to being atomic or
-being able to ignore watermarks then the starting point in the zonelist
-iterator is no longer correct. This patch resets the zonelist iterator in
-the allocator slowpath if the context can ignore memory policies. This will
-alter the zone used for statistics but only after it is known that it makes
-sense for that context. Resetting it before entering the slowpath would
-potentially allow an ALLOC_CPUSET allocation to be accounted for against
-the wrong zone. Note that while nodemask is not explicitly set to the
-original nodemask, it would only have been overwritten if cpuset_enabled()
-and it was reset before the slowpath was entered.
+By definition it won't break anything since it's just a heads-up message,
+so yes, it should be "safe". However if my understanding of the situation
+is correct, mainline commit f0281a00fe "mm: workingset: only do workingset
+activations on reads" (+ friends) in 4.7 should effectively prevent this
+from happenning. Can someone confirm or deny this?
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/page_alloc.c | 23 ++++++++++++++++-------
- 1 file changed, 16 insertions(+), 7 deletions(-)
+-h
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 557549c81083..b17358617a1b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3598,6 +3598,17 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	 */
- 	alloc_flags = gfp_to_alloc_flags(gfp_mask);
- 
-+	/*
-+	 * Reset the zonelist iterators if memory policies can be ignored.
-+	 * These allocations are high priority and system rather than user
-+	 * orientated.
-+	 */
-+	if ((alloc_flags & ALLOC_NO_WATERMARKS) || !(alloc_flags & ALLOC_CPUSET)) {
-+		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
-+		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
-+					ac->high_zoneidx, ac->nodemask);
-+	}
-+
- 	/* This is the last chance, in general, before the goto nopage. */
- 	page = get_page_from_freelist(gfp_mask, order,
- 				alloc_flags & ~ALLOC_NO_WATERMARKS, ac);
-@@ -3606,12 +3617,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 
- 	/* Allocate without watermarks if the context allows */
- 	if (alloc_flags & ALLOC_NO_WATERMARKS) {
--		/*
--		 * Ignore mempolicies if ALLOC_NO_WATERMARKS on the grounds
--		 * the allocation is high priority and these type of
--		 * allocations are system rather than user orientated
--		 */
--		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
- 		page = get_page_from_freelist(gfp_mask, order,
- 						ALLOC_NO_WATERMARKS, ac);
- 		if (page)
-@@ -3810,7 +3815,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 	/* Dirty zone balancing only done in the fast path */
- 	ac.spread_dirty_pages = (gfp_mask & __GFP_WRITE);
- 
--	/* The preferred zone is used for statistics later */
-+	/*
-+	 * The preferred zone is used for statistics but crucially it is
-+	 * also used as the starting point for the zonelist iterator. It
-+	 * may get reset for allocations that ignore memory policies.
-+	 */
- 	ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
- 					ac.high_zoneidx, ac.nodemask);
- 	if (!ac.preferred_zoneref) {
+PS: Stefan: I backported that commit (and friends) to my 4.4.x patch queue,
+so if you want to try that for today's 4.4.12 the warning should be gone.
+No guarantees though :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
