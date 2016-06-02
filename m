@@ -1,68 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 525566B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 10:39:28 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id y6so141106598ywe.0
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 07:39:28 -0700 (PDT)
-Received: from mail-yw0-x243.google.com (mail-yw0-x243.google.com. [2607:f8b0:4002:c05::243])
-        by mx.google.com with ESMTPS id 6si190446ybm.271.2016.06.02.07.39.27
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D038E6B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 10:50:51 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id h68so25384595lfh.2
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 07:50:51 -0700 (PDT)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
+        by mx.google.com with ESMTPS id pc5si1134567wjb.182.2016.06.02.07.50.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Jun 2016 07:39:27 -0700 (PDT)
-Received: by mail-yw0-x243.google.com with SMTP id j74so7104137ywg.1
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 07:39:27 -0700 (PDT)
-Date: Thu, 2 Jun 2016 10:39:25 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm: Introduce dedicated WQ_MEM_RECLAIM workqueue to do
- lru_add_drain_all
-Message-ID: <20160602143925.GJ14868@mtj.duckdns.org>
-References: <1464853731-8599-1-git-send-email-shhuiw@foxmail.com>
+        Thu, 02 Jun 2016 07:50:50 -0700 (PDT)
+Received: by mail-wm0-f45.google.com with SMTP id n184so83879155wmn.1
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 07:50:50 -0700 (PDT)
+Date: Thu, 2 Jun 2016 16:50:49 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
+Message-ID: <20160602145048.GS1995@dhcp22.suse.cz>
+References: <20160516104130.GK3193@twins.programming.kicks-ass.net>
+ <20160516130519.GJ23146@dhcp22.suse.cz>
+ <20160516132541.GP3193@twins.programming.kicks-ass.net>
+ <20160516231056.GE18496@dastard>
+ <20160517144912.GZ3193@twins.programming.kicks-ass.net>
+ <20160517223549.GV26977@dastard>
+ <20160519081146.GS3193@twins.programming.kicks-ass.net>
+ <20160520001714.GC26977@dastard>
+ <20160601131758.GO26601@dhcp22.suse.cz>
+ <20160601181617.GV3190@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1464853731-8599-1-git-send-email-shhuiw@foxmail.com>
+In-Reply-To: <20160601181617.GV3190@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Sheng-Hui <shhuiw@foxmail.com>
-Cc: keith.busch@intel.com, peterz@infradead.org, treding@nvidia.com, mingo@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On Thu, Jun 02, 2016 at 03:48:51PM +0800, Wang Sheng-Hui wrote:
-> +static int __init lru_init(void)
-> +{
-> +	lru_add_drain_wq = alloc_workqueue("lru-add-drain",
-> +		WQ_MEM_RECLAIM | WQ_UNBOUND, 0);
-
-Why is it unbound?
-
-> +	if (WARN(!lru_add_drain_wq,
-> +		"Failed to create workqueue lru_add_drain_wq"))
-> +		return -ENOMEM;
-
-I don't think we need an explicit warn here.  Doesn't error return
-from an init function trigger boot failure anyway?
-
-> +	return 0;
-> +}
-> +early_initcall(lru_init);
-> +
->  void lru_add_drain_all(void)
->  {
->  	static DEFINE_MUTEX(lock);
->  	static struct cpumask has_work;
->  	int cpu;
+On Wed 01-06-16 20:16:17, Peter Zijlstra wrote:
+> On Wed, Jun 01, 2016 at 03:17:58PM +0200, Michal Hocko wrote:
+> > Thanks Dave for your detailed explanation again! Peter do you have any
+> > other idea how to deal with these situations other than opt out from
+> > lockdep reclaim machinery?
+> > 
+> > If not I would rather go with an annotation than a gfp flag to be honest
+> > but if you absolutely hate that approach then I will try to check wheter
+> > a CONFIG_LOCKDEP GFP_FOO doesn't break something else. Otherwise I would
+> > steal the description from Dave's email and repost my patch.
+> > 
+> > I plan to repost my scope gfp patches in few days and it would be good
+> > to have some mechanism to drop those GFP_NOFS to paper over lockdep
+> > false positives for that.
+> 
+> Right; sorry I got side-tracked in other things again.
+> 
+> So my favourite is the dedicated GFP flag, but if that's unpalatable for
+> the mm folks then something like the below might work. It should be
+> similar in effect to your proposal, except its more limited in scope.
+[...]
+> @@ -2876,11 +2883,36 @@ static void __lockdep_trace_alloc(gfp_t gfp_mask, unsigned long flags)
+>  	if (DEBUG_LOCKS_WARN_ON(irqs_disabled_flags(flags)))
+>  		return;
 >  
-> +	struct workqueue_struct *lru_wq = lru_add_drain_wq ?: system_wq;
+> +	/*
+> +	 * Skip _one_ allocation as per the lockdep_skip_alloc() request.
+> +	 * Must be done last so that we don't loose the annotation for
+> +	 * GFP_ATOMIC like things from IRQ or other nesting contexts.
+> +	 */
+> +	if (current->lockdep_reclaim_gfp & __GFP_SKIP_ALLOC) {
+> +		current->lockdep_reclaim_gfp &= ~__GFP_SKIP_ALLOC;
+> +		return;
+> +	}
 > +
-> +	WARN_ONCE(!lru_add_drain_wq,
-> +		"Use system_wq to do lru_add_drain_all()");
+>  	mark_held_locks(curr, RECLAIM_FS);
+>  }
 
-Ditto.  The system is crashing for sure.  What's the point of this
-warning?
+I might be missing something but does this work actually? Say you would
+want a kmalloc(size), it would call
+slab_alloc_node
+  slab_pre_alloc_hook
+    lockdep_trace_alloc
+[...]
+  ____cache_alloc_node
+    cache_grow_begin
+      kmem_getpages
+        __alloc_pages_node
+	  __alloc_pages_nodemask
+	    lockdep_trace_alloc
 
-Thanks.
-
+I understand your concerns about the scope but usually all allocations
+have to be __GFP_NOFS or none in the same scope so I would see it as a
+huge deal.
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
