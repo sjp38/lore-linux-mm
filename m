@@ -1,70 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EB2A6B0005
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 11:50:48 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id ne4so25992654lbc.1
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 08:50:48 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id t202si50876027wmt.7.2016.06.02.08.50.46
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EB816B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 11:51:54 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id o70so26117195lfg.1
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 08:51:54 -0700 (PDT)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id 99si540153lfr.277.2016.06.02.08.51.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Jun 2016 08:50:47 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id a136so16986789wme.0
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 08:50:46 -0700 (PDT)
-Date: Thu, 2 Jun 2016 17:50:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 7/6] mm, oom: task_will_free_mem should skip oom_reaped
- tasks
-Message-ID: <20160602155045.GV1995@dhcp22.suse.cz>
-References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
- <1464876183-15559-1-git-send-email-mhocko@kernel.org>
- <201606030024.BIJ82362.MFOVJFHQOOtSLF@I-love.SAKURA.ne.jp>
+        Thu, 02 Jun 2016 08:51:53 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id 65so5546284lfq.1
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 08:51:52 -0700 (PDT)
+Date: Thu, 2 Jun 2016 18:51:50 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [BUG/REGRESSION] THP: broken page count after commit aa88b68c
+Message-ID: <20160602155149.GB8493@node.shutemov.name>
+References: <20160602172141.75c006a9@thinkpad>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201606030024.BIJ82362.MFOVJFHQOOtSLF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20160602172141.75c006a9@thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christian Borntraeger <borntraeger@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-On Fri 03-06-16 00:24:31, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index dacfb6ab7b04..d6e121decb1a 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -766,6 +766,15 @@ bool task_will_free_mem(struct task_struct *task)
-> >  		return true;
-> >  	}
-> >  
-> > +	/*
-> > +	 * This task has already been drained by the oom reaper so there are
-> > +	 * only small chances it will free some more
-> > +	 */
-> > +	if (test_bit(MMF_OOM_REAPED, &mm->flags)) {
-> > +		task_unlock(p);
-> > +		return false;
-> > +	}
-> > +
+On Thu, Jun 02, 2016 at 05:21:41PM +0200, Gerald Schaefer wrote:
+> Christian Borntraeger reported a kernel panic after corrupt page counts,
+> and it turned out to be a regression introduced with commit aa88b68c
+> "thp: keep huge zero page pinned until tlb flush", at least on s390.
 > 
-> I think this check should be done before
+> put_huge_zero_page() was moved over from zap_huge_pmd() to release_pages(),
+> and it was replaced by tlb_remove_page(). However, release_pages() might
+> not always be triggered by (the arch-specific) tlb_remove_page().
 > 
-> 	if (atomic_read(&mm->mm_users) <= 1) {
-> 		task_unlock(p);
-> 		return true;
-> 	}
+> On s390 we call free_page_and_swap_cache() from tlb_remove_page(), and not
+> tlb_flush_mmu() -> free_pages_and_swap_cache() like the generic version,
+> because we don't use the MMU-gather logic. Although both functions have very
+> similar names, they are doing very unsimilar things, in particular
+> free_page_xxx is just doing a put_page(), while free_pages_xxx calls
+> release_pages().
 > 
-> because it is possible that task_will_free_mem(task) is the only thread
-> using task->mm (i.e. atomic_read(&mm->mm_users) == 1).
+> This of course results in very harmful put_page()s on the huge zero page,
+> on architectures where tlb_remove_page() is implemented in this way. It
+> seems to affect only s390 and sh, but sh doesn't have THP support, so
+> the problem (currently) probably only exists on s390.
+> 
+> The following quick hack fixed the issue:
+> 
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index 0d457e7..c99463a 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -252,7 +252,10 @@ static inline void free_swap_cache(struct page *page)
+>  void free_page_and_swap_cache(struct page *page)
+>  {
+>  	free_swap_cache(page);
+> -	put_page(page);
+> +	if (is_huge_zero_page(page))
+> +		put_huge_zero_page();
+> +	else
+> +		put_page(page);
+>  }
+>  
+>  /*
 
-definitely true. I am growing blind for this code.
+The fix looks good to me.
 
-Thanks!
+> But of course there might be a better solution, and there still are some
+> questions left:
+> - Why does free_page_xxx() behave so differently from free_pages_xxx()?
+
+I don't see it behave too deiferently. It just try to batch freeing to
+lower locking overhead.
+
+> - Would it be OK to implement free_page_xxx() by calling free_pages_xxx()
+>   with nr = 1, similar to free_page() vs. free_pages()?
+> - Would it be OK to replace the put_page() in free_page_xxx() with a call
+>   to release_pages() with nr = 1?
+
+release_pages() somewhat suboptimal for nr=1. I guess we can fix this with
+shortcut to put_page() at start of release_page() if nr == 1.
+
+> - Would it be better to fix this in the arch-specific tlb_remove_page(),
+>   by calling free_pages_xxx() with nr = 1 instead of free_page_xxx()?
+> 
+> Regards,
+> Gerald
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
