@@ -1,64 +1,67 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8624C6B0005
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2016 23:21:16 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id s63so197153879ioi.1
-        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 20:21:16 -0700 (PDT)
-Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
-        by mx.google.com with ESMTPS id m15si593792oik.250.2016.06.30.20.21.15
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Jun 2016 20:21:15 -0700 (PDT)
-Received: by mail-oi0-x232.google.com with SMTP id f189so93986018oig.3
-        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 20:21:15 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAMzpN2iLBKF7vK3TuTPwYn2nZOw2q_Pn=q+g6pNuVs0k6Xd5LQ@mail.gmail.com>
-References: <20160701001209.7DA24D1C@viggo.jf.intel.com>
-	<20160701001218.3D316260@viggo.jf.intel.com>
-	<CA+55aFwm74uiqwsV5dvVMDBAthwmHub3J3Wz9cso0PpgVTHUPA@mail.gmail.com>
-	<CAMzpN2iLBKF7vK3TuTPwYn2nZOw2q_Pn=q+g6pNuVs0k6Xd5LQ@mail.gmail.com>
-Date: Thu, 30 Jun 2016 20:21:15 -0700
-Message-ID: <CA+55aFwVMHWH=Xiu7o8RXNgSQ6C6==RZhMNoWJ=kMwA5LAQXdg@mail.gmail.com>
-Subject: Re: [PATCH 6/6] x86: Fix stray A/D bit setting into non-present PTEs
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: multipart/alternative; boundary=001a113defaab627c405368a7ad3
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, the arch/x86 maintainers <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, linux-mm <linux-mm@kvack.org>, Dave Hansen <dave@sr71.net>
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Subject: Re: [BUG/REGRESSION] THP: broken page count after commit aa88b68c
+Date: Thu, 2 Jun 2016 20:56:27 +0200
+Message-ID: <201606021856.u52Ik7dd033233@mx0a-001b2d01.pphosted.com>
+References: <20160602172141.75c006a9@thinkpad>
+ <20160602155149.GB8493@node.shutemov.name>
+ <20160602114031.64b178c823901c171ec82745@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <20160602114031.64b178c823901c171ec82745@linux-foundation.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+List-Id: linux-mm.kvack.org
 
---001a113defaab627c405368a7ad3
-Content-Type: text/plain; charset=UTF-8
+On 06/02/2016 08:40 PM, Andrew Morton wrote:
+> On Thu, 2 Jun 2016 18:51:50 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+> 
+>> On Thu, Jun 02, 2016 at 05:21:41PM +0200, Gerald Schaefer wrote:
+>>> Christian Borntraeger reported a kernel panic after corrupt page counts,
+>>> and it turned out to be a regression introduced with commit aa88b68c
+>>> "thp: keep huge zero page pinned until tlb flush", at least on s390.
+>>>
+>>> put_huge_zero_page() was moved over from zap_huge_pmd() to release_pages(),
+>>> and it was replaced by tlb_remove_page(). However, release_pages() might
+>>> not always be triggered by (the arch-specific) tlb_remove_page().
+>>>
+>>> On s390 we call free_page_and_swap_cache() from tlb_remove_page(), and not
+>>> tlb_flush_mmu() -> free_pages_and_swap_cache() like the generic version,
+>>> because we don't use the MMU-gather logic. Although both functions have very
+>>> similar names, they are doing very unsimilar things, in particular
+>>> free_page_xxx is just doing a put_page(), while free_pages_xxx calls
+>>> release_pages().
+>>>
+>>> This of course results in very harmful put_page()s on the huge zero page,
+>>> on architectures where tlb_remove_page() is implemented in this way. It
+>>> seems to affect only s390 and sh, but sh doesn't have THP support, so
+>>> the problem (currently) probably only exists on s390.
+>>>
+>>> The following quick hack fixed the issue:
+>>>
+>>> diff --git a/mm/swap_state.c b/mm/swap_state.c
+>>> index 0d457e7..c99463a 100644
+>>> --- a/mm/swap_state.c
+>>> +++ b/mm/swap_state.c
+>>> @@ -252,7 +252,10 @@ static inline void free_swap_cache(struct page *page)
+>>>  void free_page_and_swap_cache(struct page *page)
+>>>  {
+>>>  	free_swap_cache(page);
+>>> -	put_page(page);
+>>> +	if (is_huge_zero_page(page))
+>>> +		put_huge_zero_page();
+>>> +	else
+>>> +		put_page(page);
+>>>  }
+>>>  
+>>>  /*
+>>
+>> The fix looks good to me.
+> 
+> Yes.  A bit regrettable, but that's what release_pages() does.
+> 
+> Can we have a signed-off-by please?
 
-On Jun 30, 2016 8:06 PM, "Brian Gerst" <brgerst@gmail.com> wrote:
->
-> Could this affect a 32-bit guest VM?
-
-Even on 32-bit, all the distros do PAE to get NX and access to more
-physical memory, and that has a 64-bit page table entry.
-
-The 32-bit page table case is pretty unusual.
-
-     Linus
-
---001a113defaab627c405368a7ad3
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<p dir=3D"ltr"><br>
-On Jun 30, 2016 8:06 PM, &quot;Brian Gerst&quot; &lt;<a href=3D"mailto:brge=
-rst@gmail.com">brgerst@gmail.com</a>&gt; wrote:<br>
-&gt;<br>
-&gt; Could this affect a 32-bit guest VM?</p>
-<p dir=3D"ltr">Even on 32-bit, all the distros do PAE to get NX and access =
-to more physical memory, and that has a 64-bit page table entry.</p>
-<p dir=3D"ltr">The 32-bit page table case is pretty unusual.</p>
-<p dir=3D"ltr">=C2=A0=C2=A0=C2=A0=C2=A0 Linus</p>
-
---001a113defaab627c405368a7ad3--
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Please also add CC: stable for 4.6
