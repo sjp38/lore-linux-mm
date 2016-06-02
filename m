@@ -1,91 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BB936B0265
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 08:21:13 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id rs7so23397376lbb.2
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:21:12 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id p2si409583wjy.64.2016.06.02.05.21.11
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A1CEA6B0263
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 08:21:46 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id w16so23410320lfd.0
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:21:46 -0700 (PDT)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id v9si420322wjw.43.2016.06.02.05.21.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Jun 2016 05:21:11 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id a136so15405903wme.0
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:21:11 -0700 (PDT)
-Date: Thu, 2 Jun 2016 14:21:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [linux-next: Tree for Jun 1] __khugepaged_exit
- rwsem_down_write_failed lockup
-Message-ID: <20160602122109.GM1995@dhcp22.suse.cz>
-References: <20160601131122.7dbb0a65@canb.auug.org.au>
- <20160602014835.GA635@swordfish>
- <20160602092113.GH1995@dhcp22.suse.cz>
- <20160602120857.GA704@swordfish>
+        Thu, 02 Jun 2016 05:21:44 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 862821C12A8
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 13:21:44 +0100 (IST)
+Date: Thu, 2 Jun 2016 13:21:42 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH] mm, page_alloc: Recalculate the preferred zoneref if the
+ context can ignore memory policies
+Message-ID: <20160602122142.GW2527@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160602120857.GA704@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Geert Uytterhoeven <geert@linux-m68k.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
 
-On Thu 02-06-16 21:08:57, Sergey Senozhatsky wrote:
-> Hello Michal,
-> 
-> On (06/02/16 11:21), Michal Hocko wrote:
-> [..]
-> > > [ 2856.323052] INFO: task cc1:4582 blocked for more than 21 seconds.
-> > > [ 2856.323055]       Not tainted 4.7.0-rc1-next-20160601-dbg-00012-g52c180e-dirty #453
-> > > [ 2856.323056] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> > > [ 2856.323059] cc1             D ffff880057e9fd78     0  4582   4575 0x00000000
-> > > [ 2856.323062]  ffff880057e9fd78 ffff880057e08000 ffff880057e9fd90 ffff880057ea0000
-> > > [ 2856.323065]  ffff88005dc3dc68 ffffffff00000001 ffff880057e09500 ffff88005dc3dc80
-> > > [ 2856.323067]  ffff880057e9fd90 ffffffff81441e33 ffff88005dc3dc68 ffff880057e9fe00
-> > > [ 2856.323068] Call Trace:
-> > > [ 2856.323074]  [<ffffffff81441e33>] schedule+0x83/0x98
-> > > [ 2856.323077]  [<ffffffff81443d9b>] rwsem_down_write_failed+0x18e/0x1d3
-> > > [ 2856.323080]  [<ffffffff810a87cf>] ? unlock_page+0x2b/0x2d
-> > > [ 2856.323083]  [<ffffffff811bdb77>] call_rwsem_down_write_failed+0x17/0x30
-> > > [ 2856.323084]  [<ffffffff811bdb77>] ? call_rwsem_down_write_failed+0x17/0x30
-> > > [ 2856.323086]  [<ffffffff81443630>] down_write+0x1f/0x2e
-> > > [ 2856.323089]  [<ffffffff810ea4f3>] __khugepaged_exit+0x104/0x11a
-> > > [ 2856.323091]  [<ffffffff8103702a>] mmput+0x29/0xc5
-> > > [ 2856.323093]  [<ffffffff8103bbd8>] do_exit+0x34c/0x894
-> > > [ 2856.323095]  [<ffffffff8102f9e0>] ? __do_page_fault+0x2f7/0x399
-> > > [ 2856.323097]  [<ffffffff8103c188>] do_group_exit+0x3c/0x98
-> > > [ 2856.323099]  [<ffffffff8103c1f3>] SyS_exit_group+0xf/0xf
-> > > [ 2856.323101]  [<ffffffff81444cdb>] entry_SYSCALL_64_fastpath+0x13/0x8f
-> > 
-> > down_write in the exit path is certainly not nice. It is hard to tell
-> > who is blocking the mmap_sem but it is clear that __khugepaged_exit
-> > waits for the khugepaged to release its mmap_sem. Do you hapen to have a
-> > trace of khugepaged? Note that the lock holder might be another writer
-> > which just hasn't pinned mm_users so khugepaged might be blocked on read
-> > lock as well. Or khugepaged might be just stuck somewhere...
-> 
-> sorry, no. this is all I have. the kernel was compiled with almost no
-> debugging functionality enabled (no lockdep, no lock debug, nothing)
-> for zram performance testing purposes.
-> 
-> I'll try to reproduce the problem; and give your patch some testing.
-> thanks.
+The optimistic fast path may use cpuset_current_mems_allowed instead of
+of a NULL nodemask supplied by the caller for cpuset allocations. The
+preferred zone is calculated on this basis for statistic purposes and
+as a starting point in the zonelist iterator.
 
-The patch will drop the down_write from the exit path which is, I
-believe the right thing to do, so it would paper over an existing
-problem when khugepaged could get stuck with mmap_sem held for read (if
-that is really a problem). So reproducing without the patch still makes
-some sense.
+However, if the context can ignore memory policies due to being atomic or
+being able to ignore watermarks then the starting point in the zonelist
+iterator is no longer correct. This patch resets the zonelist iterator in
+the allocator slowpath if the context can ignore memory policies. This will
+alter the zone used for statistics but only after it is known that it makes
+sense for that context. Resetting it before entering the slowpath would
+potentially allow an ALLOC_CPUSET allocation to be accounted for against
+the wrong zone. Note that while nodemask is not explicitly set to the
+original nodemask, it would only have been overwritten if cpuset_enabled()
+and it was reset before the slowpath was entered.
 
-Testing with the patch makes some sense as well, but I would like to
-hear from Andrea whether the approach is good because I am wondering why
-he hasn't done that before - it feels so much simpler than the current
-code.
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/page_alloc.c | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)
 
-Anyway, thanks a lot for testing!
-
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 557549c81083..b17358617a1b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3598,6 +3598,17 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+ 
++	/*
++	 * Reset the zonelist iterators if memory policies can be ignored.
++	 * These allocations are high priority and system rather than user
++	 * orientated.
++	 */
++	if ((alloc_flags & ALLOC_NO_WATERMARKS) || !(alloc_flags & ALLOC_CPUSET)) {
++		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
++		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
++					ac->high_zoneidx, ac->nodemask);
++	}
++
+ 	/* This is the last chance, in general, before the goto nopage. */
+ 	page = get_page_from_freelist(gfp_mask, order,
+ 				alloc_flags & ~ALLOC_NO_WATERMARKS, ac);
+@@ -3606,12 +3617,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 
+ 	/* Allocate without watermarks if the context allows */
+ 	if (alloc_flags & ALLOC_NO_WATERMARKS) {
+-		/*
+-		 * Ignore mempolicies if ALLOC_NO_WATERMARKS on the grounds
+-		 * the allocation is high priority and these type of
+-		 * allocations are system rather than user orientated
+-		 */
+-		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
+ 		page = get_page_from_freelist(gfp_mask, order,
+ 						ALLOC_NO_WATERMARKS, ac);
+ 		if (page)
+@@ -3810,7 +3815,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	/* Dirty zone balancing only done in the fast path */
+ 	ac.spread_dirty_pages = (gfp_mask & __GFP_WRITE);
+ 
+-	/* The preferred zone is used for statistics later */
++	/*
++	 * The preferred zone is used for statistics but crucially it is
++	 * also used as the starting point for the zonelist iterator. It
++	 * may get reset for allocations that ignore memory policies.
++	 */
+ 	ac.preferred_zoneref = first_zones_zonelist(ac.zonelist,
+ 					ac.high_zoneidx, ac.nodemask);
+ 	if (!ac.preferred_zoneref) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
