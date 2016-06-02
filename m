@@ -1,205 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E781F6B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 00:29:17 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id e80so4780814oig.1
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 21:29:17 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id t72si51292789ioe.52.2016.06.01.21.29.16
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 17D196B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 00:59:56 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b124so37601272pfb.1
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 21:59:56 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id z67si55780276pfj.116.2016.06.01.21.59.54
         for <linux-mm@kvack.org>;
-        Wed, 01 Jun 2016 21:29:17 -0700 (PDT)
-Date: Thu, 2 Jun 2016 13:29:16 +0900
+        Wed, 01 Jun 2016 21:59:55 -0700 (PDT)
+Date: Thu, 2 Jun 2016 14:00:39 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: Why __alloc_contig_migrate_range calls migrate_prep() at first?
-Message-ID: <20160602042916.GB3024@bbox>
-References: <tencent_29E1A2CA78CE0C9046C1494E@qq.com>
- <20160601074010.GO19976@bbox>
- <231748d4-6d9b-85d9-6796-e4625582e148@foxmail.com>
- <20160602022242.GB9133@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH] mm: check the return value of lookup_page_ext for all
+ call sites
+Message-ID: <20160602050039.GA3304@bbox>
+References: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
+ <20160524025811.GA29094@bbox>
+ <20160526003719.GB9661@bbox>
+ <8ae0197c-47b7-e5d2-20c3-eb9d01e6b65c@linaro.org>
+ <20160527051432.GF2322@bbox>
+ <20160527060839.GC13661@js1304-P5Q-DELUXE>
+ <20160527081108.GG2322@bbox>
+ <aa33f1e4-5a91-aaaf-70f1-557148b29b38@linaro.org>
+ <20160530061117.GB28624@bbox>
+ <b8858801-af06-9b80-1b29-f9ece515d1bf@linaro.org>
 MIME-Version: 1.0
-In-Reply-To: <20160602022242.GB9133@js1304-P5Q-DELUXE>
+In-Reply-To: <b8858801-af06-9b80-1b29-f9ece515d1bf@linaro.org>
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Wang Sheng-Hui <shhuiw@foxmail.com>, akpm <akpm@linux-foundation.org>, mgorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
+To: "Shi, Yang" <yang.shi@linaro.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu, Jun 02, 2016 at 11:22:43AM +0900, Joonsoo Kim wrote:
-> On Thu, Jun 02, 2016 at 09:19:19AM +0800, Wang Sheng-Hui wrote:
-> > 
-> > 
-> > On 6/1/2016 3:40 PM, Minchan Kim wrote:
-> > > On Wed, Jun 01, 2016 at 11:42:29AM +0800, Wang Sheng-Hui wrote:
-> > >> Dear,
-> > >>
-> > >> Sorry to trouble you.
-> > >>
-> > >> I noticed cma_alloc would turn to  __alloc_contig_migrate_range for allocating pages.
-> > >> But  __alloc_contig_migrate_range calls  migrate_prep() at first, even if the requested page
-> > >> is single and free, lru_add_drain_all still run (called by  migrate_prep())?
-> > >>
-> > >> Image a large chunk of free contig pages for CMA, various drivers may request a single page from
-> > >> the CMA area, we'll get  lru_add_drain_all run for each page.
-> > >>
-> > >> Should we detect if the required pages are free before migrate_prep(), or detect at least for single 
-> > >> page allocation?
-> > > That makes sense to me.
-> > >
-> > > How about calling migrate_prep once migrate_pages fails in the first trial?
-> > 
-> > Minchan,
-> > 
-> > I tried your patch in my env, and the number of calling migrate_prep() dropped a lot.
-> > 
-> > In my case, CMA reserved 512MB, and the linux will call migrate_prep() 40~ times during bootup,
-> > most are single page allocation request to CMA.
-> > With your patch, migrate_prep() is not called for the single pages allocation requests as the free
-> > pages in CMA area is enough.
-> > 
-> > Will you please push the patch to upstream?
+On Wed, Jun 01, 2016 at 01:40:48PM -0700, Shi, Yang wrote:
+> On 5/29/2016 11:11 PM, Minchan Kim wrote:
+> >On Fri, May 27, 2016 at 11:16:41AM -0700, Shi, Yang wrote:
+> >
+> ><snip>
+> >
+> >>>
+> >>>If we goes this way, how to guarantee this race?
+> >>
+> >>Thanks for pointing out this. It sounds reasonable. However, this
+> >>should be only possible to happen on 32 bit since just 32 bit
+> >>version page_is_idle() calls lookup_page_ext(), it doesn't do it on
+> >>64 bit.
+> >>
+> >>And, such race condition should exist regardless of whether DEBUG_VM
+> >>is enabled or not, right?
+> >>
+> >>rcu might be good enough to protect it.
+> >>
+> >>A quick fix may look like:
+> >>
+> >>diff --git a/include/linux/page_idle.h b/include/linux/page_idle.h
+> >>index 8f5d4ad..bf0cd6a 100644
+> >>--- a/include/linux/page_idle.h
+> >>+++ b/include/linux/page_idle.h
+> >>@@ -77,8 +77,12 @@ static inline bool
+> >>test_and_clear_page_young(struct page *page)
+> >> static inline bool page_is_idle(struct page *page)
+> >> {
+> >>        struct page_ext *page_ext;
+> >>+
+> >>+       rcu_read_lock();
+> >>        page_ext = lookup_page_ext(page);
+> >>+       rcu_read_unlock();
+> >>+
+> >>	if (unlikely(!page_ext))
+> >>                return false;
+> >>
+> >>diff --git a/mm/page_ext.c b/mm/page_ext.c
+> >>index 56b160f..94927c9 100644
+> >>--- a/mm/page_ext.c
+> >>+++ b/mm/page_ext.c
+> >>@@ -183,7 +183,6 @@ struct page_ext *lookup_page_ext(struct page *page)
+> >> {
+> >>        unsigned long pfn = page_to_pfn(page);
+> >>        struct mem_section *section = __pfn_to_section(pfn);
+> >>-#if defined(CONFIG_DEBUG_VM) || defined(CONFIG_PAGE_POISONING)
+> >>        /*
+> >>         * The sanity checks the page allocator does upon freeing a
+> >>         * page can reach here before the page_ext arrays are
+> >>@@ -195,7 +194,7 @@ struct page_ext *lookup_page_ext(struct page *page)
+> >>         */
+> >>        if (!section->page_ext)
+> >>                return NULL;
+> >>-#endif
+> >>+
+> >>        return section->page_ext + pfn;
+> >> }
+> >>
+> >>@@ -279,7 +278,8 @@ static void __free_page_ext(unsigned long pfn)
+> >>                return;
+> >>        base = ms->page_ext + pfn;
+> >>        free_page_ext(base);
+> >>-       ms->page_ext = NULL;
+> >>+       rcu_assign_pointer(ms->page_ext, NULL);
+> >>+       synchronize_rcu();
+> >
+> >How does it fix the problem?
+> >I cannot understand your point.
 > 
-> It is not correct.
-> 
-> migrate_prep() is called to move lru pages in lruvec to LRU. In
-> isolate_migratepages_range(), non LRU pages are just skipped so if
-> page is on the lruvec it will not be isolated and error isn't returned.
-> So, "if (ret) migrate_prep()" will not be called and we can't catch
-> the page in lruvec.
+> Assigning NULL pointer to page_Ext will be blocked until
+> rcu_read_lock critical section is done, so the lookup and writing
+> operations will be serialized. And, rcu_read_lock disables preempt
+> too.
 
-Ah,, true. Thanks for correcting.
+I meant your rcu_read_lock in page_idle should cover test_bit op.
+One more thing, you should use rcu_dereference.
 
-Simple fix is to remove migrate_prep in there and retry if test_pages_isolated
-found migration is failed at least once.
+As well, please cover memory onlining case I mentioned in another
+thread as well as memory offlining.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7da8310b86e9..e0aa4a9b573d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7294,8 +7294,6 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
- 	unsigned int tries = 0;
- 	int ret = 0;
- 
--	migrate_prep();
--
- 	while (pfn < end || !list_empty(&cc->migratepages)) {
- 		if (fatal_signal_pending(current)) {
- 			ret = -EINTR;
-@@ -7355,6 +7353,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 	unsigned long outer_start, outer_end;
- 	unsigned int order;
- 	int ret = 0;
-+	bool lru_flushed = false;
- 
- 	struct compact_control cc = {
- 		.nr_migratepages = 0,
-@@ -7395,6 +7394,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 	if (ret)
- 		return ret;
- 
-+again:
- 	/*
- 	 * In case of -EBUSY, we'd like to know which page causes problem.
- 	 * So, just fall through. We will check it in test_pages_isolated().
-@@ -7448,6 +7448,11 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 
- 	/* Make sure the range is really isolated. */
- 	if (test_pages_isolated(outer_start, end, false)) {
-+		if (!lru_flushed) {
-+			lru_flushed = true;
-+			goto again;
-+		}
-+
- 		pr_info("%s: [%lx, %lx) PFNs busy\n",
- 			__func__, outer_start, end);
- 		ret = -EBUSY;
-
-
-> 
-> Anyway, better optimization for your case should be done in higher
-> level. See following patch. It removes useless pageblock isolation and migration
-> if possible. In fact, even we can do better than below by inroducing
-> alloc_contig_range() light mode that skip migrate_prep() and other high cost things
-> but it needs more surgery. I will revisit it soon.
-
-Yes, there are many rooms to be improved in cma_alloc and I remember
-a few years ago, some guys(maybe, graphic) complained cma_alloc for small order page
-is really slow so it would be really worth to do.
-
-I'm looking forward to seeing that.
-
-> 
-> Thanks.
-> 
-> ----------->8---------------
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1a7f110..4af3665 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -7314,6 +7314,51 @@ static unsigned long pfn_max_align_up(unsigned long pfn)
->                                 pageblock_nr_pages));
->  }
->  
-> +static int alloc_contig_range_fast(unsigned long start, unsigned long end, struct compact_control *cc)
-> +{
-> +       unsigned int order;
-> +       unsigned long outer_start, outer_end;
-> +       int ret = 0;
-> +
-> +       order = 0;
-> +       outer_start = start;
-> +       while (!PageBuddy(pfn_to_page(outer_start))) {
-> +               if (++order >= MAX_ORDER) {
-> +                       outer_start = start;
-> +                       break;
-> +               }
-> +               outer_start &= ~0UL << order;
-> +       }
-> +
-> +       if (outer_start != start) {
-> +               order = page_order(pfn_to_page(outer_start));
-> +
-> +               /*
-> +                * outer_start page could be small order buddy page and
-> +                * it doesn't include start page. Adjust outer_start
-> +                * in this case to report failed page properly
-> +                * on tracepoint in test_pages_isolated()
-> +                */
-> +               if (outer_start + (1UL << order) <= start)
-> +                       outer_start = start;
-> +       }
-> +
-> +       /* Grab isolated pages from freelists. */
-> +       outer_end = isolate_freepages_range(cc, outer_start, end);
-> +       if (!outer_end) {
-> +               ret = -EBUSY;
-> +               goto done;
-> +       }
-> +
-> +       if (start != outer_start)
-> +               free_contig_range(outer_start, start - outer_start);
-> +       if (end != outer_end)
-> +               free_contig_range(end, outer_end - end);
-> +
-> +done:
-> +       return ret;
-> +}
-> +
->  /* [start, end) must belong to a single zone. */
->  static int __alloc_contig_migrate_range(struct compact_control *cc,
->                                         unsigned long start, unsigned long end)
-> @@ -7390,6 +7435,9 @@ int alloc_contig_range(unsigned long start, unsigned long end)
->         };
->         INIT_LIST_HEAD(&cc.migratepages);
->  
-> +       if (!alloc_contig_range_fast(start, end, &cc))
-> +               return 0;
-> +
->         /*
->          * What we do here is we mark all pageblocks in range as
->          * MIGRATE_ISOLATE.  Because pageblock and max order pages may
-> 
-> 
+Anyway, to me, every caller of page_ext should prepare lookup_page_ext
+can return NULL anytime and they should use rcu_read_[un]lock, which
+is not good. :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
