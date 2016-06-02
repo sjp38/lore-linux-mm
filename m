@@ -1,73 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E7D16B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 02:48:07 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id o70so19688072lfg.1
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 23:48:07 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id xb5si61811687wjb.223.2016.06.01.23.48.05
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 723996B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 03:10:23 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id x1so37121880pav.3
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 00:10:23 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id zq1si6112240pac.130.2016.06.02.00.10.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Jun 2016 23:48:05 -0700 (PDT)
-Date: Thu, 2 Jun 2016 08:48:04 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm,oom_reaper: don't call mmput_async() without
- atomic_inc_not_zero()
-Message-ID: <20160602064804.GF1995@dhcp22.suse.cz>
-References: <1464423365-5555-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160601155313.dc3aa18eb6ad0e163d44b355@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Jun 2016 00:10:22 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id b124so6951277pfb.0
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 00:10:22 -0700 (PDT)
+Date: Thu, 2 Jun 2016 16:10:17 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH 4/4] mm/zsmalloc: remove unused header cpumask.h
+Message-ID: <20160602071017.GA439@swordfish>
+References: <7cc1b41351a96e7d67fcf4bd2a6987b71793cb27.1464847139.git.geliangtang@gmail.com>
+ <f0fa3738403f886988141182e8e4bac7efed05c7.1464847139.git.geliangtang@gmail.com>
+ <866efd744a89b6e16c9d3acd1a00b011adbd59af.1464847139.git.geliangtang@gmail.com>
+ <94e9f6fee719fcaa91ee5767a9ad64658c6f5237.1464847139.git.geliangtang@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160601155313.dc3aa18eb6ad0e163d44b355@linux-foundation.org>
+In-Reply-To: <94e9f6fee719fcaa91ee5767a9ad64658c6f5237.1464847139.git.geliangtang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, Arnd Bergmann <arnd@arndb.de>
+To: Geliang Tang <geliangtang@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 01-06-16 15:53:13, Andrew Morton wrote:
-> On Sat, 28 May 2016 17:16:05 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
+On (06/02/16 14:15), Geliang Tang wrote:
+> Remove unused header cpumask.h from mm/zsmalloc.c.
 > 
-> > Commit e2fe14564d3316d1 ("oom_reaper: close race with exiting task")
-> > reduced frequency of needlessly selecting next OOM victim, but was
-> > calling mmput_async() when atomic_inc_not_zero() failed.
+> Signed-off-by: Geliang Tang <geliangtang@gmail.com>
+> ---
+>  mm/zsmalloc.c | 1 -
+>  1 file changed, 1 deletion(-)
 > 
-> Changelog fail.
-> 
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -478,6 +478,7 @@ static bool __oom_reap_task(struct task_struct *tsk)
-> >  	mm = p->mm;
-> >  	if (!atomic_inc_not_zero(&mm->mm_users)) {
-> >  		task_unlock(p);
-> > +		mm = NULL;
-> >  		goto unlock_oom;
-> >  	}
-> 
-> This looks like a pretty fatal bug.  I assume the result of hitting
-> that race will be a kernel crash, yes?
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index b6d4f25..a93327e 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -57,7 +57,6 @@
+>  #include <linux/slab.h>
+>  #include <asm/tlbflush.h>
+>  #include <asm/pgtable.h>
+> -#include <linux/cpumask.h>
+>  #include <linux/cpu.h>
+>  #include <linux/vmalloc.h>
+>  #include <linux/preempt.h>
 
-Yes it is a nasty bug. It was (re)introduced by the final touch to the
-goto paths. And yes it can cause a crash.
+NAK. I don't think it's "unused".
 
-> Is it even possible to hit that race? 
+zs_register_cpu_notifier()
+	for_each_online_cpu()
 
-It is, we can have a concurrent mmput followed by mmdrop.
 
-> find_lock_task_mm() takes some
-> care to prevent a NULL ->mm.  But I guess a concurrent mmput() doesn't
-> require task_lock().  Kinda makes me wonder what's the point in even
-> having find_lock_task_mm() if its guarantee on ->mm is useless...
+which is coming from include/linux/cpumask.h
 
-find_lock_task_mm makes sure that the mm stays non-NULL while we hold
-the lock. We have to do all the necessary pinning while holding it.
-atomic_inc_not_zero will guarantee we are not racing with the finall
-mmput.
+#define for_each_online_cpu(cpu)   for_each_cpu((cpu), cpu_online_mask)
 
-Does that make more sense now?
--- 
-Michal Hocko
-SUSE Labs
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
