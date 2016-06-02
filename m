@@ -1,84 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C91DB6B0260
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 08:04:45 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id j12so23284635lbo.0
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:04:45 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 67si49575524wmb.98.2016.06.02.05.04.44
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 329556B0253
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 08:09:04 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id c84so51565051pfc.3
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:09:04 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id ab11si40944697pac.38.2016.06.02.05.09.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Jun 2016 05:04:44 -0700 (PDT)
-Subject: Re: BUG: scheduling while atomic: cron/668/0x10c9a0c0
-References: <CAMuHMdV00vJJxoA7XABw+mFF+2QUd1MuQbPKKgkmGnK_NySZpg@mail.gmail.com>
- <20160530155644.GP2527@techsingularity.net> <574E05B8.3060009@suse.cz>
- <20160601091921.GT2527@techsingularity.net> <574EB274.4030408@suse.cz>
- <20160602103936.GU2527@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <0eb1f112-65d4-f2e5-911e-697b21324b9f@suse.cz>
-Date: Thu, 2 Jun 2016 14:04:42 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Jun 2016 05:09:03 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id 62so7825210pfd.3
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:09:03 -0700 (PDT)
+Date: Thu, 2 Jun 2016 21:08:57 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [linux-next: Tree for Jun 1] __khugepaged_exit
+ rwsem_down_write_failed lockup
+Message-ID: <20160602120857.GA704@swordfish>
+References: <20160601131122.7dbb0a65@canb.auug.org.au>
+ <20160602014835.GA635@swordfish>
+ <20160602092113.GH1995@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160602103936.GU2527@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160602092113.GH1995@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
 
-On 06/02/2016 12:39 PM, Mel Gorman wrote:
-> On Wed, Jun 01, 2016 at 12:01:24PM +0200, Vlastimil Babka wrote:
->>> Why?
->>>
->>> The comment is fine but I do not see why the recalculation would occur.
->>>
->>> In the original code, the preferred_zoneref for statistics is calculated
->>> based on either the supplied nodemask or cpuset_current_mems_allowed during
->>> the initial attempt. It then relies on the cpuset checks in the slowpath
->>> to encorce mems_allowed but the preferred zone doesn't change.
->>>
->>> With your proposed change, it's possible that the
->>> preferred_zoneref recalculation points to a zoneref disallowed by
->>> cpuset_current_mems_sllowed. While it'll be skipped during allocation,
->>> the statistics will still be against a zone that is potentially outside
->>> what is allowed.
->>
->> Hmm that's true and I was ready to agree. But then I noticed  that
->> gfp_to_alloc_flags() can mask out ALLOC_CPUSET for GFP_ATOMIC. So it's
->> like a lighter version of the ALLOC_NO_WATERMARKS situation. In that
->> case it's wrong if we leave ac->preferred_zoneref at a position that has
->> skipped some zones due to mempolicies?
->>
->
-> So both options are wrong then. How about this?
+Hello Michal,
 
-I wonder if the original patch we're fixing was worth all this trouble 
-(and more
-for my compaction priority series :), but yeah this should work.
+On (06/02/16 11:21), Michal Hocko wrote:
+[..]
+> > [ 2856.323052] INFO: task cc1:4582 blocked for more than 21 seconds.
+> > [ 2856.323055]       Not tainted 4.7.0-rc1-next-20160601-dbg-00012-g52c180e-dirty #453
+> > [ 2856.323056] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> > [ 2856.323059] cc1             D ffff880057e9fd78     0  4582   4575 0x00000000
+> > [ 2856.323062]  ffff880057e9fd78 ffff880057e08000 ffff880057e9fd90 ffff880057ea0000
+> > [ 2856.323065]  ffff88005dc3dc68 ffffffff00000001 ffff880057e09500 ffff88005dc3dc80
+> > [ 2856.323067]  ffff880057e9fd90 ffffffff81441e33 ffff88005dc3dc68 ffff880057e9fe00
+> > [ 2856.323068] Call Trace:
+> > [ 2856.323074]  [<ffffffff81441e33>] schedule+0x83/0x98
+> > [ 2856.323077]  [<ffffffff81443d9b>] rwsem_down_write_failed+0x18e/0x1d3
+> > [ 2856.323080]  [<ffffffff810a87cf>] ? unlock_page+0x2b/0x2d
+> > [ 2856.323083]  [<ffffffff811bdb77>] call_rwsem_down_write_failed+0x17/0x30
+> > [ 2856.323084]  [<ffffffff811bdb77>] ? call_rwsem_down_write_failed+0x17/0x30
+> > [ 2856.323086]  [<ffffffff81443630>] down_write+0x1f/0x2e
+> > [ 2856.323089]  [<ffffffff810ea4f3>] __khugepaged_exit+0x104/0x11a
+> > [ 2856.323091]  [<ffffffff8103702a>] mmput+0x29/0xc5
+> > [ 2856.323093]  [<ffffffff8103bbd8>] do_exit+0x34c/0x894
+> > [ 2856.323095]  [<ffffffff8102f9e0>] ? __do_page_fault+0x2f7/0x399
+> > [ 2856.323097]  [<ffffffff8103c188>] do_group_exit+0x3c/0x98
+> > [ 2856.323099]  [<ffffffff8103c1f3>] SyS_exit_group+0xf/0xf
+> > [ 2856.323101]  [<ffffffff81444cdb>] entry_SYSCALL_64_fastpath+0x13/0x8f
+> 
+> down_write in the exit path is certainly not nice. It is hard to tell
+> who is blocking the mmap_sem but it is clear that __khugepaged_exit
+> waits for the khugepaged to release its mmap_sem. Do you hapen to have a
+> trace of khugepaged? Note that the lock holder might be another writer
+> which just hasn't pinned mm_users so khugepaged might be blocked on read
+> lock as well. Or khugepaged might be just stuck somewhere...
 
-> ---8<---
-> mm, page_alloc: Recalculate the preferred zoneref if the context can ignore memory policies
->
-> The optimistic fast path may use cpuset_current_mems_allowed instead of
-> of a NULL nodemask supplied by the caller for cpuset allocations. The
-> preferred zone is calculated on this basis for statistic purposes and
-> as a starting point in the zonelist iterator.
->
-> However, if the context can ignore memory policies due to being atomic or
-> being able to ignore watermarks then the starting point in the zonelist
-> iterator is no longer correct. This patch resets the zonelist iterator in
-> the allocator slowpath if the context can ignore memory policies. This will
-> alter the zone used for statistics but only after it is known that it makes
-> sense for that context. Resetting it before entering the slowpath would
-> potentially allow an ALLOC_CPUSET allocation to be accounted for against
-> the wrong zone. Note that while nodemask is not explicitly set to the
-> original nodemask, it would only have been overwritten if cpuset_enabled()
-> and it was reset before the slowpath was entered.
->
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+sorry, no. this is all I have. the kernel was compiled with almost no
+debugging functionality enabled (no lockdep, no lock debug, nothing)
+for zram performance testing purposes.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I'll try to reproduce the problem; and give your patch some testing.
+thanks.
 
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
