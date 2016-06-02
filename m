@@ -1,70 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 357E06B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 09:52:30 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id ne4so24516096lbc.1
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 06:52:30 -0700 (PDT)
-Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
-        by mx.google.com with ESMTPS id a195si1531891wma.36.2016.06.02.06.52.28
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 314316B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 10:03:12 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id q17so24640961lbn.3
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 07:03:12 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id go9si870087wjb.213.2016.06.02.07.03.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Jun 2016 06:52:28 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 3864D1C148B
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 14:52:28 +0100 (IST)
-Date: Thu, 2 Jun 2016 14:52:26 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [BUG] Page allocation failures with newest kernels
-Message-ID: <20160602135226.GX2527@techsingularity.net>
-References: <CAPv3WKcVsWBgHHC3UPNcbka2JUmN4CTw1Ym4BR1=1V9=B9av5Q@mail.gmail.com>
- <574D64A0.2070207@arm.com>
- <CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
- <60e8df74202e40b28a4d53dbc7fd0b22@IL-EXCH02.marvell.com>
- <20160531131520.GI24936@arm.com>
- <CAPv3WKftqsEXbdU-geAcUKXBSskhA0V72N61a1a+5DfahLK_Dg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CAPv3WKftqsEXbdU-geAcUKXBSskhA0V72N61a1a+5DfahLK_Dg@mail.gmail.com>
+        Thu, 02 Jun 2016 07:03:10 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id e3so16074380wme.2
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 07:03:10 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 7/6] mm, oom: task_will_free_mem should skip oom_reaped tasks
+Date: Thu,  2 Jun 2016 16:03:03 +0200
+Message-Id: <1464876183-15559-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
+References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcin Wojtas <mw@semihalf.com>
-Cc: Will Deacon <will.deacon@arm.com>, Yehuda Yitschak <yehuday@marvell.com>, Robin Murphy <robin.murphy@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Lior Amsalem <alior@marvell.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>, Grzegorz Jaszczyk <jaz@semihalf.com>, Nadav Haklai <nadavh@marvell.com>, Tomasz Nowicki <tn@semihalf.com>, Gregory =?iso-8859-15?Q?Cl=E9ment?= <gregory.clement@free-electrons.com>
+To: linux-mm@kvack.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu, Jun 02, 2016 at 07:48:38AM +0200, Marcin Wojtas wrote:
-> Hi Will,
-> 
-> I think I found a right trace. Following one-liner fixes the issue
-> beginning from v4.2-rc1 up to v4.4 included:
-> 
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -294,7 +294,7 @@ static inline bool
-> early_page_uninitialised(unsigned long pfn)
-> 
->  static inline bool early_page_nid_uninitialised(unsigned long pfn, int nid)
->  {
-> -       return false;
-> +       return true;
->  }
-> 
+From: Michal Hocko <mhocko@suse.com>
 
-How does that make a difference in v4.4 since commit
-974a786e63c96a2401a78ddba926f34c128474f1 removed the only
-early_page_nid_uninitialised() ? It further doesn't make sense if deferred
-memory initialisation is not enabled as the pages will always be
-initialised.
+0-day robot has encountered the following:
+[   82.694232] Out of memory: Kill process 3914 (trinity-c0) score 167 or sacrifice child
+[   82.695110] Killed process 3914 (trinity-c0) total-vm:55864kB, anon-rss:1512kB, file-rss:1088kB, shmem-rss:25616kB
+[   82.706724] oom_reaper: reaped process 3914 (trinity-c0), now anon-rss:0kB, file-rss:0kB, shmem-rss:26488kB
+[   82.715540] oom_reaper: reaped process 3914 (trinity-c0), now anon-rss:0kB, file-rss:0kB, shmem-rss:26900kB
+[   82.717662] oom_reaper: reaped process 3914 (trinity-c0), now anon-rss:0kB, file-rss:0kB, shmem-rss:26900kB
+[   82.725804] oom_reaper: reaped process 3914 (trinity-c0), now anon-rss:0kB, file-rss:0kB, shmem-rss:27296kB
+[   82.739091] oom_reaper: reaped process 3914 (trinity-c0), now anon-rss:0kB, file-rss:0kB, shmem-rss:28148kB
 
-> From what I understood, now order-0 allocation keep no reserve at all.
+oom_reaper is trying to reap the same task again and again. This
+is possible only when the oom killer is bypassed because of
+task_will_free_mem because we skip over tasks with MMF_OOM_REAPED
+already set during select_bad_process. Teach task_will_free_mem to skip
+over MMF_OOM_REAPED tasks as well because they will be unlikely to free
+anything more.
 
-Watermarks should still be preserved. zone_watermark_ok is still there.
-What might change is the size of reserves for high-order atomic
-allocations only. Fragmentation shouldn't be a factor. I'm missing some
-major part of the picture.
+Analyzed-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/oom_kill.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index dacfb6ab7b04..d6e121decb1a 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -766,6 +766,15 @@ bool task_will_free_mem(struct task_struct *task)
+ 		return true;
+ 	}
+ 
++	/*
++	 * This task has already been drained by the oom reaper so there are
++	 * only small chances it will free some more
++	 */
++	if (test_bit(MMF_OOM_REAPED, &mm->flags)) {
++		task_unlock(p);
++		return false;
++	}
++
+ 	/* pin the mm to not get freed and reused */
+ 	atomic_inc(&mm->mm_count);
+ 	task_unlock(p);
 -- 
-Mel Gorman
-SUSE Labs
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
