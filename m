@@ -1,148 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F6176B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 06:45:11 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id p194so67731352iod.2
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 03:45:11 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 783466B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 07:14:43 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c84so49635895pfc.3
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 04:14:43 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id j75si5947427otj.115.2016.06.02.03.45.09
+        by mx.google.com with ESMTPS id uk2si24503123pab.226.2016.06.02.04.14.41
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Jun 2016 03:45:10 -0700 (PDT)
-Subject: Re: [PATCH 4/6] mm, oom: skip vforked tasks from being selected
+        Thu, 02 Jun 2016 04:14:41 -0700 (PDT)
+Received: from fsav106.sakura.ne.jp (fsav106.sakura.ne.jp [27.133.134.233])
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id u52BEbSa050588
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2016 20:14:37 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Received: from AQUA (softbank126074139022.bbtec.net [126.74.139.22])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id u52BEbCM050585
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2016 20:14:37 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Subject: [linux-next-20160602] kernel BUG at mm/rmap.c:1253!
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1464613556-16708-1-git-send-email-mhocko@kernel.org>
-	<1464613556-16708-5-git-send-email-mhocko@kernel.org>
-	<201606012312.BIF26006.MLtFVQSJOHOFOF@I-love.SAKURA.ne.jp>
-	<20160601142502.GY26601@dhcp22.suse.cz>
-In-Reply-To: <20160601142502.GY26601@dhcp22.suse.cz>
-Message-Id: <201606021945.AFH26572.OJMVLFOHFFtOSQ@I-love.SAKURA.ne.jp>
-Date: Thu, 2 Jun 2016 19:45:00 +0900
+Message-Id: <201606022014.GFF87050.FJOLVOMQHFOtSF@I-love.SAKURA.ne.jp>
+Date: Thu, 2 Jun 2016 20:14:38 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org
+To: linux-mm@kvack.org
 
-Michal Hocko wrote:
-> On Wed 01-06-16 23:12:20, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > vforked tasks are not really sitting on any memory. They are sharing
-> > > the mm with parent until they exec into a new code. Until then it is
-> > > just pinning the address space. OOM killer will kill the vforked task
-> > > along with its parent but we still can end up selecting vforked task
-> > > when the parent wouldn't be selected. E.g. init doing vfork to launch
-> > > a task or vforked being a child of oom unkillable task with an updated
-> > > oom_score_adj to be killable.
-> > > 
-> > > Make sure to not select vforked task as an oom victim by checking
-> > > vfork_done in oom_badness.
-> > 
-> > While vfork()ed task cannot modify userspace memory, can't such task
-> > allocate significant amount of kernel memory inside execve() operation
-> > (as demonstrated by CVE-2010-4243 64bit_dos.c )?
-> > 
-> > It is possible that killing vfork()ed task releases a lot of memory,
-> > isn't it?
-> 
-> I am not familiar with the above CVE but doesn't that allocated memory
-> come after flush_old_exec (and so mm_release)?
+FYI, I hit this bug while compiling kernel. Is this known issue?
 
-That memory is allocated as of copy_strings() in do_execveat_common().
-
-An example shown below (based on https://grsecurity.net/~spender/exploits/64bit_dos.c )
-can consume nearly 50% of 2GB RAM while execve() from vfork(). That is, selecting
-vfork()ed task as an OOM victim might release nearly 50% of 2GB RAM.
-
-----------
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
-#define NUM_ARGS 8000 /* Nearly 50% of 2GB RAM */
-
-int main(void)
-{
-        /* Be sure to do "ulimit -s unlimited" before run. */
-        char **args;
-        char *str;
-        int i;
-        str = malloc(128 * 1024);
-        memset(str, ' ', 128 * 1024 - 1);
-        str[128 * 1024 - 1] = '\0';
-        args = malloc(NUM_ARGS * sizeof(char *));
-        for (i = 0; i < (NUM_ARGS - 1); i++)
-                args[i] = str;
-        args[i] = NULL;
-        if (vfork() == 0) {
-                execve("/bin/true", args, NULL);
-                _exit(1);
-        }
-        return 0;
-}
-----------
-
-# strace -f ./a.out
-execve("./a.out", ["./a.out"], [/* 22 vars */]) = 0
-brk(0)                                  = 0x2283000
-mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x2b2bdbc81000
-access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
-open("/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
-fstat(3, {st_mode=S_IFREG|0644, st_size=44165, ...}) = 0
-mmap(NULL, 44165, PROT_READ, MAP_PRIVATE, 3, 0) = 0x2b2bdbc82000
-close(3)                                = 0
-open("/lib64/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
-read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0 \34\2\0\0\0\0\0"..., 832) = 832
-fstat(3, {st_mode=S_IFREG|0755, st_size=2112384, ...}) = 0
-mmap(NULL, 3936832, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x2b2bdbe84000
-mprotect(0x2b2bdc03b000, 2097152, PROT_NONE) = 0
-mmap(0x2b2bdc23b000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1b7000) = 0x2b2bdc23b000
-mmap(0x2b2bdc241000, 16960, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x2b2bdc241000
-close(3)                                = 0
-mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x2b2bdbc8d000
-mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x2b2bdbc8e000
-arch_prctl(ARCH_SET_FS, 0x2b2bdbc8db80) = 0
-mprotect(0x2b2bdc23b000, 16384, PROT_READ) = 0
-mprotect(0x600000, 4096, PROT_READ)     = 0
-mprotect(0x2b2bdbe81000, 4096, PROT_READ) = 0
-munmap(0x2b2bdbc82000, 44165)           = 0
-mmap(NULL, 135168, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x2b2bdbc90000
-brk(0)                                  = 0x2283000
-brk(0x22b3000)                          = 0x22b3000
-brk(0)                                  = 0x22b3000
-vfork(Process 9787 attached
- <unfinished ...>
-[pid  9787] execve("/bin/true", ["                                "..., (...snipped...), ...], [/* 0 vars */] <unfinished ...>
-[pid  9786] <... vfork resumed> )       = 9787
-[pid  9786] exit_group(0)               = ?
-[pid  9786] +++ exited with 0 +++
-<... execve resumed> )                  = 0
-brk(0)                                  = 0x13e2000
-mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x2b2e71a6f000
-access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
-open("/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
-fstat(3, {st_mode=S_IFREG|0644, st_size=44165, ...}) = 0
-mmap(NULL, 44165, PROT_READ, MAP_PRIVATE, 3, 0) = 0x2b2e71a70000
-close(3)                                = 0
-open("/lib64/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
-read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0 \34\2\0\0\0\0\0"..., 832) = 832
-fstat(3, {st_mode=S_IFREG|0755, st_size=2112384, ...}) = 0
-mmap(NULL, 3936832, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x2b2e71c6e000
-mprotect(0x2b2e71e25000, 2097152, PROT_NONE) = 0
-mmap(0x2b2e72025000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1b7000) = 0x2b2e72025000
-mmap(0x2b2e7202b000, 16960, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x2b2e7202b000
-close(3)                                = 0
-mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x2b2e71a7b000
-mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x2b2e71a7c000
-arch_prctl(ARCH_SET_FS, 0x2b2e71a7bb80) = 0
-mprotect(0x2b2e72025000, 16384, PROT_READ) = 0
-mprotect(0x605000, 4096, PROT_READ)     = 0
-mprotect(0x2b2e71c6b000, 4096, PROT_READ) = 0
-munmap(0x2b2e71a70000, 44165)           = 0
-exit_group(0)                           = ?
-+++ exited with 0 +++
+----------------------------------------
+[ 2893.482222] vma ffff880014150428 start 00002afed7db3000 end 00002afed89bc000
+next ffff8800106b7de8 prev ffff880014150a58 mm ffff88007a9e8d40
+prot 8000000000000025 anon_vma ffff880016c19d18 vm_ops           (null)
+pgoff 2afed7db3 file           (null) private_data           (null)
+flags: 0x100073(read|write|mayread|maywrite|mayexec|account)
+[ 2893.490801] ------------[ cut here ]------------
+[ 2893.492087] kernel BUG at mm/rmap.c:1253!
+[ 2893.493240] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[ 2893.494789] Modules linked in: ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 nf_conntrack_ipv6 nf_defrag_ipv6 ipt_REJECT nf_reject_ipv4 nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_nat ebtable_broute bridge stp llc ebtable_filter ebtables ip6table_mangle ip6table_raw ip6table_filter ip6_tables iptable_mangle iptable_raw iptable_filter coretemp pcspkr sg vmw_vmci i2c_piix4 ip_tables sd_mod ata_generic pata_acpi serio_raw ata_piix vmwgfx mptspi ahci drm_kms_helper syscopyarea libahci scsi_transport_spi sysfillrect sysimgblt mptscsih fb_sys_fops libata e1000 ttm mptbase drm i2c_core
+[ 2893.509843] CPU: 0 PID: 50 Comm: khugepaged Not tainted 4.7.0-rc1-next-20160602 #431
+[ 2893.512105] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
+[ 2893.515024] task: ffff88007c036440 ti: ffff88007c040000 task.ti: ffff88007c040000
+[ 2893.517340] RIP: 0010:[<ffffffff811ca46c>]  [<ffffffff811ca46c>] page_add_new_anon_rmap+0x13c/0x180
+[ 2893.519977] RSP: 0018:ffff88007c043ce8  EFLAGS: 00010246
+[ 2893.521917] RAX: 0000000000000149 RBX: ffffea00001b0000 RCX: 0000000000000000
+[ 2893.524218] RDX: 0000000000000000 RSI: ffffffff819e92ea RDI: 00000000ffffffff
+[ 2893.526451] RBP: ffff88007c043d08 R08: 0000000000000001 R09: 0000000000000001
+[ 2893.528822] R10: 0000000000000001 R11: 000000000000058e R12: ffff880014150428
+[ 2893.531306] R13: 00002afed8a00000 R14: 0000000000000200 R15: ffff880014150428
+[ 2893.533699] FS:  0000000000000000(0000) GS:ffff88007f800000(0000) knlGS:0000000000000000
+[ 2893.536250] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 2893.538309] CR2: 00002acb71513220 CR3: 0000000001c06000 CR4: 00000000001406f0
+[ 2893.540777] Stack:
+[ 2893.542230]  8000000006c000e7 ffffea0001e55000 0000000000000001 ffffea00001b0000
+[ 2893.544867]  ffff88007c043e60 ffffffff811fb292 0000000000000000 0000000000000000
+[ 2893.547490]  ffff88007c036440 ffff88007c036440 ffff88007c036440 ffff88007c036440
+[ 2893.550048] Call Trace:
+[ 2893.551498]  [<ffffffff811fb292>] khugepaged+0x1552/0x25c0
+[ 2893.553487]  [<ffffffff810bfda0>] ? prepare_to_wait_event+0xf0/0xf0
+[ 2893.555705]  [<ffffffff811f9d40>] ? vmf_insert_pfn_pmd+0x170/0x170
+[ 2893.557981]  [<ffffffff81093b0e>] kthread+0xee/0x110
+[ 2893.560040]  [<ffffffff8172a17f>] ret_from_fork+0x1f/0x40
+[ 2893.562302]  [<ffffffff81093a20>] ? kthread_create_on_node+0x220/0x220
+[ 2893.564690] Code: e8 2a e9 ff ff 5b 41 5c 41 5d 41 5e 5d c3 48 8b 43 20 a8 01 0f 85 37 ff ff ff c7 43 18 00 00 00 00 eb 9b 4c 89 e7 e8 f4 d1 fe ff <0f> 0b 48 83 e8 01 e9 07 ff ff ff 48 c7 c6 40 6b 9b 81 48 89 df
+[ 2893.572649] RIP  [<ffffffff811ca46c>] page_add_new_anon_rmap+0x13c/0x180
+[ 2893.574980]  RSP <ffff88007c043ce8>
+[ 2893.583817] ---[ end trace 994b25e4ac8d495c ]---
+[ 2893.585665] note: khugepaged[50] exited with preempt_count 1
+----------------------------------------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
