@@ -1,55 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 310B66B0261
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 08:13:09 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id q17so23331046lbn.3
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:13:09 -0700 (PDT)
-Received: from mail-ph.de-nserver.de (mail-ph.de-nserver.de. [85.158.179.214])
-        by mx.google.com with ESMTPS id xq9si329084wjb.161.2016.06.02.05.13.07
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C97A46B0263
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 08:17:07 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id v125so88604392itc.0
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 05:17:07 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0125.outbound.protection.outlook.com. [104.47.1.125])
+        by mx.google.com with ESMTPS id w8si135077otb.141.2016.06.02.05.17.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Jun 2016 05:13:07 -0700 (PDT)
-Subject: Re: shrink_active_list/try_to_release_page bug? (was Re: xfs trace in
- 4.4.2 / also in 4.3.3 WARNING fs/xfs/xfs_aops.c:1232 xfs_vm_releasepage)
-References: <20160516010602.GA24980@bfoster.bfoster>
- <57420A47.2000700@profihost.ag> <20160522213850.GE26977@dastard>
- <574BEA84.3010206@profihost.ag> <20160530223657.GP26977@dastard>
- <20160531010724.GA9616@bbox> <20160531025509.GA12670@dastard>
- <20160531035904.GA17371@bbox> <20160531060712.GC12670@dastard>
- <574D2B1E.2040002@profihost.ag> <20160531073119.GD12670@dastard>
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Message-ID: <575022D2.7030502@profihost.ag>
-Date: Thu, 2 Jun 2016 14:13:06 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 02 Jun 2016 05:17:06 -0700 (PDT)
+Subject: Re: [PATCH] mm, kasan: introduce a special shadow value for allocator
+ metadata
+References: <1464691466-59010-1-git-send-email-glider@google.com>
+ <574D7B11.8090709@virtuozzo.com>
+ <CAG_fn=UuSs=aUst5Ww3RGF-SvOprUYPs2Y3-dD=w1b80-D_R-A@mail.gmail.com>
+ <574EFE0F.2000404@virtuozzo.com>
+ <CAG_fn=Xt1EuNwkHRJ5C=D-R=7SppUERWKRzih1rDzX3=+AXcsA@mail.gmail.com>
+ <CAG_fn=WfuYimaz6M9WWn+vPd=GsGN=kybbHZCL8PNBXOwFtqWA@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <575023EC.9090007@virtuozzo.com>
+Date: Thu, 2 Jun 2016 15:17:48 +0300
 MIME-Version: 1.0
-In-Reply-To: <20160531073119.GD12670@dastard>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <CAG_fn=WfuYimaz6M9WWn+vPd=GsGN=kybbHZCL8PNBXOwFtqWA@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Minchan Kim <minchan@kernel.org>, Brian Foster <bfoster@redhat.com>, "xfs@oss.sgi.com" <xfs@oss.sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alexander Potapenko <glider@google.com>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 
-Am 31.05.2016 um 09:31 schrieb Dave Chinner:
-> On Tue, May 31, 2016 at 08:11:42AM +0200, Stefan Priebe - Profihost AG wrote:
->>> I'm half tempted at this point to mostly ignore this mm/ behavour
->>> because we are moving down the path of removing buffer heads from
->>> XFS. That will require us to do different things in ->releasepage
->>> and so just skipping dirty pages in the XFS code is the best thing
->>> to do....
+
+On 06/02/2016 03:02 PM, Alexander Potapenko wrote:
+> On Wed, Jun 1, 2016 at 6:31 PM, Alexander Potapenko <glider@google.com> wrote:
+>> On Wed, Jun 1, 2016 at 5:23 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>>> On 05/31/2016 08:49 PM, Alexander Potapenko wrote:
+>>>> On Tue, May 31, 2016 at 1:52 PM, Andrey Ryabinin
+>>>> <aryabinin@virtuozzo.com> wrote:
+>>>>>
+>>>>>
+>>>>> On 05/31/2016 01:44 PM, Alexander Potapenko wrote:
+>>>>>> Add a special shadow value to distinguish accesses to KASAN-specific
+>>>>>> allocator metadata.
+>>>>>>
+>>>>>> Unlike AddressSanitizer in the userspace, KASAN lets the kernel proceed
+>>>>>> after a memory error. However a write to the kmalloc metadata may cause
+>>>>>> memory corruptions that will make the tool itself unreliable and induce
+>>>>>> crashes later on. Warning about such corruptions will ease the
+>>>>>> debugging.
+>>>>>
+>>>>> It will not. Whether out-of-bounds hits metadata or not is absolutely irrelevant
+>>>>> to the bug itself. This information doesn't help to understand, analyze or fix the bug.
+>>>>>
+>>>> Here's the example that made me think the opposite.
+>>>>
+>>>> I've been reworking KASAN hooks for mempool and added a test that did
+>>>> a write-after-free to an object allocated from a mempool.
+>>>> This resulted in flaky kernel crashes somewhere in quarantine
+>>>> shrinking after several attempts to `insmod test_kasan.ko`.
+>>>> Because there already were numerous KASAN errors in the test, it
+>>>> wasn't evident that the crashes were related to the new test, so I
+>>>> thought the problem was in the buggy quarantine implementation.
+>>>> However the problem was indeed in the new test, which corrupted the
+>>>> quarantine pointer in the object and caused a crash while traversing
+>>>> the quarantine list.
+>>>>
+>>>> My previous experience with userspace ASan shows that crashes in the
+>>>> tool code itself puzzle the developers.
+>>>> As a result, the users think that the tool is broken and don't believe
+>>>> its reports.
+>>>>
+>>>> I first thought about hardening the quarantine list by checksumming
+>>>> the pointers and validating them on each traversal.
+>>>> This prevents the crashes, but doesn't give the users any idea about
+>>>> what went wrong.
+>>>> On the other hand, reporting the pointer corruption right when it happens does.
+>>>> Distinguishing between a regular UAF and a quarantine corruption
+>>>> (which is what the patch in question is about) helps to prioritize the
+>>>> KASAN reports and give the developers better understanding of the
+>>>> consequences.
+>>>>
+>>>
+>>> After the first report we have memory in a corrupted state, so we are done here.
+>> This is theoretically true, that's why we crash after the first report
+>> in the userspace ASan.
+>> But since the kernel proceeds after the first KASAN report, it's
+>> possible that we see several different reports, and they are sometimes
+>> worth looking at.
 >>
->> does this change anything i should test? Or is 4.6 still the way to go?
+>>> Anything that happens after the first report can't be trusted since it can be an after-effect,
+>>> just like in your case. Such crashes are not worthy to look at.
+>>> Out-of-bounds that doesn't hit metadata as any other memory corruption also can lead to after-effects crashes,
+>>> thus distinguishing such bugs doesn't make a lot of sense.
+>> Unlike the crashes in the kernel itself, crashes with KASAN functions
+>> in the stack trace may make the developer think the tool is broken.
+>>>
+>>> test_kasan module is just a quick hack, made only to make sure that KASAN works.
+>>> It does some crappy thing, and may lead to crash as well. So I would recommend an immediate
+>>> reboot even after single attempt to load it.
+>> Agreed. However a plain write into the first byte of the freed object
+>> will cause similar problems.
 > 
-> Doesn't matter now - the warning will still be there on 4.6. I think
-> you can simply ignore it as the XFS code appears to be handling the
-> dirty page that is being passed to it correctly. We'll work out what
-> needs to be done to get rid of the warning for this case, wether it
-> be a mm/ change or an XFS change.
+> On a second thought, we could do without the additional shadow byte
+> value, by just comparing the address to the metadata offset.
+> 
 
-Any idea what i could do with 4.4.X? Can i safely remove the WARN_ONCE
-statement?
-
-Stefan
+We could. But still, there is no point in doing anything like that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
