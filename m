@@ -1,137 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F4946B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 19:15:10 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id di3so70276545pab.0
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 16:15:10 -0700 (PDT)
-Received: from mail-pf0-x22b.google.com (mail-pf0-x22b.google.com. [2607:f8b0:400e:c00::22b])
-        by mx.google.com with ESMTPS id ab11si1460997pac.38.2016.06.02.16.15.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Jun 2016 16:15:09 -0700 (PDT)
-Received: by mail-pf0-x22b.google.com with SMTP id g64so36716986pfb.2
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 16:15:08 -0700 (PDT)
-Subject: Re: [PATCH] mm: check the return value of lookup_page_ext for all
- call sites
-References: <1464023768-31025-1-git-send-email-yang.shi@linaro.org>
- <20160524025811.GA29094@bbox> <20160526003719.GB9661@bbox>
- <8ae0197c-47b7-e5d2-20c3-eb9d01e6b65c@linaro.org>
- <20160527051432.GF2322@bbox> <20160527060839.GC13661@js1304-P5Q-DELUXE>
- <20160527081108.GG2322@bbox>
- <aa33f1e4-5a91-aaaf-70f1-557148b29b38@linaro.org>
- <20160530061117.GB28624@bbox>
- <b8858801-af06-9b80-1b29-f9ece515d1bf@linaro.org>
- <20160602050039.GA3304@bbox>
-From: "Shi, Yang" <yang.shi@linaro.org>
-Message-ID: <aa2d97a8-d90c-9f81-00ee-55aab665a514@linaro.org>
-Date: Thu, 2 Jun 2016 16:15:02 -0700
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D3A346B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 19:23:39 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id s73so78465145pfs.0
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 16:23:39 -0700 (PDT)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id se4si1494370pac.61.2016.06.02.16.23.37
+        for <linux-mm@kvack.org>;
+        Thu, 02 Jun 2016 16:23:38 -0700 (PDT)
+Date: Fri, 3 Jun 2016 09:22:54 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
+Message-ID: <20160602232254.GR12670@dastard>
+References: <20160516231056.GE18496@dastard>
+ <20160517144912.GZ3193@twins.programming.kicks-ass.net>
+ <20160517223549.GV26977@dastard>
+ <20160519081146.GS3193@twins.programming.kicks-ass.net>
+ <20160520001714.GC26977@dastard>
+ <20160601131758.GO26601@dhcp22.suse.cz>
+ <20160601181617.GV3190@twins.programming.kicks-ass.net>
+ <20160602145048.GS1995@dhcp22.suse.cz>
+ <20160602151116.GD3190@twins.programming.kicks-ass.net>
+ <20160602154619.GU1995@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160602050039.GA3304@bbox>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160602154619.GU1995@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On 6/1/2016 10:00 PM, Minchan Kim wrote:
-> On Wed, Jun 01, 2016 at 01:40:48PM -0700, Shi, Yang wrote:
->> On 5/29/2016 11:11 PM, Minchan Kim wrote:
->>> On Fri, May 27, 2016 at 11:16:41AM -0700, Shi, Yang wrote:
->>>
->>> <snip>
->>>
->>>>>
->>>>> If we goes this way, how to guarantee this race?
->>>>
->>>> Thanks for pointing out this. It sounds reasonable. However, this
->>>> should be only possible to happen on 32 bit since just 32 bit
->>>> version page_is_idle() calls lookup_page_ext(), it doesn't do it on
->>>> 64 bit.
->>>>
->>>> And, such race condition should exist regardless of whether DEBUG_VM
->>>> is enabled or not, right?
->>>>
->>>> rcu might be good enough to protect it.
->>>>
->>>> A quick fix may look like:
->>>>
->>>> diff --git a/include/linux/page_idle.h b/include/linux/page_idle.h
->>>> index 8f5d4ad..bf0cd6a 100644
->>>> --- a/include/linux/page_idle.h
->>>> +++ b/include/linux/page_idle.h
->>>> @@ -77,8 +77,12 @@ static inline bool
->>>> test_and_clear_page_young(struct page *page)
->>>> static inline bool page_is_idle(struct page *page)
->>>> {
->>>>        struct page_ext *page_ext;
->>>> +
->>>> +       rcu_read_lock();
->>>>        page_ext = lookup_page_ext(page);
->>>> +       rcu_read_unlock();
->>>> +
->>>> 	if (unlikely(!page_ext))
->>>>                return false;
->>>>
->>>> diff --git a/mm/page_ext.c b/mm/page_ext.c
->>>> index 56b160f..94927c9 100644
->>>> --- a/mm/page_ext.c
->>>> +++ b/mm/page_ext.c
->>>> @@ -183,7 +183,6 @@ struct page_ext *lookup_page_ext(struct page *page)
->>>> {
->>>>        unsigned long pfn = page_to_pfn(page);
->>>>        struct mem_section *section = __pfn_to_section(pfn);
->>>> -#if defined(CONFIG_DEBUG_VM) || defined(CONFIG_PAGE_POISONING)
->>>>        /*
->>>>         * The sanity checks the page allocator does upon freeing a
->>>>         * page can reach here before the page_ext arrays are
->>>> @@ -195,7 +194,7 @@ struct page_ext *lookup_page_ext(struct page *page)
->>>>         */
->>>>        if (!section->page_ext)
->>>>                return NULL;
->>>> -#endif
->>>> +
->>>>        return section->page_ext + pfn;
->>>> }
->>>>
->>>> @@ -279,7 +278,8 @@ static void __free_page_ext(unsigned long pfn)
->>>>                return;
->>>>        base = ms->page_ext + pfn;
->>>>        free_page_ext(base);
->>>> -       ms->page_ext = NULL;
->>>> +       rcu_assign_pointer(ms->page_ext, NULL);
->>>> +       synchronize_rcu();
->>>
->>> How does it fix the problem?
->>> I cannot understand your point.
->>
->> Assigning NULL pointer to page_Ext will be blocked until
->> rcu_read_lock critical section is done, so the lookup and writing
->> operations will be serialized. And, rcu_read_lock disables preempt
->> too.
+On Thu, Jun 02, 2016 at 05:46:19PM +0200, Michal Hocko wrote:
+> On Thu 02-06-16 17:11:16, Peter Zijlstra wrote:
+> > With scope I mostly meant the fact that you have two calls that you need
+> > to pair up. That's not really nice as you can 'annotate' a _lot_ of code
+> > in between. I prefer the narrower annotations where you annotate a
+> > single specific site.
+> 
+> Yes, I can see you point. What I meant to say is that we would most
+> probably end up with the following pattern
+> 	lockdep_trace_alloc_enable()
+> 	some_foo_with_alloc(gfp_mask);
+> 	lockdep_trace_alloc_disable()
 >
-> I meant your rcu_read_lock in page_idle should cover test_bit op.
+> and some_foo_with_alloc might be a lot of code.
 
-Yes, definitely. Thanks for catching it.
+That's the problem I see with this - the only way to make it
+maintainable is to precede each enable/disable() pair with a comment
+explaining *exactly* what those calls are protecting.  And that, in
+itself, becomes a maintenance problem, because then code several
+layers deep has no idea what context it is being called from and we
+are likely to disable warnings in contexts where we probably
+shouldn't be.
 
-> One more thing, you should use rcu_dereference.
+I think such an annotation approach really requires per-alloc site
+annotation, the reason for it should be more obvious from the
+context. e.g. any function that does memory alloc and takes an
+optional transaction context needs annotation. Hence, from an XFS
+perspective, I think it makes more sense to add a new KM_ flag to
+indicate this call site requirement, then jump through whatever
+lockdep hoop is required within the kmem_* allocation wrappers.
+e.g, we can ignore the new KM_* flag if we are in a transaction
+context and so the flag is only activated in the situations were
+we currently enforce an external GFP_NOFS context from the call
+site.....
 
-I will check which one is the best since I saw some use rcu_assign_pointer.
+Cheers,
 
->
-> As well, please cover memory onlining case I mentioned in another
-> thread as well as memory offlining.
-
-I will look into it too.
-
-Thanks,
-Yang
-
->
-> Anyway, to me, every caller of page_ext should prepare lookup_page_ext
-> can return NULL anytime and they should use rcu_read_[un]lock, which
-> is not good. :(
->
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
