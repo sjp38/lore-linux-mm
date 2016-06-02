@@ -1,77 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9611F6B007E
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 21:49:40 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id 85so55163889ioq.3
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 18:49:40 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id c74si19102365ioe.176.2016.06.01.18.49.38
-        for <linux-mm@kvack.org>;
-        Wed, 01 Jun 2016 18:49:39 -0700 (PDT)
-Date: Thu, 2 Jun 2016 10:50:59 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC 02/13] mm, page_alloc: set alloc_flags only once in slowpath
-Message-ID: <20160602015059.GA9133@js1304-P5Q-DELUXE>
-References: <1462865763-22084-1-git-send-email-vbabka@suse.cz>
- <1462865763-22084-3-git-send-email-vbabka@suse.cz>
- <201605102028.AAC26596.SMHOQOtLOFFFVJ@I-love.SAKURA.ne.jp>
- <5731D453.8050104@suse.cz>
- <20160531062057.GA30967@js1304-P5Q-DELUXE>
- <354b700b-0dee-32a8-2ee6-17a78ba299b8@suse.cz>
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DE7A6B0253
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 21:50:47 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id fg1so28606306pad.1
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 18:50:47 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id r64si54607313pfj.240.2016.06.01.18.50.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Jun 2016 18:50:46 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id f144so5991749pfa.2
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 18:50:46 -0700 (PDT)
+Date: Thu, 2 Jun 2016 10:48:35 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: [linux-next: Tree for Jun 1] __khugepaged_exit
+ rwsem_down_write_failed lockup
+Message-ID: <20160602014835.GA635@swordfish>
+References: <20160601131122.7dbb0a65@canb.auug.org.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <354b700b-0dee-32a8-2ee6-17a78ba299b8@suse.cz>
+In-Reply-To: <20160601131122.7dbb0a65@canb.auug.org.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, riel@redhat.com, rientjes@google.com, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, May 31, 2016 at 09:59:36AM +0200, Vlastimil Babka wrote:
-> On 05/31/2016 08:20 AM, Joonsoo Kim wrote:
-> >>>From 68f09f1d4381c7451238b4575557580380d8bf30 Mon Sep 17 00:00:00 2001
-> >>From: Vlastimil Babka <vbabka@suse.cz>
-> >>Date: Fri, 29 Apr 2016 11:51:17 +0200
-> >>Subject: [RFC 02/13] mm, page_alloc: set alloc_flags only once in slowpath
-> >>
-> >>In __alloc_pages_slowpath(), alloc_flags doesn't change after it's initialized,
-> >>so move the initialization above the retry: label. Also make the comment above
-> >>the initialization more descriptive.
-> >>
-> >>The only exception in the alloc_flags being constant is ALLOC_NO_WATERMARKS,
-> >>which may change due to TIF_MEMDIE being set on the allocating thread. We can
-> >>fix this, and make the code simpler and a bit more effective at the same time,
-> >>by moving the part that determines ALLOC_NO_WATERMARKS from
-> >>gfp_to_alloc_flags() to gfp_pfmemalloc_allowed(). This means we don't have to
-> >>mask out ALLOC_NO_WATERMARKS in several places in __alloc_pages_slowpath()
-> >>anymore.  The only test for the flag can instead call gfp_pfmemalloc_allowed().
-> >
-> >Your patch looks correct to me but it makes me wonder something.
-> >Why do we need to mask out ALLOC_NO_WATERMARKS in several places? If
-> >some requestors have ALLOC_NO_WATERMARKS flag, he will
-> >eventually do ALLOC_NO_WATERMARKS allocation in retry loop. I don't
-> >understand what's the merit of masking out it.
+On (06/01/16 13:11), Stephen Rothwell wrote:
+> Hi all,
 > 
-> I can think of a reason. If e.g. reclaim makes free pages above
-> watermark in the 4th zone in the zonelist, we would like the
-> subsequent get_page_from_freelist() to succeed in that 4th zone.
-> Passing ALLOC_NO_WATERMARKS there would likely succeed in the first
-> zone, needlessly below the watermark.
+> Changes since 20160531:
+> 
+> My fixes tree contains:
+> 
+>   of: silence warnings due to max() usage
+> 
+> The arm tree gained a conflict against Linus' tree.
+> 
+> Non-merge commits (relative to Linus' tree): 1100
+>  936 files changed, 38159 insertions(+), 17475 deletions(-)
 
-Hmm... it's intent would be like as your guess but I think that it's
-not correct. There would be not much disadvantage even if we allocate the
-freepage from 1st zone where watermark is unmet, since 1st zone would
-be higher zone than 4th zone and who can utilize higher zone can
-utilize lower zone. There are many corner case handlings and we can't
-be sure that we would eventually do the ALLOC_NO_WATERMARKS allocation
-attempt again. And, ALLOC_NO_WATERMARKS means that it is a very
-importatn task so we need to make it successful as fast as possible. I
-think that allowing ALLOC_NO_WATERMARKS as much as possible is better.
+Hello,
 
-So, IMO, keeping ALLOC_NO_WATERMARKS in alloc_flags and don't mask out it
-as much as possible would be a way to go.
+the cc1 process ended up in DN state during kernel -j4 compilation.
 
-Thanks.
+...
+[ 2856.323052] INFO: task cc1:4582 blocked for more than 21 seconds.
+[ 2856.323055]       Not tainted 4.7.0-rc1-next-20160601-dbg-00012-g52c180e-dirty #453
+[ 2856.323056] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[ 2856.323059] cc1             D ffff880057e9fd78     0  4582   4575 0x00000000
+[ 2856.323062]  ffff880057e9fd78 ffff880057e08000 ffff880057e9fd90 ffff880057ea0000
+[ 2856.323065]  ffff88005dc3dc68 ffffffff00000001 ffff880057e09500 ffff88005dc3dc80
+[ 2856.323067]  ffff880057e9fd90 ffffffff81441e33 ffff88005dc3dc68 ffff880057e9fe00
+[ 2856.323068] Call Trace:
+[ 2856.323074]  [<ffffffff81441e33>] schedule+0x83/0x98
+[ 2856.323077]  [<ffffffff81443d9b>] rwsem_down_write_failed+0x18e/0x1d3
+[ 2856.323080]  [<ffffffff810a87cf>] ? unlock_page+0x2b/0x2d
+[ 2856.323083]  [<ffffffff811bdb77>] call_rwsem_down_write_failed+0x17/0x30
+[ 2856.323084]  [<ffffffff811bdb77>] ? call_rwsem_down_write_failed+0x17/0x30
+[ 2856.323086]  [<ffffffff81443630>] down_write+0x1f/0x2e
+[ 2856.323089]  [<ffffffff810ea4f3>] __khugepaged_exit+0x104/0x11a
+[ 2856.323091]  [<ffffffff8103702a>] mmput+0x29/0xc5
+[ 2856.323093]  [<ffffffff8103bbd8>] do_exit+0x34c/0x894
+[ 2856.323095]  [<ffffffff8102f9e0>] ? __do_page_fault+0x2f7/0x399
+[ 2856.323097]  [<ffffffff8103c188>] do_group_exit+0x3c/0x98
+[ 2856.323099]  [<ffffffff8103c1f3>] SyS_exit_group+0xf/0xf
+[ 2856.323101]  [<ffffffff81444cdb>] entry_SYSCALL_64_fastpath+0x13/0x8f
+
+[ 2877.322853] INFO: task cc1:4582 blocked for more than 21 seconds.
+[ 2877.322858]       Not tainted 4.7.0-rc1-next-20160601-dbg-00012-g52c180e-dirty #453
+[ 2877.322858] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[ 2877.322861] cc1             D ffff880057e9fd78     0  4582   4575 0x00000000
+[ 2877.322865]  ffff880057e9fd78 ffff880057e08000 ffff880057e9fd90 ffff880057ea0000
+[ 2877.322867]  ffff88005dc3dc68 ffffffff00000001 ffff880057e09500 ffff88005dc3dc80
+[ 2877.322867]  ffff880057e9fd90 ffffffff81441e33 ffff88005dc3dc68 ffff880057e9fe00
+[ 2877.322870] Call Trace:
+[ 2877.322875]  [<ffffffff81441e33>] schedule+0x83/0x98
+[ 2877.322878]  [<ffffffff81443d9b>] rwsem_down_write_failed+0x18e/0x1d3
+[ 2877.322881]  [<ffffffff810a87cf>] ? unlock_page+0x2b/0x2d
+[ 2877.322884]  [<ffffffff811bdb77>] call_rwsem_down_write_failed+0x17/0x30
+[ 2877.322885]  [<ffffffff811bdb77>] ? call_rwsem_down_write_failed+0x17/0x30
+[ 2877.322887]  [<ffffffff81443630>] down_write+0x1f/0x2e
+[ 2877.322890]  [<ffffffff810ea4f3>] __khugepaged_exit+0x104/0x11a
+[ 2877.322892]  [<ffffffff8103702a>] mmput+0x29/0xc5
+[ 2877.322894]  [<ffffffff8103bbd8>] do_exit+0x34c/0x894
+[ 2877.322896]  [<ffffffff8102f9e0>] ? __do_page_fault+0x2f7/0x399
+[ 2877.322898]  [<ffffffff8103c188>] do_group_exit+0x3c/0x98
+[ 2877.322900]  [<ffffffff8103c1f3>] SyS_exit_group+0xf/0xf
+[ 2877.322902]  [<ffffffff81444cdb>] entry_SYSCALL_64_fastpath+0x13/0x8f
+...
+
+ps aux | grep cc1
+ss        4582  0.0  0.0      0     0 pts/23   DN+  10:10   0:01 [cc1]
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
