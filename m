@@ -1,139 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B9C246B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 11:11:53 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id q17so25560458lbn.3
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 08:11:53 -0700 (PDT)
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id bn6si1302987wjb.32.2016.06.02.08.11.51
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BF5326B0005
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 11:21:49 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id w16so25662953lfd.0
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 08:21:49 -0700 (PDT)
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
+        by mx.google.com with ESMTPS id p10si1345585wjp.70.2016.06.02.08.21.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Jun 2016 08:11:51 -0700 (PDT)
-Received: by mail-wm0-f51.google.com with SMTP id z87so73734993wmh.0
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 08:11:51 -0700 (PDT)
-Date: Thu, 2 Jun 2016 17:11:49 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: zone_reclaimable() leads to livelock in __alloc_pages_slowpath()
-Message-ID: <20160602151149.GT1995@dhcp22.suse.cz>
-References: <20160523072904.GC2278@dhcp22.suse.cz>
- <20160523151419.GA8284@redhat.com>
- <20160524071619.GB8259@dhcp22.suse.cz>
- <20160524224341.GA11961@redhat.com>
- <20160525120957.GH20132@dhcp22.suse.cz>
- <20160529212540.GA15180@redhat.com>
- <20160531125253.GK26128@dhcp22.suse.cz>
- <20160531235626.GA24319@redhat.com>
- <20160601100020.GK26601@dhcp22.suse.cz>
- <20160601213829.GA16808@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160601213829.GA16808@redhat.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 02 Jun 2016 08:21:48 -0700 (PDT)
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Thu, 2 Jun 2016 16:21:47 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id D52441B0806E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 16:22:46 +0100 (BST)
+Received: from d06av08.portsmouth.uk.ibm.com (d06av08.portsmouth.uk.ibm.com [9.149.37.249])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u52FLhJs2949558
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2016 15:21:43 GMT
+Received: from d06av08.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av08.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u52FLgiw021942
+	for <linux-mm@kvack.org>; Thu, 2 Jun 2016 09:21:43 -0600
+Date: Thu, 2 Jun 2016 17:21:41 +0200
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Subject: [BUG/REGRESSION] THP: broken page count after commit aa88b68c
+Message-ID: <20160602172141.75c006a9@thinkpad>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christian Borntraeger <borntraeger@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
 
-On Wed 01-06-16 23:38:30, Oleg Nesterov wrote:
-> On 06/01, Michal Hocko wrote:
-> >
-> > On Wed 01-06-16 01:56:26, Oleg Nesterov wrote:
-> > > On 05/31, Michal Hocko wrote:
-> > > >
-> > > > On Sun 29-05-16 23:25:40, Oleg Nesterov wrote:
-> > > > >
-> > > > > This single change in get_scan_count() under for_each_evictable_lru() loop
-> > > > >
-> > > > > 	-	size = lruvec_lru_size(lruvec, lru);
-> > > > > 	+	size = zone_page_state_snapshot(lruvec_zone(lruvec), NR_LRU_BASE + lru);
-> > > > >
-> > > > > fixes the problem too.
-> > > > >
-> > > > > Without this change shrink*() continues to scan the LRU_ACTIVE_FILE list
-> > > > > while it is empty. LRU_INACTIVE_FILE is not empty (just a few pages) but
-> > > > > we do not even try to scan it, lruvec_lru_size() returns zero.
-> > > >
-> > > > OK, you seem to be really seeing a different issue than me.
-> > >
-> > > quite possibly, but
-> > >
-> > > > My debugging
-> > > > patch was showing when nothing was really isolated from the LRU lists
-> > > > (both for shrink_{in}active_list.
-> > >
-> > > in my debugging session too. LRU_ACTIVE_FILE was empty, so there is nothing to
-> > > isolate even if shrink_active_list() is (wrongly called) with nr_to_scan != 0.
-> > > LRU_INACTIVE_FILE is not empty but it is not scanned because nr_to_scan == 0.
-> > >
-> > > But I am afraid I misunderstood you, and you meant something else.
-> >
-> > What I wanted to say is that my debugging hasn't shown a single case
-> > when nothing would be isolated. Which seems to be the case for you.
-> 
-> Ah, got it, thanks. Yes, I see that there is no "nothing scanned" in
-> oom-test.qcow_serial.log.gz from http://marc.info/?l=linux-kernel&m=146417822608902
-> you sent. I applied this patch and I do see "nothing scanned".
-> 
-> But, unlike you, I do not see the messages from free-pages... perhaps you
-> have more active tasks. To remind, I tested this with the single user-space
-> process, /bin/sh running with pid==1, then I did "while true; do ./oom; done".
+Christian Borntraeger reported a kernel panic after corrupt page counts,
+and it turned out to be a regression introduced with commit aa88b68c
+"thp: keep huge zero page pinned until tlb flush", at least on s390.
 
-Well, I was booting into a standard init which will have a couple of
-processes. So yes this would make a slight difference.
+put_huge_zero_page() was moved over from zap_huge_pmd() to release_pages(),
+and it was replaced by tlb_remove_page(). However, release_pages() might
+not always be triggered by (the arch-specific) tlb_remove_page().
+
+On s390 we call free_page_and_swap_cache() from tlb_remove_page(), and not
+tlb_flush_mmu() -> free_pages_and_swap_cache() like the generic version,
+because we don't use the MMU-gather logic. Although both functions have very
+similar names, they are doing very unsimilar things, in particular
+free_page_xxx is just doing a put_page(), while free_pages_xxx calls
+release_pages().
+
+This of course results in very harmful put_page()s on the huge zero page,
+on architectures where tlb_remove_page() is implemented in this way. It
+seems to affect only s390 and sh, but sh doesn't have THP support, so
+the problem (currently) probably only exists on s390.
+
+The following quick hack fixed the issue:
+
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 0d457e7..c99463a 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -252,7 +252,10 @@ static inline void free_swap_cache(struct page *page)
+ void free_page_and_swap_cache(struct page *page)
+ {
+ 	free_swap_cache(page);
+-	put_page(page);
++	if (is_huge_zero_page(page))
++		put_huge_zero_page();
++	else
++		put_page(page);
+ }
  
-> So of course I do not know if you see another issue or the same, but now I am
-> wondering if the change in get_scan_count() above fixes the problem for you.
+ /*
 
-I have played with it but the interfering freed pages just ruined the
-whole zone_reclaimable expectations.
- 
-> Probably not, but the fact you do not see "nothing scanned" can't prove this,
-> it is possible that shrink_*_list() was not called because vm_stat == 0 but
-> zone_reclaimable() sees the per-cpu counter. In this case 0db2cb8da89d can
-> make a difference, but see below.
-> 
-> > > > But I am thinking whether we should simply revert 0db2cb8da89d ("mm,
-> > > > vmscan: make zone_reclaimable_pages more precise") in 4.6 stable tree.
-> > > > Does that help as well?
-> > >
-> > > I'll test this tomorrow,
-> 
-> So it doesn't help.
+But of course there might be a better solution, and there still are some
+questions left:
+- Why does free_page_xxx() behave so differently from free_pages_xxx()?
+- Would it be OK to implement free_page_xxx() by calling free_pages_xxx()
+  with nr = 1, similar to free_page() vs. free_pages()?
+- Would it be OK to replace the put_page() in free_page_xxx() with a call
+  to release_pages() with nr = 1?
+- Would it be better to fix this in the arch-specific tlb_remove_page(),
+  by calling free_pages_xxx() with nr = 1 instead of free_page_xxx()?
 
-OK, so we at least know this is not a regression.
-
-> > but even if it helps I am not sure... Yes, this
-> > > way zone_reclaimable() and get_scan_count() will see the same numbers, but
-> > > how this can help to make zone_reclaimable() == F at the end?
-> >
-> > It won't in some cases.
-> 
-> And unless I am notally confused  hit exactly this case.
-> 
-> > And that has been the case for ages so I do not
-> > think we need any steps for the stable.
-> 
-> OK, agreed.
-> 
-> > What meant to address is a
-> > potential regression caused by 0db2cb8da89d which would make this more
-> > likely because of the mismatch
-> 
-> Again, I can be easily wrong, but I do not see how 0db2cb8da89d could make
-> the things worse...
-> 
-> Unless both get_scan_count() and zone_reclaimable() use "snapshot" variant,
-> we can't guarantee zone_reclaimable() becomes false. The fact that they see
-> different numbers (after 0db2cb8da89d) doesn't really matter.
-> 
-> Anyway, this was already fixed, so lets forget it ;)
-
-Yes, especially as this doesn't seem to be a regression.
-
-Thanks for your effort anyway.
--- 
-Michal Hocko
-SUSE Labs
+Regards,
+Gerald
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
