@@ -1,57 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F07A96B007E
-	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 20:35:45 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g64so29800613pfb.2
-        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 17:35:45 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id b6si32592406pfk.87.2016.06.01.17.35.44
-        for <linux-mm@kvack.org>;
-        Wed, 01 Jun 2016 17:35:45 -0700 (PDT)
-Date: Thu, 2 Jun 2016 09:36:27 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v7 00/12] Support non-lru page migration
-Message-ID: <20160602003627.GC1736@bbox>
-References: <1464736881-24886-1-git-send-email-minchan@kernel.org>
- <20160601144151.c9e5c560be29cae9a3ff1f1e@linux-foundation.org>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B3CEE6B007E
+	for <linux-mm@kvack.org>; Wed,  1 Jun 2016 20:43:04 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id h144so75219733ita.1
+        for <linux-mm@kvack.org>; Wed, 01 Jun 2016 17:43:04 -0700 (PDT)
+Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
+        by mx.google.com with ESMTPS id s205si4948209oif.23.2016.06.01.17.43.03
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Jun 2016 17:43:04 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v1] mm: thp: check pmd_trans_unstable() after
+ split_huge_pmd()
+Date: Thu, 2 Jun 2016 00:37:03 +0000
+Message-ID: <20160602003702.GA18004@hori1.linux.bs1.fc.nec.co.jp>
+References: <1464741400-12143-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20160601093957.GA8493@node.shutemov.name>
+In-Reply-To: <20160601093957.GA8493@node.shutemov.name>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <E63B24DCDC0043479ECFD37B28B750F7@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20160601144151.c9e5c560be29cae9a3ff1f1e@linux-foundation.org>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, dri-devel@lists.freedesktop.org, Hugh Dickins <hughd@google.com>, John Einar Reitan <john.reitan@foss.arm.com>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Aquini <aquini@redhat.com>, Rik van Riel <riel@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, virtualization@lists.linux-foundation.org, Gioh Kim <gi-oh.kim@profitbricks.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Sangseok Lee <sangseok.lee@lge.com>, Kyeongdon Kim <kyeongdon.kim@lge.com>, Chulmin Kim <cmlaika.kim@samsung.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Wed, Jun 01, 2016 at 02:41:51PM -0700, Andrew Morton wrote:
-> On Wed,  1 Jun 2016 08:21:09 +0900 Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > Recently, I got many reports about perfermance degradation in embedded
-> > system(Android mobile phone, webOS TV and so on) and easy fork fail.
-> > 
-> > The problem was fragmentation caused by zram and GPU driver mainly.
-> > With memory pressure, their pages were spread out all of pageblock and
-> > it cannot be migrated with current compaction algorithm which supports
-> > only LRU pages. In the end, compaction cannot work well so reclaimer
-> > shrinks all of working set pages. It made system very slow and even to
-> > fail to fork easily which requires order-[2 or 3] allocations.
-> > 
-> > Other pain point is that they cannot use CMA memory space so when OOM
-> > kill happens, I can see many free pages in CMA area, which is not
-> > memory efficient. In our product which has big CMA memory, it reclaims
-> > zones too exccessively to allocate GPU and zram page although there are
-> > lots of free space in CMA so system becomes very slow easily.
-> 
-> But this isn't presently implemented for GPU drivers or for CMA, yes?
+On Wed, Jun 01, 2016 at 12:39:57PM +0300, Kirill A. Shutemov wrote:
+> On Wed, Jun 01, 2016 at 09:36:40AM +0900, Naoya Horiguchi wrote:
+> > split_huge_pmd() doesn't guarantee that the pmd is normal pmd pointing =
+to
+> > pte entries, which can be checked with pmd_trans_unstable().
+>=20
+> Could you be more specific on when we don't have normal ptes after
+> split_huge_pmd? Race with other thread? DAX?
 
-For GPU driver, Gioh implemented but it was proprietary so couldn't
-contribute.
+Actually I don't have any such specific case in mind.
+__split_huge_pmd could skip real split code. In most case the skip happens
+when the pmd is already split and pointing to normal ptes, and I'm not sure
+when the pmd could be none or bad ...
 
-For CMA, [zram: use __GFP_MOVABLE for memory allocation] added __GFP_MOVABLE
-for zsmalloc page allocation so it can use CMA area automatically now.
+So my above description seems misstatement, I should say "some caller does
+assertion and some does differently and some not, so let's do it in unified
+manner".
 
-> 
-> What's the story there?
+- Naoya
+
+>
+> I guess we can modify split_huge_pmd() to return if the pmd was split or
+> not.=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
