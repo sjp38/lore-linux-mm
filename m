@@ -1,120 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 142D66B0267
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 05:17:14 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e3so38460054wme.3
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:17:14 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id v9si6396227wjw.43.2016.06.03.02.16.57
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 65AB36B007E
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 05:53:48 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f75so39026557wmf.2
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:53:48 -0700 (PDT)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id e137si55972038wmf.46.2016.06.03.02.53.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jun 2016 02:16:57 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id a20so10498300wma.3
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:16:57 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 10/10] mm, oom: hide mm which is shared with kthread or global init
-Date: Fri,  3 Jun 2016 11:16:44 +0200
-Message-Id: <1464945404-30157-11-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
-References: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
+        Fri, 03 Jun 2016 02:53:47 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 733FF1C3263
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 10:53:46 +0100 (IST)
+Date: Fri, 3 Jun 2016 10:53:44 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [BUG] Page allocation failures with newest kernels
+Message-ID: <20160603095344.GZ2527@techsingularity.net>
+References: <CAPv3WKcVsWBgHHC3UPNcbka2JUmN4CTw1Ym4BR1=1V9=B9av5Q@mail.gmail.com>
+ <574D64A0.2070207@arm.com>
+ <CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
+ <60e8df74202e40b28a4d53dbc7fd0b22@IL-EXCH02.marvell.com>
+ <20160531131520.GI24936@arm.com>
+ <CAPv3WKftqsEXbdU-geAcUKXBSskhA0V72N61a1a+5DfahLK_Dg@mail.gmail.com>
+ <20160602135226.GX2527@techsingularity.net>
+ <CAPv3WKd8Zdcv5nhr2euN7L4W5JYLex_Hmn+9AVd6reyD-Vw4kg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAPv3WKd8Zdcv5nhr2euN7L4W5JYLex_Hmn+9AVd6reyD-Vw4kg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Marcin Wojtas <mw@semihalf.com>
+Cc: Will Deacon <will.deacon@arm.com>, Yehuda Yitschak <yehuday@marvell.com>, Robin Murphy <robin.murphy@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Lior Amsalem <alior@marvell.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>, Grzegorz Jaszczyk <jaz@semihalf.com>, Nadav Haklai <nadavh@marvell.com>, Tomasz Nowicki <tn@semihalf.com>, Gregory =?iso-8859-15?Q?Cl=E9ment?= <gregory.clement@free-electrons.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On Thu, Jun 02, 2016 at 09:01:55PM +0200, Marcin Wojtas wrote:
+> >> From what I understood, now order-0 allocation keep no reserve at all.
+> >
+> > Watermarks should still be preserved. zone_watermark_ok is still there.
+> > What might change is the size of reserves for high-order atomic
+> > allocations only. Fragmentation shouldn't be a factor. I'm missing some
+> > major part of the picture.
+> >
+> 
+> I CC'ed you in the last email, as I found out your authorship of
+> interesting patches - please see problem description
+> https://lkml.org/lkml/2016/5/30/1056
+> 
+> Anyway when using v4.4.8 baseline, after reverting below patches:
+> 97a16fc - mm, page_alloc: only enforce watermarks for order-0 allocations
+> 0aaa29a - mm, page_alloc: reserve pageblocks for high-order atomic
+> allocations on demand
+> 974a786 - mm, page_alloc: remove MIGRATE_RESERVE
+> + adding early_page_nid_uninitialised() modification
+> 
 
-The only case where the oom_reaper is not triggered for the oom victim
-is when it shares the memory with a kernel thread (aka use_mm) or with
-the global init. After "mm, oom: skip vforked tasks from being selected"
-the victim cannot be a vforked task of the global init so we are left
-with clone(CLONE_VM) (without CLONE_THREAD or CLONE_SIGHAND). use_mm users
-are quite rare as well. In order to guarantee a forward progress for the
-OOM killer make sure that this really rare cases will not get into the
-way and hide the mm from the oom killer by setting MMF_OOM_REAPED flag
-for it.
+The early_page check is wrong because of the check itself rather than
+the function so that was the bug there.
 
-We cannot keep the TIF_MEMDIE for the victim so let's simply wait for a
-while and then drop the flag for all victims except for the current task
-which is guaranteed to be in the allocation path already and should be
-able to use the memory reserve right away.
+> I stop receiving page alloc fail dumps like this one
+> http://pastebin.com/FhRW5DsF, also performance in my test looks very
+> similar. I'd like to understand this phenomenon and check if it's
+> possible to avoid such page-alloc-fail hickups in a nice way.
+> Afterwards, once the dumps finish, the kernel remain stable, but is
+> such behavior expected and intended?
+> 
 
-If the victim cannot terminate by then simply risk another oom victim
-selection. Note that oom_scan_process_thread has to learn about this as
-well and ignore the TIF_MEMDIE on the current task because memory reserve
-might be already depleted and go on to other potential victims is the
-only way forward. We could eventually panic if none of that helped and
-there is no further victim left.
+Looking at the pastebin, the page allocation failure appears to be partially
+due to CMA. If the free_cma pages are substracted from the free pages then
+it's very close to the low watermark. I suspect kswapd was already active
+but it had not acted in time to prevent the first allocation. The impact
+of MIGRATE_RESERVE was to give a larger window for kswapd to do work in
+but it's a co-incidence. By relying on it for an order-0 allocation it
+would fragment that area which in your particular case may not matter but
+actually violates what MIGRATE_RESERVE was for.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/oom_kill.c | 33 ++++++++++++++++++++++++++++-----
- 1 file changed, 28 insertions(+), 5 deletions(-)
+> For the record: the newest kernel I was able to reproduce the dumps
+> was v4.6: http://pastebin.com/ekDdACn5. I've just checked v4.7-rc1,
+> which comprise a lot (mainly yours) changes in mm, and I'm wondering
+> if there may be a spot fix or rather a series of improvements. I'm
+> looking forward to your opinion and would be grateful for any advice.
+> 
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 9a5cc12a479a..3a3b136ee9db 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -283,10 +283,19 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
- 
- 	/*
- 	 * This task already has access to memory reserves and is being killed.
--	 * Don't allow any other task to have access to the reserves.
-+	 * Don't allow any other task to have access to the reserves unless
-+	 * this is a current task which is clearly in the allocation path and
-+	 * the access to memory reserves didn't help so we should rather try
-+	 * to kill somebody else or panic on no oom victim than loop with no way
-+	 * forward. Go with OOM_SCAN_OK rather than OOM_SCAN_CONTINUE to double
-+	 * check MMF_OOM_REAPED in oom_badness() to make sure we've done
-+	 * everything to reclaim memory.
- 	 */
--	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims))
--		return OOM_SCAN_ABORT;
-+	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims)) {
-+		if (task != current)
-+			return OOM_SCAN_ABORT;
-+		return OOM_SCAN_OK;
-+	}
- 
- 	/*
- 	 * If task is allocating a lot of memory and has been marked to be
-@@ -908,9 +917,14 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 			/*
- 			 * We cannot use oom_reaper for the mm shared by this
- 			 * process because it wouldn't get killed and so the
--			 * memory might be still used.
-+			 * memory might be still used. Hide the mm from the oom
-+			 * killer to guarantee OOM forward progress.
- 			 */
- 			can_oom_reap = false;
-+			set_bit(MMF_OOM_REAPED, &mm->flags);
-+			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
-+					task_pid_nr(victim), victim->comm,
-+					task_pid_nr(p), p->comm);
- 			continue;
- 		}
- 		if (p->signal->oom_score_adj == OOM_ADJUST_MIN)
-@@ -922,8 +936,17 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	}
- 	rcu_read_unlock();
- 
--	if (can_oom_reap)
-+	if (can_oom_reap) {
- 		wake_oom_reaper(victim);
-+	} else if (victim != current) {
-+		/*
-+		 * If we want to guarantee a forward progress we cannot keep
-+		 * the oom victim TIF_MEMDIE here. Sleep for a while and then
-+		 * drop the flag to make sure another victim can be selected.
-+		 */
-+		schedule_timeout_killable(HZ);
-+		exit_oom_victim(victim);
-+	}
- 
- 	mmdrop(mm);
- 	put_task_struct(victim);
+I don't believe we want to reintroduce the reserve to cope with CMA. One
+option would be to widen the gap between low and min watermark by the
+size of the CMA region. The effect would be to wake kswapd earlier which
+matters considering the context of the failing allocation was
+GFP_ATOMIC.
+
+The GFP_ATOMIC itself is interesting. If I'm reading this correctly,
+scsi_get_cmd_from_req() was called from scsi_prep() where it was passing
+in GFP_ATOMIC but in the page allocation failure, __GFP_ATOMIC is not
+set. It would be worth chasing down if the allocation site really was
+GFP_ATOMIC and if so, isolate what stripped that flag and see if it was
+a mistake.
+
 -- 
-2.8.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
