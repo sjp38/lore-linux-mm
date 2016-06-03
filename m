@@ -1,76 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A412E6B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 20:26:23 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id t7so168579740vkf.2
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 17:26:23 -0700 (PDT)
-Received: from mail-vk0-x244.google.com (mail-vk0-x244.google.com. [2607:f8b0:400c:c05::244])
-        by mx.google.com with ESMTPS id y193si377119vke.10.2016.06.02.17.26.22
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 146F86B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 20:48:50 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id s73so81289351pfs.0
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 17:48:50 -0700 (PDT)
+Received: from smtpbgsg2.qq.com (smtpbgsg2.qq.com. [54.254.200.128])
+        by mx.google.com with ESMTPS id zh6si1937232pab.23.2016.06.02.17.48.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Jun 2016 17:26:22 -0700 (PDT)
-Received: by mail-vk0-x244.google.com with SMTP id c189so11052363vkb.3
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 17:26:22 -0700 (PDT)
-Subject: Re: [PATCH 5/8] x86, pkeys: allocation/free syscalls
-References: <20160531152814.36E0B9EE@viggo.jf.intel.com>
- <20160531152822.FE8D405E@viggo.jf.intel.com>
- <20160601123705.72a606e7@lwn.net> <574F386A.8070106@sr71.net>
- <CAKgNAkiyD_2tAxrBxirxViViMUsfLRRqQp5HowM58dG21LAa7Q@mail.gmail.com>
- <574F7B16.4080906@sr71.net>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Message-ID: <5499ff55-ae0f-e54c-05fd-b1e76dc05a89@gmail.com>
-Date: Thu, 2 Jun 2016 19:26:03 -0500
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 02 Jun 2016 17:48:49 -0700 (PDT)
+Subject: Re: [PATCH] mm: Introduce dedicated WQ_MEM_RECLAIM workqueue to do
+ lru_add_drain_all
+References: <1464853731-8599-1-git-send-email-shhuiw@foxmail.com>
+ <20160602143925.GJ14868@mtj.duckdns.org>
+From: Wang Sheng-Hui <shhuiw@foxmail.com>
+Message-ID: <d9b1b94a-8244-432b-5509-1d742e4fd4b7@foxmail.com>
+Date: Fri, 3 Jun 2016 08:48:37 +0800
 MIME-Version: 1.0
-In-Reply-To: <574F7B16.4080906@sr71.net>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20160602143925.GJ14868@mtj.duckdns.org>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: mtk.manpages@gmail.com, Jonathan Corbet <corbet@lwn.net>, lkml <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: keith.busch@intel.com, peterz@infradead.org, treding@nvidia.com, mingo@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On 06/01/2016 07:17 PM, Dave Hansen wrote:
-> On 06/01/2016 05:11 PM, Michael Kerrisk (man-pages) wrote:
->>>>>>
->>>>>> If I read this right, it doesn't actually remove any pkey restrictions
->>>>>> that may have been applied while the key was allocated.  So there could be
->>>>>> pages with that key assigned that might do surprising things if the key is
->>>>>> reallocated for another use later, right?  Is that how the API is intended
->>>>>> to work?
->>>>
->>>> Yeah, that's how it works.
->>>>
->>>> It's not ideal.  It would be _best_ if we during mm_pkey_free(), we
->>>> ensured that no VMAs under that mm have that vma_pkey() set.  But, that
->>>> search would be potentially expensive (a walk over all VMAs), or would
->>>> force us to keep a data structure with a count of all the VMAs with a
->>>> given key.
->>>>
->>>> I should probably discuss this behavior in the manpages and address it
->> s/probably//
->>
->> And, did I miss it. Was there an updated man-pages patch in the latest
->> series? I did not notice it.
-> 
-> There have been to changes to the patches that warranted updating the
-> manpages until now.  I'll send the update immediately.
+Tejun,
 
-Do those updated pages include discussion of the point noted above?
-I could not see it mentioned there.
 
-Just by the way, the above behavior seems to offer possibilities
-for users to shoot themselves in the foot, in a way that has security
-implications. (Or do I misunderstand?)
+On 6/2/2016 10:39 PM, Tejun Heo wrote:
+> On Thu, Jun 02, 2016 at 03:48:51PM +0800, Wang Sheng-Hui wrote:
+>> +static int __init lru_init(void)
+>> +{
+>> +	lru_add_drain_wq = alloc_workqueue("lru-add-drain",
+>> +		WQ_MEM_RECLAIM | WQ_UNBOUND, 0);
+> Why is it unbound?
+Sorry, I just pasted from other wq create statement.
 
+WQ_MEM_RECLAIM is the key. Will drop WQ_UNBOUND in new version patch.
+
+
+>> +	if (WARN(!lru_add_drain_wq,
+>> +		"Failed to create workqueue lru_add_drain_wq"))
+>> +		return -ENOMEM;
+> I don't think we need an explicit warn here.  Doesn't error return
+> from an init function trigger boot failure anyway?
+Will drop the warn and return -ENOMEM directly on failure.
+>> +	return 0;
+>> +}
+>> +early_initcall(lru_init);
+>> +
+>>  void lru_add_drain_all(void)
+>>  {
+>>  	static DEFINE_MUTEX(lock);
+>>  	static struct cpumask has_work;
+>>  	int cpu;
+>>  
+>> +	struct workqueue_struct *lru_wq = lru_add_drain_wq ?: system_wq;
+>> +
+>> +	WARN_ONCE(!lru_add_drain_wq,
+>> +		"Use system_wq to do lru_add_drain_all()");
+> Ditto.  The system is crashing for sure.  What's the point of this
+> warning?
+It's for above warn failure. Will crash instead of falling back to system_wq
+
+>
+> Thanks.
+>
 Thanks,
+Sheng-Hui
 
-Michael
-
-
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
