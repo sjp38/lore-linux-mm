@@ -1,68 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 277D76B025F
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 08:36:59 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id w16so36810656lfd.0
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 05:36:59 -0700 (PDT)
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id fa10si7396198wjd.171.2016.06.03.05.36.57
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 071CE6B025F
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 08:45:15 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id l14so200818054qke.2
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 05:45:15 -0700 (PDT)
+Received: from mail-vk0-x244.google.com (mail-vk0-x244.google.com. [2607:f8b0:400c:c05::244])
+        by mx.google.com with ESMTPS id b34si1469589uab.211.2016.06.03.05.45.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jun 2016 05:36:57 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 60D2C1C2FBA
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 13:36:57 +0100 (IST)
-Date: Fri, 3 Jun 2016 13:36:55 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [BUG] Page allocation failures with newest kernels
-Message-ID: <20160603123655.GA2527@techsingularity.net>
-References: <CAPv3WKcVsWBgHHC3UPNcbka2JUmN4CTw1Ym4BR1=1V9=B9av5Q@mail.gmail.com>
- <574D64A0.2070207@arm.com>
- <CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
- <60e8df74202e40b28a4d53dbc7fd0b22@IL-EXCH02.marvell.com>
- <20160531131520.GI24936@arm.com>
- <CAPv3WKftqsEXbdU-geAcUKXBSskhA0V72N61a1a+5DfahLK_Dg@mail.gmail.com>
- <20160602135226.GX2527@techsingularity.net>
- <CAPv3WKd8Zdcv5nhr2euN7L4W5JYLex_Hmn+9AVd6reyD-Vw4kg@mail.gmail.com>
- <20160603095344.GZ2527@techsingularity.net>
- <CAPv3WKfrgNg00M4oE3VKLYimYqN6NO6ziR7LWYXQ1d_M-bo67A@mail.gmail.com>
+        Fri, 03 Jun 2016 05:45:14 -0700 (PDT)
+Received: by mail-vk0-x244.google.com with SMTP id c189so13107487vkb.3
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 05:45:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CAPv3WKfrgNg00M4oE3VKLYimYqN6NO6ziR7LWYXQ1d_M-bo67A@mail.gmail.com>
+In-Reply-To: <d4d0ec2b-114f-33c0-4d13-bba425fde4bb@suse.cz>
+References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com> <d4d0ec2b-114f-33c0-4d13-bba425fde4bb@suse.cz>
+From: Joonsoo Kim <js1304@gmail.com>
+Date: Fri, 3 Jun 2016 21:45:13 +0900
+Message-ID: <CAAmzW4MPf+TW2=mNd_wNPsCSvRrA4e+CMomdZeBekuTdy6Q7dg@mail.gmail.com>
+Subject: Re: [PATCH v2 1/7] mm/compaction: split freepages without holding the
+ zone lock
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcin Wojtas <mw@semihalf.com>
-Cc: Will Deacon <will.deacon@arm.com>, Yehuda Yitschak <yehuday@marvell.com>, Robin Murphy <robin.murphy@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Lior Amsalem <alior@marvell.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>, Grzegorz Jaszczyk <jaz@semihalf.com>, Nadav Haklai <nadavh@marvell.com>, Tomasz Nowicki <tn@semihalf.com>, Gregory =?iso-8859-15?Q?Cl=E9ment?= <gregory.clement@free-electrons.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri, Jun 03, 2016 at 01:57:06PM +0200, Marcin Wojtas wrote:
-> >> For the record: the newest kernel I was able to reproduce the dumps
-> >> was v4.6: http://pastebin.com/ekDdACn5. I've just checked v4.7-rc1,
-> >> which comprise a lot (mainly yours) changes in mm, and I'm wondering
-> >> if there may be a spot fix or rather a series of improvements. I'm
-> >> looking forward to your opinion and would be grateful for any advice.
-> >>
-> >
-> > I don't believe we want to reintroduce the reserve to cope with CMA. One
-> > option would be to widen the gap between low and min watermark by the
-> > size of the CMA region. The effect would be to wake kswapd earlier which
-> > matters considering the context of the failing allocation was
-> > GFP_ATOMIC.
-> 
-> Of course my intention is not reintroducing anything that's gone
-> forever, but just to find out way to overcome current issues. Do you
-> mean increasing CMA size?
+2016-06-03 19:10 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
+> On 05/26/2016 04:37 AM, js1304@gmail.com wrote:
+>>
+>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>
+>> We don't need to split freepages with holding the zone lock. It will cause
+>> more contention on zone lock so not desirable.
+>>
+>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+>
+> So it wasn't possible to at least move this code from compaction.c to
+> page_alloc.c? Or better, reuse prep_new_page() with some forged
+> gfp/alloc_flags? As we discussed in v1...
 
-No. There is a gap between the low and min watermarks. At the low point,
-kswapd is woken up and at the min point allocation requests either
-either direct reclaim or fail if they are atomic. What I'm suggesting
-is that you adjust the low watermark and add the size of the CMA area
-to it so that kswapd is woken earlier. The watermarks are calculated in
-__setup_per_zone_wmarks
+Sorry for not mentioning that I did it as a separate patch,
+Please see below link which is the last one within this patchset.
 
--- 
-Mel Gorman
-SUSE Labs
+Link: http://lkml.kernel.org/r/1464230275-25791-7-git-send-email-iamjoonsoo.kim@lge.com
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
