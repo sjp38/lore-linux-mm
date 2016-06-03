@@ -1,116 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D73146B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 22:56:50 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id p194so95964237iod.2
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 19:56:50 -0700 (PDT)
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com. [32.97.110.151])
-        by mx.google.com with ESMTPS id t18si4178830itb.78.2016.06.02.19.56.50
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 446EA6B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 23:52:45 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b124so87755645pfb.1
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 20:52:45 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id wz9si2926535pab.19.2016.06.02.20.52.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Jun 2016 19:56:50 -0700 (PDT)
-Received: from localhost
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 2 Jun 2016 20:56:49 -0600
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 4/4] powerpc/mm/radix: Implement tlb mmu gather flush efficiently
-In-Reply-To: <20160602131250.e4d43401e7eade277bc4476a@linux-foundation.org>
-References: <1464860389-29019-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1464860389-29019-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20160602131250.e4d43401e7eade277bc4476a@linux-foundation.org>
-Date: Fri, 03 Jun 2016 08:26:43 +0530
-Message-ID: <87porzvv2s.fsf@skywalker.in.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Jun 2016 20:52:44 -0700 (PDT)
+Date: Fri, 3 Jun 2016 13:52:38 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: BUG: scheduling while atomic: cron/668/0x10c9a0c0
+Message-ID: <20160603135238.2657c1b7@canb.auug.org.au>
+In-Reply-To: <20160602114341.e3b974640fc3f8cbcb54898b@linux-foundation.org>
+References: <CAMuHMdV00vJJxoA7XABw+mFF+2QUd1MuQbPKKgkmGnK_NySZpg@mail.gmail.com>
+	<20160530155644.GP2527@techsingularity.net>
+	<574E05B8.3060009@suse.cz>
+	<20160601091921.GT2527@techsingularity.net>
+	<574EB274.4030408@suse.cz>
+	<20160602103936.GU2527@techsingularity.net>
+	<0eb1f112-65d4-f2e5-911e-697b21324b9f@suse.cz>
+	<20160602121936.GV2527@techsingularity.net>
+	<20160602114341.e3b974640fc3f8cbcb54898b@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Geert Uytterhoeven <geert@linux-m68k.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-m68k <linux-m68k@vger.kernel.org>
 
-Andrew Morton <akpm@linux-foundation.org> writes:
+Hi Andrew,
 
-> On Thu,  2 Jun 2016 15:09:49 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Thu, 2 Jun 2016 11:43:41 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
 >
->> Now that we track page size in mmu_gather, we can use address based
->> tlbie format when doing a tlb_flush(). We don't do this if we are
->> invalidating the full address space.
->> 
->> ...
->>
->>  void radix__tlb_flush(struct mmu_gather *tlb)
->>  {
->> +	int psize = 0;
->>  	struct mm_struct *mm = tlb->mm;
->> -	radix__flush_tlb_mm(mm);
->> +	int page_size = tlb->page_size;
->> +
->> +	psize = radix_get_mmu_psize(page_size);
->> +	if (psize == -1)
->> +		/* unknown page size */
->> +		goto flush_mm;
->> +
->> +	if (!tlb->fullmm && !tlb->need_flush_all)
->> +		radix__flush_tlb_range_psize(mm, tlb->start, tlb->end, psize);
->> +	else
->> +flush_mm:
->> +		radix__flush_tlb_mm(mm);
->
-> That's kinda ugly.  What about
->
-> void radix__tlb_flush(struct mmu_gather *tlb)
-> {
-> 	int psize = 0;
-> 	struct mm_struct *mm = tlb->mm;
-> 	int page_size = tlb->page_size;
->
-> 	psize = radix_get_mmu_psize(page_size);
->
-> 	if (psize != -1 && !tlb->fullmm && !tlb->need_flush_all)
-> 		radix__flush_tlb_range_psize(mm, tlb->start, tlb->end, psize);
-> 	else
-> 		radix__flush_tlb_mm(mm);
-> }
->
-> ?
->
-> We lost the comment, but that can be neatly addressed by documenting
-> radix_get_mmu_psize() (of course!).  Please send along a comment to do
-> this and I'll add it in.
+> On Thu, 2 Jun 2016 13:19:36 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
+> 
+> > > >Signed-off-by: Mel Gorman <mgorman@techsingularity.net>  
+> > > 
+> > > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> > >   
+> > 
+> > Thanks.  
+> 
+> I queued this.  A tested-by:Geert would be nice?
+> 
+> 
+> From: Mel Gorman <mgorman@techsingularity.net>
+> Subject: mm, page_alloc: recalculate the preferred zoneref if the context can ignore memory policies
 
+I dumped that into linux-next today as well.
 
-I will update the patch. But this patch (Patch 4) need to go through
-powerpc tree because radix__flush_tlb_range_psize is not yet upstream.
-As I mentioned in the previous thread, if you can take patch 1 to patch 3 that
-will enable wider testing w.r.t other archs and ppc64 related changes can
-go later via powerpc tree ?
-
->
-> --- a/arch/powerpc/mm/tlb-radix.c~powerpc-mm-radix-implement-tlb-mmu-gather-flush-efficiently-fix
-> +++ a/arch/powerpc/mm/tlb-radix.c
-> @@ -265,13 +265,9 @@ void radix__tlb_flush(struct mmu_gather
->  	int page_size = tlb->page_size;
->
->  	psize = radix_get_mmu_psize(page_size);
-> -	if (psize == -1)
-> -		/* unknown page size */
-> -		goto flush_mm;
->
-> -	if (!tlb->fullmm && !tlb->need_flush_all)
-> +	if (psize != -1 && !tlb->fullmm && !tlb->need_flush_all)
->  		radix__flush_tlb_range_psize(mm, tlb->start, tlb->end, psize);
->  	else
-> -flush_mm:
->  		radix__flush_tlb_mm(mm);
->  }
-> _
->
-> I'll await feedback from the other PPC developers before doing anything
-> further on this patchset.
->
-> hm, no ppc mailing lists were cc'ed.  Regrettable.
-
-I missed that. I can resend the series again adding ppc-devel to cc: ?
-
--aneesh
+-- 
+Cheers,
+Stephen Rothwell
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
