@@ -1,77 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D3A346B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 19:23:39 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id s73so78465145pfs.0
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 16:23:39 -0700 (PDT)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id se4si1494370pac.61.2016.06.02.16.23.37
-        for <linux-mm@kvack.org>;
-        Thu, 02 Jun 2016 16:23:38 -0700 (PDT)
-Date: Fri, 3 Jun 2016 09:22:54 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20160602232254.GR12670@dastard>
-References: <20160516231056.GE18496@dastard>
- <20160517144912.GZ3193@twins.programming.kicks-ass.net>
- <20160517223549.GV26977@dastard>
- <20160519081146.GS3193@twins.programming.kicks-ass.net>
- <20160520001714.GC26977@dastard>
- <20160601131758.GO26601@dhcp22.suse.cz>
- <20160601181617.GV3190@twins.programming.kicks-ass.net>
- <20160602145048.GS1995@dhcp22.suse.cz>
- <20160602151116.GD3190@twins.programming.kicks-ass.net>
- <20160602154619.GU1995@dhcp22.suse.cz>
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A412E6B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 20:26:23 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id t7so168579740vkf.2
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 17:26:23 -0700 (PDT)
+Received: from mail-vk0-x244.google.com (mail-vk0-x244.google.com. [2607:f8b0:400c:c05::244])
+        by mx.google.com with ESMTPS id y193si377119vke.10.2016.06.02.17.26.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Jun 2016 17:26:22 -0700 (PDT)
+Received: by mail-vk0-x244.google.com with SMTP id c189so11052363vkb.3
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 17:26:22 -0700 (PDT)
+Subject: Re: [PATCH 5/8] x86, pkeys: allocation/free syscalls
+References: <20160531152814.36E0B9EE@viggo.jf.intel.com>
+ <20160531152822.FE8D405E@viggo.jf.intel.com>
+ <20160601123705.72a606e7@lwn.net> <574F386A.8070106@sr71.net>
+ <CAKgNAkiyD_2tAxrBxirxViViMUsfLRRqQp5HowM58dG21LAa7Q@mail.gmail.com>
+ <574F7B16.4080906@sr71.net>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Message-ID: <5499ff55-ae0f-e54c-05fd-b1e76dc05a89@gmail.com>
+Date: Thu, 2 Jun 2016 19:26:03 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160602154619.GU1995@dhcp22.suse.cz>
+In-Reply-To: <574F7B16.4080906@sr71.net>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: mtk.manpages@gmail.com, Jonathan Corbet <corbet@lwn.net>, lkml <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Thu, Jun 02, 2016 at 05:46:19PM +0200, Michal Hocko wrote:
-> On Thu 02-06-16 17:11:16, Peter Zijlstra wrote:
-> > With scope I mostly meant the fact that you have two calls that you need
-> > to pair up. That's not really nice as you can 'annotate' a _lot_ of code
-> > in between. I prefer the narrower annotations where you annotate a
-> > single specific site.
+On 06/01/2016 07:17 PM, Dave Hansen wrote:
+> On 06/01/2016 05:11 PM, Michael Kerrisk (man-pages) wrote:
+>>>>>>
+>>>>>> If I read this right, it doesn't actually remove any pkey restrictions
+>>>>>> that may have been applied while the key was allocated.  So there could be
+>>>>>> pages with that key assigned that might do surprising things if the key is
+>>>>>> reallocated for another use later, right?  Is that how the API is intended
+>>>>>> to work?
+>>>>
+>>>> Yeah, that's how it works.
+>>>>
+>>>> It's not ideal.  It would be _best_ if we during mm_pkey_free(), we
+>>>> ensured that no VMAs under that mm have that vma_pkey() set.  But, that
+>>>> search would be potentially expensive (a walk over all VMAs), or would
+>>>> force us to keep a data structure with a count of all the VMAs with a
+>>>> given key.
+>>>>
+>>>> I should probably discuss this behavior in the manpages and address it
+>> s/probably//
+>>
+>> And, did I miss it. Was there an updated man-pages patch in the latest
+>> series? I did not notice it.
 > 
-> Yes, I can see you point. What I meant to say is that we would most
-> probably end up with the following pattern
-> 	lockdep_trace_alloc_enable()
-> 	some_foo_with_alloc(gfp_mask);
-> 	lockdep_trace_alloc_disable()
->
-> and some_foo_with_alloc might be a lot of code.
+> There have been to changes to the patches that warranted updating the
+> manpages until now.  I'll send the update immediately.
 
-That's the problem I see with this - the only way to make it
-maintainable is to precede each enable/disable() pair with a comment
-explaining *exactly* what those calls are protecting.  And that, in
-itself, becomes a maintenance problem, because then code several
-layers deep has no idea what context it is being called from and we
-are likely to disable warnings in contexts where we probably
-shouldn't be.
+Do those updated pages include discussion of the point noted above?
+I could not see it mentioned there.
 
-I think such an annotation approach really requires per-alloc site
-annotation, the reason for it should be more obvious from the
-context. e.g. any function that does memory alloc and takes an
-optional transaction context needs annotation. Hence, from an XFS
-perspective, I think it makes more sense to add a new KM_ flag to
-indicate this call site requirement, then jump through whatever
-lockdep hoop is required within the kmem_* allocation wrappers.
-e.g, we can ignore the new KM_* flag if we are in a transaction
-context and so the flag is only activated in the situations were
-we currently enforce an external GFP_NOFS context from the call
-site.....
+Just by the way, the above behavior seems to offer possibilities
+for users to shoot themselves in the foot, in a way that has security
+implications. (Or do I misunderstand?)
 
-Cheers,
+Thanks,
 
-Dave.
+Michael
+
+
 -- 
-Dave Chinner
-david@fromorbit.com
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
