@@ -1,102 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F7056B007E
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 05:00:32 -0400 (EDT)
-Received: by mail-ig0-f197.google.com with SMTP id q18so111511528igr.2
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:00:32 -0700 (PDT)
-Received: from mail-io0-x236.google.com (mail-io0-x236.google.com. [2607:f8b0:4001:c06::236])
-        by mx.google.com with ESMTPS id u124si5702022ioe.106.2016.06.03.02.00.31
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 213E36B007E
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 05:16:52 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id h68so34826244lfh.2
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:16:52 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id y6si6358798wjv.135.2016.06.03.02.16.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jun 2016 02:00:31 -0700 (PDT)
-Received: by mail-io0-x236.google.com with SMTP id k19so55802833ioi.3
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:00:31 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160603084142.GY2527@techsingularity.net>
-References: <CAMuHMdV00vJJxoA7XABw+mFF+2QUd1MuQbPKKgkmGnK_NySZpg@mail.gmail.com>
- <20160530155644.GP2527@techsingularity.net> <574E05B8.3060009@suse.cz>
- <20160601091921.GT2527@techsingularity.net> <574EB274.4030408@suse.cz>
- <20160602103936.GU2527@techsingularity.net> <0eb1f112-65d4-f2e5-911e-697b21324b9f@suse.cz>
- <20160602121936.GV2527@techsingularity.net> <20160602114341.e3b974640fc3f8cbcb54898b@linux-foundation.org>
- <CAMuHMdX07bUE+3QTbFmbxrjkXPBzFLoLQbupL=WAbLXTuN+6Ww@mail.gmail.com> <20160603084142.GY2527@techsingularity.net>
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Date: Fri, 3 Jun 2016 11:00:30 +0200
-Message-ID: <CAMuHMdWPsx0r4HMYy+prhnQaW0bkrm+FHOyzb8vBO7S70FQOog@mail.gmail.com>
-Subject: Re: BUG: scheduling while atomic: cron/668/0x10c9a0c0
-Content-Type: text/plain; charset=UTF-8
+        Fri, 03 Jun 2016 02:16:50 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id a20so10497584wma.3
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:16:50 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/10 -v3] Handle oom bypass more gracefully
+Date: Fri,  3 Jun 2016 11:16:34 +0200
+Message-Id: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-m68k <linux-m68k@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Mel,
+Hi,
+this is the third version of the patchse. Previous version was posted
+http://lkml.kernel.org/r/1464613556-16708-1-git-send-email-mhocko@kernel.org
+I have folded in all the fixes pointed by Oleg (thanks). I hope I
+haven't missed anything.
 
-On Fri, Jun 3, 2016 at 10:41 AM, Mel Gorman <mgorman@techsingularity.net> wrote:
-> On Fri, Jun 03, 2016 at 09:57:22AM +0200, Geert Uytterhoeven wrote:
->> On Thu, Jun 2, 2016 at 8:43 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
->> > On Thu, 2 Jun 2016 13:19:36 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
->> >> > >Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
->> >> >
->> >> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
->> >>
->> >> Thanks.
->> >
->> > I queued this.  A tested-by:Geert would be nice?
->> >
->> > From: Mel Gorman <mgorman@techsingularity.net>
->> > Subject: mm, page_alloc: recalculate the preferred zoneref if the context can ignore memory policies
->> >
->> > The optimistic fast path may use cpuset_current_mems_allowed instead of of
->> > a NULL nodemask supplied by the caller for cpuset allocations.  The
->> > preferred zone is calculated on this basis for statistic purposes and as a
->> > starting point in the zonelist iterator.
->> >
->> > However, if the context can ignore memory policies due to being atomic or
->> > being able to ignore watermarks then the starting point in the zonelist
->> > iterator is no longer correct.  This patch resets the zonelist iterator in
->> > the allocator slowpath if the context can ignore memory policies.  This
->> > will alter the zone used for statistics but only after it is known that it
->> > makes sense for that context.  Resetting it before entering the slowpath
->> > would potentially allow an ALLOC_CPUSET allocation to be accounted for
->> > against the wrong zone.  Note that while nodemask is not explicitly set to
->> > the original nodemask, it would only have been overwritten if
->> > cpuset_enabled() and it was reset before the slowpath was entered.
->> >
->> > Link: http://lkml.kernel.org/r/20160602103936.GU2527@techsingularity.net
->> > Fixes: c33d6c06f60f710 ("mm, page_alloc: avoid looking up the first zone in a zonelist twice")
->>
->> My understanding was that this was an an additional patch, not fixing
->> the problem in-se?
->
-> It doesn't fix the problem you had, it is a follow-on patch that
-> potentially affects.
+The following 10 patches should put some order to very rare cases of
+mm shared between processes and make the paths which bypass the oom
+killer oom reapable and so much more reliable finally. Even though mm
+shared outside of thread group is rare (either vforked tasks for a
+short period, use_mm by kernel threads or exotic thread model of
+clone(CLONE_VM) without CLONE_THREAD resp. CLONE_SIGHAND). Not only it
+makes the current oom killer logic quite hard to follow and evaluate it
+can lead to weird corner cases. E.g. it is possible to select an oom
+victim which shares the mm with unkillable process or bypass the oom
+killer even when other processes sharing the mm are still alive and
+other weird cases.
 
-Thanks for confirming!
+Patch 1 drops bogus task_lock and mm check from oom_{score_}adj_write.
+This can be considered a bug fix with a low impact as nobody has noticed
+for years.
 
->> Indeed, after applying this patch (without the other one that added
->> "z = ac->preferred_zoneref;" to the reset_fair block of
->> get_page_from_freelist()) I still get crashes...
->
-> The patch you have is the only one required for the crash. This patch
-> handles a corner case with atomic allocations that can ignore memory
-> policies.
+Patch 2 drops sighand lock because it is not needed anymore as pointed
+by Oleg.
 
-OK.
+Patch 3 is a clean up of oom_score_adj handling and a preparatory
+work for later patches.
 
-In the mean time my tests completed successfully with both patches applied.
+Patch 4 enforces oom_adj_score to be consistent between processes
+sharing the mm to behave consistently with the regular thread
+groups. This can be considered a user visible behavior change because
+one thread group updating oom_score_adj will affect others which share
+the same mm via clone(CLONE_VM). I argue that this should be acceptable
+because we already have the same behavior for threads in the same thread
+group and sharing the mm without signal struct is just a different model
+of threading. This is probably the most controversial part of the series,
+I would like to find some consensus here though. There were some
+suggestions to hook some counter/oom_score_adj into the mm_struct
+but I feel that this is not necessary right now and we can rely on
+proc handler + oom_kill_process to DTRT. I can be convinced otherwise
+but I strongly think that whatever we do the userspace has to have
+a way to see the current oom priority as consistently as possible.
 
-Thanks!
+Patch 5 makes sure that no vforked task is selected if it is sharing
+the mm with oom unkillable task.
 
-Gr{oetje,eeting}s,
+Patch 6 ensures that all user tasks sharing the mm are killed which in
+turn makes sure that all oom victims are oom reapable.
 
-                        Geert
+Patch 7 guarantees that task_will_free_mem will always imply reapable
+bypass of the oom killer.
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+Patch 8 is new in this version and it addresses an issue pointed out
+by 0-day OOM report where an oom victim was reaped several times.
 
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+Assuming there are no other bugs in those patches and no fundamental
+opposition to this direction I think we should go on and merged them
+to the mmomt tree and target the 4.8 merge window.
+
+Finally the last 2 patches are sent as an RFC because I am still not sure
+this direction is the correct one. Patch 9 puts an upper bound on how many
+times oom_reaper tries to reap a task and hides it from the oom killer to
+move on when no progress can be made. Patch 10 tries to plug the (hopefully)
+last hole when we can still lock up when the oom victim is shared with
+oom unkillable tasks (kthreads and global init). We just try to be best
+effort in that case and rather fallback to kill something else than risk
+a lockup.
+
+The patchset is based on the current mmotm tree (mmotm-2016-05-27-15-19).
+I would really appreciate a deep review as this area is full of land
+mines but I hope I've made the code much cleaner with less kludges.
+
+I have pushed the patchset to my git tree
+git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git to branch
+attempts/process-share-mm-oom-sanitization
+
+Michal Hocko (10):
+      proc, oom: drop bogus task_lock and mm check
+      proc, oom: drop bogus sighand lock
+      proc, oom_adj: extract oom_score_adj setting into a helper
+      mm, oom_adj: make sure processes sharing mm have same view of oom_score_adj
+      mm, oom: skip vforked tasks from being selected
+      mm, oom: kill all tasks sharing the mm
+      mm, oom: fortify task_will_free_mem
+      mm, oom: task_will_free_mem should skip oom_reaped tasks
+      mm, oom_reaper: do not attempt to reap a task more than twice
+      mm, oom: hide mm which is shared with kthread or global init
+
+ fs/proc/base.c        | 185 ++++++++++++++++++++++---------------------
+ include/linux/mm.h    |   2 +
+ include/linux/oom.h   |  26 +-----
+ include/linux/sched.h |  27 +++++++
+ mm/memcontrol.c       |   4 +-
+ mm/oom_kill.c         | 214 ++++++++++++++++++++++++++++++++++----------------
+ 6 files changed, 278 insertions(+), 180 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
