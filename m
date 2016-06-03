@@ -1,78 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 55E2A6B025F
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 08:28:47 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e3so40803109wme.3
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 05:28:47 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id l135si8041937wmb.48.2016.06.03.05.28.45
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 277D76B025F
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 08:36:59 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id w16so36810656lfd.0
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 05:36:59 -0700 (PDT)
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id fa10si7396198wjd.171.2016.06.03.05.36.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jun 2016 05:28:46 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id a20so11685645wma.3
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 05:28:45 -0700 (PDT)
-From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: [PATCH] mm, thp: fix locking inconsistency in collapse_huge_page
-Date: Fri,  3 Jun 2016 15:28:04 +0300
-Message-Id: <1464956884-4644-1-git-send-email-ebru.akagunduz@gmail.com>
-In-Reply-To: <0c47a3a0-5530-b257-1c1f-28ed44ba97e6@suse.cz>
-References: <0c47a3a0-5530-b257-1c1f-28ed44ba97e6@suse.cz>
+        Fri, 03 Jun 2016 05:36:57 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 60D2C1C2FBA
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 13:36:57 +0100 (IST)
+Date: Fri, 3 Jun 2016 13:36:55 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [BUG] Page allocation failures with newest kernels
+Message-ID: <20160603123655.GA2527@techsingularity.net>
+References: <CAPv3WKcVsWBgHHC3UPNcbka2JUmN4CTw1Ym4BR1=1V9=B9av5Q@mail.gmail.com>
+ <574D64A0.2070207@arm.com>
+ <CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
+ <60e8df74202e40b28a4d53dbc7fd0b22@IL-EXCH02.marvell.com>
+ <20160531131520.GI24936@arm.com>
+ <CAPv3WKftqsEXbdU-geAcUKXBSskhA0V72N61a1a+5DfahLK_Dg@mail.gmail.com>
+ <20160602135226.GX2527@techsingularity.net>
+ <CAPv3WKd8Zdcv5nhr2euN7L4W5JYLex_Hmn+9AVd6reyD-Vw4kg@mail.gmail.com>
+ <20160603095344.GZ2527@techsingularity.net>
+ <CAPv3WKfrgNg00M4oE3VKLYimYqN6NO6ziR7LWYXQ1d_M-bo67A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAPv3WKfrgNg00M4oE3VKLYimYqN6NO6ziR7LWYXQ1d_M-bo67A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: vbabka@suse.cz, sergey.senozhatsky.work@gmail.com, mhocko@kernel.org, kirill.shutemov@linux.intel.com, sfr@canb.auug.org.au, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+To: Marcin Wojtas <mw@semihalf.com>
+Cc: Will Deacon <will.deacon@arm.com>, Yehuda Yitschak <yehuday@marvell.com>, Robin Murphy <robin.murphy@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Lior Amsalem <alior@marvell.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>, Grzegorz Jaszczyk <jaz@semihalf.com>, Nadav Haklai <nadavh@marvell.com>, Tomasz Nowicki <tn@semihalf.com>, Gregory =?iso-8859-15?Q?Cl=E9ment?= <gregory.clement@free-electrons.com>
 
-After creating revalidate vma function, locking inconsistency occured
-due to directing the code path to wrong label. This patch directs
-to correct label and fix the inconsistency.
+On Fri, Jun 03, 2016 at 01:57:06PM +0200, Marcin Wojtas wrote:
+> >> For the record: the newest kernel I was able to reproduce the dumps
+> >> was v4.6: http://pastebin.com/ekDdACn5. I've just checked v4.7-rc1,
+> >> which comprise a lot (mainly yours) changes in mm, and I'm wondering
+> >> if there may be a spot fix or rather a series of improvements. I'm
+> >> looking forward to your opinion and would be grateful for any advice.
+> >>
+> >
+> > I don't believe we want to reintroduce the reserve to cope with CMA. One
+> > option would be to widen the gap between low and min watermark by the
+> > size of the CMA region. The effect would be to wake kswapd earlier which
+> > matters considering the context of the failing allocation was
+> > GFP_ATOMIC.
+> 
+> Of course my intention is not reintroducing anything that's gone
+> forever, but just to find out way to overcome current issues. Do you
+> mean increasing CMA size?
 
-Related commit that caused inconsistency:
-http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=da4360877094368f6dfe75bbe804b0f0a5d575b0
+No. There is a gap between the low and min watermarks. At the low point,
+kswapd is woken up and at the min point allocation requests either
+either direct reclaim or fail if they are atomic. What I'm suggesting
+is that you adjust the low watermark and add the size of the CMA area
+to it so that kswapd is woken earlier. The watermarks are calculated in
+__setup_per_zone_wmarks
 
-Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
----
- mm/huge_memory.c | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 292cedd..8043d91 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2493,13 +2493,18 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	curr_allocstall = sum_vm_event(ALLOCSTALL);
- 	down_read(&mm->mmap_sem);
- 	result = hugepage_vma_revalidate(mm, vma, address);
--	if (result)
--		goto out;
-+	if (result) {
-+		mem_cgroup_cancel_charge(new_page, memcg, true);
-+		up_read(&mm->mmap_sem);
-+		goto out_nolock;
-+	}
- 
- 	pmd = mm_find_pmd(mm, address);
- 	if (!pmd) {
- 		result = SCAN_PMD_NULL;
--		goto out;
-+		mem_cgroup_cancel_charge(new_page, memcg, true);
-+		up_read(&mm->mmap_sem);
-+		goto out_nolock;
- 	}
- 
- 	/*
-@@ -2513,8 +2518,9 @@ static void collapse_huge_page(struct mm_struct *mm,
- 		 * label out. Continuing to collapse causes inconsistency.
- 		 */
- 		if (!__collapse_huge_page_swapin(mm, vma, address, pmd)) {
-+			mem_cgroup_cancel_charge(new_page, memcg, true);
- 			up_read(&mm->mmap_sem);
--			goto out;
-+			goto out_nolock;
- 		}
- 	}
- 
 -- 
-1.9.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
