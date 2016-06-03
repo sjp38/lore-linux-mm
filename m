@@ -1,208 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AE896B007E
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 13:42:13 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id di3so102929316pab.0
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 10:42:13 -0700 (PDT)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id do10si6871150pac.124.2016.06.03.10.42.12
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DDA286B007E
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 15:27:08 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id w185so237654538vkf.3
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 12:27:08 -0700 (PDT)
+Received: from mail-qt0-x243.google.com (mail-qt0-x243.google.com. [2607:f8b0:400d:c0d::243])
+        by mx.google.com with ESMTPS id x190si3484699qha.92.2016.06.03.12.27.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jun 2016 10:42:12 -0700 (PDT)
-Received: by mail-pa0-x244.google.com with SMTP id x1so6429090pav.1
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 10:42:12 -0700 (PDT)
+        Fri, 03 Jun 2016 12:27:07 -0700 (PDT)
+Received: by mail-qt0-x243.google.com with SMTP id r5so80787qtr.3
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 12:27:07 -0700 (PDT)
+Subject: Re: [PATCH 5/8] x86, pkeys: allocation/free syscalls
+References: <20160531152814.36E0B9EE@viggo.jf.intel.com>
+ <20160531152822.FE8D405E@viggo.jf.intel.com>
+ <20160601123705.72a606e7@lwn.net> <574F386A.8070106@sr71.net>
+ <CAKgNAkiyD_2tAxrBxirxViViMUsfLRRqQp5HowM58dG21LAa7Q@mail.gmail.com>
+ <574F7B16.4080906@sr71.net> <5499ff55-ae0f-e54c-05fd-b1e76dc05a89@gmail.com>
+ <5751BE37.1060704@sr71.net>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Message-ID: <d4f9b224-2ce2-8e45-516c-5dddcfd95724@gmail.com>
+Date: Fri, 3 Jun 2016 14:27:01 -0500
+MIME-Version: 1.0
+In-Reply-To: <5751BE37.1060704@sr71.net>
 Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Subject: Re: [RFC 05/13] x86/mm: Add barriers and document switch_mm-vs-flush synchronization
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <95a853538da28c64dfc877c60549ec79ed7a5d69.1452294700.git.luto@kernel.org>
-Date: Fri, 3 Jun 2016 10:42:10 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <8D80C93B-3DD6-469B-90D6-FBC71B917EAD@gmail.com>
-References: <cover.1452294700.git.luto@kernel.org> <cover.1452294700.git.luto@kernel.org> <95a853538da28c64dfc877c60549ec79ed7a5d69.1452294700.git.luto@kernel.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: x86@kernel.org, LKML <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: mtk.manpages@gmail.com, Jonathan Corbet <corbet@lwn.net>, lkml <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>
 
-Following this patch, if (current->active_mm !=3D mm), flush_tlb_page() =
-still
-doesn=E2=80=99t call smp_mb() before checking mm_cpumask(mm).
+On 06/03/2016 12:28 PM, Dave Hansen wrote:
+> On 06/02/2016 05:26 PM, Michael Kerrisk (man-pages) wrote:
+>> On 06/01/2016 07:17 PM, Dave Hansen wrote:
+>>> On 06/01/2016 05:11 PM, Michael Kerrisk (man-pages) wrote:
+>>>>>>>>
+>>>>>>>> If I read this right, it doesn't actually remove any pkey restrictions
+>>>>>>>> that may have been applied while the key was allocated.  So there could be
+>>>>>>>> pages with that key assigned that might do surprising things if the key is
+>>>>>>>> reallocated for another use later, right?  Is that how the API is intended
+>>>>>>>> to work?
+>>>>>>
+>>>>>> Yeah, that's how it works.
+>>>>>>
+>>>>>> It's not ideal.  It would be _best_ if we during mm_pkey_free(), we
+>>>>>> ensured that no VMAs under that mm have that vma_pkey() set.  But, that
+>>>>>> search would be potentially expensive (a walk over all VMAs), or would
+>>>>>> force us to keep a data structure with a count of all the VMAs with a
+>>>>>> given key.
+>>>>>>
+>>>>>> I should probably discuss this behavior in the manpages and address it
+>>>> s/probably//
+>>>>
+>>>> And, did I miss it. Was there an updated man-pages patch in the latest
+>>>> series? I did not notice it.
+>>>
+>>> There have been to changes to the patches that warranted updating the
+>>> manpages until now.  I'll send the update immediately.
+>>
+>> Do those updated pages include discussion of the point noted above?
+>> I could not see it mentioned there.
+> 
+> I added the following text to pkey_alloc.2.  I somehow neglected to send
+> it out in the v3 update of the manpages RFC:
+> 
+> An application should not call
+> .BR pkey_free ()
+> on any protection key which has been assigned to an address
+> range by
+> .BR pkey_mprotect ()
+> and which is still in use.  The behavior in this case is
+> undefined and may result in an error.
+> 
+> I'll add that in the version (v4) I send out shortly.
+> 
+>> Just by the way, the above behavior seems to offer possibilities
+>> for users to shoot themselves in the foot, in a way that has security
+>> implications. (Or do I misunderstand?)
+> 
+> Protection keys has the potential to add a layer of security and
+> reliability to applications.  But, it has not been primarily designed as
+> a security feature.  For instance, WRPKRU is a completely unprivileged
+> instruction, so pkeys are useless in any case that an attacker controls
+> the PKRU register or can execute arbitrary instructions.
+> 
+> That said, this mechanism does, indeed, allow a user to shoot themselves
+> in the foot and in a way that could have security implications.
+> 
+> For instance, say the following happened:
+> 1. A sensitive bit of data in memory was marked with a pkey
+> 2. That pkey was set as PKEY_DISABLE_ACCESS
+> 3. The application called pkey_free() on the pkey, without freeing
+>    the sensitive data
+> 4. Application calls pkey_alloc() and then clears PKEY_DISABLE_ACCESS
+> 5. Applocation can now read the sensitive data
+> 
+> The application has to have basically "leaked" a reference to the pkey.
+>  It forgot that it had sensitive data marked with that key.
+> 
+> The kernel _could_ enforce that no in-use pkey may have pkey_free()
+> called on it.  But, doing that has tradeoffs which could make
+> pkey_free() extremely slow:
+> 
+>> It's not ideal.  It would be _best_ if we during mm_pkey_free(), we
+>> ensured that no VMAs under that mm have that vma_pkey() set.  But, that
+>> search would be potentially expensive (a walk over all VMAs), or would
+>> force us to keep a data structure with a count of all the VMAs with a
+>> given key.
+> 
+> In addition, that checking _could_ be implemented in an application by
+> inspecting /proc/$pid/smaps for "ProtectionKey: $foo" before calling
+> pkey_free($foo).
 
-In contrast, flush_tlb_mm_range() does call smp_mb().
-
-Is there a reason for this discrepancy?
+So, I think all of the above needs to be made abundantly clear in 
+pkeys(7).
 
 Thanks,
-Nadav
 
-Andy Lutomirski <luto@kernel.org> wrote:
+Michael
 
-> When switch_mm activates a new pgd, it also sets a bit that tells
-> other CPUs that the pgd is in use so that tlb flush IPIs will be
-> sent.  In order for that to work correctly, the bit needs to be
-> visible prior to loading the pgd and therefore starting to fill the
-> local TLB.
->=20
-> Document all the barriers that make this work correctly and add a
-> couple that were missing.
->=20
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Andy Lutomirski <luto@kernel.org>
-> ---
-> arch/x86/include/asm/mmu_context.h | 33 =
-++++++++++++++++++++++++++++++++-
-> arch/x86/mm/tlb.c                  | 29 ++++++++++++++++++++++++++---
-> 2 files changed, 58 insertions(+), 4 deletions(-)
->=20
-> diff --git a/arch/x86/include/asm/mmu_context.h =
-b/arch/x86/include/asm/mmu_context.h
-> index 379cd3658799..1edc9cd198b8 100644
-> --- a/arch/x86/include/asm/mmu_context.h
-> +++ b/arch/x86/include/asm/mmu_context.h
-> @@ -116,8 +116,34 @@ static inline void switch_mm(struct mm_struct =
-*prev, struct mm_struct *next,
-> #endif
-> 		cpumask_set_cpu(cpu, mm_cpumask(next));
->=20
-> -		/* Re-load page tables */
-> +		/*
-> +		 * Re-load page tables.
-> +		 *
-> +		 * This logic has an ordering constraint:
-> +		 *
-> +		 *  CPU 0: Write to a PTE for 'next'
-> +		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send =
-IPI.
-> +		 *  CPU 1: set bit 1 in next's mm_cpumask
-> +		 *  CPU 1: load from the PTE that CPU 0 writes =
-(implicit)
-> +		 *
-> +		 * We need to prevent an outcome in which CPU 1 observes
-> +		 * the new PTE value and CPU 0 observes bit 1 clear in
-> +		 * mm_cpumask.  (If that occurs, then the IPI will never
-> +		 * be sent, and CPU 0's TLB will contain a stale entry.)
-> +		 *
-> +		 * The bad outcome can occur if either CPU's load is
-> +		 * reordered before that CPU's store, so both CPUs much
-> +		 * execute full barriers to prevent this from happening.
-> +		 *
-> +		 * Thus, switch_mm needs a full barrier between the
-> +		 * store to mm_cpumask and any operation that could load
-> +		 * from next->pgd.  This barrier synchronizes with
-> +		 * remote TLB flushers.  Fortunately, load_cr3 is
-> +		 * serializing and thus acts as a full barrier.
-> +		 *
-> +		 */
-> 		load_cr3(next->pgd);
-> +
-> 		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, =
-TLB_FLUSH_ALL);
->=20
-> 		/* Stop flush ipis for the previous mm */
-> @@ -156,10 +182,15 @@ static inline void switch_mm(struct mm_struct =
-*prev, struct mm_struct *next,
-> 			 * schedule, protecting us from simultaneous =
-changes.
-> 			 */
-> 			cpumask_set_cpu(cpu, mm_cpumask(next));
-> +
-> 			/*
-> 			 * We were in lazy tlb mode and leave_mm =
-disabled
-> 			 * tlb flush IPI delivery. We must reload CR3
-> 			 * to make sure to use no freed page tables.
-> +			 *
-> +			 * As above, this is a barrier that forces
-> +			 * TLB repopulation to be ordered after the
-> +			 * store to mm_cpumask.
-> 			 */
-> 			load_cr3(next->pgd);
-> 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, =
-TLB_FLUSH_ALL);
-> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-> index 8ddb5d0d66fb..8f4cc3dfac32 100644
-> --- a/arch/x86/mm/tlb.c
-> +++ b/arch/x86/mm/tlb.c
-> @@ -161,7 +161,10 @@ void flush_tlb_current_task(void)
-> 	preempt_disable();
->=20
-> 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-> +
-> +	/* This is an implicit full barrier that synchronizes with =
-switch_mm. */
-> 	local_flush_tlb();
-> +
-> 	trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
-> 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < =
-nr_cpu_ids)
-> 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, =
-TLB_FLUSH_ALL);
-> @@ -188,17 +191,29 @@ void flush_tlb_mm_range(struct mm_struct *mm, =
-unsigned long start,
-> 	unsigned long base_pages_to_flush =3D TLB_FLUSH_ALL;
->=20
-> 	preempt_disable();
-> -	if (current->active_mm !=3D mm)
-> +	if (current->active_mm !=3D mm) {
-> +		/* Synchronize with switch_mm. */
-> +		smp_mb();
-> +
-> 		goto out;
-> +	}
->=20
-> 	if (!current->mm) {
-> 		leave_mm(smp_processor_id());
-> +
-> +		/* Synchronize with switch_mm. */
-> +		smp_mb();
-> +
-> 		goto out;
-> 	}
->=20
-> 	if ((end !=3D TLB_FLUSH_ALL) && !(vmflag & VM_HUGETLB))
-> 		base_pages_to_flush =3D (end - start) >> PAGE_SHIFT;
->=20
-> +	/*
-> +	 * Both branches below are implicit full barriers (MOV to CR or
-> +	 * INVLPG) that synchronize with switch_mm.
-> +	 */
-> 	if (base_pages_to_flush > tlb_single_page_flush_ceiling) {
-> 		base_pages_to_flush =3D TLB_FLUSH_ALL;
-> 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-> @@ -228,10 +243,18 @@ void flush_tlb_page(struct vm_area_struct *vma, =
-unsigned long start)
-> 	preempt_disable();
->=20
-> 	if (current->active_mm =3D=3D mm) {
-> -		if (current->mm)
-> +		if (current->mm) {
-> +			/*
-> +			 * Implicit full barrier (INVLPG) that =
-synchronizes
-> +			 * with switch_mm.
-> +			 */
-> 			__flush_tlb_one(start);
-> -		else
-> +		} else {
-> 			leave_mm(smp_processor_id());
-> +
-> +			/* Synchronize with switch_mm. */
-> +			smp_mb();
-> +		}
-> 	}
->=20
-> 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < =
-nr_cpu_ids)
-> --=20
-> 2.5.0
->=20
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
