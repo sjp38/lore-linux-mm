@@ -1,88 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D49886B0260
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 06:05:07 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id ne4so34974084lbc.1
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 03:05:07 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id l8si6583530wjm.189.2016.06.03.03.05.06
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CF72C6B0260
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 06:10:15 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id h68so35427250lfh.2
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 03:10:15 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ec11si6644932wjb.99.2016.06.03.03.10.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jun 2016 03:05:06 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id e3so22292274wme.2
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 03:05:06 -0700 (PDT)
-Date: Fri, 3 Jun 2016 12:05:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [linux-next: Tree for Jun 1] __khugepaged_exit
- rwsem_down_write_failed lockup
-Message-ID: <20160603100505.GE20676@dhcp22.suse.cz>
-References: <20160601131122.7dbb0a65@canb.auug.org.au>
- <20160602014835.GA635@swordfish>
- <20160602092113.GH1995@dhcp22.suse.cz>
- <20160603071551.GA453@swordfish>
- <20160603072536.GB20676@dhcp22.suse.cz>
- <20160603084347.GA502@swordfish>
- <20160603095549.GD20676@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 03 Jun 2016 03:10:14 -0700 (PDT)
+Subject: Re: [PATCH v2 1/7] mm/compaction: split freepages without holding the
+ zone lock
+References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d4d0ec2b-114f-33c0-4d13-bba425fde4bb@suse.cz>
+Date: Fri, 3 Jun 2016 12:10:10 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160603095549.GD20676@dhcp22.suse.cz>
+In-Reply-To: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri 03-06-16 11:55:49, Michal Hocko wrote:
-> On Fri 03-06-16 17:43:47, Sergey Senozhatsky wrote:
-> > On (06/03/16 09:25), Michal Hocko wrote:
-> > > > it's quite hard to trigger the bug (somehow), so I can't
-> > > > follow up with more information as of now.
-> > 
-> > either I did something very silly fixing up the patch, or the
-> > patch may be causing general protection faults on my system.
-> > 
-> > RIP collect_mm_slot() + 0x42/0x84
-> > 	khugepaged
-> 
-> So is this really collect_mm_slot called directly from khugepaged or is
-> some inlining going on there?
-> 
-> > 	prepare_to_wait_event
-> > 	maybe_pmd_mkwrite
-> > 	kthread
-> > 	_raw_sin_unlock_irq
-> > 	ret_from_fork
-> > 	kthread_create_on_node
-> > 
-> > collect_mm_slot() + 0x42/0x84 is
-> 
-> I guess that the problem is that I have missed that __khugepaged_exit
-> doesn't clear the cached khugepaged_scan.mm_slot. Does the following on
-> top fixes that?
+On 05/26/2016 04:37 AM, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> We don't need to split freepages with holding the zone lock. It will cause
+> more contention on zone lock so not desirable.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-That wouldn't be sufficient after a closer look. We need to do the same
-from khugepaged_scan_mm_slot when atomic_inc_not_zero fails. So I guess
-it would be better to stick it into collect_mm_slot.
+So it wasn't possible to at least move this code from compaction.c to 
+page_alloc.c? Or better, reuse prep_new_page() with some forged gfp/alloc_flags? 
+As we discussed in v1...
 
-Thanks for your testing!
----
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 6574c62ca4a3..0432581fb87c 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2011,6 +2011,9 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
- 		/* khugepaged_mm_lock actually not necessary for the below */
- 		free_mm_slot(mm_slot);
- 		mmdrop(mm);
-+
-+		if (khugepaged_scan.mm_slot == mm_slot)
-+			khugepaged_scan.mm_slot = NULL;
- 	}
- }
- 
--- 
-Michal Hocko
-SUSE Labs
+> ---
+>  include/linux/mm.h |  1 -
+>  mm/compaction.c    | 42 ++++++++++++++++++++++++++++++------------
+>  mm/page_alloc.c    | 27 ---------------------------
+>  3 files changed, 30 insertions(+), 40 deletions(-)
+>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index a00ec81..1a1782c 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -537,7 +537,6 @@ void __put_page(struct page *page);
+>  void put_pages_list(struct list_head *pages);
+>
+>  void split_page(struct page *page, unsigned int order);
+> -int split_free_page(struct page *page);
+>
+>  /*
+>   * Compound pages have a destructor function.  Provide a
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 1427366..8e013eb 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -65,13 +65,31 @@ static unsigned long release_freepages(struct list_head *freelist)
+>
+>  static void map_pages(struct list_head *list)
+>  {
+> -	struct page *page;
+> +	unsigned int i, order, nr_pages;
+> +	struct page *page, *next;
+> +	LIST_HEAD(tmp_list);
+> +
+> +	list_for_each_entry_safe(page, next, list, lru) {
+> +		list_del(&page->lru);
+> +
+> +		order = page_private(page);
+> +		nr_pages = 1 << order;
+> +		set_page_private(page, 0);
+> +		set_page_refcounted(page);
+> +
+> +		arch_alloc_page(page, order);
+> +		kernel_map_pages(page, nr_pages, 1);
+> +		kasan_alloc_pages(page, order);
+> +		if (order)
+> +			split_page(page, order);
+>
+> -	list_for_each_entry(page, list, lru) {
+> -		arch_alloc_page(page, 0);
+> -		kernel_map_pages(page, 1, 1);
+> -		kasan_alloc_pages(page, 0);
+> +		for (i = 0; i < nr_pages; i++) {
+> +			list_add(&page->lru, &tmp_list);
+> +			page++;
+> +		}
+>  	}
+> +
+> +	list_splice(&tmp_list, list);
+>  }
+>
+>  static inline bool migrate_async_suitable(int migratetype)
+> @@ -368,12 +386,13 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+>  	unsigned long flags = 0;
+>  	bool locked = false;
+>  	unsigned long blockpfn = *start_pfn;
+> +	unsigned int order;
+>
+>  	cursor = pfn_to_page(blockpfn);
+>
+>  	/* Isolate free pages. */
+>  	for (; blockpfn < end_pfn; blockpfn++, cursor++) {
+> -		int isolated, i;
+> +		int isolated;
+>  		struct page *page = cursor;
+>
+>  		/*
+> @@ -439,13 +458,12 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+>  				goto isolate_fail;
+>  		}
+>
+> -		/* Found a free page, break it into order-0 pages */
+> -		isolated = split_free_page(page);
+> +		/* Found a free page, will break it into order-0 pages */
+> +		order = page_order(page);
+> +		isolated = __isolate_free_page(page, page_order(page));
+> +		set_page_private(page, order);
+>  		total_isolated += isolated;
+> -		for (i = 0; i < isolated; i++) {
+> -			list_add(&page->lru, freelist);
+> -			page++;
+> -		}
+> +		list_add_tail(&page->lru, freelist);
+>
+>  		/* If a page was split, advance to the end of it */
+>  		if (isolated) {
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index d27e8b9..5134f46 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2525,33 +2525,6 @@ int __isolate_free_page(struct page *page, unsigned int order)
+>  }
+>
+>  /*
+> - * Similar to split_page except the page is already free. As this is only
+> - * being used for migration, the migratetype of the block also changes.
+> - * As this is called with interrupts disabled, the caller is responsible
+> - * for calling arch_alloc_page() and kernel_map_page() after interrupts
+> - * are enabled.
+> - *
+> - * Note: this is probably too low level an operation for use in drivers.
+> - * Please consult with lkml before using this in your driver.
+> - */
+> -int split_free_page(struct page *page)
+> -{
+> -	unsigned int order;
+> -	int nr_pages;
+> -
+> -	order = page_order(page);
+> -
+> -	nr_pages = __isolate_free_page(page, order);
+> -	if (!nr_pages)
+> -		return 0;
+> -
+> -	/* Split into individual pages */
+> -	set_page_refcounted(page);
+> -	split_page(page, order);
+> -	return nr_pages;
+> -}
+> -
+> -/*
+>   * Update NUMA hit/miss statistics
+>   *
+>   * Must be called with interrupts disabled.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
