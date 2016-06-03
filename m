@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 075966B0266
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 05:17:12 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id rs7so34435120lbb.2
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:17:11 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 142D66B0267
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 05:17:14 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e3so38460054wme.3
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:17:14 -0700 (PDT)
 Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id w135si7056005wme.14.2016.06.03.02.16.56
+        by mx.google.com with ESMTPS id v9si6396227wjw.43.2016.06.03.02.16.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 03 Jun 2016 02:16:57 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id a20so10498200wma.3
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:16:56 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id a20so10498300wma.3
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:16:57 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 09/10] mm, oom_reaper: do not attempt to reap a task more than twice
-Date: Fri,  3 Jun 2016 11:16:43 +0200
-Message-Id: <1464945404-30157-10-git-send-email-mhocko@kernel.org>
+Subject: [RFC PATCH 10/10] mm, oom: hide mm which is shared with kthread or global init
+Date: Fri,  3 Jun 2016 11:16:44 +0200
+Message-Id: <1464945404-30157-11-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
 References: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,73 +24,95 @@ Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@
 
 From: Michal Hocko <mhocko@suse.com>
 
-oom_reaper relies on the mmap_sem for read to do its job. Many places
-which might block readers have been converted to use down_write_killable
-and that has reduced chances of the contention a lot. Some paths where
-the mmap_sem is held for write can take other locks and they might
-either be not prepared to fail due to fatal signal pending or too
-impractical to be changed.
+The only case where the oom_reaper is not triggered for the oom victim
+is when it shares the memory with a kernel thread (aka use_mm) or with
+the global init. After "mm, oom: skip vforked tasks from being selected"
+the victim cannot be a vforked task of the global init so we are left
+with clone(CLONE_VM) (without CLONE_THREAD or CLONE_SIGHAND). use_mm users
+are quite rare as well. In order to guarantee a forward progress for the
+OOM killer make sure that this really rare cases will not get into the
+way and hide the mm from the oom killer by setting MMF_OOM_REAPED flag
+for it.
 
-This patch introduces MMF_OOM_NOT_REAPABLE flag which gets set after the
-first attempt to reap a task's mm fails. If the flag is present already
-after the failure then we set MMF_OOM_REAPED to hide this mm from the
-oom killer completely so it can go and chose another victim.
+We cannot keep the TIF_MEMDIE for the victim so let's simply wait for a
+while and then drop the flag for all victims except for the current task
+which is guaranteed to be in the allocation path already and should be
+able to use the memory reserve right away.
 
-As a result a risk of OOM deadlock when the oom victim would be blocked
-indefinetly and so the oom killer cannot make any progress should be
-mitigated considerably while we still try really hard to perform all
-reclaim attempts and stay predictable in the behavior.
+If the victim cannot terminate by then simply risk another oom victim
+selection. Note that oom_scan_process_thread has to learn about this as
+well and ignore the TIF_MEMDIE on the current task because memory reserve
+might be already depleted and go on to other potential victims is the
+only way forward. We could eventually panic if none of that helped and
+there is no further victim left.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/sched.h |  1 +
- mm/oom_kill.c         | 19 +++++++++++++++++++
- 2 files changed, 20 insertions(+)
+ mm/oom_kill.c | 33 ++++++++++++++++++++++++++++-----
+ 1 file changed, 28 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 7442f74b6d44..6d81a1eb974a 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -512,6 +512,7 @@ static inline int get_dumpable(struct mm_struct *mm)
- #define MMF_HAS_UPROBES		19	/* has uprobes */
- #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
- #define MMF_OOM_REAPED		21	/* mm has been already reaped */
-+#define MMF_OOM_NOT_REAPABLE	22	/* mm couldn't be reaped */
- 
- #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
- 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 70992f0f1b78..9a5cc12a479a 100644
+index 9a5cc12a479a..3a3b136ee9db 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -551,8 +551,27 @@ static void oom_reap_task(struct task_struct *tsk)
- 		schedule_timeout_idle(HZ/10);
+@@ -283,10 +283,19 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
  
- 	if (attempts > MAX_OOM_REAP_RETRIES) {
-+		struct task_struct *p;
-+
- 		pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
- 				task_pid_nr(tsk), tsk->comm);
-+
-+		/*
-+		 * If we've already tried to reap this task in the past and
-+		 * failed it probably doesn't make much sense to try yet again
-+		 * so hide the mm from the oom killer so that it can move on
-+		 * to another task with a different mm struct.
-+		 */
-+		p = find_lock_task_mm(tsk);
-+		if (p) {
-+			if (test_and_set_bit(MMF_OOM_NOT_REAPABLE, &p->mm->flags)) {
-+				pr_info("oom_reaper: giving up pid:%d (%s)\n",
-+						task_pid_nr(tsk), tsk->comm);
-+				set_bit(MMF_OOM_REAPED, &p->mm->flags);
-+			}
-+			task_unlock(p);
-+		}
-+
- 		debug_show_all_locks();
+ 	/*
+ 	 * This task already has access to memory reserves and is being killed.
+-	 * Don't allow any other task to have access to the reserves.
++	 * Don't allow any other task to have access to the reserves unless
++	 * this is a current task which is clearly in the allocation path and
++	 * the access to memory reserves didn't help so we should rather try
++	 * to kill somebody else or panic on no oom victim than loop with no way
++	 * forward. Go with OOM_SCAN_OK rather than OOM_SCAN_CONTINUE to double
++	 * check MMF_OOM_REAPED in oom_badness() to make sure we've done
++	 * everything to reclaim memory.
+ 	 */
+-	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims))
+-		return OOM_SCAN_ABORT;
++	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims)) {
++		if (task != current)
++			return OOM_SCAN_ABORT;
++		return OOM_SCAN_OK;
++	}
+ 
+ 	/*
+ 	 * If task is allocating a lot of memory and has been marked to be
+@@ -908,9 +917,14 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 			/*
+ 			 * We cannot use oom_reaper for the mm shared by this
+ 			 * process because it wouldn't get killed and so the
+-			 * memory might be still used.
++			 * memory might be still used. Hide the mm from the oom
++			 * killer to guarantee OOM forward progress.
+ 			 */
+ 			can_oom_reap = false;
++			set_bit(MMF_OOM_REAPED, &mm->flags);
++			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
++					task_pid_nr(victim), victim->comm,
++					task_pid_nr(p), p->comm);
+ 			continue;
+ 		}
+ 		if (p->signal->oom_score_adj == OOM_ADJUST_MIN)
+@@ -922,8 +936,17 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
  	}
+ 	rcu_read_unlock();
  
+-	if (can_oom_reap)
++	if (can_oom_reap) {
+ 		wake_oom_reaper(victim);
++	} else if (victim != current) {
++		/*
++		 * If we want to guarantee a forward progress we cannot keep
++		 * the oom victim TIF_MEMDIE here. Sleep for a while and then
++		 * drop the flag to make sure another victim can be selected.
++		 */
++		schedule_timeout_killable(HZ);
++		exit_oom_victim(victim);
++	}
+ 
+ 	mmdrop(mm);
+ 	put_task_struct(victim);
 -- 
 2.8.1
 
