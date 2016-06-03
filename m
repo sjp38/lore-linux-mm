@@ -1,120 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 213E36B007E
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E9EC76B0253
 	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 05:16:52 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id h68so34826244lfh.2
+Received: by mail-lb0-f200.google.com with SMTP id j12so34541746lbo.0
         for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:16:52 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id y6si6358798wjv.135.2016.06.03.02.16.50
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id g8si4645186wjj.12.2016.06.03.02.16.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jun 2016 02:16:50 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id a20so10497584wma.3
+        Fri, 03 Jun 2016 02:16:51 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id e3so21991287wme.2
         for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:16:50 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 0/10 -v3] Handle oom bypass more gracefully
-Date: Fri,  3 Jun 2016 11:16:34 +0200
-Message-Id: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 01/10] proc, oom: drop bogus task_lock and mm check
+Date: Fri,  3 Jun 2016 11:16:35 +0200
+Message-Id: <1464945404-30157-2-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
+References: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-Hi,
-this is the third version of the patchse. Previous version was posted
-http://lkml.kernel.org/r/1464613556-16708-1-git-send-email-mhocko@kernel.org
-I have folded in all the fixes pointed by Oleg (thanks). I hope I
-haven't missed anything.
+From: Michal Hocko <mhocko@suse.com>
 
-The following 10 patches should put some order to very rare cases of
-mm shared between processes and make the paths which bypass the oom
-killer oom reapable and so much more reliable finally. Even though mm
-shared outside of thread group is rare (either vforked tasks for a
-short period, use_mm by kernel threads or exotic thread model of
-clone(CLONE_VM) without CLONE_THREAD resp. CLONE_SIGHAND). Not only it
-makes the current oom killer logic quite hard to follow and evaluate it
-can lead to weird corner cases. E.g. it is possible to select an oom
-victim which shares the mm with unkillable process or bypass the oom
-killer even when other processes sharing the mm are still alive and
-other weird cases.
+both oom_adj_write and oom_score_adj_write are using task_lock,
+check for task->mm and fail if it is NULL. This is not needed because
+the oom_score_adj is per signal struct so we do not need mm at all.
+The code has been introduced by 3d5992d2ac7d ("oom: add per-mm oom
+disable count") but we do not do per-mm oom disable since c9f01245b6a7
+("oom: remove oom_disable_count").
 
-Patch 1 drops bogus task_lock and mm check from oom_{score_}adj_write.
-This can be considered a bug fix with a low impact as nobody has noticed
-for years.
+The task->mm check is even not correct because the current thread might
+have exited but the thread group might be still alive - e.g. thread
+group leader would lead that echo $VAL > /proc/pid/oom_score_adj would
+always fail with EINVAL while /proc/pid/task/$other_tid/oom_score_adj
+would succeed. This is unexpected at best.
 
-Patch 2 drops sighand lock because it is not needed anymore as pointed
-by Oleg.
+Remove the lock along with the check to fix the unexpected behavior
+and also because there is not real need for the lock in the first place.
 
-Patch 3 is a clean up of oom_score_adj handling and a preparatory
-work for later patches.
+Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Acked-by: Oleg Nesterov <oleg@redhat.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ fs/proc/base.c | 22 ++++------------------
+ 1 file changed, 4 insertions(+), 18 deletions(-)
 
-Patch 4 enforces oom_adj_score to be consistent between processes
-sharing the mm to behave consistently with the regular thread
-groups. This can be considered a user visible behavior change because
-one thread group updating oom_score_adj will affect others which share
-the same mm via clone(CLONE_VM). I argue that this should be acceptable
-because we already have the same behavior for threads in the same thread
-group and sharing the mm without signal struct is just a different model
-of threading. This is probably the most controversial part of the series,
-I would like to find some consensus here though. There were some
-suggestions to hook some counter/oom_score_adj into the mm_struct
-but I feel that this is not necessary right now and we can rely on
-proc handler + oom_kill_process to DTRT. I can be convinced otherwise
-but I strongly think that whatever we do the userspace has to have
-a way to see the current oom priority as consistently as possible.
-
-Patch 5 makes sure that no vforked task is selected if it is sharing
-the mm with oom unkillable task.
-
-Patch 6 ensures that all user tasks sharing the mm are killed which in
-turn makes sure that all oom victims are oom reapable.
-
-Patch 7 guarantees that task_will_free_mem will always imply reapable
-bypass of the oom killer.
-
-Patch 8 is new in this version and it addresses an issue pointed out
-by 0-day OOM report where an oom victim was reaped several times.
-
-Assuming there are no other bugs in those patches and no fundamental
-opposition to this direction I think we should go on and merged them
-to the mmomt tree and target the 4.8 merge window.
-
-Finally the last 2 patches are sent as an RFC because I am still not sure
-this direction is the correct one. Patch 9 puts an upper bound on how many
-times oom_reaper tries to reap a task and hides it from the oom killer to
-move on when no progress can be made. Patch 10 tries to plug the (hopefully)
-last hole when we can still lock up when the oom victim is shared with
-oom unkillable tasks (kthreads and global init). We just try to be best
-effort in that case and rather fallback to kill something else than risk
-a lockup.
-
-The patchset is based on the current mmotm tree (mmotm-2016-05-27-15-19).
-I would really appreciate a deep review as this area is full of land
-mines but I hope I've made the code much cleaner with less kludges.
-
-I have pushed the patchset to my git tree
-git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git to branch
-attempts/process-share-mm-oom-sanitization
-
-Michal Hocko (10):
-      proc, oom: drop bogus task_lock and mm check
-      proc, oom: drop bogus sighand lock
-      proc, oom_adj: extract oom_score_adj setting into a helper
-      mm, oom_adj: make sure processes sharing mm have same view of oom_score_adj
-      mm, oom: skip vforked tasks from being selected
-      mm, oom: kill all tasks sharing the mm
-      mm, oom: fortify task_will_free_mem
-      mm, oom: task_will_free_mem should skip oom_reaped tasks
-      mm, oom_reaper: do not attempt to reap a task more than twice
-      mm, oom: hide mm which is shared with kthread or global init
-
- fs/proc/base.c        | 185 ++++++++++++++++++++++---------------------
- include/linux/mm.h    |   2 +
- include/linux/oom.h   |  26 +-----
- include/linux/sched.h |  27 +++++++
- mm/memcontrol.c       |   4 +-
- mm/oom_kill.c         | 214 ++++++++++++++++++++++++++++++++++----------------
- 6 files changed, 278 insertions(+), 180 deletions(-)
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index be73f4d0cb01..a6014e45c516 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -1083,15 +1083,9 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
+ 		goto out;
+ 	}
+ 
+-	task_lock(task);
+-	if (!task->mm) {
+-		err = -EINVAL;
+-		goto err_task_lock;
+-	}
+-
+ 	if (!lock_task_sighand(task, &flags)) {
+ 		err = -ESRCH;
+-		goto err_task_lock;
++		goto err_put_task;
+ 	}
+ 
+ 	/*
+@@ -1121,8 +1115,7 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
+ 	trace_oom_score_adj_update(task);
+ err_sighand:
+ 	unlock_task_sighand(task, &flags);
+-err_task_lock:
+-	task_unlock(task);
++err_put_task:
+ 	put_task_struct(task);
+ out:
+ 	return err < 0 ? err : count;
+@@ -1186,15 +1179,9 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
+ 		goto out;
+ 	}
+ 
+-	task_lock(task);
+-	if (!task->mm) {
+-		err = -EINVAL;
+-		goto err_task_lock;
+-	}
+-
+ 	if (!lock_task_sighand(task, &flags)) {
+ 		err = -ESRCH;
+-		goto err_task_lock;
++		goto err_put_task;
+ 	}
+ 
+ 	if ((short)oom_score_adj < task->signal->oom_score_adj_min &&
+@@ -1210,8 +1197,7 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
+ 
+ err_sighand:
+ 	unlock_task_sighand(task, &flags);
+-err_task_lock:
+-	task_unlock(task);
++err_put_task:
+ 	put_task_struct(task);
+ out:
+ 	return err < 0 ? err : count;
+-- 
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
