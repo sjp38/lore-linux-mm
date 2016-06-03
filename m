@@ -1,129 +1,275 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DDA286B007E
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 15:27:08 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id w185so237654538vkf.3
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 12:27:08 -0700 (PDT)
-Received: from mail-qt0-x243.google.com (mail-qt0-x243.google.com. [2607:f8b0:400d:c0d::243])
-        by mx.google.com with ESMTPS id x190si3484699qha.92.2016.06.03.12.27.07
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DE3B6B007E
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 18:55:47 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id x85so78193695ioi.0
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 15:55:47 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i184si10156540pfc.224.2016.06.03.15.55.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jun 2016 12:27:07 -0700 (PDT)
-Received: by mail-qt0-x243.google.com with SMTP id r5so80787qtr.3
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 12:27:07 -0700 (PDT)
-Subject: Re: [PATCH 5/8] x86, pkeys: allocation/free syscalls
-References: <20160531152814.36E0B9EE@viggo.jf.intel.com>
- <20160531152822.FE8D405E@viggo.jf.intel.com>
- <20160601123705.72a606e7@lwn.net> <574F386A.8070106@sr71.net>
- <CAKgNAkiyD_2tAxrBxirxViViMUsfLRRqQp5HowM58dG21LAa7Q@mail.gmail.com>
- <574F7B16.4080906@sr71.net> <5499ff55-ae0f-e54c-05fd-b1e76dc05a89@gmail.com>
- <5751BE37.1060704@sr71.net>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Message-ID: <d4f9b224-2ce2-8e45-516c-5dddcfd95724@gmail.com>
-Date: Fri, 3 Jun 2016 14:27:01 -0500
+        Fri, 03 Jun 2016 15:55:46 -0700 (PDT)
+Date: Fri, 03 Jun 2016 15:55:45 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2016-06-03-15-55 uploaded
+Message-ID: <57520af1.J4COr6lMYGJvEo1x%akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <5751BE37.1060704@sr71.net>
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: mtk.manpages@gmail.com, Jonathan Corbet <corbet@lwn.net>, lkml <linux-kernel@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
 
-On 06/03/2016 12:28 PM, Dave Hansen wrote:
-> On 06/02/2016 05:26 PM, Michael Kerrisk (man-pages) wrote:
->> On 06/01/2016 07:17 PM, Dave Hansen wrote:
->>> On 06/01/2016 05:11 PM, Michael Kerrisk (man-pages) wrote:
->>>>>>>>
->>>>>>>> If I read this right, it doesn't actually remove any pkey restrictions
->>>>>>>> that may have been applied while the key was allocated.  So there could be
->>>>>>>> pages with that key assigned that might do surprising things if the key is
->>>>>>>> reallocated for another use later, right?  Is that how the API is intended
->>>>>>>> to work?
->>>>>>
->>>>>> Yeah, that's how it works.
->>>>>>
->>>>>> It's not ideal.  It would be _best_ if we during mm_pkey_free(), we
->>>>>> ensured that no VMAs under that mm have that vma_pkey() set.  But, that
->>>>>> search would be potentially expensive (a walk over all VMAs), or would
->>>>>> force us to keep a data structure with a count of all the VMAs with a
->>>>>> given key.
->>>>>>
->>>>>> I should probably discuss this behavior in the manpages and address it
->>>> s/probably//
->>>>
->>>> And, did I miss it. Was there an updated man-pages patch in the latest
->>>> series? I did not notice it.
->>>
->>> There have been to changes to the patches that warranted updating the
->>> manpages until now.  I'll send the update immediately.
->>
->> Do those updated pages include discussion of the point noted above?
->> I could not see it mentioned there.
-> 
-> I added the following text to pkey_alloc.2.  I somehow neglected to send
-> it out in the v3 update of the manpages RFC:
-> 
-> An application should not call
-> .BR pkey_free ()
-> on any protection key which has been assigned to an address
-> range by
-> .BR pkey_mprotect ()
-> and which is still in use.  The behavior in this case is
-> undefined and may result in an error.
-> 
-> I'll add that in the version (v4) I send out shortly.
-> 
->> Just by the way, the above behavior seems to offer possibilities
->> for users to shoot themselves in the foot, in a way that has security
->> implications. (Or do I misunderstand?)
-> 
-> Protection keys has the potential to add a layer of security and
-> reliability to applications.  But, it has not been primarily designed as
-> a security feature.  For instance, WRPKRU is a completely unprivileged
-> instruction, so pkeys are useless in any case that an attacker controls
-> the PKRU register or can execute arbitrary instructions.
-> 
-> That said, this mechanism does, indeed, allow a user to shoot themselves
-> in the foot and in a way that could have security implications.
-> 
-> For instance, say the following happened:
-> 1. A sensitive bit of data in memory was marked with a pkey
-> 2. That pkey was set as PKEY_DISABLE_ACCESS
-> 3. The application called pkey_free() on the pkey, without freeing
->    the sensitive data
-> 4. Application calls pkey_alloc() and then clears PKEY_DISABLE_ACCESS
-> 5. Applocation can now read the sensitive data
-> 
-> The application has to have basically "leaked" a reference to the pkey.
->  It forgot that it had sensitive data marked with that key.
-> 
-> The kernel _could_ enforce that no in-use pkey may have pkey_free()
-> called on it.  But, doing that has tradeoffs which could make
-> pkey_free() extremely slow:
-> 
->> It's not ideal.  It would be _best_ if we during mm_pkey_free(), we
->> ensured that no VMAs under that mm have that vma_pkey() set.  But, that
->> search would be potentially expensive (a walk over all VMAs), or would
->> force us to keep a data structure with a count of all the VMAs with a
->> given key.
-> 
-> In addition, that checking _could_ be implemented in an application by
-> inspecting /proc/$pid/smaps for "ProtectionKey: $foo" before calling
-> pkey_free($foo).
+The mm-of-the-moment snapshot 2016-06-03-15-55 has been uploaded to
 
-So, I think all of the above needs to be made abundantly clear in 
-pkeys(7).
+   http://www.ozlabs.org/~akpm/mmotm/
 
-Thanks,
+mmotm-readme.txt says
 
-Michael
+README for mm-of-the-moment:
+
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
 
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.7-rc1:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+* mm-fix-overflow-in-vm_map_ram.patch
+* kdump-fix-dmesg-gdbmacro-to-work-with-record-based-printk.patch
+* mm-check-the-return-value-of-lookup_page_ext-for-all-call-sites.patch
+* reiserfs-avoid-uninitialized-variable-use.patch
+* memcg-add-rcu-locking-around-css_for_each_descendant_pre-in-memcg_offline_kmem.patch
+* z3fold-avoid-modifying-headless-page-and-minor-cleanup.patch
+* checkpatch-reduce-git-commit-description-style-false-positives.patch
+* mm-page_alloc-prevent-infinite-loop-in-buffered_rmqueue.patch
+* mm-oom_reaper-do-not-use-siglock-in-try_oom_reaper.patch
+* mm-page_alloc-reset-zonelist-iterator-after-resetting-fair-zone-allocation-policy.patch
+* mm-page_alloc-recalculate-the-preferred-zoneref-if-the-context-can-ignore-memory-policies.patch
+  i-need-old-gcc.patch
+  arch-alpha-kernel-systblss-remove-debug-check.patch
+* tree-wide-get-rid-of-__gfp_repeat-for-order-0-allocations-part-i.patch
+* x86-get-rid-of-superfluous-__gfp_repeat.patch
+* x86-efi-get-rid-of-superfluous-__gfp_repeat.patch
+* arm-get-rid-of-superfluous-__gfp_repeat.patch
+* arm64-get-rid-of-superfluous-__gfp_repeat.patch
+* arc-get-rid-of-superfluous-__gfp_repeat.patch
+* mips-get-rid-of-superfluous-__gfp_repeat.patch
+* nios2-get-rid-of-superfluous-__gfp_repeat.patch
+* parisc-get-rid-of-superfluous-__gfp_repeat.patch
+* score-get-rid-of-superfluous-__gfp_repeat.patch
+* powerpc-get-rid-of-superfluous-__gfp_repeat.patch
+* sparc-get-rid-of-superfluous-__gfp_repeat.patch
+* s390-get-rid-of-superfluous-__gfp_repeat.patch
+* sh-get-rid-of-superfluous-__gfp_repeat.patch
+* tile-get-rid-of-superfluous-__gfp_repeat.patch
+* unicore32-get-rid-of-superfluous-__gfp_repeat.patch
+* jbd2-get-rid-of-superfluous-__gfp_repeat.patch
+* mm-hugetlb-fix-huge-page-reserve-accounting-for-private-mappings.patch
+* kasan-change-memory-hot-add-error-messages-to-info-messages.patch
+* mmoom_reaper-dont-call-mmput_async-without-atomic_inc_not_zero.patch
+* revert-mm-memcontrol-fix-possible-css-ref-leak-on-oom.patch
+* thp-broken-page-count-after-commit-aa88b68c.patch
+* relay-fix-potential-memory-leak.patch
+* mm-introduce-dedicated-wq_mem_reclaim-workqueue-to-do-lru_add_drain_all.patch
+* mm-do-not-discard-partial-pages-with-posix_fadv_dontneed.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* fs-ext4-fsyncc-generic_file_fsync-call-based-on-barrier-flag.patch
+* ocfs2-fix-a-redundant-re-initialization.patch
+* ocfs2-insure-dlm-lockspace-is-created-by-kernel-module.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+  mm.patch
+* mm-reorganize-slab-freelist-randomization.patch
+* mm-slub-freelist-randomization.patch
+* mm-memcontrol-remove-the-useless-parameter-for-mc_handle_swap_pte.patch
+* mm-init-fix-zone-boundary-creation.patch
+* memory-hotplug-add-move_pfn_range.patch
+* memory-hotplug-more-general-validation-of-zone-during-online.patch
+* memory-hotplug-use-zone_can_shift-for-sysfs-valid_zones-attribute.patch
+* mm-zap-zone_oom_locked.patch
+* mm-oom-add-memcg-to-oom_control.patch
+* mm-debug-add-vm_warn-which-maps-to-warn.patch
+* powerpc-mm-check-for-irq-disabled-only-if-debug_vm-is-enabled.patch
+* zram-rename-zstrm-find-release-functions.patch
+* zram-switch-to-crypto-compress-api.patch
+* zram-use-crypto-api-to-check-alg-availability.patch
+* zram-cosmetic-cleanup-documentation.patch
+* zram-delete-custom-lzo-lz4.patch
+* zram-add-more-compression-algorithms.patch
+* zram-drop-gfp_t-from-zcomp_strm_alloc.patch
+* mm-use-put_page-to-free-page-instead-of-putback_lru_page.patch
+* mm-migrate-support-non-lru-movable-page-migration.patch
+* mm-balloon-use-general-non-lru-movable-page-feature.patch
+* zsmalloc-keep-max_object-in-size_class.patch
+* zsmalloc-use-bit_spin_lock.patch
+* zsmalloc-use-accessor.patch
+* zsmalloc-factor-page-chain-functionality-out.patch
+* zsmalloc-introduce-zspage-structure.patch
+* zsmalloc-separate-free_zspage-from-putback_zspage.patch
+* zsmalloc-use-freeobj-for-index.patch
+* zsmalloc-page-migration-support.patch
+* zsmalloc-page-migration-support-fix.patch
+* zram-use-__gfp_movable-for-memory-allocation.patch
+* mm-compaction-split-freepages-without-holding-the-zone-lock.patch
+* mm-page_owner-initialize-page-owner-without-holding-the-zone-lock.patch
+* mm-page_owner-copy-last_migrate_reason-in-copy_page_owner.patch
+* mm-page_owner-introduce-split_page_owner-and-replace-manual-handling.patch
+* tools-vm-page_owner-increase-temporary-buffer-size.patch
+* mm-page_owner-use-stackdepot-to-store-stacktrace.patch
+* mm-page_alloc-introduce-post-allocation-processing-on-page-allocator.patch
+* mm-thp-check-pmd_trans_unstable-after-split_huge_pmd.patch
+* mm-hugetlb-simplify-hugetlb-unmap.patch
+* mm-change-the-interface-for-__tlb_remove_page.patch
+* mm-mmu_gather-track-page-size-with-mmu-gather-and-force-flush-if-page-size-change.patch
+* mm-remove-pointless-struct-in-struct-page-definition.patch
+* mm-clean-up-non-standard-page-_mapcount-users.patch
+* mm-memcontrol-cleanup-kmem-charge-functions.patch
+* mm-charge-uncharge-kmemcg-from-generic-page-allocator-paths.patch
+* mm-memcontrol-teach-uncharge_list-to-deal-with-kmem-pages.patch
+* arch-x86-charge-page-tables-to-kmemcg.patch
+* pipe-account-to-kmemcg.patch
+* af_unix-charge-buffers-to-kmemcg.patch
+* mmoom-remove-unused-argument-from-oom_scan_process_thread.patch
+* mm-frontswap-convert-frontswap_enabled-to-static-key.patch
+* mm-frontswap-convert-frontswap_enabled-to-static-key-checkpatch-fixes.patch
+* mm-add-nr_zsmalloc-to-vmstat.patch
+* mm-add-nr_zsmalloc-to-vmstat-fix.patch
+* include-linux-memblockh-clean-up-code-for-several-trivial-details.patch
+* mm-memblock-if-nr_new-is-0-just-return.patch
+* mm-make-optimistic-check-for-swapin-readahead.patch
+* mm-make-optimistic-check-for-swapin-readahead-fix-2.patch
+* mm-make-optimistic-check-for-swapin-readahead-fix-3.patch
+* mm-make-swapin-readahead-to-improve-thp-collapse-rate.patch
+* mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix.patch
+* mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix-2.patch
+* mm-make-swapin-readahead-to-improve-thp-collapse-rate-fix-3.patch
+* mm-vmstat-calculate-particular-vm-event.patch
+* mm-thp-avoid-unnecessary-swapin-in-khugepaged.patch
+* mm-thp-avoid-unnecessary-swapin-in-khugepaged-fix.patch
+* mm-thp-avoid-unnecessary-swapin-in-khugepaged-fix-2.patch
+* mm-thp-make-swapin-readahead-under-down_read-of-mmap_sem.patch
+* mm-thp-make-swapin-readahead-under-down_read-of-mmap_sem-fix.patch
+* mm-thp-make-swapin-readahead-under-down_read-of-mmap_sem-fix-2.patch
+* mm-thp-make-swapin-readahead-under-down_read-of-mmap_sem-fix-2-fix.patch
+* memstick-dont-allocate-unused-major-for-ms_block.patch
+* nvme-dont-allocate-unused-nvme_major.patch
+* nvme-dont-allocate-unused-nvme_major-fix.patch
+* jump_label-remove-bugh-atomich-dependencies-for-have_jump_label.patch
+* powerpc-add-explicit-include-asm-asm-compath-for-jump-label.patch
+* s390-add-explicit-linux-stringifyh-for-jump-label.patch
+* dynamic_debug-add-jump-label-support.patch
+* lib-switch-config_printk_time-to-int.patch
+* printk-allow-different-timestamps-for-printktime.patch
+* lib-add-crc64-ecma-module.patch
+* samples-kprobe-convert-the-printk-to-pr_info-pr_err.patch
+* samples-jprobe-convert-the-printk-to-pr_info-pr_err.patch
+* samples-kretprobe-convert-the-printk-to-pr_info-pr_err.patch
+* samples-kretprobe-fix-the-wrong-type.patch
+* fs-befs-move-useless-assignment.patch
+* fs-befs-check-silent-flag-before-logging-errors.patch
+* fs-befs-remove-useless-pr_err.patch
+* fs-befs-remove-useless-befs_error.patch
+* fs-befs-remove-useless-pr_err-in-befs_init_inodecache.patch
+* nilfs2-hide-function-name-argument-from-nilfs_error.patch
+* nilfs2-add-nilfs_msg-message-interface.patch
+* nilfs2-embed-a-back-pointer-to-super-block-instance-in-nilfs-object.patch
+* nilfs2-reduce-bare-use-of-printk-with-nilfs_msg.patch
+* nilfs2-replace-nilfs_warning-with-nilfs_msg.patch
+* nilfs2-emit-error-message-when-i-o-error-is-detected.patch
+* nilfs2-do-not-use-yield.patch
+* nilfs2-refactor-parser-of-snapshot-mount-option.patch
+* kexec-return-error-number-directly.patch
+* arm-kdump-advertise-boot-aliased-crash-kernel-resource.patch
+* arm-kexec-advertise-location-of-bootable-ram.patch
+* kexec-dont-invoke-oom-killer-for-control-page-allocation.patch
+* kexec-ensure-user-memory-sizes-do-not-wrap.patch
+* kexec-ensure-user-memory-sizes-do-not-wrap-fix.patch
+* kdump-arrange-for-paddr_vmcoreinfo_note-to-return-phys_addr_t.patch
+* kexec-allow-architectures-to-override-boot-mapping.patch
+* arm-keystone-dts-add-psci-command-definition.patch
+* arm-kexec-fix-kexec-for-keystone-2.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* futex-fix-shared-futex-operations-on-nommu.patch
+* dma-mapping-constify-attrs-passed-to-dma_get_attr.patch
+* arm-dma-mapping-constify-attrs-passed-to-internal-functions.patch
+* arm64-dma-mapping-constify-attrs-passed-to-internal-functions.patch
+* w1-remove-need-for-ida-and-use-platform_devid_auto.patch
+* w1-add-helper-macro-module_w1_family.patch
+* kcov-allow-more-fine-grained-coverage-instrumentation.patch
+* ipc-semc-fix-complex_count-vs-simple-op-race.patch
+* ipc-msgc-msgsnd-use-freezable-blocking-call.patch
+* msgrcv-use-freezable-blocking-call.patch
+  linux-next.patch
+* mm-make-optimistic-check-for-swapin-readahead-fix.patch
+* drivers-net-wireless-intel-iwlwifi-dvm-calibc-fix-min-warning.patch
+* fpga-zynq-fpga-fix-build-failure.patch
+  mm-add-strictlimit-knob-v2.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
