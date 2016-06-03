@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 816B26B0260
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 05:17:00 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id rs7so34432656lbb.2
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:17:00 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8838F6B0261
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 05:17:02 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id f75so38594629wmf.2
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:17:02 -0700 (PDT)
 Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id t10si40759025wme.94.2016.06.03.02.16.53
+        by mx.google.com with ESMTPS id f143si7040071wme.52.2016.06.03.02.16.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 03 Jun 2016 02:16:53 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id a20so10497853wma.3
+Received: by mail-wm0-f67.google.com with SMTP id a136so22112380wme.0
         for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:16:53 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 04/10] mm, oom_adj: make sure processes sharing mm have same view of oom_score_adj
-Date: Fri,  3 Jun 2016 11:16:38 +0200
-Message-Id: <1464945404-30157-5-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 05/10] mm, oom: skip vforked tasks from being selected
+Date: Fri,  3 Jun 2016 11:16:39 +0200
+Message-Id: <1464945404-30157-6-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
 References: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,154 +24,86 @@ Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@
 
 From: Michal Hocko <mhocko@suse.com>
 
-oom_score_adj is shared for the thread groups (via struct signal) but
-this is not sufficient to cover processes sharing mm (CLONE_VM without
-CLONE_THREAD resp. CLONE_SIGHAND) and so we can easily end up in a
-situation when some processes update their oom_score_adj and confuse
-the oom killer. In the worst case some of those processes might hide
-from oom killer altogether via OOM_SCORE_ADJ_MIN while others are
-eligible. OOM killer would then pick up those eligible but won't be
-allowed to kill others sharing the same mm so the mm wouldn't release
-the mm and so the memory.
+vforked tasks are not really sitting on any memory. They are sharing
+the mm with parent until they exec into a new code. Until then it is
+just pinning the address space. OOM killer will kill the vforked task
+along with its parent but we still can end up selecting vforked task
+when the parent wouldn't be selected. E.g. init doing vfork to launch
+a task or vforked being a child of oom unkillable task with an updated
+oom_score_adj to be killable.
 
-It would be ideal to have the oom_score_adj per mm_struct because that
-is the natural entity OOM killer considers. But this will not work
-because some programs are doing
-	vfork()
-	set_oom_adj()
-	exec()
-
-We can achieve the same though. oom_score_adj write handler can set the
-oom_score_adj for all processes sharing the same mm if the task is not
-in the middle of vfork. As a result all the processes will share the
-same oom_score_adj. The current implementation is rather pessimistic
-and checks all the existing processes by default if there are more than
-1 holder of the mm but we do not have any reliable way to check for
-external users yet.
-
-Changes since v2
-- skip over same thread group
-- skip over kernel threads and global init
+Make sure to not select vforked task as an oom victim by checking
+vfork_done in oom_badness.
 
 Changes since v1
-- note that we are changing oom_score_adj outside of the thread group
-  to the log
+- copy_process() doesn't disallow CLONE_VFORK without CLONE_VM, so with
+  this patch it would be trivial to make the exploit which hides a
+  memory hog from oom-killer - per Oleg
+- comment in in_vfork by Oleg
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- fs/proc/base.c     | 53 ++++++++++++++++++++++++++++++++++++++++++++++++-----
- include/linux/mm.h |  2 ++
- mm/oom_kill.c      |  2 +-
- 3 files changed, 51 insertions(+), 6 deletions(-)
+ include/linux/sched.h | 26 ++++++++++++++++++++++++++
+ mm/oom_kill.c         |  6 ++++--
+ 2 files changed, 30 insertions(+), 2 deletions(-)
 
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 520fa467cad0..f5fa338daaed 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -1040,14 +1040,13 @@ static ssize_t oom_adj_read(struct file *file, char __user *buf, size_t count,
- static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
- {
- 	static DEFINE_MUTEX(oom_adj_mutex);
-+	struct mm_struct *mm = NULL;
- 	struct task_struct *task;
- 	int err = 0;
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index ec636400669f..7442f74b6d44 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1883,6 +1883,32 @@ extern int arch_task_struct_size __read_mostly;
+ #define TNF_FAULT_LOCAL	0x08
+ #define TNF_MIGRATE_FAIL 0x10
  
- 	task = get_proc_task(file_inode(file));
--	if (!task) {
--		err = -ESRCH;
--		goto out;
--	}
-+	if (!task)
-+		return -ESRCH;
- 
- 	mutex_lock(&oom_adj_mutex);
- 	if (legacy) {
-@@ -1071,14 +1070,58 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
- 		}
- 	}
- 
++static inline bool in_vfork(struct task_struct *tsk)
++{
++	bool ret;
++
 +	/*
-+	 * Make sure we will check other processes sharing the mm if this is
-+	 * not vfrok which wants its own oom_score_adj.
-+	 * pin the mm so it doesn't go away and get reused after task_unlock
++	 * need RCU to access ->real_parent if CLONE_VM was used along with
++	 * CLONE_PARENT.
++	 *
++	 * We check real_parent->mm == tsk->mm because CLONE_VFORK does not
++	 * imply CLONE_VM
++	 *
++	 * CLONE_VFORK can be used with CLONE_PARENT/CLONE_THREAD and thus
++	 * ->real_parent is not necessarily the task doing vfork(), so in
++	 * theory we can't rely on task_lock() if we want to dereference it.
++	 *
++	 * And in this case we can't trust the real_parent->mm == tsk->mm
++	 * check, it can be false negative. But we do not care, if init or
++	 * another oom-unkillable task does this it should blame itself.
 +	 */
-+	if (!task->vfork_done) {
-+		struct task_struct *p = find_lock_task_mm(task);
++	rcu_read_lock();
++	ret = tsk->vfork_done && tsk->real_parent->mm == tsk->mm;
++	rcu_read_unlock();
 +
-+		if (p) {
-+			if (atomic_read(&p->mm->mm_users) > 1) {
-+				mm = p->mm;
-+				atomic_inc(&mm->mm_count);
-+			}
-+			task_unlock(p);
-+		}
-+	}
++	return ret;
++}
 +
- 	task->signal->oom_score_adj = oom_adj;
- 	if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
- 		task->signal->oom_score_adj_min = (short)oom_adj;
- 	trace_oom_score_adj_update(task);
-+
-+	if (mm) {
-+		struct task_struct *p;
-+
-+		rcu_read_lock();
-+		for_each_process(p) {
-+			if (same_thread_group(task,p))
-+				continue;
-+
-+			/* do not touch kernel threads or the global init */
-+			if (p->flags & PF_KTHREAD || is_global_init(p))
-+				continue;
-+
-+			task_lock(p);
-+			if (!p->vfork_done && process_shares_mm(p, mm)) {
-+				pr_info("updating oom_score_adj for %d (%s) from %d to %d because it shares mm with %d (%s). Report if this is unexpected.\n",
-+						task_pid_nr(p), p->comm,
-+						p->signal->oom_score_adj, oom_adj,
-+						task_pid_nr(task), task->comm);
-+				p->signal->oom_score_adj = oom_adj;
-+				if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
-+					p->signal->oom_score_adj_min = (short)oom_adj;
-+			}
-+			task_unlock(p);
-+		}
-+		rcu_read_unlock();
-+		mmdrop(mm);
-+	}
- err_unlock:
- 	mutex_unlock(&oom_adj_mutex);
- 	put_task_struct(task);
--out:
- 	return err;
- }
- 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 79e5129a3277..9bb4331f92f1 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2248,6 +2248,8 @@ static inline int in_gate_area(struct mm_struct *mm, unsigned long addr)
- }
- #endif	/* __HAVE_ARCH_GATE_AREA */
- 
-+extern bool process_shares_mm(struct task_struct *p, struct mm_struct *mm);
-+
- #ifdef CONFIG_SYSCTL
- extern int sysctl_drop_caches;
- int drop_caches_sysctl_handler(struct ctl_table *, int,
+ #ifdef CONFIG_NUMA_BALANCING
+ extern void task_numa_fault(int last_node, int node, int pages, int flags);
+ extern pid_t task_numa_group_id(struct task_struct *p);
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 25eac62c190c..d60924e1940d 100644
+index d60924e1940d..2c604a9a8305 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -415,7 +415,7 @@ bool oom_killer_disabled __read_mostly;
-  * task's threads: if one of those is using this mm then this task was also
-  * using it.
-  */
--static bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
-+bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
- {
- 	struct task_struct *t;
+@@ -176,11 +176,13 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
  
+ 	/*
+ 	 * Do not even consider tasks which are explicitly marked oom
+-	 * unkillable or have been already oom reaped.
++	 * unkillable or have been already oom reaped or the are in
++	 * the middle of vfork
+ 	 */
+ 	adj = (long)p->signal->oom_score_adj;
+ 	if (adj == OOM_SCORE_ADJ_MIN ||
+-			test_bit(MMF_OOM_REAPED, &p->mm->flags)) {
++			test_bit(MMF_OOM_REAPED, &p->mm->flags) ||
++			in_vfork(p)) {
+ 		task_unlock(p);
+ 		return 0;
+ 	}
 -- 
 2.8.1
 
