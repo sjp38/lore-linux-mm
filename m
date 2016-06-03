@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D78D6B0265
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 05:17:09 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 132so34912232lfz.3
-        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:17:09 -0700 (PDT)
+Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 075966B0266
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 05:17:12 -0400 (EDT)
+Received: by mail-lb0-f198.google.com with SMTP id rs7so34435120lbb.2
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:17:11 -0700 (PDT)
 Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id e124si7002502wme.99.2016.06.03.02.16.56
+        by mx.google.com with ESMTPS id w135si7056005wme.14.2016.06.03.02.16.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Jun 2016 02:16:56 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id a136so22112639wme.0
+        Fri, 03 Jun 2016 02:16:57 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id a20so10498200wma.3
         for <linux-mm@kvack.org>; Fri, 03 Jun 2016 02:16:56 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 08/10] mm, oom: task_will_free_mem should skip oom_reaped tasks
-Date: Fri,  3 Jun 2016 11:16:42 +0200
-Message-Id: <1464945404-30157-9-git-send-email-mhocko@kernel.org>
+Subject: [RFC PATCH 09/10] mm, oom_reaper: do not attempt to reap a task more than twice
+Date: Fri,  3 Jun 2016 11:16:43 +0200
+Message-Id: <1464945404-30157-10-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
 References: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,49 +24,73 @@ Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@
 
 From: Michal Hocko <mhocko@suse.com>
 
-0-day robot has encountered the following:
-[   82.694232] Out of memory: Kill process 3914 (trinity-c0) score 167 or sacrifice child
-[   82.695110] Killed process 3914 (trinity-c0) total-vm:55864kB, anon-rss:1512kB, file-rss:1088kB, shmem-rss:25616kB
-[   82.706724] oom_reaper: reaped process 3914 (trinity-c0), now anon-rss:0kB, file-rss:0kB, shmem-rss:26488kB
-[   82.715540] oom_reaper: reaped process 3914 (trinity-c0), now anon-rss:0kB, file-rss:0kB, shmem-rss:26900kB
-[   82.717662] oom_reaper: reaped process 3914 (trinity-c0), now anon-rss:0kB, file-rss:0kB, shmem-rss:26900kB
-[   82.725804] oom_reaper: reaped process 3914 (trinity-c0), now anon-rss:0kB, file-rss:0kB, shmem-rss:27296kB
-[   82.739091] oom_reaper: reaped process 3914 (trinity-c0), now anon-rss:0kB, file-rss:0kB, shmem-rss:28148kB
+oom_reaper relies on the mmap_sem for read to do its job. Many places
+which might block readers have been converted to use down_write_killable
+and that has reduced chances of the contention a lot. Some paths where
+the mmap_sem is held for write can take other locks and they might
+either be not prepared to fail due to fatal signal pending or too
+impractical to be changed.
 
-oom_reaper is trying to reap the same task again and again. This
-is possible only when the oom killer is bypassed because of
-task_will_free_mem because we skip over tasks with MMF_OOM_REAPED
-already set during select_bad_process. Teach task_will_free_mem to skip
-over MMF_OOM_REAPED tasks as well because they will be unlikely to free
-anything more.
+This patch introduces MMF_OOM_NOT_REAPABLE flag which gets set after the
+first attempt to reap a task's mm fails. If the flag is present already
+after the failure then we set MMF_OOM_REAPED to hide this mm from the
+oom killer completely so it can go and chose another victim.
 
-Analyzed-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+As a result a risk of OOM deadlock when the oom victim would be blocked
+indefinetly and so the oom killer cannot make any progress should be
+mitigated considerably while we still try really hard to perform all
+reclaim attempts and stay predictable in the behavior.
+
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/oom_kill.c | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ include/linux/sched.h |  1 +
+ mm/oom_kill.c         | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+)
 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 7442f74b6d44..6d81a1eb974a 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -512,6 +512,7 @@ static inline int get_dumpable(struct mm_struct *mm)
+ #define MMF_HAS_UPROBES		19	/* has uprobes */
+ #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
+ #define MMF_OOM_REAPED		21	/* mm has been already reaped */
++#define MMF_OOM_NOT_REAPABLE	22	/* mm couldn't be reaped */
+ 
+ #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
+ 
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 64dbffa708fd..70992f0f1b78 100644
+index 70992f0f1b78..9a5cc12a479a 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -742,6 +742,16 @@ bool task_will_free_mem(struct task_struct *task)
- 		return false;
+@@ -551,8 +551,27 @@ static void oom_reap_task(struct task_struct *tsk)
+ 		schedule_timeout_idle(HZ/10);
  
- 	mm = p->mm;
+ 	if (attempts > MAX_OOM_REAP_RETRIES) {
++		struct task_struct *p;
 +
-+	/*
-+	 * This task has already been drained by the oom reaper so there are
-+	 * only small chances it will free some more
-+	 */
-+	if (test_bit(MMF_OOM_REAPED, &mm->flags)) {
-+		task_unlock(p);
-+		return false;
-+	}
+ 		pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
+ 				task_pid_nr(tsk), tsk->comm);
 +
- 	if (atomic_read(&mm->mm_users) <= 1) {
- 		task_unlock(p);
- 		return true;
++		/*
++		 * If we've already tried to reap this task in the past and
++		 * failed it probably doesn't make much sense to try yet again
++		 * so hide the mm from the oom killer so that it can move on
++		 * to another task with a different mm struct.
++		 */
++		p = find_lock_task_mm(tsk);
++		if (p) {
++			if (test_and_set_bit(MMF_OOM_NOT_REAPABLE, &p->mm->flags)) {
++				pr_info("oom_reaper: giving up pid:%d (%s)\n",
++						task_pid_nr(tsk), tsk->comm);
++				set_bit(MMF_OOM_REAPED, &p->mm->flags);
++			}
++			task_unlock(p);
++		}
++
+ 		debug_show_all_locks();
+ 	}
+ 
 -- 
 2.8.1
 
