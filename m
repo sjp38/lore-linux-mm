@@ -1,89 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D73956B007E
-	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 02:23:50 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id o70so32984378lfg.1
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 23:23:50 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i16si54824094wmf.117.2016.06.02.23.23.49
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 647326B007E
+	for <linux-mm@kvack.org>; Fri,  3 Jun 2016 03:15:56 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id x1so83185737pav.3
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 00:15:56 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id r86si5787937pfb.204.2016.06.03.00.15.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Jun 2016 23:23:49 -0700 (PDT)
-Date: Fri, 3 Jun 2016 08:23:48 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm,oom_reaper: don't call mmput_async() without
- atomic_inc_not_zero()
-Message-ID: <20160603062348.GA20676@dhcp22.suse.cz>
-References: <1464423365-5555-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160601155313.dc3aa18eb6ad0e163d44b355@linux-foundation.org>
- <20160602064804.GF1995@dhcp22.suse.cz>
- <201606022120.FAG39003.OFFtHOVMFSJQLO@I-love.SAKURA.ne.jp>
- <20160602131108.GP1995@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Jun 2016 00:15:55 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id 62so10681106pfd.3
+        for <linux-mm@kvack.org>; Fri, 03 Jun 2016 00:15:55 -0700 (PDT)
+Date: Fri, 3 Jun 2016 16:15:51 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [linux-next: Tree for Jun 1] __khugepaged_exit
+ rwsem_down_write_failed lockup
+Message-ID: <20160603071551.GA453@swordfish>
+References: <20160601131122.7dbb0a65@canb.auug.org.au>
+ <20160602014835.GA635@swordfish>
+ <20160602092113.GH1995@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160602131108.GP1995@dhcp22.suse.cz>
+In-Reply-To: <20160602092113.GH1995@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, arnd@arndb.de
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
 
-On Thu 02-06-16 15:11:08, Michal Hocko wrote:
-> On Thu 02-06-16 21:20:03, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Wed 01-06-16 15:53:13, Andrew Morton wrote:
-> [...]
-> > > > Is it even possible to hit that race? 
-> > > 
-> > > It is, we can have a concurrent mmput followed by mmdrop.
-> > > 
-> > > > find_lock_task_mm() takes some
-> > > > care to prevent a NULL ->mm.  But I guess a concurrent mmput() doesn't
-> > > > require task_lock().  Kinda makes me wonder what's the point in even
-> > > > having find_lock_task_mm() if its guarantee on ->mm is useless...
-> > > 
-> > > find_lock_task_mm makes sure that the mm stays non-NULL while we hold
-> > > the lock. We have to do all the necessary pinning while holding it.
-> > > atomic_inc_not_zero will guarantee we are not racing with the finall
-> > > mmput.
-> > > 
-> > > Does that make more sense now?
-> > 
-> > what Andrew wanted to confirm is "how can it be possible that
-> > mm->mm_users < 1 when there is a tsk with tsk->mm != NULL", isn't it?
-> > 
-> > Indeed, find_lock_task_mm() returns a tsk where tsk->mm != NULL with
-> > tsk->alloc_lock held. Therefore, tsk->mm != NULL implies mm->mm_users > 0
-> > until we release tsk->alloc_lock , and we can do
-> > 
-> >  	p = find_lock_task_mm(tsk);
-> >  	if (!p)
-> >  		goto unlock_oom;
-> >  
-> >  	mm = p->mm;
-> > -	if (!atomic_inc_not_zero(&mm->mm_users)) {
-> > -		task_unlock(p);
-> > -		goto unlock_oom;
-> > -	}
-> > +	atomic_inc(&mm->mm_users);
-> >  
-> >  	task_unlock(p);
-> > 
-> > in __oom_reap_task() (unless I'm missing something).
-> 
-> OK, I guess you are right. Care to send a patch?
+Hello,
 
-I led it rest overnight and realized on the way to work this morning
-that this is a left over from the earlier approach when mm_reaper got
-mm rather than a task. We used to pin mm_count in oom_kill_process so
-we had to do atomic_inc_not_zero on mm_users here. Now that we used
-find_lock_task_mm we indeed can simply increase mm_users while holding
-the lock.
+On (06/02/16 11:21), Michal Hocko wrote:
+[..]
+> @@ -2863,6 +2854,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+>  
+>  		collect_mm_slot(mm_slot);
+>  	}
+> +	mmput(mm);
+>  
+>  	return progress;
+>  }
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+this possibly sleeping mmput() is called from
+under the spin_lock(&khugepaged_mm_lock).
+
+there is also a trivial build fixup needed
+(move collect_mm_slot() before __khugepaged_exit()).
+
+
+it's quite hard to trigger the bug (somehow), so I can't
+follow up with more information as of now.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
