@@ -1,86 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E419D6B007E
-	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 21:08:55 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id j12so30615315lbo.0
-        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 18:08:55 -0700 (PDT)
-Received: from smtpbgbr2.qq.com (smtpbgbr2.qq.com. [54.207.22.56])
-        by mx.google.com with ESMTPS id kb6si4097466wjb.71.2016.06.02.18.08.52
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6665E6B007E
+	for <linux-mm@kvack.org>; Thu,  2 Jun 2016 21:26:00 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id fg1so73742307pad.1
+        for <linux-mm@kvack.org>; Thu, 02 Jun 2016 18:26:00 -0700 (PDT)
+Received: from fiona.linuxhacker.ru (linuxhacker.ru. [217.76.32.60])
+        by mx.google.com with ESMTPS id m132si3888663pfc.122.2016.06.02.18.25.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=RC4-SHA bits=128/128);
-        Thu, 02 Jun 2016 18:08:54 -0700 (PDT)
-Subject: Re: [PATCH] mm: Introduce dedicated WQ_MEM_RECLAIM workqueue to do
- lru_add_drain_all
-References: <1464853731-8599-1-git-send-email-shhuiw@foxmail.com>
- <20160602143925.GJ14868@mtj.duckdns.org>
- <d9b1b94a-8244-432b-5509-1d742e4fd4b7@foxmail.com>
-From: Wang Sheng-Hui <shhuiw@foxmail.com>
-Message-ID: <64c4b795-e69f-e7ec-d2e9-65e8b77d4f74@foxmail.com>
-Date: Fri, 3 Jun 2016 09:08:41 +0800
-MIME-Version: 1.0
-In-Reply-To: <d9b1b94a-8244-432b-5509-1d742e4fd4b7@foxmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Jun 2016 18:25:59 -0700 (PDT)
+From: green@linuxhacker.ru
+Subject: [RESEND] [PATCH] mm: Do not discard partial pages with POSIX_FADV_DONTNEED
+Date: Thu,  2 Jun 2016 21:25:40 -0400
+Message-Id: <1464917140-1506698-1-git-send-email-green@linuxhacker.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: keith.busch@intel.com, peterz@infradead.org, treding@nvidia.com, mingo@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "<linux-kernel@vger.kernel.org> Mailing List" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Oleg Drokin <green@linuxhacker.ru>
 
+From: Oleg Drokin <green@linuxhacker.ru>
 
+I noticed that if the logic in fadvise64_64 syscall is incorrect
+for partial pages. While first page of the region is correctly skipped
+if it is partial, the last page of the region is mistakenly discarded.
+This leads to problems for applications that read data in
+non-page-aligned chunks discarding already processed data between
+the reads.
 
-On 6/3/2016 8:48 AM, Wang Sheng-Hui wrote:
-> Tejun,
->
->
-> On 6/2/2016 10:39 PM, Tejun Heo wrote:
->> On Thu, Jun 02, 2016 at 03:48:51PM +0800, Wang Sheng-Hui wrote:
->>> +static int __init lru_init(void)
->>> +{
->>> +	lru_add_drain_wq = alloc_workqueue("lru-add-drain",
->>> +		WQ_MEM_RECLAIM | WQ_UNBOUND, 0);
->> Why is it unbound?
-> Sorry, I just pasted from other wq create statement.
->
-> WQ_MEM_RECLAIM is the key. Will drop WQ_UNBOUND in new version patch.
->
->
->>> +	if (WARN(!lru_add_drain_wq,
->>> +		"Failed to create workqueue lru_add_drain_wq"))
->>> +		return -ENOMEM;
->> I don't think we need an explicit warn here.  Doesn't error return
->> from an init function trigger boot failure anyway?
-Tejun,
+Signed-off-by: Oleg Drokin <green@linuxhacker.ru>
+---
+A somewhat misguided application that does something like
+write(XX bytes (non-page-alligned)); drop the data it just wrote; repeat
+gets a significant penalty in performance as the result.
 
-Seems do_initcalls =>...=> do_one_initcall will not warn on error code returned
-from early_initcall functions.
+ mm/fadvise.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
-Next version will reserve the warn here, but crash directly when wq was not created but used.
-
-> Will drop the warn and return -ENOMEM directly on failure.
->>> +	return 0;
->>> +}
->>> +early_initcall(lru_init);
->>> +
->>>  void lru_add_drain_all(void)
->>>  {
->>>  	static DEFINE_MUTEX(lock);
->>>  	static struct cpumask has_work;
->>>  	int cpu;
->>>  
->>> +	struct workqueue_struct *lru_wq = lru_add_drain_wq ?: system_wq;
->>> +
->>> +	WARN_ONCE(!lru_add_drain_wq,
->>> +		"Use system_wq to do lru_add_drain_all()");
->> Ditto.  The system is crashing for sure.  What's the point of this
->> warning?
-> It's for above warn failure. Will crash instead of falling back to system_wq
->
->> Thanks.
->>
-> Thanks,
-> Sheng-Hui
-
-
+diff --git a/mm/fadvise.c b/mm/fadvise.c
+index b8024fa..6c707bf 100644
+--- a/mm/fadvise.c
++++ b/mm/fadvise.c
+@@ -126,6 +126,17 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
+ 		 */
+ 		start_index = (offset+(PAGE_SIZE-1)) >> PAGE_SHIFT;
+ 		end_index = (endbyte >> PAGE_SHIFT);
++		if ((endbyte & ~PAGE_MASK) != ~PAGE_MASK) {
++			/* First page is tricky as 0 - 1 = -1, but pgoff_t
++			 * is unsigned, so the end_index >= start_index
++			 * check below would be true and we'll discard the whole
++			 * file cache which is not what was asked.
++			 */
++			if (end_index == 0)
++				break;
++
++			end_index--;
++		}
+ 
+ 		if (end_index >= start_index) {
+ 			unsigned long count = invalidate_mapping_pages(mapping,
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
