@@ -1,284 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C20E56B0005
-	for <linux-mm@kvack.org>; Sun,  5 Jun 2016 08:49:51 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id w16so55267957lfd.0
-        for <linux-mm@kvack.org>; Sun, 05 Jun 2016 05:49:51 -0700 (PDT)
-Received: from mail-lf0-x22e.google.com (mail-lf0-x22e.google.com. [2a00:1450:4010:c07::22e])
-        by mx.google.com with ESMTPS id d136si8785527lfe.351.2016.06.05.05.49.49
+Received: from mail-ig0-f200.google.com (mail-ig0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DD886B0005
+	for <linux-mm@kvack.org>; Sun,  5 Jun 2016 14:42:00 -0400 (EDT)
+Received: by mail-ig0-f200.google.com with SMTP id lp2so80074711igb.3
+        for <linux-mm@kvack.org>; Sun, 05 Jun 2016 11:42:00 -0700 (PDT)
+Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
+        by mx.google.com with ESMTPS id v66si3640559oig.116.2016.06.05.11.41.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Jun 2016 05:49:50 -0700 (PDT)
-Received: by mail-lf0-x22e.google.com with SMTP id s64so79604048lfe.0
-        for <linux-mm@kvack.org>; Sun, 05 Jun 2016 05:49:49 -0700 (PDT)
+        Sun, 05 Jun 2016 11:41:59 -0700 (PDT)
+Received: by mail-oi0-x244.google.com with SMTP id r4so1857255oib.1
+        for <linux-mm@kvack.org>; Sun, 05 Jun 2016 11:41:59 -0700 (PDT)
+Date: Sun, 5 Jun 2016 13:41:57 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v2] mm: Introduce dedicated WQ_MEM_RECLAIM workqueue to
+ do lru_add_drain_all
+Message-ID: <20160605184157.GT31708@htj.duckdns.org>
+References: <1464917521-9775-1-git-send-email-shhuiw@foxmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1465125103-26764-1-git-send-email-iamyooon@gmail.com>
-References: <1465125103-26764-1-git-send-email-iamyooon@gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Sun, 5 Jun 2016 14:49:29 +0200
-Message-ID: <CACT4Y+b8aCV9-8Qg6oxmOKHWvNsPeDyhz=x0GAtWzyYEC6Z2FA@mail.gmail.com>
-Subject: Re: [PATCH 1/1] mm/kasan: use {READ,WRITE}_MODE not true,false
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1464917521-9775-1-git-send-email-shhuiw@foxmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "seokhoon.yoon" <iamyooon@gmail.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, sh.yoon@lge.com
+To: Wang Sheng-Hui <shhuiw@foxmail.com>
+Cc: keith.busch@intel.com, peterz@infradead.org, treding@nvidia.com, mingo@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Sun, Jun 5, 2016 at 1:11 PM, seokhoon.yoon <iamyooon@gmail.com> wrote:
-> When Kasan tell memory access is write or not, use true or false.
-> This expression is simple and convenient.
->
-> But I think it is possible to more readable. and so change it.
->
-> Signed-off-by: seokhoon.yoon <iamyooon@gmail.com>
-> ---
->  mm/kasan/kasan.c  | 32 ++++++++++++++++----------------
->  mm/kasan/kasan.h  | 12 ++++++++++--
->  mm/kasan/report.c | 16 ++++++++--------
->  3 files changed, 34 insertions(+), 26 deletions(-)
->
-> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-> index 18b6a2b..642d936 100644
-> --- a/mm/kasan/kasan.c
-> +++ b/mm/kasan/kasan.c
-> @@ -274,7 +274,7 @@ static __always_inline bool memory_is_poisoned(unsigned long addr, size_t size)
->  }
->
->  static __always_inline void check_memory_region_inline(unsigned long addr,
-> -                                               size_t size, bool write,
-> +                                               size_t size, enum acc_type type,
->                                                 unsigned long ret_ip)
->  {
->         if (unlikely(size == 0))
-> @@ -282,39 +282,39 @@ static __always_inline void check_memory_region_inline(unsigned long addr,
->
->         if (unlikely((void *)addr <
->                 kasan_shadow_to_mem((void *)KASAN_SHADOW_START))) {
-> -               kasan_report(addr, size, write, ret_ip);
-> +               kasan_report(addr, size, type, ret_ip);
->                 return;
->         }
->
->         if (likely(!memory_is_poisoned(addr, size)))
->                 return;
->
-> -       kasan_report(addr, size, write, ret_ip);
-> +       kasan_report(addr, size, type, ret_ip);
->  }
->
->  static void check_memory_region(unsigned long addr,
-> -                               size_t size, bool write,
-> +                               size_t size, enum acc_type type,
->                                 unsigned long ret_ip)
->  {
-> -       check_memory_region_inline(addr, size, write, ret_ip);
-> +       check_memory_region_inline(addr, size, type, ret_ip);
->  }
->
->  void kasan_check_read(const void *p, unsigned int size)
->  {
-> -       check_memory_region((unsigned long)p, size, false, _RET_IP_);
-> +       check_memory_region((unsigned long)p, size, READ_MODE, _RET_IP_);
->  }
->  EXPORT_SYMBOL(kasan_check_read);
->
->  void kasan_check_write(const void *p, unsigned int size)
->  {
-> -       check_memory_region((unsigned long)p, size, true, _RET_IP_);
-> +       check_memory_region((unsigned long)p, size, WRITE_MODE, _RET_IP_);
->  }
->  EXPORT_SYMBOL(kasan_check_write);
->
->  #undef memset
->  void *memset(void *addr, int c, size_t len)
->  {
-> -       check_memory_region((unsigned long)addr, len, true, _RET_IP_);
-> +       check_memory_region((unsigned long)addr, len, WRITE_MODE, _RET_IP_);
->
->         return __memset(addr, c, len);
->  }
-> @@ -322,8 +322,8 @@ void *memset(void *addr, int c, size_t len)
->  #undef memmove
->  void *memmove(void *dest, const void *src, size_t len)
->  {
-> -       check_memory_region((unsigned long)src, len, false, _RET_IP_);
-> -       check_memory_region((unsigned long)dest, len, true, _RET_IP_);
-> +       check_memory_region((unsigned long)src, len, READ_MODE, _RET_IP_);
-> +       check_memory_region((unsigned long)dest, len, WRITE_MODE, _RET_IP_);
->
->         return __memmove(dest, src, len);
->  }
-> @@ -331,8 +331,8 @@ void *memmove(void *dest, const void *src, size_t len)
->  #undef memcpy
->  void *memcpy(void *dest, const void *src, size_t len)
->  {
-> -       check_memory_region((unsigned long)src, len, false, _RET_IP_);
-> -       check_memory_region((unsigned long)dest, len, true, _RET_IP_);
-> +       check_memory_region((unsigned long)src, len, READ_MODE, _RET_IP_);
-> +       check_memory_region((unsigned long)dest, len, WRITE_MODE, _RET_IP_);
->
->         return __memcpy(dest, src, len);
->  }
-> @@ -709,7 +709,7 @@ EXPORT_SYMBOL(__asan_unregister_globals);
->  #define DEFINE_ASAN_LOAD_STORE(size)                                   \
->         void __asan_load##size(unsigned long addr)                      \
->         {                                                               \
-> -               check_memory_region_inline(addr, size, false, _RET_IP_);\
-> +               check_memory_region_inline(addr, size, READ_MODE, _RET_IP_);\
->         }                                                               \
->         EXPORT_SYMBOL(__asan_load##size);                               \
->         __alias(__asan_load##size)                                      \
-> @@ -717,7 +717,7 @@ EXPORT_SYMBOL(__asan_unregister_globals);
->         EXPORT_SYMBOL(__asan_load##size##_noabort);                     \
->         void __asan_store##size(unsigned long addr)                     \
->         {                                                               \
-> -               check_memory_region_inline(addr, size, true, _RET_IP_); \
-> +               check_memory_region_inline(addr, size, WRITE_MODE, _RET_IP_);\
->         }                                                               \
->         EXPORT_SYMBOL(__asan_store##size);                              \
->         __alias(__asan_store##size)                                     \
-> @@ -732,7 +732,7 @@ DEFINE_ASAN_LOAD_STORE(16);
->
->  void __asan_loadN(unsigned long addr, size_t size)
->  {
-> -       check_memory_region(addr, size, false, _RET_IP_);
-> +       check_memory_region(addr, size, READ_MODE, _RET_IP_);
->  }
->  EXPORT_SYMBOL(__asan_loadN);
->
-> @@ -742,7 +742,7 @@ EXPORT_SYMBOL(__asan_loadN_noabort);
->
->  void __asan_storeN(unsigned long addr, size_t size)
->  {
-> -       check_memory_region(addr, size, true, _RET_IP_);
-> +       check_memory_region(addr, size, WRITE_MODE, _RET_IP_);
->  }
->  EXPORT_SYMBOL(__asan_storeN);
->
-> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-> index 7f7ac51..47cb58c 100644
-> --- a/mm/kasan/kasan.h
-> +++ b/mm/kasan/kasan.h
-> @@ -27,11 +27,19 @@
->  #define KASAN_ABI_VERSION 1
->  #endif
->
-> +/*
-> + * Distinguish memory access
-> + */
-> +enum acc_type {
-> +       READ_MODE,
-> +       WRITE_MODE
-> +};
-> +
->  struct kasan_access_info {
->         const void *access_addr;
->         const void *first_bad_addr;
->         size_t access_size;
-> -       bool is_write;
-> +       enum acc_type access_type;
->         unsigned long ip;
->  };
->
-> @@ -109,7 +117,7 @@ static inline bool kasan_report_enabled(void)
->  }
->
->  void kasan_report(unsigned long addr, size_t size,
-> -               bool is_write, unsigned long ip);
-> +               enum acc_type type, unsigned long ip);
->
->  #ifdef CONFIG_SLAB
->  void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache);
-> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-> index b3c122d..e0bee22 100644
-> --- a/mm/kasan/report.c
-> +++ b/mm/kasan/report.c
-> @@ -96,7 +96,7 @@ static void print_error_description(struct kasan_access_info *info)
->                 bug_type, (void *)info->ip,
->                 info->access_addr);
->         pr_err("%s of size %zu by task %s/%d\n",
-> -               info->is_write ? "Write" : "Read",
-> +               info->access_type == WRITE_MODE ? "Write" : "Read",
->                 info->access_size, current->comm, task_pid_nr(current));
->  }
->
-> @@ -267,7 +267,7 @@ static void kasan_report_error(struct kasan_access_info *info)
->                 pr_err("BUG: KASAN: %s on address %p\n",
->                         bug_type, info->access_addr);
->                 pr_err("%s of size %zu by task %s/%d\n",
-> -                       info->is_write ? "Write" : "Read",
-> +                       info->access_type == WRITE_MODE ? "Write" : "Read",
->                         info->access_size, current->comm,
->                         task_pid_nr(current));
->                 dump_stack();
-> @@ -283,7 +283,7 @@ static void kasan_report_error(struct kasan_access_info *info)
->  }
->
->  void kasan_report(unsigned long addr, size_t size,
-> -               bool is_write, unsigned long ip)
-> +               enum acc_type type, unsigned long ip)
->  {
->         struct kasan_access_info info;
->
-> @@ -292,7 +292,7 @@ void kasan_report(unsigned long addr, size_t size,
->
->         info.access_addr = (void *)addr;
->         info.access_size = size;
-> -       info.is_write = is_write;
-> +       info.access_type = type;
->         info.ip = ip;
->
->         kasan_report_error(&info);
-> @@ -302,14 +302,14 @@ void kasan_report(unsigned long addr, size_t size,
->  #define DEFINE_ASAN_REPORT_LOAD(size)                     \
->  void __asan_report_load##size##_noabort(unsigned long addr) \
->  {                                                         \
-> -       kasan_report(addr, size, false, _RET_IP_);        \
-> +       kasan_report(addr, size, READ_MODE, _RET_IP_);    \
->  }                                                         \
->  EXPORT_SYMBOL(__asan_report_load##size##_noabort)
->
->  #define DEFINE_ASAN_REPORT_STORE(size)                     \
->  void __asan_report_store##size##_noabort(unsigned long addr) \
->  {                                                          \
-> -       kasan_report(addr, size, true, _RET_IP_);          \
-> +       kasan_report(addr, size, WRITE_MODE, _RET_IP_);    \
->  }                                                          \
->  EXPORT_SYMBOL(__asan_report_store##size##_noabort)
->
-> @@ -326,12 +326,12 @@ DEFINE_ASAN_REPORT_STORE(16);
->
->  void __asan_report_load_n_noabort(unsigned long addr, size_t size)
->  {
-> -       kasan_report(addr, size, false, _RET_IP_);
-> +       kasan_report(addr, size, READ_MODE, _RET_IP_);
->  }
->  EXPORT_SYMBOL(__asan_report_load_n_noabort);
->
->  void __asan_report_store_n_noabort(unsigned long addr, size_t size)
->  {
-> -       kasan_report(addr, size, true, _RET_IP_);
-> +       kasan_report(addr, size, WRITE_MODE, _RET_IP_);
->  }
->  EXPORT_SYMBOL(__asan_report_store_n_noabort);
+On Fri, Jun 03, 2016 at 09:32:01AM +0800, Wang Sheng-Hui wrote:
+> This patch is based on https://patchwork.ozlabs.org/patch/574623/.
+> 
+> Tejun submitted commit 23d11a58a9a6 ("workqueue: skip flush dependency
+> checks for legacy workqueues") for the legacy create*_workqueue()
+> interface. But some workq created by alloc_workqueue still reports
+> warning on memory reclaim, e.g nvme_workq with flag WQ_MEM_RECLAIM set:
+> 
+> [    0.153902] workqueue: WQ_MEM_RECLAIM nvme:nvme_reset_work is
+> flushing !WQ_MEM_RECLAIM events:lru_add_drain_per_cpu
+> [    0.153907] ------------[ cut here ]------------
+> [    0.153912] WARNING: CPU: 0 PID: 6 at
+> SoC/linux/kernel/workqueue.c:2448
+> check_flush_dependency+0xb4/0x10c
+> ...
+> [    0.154083] [<fffffc00080d6de0>] check_flush_dependency+0xb4/0x10c
+> [    0.154088] [<fffffc00080d8e80>] flush_work+0x54/0x140
+> [    0.154092] [<fffffc0008166a0c>] lru_add_drain_all+0x138/0x188
+> [    0.154097] [<fffffc00081ab2dc>] migrate_prep+0xc/0x18
+> [    0.154101] [<fffffc0008160e88>] alloc_contig_range+0xf4/0x350
+> [    0.154105] [<fffffc00081bcef8>] cma_alloc+0xec/0x1e4
+> [    0.154110] [<fffffc0008446ad0>] dma_alloc_from_contiguous+0x38/0x40
+> [    0.154114] [<fffffc00080a093c>] __dma_alloc+0x74/0x25c
+> [    0.154119] [<fffffc00084828d8>] nvme_alloc_queue+0xcc/0x36c
+> [    0.154123] [<fffffc0008484b2c>] nvme_reset_work+0x5c4/0xda8
+> [    0.154128] [<fffffc00080d9528>] process_one_work+0x128/0x2ec
+> [    0.154132] [<fffffc00080d9744>] worker_thread+0x58/0x434
+> [    0.154136] [<fffffc00080df0ec>] kthread+0xd4/0xe8
+> [    0.154141] [<fffffc0008093ac0>] ret_from_fork+0x10/0x50
+> 
+> That's because lru_add_drain_all() will schedule the drain work on
+> system_wq, whose flag is set to 0, !WQ_MEM_RECLAIM.
+> 
+> Introduce a dedicated WQ_MEM_RECLAIM workqueue to do lru_add_drain_all(),
+> aiding in getting memory freed.
+> 
+> Compared with v1:
+> 	* The key flag is WQ_MEM_RECLAIM. Drop the flag WQ_UNBOUND.
+> 	* Reserve the warn in lru_init as init code during bootup ignore
+> 	  return code from early_initcall functions.
+> 	* Instead of falling back to system_wq, crash directly if the wq
+> 	  is used in lru_add_drain_all but was not created in lru_init
+> 	  at init stage.
+> 
+> Signed-off-by: Wang Sheng-Hui <shhuiw@foxmail.com>
 
+Acked-by: Tejun Heo <tj@kernel.org>
 
-Hello seokhoon.yoon,
+Thanks.
 
-
-Where exactly do you hit readability problems?
-I would say that the only problematic place is where we initialize the value:
-
-    kasan_report(addr, size, true, _RET_IP_);
-    check_memory_region(addr, size, true, _RET_IP_);
-
-Here it is really difficult to say what true/false mean. Even if you
-know that it is access type, you don't necessary remember if true
-means write or read. That could be solved by adding comments:
-
-    kasan_report(addr, size, /* write = */ true, _RET_IP_);
-
-In all other places one sees that we are talking about "write".
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
