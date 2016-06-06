@@ -1,37 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EC106B0005
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 02:30:12 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id h144so95221559ita.1
-        for <linux-mm@kvack.org>; Sun, 05 Jun 2016 23:30:12 -0700 (PDT)
-Received: from SNT004-OMC3S34.hotmail.com (snt004-omc3s34.hotmail.com. [65.55.90.173])
-        by mx.google.com with ESMTPS id 62si8221859ots.136.2016.06.05.23.30.11
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 214966B0005
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 03:18:43 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id k192so1903684lfb.1
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 00:18:43 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id df5si24955294wjb.165.2016.06.06.00.18.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 05 Jun 2016 23:30:11 -0700 (PDT)
-From: =?iso-8859-2?Q?Rados=B3aw_Smogura?= <mail@smogura.eu>
-Subject: Hugepages for tmpfs
-Date: Mon, 6 Jun 2016 06:30:06 +0000
-Message-ID: <0B540039-9A94-43F8-9C16-EE04F68646AF@smogura.eu>
-Content-Language: en-US
-Content-Type: text/plain; charset="iso-8859-2"
-Content-ID: <0A8DD2BDA1C55F45BFA21087D09EA062@eurprd03.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 06 Jun 2016 00:18:41 -0700 (PDT)
+Date: Mon, 6 Jun 2016 09:18:39 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom_reaper: avoid pointless atomic_inc_not_zero usage.
+Message-ID: <20160606071839.GB11895@dhcp22.suse.cz>
+References: <1465024759-8074-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1465024759-8074-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Arnd Bergmann <arnd@arndb.de>
 
-Hi all,
+On Sat 04-06-16 16:19:19, Tetsuo Handa wrote:
+> Since commit 36324a990cf578b5 ("oom: clear TIF_MEMDIE after oom_reaper
+> managed to unmap the address space") changed to use find_lock_task_mm()
+> for finding a mm_struct to reap, it is guaranteed that mm->mm_users > 0
+> because find_lock_task_mm() returns a task_struct with ->mm != NULL.
+> Therefore, we can safely use atomic_inc().
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
 
-Long time ago I was working on enabling huge pages for tmpfs and in terms f=
-or any filesystem. Recently I have found my work and I was thinking about r=
-estarting it with new kernel.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-I wonder if there is some ongoing or finished work for huge pages in tmpfs?
+Thanks!
 
-Best regards,
-Radek Smogura=
+> ---
+>  mm/oom_kill.c | 7 +------
+>  1 file changed, 1 insertion(+), 6 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index dfb1ab6..8050fa0 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -474,13 +474,8 @@ static bool __oom_reap_task(struct task_struct *tsk)
+>  	p = find_lock_task_mm(tsk);
+>  	if (!p)
+>  		goto unlock_oom;
+> -
+>  	mm = p->mm;
+> -	if (!atomic_inc_not_zero(&mm->mm_users)) {
+> -		task_unlock(p);
+> -		goto unlock_oom;
+> -	}
+> -
+> +	atomic_inc(&mm->mm_users);
+>  	task_unlock(p);
+>  
+>  	if (!down_read_trylock(&mm->mmap_sem)) {
+> -- 
+> 1.8.3.1
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
