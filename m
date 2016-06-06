@@ -1,328 +1,295 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B7BF4828E1
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 10:07:53 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w9so90559847oia.3
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 07:07:53 -0700 (PDT)
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A4217828E1
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 10:07:55 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id d4so59364413iod.3
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 07:07:55 -0700 (PDT)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
         by mx.google.com with ESMTP id zk7si973216pac.15.2016.06.06.07.07.31
         for <linux-mm@kvack.org>;
         Mon, 06 Jun 2016 07:07:31 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9 31/32] shmem: split huge pages beyond i_size under memory pressure
-Date: Mon,  6 Jun 2016 17:07:08 +0300
-Message-Id: <1465222029-45942-32-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9 23/32] shmem: get_unmapped_area align huge page
+Date: Mon,  6 Jun 2016 17:07:00 +0300
+Message-Id: <1465222029-45942-24-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-Even if user asked to allocate huge pages always (huge=always), we
-should be able to free up some memory by splitting pages which are
-partly byound i_size if memory presure comes or once we hit limit on
-filesystem size (-o size=).
+From: Hugh Dickins <hughd@google.com>
 
-In order to do this we maintain per-superblock list of inodes, which
-potentially have huge pages on the border of file size.
+Provide a shmem_get_unmapped_area method in file_operations, called
+at mmap time to decide the mapping address.  It could be conditional
+on CONFIG_TRANSPARENT_HUGEPAGE, but save #ifdefs in other places by
+making it unconditional.
 
-Per-fs shrinker can reclaim memory by splitting such pages.
+shmem_get_unmapped_area() first calls the usual mm->get_unmapped_area
+(which we treat as a black box, highly dependent on architecture and
+config and executable layout).  Lots of conditions, and in most cases
+it just goes with the address that chose; but when our huge stars are
+rightly aligned, yet that did not provide a suitable address, go back
+to ask for a larger arena, within which to align the mapping suitably.
 
-If we hit -ENOSPC during shmem_getpage_gfp(), we try to split a page to
-free up space on the filesystem and retry allocation if it succeed.
+There have to be some direct calls to shmem_get_unmapped_area(),
+not via the file_operations: because of the way shmem_zero_setup()
+is called to create a shmem object late in the mmap sequence, when
+MAP_SHARED is requested with MAP_ANONYMOUS or /dev/zero.  Though
+this only matters when /proc/sys/vm/shmem_huge has been set.
 
+Signed-off-by: Hugh Dickins <hughd@google.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/shmem_fs.h |   6 +-
- mm/shmem.c               | 175 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 180 insertions(+), 1 deletion(-)
+ drivers/char/mem.c       | 24 ++++++++++++
+ include/linux/shmem_fs.h |  2 +
+ ipc/shm.c                |  6 ++-
+ mm/mmap.c                | 16 +++++++-
+ mm/shmem.c               | 98 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 142 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 54fa28dfbd89..ff078e7043b6 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -16,8 +16,9 @@ struct shmem_inode_info {
- 	unsigned long		flags;
- 	unsigned long		alloced;	/* data pages alloced to file */
- 	unsigned long		swapped;	/* subtotal assigned to swap */
--	struct shared_policy	policy;		/* NUMA memory alloc policy */
-+	struct list_head        shrinklist;     /* shrinkable hpage inodes */
- 	struct list_head	swaplist;	/* chain of maybes on swap */
-+	struct shared_policy	policy;		/* NUMA memory alloc policy */
- 	struct simple_xattrs	xattrs;		/* list of xattrs */
- 	struct inode		vfs_inode;
- };
-@@ -33,6 +34,9 @@ struct shmem_sb_info {
- 	kuid_t uid;		    /* Mount uid for root directory */
- 	kgid_t gid;		    /* Mount gid for root directory */
- 	struct mempolicy *mpol;     /* default memory policy for mappings */
-+	spinlock_t shrinklist_lock;   /* Protects shrinklist */
-+	struct list_head shrinklist;  /* List of shinkable inodes */
-+	unsigned long shrinklist_len; /* Length of shrinklist */
- };
- 
- static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 71d9b2cd5cfb..2848d216bccc 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -188,6 +188,7 @@ static const struct inode_operations shmem_inode_operations;
- static const struct inode_operations shmem_dir_inode_operations;
- static const struct inode_operations shmem_special_inode_operations;
- static const struct vm_operations_struct shmem_vm_ops;
-+static struct file_system_type shmem_fs_type;
- 
- static LIST_HEAD(shmem_swaplist);
- static DEFINE_MUTEX(shmem_swaplist_mutex);
-@@ -406,10 +407,122 @@ static const char *shmem_format_huge(int huge)
- 	}
+diff --git a/drivers/char/mem.c b/drivers/char/mem.c
+index 71025c2f6bbb..9656f1095c19 100644
+--- a/drivers/char/mem.c
++++ b/drivers/char/mem.c
+@@ -22,6 +22,7 @@
+ #include <linux/device.h>
+ #include <linux/highmem.h>
+ #include <linux/backing-dev.h>
++#include <linux/shmem_fs.h>
+ #include <linux/splice.h>
+ #include <linux/pfn.h>
+ #include <linux/export.h>
+@@ -661,6 +662,28 @@ static int mmap_zero(struct file *file, struct vm_area_struct *vma)
+ 	return 0;
  }
  
-+static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
-+		struct shrink_control *sc, unsigned long nr_to_split)
++static unsigned long get_unmapped_area_zero(struct file *file,
++				unsigned long addr, unsigned long len,
++				unsigned long pgoff, unsigned long flags)
 +{
-+	LIST_HEAD(list), *pos, *next;
-+	struct inode *inode;
-+	struct shmem_inode_info *info;
-+	struct page *page;
-+	unsigned long batch = sc ? sc->nr_to_scan : 128;
-+	int removed = 0, split = 0;
-+
-+	if (list_empty(&sbinfo->shrinklist))
-+		return SHRINK_STOP;
-+
-+	spin_lock(&sbinfo->shrinklist_lock);
-+	list_for_each_safe(pos, next, &sbinfo->shrinklist) {
-+		info = list_entry(pos, struct shmem_inode_info, shrinklist);
-+
-+		/* pin the inode */
-+		inode = igrab(&info->vfs_inode);
-+
-+		/* inode is about to be evicted */
-+		if (!inode) {
-+			list_del_init(&info->shrinklist);
-+			removed++;
-+			goto next;
-+		}
-+
-+		/* Check if there's anything to gain */
-+		if (round_up(inode->i_size, PAGE_SIZE) ==
-+				round_up(inode->i_size, HPAGE_PMD_SIZE)) {
-+			list_del_init(&info->shrinklist);
-+			removed++;
-+			iput(inode);
-+			goto next;
-+		}
-+
-+		list_move(&info->shrinklist, &list);
-+next:
-+		if (!--batch)
-+			break;
-+	}
-+	spin_unlock(&sbinfo->shrinklist_lock);
-+
-+	list_for_each_safe(pos, next, &list) {
-+		int ret;
-+
-+		info = list_entry(pos, struct shmem_inode_info, shrinklist);
-+		inode = &info->vfs_inode;
-+
-+		if (nr_to_split && split >= nr_to_split) {
-+			iput(inode);
-+			continue;
-+		}
-+
-+		page = find_lock_page(inode->i_mapping,
-+				(inode->i_size & HPAGE_PMD_MASK) >> PAGE_SHIFT);
-+		if (!page)
-+			goto drop;
-+
-+		if (!PageTransHuge(page)) {
-+			unlock_page(page);
-+			put_page(page);
-+			goto drop;
-+		}
-+
-+		ret = split_huge_page(page);
-+		unlock_page(page);
-+		put_page(page);
-+
-+		if (ret) {
-+			/* split failed: leave it on the list */
-+			iput(inode);
-+			continue;
-+		}
-+
-+		split++;
-+drop:
-+		list_del_init(&info->shrinklist);
-+		removed++;
-+		iput(inode);
++#ifdef CONFIG_MMU
++	if (flags & MAP_SHARED) {
++		/*
++		 * mmap_zero() will call shmem_zero_setup() to create a file,
++		 * so use shmem's get_unmapped_area in case it can be huge;
++		 * and pass NULL for file as in mmap.c's get_unmapped_area(),
++		 * so as not to confuse shmem with our handle on "/dev/zero".
++		 */
++		return shmem_get_unmapped_area(NULL, addr, len, pgoff, flags);
 +	}
 +
-+	spin_lock(&sbinfo->shrinklist_lock);
-+	list_splice_tail(&list, &sbinfo->shrinklist);
-+	sbinfo->shrinklist_len -= removed;
-+	spin_unlock(&sbinfo->shrinklist_lock);
-+
-+	return split;
-+}
-+
-+static long shmem_unused_huge_scan(struct super_block *sb,
-+		struct shrink_control *sc)
-+{
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
-+
-+	if (!READ_ONCE(sbinfo->shrinklist_len))
-+		return SHRINK_STOP;
-+
-+	return shmem_unused_huge_shrink(sbinfo, sc, 0);
-+}
-+
-+static long shmem_unused_huge_count(struct super_block *sb,
-+		struct shrink_control *sc)
-+{
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
-+	return READ_ONCE(sbinfo->shrinklist_len);
-+}
- #else /* !CONFIG_TRANSPARENT_HUGE_PAGECACHE */
- 
- #define shmem_huge SHMEM_HUGE_DENY
- 
-+static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
-+		struct shrink_control *sc, unsigned long nr_to_split)
-+{
-+	return 0;
-+}
- #endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE */
- 
- /*
-@@ -843,6 +956,7 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
- {
- 	struct inode *inode = d_inode(dentry);
- 	struct shmem_inode_info *info = SHMEM_I(inode);
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
- 	int error;
- 
- 	error = inode_change_ok(inode, attr);
-@@ -878,6 +992,20 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
- 			if (oldsize > holebegin)
- 				unmap_mapping_range(inode->i_mapping,
- 							holebegin, 0, 1);
-+
-+			/*
-+			 * Part of the huge page can be beyond i_size: subject
-+			 * to shrink under memory pressure.
-+			 */
-+			if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE)) {
-+				spin_lock(&sbinfo->shrinklist_lock);
-+				if (list_empty(&info->shrinklist)) {
-+					list_add_tail(&info->shrinklist,
-+							&sbinfo->shrinklist);
-+					sbinfo->shrinklist_len++;
-+				}
-+				spin_unlock(&sbinfo->shrinklist_lock);
-+			}
- 		}
- 	}
- 
-@@ -890,11 +1018,20 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
- static void shmem_evict_inode(struct inode *inode)
- {
- 	struct shmem_inode_info *info = SHMEM_I(inode);
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
- 
- 	if (inode->i_mapping->a_ops == &shmem_aops) {
- 		shmem_unacct_size(info->flags, inode->i_size);
- 		inode->i_size = 0;
- 		shmem_truncate_range(inode, 0, (loff_t)-1);
-+		if (!list_empty(&info->shrinklist)) {
-+			spin_lock(&sbinfo->shrinklist_lock);
-+			if (!list_empty(&info->shrinklist)) {
-+				list_del_init(&info->shrinklist);
-+				sbinfo->shrinklist_len--;
-+			}
-+			spin_unlock(&sbinfo->shrinklist_lock);
-+		}
- 		if (!list_empty(&info->swaplist)) {
- 			mutex_lock(&shmem_swaplist_mutex);
- 			list_del_init(&info->swaplist);
-@@ -1563,8 +1700,23 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
- 					index, false);
- 		}
- 		if (IS_ERR(page)) {
-+			int retry = 5;
- 			error = PTR_ERR(page);
- 			page = NULL;
-+			if (error != -ENOSPC)
-+				goto failed;
-+			/*
-+			 * Try to reclaim some spece by splitting a huge page
-+			 * beyond i_size on the filesystem.
-+			 */
-+			while (retry--) {
-+				int ret;
-+				ret = shmem_unused_huge_shrink(sbinfo, NULL, 1);
-+				if (ret == SHRINK_STOP)
-+					break;
-+				if (ret)
-+					goto alloc_nohuge;
-+			}
- 			goto failed;
- 		}
- 
-@@ -1603,6 +1755,22 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
- 		spin_unlock_irq(&info->lock);
- 		alloced = true;
- 
-+		if (PageTransHuge(page) &&
-+				DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE) <
-+				hindex + HPAGE_PMD_NR - 1) {
-+			/*
-+			 * Part of the huge page is beyond i_size: subject
-+			 * to shrink under memory pressure.
-+			 */
-+			spin_lock(&sbinfo->shrinklist_lock);
-+			if (list_empty(&info->shrinklist)) {
-+				list_add_tail(&info->shrinklist,
-+						&sbinfo->shrinklist);
-+				sbinfo->shrinklist_len++;
-+			}
-+			spin_unlock(&sbinfo->shrinklist_lock);
-+		}
-+
- 		/*
- 		 * Let SGP_FALLOC use the SGP_WRITE optimization on a new page.
- 		 */
-@@ -1920,6 +2088,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
- 		spin_lock_init(&info->lock);
- 		info->seals = F_SEAL_SEAL;
- 		info->flags = flags & VM_NORESERVE;
-+		INIT_LIST_HEAD(&info->shrinklist);
- 		INIT_LIST_HEAD(&info->swaplist);
- 		simple_xattrs_init(&info->xattrs);
- 		cache_no_acl(inode);
-@@ -3516,6 +3685,8 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
- 	if (percpu_counter_init(&sbinfo->used_blocks, 0, GFP_KERNEL))
- 		goto failed;
- 	sbinfo->free_inodes = sbinfo->max_inodes;
-+	spin_lock_init(&sbinfo->shrinklist_lock);
-+	INIT_LIST_HEAD(&sbinfo->shrinklist);
- 
- 	sb->s_maxbytes = MAX_LFS_FILESIZE;
- 	sb->s_blocksize = PAGE_SIZE;
-@@ -3678,6 +3849,10 @@ static const struct super_operations shmem_ops = {
- 	.evict_inode	= shmem_evict_inode,
- 	.drop_inode	= generic_delete_inode,
- 	.put_super	= shmem_put_super,
-+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-+	.nr_cached_objects	= shmem_unused_huge_count,
-+	.free_cached_objects	= shmem_unused_huge_scan,
++	/* Otherwise flags & MAP_PRIVATE: with no shmem object beneath it */
++	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
++#else
++	return -ENOSYS;
 +#endif
++}
++
+ static ssize_t write_full(struct file *file, const char __user *buf,
+ 			  size_t count, loff_t *ppos)
+ {
+@@ -768,6 +791,7 @@ static const struct file_operations zero_fops = {
+ 	.read_iter	= read_iter_zero,
+ 	.write_iter	= write_iter_zero,
+ 	.mmap		= mmap_zero,
++	.get_unmapped_area = get_unmapped_area_zero,
+ #ifndef CONFIG_MMU
+ 	.mmap_capabilities = zero_mmap_capabilities,
+ #endif
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index 466f18c73a49..ff2de4bab61f 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -50,6 +50,8 @@ extern struct file *shmem_file_setup(const char *name,
+ extern struct file *shmem_kernel_file_setup(const char *name, loff_t size,
+ 					    unsigned long flags);
+ extern int shmem_zero_setup(struct vm_area_struct *);
++extern unsigned long shmem_get_unmapped_area(struct file *, unsigned long addr,
++		unsigned long len, unsigned long pgoff, unsigned long flags);
+ extern int shmem_lock(struct file *file, int lock, struct user_struct *user);
+ extern bool shmem_mapping(struct address_space *mapping);
+ extern void shmem_unlock_mapping(struct address_space *mapping);
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 13282510bc0d..7fa5cbebbf19 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -476,13 +476,15 @@ static const struct file_operations shm_file_operations = {
+ 	.mmap		= shm_mmap,
+ 	.fsync		= shm_fsync,
+ 	.release	= shm_release,
+-#ifndef CONFIG_MMU
+ 	.get_unmapped_area	= shm_get_unmapped_area,
+-#endif
+ 	.llseek		= noop_llseek,
+ 	.fallocate	= shm_fallocate,
  };
  
- static const struct vm_operations_struct shmem_vm_ops = {
++/*
++ * shm_file_operations_huge is now identical to shm_file_operations,
++ * but we keep it distinct for the sake of is_file_shm_hugepages().
++ */
+ static const struct file_operations shm_file_operations_huge = {
+ 	.mmap		= shm_mmap,
+ 	.fsync		= shm_fsync,
+diff --git a/mm/mmap.c b/mm/mmap.c
+index daabef097c78..25c2b4e0fbdc 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -25,6 +25,7 @@
+ #include <linux/personality.h>
+ #include <linux/security.h>
+ #include <linux/hugetlb.h>
++#include <linux/shmem_fs.h>
+ #include <linux/profile.h>
+ #include <linux/export.h>
+ #include <linux/mount.h>
+@@ -1897,8 +1898,19 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
+ 		return -ENOMEM;
+ 
+ 	get_area = current->mm->get_unmapped_area;
+-	if (file && file->f_op->get_unmapped_area)
+-		get_area = file->f_op->get_unmapped_area;
++	if (file) {
++		if (file->f_op->get_unmapped_area)
++			get_area = file->f_op->get_unmapped_area;
++	} else if (flags & MAP_SHARED) {
++		/*
++		 * mmap_region() will call shmem_zero_setup() to create a file,
++		 * so use shmem's get_unmapped_area in case it can be huge.
++		 * do_mmap_pgoff() will clear pgoff, so match alignment.
++		 */
++		pgoff = 0;
++		get_area = shmem_get_unmapped_area;
++	}
++
+ 	addr = get_area(file, addr, len, pgoff, flags);
+ 	if (IS_ERR_VALUE(addr))
+ 		return addr;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index dfbc9266b097..0a564110b04d 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1513,6 +1513,94 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	return ret;
+ }
+ 
++unsigned long shmem_get_unmapped_area(struct file *file,
++				      unsigned long uaddr, unsigned long len,
++				      unsigned long pgoff, unsigned long flags)
++{
++	unsigned long (*get_area)(struct file *,
++		unsigned long, unsigned long, unsigned long, unsigned long);
++	unsigned long addr;
++	unsigned long offset;
++	unsigned long inflated_len;
++	unsigned long inflated_addr;
++	unsigned long inflated_offset;
++
++	if (len > TASK_SIZE)
++		return -ENOMEM;
++
++	get_area = current->mm->get_unmapped_area;
++	addr = get_area(file, uaddr, len, pgoff, flags);
++
++	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
++		return addr;
++	if (IS_ERR_VALUE(addr))
++		return addr;
++	if (addr & ~PAGE_MASK)
++		return addr;
++	if (addr > TASK_SIZE - len)
++		return addr;
++
++	if (shmem_huge == SHMEM_HUGE_DENY)
++		return addr;
++	if (len < HPAGE_PMD_SIZE)
++		return addr;
++	if (flags & MAP_FIXED)
++		return addr;
++	/*
++	 * Our priority is to support MAP_SHARED mapped hugely;
++	 * and support MAP_PRIVATE mapped hugely too, until it is COWed.
++	 * But if caller specified an address hint, respect that as before.
++	 */
++	if (uaddr)
++		return addr;
++
++	if (shmem_huge != SHMEM_HUGE_FORCE) {
++		struct super_block *sb;
++
++		if (file) {
++			VM_BUG_ON(file->f_op != &shmem_file_operations);
++			sb = file_inode(file)->i_sb;
++		} else {
++			/*
++			 * Called directly from mm/mmap.c, or drivers/char/mem.c
++			 * for "/dev/zero", to create a shared anonymous object.
++			 */
++			if (IS_ERR(shm_mnt))
++				return addr;
++			sb = shm_mnt->mnt_sb;
++		}
++		if (SHMEM_SB(sb)->huge != SHMEM_HUGE_NEVER)
++			return addr;
++	}
++
++	offset = (pgoff << PAGE_SHIFT) & (HPAGE_PMD_SIZE-1);
++	if (offset && offset + len < 2 * HPAGE_PMD_SIZE)
++		return addr;
++	if ((addr & (HPAGE_PMD_SIZE-1)) == offset)
++		return addr;
++
++	inflated_len = len + HPAGE_PMD_SIZE - PAGE_SIZE;
++	if (inflated_len > TASK_SIZE)
++		return addr;
++	if (inflated_len < len)
++		return addr;
++
++	inflated_addr = get_area(NULL, 0, inflated_len, 0, flags);
++	if (IS_ERR_VALUE(inflated_addr))
++		return addr;
++	if (inflated_addr & ~PAGE_MASK)
++		return addr;
++
++	inflated_offset = inflated_addr & (HPAGE_PMD_SIZE-1);
++	inflated_addr += offset - inflated_offset;
++	if (inflated_offset > offset)
++		inflated_addr += HPAGE_PMD_SIZE;
++
++	if (inflated_addr > TASK_SIZE - len)
++		return addr;
++	return inflated_addr;
++}
++
+ #ifdef CONFIG_NUMA
+ static int shmem_set_policy(struct vm_area_struct *vma, struct mempolicy *mpol)
+ {
+@@ -3259,6 +3347,7 @@ static const struct address_space_operations shmem_aops = {
+ 
+ static const struct file_operations shmem_file_operations = {
+ 	.mmap		= shmem_mmap,
++	.get_unmapped_area = shmem_get_unmapped_area,
+ #ifdef CONFIG_TMPFS
+ 	.llseek		= shmem_file_llseek,
+ 	.read_iter	= shmem_file_read_iter,
+@@ -3494,6 +3583,15 @@ void shmem_unlock_mapping(struct address_space *mapping)
+ {
+ }
+ 
++#ifdef CONFIG_MMU
++unsigned long shmem_get_unmapped_area(struct file *file,
++				      unsigned long addr, unsigned long len,
++				      unsigned long pgoff, unsigned long flags)
++{
++	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
++}
++#endif
++
+ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
+ {
+ 	truncate_inode_pages_range(inode->i_mapping, lstart, lend);
 -- 
 2.8.1
 
