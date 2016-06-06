@@ -1,164 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 382A26B026E
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 11:21:48 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id zc6so8652046lbb.1
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 08:21:48 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j10si27317126wjo.134.2016.06.06.08.21.46
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BF65A6B0253
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 11:50:42 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id h68so67853010lfh.2
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 08:50:42 -0700 (PDT)
+Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
+        by mx.google.com with ESMTPS id lb8si27462677wjc.158.2016.06.06.08.50.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Jun 2016 08:21:46 -0700 (PDT)
-Subject: Re: [PATCH v2 7/7] mm/page_alloc: introduce post allocation
- processing on page allocator
-References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1464230275-25791-7-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <21ab870c-7470-bb28-d8db-4dba25077854@suse.cz>
-Date: Mon, 6 Jun 2016 17:21:45 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Jun 2016 08:50:39 -0700 (PDT)
+Received: by mail-wm0-x230.google.com with SMTP id k204so32982384wmk.0
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 08:50:39 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1464230275-25791-7-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160606133801.GA6136@davidb.org>
+References: <20160531013029.4c5db8b570d86527b0b53fe4@gmail.com>
+ <20160531013145.612696c12f2ef744af739803@gmail.com> <20160601124227.e922af8299168c09308d5e1b@linux-foundation.org>
+ <20160603194252.91064b8e682ad988283fc569@gmail.com> <20160606133801.GA6136@davidb.org>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 6 Jun 2016 08:50:38 -0700
+Message-ID: <CAGXu5jKDdPsRU+oa8hKpFCyf2Q-BvnNJ0ZrPM_b6frw-h0Cg_w@mail.gmail.com>
+Subject: Re: [kernel-hardening] Re: [PATCH v2 1/3] Add the latent_entropy gcc plugin
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: David Brown <david.brown@linaro.org>
+Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Andrew Morton <akpm@linux-foundation.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Michal Marek <mmarek@suse.com>, LKML <linux-kernel@vger.kernel.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, linux-kbuild <linux-kbuild@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>, Al Viro <viro@zeniv.linux.org.uk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, bart.vanassche@sandisk.com, "David S. Miller" <davem@davemloft.net>
 
-On 05/26/2016 04:37 AM, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Mon, Jun 6, 2016 at 6:38 AM, David Brown <david.brown@linaro.org> wrote:
+> On Fri, Jun 03, 2016 at 07:42:52PM +0200, Emese Revfy wrote:
+>>
+>> On Wed, 1 Jun 2016 12:42:27 -0700
+>> Andrew Morton <akpm@linux-foundation.org> wrote:
+>>
+>>> On Tue, 31 May 2016 01:31:45 +0200 Emese Revfy <re.emese@gmail.com>
+>>> wrote:
+>>>
+>>> > This plugin mitigates the problem of the kernel having too little
+>>> > entropy during
+>>> > and after boot for generating crypto keys.
+>>> >
+>>> > It creates a local variable in every marked function. The value of this
+>>> > variable is
+>>> > modified by randomly chosen operations (add, xor and rol) and
+>>> > random values (gcc generates them at compile time and the stack pointer
+>>> > at runtime).
+>>> > It depends on the control flow (e.g., loops, conditions).
+>>> >
+>>> > Before the function returns the plugin writes this local variable
+>>> > into the latent_entropy global variable. The value of this global
+>>> > variable is
+>>> > added to the kernel entropy pool in do_one_initcall() and _do_fork().
+>>>
+>>> I don't think I'm really understanding.  Won't this produce the same
+>>> value on each and every boot?
+>>
+>>
+>> No, because of interrupts and intentional data races.
 >
-> This patch is motivated from Hugh and Vlastimil's concern [1].
 >
-> There are two ways to get freepage from the allocator. One is using
-> normal memory allocation API and the other is __isolate_free_page() which
-> is internally used for compaction and pageblock isolation. Later usage is
-> rather tricky since it doesn't do whole post allocation processing
-> done by normal API.
->
-> One problematic thing I already know is that poisoned page would not be
-> checked if it is allocated by __isolate_free_page(). Perhaps, there would
-> be more.
->
-> We could add more debug logic for allocated page in the future and this
-> separation would cause more problem. I'd like to fix this situation
-> at this time. Solution is simple. This patch commonize some logic
-> for newly allocated page and uses it on all sites. This will solve
-> the problem.
->
-> [1] http://marc.info/?i=alpine.LSU.2.11.1604270029350.7066%40eggly.anvils%3E
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Wouldn't that result in the value having one of a small number of
+> values, then?  Even if it was just one of thousands or millions of
+> values, it would make the search space quite small.
 
-Yes that's much better. Hopefully introducing a function call into 
-prep_new_page() (or can compiler still inline it there?) doesn't impact 
-the fast paths though.
+My understanding is that it's not cryptographically secure, but it
+provides a way for different machines and different boots to end up
+with different seeds here, which is a big improvement over some of the
+embedded devices that all boot with the same entropy every time.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I would, however, like to see the documentation improved to describe
+the "How" and "Why". The "What" is pretty well covered. Adding
+comments to the plugin for kernel developers (not compiler developers)
+would help a lot: assume the reader knows nothing about gcc plugins.
+:)
 
-> ---
->  mm/compaction.c     |  8 +-------
->  mm/internal.h       |  2 ++
->  mm/page_alloc.c     | 22 +++++++++++++---------
->  mm/page_isolation.c |  4 +---
->  4 files changed, 17 insertions(+), 19 deletions(-)
->
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 6043ef8..e15d350 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -75,14 +75,8 @@ static void map_pages(struct list_head *list)
->
->  		order = page_private(page);
->  		nr_pages = 1 << order;
-> -		set_page_private(page, 0);
-> -		set_page_refcounted(page);
->
-> -		arch_alloc_page(page, order);
-> -		kernel_map_pages(page, nr_pages, 1);
-> -		kasan_alloc_pages(page, order);
-> -
-> -		set_page_owner(page, order, __GFP_MOVABLE);
-> +		post_alloc_hook(page, order, __GFP_MOVABLE);
->  		if (order)
->  			split_page(page, order);
->
-> diff --git a/mm/internal.h b/mm/internal.h
-> index b6ead95..420bbe3 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -153,6 +153,8 @@ extern int __isolate_free_page(struct page *page, unsigned int order);
->  extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
->  					unsigned int order);
->  extern void prep_compound_page(struct page *page, unsigned int order);
-> +extern void post_alloc_hook(struct page *page, unsigned int order,
-> +					gfp_t gfp_flags);
->  extern int user_min_free_kbytes;
->
->  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 616ada9..baa5999 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1722,6 +1722,18 @@ static bool check_new_pages(struct page *page, unsigned int order)
->  	return false;
->  }
->
-> +void post_alloc_hook(struct page *page, unsigned int order, gfp_t gfp_flags)
-> +{
-> +	set_page_private(page, 0);
-> +	set_page_refcounted(page);
-> +
-> +	arch_alloc_page(page, order);
-> +	kernel_map_pages(page, 1 << order, 1);
-> +	kernel_poison_pages(page, 1 << order, 1);
-> +	kasan_alloc_pages(page, order);
-> +	set_page_owner(page, order, gfp_flags);
-> +}
-> +
->  static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
->  							unsigned int alloc_flags)
->  {
-> @@ -1734,13 +1746,7 @@ static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags
->  			poisoned &= page_is_poisoned(p);
->  	}
->
-> -	set_page_private(page, 0);
-> -	set_page_refcounted(page);
-> -
-> -	arch_alloc_page(page, order);
-> -	kernel_map_pages(page, 1 << order, 1);
-> -	kernel_poison_pages(page, 1 << order, 1);
-> -	kasan_alloc_pages(page, order);
-> +	post_alloc_hook(page, order, gfp_flags);
->
->  	if (!free_pages_prezeroed(poisoned) && (gfp_flags & __GFP_ZERO))
->  		for (i = 0; i < (1 << order); i++)
-> @@ -1749,8 +1755,6 @@ static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags
->  	if (order && (gfp_flags & __GFP_COMP))
->  		prep_compound_page(page, order);
->
-> -	set_page_owner(page, order, gfp_flags);
-> -
->  	/*
->  	 * page is set pfmemalloc when ALLOC_NO_WATERMARKS was necessary to
->  	 * allocate the page. The expectation is that the caller is taking
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 927f5ee..4639163 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -128,9 +128,7 @@ static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
->  out:
->  	spin_unlock_irqrestore(&zone->lock, flags);
->  	if (isolated_page) {
-> -		kernel_map_pages(page, (1 << order), 1);
-> -		set_page_refcounted(page);
-> -		set_page_owner(page, order, __GFP_MOVABLE);
-> +		post_alloc_hook(page, order, __GFP_MOVABLE);
->  		__free_pages(isolated_page, order);
->  	}
->  }
->
+-Kees
+
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
