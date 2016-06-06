@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DF1D8294C
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 10:08:23 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id h144so111973225ita.1
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 07:08:23 -0700 (PDT)
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B8C648294C
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 10:08:25 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id a9so29506409pat.2
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 07:08:25 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id 4si19998679paf.244.2016.06.06.07.08.14
+        by mx.google.com with ESMTP id 4si19998679paf.244.2016.06.06.07.08.15
         for <linux-mm@kvack.org>;
         Mon, 06 Jun 2016 07:08:15 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9 09/32] thp: handle file pages in split_huge_pmd()
-Date: Mon,  6 Jun 2016 17:06:46 +0300
-Message-Id: <1465222029-45942-10-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9 13/32] thp: run vma_adjust_trans_huge() outside i_mmap_rwsem
+Date: Mon,  6 Jun 2016 17:06:50 +0300
+Message-Id: <1465222029-45942-14-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,46 +19,39 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Splitting THP PMD is simple: just unmap it as in DAX case. This way we
-can avoid memory overhead on page table allocation to deposit.
+vma_addjust_trans_huge() splits pmd if it's crossing VMA boundary.
+During split we munlock the huge page which requires rmap walk.
+rmap wants to take the lock on its own.
 
-It's probably a good idea to try to allocation page table with
-GFP_ATOMIC in __split_huge_pmd_locked() to avoid refaulting the area,
-but clearing pmd should be good enough for now.
-
-Unlike DAX, we also remove the page from rmap and drop reference.
-pmd_young() is transfered to PageReferenced().
+Let's move vma_adjust_trans_huge() outside i_mmap_rwsem to fix this.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ mm/mmap.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 2e838795aab1..6631c89b4bfc 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2995,10 +2995,18 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+diff --git a/mm/mmap.c b/mm/mmap.c
+index de2c1769cc68..02990e7dd70e 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -675,6 +675,8 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		}
+ 	}
  
- 	count_vm_event(THP_SPLIT_PMD);
++	vma_adjust_trans_huge(vma, start, end, adjust_next);
++
+ 	if (file) {
+ 		mapping = file->f_mapping;
+ 		root = &mapping->i_mmap;
+@@ -695,8 +697,6 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		}
+ 	}
  
--	if (vma_is_dax(vma)) {
--		pmd_t _pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
-+	if (!vma_is_anonymous(vma)) {
-+		_pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
- 		if (is_huge_zero_pmd(_pmd))
- 			put_huge_zero_page();
-+		if (vma_is_dax(vma))
-+			return;
-+		page = pmd_page(_pmd);
-+		if (!PageReferenced(page) && pmd_young(_pmd))
-+			SetPageReferenced(page);
-+		page_remove_rmap(page, true);
-+		put_page(page);
-+		add_mm_counter(mm, MM_FILEPAGES, -HPAGE_PMD_NR);
- 		return;
- 	} else if (is_huge_zero_pmd(*pmd)) {
- 		return __split_huge_zero_page_pmd(vma, haddr, pmd);
+-	vma_adjust_trans_huge(vma, start, end, adjust_next);
+-
+ 	anon_vma = vma->anon_vma;
+ 	if (!anon_vma && adjust_next)
+ 		anon_vma = next->anon_vma;
 -- 
 2.8.1
 
