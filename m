@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C74076B007E
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 13:50:04 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id s139so160552617oie.0
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 10:50:04 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 537DB6B0253
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 13:50:05 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id r4so48808576oib.1
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 10:50:05 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id e138si13617355ite.59.2016.06.06.10.50.03
+        by mx.google.com with ESMTPS id g37si10873186ioj.174.2016.06.06.10.50.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 10:50:03 -0700 (PDT)
+        Mon, 06 Jun 2016 10:50:04 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC PATCH 4/6] mm/hugetlb: add userfaultfd hugetlb hook
-Date: Mon,  6 Jun 2016 10:45:29 -0700
-Message-Id: <1465235131-6112-5-git-send-email-mike.kravetz@oracle.com>
+Subject: [RFC PATCH 2/6] mm/hugetlb: add hugetlb_mcopy_atomic_pte for userfaultfd support
+Date: Mon,  6 Jun 2016 10:45:27 -0700
+Message-Id: <1465235131-6112-3-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1465235131-6112-1-git-send-email-mike.kravetz@oracle.com>
 References: <1465235131-6112-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,55 +20,140 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-When processing a hugetlb fault for no page present, check the vma to
-determine if faults are to be handled via userfaultfd.  If so, drop the
-hugetlb_fault_mutex and call handle_userfault().
+hugetlb_mcopy_atomic_pte is the low level routine that implements
+the userfaultfd UFFDIO_COPY command.  It is based on the existing
+mcopy_atomic_pte routine with modifications for huge pages.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- mm/hugetlb.c | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ include/linux/hugetlb.h |  8 ++++-
+ mm/hugetlb.c            | 80 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+), 1 deletion(-)
 
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index c26d463..35697b2 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -81,6 +81,11 @@ void hugetlb_show_meminfo(void);
+ unsigned long hugetlb_total_pages(void);
+ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, unsigned int flags);
++int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm, pte_t *dst_pte,
++				struct vm_area_struct *dst_vma,
++				unsigned long dst_addr,
++				unsigned long src_addr,
++				struct page **pagep);
+ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
+ 						struct vm_area_struct *vma,
+ 						vm_flags_t vm_flags);
+@@ -149,6 +154,8 @@ static inline void hugetlb_show_meminfo(void)
+ #define is_hugepage_only_range(mm, addr, len)	0
+ #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
+ #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
++#define hugetlb_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
++				src_addr, pagep)	({ BUG(); 0; })
+ #define huge_pte_offset(mm, address)	0
+ static inline int dequeue_hwpoisoned_huge_page(struct page *page)
+ {
+@@ -272,7 +279,6 @@ static inline bool is_file_hugepages(struct file *file)
+ 	return is_file_shm_hugepages(file);
+ }
+ 
+-
+ #else /* !CONFIG_HUGETLBFS */
+ 
+ #define is_file_hugepages(file)			false
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 4943d8b..a2814e7 100644
+index 0949d0d..4943d8b 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -32,6 +32,7 @@
- #include <linux/hugetlb.h>
- #include <linux/hugetlb_cgroup.h>
- #include <linux/node.h>
-+#include <linux/userfaultfd_k.h>
- #include "internal.h"
+@@ -3837,6 +3837,86 @@ out_mutex:
+ 	return ret;
+ }
  
- int hugepages_treat_as_movable;
-@@ -3569,6 +3570,27 @@ retry:
- 		size = i_size_read(mapping->host) >> huge_page_shift(h);
- 		if (idx >= size)
- 			goto out;
++/*
++ * Used by userfaultfd UFFDIO_COPY.  Based on mcopy_atomic_pte with
++ * modifications for huge pages.
++ */
++int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
++			    pte_t *dst_pte,
++			    struct vm_area_struct *dst_vma,
++			    unsigned long dst_addr,
++			    unsigned long src_addr,
++			    struct page **pagep)
++{
++	struct hstate *h = hstate_vma(dst_vma);
++	pte_t _dst_pte;
++	spinlock_t *ptl;
++	int ret;
++	struct page *page;
 +
-+		/*
-+		 * Check for page in userfault range
-+		 */
-+		if (userfaultfd_missing(vma)) {
-+			u32 hash;
++	if (!*pagep) {
++		ret = -ENOMEM;
++		page = alloc_huge_page(dst_vma, dst_addr, 0);
++		if (!page)
++			goto out;
 +
-+			/*
-+			 * hugetlb_fault_mutex must be dropped before
-+			 * handling userfault.  Reacquire after handling
-+			 * fault to make calling code simpler.
-+			 */
-+			hash = hugetlb_fault_mutex_hash(h, mm, vma, mapping,
-+							idx, address);
-+			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-+			ret = handle_userfault(vma, address, flags,
-+						VM_UFFD_MISSING);
-+			mutex_lock(&hugetlb_fault_mutex_table[hash]);
++		ret = copy_huge_page_from_user((const void __user *) src_addr,
++						page, pages_per_huge_page(h));
++
++		/* fallback to copy_from_user outside mmap_sem */
++		if (unlikely(ret)) {
++			ret = -EFAULT;
++			*pagep = page;
++			/* don't free the page */
 +			goto out;
 +		}
++	} else {
++		page = *pagep;
++		*pagep = NULL;
++	}
 +
- 		page = alloc_huge_page(vma, address, 0);
- 		if (IS_ERR(page)) {
- 			ret = PTR_ERR(page);
++	/*
++	 * The memory barrier inside __SetPageUptodate makes sure that
++	 * preceding stores to the page contents become visible before
++	 * the set_pte_at() write.
++	 */
++	__SetPageUptodate(page);
++	set_page_huge_active(page);
++
++	ptl = huge_pte_lockptr(h, dst_mm, dst_pte);
++	spin_lock(ptl);
++
++	ret = -EEXIST;
++	if (!huge_pte_none(huge_ptep_get(dst_pte)))
++		goto out_release_unlock;
++
++	ClearPagePrivate(page);
++	hugepage_add_new_anon_rmap(page, dst_vma, dst_addr);
++
++	_dst_pte = make_huge_pte(dst_vma, page, dst_vma->vm_flags & VM_WRITE);
++	if (dst_vma->vm_flags & VM_WRITE)
++		_dst_pte = huge_pte_mkdirty(_dst_pte);
++	_dst_pte = pte_mkyoung(_dst_pte);
++
++	set_huge_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
++
++	(void)huge_ptep_set_access_flags(dst_vma, dst_addr, dst_pte, _dst_pte,
++					dst_vma->vm_flags & VM_WRITE);
++	hugetlb_count_add(pages_per_huge_page(h), dst_mm);
++
++	/* No need to invalidate - it was non-present before */
++	update_mmu_cache(dst_vma, dst_addr, dst_pte);
++
++	spin_unlock(ptl);
++	ret = 0;
++out:
++	return ret;
++out_release_unlock:
++	spin_unlock(ptl);
++	put_page(page);
++	goto out;
++}
++
+ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			 struct page **pages, struct vm_area_struct **vmas,
+ 			 unsigned long *position, unsigned long *nr_pages,
 -- 
 2.4.11
 
