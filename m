@@ -1,60 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F5256B0005
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 18:27:38 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id di3so222690128pab.0
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 15:27:38 -0700 (PDT)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id f88si30842823pfj.219.2016.06.06.15.27.37
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 53BA36B0005
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 19:13:29 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id 46so52889507qtr.0
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 16:13:29 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id u83si12363285qkl.118.2016.06.06.16.13.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 15:27:37 -0700 (PDT)
-Received: by mail-pf0-x22a.google.com with SMTP id 62so70853206pfd.1
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 15:27:37 -0700 (PDT)
-Date: Mon, 6 Jun 2016 15:27:34 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 06/10] mm, oom: kill all tasks sharing the mm
-In-Reply-To: <1464945404-30157-7-git-send-email-mhocko@kernel.org>
-Message-ID: <alpine.DEB.2.10.1606061526440.18843@chino.kir.corp.google.com>
-References: <1464945404-30157-1-git-send-email-mhocko@kernel.org> <1464945404-30157-7-git-send-email-mhocko@kernel.org>
+        Mon, 06 Jun 2016 16:13:28 -0700 (PDT)
+Date: Mon, 6 Jun 2016 19:13:19 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [kernel-hardening] Re: [PATCH v2 1/3] Add the latent_entropy gcc
+ plugin
+Message-ID: <20160606231319.GC7057@thunk.org>
+References: <20160531013029.4c5db8b570d86527b0b53fe4@gmail.com>
+ <20160603194252.91064b8e682ad988283fc569@gmail.com>
+ <20160606133801.GA6136@davidb.org>
+ <5755CF44.24670.9C7568D@pageexec.freemail.hu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5755CF44.24670.9C7568D@pageexec.freemail.hu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: PaX Team <pageexec@freemail.hu>
+Cc: kernel-hardening@lists.openwall.com, David Brown <david.brown@linaro.org>, emese Revfy <re.emese@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, spender@grsecurity.net, mmarek@suse.com, keescook@chromium.org, linux-kernel@vger.kernel.org, yamada.masahiro@socionext.com, linux-kbuild@vger.kernel.org, linux-mm@kvack.org, axboe@kernel.dk, viro@zeniv.linux.org.uk, paulmck@linux.vnet.ibm.com, mingo@redhat.com, tglx@linutronix.de, bart.vanassche@sandisk.com, davem@davemloft.net
 
-On Fri, 3 Jun 2016, Michal Hocko wrote:
+On Mon, Jun 06, 2016 at 09:30:12PM +0200, PaX Team wrote:
+> 
+> what matters for latent entropy is not the actual values fed into the entropy
+> pool (they're effectively compile time constants save for runtime data dependent
+> computations) but the precise sequence of them. interrupts stir this sequence
+> and thus extract entropy. perhaps as a small example imagine that an uninterrupted
+> kernel boot sequence feeds these values into the entropy pool:
+>   A B C
+> 
+> now imagine that a single interrupt can occur around any one of these values:
+>   I A B C
+>   A I B C
+>   A B I C
+>   A B C I
+> 
+> this way we can obtain 4 different final pool states that translate into up
+> to 2 bits of latent entropy (depends on how probable each sequence is). note
+> that this works regardless whether the underlying hardware has a high resolution
+> timer whose values the interrupt handler would feed into the pool.
 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Currently oom_kill_process skips both the oom reaper and SIG_KILL if a
-> process sharing the same mm is unkillable via OOM_ADJUST_MIN. After "mm,
-> oom_adj: make sure processes sharing mm have same view of oom_score_adj"
-> all such processes are sharing the same value so we shouldn't see such a
-> task at all (oom_badness would rule them out).
-> 
-> We can still encounter oom disabled vforked task which has to be killed
-> as well if we want to have other tasks sharing the mm reapable
-> because it can access the memory before doing exec. Killing such a task
-> should be acceptable because it is highly unlikely it has done anything
-> useful because it cannot modify any memory before it calls exec. An
-> alternative would be to keep the task alive and skip the oom reaper and
-> risk all the weird corner cases where the OOM killer cannot make forward
-> progress because the oom victim hung somewhere on the way to exit.
-> 
-> There is a potential race where we kill the oom disabled task which is
-> highly unlikely but possible. It would happen if __set_oom_adj raced
-> with select_bad_process and then it is OK to consider the old value or
-> with fork when it should be acceptable as well.
-> Let's add a little note to the log so that people would tell us that
-> this really happens in the real life and it matters.
-> 
+Right, but if it's only about interrupts, we're doing this already
+inside modern Linux kernels.  On every single interrupt we are mixing
+into a per-CPU "fast mix" pool the IP from the interrupt registers.
 
-We cannot kill oom disabled processes at all, little race or otherwise.  
-We'd rather panic the system than oom kill these processes, and that's the 
-semantic that the user is basing their decision on.  We cannot suddenly 
-start allowing them to be SIGKILL'd.
+Since we're not claiming any additional entropy, I suppose it won't
+hurt to do it twice, two different ways, but I'm not sure how much it
+will actually help, and by doing the instrumentation in every single
+basic block, instead of in the interrupt handler, I would think it
+would be cheaper to do it in the interrupt handler.
+
+      	 	       	     - Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
