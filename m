@@ -1,74 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f72.google.com (mail-qg0-f72.google.com [209.85.192.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5683B6B0260
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 16:01:47 -0400 (EDT)
-Received: by mail-qg0-f72.google.com with SMTP id l39so95783438qgd.2
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 13:01:47 -0700 (PDT)
-Received: from mail-yw0-x231.google.com (mail-yw0-x231.google.com. [2607:f8b0:4002:c05::231])
-        by mx.google.com with ESMTPS id z131si4979934ywb.154.2016.06.06.13.01.46
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7587D6B0260
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 16:05:58 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id r4so52702932oib.1
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 13:05:58 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id r63si9720617oia.180.2016.06.06.13.05.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 13:01:46 -0700 (PDT)
-Received: by mail-yw0-x231.google.com with SMTP id o16so150649206ywd.2
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 13:01:46 -0700 (PDT)
+        Mon, 06 Jun 2016 13:05:57 -0700 (PDT)
+Date: Mon, 6 Jun 2016 23:05:38 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Subject: re: mm: add NR_ZSMALLOC to vmstat
+Message-ID: <20160606200538.GA31983@mwanda>
 MIME-Version: 1.0
-In-Reply-To: <20160606195228.GA27327@mwanda>
-References: <20160606195228.GA27327@mwanda>
-From: Thomas Garnier <thgarnie@google.com>
-Date: Mon, 6 Jun 2016 13:01:45 -0700
-Message-ID: <CAJcbSZEcW8u2Mx0awZO_8g38pnSAYfPR8e37oBEDPvFZQWv_fQ@mail.gmail.com>
-Subject: Re: mm: reorganize SLAB freelist randomization
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: Linux-MM <linux-mm@kvack.org>
+To: minchan@kernel.org
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org
 
-No, the for loop is correct. Fisher-Yates shuffles algorithm is as follow:
+Hello Minchan Kim,
 
--- To shuffle an array a of n elements (indices 0..n-1):
-for i from n=E2=88=921 downto 1 do
-     j random integer such that 0 <=3D j <=3D i
-     exchange a[j] and a[i]
+The patch b37284200b39: "mm: add NR_ZSMALLOC to vmstat" from Jun 5,
+2016, leads to the following static checker warning:
 
-https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
+	mm/zsmalloc.c:1155 alloc_zspage()
+	error: we previously assumed 'page' could be null (see line 1152)
 
-On Mon, Jun 6, 2016 at 12:52 PM, Dan Carpenter <dan.carpenter@oracle.com> w=
-rote:
-> Hello Thomas Garnier,
->
-> The patch aded650eb82e: "mm: reorganize SLAB freelist randomization"
-> from Jun 5, 2016, leads to the following static checker warning:
->
->         mm/slab_common.c:1160 freelist_randomize()
->         warn: why is zero skipped 'i'
->
-> mm/slab_common.c
->   1146  /* Randomize a generic freelist */
->   1147  static void freelist_randomize(struct rnd_state *state, unsigned =
-int *list,
->   1148                          size_t count)
->   1149  {
->   1150          size_t i;
->   1151          unsigned int rand;
->   1152
->   1153          for (i =3D 0; i < count; i++)
->   1154                  list[i] =3D i;
->   1155
->   1156          /* Fisher-Yates shuffle */
->   1157          for (i =3D count - 1; i > 0; i--) {
->
-> This looks like it should be i >=3D 0.
->
->   1158                  rand =3D prandom_u32_state(state);
->   1159                  rand %=3D (i + 1);
->   1160                  swap(list[i], list[rand]);
->   1161          }
->   1162  }
->
-> regards,
-> dan carpenter
+mm/zsmalloc.c
+  1130  /*
+  1131   * Allocate a zspage for the given size class
+  1132   */
+  1133  static struct zspage *alloc_zspage(struct zs_pool *pool,
+  1134                                          struct size_class *class,
+  1135                                          gfp_t gfp)
+  1136  {
+  1137          int i;
+  1138          struct page *pages[ZS_MAX_PAGES_PER_ZSPAGE];
+  1139          struct zspage *zspage = cache_alloc_zspage(pool, gfp);
+  1140  
+  1141          if (!zspage)
+  1142                  return NULL;
+  1143  
+  1144          memset(zspage, 0, sizeof(struct zspage));
+  1145          zspage->magic = ZSPAGE_MAGIC;
+  1146          migrate_lock_init(zspage);
+  1147  
+  1148          for (i = 0; i < class->pages_per_zspage; i++) {
+  1149                  struct page *page;
+  1150  
+  1151                  page = alloc_page(gfp);
+  1152                  if (!page) {
+                             ^^^^
+  1153                          while (--i >= 0) {
+  1154                                  __free_page(pages[i]);
+  1155                                  dec_zone_page_state(page, NR_ZSMALLOC);
+                                                            ^^^^
+Potential NULL deref inside function call.
+
+  1156                          }
+  1157                          cache_free_zspage(pool, zspage);
+  1158                          return NULL;
+  1159                  }
+  1160  
+  1161                  inc_zone_page_state(page, NR_ZSMALLOC);
+  1162                  pages[i] = page;
+  1163          }
+  1164  
+  1165          create_page_chain(class, zspage, pages);
+  1166          init_zspage(class, zspage);
+  1167  
+  1168          return zspage;
+  1169  }
+
+
+regards,
+dan carpenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
