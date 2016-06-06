@@ -1,338 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A657A6B0260
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 10:34:05 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id zc6so8083021lbb.1
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 07:34:05 -0700 (PDT)
-Received: from mail-lf0-x22f.google.com (mail-lf0-x22f.google.com. [2a00:1450:4010:c07::22f])
-        by mx.google.com with ESMTPS id oh3si8650953lbb.194.2016.06.06.07.34.03
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 04DA96B026C
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 10:51:43 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 4so11563171wmz.1
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 07:51:42 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n8si15391165wmf.62.2016.06.06.07.51.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 07:34:04 -0700 (PDT)
-Received: by mail-lf0-x22f.google.com with SMTP id w16so95852791lfd.2
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 07:34:03 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 06 Jun 2016 07:51:41 -0700 (PDT)
+Subject: Re: [PATCH v2 6/7] mm/page_owner: use stackdepot to store stacktrace
+References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1464230275-25791-6-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f90a01f2-9336-1322-881b-74755145fe9b@suse.cz>
+Date: Mon, 6 Jun 2016 16:51:39 +0200
 MIME-Version: 1.0
-In-Reply-To: <CAPjZS4qnmc5zPG==2PB0yPjGPZ6SKc31aT1d0u+PoO1c0uYMVw@mail.gmail.com>
-References: <1465125103-26764-1-git-send-email-iamyooon@gmail.com>
- <CACT4Y+b8aCV9-8Qg6oxmOKHWvNsPeDyhz=x0GAtWzyYEC6Z2FA@mail.gmail.com> <CAPjZS4qnmc5zPG==2PB0yPjGPZ6SKc31aT1d0u+PoO1c0uYMVw@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 6 Jun 2016 16:33:44 +0200
-Message-ID: <CACT4Y+bbyKPJncPws0jtoVQeUUb02qqdwhwG4wvY5haA55hroA@mail.gmail.com>
-Subject: Re: [PATCH 1/1] mm/kasan: use {READ,WRITE}_MODE not true,false
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <1464230275-25791-6-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: SeokHoon Yoon <iamyooon@gmail.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "sh.yoon@lge.com" <sh.yoon@lge.com>
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon, Jun 6, 2016 at 1:08 AM, SeokHoon Yoon <iamyooon@gmail.com> wrote:
+On 05/26/2016 04:37 AM, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 >
-> 2016-06-05 21:49 GMT+09:00 Dmitry Vyukov <dvyukov@google.com>:
->>
->> On Sun, Jun 5, 2016 at 1:11 PM, seokhoon.yoon <iamyooon@gmail.com> wrote:
->> > When Kasan tell memory access is write or not, use true or false.
->> > This expression is simple and convenient.
->> >
->> > But I think it is possible to more readable. and so change it.
->> >
->> > Signed-off-by: seokhoon.yoon <iamyooon@gmail.com>
->> > ---
->> >  mm/kasan/kasan.c  | 32 ++++++++++++++++----------------
->> >  mm/kasan/kasan.h  | 12 ++++++++++--
->> >  mm/kasan/report.c | 16 ++++++++--------
->> >  3 files changed, 34 insertions(+), 26 deletions(-)
->> >
->> > diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
->> > index 18b6a2b..642d936 100644
->> > --- a/mm/kasan/kasan.c
->> > +++ b/mm/kasan/kasan.c
->> > @@ -274,7 +274,7 @@ static __always_inline bool
->> > memory_is_poisoned(unsigned long addr, size_t size)
->> >  }
->> >
->> >  static __always_inline void check_memory_region_inline(unsigned long
->> > addr,
->> > -                                               size_t size, bool write,
->> > +                                               size_t size, enum
->> > acc_type type,
->> >                                                 unsigned long ret_ip)
->> >  {
->> >         if (unlikely(size == 0))
->> > @@ -282,39 +282,39 @@ static __always_inline void
->> > check_memory_region_inline(unsigned long addr,
->> >
->> >         if (unlikely((void *)addr <
->> >                 kasan_shadow_to_mem((void *)KASAN_SHADOW_START))) {
->> > -               kasan_report(addr, size, write, ret_ip);
->> > +               kasan_report(addr, size, type, ret_ip);
->> >                 return;
->> >         }
->> >
->> >         if (likely(!memory_is_poisoned(addr, size)))
->> >                 return;
->> >
->> > -       kasan_report(addr, size, write, ret_ip);
->> > +       kasan_report(addr, size, type, ret_ip);
->> >  }
->> >
->> >  static void check_memory_region(unsigned long addr,
->> > -                               size_t size, bool write,
->> > +                               size_t size, enum acc_type type,
->> >                                 unsigned long ret_ip)
->> >  {
->> > -       check_memory_region_inline(addr, size, write, ret_ip);
->> > +       check_memory_region_inline(addr, size, type, ret_ip);
->> >  }
->> >
->> >  void kasan_check_read(const void *p, unsigned int size)
->> >  {
->> > -       check_memory_region((unsigned long)p, size, false, _RET_IP_);
->> > +       check_memory_region((unsigned long)p, size, READ_MODE,
->> > _RET_IP_);
->> >  }
->> >  EXPORT_SYMBOL(kasan_check_read);
->> >
->> >  void kasan_check_write(const void *p, unsigned int size)
->> >  {
->> > -       check_memory_region((unsigned long)p, size, true, _RET_IP_);
->> > +       check_memory_region((unsigned long)p, size, WRITE_MODE,
->> > _RET_IP_);
->> >  }
->> >  EXPORT_SYMBOL(kasan_check_write);
->> >
->> >  #undef memset
->> >  void *memset(void *addr, int c, size_t len)
->> >  {
->> > -       check_memory_region((unsigned long)addr, len, true, _RET_IP_);
->> > +       check_memory_region((unsigned long)addr, len, WRITE_MODE,
->> > _RET_IP_);
->> >
->> >         return __memset(addr, c, len);
->> >  }
->> > @@ -322,8 +322,8 @@ void *memset(void *addr, int c, size_t len)
->> >  #undef memmove
->> >  void *memmove(void *dest, const void *src, size_t len)
->> >  {
->> > -       check_memory_region((unsigned long)src, len, false, _RET_IP_);
->> > -       check_memory_region((unsigned long)dest, len, true, _RET_IP_);
->> > +       check_memory_region((unsigned long)src, len, READ_MODE,
->> > _RET_IP_);
->> > +       check_memory_region((unsigned long)dest, len, WRITE_MODE,
->> > _RET_IP_);
->> >
->> >         return __memmove(dest, src, len);
->> >  }
->> > @@ -331,8 +331,8 @@ void *memmove(void *dest, const void *src, size_t
->> > len)
->> >  #undef memcpy
->> >  void *memcpy(void *dest, const void *src, size_t len)
->> >  {
->> > -       check_memory_region((unsigned long)src, len, false, _RET_IP_);
->> > -       check_memory_region((unsigned long)dest, len, true, _RET_IP_);
->> > +       check_memory_region((unsigned long)src, len, READ_MODE,
->> > _RET_IP_);
->> > +       check_memory_region((unsigned long)dest, len, WRITE_MODE,
->> > _RET_IP_);
->> >
->> >         return __memcpy(dest, src, len);
->> >  }
->> > @@ -709,7 +709,7 @@ EXPORT_SYMBOL(__asan_unregister_globals);
->> >  #define DEFINE_ASAN_LOAD_STORE(size)
->> > \
->> >         void __asan_load##size(unsigned long addr)
->> > \
->> >         {
->> > \
->> > -               check_memory_region_inline(addr, size, false,
->> > _RET_IP_);\
->> > +               check_memory_region_inline(addr, size, READ_MODE,
->> > _RET_IP_);\
->> >         }
->> > \
->> >         EXPORT_SYMBOL(__asan_load##size);
->> > \
->> >         __alias(__asan_load##size)
->> > \
->> > @@ -717,7 +717,7 @@ EXPORT_SYMBOL(__asan_unregister_globals);
->> >         EXPORT_SYMBOL(__asan_load##size##_noabort);
->> > \
->> >         void __asan_store##size(unsigned long addr)
->> > \
->> >         {
->> > \
->> > -               check_memory_region_inline(addr, size, true, _RET_IP_);
->> > \
->> > +               check_memory_region_inline(addr, size, WRITE_MODE,
->> > _RET_IP_);\
->> >         }
->> > \
->> >         EXPORT_SYMBOL(__asan_store##size);
->> > \
->> >         __alias(__asan_store##size)
->> > \
->> > @@ -732,7 +732,7 @@ DEFINE_ASAN_LOAD_STORE(16);
->> >
->> >  void __asan_loadN(unsigned long addr, size_t size)
->> >  {
->> > -       check_memory_region(addr, size, false, _RET_IP_);
->> > +       check_memory_region(addr, size, READ_MODE, _RET_IP_);
->> >  }
->> >  EXPORT_SYMBOL(__asan_loadN);
->> >
->> > @@ -742,7 +742,7 @@ EXPORT_SYMBOL(__asan_loadN_noabort);
->> >
->> >  void __asan_storeN(unsigned long addr, size_t size)
->> >  {
->> > -       check_memory_region(addr, size, true, _RET_IP_);
->> > +       check_memory_region(addr, size, WRITE_MODE, _RET_IP_);
->> >  }
->> >  EXPORT_SYMBOL(__asan_storeN);
->> >
->> > diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
->> > index 7f7ac51..47cb58c 100644
->> > --- a/mm/kasan/kasan.h
->> > +++ b/mm/kasan/kasan.h
->> > @@ -27,11 +27,19 @@
->> >  #define KASAN_ABI_VERSION 1
->> >  #endif
->> >
->> > +/*
->> > + * Distinguish memory access
->> > + */
->> > +enum acc_type {
->> > +       READ_MODE,
->> > +       WRITE_MODE
->> > +};
->> > +
->> >  struct kasan_access_info {
->> >         const void *access_addr;
->> >         const void *first_bad_addr;
->> >         size_t access_size;
->> > -       bool is_write;
->> > +       enum acc_type access_type;
->> >         unsigned long ip;
->> >  };
->> >
->> > @@ -109,7 +117,7 @@ static inline bool kasan_report_enabled(void)
->> >  }
->> >
->> >  void kasan_report(unsigned long addr, size_t size,
->> > -               bool is_write, unsigned long ip);
->> > +               enum acc_type type, unsigned long ip);
->> >
->> >  #ifdef CONFIG_SLAB
->> >  void quarantine_put(struct kasan_free_meta *info, struct kmem_cache
->> > *cache);
->> > diff --git a/mm/kasan/report.c b/mm/kasan/report.c
->> > index b3c122d..e0bee22 100644
->> > --- a/mm/kasan/report.c
->> > +++ b/mm/kasan/report.c
->> > @@ -96,7 +96,7 @@ static void print_error_description(struct
->> > kasan_access_info *info)
->> >                 bug_type, (void *)info->ip,
->> >                 info->access_addr);
->> >         pr_err("%s of size %zu by task %s/%d\n",
->> > -               info->is_write ? "Write" : "Read",
->> > +               info->access_type == WRITE_MODE ? "Write" : "Read",
->> >                 info->access_size, current->comm, task_pid_nr(current));
->> >  }
->> >
->> > @@ -267,7 +267,7 @@ static void kasan_report_error(struct
->> > kasan_access_info *info)
->> >                 pr_err("BUG: KASAN: %s on address %p\n",
->> >                         bug_type, info->access_addr);
->> >                 pr_err("%s of size %zu by task %s/%d\n",
->> > -                       info->is_write ? "Write" : "Read",
->> > +                       info->access_type == WRITE_MODE ? "Write" :
->> > "Read",
->> >                         info->access_size, current->comm,
->> >                         task_pid_nr(current));
->> >                 dump_stack();
->> > @@ -283,7 +283,7 @@ static void kasan_report_error(struct
->> > kasan_access_info *info)
->> >  }
->> >
->> >  void kasan_report(unsigned long addr, size_t size,
->> > -               bool is_write, unsigned long ip)
->> > +               enum acc_type type, unsigned long ip)
->> >  {
->> >         struct kasan_access_info info;
->> >
->> > @@ -292,7 +292,7 @@ void kasan_report(unsigned long addr, size_t size,
->> >
->> >         info.access_addr = (void *)addr;
->> >         info.access_size = size;
->> > -       info.is_write = is_write;
->> > +       info.access_type = type;
->> >         info.ip = ip;
->> >
->> >         kasan_report_error(&info);
->> > @@ -302,14 +302,14 @@ void kasan_report(unsigned long addr, size_t size,
->> >  #define DEFINE_ASAN_REPORT_LOAD(size)                     \
->> >  void __asan_report_load##size##_noabort(unsigned long addr) \
->> >  {                                                         \
->> > -       kasan_report(addr, size, false, _RET_IP_);        \
->> > +       kasan_report(addr, size, READ_MODE, _RET_IP_);    \
->> >  }                                                         \
->> >  EXPORT_SYMBOL(__asan_report_load##size##_noabort)
->> >
->> >  #define DEFINE_ASAN_REPORT_STORE(size)                     \
->> >  void __asan_report_store##size##_noabort(unsigned long addr) \
->> >  {                                                          \
->> > -       kasan_report(addr, size, true, _RET_IP_);          \
->> > +       kasan_report(addr, size, WRITE_MODE, _RET_IP_);    \
->> >  }                                                          \
->> >  EXPORT_SYMBOL(__asan_report_store##size##_noabort)
->> >
->> > @@ -326,12 +326,12 @@ DEFINE_ASAN_REPORT_STORE(16);
->> >
->> >  void __asan_report_load_n_noabort(unsigned long addr, size_t size)
->> >  {
->> > -       kasan_report(addr, size, false, _RET_IP_);
->> > +       kasan_report(addr, size, READ_MODE, _RET_IP_);
->> >  }
->> >  EXPORT_SYMBOL(__asan_report_load_n_noabort);
->> >
->> >  void __asan_report_store_n_noabort(unsigned long addr, size_t size)
->> >  {
->> > -       kasan_report(addr, size, true, _RET_IP_);
->> > +       kasan_report(addr, size, WRITE_MODE, _RET_IP_);
->> >  }
->> >  EXPORT_SYMBOL(__asan_report_store_n_noabort);
->>
->>
->> Hello seokhoon.yoon,
->>
-> Hi Dmitry,
-> thanks for your replies.
+> Currently, we store each page's allocation stacktrace on corresponding
+> page_ext structure and it requires a lot of memory. This causes the problem
+> that memory tight system doesn't work well if page_owner is enabled.
+> Moreover, even with this large memory consumption, we cannot get full
+> stacktrace because we allocate memory at boot time and just maintain
+> 8 stacktrace slots to balance memory consumption. We could increase it
+> to more but it would make system unusable or change system behaviour.
 >
->>
->>
->> Where exactly do you hit readability problems?
+> To solve the problem, this patch uses stackdepot to store stacktrace.
+> It obviously provides memory saving but there is a drawback that
+> stackdepot could fail.
 >
+> stackdepot allocates memory at runtime so it could fail if system has
+> not enough memory. But, most of allocation stack are generated at very
+> early time and there are much memory at this time. So, failure would not
+> happen easily. And, one failure means that we miss just one page's
+> allocation stacktrace so it would not be a big problem. In this patch,
+> when memory allocation failure happens, we store special stracktrace
+> handle to the page that is failed to save stacktrace. With it, user
+> can guess memory usage properly even if failure happens.
 >
-> I don`t hit readablity problem,but kasan need to abstract this expression.
-> I think more abstraction give us more readablity. isn't it? :)
+> Memory saving looks as following. (4GB memory system with page_owner)
+>
+> static allocation:
+> 92274688 bytes -> 25165824 bytes
+>
+> dynamic allocation after kernel build:
+> 0 bytes -> 327680 bytes
+>
+> total:
+> 92274688 bytes -> 25493504 bytes
+>
+> 72% reduction in total.
+>
+> Note that implementation looks complex than someone would imagine because
+> there is recursion issue. stackdepot uses page allocator and page_owner
+> is called at page allocation. Using stackdepot in page_owner could re-call
+> page allcator and then page_owner. That is a recursion. To detect and
+> avoid it, whenever we obtain stacktrace, recursion is checked and
+> page_owner is set to dummy information if found. Dummy information means
+> that this page is allocated for page_owner feature itself
+> (such as stackdepot) and it's understandable behavior for user.
+>
+> v2:
+> o calculate memory saving with including dynamic allocation
+> after kernel build
+> o change maximum stacktrace entry size due to possible stack overflow
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Keeping it simple also gives readability.
+I was surprised that there's no stack removal handling, and then found 
+out that stackdepot doesn't support it (e.g. via refcount as one would 
+expect). Hopefully the occupied memory doesn't grow indefinitely over 
+time then...
 
->> I would say that the only problematic place is where we initialize the
->> value:
->>
->>     kasan_report(addr, size, true, _RET_IP_);
->>     check_memory_region(addr, size, true, _RET_IP_);
->>
->> Here it is really difficult to say what true/false mean. Even if you
->> know that it is access type, you don't necessary remember if true
->>
->> means write or read. That could be solved by adding comments:
->>
->>     kasan_report(addr, size, /* write = */ true, _RET_IP_);
->>
->> In all other places one sees that we are talking about "write".
->
->
-> thanks.
+Other than that,
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
