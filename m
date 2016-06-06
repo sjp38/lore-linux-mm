@@ -1,96 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D551A6B0005
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 08:20:26 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id rs7so63016032lbb.2
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 05:20:26 -0700 (PDT)
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
-        by mx.google.com with ESMTPS id nd8si26434421wjb.77.2016.06.06.05.20.25
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E35B6B0005
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 09:05:25 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id k184so18010637wme.3
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 06:05:25 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n124si18515873wma.8.2016.06.06.06.05.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 05:20:25 -0700 (PDT)
-Received: by mail-wm0-f43.google.com with SMTP id c74so43289974wme.0
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 05:20:25 -0700 (PDT)
-Date: Mon, 6 Jun 2016 14:20:22 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20160606122022.GH11895@dhcp22.suse.cz>
-References: <20160517144912.GZ3193@twins.programming.kicks-ass.net>
- <20160517223549.GV26977@dastard>
- <20160519081146.GS3193@twins.programming.kicks-ass.net>
- <20160520001714.GC26977@dastard>
- <20160601131758.GO26601@dhcp22.suse.cz>
- <20160601181617.GV3190@twins.programming.kicks-ass.net>
- <20160602145048.GS1995@dhcp22.suse.cz>
- <20160602151116.GD3190@twins.programming.kicks-ass.net>
- <20160602154619.GU1995@dhcp22.suse.cz>
- <20160602232254.GR12670@dastard>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 06 Jun 2016 06:05:23 -0700 (PDT)
+Subject: Re: [PATCH] mm, thp: fix locking inconsistency in collapse_huge_page
+References: <0c47a3a0-5530-b257-1c1f-28ed44ba97e6@suse.cz>
+ <1464956884-4644-1-git-send-email-ebru.akagunduz@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <12918dcd-a695-c6f4-e06f-69141c5f357f@suse.cz>
+Date: Mon, 6 Jun 2016 15:05:19 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160602232254.GR12670@dastard>
+In-Reply-To: <1464956884-4644-1-git-send-email-ebru.akagunduz@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>, akpm@linux-foundation.org
+Cc: sergey.senozhatsky.work@gmail.com, mhocko@kernel.org, kirill.shutemov@linux.intel.com, sfr@canb.auug.org.au, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com
 
-On Fri 03-06-16 09:22:54, Dave Chinner wrote:
-> On Thu, Jun 02, 2016 at 05:46:19PM +0200, Michal Hocko wrote:
-> > On Thu 02-06-16 17:11:16, Peter Zijlstra wrote:
-> > > With scope I mostly meant the fact that you have two calls that you need
-> > > to pair up. That's not really nice as you can 'annotate' a _lot_ of code
-> > > in between. I prefer the narrower annotations where you annotate a
-> > > single specific site.
-> > 
-> > Yes, I can see you point. What I meant to say is that we would most
-> > probably end up with the following pattern
-> > 	lockdep_trace_alloc_enable()
-> > 	some_foo_with_alloc(gfp_mask);
-> > 	lockdep_trace_alloc_disable()
-> >
-> > and some_foo_with_alloc might be a lot of code.
-> 
-> That's the problem I see with this - the only way to make it
-> maintainable is to precede each enable/disable() pair with a comment
-> explaining *exactly* what those calls are protecting.  And that, in
-> itself, becomes a maintenance problem, because then code several
-> layers deep has no idea what context it is being called from and we
-> are likely to disable warnings in contexts where we probably
-> shouldn't be.
+On 06/03/2016 02:28 PM, Ebru Akagunduz wrote:
+> After creating revalidate vma function, locking inconsistency occured
+> due to directing the code path to wrong label. This patch directs
+> to correct label and fix the inconsistency.
+>
+> Related commit that caused inconsistency:
+> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=da4360877094368f6dfe75bbe804b0f0a5d575b0
+>
+> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
-I am not sure I understand what you mean here. I thought the problem is
-that:
+I think this does fix the inconsistency, thanks.
 
-func_A (!trans. context)		func_B (trans. context)
- foo1()					  foo2()
-   bar(inode, GFP_KERNEL)		    bar(inode, GFP_NOFS)
+But looking at collapse_huge_page() as of latest -next, I wonder if 
+there's another problem:
 
-so bar(inode, gfp) can be called from two different contexts which
-would confuse the lockdep. And the workaround would be annotating bar
-depending on the context it is called from - either pass a special gfp
-flag or do disable/enable thing. In both cases that anotation should be
-global for the whole func_A, no? Or is it possible that something in
-that path would really need a reclaim lockdep detection?
+pmd = mm_find_pmd(mm, address);
+...
+up_read(&mm->mmap_sem);
+down_write(&mm->mmap_sem);
+hugepage_vma_revalidate(mm, address);
+...
+pte = pte_offset_map(pmd, address);
 
-> I think such an annotation approach really requires per-alloc site
-> annotation, the reason for it should be more obvious from the
-> context. e.g. any function that does memory alloc and takes an
-> optional transaction context needs annotation. Hence, from an XFS
-> perspective, I think it makes more sense to add a new KM_ flag to
-> indicate this call site requirement, then jump through whatever
-> lockdep hoop is required within the kmem_* allocation wrappers.
-> e.g, we can ignore the new KM_* flag if we are in a transaction
-> context and so the flag is only activated in the situations were
-> we currently enforce an external GFP_NOFS context from the call
-> site.....
+What guarantees that 'pmd' is still valid?
 
-Hmm, I thought we would achive this by using the scope GFP_NOFS usage
-which would mark those transaction related conctexts and no lockdep
-specific workarounds would be needed...
-
--- 
-Michal Hocko
-SUSE Labs
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
