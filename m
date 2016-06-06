@@ -1,83 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BF65A6B0253
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 11:50:42 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id h68so67853010lfh.2
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 08:50:42 -0700 (PDT)
-Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
-        by mx.google.com with ESMTPS id lb8si27462677wjc.158.2016.06.06.08.50.39
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A0C846B0269
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 12:37:36 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id l5so21603475ioa.0
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 09:37:36 -0700 (PDT)
+Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
+        by mx.google.com with ESMTPS id rd13si15346248pac.120.2016.06.06.09.37.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 08:50:39 -0700 (PDT)
-Received: by mail-wm0-x230.google.com with SMTP id k204so32982384wmk.0
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 08:50:39 -0700 (PDT)
+        Mon, 06 Jun 2016 09:37:35 -0700 (PDT)
+Received: by mail-pf0-x22c.google.com with SMTP id z187so14410337pfz.3
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 09:37:34 -0700 (PDT)
+Subject: Re: [v2 PATCH] arm64: kasan: instrument user memory access API
+References: <1464382863-11879-1-git-send-email-yang.shi@linaro.org>
+From: "Shi, Yang" <yang.shi@linaro.org>
+Message-ID: <37a456bf-6976-e100-e3a2-3c64a6227fa8@linaro.org>
+Date: Mon, 6 Jun 2016 09:37:31 -0700
 MIME-Version: 1.0
-In-Reply-To: <20160606133801.GA6136@davidb.org>
-References: <20160531013029.4c5db8b570d86527b0b53fe4@gmail.com>
- <20160531013145.612696c12f2ef744af739803@gmail.com> <20160601124227.e922af8299168c09308d5e1b@linux-foundation.org>
- <20160603194252.91064b8e682ad988283fc569@gmail.com> <20160606133801.GA6136@davidb.org>
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 6 Jun 2016 08:50:38 -0700
-Message-ID: <CAGXu5jKDdPsRU+oa8hKpFCyf2Q-BvnNJ0ZrPM_b6frw-h0Cg_w@mail.gmail.com>
-Subject: Re: [kernel-hardening] Re: [PATCH v2 1/3] Add the latent_entropy gcc plugin
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <1464382863-11879-1-git-send-email-yang.shi@linaro.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Brown <david.brown@linaro.org>
-Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Andrew Morton <akpm@linux-foundation.org>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Michal Marek <mmarek@suse.com>, LKML <linux-kernel@vger.kernel.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, linux-kbuild <linux-kbuild@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>, Al Viro <viro@zeniv.linux.org.uk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, bart.vanassche@sandisk.com, "David S. Miller" <davem@davemloft.net>
+To: aryabinin@virtuozzo.com, will.deacon@arm.com, catalin.marinas@arm.com, mark.rutland@arm.com
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org
 
-On Mon, Jun 6, 2016 at 6:38 AM, David Brown <david.brown@linaro.org> wrote:
-> On Fri, Jun 03, 2016 at 07:42:52PM +0200, Emese Revfy wrote:
->>
->> On Wed, 1 Jun 2016 12:42:27 -0700
->> Andrew Morton <akpm@linux-foundation.org> wrote:
->>
->>> On Tue, 31 May 2016 01:31:45 +0200 Emese Revfy <re.emese@gmail.com>
->>> wrote:
->>>
->>> > This plugin mitigates the problem of the kernel having too little
->>> > entropy during
->>> > and after boot for generating crypto keys.
->>> >
->>> > It creates a local variable in every marked function. The value of this
->>> > variable is
->>> > modified by randomly chosen operations (add, xor and rol) and
->>> > random values (gcc generates them at compile time and the stack pointer
->>> > at runtime).
->>> > It depends on the control flow (e.g., loops, conditions).
->>> >
->>> > Before the function returns the plugin writes this local variable
->>> > into the latent_entropy global variable. The value of this global
->>> > variable is
->>> > added to the kernel entropy pool in do_one_initcall() and _do_fork().
->>>
->>> I don't think I'm really understanding.  Won't this produce the same
->>> value on each and every boot?
->>
->>
->> No, because of interrupts and intentional data races.
+Hi Will & Catalin,
+
+Any comment for this patch?
+
+Thanks,
+Yang
+
+
+On 5/27/2016 2:01 PM, Yang Shi wrote:
+> The upstream commit 1771c6e1a567ea0ba2cccc0a4ffe68a1419fd8ef
+> ("x86/kasan: instrument user memory access API") added KASAN instrument to
+> x86 user memory access API, so added such instrument to ARM64 too.
 >
+> Define __copy_to/from_user in C in order to add kasan_check_read/write call,
+> rename assembly implementation to __arch_copy_to/from_user.
 >
-> Wouldn't that result in the value having one of a small number of
-> values, then?  Even if it was just one of thousands or millions of
-> values, it would make the search space quite small.
-
-My understanding is that it's not cryptographically secure, but it
-provides a way for different machines and different boots to end up
-with different seeds here, which is a big improvement over some of the
-embedded devices that all boot with the same entropy every time.
-
-I would, however, like to see the documentation improved to describe
-the "How" and "Why". The "What" is pretty well covered. Adding
-comments to the plugin for kernel developers (not compiler developers)
-would help a lot: assume the reader knows nothing about gcc plugins.
-:)
-
--Kees
-
--- 
-Kees Cook
-Chrome OS & Brillo Security
+> Tested by test_kasan module.
+>
+> Signed-off-by: Yang Shi <yang.shi@linaro.org>
+> ---
+> v2:
+>  Adopted the comment from Andrey and Mark to add kasan_check_read/write into
+>  __copy_to/from_user.
+>
+>  arch/arm64/include/asm/uaccess.h | 25 +++++++++++++++++++++----
+>  arch/arm64/kernel/arm64ksyms.c   |  4 ++--
+>  arch/arm64/lib/copy_from_user.S  |  4 ++--
+>  arch/arm64/lib/copy_to_user.S    |  4 ++--
+>  4 files changed, 27 insertions(+), 10 deletions(-)
+>
+> diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
+> index 0685d74..4dc9a8f 100644
+> --- a/arch/arm64/include/asm/uaccess.h
+> +++ b/arch/arm64/include/asm/uaccess.h
+> @@ -23,6 +23,7 @@
+>   */
+>  #include <linux/string.h>
+>  #include <linux/thread_info.h>
+> +#include <linux/kasan-checks.h>
+>
+>  #include <asm/alternative.h>
+>  #include <asm/cpufeature.h>
+> @@ -269,15 +270,29 @@ do {									\
+>  		-EFAULT;						\
+>  })
+>
+> -extern unsigned long __must_check __copy_from_user(void *to, const void __user *from, unsigned long n);
+> -extern unsigned long __must_check __copy_to_user(void __user *to, const void *from, unsigned long n);
+> +extern unsigned long __must_check __arch_copy_from_user(void *to, const void __user *from, unsigned long n);
+> +extern unsigned long __must_check __arch_copy_to_user(void __user *to, const void *from, unsigned long n);
+>  extern unsigned long __must_check __copy_in_user(void __user *to, const void __user *from, unsigned long n);
+>  extern unsigned long __must_check __clear_user(void __user *addr, unsigned long n);
+>
+> +static inline unsigned long __must_check __copy_from_user(void *to, const void __user *from, unsigned long n)
+> +{
+> +	kasan_check_write(to, n);
+> +	return  __arch_copy_from_user(to, from, n);
+> +}
+> +
+> +static inline unsigned long __must_check __copy_to_user(void __user *to, const void *from, unsigned long n)
+> +{
+> +	kasan_check_read(from, n);
+> +	return  __arch_copy_to_user(to, from, n);
+> +}
+> +
+>  static inline unsigned long __must_check copy_from_user(void *to, const void __user *from, unsigned long n)
+>  {
+> +	kasan_check_write(to, n);
+> +
+>  	if (access_ok(VERIFY_READ, from, n))
+> -		n = __copy_from_user(to, from, n);
+> +		n = __arch_copy_from_user(to, from, n);
+>  	else /* security hole - plug it */
+>  		memset(to, 0, n);
+>  	return n;
+> @@ -285,8 +300,10 @@ static inline unsigned long __must_check copy_from_user(void *to, const void __u
+>
+>  static inline unsigned long __must_check copy_to_user(void __user *to, const void *from, unsigned long n)
+>  {
+> +	kasan_check_read(from, n);
+> +
+>  	if (access_ok(VERIFY_WRITE, to, n))
+> -		n = __copy_to_user(to, from, n);
+> +		n = __arch_copy_to_user(to, from, n);
+>  	return n;
+>  }
+>
+> diff --git a/arch/arm64/kernel/arm64ksyms.c b/arch/arm64/kernel/arm64ksyms.c
+> index 678f30b0..2dc4440 100644
+> --- a/arch/arm64/kernel/arm64ksyms.c
+> +++ b/arch/arm64/kernel/arm64ksyms.c
+> @@ -34,8 +34,8 @@ EXPORT_SYMBOL(copy_page);
+>  EXPORT_SYMBOL(clear_page);
+>
+>  	/* user mem (segment) */
+> -EXPORT_SYMBOL(__copy_from_user);
+> -EXPORT_SYMBOL(__copy_to_user);
+> +EXPORT_SYMBOL(__arch_copy_from_user);
+> +EXPORT_SYMBOL(__arch_copy_to_user);
+>  EXPORT_SYMBOL(__clear_user);
+>  EXPORT_SYMBOL(__copy_in_user);
+>
+> diff --git a/arch/arm64/lib/copy_from_user.S b/arch/arm64/lib/copy_from_user.S
+> index 17e8306..0b90497 100644
+> --- a/arch/arm64/lib/copy_from_user.S
+> +++ b/arch/arm64/lib/copy_from_user.S
+> @@ -66,7 +66,7 @@
+>  	.endm
+>
+>  end	.req	x5
+> -ENTRY(__copy_from_user)
+> +ENTRY(__arch_copy_from_user)
+>  ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(0)), ARM64_ALT_PAN_NOT_UAO, \
+>  	    CONFIG_ARM64_PAN)
+>  	add	end, x0, x2
+> @@ -75,7 +75,7 @@ ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(1)), ARM64_ALT_PAN_NOT_UAO, \
+>  	    CONFIG_ARM64_PAN)
+>  	mov	x0, #0				// Nothing to copy
+>  	ret
+> -ENDPROC(__copy_from_user)
+> +ENDPROC(__arch_copy_from_user)
+>
+>  	.section .fixup,"ax"
+>  	.align	2
+> diff --git a/arch/arm64/lib/copy_to_user.S b/arch/arm64/lib/copy_to_user.S
+> index 21faae6..7a7efe2 100644
+> --- a/arch/arm64/lib/copy_to_user.S
+> +++ b/arch/arm64/lib/copy_to_user.S
+> @@ -65,7 +65,7 @@
+>  	.endm
+>
+>  end	.req	x5
+> -ENTRY(__copy_to_user)
+> +ENTRY(__arch_copy_to_user)
+>  ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(0)), ARM64_ALT_PAN_NOT_UAO, \
+>  	    CONFIG_ARM64_PAN)
+>  	add	end, x0, x2
+> @@ -74,7 +74,7 @@ ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(1)), ARM64_ALT_PAN_NOT_UAO, \
+>  	    CONFIG_ARM64_PAN)
+>  	mov	x0, #0
+>  	ret
+> -ENDPROC(__copy_to_user)
+> +ENDPROC(__arch_copy_to_user)
+>
+>  	.section .fixup,"ax"
+>  	.align	2
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
