@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 90FC9828E1
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 15:51:25 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id k184so22828197wme.3
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 12:51:25 -0700 (PDT)
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A39F9828E1
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 15:51:28 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id rs7so67516191lbb.2
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 12:51:28 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id er5si28641923wjd.178.2016.06.06.12.51.24
+        by mx.google.com with ESMTPS id z10si25337372wjj.209.2016.06.06.12.51.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 12:51:24 -0700 (PDT)
+        Mon, 06 Jun 2016 12:51:27 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 08/10] mm: deactivations shouldn't bias the LRU balance
-Date: Mon,  6 Jun 2016 15:48:34 -0400
-Message-Id: <20160606194836.3624-9-hannes@cmpxchg.org>
+Subject: [PATCH 09/10] mm: only count actual rotations as LRU reclaim cost
+Date: Mon,  6 Jun 2016 15:48:35 -0400
+Message-Id: <20160606194836.3624-10-hannes@cmpxchg.org>
 In-Reply-To: <20160606194836.3624-1-hannes@cmpxchg.org>
 References: <20160606194836.3624-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,57 +20,56 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
 
-Operations like MADV_FREE, FADV_DONTNEED etc. currently move any
-affected active pages to the inactive list to accelerate their reclaim
-(good) but also steer page reclaim toward that LRU type, or away from
-the other (bad).
+Noting a reference on an active file page but still deactivating it
+represents a smaller cost of reclaim than noting a referenced
+anonymous page and actually physically rotating it back to the head.
+The file page *might* refault later on, but it's definite progress
+toward freeing pages, whereas rotating the anonymous page costs us
+real time without making progress toward the reclaim goal.
 
-The reason why this is undesirable is that such operations are not
-part of the regular page aging cycle, and rather a fluke that doesn't
-say much about the remaining pages on that list. They might all be in
-heavy use. But once the chunk of easy victims has been purged, the VM
-continues to apply elevated pressure on the remaining hot pages. The
-other LRU, meanwhile, might have easily reclaimable pages, and there
-was never a need to steer away from it in the first place.
-
-As the previous patch outlined, we should focus on recording actually
-observed cost to steer the balance rather than speculating about the
-potential value of one LRU list over the other. In that spirit, leave
-explicitely deactivated pages to the LRU algorithm to pick up, and let
-rotations decide which list is the easiest to reclaim.
+Don't treat both events as equal. The following patch will hook up LRU
+balancing to cache and swap refaults, which are a much more concrete
+cost signal for reclaiming one list over the other. Remove the
+maybe-IO cost bias from page references, and only note the CPU cost
+for actual rotations that prevent the pages from getting reclaimed.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/swap.c | 3 ---
- 1 file changed, 3 deletions(-)
+ mm/vmscan.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
 
-diff --git a/mm/swap.c b/mm/swap.c
-index 645d21242324..ae07b469ddca 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -538,7 +538,6 @@ static void lru_deactivate_file_fn(struct page *page, struct lruvec *lruvec,
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 06e381e1004c..acbd212eab6e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1821,7 +1821,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
  
- 	if (active)
- 		__count_vm_event(PGDEACTIVATE);
--	lru_note_cost(lruvec, !file, hpage_nr_pages(page));
- }
- 
- 
-@@ -546,7 +545,6 @@ static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
- 			    void *arg)
- {
- 	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
--		int file = page_is_file_cache(page);
- 		int lru = page_lru_base_type(page);
- 
- 		del_page_from_lru_list(page, lruvec, lru + LRU_ACTIVE);
-@@ -555,7 +553,6 @@ static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
- 		add_page_to_lru_list(page, lruvec, lru);
- 
- 		__count_vm_event(PGDEACTIVATE);
--		lru_note_cost(lruvec, !file, hpage_nr_pages(page));
- 	}
- }
+ 		if (page_referenced(page, 0, sc->target_mem_cgroup,
+ 				    &vm_flags)) {
+-			nr_rotated += hpage_nr_pages(page);
+ 			/*
+ 			 * Identify referenced, file-backed active pages and
+ 			 * give them one more trip around the active list. So
+@@ -1832,6 +1831,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 			 * so we ignore them here.
+ 			 */
+ 			if ((vm_flags & VM_EXEC) && page_is_file_cache(page)) {
++				nr_rotated += hpage_nr_pages(page);
+ 				list_add(&page->lru, &l_active);
+ 				continue;
+ 			}
+@@ -1846,10 +1846,8 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 	 */
+ 	spin_lock_irq(&zone->lru_lock);
+ 	/*
+-	 * Count referenced pages from currently used mappings as rotated,
+-	 * even though only some of them are actually re-activated.  This
+-	 * helps balance scan pressure between file and anonymous pages in
+-	 * get_scan_count.
++	 * Rotating pages costs CPU without actually
++	 * progressing toward the reclaim goal.
+ 	 */
+ 	lru_note_cost(lruvec, file, nr_rotated);
  
 -- 
 2.8.3
