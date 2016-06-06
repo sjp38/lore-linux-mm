@@ -1,98 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 05C726B0005
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 04:36:54 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id k184so14386796wme.3
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 01:36:53 -0700 (PDT)
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id m16si5359787wmg.51.2016.06.06.01.36.52
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 714C36B0005
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 04:39:10 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 4so6510283wmz.1
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 01:39:10 -0700 (PDT)
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
+        by mx.google.com with ESMTPS id lz8si25388204wjb.35.2016.06.06.01.39.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 01:36:52 -0700 (PDT)
-Received: by mail-wm0-f51.google.com with SMTP id n184so80515366wmn.1
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 01:36:52 -0700 (PDT)
-Date: Mon, 6 Jun 2016 10:36:51 +0200
+        Mon, 06 Jun 2016 01:39:09 -0700 (PDT)
+Received: by mail-wm0-f49.google.com with SMTP id n184so80607109wmn.1
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 01:39:09 -0700 (PDT)
+Date: Mon, 6 Jun 2016 10:39:07 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH 0/10 -v3] Handle oom bypass more gracefully
-Message-ID: <20160606083651.GE11895@dhcp22.suse.cz>
+Message-ID: <20160606083907.GF11895@dhcp22.suse.cz>
 References: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
  <201606032100.AIH12958.HMOOOFLJSFQtVF@I-love.SAKURA.ne.jp>
  <20160603122030.GG20676@dhcp22.suse.cz>
- <201606040017.HDI52680.LFFOVMJQOFSOHt@I-love.SAKURA.ne.jp>
+ <20160603122209.GH20676@dhcp22.suse.cz>
+ <201606041957.FBG65129.OOFVFJLSHMFOQt@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201606040017.HDI52680.LFFOVMJQOFSOHt@I-love.SAKURA.ne.jp>
+In-Reply-To: <201606041957.FBG65129.OOFVFJLSHMFOQt@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Sat 04-06-16 00:17:29, Tetsuo Handa wrote:
+On Sat 04-06-16 19:57:14, Tetsuo Handa wrote:
 > Michal Hocko wrote:
-> > On Fri 03-06-16 21:00:31, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > Patch 8 is new in this version and it addresses an issue pointed out
-> > > > by 0-day OOM report where an oom victim was reaped several times.
-> > > 
-> > > I believe we need below once-you-nacked patch as well.
-> > > 
-> > > It would be possible to clear victim->signal->oom_flag_origin when
-> > > that victim gets TIF_MEMDIE, but I think that moving oom_task_origin()
-> > > test to oom_badness() will allow oom_scan_process_thread() which calls
-> > > oom_unkillable_task() only for testing task->signal->oom_victims to be
-> > > removed by also moving task->signal->oom_victims test to oom_badness().
-> > > Thus, I prefer this way.
+> > On Fri 03-06-16 14:20:30, Michal Hocko wrote:
+> > [...]
+> > > Do no take me wrong but I would rather make sure that the current pile
+> > > is reviewed and no unintentional side effects are introduced than open
+> > > yet another can of worms.
 > > 
-> > Can we please forget about oom_task_origin for _now_. At least until we
-> > resolve the current pile? I am really skeptical oom_task_origin is a
-> > real problem and even if you think it might be and pulling its handling
-> > outside of oom_scan_process_thread would be better for other reasons we
-> > can do that later. Or do you insist this all has to be done in one go?
-> > 
-> > To be honest, I feel less and less confident as the pile grows and
-> > chances of introducing new bugs just grows after each rebase which tries
-> > to address more subtle and unlikely issues.
-> > 
-> > Do no take me wrong but I would rather make sure that the current pile
-> > is reviewed and no unintentional side effects are introduced than open
-> > yet another can of worms.
+> > And just to add. You have found many buugs in the previous versions of
+> > the patch series so I would really appreciate your Acked-by or
+> > Reviewed-by if you feel confortable with those changes or express your
+> > concerns.
 > > 
 > > Thanks!
 > 
-> We have to open yet another can of worms because you insist on using
-> "decision by feedback from the OOM reaper" than "decision by timeout". ;-)
-
-Can we open it in (small) steps rather than everything at once?
- 
-> To be honest, I don't think we need to apply this pile.
-
-So you do not think that the current pile is making the code easier to
-understand and more robust as well as the semantic more consistent?
-
-> What is missing for
-> handling subtle and unlikely issues is "eligibility check for not to select
-> the same victim forever" (i.e. always set MMF_OOM_REAPED or OOM_SCORE_ADJ_MIN,
-> and check them before exercising the shortcuts).
-
-Which is a hard problem as we do not have enough context for that. Most
-situations are covered now because we are much less optimistic when
-bypassing the oom killer and basically most sane situations are oom
-reapable.
-
-> Current 4.7-rc1 code will be sufficient (and sometimes even better than
-> involving user visible changes / selecting next OOM victim without delay)
-> if we started with "decision by timer" (e.g.
-> http://lkml.kernel.org/r/201601072026.JCJ95845.LHQOFOOSMFtVFJ@I-love.SAKURA.ne.jp )
-> approach.
+> I think we can send
 > 
-> As long as you insist on "decision by feedback from the OOM reaper",
-> we have to guarantee that the OOM reaper is always invoked in order to
-> handle subtle and unlikely cases.
+> "[PATCH 01/10] proc, oom: drop bogus task_lock and mm check",
+> "[PATCH 02/10] proc, oom: drop bogus sighand lock",
+> "[PATCH 03/10] proc, oom_adj: extract oom_score_adj setting into a helper"
+> (with
+>  	int err = 0;
+>  
+>  	task = get_proc_task(file_inode(file));
+> -	if (!task) {
+> -		err = -ESRCH;
+> -		goto out;
+> -	}
+> +	if (!task)
+> +		return -ESRCH;
+>  
+>  	mutex_lock(&oom_adj_mutex);
+>  	if (legacy) {
 
-And I still believe that a decision based by a feedback is a better
-solution than a timeout. So I am pretty much for exploring that way
-until we really find out we cannot really go forward any longer.
+OK
+
+> 
+> part from "[PATCH 04/10] mm, oom_adj: make sure processes sharing mm have same view of oom_score_adj"
+> folded into "[PATCH 03/10]"),
+> "[PATCH 08/10] mm, oom: task_will_free_mem should skip oom_reaped tasks" and
+> "[RFC PATCH 09/10] mm, oom_reaper: do not attempt to reap a task more than twice"
+> 
+> to linux-next, for these patches do not involve user visible changes.
+> 
+> Regarding "[PATCH 04/10] mm, oom_adj: make sure processes sharing mm have same view of oom_score_adj"
+> "[PATCH 05/10] mm, oom: skip vforked tasks from being selected" and
+> "[PATCH 06/10] mm, oom: kill all tasks sharing the mm", I don't want to
+> involve user visible changes without get-acquainted period, for
+
+I am trying to be really verbose in the system log when doing changes
+which have user visible effects so I assume we will hear back from those
+who might be affected. We can handle that when it happens. I have still
+haven't heard even remotly sensible usage of oom_score_adj that would be
+inconsistent between tasks sharing the memory.
+
+If you really hate this change you can go and nack the patch but I would
+really like to hear about at least sensible theoretical use case to
+justify the nack. But I feel we are spending way too much time on
+something that even might be not used by anybody.
+ 
+>   An alternative would be to keep the task alive and skip the oom reaper and
+>   risk all the weird corner cases where the OOM killer cannot make forward
+>   progress because the oom victim hung somewhere on the way to exit.
+> 
+> can be avoided by introducing a simple timer (or do equivalent thing using
+> the OOM reaper by always waking up the OOM reaper).
+
+invoking the oom reaper just to find out what we know already and it is
+unlikely to change after oom_kill_process just doesn't make much sense.
 
 -- 
 Michal Hocko
