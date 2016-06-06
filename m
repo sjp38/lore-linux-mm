@@ -1,61 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D2A36B0253
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 09:31:25 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 4so10474343wmz.1
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 06:31:25 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f191si18573223wmf.73.2016.06.06.06.31.24
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 087326B025F
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 09:35:44 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id y6so404111015ywe.0
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 06:35:44 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [74.207.234.97])
+        by mx.google.com with ESMTPS id o62si4613884ywb.376.2016.06.06.06.35.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Jun 2016 06:31:24 -0700 (PDT)
-Subject: Re: [PATCH v2 3/7] mm/page_owner: copy last_migrate_reason in
- copy_page_owner()
-References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1464230275-25791-3-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <edbe82ce-36ab-125c-a0d2-ddf004c7e699@suse.cz>
-Date: Mon, 6 Jun 2016 15:31:21 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Jun 2016 06:35:43 -0700 (PDT)
+Date: Mon, 6 Jun 2016 09:35:39 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [BUG] Possible silent data corruption in filesystems/page cache
+Message-ID: <20160606133539.GE22108@thunk.org>
+References: <842E055448A75D44BEB94DEB9E5166E91877AAF1@irsmsx110.ger.corp.intel.com>
+ <A9F4ECA5-24EF-4785-BC8B-ECFE63F9B026@dilger.ca>
+ <842E055448A75D44BEB94DEB9E5166E91877C26F@irsmsx110.ger.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1464230275-25791-3-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <842E055448A75D44BEB94DEB9E5166E91877C26F@irsmsx110.ger.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: "Barczak, Mariusz" <mariusz.barczak@intel.com>
+Cc: Andreas Dilger <adilger@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Wysoczanski, Michal" <michal.wysoczanski@intel.com>, "Baldyga, Robert" <robert.baldyga@intel.com>, "Roman, Agnieszka" <agnieszka.roman@intel.com>
 
-On 05/26/2016 04:37 AM, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> Currently, copy_page_owner() doesn't copy all the owner information.
-> It skips last_migrate_reason because copy_page_owner() is used for
-> migration and it will be properly set soon. But, following patch
-> will use copy_page_owner() and this skip will cause the problem that
-> allocated page has uninitialied last_migrate_reason. To prevent it,
-> this patch also copy last_migrate_reason in copy_page_owner().
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Mon, Jun 06, 2016 at 07:29:42AM +0000, Barczak, Mariusz wrote:
+> Hi, Let me elaborate problem in detail. 
+> 
+> For buffered IO data are copied into memory pages. For this case,
+> the write IO is not submitted (generally). In the background opportunistic
+> cleaning of dirty pages takes place and IO is generated to the
+> device. An IO error is observed on this path and application
+> is not informed about this. Summarizing flushing of dirty page fails.
+> And probably, this page is dropped but in fact it should not be.
+> So if above situation happens between application write and sync
+> then no error is reported. In addition after some time, when the
+> application reads the same LBA on which IO error occurred, old data
+> content is fetched.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+The application will be informed about it if it asks --- if it calls
+fsync(), the I/O will be forced and if there is an error it will be
+returned to the user.  But if the user has not asked, there is no way
+for the user space to know that there is a problem --- for that
+matter, it may have exited already by the time we do the buffered
+writeback, so there may be nobody to inform.
 
-> ---
->  mm/page_owner.c | 1 +
->  1 file changed, 1 insertion(+)
->
-> diff --git a/mm/page_owner.c b/mm/page_owner.c
-> index c6cda3e..73e202f 100644
-> --- a/mm/page_owner.c
-> +++ b/mm/page_owner.c
-> @@ -118,6 +118,7 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
->
->  	new_ext->order = old_ext->order;
->  	new_ext->gfp_mask = old_ext->gfp_mask;
-> +	new_ext->last_migrate_reason = old_ext->last_migrate_reason;
->  	new_ext->nr_entries = old_ext->nr_entries;
->
->  	for (i = 0; i < ARRAY_SIZE(new_ext->trace_entries); i++)
->
+If the error hapepns between the write and sync, then the address
+space mapping's AS_EIO bit will be set.  (See filemap_check_errors()
+and do a git grep on AS_EIO.)  So the user will be informed when they
+call fsync(2).
+
+The problem with simply not dropping the page is that if we do that,
+the page will never be cleaned, and in the worst case, this can lead
+to memory exhaustion.  Consider the case where a user is writing huge
+numbers of pages, (e.g., dd if=/dev/zero
+of=/dev/device-that-will-go-away) if the page is never dropped, then
+the memory will never go away.
+
+In other words, the current behavior was carefully considered, and
+deliberately chosen as the best design.
+
+The fact that you need to call fsync(2), and then check the error
+returns of both fsync(2) *and* close(2) if you want to know for sure
+whether or not there was an I/O error is a known, docmented part of
+Unix/Linux and has been true for literally decades.  (With Emacs
+learning and fixing this back in the late-1980's to avoid losing user
+data if the user goes over quota on their Andrew File System on a BSD
+4.3 system, for example.  If you're using some editor that comes with
+some desktop package or some whizzy IDE, all bets are off, of course.
+But if you're using such tools, you probably care about eye candy way
+more than you care about your data; certainly the authors of such
+programs seem to have this tendency, anyway.  :-)
+
+Cheers,
+
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
