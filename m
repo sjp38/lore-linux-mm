@@ -1,64 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 30EBA6B0005
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 18:18:08 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id f75so35972086wmf.2
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 15:18:08 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id yu10si20989446wjb.74.2016.06.06.15.18.06
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F5256B0005
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 18:27:38 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id di3so222690128pab.0
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 15:27:38 -0700 (PDT)
+Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
+        by mx.google.com with ESMTPS id f88si30842823pfj.219.2016.06.06.15.27.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 15:18:06 -0700 (PDT)
-Date: Mon, 6 Jun 2016 18:15:50 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 05/10] mm: remove LRU balancing effect of temporary page
- isolation
-Message-ID: <20160606221550.GA6665@cmpxchg.org>
-References: <20160606194836.3624-1-hannes@cmpxchg.org>
- <20160606194836.3624-6-hannes@cmpxchg.org>
- <1465250169.16365.147.camel@redhat.com>
+        Mon, 06 Jun 2016 15:27:37 -0700 (PDT)
+Received: by mail-pf0-x22a.google.com with SMTP id 62so70853206pfd.1
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 15:27:37 -0700 (PDT)
+Date: Mon, 6 Jun 2016 15:27:34 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 06/10] mm, oom: kill all tasks sharing the mm
+In-Reply-To: <1464945404-30157-7-git-send-email-mhocko@kernel.org>
+Message-ID: <alpine.DEB.2.10.1606061526440.18843@chino.kir.corp.google.com>
+References: <1464945404-30157-1-git-send-email-mhocko@kernel.org> <1464945404-30157-7-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1465250169.16365.147.camel@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon, Jun 06, 2016 at 05:56:09PM -0400, Rik van Riel wrote:
-> On Mon, 2016-06-06 at 15:48 -0400, Johannes Weiner wrote:
-> > 
-> > +void lru_cache_putback(struct page *page)
-> > +{
-> > +	struct pagevec *pvec = &get_cpu_var(lru_putback_pvec);
-> > +
-> > +	get_page(page);
-> > +	if (!pagevec_space(pvec))
-> > +		__pagevec_lru_add(pvec, false);
-> > +	pagevec_add(pvec, page);
-> > +	put_cpu_var(lru_putback_pvec);
-> > +}
-> > 
+On Fri, 3 Jun 2016, Michal Hocko wrote:
+
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Wait a moment.
+> Currently oom_kill_process skips both the oom reaper and SIG_KILL if a
+> process sharing the same mm is unkillable via OOM_ADJUST_MIN. After "mm,
+> oom_adj: make sure processes sharing mm have same view of oom_score_adj"
+> all such processes are sharing the same value so we shouldn't see such a
+> task at all (oom_badness would rule them out).
 > 
-> So now we have a putback_lru_page, which does adjust
-> the statistics, and an lru_cache_putback which does
-> not?
+> We can still encounter oom disabled vforked task which has to be killed
+> as well if we want to have other tasks sharing the mm reapable
+> because it can access the memory before doing exec. Killing such a task
+> should be acceptable because it is highly unlikely it has done anything
+> useful because it cannot modify any memory before it calls exec. An
+> alternative would be to keep the task alive and skip the oom reaper and
+> risk all the weird corner cases where the OOM killer cannot make forward
+> progress because the oom victim hung somewhere on the way to exit.
 > 
-> This function could use a name that is not as similar
-> to its counterpart :)
+> There is a potential race where we kill the oom disabled task which is
+> highly unlikely but possible. It would happen if __set_oom_adj raced
+> with select_bad_process and then it is OK to consider the old value or
+> with fork when it should be acceptable as well.
+> Let's add a little note to the log so that people would tell us that
+> this really happens in the real life and it matters.
+> 
 
-lru_cache_add() and lru_cache_putback() are the two sibling functions,
-where the first influences the LRU balance and the second one doesn't.
-
-The last hunk in the patch (obscured by showing the label instead of
-the function name as context) updates putback_lru_page() from using
-lru_cache_add() to using lru_cache_putback().
-
-Does that make sense?
+We cannot kill oom disabled processes at all, little race or otherwise.  
+We'd rather panic the system than oom kill these processes, and that's the 
+semantic that the user is basing their decision on.  We cannot suddenly 
+start allowing them to be SIGKILL'd.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
