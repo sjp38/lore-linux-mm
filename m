@@ -1,86 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 829696B0005
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 17:21:30 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g64so252274499pfb.2
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 14:21:30 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d63si30523230pfd.93.2016.06.06.14.21.29
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1493B6B0005
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 17:32:46 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id 46so51264655qtr.0
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 14:32:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n184si4036182qkf.54.2016.06.06.14.32.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 14:21:29 -0700 (PDT)
-Date: Mon, 6 Jun 2016 14:21:28 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 152/178] include/linux/kexec.h:356:9: error:
- implicit declaration of function 'phys_to_virt'
-Message-Id: <20160606142128.5b0385f9cb178e5905002534@linux-foundation.org>
-In-Reply-To: <20160604104243.GG1041@n2100.armlinux.org.uk>
-References: <201606041044.dTOHh5q4%fengguang.wu@intel.com>
-	<20160604104243.GG1041@n2100.armlinux.org.uk>
+        Mon, 06 Jun 2016 14:32:45 -0700 (PDT)
+Message-ID: <1465248760.16365.143.camel@redhat.com>
+Subject: Re: [PATCH 02/10] mm: swap: unexport __pagevec_lru_add()
+From: Rik van Riel <riel@redhat.com>
+Date: Mon, 06 Jun 2016 17:32:40 -0400
+In-Reply-To: <20160606194836.3624-3-hannes@cmpxchg.org>
+References: <20160606194836.3624-1-hannes@cmpxchg.org>
+	 <20160606194836.3624-3-hannes@cmpxchg.org>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-Tb7YMV/wvFM9iPKnAWsz"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@armlinux.org.uk>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
 
-On Sat, 4 Jun 2016 11:42:43 +0100 Russell King - ARM Linux <linux@armlinux.org.uk> wrote:
 
-> On Sat, Jun 04, 2016 at 10:11:47AM +0800, kbuild test robot wrote:
-> > tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> > head:   2e0066ec9585a5074c8040d639c3c669eb4e905f
-> > commit: 60c8a7d9e20b888121b304895074928bf9b69029 [152/178] kexec: allow architectures to override boot mapping
-> > config: sh-sh7785lcr_32bit_defconfig (attached as .config)
-> > compiler: sh4-linux-gnu-gcc (Debian 5.3.1-8) 5.3.1 20160205
-> > reproduce:
-> >         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-> >         chmod +x ~/bin/make.cross
-> >         git checkout 60c8a7d9e20b888121b304895074928bf9b69029
-> >         # save the attached .config to linux build tree
-> >         make.cross ARCH=sh 
-> > 
-> > All error/warnings (new ones prefixed by >>):
-> > 
-> >    In file included from arch/sh/kernel/reboot.c:2:0:
-> >    include/linux/kexec.h: In function 'boot_phys_to_virt':
-> > >> include/linux/kexec.h:356:9: error: implicit declaration of function 'phys_to_virt' [-Werror=implicit-function-declaration]
-> >      return phys_to_virt(boot_phys_to_phys(entry));
-> >             ^
-> 
-> Is there a reason SH doesn't provide phys_to_virt()?  Isn't that a basic
-> requirement for every architecture?
+--=-Tb7YMV/wvFM9iPKnAWsz
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-It's there, in arch/sh/include/asm/io.h. 
-kexec-allow-architectures-to-override-boot-mapping-fix.patch fixes this
-error.
+On Mon, 2016-06-06 at 15:48 -0400, Johannes Weiner wrote:
+> There is currently no modular user of this function. We used to have
+> filesystems that open-coded the page cache instantiation, but luckily
+> they're all streamlined, and we don't want this to come back.
+>=20
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+>=20
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: kexec-allow-architectures-to-override-boot-mapping-fix
+--=20
+All Rights Reversed.
 
-kexec.h needs asm/io.h for phys_to_virt()
 
-Reported-by: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Russell King <rmk+kernel@arm.linux.org.uk>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
+--=-Tb7YMV/wvFM9iPKnAWsz
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
 
- include/linux/kexec.h |    2 ++
- 1 file changed, 2 insertions(+)
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
 
-diff -puN include/linux/kexec.h~kexec-allow-architectures-to-override-boot-mapping-fix include/linux/kexec.h
---- a/include/linux/kexec.h~kexec-allow-architectures-to-override-boot-mapping-fix
-+++ a/include/linux/kexec.h
-@@ -14,6 +14,8 @@
- 
- #if !defined(__ASSEMBLY__)
- 
-+#include <asm/io.h>
-+
- #include <uapi/linux/kexec.h>
- 
- #ifdef CONFIG_KEXEC_CORE
-_
+iQEcBAABCAAGBQJXVev4AAoJEM553pKExN6DQBkH/jV2tC+LCmDL+Qy+d6KWFxYT
+ku58eKP9snXLIFaqQfzNtn0wP/O5hc3LaWIr4T8pkbEhtOb9nFvjj2yaLNE+IdI9
+JrHQvhefxA5hThY7WejvZkkrdTMJLWnJPun6hVTHUsGvO0+6UFPhwzO5wCj8zWJ+
+D/neQ1EoQj5PIPNv9L78xpB4F3G6grKMFBuIZ/Narel8a43KLT8WPRgDSKgxMI+t
+pMjFO+4PpPsRpXM+Tvnx5OMaHErCeuOFJPOLxvZPSY1Qqk9BEtUW58co8Bavgukt
+/4r0Rvp72wHzCkIC/vEX8b0JvE5b8J5+GKkLs8p6dK8FVIOaNJW9TcHUSKSSDZs=
+=P+Xv
+-----END PGP SIGNATURE-----
+
+--=-Tb7YMV/wvFM9iPKnAWsz--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
