@@ -1,84 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8446A6B025E
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 15:58:57 -0400 (EDT)
-Received: by mail-ig0-f197.google.com with SMTP id q18so119563045igr.2
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 12:58:57 -0700 (PDT)
-Received: from smtp-outbound-2.vmware.com (smtp-outbound-2.vmware.com. [208.91.2.13])
-        by mx.google.com with ESMTPS id rd13si16227232pac.120.2016.06.06.12.58.56
+Received: from mail-qg0-f72.google.com (mail-qg0-f72.google.com [209.85.192.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5683B6B0260
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 16:01:47 -0400 (EDT)
+Received: by mail-qg0-f72.google.com with SMTP id l39so95783438qgd.2
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 13:01:47 -0700 (PDT)
+Received: from mail-yw0-x231.google.com (mail-yw0-x231.google.com. [2607:f8b0:4002:c05::231])
+        by mx.google.com with ESMTPS id z131si4979934ywb.154.2016.06.06.13.01.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Jun 2016 12:58:57 -0700 (PDT)
-From: Nadav Amit <namit@vmware.com>
-Subject: [PATCH] x86/mm: Change barriers before TLB flushes to smp_mb__after_atomic
-Date: Fri, 27 May 2016 20:16:51 -0700
-Message-Id: <1464405413-7209-1-git-send-email-namit@vmware.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Jun 2016 13:01:46 -0700 (PDT)
+Received: by mail-yw0-x231.google.com with SMTP id o16so150649206ywd.2
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 13:01:46 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20160606195228.GA27327@mwanda>
+References: <20160606195228.GA27327@mwanda>
+From: Thomas Garnier <thgarnie@google.com>
+Date: Mon, 6 Jun 2016 13:01:45 -0700
+Message-ID: <CAJcbSZEcW8u2Mx0awZO_8g38pnSAYfPR8e37oBEDPvFZQWv_fQ@mail.gmail.com>
+Subject: Re: mm: reorganize SLAB freelist randomization
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org, linux-kernel@vger.kernel.org
-Cc: nadav.amit@gmail.com, Nadav Amit <namit@vmware.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Jerome Marchand <jmarchan@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: Linux-MM <linux-mm@kvack.org>
 
-When (current->active_mm != mm), flush_tlb_page() does not perform a
-memory barrier. In practice, this memory barrier is not needed since in
-the existing call-sites the PTE is modified using atomic-operations.
-This patch therefore modifies the existing smp_mb in flush_tlb_page to
-smp_mb__after_atomic and adds the missing one, while documenting the new
-assumption of flush_tlb_page.
+No, the for loop is correct. Fisher-Yates shuffles algorithm is as follow:
 
-In addition smp_mb__after_atomic is also added to
-set_tlb_ubc_flush_pending, since it makes a similar implicit assumption
-and omits the memory barrier.
+-- To shuffle an array a of n elements (indices 0..n-1):
+for i from n=E2=88=921 downto 1 do
+     j random integer such that 0 <=3D j <=3D i
+     exchange a[j] and a[i]
 
-Signed-off-by: Nadav Amit <namit@vmware.com>
----
- arch/x86/mm/tlb.c | 9 ++++++++-
- mm/rmap.c         | 3 +++
- 2 files changed, 11 insertions(+), 1 deletion(-)
+https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
 
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index fe9b9f7..2534333 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -242,6 +242,10 @@ out:
- 	preempt_enable();
- }
- 
-+/*
-+ * Calls to flush_tlb_page must be preceded by atomic PTE change or
-+ * explicit memory-barrier.
-+ */
- void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
- {
- 	struct mm_struct *mm = vma->vm_mm;
-@@ -259,8 +263,11 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
- 			leave_mm(smp_processor_id());
- 
- 			/* Synchronize with switch_mm. */
--			smp_mb();
-+			smp_mb__after_atomic();
- 		}
-+	} else {
-+		/* Synchronize with switch_mm. */
-+		smp_mb__after_atomic();
- 	}
- 
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 307b555..60ab0fe 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -613,6 +613,9 @@ static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
- {
- 	struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
- 
-+	/* Synchronize with switch_mm. */
-+	smp_mb__after_atomic();
-+
- 	cpumask_or(&tlb_ubc->cpumask, &tlb_ubc->cpumask, mm_cpumask(mm));
- 	tlb_ubc->flush_required = true;
- 
--- 
-2.7.4
+On Mon, Jun 6, 2016 at 12:52 PM, Dan Carpenter <dan.carpenter@oracle.com> w=
+rote:
+> Hello Thomas Garnier,
+>
+> The patch aded650eb82e: "mm: reorganize SLAB freelist randomization"
+> from Jun 5, 2016, leads to the following static checker warning:
+>
+>         mm/slab_common.c:1160 freelist_randomize()
+>         warn: why is zero skipped 'i'
+>
+> mm/slab_common.c
+>   1146  /* Randomize a generic freelist */
+>   1147  static void freelist_randomize(struct rnd_state *state, unsigned =
+int *list,
+>   1148                          size_t count)
+>   1149  {
+>   1150          size_t i;
+>   1151          unsigned int rand;
+>   1152
+>   1153          for (i =3D 0; i < count; i++)
+>   1154                  list[i] =3D i;
+>   1155
+>   1156          /* Fisher-Yates shuffle */
+>   1157          for (i =3D count - 1; i > 0; i--) {
+>
+> This looks like it should be i >=3D 0.
+>
+>   1158                  rand =3D prandom_u32_state(state);
+>   1159                  rand %=3D (i + 1);
+>   1160                  swap(list[i], list[rand]);
+>   1161          }
+>   1162  }
+>
+> regards,
+> dan carpenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
