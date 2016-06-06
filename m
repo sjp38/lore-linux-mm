@@ -1,80 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DD8B76B0005
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 17:56:14 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id c127so432073204ywb.1
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 14:56:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t93si13309141qtd.107.2016.06.06.14.56.14
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 30EBA6B0005
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 18:18:08 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id f75so35972086wmf.2
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 15:18:08 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id yu10si20989446wjb.74.2016.06.06.15.18.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 14:56:14 -0700 (PDT)
-Message-ID: <1465250169.16365.147.camel@redhat.com>
+        Mon, 06 Jun 2016 15:18:06 -0700 (PDT)
+Date: Mon, 6 Jun 2016 18:15:50 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH 05/10] mm: remove LRU balancing effect of temporary page
  isolation
-From: Rik van Riel <riel@redhat.com>
-Date: Mon, 06 Jun 2016 17:56:09 -0400
-In-Reply-To: <20160606194836.3624-6-hannes@cmpxchg.org>
+Message-ID: <20160606221550.GA6665@cmpxchg.org>
 References: <20160606194836.3624-1-hannes@cmpxchg.org>
-	 <20160606194836.3624-6-hannes@cmpxchg.org>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-bredFTChnbwOcH2Y7WNE"
-Mime-Version: 1.0
+ <20160606194836.3624-6-hannes@cmpxchg.org>
+ <1465250169.16365.147.camel@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1465250169.16365.147.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
 
+On Mon, Jun 06, 2016 at 05:56:09PM -0400, Rik van Riel wrote:
+> On Mon, 2016-06-06 at 15:48 -0400, Johannes Weiner wrote:
+> > 
+> > +void lru_cache_putback(struct page *page)
+> > +{
+> > +	struct pagevec *pvec = &get_cpu_var(lru_putback_pvec);
+> > +
+> > +	get_page(page);
+> > +	if (!pagevec_space(pvec))
+> > +		__pagevec_lru_add(pvec, false);
+> > +	pagevec_add(pvec, page);
+> > +	put_cpu_var(lru_putback_pvec);
+> > +}
+> > 
+> 
+> Wait a moment.
+> 
+> So now we have a putback_lru_page, which does adjust
+> the statistics, and an lru_cache_putback which does
+> not?
+> 
+> This function could use a name that is not as similar
+> to its counterpart :)
 
---=-bredFTChnbwOcH2Y7WNE
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+lru_cache_add() and lru_cache_putback() are the two sibling functions,
+where the first influences the LRU balance and the second one doesn't.
 
-On Mon, 2016-06-06 at 15:48 -0400, Johannes Weiner wrote:
->=C2=A0
-> +void lru_cache_putback(struct page *page)
-> +{
-> +	struct pagevec *pvec =3D &get_cpu_var(lru_putback_pvec);
-> +
-> +	get_page(page);
-> +	if (!pagevec_space(pvec))
-> +		__pagevec_lru_add(pvec, false);
-> +	pagevec_add(pvec, page);
-> +	put_cpu_var(lru_putback_pvec);
-> +}
->=20
+The last hunk in the patch (obscured by showing the label instead of
+the function name as context) updates putback_lru_page() from using
+lru_cache_add() to using lru_cache_putback().
 
-Wait a moment.
-
-So now we have a putback_lru_page, which does adjust
-the statistics, and an lru_cache_putback which does
-not?
-
-This function could use a name that is not as similar
-to its counterpart :)
-
---=20
-All Rights Reversed.
-
-
---=-bredFTChnbwOcH2Y7WNE
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJXVfF5AAoJEM553pKExN6Do44IAKu9d5DmLKiufZ7Yg4B19W53
-5cFG2C/Ny9RxtJ8wQy/RRMqN+ykluUH8uMC6q3BQ3XkluWPYR9/gY7bhdnH7xgM0
-hfDgFfrpn1RuRtZYCbQL0E7UcJ7VO1oR7TJusrktLoKPi3y5IDvSZG8kkaGsKHFC
-7VaHiAsOmcJYi7jTMmTV310w0QGnEbyRgm7Cc6Muf+K05uCH3kET2ZLCX8lZlBSr
-HIJtuwnY82NTniVdIewH42l7cm0KAoS3x+OzGW1DkTpgk0Y1qmh9IG9RHgCJzqFO
-Gn1hGWiCqLemzqGWoY5TylH1CEqTq1ekVa+Xv0AkPrmXnL8pxoB/tacAcCPtfgo=
-=dbpz
------END PGP SIGNATURE-----
-
---=-bredFTChnbwOcH2Y7WNE--
+Does that make sense?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
