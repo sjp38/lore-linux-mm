@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B7E68828E1
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 10:08:02 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id l5so16371179ioa.0
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 07:08:02 -0700 (PDT)
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 03EBC828E1
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 10:08:05 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id di3so206028224pab.0
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 07:08:04 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id d10si26872699pat.143.2016.06.06.07.07.34
+        by mx.google.com with ESMTP id p186si21552150pfb.113.2016.06.06.07.07.42
         for <linux-mm@kvack.org>;
-        Mon, 06 Jun 2016 07:07:35 -0700 (PDT)
+        Mon, 06 Jun 2016 07:07:42 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9 01/32] thp, mlock: update unevictable-lru.txt
-Date: Mon,  6 Jun 2016 17:06:38 +0300
-Message-Id: <1465222029-45942-2-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9 05/32] rmap: support file thp
+Date: Mon,  6 Jun 2016 17:06:42 +0300
+Message-Id: <1465222029-45942-6-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,45 +19,205 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Add description of THP handling into unevictable-lru.txt.
+Naive approach: on mapping/unmapping the page as compound we update
+->_mapcount on each 4k page. That's not efficient, but it's not obvious
+how we can optimize this. We can look into optimization later.
+
+PG_double_map optimization doesn't work for file pages since lifecycle
+of file pages is different comparing to anon pages: file page can be
+mapped again at any time.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- Documentation/vm/unevictable-lru.txt | 21 +++++++++++++++++++++
- 1 file changed, 21 insertions(+)
+ include/linux/rmap.h |  2 +-
+ mm/huge_memory.c     | 10 +++++++---
+ mm/memory.c          |  4 ++--
+ mm/migrate.c         |  2 +-
+ mm/rmap.c            | 48 +++++++++++++++++++++++++++++++++++-------------
+ mm/util.c            |  6 ++++++
+ 6 files changed, 52 insertions(+), 20 deletions(-)
 
-diff --git a/Documentation/vm/unevictable-lru.txt b/Documentation/vm/unevictable-lru.txt
-index fa3b527086fa..0026a8d33fc0 100644
---- a/Documentation/vm/unevictable-lru.txt
-+++ b/Documentation/vm/unevictable-lru.txt
-@@ -461,6 +461,27 @@ unevictable LRU is enabled, the work of compaction is mostly handled by
- the page migration code and the same work flow as described in MIGRATING
- MLOCKED PAGES will apply.
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 49eb4f8ebac9..5704f101b52e 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -165,7 +165,7 @@ void do_page_add_anon_rmap(struct page *, struct vm_area_struct *,
+ 			   unsigned long, int);
+ void page_add_new_anon_rmap(struct page *, struct vm_area_struct *,
+ 		unsigned long, bool);
+-void page_add_file_rmap(struct page *);
++void page_add_file_rmap(struct page *, bool);
+ void page_remove_rmap(struct page *, bool);
  
-+MLOCKING TRANSPARENT HUGE PAGES
-+-------------------------------
-+
-+A transparent huge page is represented by a single entry on an LRU list.
-+Therefore, we can only make unevictable an entire compound page, not
-+individual subpages.
-+
-+If a user tries to mlock() part of a huge page, we want the rest of the
-+page to be reclaimable.
-+
-+We cannot just split the page on partial mlock() as split_huge_page() can
-+fail and new intermittent failure mode for the syscall is undesirable.
-+
-+We handle this by keeping PTE-mapped huge pages on normal LRU lists: the
-+PMD on border of VM_LOCKED VMA will be split into PTE table.
-+
-+This way the huge page is accessible for vmscan. Under memory pressure the
-+page will be split, subpages which belong to VM_LOCKED VMAs will be moved
-+to unevictable LRU and the rest can be reclaimed.
-+
-+See also comment in follow_trans_huge_pmd().
+ void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 2139096947f3..b117cbc0c800 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -3316,18 +3316,22 @@ static void __split_huge_page(struct page *page, struct list_head *list)
  
- mmap(MAP_LOCKED) SYSTEM CALL HANDLING
- -------------------------------------
+ int total_mapcount(struct page *page)
+ {
+-	int i, ret;
++	int i, compound, ret;
+ 
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+ 
+ 	if (likely(!PageCompound(page)))
+ 		return atomic_read(&page->_mapcount) + 1;
+ 
+-	ret = compound_mapcount(page);
++	compound = compound_mapcount(page);
+ 	if (PageHuge(page))
+-		return ret;
++		return compound;
++	ret = compound;
+ 	for (i = 0; i < HPAGE_PMD_NR; i++)
+ 		ret += atomic_read(&page[i]._mapcount) + 1;
++	/* File pages has compound_mapcount included in _mapcount */
++	if (!PageAnon(page))
++		return ret - compound * HPAGE_PMD_NR;
+ 	if (PageDoubleMap(page))
+ 		ret -= HPAGE_PMD_NR;
+ 	return ret;
+diff --git a/mm/memory.c b/mm/memory.c
+index 582d12af8768..4bd1078708ba 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1479,7 +1479,7 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+ 	/* Ok, finally just insert the thing.. */
+ 	get_page(page);
+ 	inc_mm_counter_fast(mm, mm_counter_file(page));
+-	page_add_file_rmap(page);
++	page_add_file_rmap(page, false);
+ 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
+ 
+ 	retval = 0;
+@@ -2950,7 +2950,7 @@ int alloc_set_pte(struct fault_env *fe, struct mem_cgroup *memcg,
+ 		lru_cache_add_active_or_unevictable(page, vma);
+ 	} else {
+ 		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
+-		page_add_file_rmap(page);
++		page_add_file_rmap(page, false);
+ 	}
+ 	set_pte_at(vma->vm_mm, fe->address, fe->pte, entry);
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 9baf41c877ff..7fbca48903df 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -170,7 +170,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+ 	} else if (PageAnon(new))
+ 		page_add_anon_rmap(new, vma, addr, false);
+ 	else
+-		page_add_file_rmap(new);
++		page_add_file_rmap(new, false);
+ 
+ 	if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
+ 		mlock_vma_page(new);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 0ea5d9071b32..b78374519bac 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1273,18 +1273,34 @@ void page_add_new_anon_rmap(struct page *page,
+  *
+  * The caller needs to hold the pte lock.
+  */
+-void page_add_file_rmap(struct page *page)
++void page_add_file_rmap(struct page *page, bool compound)
+ {
++	int i, nr = 1;
++
++	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
+ 	lock_page_memcg(page);
+-	if (atomic_inc_and_test(&page->_mapcount)) {
+-		__inc_zone_page_state(page, NR_FILE_MAPPED);
+-		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
++	if (compound && PageTransHuge(page)) {
++		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
++			if (atomic_inc_and_test(&page[i]._mapcount))
++				nr++;
++		}
++		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
++			goto out;
++	} else {
++		if (!atomic_inc_and_test(&page->_mapcount))
++			goto out;
+ 	}
++	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, nr);
++	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
++out:
+ 	unlock_page_memcg(page);
+ }
+ 
+-static void page_remove_file_rmap(struct page *page)
++static void page_remove_file_rmap(struct page *page, bool compound)
+ {
++	int i, nr = 1;
++
++	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
+ 	lock_page_memcg(page);
+ 
+ 	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
+@@ -1295,15 +1311,24 @@ static void page_remove_file_rmap(struct page *page)
+ 	}
+ 
+ 	/* page still mapped by someone else? */
+-	if (!atomic_add_negative(-1, &page->_mapcount))
+-		goto out;
++	if (compound && PageTransHuge(page)) {
++		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
++			if (atomic_add_negative(-1, &page[i]._mapcount))
++				nr++;
++		}
++		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
++			goto out;
++	} else {
++		if (!atomic_add_negative(-1, &page->_mapcount))
++			goto out;
++	}
+ 
+ 	/*
+ 	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
+ 	 * these counters are not modified in interrupt context, and
+ 	 * pte lock(a spinlock) is held, which implies preemption disabled.
+ 	 */
+-	__dec_zone_page_state(page, NR_FILE_MAPPED);
++	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, -nr);
+ 	mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+ 
+ 	if (unlikely(PageMlocked(page)))
+@@ -1359,11 +1384,8 @@ static void page_remove_anon_compound_rmap(struct page *page)
+  */
+ void page_remove_rmap(struct page *page, bool compound)
+ {
+-	if (!PageAnon(page)) {
+-		VM_BUG_ON_PAGE(compound && !PageHuge(page), page);
+-		page_remove_file_rmap(page);
+-		return;
+-	}
++	if (!PageAnon(page))
++		return page_remove_file_rmap(page, compound);
+ 
+ 	if (compound)
+ 		return page_remove_anon_compound_rmap(page);
+diff --git a/mm/util.c b/mm/util.c
+index 917e0e3d0f8e..d73b323eb362 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -410,6 +410,12 @@ int __page_mapcount(struct page *page)
+ 	int ret;
+ 
+ 	ret = atomic_read(&page->_mapcount) + 1;
++	/*
++	 * For file THP page->_mapcount contains total number of mapping
++	 * of the page: no need to look into compound_mapcount.
++	 */
++	if (!PageAnon(page) && !PageHuge(page))
++		return ret;
+ 	page = compound_head(page);
+ 	ret += atomic_read(compound_mapcount_ptr(page)) + 1;
+ 	if (PageDoubleMap(page))
 -- 
 2.8.1
 
