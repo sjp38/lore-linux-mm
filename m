@@ -1,85 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 979A36B0005
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 00:05:08 -0400 (EDT)
-Received: by mail-ig0-f197.google.com with SMTP id q18so92040048igr.2
-        for <linux-mm@kvack.org>; Sun, 05 Jun 2016 21:05:08 -0700 (PDT)
-Received: from mail-oi0-x245.google.com (mail-oi0-x245.google.com. [2607:f8b0:4003:c06::245])
-        by mx.google.com with ESMTPS id g33si7994936otg.199.2016.06.05.21.05.07
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EC106B0005
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 02:30:12 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id h144so95221559ita.1
+        for <linux-mm@kvack.org>; Sun, 05 Jun 2016 23:30:12 -0700 (PDT)
+Received: from SNT004-OMC3S34.hotmail.com (snt004-omc3s34.hotmail.com. [65.55.90.173])
+        by mx.google.com with ESMTPS id 62si8221859ots.136.2016.06.05.23.30.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Jun 2016 21:05:07 -0700 (PDT)
-Received: by mail-oi0-x245.google.com with SMTP id s139so139609706oie.0
-        for <linux-mm@kvack.org>; Sun, 05 Jun 2016 21:05:07 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 05 Jun 2016 23:30:11 -0700 (PDT)
+From: =?iso-8859-2?Q?Rados=B3aw_Smogura?= <mail@smogura.eu>
+Subject: Hugepages for tmpfs
+Date: Mon, 6 Jun 2016 06:30:06 +0000
+Message-ID: <0B540039-9A94-43F8-9C16-EE04F68646AF@smogura.eu>
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-2"
+Content-ID: <0A8DD2BDA1C55F45BFA21087D09EA062@eurprd03.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <5739B60E.1090700@suse.cz>
-References: <1462713387-16724-1-git-send-email-anthony.romano@coreos.com>
-	<5739B60E.1090700@suse.cz>
-Date: Sun, 5 Jun 2016 21:05:07 -0700
-Message-ID: <CAEm7Ktz4+caoGn+G0njRR-JtdbO1pKMfjA7XykKMFBzovmgyag@mail.gmail.com>
-Subject: Re: [PATCH] tmpfs: don't undo fallocate past its last page
-From: Brandon Philips <brandon@ifup.co>
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Anthony Romano <anthony.romano@coreos.com>, Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, Cong Wang <amwang@redhat.com>, Kay Sievers <kay@vrfy.org>, Andrew Morton <akpm@linux-foundation.org>, Matthew Garrett <mjg59@srcf.ucam.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, May 16, 2016 at 4:59 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 05/08/2016 03:16 PM, Anthony Romano wrote:
->>
->> When fallocate is interrupted it will undo a range that extends one byte
->> past its range of allocated pages. This can corrupt an in-use page by
->> zeroing out its first byte. Instead, undo using the inclusive byte range.
->
->
-> Huh, good catch. So why is shmem_undo_range() adding +1 to the value in the
-> first place? The only other caller is shmem_truncate_range() and all *its*
-> callers do subtract 1 to avoid the same issue. So a nicer fix would be to
-> remove all this +1/-1 madness. Or is there some subtle corner case I'm
-> missing?
+Hi all,
 
-Bumping this thread as I don't think this patch has gotten picked up.
-And cc'ing folks from 1635f6a74152f1dcd1b888231609d64875f0a81a.
+Long time ago I was working on enabling huge pages for tmpfs and in terms f=
+or any filesystem. Recently I have found my work and I was thinking about r=
+estarting it with new kernel.
 
-Also, resending because I forgot to remove the HTML mime-type to make
-vger happy.
+I wonder if there is some ongoing or finished work for huge pages in tmpfs?
 
-Thank you,
-
-Brandon
-
-
->> Signed-off-by: Anthony Romano <anthony.romano@coreos.com>
->
->
-> Looks like a stable candidate patch. Can you point out the commit that
-> introduced the bug, for the Fixes: tag?
->
-> Thanks,
-> Vlastimil
->
->
->> ---
->>   mm/shmem.c | 2 +-
->>   1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/mm/shmem.c b/mm/shmem.c
->> index 719bd6b..f0f9405 100644
->> --- a/mm/shmem.c
->> +++ b/mm/shmem.c
->> @@ -2238,7 +2238,7 @@ static long shmem_fallocate(struct file *file, int
->> mode, loff_t offset,
->>                         /* Remove the !PageUptodate pages we added */
->>                         shmem_undo_range(inode,
->>                                 (loff_t)start << PAGE_SHIFT,
->> -                               (loff_t)index << PAGE_SHIFT, true);
->> +                               ((loff_t)index << PAGE_SHIFT) - 1, true);
->>                         goto undone;
->>                 }
->>
->>
->
+Best regards,
+Radek Smogura=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
