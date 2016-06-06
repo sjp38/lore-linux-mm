@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 953B38294C
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 10:08:19 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id fg1so205095895pad.1
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 07:08:19 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id wz9si26849261pab.19.2016.06.06.07.07.57
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D98F8294C
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 10:08:21 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id w9so90579833oia.3
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 07:08:21 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id 4si19998679paf.244.2016.06.06.07.08.14
         for <linux-mm@kvack.org>;
-        Mon, 06 Jun 2016 07:07:58 -0700 (PDT)
+        Mon, 06 Jun 2016 07:08:14 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9 19/32] filemap: prepare find and delete operations for huge pages
-Date: Mon,  6 Jun 2016 17:06:56 +0300
-Message-Id: <1465222029-45942-20-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9 07/32] thp, vmstats: add counters for huge file pages
+Date: Mon,  6 Jun 2016 17:06:44 +0300
+Message-Id: <1465222029-45942-8-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,405 +19,66 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For now, we would have HPAGE_PMD_NR entries in radix tree for every huge
-page. That's suboptimal and it will be changed to use Matthew's
-multi-order entries later.
+THP_FILE_ALLOC: how many times huge page was allocated and put page
+cache.
 
-'add' operation is not changed, because we don't need it to implement
-hugetmpfs: shmem uses its own implementation.
+THP_FILE_MAPPED: how many times file huge page was mapped.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c | 178 ++++++++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 122 insertions(+), 56 deletions(-)
+ include/linux/vm_event_item.h | 7 +++++++
+ mm/memory.c                   | 1 +
+ mm/vmstat.c                   | 2 ++
+ 3 files changed, 10 insertions(+)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index df0351a8d37e..98b8d71d54bc 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -114,14 +114,14 @@ static void page_cache_tree_delete(struct address_space *mapping,
- 				   struct page *page, void *shadow)
- {
- 	struct radix_tree_node *node;
-+	int i, nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index ec084321fe09..42604173f122 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -70,6 +70,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		THP_FAULT_FALLBACK,
+ 		THP_COLLAPSE_ALLOC,
+ 		THP_COLLAPSE_ALLOC_FAILED,
++		THP_FILE_ALLOC,
++		THP_FILE_MAPPED,
+ 		THP_SPLIT_PAGE,
+ 		THP_SPLIT_PAGE_FAILED,
+ 		THP_DEFERRED_SPLIT_PAGE,
+@@ -100,4 +102,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		NR_VM_EVENT_ITEMS
+ };
  
--	VM_BUG_ON(!PageLocked(page));
--
--	node = radix_tree_replace_clear_tags(&mapping->page_tree, page->index,
--								shadow);
-+	VM_BUG_ON_PAGE(!PageLocked(page), page);
-+	VM_BUG_ON_PAGE(PageTail(page), page);
-+	VM_BUG_ON_PAGE(nr != 1 && shadow, page);
- 
- 	if (shadow) {
--		mapping->nrexceptional++;
-+		mapping->nrexceptional += nr;
- 		/*
- 		 * Make sure the nrexceptional update is committed before
- 		 * the nrpages update so that final truncate racing
-@@ -130,31 +130,38 @@ static void page_cache_tree_delete(struct address_space *mapping,
- 		 */
- 		smp_wmb();
- 	}
--	mapping->nrpages--;
--
--	if (!node)
--		return;
-+	mapping->nrpages -= nr;
- 
--	workingset_node_pages_dec(node);
--	if (shadow)
--		workingset_node_shadows_inc(node);
--	else
--		if (__radix_tree_delete_node(&mapping->page_tree, node))
-+	for (i = 0; i < nr; i++) {
-+		node = radix_tree_replace_clear_tags(&mapping->page_tree,
-+				page->index + i, shadow);
-+		if (!node) {
-+			VM_BUG_ON_PAGE(nr != 1, page);
- 			return;
-+		}
- 
--	/*
--	 * Track node that only contains shadow entries. DAX mappings contain
--	 * no shadow entries and may contain other exceptional entries so skip
--	 * those.
--	 *
--	 * Avoid acquiring the list_lru lock if already tracked.  The
--	 * list_empty() test is safe as node->private_list is
--	 * protected by mapping->tree_lock.
--	 */
--	if (!dax_mapping(mapping) && !workingset_node_pages(node) &&
--	    list_empty(&node->private_list)) {
--		node->private_data = mapping;
--		list_lru_add(&workingset_shadow_nodes, &node->private_list);
-+		workingset_node_pages_dec(node);
-+		if (shadow)
-+			workingset_node_shadows_inc(node);
-+		else
-+			if (__radix_tree_delete_node(&mapping->page_tree, node))
-+				continue;
++#ifndef CONFIG_TRANSPARENT_HUGEPAGE
++#define THP_FILE_ALLOC ({ BUILD_BUG(); 0; })
++#define THP_FILE_MAPPED ({ BUILD_BUG(); 0; })
++#endif
 +
-+		/*
-+		 * Track node that only contains shadow entries. DAX mappings
-+		 * contain no shadow entries and may contain other exceptional
-+		 * entries so skip those.
-+		 *
-+		 * Avoid acquiring the list_lru lock if already tracked.
-+		 * The list_empty() test is safe as node->private_list is
-+		 * protected by mapping->tree_lock.
-+		 */
-+		if (!dax_mapping(mapping) && !workingset_node_pages(node) &&
-+				list_empty(&node->private_list)) {
-+			node->private_data = mapping;
-+			list_lru_add(&workingset_shadow_nodes,
-+					&node->private_list);
-+		}
- 	}
- }
+ #endif		/* VM_EVENT_ITEM_H_INCLUDED */
+diff --git a/mm/memory.c b/mm/memory.c
+index ed4aa61f6471..a6744be151b6 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2954,6 +2954,7 @@ static int do_set_pmd(struct fault_env *fe, struct page *page)
  
-@@ -166,6 +173,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
- void __delete_from_page_cache(struct page *page, void *shadow)
- {
- 	struct address_space *mapping = page->mapping;
-+	int nr = hpage_nr_pages(page);
- 
- 	trace_mm_filemap_delete_from_page_cache(page);
- 	/*
-@@ -178,6 +186,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 	else
- 		cleancache_invalidate_page(mapping, page);
- 
-+	VM_BUG_ON_PAGE(PageTail(page), page);
- 	VM_BUG_ON_PAGE(page_mapped(page), page);
- 	if (!IS_ENABLED(CONFIG_DEBUG_VM) && unlikely(page_mapped(page))) {
- 		int mapcount;
-@@ -209,9 +218,9 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 
- 	/* hugetlb pages do not participate in page cache accounting. */
- 	if (!PageHuge(page))
--		__dec_zone_page_state(page, NR_FILE_PAGES);
-+		__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, -nr);
- 	if (PageSwapBacked(page))
--		__dec_zone_page_state(page, NR_SHMEM);
-+		__mod_zone_page_state(page_zone(page), NR_SHMEM, -nr);
- 
- 	/*
- 	 * At this point page must be either written or cleaned by truncate.
-@@ -235,9 +244,8 @@ void __delete_from_page_cache(struct page *page, void *shadow)
-  */
- void delete_from_page_cache(struct page *page)
- {
--	struct address_space *mapping = page->mapping;
-+	struct address_space *mapping = page_mapping(page);
- 	unsigned long flags;
--
- 	void (*freepage)(struct page *);
- 
- 	BUG_ON(!PageLocked(page));
-@@ -250,7 +258,13 @@ void delete_from_page_cache(struct page *page)
- 
- 	if (freepage)
- 		freepage(page);
--	put_page(page);
-+
-+	if (PageTransHuge(page) && !PageHuge(page)) {
-+		page_ref_sub(page, HPAGE_PMD_NR);
-+		VM_BUG_ON_PAGE(page_count(page) <= 0, page);
-+	} else {
-+		put_page(page);
-+	}
- }
- EXPORT_SYMBOL(delete_from_page_cache);
- 
-@@ -1053,7 +1067,7 @@ EXPORT_SYMBOL(page_cache_prev_hole);
- struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
- {
- 	void **pagep;
--	struct page *page;
-+	struct page *head, *page;
- 
- 	rcu_read_lock();
- repeat:
-@@ -1073,8 +1087,16 @@ repeat:
- 			 */
- 			goto out;
- 		}
--		if (!page_cache_get_speculative(page))
-+
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
-+			goto repeat;
-+
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(head);
- 			goto repeat;
-+		}
- 
- 		/*
- 		 * Has the page moved?
-@@ -1082,7 +1104,7 @@ repeat:
- 		 * include/linux/pagemap.h for details.
- 		 */
- 		if (unlikely(page != *pagep)) {
--			put_page(page);
-+			put_page(head);
- 			goto repeat;
- 		}
- 	}
-@@ -1118,12 +1140,12 @@ repeat:
- 	if (page && !radix_tree_exception(page)) {
- 		lock_page(page);
- 		/* Has the page been truncated? */
--		if (unlikely(page->mapping != mapping)) {
-+		if (unlikely(page_mapping(page) != mapping)) {
- 			unlock_page(page);
- 			put_page(page);
- 			goto repeat;
- 		}
--		VM_BUG_ON_PAGE(page->index != offset, page);
-+		VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
- 	}
- 	return page;
- }
-@@ -1255,7 +1277,7 @@ unsigned find_get_entries(struct address_space *mapping,
- 
- 	rcu_read_lock();
- 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
-@@ -1272,12 +1294,20 @@ repeat:
- 			 */
- 			goto export;
- 		}
--		if (!page_cache_get_speculative(page))
-+
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
-+			goto repeat;
-+
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(head);
- 			goto repeat;
-+		}
- 
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
--			put_page(page);
-+			put_page(head);
- 			goto repeat;
- 		}
- export:
-@@ -1318,7 +1348,7 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
- 
- 	rcu_read_lock();
- 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
-@@ -1337,12 +1367,19 @@ repeat:
- 			continue;
- 		}
- 
--		if (!page_cache_get_speculative(page))
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
-+			goto repeat;
-+
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(head);
- 			goto repeat;
-+		}
- 
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
--			put_page(page);
-+			put_page(head);
- 			goto repeat;
- 		}
- 
-@@ -1379,7 +1416,7 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
- 
- 	rcu_read_lock();
- 	radix_tree_for_each_contig(slot, &mapping->page_tree, &iter, index) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		/* The hole, there no reason to continue */
-@@ -1399,12 +1436,19 @@ repeat:
- 			break;
- 		}
- 
--		if (!page_cache_get_speculative(page))
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
-+			goto repeat;
-+
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(head);
- 			goto repeat;
-+		}
- 
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
--			put_page(page);
-+			put_page(head);
- 			goto repeat;
- 		}
- 
-@@ -1413,7 +1457,7 @@ repeat:
- 		 * otherwise we can get both false positives and false
- 		 * negatives, which is just confusing to the caller.
- 		 */
--		if (page->mapping == NULL || page->index != iter.index) {
-+		if (page->mapping == NULL || page_to_pgoff(page) != iter.index) {
- 			put_page(page);
- 			break;
- 		}
-@@ -1451,7 +1495,7 @@ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
- 	rcu_read_lock();
- 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
- 				   &iter, *index, tag) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
-@@ -1476,12 +1520,19 @@ repeat:
- 			continue;
- 		}
- 
--		if (!page_cache_get_speculative(page))
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
- 			goto repeat;
- 
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(head);
-+			goto repeat;
-+		}
-+
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
--			put_page(page);
-+			put_page(head);
- 			goto repeat;
- 		}
- 
-@@ -1525,7 +1576,7 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
- 	rcu_read_lock();
- 	radix_tree_for_each_tagged(slot, &mapping->page_tree,
- 				   &iter, start, tag) {
--		struct page *page;
-+		struct page *head, *page;
- repeat:
- 		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
-@@ -1543,12 +1594,20 @@ repeat:
- 			 */
- 			goto export;
- 		}
--		if (!page_cache_get_speculative(page))
-+
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
- 			goto repeat;
- 
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(head);
-+			goto repeat;
-+		}
-+
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
--			put_page(page);
-+			put_page(head);
- 			goto repeat;
- 		}
- export:
-@@ -2137,7 +2196,7 @@ void filemap_map_pages(struct fault_env *fe,
- 	struct address_space *mapping = file->f_mapping;
- 	pgoff_t last_pgoff = start_pgoff;
- 	loff_t size;
--	struct page *page;
-+	struct page *head, *page;
- 
- 	rcu_read_lock();
- 	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter,
-@@ -2156,12 +2215,19 @@ repeat:
- 			goto next;
- 		}
- 
--		if (!page_cache_get_speculative(page))
-+		head = compound_head(page);
-+		if (!page_cache_get_speculative(head))
- 			goto repeat;
- 
-+		/* The page was split under us? */
-+		if (compound_head(page) != head) {
-+			put_page(head);
-+			goto repeat;
-+		}
-+
- 		/* Has the page moved? */
- 		if (unlikely(page != *slot)) {
--			put_page(page);
-+			put_page(head);
- 			goto repeat;
- 		}
- 
+ 	/* fault is handled */
+ 	ret = 0;
++	count_vm_event(THP_FILE_MAPPED);
+ out:
+ 	spin_unlock(fe->ptl);
+ 	return ret;
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 6629944ea820..0b57cd0a844e 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -827,6 +827,8 @@ const char * const vmstat_text[] = {
+ 	"thp_fault_fallback",
+ 	"thp_collapse_alloc",
+ 	"thp_collapse_alloc_failed",
++	"thp_file_alloc",
++	"thp_file_mapped",
+ 	"thp_split_page",
+ 	"thp_split_page_failed",
+ 	"thp_deferred_split_page",
 -- 
 2.8.1
 
