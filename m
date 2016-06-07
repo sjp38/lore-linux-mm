@@ -1,82 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D1F6828E1
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:19:49 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 4so24060103wmz.1
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:19:49 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id nh6si905138wjb.224.2016.06.07.04.19.48
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 07E706B025E
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 08:11:26 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id d191so108374611oig.2
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 05:11:26 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id h8si11440743ote.89.2016.06.07.05.11.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jun 2016 04:19:48 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id m124so22214038wme.3
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:19:48 -0700 (PDT)
-Date: Tue, 7 Jun 2016 13:19:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm: pages are not freed from lru_add_pvecs after process
- termination
-Message-ID: <20160607111946.GJ12305@dhcp22.suse.cz>
-References: <5720F2A8.6070406@intel.com>
- <20160428143710.GC31496@dhcp22.suse.cz>
- <20160502130006.GD25265@dhcp22.suse.cz>
- <D6EDEBF1F91015459DB866AC4EE162CC023C182F@IRSMSX103.ger.corp.intel.com>
- <20160504203643.GI21490@dhcp22.suse.cz>
- <20160505072122.GA4386@dhcp22.suse.cz>
- <D6EDEBF1F91015459DB866AC4EE162CC023C402E@IRSMSX103.ger.corp.intel.com>
- <572CC092.5020702@intel.com>
- <20160511075313.GE16677@dhcp22.suse.cz>
- <D6EDEBF1F91015459DB866AC4EE162CC023F84C9@IRSMSX103.ger.corp.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 07 Jun 2016 05:11:25 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/2] mm, tree wide: replace __GFP_REPEAT by
+ __GFP_RETRY_HARD with more useful semantic
+References: <1465212736-14637-1-git-send-email-mhocko@kernel.org>
+ <1465212736-14637-2-git-send-email-mhocko@kernel.org>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <7fb7e035-7795-839b-d1b0-4a68fcf8e9c9@I-love.SAKURA.ne.jp>
+Date: Tue, 7 Jun 2016 21:11:03 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <D6EDEBF1F91015459DB866AC4EE162CC023F84C9@IRSMSX103.ger.corp.intel.com>
+In-Reply-To: <1465212736-14637-2-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
-Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue 07-06-16 09:02:02, Odzioba, Lukasz wrote:
-[...]
-> //compile with: gcc bench.c -o bench_2M -fopenmp
-> //compile with: gcc -D SMALL_PAGES bench.c -o bench_4K -fopenmp
-> #include <stdio.h>
-> #include <sys/mman.h>
-> #include <omp.h>
-> 
-> #define MAP_HUGE_SHIFT  26
-> #define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)
-> 
-> #ifndef SMALL_PAGES
-> #define PAGE_SIZE (1024*1024*2)
-> #define MAP_PARAM (MAP_HUGE_2MB)
+On 2016/06/06 20:32, Michal Hocko wrote:
+> diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
+> index 669fef1e2bb6..a4b0f18a69ab 100644
+> --- a/drivers/vhost/vhost.c
+> +++ b/drivers/vhost/vhost.c
+> @@ -707,7 +707,7 @@ static int vhost_memory_reg_sort_cmp(const void *p1, const void *p2)
+>  
+>  static void *vhost_kvzalloc(unsigned long size)
+>  {
+> -	void *n = kzalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
+> +	void *n = kzalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_RETRY_HARD);
 
-Isn't MAP_HUGE_2MB ignored for !hugetlb pages?
+Remaining __GFP_REPEAT users are not always doing costly allocations.
+Sometimes they pass __GFP_REPEAT because the size is given from userspace.
+Thus, unconditional s/__GFP_REPEAT/__GFP_RETRY_HARD/g is not good.
 
-> #else
-> #define PAGE_SIZE (1024*4)
-> #define MAP_PARAM (0)
-> #endif
-> 
-> void main() {
->         size_t size = ((60 * 1000 * 1000) / 288) * 1000; // 60GBs of memory 288 CPUs
->         #pragma omp parallel
->         {
->         unsigned int k;
->         for (k = 0; k < 10; k++) {
->                 void *p = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_PARAM, -1, 0);
+What I think more important is hearing from __GFP_REPEAT users how hard they
+want to retry. It is possible that they want to retry unless SIGKILL is
+delivered, but passing __GFP_NOFAIL is too hard, and therefore __GFP_REPEAT
+is used instead. It is possible that they use __GFP_NOFAIL || __GFP_KILLABLE
+if __GFP_KILLABLE were available. In my module (though I'm not using
+__GFP_REPEAT), I want to retry unless SIGKILL is delivered.
 
-I guess you want something like posix_memalign or start faulting in from
-an aligned address to guarantee you will fault 2MB pages. Also note that
-the default behavior for THP during the fault has changed recently (see
-444eb2a449ef ("mm: thp: set THP defrag by default to madvise and add a
-stall-free defrag option") so you might need MADV_HUGEPAGE.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 180f5afc5a1f..faa3d4a27850 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3262,7 +3262,7 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+>  		return compaction_zonelist_suitable(ac, order, alloc_flags);
+>  
+>  	/*
+> -	 * !costly requests are much more important than __GFP_REPEAT
+> +	 * !costly requests are much more important than __GFP_RETRY_HARD
+>  	 * costly ones because they are de facto nofail and invoke OOM
+>  	 * killer to move on while costly can fail and users are ready
+>  	 * to cope with that. 1/4 retries is rather arbitrary but we
+> @@ -3550,6 +3550,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	enum compact_result compact_result;
+>  	int compaction_retries = 0;
+>  	int no_progress_loops = 0;
+> +	bool passed_oom = false;
+>  
+>  	/*
+>  	 * In the slowpath, we sanity check order to avoid ever trying to
+> @@ -3680,9 +3681,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  
+>  	/*
+>  	 * Do not retry costly high order allocations unless they are
+> -	 * __GFP_REPEAT
+> +	 * __GFP_RETRY_HARD
+>  	 */
+> -	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+> +	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_RETRY_HARD))
+>  		goto noretry;
+>  
+>  	/*
+> @@ -3711,6 +3712,17 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  				compaction_retries))
+>  		goto retry;
+>  
+> +	/*
+> +	 * We have already exhausted all our reclaim opportunities including
+> +	 * the OOM killer without any success so it is time to admit defeat.
+> +	 * We do not care about the order because we want all orders to behave
+> +	 * consistently including !costly ones. costly are handled in
+> +	 * __alloc_pages_may_oom and will bail out even before the first OOM
+> +	 * killer invocation
+> +	 */
+> +	if (passed_oom && (gfp_mask & __GFP_RETRY_HARD))
+> +		goto nopage;
+> +
 
-Besides that I am really suspicious that this will be measurable at all.
-I would just go and spin a patch assuming you are still able to trigger
-OOM with the vanilla kernel. The bug fix is more important...
--- 
-Michal Hocko
-SUSE Labs
+If __GFP_REPEAT was passed because the size is not known at compile time, this
+will break "!costly allocations will retry unless TIF_MEMDIE is set" behavior.
+
+>  	/* Reclaim has failed us, start killing things */
+>  	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
+>  	if (page)
+> @@ -3719,6 +3731,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	/* Retry as long as the OOM killer is making progress */
+>  	if (did_some_progress) {
+>  		no_progress_loops = 0;
+> +		passed_oom = true;
+
+This is too premature. did_some_progress != 0 after returning from
+__alloc_pages_may_oom() does not mean the OOM killer was invoked. It only means
+that mutex_trylock(&oom_lock) was attempted. It is possible that somebody else
+is on the way to call out_of_memory(). It is possible that the OOM reaper is
+about to start reaping memory. Giving up after 1 jiffie of sleep is too fast.
+
+>  		goto retry;
+>  	}
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
