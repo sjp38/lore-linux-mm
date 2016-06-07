@@ -1,57 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A79096B007E
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 02:55:39 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 132so74797199lfz.3
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 23:55:39 -0700 (PDT)
-Received: from mx0b-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id s68si23385025wme.28.2016.06.06.23.55.38
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CFB56B0005
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 03:34:32 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id h68so75091316lfh.2
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 00:34:31 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id n1si31777674wjz.36.2016.06.07.00.34.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 23:55:38 -0700 (PDT)
-Received: from pps.filterd (m0049461.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u576sUVL027053
-	for <linux-mm@kvack.org>; Tue, 7 Jun 2016 02:55:37 -0400
-Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 23drc3b0q2-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 07 Jun 2016 02:55:36 -0400
-Received: from localhost
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 7 Jun 2016 16:55:30 +1000
-Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 4A68C2BB008F
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 16:54:52 +1000 (EST)
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u576sfa47143928
-	for <linux-mm@kvack.org>; Tue, 7 Jun 2016 16:54:41 +1000
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u576sfGC002613
-	for <linux-mm@kvack.org>; Tue, 7 Jun 2016 16:54:41 +1000
-Date: Tue, 07 Jun 2016 12:24:34 +0530
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+        Tue, 07 Jun 2016 00:34:29 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id r5so3584332wmr.0
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 00:34:29 -0700 (PDT)
+Date: Tue, 7 Jun 2016 09:34:28 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [linux-next: Tree for Jun 1] __khugepaged_exit
+ rwsem_down_write_failed lockup
+Message-ID: <20160607073427.GC12305@dhcp22.suse.cz>
+References: <20160601131122.7dbb0a65@canb.auug.org.au>
+ <20160602014835.GA635@swordfish>
+ <20160602092113.GH1995@dhcp22.suse.cz>
+ <20160602120857.GA704@swordfish>
+ <20160602122109.GM1995@dhcp22.suse.cz>
+ <20160603135154.GD29930@redhat.com>
+ <20160603144600.GK20676@dhcp22.suse.cz>
+ <20160603151001.GG29930@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] powerpc/mm: check for irq disabled() only if DEBUG_VM
- is enabled.
-References: <1464692688-6612-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1464692688-6612-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1464692688-6612-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <57566FAA.7040401@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160603151001.GG29930@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, mpe@ellerman.id.au
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
 
-On 05/31/2016 04:34 PM, Aneesh Kumar K.V wrote:
-> We don't need to check this always. The idea here is to capture the
-> wrong usage of find_linux_pte_or_hugepte and we can do that by
-> occasionally running with DEBUG_VM enabled.
+On Fri 03-06-16 17:10:01, Andrea Arcangeli wrote:
+> Hello Michal,
 > 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> CC'ed Hugh,
+> 
+> On Fri, Jun 03, 2016 at 04:46:00PM +0200, Michal Hocko wrote:
+> > What do you think about the external dependencies mentioned above. Do
+> > you think this is a sufficient argument wrt. occasional higher
+> > latencies?
+> 
+> It's a tradeoff and both latencies would be short and uncommon so it's
+> hard to tell.
+> 
+> There's also mmput_async for paths that may care about mmput
+> latencies. Exit itself cannot use it, it's mostly for people taking
+> the mm_users pin that may not want to wait for mmput to run. It also
+> shouldn't happen that often, it's a slow path.
+> 
+> The whole model inherited from KSM is to deliberately depend only on
+> the mmap_sem + test_exit + mm_count, and never on mm_users, which to
+> me in principle doesn't sound bad.
 
-Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+I do agree that this model is quite clever (albeit convoluted). It just
+assumes that all other mmap_sem users are behaving the same. Now most
+in-kernel users will do get_task_mm() and then lock mmap_sem, but I
+haven't checked all of them and it is quite possible that some of those
+would like to optimize in a similar way and only increment mm_count.
+I might be too pessimistic about the out of mm code but I would feel
+much better if the exit path didn't depend on them.
+
+Anyway, if the current model sounds better I will definitely not insist
+on my patch. It is more of an idea for simplification than a fix for
+anything I have seen happening in the real life.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
