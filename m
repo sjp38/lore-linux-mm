@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D75E6B0266
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:01:20 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id yu3so916658obb.3
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:01:20 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id f10si34490098pfj.137.2016.06.07.04.01.01
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 611026B0267
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:01:22 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ao6so8499725pac.2
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:01:22 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id o124si34553699pfb.247.2016.06.07.04.01.02
         for <linux-mm@kvack.org>;
         Tue, 07 Jun 2016 04:01:02 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9-rebased 10/32] thp: handle file COW faults
-Date: Tue,  7 Jun 2016 14:00:24 +0300
-Message-Id: <1465297246-98985-11-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9-rebased 20/32] truncate: handle file thp
+Date: Tue,  7 Jun 2016 14:00:34 +0300
+Message-Id: <1465297246-98985-21-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1465297246-98985-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1465297246-98985-1-git-send-email-kirill.shutemov@linux.intel.com>
@@ -20,36 +20,87 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-File COW for THP is handled on pte level: just split the pmd.
+For shmem/tmpfs we only need to tweak truncate_inode_page() and
+invalidate_mapping_pages().
 
-It's not clear how benefitial would be allocation of huge pages on COW
-faults. And it would require some code to make them work.
-
-I think at some point we can consider teaching khugepaged to collapse
-pages in COW mappings, but allocating huge on fault is probably
-overkill.
+truncate_inode_pages_range() and invalidate_inode_pages2_range() are
+adjusted to use page_to_pgoff().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/memory.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ mm/truncate.c | 28 +++++++++++++++++++++++-----
+ 1 file changed, 23 insertions(+), 5 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 7f2e16e9f0cb..a9501e2851d8 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3466,6 +3466,11 @@ static int wp_huge_pmd(struct fault_env *fe, pmd_t orig_pmd)
- 	if (fe->vma->vm_ops->pmd_fault)
- 		return fe->vma->vm_ops->pmd_fault(fe->vma, fe->address, fe->pmd,
- 				fe->flags);
-+
-+	/* COW handled on pte level: split pmd */
-+	VM_BUG_ON_VMA(fe->vma->vm_flags & VM_SHARED, fe->vma);
-+	split_huge_pmd(fe->vma, fe->pmd, fe->address);
-+
- 	return VM_FAULT_FALLBACK;
- }
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 4064f8f53daa..a01cce450a26 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -155,10 +155,14 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
  
+ int truncate_inode_page(struct address_space *mapping, struct page *page)
+ {
++	loff_t holelen;
++	VM_BUG_ON_PAGE(PageTail(page), page);
++
++	holelen = PageTransHuge(page) ? HPAGE_PMD_SIZE : PAGE_SIZE;
+ 	if (page_mapped(page)) {
+ 		unmap_mapping_range(mapping,
+ 				   (loff_t)page->index << PAGE_SHIFT,
+-				   PAGE_SIZE, 0);
++				   holelen, 0);
+ 	}
+ 	return truncate_complete_page(mapping, page);
+ }
+@@ -279,7 +283,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 
+ 			if (!trylock_page(page))
+ 				continue;
+-			WARN_ON(page->index != index);
++			WARN_ON(page_to_pgoff(page) != index);
+ 			if (PageWriteback(page)) {
+ 				unlock_page(page);
+ 				continue;
+@@ -367,7 +371,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			}
+ 
+ 			lock_page(page);
+-			WARN_ON(page->index != index);
++			WARN_ON(page_to_pgoff(page) != index);
+ 			wait_on_page_writeback(page);
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+@@ -487,7 +491,21 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 
+ 			if (!trylock_page(page))
+ 				continue;
+-			WARN_ON(page->index != index);
++
++			WARN_ON(page_to_pgoff(page) != index);
++
++			/* Middle of THP: skip */
++			if (PageTransTail(page)) {
++				unlock_page(page);
++				continue;
++			} else if (PageTransHuge(page)) {
++				index += HPAGE_PMD_NR - 1;
++				i += HPAGE_PMD_NR - 1;
++				/* 'end' is in the middle of THP */
++				if (index ==  round_down(end, HPAGE_PMD_NR))
++					continue;
++			}
++
+ 			ret = invalidate_inode_page(page);
+ 			unlock_page(page);
+ 			/*
+@@ -594,7 +612,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
+ 			}
+ 
+ 			lock_page(page);
+-			WARN_ON(page->index != index);
++			WARN_ON(page_to_pgoff(page) != index);
+ 			if (page->mapping != mapping) {
+ 				unlock_page(page);
+ 				continue;
 -- 
 2.8.1
 
