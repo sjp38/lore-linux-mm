@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DFA346B0265
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:01:17 -0400 (EDT)
-Received: by mail-ig0-f197.google.com with SMTP id lp2so147517711igb.3
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:01:17 -0700 (PDT)
+Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D75E6B0266
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:01:20 -0400 (EDT)
+Received: by mail-ob0-f199.google.com with SMTP id yu3so916658obb.3
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:01:20 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id g10si32695264pac.240.2016.06.07.04.01.01
+        by mx.google.com with ESMTP id f10si34490098pfj.137.2016.06.07.04.01.01
         for <linux-mm@kvack.org>;
         Tue, 07 Jun 2016 04:01:02 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9-rebased 07/32] thp, vmstats: add counters for huge file pages
-Date: Tue,  7 Jun 2016 14:00:21 +0300
-Message-Id: <1465297246-98985-8-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9-rebased 10/32] thp: handle file COW faults
+Date: Tue,  7 Jun 2016 14:00:24 +0300
+Message-Id: <1465297246-98985-11-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1465297246-98985-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1465297246-98985-1-git-send-email-kirill.shutemov@linux.intel.com>
@@ -20,66 +20,36 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-THP_FILE_ALLOC: how many times huge page was allocated and put page
-cache.
+File COW for THP is handled on pte level: just split the pmd.
 
-THP_FILE_MAPPED: how many times file huge page was mapped.
+It's not clear how benefitial would be allocation of huge pages on COW
+faults. And it would require some code to make them work.
+
+I think at some point we can consider teaching khugepaged to collapse
+pages in COW mappings, but allocating huge on fault is probably
+overkill.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/vm_event_item.h | 7 +++++++
- mm/memory.c                   | 1 +
- mm/vmstat.c                   | 2 ++
- 3 files changed, 10 insertions(+)
+ mm/memory.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index ec084321fe09..42604173f122 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -70,6 +70,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		THP_FAULT_FALLBACK,
- 		THP_COLLAPSE_ALLOC,
- 		THP_COLLAPSE_ALLOC_FAILED,
-+		THP_FILE_ALLOC,
-+		THP_FILE_MAPPED,
- 		THP_SPLIT_PAGE,
- 		THP_SPLIT_PAGE_FAILED,
- 		THP_DEFERRED_SPLIT_PAGE,
-@@ -100,4 +102,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		NR_VM_EVENT_ITEMS
- };
- 
-+#ifndef CONFIG_TRANSPARENT_HUGEPAGE
-+#define THP_FILE_ALLOC ({ BUILD_BUG(); 0; })
-+#define THP_FILE_MAPPED ({ BUILD_BUG(); 0; })
-+#endif
-+
- #endif		/* VM_EVENT_ITEM_H_INCLUDED */
 diff --git a/mm/memory.c b/mm/memory.c
-index ebcec3f9ca06..7f2e16e9f0cb 100644
+index 7f2e16e9f0cb..a9501e2851d8 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2969,6 +2969,7 @@ static int do_set_pmd(struct fault_env *fe, struct page *page)
+@@ -3466,6 +3466,11 @@ static int wp_huge_pmd(struct fault_env *fe, pmd_t orig_pmd)
+ 	if (fe->vma->vm_ops->pmd_fault)
+ 		return fe->vma->vm_ops->pmd_fault(fe->vma, fe->address, fe->pmd,
+ 				fe->flags);
++
++	/* COW handled on pte level: split pmd */
++	VM_BUG_ON_VMA(fe->vma->vm_flags & VM_SHARED, fe->vma);
++	split_huge_pmd(fe->vma, fe->pmd, fe->address);
++
+ 	return VM_FAULT_FALLBACK;
+ }
  
- 	/* fault is handled */
- 	ret = 0;
-+	count_vm_event(THP_FILE_MAPPED);
- out:
- 	spin_unlock(fe->ptl);
- 	return ret;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 076c39e3ba09..68693857397c 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -829,6 +829,8 @@ const char * const vmstat_text[] = {
- 	"thp_fault_fallback",
- 	"thp_collapse_alloc",
- 	"thp_collapse_alloc_failed",
-+	"thp_file_alloc",
-+	"thp_file_mapped",
- 	"thp_split_page",
- 	"thp_split_page_failed",
- 	"thp_deferred_split_page",
 -- 
 2.8.1
 
