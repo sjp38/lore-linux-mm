@@ -1,123 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BD426B025F
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 08:50:16 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 4so25243445wmz.1
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 05:50:16 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id ft6si33164059wjb.177.2016.06.07.05.50.15
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B8BE6B0005
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 09:14:31 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r5so12176137wmr.0
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 06:14:31 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id j131si13786322wmg.37.2016.06.07.06.14.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jun 2016 05:50:15 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id r5so5772828wmr.0
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 05:50:15 -0700 (PDT)
-Date: Tue, 7 Jun 2016 14:50:14 +0200
+        Tue, 07 Jun 2016 06:14:30 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id n184so24155292wmn.1
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 06:14:30 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] exit: clear TIF_MEMDIE after exit_task_work
-Message-ID: <20160607125014.GL12305@dhcp22.suse.cz>
-References: <1456765329-14890-1-git-send-email-vdavydov@virtuozzo.com>
- <20160301155212.GJ9461@dhcp22.suse.cz>
- <20160301175431-mutt-send-email-mst@redhat.com>
- <20160301160813.GM9461@dhcp22.suse.cz>
- <20160301182027-mutt-send-email-mst@redhat.com>
- <20160301163537.GO9461@dhcp22.suse.cz>
- <20160301184046-mutt-send-email-mst@redhat.com>
- <20160301171758.GP9461@dhcp22.suse.cz>
- <20160301191906-mutt-send-email-mst@redhat.com>
- <20160314163943.GE11400@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160314163943.GE11400@dhcp22.suse.cz>
+Subject: [PATCH] mm, oom_reaper: make sure that mmput_async is called only when memory was reaped
+Date: Tue,  7 Jun 2016 15:14:24 +0200
+Message-Id: <1465305264-28715-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon 14-03-16 17:39:43, Michal Hocko wrote:
-> On Tue 01-03-16 19:20:24, Michael S. Tsirkin wrote:
-> > On Tue, Mar 01, 2016 at 06:17:58PM +0100, Michal Hocko wrote:
-> [...]
-> > > Sorry, I could have been more verbose... The code would have to make sure
-> > > that the mm is still alive before calling g-u-p by
-> > > atomic_inc_not_zero(&mm->mm_users) and fail if the user count dropped to
-> > > 0 in the mean time. See how fs/proc/task_mmu.c does that (proc_mem_open
-> > > + m_start + m_stop.
-> > > 
-> > > The biggest advanatage would be that the mm address space pin would be
-> > > only for the particular operation. Not sure whether that is possible in
-> > > the driver though. Anyway pinning the mm for a potentially unbounded
-> > > amount of time doesn't sound too nice.
-> > 
-> > Hmm that would be another atomic on data path ...
-> > I'd have to explore that.
-> 
-> Did you have any chance to look into this?
+From: Michal Hocko <mhocko@suse.com>
 
-So this is my take to get rid of mm_users pinning for an unbounded
-amount of time. This is even not compile tested. I am not sure how to
-handle when the mm goes away while there are still work items pending.
-It seems this is not handled current anyway and only shouts with a
-warning so this shouldn't cause a new regression AFAICS. I am not
-familiar with the vnet code at all so I might be missing many things,
-though. Does the below sound even remotely reasonable to you Michael?
+Tetsuo is worried that mmput_async might still lead to a premature
+new oom victim selection due to the following race:
+
+__oom_reap_task				exit_mm
+  find_lock_task_mm
+  atomic_inc(mm->mm_users) # = 2
+  task_unlock
+  					  task_lock
+					  task->mm = NULL
+					  up_read(&mm->mmap_sem)
+		< somebody write locks mmap_sem >
+					  task_unlock
+					  mmput
+  					    atomic_dec_and_test # = 1
+					  exit_oom_victim
+  down_read_trylock # failed - no reclaim
+  mmput_async # Takes unpredictable amount of time
+  		< new OOM situation >
+
+the final __mmput will be executed in the delayed context which might
+happen far in the future. Such a race is highly unlikely because the
+write holder of mmap_sem would have to be an external task (all direct
+holders are already killed or exiting) and it usually have to pin
+mm_users in order to do anything reasonable.
+
+We can, however, make sure that the mmput_async is only called when we
+do not back off and reap some memory. That would reduce the impact of
+the delayed __mmput because the real content would be already freed.
+Pin mm_count to keep it alive after we drop task_lock and before we try
+to get mmap_sem. If the mmap_sem succeeds we can try to grab mm_users
+reference and then go on with unmapping the address space.
+
+It is not clear whether this race is possible at all but it is better
+to be more robust and do not pin mm_users unless we are sure we are
+actually doing some real work during __oom_reap_task.
+
+Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
-diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
-index 669fef1e2bb6..47a3e2c832ea 100644
---- a/drivers/vhost/vhost.c
-+++ b/drivers/vhost/vhost.c
-@@ -343,7 +343,12 @@ static int vhost_worker(void *data)
+ mm/oom_kill.c | 25 ++++++++++++++++++-------
+ 1 file changed, 18 insertions(+), 7 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index c11f8bdd0c12..a0371ea2c2c7 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -452,7 +452,7 @@ static bool __oom_reap_task(struct task_struct *tsk)
+ 	 * We have to make sure to not race with the victim exit path
+ 	 * and cause premature new oom victim selection:
+ 	 * __oom_reap_task		exit_mm
+-	 *   atomic_inc_not_zero
++	 *   mmget_not_zero
+ 	 *				  mmput
+ 	 *				    atomic_dec_and_test
+ 	 *				  exit_oom_victim
+@@ -474,12 +474,22 @@ static bool __oom_reap_task(struct task_struct *tsk)
+ 	if (!p)
+ 		goto unlock_oom;
+ 	mm = p->mm;
+-	atomic_inc(&mm->mm_users);
++	atomic_inc(&mm->mm_count);
+ 	task_unlock(p);
  
- 		if (work) {
- 			__set_current_state(TASK_RUNNING);
-+			if (!mmget_not_zero(dev->mm)) {
-+				pr_warn("vhost: device owner mm got released unexpectedly\n");
-+				break;
-+			}
- 			work->fn(work);
-+			mmput(dev->mm);
- 			if (need_resched())
- 				schedule();
- 		} else
-@@ -481,7 +486,16 @@ long vhost_dev_set_owner(struct vhost_dev *dev)
+ 	if (!down_read_trylock(&mm->mmap_sem)) {
+ 		ret = false;
+-		goto unlock_oom;
++		goto mm_drop;
++	}
++
++	/*
++	 * increase mm_users only after we know we will reap something so
++	 * that the mmput_async is called only when we have reaped something
++	 * and delayed __mmput doesn't matter that much
++	 */
++	if (!mmget_not_zero(&mm->mm_users)) {
++		up_read(&mm->mmap_sem);
++		goto mm_drop;
  	}
  
- 	/* No owner, become one */
--	dev->mm = get_task_mm(current);
-+	task_lock(current);
-+	if (current->mm) {
-+		dev->mm = current->mm;
-+		atomic_inc(&curent->mm->mm_count);
-+	}
-+	task_unlock(current);
-+	if (!dev->mm) {
-+		err = -EINVAL;
-+		goto err_mm;
-+	}
- 	worker = kthread_create(vhost_worker, dev, "vhost-%d", current->pid);
- 	if (IS_ERR(worker)) {
- 		err = PTR_ERR(worker);
-@@ -505,7 +519,7 @@ long vhost_dev_set_owner(struct vhost_dev *dev)
- 	dev->worker = NULL;
- err_worker:
- 	if (dev->mm)
--		mmput(dev->mm);
-+		mmdrop(dev->mm);
- 	dev->mm = NULL;
- err_mm:
- 	return err;
-@@ -583,7 +597,7 @@ void vhost_dev_cleanup(struct vhost_dev *dev, bool locked)
- 		dev->worker = NULL;
- 	}
- 	if (dev->mm)
--		mmput(dev->mm);
-+		mmdrop(dev->mm);
- 	dev->mm = NULL;
+ 	tlb_gather_mmu(&tlb, mm, 0, -1);
+@@ -521,15 +531,16 @@ static bool __oom_reap_task(struct task_struct *tsk)
+ 	 * to release its memory.
+ 	 */
+ 	set_bit(MMF_OOM_REAPED, &mm->flags);
+-unlock_oom:
+-	mutex_unlock(&oom_lock);
+ 	/*
+ 	 * Drop our reference but make sure the mmput slow path is called from a
+ 	 * different context because we shouldn't risk we get stuck there and
+ 	 * put the oom_reaper out of the way.
+ 	 */
+-	if (mm)
+-		mmput_async(mm);
++	mmput_async(mm);
++mm_drop:
++	mmdrop(mm);
++unlock_oom:
++	mutex_unlock(&oom_lock);
+ 	return ret;
  }
- EXPORT_SYMBOL_GPL(vhost_dev_cleanup);
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
