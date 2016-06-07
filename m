@@ -1,61 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f200.google.com (mail-ig0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 590896B025F
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 16:47:22 -0400 (EDT)
-Received: by mail-ig0-f200.google.com with SMTP id i11so172426812igh.0
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 13:47:22 -0700 (PDT)
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DDC56B0260
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 16:47:28 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id u203so179056991itc.0
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 13:47:28 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id d10si18377052pap.88.2016.06.07.13.47.21
+        by mx.google.com with ESMTP id a16si36713910pfg.217.2016.06.07.13.47.27
         for <linux-mm@kvack.org>;
-        Tue, 07 Jun 2016 13:47:21 -0700 (PDT)
-Subject: [PATCH 4/9] x86: wire up mprotect_key() system call
+        Tue, 07 Jun 2016 13:47:27 -0700 (PDT)
+Subject: [PATCH 7/9] generic syscalls: wire up memory protection keys syscalls
 From: Dave Hansen <dave@sr71.net>
-Date: Tue, 07 Jun 2016 13:47:20 -0700
+Date: Tue, 07 Jun 2016 13:47:25 -0700
 References: <20160607204712.594DE00A@viggo.jf.intel.com>
 In-Reply-To: <20160607204712.594DE00A@viggo.jf.intel.com>
-Message-Id: <20160607204720.BF5F4F16@viggo.jf.intel.com>
+Message-Id: <20160607204725.A731CB1E@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
+Cc: x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, arnd@arndb.de
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This is all that we need to get the new system call itself
-working on x86.
+These new syscalls are implemented as generic code, so enable
+them for architectures like arm64 which use the generic syscall
+table.
+
+According to Arnd:
+
+	Even if the support is x86 specific for the forseeable
+	future, it may be good to reserve the number just in
+	case.  The other architecture specific syscall lists are
+	usually left to the individual arch maintainers, most a
+	lot of the newer architectures share this table.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-api@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: x86@kernel.org
-Cc: torvalds@linux-foundation.org
-Cc: akpm@linux-foundation.org
+Cc: Arnd Bergmann <arnd@arndb.de>
 ---
 
- b/arch/x86/entry/syscalls/syscall_32.tbl |    1 +
- b/arch/x86/entry/syscalls/syscall_64.tbl |    1 +
- 2 files changed, 2 insertions(+)
+ b/include/uapi/asm-generic/unistd.h |   12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
 
-diff -puN arch/x86/entry/syscalls/syscall_32.tbl~pkeys-114-x86-mprotect_key arch/x86/entry/syscalls/syscall_32.tbl
---- a/arch/x86/entry/syscalls/syscall_32.tbl~pkeys-114-x86-mprotect_key	2016-06-07 13:22:19.935002276 -0700
-+++ b/arch/x86/entry/syscalls/syscall_32.tbl	2016-06-07 13:22:19.940002506 -0700
-@@ -386,3 +386,4 @@
- 377	i386	copy_file_range		sys_copy_file_range
- 378	i386	preadv2			sys_preadv2			compat_sys_preadv2
- 379	i386	pwritev2		sys_pwritev2			compat_sys_pwritev2
-+380	i386	pkey_mprotect		sys_pkey_mprotect
-diff -puN arch/x86/entry/syscalls/syscall_64.tbl~pkeys-114-x86-mprotect_key arch/x86/entry/syscalls/syscall_64.tbl
---- a/arch/x86/entry/syscalls/syscall_64.tbl~pkeys-114-x86-mprotect_key	2016-06-07 13:22:19.936002322 -0700
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl	2016-06-07 13:22:19.940002506 -0700
-@@ -335,6 +335,7 @@
- 326	common	copy_file_range		sys_copy_file_range
- 327	64	preadv2			sys_preadv2
- 328	64	pwritev2		sys_pwritev2
-+329	common	pkey_mprotect		sys_pkey_mprotect
+diff -puN include/uapi/asm-generic/unistd.h~pkeys-119-syscalls-generic include/uapi/asm-generic/unistd.h
+--- a/include/uapi/asm-generic/unistd.h~pkeys-119-syscalls-generic	2016-06-07 13:22:21.703083776 -0700
++++ b/include/uapi/asm-generic/unistd.h	2016-06-07 13:22:21.707083961 -0700
+@@ -724,9 +724,19 @@ __SYSCALL(__NR_copy_file_range, sys_copy
+ __SC_COMP(__NR_preadv2, sys_preadv2, compat_sys_preadv2)
+ #define __NR_pwritev2 287
+ __SC_COMP(__NR_pwritev2, sys_pwritev2, compat_sys_pwritev2)
++#define __NR_pkey_mprotect 288
++__SYSCALL(__NR_pkey_mprotect, sys_pkey_mprotect)
++#define __NR_pkey_alloc 289
++__SYSCALL(__NR_pkey_alloc,    sys_pkey_alloc)
++#define __NR_pkey_free 290
++__SYSCALL(__NR_pkey_free,     sys_pkey_free)
++#define __NR_pkey_get 291
++__SYSCALL(__NR_pkey_get,      sys_pkey_get)
++#define __NR_pkey_set 292
++__SYSCALL(__NR_pkey_set,      sys_pkey_set)
  
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
+ #undef __NR_syscalls
+-#define __NR_syscalls 288
++#define __NR_syscalls 293
+ 
+ /*
+  * All syscalls below here should go away really,
 _
 
 --
