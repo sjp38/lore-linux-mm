@@ -1,158 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4497D6B0005
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 02:43:26 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id fg1so234161181pad.1
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 23:43:26 -0700 (PDT)
-Received: from prv-mh.provo.novell.com (prv-mh.provo.novell.com. [137.65.248.74])
-        by mx.google.com with ESMTPS id or6si3691548pac.233.2016.06.06.23.43.24
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 900976B0005
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 02:55:17 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id b126so137583192ite.3
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 23:55:17 -0700 (PDT)
+Received: from mx0b-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id qz3si31545948pab.82.2016.06.06.23.55.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 23:43:25 -0700 (PDT)
-Message-Id: <5756892902000078000F26C3@prv-mh.provo.novell.com>
-Date: Tue, 07 Jun 2016 00:43:21 -0600
-From: "Jan Beulich" <JBeulich@suse.com>
-Subject: Re: [Bug 119641] New: hugetlbfs: disabling because there are
- no supported hugepage sizes
-References: <bug-119641-27@https.bugzilla.kernel.org/>
- <20160606140123.bbc4b06d0f9d8b974f7b323f@linux-foundation.org>
-In-Reply-To: <20160606140123.bbc4b06d0f9d8b974f7b323f@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+        Mon, 06 Jun 2016 23:55:17 -0700 (PDT)
+Received: from pps.filterd (m0048827.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u576t56A002207
+	for <linux-mm@kvack.org>; Tue, 7 Jun 2016 02:55:16 -0400
+Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com [202.81.31.141])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 23dq0t5p6w-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 07 Jun 2016 02:55:08 -0400
+Received: from localhost
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 7 Jun 2016 16:54:24 +1000
+Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id B16BB2CE809C
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 16:53:14 +1000 (EST)
+Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u576qvU315859906
+	for <linux-mm@kvack.org>; Tue, 7 Jun 2016 16:52:57 +1000
+Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
+	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u576qvGZ032022
+	for <linux-mm@kvack.org>; Tue, 7 Jun 2016 16:52:57 +1000
+Date: Tue, 07 Jun 2016 12:22:54 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/2] mm/debug: Add VM_WARN which maps to WARN()
+References: <1464692688-6612-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1464692688-6612-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <57566F46.9010607@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jp.pozzi@izzop.net, Andrew Morton <akpm@linux-foundation.org>
-Cc: bugzilla-daemon@bugzilla.kernel.org, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, mpe@ellerman.id.au
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
->>> On 06.06.16 at 23:01, <akpm@linux-foundation.org> wrote:
-> Does anyone have any theories about this?  I went through the
-> 4.5.2->4.5.5 changelog searching for "huget" but came up blank..
+On 05/31/2016 04:34 PM, Aneesh Kumar K.V wrote:
+> This enables us to do VM_WARN(condition, "warn message");
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-Well, the original report (still quoted below) doesn't say whether
-that's a PV or HVM guest under Xen (not that from the .config one
-cannot tell). In the former case, observed behavior is the intended
-effect of commit 103f6112f2: There simply are no huge pages
-available in that environment. In the latter case I can't see where
-the problem would be coming from.
-
-Jan
-
-> I'm suspiciously staring at Ingo's change
->=20
-> commit b2eafe890d4a09bfa63ab31ff018d7d6bb8cfefc
-> Merge: abfb949 ea5dfb5
-> Author:     Ingo Molnar <mingo@kernel.org>
-> AuthorDate: Fri Apr 22 10:12:19 2016 +0200
-> Commit:     Ingo Molnar <mingo@kernel.org>
-> CommitDate: Fri Apr 22 10:13:53 2016 +0200
->=20
->     Merge branch 'x86/urgent' into x86/asm, to fix semantic conflict
->    =20
->     'cpu_has_pse' has changed to boot_cpu_has(X86_FEATURE_PSE), fix this
->     up in the merge commit when merging the x86/urgent tree that =
-includes
->     the following commit:
->    =20
->       103f6112f253 ("x86/mm/xen: Suppress hugetlbfs in PV guests")
->    =20
->     Signed-off-by: Ingo Molnar <mingo@kernel.org>
->=20
-> --- a/arch/x86/include/asm/hugetlb.h
-> +++ b/arch/x86/include/asm/hugetlb.h
-> @@@ -4,6 -4,7 +4,7 @@@
->   #include <asm/page.h>
->   #include <asm-generic/hugetlb.h>
->  =20
->  -#define hugepages_supported() cpu_has_pse
-> ++#define hugepages_supported() boot_cpu_has(X86_FEATURE_PSE)
->  =20
->   static inline int is_hugepage_only_range(struct mm_struct *mm,
->                                          unsigned long addr,
->=20
->=20
-> Which is a followon to Jan's
->=20
-> y:/usr/src/git26> gitshow 103f6112f253
-> commit 103f6112f253017d7062cd74d17f4a514ed4485c
-> Author:     Jan Beulich <JBeulich@suse.com>
-> AuthorDate: Thu Apr 21 00:27:04 2016 -0600
-> Commit:     Ingo Molnar <mingo@kernel.org>
-> CommitDate: Fri Apr 22 10:05:00 2016 +0200
->=20
->     x86/mm/xen: Suppress hugetlbfs in PV guests
->    =20
->     Huge pages are not normally available to PV guests. Not suppressing
->     hugetlbfs use results in an endless loop of page faults when user =
-mode
->     code tries to access a hugetlbfs mapped area (since the hypervisor
->     denies such PTEs to be created, but error indications can't be
->     propagated out of xen_set_pte_at(), just like for various of its
->     siblings), and - once killed in an oops like this:
->=20
->=20
-> On Sat, 04 Jun 2016 17:08:36 +0000 bugzilla-daemon@bugzilla.kernel.org =
-wrote:
->=20
->> https://bugzilla.kernel.org/show_bug.cgi?id=3D119641=20
->>=20
->>             Bug ID: 119641
->>            Summary: hugetlbfs: disabling because there are no supported
->>                     hugepage sizes
->>            Product: Memory Management
->>            Version: 2.5
->>     Kernel Version: 3.6.1
->>           Hardware: Intel
->>                 OS: Linux
->>               Tree: Mainline
->>             Status: NEW
->>           Severity: normal
->>           Priority: P1
->>          Component: Other
->>           Assignee: akpm@linux-foundation.org=20
->>           Reporter: jp.pozzi@izzop.net=20
->>         Regression: No
->>=20
->> Created attachment 219011
->>   --> https://bugzilla.kernel.org/attachment.cgi?id=3D219011&action=3Ded=
-it=20
->> .config for 4.6.1 kernel
->>=20
->> Hello,
->>=20
->> I get a message while starting the 4.6.1 kernel under Xen :
->> hugetlbfs: disabling because there are no supported hugepage sizes
->>=20
->> And after grepping /proc/meminfo for Huge I get only :
->> grep -i huge /proc/meminfo=20
->> AnonHugePages:         0 kB
->>=20
->> I get this message only when starting the kernel under Xen, when =
-starting
->> kernel alone All is OK and I get the "normal" hugepages list.
->>=20
->> I test some previous kernels versions :
->> 4.5.2   OK
->> 4.5.5   KO
->> 4.6.0   KO
->>=20
->> My system is=20
->> CPU     Intel Core I7 6700
->> MEM     32Go
->> Disks   some ...
->> System  Debian unstable up to date
->>=20
->> I enclose the .config file.
->>=20
->> Regards
->>=20
->> JP P
->>=20
->> --=20
->> You are receiving this mail because:
->> You are the assignee for the bug.
-
+Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
