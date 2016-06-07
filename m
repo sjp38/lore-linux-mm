@@ -1,86 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B9B646B0005
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 09:57:37 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f75so46102215wmf.2
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 06:57:37 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 76si25297628wmk.119.2016.06.07.06.57.36
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 661386B0253
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 09:59:09 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id f5so213715415vkb.1
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 06:59:09 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [74.207.234.97])
+        by mx.google.com with ESMTPS id h2si5895613ywd.124.2016.06.07.06.59.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jun 2016 06:57:36 -0700 (PDT)
-Date: Tue, 7 Jun 2016 09:57:26 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 05/10] mm: remove LRU balancing effect of temporary page
- isolation
-Message-ID: <20160607135726.GA9978@cmpxchg.org>
-References: <20160606194836.3624-1-hannes@cmpxchg.org>
- <20160606194836.3624-6-hannes@cmpxchg.org>
- <1465250169.16365.147.camel@redhat.com>
- <20160606221550.GA6665@cmpxchg.org>
- <1465261878.16365.149.camel@redhat.com>
+        Tue, 07 Jun 2016 06:59:08 -0700 (PDT)
+Date: Tue, 7 Jun 2016 09:58:57 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [kernel-hardening] Re: [PATCH v2 1/3] Add the latent_entropy gcc
+ plugin
+Message-ID: <20160607135857.GF7057@thunk.org>
+References: <20160531013029.4c5db8b570d86527b0b53fe4@gmail.com>
+ <5755CF44.24670.9C7568D@pageexec.freemail.hu>
+ <20160606231319.GC7057@thunk.org>
+ <5756BBC2.3735.D63200E@pageexec.freemail.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1465261878.16365.149.camel@redhat.com>
+In-Reply-To: <5756BBC2.3735.D63200E@pageexec.freemail.hu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
+To: PaX Team <pageexec@freemail.hu>
+Cc: kernel-hardening@lists.openwall.com, David Brown <david.brown@linaro.org>, emese Revfy <re.emese@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, spender@grsecurity.net, mmarek@suse.com, keescook@chromium.org, linux-kernel@vger.kernel.org, yamada.masahiro@socionext.com, linux-kbuild@vger.kernel.org, linux-mm@kvack.org, axboe@kernel.dk, viro@zeniv.linux.org.uk, paulmck@linux.vnet.ibm.com, mingo@redhat.com, tglx@linutronix.de, bart.vanassche@sandisk.com, davem@davemloft.net
 
-On Mon, Jun 06, 2016 at 09:11:18PM -0400, Rik van Riel wrote:
-> On Mon, 2016-06-06 at 18:15 -0400, Johannes Weiner wrote:
-> > On Mon, Jun 06, 2016 at 05:56:09PM -0400, Rik van Riel wrote:
-> > > 
-> > > On Mon, 2016-06-06 at 15:48 -0400, Johannes Weiner wrote:
-> > > > 
-> > > >  
-> > > > +void lru_cache_putback(struct page *page)
-> > > > +{
-> > > > +	struct pagevec *pvec = &get_cpu_var(lru_putback_pvec);
-> > > > +
-> > > > +	get_page(page);
-> > > > +	if (!pagevec_space(pvec))
-> > > > +		__pagevec_lru_add(pvec, false);
-> > > > +	pagevec_add(pvec, page);
-> > > > +	put_cpu_var(lru_putback_pvec);
-> > > > +}
-> > > > 
-> > > Wait a moment.
-> > > 
-> > > So now we have a putback_lru_page, which does adjust
-> > > the statistics, and an lru_cache_putback which does
-> > > not?
-> > > 
-> > > This function could use a name that is not as similar
-> > > to its counterpart :)
-> > lru_cache_add() and lru_cache_putback() are the two sibling
-> > functions,
-> > where the first influences the LRU balance and the second one
-> > doesn't.
-> > 
-> > The last hunk in the patch (obscured by showing the label instead of
-> > the function name as context) updates putback_lru_page() from using
-> > lru_cache_add() to using lru_cache_putback().
-> > 
-> > Does that make sense?
+On Tue, Jun 07, 2016 at 02:19:14PM +0200, PaX Team wrote:
+> (i believe that) latent entropy is found in more than just interrupt timing, there're
+> also data dependent computations that can have entropy, either on a single system or
+> across a population of them.
+
+It's not clear how much data dependent computations you would have in
+kernel space that's not introduced by interrupts, but there would
+some, I'm sure.
+
+> > we're doing this already inside modern Linux kernels.  On every single
+> > interrupt we are mixing into a per-CPU "fast mix" pool the IP from the
+> > interrupt registers. 
 > 
-> That means the page reclaim does not update the
-> "rotated" statistics.  That seems undesirable,
-> no?  Am I overlooking something?
+> i agree that sampling the kernel register state can have entropy (the plugin
+> already extracts the current stack pointer) but i'm much less sure about
+> userland (at least i see no dependence on !user_mode(...)) since an attacker
+> could feed no entropy into the pool but still get it credited.
 
-Oh, reclaim doesn't use putback_lru_page(), except for the stray
-unevictable corner case. It does open-coded putback in batch, and
-those functions continue to update the reclaim statistics. See the
-recent_scanned/recent_rotated manipulations in putback_inactive_pages(),
-shrink_inactive_list(), and shrink_active_list().
+Well, the attacker can't control when the interrupts happen, but it
+could try to burn power by simply having a thread spin in an infinite
+loop ("0: jmp 0"), sure.  Of course, this would be rather noticeable,
+and if there were any other jobs running, the attacker would be
+degrading the amount of entropy that would be gathered, but not
+eliminating it.
 
-putback_lru_page() is mainly used by page migration, cgroup migration,
-mlock etc. - all operations which muck with the LRU for purposes other
-than reclaim or aging, and so shouldn't affect the anon/file balance.
+All of this goes into the question of how much entropy we can assume
+can be gathered per interrupt (or in the case of basic block
+instrumentation, per basic block).  IIRC, in the latent_entropy
+patches, the assumption is that zero entropy should be credited,
+correct?
 
-This patch only changes those LRU users, not page reclaim.
+In the case Linux's current get_interrupt_randomness(), there's a
+reason I'm using a very conservative 1/64th of a bit per interrupt.
+In practice, on most modern CPU where we have a cycle counter, even if
+the bad guy was doing a "0: jmp 0" spinning loop, we would still get
+entropy via the cycle counter interacting with what is hopefully a
+certain amount of entropy from the interrupt timing.
+
+On a crappy $50 Android phone/tablet from China, using an ancient ARM
+chip that doesn't have any cycle counting facilities, we're kind of
+screwed, but those devices have lousy batteries, so if you have an
+attacker that has disabled the wakelocks and is spinning in an
+infinite loop, the battery life won't last long, so the problem will
+mostly solve itself when the phone dies.  :-)
+
+       	     	    	     	   	  - Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
