@@ -1,69 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D22EC6B025E
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 08:48:22 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id k184so33147465wme.3
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 05:48:22 -0700 (PDT)
-Received: from r00tworld.com (r00tworld.com. [212.85.137.150])
-        by mx.google.com with ESMTPS id r75si25007634wmg.31.2016.06.07.05.48.21
+	by kanga.kvack.org (Postfix) with ESMTP id 8BD426B025F
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 08:50:16 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 4so25243445wmz.1
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 05:50:16 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id ft6si33164059wjb.177.2016.06.07.05.50.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Jun 2016 05:48:21 -0700 (PDT)
-From: "PaX Team" <pageexec@freemail.hu>
-Date: Tue, 07 Jun 2016 14:19:14 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Jun 2016 05:50:15 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id r5so5772828wmr.0
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 05:50:15 -0700 (PDT)
+Date: Tue, 7 Jun 2016 14:50:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] exit: clear TIF_MEMDIE after exit_task_work
+Message-ID: <20160607125014.GL12305@dhcp22.suse.cz>
+References: <1456765329-14890-1-git-send-email-vdavydov@virtuozzo.com>
+ <20160301155212.GJ9461@dhcp22.suse.cz>
+ <20160301175431-mutt-send-email-mst@redhat.com>
+ <20160301160813.GM9461@dhcp22.suse.cz>
+ <20160301182027-mutt-send-email-mst@redhat.com>
+ <20160301163537.GO9461@dhcp22.suse.cz>
+ <20160301184046-mutt-send-email-mst@redhat.com>
+ <20160301171758.GP9461@dhcp22.suse.cz>
+ <20160301191906-mutt-send-email-mst@redhat.com>
+ <20160314163943.GE11400@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [kernel-hardening] Re: [PATCH v2 1/3] Add the latent_entropy gcc plugin
-Reply-to: pageexec@freemail.hu
-Message-ID: <5756BBC2.3735.D63200E@pageexec.freemail.hu>
-In-reply-to: <20160606231319.GC7057@thunk.org>
-References: <20160531013029.4c5db8b570d86527b0b53fe4@gmail.com>, <5755CF44.24670.9C7568D@pageexec.freemail.hu>, <20160606231319.GC7057@thunk.org>
-Content-type: text/plain; charset=US-ASCII
-Content-transfer-encoding: 7BIT
-Content-description: Mail message body
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160314163943.GE11400@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: kernel-hardening@lists.openwall.com, David Brown <david.brown@linaro.org>, emese Revfy <re.emese@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, spender@grsecurity.net, mmarek@suse.com, keescook@chromium.org, linux-kernel@vger.kernel.org, yamada.masahiro@socionext.com, linux-kbuild@vger.kernel.org, linux-mm@kvack.org, axboe@kernel.dk, viro@zeniv.linux.org.uk, paulmck@linux.vnet.ibm.com, mingo@redhat.com, tglx@linutronix.de, bart.vanassche@sandisk.com, davem@davemloft.net
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 6 Jun 2016 at 19:13, Theodore Ts'o wrote:
-
-> On Mon, Jun 06, 2016 at 09:30:12PM +0200, PaX Team wrote:
+On Mon 14-03-16 17:39:43, Michal Hocko wrote:
+> On Tue 01-03-16 19:20:24, Michael S. Tsirkin wrote:
+> > On Tue, Mar 01, 2016 at 06:17:58PM +0100, Michal Hocko wrote:
+> [...]
+> > > Sorry, I could have been more verbose... The code would have to make sure
+> > > that the mm is still alive before calling g-u-p by
+> > > atomic_inc_not_zero(&mm->mm_users) and fail if the user count dropped to
+> > > 0 in the mean time. See how fs/proc/task_mmu.c does that (proc_mem_open
+> > > + m_start + m_stop.
+> > > 
+> > > The biggest advanatage would be that the mm address space pin would be
+> > > only for the particular operation. Not sure whether that is possible in
+> > > the driver though. Anyway pinning the mm for a potentially unbounded
+> > > amount of time doesn't sound too nice.
 > > 
-> > what matters for latent entropy is not the actual values fed into the entropy
-> > pool (they're effectively compile time constants save for runtime data dependent
-> > computations) but the precise sequence of them. interrupts stir this sequence
-> > and thus extract entropy. perhaps as a small example imagine that an uninterrupted
-> > kernel boot sequence feeds these values into the entropy pool:
-> >   A B C
-> > 
-> > now imagine that a single interrupt can occur around any one of these values:
-> >   I A B C
-> >   A I B C
-> >   A B I C
-> >   A B C I
-> > 
-> > this way we can obtain 4 different final pool states that translate into up
-> > to 2 bits of latent entropy (depends on how probable each sequence is). note
-> > that this works regardless whether the underlying hardware has a high resolution
-> > timer whose values the interrupt handler would feed into the pool.
+> > Hmm that would be another atomic on data path ...
+> > I'd have to explore that.
 > 
-> Right, but if it's only about interrupts,
+> Did you have any chance to look into this?
 
-(i believe that) latent entropy is found in more than just interrupt timing, there're
-also data dependent computations that can have entropy, either on a single system or
-across a population of them.
-
-> we're doing this already inside modern Linux kernels.  On every single
-> interrupt we are mixing into a per-CPU "fast mix" pool the IP from the
-> interrupt registers. 
-
-i agree that sampling the kernel register state can have entropy (the plugin
-already extracts the current stack pointer) but i'm much less sure about
-userland (at least i see no dependence on !user_mode(...)) since an attacker
-could feed no entropy into the pool but still get it credited.
-
-cheers,
- PaX Team
+So this is my take to get rid of mm_users pinning for an unbounded
+amount of time. This is even not compile tested. I am not sure how to
+handle when the mm goes away while there are still work items pending.
+It seems this is not handled current anyway and only shouts with a
+warning so this shouldn't cause a new regression AFAICS. I am not
+familiar with the vnet code at all so I might be missing many things,
+though. Does the below sound even remotely reasonable to you Michael?
+---
+diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
+index 669fef1e2bb6..47a3e2c832ea 100644
+--- a/drivers/vhost/vhost.c
++++ b/drivers/vhost/vhost.c
+@@ -343,7 +343,12 @@ static int vhost_worker(void *data)
+ 
+ 		if (work) {
+ 			__set_current_state(TASK_RUNNING);
++			if (!mmget_not_zero(dev->mm)) {
++				pr_warn("vhost: device owner mm got released unexpectedly\n");
++				break;
++			}
+ 			work->fn(work);
++			mmput(dev->mm);
+ 			if (need_resched())
+ 				schedule();
+ 		} else
+@@ -481,7 +486,16 @@ long vhost_dev_set_owner(struct vhost_dev *dev)
+ 	}
+ 
+ 	/* No owner, become one */
+-	dev->mm = get_task_mm(current);
++	task_lock(current);
++	if (current->mm) {
++		dev->mm = current->mm;
++		atomic_inc(&curent->mm->mm_count);
++	}
++	task_unlock(current);
++	if (!dev->mm) {
++		err = -EINVAL;
++		goto err_mm;
++	}
+ 	worker = kthread_create(vhost_worker, dev, "vhost-%d", current->pid);
+ 	if (IS_ERR(worker)) {
+ 		err = PTR_ERR(worker);
+@@ -505,7 +519,7 @@ long vhost_dev_set_owner(struct vhost_dev *dev)
+ 	dev->worker = NULL;
+ err_worker:
+ 	if (dev->mm)
+-		mmput(dev->mm);
++		mmdrop(dev->mm);
+ 	dev->mm = NULL;
+ err_mm:
+ 	return err;
+@@ -583,7 +597,7 @@ void vhost_dev_cleanup(struct vhost_dev *dev, bool locked)
+ 		dev->worker = NULL;
+ 	}
+ 	if (dev->mm)
+-		mmput(dev->mm);
++		mmdrop(dev->mm);
+ 	dev->mm = NULL;
+ }
+ EXPORT_SYMBOL_GPL(vhost_dev_cleanup);
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
