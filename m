@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E79A828E1
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:09:12 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ug1so68561570pab.3
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:09:12 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id 2si20256592pfz.229.2016.06.07.04.01.06
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F6DA828E1
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:09:17 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id z189so24889805itg.2
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:09:17 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id o124si34553699pfb.247.2016.06.07.04.01.02
         for <linux-mm@kvack.org>;
-        Tue, 07 Jun 2016 04:01:06 -0700 (PDT)
+        Tue, 07 Jun 2016 04:01:02 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9-rebased 31/32] shmem: split huge pages beyond i_size under memory pressure
-Date: Tue,  7 Jun 2016 14:00:45 +0300
-Message-Id: <1465297246-98985-32-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9-rebased 15/32] thp, mlock: do not mlock PTE-mapped file huge pages
+Date: Tue,  7 Jun 2016 14:00:29 +0300
+Message-Id: <1465297246-98985-16-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1465297246-98985-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1465297246-98985-1-git-send-email-kirill.shutemov@linux.intel.com>
@@ -20,310 +20,165 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Even if user asked to allocate huge pages always (huge=always), we
-should be able to free up some memory by splitting pages which are
-partly byound i_size if memory presure comes or once we hit limit on
-filesystem size (-o size=).
+As with anon THP, we only mlock file huge pages if we can prove that the
+page is not mapped with PTE. This way we can avoid mlock leak into
+non-mlocked vma on split.
 
-In order to do this we maintain per-superblock list of inodes, which
-potentially have huge pages on the border of file size.
-
-Per-fs shrinker can reclaim memory by splitting such pages.
-
-If we hit -ENOSPC during shmem_getpage_gfp(), we try to split a page to
-free up space on the filesystem and retry allocation if it succeed.
+We rely on PageDoubleMap() under lock_page() to check if the the page
+may be PTE mapped. PG_double_map is set by page_add_file_rmap() when the
+page mapped with PTEs.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/shmem_fs.h |   6 +-
- mm/shmem.c               | 175 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 180 insertions(+), 1 deletion(-)
+ include/linux/page-flags.h | 13 ++++++++++++-
+ mm/huge_memory.c           | 27 ++++++++++++++++++++-------
+ mm/mmap.c                  |  6 ++++++
+ mm/page_alloc.c            |  2 ++
+ mm/rmap.c                  | 16 ++++++++++++++--
+ 5 files changed, 54 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 54fa28dfbd89..ff078e7043b6 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -16,8 +16,9 @@ struct shmem_inode_info {
- 	unsigned long		flags;
- 	unsigned long		alloced;	/* data pages alloced to file */
- 	unsigned long		swapped;	/* subtotal assigned to swap */
--	struct shared_policy	policy;		/* NUMA memory alloc policy */
-+	struct list_head        shrinklist;     /* shrinkable hpage inodes */
- 	struct list_head	swaplist;	/* chain of maybes on swap */
-+	struct shared_policy	policy;		/* NUMA memory alloc policy */
- 	struct simple_xattrs	xattrs;		/* list of xattrs */
- 	struct inode		vfs_inode;
- };
-@@ -33,6 +34,9 @@ struct shmem_sb_info {
- 	kuid_t uid;		    /* Mount uid for root directory */
- 	kgid_t gid;		    /* Mount gid for root directory */
- 	struct mempolicy *mpol;     /* default memory policy for mappings */
-+	spinlock_t shrinklist_lock;   /* Protects shrinklist */
-+	struct list_head shrinklist;  /* List of shinkable inodes */
-+	unsigned long shrinklist_len; /* Length of shrinklist */
- };
- 
- static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 71d9b2cd5cfb..2848d216bccc 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -188,6 +188,7 @@ static const struct inode_operations shmem_inode_operations;
- static const struct inode_operations shmem_dir_inode_operations;
- static const struct inode_operations shmem_special_inode_operations;
- static const struct vm_operations_struct shmem_vm_ops;
-+static struct file_system_type shmem_fs_type;
- 
- static LIST_HEAD(shmem_swaplist);
- static DEFINE_MUTEX(shmem_swaplist_mutex);
-@@ -406,10 +407,122 @@ static const char *shmem_format_huge(int huge)
- 	}
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 7c8e82ac2eb7..8cf09639185a 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -581,6 +581,17 @@ static inline int PageDoubleMap(struct page *page)
+ 	return PageHead(page) && test_bit(PG_double_map, &page[1].flags);
  }
  
-+static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
-+		struct shrink_control *sc, unsigned long nr_to_split)
++static inline void SetPageDoubleMap(struct page *page)
 +{
-+	LIST_HEAD(list), *pos, *next;
-+	struct inode *inode;
-+	struct shmem_inode_info *info;
-+	struct page *page;
-+	unsigned long batch = sc ? sc->nr_to_scan : 128;
-+	int removed = 0, split = 0;
-+
-+	if (list_empty(&sbinfo->shrinklist))
-+		return SHRINK_STOP;
-+
-+	spin_lock(&sbinfo->shrinklist_lock);
-+	list_for_each_safe(pos, next, &sbinfo->shrinklist) {
-+		info = list_entry(pos, struct shmem_inode_info, shrinklist);
-+
-+		/* pin the inode */
-+		inode = igrab(&info->vfs_inode);
-+
-+		/* inode is about to be evicted */
-+		if (!inode) {
-+			list_del_init(&info->shrinklist);
-+			removed++;
-+			goto next;
-+		}
-+
-+		/* Check if there's anything to gain */
-+		if (round_up(inode->i_size, PAGE_SIZE) ==
-+				round_up(inode->i_size, HPAGE_PMD_SIZE)) {
-+			list_del_init(&info->shrinklist);
-+			removed++;
-+			iput(inode);
-+			goto next;
-+		}
-+
-+		list_move(&info->shrinklist, &list);
-+next:
-+		if (!--batch)
-+			break;
-+	}
-+	spin_unlock(&sbinfo->shrinklist_lock);
-+
-+	list_for_each_safe(pos, next, &list) {
-+		int ret;
-+
-+		info = list_entry(pos, struct shmem_inode_info, shrinklist);
-+		inode = &info->vfs_inode;
-+
-+		if (nr_to_split && split >= nr_to_split) {
-+			iput(inode);
-+			continue;
-+		}
-+
-+		page = find_lock_page(inode->i_mapping,
-+				(inode->i_size & HPAGE_PMD_MASK) >> PAGE_SHIFT);
-+		if (!page)
-+			goto drop;
-+
-+		if (!PageTransHuge(page)) {
-+			unlock_page(page);
-+			put_page(page);
-+			goto drop;
-+		}
-+
-+		ret = split_huge_page(page);
-+		unlock_page(page);
-+		put_page(page);
-+
-+		if (ret) {
-+			/* split failed: leave it on the list */
-+			iput(inode);
-+			continue;
-+		}
-+
-+		split++;
-+drop:
-+		list_del_init(&info->shrinklist);
-+		removed++;
-+		iput(inode);
-+	}
-+
-+	spin_lock(&sbinfo->shrinklist_lock);
-+	list_splice_tail(&list, &sbinfo->shrinklist);
-+	sbinfo->shrinklist_len -= removed;
-+	spin_unlock(&sbinfo->shrinklist_lock);
-+
-+	return split;
++	VM_BUG_ON_PAGE(!PageHead(page), page);
++	set_bit(PG_double_map, &page[1].flags);
 +}
 +
-+static long shmem_unused_huge_scan(struct super_block *sb,
-+		struct shrink_control *sc)
++static inline void ClearPageDoubleMap(struct page *page)
 +{
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
-+
-+	if (!READ_ONCE(sbinfo->shrinklist_len))
-+		return SHRINK_STOP;
-+
-+	return shmem_unused_huge_shrink(sbinfo, sc, 0);
++	VM_BUG_ON_PAGE(!PageHead(page), page);
++	clear_bit(PG_double_map, &page[1].flags);
 +}
-+
-+static long shmem_unused_huge_count(struct super_block *sb,
-+		struct shrink_control *sc)
-+{
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
-+	return READ_ONCE(sbinfo->shrinklist_len);
-+}
- #else /* !CONFIG_TRANSPARENT_HUGE_PAGECACHE */
- 
- #define shmem_huge SHMEM_HUGE_DENY
- 
-+static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
-+		struct shrink_control *sc, unsigned long nr_to_split)
-+{
-+	return 0;
-+}
- #endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE */
- 
- /*
-@@ -843,6 +956,7 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
+ static inline int TestSetPageDoubleMap(struct page *page)
  {
- 	struct inode *inode = d_inode(dentry);
- 	struct shmem_inode_info *info = SHMEM_I(inode);
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
- 	int error;
- 
- 	error = inode_change_ok(inode, attr);
-@@ -878,6 +992,20 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
- 			if (oldsize > holebegin)
- 				unmap_mapping_range(inode->i_mapping,
- 							holebegin, 0, 1);
-+
-+			/*
-+			 * Part of the huge page can be beyond i_size: subject
-+			 * to shrink under memory pressure.
-+			 */
-+			if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE)) {
-+				spin_lock(&sbinfo->shrinklist_lock);
-+				if (list_empty(&info->shrinklist)) {
-+					list_add_tail(&info->shrinklist,
-+							&sbinfo->shrinklist);
-+					sbinfo->shrinklist_len++;
-+				}
-+				spin_unlock(&sbinfo->shrinklist_lock);
-+			}
- 		}
- 	}
- 
-@@ -890,11 +1018,20 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
- static void shmem_evict_inode(struct inode *inode)
- {
- 	struct shmem_inode_info *info = SHMEM_I(inode);
-+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
- 
- 	if (inode->i_mapping->a_ops == &shmem_aops) {
- 		shmem_unacct_size(info->flags, inode->i_size);
- 		inode->i_size = 0;
- 		shmem_truncate_range(inode, 0, (loff_t)-1);
-+		if (!list_empty(&info->shrinklist)) {
-+			spin_lock(&sbinfo->shrinklist_lock);
-+			if (!list_empty(&info->shrinklist)) {
-+				list_del_init(&info->shrinklist);
-+				sbinfo->shrinklist_len--;
-+			}
-+			spin_unlock(&sbinfo->shrinklist_lock);
-+		}
- 		if (!list_empty(&info->swaplist)) {
- 			mutex_lock(&shmem_swaplist_mutex);
- 			list_del_init(&info->swaplist);
-@@ -1563,8 +1700,23 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
- 					index, false);
- 		}
- 		if (IS_ERR(page)) {
-+			int retry = 5;
- 			error = PTR_ERR(page);
- 			page = NULL;
-+			if (error != -ENOSPC)
-+				goto failed;
-+			/*
-+			 * Try to reclaim some spece by splitting a huge page
-+			 * beyond i_size on the filesystem.
-+			 */
-+			while (retry--) {
-+				int ret;
-+				ret = shmem_unused_huge_shrink(sbinfo, NULL, 1);
-+				if (ret == SHRINK_STOP)
-+					break;
-+				if (ret)
-+					goto alloc_nohuge;
-+			}
- 			goto failed;
- 		}
- 
-@@ -1603,6 +1755,22 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
- 		spin_unlock_irq(&info->lock);
- 		alloced = true;
- 
-+		if (PageTransHuge(page) &&
-+				DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE) <
-+				hindex + HPAGE_PMD_NR - 1) {
-+			/*
-+			 * Part of the huge page is beyond i_size: subject
-+			 * to shrink under memory pressure.
-+			 */
-+			spin_lock(&sbinfo->shrinklist_lock);
-+			if (list_empty(&info->shrinklist)) {
-+				list_add_tail(&info->shrinklist,
-+						&sbinfo->shrinklist);
-+				sbinfo->shrinklist_len++;
-+			}
-+			spin_unlock(&sbinfo->shrinklist_lock);
-+		}
-+
- 		/*
- 		 * Let SGP_FALLOC use the SGP_WRITE optimization on a new page.
+ 	VM_BUG_ON_PAGE(!PageHead(page), page);
+@@ -598,7 +609,7 @@ TESTPAGEFLAG_FALSE(TransHuge)
+ TESTPAGEFLAG_FALSE(TransCompound)
+ TESTPAGEFLAG_FALSE(TransCompoundMap)
+ TESTPAGEFLAG_FALSE(TransTail)
+-TESTPAGEFLAG_FALSE(DoubleMap)
++PAGEFLAG_FALSE(DoubleMap)
+ 	TESTSETFLAG_FALSE(DoubleMap)
+ 	TESTCLEARFLAG_FALSE(DoubleMap)
+ #endif
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index b3b2bf3da167..28e7d963cc1f 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1438,6 +1438,8 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+ 		 * We don't mlock() pte-mapped THPs. This way we can avoid
+ 		 * leaking mlocked pages into non-VM_LOCKED VMAs.
+ 		 *
++		 * For anon THP:
++		 *
+ 		 * In most cases the pmd is the only mapping of the page as we
+ 		 * break COW for the mlock() -- see gup_flags |= FOLL_WRITE for
+ 		 * writable private mappings in populate_vma_page_range().
+@@ -1445,15 +1447,26 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+ 		 * The only scenario when we have the page shared here is if we
+ 		 * mlocking read-only mapping shared over fork(). We skip
+ 		 * mlocking such pages.
++		 *
++		 * For file THP:
++		 *
++		 * We can expect PageDoubleMap() to be stable under page lock:
++		 * for file pages we set it in page_add_file_rmap(), which
++		 * requires page to be locked.
  		 */
-@@ -1920,6 +2088,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
- 		spin_lock_init(&info->lock);
- 		info->seals = F_SEAL_SEAL;
- 		info->flags = flags & VM_NORESERVE;
-+		INIT_LIST_HEAD(&info->shrinklist);
- 		INIT_LIST_HEAD(&info->swaplist);
- 		simple_xattrs_init(&info->xattrs);
- 		cache_no_acl(inode);
-@@ -3516,6 +3685,8 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
- 	if (percpu_counter_init(&sbinfo->used_blocks, 0, GFP_KERNEL))
- 		goto failed;
- 	sbinfo->free_inodes = sbinfo->max_inodes;
-+	spin_lock_init(&sbinfo->shrinklist_lock);
-+	INIT_LIST_HEAD(&sbinfo->shrinklist);
+-		if (compound_mapcount(page) == 1 && !PageDoubleMap(page) &&
+-				page->mapping && trylock_page(page)) {
+-			lru_add_drain();
+-			if (page->mapping)
+-				mlock_vma_page(page);
+-			unlock_page(page);
+-		}
++
++		if (PageAnon(page) && compound_mapcount(page) != 1)
++			goto skip_mlock;
++		if (PageDoubleMap(page) || !page->mapping)
++			goto skip_mlock;
++		if (!trylock_page(page))
++			goto skip_mlock;
++		lru_add_drain();
++		if (page->mapping && !PageDoubleMap(page))
++			mlock_vma_page(page);
++		unlock_page(page);
+ 	}
++skip_mlock:
+ 	page += (addr & ~HPAGE_PMD_MASK) >> PAGE_SHIFT;
+ 	VM_BUG_ON_PAGE(!PageCompound(page), page);
+ 	if (flags & FOLL_GET)
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 02990e7dd70e..daabef097c78 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2591,6 +2591,12 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 		/* drop PG_Mlocked flag for over-mapped range */
+ 		for (tmp = vma; tmp->vm_start >= start + size;
+ 				tmp = tmp->vm_next) {
++			/*
++			 * Split pmd and munlock page on the border
++			 * of the range.
++			 */
++			vma_adjust_trans_huge(tmp, start, start + size, 0);
++
+ 			munlock_vma_pages_range(tmp,
+ 					max(tmp->vm_start, start),
+ 					min(tmp->vm_end, start + size));
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a46547389e53..e32ff3abe9da 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1005,6 +1005,8 @@ static __always_inline bool free_pages_prepare(struct page *page,
  
- 	sb->s_maxbytes = MAX_LFS_FILESIZE;
- 	sb->s_blocksize = PAGE_SIZE;
-@@ -3678,6 +3849,10 @@ static const struct super_operations shmem_ops = {
- 	.evict_inode	= shmem_evict_inode,
- 	.drop_inode	= generic_delete_inode,
- 	.put_super	= shmem_put_super,
-+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-+	.nr_cached_objects	= shmem_unused_huge_count,
-+	.free_cached_objects	= shmem_unused_huge_scan,
-+#endif
- };
+ 		VM_BUG_ON_PAGE(compound && compound_order(page) != order, page);
  
- static const struct vm_operations_struct shmem_vm_ops = {
++		if (compound)
++			ClearPageDoubleMap(page);
+ 		for (i = 1; i < (1 << order); i++) {
+ 			if (compound)
+ 				bad += free_tail_pages_check(page, page + i);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index b78374519bac..26e3e784ad75 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1287,6 +1287,12 @@ void page_add_file_rmap(struct page *page, bool compound)
+ 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
+ 			goto out;
+ 	} else {
++		if (PageTransCompound(page)) {
++			VM_BUG_ON_PAGE(!PageLocked(page), page);
++			SetPageDoubleMap(compound_head(page));
++			if (PageMlocked(page))
++				clear_page_mlock(compound_head(page));
++		}
+ 		if (!atomic_inc_and_test(&page->_mapcount))
+ 			goto out;
+ 	}
+@@ -1460,8 +1466,14 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 	 */
+ 	if (!(flags & TTU_IGNORE_MLOCK)) {
+ 		if (vma->vm_flags & VM_LOCKED) {
+-			/* Holding pte lock, we do *not* need mmap_sem here */
+-			mlock_vma_page(page);
++			/* PTE-mapped THP are never mlocked */
++			if (!PageTransCompound(page)) {
++				/*
++				 * Holding pte lock, we do *not* need
++				 * mmap_sem here
++				 */
++				mlock_vma_page(page);
++			}
+ 			ret = SWAP_MLOCK;
+ 			goto out_unmap;
+ 		}
 -- 
 2.8.1
 
