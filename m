@@ -1,72 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C035F6B0005
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 02:26:53 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id k184so28064763wme.3
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 23:26:53 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id w139si23261977wmw.43.2016.06.06.23.26.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 23:26:52 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id n184so21399662wmn.1
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 23:26:52 -0700 (PDT)
-Date: Tue, 7 Jun 2016 08:26:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 10/10] mm, oom: hide mm which is shared with kthread
- or global init
-Message-ID: <20160607062650.GA12305@dhcp22.suse.cz>
-References: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
- <1464945404-30157-11-git-send-email-mhocko@kernel.org>
- <201606040016.BFG17115.OFMLSJFOtHQOFV@I-love.SAKURA.ne.jp>
- <20160606132650.GI11895@dhcp22.suse.cz>
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7179E6B007E
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 02:28:06 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id u203so136465726itc.0
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 23:28:06 -0700 (PDT)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTP id b74si16385147itb.95.2016.06.06.23.28.04
+        for <linux-mm@kvack.org>;
+        Mon, 06 Jun 2016 23:28:06 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1465235131-6112-1-git-send-email-mike.kravetz@oracle.com> <1465235131-6112-4-git-send-email-mike.kravetz@oracle.com>
+In-Reply-To: <1465235131-6112-4-git-send-email-mike.kravetz@oracle.com>
+Subject: Re: [RFC PATCH 3/6] mm/userfaultfd: add __mcopy_atomic_hugetlb for huge page UFFDIO_COPY
+Date: Tue, 07 Jun 2016 14:27:48 +0800
+Message-ID: <01ad01d1c085$b61fdd60$225f9820$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160606132650.GI11895@dhcp22.suse.cz>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: 'Mike Kravetz' <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: 'Andrea Arcangeli' <aarcange@redhat.com>, 'Hugh Dickins' <hughd@google.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>, 'Michal Hocko' <mhocko@suse.com>, 'Andrew Morton' <akpm@linux-foundation.org>
 
-On Mon 06-06-16 15:26:50, Michal Hocko wrote:
-[...]
-> @@ -922,8 +941,17 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  	}
->  	rcu_read_unlock();
->  
-> -	if (can_oom_reap)
-> +	if (can_oom_reap) {
->  		wake_oom_reaper(victim);
-> +	} else if (victim != current) {
-> +		/*
-> +		 * If we want to guarantee a forward progress we cannot keep
-> +		 * the oom victim TIF_MEMDIE here. Sleep for a while and then
-> +		 * drop the flag to make sure another victim can be selected.
-> +		 */
-> +		schedule_timeout_killable(HZ);
-> +		exit_oom_victim(victim);
-
-thiking about it more, with the other change in the
-oom_scan_process_thread we do not need to exit_oom_victim. In fact we
-even shouldn't because of the oom_disabled synchronization. I will
-respin the patch and drop the exit_oom_victim part.
-schedule_timeout_killable will stay...
-
-> +	}
->  
->  	mmdrop(mm);
->  	put_task_struct(victim);
-> -- 
-> 2.8.1
+> @@ -182,6 +354,13 @@ retry:
+>  		goto out_unlock;
 > 
-> -- 
-> Michal Hocko
-> SUSE Labs
+>  	/*
+> +	 * If this is a HUGETLB vma, pass off to appropriate routine
+> +	 */
+> +	if (dst_vma->vm_flags & VM_HUGETLB)
 
--- 
-Michal Hocko
-SUSE Labs
+Use is_vm_hugetlb_page()?
+And in cases in subsequent patches?
+
+Hillf
+> +		return  __mcopy_atomic_hugetlb(dst_mm, dst_vma, dst_start,
+> +						src_start, len, false);
+> +
+> +	/*
+>  	 * Be strict and only allow __mcopy_atomic on userfaultfd
+>  	 * registered ranges to prevent userland errors going
+>  	 * unnoticed. As far as the VM consistency is concerned, it
+> --
+> 2.4.11
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
