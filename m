@@ -1,139 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 018586B0005
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 11:05:38 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id na2so4560647lbb.1
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 08:05:37 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id u187si16145756wmb.54.2016.06.07.08.05.36
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DFA06B0005
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 12:23:20 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id h68so81595593lfh.2
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 09:23:20 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id i143si26100288wmd.97.2016.06.07.09.23.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jun 2016 08:05:36 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id r5so6765729wmr.0
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 08:05:36 -0700 (PDT)
-Date: Tue, 7 Jun 2016 17:05:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/10 -v3] Handle oom bypass more gracefully
-Message-ID: <20160607150534.GO12305@dhcp22.suse.cz>
-References: <1464945404-30157-1-git-send-email-mhocko@kernel.org>
- <201606032100.AIH12958.HMOOOFLJSFQtVF@I-love.SAKURA.ne.jp>
- <20160603122030.GG20676@dhcp22.suse.cz>
- <201606040017.HDI52680.LFFOVMJQOFSOHt@I-love.SAKURA.ne.jp>
- <20160606083651.GE11895@dhcp22.suse.cz>
- <201606072330.AHH81886.OOMVHFOFLtFSQJ@I-love.SAKURA.ne.jp>
+        Tue, 07 Jun 2016 09:23:18 -0700 (PDT)
+Date: Tue, 7 Jun 2016 12:23:11 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 10/10] mm: balance LRU lists based on relative thrashing
+Message-ID: <20160607162311.GG9978@cmpxchg.org>
+References: <20160606194836.3624-1-hannes@cmpxchg.org>
+ <20160606194836.3624-11-hannes@cmpxchg.org>
+ <1465257023.22178.205.camel@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <201606072330.AHH81886.OOMVHFOFLtFSQJ@I-love.SAKURA.ne.jp>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1465257023.22178.205.camel@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, kernel-team@fb.com
 
-On Tue 07-06-16 23:30:20, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > > To be honest, I don't think we need to apply this pile.
-> > 
-> > So you do not think that the current pile is making the code easier to
-> > understand and more robust as well as the semantic more consistent?
+Hi Tim,
+
+On Mon, Jun 06, 2016 at 04:50:23PM -0700, Tim Chen wrote:
+> On Mon, 2016-06-06 at 15:48 -0400, Johannes Weiner wrote:
+> > To tell inactive from active refaults, a page flag is introduced that
+> > marks pages that have been on the active list in their lifetime. This
+> > flag is remembered in the shadow page entry on reclaim, and restored
+> > when the page refaults. It is also set on anonymous pages during
+> > swapin. When a page with that flag set is added to the LRU, the LRU
+> > balance is adjusted for the IO cost of reclaiming the thrashing list.
 > 
-> Right. It is getting too complicated for me to understand.
-
-Yeah, this code is indeed very complicated with subtle side effects. I
-believe there are much less side effects with these patches applied.
-I might be biased of course and that is for others to judge.
-
-> Below patch on top of 4.7-rc2 will do the job and can do for
-> CONFIG_MMU=n kernels as well.
-[...]
-> @@ -179,7 +184,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
->  	 * unkillable or have been already oom reaped.
->  	 */
->  	adj = (long)p->signal->oom_score_adj;
-> -	if (adj == OOM_SCORE_ADJ_MIN ||
-> +	if (adj == OOM_SCORE_ADJ_MIN || p->signal->oom_killed ||
->  			test_bit(MMF_OOM_REAPED, &p->mm->flags)) {
->  		task_unlock(p);
->  		return 0;
-[...]
-> @@ -284,7 +289,8 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
->  	 * Don't allow any other task to have access to the reserves.
->  	 */
->  	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims))
-> -		return OOM_SCAN_ABORT;
-> +		return timer_pending(&oomkiller_victim_wait_timer) ?
-> +			OOM_SCAN_ABORT : OOM_SCAN_CONTINUE;
->  
->  	/*
->  	 * If task is allocating a lot of memory and has been marked to be
-> @@ -678,6 +684,8 @@ void mark_oom_victim(struct task_struct *tsk)
->  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
->  		return;
->  	atomic_inc(&tsk->signal->oom_victims);
-> +	mod_timer(&oomkiller_victim_wait_timer, jiffies + 3 * HZ);
-> +	tsk->signal->oom_killed = true;
->  	/*
->  	 * Make sure that the task is woken up from uninterruptible sleep
->  	 * if it is frozen because OOM killer wouldn't be able to free
-
-OK, so you are arming the timer for each mark_oom_victim regardless
-of the oom context. This means that you have replaced one potential
-lockup by other potential livelocks. Tasks from different oom domains
-might interfere here...
-
-Also this code doesn't even seem easier. It is surely less lines of
-code but it is really hard to realize how would the timer behave for
-different oom contexts.
-
-> > > What is missing for
-> > > handling subtle and unlikely issues is "eligibility check for not to select
-> > > the same victim forever" (i.e. always set MMF_OOM_REAPED or OOM_SCORE_ADJ_MIN,
-> > > and check them before exercising the shortcuts).
-> > 
-> > Which is a hard problem as we do not have enough context for that. Most
-> > situations are covered now because we are much less optimistic when
-> > bypassing the oom killer and basically most sane situations are oom
-> > reapable.
+> Johannes,
 > 
-> What is wrong with above patch? How much difference is there compared to
-> calling schedule_timeout_killable(HZ) in oom_kill_process() before
-> releasing oom_lock and later checking MMF_OOM_REAPED after re-taking
-> oom_lock when we can't wake up the OOM reaper?
+> It seems like you are saying that the shadow entry is also present
+> for anonymous pages that are swapped out.  But once a page is swapped
+> out, its entry is removed from the radix tree and we won't be able
+> to store the shadow page entry as for file mapped page 
+> in __remove_mapping.  Or are you thinking of modifying
+> the current code to keep the radix tree entry? I may be missing something
+> so will appreciate if you can clarify.
 
-I fail to see how much this is different, really. Your patch is checking
-timer_pending with a global context in the same path and that is imho
-much harder to argue about than something which is task->mm based.
- 
-> > > Current 4.7-rc1 code will be sufficient (and sometimes even better than
-> > > involving user visible changes / selecting next OOM victim without delay)
-> > > if we started with "decision by timer" (e.g.
-> > > http://lkml.kernel.org/r/201601072026.JCJ95845.LHQOFOOSMFtVFJ@I-love.SAKURA.ne.jp )
-> > > approach.
-> > > 
-> > > As long as you insist on "decision by feedback from the OOM reaper",
-> > > we have to guarantee that the OOM reaper is always invoked in order to
-> > > handle subtle and unlikely cases.
-> > 
-> > And I still believe that a decision based by a feedback is a better
-> > solution than a timeout. So I am pretty much for exploring that way
-> > until we really find out we cannot really go forward any longer.
-> 
-> I'm OK with "a decision based by a feedback" but you don't like waking up
-> the OOM reaper ("invoking the oom reaper just to find out what we know
-> already and it is unlikely to change after oom_kill_process just doesn't
-> make much sense."). So what feedback mechanisms are possible other than
-> timeout like above patch?
+Sorry if this was ambiguously phrased.
 
-Is this about the patch 10? Well, yes, there is a case where oom reaper
-cannot be invoked and we have no feedback. Then we have no other way
-than to wait for some time. I believe it is easier to wait in the oom
-context directly than to add a global timer. Both approaches would need
-some code in the oom victim selection code and it is much easier to
-argue about the victim specific context than a global one as mentioned
-above.
--- 
-Michal Hocko
-SUSE Labs
+You are correct, there are no shadow entries for anonymous evictions,
+only page cache evictions. All swap-ins are treated as "eligible"
+refaults and push back against cache, whereas cache only pushes
+against anon if the cache workingset is determined to fit into memory.
+
+That implies a fixed hierarchy where the VM always tries to fit the
+anonymous workingset into memory first and the page cache second. If
+the anonymous set is bigger than memory, the algorithm won't stop
+counting IO cost from anonymous refaults and pressuring page cache.
+
+[ Although you can set the effective cost of these refaults to 0
+  (swappiness = 200) and reduce effective cache to a minimum -
+  possibly to a level where LRU rotations consume most of it.
+  But yeah. ]
+
+So the current code works well when we assume that cache workingsets
+might exceed memory, but anonymous workingsets don't.
+
+For SSDs and non-DIMM pmem devices this assumption is fine, because
+nobody wants half their frequent anonymous memory accesses to be major
+faults. Anonymous workingsets will continue to target RAM size there.
+
+Secondary memory types, which userspace can continue to map directly
+after "swap out", are a different story. That might need workingset
+estimation for anonymous pages. But it would have to build on top of
+this series here. These patches are about eliminating or mitigating IO
+by swapping idle or colder anon pages when the cache is thrashing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
