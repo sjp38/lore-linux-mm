@@ -1,172 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E24736B007E
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 16:12:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id l188so87739654pfl.3
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 13:12:43 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 17si36571112pfk.177.2016.06.07.13.12.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jun 2016 13:12:43 -0700 (PDT)
-Date: Tue, 7 Jun 2016 13:12:42 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: linux-next: Tree for Jun 6 (mm/slub.c)
-Message-Id: <20160607131242.fac39cbade676df24d70edaa@linux-foundation.org>
-In-Reply-To: <57565789.9050508@infradead.org>
-References: <20160606142058.44b82e38@canb.auug.org.au>
-	<57565789.9050508@infradead.org>
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 539816B007E
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 16:43:31 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id u203so178896326itc.0
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 13:43:31 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id ol5si21777360pab.73.2016.06.07.13.43.30
+        for <linux-mm@kvack.org>;
+        Tue, 07 Jun 2016 13:43:30 -0700 (PDT)
+Message-ID: <1465332209.22178.236.camel@linux.intel.com>
+Subject: Re: [PATCH] mm: Cleanup - Reorganize the shrink_page_list code into
+ smaller functions
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Date: Tue, 07 Jun 2016 13:43:29 -0700
+In-Reply-To: <20160607082158.GA23435@bbox>
+References: <1463779979.22178.142.camel@linux.intel.com>
+	 <20160531091550.GA19976@bbox> <20160531171722.GA5763@linux.intel.com>
+	 <20160601071225.GN19976@bbox> <1464805433.22178.191.camel@linux.intel.com>
+	 <20160607082158.GA23435@bbox>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Thomas Garnier <thgarnie@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, "Kirill
+ A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Mon, 6 Jun 2016 22:11:37 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
-
-> On 06/05/16 21:20, Stephen Rothwell wrote:
-> > Hi all,
+On Tue, 2016-06-07 at 17:21 +0900, Minchan Kim wrote:
+> On Wed, Jun 01, 2016 at 11:23:53AM -0700, Tim Chen wrote:
 > > 
-> > Changes since 20160603:
+> > On Wed, 2016-06-01 at 16:12 +0900, Minchan Kim wrote:
+> > > 
+> > > A 
+> > > Hi Tim,
+> > > 
+> > > To me, this reorganization is too limited and not good for me,
+> > > frankly speaking. It works for only your goal which allocate batch
+> > > swap slot, I guess. :)
+> > > 
+> > > My goal is to make them work with batch page_check_references,
+> > > batch try_to_unmap and batch __remove_mapping where we can avoid frequent
+> > > mapping->lock(e.g., anon_vma or i_mmap_lock with hoping such batch locking
+> > > help system performance) if batch pages has same inode or anon.
+> > This is also my goal to group pages that are either under the same
+> > mapping or are anonymous pages together so we can reduce the i_mmap_lock
+> > acquisition. A One logic that's yet to be implemented in your patch
+> > is the grouping of similar pages together so we only need one i_mmap_lock
+> > acquisition. A Doing this efficiently is non-trivial. A 
+> Hmm, my assumption is based on same inode pages are likely to order
+> in LRU so no need to group them. If successive page in page_list comes
+> from different inode, we can drop the lock and get new lock from new
+> inode. That sounds strange?
+> 
+
+Sounds reasonable. But your process function passed to spl_batch_pages may
+need to be modified to know if the radix tree lock or swap info lock
+has already been held, as it deals with only 1 page. A It may be
+tricky as the lock may get acquired and dropped more than once in process
+function.
+
+Are you planning to update the patch with lock batching?
+
+Thanks.
+
+Tim
+
 > > 
+> > 
+> > I punted the problem somewhat in my patch and elected to defer the processing
+> > of the anonymous pages at the end so they are naturally grouped without
+> > having to traverse the page_list more than once. A So I'm batching the
+> > anonymous pages but the file mapped pages were not grouped.
+> > 
+> > In your implementation, you may need to traverse the page_list in two pass, where the
+> > first one is to categorize the pages and grouping them and the second one
+> > is the actual processing. A Then the lock batching can be implemented
+> > for the pages. A Otherwise the locking is still done page by page in
+> > your patch, and can only be batched if the next page on page_list happens
+> > to have the same mapping. A Your idea of using a spl_batch_pages is pretty
+> Yes. as I said above, I expect pages in LRU would be likely to order per
+> inode normally. If it's not, yeb, we need grouping but such overhead would
+> mitigate the benefit of lock batch as SWAP_CLUSTER_MAX get bigger.
 > 
-> on i386:
-> 
-> mm/built-in.o: In function `init_cache_random_seq':
-> slub.c:(.text+0x76921): undefined reference to `cache_random_seq_create'
-> mm/built-in.o: In function `__kmem_cache_release':
-> (.text+0x80525): undefined reference to `cache_random_seq_destroy'
-
-Yup.  This, I guess...
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-slub-freelist-randomization-fix
-
-freelist_randomize(), cache_random_seq_create() and
-cache_random_seq_destroy() should not be inside CONFIG_SLABINFO.
-
-Cc: Christoph Lameter <cl@linux.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Thomas Garnier <thgarnie@google.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
---- a/mm/slab_common.c~mm-reorganize-slab-freelist-randomization-fix
-+++ a/mm/slab_common.c
-@@ -1030,6 +1030,53 @@ void *kmalloc_order_trace(size_t size, g
- EXPORT_SYMBOL(kmalloc_order_trace);
- #endif
- 
-+#ifdef CONFIG_SLAB_FREELIST_RANDOM
-+/* Randomize a generic freelist */
-+static void freelist_randomize(struct rnd_state *state, unsigned int *list,
-+			size_t count)
-+{
-+	size_t i;
-+	unsigned int rand;
-+
-+	for (i = 0; i < count; i++)
-+		list[i] = i;
-+
-+	/* Fisher-Yates shuffle */
-+	for (i = count - 1; i > 0; i--) {
-+		rand = prandom_u32_state(state);
-+		rand %= (i + 1);
-+		swap(list[i], list[rand]);
-+	}
-+}
-+
-+/* Create a random sequence per cache */
-+int cache_random_seq_create(struct kmem_cache *cachep, unsigned int count,
-+				    gfp_t gfp)
-+{
-+	struct rnd_state state;
-+
-+	if (count < 2 || cachep->random_seq)
-+		return 0;
-+
-+	cachep->random_seq = kcalloc(count, sizeof(unsigned int), gfp);
-+	if (!cachep->random_seq)
-+		return -ENOMEM;
-+
-+	/* Get best entropy at this stage of boot */
-+	prandom_seed_state(&state, get_random_long());
-+
-+	freelist_randomize(&state, cachep->random_seq, count);
-+	return 0;
-+}
-+
-+/* Destroy the per-cache random freelist sequence */
-+void cache_random_seq_destroy(struct kmem_cache *cachep)
-+{
-+	kfree(cachep->random_seq);
-+	cachep->random_seq = NULL;
-+}
-+#endif /* CONFIG_SLAB_FREELIST_RANDOM */
-+
- #ifdef CONFIG_SLABINFO
- 
- #ifdef CONFIG_SLAB
-@@ -1142,53 +1189,6 @@ int memcg_slab_show(struct seq_file *m,
- }
- #endif
- 
--#ifdef CONFIG_SLAB_FREELIST_RANDOM
--/* Randomize a generic freelist */
--static void freelist_randomize(struct rnd_state *state, unsigned int *list,
--			size_t count)
--{
--	size_t i;
--	unsigned int rand;
--
--	for (i = 0; i < count; i++)
--		list[i] = i;
--
--	/* Fisher-Yates shuffle */
--	for (i = count - 1; i > 0; i--) {
--		rand = prandom_u32_state(state);
--		rand %= (i + 1);
--		swap(list[i], list[rand]);
--	}
--}
--
--/* Create a random sequence per cache */
--int cache_random_seq_create(struct kmem_cache *cachep, unsigned int count,
--				    gfp_t gfp)
--{
--	struct rnd_state state;
--
--	if (count < 2 || cachep->random_seq)
--		return 0;
--
--	cachep->random_seq = kcalloc(count, sizeof(unsigned int), gfp);
--	if (!cachep->random_seq)
--		return -ENOMEM;
--
--	/* Get best entropy at this stage of boot */
--	prandom_seed_state(&state, get_random_long());
--
--	freelist_randomize(&state, cachep->random_seq, count);
--	return 0;
--}
--
--/* Destroy the per-cache random freelist sequence */
--void cache_random_seq_destroy(struct kmem_cache *cachep)
--{
--	kfree(cachep->random_seq);
--	cachep->random_seq = NULL;
--}
--#endif /* CONFIG_SLAB_FREELIST_RANDOM */
--
- /*
-  * slabinfo_op - iterator that generates /proc/slabinfo
-  *
-_
+> > 
+> > neat. A It may need some enhancement so it is known whether some locks
+> > are already held for lock batching purpose.
+> > 
+> > 
+> > Thanks.
+> > 
+> > Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
