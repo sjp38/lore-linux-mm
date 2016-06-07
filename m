@@ -1,186 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F6DA828E1
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:09:17 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id z189so24889805itg.2
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:09:17 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id o124si34553699pfb.247.2016.06.07.04.01.02
-        for <linux-mm@kvack.org>;
-        Tue, 07 Jun 2016 04:01:02 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9-rebased 15/32] thp, mlock: do not mlock PTE-mapped file huge pages
-Date: Tue,  7 Jun 2016 14:00:29 +0300
-Message-Id: <1465297246-98985-16-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1465297246-98985-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1465297246-98985-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D1F6828E1
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:19:49 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 4so24060103wmz.1
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:19:49 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id nh6si905138wjb.224.2016.06.07.04.19.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Jun 2016 04:19:48 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id m124so22214038wme.3
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:19:48 -0700 (PDT)
+Date: Tue, 7 Jun 2016 13:19:46 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: mm: pages are not freed from lru_add_pvecs after process
+ termination
+Message-ID: <20160607111946.GJ12305@dhcp22.suse.cz>
+References: <5720F2A8.6070406@intel.com>
+ <20160428143710.GC31496@dhcp22.suse.cz>
+ <20160502130006.GD25265@dhcp22.suse.cz>
+ <D6EDEBF1F91015459DB866AC4EE162CC023C182F@IRSMSX103.ger.corp.intel.com>
+ <20160504203643.GI21490@dhcp22.suse.cz>
+ <20160505072122.GA4386@dhcp22.suse.cz>
+ <D6EDEBF1F91015459DB866AC4EE162CC023C402E@IRSMSX103.ger.corp.intel.com>
+ <572CC092.5020702@intel.com>
+ <20160511075313.GE16677@dhcp22.suse.cz>
+ <D6EDEBF1F91015459DB866AC4EE162CC023F84C9@IRSMSX103.ger.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <D6EDEBF1F91015459DB866AC4EE162CC023F84C9@IRSMSX103.ger.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
+Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
 
-As with anon THP, we only mlock file huge pages if we can prove that the
-page is not mapped with PTE. This way we can avoid mlock leak into
-non-mlocked vma on split.
+On Tue 07-06-16 09:02:02, Odzioba, Lukasz wrote:
+[...]
+> //compile with: gcc bench.c -o bench_2M -fopenmp
+> //compile with: gcc -D SMALL_PAGES bench.c -o bench_4K -fopenmp
+> #include <stdio.h>
+> #include <sys/mman.h>
+> #include <omp.h>
+> 
+> #define MAP_HUGE_SHIFT  26
+> #define MAP_HUGE_2MB    (21 << MAP_HUGE_SHIFT)
+> 
+> #ifndef SMALL_PAGES
+> #define PAGE_SIZE (1024*1024*2)
+> #define MAP_PARAM (MAP_HUGE_2MB)
 
-We rely on PageDoubleMap() under lock_page() to check if the the page
-may be PTE mapped. PG_double_map is set by page_add_file_rmap() when the
-page mapped with PTEs.
+Isn't MAP_HUGE_2MB ignored for !hugetlb pages?
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- include/linux/page-flags.h | 13 ++++++++++++-
- mm/huge_memory.c           | 27 ++++++++++++++++++++-------
- mm/mmap.c                  |  6 ++++++
- mm/page_alloc.c            |  2 ++
- mm/rmap.c                  | 16 ++++++++++++++--
- 5 files changed, 54 insertions(+), 10 deletions(-)
+> #else
+> #define PAGE_SIZE (1024*4)
+> #define MAP_PARAM (0)
+> #endif
+> 
+> void main() {
+>         size_t size = ((60 * 1000 * 1000) / 288) * 1000; // 60GBs of memory 288 CPUs
+>         #pragma omp parallel
+>         {
+>         unsigned int k;
+>         for (k = 0; k < 10; k++) {
+>                 void *p = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_PARAM, -1, 0);
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 7c8e82ac2eb7..8cf09639185a 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -581,6 +581,17 @@ static inline int PageDoubleMap(struct page *page)
- 	return PageHead(page) && test_bit(PG_double_map, &page[1].flags);
- }
- 
-+static inline void SetPageDoubleMap(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	set_bit(PG_double_map, &page[1].flags);
-+}
-+
-+static inline void ClearPageDoubleMap(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	clear_bit(PG_double_map, &page[1].flags);
-+}
- static inline int TestSetPageDoubleMap(struct page *page)
- {
- 	VM_BUG_ON_PAGE(!PageHead(page), page);
-@@ -598,7 +609,7 @@ TESTPAGEFLAG_FALSE(TransHuge)
- TESTPAGEFLAG_FALSE(TransCompound)
- TESTPAGEFLAG_FALSE(TransCompoundMap)
- TESTPAGEFLAG_FALSE(TransTail)
--TESTPAGEFLAG_FALSE(DoubleMap)
-+PAGEFLAG_FALSE(DoubleMap)
- 	TESTSETFLAG_FALSE(DoubleMap)
- 	TESTCLEARFLAG_FALSE(DoubleMap)
- #endif
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index b3b2bf3da167..28e7d963cc1f 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1438,6 +1438,8 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 		 * We don't mlock() pte-mapped THPs. This way we can avoid
- 		 * leaking mlocked pages into non-VM_LOCKED VMAs.
- 		 *
-+		 * For anon THP:
-+		 *
- 		 * In most cases the pmd is the only mapping of the page as we
- 		 * break COW for the mlock() -- see gup_flags |= FOLL_WRITE for
- 		 * writable private mappings in populate_vma_page_range().
-@@ -1445,15 +1447,26 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 		 * The only scenario when we have the page shared here is if we
- 		 * mlocking read-only mapping shared over fork(). We skip
- 		 * mlocking such pages.
-+		 *
-+		 * For file THP:
-+		 *
-+		 * We can expect PageDoubleMap() to be stable under page lock:
-+		 * for file pages we set it in page_add_file_rmap(), which
-+		 * requires page to be locked.
- 		 */
--		if (compound_mapcount(page) == 1 && !PageDoubleMap(page) &&
--				page->mapping && trylock_page(page)) {
--			lru_add_drain();
--			if (page->mapping)
--				mlock_vma_page(page);
--			unlock_page(page);
--		}
-+
-+		if (PageAnon(page) && compound_mapcount(page) != 1)
-+			goto skip_mlock;
-+		if (PageDoubleMap(page) || !page->mapping)
-+			goto skip_mlock;
-+		if (!trylock_page(page))
-+			goto skip_mlock;
-+		lru_add_drain();
-+		if (page->mapping && !PageDoubleMap(page))
-+			mlock_vma_page(page);
-+		unlock_page(page);
- 	}
-+skip_mlock:
- 	page += (addr & ~HPAGE_PMD_MASK) >> PAGE_SHIFT;
- 	VM_BUG_ON_PAGE(!PageCompound(page), page);
- 	if (flags & FOLL_GET)
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 02990e7dd70e..daabef097c78 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2591,6 +2591,12 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
- 		/* drop PG_Mlocked flag for over-mapped range */
- 		for (tmp = vma; tmp->vm_start >= start + size;
- 				tmp = tmp->vm_next) {
-+			/*
-+			 * Split pmd and munlock page on the border
-+			 * of the range.
-+			 */
-+			vma_adjust_trans_huge(tmp, start, start + size, 0);
-+
- 			munlock_vma_pages_range(tmp,
- 					max(tmp->vm_start, start),
- 					min(tmp->vm_end, start + size));
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a46547389e53..e32ff3abe9da 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1005,6 +1005,8 @@ static __always_inline bool free_pages_prepare(struct page *page,
- 
- 		VM_BUG_ON_PAGE(compound && compound_order(page) != order, page);
- 
-+		if (compound)
-+			ClearPageDoubleMap(page);
- 		for (i = 1; i < (1 << order); i++) {
- 			if (compound)
- 				bad += free_tail_pages_check(page, page + i);
-diff --git a/mm/rmap.c b/mm/rmap.c
-index b78374519bac..26e3e784ad75 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1287,6 +1287,12 @@ void page_add_file_rmap(struct page *page, bool compound)
- 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
- 			goto out;
- 	} else {
-+		if (PageTransCompound(page)) {
-+			VM_BUG_ON_PAGE(!PageLocked(page), page);
-+			SetPageDoubleMap(compound_head(page));
-+			if (PageMlocked(page))
-+				clear_page_mlock(compound_head(page));
-+		}
- 		if (!atomic_inc_and_test(&page->_mapcount))
- 			goto out;
- 	}
-@@ -1460,8 +1466,14 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	 */
- 	if (!(flags & TTU_IGNORE_MLOCK)) {
- 		if (vma->vm_flags & VM_LOCKED) {
--			/* Holding pte lock, we do *not* need mmap_sem here */
--			mlock_vma_page(page);
-+			/* PTE-mapped THP are never mlocked */
-+			if (!PageTransCompound(page)) {
-+				/*
-+				 * Holding pte lock, we do *not* need
-+				 * mmap_sem here
-+				 */
-+				mlock_vma_page(page);
-+			}
- 			ret = SWAP_MLOCK;
- 			goto out_unmap;
- 		}
+I guess you want something like posix_memalign or start faulting in from
+an aligned address to guarantee you will fault 2MB pages. Also note that
+the default behavior for THP during the fault has changed recently (see
+444eb2a449ef ("mm: thp: set THP defrag by default to madvise and add a
+stall-free defrag option") so you might need MADV_HUGEPAGE.
+
+Besides that I am really suspicious that this will be measurable at all.
+I would just go and spin a patch assuming you are still able to trigger
+OOM with the vanilla kernel. The bug fix is more important...
 -- 
-2.8.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
