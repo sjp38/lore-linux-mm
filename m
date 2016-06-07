@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FC86828E1
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:07:00 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id yu3so1062356obb.3
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:07:00 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id 8si34541545pfc.245.2016.06.07.04.01.03
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A35C828E1
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:07:14 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id s73so275415897pfs.0
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:07:14 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id fj5si32701263pad.96.2016.06.07.04.01.05
         for <linux-mm@kvack.org>;
-        Tue, 07 Jun 2016 04:01:04 -0700 (PDT)
+        Tue, 07 Jun 2016 04:01:05 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9-rebased 22/32] shmem: prepare huge= mount option and sysfs knob
-Date: Tue,  7 Jun 2016 14:00:36 +0300
-Message-Id: <1465297246-98985-23-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9-rebased 28/32] shmem: make shmem_inode_info::lock irq-safe
+Date: Tue,  7 Jun 2016 14:00:42 +0300
+Message-Id: <1465297246-98985-29-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1465297246-98985-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1465297246-98985-1-git-send-email-kirill.shutemov@linux.intel.com>
@@ -20,316 +20,207 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This patch adds new mount option "huge=". It can have following values:
+We are going to need to call shmem_charge() under tree_lock to get
+accoutning right on collapse of small tmpfs pages into a huge one.
 
-  - "always":
-	Attempt to allocate huge pages every time we need a new page;
+The problem is that tree_lock is irq-safe and lockdep is not happy, that
+we take irq-unsafe lock under irq-safe[1].
 
-  - "never":
-	Do not allocate huge pages;
+Let's convert the lock to irq-safe.
 
-  - "within_size":
-	Only allocate huge page if it will be fully within i_size.
-	Also respect fadvise()/madvise() hints;
-
-  - "advise:
-	Only allocate huge pages if requested with fadvise()/madvise();
-
-Default is "never" for now.
-
-"mount -o remount,huge= /mountpoint" works fine after mount: remounting
-huge=never will not attempt to break up huge pages at all, just stop
-more from being allocated.
-
-No new config option: put this under CONFIG_TRANSPARENT_HUGEPAGE,
-which is the appropriate option to protect those who don't want
-the new bloat, and with which we shall share some pmd code.
-
-Prohibit the option when !CONFIG_TRANSPARENT_HUGEPAGE, just as mpol is
-invalid without CONFIG_NUMA (was hidden in mpol_parse_str(): make it
-explicit).
-
-Allow enabling THP only if the machine has_transparent_hugepage().
-
-But what about Shmem with no user-visible mount?  SysV SHM, memfds,
-shared anonymous mmaps (of /dev/zero or MAP_ANONYMOUS), GPU drivers'
-DRM objects, Ashmem.  Though unlikely to suit all usages, provide
-sysfs knob /sys/kernel/mm/transparent_hugepage/shmem_enabled to
-experiment with huge on those.
-
-And allow shmem_enabled two further values:
-
-  - "deny":
-	For use in emergencies, to force the huge option off from
-	all mounts;
-  - "force":
-	Force the huge option on for all - very useful for testing;
-
-Based on patch by Hugh Dickins.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+[1] https://gist.github.com/kiryl/80c0149e03ed35dfaf26628b8e03cdbc
 ---
- include/linux/huge_mm.h  |   2 +
- include/linux/shmem_fs.h |   3 +-
- mm/huge_memory.c         |   3 +
- mm/shmem.c               | 161 +++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 168 insertions(+), 1 deletion(-)
+ ipc/shm.c  |  4 ++--
+ mm/shmem.c | 50 ++++++++++++++++++++++++++------------------------
+ 2 files changed, 28 insertions(+), 26 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 3ef07cd7730c..64dcd4e3fd72 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -41,6 +41,8 @@ enum transparent_hugepage_flag {
- #endif
- };
- 
-+extern struct kobj_attribute shmem_enabled_attr;
-+
- #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
- #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
- 
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 4d4780c00d34..466f18c73a49 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -28,9 +28,10 @@ struct shmem_sb_info {
- 	unsigned long max_inodes;   /* How many inodes are allowed */
- 	unsigned long free_inodes;  /* How many are left for allocation */
- 	spinlock_t stat_lock;	    /* Serialize shmem_sb_info changes */
-+	umode_t mode;		    /* Mount mode for root directory */
-+	unsigned char huge;	    /* Whether to try for hugepages */
- 	kuid_t uid;		    /* Mount uid for root directory */
- 	kgid_t gid;		    /* Mount gid for root directory */
--	umode_t mode;		    /* Mount mode for root directory */
- 	struct mempolicy *mpol;     /* default memory policy for mappings */
- };
- 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index ada33b395f24..a67d7188a5af 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -443,6 +443,9 @@ static struct attribute *hugepage_attr[] = {
- 	&enabled_attr.attr,
- 	&defrag_attr.attr,
- 	&use_zero_page_attr.attr,
-+#ifdef CONFIG_SHMEM
-+	&shmem_enabled_attr.attr,
-+#endif
- #ifdef CONFIG_DEBUG_VM
- 	&debug_cow_attr.attr,
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 7fa5cbebbf19..dbac8860c721 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -766,10 +766,10 @@ static void shm_add_rss_swap(struct shmid_kernel *shp,
+ 	} else {
+ #ifdef CONFIG_SHMEM
+ 		struct shmem_inode_info *info = SHMEM_I(inode);
+-		spin_lock(&info->lock);
++		spin_lock_irq(&info->lock);
+ 		*rss_add += inode->i_mapping->nrpages;
+ 		*swp_add += info->swapped;
+-		spin_unlock(&info->lock);
++		spin_unlock_irq(&info->lock);
+ #else
+ 		*rss_add += inode->i_mapping->nrpages;
  #endif
 diff --git a/mm/shmem.c b/mm/shmem.c
-index a36144909b28..dfbc9266b097 100644
+index a3d8469b18a7..6766eeadf48a 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -289,6 +289,87 @@ static bool shmem_confirm_swap(struct address_space *mapping,
- }
+@@ -258,14 +258,15 @@ bool shmem_charge(struct inode *inode, long pages)
+ {
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+ 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
++	unsigned long flags;
  
- /*
-+ * Definitions for "huge tmpfs": tmpfs mounted with the huge= option
-+ *
-+ * SHMEM_HUGE_NEVER:
-+ *	disables huge pages for the mount;
-+ * SHMEM_HUGE_ALWAYS:
-+ *	enables huge pages for the mount;
-+ * SHMEM_HUGE_WITHIN_SIZE:
-+ *	only allocate huge pages if the page will be fully within i_size,
-+ *	also respect fadvise()/madvise() hints;
-+ * SHMEM_HUGE_ADVISE:
-+ *	only allocate huge pages if requested with fadvise()/madvise();
-+ */
-+
-+#define SHMEM_HUGE_NEVER	0
-+#define SHMEM_HUGE_ALWAYS	1
-+#define SHMEM_HUGE_WITHIN_SIZE	2
-+#define SHMEM_HUGE_ADVISE	3
-+
-+/*
-+ * Special values.
-+ * Only can be set via /sys/kernel/mm/transparent_hugepage/shmem_enabled:
-+ *
-+ * SHMEM_HUGE_DENY:
-+ *	disables huge on shm_mnt and all mounts, for emergency use;
-+ * SHMEM_HUGE_FORCE:
-+ *	enables huge on shm_mnt and all mounts, w/o needing option, for testing;
-+ *
-+ */
-+#define SHMEM_HUGE_DENY		(-1)
-+#define SHMEM_HUGE_FORCE	(-2)
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+/* ifdef here to avoid bloating shmem.o when not necessary */
-+
-+int shmem_huge __read_mostly;
-+
-+static int shmem_parse_huge(const char *str)
-+{
-+	if (!strcmp(str, "never"))
-+		return SHMEM_HUGE_NEVER;
-+	if (!strcmp(str, "always"))
-+		return SHMEM_HUGE_ALWAYS;
-+	if (!strcmp(str, "within_size"))
-+		return SHMEM_HUGE_WITHIN_SIZE;
-+	if (!strcmp(str, "advise"))
-+		return SHMEM_HUGE_ADVISE;
-+	if (!strcmp(str, "deny"))
-+		return SHMEM_HUGE_DENY;
-+	if (!strcmp(str, "force"))
-+		return SHMEM_HUGE_FORCE;
-+	return -EINVAL;
-+}
-+
-+static const char *shmem_format_huge(int huge)
-+{
-+	switch (huge) {
-+	case SHMEM_HUGE_NEVER:
-+		return "never";
-+	case SHMEM_HUGE_ALWAYS:
-+		return "always";
-+	case SHMEM_HUGE_WITHIN_SIZE:
-+		return "within_size";
-+	case SHMEM_HUGE_ADVISE:
-+		return "advise";
-+	case SHMEM_HUGE_DENY:
-+		return "deny";
-+	case SHMEM_HUGE_FORCE:
-+		return "force";
-+	default:
-+		VM_BUG_ON(1);
-+		return "bad_val";
-+	}
-+}
-+
-+#else /* !CONFIG_TRANSPARENT_HUGEPAGE */
-+
-+#define shmem_huge SHMEM_HUGE_DENY
-+
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+
-+/*
-  * Like add_to_page_cache_locked, but error if expected item has gone.
-  */
- static int shmem_add_to_page_cache(struct page *page,
-@@ -2858,11 +2939,24 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
- 			sbinfo->gid = make_kgid(current_user_ns(), gid);
- 			if (!gid_valid(sbinfo->gid))
- 				goto bad_val;
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		} else if (!strcmp(this_char, "huge")) {
-+			int huge;
-+			huge = shmem_parse_huge(value);
-+			if (huge < 0)
-+				goto bad_val;
-+			if (!has_transparent_hugepage() &&
-+					huge != SHMEM_HUGE_NEVER)
-+				goto bad_val;
-+			sbinfo->huge = huge;
-+#endif
-+#ifdef CONFIG_NUMA
- 		} else if (!strcmp(this_char,"mpol")) {
- 			mpol_put(mpol);
- 			mpol = NULL;
- 			if (mpol_parse_str(value, &mpol))
- 				goto bad_val;
-+#endif
- 		} else {
- 			pr_err("tmpfs: Bad mount option %s\n", this_char);
- 			goto error;
-@@ -2908,6 +3002,7 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
- 		goto out;
+ 	if (shmem_acct_block(info->flags, pages))
+ 		return false;
+-	spin_lock(&info->lock);
++	spin_lock_irqsave(&info->lock, flags);
+ 	info->alloced += pages;
+ 	inode->i_blocks += pages * BLOCKS_PER_PAGE;
+ 	shmem_recalc_inode(inode);
+-	spin_unlock(&info->lock);
++	spin_unlock_irqrestore(&info->lock, flags);
+ 	inode->i_mapping->nrpages += pages;
  
- 	error = 0;
-+	sbinfo->huge = config.huge;
- 	sbinfo->max_blocks  = config.max_blocks;
- 	sbinfo->max_inodes  = config.max_inodes;
- 	sbinfo->free_inodes = config.max_inodes - inodes;
-@@ -2941,6 +3036,11 @@ static int shmem_show_options(struct seq_file *seq, struct dentry *root)
- 	if (!gid_eq(sbinfo->gid, GLOBAL_ROOT_GID))
- 		seq_printf(seq, ",gid=%u",
- 				from_kgid_munged(&init_user_ns, sbinfo->gid));
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	/* Rightly or wrongly, show huge mount option unmasked by shmem_huge */
-+	if (sbinfo->huge)
-+		seq_printf(seq, ",huge=%s", shmem_format_huge(sbinfo->huge));
-+#endif
- 	shmem_show_mpol(seq, sbinfo->mpol);
- 	return 0;
- }
-@@ -3280,6 +3380,13 @@ int __init shmem_init(void)
- 		pr_err("Could not kern_mount tmpfs\n");
- 		goto out1;
+ 	if (!sbinfo->max_blocks)
+@@ -273,10 +274,10 @@ bool shmem_charge(struct inode *inode, long pages)
+ 	if (percpu_counter_compare(&sbinfo->used_blocks,
+ 				sbinfo->max_blocks - pages) > 0) {
+ 		inode->i_mapping->nrpages -= pages;
+-		spin_lock(&info->lock);
++		spin_lock_irqsave(&info->lock, flags);
+ 		info->alloced -= pages;
+ 		shmem_recalc_inode(inode);
+-		spin_unlock(&info->lock);
++		spin_unlock_irqrestore(&info->lock, flags);
+ 
+ 		return false;
  	}
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	if (has_transparent_hugepage() && shmem_huge < SHMEM_HUGE_DENY)
-+		SHMEM_SB(shm_mnt->mnt_sb)->huge = shmem_huge;
-+	else
-+		shmem_huge = 0; /* just in case it was patched */
-+#endif
- 	return 0;
+@@ -288,12 +289,13 @@ void shmem_uncharge(struct inode *inode, long pages)
+ {
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+ 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
++	unsigned long flags;
  
- out1:
-@@ -3291,6 +3398,60 @@ out3:
- 	return error;
+-	spin_lock(&info->lock);
++	spin_lock_irqsave(&info->lock, flags);
+ 	info->alloced -= pages;
+ 	inode->i_blocks -= pages * BLOCKS_PER_PAGE;
+ 	shmem_recalc_inode(inode);
+-	spin_unlock(&info->lock);
++	spin_unlock_irqrestore(&info->lock, flags);
+ 
+ 	if (sbinfo->max_blocks)
+ 		percpu_counter_sub(&sbinfo->used_blocks, pages);
+@@ -818,10 +820,10 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 		index++;
+ 	}
+ 
+-	spin_lock(&info->lock);
++	spin_lock_irq(&info->lock);
+ 	info->swapped -= nr_swaps_freed;
+ 	shmem_recalc_inode(inode);
+-	spin_unlock(&info->lock);
++	spin_unlock_irq(&info->lock);
  }
  
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && defined(CONFIG_SYSFS)
-+static ssize_t shmem_enabled_show(struct kobject *kobj,
-+		struct kobj_attribute *attr, char *buf)
-+{
-+	int values[] = {
-+		SHMEM_HUGE_ALWAYS,
-+		SHMEM_HUGE_WITHIN_SIZE,
-+		SHMEM_HUGE_ADVISE,
-+		SHMEM_HUGE_NEVER,
-+		SHMEM_HUGE_DENY,
-+		SHMEM_HUGE_FORCE,
-+	};
-+	int i, count;
-+
-+	for (i = 0, count = 0; i < ARRAY_SIZE(values); i++) {
-+		const char *fmt = shmem_huge == values[i] ? "[%s] " : "%s ";
-+
-+		count += sprintf(buf + count, fmt,
-+				shmem_format_huge(values[i]));
-+	}
-+	buf[count - 1] = '\n';
-+	return count;
-+}
-+
-+static ssize_t shmem_enabled_store(struct kobject *kobj,
-+		struct kobj_attribute *attr, const char *buf, size_t count)
-+{
-+	char tmp[16];
-+	int huge;
-+
-+	if (count + 1 > sizeof(tmp))
-+		return -EINVAL;
-+	memcpy(tmp, buf, count);
-+	tmp[count] = '\0';
-+	if (count && tmp[count - 1] == '\n')
-+		tmp[count - 1] = '\0';
-+
-+	huge = shmem_parse_huge(tmp);
-+	if (huge == -EINVAL)
-+		return -EINVAL;
-+	if (!has_transparent_hugepage() &&
-+			huge != SHMEM_HUGE_NEVER && huge != SHMEM_HUGE_DENY)
-+		return -EINVAL;
-+
-+	shmem_huge = huge;
-+	if (shmem_huge < SHMEM_HUGE_DENY)
-+		SHMEM_SB(shm_mnt->mnt_sb)->huge = shmem_huge;
-+	return count;
-+}
-+
-+struct kobj_attribute shmem_enabled_attr =
-+	__ATTR(shmem_enabled, 0644, shmem_enabled_show, shmem_enabled_store);
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE && CONFIG_SYSFS */
-+
- #else /* !CONFIG_SHMEM */
+ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
+@@ -838,9 +840,9 @@ static int shmem_getattr(struct vfsmount *mnt, struct dentry *dentry,
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
  
- /*
+ 	if (info->alloced - info->swapped != inode->i_mapping->nrpages) {
+-		spin_lock(&info->lock);
++		spin_lock_irq(&info->lock);
+ 		shmem_recalc_inode(inode);
+-		spin_unlock(&info->lock);
++		spin_unlock_irq(&info->lock);
+ 	}
+ 	generic_fillattr(inode, stat);
+ 	return 0;
+@@ -984,9 +986,9 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
+ 		delete_from_swap_cache(*pagep);
+ 		set_page_dirty(*pagep);
+ 		if (!error) {
+-			spin_lock(&info->lock);
++			spin_lock_irq(&info->lock);
+ 			info->swapped--;
+-			spin_unlock(&info->lock);
++			spin_unlock_irq(&info->lock);
+ 			swap_free(swap);
+ 		}
+ 	}
+@@ -1134,10 +1136,10 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+ 		list_add_tail(&info->swaplist, &shmem_swaplist);
+ 
+ 	if (add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
+-		spin_lock(&info->lock);
++		spin_lock_irq(&info->lock);
+ 		shmem_recalc_inode(inode);
+ 		info->swapped++;
+-		spin_unlock(&info->lock);
++		spin_unlock_irq(&info->lock);
+ 
+ 		swap_shmem_alloc(swap);
+ 		shmem_delete_from_page_cache(page, swp_to_radix_entry(swap));
+@@ -1523,10 +1525,10 @@ repeat:
+ 
+ 		mem_cgroup_commit_charge(page, memcg, true, false);
+ 
+-		spin_lock(&info->lock);
++		spin_lock_irq(&info->lock);
+ 		info->swapped--;
+ 		shmem_recalc_inode(inode);
+-		spin_unlock(&info->lock);
++		spin_unlock_irq(&info->lock);
+ 
+ 		if (sgp == SGP_WRITE)
+ 			mark_page_accessed(page);
+@@ -1603,11 +1605,11 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
+ 				PageTransHuge(page));
+ 		lru_cache_add_anon(page);
+ 
+-		spin_lock(&info->lock);
++		spin_lock_irq(&info->lock);
+ 		info->alloced += 1 << compound_order(page);
+ 		inode->i_blocks += BLOCKS_PER_PAGE << compound_order(page);
+ 		shmem_recalc_inode(inode);
+-		spin_unlock(&info->lock);
++		spin_unlock_irq(&info->lock);
+ 		alloced = true;
+ 
+ 		/*
+@@ -1639,9 +1641,9 @@ clear:
+ 		if (alloced) {
+ 			ClearPageDirty(page);
+ 			delete_from_page_cache(page);
+-			spin_lock(&info->lock);
++			spin_lock_irq(&info->lock);
+ 			shmem_recalc_inode(inode);
+-			spin_unlock(&info->lock);
++			spin_unlock_irq(&info->lock);
+ 		}
+ 		error = -EINVAL;
+ 		goto unlock;
+@@ -1673,9 +1675,9 @@ unlock:
+ 	}
+ 	if (error == -ENOSPC && !once++) {
+ 		info = SHMEM_I(inode);
+-		spin_lock(&info->lock);
++		spin_lock_irq(&info->lock);
+ 		shmem_recalc_inode(inode);
+-		spin_unlock(&info->lock);
++		spin_unlock_irq(&info->lock);
+ 		goto repeat;
+ 	}
+ 	if (error == -EEXIST)	/* from above or from radix_tree_insert */
+@@ -1874,7 +1876,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+ 	int retval = -ENOMEM;
+ 
+-	spin_lock(&info->lock);
++	spin_lock_irq(&info->lock);
+ 	if (lock && !(info->flags & VM_LOCKED)) {
+ 		if (!user_shm_lock(inode->i_size, user))
+ 			goto out_nomem;
+@@ -1889,7 +1891,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
+ 	retval = 0;
+ 
+ out_nomem:
+-	spin_unlock(&info->lock);
++	spin_unlock_irq(&info->lock);
+ 	return retval;
+ }
+ 
 -- 
 2.8.1
 
