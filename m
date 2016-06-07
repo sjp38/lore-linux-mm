@@ -1,82 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0230F6B0005
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 04:20:57 -0400 (EDT)
-Received: by mail-ig0-f199.google.com with SMTP id 2so82070681igy.1
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 01:20:56 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id l194si16917786itb.15.2016.06.07.01.20.55
-        for <linux-mm@kvack.org>;
-        Tue, 07 Jun 2016 01:20:56 -0700 (PDT)
-Date: Tue, 7 Jun 2016 17:21:58 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: Cleanup - Reorganize the shrink_page_list code into
- smaller functions
-Message-ID: <20160607082158.GA23435@bbox>
-References: <1463779979.22178.142.camel@linux.intel.com>
- <20160531091550.GA19976@bbox>
- <20160531171722.GA5763@linux.intel.com>
- <20160601071225.GN19976@bbox>
- <1464805433.22178.191.camel@linux.intel.com>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 453E46B0005
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 04:43:48 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ao6so4566465pac.2
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 01:43:48 -0700 (PDT)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id fe10si32034399pab.47.2016.06.07.01.36.23
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Jun 2016 01:36:29 -0700 (PDT)
+Received: by mail-pa0-x243.google.com with SMTP id fg1so13708885pad.3
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 01:36:23 -0700 (PDT)
+Subject: Re: [PATCH 2/2] powerpc/mm: check for irq disabled() only if DEBUG_VM
+ is enabled.
+References: <1464692688-6612-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1464692688-6612-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <3eb96c44-98fa-cc51-276c-727d0241c849@gmail.com>
+Date: Tue, 7 Jun 2016 18:36:17 +1000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1464805433.22178.191.camel@linux.intel.com>
+In-Reply-To: <1464692688-6612-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, "Kirill A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, mpe@ellerman.id.au
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jun 01, 2016 at 11:23:53AM -0700, Tim Chen wrote:
-> On Wed, 2016-06-01 at 16:12 +0900, Minchan Kim wrote:
-> > 
-> > Hi Tim,
-> > 
-> > To me, this reorganization is too limited and not good for me,
-> > frankly speaking. It works for only your goal which allocate batch
-> > swap slot, I guess. :)
-> > 
-> > My goal is to make them work with batch page_check_references,
-> > batch try_to_unmap and batch __remove_mapping where we can avoid frequent
-> > mapping->lock(e.g., anon_vma or i_mmap_lock with hoping such batch locking
-> > help system performance) if batch pages has same inode or anon.
-> 
-> This is also my goal to group pages that are either under the same
-> mapping or are anonymous pages together so we can reduce the i_mmap_lock
-> acquisition.  One logic that's yet to be implemented in your patch
-> is the grouping of similar pages together so we only need one i_mmap_lock
-> acquisition.  Doing this efficiently is non-trivial.  
 
-Hmm, my assumption is based on same inode pages are likely to order
-in LRU so no need to group them. If successive page in page_list comes
-from different inode, we can drop the lock and get new lock from new
-inode. That sounds strange?
 
+On 31/05/16 21:04, Aneesh Kumar K.V wrote:
+> We don't need to check this always. The idea here is to capture the
+> wrong usage of find_linux_pte_or_hugepte and we can do that by
+> occasionally running with DEBUG_VM enabled.
 > 
-> I punted the problem somewhat in my patch and elected to defer the processing
-> of the anonymous pages at the end so they are naturally grouped without
-> having to traverse the page_list more than once.  So I'm batching the
-> anonymous pages but the file mapped pages were not grouped.
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+>  arch/powerpc/include/asm/pgtable.h | 6 ++----
+>  1 file changed, 2 insertions(+), 4 deletions(-)
 > 
-> In your implementation, you may need to traverse the page_list in two pass, where the
-> first one is to categorize the pages and grouping them and the second one
-> is the actual processing.  Then the lock batching can be implemented
-> for the pages.  Otherwise the locking is still done page by page in
-> your patch, and can only be batched if the next page on page_list happens
-> to have the same mapping.  Your idea of using a spl_batch_pages is pretty
+> diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
+> index ee09e99097f0..9bd87f269d6d 100644
+> --- a/arch/powerpc/include/asm/pgtable.h
+> +++ b/arch/powerpc/include/asm/pgtable.h
+> @@ -71,10 +71,8 @@ pte_t *__find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+>  static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+>  					       bool *is_thp, unsigned *shift)
+>  {
+> -	if (!arch_irqs_disabled()) {
+> -		pr_info("%s called with irq enabled\n", __func__);
+> -		dump_stack();
+> -	}
+> +	VM_WARN(!arch_irqs_disabled(),
+> +		"%s called with irq enabled\n", __func__);
+>  	return __find_linux_pte_or_hugepte(pgdir, ea, is_thp, shift);
+>  }
 
-Yes. as I said above, I expect pages in LRU would be likely to order per
-inode normally. If it's not, yeb, we need grouping but such overhead would
-mitigate the benefit of lock batch as SWAP_CLUSTER_MAX get bigger.
+Agreed! Honestly, I think it should be a VM_BUG_ON() since we have a large reliance
+on this elsewhere in the code.
 
-> neat.  It may need some enhancement so it is known whether some locks
-> are already held for lock batching purpose.
-> 
-> 
-> Thanks.
-> 
-> Tim
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
