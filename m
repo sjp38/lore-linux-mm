@@ -1,99 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 44E106B0005
-	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 21:11:24 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id f5so178926620vkb.1
-        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 18:11:24 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t27si657868qtt.21.2016.06.06.18.11.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Jun 2016 18:11:23 -0700 (PDT)
-Message-ID: <1465261878.16365.149.camel@redhat.com>
-Subject: Re: [PATCH 05/10] mm: remove LRU balancing effect of temporary page
- isolation
-From: Rik van Riel <riel@redhat.com>
-Date: Mon, 06 Jun 2016 21:11:18 -0400
-In-Reply-To: <20160606221550.GA6665@cmpxchg.org>
-References: <20160606194836.3624-1-hannes@cmpxchg.org>
-	 <20160606194836.3624-6-hannes@cmpxchg.org>
-	 <1465250169.16365.147.camel@redhat.com> <20160606221550.GA6665@cmpxchg.org>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-DEsm4J3ppzrMGOLVNmll"
-Mime-Version: 1.0
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CFCEA6B0005
+	for <linux-mm@kvack.org>; Mon,  6 Jun 2016 21:42:40 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id r4so62086216oib.1
+        for <linux-mm@kvack.org>; Mon, 06 Jun 2016 18:42:40 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id z67si13322257itf.88.2016.06.06.18.42.39
+        for <linux-mm@kvack.org>;
+        Mon, 06 Jun 2016 18:42:40 -0700 (PDT)
+Date: Tue, 7 Jun 2016 10:43:40 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: add NR_ZSMALLOC to vmstat
+Message-ID: <20160607014340.GB26230@bbox>
+References: <1464919731-13255-1-git-send-email-minchan@kernel.org>
+ <20160603080141.GA490@swordfish>
+ <20160603082336.GA18488@bbox>
+ <20160603102432.GB586@swordfish>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160603102432.GB586@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>, Chanho Min <chanho.min@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>
+
+Hi Sergey,
+
+On Fri, Jun 03, 2016 at 07:24:32PM +0900, Sergey Senozhatsky wrote:
+> Hello,
+> 
+> On (06/03/16 17:23), Minchan Kim wrote:
+> > On Fri, Jun 03, 2016 at 05:01:41PM +0900, Sergey Senozhatsky wrote:
+> > > On (06/03/16 11:08), Minchan Kim wrote:
+> > > > Now, zram is very popular for some of embedded world(e.g., TV, mobile
+> > > > phone). On those system, zsmalloc consumed memory size is never trivial
+> > > > (one of example from real product system, total memory: 800M, zsmalloc
+> > > > consumed: 150M), so we have used this out of tree patch to monitor system
+> > > > memory behavior via /proc/vmstat.
+> > > > 
+> > > > With zsmalloc in vmstat, it helps tracking down system behavior by
+> > > > memory usage.
+> > > 
+> > > Hello,
+> > > 
+> > > may be use zsmalloc stats file instead? as far as I know, you keep
+> > > zsmalloc stats enabled in production anyway.
+> > 
+> > It doesn't support per-zone stat which is important to show
+> > the fragmentation of the zone, for exmaple.
+> 
+> Ah, I see.
+> 
+> *just an idea*
+> 
+> may be zbud and z3fold folks will be interested as well, so may
+
+First motivation of stat came from fragmentation problem from zsmalloc
+which caused by storing many thin zpages in a pageframe and across two
+pageframes while zswap limits the limitation by design.
+
+Second motivation is zsmalloc can allocate page from HIGH/movable zones
+so I want to know how distribution zsmalloced pages is.
+However, zbud doesn't.
+
+Lastly, zswap is designed for short-lived with backed storage so I guess
+it shouldn't be a problem.
+
+http://marc.info/?l=linux-mm&m=136570894925571&w=2
+http://marc.info/?l=linux-kernel&m=136571103026450&w=2
+
+Quote from Seth
+"
+> Compaction - compaction would basically involve creating a virtual address
+> space of sorts, which zsmalloc is capable of through its API with handles,
+> not pointer. However, as Dan points out this requires a structure the maintain
+> the mappings and adds to complexity. Additionally, the need for compaction
+> diminishes as the allocations are short-lived with frontswap backends doing
+> writeback and cleancache backends shrinking.
+
+Of course I say this, but for zram, this can be important as the allocations
+can't be moved out of memory and, therefore, are long lived. I was speaking
+from the zswap perspective.
+"
 
 
---=-DEsm4J3ppzrMGOLVNmll
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+> be more generic name and define... um, my head doesn't work toay..
+> ZALLOC... ZPOOLALLOC... hm.. I think you got the idea.
 
-On Mon, 2016-06-06 at 18:15 -0400, Johannes Weiner wrote:
-> On Mon, Jun 06, 2016 at 05:56:09PM -0400, Rik van Riel wrote:
-> >=20
-> > On Mon, 2016-06-06 at 15:48 -0400, Johannes Weiner wrote:
-> > >=20
-> > > =C2=A0
-> > > +void lru_cache_putback(struct page *page)
-> > > +{
-> > > +	struct pagevec *pvec =3D &get_cpu_var(lru_putback_pvec);
-> > > +
-> > > +	get_page(page);
-> > > +	if (!pagevec_space(pvec))
-> > > +		__pagevec_lru_add(pvec, false);
-> > > +	pagevec_add(pvec, page);
-> > > +	put_cpu_var(lru_putback_pvec);
-> > > +}
-> > >=20
-> > Wait a moment.
-> >=20
-> > So now we have a putback_lru_page, which does adjust
-> > the statistics, and an lru_cache_putback which does
-> > not?
-> >=20
-> > This function could use a name that is not as similar
-> > to its counterpart :)
-> lru_cache_add() and lru_cache_putback() are the two sibling
-> functions,
-> where the first influences the LRU balance and the second one
-> doesn't.
->=20
-> The last hunk in the patch (obscured by showing the label instead of
-> the function name as context) updates putback_lru_page() from using
-> lru_cache_add() to using lru_cache_putback().
->=20
-> Does that make sense?
-
-That means the page reclaim does not update the
-"rotated" statistics.  That seems undesirable,
-no?  Am I overlooking something?
-
-
---=20
-All Rights Reversed.
-
-
---=-DEsm4J3ppzrMGOLVNmll
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJXVh82AAoJEM553pKExN6DCCMIAI7IV8X195ET31hixsf9c4pW
-I7xGVhc4UAyZYAn5wnPGZqU2Gi8wnuv0Z+JTOYNRKL88cNR4EzNQynotdxqVsQXd
-Hn82qO3QQ1ylyB9RugZVyVYKJDOhKhxVRXjTSo66gNK5DzURQtvQUcNZjIzqYLHK
-VeCfr4YGMMXKN6/A66ESqvhkISKQ9LW8ZYTr/6L8Upwt873U+RNmvDwd1M+DkQEa
-c5iBQReJeJBarwcBcAfjhtqmWAn0C+TLcL9m4e2FvpGllIMMIXOzreIEsG7g1Ung
-w7rI5A/mHiHYBP+Pm6lHZdtdJho9m20KC1Bos3snYyFpQFMJxYbPVCVfiAp47Dw=
-=G57z
------END PGP SIGNATURE-----
-
---=-DEsm4J3ppzrMGOLVNmll--
+Having said that, generic name is better rather than zsmalloc. Thanks.
+I want to use *zspage* which is term from the beginning of zprojects. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
