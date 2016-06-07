@@ -1,42 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DAB46B0005
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 05:26:32 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id na2so792921lbb.1
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 02:26:32 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id n125si499164wmb.87.2016.06.07.02.26.31
+Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 42D986B0005
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 05:49:59 -0400 (EDT)
+Received: by mail-lb0-f198.google.com with SMTP id jf8so40703695lbc.3
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 02:49:59 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id 190si24166870wmy.14.2016.06.07.02.49.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jun 2016 02:26:31 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id n184so22547744wmn.1
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 02:26:31 -0700 (PDT)
-Date: Tue, 7 Jun 2016 11:26:29 +0200
+        Tue, 07 Jun 2016 02:49:57 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id r5so4515701wmr.0
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 02:49:57 -0700 (PDT)
+Date: Tue, 7 Jun 2016 11:49:56 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH 05/10] mm: remove LRU balancing effect of temporary page
  isolation
-Message-ID: <20160607092629.GG12305@dhcp22.suse.cz>
+Message-ID: <20160607094956.GH12305@dhcp22.suse.cz>
 References: <20160606194836.3624-1-hannes@cmpxchg.org>
  <20160606194836.3624-6-hannes@cmpxchg.org>
- <1465250169.16365.147.camel@redhat.com>
- <20160606221550.GA6665@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160606221550.GA6665@cmpxchg.org>
+In-Reply-To: <20160606194836.3624-6-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
 
-On Mon 06-06-16 18:15:50, Johannes Weiner wrote:
-[...]
-> The last hunk in the patch (obscured by showing the label instead of
-> the function name as context)
+On Mon 06-06-16 15:48:31, Johannes Weiner wrote:
+> Isolating an existing LRU page and subsequently putting it back on the
+> list currently influences the balance between the anon and file LRUs.
+> For example, heavy page migration or compaction could influence the
+> balance between the LRUs and make one type more attractive when that
+> type of page is affected more than the other. That doesn't make sense.
+> 
+> Add a dedicated LRU cache for putback, so that we can tell new LRU
+> pages from existing ones at the time of linking them to the lists.
 
-JFYI my ~/.gitconfig has the following to workaround this:
-[diff "default"]
-        xfuncname = "^[[:alpha:]$_].*[^:]$"
+It is far from trivial to review this one (there are quite some callers)
+but it makes sense to me from the semantic point of view.
+ 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  include/linux/pagevec.h |  2 +-
+>  include/linux/swap.h    |  1 +
+>  mm/mlock.c              |  2 +-
+>  mm/swap.c               | 34 ++++++++++++++++++++++++++++------
+>  mm/vmscan.c             |  2 +-
+>  5 files changed, 32 insertions(+), 9 deletions(-)
+> 
+> diff --git a/include/linux/pagevec.h b/include/linux/pagevec.h
+> index b45d391b4540..3f8a2a01131c 100644
+> --- a/include/linux/pagevec.h
+> +++ b/include/linux/pagevec.h
+> @@ -21,7 +21,7 @@ struct pagevec {
+>  };
+>  
+>  void __pagevec_release(struct pagevec *pvec);
+> -void __pagevec_lru_add(struct pagevec *pvec);
+> +void __pagevec_lru_add(struct pagevec *pvec, bool new);
+>  unsigned pagevec_lookup_entries(struct pagevec *pvec,
+>  				struct address_space *mapping,
+>  				pgoff_t start, unsigned nr_entries,
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 38fe1e91ba55..178f084365c2 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -296,6 +296,7 @@ extern unsigned long nr_free_pagecache_pages(void);
+>  
+>  /* linux/mm/swap.c */
+>  extern void lru_cache_add(struct page *);
+> +extern void lru_cache_putback(struct page *page);
+>  extern void lru_add_page_tail(struct page *page, struct page *page_tail,
+>  			 struct lruvec *lruvec, struct list_head *head);
+>  extern void activate_page(struct page *);
+> diff --git a/mm/mlock.c b/mm/mlock.c
+> index 96f001041928..449c291a286d 100644
+> --- a/mm/mlock.c
+> +++ b/mm/mlock.c
+> @@ -264,7 +264,7 @@ static void __putback_lru_fast(struct pagevec *pvec, int pgrescued)
+>  	 *__pagevec_lru_add() calls release_pages() so we don't call
+>  	 * put_page() explicitly
+>  	 */
+> -	__pagevec_lru_add(pvec);
+> +	__pagevec_lru_add(pvec, false);
+>  	count_vm_events(UNEVICTABLE_PGRESCUED, pgrescued);
+>  }
+>  
+> diff --git a/mm/swap.c b/mm/swap.c
+> index c6936507abb5..576c721f210b 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -44,6 +44,7 @@
+>  int page_cluster;
+>  
+>  static DEFINE_PER_CPU(struct pagevec, lru_add_pvec);
+> +static DEFINE_PER_CPU(struct pagevec, lru_putback_pvec);
+>  static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
+>  static DEFINE_PER_CPU(struct pagevec, lru_deactivate_file_pvecs);
+>  static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
+> @@ -405,12 +406,23 @@ void lru_cache_add(struct page *page)
+>  
+>  	get_page(page);
+>  	if (!pagevec_space(pvec))
+> -		__pagevec_lru_add(pvec);
+> +		__pagevec_lru_add(pvec, true);
+>  	pagevec_add(pvec, page);
+>  	put_cpu_var(lru_add_pvec);
+>  }
+>  EXPORT_SYMBOL(lru_cache_add);
+>  
+> +void lru_cache_putback(struct page *page)
+> +{
+> +	struct pagevec *pvec = &get_cpu_var(lru_putback_pvec);
+> +
+> +	get_page(page);
+> +	if (!pagevec_space(pvec))
+> +		__pagevec_lru_add(pvec, false);
+> +	pagevec_add(pvec, page);
+> +	put_cpu_var(lru_putback_pvec);
+> +}
+> +
+>  /**
+>   * add_page_to_unevictable_list - add a page to the unevictable list
+>   * @page:  the page to be added to the unevictable list
+> @@ -561,10 +573,15 @@ static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
+>   */
+>  void lru_add_drain_cpu(int cpu)
+>  {
+> -	struct pagevec *pvec = &per_cpu(lru_add_pvec, cpu);
+> +	struct pagevec *pvec;
+> +
+> +	pvec = &per_cpu(lru_add_pvec, cpu);
+> +	if (pagevec_count(pvec))
+> +		__pagevec_lru_add(pvec, true);
+>  
+> +	pvec = &per_cpu(lru_putback_pvec, cpu);
+>  	if (pagevec_count(pvec))
+> -		__pagevec_lru_add(pvec);
+> +		__pagevec_lru_add(pvec, false);
+>  
+>  	pvec = &per_cpu(lru_rotate_pvecs, cpu);
+>  	if (pagevec_count(pvec)) {
+> @@ -819,12 +836,17 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+>  	int file = page_is_file_cache(page);
+>  	int active = PageActive(page);
+>  	enum lru_list lru = page_lru(page);
+> +	bool new = (bool)arg;
+>  
+>  	VM_BUG_ON_PAGE(PageLRU(page), page);
+>  
+>  	SetPageLRU(page);
+>  	add_page_to_lru_list(page, lruvec, lru);
+> -	update_page_reclaim_stat(lruvec, file, active, hpage_nr_pages(page));
+> +
+> +	if (new)
+> +		update_page_reclaim_stat(lruvec, file, active,
+> +					 hpage_nr_pages(page));
+> +
+>  	trace_mm_lru_insertion(page, lru);
+>  }
+>  
+> @@ -832,9 +854,9 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+>   * Add the passed pages to the LRU, then drop the caller's refcount
+>   * on them.  Reinitialises the caller's pagevec.
+>   */
+> -void __pagevec_lru_add(struct pagevec *pvec)
+> +void __pagevec_lru_add(struct pagevec *pvec, bool new)
+>  {
+> -	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, NULL);
+> +	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, (void *)new);
+>  }
+>  
+>  /**
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index f79010bbcdd4..8503713bb60e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -737,7 +737,7 @@ redo:
+>  		 * We know how to handle that.
+>  		 */
+>  		is_unevictable = false;
+> -		lru_cache_add(page);
+> +		lru_cache_putback(page);
+>  	} else {
+>  		/*
+>  		 * Put unevictable pages directly on zone's unevictable
+> -- 
+> 2.8.3
 
 -- 
 Michal Hocko
