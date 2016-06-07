@@ -1,49 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B9D7E6B007E
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 17:24:23 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id rs7so80750683lbb.2
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 14:24:23 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.134])
-        by mx.google.com with ESMTPS id x137si27528012wme.107.2016.06.07.14.24.22
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E1CB16B007E
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 17:37:37 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id z189so56989820itg.2
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 14:37:37 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id y20si13305594ioy.198.2016.06.07.14.37.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Jun 2016 14:24:22 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH 7/9] generic syscalls: wire up memory protection keys syscalls
-Date: Tue, 07 Jun 2016 23:25:20 +0200
-Message-ID: <4151348.Xje1rehFl0@wuerfel>
-In-Reply-To: <20160607204725.A731CB1E@viggo.jf.intel.com>
-References: <20160607204712.594DE00A@viggo.jf.intel.com> <20160607204725.A731CB1E@viggo.jf.intel.com>
+        Tue, 07 Jun 2016 14:37:37 -0700 (PDT)
+Subject: Re: linux-next: Tree for Jun 6 (mm/slub.c)
+References: <20160606142058.44b82e38@canb.auug.org.au>
+ <57565789.9050508@infradead.org>
+ <20160607131242.fac39cbade676df24d70edaa@linux-foundation.org>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <57573E9C.1040604@infradead.org>
+Date: Tue, 7 Jun 2016 14:37:32 -0700
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+In-Reply-To: <20160607131242.fac39cbade676df24d70edaa@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Thomas Garnier <thgarnie@google.com>
 
-On Tuesday, June 7, 2016 1:47:25 PM CEST Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+On 06/07/16 13:12, Andrew Morton wrote:
+> On Mon, 6 Jun 2016 22:11:37 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
 > 
-> These new syscalls are implemented as generic code, so enable
-> them for architectures like arm64 which use the generic syscall
-> table.
+>> On 06/05/16 21:20, Stephen Rothwell wrote:
+>>> Hi all,
+>>>
+>>> Changes since 20160603:
+>>>
+>>
+>> on i386:
+>>
+>> mm/built-in.o: In function `init_cache_random_seq':
+>> slub.c:(.text+0x76921): undefined reference to `cache_random_seq_create'
+>> mm/built-in.o: In function `__kmem_cache_release':
+>> (.text+0x80525): undefined reference to `cache_random_seq_destroy'
 > 
-> According to Arnd:
+> Yup.  This, I guess...
 > 
->         Even if the support is x86 specific for the forseeable
->         future, it may be good to reserve the number just in
->         case.  The other architecture specific syscall lists are
->         usually left to the individual arch maintainers, most a
->         lot of the newer architectures share this table.
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm-slub-freelist-randomization-fix
 > 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Arnd Bergmann <arnd@arndb.de>
+> freelist_randomize(), cache_random_seq_create() and
+> cache_random_seq_destroy() should not be inside CONFIG_SLABINFO.
+> 
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: Thomas Garnier <thgarnie@google.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
 
-Acked-by: Arnd Bergmann <arnd@arndb.de>
+Yes, thanks.
 
-Thanks!
+Acked-by: Randy Dunlap <rdunlap@infradead.org>
+Reported-by: Randy Dunlap <rdunlap@infradead.org>
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
