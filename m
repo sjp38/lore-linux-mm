@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C987F6B0264
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:01:15 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e189so15409228pfa.2
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:01:15 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id 8si34541545pfc.245.2016.06.07.04.00.58
+Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DFA346B0265
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 07:01:17 -0400 (EDT)
+Received: by mail-ig0-f197.google.com with SMTP id lp2so147517711igb.3
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 04:01:17 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id g10si32695264pac.240.2016.06.07.04.01.01
         for <linux-mm@kvack.org>;
-        Tue, 07 Jun 2016 04:00:58 -0700 (PDT)
+        Tue, 07 Jun 2016 04:01:02 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9-rebased 11/32] thp: skip file huge pmd on copy_huge_pmd()
-Date: Tue,  7 Jun 2016 14:00:25 +0300
-Message-Id: <1465297246-98985-12-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9-rebased 07/32] thp, vmstats: add counters for huge file pages
+Date: Tue,  7 Jun 2016 14:00:21 +0300
+Message-Id: <1465297246-98985-8-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1465297246-98985-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1465297246-98985-1-git-send-email-kirill.shutemov@linux.intel.com>
@@ -20,80 +20,66 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-copy_page_range() has a check for "Don't copy ptes where a page fault
-will fill them correctly." It works on VMA level. We still copy all page
-table entries from private mappings, even if they map page cache.
+THP_FILE_ALLOC: how many times huge page was allocated and put page
+cache.
 
-We can simplify copy_huge_pmd() a bit by skipping file PMDs.
-
-We don't map file private pages with PMDs, so they only can map page
-cache. It's safe to skip them as they can be re-faulted later.
+THP_FILE_MAPPED: how many times file huge page was mapped.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c | 34 ++++++++++++++++------------------
- 1 file changed, 16 insertions(+), 18 deletions(-)
+ include/linux/vm_event_item.h | 7 +++++++
+ mm/memory.c                   | 1 +
+ mm/vmstat.c                   | 2 ++
+ 3 files changed, 10 insertions(+)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index c9473faea7aa..b4dc62923dd7 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1099,14 +1099,15 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	struct page *src_page;
- 	pmd_t pmd;
- 	pgtable_t pgtable = NULL;
--	int ret;
-+	int ret = -ENOMEM;
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index ec084321fe09..42604173f122 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -70,6 +70,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		THP_FAULT_FALLBACK,
+ 		THP_COLLAPSE_ALLOC,
+ 		THP_COLLAPSE_ALLOC_FAILED,
++		THP_FILE_ALLOC,
++		THP_FILE_MAPPED,
+ 		THP_SPLIT_PAGE,
+ 		THP_SPLIT_PAGE_FAILED,
+ 		THP_DEFERRED_SPLIT_PAGE,
+@@ -100,4 +102,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		NR_VM_EVENT_ITEMS
+ };
  
--	if (!vma_is_dax(vma)) {
--		ret = -ENOMEM;
--		pgtable = pte_alloc_one(dst_mm, addr);
--		if (unlikely(!pgtable))
--			goto out;
--	}
-+	/* Skip if can be re-fill on fault */
-+	if (!vma_is_anonymous(vma))
-+		return 0;
++#ifndef CONFIG_TRANSPARENT_HUGEPAGE
++#define THP_FILE_ALLOC ({ BUILD_BUG(); 0; })
++#define THP_FILE_MAPPED ({ BUILD_BUG(); 0; })
++#endif
 +
-+	pgtable = pte_alloc_one(dst_mm, addr);
-+	if (unlikely(!pgtable))
-+		goto out;
+ #endif		/* VM_EVENT_ITEM_H_INCLUDED */
+diff --git a/mm/memory.c b/mm/memory.c
+index ebcec3f9ca06..7f2e16e9f0cb 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2969,6 +2969,7 @@ static int do_set_pmd(struct fault_env *fe, struct page *page)
  
- 	dst_ptl = pmd_lock(dst_mm, dst_pmd);
- 	src_ptl = pmd_lockptr(src_mm, src_pmd);
-@@ -1114,7 +1115,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 
- 	ret = -EAGAIN;
- 	pmd = *src_pmd;
--	if (unlikely(!pmd_trans_huge(pmd) && !pmd_devmap(pmd))) {
-+	if (unlikely(!pmd_trans_huge(pmd))) {
- 		pte_free(dst_mm, pgtable);
- 		goto out_unlock;
- 	}
-@@ -1137,16 +1138,13 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		goto out_unlock;
- 	}
- 
--	if (!vma_is_dax(vma)) {
--		/* thp accounting separate from pmd_devmap accounting */
--		src_page = pmd_page(pmd);
--		VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
--		get_page(src_page);
--		page_dup_rmap(src_page, true);
--		add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
--		atomic_long_inc(&dst_mm->nr_ptes);
--		pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
--	}
-+	src_page = pmd_page(pmd);
-+	VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
-+	get_page(src_page);
-+	page_dup_rmap(src_page, true);
-+	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
-+	atomic_long_inc(&dst_mm->nr_ptes);
-+	pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
- 
- 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
- 	pmd = pmd_mkold(pmd_wrprotect(pmd));
+ 	/* fault is handled */
+ 	ret = 0;
++	count_vm_event(THP_FILE_MAPPED);
+ out:
+ 	spin_unlock(fe->ptl);
+ 	return ret;
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 076c39e3ba09..68693857397c 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -829,6 +829,8 @@ const char * const vmstat_text[] = {
+ 	"thp_fault_fallback",
+ 	"thp_collapse_alloc",
+ 	"thp_collapse_alloc_failed",
++	"thp_file_alloc",
++	"thp_file_mapped",
+ 	"thp_split_page",
+ 	"thp_split_page_failed",
+ 	"thp_deferred_split_page",
 -- 
 2.8.1
 
