@@ -1,126 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AAF3C6B0005
-	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 03:37:04 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id u67so72170149pfu.1
-        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 00:37:04 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id di2si9865251pad.176.2016.06.07.00.37.02
+Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0230F6B0005
+	for <linux-mm@kvack.org>; Tue,  7 Jun 2016 04:20:57 -0400 (EDT)
+Received: by mail-ig0-f199.google.com with SMTP id 2so82070681igy.1
+        for <linux-mm@kvack.org>; Tue, 07 Jun 2016 01:20:56 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id l194si16917786itb.15.2016.06.07.01.20.55
         for <linux-mm@kvack.org>;
-        Tue, 07 Jun 2016 00:37:03 -0700 (PDT)
-From: "Barczak, Mariusz" <mariusz.barczak@intel.com>
-Subject: RE: [BUG] Possible silent data corruption in filesystems/page cache
-Date: Tue, 7 Jun 2016 07:36:55 +0000
-Message-ID: <842E055448A75D44BEB94DEB9E5166E91877C830@irsmsx110.ger.corp.intel.com>
-References: <842E055448A75D44BEB94DEB9E5166E91877AAF1@irsmsx110.ger.corp.intel.com>
- <A9F4ECA5-24EF-4785-BC8B-ECFE63F9B026@dilger.ca>
- <842E055448A75D44BEB94DEB9E5166E91877C26F@irsmsx110.ger.corp.intel.com>
- <20160606133539.GE22108@thunk.org>
-In-Reply-To: <20160606133539.GE22108@thunk.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
+        Tue, 07 Jun 2016 01:20:56 -0700 (PDT)
+Date: Tue, 7 Jun 2016 17:21:58 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: Cleanup - Reorganize the shrink_page_list code into
+ smaller functions
+Message-ID: <20160607082158.GA23435@bbox>
+References: <1463779979.22178.142.camel@linux.intel.com>
+ <20160531091550.GA19976@bbox>
+ <20160531171722.GA5763@linux.intel.com>
+ <20160601071225.GN19976@bbox>
+ <1464805433.22178.191.camel@linux.intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1464805433.22178.191.camel@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: Andreas Dilger <adilger@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Wysoczanski,
- Michal" <michal.wysoczanski@intel.com>, "Baldyga, Robert" <robert.baldyga@intel.com>, "Roman, Agnieszka" <agnieszka.roman@intel.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, "Kirill A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-Hi Ted,
-Thanks for your explanation which convinced me.
-Regards,
-Mariusz.
+On Wed, Jun 01, 2016 at 11:23:53AM -0700, Tim Chen wrote:
+> On Wed, 2016-06-01 at 16:12 +0900, Minchan Kim wrote:
+> > 
+> > Hi Tim,
+> > 
+> > To me, this reorganization is too limited and not good for me,
+> > frankly speaking. It works for only your goal which allocate batch
+> > swap slot, I guess. :)
+> > 
+> > My goal is to make them work with batch page_check_references,
+> > batch try_to_unmap and batch __remove_mapping where we can avoid frequent
+> > mapping->lock(e.g., anon_vma or i_mmap_lock with hoping such batch locking
+> > help system performance) if batch pages has same inode or anon.
+> 
+> This is also my goal to group pages that are either under the same
+> mapping or are anonymous pages together so we can reduce the i_mmap_lock
+> acquisition.  One logic that's yet to be implemented in your patch
+> is the grouping of similar pages together so we only need one i_mmap_lock
+> acquisition.  Doing this efficiently is non-trivial.  
 
------Original Message-----
-From: Theodore Ts'o [mailto:tytso@mit.edu] =
+Hmm, my assumption is based on same inode pages are likely to order
+in LRU so no need to group them. If successive page in page_list comes
+from different inode, we can drop the lock and get new lock from new
+inode. That sounds strange?
 
-Sent: Monday, June 6, 2016 15:36
-To: Barczak, Mariusz <mariusz.barczak@intel.com>
-Cc: Andreas Dilger <adilger@dilger.ca>; Andrew Morton <akpm@linux-foundatio=
-n.org>; Jens Axboe <axboe@kernel.dk>; Alexander Viro <viro@zeniv.linux.org.=
-uk>; linux-mm@kvack.org; linux-block@vger.kernel.org; linux-fsdevel@vger.ke=
-rnel.org; linux-kernel@vger.kernel.org; Wysoczanski, Michal <michal.wysocza=
-nski@intel.com>; Baldyga, Robert <robert.baldyga@intel.com>; Roman, Agniesz=
-ka <agnieszka.roman@intel.com>
-Subject: Re: [BUG] Possible silent data corruption in filesystems/page cache
+> 
+> I punted the problem somewhat in my patch and elected to defer the processing
+> of the anonymous pages at the end so they are naturally grouped without
+> having to traverse the page_list more than once.  So I'm batching the
+> anonymous pages but the file mapped pages were not grouped.
+> 
+> In your implementation, you may need to traverse the page_list in two pass, where the
+> first one is to categorize the pages and grouping them and the second one
+> is the actual processing.  Then the lock batching can be implemented
+> for the pages.  Otherwise the locking is still done page by page in
+> your patch, and can only be batched if the next page on page_list happens
+> to have the same mapping.  Your idea of using a spl_batch_pages is pretty
 
-On Mon, Jun 06, 2016 at 07:29:42AM +0000, Barczak, Mariusz wrote:
-> Hi, Let me elaborate problem in detail. =
+Yes. as I said above, I expect pages in LRU would be likely to order per
+inode normally. If it's not, yeb, we need grouping but such overhead would
+mitigate the benefit of lock batch as SWAP_CLUSTER_MAX get bigger.
 
-> =
-
-> For buffered IO data are copied into memory pages. For this case, the =
-
-> write IO is not submitted (generally). In the background opportunistic =
-
-> cleaning of dirty pages takes place and IO is generated to the device. =
-
-> An IO error is observed on this path and application is not informed =
-
-> about this. Summarizing flushing of dirty page fails.
-> And probably, this page is dropped but in fact it should not be.
-> So if above situation happens between application write and sync then =
-
-> no error is reported. In addition after some time, when the =
-
-> application reads the same LBA on which IO error occurred, old data =
-
-> content is fetched.
-
-The application will be informed about it if it asks --- if it calls fsync(=
-), the I/O will be forced and if there is an error it will be returned to t=
-he user.  But if the user has not asked, there is no way for the user space=
- to know that there is a problem --- for that matter, it may have exited al=
-ready by the time we do the buffered writeback, so there may be nobody to i=
-nform.
-
-If the error hapepns between the write and sync, then the address space map=
-ping's AS_EIO bit will be set.  (See filemap_check_errors() and do a git gr=
-ep on AS_EIO.)  So the user will be informed when they call fsync(2).
-
-The problem with simply not dropping the page is that if we do that, the pa=
-ge will never be cleaned, and in the worst case, this can lead to memory ex=
-haustion.  Consider the case where a user is writing huge numbers of pages,=
- (e.g., dd if=3D/dev/zero
-of=3D/dev/device-that-will-go-away) if the page is never dropped, then the =
-memory will never go away.
-
-In other words, the current behavior was carefully considered, and delibera=
-tely chosen as the best design.
-
-The fact that you need to call fsync(2), and then check the error returns o=
-f both fsync(2) *and* close(2) if you want to know for sure whether or not =
-there was an I/O error is a known, docmented part of Unix/Linux and has bee=
-n true for literally decades.  (With Emacs learning and fixing this back in=
- the late-1980's to avoid losing user data if the user goes over quota on t=
-heir Andrew File System on a BSD
-4.3 system, for example.  If you're using some editor that comes with some =
-desktop package or some whizzy IDE, all bets are off, of course.
-But if you're using such tools, you probably care about eye candy way more =
-than you care about your data; certainly the authors of such programs seem =
-to have this tendency, anyway.  :-)
-
-Cheers,
-
-						- Ted
---------------------------------------------------------------------
-
-Intel Technology Poland sp. z o.o.
-ul. Slowackiego 173 | 80-298 Gdansk | Sad Rejonowy Gdansk Polnoc | VII Wydz=
-ial Gospodarczy Krajowego Rejestru Sadowego - KRS 101882 | NIP 957-07-52-31=
-6 | Kapital zakladowy 200.000 PLN.
-
-Ta wiadomosc wraz z zalacznikami jest przeznaczona dla okreslonego adresata=
- i moze zawierac informacje poufne. W razie przypadkowego otrzymania tej wi=
-adomosci, prosimy o powiadomienie nadawcy oraz trwale jej usuniecie; jakiek=
-olwiek
-przegladanie lub rozpowszechnianie jest zabronione.
-This e-mail and any attachments may contain confidential material for the s=
-ole use of the intended recipient(s). If you are not the intended recipient=
-, please contact the sender and delete all copies; any review or distributi=
-on by
-others is strictly prohibited.
+> neat.  It may need some enhancement so it is known whether some locks
+> are already held for lock batching purpose.
+> 
+> 
+> Thanks.
+> 
+> Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
