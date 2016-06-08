@@ -1,48 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BFB8B6B007E
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 03:00:58 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id d4so2034118iod.3
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 00:00:58 -0700 (PDT)
-Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
-        by mx.google.com with ESMTPS id 192si39649623pfw.92.2016.06.08.00.00.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 08 Jun 2016 00:00:57 -0700 (PDT)
-From: roy.qing.li@gmail.com
-Subject: [PATCH] mm: memcontrol: remove BUG_ON in uncharge_list
-Date: Wed,  8 Jun 2016 15:00:48 +0800
-Message-Id: <1465369248-13865-1-git-send-email-roy.qing.li@gmail.com>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A5F9B6B007E
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 03:13:38 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id w9so161578646oia.3
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 00:13:38 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id p73si387347iod.206.2016.06.08.00.13.37
+        for <linux-mm@kvack.org>;
+        Wed, 08 Jun 2016 00:13:37 -0700 (PDT)
+Date: Wed, 8 Jun 2016 16:14:41 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 02/10] mm: swap: unexport __pagevec_lru_add()
+Message-ID: <20160608071441.GB28155@bbox>
+References: <20160606194836.3624-1-hannes@cmpxchg.org>
+ <20160606194836.3624-3-hannes@cmpxchg.org>
+MIME-Version: 1.0
+In-Reply-To: <20160606194836.3624-3-hannes@cmpxchg.org>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org, linux-mm@kvack.org
-Cc: hannes@cmpxchg.org, mhocko@kernel.org, vdavydov@virtuozzo.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
 
-From: Li RongQing <roy.qing.li@gmail.com>
-
-when call uncharge_list, if a page is transparent huge, and not need to
-BUG_ON about non-transparent huge, since nobody should be be seeing the
-page at this stage and this page cannot be raced with a THP split up
-
-Signed-off-by: Li RongQing <roy.qing.li@gmail.com>
----
- mm/memcontrol.c | 1 -
- 1 file changed, 1 deletion(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4d9a215..d7a56f1 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5457,7 +5457,6 @@ static void uncharge_list(struct list_head *page_list)
- 
- 		if (PageTransHuge(page)) {
- 			nr_pages <<= compound_order(page);
--			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
- 			nr_huge += nr_pages;
- 		}
- 
--- 
-2.1.4
+On Mon, Jun 06, 2016 at 03:48:28PM -0400, Johannes Weiner wrote:
+> There is currently no modular user of this function. We used to have
+> filesystems that open-coded the page cache instantiation, but luckily
+> they're all streamlined, and we don't want this to come back.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
