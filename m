@@ -1,80 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B8BB46B025E
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 04:42:45 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r5so2474752wmr.0
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 01:42:45 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id ib3si199755wjb.118.2016.06.08.01.42.44
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jun 2016 01:42:44 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id k184so1081623wme.2
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 01:42:44 -0700 (PDT)
-Date: Wed, 8 Jun 2016 10:42:41 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [Bug 119641] New: hugetlbfs: disabling because there are no
- supported hugepage sizes
-Message-ID: <20160608084241.GA10729@gmail.com>
-References: <bug-119641-27@https.bugzilla.kernel.org/>
- <20160606140123.bbc4b06d0f9d8b974f7b323f@linux-foundation.org>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D29D06B025E
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 04:51:25 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a69so2402884pfa.1
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 01:51:25 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id e1si255351paz.184.2016.06.08.01.51.16
+        for <linux-mm@kvack.org>;
+        Wed, 08 Jun 2016 01:51:19 -0700 (PDT)
+From: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
+Subject: RE: mm: pages are not freed from lru_add_pvecs after process
+ termination
+Date: Wed, 8 Jun 2016 08:51:00 +0000
+Message-ID: <D6EDEBF1F91015459DB866AC4EE162CC023F8B3E@IRSMSX103.ger.corp.intel.com>
+References: <5720F2A8.6070406@intel.com>
+ <20160428143710.GC31496@dhcp22.suse.cz>
+ <20160502130006.GD25265@dhcp22.suse.cz>
+ <D6EDEBF1F91015459DB866AC4EE162CC023C182F@IRSMSX103.ger.corp.intel.com>
+ <20160504203643.GI21490@dhcp22.suse.cz>
+ <20160505072122.GA4386@dhcp22.suse.cz>
+ <D6EDEBF1F91015459DB866AC4EE162CC023C402E@IRSMSX103.ger.corp.intel.com>
+ <572CC092.5020702@intel.com> <20160511075313.GE16677@dhcp22.suse.cz>
+ <D6EDEBF1F91015459DB866AC4EE162CC023F84C9@IRSMSX103.ger.corp.intel.com>
+ <20160607111946.GJ12305@dhcp22.suse.cz>
+In-Reply-To: <20160607111946.GJ12305@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160606140123.bbc4b06d0f9d8b974f7b323f@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, jp.pozzi@izzop.net, Ingo Molnar <mingo@elte.hu>, Jan Beulich <JBeulich@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
 
+On Tue 07-06-16 13:20:00, Michal Hocko wrote:
+> I guess you want something like posix_memalign or start faulting in from
+> an aligned address to guarantee you will fault 2MB pages.=20
 
-* Andrew Morton <akpm@linux-foundation.org> wrote:
+Good catch.
 
-> 
-> (switched to email.  Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
-> 
-> Does anyone have any theories about this?  I went through the
-> 4.5.2->4.5.5 changelog searching for "huget" but came up blank..
-> 
-> I'm suspiciously staring at Ingo's change
-> 
-> commit b2eafe890d4a09bfa63ab31ff018d7d6bb8cfefc
-> Merge: abfb949 ea5dfb5
-> Author:     Ingo Molnar <mingo@kernel.org>
-> AuthorDate: Fri Apr 22 10:12:19 2016 +0200
-> Commit:     Ingo Molnar <mingo@kernel.org>
-> CommitDate: Fri Apr 22 10:13:53 2016 +0200
-> 
->     Merge branch 'x86/urgent' into x86/asm, to fix semantic conflict
->     
->     'cpu_has_pse' has changed to boot_cpu_has(X86_FEATURE_PSE), fix this
->     up in the merge commit when merging the x86/urgent tree that includes
->     the following commit:
->     
->       103f6112f253 ("x86/mm/xen: Suppress hugetlbfs in PV guests")
->     
->     Signed-off-by: Ingo Molnar <mingo@kernel.org>
-> 
-> --- a/arch/x86/include/asm/hugetlb.h
-> +++ b/arch/x86/include/asm/hugetlb.h
-> @@@ -4,6 -4,7 +4,7 @@@
->   #include <asm/page.h>
->   #include <asm-generic/hugetlb.h>
->   
->  -#define hugepages_supported() cpu_has_pse
-> ++#define hugepages_supported() boot_cpu_has(X86_FEATURE_PSE)
+> Besides that I am really suspicious that this will be measurable at all.
+> I would just go and spin a patch assuming you are still able to trigger
+> OOM with the vanilla kernel.=20
 
-That's really a no-op change, as we simply got rid of cpu_has_pse:
+Yes, I am still able to trigger OOM, the tests I did are  more like sanity
+checks rather than benchmarks. lru_cache_add takes very little time
+so it was rather to look for some unexpected side effects.
 
--#define cpu_has_pse            boot_cpu_has(X86_FEATURE_PSE)
-
-... and open coded the boot_cpu_has(X86_FEATURE_PSE) uses. There should be zero 
-change to the generated code.
-
-Thanks,
-
-	Ingo
+Thank,
+Lukas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
