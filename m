@@ -1,88 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 94D296B025F
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 18:27:24 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id t8so22875885oif.2
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 15:27:24 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id s133si1861803oig.13.2016.06.08.15.27.23
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F23056B0005
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 18:51:22 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id 5so33250609ioy.2
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 15:51:22 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id ui10si3722319pac.76.2016.06.08.15.51.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Jun 2016 15:27:23 -0700 (PDT)
-Subject: Re: [PATCH] oom_reaper: avoid pointless atomic_inc_not_zero usage.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1465024759-8074-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20160606141340.86c96c1d3dc29823438313d9@linux-foundation.org>
-	<20160608100418.33b7566b08de7223b2dc2986@linux-foundation.org>
-In-Reply-To: <20160608100418.33b7566b08de7223b2dc2986@linux-foundation.org>
-Message-Id: <201606090727.EHB64549.LFFMOVtSHJOOFQ@I-love.SAKURA.ne.jp>
-Date: Thu, 9 Jun 2016 07:27:03 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Jun 2016 15:51:22 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id t190so6741916pfb.3
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 15:51:22 -0700 (PDT)
+Date: Wed, 8 Jun 2016 15:51:20 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 06/10] mm, oom: kill all tasks sharing the mm
+In-Reply-To: <20160608062219.GA22570@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1606081549490.12203@chino.kir.corp.google.com>
+References: <1464945404-30157-1-git-send-email-mhocko@kernel.org> <1464945404-30157-7-git-send-email-mhocko@kernel.org> <alpine.DEB.2.10.1606061526440.18843@chino.kir.corp.google.com> <20160606232007.GA624@redhat.com> <alpine.DEB.2.10.1606071514550.18400@chino.kir.corp.google.com>
+ <20160608062219.GA22570@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org, mhocko@suse.com, arnd@arndb.de
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-Andrew Morton wrote:
-> On Mon, 6 Jun 2016 14:13:40 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, 8 Jun 2016, Michal Hocko wrote:
+
+> > Why is the patch asking users to report oom killing of a process that 
+> > raced with setting /proc/pid/oom_score_adj to OOM_SCORE_ADJ_MIN?  What is 
+> > possibly actionable about it?
 > 
-> > On Sat,  4 Jun 2016 16:19:19 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
-> > 
-> > > Since commit 36324a990cf578b5 ("oom: clear TIF_MEMDIE after oom_reaper
-> > > managed to unmap the address space") changed to use find_lock_task_mm()
-> > > for finding a mm_struct to reap, it is guaranteed that mm->mm_users > 0
-> > > because find_lock_task_mm() returns a task_struct with ->mm != NULL.
-> > > Therefore, we can safely use atomic_inc().
-> > > 
-> > > ...
-> > >
-> > > --- a/mm/oom_kill.c
-> > > +++ b/mm/oom_kill.c
-> > > @@ -474,13 +474,8 @@ static bool __oom_reap_task(struct task_struct *tsk)
-> > >  	p = find_lock_task_mm(tsk);
-> > >  	if (!p)
-> > >  		goto unlock_oom;
-> > > -
-> > >  	mm = p->mm;
-> > > -	if (!atomic_inc_not_zero(&mm->mm_users)) {
-> > > -		task_unlock(p);
-> > > -		goto unlock_oom;
-> > > -	}
-> > > -
-> > > +	atomic_inc(&mm->mm_users);
-> > >  	task_unlock(p);
-> > >  
-> > >  	if (!down_read_trylock(&mm->mmap_sem)) {
-> > 
-> > In an off-list email (please don't do that!) you asked me to replace
-> > mmoom_reaper-dont-call-mmput_async-without-atomic_inc_not_zero.patch
-> > with this above patch.
-> > 
-> > But the
-> > mmoom_reaper-dont-call-mmput_async-without-atomic_inc_not_zero.patch
-> > changelog is pretty crappy:
-> > 
-> > : Commit e2fe14564d3316d1 ("oom_reaper: close race with exiting task")
-> > : reduced frequency of needlessly selecting next OOM victim, but was
-> > : calling mmput_async() when atomic_inc_not_zero() failed.
-> > 
-> > because it doesn't explain that the patch potentially fixes a kernel
-> > crash.
-> > 
-> > And the changelog for this above patch is similarly crappy - it fails
-> > to described the end-user visible effects of the bug which is being
-> > fixed.  Please *always* do this.  Always always always.
-> > 
-> > Please send me a complete changelog for this patch, thanks.
-> 
-> Ping?  Can we have a better changelog on this one?
-> 
-> That changelog will help us to decide whether to backport this into
-> 4.6.x.
-> 
-No need to backport. There was no possibility of kernel crash from the
-beginning. What I thought it might cause a problem did not exist.
-We just forgot to convert atomic_inc_not_zero() to atomic_inc().
+> Well, the primary point is to know whether such races happen in the real
+> loads and whether they actually matter. If yes we can harden the locking
+> or come up with a less racy solutions.
+
+A thread being set to oom disabled while racing with the oom killer 
+obviously isn't a concern: it could very well be set to oom disabled after 
+the SIGKILL is sent and before the signal is handled, and that's not even 
+fixable without unneeded complexity because we don't know the source of 
+the SIGKILL.  Please remove the printk entirely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
