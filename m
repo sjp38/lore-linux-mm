@@ -1,127 +1,326 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D49866B025E
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 10:46:39 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id 132so5168690lfz.3
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 07:46:39 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id nh6si1829931wjb.224.2016.06.08.07.46.38
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 005876B025E
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 10:52:08 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id n63so25103197ywf.3
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 07:52:08 -0700 (PDT)
+Received: from mail-vk0-x241.google.com (mail-vk0-x241.google.com. [2607:f8b0:400c:c05::241])
+        by mx.google.com with ESMTPS id 66si423717uaz.128.2016.06.08.07.52.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jun 2016 07:46:38 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id k184so3570933wme.2
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 07:46:38 -0700 (PDT)
-Date: Wed, 8 Jun 2016 16:46:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: oom: deduplicate victim selection code for memcg
- and global oom
-Message-ID: <20160608144636.GN22570@dhcp22.suse.cz>
-References: <40e03fd7aaf1f55c75d787128d6d17c5a71226c2.1464358556.git.vdavydov@virtuozzo.com>
- <3bbc7b70dae6ace0b8751e0140e878acfdfffd74.1464358556.git.vdavydov@virtuozzo.com>
- <20160608083334.GF22570@dhcp22.suse.cz>
- <20160608135204.GA30465@esperanza>
+        Wed, 08 Jun 2016 07:52:08 -0700 (PDT)
+Received: by mail-vk0-x241.google.com with SMTP id x7so1705099vkf.3
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 07:52:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160608135204.GA30465@esperanza>
+In-Reply-To: <d2a7edd5e1f37d9daf4536927d1439df6f9dbd0a.1465378622.git.geliangtang@gmail.com>
+References: <d2a7edd5e1f37d9daf4536927d1439df6f9dbd0a.1465378622.git.geliangtang@gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Wed, 8 Jun 2016 10:51:28 -0400
+Message-ID: <CALZtONBj0a06T5pxu0AxnyQX8VreuhGxmdg-oMv6w6SJom9wpQ@mail.gmail.com>
+Subject: Re: [PATCH] zram: add zpool support
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Geliang Tang <geliangtang@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Wed 08-06-16 16:52:04, Vladimir Davydov wrote:
-> On Wed, Jun 08, 2016 at 10:33:34AM +0200, Michal Hocko wrote:
-> > On Fri 27-05-16 17:17:42, Vladimir Davydov wrote:
-> > [...]
-> > > @@ -970,26 +1028,25 @@ bool out_of_memory(struct oom_control *oc)
-> > >  	    !oom_unkillable_task(current, NULL, oc->nodemask) &&
-> > >  	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
-> > >  		get_task_struct(current);
-> > > -		oom_kill_process(oc, current, 0, totalpages,
-> > > -				 "Out of memory (oom_kill_allocating_task)");
-> > > +		oom_kill_process(oc, current, 0, totalpages);
-> > >  		return true;
-> > >  	}
-> > 
-> > Do we really want to introduce sysctl_oom_kill_allocating_task to memcg
-> > as well?
-> 
-> Not sure, but why not? We take into account dump_tasks and panic_on_oom
-> on memcg oom so why should we treat this sysctl differently?
+On Wed, Jun 8, 2016 at 5:39 AM, Geliang Tang <geliangtang@gmail.com> wrote:
+> This patch adds zpool support for zram, it will allow us to use both
+> the zpool api and directly zsmalloc api in zram.
 
-Well, for one thing nobody has requested that and it would be a user
-visible change which might be unexpected. And as already said I think it
-was a mistake to introduce this sysctl in the first place. The behavior
-is so random that I am even not sure it is usable in the real life.
-Spreading it more doesn't sound like a good idea to me.
+besides the problems below, this was discussed a while ago and I
+believe Minchan is still against it, as nobody has so far shown what
+the benefit to zram would be; zram doesn't need the predictability, or
+evictability, of zbud or z3fold.
 
-[...]
+>
+> Signed-off-by: Geliang Tang <geliangtang@gmail.com>
+> ---
+>  drivers/block/zram/zram_drv.c | 97 +++++++++++++++++++++++++++++++++++++++++++
+>  drivers/block/zram/zram_drv.h |  5 +++
+>  2 files changed, 102 insertions(+)
+>
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index 9e2a83c..1f90bd0 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -43,6 +43,11 @@ static const char *default_compressor = "lzo";
+>  /* Module params (documentation at end) */
+>  static unsigned int num_devices = 1;
+>
+> +#ifdef CONFIG_ZPOOL
+> +/* Compressed storage zpool to use */
+> +#define ZRAM_ZPOOL_DEFAULT "zsmalloc"
+> +#endif
 
-> > Now if you look at out_of_memory() the only shared "heuristic" with the
-> > memcg part is the bypass for the exiting tasks.
-> 
-> bypass exiting task (task_will_free_mem)
-> check for panic (check_panic_on_oom)
-> oom badness evaluation (oom_scan_process_thread or oom_evaluate_task
-> after your patch)
-> points calculation + kill (oom_kill_process)
-> 
-> And if you need to modify any of these function calls or add yet another
-> check, you have to do it twice. Ugly.
+It doesn't make sense for zram to conditionally use zpool; either it
+uses it and thus has 'select ZPOOL' in its Kconfig entry, or it
+doesn't use it at all.
 
-Ideally all those changes would happen inside those helpers. Also if you
-look at out_of_memory and mem_cgroup_out_of_memory it is much easier to
-follow the later one because it doesn't have that different combinations
-of heuristic which only make sense for sysrq or global oom.
+> +
+>  static inline void deprecated_attr_warn(const char *name)
+>  {
+>         pr_warn_once("%d (%s) Attribute %s (and others) will be removed. %s\n",
+> @@ -228,7 +233,11 @@ static ssize_t mem_used_total_show(struct device *dev,
+>         down_read(&zram->init_lock);
+>         if (init_done(zram)) {
+>                 struct zram_meta *meta = zram->meta;
+> +#ifdef CONFIG_ZPOOL
+> +               val = zpool_get_total_size(meta->mem_pool) >> PAGE_SHIFT;
+> +#else
+>                 val = zs_get_total_pages(meta->mem_pool);
+> +#endif
+>         }
+>         up_read(&zram->init_lock);
+>
+> @@ -296,8 +305,14 @@ static ssize_t mem_used_max_store(struct device *dev,
+>         down_read(&zram->init_lock);
+>         if (init_done(zram)) {
+>                 struct zram_meta *meta = zram->meta;
+> +#ifdef CONFIG_ZPOOL
+> +               atomic_long_set(&zram->stats.max_used_pages,
+> +                               zpool_get_total_size(meta->mem_pool)
+> +                               >> PAGE_SHIFT);
+> +#else
+>                 atomic_long_set(&zram->stats.max_used_pages,
+>                                 zs_get_total_pages(meta->mem_pool));
+> +#endif
+>         }
+>         up_read(&zram->init_lock);
+>
+> @@ -366,6 +381,18 @@ static ssize_t comp_algorithm_store(struct device *dev,
+>         return len;
+>  }
+>
+> +#ifdef CONFIG_ZPOOL
+> +static void zpool_compact(void *pool)
+> +{
+> +       zs_compact(pool);
+> +}
+> +
+> +static void zpool_stats(void *pool, struct zs_pool_stats *stats)
+> +{
+> +       zs_pool_stats(pool, stats);
+> +}
+> +#endif
 
-> > Plus both need the oom_lock.
-> 
-> I believe locking could be unified for global/memcg oom cases too.
-> 
-> > You have to special case oom notifiers, panic on no victim handling and
-> > I guess the oom_kill_allocating task is not intentional either. So I
-> > am not really sure this is an improvement. I even hate how we conflate
-> > sysrq vs. regular global oom context together but my cleanup for that
-> > has failed in the past.
-> > 
-> > The victim selection code can be reduced because it is basically
-> > shared between the two, only the iterator differs. But I guess that
-> > can be eliminated by a simple helper.
-> 
-> IMHO exporting a bunch of very oom-specific helpers (like those I
-> enumerated above), partially revealing oom implementation, instead of
-> well defined memcg helpers that could be reused anywhere else looks
-> ugly. It's like having shrink_zone implementation both in vmscan.c and
-> memcontrol.c with shrink_slab, shrink_lruvec, etc. exported, because we
-> need to iterate over cgroups there.
+first, no.  this obviously makes using zpool in zram completely pointless.
 
-I agree that the API for OOM killer parts is not really great. I am just
-little bit afraid that iterators are just over engineered. I am even not
-sure whethers those have any other potential users. The diffstat of the
-cleanup I have here right now sounds really encouranging.
----
- include/linux/oom.h | 17 ++++-------
- mm/memcontrol.c     | 48 +++--------------------------
- mm/oom_kill.c       | 87 ++++++++++++++++++++++++++++++-----------------------
- 3 files changed, 60 insertions(+), 92 deletions(-)
+second, did you test this?  the pool you're passing is the zpool, not
+the zs_pool.  quite bad things will happen when this code runs.  There
+is no way to get the zs_pool from the zpool object (that's the point
+of abstraction, of course).
 
-compared to yours
- include/linux/memcontrol.h |  15 ++++
- include/linux/oom.h        |  51 -------------
- mm/memcontrol.c            | 112 ++++++++++-----------------
- mm/oom_kill.c              | 183 +++++++++++++++++++++++++++++----------------
- 4 files changed, 176 insertions(+), 185 deletions(-)
+The fact zpool doesn't have these apis (currently) is one of the
+reasons against changing zram to use zpool.
 
-we save more LOC with a smaller patch. I know this is not an absolute
-metric but I would rather go with simplicity than an elaborate
-APIs. This is all pretty much mm/memcg internal.
-
-Anyway I do not have strong opinion and will not insist. I can post
-the full cleanup with suggestions from Tetsuo integrated if you are
-interested.
--- 
-Michal Hocko
-SUSE Labs
+> +
+>  static ssize_t compact_store(struct device *dev,
+>                 struct device_attribute *attr, const char *buf, size_t len)
+>  {
+> @@ -379,7 +406,11 @@ static ssize_t compact_store(struct device *dev,
+>         }
+>
+>         meta = zram->meta;
+> +#ifdef CONFIG_ZPOOL
+> +       zpool_compact(meta->mem_pool);
+> +#else
+>         zs_compact(meta->mem_pool);
+> +#endif
+>         up_read(&zram->init_lock);
+>
+>         return len;
+> @@ -416,8 +447,14 @@ static ssize_t mm_stat_show(struct device *dev,
+>
+>         down_read(&zram->init_lock);
+>         if (init_done(zram)) {
+> +#ifdef CONFIG_ZPOOL
+> +               mem_used = zpool_get_total_size(zram->meta->mem_pool)
+> +                               >> PAGE_SHIFT;
+> +               zpool_stats(zram->meta->mem_pool, &pool_stats);
+> +#else
+>                 mem_used = zs_get_total_pages(zram->meta->mem_pool);
+>                 zs_pool_stats(zram->meta->mem_pool, &pool_stats);
+> +#endif
+>         }
+>
+>         orig_size = atomic64_read(&zram->stats.pages_stored);
+> @@ -490,10 +527,18 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
+>                 if (!handle)
+>                         continue;
+>
+> +#ifdef CONFIG_ZPOOL
+> +               zpool_free(meta->mem_pool, handle);
+> +#else
+>                 zs_free(meta->mem_pool, handle);
+> +#endif
+>         }
+>
+> +#ifdef CONFIG_ZPOOL
+> +       zpool_destroy_pool(meta->mem_pool);
+> +#else
+>         zs_destroy_pool(meta->mem_pool);
+> +#endif
+>         vfree(meta->table);
+>         kfree(meta);
+>  }
+> @@ -513,7 +558,17 @@ static struct zram_meta *zram_meta_alloc(char *pool_name, u64 disksize)
+>                 goto out_error;
+>         }
+>
+> +#ifdef CONFIG_ZPOOL
+> +       if (!zpool_has_pool(ZRAM_ZPOOL_DEFAULT)) {
+> +               pr_err("zpool %s not available\n", ZRAM_ZPOOL_DEFAULT);
+> +               goto out_error;
+> +       }
+> +
+> +       meta->mem_pool = zpool_create_pool(ZRAM_ZPOOL_DEFAULT,
+> +                                       pool_name, 0, NULL);
+> +#else
+>         meta->mem_pool = zs_create_pool(pool_name);
+> +#endif
+>         if (!meta->mem_pool) {
+>                 pr_err("Error creating memory pool\n");
+>                 goto out_error;
+> @@ -549,7 +604,11 @@ static void zram_free_page(struct zram *zram, size_t index)
+>                 return;
+>         }
+>
+> +#ifdef CONFIG_ZPOOL
+> +       zpool_free(meta->mem_pool, handle);
+> +#else
+>         zs_free(meta->mem_pool, handle);
+> +#endif
+>
+>         atomic64_sub(zram_get_obj_size(meta, index),
+>                         &zram->stats.compr_data_size);
+> @@ -577,7 +636,11 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
+>                 return 0;
+>         }
+>
+> +#ifdef CONFIG_ZPOOL
+> +       cmem = zpool_map_handle(meta->mem_pool, handle, ZPOOL_MM_RO);
+> +#else
+>         cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_RO);
+> +#endif
+>         if (size == PAGE_SIZE) {
+>                 copy_page(mem, cmem);
+>         } else {
+> @@ -586,7 +649,11 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
+>                 ret = zcomp_decompress(zstrm, cmem, size, mem);
+>                 zcomp_stream_put(zram->comp);
+>         }
+> +#ifdef CONFIG_ZPOOL
+> +       zpool_unmap_handle(meta->mem_pool, handle);
+> +#else
+>         zs_unmap_object(meta->mem_pool, handle);
+> +#endif
+>         bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+>
+>         /* Should NEVER happen. Return bio error if it does. */
+> @@ -735,20 +802,34 @@ compress_again:
+>          * from the slow path and handle has already been allocated.
+>          */
+>         if (!handle)
+> +#ifdef CONFIG_ZPOOL
+> +               ret = zpool_malloc(meta->mem_pool, clen,
+> +                               __GFP_KSWAPD_RECLAIM |
+> +                               __GFP_NOWARN |
+> +                               __GFP_HIGHMEM |
+> +                               __GFP_MOVABLE, &handle);
+> +#else
+>                 handle = zs_malloc(meta->mem_pool, clen,
+>                                 __GFP_KSWAPD_RECLAIM |
+>                                 __GFP_NOWARN |
+>                                 __GFP_HIGHMEM |
+>                                 __GFP_MOVABLE);
+> +#endif
+>         if (!handle) {
+>                 zcomp_stream_put(zram->comp);
+>                 zstrm = NULL;
+>
+>                 atomic64_inc(&zram->stats.writestall);
+>
+> +#ifdef CONFIG_ZPOOL
+> +               ret = zpool_malloc(meta->mem_pool, clen,
+> +                               GFP_NOIO | __GFP_HIGHMEM |
+> +                               __GFP_MOVABLE, &handle);
+> +#else
+>                 handle = zs_malloc(meta->mem_pool, clen,
+>                                 GFP_NOIO | __GFP_HIGHMEM |
+>                                 __GFP_MOVABLE);
+> +#endif
+>                 if (handle)
+>                         goto compress_again;
+>
+> @@ -758,16 +839,28 @@ compress_again:
+>                 goto out;
+>         }
+>
+> +#ifdef CONFIG_ZPOOL
+> +       alloced_pages = zpool_get_total_size(meta->mem_pool) >> PAGE_SHIFT;
+> +#else
+>         alloced_pages = zs_get_total_pages(meta->mem_pool);
+> +#endif
+>         update_used_max(zram, alloced_pages);
+>
+>         if (zram->limit_pages && alloced_pages > zram->limit_pages) {
+> +#ifdef CONFIG_ZPOOL
+> +               zpool_free(meta->mem_pool, handle);
+> +#else
+>                 zs_free(meta->mem_pool, handle);
+> +#endif
+>                 ret = -ENOMEM;
+>                 goto out;
+>         }
+>
+> +#ifdef CONFIG_ZPOOL
+> +       cmem = zpool_map_handle(meta->mem_pool, handle, ZPOOL_MM_WO);
+> +#else
+>         cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
+> +#endif
+>
+>         if ((clen == PAGE_SIZE) && !is_partial_io(bvec)) {
+>                 src = kmap_atomic(page);
+> @@ -779,7 +872,11 @@ compress_again:
+>
+>         zcomp_stream_put(zram->comp);
+>         zstrm = NULL;
+> +#ifdef CONFIG_ZPOOL
+> +       zpool_unmap_handle(meta->mem_pool, handle);
+> +#else
+>         zs_unmap_object(meta->mem_pool, handle);
+> +#endif
+>
+>         /*
+>          * Free memory associated with this sector
+> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+> index 74fcf10..68f1222 100644
+> --- a/drivers/block/zram/zram_drv.h
+> +++ b/drivers/block/zram/zram_drv.h
+> @@ -17,6 +17,7 @@
+>
+>  #include <linux/rwsem.h>
+>  #include <linux/zsmalloc.h>
+> +#include <linux/zpool.h>
+>  #include <linux/crypto.h>
+>
+>  #include "zcomp.h"
+> @@ -91,7 +92,11 @@ struct zram_stats {
+>
+>  struct zram_meta {
+>         struct zram_table_entry *table;
+> +#ifdef CONFIG_ZPOOL
+> +       struct zpool *mem_pool;
+> +#else
+>         struct zs_pool *mem_pool;
+> +#endif
+>  };
+>
+>  struct zram {
+> --
+> 1.9.1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
