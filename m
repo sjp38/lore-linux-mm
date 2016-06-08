@@ -1,44 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f199.google.com (mail-ig0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E7146B025E
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 04:19:06 -0400 (EDT)
-Received: by mail-ig0-f199.google.com with SMTP id 2so4144866igy.1
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 01:19:06 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id h2si131702pab.63.2016.06.08.01.19.04
-        for <linux-mm@kvack.org>;
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B3B36B025F
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 04:19:07 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id k192so491194lfb.1
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 01:19:07 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q12si785272wmd.24.2016.06.08.01.19.05
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 08 Jun 2016 01:19:05 -0700 (PDT)
-Date: Wed, 8 Jun 2016 17:19:03 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 09/10] mm: only count actual rotations as LRU reclaim cost
-Message-ID: <20160608081903.GE28620@bbox>
-References: <20160606194836.3624-1-hannes@cmpxchg.org>
- <20160606194836.3624-10-hannes@cmpxchg.org>
+Subject: Re: [linux-next: Tree for Jun 1] __khugepaged_exit
+ rwsem_down_write_failed lockup
+References: <20160601131122.7dbb0a65@canb.auug.org.au>
+ <20160602014835.GA635@swordfish> <20160602092113.GH1995@dhcp22.suse.cz>
+ <20160602120857.GA704@swordfish> <20160602122109.GM1995@dhcp22.suse.cz>
+ <20160603135154.GD29930@redhat.com> <20160603144600.GK20676@dhcp22.suse.cz>
+ <20160603151001.GG29930@redhat.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f136aef3-95c8-4394-3626-cd5bb4d04fbd@suse.cz>
+Date: Wed, 8 Jun 2016 10:19:03 +0200
 MIME-Version: 1.0
-In-Reply-To: <20160606194836.3624-10-hannes@cmpxchg.org>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+In-Reply-To: <20160603151001.GG29930@redhat.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
+To: Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
 
-On Mon, Jun 06, 2016 at 03:48:35PM -0400, Johannes Weiner wrote:
-> Noting a reference on an active file page but still deactivating it
-> represents a smaller cost of reclaim than noting a referenced
-> anonymous page and actually physically rotating it back to the head.
-> The file page *might* refault later on, but it's definite progress
-> toward freeing pages, whereas rotating the anonymous page costs us
-> real time without making progress toward the reclaim goal.
-> 
-> Don't treat both events as equal. The following patch will hook up LRU
-> balancing to cache and swap refaults, which are a much more concrete
-> cost signal for reclaiming one list over the other. Remove the
-> maybe-IO cost bias from page references, and only note the CPU cost
-> for actual rotations that prevent the pages from getting reclaimed.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: Minchan Kim <minchan@kernel.org>
+On 06/03/2016 05:10 PM, Andrea Arcangeli wrote:
+> Hello Michal,
+>
+> CC'ed Hugh,
+>
+> On Fri, Jun 03, 2016 at 04:46:00PM +0200, Michal Hocko wrote:
+>> What do you think about the external dependencies mentioned above. Do
+>> you think this is a sufficient argument wrt. occasional higher
+>> latencies?
+>
+> It's a tradeoff and both latencies would be short and uncommon so it's
+> hard to tell.
+
+Shouldn't it be possible to do a mmput() before the hugepage allocation, 
+and then again mmget_not_zero()? That way it's no longer a tradeoff?
+
+> There's also mmput_async for paths that may care about mmput
+> latencies. Exit itself cannot use it, it's mostly for people taking
+> the mm_users pin that may not want to wait for mmput to run. It also
+> shouldn't happen that often, it's a slow path.
+>
+> The whole model inherited from KSM is to deliberately depend only on
+> the mmap_sem + test_exit + mm_count, and never on mm_users, which to
+> me in principle doesn't sound bad. I consider KSM version a
+> "finegrined" implementation but I never thought it would be a problem
+> to wait a bit in exit() in case the slow path hits. I thought it was
+> more of a problem if exit() runs, the parent then start a new task but
+> the memory wasn't freed yet.
+>
+> So I would suggest Hugh to share his view on the down_write/up_write
+> that may temporarily block mmput (until the next test_exit bailout
+> point) vs higher latency in reaching exit_mmap for a real exit(2) that
+> would happen with the proposed change.
+>
+> Thanks!
+> Andrea
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
