@@ -1,84 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B0E2D6B025E
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 03:27:44 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id rs7so84905382lbb.2
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 00:27:44 -0700 (PDT)
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
-        by mx.google.com with ESMTPS id 8si549659wmu.15.2016.06.08.00.27.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jun 2016 00:27:43 -0700 (PDT)
-Received: by mail-wm0-f43.google.com with SMTP id m124so3430058wme.1
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 00:27:43 -0700 (PDT)
-Date: Wed, 8 Jun 2016 09:27:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/10 -v3] Handle oom bypass more gracefully
-Message-ID: <20160608072741.GE22570@dhcp22.suse.cz>
-References: <20160603122030.GG20676@dhcp22.suse.cz>
- <201606040017.HDI52680.LFFOVMJQOFSOHt@I-love.SAKURA.ne.jp>
- <20160606083651.GE11895@dhcp22.suse.cz>
- <201606072330.AHH81886.OOMVHFOFLtFSQJ@I-love.SAKURA.ne.jp>
- <20160607150534.GO12305@dhcp22.suse.cz>
- <201606080649.DGF51523.FLMOSHVtFFOJOQ@I-love.SAKURA.ne.jp>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E7E66B025E
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 03:38:44 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ug1so105395423pab.3
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 00:38:44 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id oq9si38042180pab.228.2016.06.08.00.38.39
+        for <linux-mm@kvack.org>;
+        Wed, 08 Jun 2016 00:38:40 -0700 (PDT)
+Date: Wed, 8 Jun 2016 16:39:44 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 05/10] mm: remove LRU balancing effect of temporary page
+ isolation
+Message-ID: <20160608073944.GA28620@bbox>
+References: <20160606194836.3624-1-hannes@cmpxchg.org>
+ <20160606194836.3624-6-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20160606194836.3624-6-hannes@cmpxchg.org>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <201606080649.DGF51523.FLMOSHVtFFOJOQ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
 
-On Wed 08-06-16 06:49:24, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > OK, so you are arming the timer for each mark_oom_victim regardless
-> > of the oom context. This means that you have replaced one potential
-> > lockup by other potential livelocks. Tasks from different oom domains
-> > might interfere here...
-> > 
-> > Also this code doesn't even seem easier. It is surely less lines of
-> > code but it is really hard to realize how would the timer behave for
-> > different oom contexts.
+On Mon, Jun 06, 2016 at 03:48:31PM -0400, Johannes Weiner wrote:
+> Isolating an existing LRU page and subsequently putting it back on the
+> list currently influences the balance between the anon and file LRUs.
+> For example, heavy page migration or compaction could influence the
+> balance between the LRUs and make one type more attractive when that
+> type of page is affected more than the other. That doesn't make sense.
 > 
-> If you worry about interference, we can use per signal_struct timestamp.
-> I used per task_struct timestamp in my earlier versions (where per
-> task_struct TIF_MEMDIE check was used instead of per signal_struct
-> oom_victims).
+> Add a dedicated LRU cache for putback, so that we can tell new LRU
+> pages from existing ones at the time of linking them to the lists.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  include/linux/pagevec.h |  2 +-
+>  include/linux/swap.h    |  1 +
+>  mm/mlock.c              |  2 +-
+>  mm/swap.c               | 34 ++++++++++++++++++++++++++++------
+>  mm/vmscan.c             |  2 +-
+>  5 files changed, 32 insertions(+), 9 deletions(-)
+> 
+> diff --git a/include/linux/pagevec.h b/include/linux/pagevec.h
+> index b45d391b4540..3f8a2a01131c 100644
+> --- a/include/linux/pagevec.h
+> +++ b/include/linux/pagevec.h
+> @@ -21,7 +21,7 @@ struct pagevec {
+>  };
+>  
+>  void __pagevec_release(struct pagevec *pvec);
+> -void __pagevec_lru_add(struct pagevec *pvec);
+> +void __pagevec_lru_add(struct pagevec *pvec, bool new);
+>  unsigned pagevec_lookup_entries(struct pagevec *pvec,
+>  				struct address_space *mapping,
+>  				pgoff_t start, unsigned nr_entries,
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 38fe1e91ba55..178f084365c2 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -296,6 +296,7 @@ extern unsigned long nr_free_pagecache_pages(void);
+>  
+>  /* linux/mm/swap.c */
+>  extern void lru_cache_add(struct page *);
+> +extern void lru_cache_putback(struct page *page);
+>  extern void lru_add_page_tail(struct page *page, struct page *page_tail,
+>  			 struct lruvec *lruvec, struct list_head *head);
+>  extern void activate_page(struct page *);
+> diff --git a/mm/mlock.c b/mm/mlock.c
+> index 96f001041928..449c291a286d 100644
+> --- a/mm/mlock.c
+> +++ b/mm/mlock.c
+> @@ -264,7 +264,7 @@ static void __putback_lru_fast(struct pagevec *pvec, int pgrescued)
+>  	 *__pagevec_lru_add() calls release_pages() so we don't call
+>  	 * put_page() explicitly
+>  	 */
+> -	__pagevec_lru_add(pvec);
+> +	__pagevec_lru_add(pvec, false);
+>  	count_vm_events(UNEVICTABLE_PGRESCUED, pgrescued);
+>  }
+>  
+> diff --git a/mm/swap.c b/mm/swap.c
+> index c6936507abb5..576c721f210b 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -44,6 +44,7 @@
+>  int page_cluster;
+>  
+>  static DEFINE_PER_CPU(struct pagevec, lru_add_pvec);
+> +static DEFINE_PER_CPU(struct pagevec, lru_putback_pvec);
+>  static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
+>  static DEFINE_PER_CPU(struct pagevec, lru_deactivate_file_pvecs);
+>  static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
+> @@ -405,12 +406,23 @@ void lru_cache_add(struct page *page)
+>  
+>  	get_page(page);
+>  	if (!pagevec_space(pvec))
+> -		__pagevec_lru_add(pvec);
+> +		__pagevec_lru_add(pvec, true);
+>  	pagevec_add(pvec, page);
+>  	put_cpu_var(lru_add_pvec);
+>  }
+>  EXPORT_SYMBOL(lru_cache_add);
+>  
+> +void lru_cache_putback(struct page *page)
+> +{
+> +	struct pagevec *pvec = &get_cpu_var(lru_putback_pvec);
+> +
+> +	get_page(page);
+> +	if (!pagevec_space(pvec))
+> +		__pagevec_lru_add(pvec, false);
+> +	pagevec_add(pvec, page);
+> +	put_cpu_var(lru_putback_pvec);
+> +}
+> +
+>  /**
+>   * add_page_to_unevictable_list - add a page to the unevictable list
+>   * @page:  the page to be added to the unevictable list
+> @@ -561,10 +573,15 @@ static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
+>   */
+>  void lru_add_drain_cpu(int cpu)
+>  {
+> -	struct pagevec *pvec = &per_cpu(lru_add_pvec, cpu);
+> +	struct pagevec *pvec;
+> +
+> +	pvec = &per_cpu(lru_add_pvec, cpu);
+> +	if (pagevec_count(pvec))
+> +		__pagevec_lru_add(pvec, true);
+>  
+> +	pvec = &per_cpu(lru_putback_pvec, cpu);
+>  	if (pagevec_count(pvec))
+> -		__pagevec_lru_add(pvec);
+> +		__pagevec_lru_add(pvec, false);
+>  
+>  	pvec = &per_cpu(lru_rotate_pvecs, cpu);
+>  	if (pagevec_count(pvec)) {
+> @@ -819,12 +836,17 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+>  	int file = page_is_file_cache(page);
+>  	int active = PageActive(page);
+>  	enum lru_list lru = page_lru(page);
+> +	bool new = (bool)arg;
+>  
+>  	VM_BUG_ON_PAGE(PageLRU(page), page);
+>  
+>  	SetPageLRU(page);
+>  	add_page_to_lru_list(page, lruvec, lru);
+> -	update_page_reclaim_stat(lruvec, file, active, hpage_nr_pages(page));
+> +
+> +	if (new)
+> +		update_page_reclaim_stat(lruvec, file, active,
+> +					 hpage_nr_pages(page));
+> +
+>  	trace_mm_lru_insertion(page, lru);
+>  }
+>  
+> @@ -832,9 +854,9 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+>   * Add the passed pages to the LRU, then drop the caller's refcount
+>   * on them.  Reinitialises the caller's pagevec.
+>   */
+> -void __pagevec_lru_add(struct pagevec *pvec)
+> +void __pagevec_lru_add(struct pagevec *pvec, bool new)
+>  {
+> -	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, NULL);
+> +	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, (void *)new);
+>  }
 
-This would allow pre-mature new victim selection for very large victims
-(note that exit_mmap can take a while depending on the mm size). It also
-pushed the timeout heuristic for everybody which will sooner or later
-open a question why is this $NUMBER rathen than $NUMBER+$FOO.
+Just trivial:
 
-[...]
-> But expiring timeout by sleeping inside oom_kill_process() prevents other
-> threads which are OOM-killed from obtaining TIF_MEMDIE, for anybody needs
-> to wait for oom_lock in order to obtain TIF_MEMDIE.
+'new' argument would be not clear in this context what does it mean
+so worth to comment it, IMO but no strong opinion.
 
-True, but please note that this will happen only for the _unlikely_ case
-when the mm is shared with kthread or init. All other cases would rely
-on the oom_reaper which has a feedback mechanism to tell the oom killer
-to move on if something bad is going on.
+Other than that,
 
-> Unless you set TIF_MEMDIE to all OOM-killed threads from
-> oom_kill_process() or allow the caller context to use
-> ALLOC_NO_WATERMARKS by checking whether current was already OOM-killed
-> rather than TIF_MEMDIE, attempt to expiring timeout by sleeping inside
-> oom_kill_process() is useless.
-
-Well this is a rather strong statement for a highly unlikely corner
-case, don't you think? I do not mind fortifying this class of cases some
-more if we ever find out they are a real problem but I would rather make
-sure they cannot lockup at this stage rather than optimize for them.
-
-To be honest I would rather explore ways to handle kthread case (which
-is the only real one IMHO from the two) gracefully and made them a
-nonissue - e.g. enforce EFAULT on a dead mm during the kthread page fault
-or something similar.
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Minchan Kim <minchan@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
