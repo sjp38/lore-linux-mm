@@ -1,68 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C1DB66B007E
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 06:07:16 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 132so1772786lfz.3
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 03:07:16 -0700 (PDT)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id 135si24350634wmn.22.2016.06.08.03.07.15
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 707B46B007E
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 06:09:54 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id h68so1829294lfh.2
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 03:09:54 -0700 (PDT)
+Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
+        by mx.google.com with ESMTPS id d87si1276859wmh.76.2016.06.08.03.09.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jun 2016 03:07:15 -0700 (PDT)
-Received: by mail-wm0-x236.google.com with SMTP id k204so9437164wmk.0
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 03:07:15 -0700 (PDT)
-Date: Wed, 8 Jun 2016 11:07:13 +0100
-From: Matt Fleming <matt@codeblueprint.co.uk>
-Subject: Re: [RFC PATCH v1 10/18] x86/efi: Access EFI related tables in the
- clear
-Message-ID: <20160608100713.GU2658@codeblueprint.co.uk>
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225740.13567.85438.stgit@tlendack-t1.amdoffice.net>
- <20160510134358.GR2839@codeblueprint.co.uk>
- <20160510135758.GA16783@pd.tnic>
- <5734C97D.8060803@amd.com>
- <57446B27.20406@amd.com>
- <20160525193011.GC2984@codeblueprint.co.uk>
- <5746FE16.9070408@amd.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Jun 2016 03:09:53 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id B87079887C
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 10:09:52 +0000 (UTC)
+Date: Wed, 8 Jun 2016 11:09:51 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [BUG] Page allocation failures with newest kernels
+Message-ID: <20160608100950.GH2527@techsingularity.net>
+References: <CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
+ <60e8df74202e40b28a4d53dbc7fd0b22@IL-EXCH02.marvell.com>
+ <20160531131520.GI24936@arm.com>
+ <CAPv3WKftqsEXbdU-geAcUKXBSskhA0V72N61a1a+5DfahLK_Dg@mail.gmail.com>
+ <20160602135226.GX2527@techsingularity.net>
+ <CAPv3WKd8Zdcv5nhr2euN7L4W5JYLex_Hmn+9AVd6reyD-Vw4kg@mail.gmail.com>
+ <20160603095344.GZ2527@techsingularity.net>
+ <CAPv3WKfrgNg00M4oE3VKLYimYqN6NO6ziR7LWYXQ1d_M-bo67A@mail.gmail.com>
+ <20160603123655.GA2527@techsingularity.net>
+ <CAPv3WKfEQCeR++uqaUVhhsNe0WFsKq1Sn9uo==9NxtQe=GV7zw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <5746FE16.9070408@amd.com>
+In-Reply-To: <CAPv3WKfEQCeR++uqaUVhhsNe0WFsKq1Sn9uo==9NxtQe=GV7zw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: Borislav Petkov <bp@alien8.de>, Leif Lindholm <leif.lindholm@linaro.org>, Mark Salter <msalter@redhat.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
+To: Marcin Wojtas <mw@semihalf.com>
+Cc: Will Deacon <will.deacon@arm.com>, Yehuda Yitschak <yehuday@marvell.com>, Robin Murphy <robin.murphy@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Lior Amsalem <alior@marvell.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>, Grzegorz Jaszczyk <jaz@semihalf.com>, Nadav Haklai <nadavh@marvell.com>, Tomasz Nowicki <tn@semihalf.com>, Gregory =?iso-8859-15?Q?Cl=E9ment?= <gregory.clement@free-electrons.com>
 
-(Sorry for the delay)
-
-On Thu, 26 May, at 08:45:58AM, Tom Lendacky wrote:
+On Tue, Jun 07, 2016 at 07:36:57PM +0200, Marcin Wojtas wrote:
+> Hi Mel,
 > 
-> The patch in question is patch 6/18 where PAGE_KERNEL is changed to
-> include the _PAGE_ENC attribute (the encryption mask). This now
-> makes FIXMAP_PAGE_NORMAL contain the encryption mask while
-> FIXMAP_PAGE_IO does not. In this way, anything mapped using the
-> early_ioremap call won't be mapped encrypted.
+> 
+> 
+> 2016-06-03 14:36 GMT+02:00 Mel Gorman <mgorman@techsingularity.net>:
+> > On Fri, Jun 03, 2016 at 01:57:06PM +0200, Marcin Wojtas wrote:
+> >> >> For the record: the newest kernel I was able to reproduce the dumps
+> >> >> was v4.6: http://pastebin.com/ekDdACn5. I've just checked v4.7-rc1,
+> >> >> which comprise a lot (mainly yours) changes in mm, and I'm wondering
+> >> >> if there may be a spot fix or rather a series of improvements. I'm
+> >> >> looking forward to your opinion and would be grateful for any advice.
+> >> >>
+> >> >
+> >> > I don't believe we want to reintroduce the reserve to cope with CMA. One
+> >> > option would be to widen the gap between low and min watermark by the
+> >> > size of the CMA region. The effect would be to wake kswapd earlier which
+> >> > matters considering the context of the failing allocation was
+> >> > GFP_ATOMIC.
+> >>
+> >> Of course my intention is not reintroducing anything that's gone
+> >> forever, but just to find out way to overcome current issues. Do you
+> >> mean increasing CMA size?
+> >
+> > No. There is a gap between the low and min watermarks. At the low point,
+> > kswapd is woken up and at the min point allocation requests either
+> > either direct reclaim or fail if they are atomic. What I'm suggesting
+> > is that you adjust the low watermark and add the size of the CMA area
+> > to it so that kswapd is woken earlier. The watermarks are calculated in
+> > __setup_per_zone_wmarks
+> >
+> 
+> I printed all zones' settings, whose watermarks are configured within
+> __setup_per_zone_wmarks(). There are three DMA, Normal and Movable -
+> only first one's watermarks have non-zero values. Increasing DMA min
+> watermark didn't help. I also played with increasing
 
-There are semantics attached to early_ioremap() that do not apply in
-this case; that you're mapping an MMIO region but for EFI we just care
-about noting where the firmware (not the kernel) populated the region
-with data. Similar problems exist for other early boot code such as
-the devicetree stuff.
+Patch?
 
-early_ioremap() is not the answer.
+Did you establish why GFP_ATOMIC (assuming that's the failing site) had
+not specified __GFP_ATOMIC at the time of the allocation failure?
 
-What you really want is just some way to distinguish kernel-owned
-regions from those owned by "somebody else".
-
-I have no problem updating early_memremap() to take a @flags argument
-to make that distinction, provided that the naming is generic and not
-tied to AMD's SME technology via an "sme" prefix/suffix.
-
-And making it generic should allow it to be easily sprinkled into the
-shared architecture code in drivers/firmware/efi/ without issue.
-
-I'm going to follow up with some additional comments/questions on
-PATCH 10.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
