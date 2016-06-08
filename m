@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E7E66B025E
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 03:38:44 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ug1so105395423pab.3
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 00:38:44 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id oq9si38042180pab.228.2016.06.08.00.38.39
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3694F6B007E
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 04:04:53 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id w64so3824029iow.1
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 01:04:53 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id xk1si55715pab.53.2016.06.08.01.04.51
         for <linux-mm@kvack.org>;
-        Wed, 08 Jun 2016 00:38:40 -0700 (PDT)
-Date: Wed, 8 Jun 2016 16:39:44 +0900
+        Wed, 08 Jun 2016 01:04:52 -0700 (PDT)
+Date: Wed, 8 Jun 2016 17:03:58 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 05/10] mm: remove LRU balancing effect of temporary page
- isolation
-Message-ID: <20160608073944.GA28620@bbox>
+Subject: Re: [PATCH 06/10] mm: remove unnecessary use-once cache bias from
+ LRU balancing
+Message-ID: <20160608080358.GB28620@bbox>
 References: <20160606194836.3624-1-hannes@cmpxchg.org>
- <20160606194836.3624-6-hannes@cmpxchg.org>
+ <20160606194836.3624-7-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20160606194836.3624-6-hannes@cmpxchg.org>
+In-Reply-To: <20160606194836.3624-7-hannes@cmpxchg.org>
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
@@ -24,155 +24,24 @@ List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
 
-On Mon, Jun 06, 2016 at 03:48:31PM -0400, Johannes Weiner wrote:
-> Isolating an existing LRU page and subsequently putting it back on the
-> list currently influences the balance between the anon and file LRUs.
-> For example, heavy page migration or compaction could influence the
-> balance between the LRUs and make one type more attractive when that
-> type of page is affected more than the other. That doesn't make sense.
+On Mon, Jun 06, 2016 at 03:48:32PM -0400, Johannes Weiner wrote:
+> When the splitlru patches divided page cache and swap-backed pages
+> into separate LRU lists, the pressure balance between the lists was
+> biased to account for the fact that streaming IO can cause memory
+> pressure with a flood of pages that are used only once. New page cache
+> additions would tip the balance toward the file LRU, and repeat access
+> would neutralize that bias again. This ensured that page reclaim would
+> always go for used-once cache first.
 > 
-> Add a dedicated LRU cache for putback, so that we can tell new LRU
-> pages from existing ones at the time of linking them to the lists.
+> Since e9868505987a ("mm,vmscan: only evict file pages when we have
+> plenty"), page reclaim generally skips over swap-backed memory
+> entirely as long as there is used-once cache present, and will apply
+> the LRU balancing when only repeatedly accessed cache pages are left -
+> at which point the previous use-once bias will have been neutralized.
+> 
+> This makes the use-once cache balancing bias unnecessary. Remove it.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  include/linux/pagevec.h |  2 +-
->  include/linux/swap.h    |  1 +
->  mm/mlock.c              |  2 +-
->  mm/swap.c               | 34 ++++++++++++++++++++++++++++------
->  mm/vmscan.c             |  2 +-
->  5 files changed, 32 insertions(+), 9 deletions(-)
-> 
-> diff --git a/include/linux/pagevec.h b/include/linux/pagevec.h
-> index b45d391b4540..3f8a2a01131c 100644
-> --- a/include/linux/pagevec.h
-> +++ b/include/linux/pagevec.h
-> @@ -21,7 +21,7 @@ struct pagevec {
->  };
->  
->  void __pagevec_release(struct pagevec *pvec);
-> -void __pagevec_lru_add(struct pagevec *pvec);
-> +void __pagevec_lru_add(struct pagevec *pvec, bool new);
->  unsigned pagevec_lookup_entries(struct pagevec *pvec,
->  				struct address_space *mapping,
->  				pgoff_t start, unsigned nr_entries,
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 38fe1e91ba55..178f084365c2 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -296,6 +296,7 @@ extern unsigned long nr_free_pagecache_pages(void);
->  
->  /* linux/mm/swap.c */
->  extern void lru_cache_add(struct page *);
-> +extern void lru_cache_putback(struct page *page);
->  extern void lru_add_page_tail(struct page *page, struct page *page_tail,
->  			 struct lruvec *lruvec, struct list_head *head);
->  extern void activate_page(struct page *);
-> diff --git a/mm/mlock.c b/mm/mlock.c
-> index 96f001041928..449c291a286d 100644
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -264,7 +264,7 @@ static void __putback_lru_fast(struct pagevec *pvec, int pgrescued)
->  	 *__pagevec_lru_add() calls release_pages() so we don't call
->  	 * put_page() explicitly
->  	 */
-> -	__pagevec_lru_add(pvec);
-> +	__pagevec_lru_add(pvec, false);
->  	count_vm_events(UNEVICTABLE_PGRESCUED, pgrescued);
->  }
->  
-> diff --git a/mm/swap.c b/mm/swap.c
-> index c6936507abb5..576c721f210b 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -44,6 +44,7 @@
->  int page_cluster;
->  
->  static DEFINE_PER_CPU(struct pagevec, lru_add_pvec);
-> +static DEFINE_PER_CPU(struct pagevec, lru_putback_pvec);
->  static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
->  static DEFINE_PER_CPU(struct pagevec, lru_deactivate_file_pvecs);
->  static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
-> @@ -405,12 +406,23 @@ void lru_cache_add(struct page *page)
->  
->  	get_page(page);
->  	if (!pagevec_space(pvec))
-> -		__pagevec_lru_add(pvec);
-> +		__pagevec_lru_add(pvec, true);
->  	pagevec_add(pvec, page);
->  	put_cpu_var(lru_add_pvec);
->  }
->  EXPORT_SYMBOL(lru_cache_add);
->  
-> +void lru_cache_putback(struct page *page)
-> +{
-> +	struct pagevec *pvec = &get_cpu_var(lru_putback_pvec);
-> +
-> +	get_page(page);
-> +	if (!pagevec_space(pvec))
-> +		__pagevec_lru_add(pvec, false);
-> +	pagevec_add(pvec, page);
-> +	put_cpu_var(lru_putback_pvec);
-> +}
-> +
->  /**
->   * add_page_to_unevictable_list - add a page to the unevictable list
->   * @page:  the page to be added to the unevictable list
-> @@ -561,10 +573,15 @@ static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
->   */
->  void lru_add_drain_cpu(int cpu)
->  {
-> -	struct pagevec *pvec = &per_cpu(lru_add_pvec, cpu);
-> +	struct pagevec *pvec;
-> +
-> +	pvec = &per_cpu(lru_add_pvec, cpu);
-> +	if (pagevec_count(pvec))
-> +		__pagevec_lru_add(pvec, true);
->  
-> +	pvec = &per_cpu(lru_putback_pvec, cpu);
->  	if (pagevec_count(pvec))
-> -		__pagevec_lru_add(pvec);
-> +		__pagevec_lru_add(pvec, false);
->  
->  	pvec = &per_cpu(lru_rotate_pvecs, cpu);
->  	if (pagevec_count(pvec)) {
-> @@ -819,12 +836,17 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
->  	int file = page_is_file_cache(page);
->  	int active = PageActive(page);
->  	enum lru_list lru = page_lru(page);
-> +	bool new = (bool)arg;
->  
->  	VM_BUG_ON_PAGE(PageLRU(page), page);
->  
->  	SetPageLRU(page);
->  	add_page_to_lru_list(page, lruvec, lru);
-> -	update_page_reclaim_stat(lruvec, file, active, hpage_nr_pages(page));
-> +
-> +	if (new)
-> +		update_page_reclaim_stat(lruvec, file, active,
-> +					 hpage_nr_pages(page));
-> +
->  	trace_mm_lru_insertion(page, lru);
->  }
->  
-> @@ -832,9 +854,9 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
->   * Add the passed pages to the LRU, then drop the caller's refcount
->   * on them.  Reinitialises the caller's pagevec.
->   */
-> -void __pagevec_lru_add(struct pagevec *pvec)
-> +void __pagevec_lru_add(struct pagevec *pvec, bool new)
->  {
-> -	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, NULL);
-> +	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, (void *)new);
->  }
-
-Just trivial:
-
-'new' argument would be not clear in this context what does it mean
-so worth to comment it, IMO but no strong opinion.
-
-Other than that,
-
 Acked-by: Minchan Kim <minchan@kernel.org>
 
 --
