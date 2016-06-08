@@ -1,326 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 005876B025E
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 10:52:08 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id n63so25103197ywf.3
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 07:52:08 -0700 (PDT)
-Received: from mail-vk0-x241.google.com (mail-vk0-x241.google.com. [2607:f8b0:400c:c05::241])
-        by mx.google.com with ESMTPS id 66si423717uaz.128.2016.06.08.07.52.07
+Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A7996B0260
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 10:55:39 -0400 (EDT)
+Received: by mail-ig0-f197.google.com with SMTP id q18so16683707igr.2
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 07:55:39 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id a89si1085008otb.204.2016.06.08.07.55.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jun 2016 07:52:08 -0700 (PDT)
-Received: by mail-vk0-x241.google.com with SMTP id x7so1705099vkf.3
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 07:52:07 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <d2a7edd5e1f37d9daf4536927d1439df6f9dbd0a.1465378622.git.geliangtang@gmail.com>
-References: <d2a7edd5e1f37d9daf4536927d1439df6f9dbd0a.1465378622.git.geliangtang@gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Wed, 8 Jun 2016 10:51:28 -0400
-Message-ID: <CALZtONBj0a06T5pxu0AxnyQX8VreuhGxmdg-oMv6w6SJom9wpQ@mail.gmail.com>
-Subject: Re: [PATCH] zram: add zpool support
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Jun 2016 07:55:38 -0700 (PDT)
+Subject: Re: [PATCH 0/10 -v3] Handle oom bypass more gracefully
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20160606083651.GE11895@dhcp22.suse.cz>
+	<201606072330.AHH81886.OOMVHFOFLtFSQJ@I-love.SAKURA.ne.jp>
+	<20160607150534.GO12305@dhcp22.suse.cz>
+	<201606080649.DGF51523.FLMOSHVtFFOJOQ@I-love.SAKURA.ne.jp>
+	<20160608072741.GE22570@dhcp22.suse.cz>
+In-Reply-To: <20160608072741.GE22570@dhcp22.suse.cz>
+Message-Id: <201606082355.EIJ05259.OHQLFtFOJFOMSV@I-love.SAKURA.ne.jp>
+Date: Wed, 8 Jun 2016 23:55:24 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geliang Tang <geliangtang@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Wed, Jun 8, 2016 at 5:39 AM, Geliang Tang <geliangtang@gmail.com> wrote:
-> This patch adds zpool support for zram, it will allow us to use both
-> the zpool api and directly zsmalloc api in zram.
+Michal Hocko wrote:
+> On Wed 08-06-16 06:49:24, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > OK, so you are arming the timer for each mark_oom_victim regardless
+> > > of the oom context. This means that you have replaced one potential
+> > > lockup by other potential livelocks. Tasks from different oom domains
+> > > might interfere here...
+> > > 
+> > > Also this code doesn't even seem easier. It is surely less lines of
+> > > code but it is really hard to realize how would the timer behave for
+> > > different oom contexts.
+> > 
+> > If you worry about interference, we can use per signal_struct timestamp.
+> > I used per task_struct timestamp in my earlier versions (where per
+> > task_struct TIF_MEMDIE check was used instead of per signal_struct
+> > oom_victims).
+> 
+> This would allow pre-mature new victim selection for very large victims
+> (note that exit_mmap can take a while depending on the mm size). It also
+> pushed the timeout heuristic for everybody which will sooner or later
+> open a question why is this $NUMBER rathen than $NUMBER+$FOO.
 
-besides the problems below, this was discussed a while ago and I
-believe Minchan is still against it, as nobody has so far shown what
-the benefit to zram would be; zram doesn't need the predictability, or
-evictability, of zbud or z3fold.
+You are again worrying about wrong problem. You are ignoring distinction
+between genuine lock up (real problem for you) and effectively locked up
+(real problem for administrators).
 
->
-> Signed-off-by: Geliang Tang <geliangtang@gmail.com>
-> ---
->  drivers/block/zram/zram_drv.c | 97 +++++++++++++++++++++++++++++++++++++++++++
->  drivers/block/zram/zram_drv.h |  5 +++
->  2 files changed, 102 insertions(+)
->
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index 9e2a83c..1f90bd0 100644
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -43,6 +43,11 @@ static const char *default_compressor = "lzo";
->  /* Module params (documentation at end) */
->  static unsigned int num_devices = 1;
->
-> +#ifdef CONFIG_ZPOOL
-> +/* Compressed storage zpool to use */
-> +#define ZRAM_ZPOOL_DEFAULT "zsmalloc"
-> +#endif
+Yes, it might be possible that exit_mmap() from __mmput() from mmput() from
+exit_mm() from do_exit() takes 30 minutes. But how many administrators will
+patiently wait for 30 minutes in order to avoid premature OOM victim selection?
 
-It doesn't make sense for zram to conditionally use zpool; either it
-uses it and thus has 'select ZPOOL' in its Kconfig entry, or it
-doesn't use it at all.
+If allocation task is blocked for 30 minutes because the OOM killer is waiting
+for exit_mmap(), such system is already unusable. They will likely try SysRq-f
+if they were sitting in front of console. They will likely depend on watchdog
+mechanisms (e.g. /dev/watchdog) otherwise.
 
-> +
->  static inline void deprecated_attr_warn(const char *name)
->  {
->         pr_warn_once("%d (%s) Attribute %s (and others) will be removed. %s\n",
-> @@ -228,7 +233,11 @@ static ssize_t mem_used_total_show(struct device *dev,
->         down_read(&zram->init_lock);
->         if (init_done(zram)) {
->                 struct zram_meta *meta = zram->meta;
-> +#ifdef CONFIG_ZPOOL
-> +               val = zpool_get_total_size(meta->mem_pool) >> PAGE_SHIFT;
-> +#else
->                 val = zs_get_total_pages(meta->mem_pool);
-> +#endif
->         }
->         up_read(&zram->init_lock);
->
-> @@ -296,8 +305,14 @@ static ssize_t mem_used_max_store(struct device *dev,
->         down_read(&zram->init_lock);
->         if (init_done(zram)) {
->                 struct zram_meta *meta = zram->meta;
-> +#ifdef CONFIG_ZPOOL
-> +               atomic_long_set(&zram->stats.max_used_pages,
-> +                               zpool_get_total_size(meta->mem_pool)
-> +                               >> PAGE_SHIFT);
-> +#else
->                 atomic_long_set(&zram->stats.max_used_pages,
->                                 zs_get_total_pages(meta->mem_pool));
-> +#endif
->         }
->         up_read(&zram->init_lock);
->
-> @@ -366,6 +381,18 @@ static ssize_t comp_algorithm_store(struct device *dev,
->         return len;
->  }
->
-> +#ifdef CONFIG_ZPOOL
-> +static void zpool_compact(void *pool)
-> +{
-> +       zs_compact(pool);
-> +}
-> +
-> +static void zpool_stats(void *pool, struct zs_pool_stats *stats)
-> +{
-> +       zs_pool_stats(pool, stats);
-> +}
-> +#endif
+People are using various kind of timeout based watchdog (e.g. hard/soft lockup,
+rcu lockup) because they do not want false negatives but they can tolerate
+false positives. You are strongly rejecting false positives while I'm accepting
+false positives.
 
-first, no.  this obviously makes using zpool in zram completely pointless.
+Whether the OOM killer is making forward progress is important for you, but
+whether their systems solve the OOM situation within their tolerable period
+is important for users. You have proposed panic_on_oom_timeout, but many users
+who use panic_on_oom = 0 want to try to survive for reasonable duration before
+giving up by panic(). So, we lack intermediate mechanism.
 
-second, did you test this?  the pool you're passing is the zpool, not
-the zs_pool.  quite bad things will happen when this code runs.  There
-is no way to get the zs_pool from the zpool object (that's the point
-of abstraction, of course).
+$NUMBER will be sysctl tunable. I just used hardcoded constant for saving
+lines.
 
-The fact zpool doesn't have these apis (currently) is one of the
-reasons against changing zram to use zpool.
+> [...]
+> > But expiring timeout by sleeping inside oom_kill_process() prevents other
+> > threads which are OOM-killed from obtaining TIF_MEMDIE, for anybody needs
+> > to wait for oom_lock in order to obtain TIF_MEMDIE.
+> 
+> True, but please note that this will happen only for the _unlikely_ case
+> when the mm is shared with kthread or init. All other cases would rely
+> on the oom_reaper which has a feedback mechanism to tell the oom killer
+> to move on if something bad is going on.
 
-> +
->  static ssize_t compact_store(struct device *dev,
->                 struct device_attribute *attr, const char *buf, size_t len)
->  {
-> @@ -379,7 +406,11 @@ static ssize_t compact_store(struct device *dev,
->         }
->
->         meta = zram->meta;
-> +#ifdef CONFIG_ZPOOL
-> +       zpool_compact(meta->mem_pool);
-> +#else
->         zs_compact(meta->mem_pool);
-> +#endif
->         up_read(&zram->init_lock);
->
->         return len;
-> @@ -416,8 +447,14 @@ static ssize_t mm_stat_show(struct device *dev,
->
->         down_read(&zram->init_lock);
->         if (init_done(zram)) {
-> +#ifdef CONFIG_ZPOOL
-> +               mem_used = zpool_get_total_size(zram->meta->mem_pool)
-> +                               >> PAGE_SHIFT;
-> +               zpool_stats(zram->meta->mem_pool, &pool_stats);
-> +#else
->                 mem_used = zs_get_total_pages(zram->meta->mem_pool);
->                 zs_pool_stats(zram->meta->mem_pool, &pool_stats);
-> +#endif
->         }
->
->         orig_size = atomic64_read(&zram->stats.pages_stored);
-> @@ -490,10 +527,18 @@ static void zram_meta_free(struct zram_meta *meta, u64 disksize)
->                 if (!handle)
->                         continue;
->
-> +#ifdef CONFIG_ZPOOL
-> +               zpool_free(meta->mem_pool, handle);
-> +#else
->                 zs_free(meta->mem_pool, handle);
-> +#endif
->         }
->
-> +#ifdef CONFIG_ZPOOL
-> +       zpool_destroy_pool(meta->mem_pool);
-> +#else
->         zs_destroy_pool(meta->mem_pool);
-> +#endif
->         vfree(meta->table);
->         kfree(meta);
->  }
-> @@ -513,7 +558,17 @@ static struct zram_meta *zram_meta_alloc(char *pool_name, u64 disksize)
->                 goto out_error;
->         }
->
-> +#ifdef CONFIG_ZPOOL
-> +       if (!zpool_has_pool(ZRAM_ZPOOL_DEFAULT)) {
-> +               pr_err("zpool %s not available\n", ZRAM_ZPOOL_DEFAULT);
-> +               goto out_error;
-> +       }
-> +
-> +       meta->mem_pool = zpool_create_pool(ZRAM_ZPOOL_DEFAULT,
-> +                                       pool_name, 0, NULL);
-> +#else
->         meta->mem_pool = zs_create_pool(pool_name);
-> +#endif
->         if (!meta->mem_pool) {
->                 pr_err("Error creating memory pool\n");
->                 goto out_error;
-> @@ -549,7 +604,11 @@ static void zram_free_page(struct zram *zram, size_t index)
->                 return;
->         }
->
-> +#ifdef CONFIG_ZPOOL
-> +       zpool_free(meta->mem_pool, handle);
-> +#else
->         zs_free(meta->mem_pool, handle);
-> +#endif
->
->         atomic64_sub(zram_get_obj_size(meta, index),
->                         &zram->stats.compr_data_size);
-> @@ -577,7 +636,11 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
->                 return 0;
->         }
->
-> +#ifdef CONFIG_ZPOOL
-> +       cmem = zpool_map_handle(meta->mem_pool, handle, ZPOOL_MM_RO);
-> +#else
->         cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_RO);
-> +#endif
->         if (size == PAGE_SIZE) {
->                 copy_page(mem, cmem);
->         } else {
-> @@ -586,7 +649,11 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
->                 ret = zcomp_decompress(zstrm, cmem, size, mem);
->                 zcomp_stream_put(zram->comp);
->         }
-> +#ifdef CONFIG_ZPOOL
-> +       zpool_unmap_handle(meta->mem_pool, handle);
-> +#else
->         zs_unmap_object(meta->mem_pool, handle);
-> +#endif
->         bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->
->         /* Should NEVER happen. Return bio error if it does. */
-> @@ -735,20 +802,34 @@ compress_again:
->          * from the slow path and handle has already been allocated.
->          */
->         if (!handle)
-> +#ifdef CONFIG_ZPOOL
-> +               ret = zpool_malloc(meta->mem_pool, clen,
-> +                               __GFP_KSWAPD_RECLAIM |
-> +                               __GFP_NOWARN |
-> +                               __GFP_HIGHMEM |
-> +                               __GFP_MOVABLE, &handle);
-> +#else
->                 handle = zs_malloc(meta->mem_pool, clen,
->                                 __GFP_KSWAPD_RECLAIM |
->                                 __GFP_NOWARN |
->                                 __GFP_HIGHMEM |
->                                 __GFP_MOVABLE);
-> +#endif
->         if (!handle) {
->                 zcomp_stream_put(zram->comp);
->                 zstrm = NULL;
->
->                 atomic64_inc(&zram->stats.writestall);
->
-> +#ifdef CONFIG_ZPOOL
-> +               ret = zpool_malloc(meta->mem_pool, clen,
-> +                               GFP_NOIO | __GFP_HIGHMEM |
-> +                               __GFP_MOVABLE, &handle);
-> +#else
->                 handle = zs_malloc(meta->mem_pool, clen,
->                                 GFP_NOIO | __GFP_HIGHMEM |
->                                 __GFP_MOVABLE);
-> +#endif
->                 if (handle)
->                         goto compress_again;
->
-> @@ -758,16 +839,28 @@ compress_again:
->                 goto out;
->         }
->
-> +#ifdef CONFIG_ZPOOL
-> +       alloced_pages = zpool_get_total_size(meta->mem_pool) >> PAGE_SHIFT;
-> +#else
->         alloced_pages = zs_get_total_pages(meta->mem_pool);
-> +#endif
->         update_used_max(zram, alloced_pages);
->
->         if (zram->limit_pages && alloced_pages > zram->limit_pages) {
-> +#ifdef CONFIG_ZPOOL
-> +               zpool_free(meta->mem_pool, handle);
-> +#else
->                 zs_free(meta->mem_pool, handle);
-> +#endif
->                 ret = -ENOMEM;
->                 goto out;
->         }
->
-> +#ifdef CONFIG_ZPOOL
-> +       cmem = zpool_map_handle(meta->mem_pool, handle, ZPOOL_MM_WO);
-> +#else
->         cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
-> +#endif
->
->         if ((clen == PAGE_SIZE) && !is_partial_io(bvec)) {
->                 src = kmap_atomic(page);
-> @@ -779,7 +872,11 @@ compress_again:
->
->         zcomp_stream_put(zram->comp);
->         zstrm = NULL;
-> +#ifdef CONFIG_ZPOOL
-> +       zpool_unmap_handle(meta->mem_pool, handle);
-> +#else
->         zs_unmap_object(meta->mem_pool, handle);
-> +#endif
->
->         /*
->          * Free memory associated with this sector
-> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-> index 74fcf10..68f1222 100644
-> --- a/drivers/block/zram/zram_drv.h
-> +++ b/drivers/block/zram/zram_drv.h
-> @@ -17,6 +17,7 @@
->
->  #include <linux/rwsem.h>
->  #include <linux/zsmalloc.h>
-> +#include <linux/zpool.h>
->  #include <linux/crypto.h>
->
->  #include "zcomp.h"
-> @@ -91,7 +92,11 @@ struct zram_stats {
->
->  struct zram_meta {
->         struct zram_table_entry *table;
-> +#ifdef CONFIG_ZPOOL
-> +       struct zpool *mem_pool;
-> +#else
->         struct zs_pool *mem_pool;
-> +#endif
->  };
->
->  struct zram {
-> --
-> 1.9.1
->
+My version (which always wakes up the OOM reaper even if it is known that
+the memory is not reapable) tried to avoid what you call premature next OOM
+victim selection. But you said you don't like waking up the OOM reaper when
+the memory is not reapable. Then, I can't have reasons to honor feedback based
+decision.
+
+On the other hand, regarding this version, you said you don't like this timer
+due to possible premature next OOM victim selection. That is conflicting
+opinion.
+
+If you realize the gap between your concern and people's concern, you won't
+say possible premature next OOM victim selection is unacceptable. Real problem
+for users is subjectively determined by users.
+
+> 
+> > Unless you set TIF_MEMDIE to all OOM-killed threads from
+> > oom_kill_process() or allow the caller context to use
+> > ALLOC_NO_WATERMARKS by checking whether current was already OOM-killed
+> > rather than TIF_MEMDIE, attempt to expiring timeout by sleeping inside
+> > oom_kill_process() is useless.
+> 
+> Well this is a rather strong statement for a highly unlikely corner
+> case, don't you think? I do not mind fortifying this class of cases some
+> more if we ever find out they are a real problem but I would rather make
+> sure they cannot lockup at this stage rather than optimize for them.
+
+Making sure unlikely corner cases will not lock up at this stage is
+what you think a solution, but how many users will wait for 30 minutes
+even if unlikely corner cases does not lock up?
+
+> 
+> To be honest I would rather explore ways to handle kthread case (which
+> is the only real one IMHO from the two) gracefully and made them a
+> nonissue - e.g. enforce EFAULT on a dead mm during the kthread page fault
+> or something similar.
+
+You are always living in a world with plenty resource. You tend to ignore
+CONFIG_MMU=n kernels. For example, proposing changes like
+
+	if (can_oom_reap) {
+		wake_oom_reaper(victim);
+	} else if (victim != current) {
+		/*
+		 * If we want to guarantee a forward progress we cannot keep
+		 * the oom victim TIF_MEMDIE here. Sleep for a while and then
+		 * drop the flag to make sure another victim can be selected.
+		 */
+		schedule_timeout_killable(HZ);
+		exit_oom_victim(victim);
+	}
+
+is silly. can_oom_reap is likely true but wake_oom_reaper() is a no-op
+if CONFIG_MMU=n. That is, you force CONFIG_MMU=n users to almost always
+risk OOM livelock, and wait uselessly upon unlikely corner cases. Could
+you please try to write changes evenly? For example, move above logic
+to try_oom_reaper(), and start simple timer based unlocking method if
+try_oom_reaper() did not wake up the OOM reaper.
+
+Even if CONFIG_MMU=y, some people want to make their kernels as small as
+possible. So, CONFIG_OOM_REAPER which is defaulted to y and depends on
+CONFIG_MMU=y would be nice for them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
