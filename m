@@ -1,81 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 81EB16B007E
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 10:21:49 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id j12so4534889lbo.0
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 07:21:49 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id y13si27720933wmh.72.2016.06.08.07.21.48
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jun 2016 07:21:48 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id r5so3426441wmr.0
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 07:21:48 -0700 (PDT)
-Date: Wed, 8 Jun 2016 16:21:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: oom: deduplicate victim selection code for memcg
- and global oom
-Message-ID: <20160608142146.GM22570@dhcp22.suse.cz>
-References: <40e03fd7aaf1f55c75d787128d6d17c5a71226c2.1464358556.git.vdavydov@virtuozzo.com>
- <3bbc7b70dae6ace0b8751e0140e878acfdfffd74.1464358556.git.vdavydov@virtuozzo.com>
- <20160608083334.GF22570@dhcp22.suse.cz>
- <201606082018.EDC09327.HMQOFOVJFSOFtL@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201606082018.EDC09327.HMQOFOVJFSOFtL@I-love.SAKURA.ne.jp>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 63B636B007E
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 10:36:30 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ao6so12611947pac.2
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 07:36:30 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id m66si1662970pfa.107.2016.06.08.07.36.29
+        for <linux-mm@kvack.org>;
+        Wed, 08 Jun 2016 07:36:29 -0700 (PDT)
+From: Lukasz Odzioba <lukasz.odzioba@intel.com>
+Subject: [PATCH 1/1] mm/swap.c: flush lru_add pvecs on compound page arrival
+Date: Wed,  8 Jun 2016 16:35:37 +0200
+Message-Id: <1465396537-17277-1-git-send-email-lukasz.odzioba@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: vdavydov@virtuozzo.com, akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mhocko@suse.com, aarcange@redhat.com, vdavydov@parallels.com, mingli199x@qq.com, minchan@kernel.org
+Cc: dave.hansen@intel.com, lukasz.anaczkowski@intel.com, lukasz.odzioba@intel.com
 
-On Wed 08-06-16 20:18:24, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > The victim selection code can be reduced because it is basically
-> > shared between the two, only the iterator differs. But I guess that
-> > can be eliminated by a simple helper.
-> 
-> Thank you for CC: me. I like this clean up.
-> 
-> > ---
-> >  include/linux/oom.h |  5 +++++
-> >  mm/memcontrol.c     | 47 ++++++-----------------------------------
-> >  mm/oom_kill.c       | 60 ++++++++++++++++++++++++++++-------------------------
-> >  3 files changed, 43 insertions(+), 69 deletions(-)
-> 
-> I think we can apply your version with below changes folded into your version.
-> (I think totalpages argument can be passed via oom_control as well. Also, according to
-> http://lkml.kernel.org/r/201602192336.EJF90671.HMFLFSVOFJOtOQ@I-love.SAKURA.ne.jp ,
-> we can safely replace oc->memcg in oom_badness() in oom_evaluate_task() with NULL. )
+When the application does not exit cleanly (i.e. SIGTERM) we might
+end up with some pages in lru_add_pvec, which is ok. With THP
+enabled huge pages may also end up on per cpu lru_add_pvecs.
+In the systems with a lot of processors we end up with quite a lot
+of memory pending for addition to LRU cache - in the worst case
+scenario up to CPUS * PAGE_SIZE * PAGEVEC_SIZE, which on machine
+with 200+CPUs means GBs in practice.
 
-yes oom_badness can never see a task from outside of the memcg
-hierarchy.
+We are able to reproduce this problem with the following program:
 
-[...]
-> +static enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
-> +					       struct task_struct *task)
->  {
->  	if (oom_unkillable_task(task, NULL, oc->nodemask))
->  		return OOM_SCAN_CONTINUE;
-> @@ -307,6 +314,9 @@ int oom_evaluate_task(struct oom_control *oc, struct task_struct *p, unsigned lo
->  	case OOM_SCAN_CONTINUE:
->  		return 1;
->  	case OOM_SCAN_ABORT:
-> +		if (oc->chosen)
-> +			put_task_struct(oc->chosen);
-> +		oc->chosen = (void *) -1UL;
+void main() {
+{
+	size_t size = 55 * 1000 * 1000; // smaller than  MEM/CPUS
+	void *p = mmap(NULL, size, PROT_READ | PROT_WRITE,
+		MAP_PRIVATE | MAP_ANONYMOUS , -1, 0);
+	if (p != MAP_FAILED)
+		memset(p, 0, size);
+	//munmap(p, size); // uncomment to make the problem go away
+}
+}
 
-true including the memcg fixup.
+When we run it it will leave significant amount of memory on pvecs.
+This memory will be not reclaimed if we hit OOM, so when we run
+above program in a loop:
+	$ for i in `seq 100`; do ./a.out; done
+many processes (95% in my case) will be killed by OOM.
 
->  		return 0;
->  	case OOM_SCAN_OK:
->  		break;
+This patch flushes lru_add_pvecs on compound page arrival making
+the problem less severe - kill rate drops to 0%.
 
-Thanks! I've updated the patch locally but I will wait for Vladimir what
-he thinks about this wrt. the original approach.
+Suggested-by: Michal Hocko <mhocko@suse.com>
+Tested-by: Lukasz Odzioba <lukasz.odzioba@intel.com>
+Signed-off-by: Lukasz Odzioba <lukasz.odzioba@intel.com>
+---
+ mm/swap.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mm/swap.c b/mm/swap.c
+index 9591614..3fe4f18 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -391,9 +391,8 @@ static void __lru_cache_add(struct page *page)
+ 	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
+ 
+ 	get_page(page);
+-	if (!pagevec_space(pvec))
++	if (!pagevec_add(pvec, page) || PageCompound(page))
+ 		__pagevec_lru_add(pvec);
+-	pagevec_add(pvec, page);
+ 	put_cpu_var(lru_add_pvec);
+ }
+ 
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
