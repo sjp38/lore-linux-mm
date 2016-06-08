@@ -1,44 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 92A146B025E
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 12:34:56 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id d4so20807419iod.3
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 09:34:56 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id qo11si2066271pab.106.2016.06.08.09.34.49
-        for <linux-mm@kvack.org>;
-        Wed, 08 Jun 2016 09:34:55 -0700 (PDT)
-Subject: Re: [PATCH 1/1] mm/swap.c: flush lru_add pvecs on compound page
- arrival
-References: <1465396537-17277-1-git-send-email-lukasz.odzioba@intel.com>
- <57583A49.30809@intel.com> <20160608160653.GB21838@dhcp22.suse.cz>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <575848F9.2060501@intel.com>
-Date: Wed, 8 Jun 2016 09:34:01 -0700
-MIME-Version: 1.0
-In-Reply-To: <20160608160653.GB21838@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AB42D6B025E
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 13:04:20 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id h144so30034003ita.1
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 10:04:20 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id fn4si2172178pac.157.2016.06.08.10.04.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Jun 2016 10:04:19 -0700 (PDT)
+Date: Wed, 8 Jun 2016 10:04:18 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] oom_reaper: avoid pointless atomic_inc_not_zero usage.
+Message-Id: <20160608100418.33b7566b08de7223b2dc2986@linux-foundation.org>
+In-Reply-To: <20160606141340.86c96c1d3dc29823438313d9@linux-foundation.org>
+References: <1465024759-8074-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20160606141340.86c96c1d3dc29823438313d9@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Lukasz Odzioba <lukasz.odzioba@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, aarcange@redhat.com, vdavydov@parallels.com, mingli199x@qq.com, minchan@kernel.org, lukasz.anaczkowski@intel.com, "Shutemov, Kirill" <kirill.shutemov@intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Arnd Bergmann <arnd@arndb.de>
 
-On 06/08/2016 09:06 AM, Michal Hocko wrote:
->> > Do we have any statistics that tell us how many pages are sitting the
->> > lru pvecs?  Although this helps the problem overall, don't we still have
->> > a problem with memory being held in such an opaque place?
-> Is it really worth bothering when we are talking about 56kB per CPU
-> (after this patch)?
+On Mon, 6 Jun 2016 14:13:40 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
 
-That was the logic why we didn't have it up until now: we didn't
-*expect* it to get large.  A code change blew it up by 512x, and we had
-no instrumentation to tell us where all the memory went.
+> On Sat,  4 Jun 2016 16:19:19 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
+> 
+> > Since commit 36324a990cf578b5 ("oom: clear TIF_MEMDIE after oom_reaper
+> > managed to unmap the address space") changed to use find_lock_task_mm()
+> > for finding a mm_struct to reap, it is guaranteed that mm->mm_users > 0
+> > because find_lock_task_mm() returns a task_struct with ->mm != NULL.
+> > Therefore, we can safely use atomic_inc().
+> > 
+> > ...
+> >
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -474,13 +474,8 @@ static bool __oom_reap_task(struct task_struct *tsk)
+> >  	p = find_lock_task_mm(tsk);
+> >  	if (!p)
+> >  		goto unlock_oom;
+> > -
+> >  	mm = p->mm;
+> > -	if (!atomic_inc_not_zero(&mm->mm_users)) {
+> > -		task_unlock(p);
+> > -		goto unlock_oom;
+> > -	}
+> > -
+> > +	atomic_inc(&mm->mm_users);
+> >  	task_unlock(p);
+> >  
+> >  	if (!down_read_trylock(&mm->mmap_sem)) {
+> 
+> In an off-list email (please don't do that!) you asked me to replace
+> mmoom_reaper-dont-call-mmput_async-without-atomic_inc_not_zero.patch
+> with this above patch.
+> 
+> But the
+> mmoom_reaper-dont-call-mmput_async-without-atomic_inc_not_zero.patch
+> changelog is pretty crappy:
+> 
+> : Commit e2fe14564d3316d1 ("oom_reaper: close race with exiting task")
+> : reduced frequency of needlessly selecting next OOM victim, but was
+> : calling mmput_async() when atomic_inc_not_zero() failed.
+> 
+> because it doesn't explain that the patch potentially fixes a kernel
+> crash.
+> 
+> And the changelog for this above patch is similarly crappy - it fails
+> to described the end-user visible effects of the bug which is being
+> fixed.  Please *always* do this.  Always always always.
+> 
+> Please send me a complete changelog for this patch, thanks.
 
-I guess we don't have any other ways to group pages than compound pages,
-and _that_ one is covered now... for one of the 5 classes of pvecs.
+Ping?  Can we have a better changelog on this one?
 
-Is there a good reason we don't have to touch the other 4 pagevecs, btw?
+That changelog will help us to decide whether to backport this into
+4.6.x.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
