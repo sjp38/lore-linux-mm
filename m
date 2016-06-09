@@ -1,59 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 77E9C828E5
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 23:51:15 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id fg1so37749982pad.1
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 20:51:15 -0700 (PDT)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id v81si5133046pfi.110.2016.06.08.20.51.10
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jun 2016 20:51:11 -0700 (PDT)
-Received: by mail-pa0-x244.google.com with SMTP id fg1so1772822pad.3
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 20:51:10 -0700 (PDT)
-Date: Thu, 9 Jun 2016 12:51:08 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm, thp: fix locking inconsistency in collapse_huge_page
-Message-ID: <20160609035108.GD655@swordfish>
-References: <0c47a3a0-5530-b257-1c1f-28ed44ba97e6@suse.cz>
- <1464956884-4644-1-git-send-email-ebru.akagunduz@gmail.com>
- <12918dcd-a695-c6f4-e06f-69141c5f357f@suse.cz>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A768828E5
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 00:47:20 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id a69so46124612pfa.1
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 21:47:20 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id e21si5384260pfj.74.2016.06.08.21.39.51
+        for <linux-mm@kvack.org>;
+        Wed, 08 Jun 2016 21:39:56 -0700 (PDT)
+Date: Thu, 9 Jun 2016 13:40:59 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: Cleanup - Reorganize the shrink_page_list code into
+ smaller functions
+Message-ID: <20160609044059.GB29779@bbox>
+References: <1463779979.22178.142.camel@linux.intel.com>
+ <20160531091550.GA19976@bbox>
+ <20160531171722.GA5763@linux.intel.com>
+ <20160601071225.GN19976@bbox>
+ <1464805433.22178.191.camel@linux.intel.com>
+ <20160607082158.GA23435@bbox>
+ <1465332209.22178.236.camel@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <1465332209.22178.236.camel@linux.intel.com>
+Content-Type: text/plain; charset="iso-8859-1"
 Content-Disposition: inline
-In-Reply-To: <12918dcd-a695-c6f4-e06f-69141c5f357f@suse.cz>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>, akpm@linux-foundation.org, sergey.senozhatsky.work@gmail.com, mhocko@kernel.org, kirill.shutemov@linux.intel.com, sfr@canb.auug.org.au, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, "Kirill A.Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <andi@firstfloor.org>, Aaron Lu <aaron.lu@intel.com>, Huang Ying <ying.huang@intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On (06/06/16 15:05), Vlastimil Babka wrote:
-[..]
-> I think this does fix the inconsistency, thanks.
-> 
-> But looking at collapse_huge_page() as of latest -next, I wonder if there's
-> another problem:
-> 
-> pmd = mm_find_pmd(mm, address);
-> ...
-> up_read(&mm->mmap_sem);
-> down_write(&mm->mmap_sem);
-> hugepage_vma_revalidate(mm, address);
-> ...
-> pte = pte_offset_map(pmd, address);
-> 
-> What guarantees that 'pmd' is still valid?
+On Tue, Jun 07, 2016 at 01:43:29PM -0700, Tim Chen wrote:
+> On Tue, 2016-06-07 at 17:21 +0900, Minchan Kim wrote:
+> > On Wed, Jun 01, 2016 at 11:23:53AM -0700, Tim Chen wrote:
+> > >=20
+> > > On Wed, 2016-06-01 at 16:12 +0900, Minchan Kim wrote:
+> > > >=20
+> > > > =A0
+> > > > Hi Tim,
+> > > >=20
+> > > > To me, this reorganization is too limited and not good for me,
+> > > > frankly speaking. It works for only your goal which allocate batch
+> > > > swap slot, I guess. :)
+> > > >=20
+> > > > My goal is to make them work with batch page=5Fcheck=5Freferences,
+> > > > batch try=5Fto=5Funmap and batch =5F=5Fremove=5Fmapping where we ca=
+n avoid frequent
+> > > > mapping->lock(e.g., anon=5Fvma or i=5Fmmap=5Flock with hoping such =
+batch locking
+> > > > help system performance) if batch pages has same inode or anon.
+> > > This is also my goal to group pages that are either under the same
+> > > mapping or are anonymous pages together so we can reduce the i=5Fmmap=
+=5Flock
+> > > acquisition. =A0One logic that's yet to be implemented in your patch
+> > > is the grouping of similar pages together so we only need one i=5Fmma=
+p=5Flock
+> > > acquisition. =A0Doing this efficiently is non-trivial. =A0
+> > Hmm, my assumption is based on same inode pages are likely to order
+> > in LRU so no need to group them. If successive page in page=5Flist comes
+> > from different inode, we can drop the lock and get new lock from new
+> > inode. That sounds strange?
+> >=20
+>=20
+> Sounds reasonable. But your process function passed to spl=5Fbatch=5Fpage=
+s may
+> need to be modified to know if the radix tree lock or swap info lock
+> has already been held, as it deals with only 1 page. =A0It may be
+> tricky as the lock may get acquired and dropped more than once in process
+> function.
+>=20
+> Are you planning to update the patch with lock batching?
 
-the same question applied to __collapse_huge_page_swapin(), I think.
+Hi Tim,
 
-__collapse_huge_page_swapin(pmd)
-	pte = pte_offset_map(pmd, address);
-	do_swap_page(mm, vma, _address, pte, pmd...)
-		up_read(&mm->mmap_sem);
-	down_read(&mm->mmap_sem);
-	pte = pte_offset_map(pmd, _address);
+Okay, I will give it a shot.
 
-	-ss
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
