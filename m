@@ -1,178 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DF14C6B026A
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 09:52:44 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id u74so18113452lff.0
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 06:52:44 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y184si8729674wmb.6.2016.06.09.06.52.38
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 27D056B0276
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 10:05:17 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id z189so69566777itg.2
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 07:05:17 -0700 (PDT)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0128.outbound.protection.outlook.com. [157.55.234.128])
+        by mx.google.com with ESMTPS id p36si3143972otb.220.2016.06.09.07.05.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Jun 2016 06:52:38 -0700 (PDT)
-From: Petr Mladek <pmladek@suse.com>
-Subject: [PATCH v8 12/12] kthread: Better support freezable kthread workers
-Date: Thu,  9 Jun 2016 15:52:06 +0200
-Message-Id: <1465480326-31606-13-git-send-email-pmladek@suse.com>
-In-Reply-To: <1465480326-31606-1-git-send-email-pmladek@suse.com>
-References: <1465480326-31606-1-git-send-email-pmladek@suse.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 09 Jun 2016 07:05:16 -0700 (PDT)
+Subject: [PATCH] mm: mempool: kasan: don't poot mempool objects in quarantine
+References: <1464785606-20349-1-git-send-email-glider@google.com>
+ <574F0BB6.1040400@virtuozzo.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <575977C3.1010905@virtuozzo.com>
+Date: Thu, 9 Jun 2016 17:05:55 +0300
+MIME-Version: 1.0
+In-Reply-To: <574F0BB6.1040400@virtuozzo.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
+To: Alexander Potapenko <glider@google.com>, adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, kuthonuzo.luruo@hpe.com
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This patch allows to make kthread worker freezable via a new @flags
-parameter. It will allow to avoid an init work in some kthreads.
+On 06/01/2016 07:22 PM, Andrey Ryabinin wrote:
+> 
+> 
+> On 06/01/2016 03:53 PM, Alexander Potapenko wrote:
+>> To avoid draining the mempools, KASAN shouldn't put the mempool elements
+>> into the quarantine upon mempool_free().
+> 
+> Correct, but unfortunately this patch doesn't fix that.
+> 
 
-It currently does not affect the function of kthread_worker_fn()
-but it might help to do some optimization or fixes eventually.
+So, I made this:
 
-I currently do not know about any other use for the @flags
-parameter but I believe that we will want more flags
-in the future.
 
-Finally, I hope that it will not cause confusion with @flags member
-in struct kthread. Well, I guess that we will want to rework the
-basic kthreads implementation once all kthreads are converted into
-kthread workers or workqueues. It is possible that we will merge
-the two structures.
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Subject: [PATCH] mm: mempool: kasan: don't poot mempool objects in quarantine
 
-Signed-off-by: Petr Mladek <pmladek@suse.com>
+Currently we may put reserved by mempool elements into quarantine
+via kasan_kfree(). This is totally wrong since quarantine may really
+free these objects. So when mempool will try to use such element,
+use-after-free will happen. Or mempool may decide that it no longer
+need that element and double-free it.
+
+So don't put object into quarantine in kasan_kfree(), just poison it.
+Rename kasan_kfree() to kasan_poison_kfree() to respect that.
+
+Also, we shouldn't use kasan_slab_alloc()/kasan_krealloc() in
+kasan_unpoison_element() because those functions may update allocation
+stacktrace. This would be wrong for the most of the remove_element
+call sites.
+
+(The only call site where we may want to update alloc stacktrace is
+ in mempool_alloc(). Kmemleak solves this by calling
+ kmemleak_update_trace(), so we could make something like that too.
+ But this is out of scope of this patch).
+
+Fixes: 55834c59098d ("mm: kasan: initial memory quarantine implementation")
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Reported-by: Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>
 ---
- include/linux/kthread.h | 12 +++++++++---
- kernel/kthread.c        | 21 +++++++++++++++------
- 2 files changed, 24 insertions(+), 9 deletions(-)
+ include/linux/kasan.h | 11 +++++++----
+ mm/kasan/kasan.c      |  6 +++---
+ mm/mempool.c          | 12 ++++--------
+ 3 files changed, 14 insertions(+), 15 deletions(-)
 
-diff --git a/include/linux/kthread.h b/include/linux/kthread.h
-index 0be4ff223537..838a360be3a4 100644
---- a/include/linux/kthread.h
-+++ b/include/linux/kthread.h
-@@ -65,7 +65,12 @@ struct kthread_work;
- typedef void (*kthread_work_func_t)(struct kthread_work *work);
- void kthread_delayed_work_timer_fn(unsigned long __data);
+diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+index 611927f..ac4b3c4 100644
+--- a/include/linux/kasan.h
++++ b/include/linux/kasan.h
+@@ -59,14 +59,13 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object);
  
-+enum {
-+	KTW_FREEZABLE		= 1 << 0,	/* freeze during suspend */
-+};
+ void kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags);
+ void kasan_kfree_large(const void *ptr);
+-void kasan_kfree(void *ptr);
++void kasan_poison_kfree(void *ptr);
+ void kasan_kmalloc(struct kmem_cache *s, const void *object, size_t size,
+ 		  gfp_t flags);
+ void kasan_krealloc(const void *object, size_t new_size, gfp_t flags);
+ 
+ void kasan_slab_alloc(struct kmem_cache *s, void *object, gfp_t flags);
+ bool kasan_slab_free(struct kmem_cache *s, void *object);
+-void kasan_poison_slab_free(struct kmem_cache *s, void *object);
+ 
+ struct kasan_cache {
+ 	int alloc_meta_offset;
+@@ -76,6 +75,9 @@ struct kasan_cache {
+ int kasan_module_alloc(void *addr, size_t size);
+ void kasan_free_shadow(const struct vm_struct *vm);
+ 
++size_t ksize(const void *);
++static inline void kasan_unpoison_slab(const void *ptr) { ksize(ptr); }
 +
- struct kthread_worker {
-+	unsigned int		flags;
- 	spinlock_t		lock;
- 	struct list_head	work_list;
- 	struct list_head	delayed_work_list;
-@@ -154,12 +159,13 @@ extern void __kthread_init_worker(struct kthread_worker *worker,
+ #else /* CONFIG_KASAN */
  
- int kthread_worker_fn(void *worker_ptr);
+ static inline void kasan_unpoison_shadow(const void *address, size_t size) {}
+@@ -102,7 +104,7 @@ static inline void kasan_poison_object_data(struct kmem_cache *cache,
  
--__printf(1, 2)
-+__printf(2, 3)
- struct kthread_worker *
--kthread_create_worker(const char namefmt[], ...);
-+kthread_create_worker(unsigned int flags, const char namefmt[], ...);
- 
- struct kthread_worker *
--kthread_create_worker_on_cpu(int cpu, const char namefmt[], ...);
-+kthread_create_worker_on_cpu(int cpu, unsigned int flags,
-+			     const char namefmt[], ...);
- 
- bool kthread_queue_work(struct kthread_worker *worker,
- 			struct kthread_work *work);
-diff --git a/kernel/kthread.c b/kernel/kthread.c
-index d0e7414906da..80c7363345be 100644
---- a/kernel/kthread.c
-+++ b/kernel/kthread.c
-@@ -556,11 +556,11 @@ void __kthread_init_worker(struct kthread_worker *worker,
- 				const char *name,
- 				struct lock_class_key *key)
+ static inline void kasan_kmalloc_large(void *ptr, size_t size, gfp_t flags) {}
+ static inline void kasan_kfree_large(const void *ptr) {}
+-static inline void kasan_kfree(void *ptr) {}
++static inline void kasan_poison_kfree(void *ptr) {}
+ static inline void kasan_kmalloc(struct kmem_cache *s, const void *object,
+ 				size_t size, gfp_t flags) {}
+ static inline void kasan_krealloc(const void *object, size_t new_size,
+@@ -114,11 +116,12 @@ static inline bool kasan_slab_free(struct kmem_cache *s, void *object)
  {
-+	memset(worker, 0, sizeof(struct kthread_worker));
- 	spin_lock_init(&worker->lock);
- 	lockdep_set_class_and_name(&worker->lock, key, name);
- 	INIT_LIST_HEAD(&worker->work_list);
- 	INIT_LIST_HEAD(&worker->delayed_work_list);
--	worker->task = NULL;
+ 	return false;
  }
- EXPORT_SYMBOL_GPL(__kthread_init_worker);
+-static inline void kasan_poison_slab_free(struct kmem_cache *s, void *object) {}
  
-@@ -590,6 +590,10 @@ int kthread_worker_fn(void *worker_ptr)
- 	 */
- 	WARN_ON(worker->task && worker->task != current);
- 	worker->task = current;
+ static inline int kasan_module_alloc(void *addr, size_t size) { return 0; }
+ static inline void kasan_free_shadow(const struct vm_struct *vm) {}
+ 
++static inline void kasan_unpoison_slab(const void *ptr) { }
 +
-+	if (worker->flags & KTW_FREEZABLE)
-+		set_freezable();
-+
- repeat:
- 	set_current_state(TASK_INTERRUPTIBLE);	/* mb paired w/ kthread_stop */
+ #endif /* CONFIG_KASAN */
  
-@@ -623,7 +627,8 @@ repeat:
- EXPORT_SYMBOL_GPL(kthread_worker_fn);
+ #endif /* LINUX_KASAN_H */
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 28439ac..6845f92 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -508,7 +508,7 @@ void kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t flags)
+ 	kasan_kmalloc(cache, object, cache->object_size, flags);
+ }
  
- static struct kthread_worker *
--__kthread_create_worker(int cpu, const char namefmt[], va_list args)
-+__kthread_create_worker(int cpu, unsigned int flags,
-+			const char namefmt[], va_list args)
+-void kasan_poison_slab_free(struct kmem_cache *cache, void *object)
++static void kasan_poison_slab_free(struct kmem_cache *cache, void *object)
  {
- 	struct kthread_worker *worker;
- 	struct task_struct *task;
-@@ -653,6 +658,7 @@ __kthread_create_worker(int cpu, const char namefmt[], va_list args)
- 	if (IS_ERR(task))
- 		goto fail_task;
+ 	unsigned long size = cache->object_size;
+ 	unsigned long rounded_up_size = round_up(size, KASAN_SHADOW_SCALE_SIZE);
+@@ -626,7 +626,7 @@ void kasan_krealloc(const void *object, size_t size, gfp_t flags)
+ 		kasan_kmalloc(page->slab_cache, object, size, flags);
+ }
  
-+	worker->flags = flags;
- 	worker->task = task;
- 	wake_up_process(task);
- 	return worker;
-@@ -664,6 +670,7 @@ fail_task:
- 
- /**
-  * kthread_create_worker - create a kthread worker
-+ * @flags: flags modifying the default behavior of the worker
-  * @namefmt: printf-style name for the kthread worker (task).
-  *
-  * Returns a pointer to the allocated worker on success, ERR_PTR(-ENOMEM)
-@@ -671,13 +678,13 @@ fail_task:
-  * when the worker was SIGKILLed.
-  */
- struct kthread_worker *
--kthread_create_worker(const char namefmt[], ...)
-+kthread_create_worker(unsigned int flags, const char namefmt[], ...)
+-void kasan_kfree(void *ptr)
++void kasan_poison_kfree(void *ptr)
  {
- 	struct kthread_worker *worker;
- 	va_list args;
+ 	struct page *page;
  
- 	va_start(args, namefmt);
--	worker = __kthread_create_worker(-1, namefmt, args);
-+	worker = __kthread_create_worker(-1, flags, namefmt, args);
- 	va_end(args);
+@@ -636,7 +636,7 @@ void kasan_kfree(void *ptr)
+ 		kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
+ 				KASAN_FREE_PAGE);
+ 	else
+-		kasan_slab_free(page->slab_cache, ptr);
++		kasan_poison_slab_free(page->slab_cache, ptr);
+ }
  
- 	return worker;
-@@ -688,6 +695,7 @@ EXPORT_SYMBOL(kthread_create_worker);
-  * kthread_create_worker_on_cpu - create a kthread worker and bind it
-  *	it to a given CPU and the associated NUMA node.
-  * @cpu: CPU number
-+ * @flags: flags modifying the default behavior of the worker
-  * @namefmt: printf-style name for the kthread worker (task).
-  *
-  * Use a valid CPU number if you want to bind the kthread worker
-@@ -701,13 +709,14 @@ EXPORT_SYMBOL(kthread_create_worker);
-  * when the worker was SIGKILLed.
-  */
- struct kthread_worker *
--kthread_create_worker_on_cpu(int cpu, const char namefmt[], ...)
-+kthread_create_worker_on_cpu(int cpu, unsigned int flags,
-+			     const char namefmt[], ...)
+ void kasan_kfree_large(const void *ptr)
+diff --git a/mm/mempool.c b/mm/mempool.c
+index 9e075f8..8f65464 100644
+--- a/mm/mempool.c
++++ b/mm/mempool.c
+@@ -104,20 +104,16 @@ static inline void poison_element(mempool_t *pool, void *element)
+ 
+ static void kasan_poison_element(mempool_t *pool, void *element)
  {
- 	struct kthread_worker *worker;
- 	va_list args;
+-	if (pool->alloc == mempool_alloc_slab)
+-		kasan_poison_slab_free(pool->pool_data, element);
+-	if (pool->alloc == mempool_kmalloc)
+-		kasan_kfree(element);
++	if (pool->alloc == mempool_alloc_slab || pool->alloc == mempool_kmalloc)
++		kasan_poison_kfree(element);
+ 	if (pool->alloc == mempool_alloc_pages)
+ 		kasan_free_pages(element, (unsigned long)pool->pool_data);
+ }
  
- 	va_start(args, namefmt);
--	worker = __kthread_create_worker(cpu, namefmt, args);
-+	worker = __kthread_create_worker(cpu, flags, namefmt, args);
- 	va_end(args);
- 
- 	return worker;
+ static void kasan_unpoison_element(mempool_t *pool, void *element, gfp_t flags)
+ {
+-	if (pool->alloc == mempool_alloc_slab)
+-		kasan_slab_alloc(pool->pool_data, element, flags);
+-	if (pool->alloc == mempool_kmalloc)
+-		kasan_krealloc(element, (size_t)pool->pool_data, flags);
++	if (pool->alloc == mempool_alloc_slab || pool->alloc == mempool_kmalloc)
++		kasan_unpoison_slab(element);
+ 	if (pool->alloc == mempool_alloc_pages)
+ 		kasan_alloc_pages(element, (unsigned long)pool->pool_data);
+ }
 -- 
-1.8.5.6
+2.7.3
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
