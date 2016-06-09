@@ -1,74 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C60776B0005
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 09:18:50 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id d4so55930416iod.3
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 06:18:50 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id e9si3105489otb.6.2016.06.09.06.18.49
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C16A56B0005
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 09:32:17 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id u74so17863772lff.0
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 06:32:17 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id r65si19942598wmd.82.2016.06.09.06.32.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Jun 2016 06:18:50 -0700 (PDT)
-Subject: Re: [PATCH 07/10] mm, oom: fortify task_will_free_mem
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1465473137-22531-1-git-send-email-mhocko@kernel.org>
-	<1465473137-22531-8-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1465473137-22531-8-git-send-email-mhocko@kernel.org>
-Message-Id: <201606092218.FCC48987.MFQLVtSHJFOOFO@I-love.SAKURA.ne.jp>
-Date: Thu, 9 Jun 2016 22:18:28 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Jun 2016 06:32:16 -0700 (PDT)
+Date: Thu, 9 Jun 2016 09:32:05 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 01/10] mm: allow swappiness that prefers anon over file
+Message-ID: <20160609133205.GA11719@cmpxchg.org>
+References: <20160606194836.3624-1-hannes@cmpxchg.org>
+ <20160606194836.3624-2-hannes@cmpxchg.org>
+ <20160607002550.GA26230@bbox>
+ <20160607141818.GE9978@cmpxchg.org>
+ <20160608000632.GA27258@bbox>
+ <20160608155812.GC6727@cmpxchg.org>
+ <20160609010107.GF28620@bbox>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160609010107.GF28620@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, linux-mm@kvack.org
-Cc: rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, mhocko@suse.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
 
-Michal Hocko wrote:
-> @@ -766,15 +797,12 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  	 * If the task is already exiting, don't alarm the sysadmin or kill
->  	 * its children or threads, just set TIF_MEMDIE so it can die quickly
->  	 */
-> -	task_lock(p);
-> -	if (p->mm && task_will_free_mem(p)) {
-> +	if (task_will_free_mem(p)) {
+On Thu, Jun 09, 2016 at 10:01:07AM +0900, Minchan Kim wrote:
+> A system has big HDD storage and SSD swap.
+> 
+> HDD:    200 IOPS
+> SSD: 100000 IOPS
+> From https://en.wikipedia.org/wiki/IOPS
+> 
+> So, speed gap is 500x.
+> x + 500x = 200
+> If we use PCIe-SSD, the gap will be larger.
+> That's why I said 200 is enough to represent speed gap.
 
-I think it is possible that p->mm becomes NULL here.
+Ah, I see what you're saying.
 
-Also, I think setting TIF_MEMDIE on p when find_lock_task_mm(p) != p is
-wrong. While oom_reap_task() will anyway clear TIF_MEMDIE even if we set
-TIF_MEMDIE on p when p->mm == NULL, it is not true for CONFIG_MMU=n case.
+Yeah, that's unfortunately a limitation in the current ABI. Extending
+the range to previously unavailable settings is doable; changing the
+meaning of existing values is not. We'd have to add another interface.
 
->  		mark_oom_victim(p);
-> -		try_oom_reaper(p);
-> -		task_unlock(p);
-> +		wake_oom_reaper(p);
->  		put_task_struct(p);
->  		return;
->  	}
-> -	task_unlock(p);
->  
->  	if (__ratelimit(&oom_rs))
->  		dump_header(oc, p);
-> @@ -940,14 +968,10 @@ bool out_of_memory(struct oom_control *oc)
->  	 * If current has a pending SIGKILL or is exiting, then automatically
->  	 * select it.  The goal is to allow it to allocate so that it may
->  	 * quickly exit and free its memory.
-> -	 *
-> -	 * But don't select if current has already released its mm and cleared
-> -	 * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
->  	 */
-> -	if (current->mm &&
-> -	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
-> +	if (task_will_free_mem(current)) {
+> Such system configuration is already non-sense so it is okay to ignore such
+> usecases?
 
-Setting TIF_MEMDIE on current when current->mm == NULL and
-find_lock_task_mm(current) != NULL is wrong.
-
->  		mark_oom_victim(current);
-> -		try_oom_reaper(current);
-> +		wake_oom_reaper(current);
->  		return true;
->  	}
+I'm not sure we have to be proactive about it, but we can always add a
+more fine-grained knob to override swappiness when somebody wants to
+use such a setup in practice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
