@@ -1,218 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 528786B0005
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 09:52:20 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r5so22427493wmr.0
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 06:52:20 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D10596B025E
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 09:52:21 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id c82so22399216wme.2
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 06:52:21 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o2si8050954wjb.24.2016.06.09.06.52.18
+        by mx.google.com with ESMTPS id wd5si8034580wjc.38.2016.06.09.06.52.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Jun 2016 06:52:18 -0700 (PDT)
+        Thu, 09 Jun 2016 06:52:20 -0700 (PDT)
 From: Petr Mladek <pmladek@suse.com>
-Subject: [PATCH v8 00/12] kthread: Kthread worker API improvements
-Date: Thu,  9 Jun 2016 15:51:54 +0200
-Message-Id: <1465480326-31606-1-git-send-email-pmladek@suse.com>
+Subject: [PATCH v8 01/12] kthread: Rename probe_kthread_data() to kthread_probe_data()
+Date: Thu,  9 Jun 2016 15:51:55 +0200
+Message-Id: <1465480326-31606-2-git-send-email-pmladek@suse.com>
+In-Reply-To: <1465480326-31606-1-git-send-email-pmladek@suse.com>
+References: <1465480326-31606-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
 
-I send the kthread worker API improvements separately as discussed
-in v6, see
-https://lkml.kernel.org/g/20160511105224.GE2749@pathway.suse.cz
-They seem to be ready for inclusion in 4.8.
+A good practice is to prefix the names of functions by the name
+of the subsystem.
 
-I will send the conversion of the particular kthreads once
-the API changes are in some maintainers three (-mm?) and
-visible in linux-next. If nobody suggests some other approach.
+This patch fixes the name of probe_kthread_data(). The other wrong
+functions names are part of the kthread worker API and will be
+fixed separately.
 
-Also I plan to continue with conversion of more kthreads.
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Petr Mladek <pmladek@suse.com>
+---
+ include/linux/kthread.h | 2 +-
+ kernel/kthread.c        | 4 ++--
+ kernel/workqueue.c      | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)
 
-Just to remember. The intention of this patchset is to make
-it easier to manipulate and maintain kthreads. Especially, I want
-to replace all the custom main cycles with a generic one.
-Also I want to make the kthreads sleep in a consistent
-state in a common place when there is no work.
-
-
-Changes against v7:
-
-  + Fix up all names of functions and macros to be prefixed
-    by kthread_/KTHREAD_; This is done also for existing
-    functions and macros, see the first two patches
-
-
-Changes against v6:
-
-  + no changes.
-
-
-Changes against v5:
-
-  + removed spin_trylock() from delayed_kthread_work_timer_fn();
-    instead temporary released worked->lock() when calling
-    del_timer_sync(); made sure that any queueing was blocked
-    by work->canceling in the mealtime
-
-  + used 0th byte for KTW_FREEZABLE to reduce confusion
-
-  + fixed warnings in comments reported by make htmldocs
-
-  + sigh, there was no easy way to create an empty va_list
-    that would work on all architectures; decided to make
-    @namefmt generic in create_kthread_worker_on_cpu()
-
-  + converted khungtaskd a better way; it was inspired by
-    the recent changes that appeared in 4.6-rc1
-
-
-Changes against v4:
-
-  + added worker->delayed_work_list; it simplified the check
-    for pending work; we do not longer need the new timer_active()
-    function; also we do not need the link work->timer. On the
-    other hand we need to distinguish between the normal and
-    the delayed work by a boolean parameter passed to
-    the common functions, e.g. __cancel_kthread_work_sync()
-    
-  + replaced most try_lock repeat cycles with a WARN_ON();
-    the API does not allow to use the work with more workers;
-    so such a situation would be a bug; it removed the
-    complex try_lock_kthread_work() function that supported
-    more modes;
-
-  + renamed kthread_work_pending() to queuing_blocked();
-    added this function later when really needed
-
-  + renamed try_to_cancel_kthread_work() to __cancel_kthread_work();
-    in fact, this a common implementation for the async cancel()
-    function
-
-  + removed a dull check for invalid cpu number in
-    create_kthread_worker_on_cpu(); removed some other unnecessary
-    code structures as suggested by Tejun
-
-  + consistently used bool return value in all new __cancel functions
-
-  + fixed ordering of cpu and flags parameters in
-    create_kthread_worker_on_cpu() vs. create_kthread_worker()
-
-  + used memset in the init_kthread_worker()
-
-  + updated many comments as suggested by Tejun and as
-    required the above changes
-
-  + removed obsolete patch adding timer_active()
-
-  + removed obsolete patch for using try_lock in flush_kthread_worker()
-
-  + double checked all existing users of kthread worker API
-    that they reinitialized the work when the worker was started
-    and would not print false warnings; all looked fine
-
-  + added taken acks for the Intel Powerclamp conversion
-    
-
-Changes against v3:
-
-  + allow to free struct kthread_work from its callback; do not touch
-    the struct from the worker post-mortem; as a side effect, the structure
-    must be reinitialized when the worker gets restarted; updated
-    khugepaged, and kmemleak accordingly
-
-  + call del_timer_sync() with worker->lock; instead, detect canceling
-    in the timer callback and give up an attempt to get the lock there;
-    do busy loop with spin_is_locked() to reduce cache bouncing
-
-  + renamed ipmi+func() -> ipmi_kthread_worker_func() as suggested
-    by Corey
-
-  + added some collected Reviewed-by
-
-  
-Changes against v2:
-
-  + used worker->lock to synchronize the operations with the work
-    instead of the PENDING bit as suggested by Tejun Heo; it simplified
-    the implementation in several ways
-
-  + added timer_active(); used it together with del_timer_sync()
-    to cancel the work a less tricky way
-
-  + removed the controversial conversion of the RCU kthreads
-
-  + added several other examples: hung_task, kmemleak, ipmi,
-    IB/fmr_pool, memstick/r592, intel_powerclamp
-
-  + the helper fixes for the ring buffer benchmark has been improved
-    as suggested by Steven; they already are in the Linus tree now
-
-  + fixed a possible race between the check for existing khugepaged
-    worker and queuing the work
+diff --git a/include/linux/kthread.h b/include/linux/kthread.h
+index e691b6a23f72..c792ee1628d0 100644
+--- a/include/linux/kthread.h
++++ b/include/linux/kthread.h
+@@ -44,7 +44,7 @@ bool kthread_should_stop(void);
+ bool kthread_should_park(void);
+ bool kthread_freezable_should_stop(bool *was_frozen);
+ void *kthread_data(struct task_struct *k);
+-void *probe_kthread_data(struct task_struct *k);
++void *kthread_probe_data(struct task_struct *k);
+ int kthread_park(struct task_struct *k);
+ void kthread_unpark(struct task_struct *k);
+ void kthread_parkme(void);
+diff --git a/kernel/kthread.c b/kernel/kthread.c
+index 9ff173dca1ae..0bec14aa844e 100644
+--- a/kernel/kthread.c
++++ b/kernel/kthread.c
+@@ -138,7 +138,7 @@ void *kthread_data(struct task_struct *task)
+ }
  
-
-Changes against v1:
-
-  + remove wrappers to manipulate the scheduling policy and priority
-
-  + remove questionable wakeup_and_destroy_kthread_worker() variant
-
-  + do not check for chained work when draining the queue
-
-  + allocate struct kthread worker in create_kthread_work() and
-    use more simple checks for running worker
-
-  + add support for delayed kthread works and use them instead
-    of waiting inside the works
-
-  + rework the "unrelated" fixes for the ring buffer benchmark
-    as discussed in the 1st RFC; also sent separately
-
-  + convert also the consumer in the ring buffer benchmark
-
-
-I have tested this patch set against the stable Linus tree
-for 4.7-rc2.
-
-Comments against v7 can be found at
-https://lkml.kernel.org/g/1464620371-31346-1-git-send-email-pmladek@suse.com
-
-Petr Mladek (12):
-  kthread: Rename probe_kthread_data() to kthread_probe_data()
-  kthread: Kthread worker API cleanup
-  kthread/smpboot: Do not park in kthread_create_on_cpu()
-  kthread: Allow to call __kthread_create_on_node() with va_list args
-  kthread: Add kthread_create_worker*()
-  kthread: Add kthread_drain_worker()
-  kthread: Add kthread_destroy_worker()
-  kthread: Detect when a kthread work is used by more workers
-  kthread: Initial support for delayed kthread work
-  kthread: Allow to cancel kthread work
-  kthread: Allow to modify delayed kthread work
-  kthread: Better support freezable kthread workers
-
- Documentation/RCU/lockdep-splat.txt         |   2 +-
- arch/x86/kvm/i8254.c                        |  14 +-
- crypto/crypto_engine.c                      |  16 +-
- drivers/block/loop.c                        |   8 +-
- drivers/infiniband/sw/rdmavt/cq.c           |  10 +-
- drivers/md/dm.c                             |  10 +-
- drivers/media/pci/ivtv/ivtv-driver.c        |   6 +-
- drivers/media/pci/ivtv/ivtv-irq.c           |   2 +-
- drivers/net/ethernet/microchip/encx24j600.c |  10 +-
- drivers/spi/spi.c                           |  18 +-
- drivers/tty/serial/sc16is7xx.c              |  22 +-
- include/linux/kthread.h                     |  98 ++++-
- kernel/kthread.c                            | 612 ++++++++++++++++++++++++----
- kernel/smpboot.c                            |   5 +
- kernel/workqueue.c                          |   2 +-
- sound/soc/intel/baytrail/sst-baytrail-ipc.c |   2 +-
- sound/soc/intel/common/sst-ipc.c            |   6 +-
- sound/soc/intel/haswell/sst-haswell-ipc.c   |   2 +-
- sound/soc/intel/skylake/skl-sst-ipc.c       |   2 +-
- 19 files changed, 689 insertions(+), 158 deletions(-)
-
+ /**
+- * probe_kthread_data - speculative version of kthread_data()
++ * kthread_probe_data - speculative version of kthread_data()
+  * @task: possible kthread task in question
+  *
+  * @task could be a kthread task.  Return the data value specified when it
+@@ -146,7 +146,7 @@ void *kthread_data(struct task_struct *task)
+  * inaccessible for any reason, %NULL is returned.  This function requires
+  * that @task itself is safe to dereference.
+  */
+-void *probe_kthread_data(struct task_struct *task)
++void *kthread_probe_data(struct task_struct *task)
+ {
+ 	struct kthread *kthread = to_kthread(task);
+ 	void *data = NULL;
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index e1c0e996b5ae..64a9df2daa2b 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -4249,7 +4249,7 @@ void print_worker_info(const char *log_lvl, struct task_struct *task)
+ 	 * This function is called without any synchronization and @task
+ 	 * could be in any state.  Be careful with dereferences.
+ 	 */
+-	worker = probe_kthread_data(task);
++	worker = kthread_probe_data(task);
+ 
+ 	/*
+ 	 * Carefully copy the associated workqueue's workfn and name.  Keep
 -- 
 1.8.5.6
 
