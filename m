@@ -1,204 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 82819828EA
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 14:09:31 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id u74so20912167lff.0
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 11:09:31 -0700 (PDT)
-Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
-        by mx.google.com with ESMTPS id bn6si9224059wjb.32.2016.06.09.11.09.30
+Received: from mail-ig0-f198.google.com (mail-ig0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DBA21828EA
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 14:13:09 -0400 (EDT)
+Received: by mail-ig0-f198.google.com with SMTP id i11so64219902igh.0
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 11:13:09 -0700 (PDT)
+Received: from mail-it0-x22a.google.com (mail-it0-x22a.google.com. [2607:f8b0:4001:c0b::22a])
+        by mx.google.com with ESMTPS id i34si8601185iod.14.2016.06.09.11.13.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Jun 2016 11:09:30 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id EB95798DAB
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 18:09:29 +0000 (UTC)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 27/27] mm: vmstat: Account per-zone stalls and pages skipped during reclaim
-Date: Thu,  9 Jun 2016 19:04:43 +0100
-Message-Id: <1465495483-11855-28-git-send-email-mgorman@techsingularity.net>
-In-Reply-To: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
-References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Jun 2016 11:13:09 -0700 (PDT)
+Received: by mail-it0-x22a.google.com with SMTP id h190so41767219ith.1
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 11:13:09 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20160608100950.GH2527@techsingularity.net>
+References: <CAPv3WKdYdwpi3k5eY86qibfprMFwkYOkDwHOsNydp=0sTV3mgg@mail.gmail.com>
+	<60e8df74202e40b28a4d53dbc7fd0b22@IL-EXCH02.marvell.com>
+	<20160531131520.GI24936@arm.com>
+	<CAPv3WKftqsEXbdU-geAcUKXBSskhA0V72N61a1a+5DfahLK_Dg@mail.gmail.com>
+	<20160602135226.GX2527@techsingularity.net>
+	<CAPv3WKd8Zdcv5nhr2euN7L4W5JYLex_Hmn+9AVd6reyD-Vw4kg@mail.gmail.com>
+	<20160603095344.GZ2527@techsingularity.net>
+	<CAPv3WKfrgNg00M4oE3VKLYimYqN6NO6ziR7LWYXQ1d_M-bo67A@mail.gmail.com>
+	<20160603123655.GA2527@techsingularity.net>
+	<CAPv3WKfEQCeR++uqaUVhhsNe0WFsKq1Sn9uo==9NxtQe=GV7zw@mail.gmail.com>
+	<20160608100950.GH2527@techsingularity.net>
+Date: Thu, 9 Jun 2016 20:13:08 +0200
+Message-ID: <CAPv3WKd8TbvTPc_+5qQvZwUH-bfMx5-A1LMdT08Am0as8PXLtQ@mail.gmail.com>
+Subject: Re: [BUG] Page allocation failures with newest kernels
+From: Marcin Wojtas <mw@semihalf.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Will Deacon <will.deacon@arm.com>, Yehuda Yitschak <yehuday@marvell.com>, Robin Murphy <robin.murphy@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Lior Amsalem <alior@marvell.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>, Grzegorz Jaszczyk <jaz@semihalf.com>, Nadav Haklai <nadavh@marvell.com>, Tomasz Nowicki <tn@semihalf.com>, =?UTF-8?Q?Gregory_Cl=C3=A9ment?= <gregory.clement@free-electrons.com>
 
-The vmstat allocstall was fairly useful in the general sense but
-node-based LRUs change that. It's important to know if a stall was for an
-address-limited allocation request as this will require skipping pages from
-other zones. This patch adds pgstall_* counters to replace allocstall. The
-sum of the counters will equal the old allocstall so it can be trivially
-recalculated. A high number of address-limited allocation requests may
-result in a lot of useless LRU scanning for suitable pages.
+Hi Mel,
 
-As address-limited allocations require pages to be skipped, it's important
-to know how much useless LRU scanning took place so this patch adds
-pgskip* counters. This yields the following model
+My last email got cut in half.
 
-1. The number of address-space limited stalls can be accounted for (pgstall)
-2. The amount of useless work required to reclaim the data is accounted (pgskip)
-3. The total number of scans is available from pgscan_kswapd and pgscan_direct
-   so from that the ratio of useful to useless scans can be calculated.
+2016-06-08 12:09 GMT+02:00 Mel Gorman <mgorman@techsingularity.net>:
+> On Tue, Jun 07, 2016 at 07:36:57PM +0200, Marcin Wojtas wrote:
+>> Hi Mel,
+>>
+>>
+>>
+>> 2016-06-03 14:36 GMT+02:00 Mel Gorman <mgorman@techsingularity.net>:
+>> > On Fri, Jun 03, 2016 at 01:57:06PM +0200, Marcin Wojtas wrote:
+>> >> >> For the record: the newest kernel I was able to reproduce the dumps
+>> >> >> was v4.6: http://pastebin.com/ekDdACn5. I've just checked v4.7-rc1,
+>> >> >> which comprise a lot (mainly yours) changes in mm, and I'm wondering
+>> >> >> if there may be a spot fix or rather a series of improvements. I'm
+>> >> >> looking forward to your opinion and would be grateful for any advice.
+>> >> >>
+>> >> >
+>> >> > I don't believe we want to reintroduce the reserve to cope with CMA. One
+>> >> > option would be to widen the gap between low and min watermark by the
+>> >> > size of the CMA region. The effect would be to wake kswapd earlier which
+>> >> > matters considering the context of the failing allocation was
+>> >> > GFP_ATOMIC.
+>> >>
+>> >> Of course my intention is not reintroducing anything that's gone
+>> >> forever, but just to find out way to overcome current issues. Do you
+>> >> mean increasing CMA size?
+>> >
+>> > No. There is a gap between the low and min watermarks. At the low point,
+>> > kswapd is woken up and at the min point allocation requests either
+>> > either direct reclaim or fail if they are atomic. What I'm suggesting
+>> > is that you adjust the low watermark and add the size of the CMA area
+>> > to it so that kswapd is woken earlier. The watermarks are calculated in
+>> > __setup_per_zone_wmarks
+>> >
+>>
+>> I printed all zones' settings, whose watermarks are configured within
+>> __setup_per_zone_wmarks(). There are three DMA, Normal and Movable -
+>> only first one's watermarks have non-zero values. Increasing DMA min
+>> watermark didn't help. I also played with increasing
+>
+> Patch?
+>
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- include/linux/vm_event_item.h |  4 +++-
- mm/huge_memory.c              | 19 +++++++++++++++----
- mm/vmscan.c                   | 15 +++++++++++++--
- mm/vmstat.c                   |  3 ++-
- 4 files changed, 33 insertions(+), 8 deletions(-)
+I played with increasing min_free_kbytes from ~2600 to 16000. It
+resulted in shifting watermarks levels in __setup_per_zone_wmarks(),
+however only for zone DMA. Normal and Movable remained at 0. No
+progress with avoiding page alloc failures - a gap between 'free' and
+'free_cma' was huge, so I don't think that CMA itself would be a root
+cause.
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 8dcb5a813163..0a0503da8c3b 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -23,6 +23,8 @@
- 
- enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		FOR_ALL_ZONES(PGALLOC),
-+		FOR_ALL_ZONES(PGSTALL),
-+		FOR_ALL_ZONES(PGSCAN_SKIP),
- 		PGFREE, PGACTIVATE, PGDEACTIVATE,
- 		PGFAULT, PGMAJFAULT,
- 		PGLAZYFREED,
-@@ -37,7 +39,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- #endif
- 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_INODESTEAL,
- 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
--		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+		PAGEOUTRUN, PGROTATED,
- 		DROP_PAGECACHE, DROP_SLAB,
- #ifdef CONFIG_NUMA_BALANCING
- 		NUMA_PTE_UPDATES,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 0512b863a441..e554ca7d095e 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2459,6 +2459,17 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
- 	return true;
- }
- 
-+static unsigned long sum_alloc_stalls(void)
-+{
-+	int zid;
-+	unsigned long allocstall = 0;
-+
-+	for (zid = 0; zid < MAX_NR_ZONES - 1; zid++)
-+		allocstall += sum_vm_event(PGSTALL_NORMAL - ZONE_NORMAL + zid);
-+
-+	return allocstall;
-+}
-+
- static void collapse_huge_page(struct mm_struct *mm,
- 				   unsigned long address,
- 				   struct page **hpage,
-@@ -2495,7 +2506,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	}
- 
- 	swap = get_mm_counter(mm, MM_SWAPENTS);
--	curr_allocstall = sum_vm_event(ALLOCSTALL);
-+	curr_allocstall = sum_alloc_stalls();;
- 	down_read(&mm->mmap_sem);
- 	result = hugepage_vma_revalidate(mm, address);
- 	if (result) {
-@@ -2929,7 +2940,7 @@ static void khugepaged_wait_work(void)
- 		if (!scan_sleep_jiffies)
- 			return;
- 
--		allocstall = sum_vm_event(ALLOCSTALL);
-+		allocstall = sum_alloc_stalls();
- 		khugepaged_sleep_expire = jiffies + scan_sleep_jiffies;
- 		wait_event_freezable_timeout(khugepaged_wait,
- 					     khugepaged_should_wakeup(),
-@@ -2938,7 +2949,7 @@ static void khugepaged_wait_work(void)
- 	}
- 
- 	if (khugepaged_enabled()) {
--		allocstall = sum_vm_event(ALLOCSTALL);
-+		allocstall = sum_alloc_stalls();
- 		wait_event_freezable(khugepaged_wait, khugepaged_wait_event());
- 	}
- }
-@@ -2949,7 +2960,7 @@ static int khugepaged(void *none)
- 
- 	set_freezable();
- 	set_user_nice(current, MAX_NICE);
--	allocstall = sum_vm_event(ALLOCSTALL);
-+	allocstall = sum_alloc_stalls();
- 
- 	while (!kthread_should_stop()) {
- 		khugepaged_do_scan();
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9e12f5d75c06..ce7f4e54ae26 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1372,6 +1372,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 	struct list_head *src = &lruvec->lists[lru];
- 	unsigned long nr_taken = 0;
- 	unsigned long scan;
-+	unsigned long nr_skipped[MAX_NR_ZONES] = { 0, };
- 	LIST_HEAD(pages_skipped);
- 
- 	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
-@@ -1385,6 +1386,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 
- 		if (page_zonenum(page) > sc->reclaim_idx) {
- 			list_move(&page->lru, &pages_skipped);
-+			nr_skipped[page_zonenum(page)]++;
- 			continue;
- 		}
- 
-@@ -1411,8 +1413,17 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 	 * scanning would soon rescan the same pages to skip and put the
- 	 * system at risk of premature OOM.
- 	 */
--	if (!list_empty(&pages_skipped))
-+	if (!list_empty(&pages_skipped)) {
-+		int zid;
-+
- 		list_splice(&pages_skipped, src);
-+		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-+			if (!nr_skipped[zid])
-+				continue;
-+
-+			__count_zid_vm_events(PGSCAN_SKIP, zid, nr_skipped[zid]);
-+		}
-+	}
- 	*nr_scanned = scan;
- 	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan, scan,
- 				    nr_taken, mode, is_file_lru(lru));
-@@ -2655,7 +2666,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 	delayacct_freepages_start();
- 
- 	if (global_reclaim(sc))
--		count_vm_event(ALLOCSTALL);
-+		__count_zid_vm_events(PGSTALL, classzone_idx, 1);
- 
- 	do {
- 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index dd60fa3ca66b..2de51e9d7e73 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -977,6 +977,8 @@ const char * const vmstat_text[] = {
- 	"pswpout",
- 
- 	TEXTS_FOR_ZONES("pgalloc")
-+	TEXTS_FOR_ZONES("pgstall")
-+	TEXTS_FOR_ZONES("pgskip")
- 
- 	"pgfree",
- 	"pgactivate",
-@@ -1002,7 +1004,6 @@ const char * const vmstat_text[] = {
- 	"kswapd_low_wmark_hit_quickly",
- 	"kswapd_high_wmark_hit_quickly",
- 	"pageoutrun",
--	"allocstall",
- 
- 	"pgrotated",
- 
--- 
-2.6.4
+> Did you establish why GFP_ATOMIC (assuming that's the failing site) had
+> not specified __GFP_ATOMIC at the time of the allocation failure?
+>
+
+Yes. It happens in new_slab() in following lines:
+return allocate_slab(s, flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
+I added "| GFP_ATOMIC" and in such case I got same dumps but with one
+bit set more in gfp_mask, so I don't think it's an issue.
+
+Latest patches in v4.7-rc1 seem to boost page alloc performance enough
+to avoid problems observed between v4.2 and v4.6. Hence before
+rebasing from v4.4 to another LTS >v4.7 in future, we decided as a WA
+to return to using MIGRATE_RESERVE + adding fix for
+early_page_nid_uninitialised(). Now operation seems stable on all our
+SoC's during the tests.
+
+Best regards,
+Marcin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
