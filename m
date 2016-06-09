@@ -1,36 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C45E86B0005
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 06:29:13 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id y6so83285699ywe.0
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 03:29:13 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c138si3031179qka.240.2016.06.09.03.29.12
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F01B76B0005
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 07:52:27 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id u74so16659433lff.0
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 04:52:27 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id h8si14229319wme.124.2016.06.09.04.52.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Jun 2016 03:29:13 -0700 (PDT)
-Subject: Re: [PATCH 04/21] fs: Replace CURRENT_TIME with current_fs_time() for
- inode timestamps
-References: <1465448705-25055-1-git-send-email-deepa.kernel@gmail.com>
- <1465448705-25055-5-git-send-email-deepa.kernel@gmail.com>
-From: Steven Whitehouse <swhiteho@redhat.com>
-Message-ID: <575944D4.4010009@redhat.com>
-Date: Thu, 9 Jun 2016 11:28:36 +0100
-MIME-Version: 1.0
-In-Reply-To: <1465448705-25055-5-git-send-email-deepa.kernel@gmail.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        Thu, 09 Jun 2016 04:52:26 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id r5so10077929wmr.0
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 04:52:26 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/10 -v4] Handle oom bypass more gracefully
+Date: Thu,  9 Jun 2016 13:52:07 +0200
+Message-Id: <1465473137-22531-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Deepa Dinamani <deepa.kernel@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Arnd Bergmann <arnd@arndb.de>, Thomas Gleixner <tglx@linutronix.de>, Al Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, y2038@lists.linaro.org, Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, Joern Engel <joern@logfs.org>, Prasad Joshi <prasadjoshi.linux@gmail.com>, logfs@logfs.org, Andrew Morton <akpm@linux-foundation.org>, Julia Lawall <Julia.Lawall@lip6.fr>, David Howells <dhowells@redhat.com>, Firo Yang <firogm@gmail.com>, Jaegeuk Kim <jaegeuk@kernel.org>, Changman Lee <cm224.lee@samsung.com>, Chao Yu <chao2.yu@samsung.com>, linux-f2fs-devel@lists.sourceforge.net, Michal Hocko <mhocko@suse.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@poochiereds.net>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, "David S. Miller" <davem@davemloft.net>, linux-nfs@vger.kernel.org, netdev@vger.kernel.org, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Mark Fasheh <mfasheh@suse.com>, Joel Becker <jlbec@evilplan.org>, ocfs2-devel@oss.oracle.com, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Kees Cook <keescook@chromium.org>, Tony Luck <tony.luck@intel.com>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net, Felipe Balbi <balbi@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, Doug Ledford <dledford@redhat.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, linux-rdma@vger.kernel.org, Robert Richter <rric@kernel.org>, oprofile-list@lists.sf.net, Alexei Starovoitov <ast@kernel.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Paul Moore <paul@paul-moore.com>, Stephen Smalley <sds@tycho.nsa.gov>, Eric Paris <eparis@parisplace.org>, selinux@tycho.nsa.gov, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, linux-security-module@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net, Ian Kent <raven@themaw.net>, autofs@vger.kernel.org, Matthew Garrett <matthew.garrett@nebula.com>, Jeremy Kerr <jk@ozlabs.org>, Matt Fleming <matt@codeblueprint.co.uk>, linux-efi@vger.kernel.org, Peter Hurley <peter@hurleysoftware.com>, Josh Triplett <josh@joshtriplett.org>, Boaz Harrosh <ooo@electrozaur.com>, Benny Halevy <bhalevy@primarydata.com>, osd-dev@open-osd.org, Mike Marshall <hubcap@omnibond.com>, pvfs2-developers@beowulf-underground.org, Nadia Yvette Chambers <nyc@holomorphy.com>, Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
 Hi,
+this is the v4 version of the patchse. Previous version was posted
+http://lkml.kernel.org/r/1464945404-30157-1-git-send-email-mhocko@kernel.org
+It's been mostly my screwups during the rebase that were fixed and
+patch 10 reworked.
 
-GFS2 bits:
-Acked-by: Steven Whitehouse <swhiteho@redhat.com>
+The following 10 patches should put some order to very rare cases of
+mm shared between processes and make the paths which bypass the oom
+killer oom reapable and therefore much more reliable finally. Even
+though mm shared outside of thread group is rare (either vforked tasks
+for a short period, use_mm by kernel threads or exotic thread model of
+clone(CLONE_VM) without CLONE_SIGHAND) it is better to cover them. Not
+only it makes the current oom killer logic quite hard to follow and
+reason about it can lead to weird corner cases. E.g. it is possible to
+select an oom victim which shares the mm with unkillable process or
+bypass the oom killer even when other processes sharing the mm are still
+alive and other weird cases.
 
-Steve.
+Patch 1 drops bogus task_lock and mm check from oom_{score_}adj_write.
+This can be considered a bug fix with a low impact as nobody has noticed
+for years.
+
+Patch 2 drops sighand lock because it is not needed anymore as pointed
+by Oleg.
+
+Patch 3 is a clean up of oom_score_adj handling and a preparatory
+work for later patches.
+
+Patch 4 enforces oom_adj_score to be consistent between processes
+sharing the mm to behave consistently with the regular thread
+groups. This can be considered a user visible behavior change because
+one thread group updating oom_score_adj will affect others which share
+the same mm via clone(CLONE_VM). I argue that this should be acceptable
+because we already have the same behavior for threads in the same thread
+group and sharing the mm without signal struct is just a different model
+of threading. This is probably the most controversial part of the series,
+I would like to find some consensus here. There were some suggestions
+to hook some counter/oom_score_adj into the mm_struct but I feel that
+this is not necessary right now and we can rely on proc handler +
+oom_kill_process to DTRT. I can be convinced otherwise but I strongly
+think that whatever we do the userspace has to have a way to see the
+current oom priority as consistently as possible.
+
+Patch 5 makes sure that no vforked task is selected if it is sharing
+the mm with oom unkillable task.
+
+Patch 6 ensures that all user tasks sharing the mm are killed which in
+turn makes sure that all oom victims are oom reapable.
+
+Patch 7 guarantees that task_will_free_mem will always imply reapable
+bypass of the oom killer.
+
+Patch 8 is new in this version and it addresses an issue pointed out
+by 0-day OOM report where an oom victim was reaped several times.
+
+Patch 9 puts an upper bound on how many times oom_reaper tries to reap a
+task and hides it from the oom killer to move on when no progress can be
+made. This will give an upper bound to how long an oom_reapable task can
+block the oom killer from selecting another victim if the oom_reaper is
+not able to reap the victim.
+
+Patch 10 tries to plug the (hopefully) last hole when we can still lock
+up when the oom victim is shared with oom unkillable tasks (kthreads
+and global init). We just try to be best effort in that case and rather
+fallback to kill something else than risk a lockup.
+
+I believe that timeout based heurisitcs are no longer really needed
+after this series. We still have some room for improvements, though. I
+would like to explore ways how to remove kthreads (use_mm) special
+case. It shouldn't be that hard, we just have to teach the page fault
+handler to recognize oom victim mm and enforce EFAULT for kthreads which
+have borrowed that mm.
+
+The patchset is based on the current mmotm tree (mmotm-2016-06-08-15-25).
+I would really appreciate a deep review as this area is full of land
+mines but I hope I've made the code much cleaner with less kludges.
+
+I have pushed the patchset to my git tree
+git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git to branch
+attempts/process-share-mm-oom-sanitization
+
+Michal Hocko (10):
+      proc, oom: drop bogus task_lock and mm check
+      proc, oom: drop bogus sighand lock
+      proc, oom_adj: extract oom_score_adj setting into a helper
+      mm, oom_adj: make sure processes sharing mm have same view of oom_score_adj
+      mm, oom: skip vforked tasks from being selected
+      mm, oom: kill all tasks sharing the mm
+      mm, oom: fortify task_will_free_mem
+      mm, oom: task_will_free_mem should skip oom_reaped tasks
+      mm, oom_reaper: do not attempt to reap a task more than twice
+      mm, oom: hide mm which is shared with kthread or global init
+
+ fs/proc/base.c        | 185 ++++++++++++++++++++++++----------------------
+ include/linux/mm.h    |   2 +
+ include/linux/oom.h   |  26 +------
+ include/linux/sched.h |  27 +++++++
+ mm/memcontrol.c       |   4 +-
+ mm/oom_kill.c         | 201 ++++++++++++++++++++++++++++++++++----------------
+ 6 files changed, 266 insertions(+), 179 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
