@@ -1,103 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B40C6B0253
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 16:09:01 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id h68so21775535lfh.2
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 13:09:01 -0700 (PDT)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id 193si10333635wmp.111.2016.06.09.13.08.59
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D2FAD6B0253
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 16:38:23 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id h144so96841552ita.1
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 13:38:23 -0700 (PDT)
+Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
+        by mx.google.com with ESMTPS id o135si8912359ith.75.2016.06.09.13.38.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Jun 2016 13:08:59 -0700 (PDT)
-Received: by mail-wm0-x22e.google.com with SMTP id m124so74991647wme.1
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 13:08:59 -0700 (PDT)
+        Thu, 09 Jun 2016 13:38:22 -0700 (PDT)
+Received: by mail-it0-x242.google.com with SMTP id r205so6615997itd.1
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 13:38:22 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160609195533.GE5421@thunk.org>
-References: <20160531013029.4c5db8b570d86527b0b53fe4@gmail.com>
- <5756BBC2.3735.D63200E@pageexec.freemail.hu> <20160607135857.GF7057@thunk.org>
- <5759A5D5.7023.18C58969@pageexec.freemail.hu> <20160609195533.GE5421@thunk.org>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 9 Jun 2016 13:08:53 -0700
-Message-ID: <CAGXu5jJHE8LHdG2_j8L_LfraqMmCpwMiyeEMav7pxoKBR0_GCQ@mail.gmail.com>
-Subject: Re: [kernel-hardening] Re: [PATCH v2 1/3] Add the latent_entropy gcc plugin
+In-Reply-To: <CA+55aFzceGREzGEJda8qt6gv6=iE_yDbM+mO2dJJa0wbu-o-Ww@mail.gmail.com>
+References: <1465448705-25055-1-git-send-email-deepa.kernel@gmail.com>
+ <1465448705-25055-5-git-send-email-deepa.kernel@gmail.com> <CA+55aFzceGREzGEJda8qt6gv6=iE_yDbM+mO2dJJa0wbu-o-Ww@mail.gmail.com>
+From: Deepa Dinamani <deepa.kernel@gmail.com>
+Date: Thu, 9 Jun 2016 13:38:21 -0700
+Message-ID: <CABeXuvouhSSAd6nymV4hjq3U2QCO0d-ueeCOnzqrbpdWzjLwjA@mail.gmail.com>
+Subject: Re: [PATCH 04/21] fs: Replace CURRENT_TIME with current_fs_time() for
+ inode timestamps
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, PaX Team <pageexec@freemail.hu>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, David Brown <david.brown@linaro.org>, emese Revfy <re.emese@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Brad Spengler <spender@grsecurity.net>, Michal Marek <mmarek@suse.com>, Kees Cook <keescook@chromium.org>, LKML <linux-kernel@vger.kernel.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, linux-kbuild <linux-kbuild@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>, Al Viro <viro@zeniv.linux.org.uk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, bart.vanassche@sandisk.com, "David S. Miller" <davem@davemloft.net>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, Thomas Gleixner <tglx@linutronix.de>, Al Viro <viro@zeniv.linux.org.uk>, y2038@lists.linaro.org, Steve French <sfrench@samba.org>, "linux-cifs@vger.kernel.org" <linux-cifs@vger.kernel.org>, samba-technical@lists.samba.org, Joern Engel <joern@logfs.org>, Prasad Joshi <prasadjoshi.linux@gmail.com>, logfs@logfs.org, Andrew Morton <akpm@linux-foundation.org>, Julia Lawall <Julia.Lawall@lip6.fr>, David Howells <dhowells@redhat.com>, Firo Yang <firogm@gmail.com>, Jaegeuk Kim <jaegeuk@kernel.org>, Changman Lee <cm224.lee@samsung.com>, Chao Yu <chao2.yu@samsung.com>, "Linux F2FS DEV, Mailing List" <linux-f2fs-devel@lists.sourceforge.net>, Michal Hocko <mhocko@suse.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@poochiereds.net>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, "David S. Miller" <davem@davemloft.net>, Linux NFS Mailing List <linux-nfs@vger.kernel.org>, Network Development <netdev@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel <cluster-devel@redhat.com>, Mark Fasheh <mfasheh@suse.com>, Joel Becker <jlbec@evilplan.org>, ocfs2-devel@oss.oracle.com, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Kees Cook <keescook@chromium.org>, Tony Luck <tony.luck@intel.com>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, linux-btrfs <linux-btrfs@vger.kernel.org>, Miklos Szeredi <miklos@szeredi.hu>, "open list:FUSE: FILESYSTEM..." <fuse-devel@lists.sourceforge.net>, Felipe Balbi <balbi@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, USB list <linux-usb@vger.kernel.org>, Doug Ledford <dledford@redhat.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, Robert Richter <rric@kernel.org>, "oprofile-list@lists.sf.net" <oprofile-list@lists.sf.net>, Alexei Starovoitov <ast@kernel.org>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Paul Moore <paul@paul-moore.com>, Stephen Smalley <sds@tycho.nsa.gov>, Eric Paris <eparis@parisplace.org>, selinux@tycho.nsa.gov, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, LSM List <linux-security-module@vger.kernel.org>, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, V9FS Developers <v9fs-developer@lists.sourceforge.net>, Ian Kent <raven@themaw.net>, autofs mailing list <autofs@vger.kernel.org>, Matthew Garrett <matthew.garrett@nebula.com>, Jeremy Kerr <jk@ozlabs.org>, Matt Fleming <matt@codeblueprint.co.uk>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, Peter Hurley <peter@hurleysoftware.com>, Josh Triplett <josh@joshtriplett.org>, Boaz Harrosh <ooo@electrozaur.com>, Benny Halevy <bhalevy@primarydata.com>, open-osd <osd-dev@open-osd.org>, Mike Marshall <hubcap@omnibond.com>, pvfs2-developers@beowulf-underground.org, Nadia Yvette Chambers <nyc@holomorphy.com>, Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org
 
-On Thu, Jun 9, 2016 at 12:55 PM, Theodore Ts'o <tytso@mit.edu> wrote:
-> On Thu, Jun 09, 2016 at 07:22:29PM +0200, PaX Team wrote:
->> > Well, the attacker can't control when the interrupts happen, but it
->> > could try to burn power by simply having a thread spin in an infinite
->> > loop ("0: jmp 0"), sure.
->>
->> yes, that's one obvious way to accomplish it but even normal applications can
->> behave in a similar way, think about spinning event loops, media decoding, etc
->> whose sampled insn ptrs may provide less entropy than they get credited for.
+On Thu, Jun 9, 2016 at 12:08 PM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+> On Wed, Jun 8, 2016 at 10:04 PM, Deepa Dinamani <deepa.kernel@gmail.com> wrote:
+>> CURRENT_TIME macro is not appropriate for filesystems as it
+>> doesn't use the right granularity for filesystem timestamps.
+>> Use current_fs_time() instead.
 >
-> Sure, as long as we're assuming less than one bit of entropy per
-> interrupt, even for a loop which which is:
+> Again - using the inode instead fo the syuperblock in tghis patch
+> would have made the patch much more obvious (it could have been 99%
+> generated with the sed-script I sent out a week or two ago), and it
+> would have made it unnecessary to add these kinds of things:
 >
-> 1:   cmpl    $1, -8(%rsp)
->      jz      1b
+>> diff --git a/drivers/usb/core/devio.c b/drivers/usb/core/devio.c
+>> index e9f5043..85c12f0 100644
+>> --- a/drivers/usb/core/devio.c
+>> +++ b/drivers/usb/core/devio.c
+>> @@ -2359,6 +2359,7 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
+>>  {
+>>         struct usb_dev_state *ps = file->private_data;
+>>         struct inode *inode = file_inode(file);
+>> +       struct super_block *sb = inode->i_sb;
+>>         struct usb_device *dev = ps->dev;
+>>         int ret = -ENOTTY;
 >
-> there would still be *some* uncertainty.  And with an event loop there
-> would be more instructions to sample.  Granted, the number of cycles
-> spent in each will be different, so there will be some biasing, but
-> that's one of the reason why we've been using 1/64 bit per interrupt.
+> where we add a new variable just because the calling convention was wrong.
 >
->> yes, no entropy is credited since i don't know how much there is and i tend to err
->> on the side of safety which means crediting 0 entropy for latent entropy. of course
->> the expectation is that it's not actually 0 but to prove any specific value or limit
->> is beyond my skills at least.
+> It's not even 100% obvious that a filesystem has to have one single
+> time representation, so making the time function about the entity
+> whose time is set is also conceptually a much better model, never mind
+> that it is just what every single user seems to want anyway.
 >
-> Sure, that's fair.
+> So I'd *much* rather see
 >
->> i think it's not just per 64 interrupts but also after each elapsed second (i.e.,
->> whichever condition occurs first), so on an idle system (which i believe is more
->> likely to occur on exactly those small systems that the referenced paper was concerned
->> about) the credited entropy could be overestimated.
+> +       inode->i_atime = inode->i_mtime = inode->i_ctime =
+> current_fs_time(inode);
 >
-> That's a fair concern.  It might be that we should enforce some
-> minimum (at least 8 interrupts in all cases), but this is where it's
-> all about hueristics, especially on those systems that don't have random_get_entropy().
+> over seeing either of these two variants::
 >
->> > In practice, on most modern CPU where we have a cycle counter,
->>
->> a quick check for get_cycles shows that at least these archs seem to return 0:
->> arc, avr32, cris, frv, m32r, m68k, xtensa. now you may not think of them as modern,
->> but they're still used in real life devices. i think that latent entropy is still
->> an option on them.
+> +       inode->i_atime = inode->i_mtime = inode->i_ctime =
+> current_fs_time(inode->i_sb);
+> +       ret->i_atime = ret->i_mtime = ret->i_ctime = current_fs_time(sb);
 >
-> It's possible for a system not to have a cycle counter, but to have
-> something that can be used instead for random_get_entropy.  That's
-> only being used for the m68k/amiga and mips/R6000[A] cases, but I keep
-> hoping that the archiecture maintainers for osme of these other
-> oddball platform (is that better than "non-modern"? :-) will come up
-> with something, but yes, it is those platforms where I've always been
-> the most worried.  On the one hand, if the hardware is crap, there's
-> very little you can do.  Unfortnuately, very often these crap
-> architectures have a very low BOM cost, so they are most likely to be
-> used in IOT devices.   :-(
+> because the first of those variants (grep for current_fs_time() in the
+> current git tree, and notice that it's the common one) we have the
+> pointless "let's chase a pointer in every caller"
 >
-> One could try to claim that these IOT devics won't have upgradeable
-> firmware and, so they'll probably be security disasters even without a
-> good random number generators, but oddly, that doesn't give me much
-> solace...
->
-> And in the end, that may be the strongest argment for the
-> latent_entropy plugin.  Even if it doesn't provide a lot of extra
-> entropy, on those platforms we're going to be so starved of real
-> entropy that almost anything will be better than what we have today.
+> And while it's true that the second variant is natural for *some*
+> situations, I've yet to find one where it wasn't equally sane to just
+> pass in the inode instead.
 
-Yeah, that's been my thinking around this. And on more sane systems,
-using latent_entropy doesn't make things worse. :)
+I did try changing the patches to pass inode.
+But, there are a few instances that made me think that keeping
+super_block was beneficial.
 
--Kees
+1. There are a few link, rename functions which assign times like this:
 
--- 
-Kees Cook
-Chrome OS & Brillo Security
+-       inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
++       inode->i_ctime = dir->i_ctime = dir->i_mtime =
+current_fs_time(dir->i_sb);
+
+Now, if we pass in inode, we end up making 2 calls to current_fs_time().
+We could actually just use 1 call because for all parameters the
+function uses, they are identical.
+But, it seems odd to assume that the function wouldn't use the inode,
+even though it is getting passed in to the function.
+
+2. Also, this means that we will make it an absolute policy that any filesystem
+timestamp that is not directly connected to an inode would have to use
+ktime_get_* apis.
+Some timestamps use the same on disk format and might be useful to
+have same api to be reused.
+Eg: [patch 6/21] of the current series
+
+3. Even if the filesystem inode has extra timestamps and these are not
+part of vfs inode, we still use
+vfs inode to get the timestamps from current_fs_time(): Eg: ext4 create time
+
+4. And, filesystem attributes must be assigned only after the inode is
+created or use ktime apis.
+And, only when these get assigned to inode, they will call timespec_trunc().
+
+5. 2 and 3 might lead to more code rearrangement for few filesystems.
+These will lead to more patches probably and they will not be mechanical.
+
+If these are not a problem, I can update the series that accepts inode as an
+argument instead of super_block.
+
+-Deepa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
