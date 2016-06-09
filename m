@@ -1,64 +1,326 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8421A828EA
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 14:14:08 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id z189so80194177itg.2
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 11:14:08 -0700 (PDT)
-Received: from iolanthe.rowland.org (iolanthe.rowland.org. [192.131.102.54])
-        by mx.google.com with SMTP id b74si5020553ioj.3.2016.06.09.11.14.07
-        for <linux-mm@kvack.org>;
-        Thu, 09 Jun 2016 11:14:07 -0700 (PDT)
-Date: Thu, 9 Jun 2016 14:14:06 -0400 (EDT)
-From: Alan Stern <stern@rowland.harvard.edu>
-Subject: Re: BUG: using smp_processor_id() in preemptible [00000000] code]
-In-Reply-To: <20160609172444.GB6277@invalid>
-Message-ID: <Pine.LNX.4.44L0.1606091410580.1353-100000@iolanthe.rowland.org>
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D0F0828E2
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 14:22:35 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id k192so20897839lfb.1
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 11:22:35 -0700 (PDT)
+Received: from mail-lf0-x22c.google.com (mail-lf0-x22c.google.com. [2a00:1450:4010:c07::22c])
+        by mx.google.com with ESMTPS id 89si4608516lft.299.2016.06.09.11.22.33
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Jun 2016 11:22:33 -0700 (PDT)
+Received: by mail-lf0-x22c.google.com with SMTP id j7so8007251lfg.1
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 11:22:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <57599D1C.2080701@virtuozzo.com>
+References: <1465411243-102618-1-git-send-email-glider@google.com> <57599D1C.2080701@virtuozzo.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Thu, 9 Jun 2016 20:22:32 +0200
+Message-ID: <CAG_fn=VugG67CgjOC_K0gtRNCFdAheEELurHSHMGmRXEOd3OQQ@mail.gmail.com>
+Subject: Re: [PATCH] mm, kasan: switch SLUB to stackdepot, enable memory
+ quarantine for SLUB
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: M G Berberich <berberic@fmi.uni-passau.de>
-Cc: USB list <linux-usb@vger.kernel.org>, linux-mm@kvack.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 9 Jun 2016, M G Berberich wrote:
+On Thu, Jun 9, 2016 at 6:45 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> w=
+rote:
+>
+>
+> On 06/08/2016 09:40 PM, Alexander Potapenko wrote:
+>> For KASAN builds:
+>>  - switch SLUB allocator to using stackdepot instead of storing the
+>>    allocation/deallocation stacks in the objects;
+>>  - define SLAB_RED_ZONE, SLAB_POISON, SLAB_STORE_USER to zero,
+>>    effectively disabling these debug features, as they're redundant in
+>>    the presence of KASAN;
+>
+> Instead of having duplicated functionality, I think it might be better to=
+ switch SLAB_STORE_USER to stackdepot instead.
+> Because now, we have two piles of code which do basically the same thing,=
+ but
+> do differently.
+Fine, I'll try that out.
+>>  - refactor the slab freelist hook, put freed memory into the quarantine=
+.
+>>
+>
+> What you did with slab_freelist_hook() is not refactoring, it's an obfusc=
+ation.
+Whatever you call it.
+The problem is that if a list of heterogeneous objects is passed into
+slab_free_freelist_hook(), some of them may end up in the quarantine,
+while others will not.
+Therefore we need to filter that list and remove the objects that
+don't need to be freed from it.
+>
+>>  }
+>>
+>> -#ifdef CONFIG_SLAB
+>>  /*
+>>   * Adaptive redzone policy taken from the userspace AddressSanitizer ru=
+ntime.
+>>   * For larger allocations larger redzones are used.
+>> @@ -372,17 +371,21 @@ static size_t optimal_redzone(size_t object_size)
+>>  void kasan_cache_create(struct kmem_cache *cache, size_t *size,
+>>                       unsigned long *flags)
+>>  {
+>> -     int redzone_adjust;
+>> -     /* Make sure the adjusted size is still less than
+>> -      * KMALLOC_MAX_CACHE_SIZE.
+>> -      * TODO: this check is only useful for SLAB, but not SLUB. We'll n=
+eed
+>> -      * to skip it for SLUB when it starts using kasan_cache_create().
+>> +     int redzone_adjust, orig_size =3D *size;
+>> +
+>> +#ifdef CONFIG_SLAB
+>> +     /*
+>> +      * Make sure the adjusted size is still less than
+>> +      * KMALLOC_MAX_CACHE_SIZE, i.e. we don't use the page allocator.
+>>        */
+>> +
+>>       if (*size > KMALLOC_MAX_CACHE_SIZE -
+>
+> This is wrong. You probably wanted KMALLOC_MAX_SIZE here.
+Yeah, sonds right.
+> However, we should get rid of SLAB_KASAN altogether. It's absolutely usel=
+ess, and only complicates
+> the code. And if we don't fit in KMALLOC_MAX_SIZE, just don't create cach=
+e.
+Thanks, I'll look into this. Looks like you are right, once we remove
+this check every existing cache will have SLAB_KASAN set.
+It's handy for debugging, but not really needed.
+>
+>>           sizeof(struct kasan_alloc_meta) -
+>>           sizeof(struct kasan_free_meta))
+>>               return;
+>> +#endif
+>>       *flags |=3D SLAB_KASAN;
+>> +
+>>       /* Add alloc meta. */
+>>       cache->kasan_info.alloc_meta_offset =3D *size;
+>>       *size +=3D sizeof(struct kasan_alloc_meta);
+>> @@ -392,17 +395,37 @@ void kasan_cache_create(struct kmem_cache *cache, =
+size_t *size,
+>>           cache->object_size < sizeof(struct kasan_free_meta)) {
+>>               cache->kasan_info.free_meta_offset =3D *size;
+>>               *size +=3D sizeof(struct kasan_free_meta);
+>> +     } else {
+>> +             cache->kasan_info.free_meta_offset =3D 0;
+>>       }
+>>       redzone_adjust =3D optimal_redzone(cache->object_size) -
+>>               (*size - cache->object_size);
+>> +
+>>       if (redzone_adjust > 0)
+>>               *size +=3D redzone_adjust;
+>> +
+>> +#ifdef CONFIG_SLAB
+>>       *size =3D min(KMALLOC_MAX_CACHE_SIZE,
+>>                   max(*size,
+>>                       cache->object_size +
+>>                       optimal_redzone(cache->object_size)));
+>> -}
+>> +     /*
+>> +      * If the metadata doesn't fit, disable KASAN at all.
+>> +      */
+>> +     if (*size <=3D cache->kasan_info.alloc_meta_offset ||
+>> +                     *size <=3D cache->kasan_info.free_meta_offset) {
+>> +             *flags &=3D ~SLAB_KASAN;
+>> +             *size =3D orig_size;
+>> +             cache->kasan_info.alloc_meta_offset =3D -1;
+>> +             cache->kasan_info.free_meta_offset =3D -1;
+>> +     }
+>> +#else
+>> +     *size =3D max(*size,
+>> +                     cache->object_size +
+>> +                     optimal_redzone(cache->object_size));
+>> +
+>>  #endif
+>> +}
+>>
+>>  void kasan_cache_shrink(struct kmem_cache *cache)
+>>  {
+>> @@ -431,16 +454,14 @@ void kasan_poison_object_data(struct kmem_cache *c=
+ache, void *object)
+>>       kasan_poison_shadow(object,
+>>                       round_up(cache->object_size, KASAN_SHADOW_SCALE_SI=
+ZE),
+>>                       KASAN_KMALLOC_REDZONE);
+>> -#ifdef CONFIG_SLAB
+>>       if (cache->flags & SLAB_KASAN) {
+>>               struct kasan_alloc_meta *alloc_info =3D
+>>                       get_alloc_info(cache, object);
+>> -             alloc_info->state =3D KASAN_STATE_INIT;
+>> +             if (alloc_info)
+>
+> If I read the code right alloc_info can be NULL only if SLAB_KASAN is set=
+.
+This has been left over from tracking down some nasty bugs, but, yes,
+we can assume alloc_info and free_info are always valid.
+>
+>> +                     alloc_info->state =3D KASAN_STATE_INIT;
+>>       }
+>> -#endif
+>>  }
+>>
+>> -#ifdef CONFIG_SLAB
+>>  static inline int in_irqentry_text(unsigned long ptr)
+>>  {
+>>       return (ptr >=3D (unsigned long)&__irqentry_text_start &&
+>> @@ -492,6 +513,8 @@ struct kasan_alloc_meta *get_alloc_info(struct kmem_=
+cache *cache,
+>>                                       const void *object)
+>>  {
+>>       BUILD_BUG_ON(sizeof(struct kasan_alloc_meta) > 32);
+>> +     if (cache->kasan_info.alloc_meta_offset =3D=3D -1)
+>> +             return NULL;
+>
+> What's the point of this ? This should be always false.
+Agreed, will remove this (and other similar cases).
+>>       return (void *)object + cache->kasan_info.alloc_meta_offset;
+>>  }
+>>
+>> @@ -499,9 +522,10 @@ struct kasan_free_meta *get_free_info(struct kmem_c=
+ache *cache,
+>>                                     const void *object)
+>>  {
+>>       BUILD_BUG_ON(sizeof(struct kasan_free_meta) > 32);
+>> +     if (cache->kasan_info.free_meta_offset =3D=3D -1)
+>> +             return NULL;
+>>       return (void *)object + cache->kasan_info.free_meta_offset;
+>>  }
+>> -#endif
+>>
+>>  void kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t fla=
+gs)
+>>  {
+>> @@ -522,7 +546,6 @@ void kasan_poison_slab_free(struct kmem_cache *cache=
+, void *object)
+>>
+>>  bool kasan_slab_free(struct kmem_cache *cache, void *object)
+>>  {
+>> -#ifdef CONFIG_SLAB
+>>       /* RCU slabs could be legally used after free within the RCU perio=
+d */
+>>       if (unlikely(cache->flags & SLAB_DESTROY_BY_RCU))
+>>               return false;
+>> @@ -532,7 +555,10 @@ bool kasan_slab_free(struct kmem_cache *cache, void=
+ *object)
+>>                       get_alloc_info(cache, object);
+>>               struct kasan_free_meta *free_info =3D
+>>                       get_free_info(cache, object);
+>> -
+>> +             WARN_ON(!alloc_info);
+>> +             WARN_ON(!free_info);
+>> +             if (!alloc_info || !free_info)
+>> +                     return;
+>
+> Again, never possible.
+>
+>
+>>               switch (alloc_info->state) {
+>>               case KASAN_STATE_ALLOC:
+>>                       alloc_info->state =3D KASAN_STATE_QUARANTINE;
+>> @@ -550,10 +576,6 @@ bool kasan_slab_free(struct kmem_cache *cache, void=
+ *object)
+>>               }
+>>       }
+>>       return false;
+>> -#else
+>> -     kasan_poison_slab_free(cache, object);
+>> -     return false;
+>> -#endif
+>>  }
+>>
+>>  void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t=
+ size,
+>> @@ -568,24 +590,29 @@ void kasan_kmalloc(struct kmem_cache *cache, const=
+ void *object, size_t size,
+>>       if (unlikely(object =3D=3D NULL))
+>>               return;
+>>
+>> +     if (!(cache->flags & SLAB_KASAN))
+>> +             return;
+>> +
+>>       redzone_start =3D round_up((unsigned long)(object + size),
+>>                               KASAN_SHADOW_SCALE_SIZE);
+>>       redzone_end =3D round_up((unsigned long)object + cache->object_siz=
+e,
+>>                               KASAN_SHADOW_SCALE_SIZE);
+>>
+>>       kasan_unpoison_shadow(object, size);
+>> +     WARN_ON(redzone_start > redzone_end);
+>> +     if (redzone_start > redzone_end)
+>
+> How that's can happen?
+This was possible because of incorrect ksize implementation, should be
+now ok. Removed.
+>> +             return;
+>>       kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_s=
+tart,
+>>               KASAN_KMALLOC_REDZONE);
+>> -#ifdef CONFIG_SLAB
+>>       if (cache->flags & SLAB_KASAN) {
+>>               struct kasan_alloc_meta *alloc_info =3D
+>>                       get_alloc_info(cache, object);
+>> -
+>> -             alloc_info->state =3D KASAN_STATE_ALLOC;
+>> -             alloc_info->alloc_size =3D size;
+>> -             set_track(&alloc_info->track, flags);
+>> +             if (alloc_info) {
+>
+> And again...
+>
+>
+>> +                     alloc_info->state =3D KASAN_STATE_ALLOC;
+>> +                     alloc_info->alloc_size =3D size;
+>> +                     set_track(&alloc_info->track, flags);
+>> +             }
+>>       }
+>> -#endif
+>>  }
+>>  EXPORT_SYMBOL(kasan_kmalloc);
+>>
+>
+>
+> [..]
+>
+>> diff --git a/mm/slab.h b/mm/slab.h
+>> index dedb1a9..fde1fea 100644
+>> --- a/mm/slab.h
+>> +++ b/mm/slab.h
+>> @@ -366,6 +366,10 @@ static inline size_t slab_ksize(const struct kmem_c=
+ache *s)
+>>       if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
+>>               return s->object_size;
+>>  # endif
+>> +# ifdef CONFIG_KASAN
+>
+> Gush, you love ifdefs, don't you? Hint: it's redundant here.
+>
+>> +     if (s->flags & SLAB_KASAN)
+>> +             return s->object_size;
+>> +# endif
+>>       /*
+>>        * If we have the need to store the freelist pointer
+> ...
 
-> Hello,
-> 
-> With 4.7-rc2, after detecting a USB Mass Storage device
-> 
->   [   11.589843] usb-storage 4-2:1.0: USB Mass Storage device detected
-> 
-> a constant flow of kernel-BUGS is reported (several per second).
-> 
-> [   11.599215] BUG: using smp_processor_id() in preemptible [00000000] code:
-> systemd-udevd/389
-> [   11.599218] caller is debug_smp_processor_id+0x17/0x20
-> [   11.599220] CPU: 4 PID: 389 Comm: systemd-udevd Not tainted 4.7.0-rc2 #6
-> [   11.599220] Hardware name: Gigabyte Technology Co., Ltd. H87-HD3/H87-HD3,
-> BIOS F10 08/18/2015
-> [   11.599223]  0000000000000000 ffff88080466b6c8 ffffffff813fc42d
-> 0000000000000004
-> [   11.599224]  ffffffff81cc1da3 ffff88080466b6f8 ffffffff8141a0f6
-> 0000000000000000
-> [   11.599226]  ffff880809fe8d98 0000000000000001 00000000000fffff
-> ffff88080466b708
-> [   11.599226] Call Trace:
-> [   11.599229]  [<ffffffff813fc42d>] dump_stack+0x4f/0x72
-> [   11.599231]  [<ffffffff8141a0f6>] check_preemption_disabled+0xd6/0xe0
-> [   11.599233]  [<ffffffff8141a117>] debug_smp_processor_id+0x17/0x20
-> [   11.599235]  [<ffffffff814f0336>] alloc_iova_fast+0xb6/0x210
-> [   11.599238]  [<ffffffff819ed64f>] ? __wait_on_bit+0x6f/0x90
-> [   11.599240]  [<ffffffff814f388d>] intel_alloc_iova+0x9d/0xd0
-> [   11.599241]  [<ffffffff814f7c33>] __intel_map_single+0x93/0x190
-> [   11.599242]  [<ffffffff814f7d64>] intel_map_page+0x34/0x40
-> 
-> Please see https://bugzilla.kernel.org/show_bug.cgi?id=119801 for a
-> more complete kernel-log
 
-This looks like a bug in the memory management subsystem.  It should be 
-reported on the linux-mm mailing list (CC'ed).
 
-Alan Stern
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
