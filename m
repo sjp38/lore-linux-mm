@@ -1,56 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 67838828E5
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 21:43:47 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id jt9so13558225obc.2
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 18:43:47 -0700 (PDT)
-Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
-        by mx.google.com with ESMTPS id lw5si4492514pab.156.2016.06.08.18.43.46
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 77E9C828E5
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 23:51:15 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id fg1so37749982pad.1
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 20:51:15 -0700 (PDT)
+Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
+        by mx.google.com with ESMTPS id v81si5133046pfi.110.2016.06.08.20.51.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jun 2016 18:43:46 -0700 (PDT)
-Received: by mail-pa0-x242.google.com with SMTP id ug1so1575281pab.1
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 18:43:46 -0700 (PDT)
-Date: Thu, 9 Jun 2016 10:43:45 +0900
+        Wed, 08 Jun 2016 20:51:11 -0700 (PDT)
+Received: by mail-pa0-x244.google.com with SMTP id fg1so1772822pad.3
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 20:51:10 -0700 (PDT)
+Date: Thu, 9 Jun 2016 12:51:08 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] zram: add zpool support
-Message-ID: <20160609014345.GB655@swordfish>
-References: <d2a7edd5e1f37d9daf4536927d1439df6f9dbd0a.1465378622.git.geliangtang@gmail.com>
- <CALZtONBj0a06T5pxu0AxnyQX8VreuhGxmdg-oMv6w6SJom9wpQ@mail.gmail.com>
- <20160609013411.GA29779@bbox>
+Subject: Re: [PATCH] mm, thp: fix locking inconsistency in collapse_huge_page
+Message-ID: <20160609035108.GD655@swordfish>
+References: <0c47a3a0-5530-b257-1c1f-28ed44ba97e6@suse.cz>
+ <1464956884-4644-1-git-send-email-ebru.akagunduz@gmail.com>
+ <12918dcd-a695-c6f4-e06f-69141c5f357f@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160609013411.GA29779@bbox>
+In-Reply-To: <12918dcd-a695-c6f4-e06f-69141c5f357f@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Dan Streetman <ddstreet@ieee.org>, Geliang Tang <geliangtang@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Vitaly Wool <vitalywool@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>, akpm@linux-foundation.org, sergey.senozhatsky.work@gmail.com, mhocko@kernel.org, kirill.shutemov@linux.intel.com, sfr@canb.auug.org.au, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com
 
-Hello,
-
-On (06/09/16 10:34), Minchan Kim wrote:
-> On Wed, Jun 08, 2016 at 10:51:28AM -0400, Dan Streetman wrote:
-> > On Wed, Jun 8, 2016 at 5:39 AM, Geliang Tang <geliangtang@gmail.com> wrote:
-> > > This patch adds zpool support for zram, it will allow us to use both
-> > > the zpool api and directly zsmalloc api in zram.
-> > 
-> > besides the problems below, this was discussed a while ago and I
-> > believe Minchan is still against it, as nobody has so far shown what
-> > the benefit to zram would be; zram doesn't need the predictability, or
-> > evictability, of zbud or z3fold.
+On (06/06/16 15:05), Vlastimil Babka wrote:
+[..]
+> I think this does fix the inconsistency, thanks.
 > 
-> Right.
+> But looking at collapse_huge_page() as of latest -next, I wonder if there's
+> another problem:
 > 
-> Geliang, I cannot ack without any *detail* that what's the problem of
-> zram/zsmalloc, why we can't fix it in zsmalloc itself.
-> The zbud and zsmalloc is otally different design to aim different goal
-> determinism vs efficiency so you can choose what you want between zswap
-> and zram rather than mixing the features.
+> pmd = mm_find_pmd(mm, address);
+> ...
+> up_read(&mm->mmap_sem);
+> down_write(&mm->mmap_sem);
+> hugepage_vma_revalidate(mm, address);
+> ...
+> pte = pte_offset_map(pmd, address);
+> 
+> What guarantees that 'pmd' is still valid?
 
-I'd also probably Cc Vitaly Wool on this
+the same question applied to __collapse_huge_page_swapin(), I think.
 
-(http://marc.info/?l=linux-mm&m=146537877415982&w=2)
+__collapse_huge_page_swapin(pmd)
+	pte = pte_offset_map(pmd, address);
+	do_swap_page(mm, vma, _address, pte, pmd...)
+		up_read(&mm->mmap_sem);
+	down_read(&mm->mmap_sem);
+	pte = pte_offset_map(pmd, _address);
 
 	-ss
 
