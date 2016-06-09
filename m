@@ -1,45 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F23056B0005
-	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 18:51:22 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id 5so33250609ioy.2
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 15:51:22 -0700 (PDT)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id ui10si3722319pac.76.2016.06.08.15.51.22
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Jun 2016 15:51:22 -0700 (PDT)
-Received: by mail-pf0-x22d.google.com with SMTP id t190so6741916pfb.3
-        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 15:51:22 -0700 (PDT)
-Date: Wed, 8 Jun 2016 15:51:20 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 06/10] mm, oom: kill all tasks sharing the mm
-In-Reply-To: <20160608062219.GA22570@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1606081549490.12203@chino.kir.corp.google.com>
-References: <1464945404-30157-1-git-send-email-mhocko@kernel.org> <1464945404-30157-7-git-send-email-mhocko@kernel.org> <alpine.DEB.2.10.1606061526440.18843@chino.kir.corp.google.com> <20160606232007.GA624@redhat.com> <alpine.DEB.2.10.1606071514550.18400@chino.kir.corp.google.com>
- <20160608062219.GA22570@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 78AB86B0005
+	for <linux-mm@kvack.org>; Wed,  8 Jun 2016 20:01:20 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ug1so31390545pab.3
+        for <linux-mm@kvack.org>; Wed, 08 Jun 2016 17:01:20 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id i23si4032777pfa.147.2016.06.08.17.01.17
+        for <linux-mm@kvack.org>;
+        Wed, 08 Jun 2016 17:01:18 -0700 (PDT)
+Subject: [PATCH 0/9] [v3] System Calls for Memory Protection Keys
+From: Dave Hansen <dave@sr71.net>
+Date: Wed, 08 Jun 2016 17:01:17 -0700
+Message-Id: <20160609000117.71AC7623@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, Dave Hansen <dave@sr71.net>, arnd@arndb.de
 
-On Wed, 8 Jun 2016, Michal Hocko wrote:
+Are there any concerns with merging these into the x86 tree so
+that they go upstream for 4.8?  The updates here are pretty
+minor.
 
-> > Why is the patch asking users to report oom killing of a process that 
-> > raced with setting /proc/pid/oom_score_adj to OOM_SCORE_ADJ_MIN?  What is 
-> > possibly actionable about it?
-> 
-> Well, the primary point is to know whether such races happen in the real
-> loads and whether they actually matter. If yes we can harden the locking
-> or come up with a less racy solutions.
+Changes from v2:
+ * selftest updates:
+  * formatting changes like what Ingo asked for with MPX
+  * actually call WRPKRU in __wrpkru()
+  * once __wrpkru() was fixed, revealed a bug in the ptrace
+    test where we were testing against the wrong pointer during
+    the "baseline" test
+ * Man-pages that match this set are here:
+ 	 http://marc.info/?l=linux-man&m=146540723525616&w=2
 
-A thread being set to oom disabled while racing with the oom killer 
-obviously isn't a concern: it could very well be set to oom disabled after 
-the SIGKILL is sent and before the signal is handled, and that's not even 
-fixable without unneeded complexity because we don't know the source of 
-the SIGKILL.  Please remove the printk entirely.
+Changes from v1:
+ * updates to alloc/free patch description calling out that
+   "in-use" pkeys may still be pkey_free()'d successfully.
+ * Fixed a bug in the selftest where the 'flags' argument was
+   not passed to pkey_get().
+ * Added all syscalls to generic syscalls header
+ * Added extra checking to selftests so it doesn't fall over
+   when 1G pages are made the hugetlbfs default.
+
+--
+
+Memory Protection Keys for User pages (pkeys) is a CPU feature
+which will first appear on Skylake Servers, but will also be
+supported on future non-server parts.  It provides a mechanism
+for enforcing page-based protections, but without requiring
+modification of the page tables when an application changes
+wishes to change permissions.
+
+Patches to implement execute-only mapping support using pkeys
+were merged in to 4.6.  But, to do anything else useful with
+pkeys, an application needs to be able to set the pkey field in
+the PTE (obviously has to be done in-kernel) and make changes to
+the "rights" register (using unprivileged instructions).
+
+An application also needs to have an an allocator for the keys
+themselves.  If two different parts of an application both want
+to protect their data with pkeys, they first need to know which
+key to use for their individual purposes.
+
+This set introduces 5 system calls, in 3 logical groups:
+
+1. PTE pkey setting (sys_pkey_mprotect(), patches #1-3)
+2. Key allocation (sys_pkey_alloc() / sys_pkey_free(), patch #4)
+3. Rights register manipulation (sys_pkey_set/get(), patch #5)
+
+These patches build on top of "core" pkeys support already in
+4.6.
+
+I have manpages written for some of these syscalls, and have
+had multiple rounds of reviews on the manpages list.
+
+This set is also available here:
+
+	git://git.kernel.org/pub/scm/linux/kernel/git/daveh/x86-pkeys.git pkeys-v039
+
+I've written a set of unit tests for these interfaces, which is
+available as the last patch in the series and integrated in to
+kselftests.
+
+Note: this is based on a plain 4.6 kernel and will have a minor
+merge conflict in the x86 selftests makefile with the new
+MPX selftest if those get merged first.
+
+=== diffstat ===
+
+Dave Hansen (9):
+      x86, pkeys: add fault handling for PF_PK page fault bit
+      mm: implement new pkey_mprotect() system call
+      x86, pkeys: make mprotect_key() mask off additional vm_flags
+      x86: wire up mprotect_key() system call
+      x86, pkeys: allocation/free syscalls
+      x86, pkeys: add pkey set/get syscalls
+      generic syscalls: wire up memory protection keys syscalls
+      pkeys: add details of system call use to Documentation/
+      x86, pkeys: add self-tests
+
+ Documentation/x86/protection-keys.txt         |   63 +
+ arch/alpha/include/uapi/asm/mman.h            |    5 +
+ arch/mips/include/uapi/asm/mman.h             |    5 +
+ arch/parisc/include/uapi/asm/mman.h           |    5 +
+ arch/x86/entry/syscalls/syscall_32.tbl        |    5 +
+ arch/x86/entry/syscalls/syscall_64.tbl        |    5 +
+ arch/x86/include/asm/mmu.h                    |    8 +
+ arch/x86/include/asm/mmu_context.h            |   25 +-
+ arch/x86/include/asm/pkeys.h                  |   80 +-
+ arch/x86/kernel/fpu/xstate.c                  |   73 +-
+ arch/x86/mm/fault.c                           |    9 +
+ arch/x86/mm/pkeys.c                           |   38 +-
+ arch/xtensa/include/uapi/asm/mman.h           |    5 +
+ include/linux/pkeys.h                         |   39 +-
+ include/uapi/asm-generic/mman-common.h        |    5 +
+ include/uapi/asm-generic/unistd.h             |   12 +-
+ mm/mprotect.c                                 |  134 +-
+ tools/testing/selftests/x86/Makefile          |    3 +-
+ tools/testing/selftests/x86/pkey-helpers.h    |  191 +++
+ tools/testing/selftests/x86/protection_keys.c | 1316 +++++++++++++++++
+ 20 files changed, 1995 insertions(+), 31 deletions(-)
+
+Cc: linux-api@vger.kernel.org
+Cc: linux-arch@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: x86@kernel.org
+Cc: torvalds@linux-foundation.org
+Cc: akpm@linux-foundation.org
+Cc: Arnd Bergmann <arnd@arndb.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
