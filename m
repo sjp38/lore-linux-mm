@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A7F16B025E
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 07:52:31 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 132so16508169lfz.3
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 04:52:31 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id lz8si7466213wjb.35.2016.06.09.04.52.27
+Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8746E6B025F
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 07:52:33 -0400 (EDT)
+Received: by mail-lb0-f198.google.com with SMTP id wy7so8531917lbb.0
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 04:52:33 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id a8si2554952wmc.18.2016.06.09.04.52.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Jun 2016 04:52:27 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id r5so10078064wmr.0
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 04:52:27 -0700 (PDT)
+        Thu, 09 Jun 2016 04:52:28 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id m124so10026862wme.3
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 04:52:28 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 02/10] proc, oom: drop bogus sighand lock
-Date: Thu,  9 Jun 2016 13:52:09 +0200
-Message-Id: <1465473137-22531-3-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 03/10] proc, oom_adj: extract oom_score_adj setting into a helper
+Date: Thu,  9 Jun 2016 13:52:10 +0200
+Message-Id: <1465473137-22531-4-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1465473137-22531-1-git-send-email-mhocko@kernel.org>
 References: <1465473137-22531-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,158 +24,160 @@ Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@
 
 From: Michal Hocko <mhocko@suse.com>
 
-Oleg has pointed out that can simplify both oom_adj_{read,write}
-and oom_score_adj_{read,write} even further and drop the sighand
-lock. The main purpose of the lock was to protect p->signal from
-going away but this will not happen since ea6d290ca34c ("signals:
-make task_struct->signal immutable/refcountable").
+Currently we have two proc interfaces to set oom_score_adj. The legacy
+/proc/<pid>/oom_adj and /proc/<pid>/oom_score_adj which both have their
+specific handlers. Big part of the logic is duplicated so extract the
+common code into __set_oom_adj helper. Legacy knob still expects some
+details slightly different so make sure those are handled same way - e.g.
+the legacy mode ignores oom_score_adj_min and it warns about the usage.
 
-The other role of the lock was to synchronize different writers,
-especially those with CAP_SYS_RESOURCE. Introduce a mutex for this
-purpose. Later patches will need this lock anyway.
+This patch shouldn't introduce any functional changes.
 
-Suggested-by: Oleg Nesterov <oleg@redhat.com>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- fs/proc/base.c | 51 +++++++++++++++++----------------------------------
- 1 file changed, 17 insertions(+), 34 deletions(-)
+ fs/proc/base.c | 94 +++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 43 insertions(+), 51 deletions(-)
 
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index a6014e45c516..968d5ea06e62 100644
+index 968d5ea06e62..a6a8fbdd5a1b 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
-@@ -1024,23 +1024,21 @@ static ssize_t oom_adj_read(struct file *file, char __user *buf, size_t count,
- 	char buffer[PROC_NUMBUF];
- 	int oom_adj = OOM_ADJUST_MIN;
- 	size_t len;
--	unsigned long flags;
- 
- 	if (!task)
- 		return -ESRCH;
--	if (lock_task_sighand(task, &flags)) {
--		if (task->signal->oom_score_adj == OOM_SCORE_ADJ_MAX)
--			oom_adj = OOM_ADJUST_MAX;
--		else
--			oom_adj = (task->signal->oom_score_adj * -OOM_DISABLE) /
--				  OOM_SCORE_ADJ_MAX;
--		unlock_task_sighand(task, &flags);
--	}
-+	if (task->signal->oom_score_adj == OOM_SCORE_ADJ_MAX)
-+		oom_adj = OOM_ADJUST_MAX;
-+	else
-+		oom_adj = (task->signal->oom_score_adj * -OOM_DISABLE) /
-+			  OOM_SCORE_ADJ_MAX;
- 	put_task_struct(task);
- 	len = snprintf(buffer, sizeof(buffer), "%d\n", oom_adj);
+@@ -1037,7 +1037,47 @@ static ssize_t oom_adj_read(struct file *file, char __user *buf, size_t count,
  	return simple_read_from_buffer(buf, count, ppos, buffer, len);
  }
  
-+static DEFINE_MUTEX(oom_adj_mutex);
+-static DEFINE_MUTEX(oom_adj_mutex);
++static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
++{
++	static DEFINE_MUTEX(oom_adj_mutex);
++	struct task_struct *task;
++	int err = 0;
 +
++	task = get_proc_task(file_inode(file));
++	if (!task)
++		return -ESRCH;
++
++	mutex_lock(&oom_adj_mutex);
++	if (legacy) {
++		if (oom_adj < task->signal->oom_score_adj &&
++				!capable(CAP_SYS_RESOURCE)) {
++			err = -EACCES;
++			goto err_unlock;
++		}
++		/*
++		 * /proc/pid/oom_adj is provided for legacy purposes, ask users to use
++		 * /proc/pid/oom_score_adj instead.
++		 */
++		pr_warn_once("%s (%d): /proc/%d/oom_adj is deprecated, please use /proc/%d/oom_score_adj instead.\n",
++			  current->comm, task_pid_nr(current), task_pid_nr(task),
++			  task_pid_nr(task));
++	} else {
++		if ((short)oom_adj < task->signal->oom_score_adj_min &&
++				!capable(CAP_SYS_RESOURCE)) {
++			err = -EACCES;
++			goto err_unlock;
++		}
++	}
++
++	task->signal->oom_score_adj = oom_adj;
++	if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
++		task->signal->oom_score_adj_min = (short)oom_adj;
++	trace_oom_score_adj_update(task);
++err_unlock:
++	mutex_unlock(&oom_adj_mutex);
++	put_task_struct(task);
++	return err;
++}
+ 
  /*
   * /proc/pid/oom_adj exists solely for backwards compatibility with previous
-  * kernels.  The effective policy is defined by oom_score_adj, which has a
-@@ -1057,7 +1055,6 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
- 	struct task_struct *task;
+@@ -1052,7 +1092,6 @@ static DEFINE_MUTEX(oom_adj_mutex);
+ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
+ 			     size_t count, loff_t *ppos)
+ {
+-	struct task_struct *task;
  	char buffer[PROC_NUMBUF];
  	int oom_adj;
--	unsigned long flags;
  	int err;
- 
- 	memset(buffer, 0, sizeof(buffer));
-@@ -1083,11 +1080,6 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
+@@ -1074,12 +1113,6 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
  		goto out;
  	}
  
--	if (!lock_task_sighand(task, &flags)) {
+-	task = get_proc_task(file_inode(file));
+-	if (!task) {
 -		err = -ESRCH;
--		goto err_put_task;
+-		goto out;
 -	}
 -
  	/*
  	 * Scale /proc/pid/oom_score_adj appropriately ensuring that a maximum
  	 * value is always attainable.
-@@ -1097,10 +1089,11 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
+@@ -1089,26 +1122,7 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
  	else
  		oom_adj = (oom_adj * OOM_SCORE_ADJ_MAX) / -OOM_DISABLE;
  
-+	mutex_lock(&oom_adj_mutex);
- 	if (oom_adj < task->signal->oom_score_adj &&
- 	    !capable(CAP_SYS_RESOURCE)) {
- 		err = -EACCES;
--		goto err_sighand;
-+		goto err_unlock;
- 	}
- 
- 	/*
-@@ -1113,9 +1106,8 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
- 
- 	task->signal->oom_score_adj = oom_adj;
- 	trace_oom_score_adj_update(task);
--err_sighand:
--	unlock_task_sighand(task, &flags);
--err_put_task:
-+err_unlock:
-+	mutex_unlock(&oom_adj_mutex);
- 	put_task_struct(task);
+-	mutex_lock(&oom_adj_mutex);
+-	if (oom_adj < task->signal->oom_score_adj &&
+-	    !capable(CAP_SYS_RESOURCE)) {
+-		err = -EACCES;
+-		goto err_unlock;
+-	}
+-
+-	/*
+-	 * /proc/pid/oom_adj is provided for legacy purposes, ask users to use
+-	 * /proc/pid/oom_score_adj instead.
+-	 */
+-	pr_warn_once("%s (%d): /proc/%d/oom_adj is deprecated, please use /proc/%d/oom_score_adj instead.\n",
+-		  current->comm, task_pid_nr(current), task_pid_nr(task),
+-		  task_pid_nr(task));
+-
+-	task->signal->oom_score_adj = oom_adj;
+-	trace_oom_score_adj_update(task);
+-err_unlock:
+-	mutex_unlock(&oom_adj_mutex);
+-	put_task_struct(task);
++	err = __set_oom_adj(file, oom_adj, true);
  out:
  	return err < 0 ? err : count;
-@@ -1133,15 +1125,11 @@ static ssize_t oom_score_adj_read(struct file *file, char __user *buf,
- 	struct task_struct *task = get_proc_task(file_inode(file));
- 	char buffer[PROC_NUMBUF];
- 	short oom_score_adj = OOM_SCORE_ADJ_MIN;
--	unsigned long flags;
- 	size_t len;
- 
- 	if (!task)
- 		return -ESRCH;
--	if (lock_task_sighand(task, &flags)) {
--		oom_score_adj = task->signal->oom_score_adj;
--		unlock_task_sighand(task, &flags);
--	}
-+	oom_score_adj = task->signal->oom_score_adj;
- 	put_task_struct(task);
- 	len = snprintf(buffer, sizeof(buffer), "%hd\n", oom_score_adj);
- 	return simple_read_from_buffer(buf, count, ppos, buffer, len);
-@@ -1152,7 +1140,6 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
+ }
+@@ -1138,7 +1152,6 @@ static ssize_t oom_score_adj_read(struct file *file, char __user *buf,
+ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
+ 					size_t count, loff_t *ppos)
  {
- 	struct task_struct *task;
+-	struct task_struct *task;
  	char buffer[PROC_NUMBUF];
--	unsigned long flags;
  	int oom_score_adj;
  	int err;
- 
-@@ -1179,25 +1166,21 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
+@@ -1160,28 +1173,7 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
  		goto out;
  	}
  
--	if (!lock_task_sighand(task, &flags)) {
+-	task = get_proc_task(file_inode(file));
+-	if (!task) {
 -		err = -ESRCH;
--		goto err_put_task;
+-		goto out;
 -	}
 -
-+	mutex_lock(&oom_adj_mutex);
- 	if ((short)oom_score_adj < task->signal->oom_score_adj_min &&
- 			!capable(CAP_SYS_RESOURCE)) {
- 		err = -EACCES;
--		goto err_sighand;
-+		goto err_unlock;
- 	}
- 
- 	task->signal->oom_score_adj = (short)oom_score_adj;
- 	if (has_capability_noaudit(current, CAP_SYS_RESOURCE))
- 		task->signal->oom_score_adj_min = (short)oom_score_adj;
-+
- 	trace_oom_score_adj_update(task);
- 
--err_sighand:
--	unlock_task_sighand(task, &flags);
--err_put_task:
-+err_unlock:
-+	mutex_unlock(&oom_adj_mutex);
- 	put_task_struct(task);
+-	mutex_lock(&oom_adj_mutex);
+-	if ((short)oom_score_adj < task->signal->oom_score_adj_min &&
+-			!capable(CAP_SYS_RESOURCE)) {
+-		err = -EACCES;
+-		goto err_unlock;
+-	}
+-
+-	task->signal->oom_score_adj = (short)oom_score_adj;
+-	if (has_capability_noaudit(current, CAP_SYS_RESOURCE))
+-		task->signal->oom_score_adj_min = (short)oom_score_adj;
+-
+-	trace_oom_score_adj_update(task);
+-
+-err_unlock:
+-	mutex_unlock(&oom_adj_mutex);
+-	put_task_struct(task);
++	err = __set_oom_adj(file, oom_score_adj, false);
  out:
  	return err < 0 ? err : count;
+ }
 -- 
 2.8.1
 
