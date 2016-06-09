@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 384696B025F
-	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 07:52:38 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id h68so16541253lfh.2
-        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 04:52:38 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id i16si37704018wmf.117.2016.06.09.04.52.30
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 805656B0261
+	for <linux-mm@kvack.org>; Thu,  9 Jun 2016 07:52:40 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id rs7so14981926lbb.2
+        for <linux-mm@kvack.org>; Thu, 09 Jun 2016 04:52:40 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id bn6si7464507wjb.32.2016.06.09.04.52.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Jun 2016 04:52:30 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id r5so10078301wmr.0
+        Thu, 09 Jun 2016 04:52:31 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id k184so10030238wme.2
         for <linux-mm@kvack.org>; Thu, 09 Jun 2016 04:52:30 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 05/10] mm, oom: skip vforked tasks from being selected
-Date: Thu,  9 Jun 2016 13:52:12 +0200
-Message-Id: <1465473137-22531-6-git-send-email-mhocko@kernel.org>
+Subject: [PATCH 06/10] mm, oom: kill all tasks sharing the mm
+Date: Thu,  9 Jun 2016 13:52:13 +0200
+Message-Id: <1465473137-22531-7-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1465473137-22531-1-git-send-email-mhocko@kernel.org>
 References: <1465473137-22531-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,86 +24,43 @@ Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@
 
 From: Michal Hocko <mhocko@suse.com>
 
-vforked tasks are not really sitting on any memory. They are sharing
-the mm with parent until they exec into a new code. Until then it is
-just pinning the address space. OOM killer will kill the vforked task
-along with its parent but we still can end up selecting vforked task
-when the parent wouldn't be selected. E.g. init doing vfork to launch
-a task or vforked being a child of oom unkillable task with an updated
-oom_score_adj to be killable.
+Currently oom_kill_process skips both the oom reaper and SIG_KILL if a
+process sharing the same mm is unkillable via OOM_ADJUST_MIN. After "mm,
+oom_adj: make sure processes sharing mm have same view of oom_score_adj"
+all such processes are sharing the same value so we shouldn't see such a
+task at all (oom_badness would rule them out).
 
-Add a new helper to check whether a task is in the vfork sharing memory
-with its parent and use it in oom_badness to skip over these tasks.
+We can still encounter oom disabled vforked task which has to be killed
+as well if we want to have other tasks sharing the mm reapable
+because it can access the memory before doing exec. Killing such a task
+should be acceptable because it is highly unlikely it has done anything
+useful because it cannot modify any memory before it calls exec. An
+alternative would be to keep the task alive and skip the oom reaper and
+risk all the weird corner cases where the OOM killer cannot make forward
+progress because the oom victim hung somewhere on the way to exit.
 
-Changes since v1
-- copy_process() doesn't disallow CLONE_VFORK without CLONE_VM, so with
-  this patch it would be trivial to make the exploit which hides a
-  memory hog from oom-killer - per Oleg
-- comment in in_vfork by Oleg
-
+[rientjes@google.com - drop printk when OOM_SCORE_ADJ_MIN killed task
+ the setting is inherently racy and we cannot do much about it without
+ introducing locks in hot paths]
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/sched.h | 26 ++++++++++++++++++++++++++
- mm/oom_kill.c         |  6 ++++--
- 2 files changed, 30 insertions(+), 2 deletions(-)
+ mm/oom_kill.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index ec636400669f..7442f74b6d44 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1883,6 +1883,32 @@ extern int arch_task_struct_size __read_mostly;
- #define TNF_FAULT_LOCAL	0x08
- #define TNF_MIGRATE_FAIL 0x10
- 
-+static inline bool in_vfork(struct task_struct *tsk)
-+{
-+	bool ret;
-+
-+	/*
-+	 * need RCU to access ->real_parent if CLONE_VM was used along with
-+	 * CLONE_PARENT.
-+	 *
-+	 * We check real_parent->mm == tsk->mm because CLONE_VFORK does not
-+	 * imply CLONE_VM
-+	 *
-+	 * CLONE_VFORK can be used with CLONE_PARENT/CLONE_THREAD and thus
-+	 * ->real_parent is not necessarily the task doing vfork(), so in
-+	 * theory we can't rely on task_lock() if we want to dereference it.
-+	 *
-+	 * And in this case we can't trust the real_parent->mm == tsk->mm
-+	 * check, it can be false negative. But we do not care, if init or
-+	 * another oom-unkillable task does this it should blame itself.
-+	 */
-+	rcu_read_lock();
-+	ret = tsk->vfork_done && tsk->real_parent->mm == tsk->mm;
-+	rcu_read_unlock();
-+
-+	return ret;
-+}
-+
- #ifdef CONFIG_NUMA_BALANCING
- extern void task_numa_fault(int last_node, int node, int pages, int flags);
- extern pid_t task_numa_group_id(struct task_struct *p);
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index d8220c5603a5..02da660b7c25 100644
+index 02da660b7c25..38f89ac2df7f 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -176,11 +176,13 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
- 
- 	/*
- 	 * Do not even consider tasks which are explicitly marked oom
--	 * unkillable or have been already oom reaped.
-+	 * unkillable or have been already oom reaped or the are in
-+	 * the middle of vfork
- 	 */
- 	adj = (long)p->signal->oom_score_adj;
- 	if (adj == OOM_SCORE_ADJ_MIN ||
--			test_bit(MMF_OOM_REAPED, &p->mm->flags)) {
-+			test_bit(MMF_OOM_REAPED, &p->mm->flags) ||
-+			in_vfork(p)) {
- 		task_unlock(p);
- 		return 0;
- 	}
+@@ -852,8 +852,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 			continue;
+ 		if (same_thread_group(p, victim))
+ 			continue;
+-		if (unlikely(p->flags & PF_KTHREAD) || is_global_init(p) ||
+-		    p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
++		if (unlikely(p->flags & PF_KTHREAD) || is_global_init(p)) {
+ 			/*
+ 			 * We cannot use oom_reaper for the mm shared by this
+ 			 * process because it wouldn't get killed and so the
 -- 
 2.8.1
 
