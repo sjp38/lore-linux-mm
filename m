@@ -1,72 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B17A76B025E
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2016 04:43:55 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id u74so27682835lff.0
-        for <linux-mm@kvack.org>; Fri, 10 Jun 2016 01:43:55 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id s10si12703833wjm.110.2016.06.10.01.43.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Jun 2016 01:43:52 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id k184so16163305wme.2
-        for <linux-mm@kvack.org>; Fri, 10 Jun 2016 01:43:52 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 1/2] slab: make GFP_SLAB_BUG_MASK information more human readable
-Date: Fri, 10 Jun 2016 10:43:19 +0200
-Message-Id: <1465548200-11384-1-git-send-email-mhocko@kernel.org>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 831426B007E
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2016 05:01:58 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e189so102004983pfa.2
+        for <linux-mm@kvack.org>; Fri, 10 Jun 2016 02:01:58 -0700 (PDT)
+Received: from out1134-227.mail.aliyun.com (out1134-227.mail.aliyun.com. [42.120.134.227])
+        by mx.google.com with ESMTP id ss2si11615000pab.111.2016.06.10.02.01.56
+        for <linux-mm@kvack.org>;
+        Fri, 10 Jun 2016 02:01:57 -0700 (PDT)
+Message-ID: <575A836A.5000606@emindsoft.com.cn>
+Date: Fri, 10 Jun 2016 17:07:54 +0800
+From: Chen Gang <chengang@emindsoft.com.cn>
+MIME-Version: 1.0
+Subject: Re: [PATCH trivial] include/linux/memory_hotplug.h: Clean up code
+References: <201606101451.xfKpSBrt%fengguang.wu@intel.com>
+In-Reply-To: <201606101451.xfKpSBrt%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Cristopher Lameter <clameter@sgi.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, akpm@linux-foundation.org, trivial@kernel.org, mhocko@suse.cz, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz, baiyaowei@cmss.chinamobile.com, vkuznets@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On 6/10/16 14:11, kbuild test robot wrote:
+> Hi,
+> 
+> [auto build test ERROR on next-20160609]
+> [also build test ERROR on v4.7-rc2]
+> [cannot apply to v4.7-rc2 v4.7-rc1 v4.6-rc7]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> 
 
-printk offers %pGg for quite some time so let's use it to get a human
-readable list of invalid flags.
+Oh, my patch is for linux-next 20160609 tree, can not apply to v4.7-rc2
+directly.
 
-The original output would be
-[  429.191962] gfp: 2
+[...]
 
-after the change
-[  429.191962] Unexpected gfp: 0x2 (__GFP_HIGHMEM)
+> 
+>    In file included from include/linux/mmzone.h:741:0,
+>                     from include/linux/gfp.h:5,
+>                     from include/linux/kmod.h:22,
+>                     from include/linux/module.h:13,
+>                     from include/linux/moduleloader.h:5,
+>                     from arch/blackfin/kernel/module.c:9:
+>    include/linux/memory_hotplug.h: In function 'mhp_notimplemented':
+>>> include/linux/memory_hotplug.h:225:2: error: 'mod' undeclared (first use in this function)
+>    include/linux/memory_hotplug.h:225:2: note: each undeclared identifier is reported only once for each function it appears in
+> 
+> vim +/mod +225 include/linux/memory_hotplug.h
+> 
+>    219	static inline void zone_span_writelock(struct zone *zone) {}
+>    220	static inline void zone_span_writeunlock(struct zone *zone) {}
+>    221	static inline void zone_seqlock_init(struct zone *zone) {}
+>    222	
+>    223	static inline int mhp_notimplemented(const char *func)
+>    224	{
+>  > 225		pr_warn("%s() called, with CONFIG_MEMORY_HOTPLUG disabled\n", func);
+>    226		dump_stack();
+>    227		return -ENOSYS;
+>    228	}
+> 
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/slab.c | 3 ++-
- mm/slub.c | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+After "grep -rn pr_fmt * | grep define" under arch/, for me, it is
+blackfin's issue:
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 763096a247f6..03fb724d6e48 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2686,7 +2686,8 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
- 	 * critical path in kmem_cache_alloc().
- 	 */
- 	if (unlikely(flags & GFP_SLAB_BUG_MASK)) {
--		pr_emerg("gfp: %u\n", flags & GFP_SLAB_BUG_MASK);
-+		gfp_t invalid_mask = flags & GFP_SLAB_BUG_MASK;
-+		pr_emerg("Unexpected gfp: %#x (%pGg)\n", invalid_mask, &invalid_mask);
- 		BUG();
- 	}
- 	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
-diff --git a/mm/slub.c b/mm/slub.c
-index cbf4e0e07d41..dd5a9eee7df5 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1628,7 +1628,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
- {
- 	if (unlikely(flags & GFP_SLAB_BUG_MASK)) {
--		pr_emerg("gfp: %u\n", flags & GFP_SLAB_BUG_MASK);
-+		gfp_t invalid_mask = flags & GFP_SLAB_BUG_MASK;
-+		pr_emerg("Unexpected gfp: %#x (%pGg)\n", invalid_mask, &invalid_mask);
- 		BUG();
- 	}
- 
+  we need use
+
+    #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+  instead of
+
+    #define pr_fmt(fmt) "module %s: " fmt, mod->name
+
+I shall send one blackfin patch for it.
+
+Thanks.
 -- 
-2.8.1
+Chen Gang (e??a??)
+
+Managing Natural Environments is the Duty of Human Beings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
