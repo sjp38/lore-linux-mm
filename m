@@ -1,84 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 831426B007E
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2016 05:01:58 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e189so102004983pfa.2
-        for <linux-mm@kvack.org>; Fri, 10 Jun 2016 02:01:58 -0700 (PDT)
-Received: from out1134-227.mail.aliyun.com (out1134-227.mail.aliyun.com. [42.120.134.227])
-        by mx.google.com with ESMTP id ss2si11615000pab.111.2016.06.10.02.01.56
-        for <linux-mm@kvack.org>;
-        Fri, 10 Jun 2016 02:01:57 -0700 (PDT)
-Message-ID: <575A836A.5000606@emindsoft.com.cn>
-Date: Fri, 10 Jun 2016 17:07:54 +0800
-From: Chen Gang <chengang@emindsoft.com.cn>
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 894486B007E
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2016 05:38:35 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id h68so28137802lfh.2
+        for <linux-mm@kvack.org>; Fri, 10 Jun 2016 02:38:35 -0700 (PDT)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
+        by mx.google.com with ESMTPS id qp6si12917554wjc.185.2016.06.10.02.38.34
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Jun 2016 02:38:34 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id D30911C248C
+	for <linux-mm@kvack.org>; Fri, 10 Jun 2016 10:38:33 +0100 (IST)
+Date: Fri, 10 Jun 2016 10:38:32 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH] mm, slaub: Add __GFP_ATOMIC to the GFP reclaim mask
+Message-ID: <20160610093832.GK2527@techsingularity.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH trivial] include/linux/memory_hotplug.h: Clean up code
-References: <201606101451.xfKpSBrt%fengguang.wu@intel.com>
-In-Reply-To: <201606101451.xfKpSBrt%fengguang.wu@intel.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, akpm@linux-foundation.org, trivial@kernel.org, mhocko@suse.cz, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, vbabka@suse.cz, baiyaowei@cmss.chinamobile.com, vkuznets@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Marcin Wojtas <mw@semihalf.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On 6/10/16 14:11, kbuild test robot wrote:
-> Hi,
-> 
-> [auto build test ERROR on next-20160609]
-> [also build test ERROR on v4.7-rc2]
-> [cannot apply to v4.7-rc2 v4.7-rc1 v4.6-rc7]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-> 
+Commit d0164adc89f6 ("mm, page_alloc: distinguish between being unable to
+sleep, unwilling to sleep and avoiding waking kswapd") modified __GFP_WAIT
+to explicitly identify the difference between atomic callers and those that
+were unwilling to sleep. Later the definition was removed entirely.
 
-Oh, my patch is for linux-next 20160609 tree, can not apply to v4.7-rc2
-directly.
+The GFP_RECLAIM_MASK is the set of flags that affect watermark checking
+and reclaim behaviour but __GFP_ATOMIC was never added. Without it, atomic
+users of the slab allocator strip the __GFP_ATOMIC flag and cannot access
+the page allocator atomic reserves.  This patch addresses the problem.
 
-[...]
+The user-visible impact depends on the workload but potentially atomic
+allocations unnecessarily fail without this path.
 
-> 
->    In file included from include/linux/mmzone.h:741:0,
->                     from include/linux/gfp.h:5,
->                     from include/linux/kmod.h:22,
->                     from include/linux/module.h:13,
->                     from include/linux/moduleloader.h:5,
->                     from arch/blackfin/kernel/module.c:9:
->    include/linux/memory_hotplug.h: In function 'mhp_notimplemented':
->>> include/linux/memory_hotplug.h:225:2: error: 'mod' undeclared (first use in this function)
->    include/linux/memory_hotplug.h:225:2: note: each undeclared identifier is reported only once for each function it appears in
-> 
-> vim +/mod +225 include/linux/memory_hotplug.h
-> 
->    219	static inline void zone_span_writelock(struct zone *zone) {}
->    220	static inline void zone_span_writeunlock(struct zone *zone) {}
->    221	static inline void zone_seqlock_init(struct zone *zone) {}
->    222	
->    223	static inline int mhp_notimplemented(const char *func)
->    224	{
->  > 225		pr_warn("%s() called, with CONFIG_MEMORY_HOTPLUG disabled\n", func);
->    226		dump_stack();
->    227		return -ENOSYS;
->    228	}
-> 
+Cc: <stable@vger.kernel.org> # 4.4+
+Reported-by: Marcin Wojtas <mw@semihalf.com>
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ mm/internal.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-After "grep -rn pr_fmt * | grep define" under arch/, for me, it is
-blackfin's issue:
-
-  we need use
-
-    #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-  instead of
-
-    #define pr_fmt(fmt) "module %s: " fmt, mod->name
-
-I shall send one blackfin patch for it.
-
-Thanks.
--- 
-Chen Gang (e??a??)
-
-Managing Natural Environments is the Duty of Human Beings.
+diff --git a/mm/internal.h b/mm/internal.h
+index a37e5b6f9d25..2524ec880e24 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -24,7 +24,8 @@
+  */
+ #define GFP_RECLAIM_MASK (__GFP_RECLAIM|__GFP_HIGH|__GFP_IO|__GFP_FS|\
+ 			__GFP_NOWARN|__GFP_REPEAT|__GFP_NOFAIL|\
+-			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC)
++			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC|\
++			__GFP_ATOMIC)
+ 
+ /* The GFP flags allowed during early boot */
+ #define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_RECLAIM|__GFP_IO|__GFP_FS))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
