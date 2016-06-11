@@ -1,52 +1,35 @@
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: x86: bad pte in pageattr_test
-Date: Fri, 10 Jun 2016 14:54:59 +0200 (CEST)
-Message-ID: <alpine.DEB.2.11.1606101253090.28031@nanos>
-References: <CACT4Y+YwV++Eb8n-1q94zW7_rOOX=p8_+8ERD9L07cjrBf7ysw@mail.gmail.com> <CACT4Y+ZTFGqVjokXUefFMJOrhAn+go3hPKvQRdAhgRRhab5GrQ@mail.gmail.com> <CACT4Y+b8f7=ZnvXnzP17nDwa_jvDeTTQY_Wy7wsiohRssDULhQ@mail.gmail.com> <alpine.DEB.2.11.1606092240030.28031@nanos>
- <CACT4Y+YWqcCU0z+LS5BboJOxMRYys_sbUPQTA5to5GcUUQK4LQ@mail.gmail.com>
+From: Thomas Gleixner <tglx-hfZtesqFncYOwBW4kG4KsQ@public.gmane.org>
+Subject: Re: [PATCH 2/9] mm: implement new pkey_mprotect() system call
+Date: Sat, 11 Jun 2016 11:47:44 +0200 (CEST)
+Message-ID: <alpine.DEB.2.11.1606111147000.5839@nanos>
+References: <20160609000117.71AC7623@viggo.jf.intel.com> <20160609000120.A3DD5140@viggo.jf.intel.com>
 Mime-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
-Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <CACT4Y+YWqcCU0z+LS5BboJOxMRYys_sbUPQTA5to5GcUUQK4LQ@mail.gmail.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>
+Return-path: <linux-api-owner-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>
+In-Reply-To: <20160609000120.A3DD5140-LXbPSdftPKxrdx17CPfAsdBPR1lH4CV8@public.gmane.org>
+Sender: linux-api-owner-u79uwXL29TY76Z2rM5mHXA@public.gmane.org
+To: Dave Hansen <dave-gkUM19QKKo4@public.gmane.org>
+Cc: linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, linux-api-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-arch-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, torvalds-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org, akpm-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org, dave.hansen-VuQAYsv1563Yd54FQh9/CA@public.gmane.org
 List-Id: linux-mm.kvack.org
 
-On Fri, 10 Jun 2016, Dmitry Vyukov wrote:
-> Here is the second log:
-> https://gist.githubusercontent.com/dvyukov/dd7970a5daaa7a30f6d37fa5592b56de/raw/f29182024538e604c95d989f7b398816c3c595dc/gistfile1.txt
-> 
-> I've hit only twice. The first time I tried hard to reproduce it, with
-> no success. So unfortunately that's all we have.
-> 
-> Re logs: my setup executes up to 16 programs in parallel. So for
-> normal BUGs any of the preceding 16 programs can be guilty. But since
-> this check is asynchronous, it can be just any preceding program in
-> the log.
+On Wed, 8 Jun 2016, Dave Hansen wrote:
+> Proposed semantics:
+> 1. protection key 0 is special and represents the default,
+>    unassigned protection key.  It is always allocated.
+> 2. mprotect() never affects a mapping's pkey_mprotect()-assigned
+>    protection key. A protection key of 0 (even if set explicitly)
+>    represents an unassigned protection key.
+>    2a. mprotect(PROT_EXEC) on a mapping with an assigned protection
+>        key may or may not result in a mapping with execute-only
+>        properties.  pkey_mprotect() plus pkey_set() on all threads
+>        should be used to _guarantee_ execute-only semantics.
+> 3. mprotect(PROT_EXEC) may result in an "execute-only" mapping. The
+>    kernel will internally attempt to allocate and dedicate a
+>    protection key for the purpose of execute-only mappings.  This
+>    may not be possible in cases where there are no free protection
+>    keys available.
 
-Ok.
- 
-> I would expect that it is triggered by some rarely-executing poorly
-> tested code. Maybe mmap of some device?
-
-That's the mmap(dev) list which is common between the two log files:
-
-vcsn
-ircomm
-rfkill
-userio
-dspn
-mice
-midi
-sndpcmc
-hidraw0
-vga_arbiter
-lightnvm
-sr
-
-Dunno, if that's the right direction, but exposing these a bit more might be
-worth to try.
+Shouldn't we just reserve a protection key for PROT_EXEC unconditionally?
 
 Thanks,
 
