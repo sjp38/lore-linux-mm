@@ -1,65 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D3936B0005
-	for <linux-mm@kvack.org>; Fri, 10 Jun 2016 19:25:12 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id na2so31071989lbb.1
-        for <linux-mm@kvack.org>; Fri, 10 Jun 2016 16:25:12 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.130])
-        by mx.google.com with ESMTPS id ju7si16355589wjc.211.2016.06.10.16.25.10
+Received: from mail-ig0-f197.google.com (mail-ig0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EBD176B0005
+	for <linux-mm@kvack.org>; Sat, 11 Jun 2016 04:10:12 -0400 (EDT)
+Received: by mail-ig0-f197.google.com with SMTP id q18so23796138igr.2
+        for <linux-mm@kvack.org>; Sat, 11 Jun 2016 01:10:12 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id q31si7499144otq.213.2016.06.11.01.10.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Jun 2016 16:25:11 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH 04/21] fs: Replace CURRENT_TIME with current_fs_time() for inode timestamps
-Date: Sat, 11 Jun 2016 00:23:39 +0200
-Message-ID: <3828814.bejVmX1kJo@wuerfel>
-In-Reply-To: <1465448705-25055-5-git-send-email-deepa.kernel@gmail.com>
-References: <1465448705-25055-1-git-send-email-deepa.kernel@gmail.com> <1465448705-25055-5-git-send-email-deepa.kernel@gmail.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 11 Jun 2016 01:10:12 -0700 (PDT)
+Subject: Re: [PATCH 07/10] mm, oom: fortify task_will_free_mem
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1465473137-22531-1-git-send-email-mhocko@kernel.org>
+	<1465473137-22531-8-git-send-email-mhocko@kernel.org>
+	<201606092218.FCC48987.MFQLVtSHJFOOFO@I-love.SAKURA.ne.jp>
+	<20160609142026.GF24777@dhcp22.suse.cz>
+In-Reply-To: <20160609142026.GF24777@dhcp22.suse.cz>
+Message-Id: <201606111710.IGF51027.OJLSOQtHVOFFFM@I-love.SAKURA.ne.jp>
+Date: Sat, 11 Jun 2016 17:10:03 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Deepa Dinamani <deepa.kernel@gmail.com>, Mike Marshall <hubcap@omnibond.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Chao Yu <chao2.yu@samsung.com>, linux-nilfs@vger.kernel.org
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Al Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, y2038@lists.linaro.org, Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, Joern Engel <joern@logfs.org>, Prasad Joshi <prasadjoshi.linux@gmail.com>, logfs@logfs.org, Andrew Morton <akpm@linux-foundation.org>, Julia Lawall <Julia.Lawall@lip6.fr>, David Howells <dhowells@redhat.com>, Firo Yang <firogm@gmail.com>, Jaegeuk Kim <jaegeuk@kernel.org>, linux-f2fs-devel@lists.sourceforge.net, Michal Hocko <mhocko@suse.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "J. Bruce Fields" <bfields@fieldses.org>, Jeff Layton <jlayton@poochiereds.net>, Trond Myklebust <trond.myklebust@primarydata.com>, Anna Schumaker <anna.schumaker@netapp.com>, "David S. Miller" <davem@davemloft.net>, linux-nfs@vger.kernel.org, netdev@vger.kernel.org, Steven Whitehouse <swhiteho@redhat.com>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com, Mark Fasheh <mfasheh@suse.com>, Joel Becker <jlbec@evilplan.org>, ocfs2-devel@oss.oracle.com, Anton Vorontsov <anton@enomsg.org>, Colin Cross <ccross@android.com>, Kees Cook <keescook@chromium.org>, Tony Luck <tony.luck@intel.com>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, Miklos Szeredi <miklos@szeredi.hu>, fuse-devel@lists.sourceforge.net, Felipe Balbi <balbi@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, Doug Ledford <dledford@redhat.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, linux-rdma@vger.kernel.org, Robert Richter <rric@kernel.org>, oprofile-list@lists.sf.net, Alexei Starovoitov <ast@kernel.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Paul Moore <paul@paul-moore.com>, Stephen Smalley <sds@tycho.nsa.gov>, Eric Paris <eparis@parisplace.org>, selinux@tycho.nsa.gov, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, linux-security-module@vger.kernel.org, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, v9fs-developer@lists.sourceforge.net, Ian Kent <raven@themaw.net>, autofs@vger.kernel.org, Matthew Garrett <matthew.garrett@nebula.com>, Jeremy Kerr <jk@ozlabs.org>, Matt Fleming <matt@codeblueprint.co.uk>, linux-efi@vger.kernel.org, Peter Hurley <peter@hurleysoftware.com>, Josh Triplett <josh@joshtriplett.org>, Boaz Harrosh <ooo@electrozaur.com>, Benny Halevy <bhalevy@primarydata.com>, Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Wednesday, June 8, 2016 10:04:48 PM CEST Deepa Dinamani wrote:
+Michal Hocko wrote:
+> > Also, I think setting TIF_MEMDIE on p when find_lock_task_mm(p) != p is
+> > wrong. While oom_reap_task() will anyway clear TIF_MEMDIE even if we set
+> > TIF_MEMDIE on p when p->mm == NULL, it is not true for CONFIG_MMU=n case.
 > 
-> Signed-off-by: Deepa Dinamani <deepa.kernel@gmail.com>
-> Cc: Steve French <sfrench@samba.org>
-> Cc: linux-cifs@vger.kernel.org
-> Cc: samba-technical@lists.samba.org
-> Cc: Joern Engel <joern@logfs.org>
-> Cc: Prasad Joshi <prasadjoshi.linux@gmail.com>
-> Cc: logfs@logfs.org
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Julia Lawall <Julia.Lawall@lip6.fr>
-> Cc: David Howells <dhowells@redhat.com>
-> Cc: Firo Yang <firogm@gmail.com>
-> Cc: Jaegeuk Kim <jaegeuk@kernel.org>
-> Cc: Changman Lee <cm224.lee@samsung.com>
-> ...
+> Yes this would be racy for !CONFIG_MMU but does it actually matter?
 
+I don't know because I've never used CONFIG_MMU=n kernels. But I think it
+actually matters. You fixed this race by commit 83363b917a2982dd ("oom:
+make sure that TIF_MEMDIE is set under task_lock").
 
-Hi Deepa,
+> > > @@ -940,14 +968,10 @@ bool out_of_memory(struct oom_control *oc)
+> > >  	 * If current has a pending SIGKILL or is exiting, then automatically
+> > >  	 * select it.  The goal is to allow it to allocate so that it may
+> > >  	 * quickly exit and free its memory.
+> > > -	 *
+> > > -	 * But don't select if current has already released its mm and cleared
+> > > -	 * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
+> > >  	 */
+> > > -	if (current->mm &&
+> > > -	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
+> > > +	if (task_will_free_mem(current)) {
+> > 
+> > Setting TIF_MEMDIE on current when current->mm == NULL and
+> > find_lock_task_mm(current) != NULL is wrong.
+> 
+> Why? Or is this still about the !CONFIG_MMU?
 
+Yes, mainly about CONFIG_MMU=n kernels. This change reintroduces possibility
+of failing to clear TIF_MEMDIE which was fixed by commit d7a94e7e11badf84
+("oom: don't count on mm-less current process").
 
-Just FYI, the vger.kernel.org list server and some others
-intentionally reject mails with more than 1024 characters in the
-Cc header, to stop people from cross-posting to too many folks.
+I was also thinking about possibility of the OOM reaper failing to clear
+TIF_MEMDIE due to race with PM/freezing. That is, TIF_MEMDIE is set on a
+thread which already released mm, then try_to_freeze_tasks(true) from
+freeze_processes() freezes such thread, then oom_reap_task() fails to
+clear TIF_MEMDIE from such thread due to oom_killer_disabled == true, then
+subsequent memory allocation fails and hibernation aborts, then all threads
+are thawed, but TIF_MEMDIE thread won't clear TIF_MEMDIE, and finally the
+system locks up because nobody will clear TIF_MEMDIE.
 
-I realize that you merged the patch after Linus' comment about
-doing things in fewer steps for the simple conversion, which is
-fine, but then the patch should be obvious enough that you
-don't need to Cc every single maintainer and mailing list.
-
-I've had some cases like this, and I usually remove the people
-that are less likely to reply, leaving one per subsystem.
-Leaving out the cleartext names is another trick you can use
-if you think that you really need to Cc more people than
-allowed ;-)
-
-	Arnd
+But as I posted in other thread, we can use an approach which does not
+introduce possibility of failing to clear TIF_MEMDIE due to race with
+PM/freezing. So, this is purely about CONFIG_MMU=n kernels.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
