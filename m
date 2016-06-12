@@ -1,52 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 30F886B0005
-	for <linux-mm@kvack.org>; Sun, 12 Jun 2016 00:38:20 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id h68so45630019lfh.2
-        for <linux-mm@kvack.org>; Sat, 11 Jun 2016 21:38:20 -0700 (PDT)
-Received: from relay6-d.mail.gandi.net (relay6-d.mail.gandi.net. [2001:4b98:c:538::198])
-        by mx.google.com with ESMTPS id o82si8141748wmg.65.2016.06.11.21.38.18
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 11 Jun 2016 21:38:18 -0700 (PDT)
-Date: Sat, 11 Jun 2016 21:38:10 -0700
-From: Josh Triplett <josh@joshtriplett.org>
-Subject: Re: undefined reference to `printk'
-Message-ID: <20160612043810.GA1326@x>
-References: <201606121058.3CeznQLn%fengguang.wu@intel.com>
+Received: from mail-ig0-f198.google.com (mail-ig0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CF846B0005
+	for <linux-mm@kvack.org>; Sun, 12 Jun 2016 03:33:40 -0400 (EDT)
+Received: by mail-ig0-f198.google.com with SMTP id 2so56596357igy.1
+        for <linux-mm@kvack.org>; Sun, 12 Jun 2016 00:33:40 -0700 (PDT)
+Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
+        by mx.google.com with ESMTP id f11si1129495itb.95.2016.06.12.00.33.38
+        for <linux-mm@kvack.org>;
+        Sun, 12 Jun 2016 00:33:39 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <02ed01d1c47a$49fbfbc0$ddf3f340$@alibaba-inc.com>
+In-Reply-To: <02ed01d1c47a$49fbfbc0$ddf3f340$@alibaba-inc.com>
+Subject: Re: [PATCH 04/27] mm, vmscan: Begin reclaiming pages on a per-node basis
+Date: Sun, 12 Jun 2016 15:33:25 +0800
+Message-ID: <02f101d1c47c$b4bae0f0$1e30a2d0$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201606121058.3CeznQLn%fengguang.wu@intel.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, kbuild test robot <fengguang.wu@intel.com>
+To: 'Mel Gorman' <mgorman@techsingularity.net>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-[Adding LKML, linux-arch, and Linus.]
-
-On Sun, Jun 12, 2016 at 10:17:01AM +0800, kbuild test robot wrote:
-> All errors (new ones prefixed by >>):
+> @@ -3207,15 +3228,14 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+>  			sc.may_writepage = 1;
 > 
->    arch/m32r/kernel/built-in.o: In function `default_eit_handler':
-> >> (.text+0x3f8): undefined reference to `printk'
->    arch/m32r/kernel/built-in.o: In function `default_eit_handler':
->    (.text+0x3f8): relocation truncated to fit: R_M32R_26_PCREL_RELA against undefined symbol `printk'
+>  		/*
+> -		 * Now scan the zone in the dma->highmem direction, stopping
+> -		 * at the last zone which needs scanning.
+> -		 *
+> -		 * We do this because the page allocator works in the opposite
+> -		 * direction.  This prevents the page allocator from allocating
+> -		 * pages behind kswapd's direction of progress, which would
+> -		 * cause too much scanning of the lower zones.
+> +		 * Continue scanning in the highmem->dma direction stopping at
+> +		 * the last zone which needs scanning. This may reclaim lowmem
+> +		 * pages that are not necessary for zone balancing but it
+> +		 * preserves LRU ordering. It is assumed that the bulk of
+> +		 * allocation requests can use arbitrary zones with the
+> +		 * possible exception of big highmem:lowmem configurations.
+>  		 */
+> -		for (i = 0; i <= end_zone; i++) {
+> +		for (i = end_zone; i >= end_zone; i--) {
 
-As far as I can tell, there has been a patch available for this for
-months, and it still doesn't seem to have been applied anywhere.
+s/i >= end_zone;/i >= 0;/ ?
 
-m32r is listed in MAINTAINERS as "Orphan", and has been since commit
-b4174867bee83e79dc155479cb1b67c452da6476 in 2014.  And that commit
-in turn observed no commits from the maintainer since 2009.  Looking at
-the log for arch/m32r, I don't see any activity other than random fixes
-by others, and based on the signoffs, all of those seem to go through
-miscellaneous trees.
+>  			struct zone *zone = pgdat->node_zones + i;
+> 
+>  			if (!populated_zone(zone))
 
-Is anyone using m32r?  Is anyone willing to maintain it?  And if not,
-should we consider removing it?
-
-- Josh Triplett
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
