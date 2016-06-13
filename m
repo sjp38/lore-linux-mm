@@ -1,103 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A3BC6B0005
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 07:50:28 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id jf8so49412976lbc.3
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 04:50:28 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id d7si29344646wjy.166.2016.06.13.04.50.25
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 418246B0253
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 07:50:44 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id c82so27900622wme.2
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 04:50:44 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id d2si29352000wjb.107.2016.06.13.04.50.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 13 Jun 2016 04:50:26 -0700 (PDT)
-Subject: Re: [PATCH v1 0/3] per-process reclaim
-References: <1465804259-29345-1-git-send-email-minchan@kernel.org>
-From: Chen Feng <puck.chen@hisilicon.com>
-Message-ID: <575E9DE8.4050200@hisilicon.com>
-Date: Mon, 13 Jun 2016 19:50:00 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Jun 2016 04:50:43 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id r5so14251961wmr.0
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 04:50:43 -0700 (PDT)
+Date: Mon, 13 Jun 2016 13:50:41 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] exit: clear TIF_MEMDIE after exit_task_work
+Message-ID: <20160613115041.GG6518@dhcp22.suse.cz>
+References: <20160301155212.GJ9461@dhcp22.suse.cz>
+ <20160301175431-mutt-send-email-mst@redhat.com>
+ <20160301160813.GM9461@dhcp22.suse.cz>
+ <20160301182027-mutt-send-email-mst@redhat.com>
+ <20160301163537.GO9461@dhcp22.suse.cz>
+ <20160301184046-mutt-send-email-mst@redhat.com>
+ <20160301171758.GP9461@dhcp22.suse.cz>
+ <20160301191906-mutt-send-email-mst@redhat.com>
+ <20160314163943.GE11400@dhcp22.suse.cz>
+ <20160607125014.GL12305@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1465804259-29345-1-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160607125014.GL12305@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Redmond <u93410091@gmail.com>, "ZhaoJunmin Zhao(Junmin)" <zhaojunmin@huawei.com>, Vinayak Menon <vinmenon@codeaurora.org>, Juneho Choi <juno.choi@lge.com>, Sangwoo Park <sangwoo2.park@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Minchan,
+On Tue 07-06-16 14:50:14, Michal Hocko wrote:
+> On Mon 14-03-16 17:39:43, Michal Hocko wrote:
+> > On Tue 01-03-16 19:20:24, Michael S. Tsirkin wrote:
+> > > On Tue, Mar 01, 2016 at 06:17:58PM +0100, Michal Hocko wrote:
+> > [...]
+> > > > Sorry, I could have been more verbose... The code would have to make sure
+> > > > that the mm is still alive before calling g-u-p by
+> > > > atomic_inc_not_zero(&mm->mm_users) and fail if the user count dropped to
+> > > > 0 in the mean time. See how fs/proc/task_mmu.c does that (proc_mem_open
+> > > > + m_start + m_stop.
+> > > > 
+> > > > The biggest advanatage would be that the mm address space pin would be
+> > > > only for the particular operation. Not sure whether that is possible in
+> > > > the driver though. Anyway pinning the mm for a potentially unbounded
+> > > > amount of time doesn't sound too nice.
+> > > 
+> > > Hmm that would be another atomic on data path ...
+> > > I'd have to explore that.
+> > 
+> > Did you have any chance to look into this?
+> 
+> So this is my take to get rid of mm_users pinning for an unbounded
+> amount of time. This is even not compile tested. I am not sure how to
+> handle when the mm goes away while there are still work items pending.
+> It seems this is not handled current anyway and only shouts with a
+> warning so this shouldn't cause a new regression AFAICS. I am not
+> familiar with the vnet code at all so I might be missing many things,
+> though. Does the below sound even remotely reasonable to you Michael?
 
-On 2016/6/13 15:50, Minchan Kim wrote:
-> Hi all,
-> 
-> http://thread.gmane.org/gmane.linux.kernel/1480728
-> 
-> I sent per-process reclaim patchset three years ago. Then, last
-> feedback from akpm was that he want to know real usecase scenario.
-> 
-> Since then, I got question from several embedded people of various
-> company "why it's not merged into mainline" and heard they have used
-> the feature as in-house patch and recenlty, I noticed android from
-> Qualcomm started to use it.
-> 
-> Of course, our product have used it and released it in real procuct.
-> 
-> Quote from Sangwoo Park <angwoo2.park@lge.com>
-> Thanks for the data, Sangwoo!
-> "
-> - Test scenaro
->   - platform: android
->   - target: MSM8952, 2G DDR, 16G eMMC
->   - scenario
->     retry app launch and Back Home with 16 apps and 16 turns
->     (total app launch count is 256)
->   - result:
-> 			  resume count   |  cold launching count
-> -----------------------------------------------------------------
->  vanilla           |           85        |          171
->  perproc reclaim   |           184       |           72
-> "
-> 
-> Higher resume count is better because cold launching needs loading
-> lots of resource data which takes above 15 ~ 20 seconds for some
-> games while successful resume just takes 1~5 second.
-> 
-> As perproc reclaim way with new management policy, we could reduce
-> cold launching a lot(i.e., 171-72) so that it reduces app startup
-> a lot.
-> 
-> Another useful function from this feature is to make swapout easily
-> which is useful for testing swapout stress and workloads.
-> 
-Thanks Minchan.
+I have checked the vnet code and it doesn't seem to rely on
+copy_from_user/get_user AFAICS. Other users of use_mm() need to copy to
+the userspace only as well. So we should be perfectly safe to OOM reap
+address space even when it is shared by the kthread [1] so this is
+not really needed for the OOM correctness purpose. It would be much
+nicer if the kthread didn't pin the mm for two long outside of the OOM
+handling as well of course but that lowers the priority of the change.
 
-Yes, this is useful interface when there are memory pressure and let the userspace(Android)
-to pick process for reclaim. We also take there series into our platform.
-
-But I have a question on the reduce app startup time. Can you also share your
-theory(management policy) on how can the app reduce it's startup time?
-
-
-> Thanks.
-> 
-> Cc: Redmond <u93410091@gmail.com>
-> Cc: ZhaoJunmin Zhao(Junmin) <zhaojunmin@huawei.com>
-> Cc: Vinayak Menon <vinmenon@codeaurora.org>
-> Cc: Juneho Choi <juno.choi@lge.com>
-> Cc: Sangwoo Park <sangwoo2.park@lge.com>
-> Cc: Chan Gyun Jeong <chan.jeong@lge.com>
-> 
-> Minchan Kim (3):
->   mm: vmscan: refactoring force_reclaim
->   mm: vmscan: shrink_page_list with multiple zones
->   mm: per-process reclaim
-> 
->  Documentation/filesystems/proc.txt |  15 ++++
->  fs/proc/base.c                     |   1 +
->  fs/proc/internal.h                 |   1 +
->  fs/proc/task_mmu.c                 | 149 +++++++++++++++++++++++++++++++++++++
->  include/linux/rmap.h               |   4 +
->  mm/vmscan.c                        |  85 ++++++++++++++++-----
->  6 files changed, 235 insertions(+), 20 deletions(-)
-> 
+[1] http://lkml.kernel.org/r/20160613112348.GC6518@dhcp22.suse.cz
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
