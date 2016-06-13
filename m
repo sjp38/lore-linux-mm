@@ -1,70 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ED7396B0262
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 13:06:40 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id z142so125952035qkb.0
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 10:06:40 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e7si15740433qkj.50.2016.06.13.10.06.39
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B3F686B0264
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 13:26:16 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id f6so86290376ith.1
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 10:26:16 -0700 (PDT)
+Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
+        by mx.google.com with ESMTPS id z185si14241375itg.13.2016.06.13.10.26.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Jun 2016 10:06:40 -0700 (PDT)
-Message-ID: <1465837595.2756.1.camel@redhat.com>
-Subject: Re: [PATCH v1 3/3] mm: per-process reclaim
-From: Rik van Riel <riel@redhat.com>
-Date: Mon, 13 Jun 2016 13:06:35 -0400
-In-Reply-To: <1465804259-29345-4-git-send-email-minchan@kernel.org>
-References: <1465804259-29345-1-git-send-email-minchan@kernel.org>
-	 <1465804259-29345-4-git-send-email-minchan@kernel.org>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-m2iURTAO08CwF56PbpE6"
-Mime-Version: 1.0
+        Mon, 13 Jun 2016 10:26:15 -0700 (PDT)
+Date: Mon, 13 Jun 2016 12:26:13 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 01/27] mm, vmstat: Add infrastructure for per-node
+ vmstats
+In-Reply-To: <1465495483-11855-2-git-send-email-mgorman@techsingularity.net>
+Message-ID: <alpine.DEB.2.20.1606131208110.25027@east.gentwo.org>
+References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net> <1465495483-11855-2-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangwoo Park <sangwoo2.park@lge.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+
+On Thu, 9 Jun 2016, Mel Gorman wrote:
+
+> VM statistic counters for reclaim decisions are zone-based. If the kernel
+> is to reclaim on a per-node basis then we need to track per-node statistics
+> but there is no infrastructure for that. The most notable change is that
+
+There is node_page_state() so the value of any counter per node is already
+available. Note that some of the counters (NUMA_xx) for example do not
+make much sense as per zone counters and are effectively used as per node
+counters.
+
+So the main effect you are looking for is to have the counters stored in
+the per node structure as opposed to the per zone struct in order to
+avoid the summing? Doing so duplicates a large amount of code it seems.
+
+If you do this then also move over certain counters that have more of a
+per node use from per zone to per node. Like the NUMA_xxx counters.
 
 
---=-m2iURTAO08CwF56PbpE6
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-On Mon, 2016-06-13 at 16:50 +0900, Minchan Kim wrote:
-> These day, there are many platforms available in the embedded market
-> and sometime, they has more hints about workingset than kernel so
-> they want to involve memory management more heavily like android's
-> lowmemory killer and ashmem or user-daemon with lowmemory notifier.
->=20
-> This patch adds add new method for userspace to manage memory
-> efficiently via knob "/proc/<pid>/reclaim" so platform can reclaim
-> any process anytime.
->=20
-
-Could it make sense to invoke this automatically,
-perhaps from the Android low memory killer code?
-
---=20
-All Rights Reversed.
-
-
---=-m2iURTAO08CwF56PbpE6
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJXXugbAAoJEM553pKExN6DmhkH/0WhVg67iaMCy0J11ajkOorR
-b5aeC1XEir3OHigTCKlKMPPK4wW8l0ZjxsTNNtRQRVklSWL2wPXc/V03BlnGEKUF
-z2d7llNTowcu/KHRXKOtnM6ktDCLXyWfxHFAPMiQ3twAW6+RgZlV1lUlZ0k+5FCv
-I/+5QyEW54gJ6fln60xmFovRgOU/XzmqL2tNMUNY9uwxVimaq1WlT3yU5Vlgmi2u
-BaOOgkQlzI/v9YO7yMHfrnsIUFXBjqS1EoLvrkLt82gieKfH3W4GfQqowXJARup9
-w8Ws+ajVou0UWh3WqOc9YAF1eqp1YbNU5BNfVxmaVAj5YpB5WN20NKuBTTQ1pvU=
-=vW3k
------END PGP SIGNATURE-----
-
---=-m2iURTAO08CwF56PbpE6--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
