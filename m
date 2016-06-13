@@ -1,93 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EFBD6B026F
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 15:45:57 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id u74so63677501lff.0
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 12:45:57 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id n125si251901wmb.87.2016.06.13.12.45.55
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D5326B0273
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 15:46:34 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 4so34044392wmz.1
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 12:46:34 -0700 (PDT)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id gy3si30992652wjb.244.2016.06.13.12.46.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Jun 2016 12:45:55 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id k184so17284269wme.2
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 12:45:55 -0700 (PDT)
+        Mon, 13 Jun 2016 12:46:32 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id n184so17318483wmn.1
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 12:46:32 -0700 (PDT)
 From: Topi Miettinen <toiwoton@gmail.com>
-Subject: [RFC 03/18] memcontrol: present maximum used memory also for cgroup-v2
-Date: Mon, 13 Jun 2016 22:44:10 +0300
-Message-Id: <1465847065-3577-4-git-send-email-toiwoton@gmail.com>
+Subject: [RFC 07/18] limits: track RLIMIT_FSIZE actual max
+Date: Mon, 13 Jun 2016 22:44:14 +0300
+Message-Id: <1465847065-3577-8-git-send-email-toiwoton@gmail.com>
 In-Reply-To: <1465847065-3577-1-git-send-email-toiwoton@gmail.com>
 References: <1465847065-3577-1-git-send-email-toiwoton@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Topi Miettinen <toiwoton@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, "open list:CONTROL GROUP - MEMORY RESOURCE CONTROLLER MEMCG" <cgroups@vger.kernel.org>, "open list:CONTROL GROUP - MEMORY RESOURCE CONTROLLER MEMCG" <linux-mm@kvack.org>
+Cc: Topi Miettinen <toiwoton@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Junichi Nomura <j-nomura@ce.jp.nec.com>, Matthew Wilcox <willy@linux.intel.com>, "open list:FILESYSTEMS VFS and infrastructure" <linux-fsdevel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-Present maximum used memory in cgroup memory.current_max.
+Track maximum file size, presented in /proc/self/limits.
 
 Signed-off-by: Topi Miettinen <toiwoton@gmail.com>
 ---
- include/linux/page_counter.h |  7 ++++++-
- mm/memcontrol.c              | 13 +++++++++++++
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ fs/attr.c    | 2 ++
+ mm/filemap.c | 1 +
+ 2 files changed, 3 insertions(+)
 
-diff --git a/include/linux/page_counter.h b/include/linux/page_counter.h
-index 7e62920..be4de17 100644
---- a/include/linux/page_counter.h
-+++ b/include/linux/page_counter.h
-@@ -9,9 +9,9 @@ struct page_counter {
- 	atomic_long_t count;
- 	unsigned long limit;
- 	struct page_counter *parent;
-+	unsigned long watermark;
+diff --git a/fs/attr.c b/fs/attr.c
+index 25b24d0..1b620f7 100644
+--- a/fs/attr.c
++++ b/fs/attr.c
+@@ -116,6 +116,8 @@ int inode_newsize_ok(const struct inode *inode, loff_t offset)
+ 			return -ETXTBSY;
+ 	}
  
- 	/* legacy */
--	unsigned long watermark;
- 	unsigned long failcnt;
- };
- 
-@@ -34,6 +34,11 @@ static inline unsigned long page_counter_read(struct page_counter *counter)
- 	return atomic_long_read(&counter->count);
- }
- 
-+static inline unsigned long page_counter_read_watermark(struct page_counter *counter)
-+{
-+	return counter->watermark;
-+}
++	bump_rlimit(RLIMIT_FSIZE, offset);
 +
- void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages);
- void page_counter_charge(struct page_counter *counter, unsigned long nr_pages);
- bool page_counter_try_charge(struct page_counter *counter,
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 75e7440..5513771 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4966,6 +4966,14 @@ static u64 memory_current_read(struct cgroup_subsys_state *css,
- 	return (u64)page_counter_read(&memcg->memory) * PAGE_SIZE;
- }
+ 	return 0;
+ out_sig:
+ 	send_sig(SIGXFSZ, current, 0);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 00ae878..1fa9864 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -2447,6 +2447,7 @@ inline ssize_t generic_write_checks(struct kiocb *iocb, struct iov_iter *from)
+ 			send_sig(SIGXFSZ, current, 0);
+ 			return -EFBIG;
+ 		}
++		bump_rlimit(RLIMIT_FSIZE, iocb->ki_pos);
+ 		iov_iter_truncate(from, limit - (unsigned long)pos);
+ 	}
  
-+static u64 memory_current_max_read(struct cgroup_subsys_state *css,
-+				   struct cftype *cft)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-+
-+	return (u64)page_counter_read_watermark(&memcg->memory) * PAGE_SIZE;
-+}
-+
- static int memory_low_show(struct seq_file *m, void *v)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-@@ -5179,6 +5187,11 @@ static struct cftype memory_files[] = {
- 		.read_u64 = memory_current_read,
- 	},
- 	{
-+		.name = "current_max",
-+		.flags = CFTYPE_NOT_ON_ROOT,
-+		.read_u64 = memory_current_max_read,
-+	},
-+	{
- 		.name = "low",
- 		.flags = CFTYPE_NOT_ON_ROOT,
- 		.seq_show = memory_low_show,
 -- 
 2.8.1
 
