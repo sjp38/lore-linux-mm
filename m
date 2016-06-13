@@ -1,61 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 968E96B0005
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 09:12:03 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id jf8so50193378lbc.3
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 06:12:03 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id uw10si29635385wjc.242.2016.06.13.06.12.01
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D6C766B0005
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 09:29:49 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id f6so75266925ith.1
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 06:29:49 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id as6si814983pac.173.2016.06.13.06.29.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Jun 2016 06:12:02 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id r5so14807983wmr.0
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 06:12:01 -0700 (PDT)
+        Mon, 13 Jun 2016 06:29:49 -0700 (PDT)
+Subject: Re: [PATCH v1 0/3] per-process reclaim
+References: <1465804259-29345-1-git-send-email-minchan@kernel.org>
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Message-ID: <8f2190f4-4388-0eb2-0ffc-b2190280b11a@codeaurora.org>
+Date: Mon, 13 Jun 2016 18:59:40 +0530
 MIME-Version: 1.0
-In-Reply-To: <20160613130651.GA8662@invalid>
-References: <Pine.LNX.4.44L0.1606091410580.1353-100000@iolanthe.rowland.org>
- <50F437E3-85F7-4034-BAAE-B2558173A2EA@gmail.com> <20160613130651.GA8662@invalid>
-From: Adam Morrison <mad@cs.technion.ac.il>
-Date: Mon, 13 Jun 2016 16:11:39 +0300
-Message-ID: <CAHMfzJktLSPZuLJ0R90Zaa6tj+awX9NDO2DPzjxEEJuY0CFV+g@mail.gmail.com>
-Subject: Re: BUG: using smp_processor_id() in preemptible [00000000] code]
+In-Reply-To: <1465804259-29345-1-git-send-email-minchan@kernel.org>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: M G Berberich <berberic@fmi.uni-passau.de>
-Cc: Nadav Amit <nadav.amit@gmail.com>, iommu@lists.linux-foundation.org, USB list <linux-usb@vger.kernel.org>, linux-mm@kvack.org, Alan Stern <stern@rowland.harvard.edu>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Redmond <u93410091@gmail.com>, "ZhaoJunmin Zhao(Junmin)" <zhaojunmin@huawei.com>, Juneho Choi <juno.choi@lge.com>, Sangwoo Park <sangwoo2.park@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>
 
-Hi,
-
-On Mon, Jun 13, 2016 at 4:06 PM, M G Berberich
-<berberic@fmi.uni-passau.de> wrote:
-
-> Hello,
+On 6/13/2016 1:20 PM, Minchan Kim wrote:
+> Hi all,
 >
->> >> With 4.7-rc2, after detecting a USB Mass Storage device
->> >>
->> >>  [   11.589843] usb-storage 4-2:1.0: USB Mass Storage device detected
->> >>
->> >> a constant flow of kernel-BUGS is reported (several per second).
+> http://thread.gmane.org/gmane.linux.kernel/1480728
 >
-> [=E2=80=A6]
+> I sent per-process reclaim patchset three years ago. Then, last
+> feedback from akpm was that he want to know real usecase scenario.
 >
->> > This looks like a bug in the memory management subsystem.  It should b=
-e
->> > reported on the linux-mm mailing list (CC'ed).
->>
->> This bug is IOMMU related (mailing list CC=E2=80=99ed) and IIUC already =
-fixed.
+> Since then, I got question from several embedded people of various
+> company "why it's not merged into mainline" and heard they have used
+> the feature as in-house patch and recenlty, I noticed android from
+> Qualcomm started to use it.
 >
-> Not fixed in 4.7-rc3
+> Of course, our product have used it and released it in real procuct.
+>
+> Quote from Sangwoo Park <angwoo2.park@lge.com>
+> Thanks for the data, Sangwoo!
+> "
+> - Test scenaro
+>   - platform: android
+>   - target: MSM8952, 2G DDR, 16G eMMC
+>   - scenario
+>     retry app launch and Back Home with 16 apps and 16 turns
+>     (total app launch count is 256)
+>   - result:
+> 			  resume count   |  cold launching count
+> -----------------------------------------------------------------
+>  vanilla           |           85        |          171
+>  perproc reclaim   |           184       |           72
+> "
+>
+> Higher resume count is better because cold launching needs loading
+> lots of resource data which takes above 15 ~ 20 seconds for some
+> games while successful resume just takes 1~5 second.
+>
+> As perproc reclaim way with new management policy, we could reduce
+> cold launching a lot(i.e., 171-72) so that it reduces app startup
+> a lot.
+>
+Thanks Minchan for bringing this up. When we had tried the earlier patchset in its original form,
+the resume of the app that was reclaimed, was taking a lot of time. But from the data shown above it looks
+to be improving the resume time. Is that the resume time of "other" apps which were able to retain their working set
+because of the more efficient swapping of low priority apps with per process reclaim ?
+Because of the higher resume time we had to modify the logic a bit and device a way to pick a "set" of low priority
+(oom_score_adj) tasks and reclaim certain number of pages (only anon) from each of them (the number of pages reclaimed
+from each task being proportional to task size). This deviates from the original intention of the patch to rescue a
+particular app of interest, but still using the hints on working set provided by userspace and avoiding high resume stalls.
+The increased swapping was helping in maintaining a better memory state and lesser page cache reclaim,
+resulting in better app resume time, and lesser task kills.
 
-These patches should fix the issue:
+So would it be better if a userspace knob is provided to tell the kernel, the max number of pages to be reclaimed from a task ?
+This way userspace can make calculations depending on priority, task size etc and reclaim the required number of pages from
+each task, and thus avoid the resume stall because of reclaiming an entire task.
 
-    https://lkml.org/lkml/2016/6/1/310
-    https://lkml.org/lkml/2016/6/1/311
+And also, would it be possible to implement the same using per task memcg by setting the limits and swappiness in such a
+way that it results inthe same thing that per process reclaim does ?
 
-I'm not sure why they weren't applied... will ping the maintainers.
+Thanks,
+Vinayak
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
