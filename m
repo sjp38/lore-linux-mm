@@ -1,91 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 69E456B025E
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 06:07:25 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id t8so170501834oif.2
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 03:07:25 -0700 (PDT)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTP id n203si11949124itg.50.2016.06.13.03.07.23
-        for <linux-mm@kvack.org>;
-        Mon, 13 Jun 2016 03:07:24 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <040501d1c55a$81d51910$857f4b30$@alibaba-inc.com>
-In-Reply-To: <040501d1c55a$81d51910$857f4b30$@alibaba-inc.com>
-Subject: Re: [PATCH v1 3/3] mm: per-process reclaim
-Date: Mon, 13 Jun 2016 18:07:09 +0800
-Message-ID: <040601d1c55b$5934e6b0$0b9eb410$@alibaba-inc.com>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 169276B0005
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 06:47:37 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id u74so57530991lff.0
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 03:47:37 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id ag2si5776576wjc.200.2016.06.13.03.47.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Jun 2016 03:47:35 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id r5so13827391wmr.0
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 03:47:35 -0700 (PDT)
+Date: Mon, 13 Jun 2016 12:47:34 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [mmots-2016-06-09-16-49] sleeping function called from
+ slab_alloc()
+Message-ID: <20160613104733.GA6518@dhcp22.suse.cz>
+References: <20160610061139.GA374@swordfish>
+ <20160610095048.GA655@swordfish>
+ <477de582bf99ba64be662a42bf023b54@suse.de>
+ <20160610145916.d071635d6462e4d837959e45@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160610145916.d071635d6462e4d837959e45@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Minchan Kim' <minchan@kernel.org>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Christoph Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel-owner@vger.kernel.org
 
-> +static ssize_t reclaim_write(struct file *file, const char __user *buf,
-> +				size_t count, loff_t *ppos)
-> +{
-> +	struct task_struct *task;
-> +	char buffer[PROC_NUMBUF];
-> +	struct mm_struct *mm;
-> +	struct vm_area_struct *vma;
-> +	int itype;
-> +	int rv;
-> +	enum reclaim_type type;
-> +
-> +	memset(buffer, 0, sizeof(buffer));
-> +	if (count > sizeof(buffer) - 1)
-> +		count = sizeof(buffer) - 1;
-> +	if (copy_from_user(buffer, buf, count))
-> +		return -EFAULT;
-> +	rv = kstrtoint(strstrip(buffer), 10, &itype);
-> +	if (rv < 0)
-> +		return rv;
-> +	type = (enum reclaim_type)itype;
-> +	if (type < RECLAIM_FILE || type > RECLAIM_ALL)
-> +		return -EINVAL;
-> +
-> +	task = get_proc_task(file->f_path.dentry->d_inode);
-> +	if (!task)
-> +		return -ESRCH;
-> +
-> +	mm = get_task_mm(task);
-> +	if (mm) {
-> +		struct mm_walk reclaim_walk = {
-> +			.pmd_entry = reclaim_pte_range,
-> +			.mm = mm,
-> +		};
-> +
-> +		down_read(&mm->mmap_sem);
-> +		for (vma = mm->mmap; vma; vma = vma->vm_next) {
-> +			reclaim_walk.private = vma;
-> +
-> +			if (is_vm_hugetlb_page(vma))
-> +				continue;
-> +
-> +			if (!vma_is_anonymous(vma) && !(type & RECLAIM_FILE))
-> +				continue;
-> +
-> +			if (vma_is_anonymous(vma) && !(type & RECLAIM_ANON))
-> +				continue;
-> +
-> +			walk_page_range(vma->vm_start, vma->vm_end,
-> +					&reclaim_walk);
+On Fri 10-06-16 14:59:16, Andrew Morton wrote:
+> On Fri, 10 Jun 2016 11:55:54 +0200 mhocko <mhocko@suse.de> wrote:
+> 
+> > On 2016-06-10 11:50, Sergey Senozhatsky wrote:
+> > > Hello,
+> > > 
+> > > forked from http://marc.info/?l=linux-mm&m=146553910928716&w=2
+> > > 
+> > > new_slab()->BUG->die()->exit_signals() can be called from atomic
+> > > context: local IRQs disabled in slab_alloc().
+> > 
+> > I have sent a patch to drop the BUG() from that path today. It
+> > is just too aggressive way to react to a non-critical bug.
+> > See 
+> > http://lkml.kernel.org/r/1465548200-11384-2-git-send-email-mhocko@kernel.org
+> 
+> Doesn't this simply mean that Sergey's workload will blurt a pr_warn()
+> rather than a BUG()?  That still needs fixing.  Confused.
 
-Check fatal signal after reclaiming a mapping?
+Yes that should be fixed by
+http://lkml.kernel.org/r/20160610074223.GC32285@dhcp22.suse.cz
 
-> +		}
-> +		flush_tlb_mm(mm);
-> +		up_read(&mm->mmap_sem);
-> +		mmput(mm);
-> +	}
-> +	put_task_struct(task);
-> +
-> +	return count;
-> +}
+which prevents from using a wrong GFP...
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
