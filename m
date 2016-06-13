@@ -1,146 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 578266B0005
-	for <linux-mm@kvack.org>; Sun, 12 Jun 2016 23:37:22 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id b126so84147733ite.3
-        for <linux-mm@kvack.org>; Sun, 12 Jun 2016 20:37:22 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id t14si23709029iof.202.2016.06.12.20.37.20
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 18D066B0005
+	for <linux-mm@kvack.org>; Sun, 12 Jun 2016 23:47:26 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id a64so11986813oii.1
+        for <linux-mm@kvack.org>; Sun, 12 Jun 2016 20:47:26 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id h204si10226139itb.87.2016.06.12.20.47.24
         for <linux-mm@kvack.org>;
-        Sun, 12 Jun 2016 20:37:21 -0700 (PDT)
-Date: Mon, 13 Jun 2016 12:37:18 +0900
+        Sun, 12 Jun 2016 20:47:25 -0700 (PDT)
+Date: Mon, 13 Jun 2016 12:47:23 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] zsmalloc: keep first object offset in struct page
-Message-ID: <20160613033718.GA23754@bbox>
-References: <1465788015-23195-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH] mm/zsmalloc: add trace events for zs_compact
+Message-ID: <20160613034723.GB23754@bbox>
+References: <1465289804-4913-1-git-send-email-opensource.ganesh@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <1465289804-4913-1-git-send-email-opensource.ganesh@gmail.com>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1465788015-23195-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, rostedt@goodmis.org, mingo@redhat.com
 
-Andrew,
-
-Please fold it to zsmalloc: page migration support.
-
-Thanks.
-
-On Mon, Jun 13, 2016 at 12:20:15PM +0900, Minchan Kim wrote:
-> In early draft of zspage migration, we couldn't use page._mapcount
-> because it was used for storing movable flag so we added runtime
-> calculation to get first object offset in a page but it causes rather
-> many instruction and even bug.
+On Tue, Jun 07, 2016 at 04:56:44PM +0800, Ganesh Mahendran wrote:
+> Currently zsmalloc is widely used in android device.
+> Sometimes, we want to see how frequently zs_compact is
+> triggered or how may pages freed by zs_compact(), or which
+> zsmalloc pool is compacted.
 > 
-> Since then, we don't use page._mapcount as page flag any more so now
-> there is no problem to use the field to store first object offset.
+> Most of the time, user can get the brief information from
+> trace_mm_shrink_slab_[start | end], but in some senario,
+> they do not use zsmalloc shrinker, but trigger compaction manually.
+> So add some trace events in zs_compact is convenient. Also we
+> can add some zsmalloc specific information(pool name, total compact
+> pages, etc) in zsmalloc trace.
 > 
-> Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> This patch add two trace events for zs_compact(), below the trace log:
+> -----------------------------
+> root@land:/ # cat /d/tracing/trace
+>          kswapd0-125   [007] ...1   174.176979: zsmalloc_compact_start: pool zram0
+>          kswapd0-125   [007] ...1   174.181967: zsmalloc_compact_end: pool zram0: 608 pages compacted(total 1794)
+>          kswapd0-125   [000] ...1   184.134475: zsmalloc_compact_start: pool zram0
+>          kswapd0-125   [000] ...1   184.135010: zsmalloc_compact_end: pool zram0: 62 pages compacted(total 1856)
+>          kswapd0-125   [003] ...1   226.927221: zsmalloc_compact_start: pool zram0
+>          kswapd0-125   [003] ...1   226.928575: zsmalloc_compact_end: pool zram0: 250 pages compacted(total 2106)
+> -----------------------------
+> 
+> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
 > ---
->  mm/zsmalloc.c | 44 ++++++++++++++++----------------------------
->  1 file changed, 16 insertions(+), 28 deletions(-)
+>  include/trace/events/zsmalloc.h | 56 +++++++++++++++++++++++++++++++++++++++++
+>  mm/zsmalloc.c                   | 10 ++++++++
+>  2 files changed, 66 insertions(+)
+>  create mode 100644 include/trace/events/zsmalloc.h
 > 
+> diff --git a/include/trace/events/zsmalloc.h b/include/trace/events/zsmalloc.h
+> new file mode 100644
+> index 0000000..3b6f14e
+> --- /dev/null
+> +++ b/include/trace/events/zsmalloc.h
+> @@ -0,0 +1,56 @@
+> +#undef TRACE_SYSTEM
+> +#define TRACE_SYSTEM zsmalloc
+> +
+> +#if !defined(_TRACE_ZSMALLOC_H) || defined(TRACE_HEADER_MULTI_READ)
+> +#define _TRACE_ZSMALLOC_H
+> +
+> +#include <linux/types.h>
+> +#include <linux/tracepoint.h>
+> +
+> +TRACE_EVENT(zsmalloc_compact_start,
+
+I prefer zs_compact_start.
+
+> +
+> +	TP_PROTO(const char *pool_name),
+> +
+> +	TP_ARGS(pool_name),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(const char *, pool_name)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->pool_name = pool_name;
+> +	),
+> +
+> +	TP_printk("pool %s",
+> +		  __entry->pool_name)
+> +);
+> +
+> +TRACE_EVENT(zsmalloc_compact_end,
+> +
+> +	TP_PROTO(const char *pool_name, unsigned long pages_compacted,
+> +			unsigned long pages_total_compacted),
+
+Hmm, do we really need pages_total_compacted?
+
+> +
+> +	TP_ARGS(pool_name, pages_compacted, pages_total_compacted),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(const char *, pool_name)
+> +		__field(unsigned long, pages_compacted)
+> +		__field(unsigned long, pages_total_compacted)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->pool_name = pool_name;
+> +		__entry->pages_compacted = pages_compacted;
+> +		__entry->pages_total_compacted = pages_total_compacted;
+> +	),
+> +
+> +	TP_printk("pool %s: %ld pages compacted(total %ld)",
+> +		  __entry->pool_name,
+> +		  __entry->pages_compacted,
+> +		  __entry->pages_total_compacted)
+> +);
+> +
+> +#endif /* _TRACE_ZSMALLOC_H */
+> +
+> +/* This part must be outside protection */
+> +#include <trace/define_trace.h>
 > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 6a58edc9a015..4b70fcbfb69b 100644
+> index 213d0e1..441b9f7 100644
 > --- a/mm/zsmalloc.c
 > +++ b/mm/zsmalloc.c
-> @@ -512,6 +512,16 @@ static inline struct page *get_first_page(struct zspage *zspage)
->  	return first_page;
->  }
+> @@ -30,6 +30,8 @@
 >  
-> +static inline int get_first_obj_offset(struct page *page)
-> +{
-> +	return page->units;
-> +}
+>  #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+>  
+> +#define CREATE_TRACE_POINTS
 > +
-> +static inline void set_first_obj_offset(struct page *page, int offset)
-> +{
-> +	page->units = offset;
-> +}
-> +
->  static inline unsigned int get_freeobj(struct zspage *zspage)
+>  #include <linux/module.h>
+>  #include <linux/kernel.h>
+>  #include <linux/sched.h>
+> @@ -52,6 +54,7 @@
+>  #include <linux/mount.h>
+>  #include <linux/compaction.h>
+>  #include <linux/pagemap.h>
+> +#include <trace/events/zsmalloc.h>
+>  
+>  #define ZSPAGE_MAGIC	0x58
+>  
+> @@ -2330,6 +2333,9 @@ unsigned long zs_compact(struct zs_pool *pool)
 >  {
->  	return zspage->freeobj;
-> @@ -872,31 +882,6 @@ static struct page *get_next_page(struct page *page)
->  	return page->freelist;
->  }
->  
-> -/* Get byte offset of first object in the @page */
-> -static int get_first_obj_offset(struct size_class *class,
-> -				struct page *first_page, struct page *page)
-> -{
-> -	int pos;
-> -	int page_idx = 0;
-> -	int ofs = 0;
-> -	struct page *cursor = first_page;
-> -
-> -	if (first_page == page)
-> -		goto out;
-> -
-> -	while (page != cursor) {
-> -		page_idx++;
-> -		cursor = get_next_page(cursor);
-> -	}
-> -
-> -	pos = class->objs_per_zspage * class->size *
-> -		page_idx / class->pages_per_zspage;
-> -
-> -	ofs = (pos + class->size) % PAGE_SIZE;
-> -out:
-> -	return ofs;
-> -}
-> -
->  /**
->   * obj_to_location - get (<page>, <obj_idx>) from encoded object value
->   * @page: page object resides in zspage
-> @@ -966,6 +951,7 @@ static void reset_page(struct page *page)
->  	clear_bit(PG_private, &page->flags);
->  	clear_bit(PG_private_2, &page->flags);
->  	set_page_private(page, 0);
-> +	page_mapcount_reset(page);
->  	ClearPageHugeObject(page);
->  	page->freelist = NULL;
->  }
-> @@ -1064,6 +1050,8 @@ static void init_zspage(struct size_class *class, struct zspage *zspage)
->  		struct link_free *link;
->  		void *vaddr;
->  
-> +		set_first_obj_offset(page, off);
+>  	int i;
+>  	struct size_class *class;
+> +	unsigned long pages_compacted_before = pool->stats.pages_compacted;
 > +
->  		vaddr = kmap_atomic(page);
->  		link = (struct link_free *)vaddr + off / sizeof(*link);
+> +	trace_zsmalloc_compact_start(pool->name);
+
+How about moving it into __zs_compact with size_class information?
+It would be more useful, I think.
+
 >  
-> @@ -1762,9 +1750,8 @@ static unsigned long find_alloced_obj(struct size_class *class,
->  	int offset = 0;
->  	unsigned long handle = 0;
->  	void *addr = kmap_atomic(page);
-> -	struct zspage *zspage = get_zspage(page);
+>  	for (i = zs_size_classes - 1; i >= 0; i--) {
+>  		class = pool->size_class[i];
+> @@ -2340,6 +2346,10 @@ unsigned long zs_compact(struct zs_pool *pool)
+>  		__zs_compact(pool, class);
+>  	}
 >  
-> -	offset = get_first_obj_offset(class, get_first_page(zspage), page);
-> +	offset = get_first_obj_offset(page);
->  	offset += class->size * index;
->  
->  	while (offset < PAGE_SIZE) {
-> @@ -1976,6 +1963,7 @@ static void replace_sub_page(struct size_class *class, struct zspage *zspage,
->  	} while ((page = get_next_page(page)) != NULL);
->  
->  	create_page_chain(class, zspage, pages);
-> +	set_first_obj_offset(newpage, get_first_obj_offset(oldpage));
->  	if (unlikely(PageHugeObject(oldpage)))
->  		newpage->index = oldpage->index;
->  	__SetPageMovable(newpage, page_mapping(oldpage));
-> @@ -2062,7 +2050,7 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
->  	get_zspage_mapping(zspage, &class_idx, &fullness);
->  	pool = mapping->private_data;
->  	class = pool->size_class[class_idx];
-> -	offset = get_first_obj_offset(class, get_first_page(zspage), page);
-> +	offset = get_first_obj_offset(page);
->  
->  	spin_lock(&class->lock);
->  	if (!get_zspage_inuse(zspage)) {
+> +	trace_zsmalloc_compact_end(pool->name,
+> +		pool->stats.pages_compacted - pages_compacted_before,
+> +		pool->stats.pages_compacted);
+> +
+>  	return pool->stats.pages_compacted;
+>  }
+>  EXPORT_SYMBOL_GPL(zs_compact);
 > -- 
 > 1.9.1
 > 
