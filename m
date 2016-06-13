@@ -1,80 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 418246B0253
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 07:50:44 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id c82so27900622wme.2
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 04:50:44 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id d2si29352000wjb.107.2016.06.13.04.50.43
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 062686B0005
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 08:03:26 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id y193so7140314lfd.1
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 05:03:25 -0700 (PDT)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id d127si14584076wme.86.2016.06.13.05.03.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Jun 2016 04:50:43 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id r5so14251961wmr.0
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 04:50:43 -0700 (PDT)
-Date: Mon, 13 Jun 2016 13:50:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] exit: clear TIF_MEMDIE after exit_task_work
-Message-ID: <20160613115041.GG6518@dhcp22.suse.cz>
-References: <20160301155212.GJ9461@dhcp22.suse.cz>
- <20160301175431-mutt-send-email-mst@redhat.com>
- <20160301160813.GM9461@dhcp22.suse.cz>
- <20160301182027-mutt-send-email-mst@redhat.com>
- <20160301163537.GO9461@dhcp22.suse.cz>
- <20160301184046-mutt-send-email-mst@redhat.com>
- <20160301171758.GP9461@dhcp22.suse.cz>
- <20160301191906-mutt-send-email-mst@redhat.com>
- <20160314163943.GE11400@dhcp22.suse.cz>
- <20160607125014.GL12305@dhcp22.suse.cz>
+        Mon, 13 Jun 2016 05:03:24 -0700 (PDT)
+Received: by mail-wm0-x232.google.com with SMTP id v199so75072772wmv.0
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 05:03:24 -0700 (PDT)
+Date: Mon, 13 Jun 2016 13:03:22 +0100
+From: Matt Fleming <matt@codeblueprint.co.uk>
+Subject: Re: [RFC PATCH v1 10/18] x86/efi: Access EFI related tables in the
+ clear
+Message-ID: <20160613120322.GA2658@codeblueprint.co.uk>
+References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
+ <20160426225740.13567.85438.stgit@tlendack-t1.amdoffice.net>
+ <20160510134358.GR2839@codeblueprint.co.uk>
+ <20160510135758.GA16783@pd.tnic>
+ <5734C97D.8060803@amd.com>
+ <57446B27.20406@amd.com>
+ <20160525193011.GC2984@codeblueprint.co.uk>
+ <5746FE16.9070408@amd.com>
+ <20160608100713.GU2658@codeblueprint.co.uk>
+ <57599668.20000@amd.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160607125014.GL12305@dhcp22.suse.cz>
+In-Reply-To: <57599668.20000@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Borislav Petkov <bp@alien8.de>, Leif Lindholm <leif.lindholm@linaro.org>, Mark Salter <msalter@redhat.com>, Daniel Kiper <daniel.kiper@oracle.com>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-On Tue 07-06-16 14:50:14, Michal Hocko wrote:
-> On Mon 14-03-16 17:39:43, Michal Hocko wrote:
-> > On Tue 01-03-16 19:20:24, Michael S. Tsirkin wrote:
-> > > On Tue, Mar 01, 2016 at 06:17:58PM +0100, Michal Hocko wrote:
-> > [...]
-> > > > Sorry, I could have been more verbose... The code would have to make sure
-> > > > that the mm is still alive before calling g-u-p by
-> > > > atomic_inc_not_zero(&mm->mm_users) and fail if the user count dropped to
-> > > > 0 in the mean time. See how fs/proc/task_mmu.c does that (proc_mem_open
-> > > > + m_start + m_stop.
-> > > > 
-> > > > The biggest advanatage would be that the mm address space pin would be
-> > > > only for the particular operation. Not sure whether that is possible in
-> > > > the driver though. Anyway pinning the mm for a potentially unbounded
-> > > > amount of time doesn't sound too nice.
-> > > 
-> > > Hmm that would be another atomic on data path ...
-> > > I'd have to explore that.
-> > 
-> > Did you have any chance to look into this?
+On Thu, 09 Jun, at 11:16:40AM, Tom Lendacky wrote:
 > 
-> So this is my take to get rid of mm_users pinning for an unbounded
-> amount of time. This is even not compile tested. I am not sure how to
-> handle when the mm goes away while there are still work items pending.
-> It seems this is not handled current anyway and only shouts with a
-> warning so this shouldn't cause a new regression AFAICS. I am not
-> familiar with the vnet code at all so I might be missing many things,
-> though. Does the below sound even remotely reasonable to you Michael?
+> So maybe something along the lines of an enum that would have entries
+> (initially) like KERNEL_DATA (equal to zero) and EFI_DATA. Others could
+> be added later as needed.
+ 
+Sure, that works for me, though maybe BOOT_DATA would be more
+applicable considering the devicetree case too.
 
-I have checked the vnet code and it doesn't seem to rely on
-copy_from_user/get_user AFAICS. Other users of use_mm() need to copy to
-the userspace only as well. So we should be perfectly safe to OOM reap
-address space even when it is shared by the kthread [1] so this is
-not really needed for the OOM correctness purpose. It would be much
-nicer if the kthread didn't pin the mm for two long outside of the OOM
-handling as well of course but that lowers the priority of the change.
+> Would you then want to allow the protection attributes to be updated
+> by architecture specific code through something like a __weak function?
+> In the x86 case I can add this function as a non-SME specific function
+> that would initially just have the SME-related mask modification in it.
 
-[1] http://lkml.kernel.org/r/20160613112348.GC6518@dhcp22.suse.cz
--- 
-Michal Hocko
-SUSE Labs
+Would we need a new function? Couldn't we just have a new
+FIXMAP_PAGE_* constant? e.g. would something like this work?
+
+---
+
+enum memremap_owner {
+	KERNEL_DATA = 0,
+	BOOT_DATA,
+};
+
+void __init *
+early_memremap(resource_size_t phys_addr, unsigned long size,
+	       enum memremap_owner owner)
+{
+	pgprot_t prot;
+
+	switch (owner) {
+	case BOOT_DATA:
+		prot = FIXMAP_PAGE_BOOT;
+		break;
+	case KERNEL_DATA:	/* FALLTHROUGH */
+	default:
+		prot = FIXMAP_PAGE_NORMAL;
+		
+	}
+
+	return (__force void *)__early_ioremap(phys_addr, size, prot);
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
