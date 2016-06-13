@@ -1,74 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 44AFB6B027B
-	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 17:01:53 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id b126so121551312ite.3
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 14:01:53 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id d8si19694433paz.87.2016.06.13.14.01.52
-        for <linux-mm@kvack.org>;
-        Mon, 13 Jun 2016 14:01:52 -0700 (PDT)
-From: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
-Subject: RE: [PATCH 1/1] mm/swap.c: flush lru_add pvecs on compound page
- arrival
-Date: Mon, 13 Jun 2016 21:01:48 +0000
-Message-ID: <D6EDEBF1F91015459DB866AC4EE162CC023FA41E@IRSMSX103.ger.corp.intel.com>
-References: <1465396537-17277-1-git-send-email-lukasz.odzioba@intel.com>
- <57583A49.30809@intel.com>
- <D6EDEBF1F91015459DB866AC4EE162CC023F8EBE@IRSMSX103.ger.corp.intel.com>
- <57598E3E.3010705@intel.com>
-In-Reply-To: <57598E3E.3010705@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F3A41828EE
+	for <linux-mm@kvack.org>; Mon, 13 Jun 2016 17:11:29 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id he1so87531159pac.0
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 14:11:29 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o124si34154171pfb.247.2016.06.13.14.11.24
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Jun 2016 14:11:29 -0700 (PDT)
+Date: Mon, 13 Jun 2016 14:11:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mel:mm-vmscan-node-lru-v7r3 38/200] slub.c:undefined reference
+ to `cache_random_seq_create'
+Message-Id: <20160613141123.fcb245b6a7fd3199ae8a32d7@linux-foundation.org>
+In-Reply-To: <201606140353.WeDaHl1M%fengguang.wu@intel.com>
+References: <201606140353.WeDaHl1M%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "vdavydov@parallels.com" <vdavydov@parallels.com>, "mingli199x@qq.com" <mingli199x@qq.com>, "minchan@kernel.org" <minchan@kernel.org>
-Cc: "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild-all@01.org, Mel Gorman <mgorman@suse.de>, Thomas Garnier <thgarnie@google.com>, Kees Cook <keescook@chromium.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On 09-06-16 17:42:00, Dave Hansen wrote:
-> Does your workload put large pages in and out of those pvecs, though?
-> If your system doesn't have any activity, then all we've shown is that
-> they're not a problem when not in use.  But what about when we use them?
+On Tue, 14 Jun 2016 03:37:57 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-It doesn't. To use them extensively I guess we would have to
-craft a separate program for each one, which is not trivial.
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/mel/linux mm-vmscan-node-lru-v7r3
+> head:   276a5614a25ce20248f42bd4fb025b80ae0c9be1
+> commit: 44c61fe5d7f13025a2a1f6efbbc0da75ad93ee19 [38/200] mm: SLUB freelist randomization
+> config: x86_64-randconfig-x018-06140033 (attached as .config)
+> compiler: gcc-6 (Debian 6.1.1-1) 6.1.1 20160430
+> reproduce:
+>         git checkout 44c61fe5d7f13025a2a1f6efbbc0da75ad93ee19
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
+> 
+> All errors (new ones prefixed by >>):
+> 
+>    mm/built-in.o: In function `init_cache_random_seq':
+> >> slub.c:(.text+0x507dc): undefined reference to `cache_random_seq_create'
+>    mm/built-in.o: In function `__kmem_cache_release':
+> >> (.text+0x53979): undefined reference to `cache_random_seq_destroy'
 
-> Have you, for instance, tried this on a system with memory pressure?
+I don't even get that far with that .config.  With gcc-4.4.4 I get
 
-Not then, but here are exemplary snapshots with system using swap to handle=
-=20
-allocation requests with patch applied: (notation: pages =3D sum in bytes):
-LRU_add              336 =3D     1344kB
-LRU_rotate           158 =3D      632kB
-LRU_deactivate         0 =3D        0kB
-LRU_deact_file         0 =3D        0kB
-LRU_activate           1 =3D        4kB
----
-LRU_add             3262 =3D    13048kB
-LRU_rotate           142 =3D      568kB
-LRU_deactivate         0 =3D        0kB
-LRU_deact_file         0 =3D        0kB
-LRU_activate           6 =3D       24kB
----
-LRU_add             3689 =3D    14756kB
-LRU_rotate            81 =3D      324kB
-LRU_deactivate         0 =3D        0kB
-LRU_deact_file         0 =3D        0kB
-LRU_activate          19 =3D       76kB
+init/built-in.o: In function `initcall_blacklisted':
+main.c:(.text+0x41): undefined reference to `__stack_chk_guard'
+main.c:(.text+0xbe): undefined reference to `__stack_chk_guard'
+init/built-in.o: In function `do_one_initcall':
+(.text+0xeb): undefined reference to `__stack_chk_guard'
+init/built-in.o: In function `do_one_initcall':
+(.text+0x22b): undefined reference to `__stack_chk_guard'
+init/built-in.o: In function `name_to_dev_t':
+(.text+0x320): undefined reference to `__stack_chk_guard'
+init/built-in.o:(.text+0x52e): more undefined references to `__stack_chk_guard' 
 
-While running idle os we have:
-LRU_add             1038 =3D     4152kB
-LRU_rotate             0 =3D        0kB
-LRU_deactivate         0 =3D        0kB
-LRU_deact_file         0 =3D        0kB
-LRU_activate           0 =3D        0kB
-
-I know those are not representative in overall.
-
-Thanks,
-Lukas
+Kees touched it last :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
