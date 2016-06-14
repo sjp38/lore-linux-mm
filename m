@@ -1,50 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B68676B007E
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 12:47:46 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id b126so167570035ite.3
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 09:47:46 -0700 (PDT)
-Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
-        by mx.google.com with ESMTPS id va9si25056887pac.186.2016.06.14.09.47.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jun 2016 09:47:46 -0700 (PDT)
-Received: by mail-pa0-x243.google.com with SMTP id fg1so12974506pad.3
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 09:47:45 -0700 (PDT)
-Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Subject: Re: [PATCH] Linux VM workaround for Knights Landing A/D leak
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <1465919919-2093-1-git-send-email-lukasz.anaczkowski@intel.com>
-Date: Tue, 14 Jun 2016 09:47:41 -0700
-Content-Transfer-Encoding: 7bit
-Message-Id: <7FB15233-B347-4A87-9506-A9E10D331292@gmail.com>
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4743C6B007E
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 12:54:35 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ao6so261275221pac.2
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 09:54:35 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id c1si1949616paz.112.2016.06.14.09.54.34
+        for <linux-mm@kvack.org>;
+        Tue, 14 Jun 2016 09:54:34 -0700 (PDT)
+From: "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
+Subject: RE: [PATCH] Linux VM workaround for Knights Landing A/D leak
+Date: Tue, 14 Jun 2016 16:54:30 +0000
+Message-ID: <C1C2579D7BE026428F81F41198ADB17237A857BF@irsmsx110.ger.corp.intel.com>
 References: <1465919919-2093-1-git-send-email-lukasz.anaczkowski@intel.com>
+ <7FB15233-B347-4A87-9506-A9E10D331292@gmail.com>
+In-Reply-To: <7FB15233-B347-4A87-9506-A9E10D331292@gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lukasz Anaczkowski <lukasz.anaczkowski@intel.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, harish.srinivasappa@intel.com, lukasz.odzioba@intel.com
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, "ak@linux.intel.com" <ak@linux.intel.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, "Srinivasappa, Harish" <harish.srinivasappa@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
 
+From: Nadav Amit [mailto:nadav.amit@gmail.com]=20
+Sent: Tuesday, June 14, 2016 6:48 PM
 
-Lukasz Anaczkowski <lukasz.anaczkowski@intel.com> wrote:
+> Lukasz Anaczkowski <lukasz.anaczkowski@intel.com> wrote:
 
-> From: Andi Kleen <ak@linux.intel.com>
-> +void fix_pte_leak(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
-> +{
-Here there should be a call to smp_mb__after_atomic() to synchronize with
-switch_mm. I submitted a similar patch, which is still pending (hint).
+>> From: Andi Kleen <ak@linux.intel.com>
+>> +void fix_pte_leak(struct mm_struct *mm, unsigned long addr, pte_t *ptep=
+)
+>> +{
+> Here there should be a call to smp_mb__after_atomic() to synchronize with
+> switch_mm. I submitted a similar patch, which is still pending (hint).
 
-> +	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids) {
-> +		trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
-> +		flush_tlb_others(mm_cpumask(mm), mm, addr,
-> +				 addr + PAGE_SIZE);
-> +		mb();
-> +		set_pte(ptep, __pte(0));
-> +	}
-> +}
+Thanks, Nadav!
+I'll add this and re-submit the patch.
 
-Regards,
-Nadav
+Cheers,
+Lukasz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
