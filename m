@@ -1,74 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 105D86B007E
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 16:16:34 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ao6so1934839pac.2
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 13:16:34 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id z8si21686958pff.143.2016.06.14.13.16.32
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8923E6B0253
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 16:17:47 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id k189so2993004vkg.3
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 13:17:47 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q68si19522401qkb.227.2016.06.14.13.17.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jun 2016 13:16:32 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id t190so56569pfb.2
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 13:16:32 -0700 (PDT)
-Content-Type: text/plain; charset=windows-1252
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Subject: Re: [PATCH] Linux VM workaround for Knights Landing A/D leak
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <57603C61.5000408@linux.intel.com>
-Date: Tue, 14 Jun 2016 13:16:29 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <2471A3E8-FF69-4720-A3BF-BDC6094A6A70@gmail.com>
-References: <1465919919-2093-1-git-send-email-lukasz.anaczkowski@intel.com> <7FB15233-B347-4A87-9506-A9E10D331292@gmail.com> <57603C61.5000408@linux.intel.com>
+        Tue, 14 Jun 2016 13:17:46 -0700 (PDT)
+Date: Tue, 14 Jun 2016 22:17:40 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 0/10 -v4] Handle oom bypass more gracefully
+Message-ID: <20160614201740.GA617@redhat.com>
+References: <1465473137-22531-1-git-send-email-mhocko@kernel.org>
+ <20160613112348.GC6518@dhcp22.suse.cz>
+ <20160613141324.GK6518@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160613141324.GK6518@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Lukasz Anaczkowski <lukasz.anaczkowski@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, harish.srinivasappa@intel.com, lukasz.odzioba@intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-Dave Hansen <dave.hansen@linux.intel.com> wrote:
+On 06/13, Michal Hocko wrote:
+>
+> On Mon 13-06-16 13:23:48, Michal Hocko wrote:
+> > On Thu 09-06-16 13:52:07, Michal Hocko wrote:
+> > > I would like to explore ways how to remove kthreads (use_mm) special
+> > > case. It shouldn't be that hard, we just have to teach the page fault
+> > > handler to recognize oom victim mm and enforce EFAULT for kthreads
+> > > which have borrowed that mm.
+> >
+> > So I was trying to come up with solution for this which would require to
+> > hook into the pagefault an enforce EFAULT when the mm is being reaped
+> > by the oom_repaer. Not hard but then I have checked the current users
+> > and none of them is really needing to read from the userspace (aka
+> > copy_from_user/get_user). So we actually do not need to do anything
+> > special.
+>
+> As pointed out by Tetsuo [1] vhost does realy on copy_from_user.
 
-> On 06/14/2016 09:47 AM, Nadav Amit wrote:
->> Lukasz Anaczkowski <lukasz.anaczkowski@intel.com> wrote:
->>=20
->>>> From: Andi Kleen <ak@linux.intel.com>
->>>> +void fix_pte_leak(struct mm_struct *mm, unsigned long addr, pte_t =
-*ptep)
->>>> +{
->> Here there should be a call to smp_mb__after_atomic() to synchronize =
-with
->> switch_mm. I submitted a similar patch, which is still pending =
-(hint).
->>=20
->>>> +	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < =
-nr_cpu_ids) {
->>>> +		trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
->>>> +		flush_tlb_others(mm_cpumask(mm), mm, addr,
->>>> +				 addr + PAGE_SIZE);
->>>> +		mb();
->>>> +		set_pte(ptep, __pte(0));
->>>> +	}
->>>> +}
->=20
-> Shouldn't that barrier be incorporated in the TLB flush code itself =
-and
-> not every single caller (like this code is)?
->=20
-> It is insane to require individual TLB flushers to be concerned with =
-the
-> barriers.
+Tetsuo, Michal, but do we really care?
 
-IMHO it is best to use existing flushing interfaces instead of creating
-new ones.=20
+I have no idea what vhost does, but obviously this should not lead to kernel
+crash or something like this, otherwise it should be fixed. If we are going
+to kill the owner of dev->mm anyway, why should we worry about vhost_worker()
+which can fail to access this ->mm after that?
 
-In theory, fix_pte_leak could have used flush_tlb_page. But the problem
-is that flush_tlb_page requires the vm_area_struct as an argument, which
-ptep_get_and_clear (and others) do not have.
+So to me this additional patch looks fine, but probably I missed something?
 
-I don=92t know which architecture needs the vm_area_struct, since x86 =
-and
-some others I looked at (e.g., ARM) only need the mm_struct.
-
-Nadav=
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
