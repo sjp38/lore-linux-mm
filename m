@@ -1,138 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CF7BF828EE
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 03:31:25 -0400 (EDT)
-Received: by mail-ob0-f200.google.com with SMTP id jt9so10540608obc.2
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 00:31:25 -0700 (PDT)
-Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
-        by mx.google.com with ESMTPS id d75si14549347iof.142.2016.06.14.00.31.24
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C8F3A6B0284
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 04:03:45 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id g62so233326704pfb.3
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 01:03:45 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id r9si14311pae.39.2016.06.14.01.03.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jun 2016 00:31:24 -0700 (PDT)
-Received: by mail-it0-x241.google.com with SMTP id e5so10143690ith.2
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 00:31:24 -0700 (PDT)
+        Tue, 14 Jun 2016 01:03:44 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id 62so12408717pfd.3
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 01:03:44 -0700 (PDT)
+Date: Tue, 14 Jun 2016 17:03:43 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] mm/zsmalloc: add trace events for zs_compact
+Message-ID: <20160614080343.GA504@swordfish>
+References: <1465289804-4913-1-git-send-email-opensource.ganesh@gmail.com>
+ <20160608001625.GB27258@bbox>
+ <CADAEsF_wYQpMP_Hpr2LEnafxteV7aN1kCdAhLWhk13Ed1ueZ+A@mail.gmail.com>
+ <20160608051352.GA28155@bbox>
+ <CADAEsF_q0qzk2D_cKMCcvHxF7_eY1cQVKrBp0eM_v05jjOjSOA@mail.gmail.com>
+ <20160613044237.GC23754@bbox>
+ <20160613051214.GA491@swordfish>
+ <CADAEsF8icKGBcCV83BxSc2-pmK46rsZc1wgB8=Y=3m5CnN6K3A@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20160614062456.GB13753@js1304-P5Q-DELUXE>
-References: <CAMuHMdXC=zEjbZADE5wELjOq_kBiFNewpdUrMCe8d3Utu98h8A@mail.gmail.com>
- <20160614062456.GB13753@js1304-P5Q-DELUXE>
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Date: Tue, 14 Jun 2016 09:31:23 +0200
-Message-ID: <CAMuHMdWipquaVFKYLd=2KhTx6djwH7NXpzL-RjtikCE=G8KTbA@mail.gmail.com>
-Subject: Re: Boot failure on emev2/kzm9d (was: Re: [PATCH v2 11/11] mm/slab:
- lockless decision to grow cache)
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CADAEsF8icKGBcCV83BxSc2-pmK46rsZc1wgB8=Y=3m5CnN6K3A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-renesas-soc@vger.kernel.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, rostedt@goodmis.org, mingo@redhat.com
 
-Hi Joonsoo,
+On (06/13/16 15:49), Ganesh Mahendran wrote:
+[..]
+> > some parts (of the info above) are already available: zram<ID> maps to
+> > pool<ID> name, which maps to a sysfs file name, that can contain the rest.
+> > I'm just trying to understand what kind of optimizations we are talking
+> > about here and how would timings help... compaction can spin on class
+> > lock, for example, if the device in question is busy, etc. etc. on the
+> > other hand we have a per-class info in zsmalloc pool stats output, so
+> > why not extend it instead of introducing a new debugging interface?
+> 
+> I've considered adding new interface in /sys/../zsmalloc/ or uasing
+> trace_mm_shrink_slab_[start/end] to get such information.
+> But none of them can cover all the cases:
+> 1) distinguish which zs pool is compacted.
+> 2) freed pages of zs_compact(), total freed pages of zs_compact()
+> 3) realtime log printed
 
-On Tue, Jun 14, 2016 at 8:24 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> On Mon, Jun 13, 2016 at 09:43:13PM +0200, Geert Uytterhoeven wrote:
->> On Tue, Apr 12, 2016 at 6:51 AM,  <js1304@gmail.com> wrote:
->> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->> > To check whther free objects exist or not precisely, we need to grab a
->> > lock.  But, accuracy isn't that important because race window would be
->> > even small and if there is too much free object, cache reaper would reap
->> > it.  So, this patch makes the check for free object exisistence not to
->> > hold a lock.  This will reduce lock contention in heavily allocation case.
->> >
->> > Note that until now, n->shared can be freed during the processing by
->> > writing slabinfo, but, with some trick in this patch, we can access it
->> > freely within interrupt disabled period.
->> >
->> > Below is the result of concurrent allocation/free in slab allocation
->> > benchmark made by Christoph a long time ago.  I make the output simpler.
->> > The number shows cycle count during alloc/free respectively so less is
->> > better.
->> >
->> > * Before
->> > Kmalloc N*alloc N*free(32): Average=248/966
->> > Kmalloc N*alloc N*free(64): Average=261/949
->> > Kmalloc N*alloc N*free(128): Average=314/1016
->> > Kmalloc N*alloc N*free(256): Average=741/1061
->> > Kmalloc N*alloc N*free(512): Average=1246/1152
->> > Kmalloc N*alloc N*free(1024): Average=2437/1259
->> > Kmalloc N*alloc N*free(2048): Average=4980/1800
->> > Kmalloc N*alloc N*free(4096): Average=9000/2078
->> >
->> > * After
->> > Kmalloc N*alloc N*free(32): Average=344/792
->> > Kmalloc N*alloc N*free(64): Average=347/882
->> > Kmalloc N*alloc N*free(128): Average=390/959
->> > Kmalloc N*alloc N*free(256): Average=393/1067
->> > Kmalloc N*alloc N*free(512): Average=683/1229
->> > Kmalloc N*alloc N*free(1024): Average=1295/1325
->> > Kmalloc N*alloc N*free(2048): Average=2513/1664
->> > Kmalloc N*alloc N*free(4096): Average=4742/2172
->> >
->> > It shows that allocation performance decreases for the object size up to
->> > 128 and it may be due to extra checks in cache_alloc_refill().  But, with
->> > considering improvement of free performance, net result looks the same.
->> > Result for other size class looks very promising, roughly, 50% performance
->> > improvement.
->> >
->> > v2: replace kick_all_cpus_sync() with synchronize_sched().
->> >
->> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>
->> I've bisected a boot failure (no output at all) in v4.7-rc2 on emev2/kzm9d
->> (Renesas dual Cortex A9) to this patch, which is upstream commit
->> 801faf0db8947e01877920e848a4d338dd7a99e7.
->>
->> I've attached my .config. I don't know if it also happens with
->> shmobile_defconfig, as something went wrong with my remote access to the board,
->> preventing further testing. I also couldn't verify if the issue persists in
->> v4.7-rc3.
+I'm not against the patch in general, just curious, do you have any
+specific optimization in mind? if so, can we start with that optimization
+then, otherwise, can we define what type of optimizations this tracing
+will boost?
 
-In the mean time, I've verified it also happens with shmobile_defconfig.
+what I'm thinking of, we have a zsmalloc debugfs file, which provides
+per-device->per-pool->per-class stats:
 
->>
->> Do you have a clue?
->
-> I don't have yet. Could you help me to narrow down the problem?
-> Following diff is half-revert change to check that synchronize_sched()
-> has no problem.
+cat /sys/kernel/debug/zsmalloc/zram0/classes
+ class  size almost_full almost_empty obj_allocated   obj_used pages_used pages_per_zspage freeable
 
-Thanks!
+so the 'missing' thing is just one column, right? the total freed
+pages number is already accounted.
 
-Unfortunately the half revert is not sufficient. The full revert is.
+thoughts?
 
-> ----->8-----
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 763096a..257a0eb 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -3016,9 +3016,6 @@ static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
->         n = get_node(cachep, node);
->
->         BUG_ON(ac->avail > 0 || !n);
-> -       shared = READ_ONCE(n->shared);
-> -       if (!n->free_objects && (!shared || !shared->avail))
-> -               goto direct_grow;
->
->         spin_lock(&n->list_lock);
->         shared = READ_ONCE(n->shared);
-> @@ -3047,7 +3044,6 @@ alloc_done:
->         spin_unlock(&n->list_lock);
->         fixup_objfreelist_debug(cachep, &list);
->
-> -direct_grow:
->         if (unlikely(!ac->avail)) {
->                 /* Check if we can use obj in pfmemalloc slab */
->                 if (sk_memalloc_socks()) {
-
-Gr{oetje,eeting}s,
-
-                        Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
