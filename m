@@ -1,36 +1,46 @@
-From: Thomas Gleixner <tglx-hfZtesqFncYOwBW4kG4KsQ@public.gmane.org>
-Subject: Re: [PATCH 2/9] mm: implement new pkey_mprotect() system call
-Date: Sat, 11 Jun 2016 11:47:44 +0200 (CEST)
-Message-ID: <alpine.DEB.2.11.1606111147000.5839@nanos>
-References: <20160609000117.71AC7623@viggo.jf.intel.com> <20160609000120.A3DD5140@viggo.jf.intel.com>
+From: "H. Peter Anvin" <hpa@zytor.com>
+Subject: Re: [PATCH v2] Linux VM workaround for Knights Landing A/D leak
+Date: Tue, 14 Jun 2016 13:20:06 -0700
+Message-ID: <4b2c481e-35ae-1cd6-ca58-1535bfef346c@zytor.com>
+References: <7FB15233-B347-4A87-9506-A9E10D331292@gmail.com>
+ <1465923672-14232-1-git-send-email-lukasz.anaczkowski@intel.com>
+ <57603DC0.9070607@linux.intel.com>
+ <20160614193407.1470d998@lxorguk.ukuu.org.uk>
+ <576052E0.3050408@linux.intel.com> <20160614191916.GI30015@pd.tnic>
 Mime-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Return-path: <linux-api-owner-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>
-In-Reply-To: <20160609000120.A3DD5140-LXbPSdftPKxrdx17CPfAsdBPR1lH4CV8@public.gmane.org>
-Sender: linux-api-owner-u79uwXL29TY76Z2rM5mHXA@public.gmane.org
-To: Dave Hansen <dave-gkUM19QKKo4@public.gmane.org>
-Cc: linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, linux-api-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-arch-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, torvalds-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org, akpm-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org, dave.hansen-VuQAYsv1563Yd54FQh9/CA@public.gmane.org
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <20160614191916.GI30015@pd.tnic>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, Lukasz Anaczkowski <lukasz.anaczkowski@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, akpm@linux-foundation.org, harish.srinivasappa@intel.com, lukasz.odzioba@intel.com, grzegorz.andrejczuk@intel.com, lukasz.daniluk@intel.com
 List-Id: linux-mm.kvack.org
 
-On Wed, 8 Jun 2016, Dave Hansen wrote:
-> Proposed semantics:
-> 1. protection key 0 is special and represents the default,
->    unassigned protection key.  It is always allocated.
-> 2. mprotect() never affects a mapping's pkey_mprotect()-assigned
->    protection key. A protection key of 0 (even if set explicitly)
->    represents an unassigned protection key.
->    2a. mprotect(PROT_EXEC) on a mapping with an assigned protection
->        key may or may not result in a mapping with execute-only
->        properties.  pkey_mprotect() plus pkey_set() on all threads
->        should be used to _guarantee_ execute-only semantics.
-> 3. mprotect(PROT_EXEC) may result in an "execute-only" mapping. The
->    kernel will internally attempt to allocate and dedicate a
->    protection key for the purpose of execute-only mappings.  This
->    may not be possible in cases where there are no free protection
->    keys available.
+On 06/14/16 12:19, Borislav Petkov wrote:
+> On Tue, Jun 14, 2016 at 11:54:24AM -0700, Dave Hansen wrote:
+>> Lukasz, Borislav suggested using static_cpu_has_bug(), which will do the
+>> alternatives patching.  It's definitely the right thing to use here.
+> 
+> Yeah, either that or do an
+> 
+> alternative_call(null_func, fix_pte_peak, X86_BUG_PTE_LEAK, ...)
+> 
+> or so and you'll need a dummy function to call on !X86_BUG_PTE_LEAK
+> CPUs.
+> 
+> The static_cpu_has_bug() thing should be most likely a penalty
+> of a single JMP (I have to look at the asm) but then since the
+> callers are inlined, you'll have to patch all those places where
+> *ptep_get_and_clear() get inlined.
+> 
+> Shouldn't be a big deal still but...
+> 
+> "debug-alternative" and a kvm guest should help you there to get a quick
+> idea.
+> 
 
-Shouldn't we just reserve a protection key for PROT_EXEC unconditionally?
+static_cpu_has_bug() should turn into 5-byte NOP in the common (bugless)
+case.
 
-Thanks,
-
-	tglx
+	-hpa
