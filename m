@@ -1,64 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 01A8D6B0297
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 05:21:38 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id na2so59845263lbb.1
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 02:21:37 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id z10si33775339wjj.209.2016.06.14.02.20.46
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0137E6B0005
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 06:45:16 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id o127so138936831iod.1
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 03:45:15 -0700 (PDT)
+Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
+        by mx.google.com with ESMTPS id d75si15569096iof.142.2016.06.14.03.45.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 14 Jun 2016 02:21:36 -0700 (PDT)
-From: <zhouxianrong@huawei.com>
-Subject: [PATCH] more mapcount page as kpage could reduce total replacement times than fewer mapcount one in probability.
-Date: Tue, 14 Jun 2016 17:17:37 +0800
-Message-ID: <1465895857-1515-1-git-send-email-zhouxianrong@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Jun 2016 03:45:15 -0700 (PDT)
+Received: by mail-it0-x241.google.com with SMTP id d71so10675126ith.1
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 03:45:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20160614081125.GA17700@js1304-P5Q-DELUXE>
+References: <CAMuHMdXC=zEjbZADE5wELjOq_kBiFNewpdUrMCe8d3Utu98h8A@mail.gmail.com>
+ <20160614062456.GB13753@js1304-P5Q-DELUXE> <CAMuHMdWipquaVFKYLd=2KhTx6djwH7NXpzL-RjtikCE=G8KTbA@mail.gmail.com>
+ <20160614081125.GA17700@js1304-P5Q-DELUXE>
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Date: Tue, 14 Jun 2016 12:45:14 +0200
+Message-ID: <CAMuHMdXc=XN4z96vr_FNcUzFb0203ovHgcfD95Q5LPebr1z0ZQ@mail.gmail.com>
+Subject: Re: Boot failure on emev2/kzm9d (was: Re: [PATCH v2 11/11] mm/slab:
+ lockless decision to grow cache)
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, zhouchengming1@huawei.com, geliangtang@163.com, zhouxianrong@huawei.com, linux-kernel@vger.kernel.org, zhouxiyu@huawei.com, wanghaijun5@huawei.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-renesas-soc@vger.kernel.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-From: z00281421 <z00281421@notesmail.huawei.com>
+Hi Joonsoo,
 
-more mapcount page as kpage could reduce total replacement 
-times than fewer mapcount one when ksmd scan and replace 
-among forked pages later.
+On Tue, Jun 14, 2016 at 10:11 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> On Tue, Jun 14, 2016 at 09:31:23AM +0200, Geert Uytterhoeven wrote:
+>> On Tue, Jun 14, 2016 at 8:24 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>> > On Mon, Jun 13, 2016 at 09:43:13PM +0200, Geert Uytterhoeven wrote:
+>> >> On Tue, Apr 12, 2016 at 6:51 AM,  <js1304@gmail.com> wrote:
+>> >> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> >> > To check whther free objects exist or not precisely, we need to grab a
+>> >> > lock.  But, accuracy isn't that important because race window would be
+>> >> > even small and if there is too much free object, cache reaper would reap
+>> >> > it.  So, this patch makes the check for free object exisistence not to
+>> >> > hold a lock.  This will reduce lock contention in heavily allocation case.
+>> >> >
+>> >> > Note that until now, n->shared can be freed during the processing by
+>> >> > writing slabinfo, but, with some trick in this patch, we can access it
+>> >> > freely within interrupt disabled period.
+>> >> >
+>> >> > Below is the result of concurrent allocation/free in slab allocation
+>> >> > benchmark made by Christoph a long time ago.  I make the output simpler.
+>> >> > The number shows cycle count during alloc/free respectively so less is
+>> >> > better.
+>> >> >
+>> >> > * Before
+>> >> > Kmalloc N*alloc N*free(32): Average=248/966
+>> >> > Kmalloc N*alloc N*free(64): Average=261/949
+>> >> > Kmalloc N*alloc N*free(128): Average=314/1016
+>> >> > Kmalloc N*alloc N*free(256): Average=741/1061
+>> >> > Kmalloc N*alloc N*free(512): Average=1246/1152
+>> >> > Kmalloc N*alloc N*free(1024): Average=2437/1259
+>> >> > Kmalloc N*alloc N*free(2048): Average=4980/1800
+>> >> > Kmalloc N*alloc N*free(4096): Average=9000/2078
+>> >> >
+>> >> > * After
+>> >> > Kmalloc N*alloc N*free(32): Average=344/792
+>> >> > Kmalloc N*alloc N*free(64): Average=347/882
+>> >> > Kmalloc N*alloc N*free(128): Average=390/959
+>> >> > Kmalloc N*alloc N*free(256): Average=393/1067
+>> >> > Kmalloc N*alloc N*free(512): Average=683/1229
+>> >> > Kmalloc N*alloc N*free(1024): Average=1295/1325
+>> >> > Kmalloc N*alloc N*free(2048): Average=2513/1664
+>> >> > Kmalloc N*alloc N*free(4096): Average=4742/2172
+>> >> >
+>> >> > It shows that allocation performance decreases for the object size up to
+>> >> > 128 and it may be due to extra checks in cache_alloc_refill().  But, with
+>> >> > considering improvement of free performance, net result looks the same.
+>> >> > Result for other size class looks very promising, roughly, 50% performance
+>> >> > improvement.
+>> >> >
+>> >> > v2: replace kick_all_cpus_sync() with synchronize_sched().
+>> >> >
+>> >> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> >>
+>> >> I've bisected a boot failure (no output at all) in v4.7-rc2 on emev2/kzm9d
+>> >> (Renesas dual Cortex A9) to this patch, which is upstream commit
+>> >> 801faf0db8947e01877920e848a4d338dd7a99e7.
+>> >>
+>> >> I've attached my .config. I don't know if it also happens with
+>> >> shmobile_defconfig, as something went wrong with my remote access to the board,
+>> >> preventing further testing. I also couldn't verify if the issue persists in
+>> >> v4.7-rc3.
+>>
+>> In the mean time, I've verified it also happens with shmobile_defconfig.
+>>
+>> >> Do you have a clue?
+>> >
+>> > I don't have yet. Could you help me to narrow down the problem?
+>> > Following diff is half-revert change to check that synchronize_sched()
+>> > has no problem.
+>>
+>> Thanks!
+>>
+>> Unfortunately the half revert is not sufficient. The full revert is.
+>
+> Thanks for quick testing!
+>
+> Could I ask one more time to check that synchronize_sched() is root
+> cause of the problem? Testing following two diffs will be helpful to me.
+>
+> Thanks.
+>
+> ------->8--------
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 763096a..d892364 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -965,7 +965,7 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
+>          * freed after synchronize_sched().
+>          */
+>         if (force_change)
+> -               synchronize_sched();
+> +               kick_all_cpus_sync();
+>
+>  fail:
+>         kfree(old_shared);
 
-Signed-off-by: z00281421 <z00281421@notesmail.huawei.com>
----
- mm/ksm.c |   15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+Works.
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 4786b41..17a238c 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1094,6 +1094,21 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
- {
- 	int err;
- 
-+	/*
-+	 * select more mapcount page as kpage
-+	 */
-+	if (page_mapcount(page) < page_mapcount(tree_page)) {
-+		struct page *tmp_page;
-+		struct rmap_item *tmp_rmap_item;
-+
-+		tmp_page = page;
-+		page = tree_page;
-+		tree_page = tmp_page;
-+		tmp_rmap_item = rmap_item;
-+		rmap_item = tree_rmap_item;
-+		tree_rmap_item = tmp_rmap_item;
-+	}
-+
- 	err = try_to_merge_with_ksm_page(rmap_item, page, NULL);
- 	if (!err) {
- 		err = try_to_merge_with_ksm_page(tree_rmap_item,
--- 
-1.7.9.5
+> ------->8------
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 763096a..38d99c2 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -964,8 +964,6 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
+>          * guaranteed to be valid until irq is re-enabled, because it will be
+>          * freed after synchronize_sched().
+>          */
+> -       if (force_change)
+> -               synchronize_sched();
+>
+>  fail:
+>         kfree(old_shared);
+>
+
+Also works.
+
+Note that I do not see this problem on any of the other boards I use, one
+of which is also a dual Cortex A9.
+
+Gr{oetje,eeting}s,
+
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
