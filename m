@@ -1,53 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D3DB6B0005
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 16:44:27 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id s1so4832319qkc.2
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 13:44:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g124si19589879qke.278.2016.06.14.13.44.26
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jun 2016 13:44:26 -0700 (PDT)
-Date: Tue, 14 Jun 2016 22:44:20 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 0/10 -v4] Handle oom bypass more gracefully
-Message-ID: <20160614204420.GA2315@redhat.com>
-References: <1465473137-22531-1-git-send-email-mhocko@kernel.org>
- <20160613112348.GC6518@dhcp22.suse.cz>
- <20160613141324.GK6518@dhcp22.suse.cz>
- <20160614201740.GA617@redhat.com>
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CA2C6B007E
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 17:37:50 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id b13so4641594pat.3
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 14:37:50 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id nz7si9877423pab.191.2016.06.14.14.37.49
+        for <linux-mm@kvack.org>;
+        Tue, 14 Jun 2016 14:37:49 -0700 (PDT)
+Subject: Re: [PATCH] Linux VM workaround for Knights Landing A/D leak
+References: <1465919919-2093-1-git-send-email-lukasz.anaczkowski@intel.com>
+ <7FB15233-B347-4A87-9506-A9E10D331292@gmail.com>
+ <57603C61.5000408@linux.intel.com>
+ <2471A3E8-FF69-4720-A3BF-BDC6094A6A70@gmail.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <5760792D.90000@linux.intel.com>
+Date: Tue, 14 Jun 2016 14:37:49 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160614201740.GA617@redhat.com>
+In-Reply-To: <2471A3E8-FF69-4720-A3BF-BDC6094A6A70@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: Lukasz Anaczkowski <lukasz.anaczkowski@intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, harish.srinivasappa@intel.com, lukasz.odzioba@intel.com, Andy Lutomirski <luto@amacapital.net>
 
-On 06/14, Oleg Nesterov wrote:
->
-> So to me this additional patch looks fine,
+On 06/14/2016 01:16 PM, Nadav Amit wrote:
+> Dave Hansen <dave.hansen@linux.intel.com> wrote:
+> 
+>> On 06/14/2016 09:47 AM, Nadav Amit wrote:
+>>> Lukasz Anaczkowski <lukasz.anaczkowski@intel.com> wrote:
+>>>
+>>>>> From: Andi Kleen <ak@linux.intel.com>
+>>>>> +void fix_pte_leak(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+>>>>> +{
+>>> Here there should be a call to smp_mb__after_atomic() to synchronize with
+>>> switch_mm. I submitted a similar patch, which is still pending (hint).
+>>>
+>>>>> +	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids) {
+>>>>> +		trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
+>>>>> +		flush_tlb_others(mm_cpumask(mm), mm, addr,
+>>>>> +				 addr + PAGE_SIZE);
+>>>>> +		mb();
+>>>>> +		set_pte(ptep, __pte(0));
+>>>>> +	}
+>>>>> +}
+>>
+>> Shouldn't that barrier be incorporated in the TLB flush code itself and
+>> not every single caller (like this code is)?
+>>
+>> It is insane to require individual TLB flushers to be concerned with the
+>> barriers.
+> 
+> IMHO it is best to use existing flushing interfaces instead of creating
+> new ones. 
 
-forgot to mention, but I think it needs another change in task_will_free_mem(),
-it should ignore kthreads (should not fail if we see a kthread which shares
-task->mm).
+Yeah, or make these things a _little_ harder to get wrong.  That little
+snippet above isn't so crazy that we should be depending on open-coded
+barriers to get it right.
 
-And the comment you added on top of use_mm() looks misleading in any case.
+Should we just add a barrier to mm_cpumask() itself?  That should stop
+the race.  Or maybe we need a new primitive like:
 
-"Do not use copy_from_user from this context" looks simply wrong, why else
-do you need use_mm() if you are not going to do get/put_user?
+/*
+ * Call this if a full barrier has been executed since the last
+ * pagetable modification operation.
+ */
+static int __other_cpus_need_tlb_flush(struct mm_struct *mm)
+{
+	/* cpumask_any_but() returns >= nr_cpu_ids if no cpus set. */
+	return cpumask_any_but(mm_cpumask(mm), smp_processor_id()) <
+		nr_cpu_ids;
+}
 
-"because the address space might got reclaimed behind the back by the oom_reaper"
-doesn't look right too, copy_from_user() can also fail or read ZERO_PAGE() if mm
-owner does munmap/madvise.
 
-> but probably I missed something?
+static int other_cpus_need_tlb_flush(struct mm_struct *mm)
+{
+	/*
+	 * Synchronizes with switch_mm.  Makes sure that we do not
+	 * observe a bit having been cleared in mm_cpumask() before
+ 	 * the other processor has seen our pagetable update.  See
+	 * switch_mm().
+	 */
+	smp_mb__after_atomic();
 
-Yes...
+	return __other_cpus_need_tlb_flush(mm)
+}
 
-Oleg.
+We should be able to deploy other_cpus_need_tlb_flush() in most of the
+cases where we are doing "cpumask_any_but(mm_cpumask(mm),
+smp_processor_id()) < nr_cpu_ids".
+
+Right?
+
+> In theory, fix_pte_leak could have used flush_tlb_page. But the problem
+> is that flush_tlb_page requires the vm_area_struct as an argument, which
+> ptep_get_and_clear (and others) do not have.
+
+That, and we do not want/need to flush the _current_ processor's TLB.
+flush_tlb_page() would have done that unnecessarily.  That's not the end
+of the world here, but it is a downside.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
