@@ -1,242 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B72C6B007E
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 13:01:25 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id l5so267873ioa.0
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 10:01:25 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id q14si25077797par.57.2016.06.14.10.01.24
-        for <linux-mm@kvack.org>;
-        Tue, 14 Jun 2016 10:01:24 -0700 (PDT)
-From: Lukasz Anaczkowski <lukasz.anaczkowski@intel.com>
-Subject: [PATCH v2] Linux VM workaround for Knights Landing A/D leak
-Date: Tue, 14 Jun 2016 19:01:12 +0200
-Message-Id: <1465923672-14232-1-git-send-email-lukasz.anaczkowski@intel.com>
-In-Reply-To: <7FB15233-B347-4A87-9506-A9E10D331292@gmail.com>
-References: <7FB15233-B347-4A87-9506-A9E10D331292@gmail.com>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 59B3C6B007E
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 13:15:11 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id c82so152204wme.2
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 10:15:11 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id c10si8926818wjb.241.2016.06.14.10.15.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Jun 2016 10:15:10 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id k184so82933wme.2
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 10:15:10 -0700 (PDT)
+Subject: Re: [RFC 03/18] memcontrol: present maximum used memory also for
+ cgroup-v2
+References: <1465847065-3577-1-git-send-email-toiwoton@gmail.com>
+ <1465847065-3577-4-git-send-email-toiwoton@gmail.com>
+ <20160614070130.GB5681@dhcp22.suse.cz>
+ <b9d04ccd-28d2-993a-2a40-bbed7b6289d4@gmail.com>
+ <20160614160410.GB14279@cmpxchg.org>
+From: Topi Miettinen <toiwoton@gmail.com>
+Message-ID: <db6a51eb-d1f7-691b-11a6-ef0b7c1c9462@gmail.com>
+Date: Tue, 14 Jun 2016 17:15:06 +0000
+MIME-Version: 1.0
+In-Reply-To: <20160614160410.GB14279@cmpxchg.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, dave.hansen@linux.intel.com, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, akpm@linux-foundation.org, hpa@zytor.com
-Cc: lukasz.anaczkowski@intel.com, harish.srinivasappa@intel.com, lukasz.odzioba@intel.com, grzegorz.andrejczuk@intel.com, lukasz.daniluk@intel.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, "open list:CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)" <cgroups@vger.kernel.org>, "open list:CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)" <linux-mm@kvack.org>
 
-From: Andi Kleen <ak@linux.intel.com>
+On 06/14/16 16:04, Johannes Weiner wrote:
+> On Tue, Jun 14, 2016 at 03:47:20PM +0000, Topi Miettinen wrote:
+>> On 06/14/16 07:01, Michal Hocko wrote:
+>>> On Mon 13-06-16 22:44:10, Topi Miettinen wrote:
+>>>> Present maximum used memory in cgroup memory.current_max.
+>>>
+>>> It would be really much more preferable to present the usecase in the
+>>> patch description. It is true that this information is presented in the
+>>> v1 API but the current policy is to export new knobs only when there is
+>>> a reasonable usecase for it.
+>>>
+>>
+>> This was stated in the cover letter:
+>> https://lkml.org/lkml/2016/6/13/857
+>>
+>> "There are many basic ways to control processes, including capabilities,
+>> cgroups and resource limits. However, there are far fewer ways to find out
+>> useful values for the limits, except blind trial and error.
+>>
+>> This patch series attempts to fix that by giving at least a nice starting
+>> point from the actual maximum values. I looked where each limit is checked
+>> and added a call to limit bump nearby."
+>>
+>> "Cgroups
+>> [RFC 02/18] cgroup_pids: track maximum pids
+>> [RFC 03/18] memcontrol: present maximum used memory also for
+>> [RFC 04/18] device_cgroup: track and present accessed devices
+>>
+>> For tasks and memory cgroup limits the situation is somewhat better as the
+>> current tasks and memory status can be easily seen with ps(1). However, any
+>> transient tasks or temporary higher memory use might slip from the view.
+>> Device use may be seen with advanced MAC tools, like TOMOYO, but there is no
+>> universal method. Program sources typically give no useful indication about
+>> memory use or how many tasks there could be."
+>>
+>> I can add some of this to the commit message, is that sufficient for you?
+> 
+> It's useful to have a short summary of the justification in each patch
+> as well. Other than that it's fine to be broader and more detailed
+> about your motivation in the coverletter.
+> 
+> I didn't catch the coverletter, though. It makes sense to CC
+> recipients of any of those patches on the full series, including the
+> cover, since even though we are specialized in certain areas of the
+> code, many of us are interested in the whole picture of addressing a
+> problem, and not just the few bits in our area without more context.
+> 
 
-Knights Landing has a issue that a thread setting A or D bits
-may not do so atomically against checking the present bit.
-A thread which is going to page fault may still set those
-bits, even though the present bit was already atomically cleared.
+Thank you for this nice explanation. I suppose "git send-email
+--cc-cmd=scripts/get_maintainer.pl" doesn't do this.
 
-This implies that when the kernel clears present atomically,
-some time later the supposed to be zero entry could be corrupted
-with stray A or D bits.
+> As far as the memcg part of this series goes, one concern is that page
+> cache is trimmed back only when there is pressure, so in all but very
+> few cases the high watermark you are introducing will be pegged to the
+> configured limit. It doesn't give a whole lot of insight.
+> 
 
-Since the PTE could be already used for storing a swap index,
-or a NUMA migration index, this cannot be tolerated. Most
-of the time the kernel detects the problem, but in some
-rare cases it may not.
+So using the high watermark would not give a very useful starting point
+for the user who wished to configure the memory limit? What else could
+be used instead?
 
-This patch enforces that the page unmap path in vmscan/direct reclaim
-always flushes other CPUs after clearing each page, and also
-clears the PTE again after the flush.
+> But there are consumers that are less/not compressible than cache,
+> such as anonymous memory, unreclaimable slab, maybe socket buffers
+> etc. Having spikes in those slip through two sampling points is an
+> issue, indeed. Adding consumer-specific watermarks might be useful.
+> 
+> Thanks
+> 
 
-For reclaim this brings the performance back to before Mel's
-flushing changes, but for unmap it disables batching.
+OK, but there's no limiting or tuning mechanism in place for now for
+those, or is there? How could the results be used?
 
-This makes sure any leaked A/D bits are immediately cleared before the entry
-is used for something else.
-
-Any parallel faults that check for entry is zero may loop,
-but they should eventually recover after the entry is written.
-
-Also other users may spin in the page table lock until we
-"fixed" the PTE. This is ensured by always taking the page table lock
-even for the swap cache case. Previously this was only done
-on architectures with non atomic PTE accesses (such as 32bit PTE),
-but now it is also done when this bug workaround is active.
-
-I audited apply_pte_range and other users of arch_enter_lazy...
-and they seem to all not clear the present bit.
-
-Right now the extra flush is done in the low level
-architecture code, while the higher level code still
-does batched TLB flush. This means there is always one extra
-unnecessary TLB flush now. As a followon optimization
-this could be avoided by telling the callers that
-the flush already happenend.
-
-v2 (Lukasz Anaczkowski):
-    () added call to smp_mb__after_atomic() to synchornize with
-       switch_mm, based on Nadav's comment
-    () fixed compilation breakage
-
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
-Signed-off-by: Lukasz Anaczkowski <lukasz.anaczkowski@intel.com>
----
- arch/x86/include/asm/cpufeatures.h |  1 +
- arch/x86/include/asm/hugetlb.h     |  9 ++++++++-
- arch/x86/include/asm/pgtable.h     |  5 +++++
- arch/x86/include/asm/pgtable_64.h  |  6 ++++++
- arch/x86/kernel/cpu/intel.c        | 10 ++++++++++
- arch/x86/mm/tlb.c                  | 22 ++++++++++++++++++++++
- include/linux/mm.h                 |  4 ++++
- mm/memory.c                        |  3 ++-
- 8 files changed, 58 insertions(+), 2 deletions(-)
-
-diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
-index 4a41348..2c48011 100644
---- a/arch/x86/include/asm/cpufeatures.h
-+++ b/arch/x86/include/asm/cpufeatures.h
-@@ -303,6 +303,7 @@
- #define X86_BUG_SYSRET_SS_ATTRS	X86_BUG(8) /* SYSRET doesn't fix up SS attrs */
- #define X86_BUG_NULL_SEG	X86_BUG(9) /* Nulling a selector preserves the base */
- #define X86_BUG_SWAPGS_FENCE	X86_BUG(10) /* SWAPGS without input dep on GS */
-+#define X86_BUG_PTE_LEAK        X86_BUG(11) /* PTE may leak A/D bits after clear */
- 
- 
- #ifdef CONFIG_X86_32
-diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
-index 3a10616..58e1ca9 100644
---- a/arch/x86/include/asm/hugetlb.h
-+++ b/arch/x86/include/asm/hugetlb.h
-@@ -41,10 +41,17 @@ static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
- 	set_pte_at(mm, addr, ptep, pte);
- }
- 
-+extern void fix_pte_leak(struct mm_struct *mm, unsigned long addr,
-+			 pte_t *ptep);
-+
- static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
- 					    unsigned long addr, pte_t *ptep)
- {
--	return ptep_get_and_clear(mm, addr, ptep);
-+	pte_t pte = ptep_get_and_clear(mm, addr, ptep);
-+
-+	if (boot_cpu_has_bug(X86_BUG_PTE_LEAK))
-+		fix_pte_leak(mm, addr, ptep);
-+	return pte;
- }
- 
- static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 1a27396..9769355 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -794,11 +794,16 @@ extern int ptep_test_and_clear_young(struct vm_area_struct *vma,
- extern int ptep_clear_flush_young(struct vm_area_struct *vma,
- 				  unsigned long address, pte_t *ptep);
- 
-+extern void fix_pte_leak(struct mm_struct *mm, unsigned long addr,
-+			 pte_t *ptep);
-+
- #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
- static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
- 				       pte_t *ptep)
- {
- 	pte_t pte = native_ptep_get_and_clear(ptep);
-+	if (boot_cpu_has_bug(X86_BUG_PTE_LEAK))
-+		fix_pte_leak(mm, addr, ptep);
- 	pte_update(mm, addr, ptep);
- 	return pte;
- }
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 2ee7811..6fa4079 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -178,6 +178,12 @@ extern void cleanup_highmap(void);
- extern void init_extra_mapping_uc(unsigned long phys, unsigned long size);
- extern void init_extra_mapping_wb(unsigned long phys, unsigned long size);
- 
-+#define ARCH_HAS_NEEDS_SWAP_PTL 1
-+static inline bool arch_needs_swap_ptl(void)
-+{
-+       return boot_cpu_has_bug(X86_BUG_PTE_LEAK);
-+}
-+
- #endif /* !__ASSEMBLY__ */
- 
- #endif /* _ASM_X86_PGTABLE_64_H */
-diff --git a/arch/x86/kernel/cpu/intel.c b/arch/x86/kernel/cpu/intel.c
-index 6e2ffbe..f499513 100644
---- a/arch/x86/kernel/cpu/intel.c
-+++ b/arch/x86/kernel/cpu/intel.c
-@@ -181,6 +181,16 @@ static void early_init_intel(struct cpuinfo_x86 *c)
- 		}
- 	}
- 
-+	if (c->x86_model == 87) {
-+		static bool printed;
-+
-+		if (!printed) {
-+			pr_info("Enabling PTE leaking workaround\n");
-+			printed = true;
-+		}
-+		set_cpu_bug(c, X86_BUG_PTE_LEAK);
-+	}
-+
- 	/*
- 	 * Intel Quark Core DevMan_001.pdf section 6.4.11
- 	 * "The operating system also is required to invalidate (i.e., flush)
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 5643fd0..9b4c575 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -469,3 +469,25 @@ static int __init create_tlb_single_page_flush_ceiling(void)
- late_initcall(create_tlb_single_page_flush_ceiling);
- 
- #endif /* CONFIG_SMP */
-+
-+/*
-+ * Workaround for KNL issue:
-+ *
-+ * A thread that is going to page fault due to P=0, may still
-+ * non atomically set A or D bits, which could corrupt swap entries.
-+ * Always flush the other CPUs and clear the PTE again to avoid
-+ * this leakage. We are excluded using the pagetable lock.
-+ */
-+
-+void fix_pte_leak(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
-+{
-+	smp_mb__after_atomic();
-+	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids) {
-+		trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
-+		flush_tlb_others(mm_cpumask(mm), mm, addr,
-+				 addr + PAGE_SIZE);
-+		mb();
-+		set_pte(ptep, __pte(0));
-+	}
-+}
-+
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5df5feb..5c80fe09 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2404,6 +2404,10 @@ static inline bool debug_guardpage_enabled(void) { return false; }
- static inline bool page_is_guard(struct page *page) { return false; }
- #endif /* CONFIG_DEBUG_PAGEALLOC */
- 
-+#ifndef ARCH_HAS_NEEDS_SWAP_PTL
-+static inline bool arch_needs_swap_ptl(void) { return false; }
-+#endif
-+
- #if MAX_NUMNODES > 1
- void __init setup_nr_node_ids(void);
- #else
-diff --git a/mm/memory.c b/mm/memory.c
-index 15322b7..0d6ef39 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1960,7 +1960,8 @@ static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
- {
- 	int same = 1;
- #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
--	if (sizeof(pte_t) > sizeof(unsigned long)) {
-+	if (arch_needs_swap_ptl() ||
-+	    sizeof(pte_t) > sizeof(unsigned long)) {
- 		spinlock_t *ptl = pte_lockptr(mm, pmd);
- 		spin_lock(ptl);
- 		same = pte_same(*page_table, orig_pte);
--- 
-1.8.3.1
+-Topi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
