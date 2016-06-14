@@ -1,52 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 91FF16B0285
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 04:13:20 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id r6so10670686obx.1
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 01:13:20 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0102.outbound.protection.outlook.com. [104.47.0.102])
-        by mx.google.com with ESMTPS id 30si13842102oti.234.2016.06.14.01.13.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 14 Jun 2016 01:13:19 -0700 (PDT)
-Date: Tue, 14 Jun 2016 11:13:12 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH RFC] slub: reap free slabs periodically
-Message-ID: <20160614081312.GL30465@esperanza>
-References: <1465575243-18882-1-git-send-email-vdavydov@virtuozzo.com>
- <alpine.DEB.2.20.1606101629520.6786@east.gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1606101629520.6786@east.gentwo.org>
+Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BB396B0289
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 04:42:44 -0400 (EDT)
+Received: by mail-ob0-f200.google.com with SMTP id jt9so11654401obc.2
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 01:42:44 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id w1si37499042pfa.213.2016.06.14.01.42.43
+        for <linux-mm@kvack.org>;
+        Tue, 14 Jun 2016 01:42:43 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 0/2] Reverts to address unixbench regression
+Date: Tue, 14 Jun 2016 11:42:28 +0300
+Message-Id: <1465893750-44080-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, "Huang, Ying" <ying.huang@intel.com>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Vinayak Menon <vinmenon@codeaurora.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, Jun 10, 2016 at 04:32:26PM -0500, Christoph Lameter wrote:
-> One reason for SLUBs creation was the 2 second scans in  SLAB which causes
-> significant disruption of latency sensitive tasksk.
+Faultaround changes cause regression in unixbench, let's revert them.
 
-That's not good, indeed.
+Kirill A. Shutemov (2):
+  Revert "mm: make faultaround produce old ptes"
+  Revert "mm: disable fault around on emulated access bit architecture"
 
-> 
-> You can simply implement a reaper in userspace by running
-> 
-> slabinfo -s
-> 
-> if you have to have this.
+ include/linux/mm.h |  2 +-
+ mm/filemap.c       |  2 +-
+ mm/memory.c        | 31 +++++--------------------------
+ 3 files changed, 7 insertions(+), 28 deletions(-)
 
-Doing this periodically would probably hurt performance of active caches
-as 'slabinfo -s' shrinks all slabs unconditionally, even if they are
-being actively used. OTOH, one could trigger shrinking slabs only on
-memory pressure. That would require yet another daemon tracking the
-system state, but it is doable I guess.
-
-Thanks a lot for your input, Christoph.
-
-> 
-> There is no need to duplicate SLAB problems.
+-- 
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
