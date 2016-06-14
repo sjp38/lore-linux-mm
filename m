@@ -1,53 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CF81A6B007E
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 10:53:01 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id l184so20282491lfl.3
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 07:53:01 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id j9si29931718wjt.128.2016.06.14.07.53.00
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 483A46B007E
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 11:47:25 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id wy7so57762509lbb.0
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 08:47:25 -0700 (PDT)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id md4si11781829wjb.246.2016.06.14.08.47.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 14 Jun 2016 07:53:00 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id DE95798DBC
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 14:52:59 +0000 (UTC)
-Date: Tue, 14 Jun 2016 15:52:58 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 06/27] mm, vmscan: Make kswapd reclaim in terms of nodes
-Message-ID: <20160614145258.GD1868@techsingularity.net>
-References: <02fe01d1c48b$c44e9e80$4cebdb80$@alibaba-inc.com>
- <02ff01d1c48d$78112f40$68338dc0$@alibaba-inc.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Jun 2016 08:47:23 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id m124so23348181wme.3
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 08:47:23 -0700 (PDT)
+Subject: Re: [RFC 03/18] memcontrol: present maximum used memory also for
+ cgroup-v2
+References: <1465847065-3577-1-git-send-email-toiwoton@gmail.com>
+ <1465847065-3577-4-git-send-email-toiwoton@gmail.com>
+ <20160614070130.GB5681@dhcp22.suse.cz>
+From: Topi Miettinen <toiwoton@gmail.com>
+Message-ID: <b9d04ccd-28d2-993a-2a40-bbed7b6289d4@gmail.com>
+Date: Tue, 14 Jun 2016 15:47:20 +0000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <02ff01d1c48d$78112f40$68338dc0$@alibaba-inc.com>
+In-Reply-To: <20160614070130.GB5681@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, "open list:CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)" <cgroups@vger.kernel.org>, "open list:CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)" <linux-mm@kvack.org>
 
-On Sun, Jun 12, 2016 at 05:33:24PM +0800, Hillf Danton wrote:
-> > -	/*
-> > -	 * We put equal pressure on every zone, unless one zone has way too
-> > -	 * many pages free already. The "too many pages" is defined as the
-> > -	 * high wmark plus a "gap" where the gap is either the low
-> > -	 * watermark or 1% of the zone, whichever is smaller.
-> > -	 */
-> > -	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
-> > -			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
-> > +		nr_to_reclaim += max(high_wmark_pages(zone), SWAP_CLUSTER_MAX);
-> > +	}
+On 06/14/16 07:01, Michal Hocko wrote:
+> On Mon 13-06-16 22:44:10, Topi Miettinen wrote:
+>> Present maximum used memory in cgroup memory.current_max.
 > 
-> Missing sc->nr_to_reclaim = nr_to_reclaim; ?
+> It would be really much more preferable to present the usecase in the
+> patch description. It is true that this information is presented in the
+> v1 API but the current policy is to export new knobs only when there is
+> a reasonable usecase for it.
 > 
 
-Yes. It may explain why I saw lower than expected kswapd in more
-detailed tests recently. Thanks.
+This was stated in the cover letter:
+https://lkml.org/lkml/2016/6/13/857
 
--- 
-Mel Gorman
-SUSE Labs
+"There are many basic ways to control processes, including capabilities,
+cgroups and resource limits. However, there are far fewer ways to find out
+useful values for the limits, except blind trial and error.
+
+This patch series attempts to fix that by giving at least a nice starting
+point from the actual maximum values. I looked where each limit is checked
+and added a call to limit bump nearby."
+
+"Cgroups
+[RFC 02/18] cgroup_pids: track maximum pids
+[RFC 03/18] memcontrol: present maximum used memory also for
+[RFC 04/18] device_cgroup: track and present accessed devices
+
+For tasks and memory cgroup limits the situation is somewhat better as the
+current tasks and memory status can be easily seen with ps(1). However, any
+transient tasks or temporary higher memory use might slip from the view.
+Device use may be seen with advanced MAC tools, like TOMOYO, but there is no
+universal method. Program sources typically give no useful indication about
+memory use or how many tasks there could be."
+
+I can add some of this to the commit message, is that sufficient for you?
+
+>> Signed-off-by: Topi Miettinen <toiwoton@gmail.com>
+>> ---
+>>  include/linux/page_counter.h |  7 ++++++-
+>>  mm/memcontrol.c              | 13 +++++++++++++
+>>  2 files changed, 19 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/include/linux/page_counter.h b/include/linux/page_counter.h
+>> index 7e62920..be4de17 100644
+>> --- a/include/linux/page_counter.h
+>> +++ b/include/linux/page_counter.h
+>> @@ -9,9 +9,9 @@ struct page_counter {
+>>  	atomic_long_t count;
+>>  	unsigned long limit;
+>>  	struct page_counter *parent;
+>> +	unsigned long watermark;
+>>  
+>>  	/* legacy */
+>> -	unsigned long watermark;
+>>  	unsigned long failcnt;
+>>  };
+>>  
+>> @@ -34,6 +34,11 @@ static inline unsigned long page_counter_read(struct page_counter *counter)
+>>  	return atomic_long_read(&counter->count);
+>>  }
+>>  
+>> +static inline unsigned long page_counter_read_watermark(struct page_counter *counter)
+>> +{
+>> +	return counter->watermark;
+>> +}
+>> +
+>>  void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages);
+>>  void page_counter_charge(struct page_counter *counter, unsigned long nr_pages);
+>>  bool page_counter_try_charge(struct page_counter *counter,
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 75e7440..5513771 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -4966,6 +4966,14 @@ static u64 memory_current_read(struct cgroup_subsys_state *css,
+>>  	return (u64)page_counter_read(&memcg->memory) * PAGE_SIZE;
+>>  }
+>>  
+>> +static u64 memory_current_max_read(struct cgroup_subsys_state *css,
+>> +				   struct cftype *cft)
+>> +{
+>> +	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+>> +
+>> +	return (u64)page_counter_read_watermark(&memcg->memory) * PAGE_SIZE;
+>> +}
+>> +
+>>  static int memory_low_show(struct seq_file *m, void *v)
+>>  {
+>>  	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+>> @@ -5179,6 +5187,11 @@ static struct cftype memory_files[] = {
+>>  		.read_u64 = memory_current_read,
+>>  	},
+>>  	{
+>> +		.name = "current_max",
+>> +		.flags = CFTYPE_NOT_ON_ROOT,
+>> +		.read_u64 = memory_current_max_read,
+>> +	},
+>> +	{
+>>  		.name = "low",
+>>  		.flags = CFTYPE_NOT_ON_ROOT,
+>>  		.seq_show = memory_low_show,
+>> -- 
+>> 2.8.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
