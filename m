@@ -1,122 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 97406828FF
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 02:22:53 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id g62so230088577pfb.3
-        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 23:22:53 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id ok15si12761128pab.146.2016.06.13.23.22.51
-        for <linux-mm@kvack.org>;
-        Mon, 13 Jun 2016 23:22:52 -0700 (PDT)
-Date: Tue, 14 Jun 2016 15:24:57 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: Boot failure on emev2/kzm9d (was: Re: [PATCH v2 11/11] mm/slab:
- lockless decision to grow cache)
-Message-ID: <20160614062456.GB13753@js1304-P5Q-DELUXE>
-References: <CAMuHMdXC=zEjbZADE5wELjOq_kBiFNewpdUrMCe8d3Utu98h8A@mail.gmail.com>
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 65A14828FF
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 02:36:12 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id wy7so51773766lbb.0
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 23:36:12 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id n188si2381996wmf.30.2016.06.13.23.36.10
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 13 Jun 2016 23:36:10 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id m124so19731270wme.3
+        for <linux-mm@kvack.org>; Mon, 13 Jun 2016 23:36:10 -0700 (PDT)
+Date: Tue, 14 Jun 2016 08:36:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, slaub: Add __GFP_ATOMIC to the GFP reclaim mask
+Message-ID: <20160614063608.GA5681@dhcp22.suse.cz>
+References: <20160610093832.GK2527@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAMuHMdXC=zEjbZADE5wELjOq_kBiFNewpdUrMCe8d3Utu98h8A@mail.gmail.com>
+In-Reply-To: <20160610093832.GK2527@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-renesas-soc@vger.kernel.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Marcin Wojtas <mw@semihalf.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon, Jun 13, 2016 at 09:43:13PM +0200, Geert Uytterhoeven wrote:
-> Hi Joonsoo,
-
-Hello,
-
+On Fri 10-06-16 10:38:32, Mel Gorman wrote:
+> Commit d0164adc89f6 ("mm, page_alloc: distinguish between being unable to
+> sleep, unwilling to sleep and avoiding waking kswapd") modified __GFP_WAIT
+> to explicitly identify the difference between atomic callers and those that
+> were unwilling to sleep. Later the definition was removed entirely.
 > 
-> On Tue, Apr 12, 2016 at 6:51 AM,  <js1304@gmail.com> wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >
-> > To check whther free objects exist or not precisely, we need to grab a
-> > lock.  But, accuracy isn't that important because race window would be
-> > even small and if there is too much free object, cache reaper would reap
-> > it.  So, this patch makes the check for free object exisistence not to
-> > hold a lock.  This will reduce lock contention in heavily allocation case.
-> >
-> > Note that until now, n->shared can be freed during the processing by
-> > writing slabinfo, but, with some trick in this patch, we can access it
-> > freely within interrupt disabled period.
-> >
-> > Below is the result of concurrent allocation/free in slab allocation
-> > benchmark made by Christoph a long time ago.  I make the output simpler.
-> > The number shows cycle count during alloc/free respectively so less is
-> > better.
-> >
-> > * Before
-> > Kmalloc N*alloc N*free(32): Average=248/966
-> > Kmalloc N*alloc N*free(64): Average=261/949
-> > Kmalloc N*alloc N*free(128): Average=314/1016
-> > Kmalloc N*alloc N*free(256): Average=741/1061
-> > Kmalloc N*alloc N*free(512): Average=1246/1152
-> > Kmalloc N*alloc N*free(1024): Average=2437/1259
-> > Kmalloc N*alloc N*free(2048): Average=4980/1800
-> > Kmalloc N*alloc N*free(4096): Average=9000/2078
-> >
-> > * After
-> > Kmalloc N*alloc N*free(32): Average=344/792
-> > Kmalloc N*alloc N*free(64): Average=347/882
-> > Kmalloc N*alloc N*free(128): Average=390/959
-> > Kmalloc N*alloc N*free(256): Average=393/1067
-> > Kmalloc N*alloc N*free(512): Average=683/1229
-> > Kmalloc N*alloc N*free(1024): Average=1295/1325
-> > Kmalloc N*alloc N*free(2048): Average=2513/1664
-> > Kmalloc N*alloc N*free(4096): Average=4742/2172
-> >
-> > It shows that allocation performance decreases for the object size up to
-> > 128 and it may be due to extra checks in cache_alloc_refill().  But, with
-> > considering improvement of free performance, net result looks the same.
-> > Result for other size class looks very promising, roughly, 50% performance
-> > improvement.
-> >
-> > v2: replace kick_all_cpus_sync() with synchronize_sched().
-> >
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> The GFP_RECLAIM_MASK is the set of flags that affect watermark checking
+> and reclaim behaviour but __GFP_ATOMIC was never added. Without it, atomic
+> users of the slab allocator strip the __GFP_ATOMIC flag and cannot access
+> the page allocator atomic reserves.  This patch addresses the problem.
 > 
-> I've bisected a boot failure (no output at all) in v4.7-rc2 on emev2/kzm9d
-> (Renesas dual Cortex A9) to this patch, which is upstream commit
-> 801faf0db8947e01877920e848a4d338dd7a99e7.
+> The user-visible impact depends on the workload but potentially atomic
+> allocations unnecessarily fail without this path.
 > 
-> I've attached my .config. I don't know if it also happens with
-> shmobile_defconfig, as something went wrong with my remote access to the board,
-> preventing further testing. I also couldn't verify if the issue persists in
-> v4.7-rc3.
+> Cc: <stable@vger.kernel.org> # 4.4+
+> Reported-by: Marcin Wojtas <mw@semihalf.com>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/internal.h | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
 > 
-> Do you have a clue?
+> diff --git a/mm/internal.h b/mm/internal.h
+> index a37e5b6f9d25..2524ec880e24 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -24,7 +24,8 @@
+>   */
+>  #define GFP_RECLAIM_MASK (__GFP_RECLAIM|__GFP_HIGH|__GFP_IO|__GFP_FS|\
+>  			__GFP_NOWARN|__GFP_REPEAT|__GFP_NOFAIL|\
+> -			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC)
+> +			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC|\
+> +			__GFP_ATOMIC)
+>  
+>  /* The GFP flags allowed during early boot */
+>  #define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_RECLAIM|__GFP_IO|__GFP_FS))
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-I don't have yet. Could you help me to narrow down the problem?
-Following diff is half-revert change to check that synchronize_sched()
-has no problem.
-
-Thanks.
-
------>8-----
-diff --git a/mm/slab.c b/mm/slab.c
-index 763096a..257a0eb 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3016,9 +3016,6 @@ static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
-        n = get_node(cachep, node);
- 
-        BUG_ON(ac->avail > 0 || !n);
--       shared = READ_ONCE(n->shared);
--       if (!n->free_objects && (!shared || !shared->avail))
--               goto direct_grow;
- 
-        spin_lock(&n->list_lock);
-        shared = READ_ONCE(n->shared);
-@@ -3047,7 +3044,6 @@ alloc_done:
-        spin_unlock(&n->list_lock);
-        fixup_objfreelist_debug(cachep, &list);
- 
--direct_grow:
-        if (unlikely(!ac->avail)) {
-                /* Check if we can use obj in pfmemalloc slab */
-                if (sk_memalloc_socks()) {
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
