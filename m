@@ -1,228 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E572828FF
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 03:18:08 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 4so40463493wmz.1
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 00:18:08 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id k2si6445285wjs.220.2016.06.14.00.18.06
+Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CF7BF828EE
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 03:31:25 -0400 (EDT)
+Received: by mail-ob0-f200.google.com with SMTP id jt9so10540608obc.2
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 00:31:25 -0700 (PDT)
+Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
+        by mx.google.com with ESMTPS id d75si14549347iof.142.2016.06.14.00.31.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Jun 2016 00:18:06 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id k184so19988006wme.2
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 00:18:06 -0700 (PDT)
-Date: Tue, 14 Jun 2016 09:18:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/3] mm, thp: convert from optimistic to conservative
-Message-ID: <20160614071804.GD5681@dhcp22.suse.cz>
-References: <1465672561-29608-1-git-send-email-ebru.akagunduz@gmail.com>
- <1465672561-29608-3-git-send-email-ebru.akagunduz@gmail.com>
+        Tue, 14 Jun 2016 00:31:24 -0700 (PDT)
+Received: by mail-it0-x241.google.com with SMTP id e5so10143690ith.2
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 00:31:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1465672561-29608-3-git-send-email-ebru.akagunduz@gmail.com>
+In-Reply-To: <20160614062456.GB13753@js1304-P5Q-DELUXE>
+References: <CAMuHMdXC=zEjbZADE5wELjOq_kBiFNewpdUrMCe8d3Utu98h8A@mail.gmail.com>
+ <20160614062456.GB13753@js1304-P5Q-DELUXE>
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Date: Tue, 14 Jun 2016 09:31:23 +0200
+Message-ID: <CAMuHMdWipquaVFKYLd=2KhTx6djwH7NXpzL-RjtikCE=G8KTbA@mail.gmail.com>
+Subject: Re: Boot failure on emev2/kzm9d (was: Re: [PATCH v2 11/11] mm/slab:
+ lockless decision to grow cache)
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, boaz@plexistor.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-renesas-soc@vger.kernel.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Sat 11-06-16 22:16:00, Ebru Akagunduz wrote:
-> Currently, khugepaged collapses pages saying only
-> a referenced page enough to create a THP.
-> 
-> This patch changes the design from optimistic to conservative.
-> It gives a default threshold which is half of HPAGE_PMD_NR
-> for referenced pages, also introduces a new sysfs knob.
+Hi Joonsoo,
 
-I am not really happy about yet another tunable khugepaged_max_ptes_none
-is too specific already. We do not want to have one knob per page
-bit. Shouldn't we rather make the existing knob more generic to allow
-implementation to decide whether young bit or present bit is more
-important.
+On Tue, Jun 14, 2016 at 8:24 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> On Mon, Jun 13, 2016 at 09:43:13PM +0200, Geert Uytterhoeven wrote:
+>> On Tue, Apr 12, 2016 at 6:51 AM,  <js1304@gmail.com> wrote:
+>> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> > To check whther free objects exist or not precisely, we need to grab a
+>> > lock.  But, accuracy isn't that important because race window would be
+>> > even small and if there is too much free object, cache reaper would reap
+>> > it.  So, this patch makes the check for free object exisistence not to
+>> > hold a lock.  This will reduce lock contention in heavily allocation case.
+>> >
+>> > Note that until now, n->shared can be freed during the processing by
+>> > writing slabinfo, but, with some trick in this patch, we can access it
+>> > freely within interrupt disabled period.
+>> >
+>> > Below is the result of concurrent allocation/free in slab allocation
+>> > benchmark made by Christoph a long time ago.  I make the output simpler.
+>> > The number shows cycle count during alloc/free respectively so less is
+>> > better.
+>> >
+>> > * Before
+>> > Kmalloc N*alloc N*free(32): Average=248/966
+>> > Kmalloc N*alloc N*free(64): Average=261/949
+>> > Kmalloc N*alloc N*free(128): Average=314/1016
+>> > Kmalloc N*alloc N*free(256): Average=741/1061
+>> > Kmalloc N*alloc N*free(512): Average=1246/1152
+>> > Kmalloc N*alloc N*free(1024): Average=2437/1259
+>> > Kmalloc N*alloc N*free(2048): Average=4980/1800
+>> > Kmalloc N*alloc N*free(4096): Average=9000/2078
+>> >
+>> > * After
+>> > Kmalloc N*alloc N*free(32): Average=344/792
+>> > Kmalloc N*alloc N*free(64): Average=347/882
+>> > Kmalloc N*alloc N*free(128): Average=390/959
+>> > Kmalloc N*alloc N*free(256): Average=393/1067
+>> > Kmalloc N*alloc N*free(512): Average=683/1229
+>> > Kmalloc N*alloc N*free(1024): Average=1295/1325
+>> > Kmalloc N*alloc N*free(2048): Average=2513/1664
+>> > Kmalloc N*alloc N*free(4096): Average=4742/2172
+>> >
+>> > It shows that allocation performance decreases for the object size up to
+>> > 128 and it may be due to extra checks in cache_alloc_refill().  But, with
+>> > considering improvement of free performance, net result looks the same.
+>> > Result for other size class looks very promising, roughly, 50% performance
+>> > improvement.
+>> >
+>> > v2: replace kick_all_cpus_sync() with synchronize_sched().
+>> >
+>> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>
+>> I've bisected a boot failure (no output at all) in v4.7-rc2 on emev2/kzm9d
+>> (Renesas dual Cortex A9) to this patch, which is upstream commit
+>> 801faf0db8947e01877920e848a4d338dd7a99e7.
+>>
+>> I've attached my .config. I don't know if it also happens with
+>> shmobile_defconfig, as something went wrong with my remote access to the board,
+>> preventing further testing. I also couldn't verify if the issue persists in
+>> v4.7-rc3.
 
-> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-> ---
->  include/trace/events/huge_memory.h | 10 ++++----
->  mm/khugepaged.c                    | 50 +++++++++++++++++++++++++++++---------
->  2 files changed, 44 insertions(+), 16 deletions(-)
-> 
-> diff --git a/include/trace/events/huge_memory.h b/include/trace/events/huge_memory.h
-> index 830d47d..5f14025 100644
-> --- a/include/trace/events/huge_memory.h
-> +++ b/include/trace/events/huge_memory.h
-> @@ -13,7 +13,7 @@
->  	EM( SCAN_EXCEED_NONE_PTE,	"exceed_none_pte")		\
->  	EM( SCAN_PTE_NON_PRESENT,	"pte_non_present")		\
->  	EM( SCAN_PAGE_RO,		"no_writable_page")		\
-> -	EM( SCAN_NO_REFERENCED_PAGE,	"no_referenced_page")		\
-> +	EM( SCAN_LACK_REFERENCED_PAGE,	"lack_referenced_page")		\
->  	EM( SCAN_PAGE_NULL,		"page_null")			\
->  	EM( SCAN_SCAN_ABORT,		"scan_aborted")			\
->  	EM( SCAN_PAGE_COUNT,		"not_suitable_page_count")	\
-> @@ -47,7 +47,7 @@ SCAN_STATUS
->  TRACE_EVENT(mm_khugepaged_scan_pmd,
->  
->  	TP_PROTO(struct mm_struct *mm, struct page *page, bool writable,
-> -		 bool referenced, int none_or_zero, int status, int unmapped),
-> +		 int referenced, int none_or_zero, int status, int unmapped),
->  
->  	TP_ARGS(mm, page, writable, referenced, none_or_zero, status, unmapped),
->  
-> @@ -55,7 +55,7 @@ TRACE_EVENT(mm_khugepaged_scan_pmd,
->  		__field(struct mm_struct *, mm)
->  		__field(unsigned long, pfn)
->  		__field(bool, writable)
-> -		__field(bool, referenced)
-> +		__field(int, referenced)
->  		__field(int, none_or_zero)
->  		__field(int, status)
->  		__field(int, unmapped)
-> @@ -108,14 +108,14 @@ TRACE_EVENT(mm_collapse_huge_page,
->  TRACE_EVENT(mm_collapse_huge_page_isolate,
->  
->  	TP_PROTO(struct page *page, int none_or_zero,
-> -		 bool referenced, bool  writable, int status),
-> +		 int referenced, bool  writable, int status),
->  
->  	TP_ARGS(page, none_or_zero, referenced, writable, status),
->  
->  	TP_STRUCT__entry(
->  		__field(unsigned long, pfn)
->  		__field(int, none_or_zero)
-> -		__field(bool, referenced)
-> +		__field(int, referenced)
->  		__field(bool, writable)
->  		__field(int, status)
->  	),
-> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> index e3d8da7..43fc41e 100644
-> --- a/mm/khugepaged.c
-> +++ b/mm/khugepaged.c
-> @@ -27,7 +27,7 @@ enum scan_result {
->  	SCAN_EXCEED_NONE_PTE,
->  	SCAN_PTE_NON_PRESENT,
->  	SCAN_PAGE_RO,
-> -	SCAN_NO_REFERENCED_PAGE,
-> +	SCAN_LACK_REFERENCED_PAGE,
->  	SCAN_PAGE_NULL,
->  	SCAN_SCAN_ABORT,
->  	SCAN_PAGE_COUNT,
-> @@ -68,6 +68,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
->   */
->  static unsigned int khugepaged_max_ptes_none __read_mostly;
->  static unsigned int khugepaged_max_ptes_swap __read_mostly;
-> +static unsigned int khugepaged_min_ptes_young __read_mostly;
->  
->  static int khugepaged(void *none);
->  
-> @@ -282,6 +283,32 @@ static struct kobj_attribute khugepaged_max_ptes_swap_attr =
->  	__ATTR(max_ptes_swap, 0644, khugepaged_max_ptes_swap_show,
->  	       khugepaged_max_ptes_swap_store);
->  
-> +static ssize_t khugepaged_min_ptes_young_show(struct kobject *kobj,
-> +					      struct kobj_attribute *attr,
-> +					      char *buf)
-> +{
-> +	return sprintf(buf, "%u\n", khugepaged_min_ptes_young);
-> +}
-> +
-> +static ssize_t khugepaged_min_ptes_young_store(struct kobject *kobj,
-> +					       struct kobj_attribute *attr,
-> +					       const char *buf, size_t count)
-> +{
-> +	int err;
-> +	unsigned long min_ptes_young;
-> +	err  = kstrtoul(buf, 10, &min_ptes_young);
-> +	if (err || min_ptes_young > HPAGE_PMD_NR-1)
-> +		return -EINVAL;
-> +
-> +	khugepaged_min_ptes_young = min_ptes_young;
-> +
-> +	return count;
-> +}
-> +
-> +static struct kobj_attribute khugepaged_min_ptes_young_attr =
-> +		__ATTR(min_ptes_young, 0644, khugepaged_min_ptes_young_show,
-> +		khugepaged_min_ptes_young_store);
-> +
->  static struct attribute *khugepaged_attr[] = {
->  	&khugepaged_defrag_attr.attr,
->  	&khugepaged_max_ptes_none_attr.attr,
-> @@ -291,6 +318,7 @@ static struct attribute *khugepaged_attr[] = {
->  	&scan_sleep_millisecs_attr.attr,
->  	&alloc_sleep_millisecs_attr.attr,
->  	&khugepaged_max_ptes_swap_attr.attr,
-> +	&khugepaged_min_ptes_young_attr.attr,
->  	NULL,
->  };
->  
-> @@ -502,8 +530,8 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
->  {
->  	struct page *page = NULL;
->  	pte_t *_pte;
-> -	int none_or_zero = 0, result = 0;
-> -	bool referenced = false, writable = false;
-> +	int none_or_zero = 0, result = 0, referenced = 0;
-> +	bool writable = false;
->  
->  	for (_pte = pte; _pte < pte+HPAGE_PMD_NR;
->  	     _pte++, address += PAGE_SIZE) {
-> @@ -582,14 +610,14 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
->  		VM_BUG_ON_PAGE(!PageLocked(page), page);
->  		VM_BUG_ON_PAGE(PageLRU(page), page);
->  
-> -		/* If there is no mapped pte young don't collapse the page */
-> +		/* There should be enough young pte to collapse the page */
->  		if (pte_young(pteval) ||
->  		    page_is_young(page) || PageReferenced(page) ||
->  		    mmu_notifier_test_young(vma->vm_mm, address))
-> -			referenced = true;
-> +			referenced++;
->  	}
->  	if (likely(writable)) {
-> -		if (likely(referenced)) {
-> +		if (referenced >= khugepaged_min_ptes_young) {
->  			result = SCAN_SUCCEED;
->  			trace_mm_collapse_huge_page_isolate(page, none_or_zero,
->  							    referenced, writable, result);
-> @@ -1082,11 +1110,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
->  	pmd_t *pmd;
->  	pte_t *pte, *_pte;
->  	int ret = 0, none_or_zero = 0, result = 0;
-> +	int node = NUMA_NO_NODE, unmapped = 0, referenced = 0;
->  	struct page *page = NULL;
->  	unsigned long _address;
->  	spinlock_t *ptl;
-> -	int node = NUMA_NO_NODE, unmapped = 0;
-> -	bool writable = false, referenced = false;
-> +	bool writable = false;
->  
->  	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
->  
-> @@ -1174,14 +1202,14 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
->  		if (pte_young(pteval) ||
->  		    page_is_young(page) || PageReferenced(page) ||
->  		    mmu_notifier_test_young(vma->vm_mm, address))
-> -			referenced = true;
-> +			referenced++;
->  	}
->  	if (writable) {
-> -		if (referenced) {
-> +		if (referenced >= khugepaged_min_ptes_young) {
->  			result = SCAN_SUCCEED;
->  			ret = 1;
->  		} else {
-> -			result = SCAN_NO_REFERENCED_PAGE;
-> +			result = SCAN_LACK_REFERENCED_PAGE;
->  		}
->  	} else {
->  		result = SCAN_PAGE_RO;
-> -- 
-> 1.9.1
+In the mean time, I've verified it also happens with shmobile_defconfig.
 
--- 
-Michal Hocko
-SUSE Labs
+>>
+>> Do you have a clue?
+>
+> I don't have yet. Could you help me to narrow down the problem?
+> Following diff is half-revert change to check that synchronize_sched()
+> has no problem.
+
+Thanks!
+
+Unfortunately the half revert is not sufficient. The full revert is.
+
+> ----->8-----
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 763096a..257a0eb 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -3016,9 +3016,6 @@ static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
+>         n = get_node(cachep, node);
+>
+>         BUG_ON(ac->avail > 0 || !n);
+> -       shared = READ_ONCE(n->shared);
+> -       if (!n->free_objects && (!shared || !shared->avail))
+> -               goto direct_grow;
+>
+>         spin_lock(&n->list_lock);
+>         shared = READ_ONCE(n->shared);
+> @@ -3047,7 +3044,6 @@ alloc_done:
+>         spin_unlock(&n->list_lock);
+>         fixup_objfreelist_debug(cachep, &list);
+>
+> -direct_grow:
+>         if (unlikely(!ac->avail)) {
+>                 /* Check if we can use obj in pfmemalloc slab */
+>                 if (sk_memalloc_socks()) {
+
+Gr{oetje,eeting}s,
+
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
