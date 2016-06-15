@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 46D106B0265
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:07:13 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a69so63721448pfa.1
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:07:13 -0700 (PDT)
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 39EF76B0266
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:07:15 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id z189so70506696itg.2
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:07:15 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id f6si962682pfc.249.2016.06.15.13.06.59
+        by mx.google.com with ESMTP id wa12si5647479pac.138.2016.06.15.13.07.00
         for <linux-mm@kvack.org>;
-        Wed, 15 Jun 2016 13:06:59 -0700 (PDT)
+        Wed, 15 Jun 2016 13:07:00 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9-rebased2 12/37] thp, vmstats: add counters for huge file pages
-Date: Wed, 15 Jun 2016 23:06:17 +0300
-Message-Id: <1466021202-61880-13-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9-rebased2 14/37] thp: handle file pages in split_huge_pmd()
+Date: Wed, 15 Jun 2016 23:06:19 +0300
+Message-Id: <1466021202-61880-15-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
@@ -20,66 +20,46 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ebru Akagunduz <ebru.akagunduz@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-THP_FILE_ALLOC: how many times huge page was allocated and put page
-cache.
+Splitting THP PMD is simple: just unmap it as in DAX case. This way we
+can avoid memory overhead on page table allocation to deposit.
 
-THP_FILE_MAPPED: how many times file huge page was mapped.
+It's probably a good idea to try to allocation page table with
+GFP_ATOMIC in __split_huge_pmd_locked() to avoid refaulting the area,
+but clearing pmd should be good enough for now.
+
+Unlike DAX, we also remove the page from rmap and drop reference.
+pmd_young() is transfered to PageReferenced().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/vm_event_item.h | 7 +++++++
- mm/memory.c                   | 1 +
- mm/vmstat.c                   | 2 ++
- 3 files changed, 10 insertions(+)
+ mm/huge_memory.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index ec084321fe09..42604173f122 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -70,6 +70,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		THP_FAULT_FALLBACK,
- 		THP_COLLAPSE_ALLOC,
- 		THP_COLLAPSE_ALLOC_FAILED,
-+		THP_FILE_ALLOC,
-+		THP_FILE_MAPPED,
- 		THP_SPLIT_PAGE,
- 		THP_SPLIT_PAGE_FAILED,
- 		THP_DEFERRED_SPLIT_PAGE,
-@@ -100,4 +102,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		NR_VM_EVENT_ITEMS
- };
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index d8fd49073280..f10febd4f6e1 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2991,10 +2991,18 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
  
-+#ifndef CONFIG_TRANSPARENT_HUGEPAGE
-+#define THP_FILE_ALLOC ({ BUILD_BUG(); 0; })
-+#define THP_FILE_MAPPED ({ BUILD_BUG(); 0; })
-+#endif
-+
- #endif		/* VM_EVENT_ITEM_H_INCLUDED */
-diff --git a/mm/memory.c b/mm/memory.c
-index 6c0ebbc680d4..843ddd7bcf3d 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2969,6 +2969,7 @@ static int do_set_pmd(struct fault_env *fe, struct page *page)
+ 	count_vm_event(THP_SPLIT_PMD);
  
- 	/* fault is handled */
- 	ret = 0;
-+	count_vm_event(THP_FILE_MAPPED);
- out:
- 	spin_unlock(fe->ptl);
- 	return ret;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 2a0f26bdae39..cff2f4ec9cce 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -817,6 +817,8 @@ const char * const vmstat_text[] = {
- 	"thp_fault_fallback",
- 	"thp_collapse_alloc",
- 	"thp_collapse_alloc_failed",
-+	"thp_file_alloc",
-+	"thp_file_mapped",
- 	"thp_split_page",
- 	"thp_split_page_failed",
- 	"thp_deferred_split_page",
+-	if (vma_is_dax(vma)) {
+-		pmd_t _pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
++	if (!vma_is_anonymous(vma)) {
++		_pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
+ 		if (is_huge_zero_pmd(_pmd))
+ 			put_huge_zero_page();
++		if (vma_is_dax(vma))
++			return;
++		page = pmd_page(_pmd);
++		if (!PageReferenced(page) && pmd_young(_pmd))
++			SetPageReferenced(page);
++		page_remove_rmap(page, true);
++		put_page(page);
++		add_mm_counter(mm, MM_FILEPAGES, -HPAGE_PMD_NR);
+ 		return;
+ 	} else if (is_huge_zero_pmd(*pmd)) {
+ 		return __split_huge_zero_page_pmd(vma, haddr, pmd);
 -- 
 2.8.1
 
