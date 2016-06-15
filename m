@@ -1,84 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9635D6B025F
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:06:59 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a69so63713056pfa.1
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:06:59 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id w6si5441185pac.26.2016.06.15.13.06.54
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E80C46B0260
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:07:01 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id a64so40674905oii.1
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:07:01 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id xr1si9588968pab.95.2016.06.15.13.06.55
         for <linux-mm@kvack.org>;
-        Wed, 15 Jun 2016 13:06:54 -0700 (PDT)
+        Wed, 15 Jun 2016 13:06:55 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9-rebased2 03/37] mm, thp: fix locking inconsistency in collapse_huge_page
-Date: Wed, 15 Jun 2016 23:06:08 +0300
-Message-Id: <1466021202-61880-4-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9-rebased2 01/37] mm, thp: make swapin readahead under down_read of mmap_sem
+Date: Wed, 15 Jun 2016 23:06:06 +0300
+Message-Id: <1466021202-61880-2-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan.kim@gmail.com>
 
 From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
-After creating revalidate vma function, locking inconsistency occured
-due to directing the code path to wrong label. This patch directs
-to correct label and fix the inconsistency.
+Currently khugepaged makes swapin readahead under down_write.  This patch
+supplies to make swapin readahead under down_read instead of down_write.
 
-Related commit that caused inconsistency:
-http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=da4360877094368f6dfe75bbe804b0f0a5d575b0
+The patch was tested with a test program that allocates 800MB of memory,
+writes to it, and then sleeps.  The system was forced to swap out all.
+Afterwards, the test program touches the area by writing, it skips a page
+in each 20 pages of the area.
 
-Link: http://lkml.kernel.org/r/1464956884-4644-1-git-send-email-ebru.akagunduz@gmail.com
+Link: http://lkml.kernel.org/r/1464335964-6510-4-git-send-email-ebru.akagunduz@gmail.com
 Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Hugh Dickins <hughd@google.com>
 Cc: Rik van Riel <riel@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Minchan Kim <minchan.kim@gmail.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/huge_memory.c | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ mm/huge_memory.c | 92 ++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 63 insertions(+), 29 deletions(-)
 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 7bb30e853335..1777b806de96 100644
+index f2bc57c45d2f..96dfe3f09bf6 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -2487,13 +2487,18 @@ static void collapse_huge_page(struct mm_struct *mm,
+@@ -2378,6 +2378,35 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
+ }
  
- 	down_read(&mm->mmap_sem);
- 	result = hugepage_vma_revalidate(mm, address);
--	if (result)
+ /*
++ * If mmap_sem temporarily dropped, revalidate vma
++ * before taking mmap_sem.
++ * Return 0 if succeeds, otherwise return none-zero
++ * value (scan code).
++ */
++
++static int hugepage_vma_revalidate(struct mm_struct *mm,
++				   struct vm_area_struct *vma,
++				   unsigned long address)
++{
++	unsigned long hstart, hend;
++
++	if (unlikely(khugepaged_test_exit(mm)))
++		return SCAN_ANY_PROCESS;
++
++	vma = find_vma(mm, address);
++	if (!vma)
++		return SCAN_VMA_NULL;
++
++	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
++	hend = vma->vm_end & HPAGE_PMD_MASK;
++	if (address < hstart || address + HPAGE_PMD_SIZE > hend)
++		return SCAN_ADDRESS_RANGE;
++	if (!hugepage_vma_check(vma))
++		return SCAN_VMA_CHECK;
++	return 0;
++}
++
++/*
+  * Bring missing pages in from swap, to complete THP collapse.
+  * Only done if khugepaged_scan_pmd believes it is worthwhile.
+  *
+@@ -2385,7 +2414,7 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
+  * but with mmap_sem held to protect against vma changes.
+  */
+ 
+-static void __collapse_huge_page_swapin(struct mm_struct *mm,
++static bool __collapse_huge_page_swapin(struct mm_struct *mm,
+ 					struct vm_area_struct *vma,
+ 					unsigned long address, pmd_t *pmd)
+ {
+@@ -2401,11 +2430,18 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
+ 			continue;
+ 		swapped_in++;
+ 		ret = do_swap_page(mm, vma, _address, pte, pmd,
+-				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
++				   FAULT_FLAG_ALLOW_RETRY,
+ 				   pteval);
++		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
++		if (ret & VM_FAULT_RETRY) {
++			down_read(&mm->mmap_sem);
++			/* vma is no longer available, don't continue to swapin */
++			if (hugepage_vma_revalidate(mm, vma, address))
++				return false;
++		}
+ 		if (ret & VM_FAULT_ERROR) {
+ 			trace_mm_collapse_huge_page_swapin(mm, swapped_in, 0);
+-			return;
++			return false;
+ 		}
+ 		/* pte is unmapped now, we need to map it */
+ 		pte = pte_offset_map(pmd, _address);
+@@ -2413,6 +2449,7 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
+ 	pte--;
+ 	pte_unmap(pte);
+ 	trace_mm_collapse_huge_page_swapin(mm, swapped_in, 1);
++	return true;
+ }
+ 
+ static void collapse_huge_page(struct mm_struct *mm,
+@@ -2427,7 +2464,6 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	struct page *new_page;
+ 	spinlock_t *pmd_ptl, *pte_ptl;
+ 	int isolated = 0, result = 0;
+-	unsigned long hstart, hend;
+ 	struct mem_cgroup *memcg;
+ 	unsigned long mmun_start;	/* For mmu_notifiers */
+ 	unsigned long mmun_end;		/* For mmu_notifiers */
+@@ -2450,39 +2486,37 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 		goto out_nolock;
+ 	}
+ 
+-	/*
+-	 * Prevent all access to pagetables with the exception of
+-	 * gup_fast later hanlded by the ptep_clear_flush and the VM
+-	 * handled by the anon_vma lock + PG_lock.
+-	 */
+-	down_write(&mm->mmap_sem);
+-	if (unlikely(khugepaged_test_exit(mm))) {
+-		result = SCAN_ANY_PROCESS;
++	down_read(&mm->mmap_sem);
++	result = hugepage_vma_revalidate(mm, vma, address);
++	if (result)
+ 		goto out;
+-	}
+ 
+-	vma = find_vma(mm, address);
+-	if (!vma) {
+-		result = SCAN_VMA_NULL;
 -		goto out;
-+	if (result) {
-+		mem_cgroup_cancel_charge(new_page, memcg, true);
-+		up_read(&mm->mmap_sem);
-+		goto out_nolock;
-+	}
- 
+-	}
+-	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
+-	hend = vma->vm_end & HPAGE_PMD_MASK;
+-	if (address < hstart || address + HPAGE_PMD_SIZE > hend) {
+-		result = SCAN_ADDRESS_RANGE;
+-		goto out;
+-	}
+-	if (!hugepage_vma_check(vma)) {
+-		result = SCAN_VMA_CHECK;
+-		goto out;
+-	}
  	pmd = mm_find_pmd(mm, address);
  	if (!pmd) {
  		result = SCAN_PMD_NULL;
--		goto out;
-+		mem_cgroup_cancel_charge(new_page, memcg, true);
+ 		goto out;
+ 	}
+ 
+-	__collapse_huge_page_swapin(mm, vma, address, pmd);
++	/*
++	 * __collapse_huge_page_swapin always returns with mmap_sem
++	 * locked. If it fails, release mmap_sem and jump directly
++	 * label out. Continuing to collapse causes inconsistency.
++	 */
++	if (!__collapse_huge_page_swapin(mm, vma, address, pmd)) {
 +		up_read(&mm->mmap_sem);
-+		goto out_nolock;
- 	}
++		goto out;
++	}
++
++	up_read(&mm->mmap_sem);
++	/*
++	 * Prevent all access to pagetables with the exception of
++	 * gup_fast later handled by the ptep_clear_flush and the VM
++	 * handled by the anon_vma lock + PG_lock.
++	 */
++	down_write(&mm->mmap_sem);
++	result = hugepage_vma_revalidate(mm, vma, address);
++	if (result)
++		goto out;
  
- 	/*
-@@ -2502,8 +2507,9 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	 * label out. Continuing to collapse causes inconsistency.
- 	 */
- 	if (!__collapse_huge_page_swapin(mm, vma, address, pmd)) {
-+		mem_cgroup_cancel_charge(new_page, memcg, true);
- 		up_read(&mm->mmap_sem);
--		goto out;
-+		goto out_nolock;
- 	}
+ 	anon_vma_lock_write(vma->anon_vma);
  
- 	up_read(&mm->mmap_sem);
 -- 
 2.8.1
 
