@@ -1,271 +1,355 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D4EA6B007E
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 03:59:11 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 143so27162955pfx.0
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 00:59:11 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id r13si29392867pag.64.2016.06.15.00.59.10
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3874B6B007E
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 04:39:50 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id t8so25504257oif.2
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 01:39:50 -0700 (PDT)
+Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
+        by mx.google.com with ESMTPS id i21si4883109ioa.28.2016.06.15.01.39.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jun 2016 00:59:10 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id 62so1228831pfd.3
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 00:59:10 -0700 (PDT)
-Date: Wed, 15 Jun 2016 16:59:09 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v7 00/12] Support non-lru page migration
-Message-ID: <20160615075909.GA425@swordfish>
-References: <1464736881-24886-1-git-send-email-minchan@kernel.org>
+        Wed, 15 Jun 2016 01:39:48 -0700 (PDT)
+Received: by mail-it0-x241.google.com with SMTP id d71so2283421ith.1
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 01:39:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1464736881-24886-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <20160615022325.GA19863@js1304-P5Q-DELUXE>
+References: <CAMuHMdXC=zEjbZADE5wELjOq_kBiFNewpdUrMCe8d3Utu98h8A@mail.gmail.com>
+ <20160614062456.GB13753@js1304-P5Q-DELUXE> <CAMuHMdWipquaVFKYLd=2KhTx6djwH7NXpzL-RjtikCE=G8KTbA@mail.gmail.com>
+ <20160614081125.GA17700@js1304-P5Q-DELUXE> <CAMuHMdXc=XN4z96vr_FNcUzFb0203ovHgcfD95Q5LPebr1z0ZQ@mail.gmail.com>
+ <20160615022325.GA19863@js1304-P5Q-DELUXE>
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Date: Wed, 15 Jun 2016 10:39:47 +0200
+Message-ID: <CAMuHMdVi-F0n-GjnUqEEd58UcWxw67g8ZJO838fvo31Ttr5E1g@mail.gmail.com>
+Subject: Re: Boot failure on emev2/kzm9d (was: Re: [PATCH v2 11/11] mm/slab:
+ lockless decision to grow cache)
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, dri-devel@lists.freedesktop.org, Hugh Dickins <hughd@google.com>, John Einar Reitan <john.reitan@foss.arm.com>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Aquini <aquini@redhat.com>, Rik van Riel <riel@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, virtualization@lists.linux-foundation.org, Gioh Kim <gi-oh.kim@profitbricks.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Sangseok Lee <sangseok.lee@lge.com>, Kyeongdon Kim <kyeongdon.kim@lge.com>, Chulmin Kim <cmlaika.kim@samsung.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-renesas-soc@vger.kernel.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-Hello Minchan,
+Hi Joonsoo,
 
--next 4.7.0-rc3-next-20160614
+On Wed, Jun 15, 2016 at 4:23 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> On Tue, Jun 14, 2016 at 12:45:14PM +0200, Geert Uytterhoeven wrote:
+>> On Tue, Jun 14, 2016 at 10:11 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>> > On Tue, Jun 14, 2016 at 09:31:23AM +0200, Geert Uytterhoeven wrote:
+>> >> On Tue, Jun 14, 2016 at 8:24 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>> >> > On Mon, Jun 13, 2016 at 09:43:13PM +0200, Geert Uytterhoeven wrote:
+>> >> >> On Tue, Apr 12, 2016 at 6:51 AM,  <js1304@gmail.com> wrote:
+>> >> >> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> >> >> > To check whther free objects exist or not precisely, we need to grab a
+>> >> >> > lock.  But, accuracy isn't that important because race window would be
+>> >> >> > even small and if there is too much free object, cache reaper would reap
+>> >> >> > it.  So, this patch makes the check for free object exisistence not to
+>> >> >> > hold a lock.  This will reduce lock contention in heavily allocation case.
 
+>> >> >> I've bisected a boot failure (no output at all) in v4.7-rc2 on emev2/kzm9d
+>> >> >> (Renesas dual Cortex A9) to this patch, which is upstream commit
+>> >> >> 801faf0db8947e01877920e848a4d338dd7a99e7.
 
-[  315.146533] kasan: CONFIG_KASAN_INLINE enabled
-[  315.146538] kasan: GPF could be caused by NULL-ptr deref or user memory access
-[  315.146546] general protection fault: 0000 [#1] PREEMPT SMP KASAN
-[  315.146576] Modules linked in: lzo zram zsmalloc mousedev coretemp hwmon crc32c_intel r8169 i2c_i801 mii snd_hda_codec_realtek snd_hda_codec_generic snd_hda_intel snd_hda_codec snd_hda_core acpi_cpufreq snd_pcm snd_timer snd soundcore lpc_ich mfd_core processor sch_fq_codel sd_mod hid_generic usbhid hid ahci libahci libata ehci_pci ehci_hcd scsi_mod usbcore usb_common
-[  315.146785] CPU: 3 PID: 38 Comm: khugepaged Not tainted 4.7.0-rc3-next-20160614-dbg-00004-ga1c2cbc-dirty #488
-[  315.146841] task: ffff8800bfaf2900 ti: ffff880112468000 task.ti: ffff880112468000
-[  315.146859] RIP: 0010:[<ffffffffa02c413d>]  [<ffffffffa02c413d>] zs_page_migrate+0x355/0xaa0 [zsmalloc]
-[  315.146892] RSP: 0000:ffff88011246f138  EFLAGS: 00010293
-[  315.146906] RAX: 736761742d6f6e2c RBX: ffff880017ad9a80 RCX: 0000000000000000
-[  315.146924] RDX: 1ffffffff064d704 RSI: ffff88000511469a RDI: ffffffff8326ba20
-[  315.146942] RBP: ffff88011246f328 R08: 0000000000000001 R09: 0000000000000000
-[  315.146959] R10: ffff88011246f0a8 R11: ffff8800bfc07fff R12: ffff88011246f300
-[  315.146977] R13: ffffed0015523e6f R14: ffff8800aa91f378 R15: ffffea0000144500
-[  315.146995] FS:  0000000000000000(0000) GS:ffff880113780000(0000) knlGS:0000000000000000
-[  315.147015] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  315.147030] CR2: 00007f3f97911000 CR3: 0000000002209000 CR4: 00000000000006e0
-[  315.147046] Stack:
-[  315.147052]  1ffff10015523e0f ffff88011246f240 ffff880005116800 00017f80e0000000
-[  315.147083]  ffff880017ad9aa8 736761742d6f6e2c 1ffff1002248de34 ffff880017ad9a90
-[  315.147113]  0000069a1246f660 000000000000069a ffff880005114000 ffffea0002ff0180
-[  315.147143] Call Trace:
-[  315.147154]  [<ffffffffa02c3de8>] ? obj_to_head+0x9d/0x9d [zsmalloc]
-[  315.147175]  [<ffffffff81d31dbc>] ? _raw_spin_unlock_irqrestore+0x47/0x5c
-[  315.147195]  [<ffffffff812275b1>] ? isolate_freepages_block+0x2f9/0x5a6
-[  315.147213]  [<ffffffff8127f15c>] ? kasan_poison_shadow+0x2f/0x31
-[  315.147230]  [<ffffffff8127f66a>] ? kasan_alloc_pages+0x39/0x3b
-[  315.147246]  [<ffffffff812267e6>] ? map_pages+0x1f3/0x3ad
-[  315.147262]  [<ffffffff812265f3>] ? update_pageblock_skip+0x18d/0x18d
-[  315.147280]  [<ffffffff81115972>] ? up_read+0x1a/0x30
-[  315.147296]  [<ffffffff8111ec7e>] ? debug_check_no_locks_freed+0x150/0x22b
-[  315.147315]  [<ffffffff812842d1>] move_to_new_page+0x4dd/0x615
-[  315.147332]  [<ffffffff81283df4>] ? migrate_page+0x75/0x75
-[  315.147347]  [<ffffffff8122785e>] ? isolate_freepages_block+0x5a6/0x5a6
-[  315.147366]  [<ffffffff812851c1>] migrate_pages+0xadd/0x131a
-[  315.147382]  [<ffffffff8122785e>] ? isolate_freepages_block+0x5a6/0x5a6
-[  315.147399]  [<ffffffff81226375>] ? kzfree+0x2b/0x2b
-[  315.147414]  [<ffffffff812846e4>] ? buffer_migrate_page+0x2db/0x2db
-[  315.147431]  [<ffffffff8122a6cf>] compact_zone+0xcdb/0x1155
-[  315.147448]  [<ffffffff812299f4>] ? compaction_suitable+0x76/0x76
-[  315.147465]  [<ffffffff8122ac29>] compact_zone_order+0xe0/0x167
-[  315.147481]  [<ffffffff8111f0ac>] ? debug_show_all_locks+0x226/0x226
-[  315.147499]  [<ffffffff8122ab49>] ? compact_zone+0x1155/0x1155
-[  315.147515]  [<ffffffff810d58d1>] ? finish_task_switch+0x3de/0x484
-[  315.147533]  [<ffffffff8122bcff>] try_to_compact_pages+0x2f1/0x648
-[  315.147550]  [<ffffffff8122bcff>] ? try_to_compact_pages+0x2f1/0x648
-[  315.147568]  [<ffffffff8122ba0e>] ? compaction_zonelist_suitable+0x3a6/0x3a6
-[  315.147589]  [<ffffffff811ee129>] ? get_page_from_freelist+0x2c0/0x129a
-[  315.147608]  [<ffffffff811ef1ed>] __alloc_pages_direct_compact+0xea/0x30d
-[  315.147626]  [<ffffffff811ef103>] ? get_page_from_freelist+0x129a/0x129a
-[  315.147645]  [<ffffffff811f0422>] __alloc_pages_nodemask+0x840/0x16b6
-[  315.147663]  [<ffffffff810dba27>] ? try_to_wake_up+0x696/0x6c8
-[  315.149147]  [<ffffffff811efbe2>] ? warn_alloc_failed+0x226/0x226
-[  315.150615]  [<ffffffff810dba69>] ? wake_up_process+0x10/0x12
-[  315.152078]  [<ffffffff810dbaf4>] ? wake_up_q+0x89/0xa7
-[  315.153539]  [<ffffffff81128b6f>] ? rwsem_wake+0x131/0x15c
-[  315.155007]  [<ffffffff812922e7>] ? khugepaged+0x4072/0x484f
-[  315.156471]  [<ffffffff8128e449>] khugepaged+0x1d4/0x484f
-[  315.157940]  [<ffffffff8128e275>] ? hugepage_vma_revalidate+0xef/0xef
-[  315.159402]  [<ffffffff810d58d1>] ? finish_task_switch+0x3de/0x484
-[  315.160870]  [<ffffffff81d31df8>] ? _raw_spin_unlock_irq+0x27/0x45
-[  315.162341]  [<ffffffff8111cde6>] ? trace_hardirqs_on_caller+0x3d2/0x492
-[  315.163814]  [<ffffffff8111112e>] ? prepare_to_wait_event+0x3f7/0x3f7
-[  315.165295]  [<ffffffff81d27ad5>] ? __schedule+0xa4d/0xd16
-[  315.166763]  [<ffffffff810ccde3>] kthread+0x252/0x261
-[  315.168214]  [<ffffffff8128e275>] ? hugepage_vma_revalidate+0xef/0xef
-[  315.169646]  [<ffffffff810ccb91>] ? kthread_create_on_node+0x377/0x377
-[  315.171056]  [<ffffffff81d3277f>] ret_from_fork+0x1f/0x40
-[  315.172462]  [<ffffffff810ccb91>] ? kthread_create_on_node+0x377/0x377
-[  315.173869] Code: 03 b5 60 fe ff ff e8 2e fc ff ff a8 01 74 4c 48 83 e0 fe bf 01 00 00 00 48 89 85 38 fe ff ff e8 41 18 e1 e0 48 8b 85 38 fe ff ff <f0> 0f ba 28 00 73 29 bf 01 00 00 00 41 bc f5 ff ff ff e8 ea 27 
-[  315.175573] RIP  [<ffffffffa02c413d>] zs_page_migrate+0x355/0xaa0 [zsmalloc]
-[  315.177084]  RSP <ffff88011246f138>
-[  315.186572] ---[ end trace 0962b8ee48c98bbc ]---
+> It's curious that synchronize_sched() has some effect in this early
+> phase. In synchronize_sched(), rcu_blocking_is_gp() is called and
+> it checks num_online_cpus <= 1. If so, synchronize_sched() does nothing.
+>
+> It would be related to might_sleep() in rcu_blocking_is_gp() but I'm not sure now.
+>
+> First, I'd like to confirm that num_online_cpus() is correct.
+> Could you try following patch and give me a dmesg?
+>
+> Thanks.
+>
+> ------->8----------
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 763096a..5b7300a 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -964,8 +964,10 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
+>          * guaranteed to be valid until irq is re-enabled, because it will be
+>          * freed after synchronize_sched().
+>          */
+> -       if (force_change)
+> -               synchronize_sched();
+> +       if (force_change) {
+> +               WARN_ON_ONCE(num_online_cpus() <= 1);
+> +               WARN_ON_ONCE(num_online_cpus() > 1);
+> +       }
 
+Full dmesg output below.
 
+I also tested whether it's the call to synchronize_sched() before or after
+secondary CPU bringup that hangs.
 
+        if (force_change && num_online_cpus() <= 1)
+                synchronize_sched();
 
-[  315.186577] BUG: sleeping function called from invalid context at include/linux/sched.h:2960
-[  315.186580] in_atomic(): 1, irqs_disabled(): 0, pid: 38, name: khugepaged
-[  315.186581] INFO: lockdep is turned off.
-[  315.186583] Preemption disabled at:[<ffffffffa02c3f1d>] zs_page_migrate+0x135/0xaa0 [zsmalloc]
+boots.
 
-[  315.186594] CPU: 3 PID: 38 Comm: khugepaged Tainted: G      D         4.7.0-rc3-next-20160614-dbg-00004-ga1c2cbc-dirty #488
-[  315.186599]  0000000000000000 ffff88011246ed58 ffffffff814d56bf ffff8800bfaf2900
-[  315.186604]  0000000000000004 ffff88011246ed98 ffffffff810d5e6a 0000000000000000
-[  315.186609]  ffff8800bfaf2900 ffffffff81e39820 0000000000000b90 0000000000000000
-[  315.186614] Call Trace:
-[  315.186618]  [<ffffffff814d56bf>] dump_stack+0x68/0x92
-[  315.186622]  [<ffffffff810d5e6a>] ___might_sleep+0x3bd/0x3c9
-[  315.186625]  [<ffffffff810d5fd1>] __might_sleep+0x15b/0x167
-[  315.186630]  [<ffffffff810ac4c1>] exit_signals+0x7a/0x34f
-[  315.186633]  [<ffffffff810ac447>] ? get_signal+0xd9b/0xd9b
-[  315.186636]  [<ffffffff811aee21>] ? irq_work_queue+0x101/0x11c
-[  315.186640]  [<ffffffff8111f0ac>] ? debug_show_all_locks+0x226/0x226
-[  315.186645]  [<ffffffff81096357>] do_exit+0x34d/0x1b4e
-[  315.186648]  [<ffffffff81130e16>] ? vprintk_emit+0x4b1/0x4d3
-[  315.186652]  [<ffffffff8109600a>] ? is_current_pgrp_orphaned+0x8c/0x8c
-[  315.186655]  [<ffffffff81122c56>] ? lock_acquire+0xec/0x147
-[  315.186658]  [<ffffffff811321ef>] ? kmsg_dump+0x12/0x27a
-[  315.186662]  [<ffffffff81132448>] ? kmsg_dump+0x26b/0x27a
-[  315.186666]  [<ffffffff81036507>] oops_end+0x9d/0xa4
-[  315.186669]  [<ffffffff8103662c>] die+0x55/0x5e
-[  315.186672]  [<ffffffff81032aa0>] do_general_protection+0x16c/0x337
-[  315.186676]  [<ffffffff81d33abf>] general_protection+0x1f/0x30
-[  315.186681]  [<ffffffffa02c413d>] ? zs_page_migrate+0x355/0xaa0 [zsmalloc]
-[  315.186686]  [<ffffffffa02c4136>] ? zs_page_migrate+0x34e/0xaa0 [zsmalloc]
-[  315.186691]  [<ffffffffa02c3de8>] ? obj_to_head+0x9d/0x9d [zsmalloc]
-[  315.186695]  [<ffffffff81d31dbc>] ? _raw_spin_unlock_irqrestore+0x47/0x5c
-[  315.186699]  [<ffffffff812275b1>] ? isolate_freepages_block+0x2f9/0x5a6
-[  315.186702]  [<ffffffff8127f15c>] ? kasan_poison_shadow+0x2f/0x31
-[  315.186706]  [<ffffffff8127f66a>] ? kasan_alloc_pages+0x39/0x3b
-[  315.186709]  [<ffffffff812267e6>] ? map_pages+0x1f3/0x3ad
-[  315.186712]  [<ffffffff812265f3>] ? update_pageblock_skip+0x18d/0x18d
-[  315.186716]  [<ffffffff81115972>] ? up_read+0x1a/0x30
-[  315.186719]  [<ffffffff8111ec7e>] ? debug_check_no_locks_freed+0x150/0x22b
-[  315.186723]  [<ffffffff812842d1>] move_to_new_page+0x4dd/0x615
-[  315.186726]  [<ffffffff81283df4>] ? migrate_page+0x75/0x75
-[  315.186730]  [<ffffffff8122785e>] ? isolate_freepages_block+0x5a6/0x5a6
-[  315.186733]  [<ffffffff812851c1>] migrate_pages+0xadd/0x131a
-[  315.186737]  [<ffffffff8122785e>] ? isolate_freepages_block+0x5a6/0x5a6
-[  315.186740]  [<ffffffff81226375>] ? kzfree+0x2b/0x2b
-[  315.186743]  [<ffffffff812846e4>] ? buffer_migrate_page+0x2db/0x2db
-[  315.186747]  [<ffffffff8122a6cf>] compact_zone+0xcdb/0x1155
-[  315.186751]  [<ffffffff812299f4>] ? compaction_suitable+0x76/0x76
-[  315.186754]  [<ffffffff8122ac29>] compact_zone_order+0xe0/0x167
-[  315.186757]  [<ffffffff8111f0ac>] ? debug_show_all_locks+0x226/0x226
-[  315.186761]  [<ffffffff8122ab49>] ? compact_zone+0x1155/0x1155
-[  315.186764]  [<ffffffff810d58d1>] ? finish_task_switch+0x3de/0x484
-[  315.186768]  [<ffffffff8122bcff>] try_to_compact_pages+0x2f1/0x648
-[  315.186771]  [<ffffffff8122bcff>] ? try_to_compact_pages+0x2f1/0x648
-[  315.186775]  [<ffffffff8122ba0e>] ? compaction_zonelist_suitable+0x3a6/0x3a6
-[  315.186780]  [<ffffffff811ee129>] ? get_page_from_freelist+0x2c0/0x129a
-[  315.186783]  [<ffffffff811ef1ed>] __alloc_pages_direct_compact+0xea/0x30d
-[  315.186787]  [<ffffffff811ef103>] ? get_page_from_freelist+0x129a/0x129a
-[  315.186791]  [<ffffffff811f0422>] __alloc_pages_nodemask+0x840/0x16b6
-[  315.186794]  [<ffffffff810dba27>] ? try_to_wake_up+0x696/0x6c8
-[  315.186798]  [<ffffffff811efbe2>] ? warn_alloc_failed+0x226/0x226
-[  315.186801]  [<ffffffff810dba69>] ? wake_up_process+0x10/0x12
-[  315.186804]  [<ffffffff810dbaf4>] ? wake_up_q+0x89/0xa7
-[  315.186807]  [<ffffffff81128b6f>] ? rwsem_wake+0x131/0x15c
-[  315.186811]  [<ffffffff812922e7>] ? khugepaged+0x4072/0x484f
-[  315.186815]  [<ffffffff8128e449>] khugepaged+0x1d4/0x484f
-[  315.186819]  [<ffffffff8128e275>] ? hugepage_vma_revalidate+0xef/0xef
-[  315.186822]  [<ffffffff810d58d1>] ? finish_task_switch+0x3de/0x484
-[  315.186826]  [<ffffffff81d31df8>] ? _raw_spin_unlock_irq+0x27/0x45
-[  315.186829]  [<ffffffff8111cde6>] ? trace_hardirqs_on_caller+0x3d2/0x492
-[  315.186832]  [<ffffffff8111112e>] ? prepare_to_wait_event+0x3f7/0x3f7
-[  315.186836]  [<ffffffff81d27ad5>] ? __schedule+0xa4d/0xd16
-[  315.186840]  [<ffffffff810ccde3>] kthread+0x252/0x261
-[  315.186843]  [<ffffffff8128e275>] ? hugepage_vma_revalidate+0xef/0xef
-[  315.186846]  [<ffffffff810ccb91>] ? kthread_create_on_node+0x377/0x377
-[  315.186851]  [<ffffffff81d3277f>] ret_from_fork+0x1f/0x40
-[  315.186854]  [<ffffffff810ccb91>] ? kthread_create_on_node+0x377/0x377
-[  315.186869] note: khugepaged[38] exited with preempt_count 4
+        if (force_change && num_online_cpus() > 1)
+                synchronize_sched();
 
+hangs.
 
+Booting Linux on physical CPU 0x0
+Linux version 4.6.0-kzm9d-05060-g801faf0db8947e01-dirty (geert@ramsan)
+(gcc version 4.9.0 (GCC) ) #84 SMP Wed Jun 15 10:20:12 CEST 2016
+CPU: ARMv7 Processor [411fc093] revision 3 (ARMv7), cr=10c5387d
+CPU: PIPT / VIPT nonaliasing data cache, VIPT aliasing instruction cache
+Machine model: EMEV2 KZM9D Board
+debug: ignoring loglevel setting.
+Memory policy: Data cache writealloc
+On node 0 totalpages: 32768
+free_area_init_node: node 0, pgdat c09286c0, node_mem_map c7efa000
+  Normal zone: 256 pages used for memmap
+  Normal zone: 0 pages reserved
+  Normal zone: 32768 pages, LIFO batch:7
+percpu: Embedded 12 pages/cpu @c7ed9000 s19264 r8192 d21696 u49152
+pcpu-alloc: s19264 r8192 d21696 u49152 alloc=12*4096
+pcpu-alloc: [0] 0 [0] 1
+Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 32512
+Kernel command line: console=ttyS1,115200n81 ignore_loglevel
+root=/dev/nfs ip=dhcp
+PID hash table entries: 512 (order: -1, 2048 bytes)
+Dentry cache hash table entries: 16384 (order: 4, 65536 bytes)
+Inode-cache hash table entries: 8192 (order: 3, 32768 bytes)
+Memory: 121144K/131072K available (4243K kernel code, 165K rwdata,
+1344K rodata, 2048K init, 264K bss, 9928K reserved, 0K cma-reserved,
+0K highmem)
+Virtual kernel memory layout:
+    vector  : 0xffff0000 - 0xffff1000   (   4 kB)
+    fixmap  : 0xffc00000 - 0xfff00000   (3072 kB)
+    vmalloc : 0xc8800000 - 0xff800000   ( 880 MB)
+    lowmem  : 0xc0000000 - 0xc8000000   ( 128 MB)
+    pkmap   : 0xbfe00000 - 0xc0000000   (   2 MB)
+    modules : 0xbf000000 - 0xbfe00000   (  14 MB)
+      .text : 0xc0008000 - 0xc0674eb8   (6580 kB)
+      .init : 0xc0700000 - 0xc0900000   (2048 kB)
+      .data : 0xc0900000 - 0xc0929420   ( 166 kB)
+       .bss : 0xc092b000 - 0xc096d1e8   ( 265 kB)
+Hierarchical RCU implementation.
+ Build-time adjustment of leaf fanout to 32.
+ RCU restricting CPUs from NR_CPUS=4 to nr_cpu_ids=2.
+RCU: Adjusting geometry for rcu_fanout_leaf=32, nr_cpu_ids=2
+NR_IRQS:16 nr_irqs:16 16
+clocksource_probe: no matching clocksources found
+sched_clock: 32 bits at 100 Hz, resolution 10000000ns, wraps every
+21474836475000000ns
+------------[ cut here ]------------
+WARNING: CPU: 0 PID: 0 at mm/slab.c:975 setup_kmem_cache_node+0x160/0x1c8
+Modules linked in:
+CPU: 0 PID: 0 Comm: swapper/0 Not tainted
+4.6.0-kzm9d-05060-g801faf0db8947e01-dirty #84
+Hardware name: Generic Emma Mobile EV2 (Flattened Device Tree)
+[<c010de08>] (unwind_backtrace) from [<c010a620>] (show_stack+0x10/0x14)
+[<c010a620>] (show_stack) from [<c02b3178>] (dump_stack+0x7c/0x9c)
+[<c02b3178>] (dump_stack) from [<c011f9fc>] (__warn+0xcc/0xfc)
+[<c011f9fc>] (__warn) from [<c011fad0>] (warn_slowpath_null+0x1c/0x24)
+[<c011fad0>] (warn_slowpath_null) from [<c01ced4c>]
+(setup_kmem_cache_node+0x160/0x1c8)
+[<c01ced4c>] (setup_kmem_cache_node) from [<c01cf02c>]
+(__do_tune_cpucache+0xf4/0x114)
+[<c01cf02c>] (__do_tune_cpucache) from [<c01cf0b0>] (enable_cpucache+0x64/0xb4)
+[<c01cf0b0>] (enable_cpucache) from [<c0710324>]
+(kmem_cache_init_late+0x40/0x84)
+[<c0710324>] (kmem_cache_init_late) from [<c0700af8>] (start_kernel+0x238/0x36c)
+[<c0700af8>] (start_kernel) from [<4000807c>] (0x4000807c)
+---[ end trace cb88537fdc8fa200 ]---
+Console: colour dummy device 80x30
+Calibrating delay loop (skipped) preset value.. 1066.00 BogoMIPS (lpj=5330000)
+pid_max: default: 32768 minimum: 301
+Mount-cache hash table entries: 1024 (order: 0, 4096 bytes)
+Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes)
+CPU: Testing write buffer coherency: ok
+CPU0: thread -1, cpu 0, socket 0, mpidr 80000000
+Setting up static identity map for 0x40100000 - 0x40100058
+CPU1: thread -1, cpu 1, socket 0, mpidr 80000001
+Brought up 2 CPUs
+SMP: Total of 2 processors activated (2132.00 BogoMIPS).
+CPU: All CPU(s) started in SVC mode.
+------------[ cut here ]------------
+WARNING: CPU: 0 PID: 1 at mm/slab.c:976 setup_kmem_cache_node+0x198/0x1c8
+Modules linked in:
+CPU: 0 PID: 1 Comm: swapper/0 Tainted: G        W
+4.6.0-kzm9d-05060-g801faf0db8947e01-dirty #84
+Hardware name: Generic Emma Mobile EV2 (Flattened Device Tree)
+[<c010de08>] (unwind_backtrace) from [<c010a620>] (show_stack+0x10/0x14)
+[<c010a620>] (show_stack) from [<c02b3178>] (dump_stack+0x7c/0x9c)
+[<c02b3178>] (dump_stack) from [<c011f9fc>] (__warn+0xcc/0xfc)
+[<c011f9fc>] (__warn) from [<c011fad0>] (warn_slowpath_null+0x1c/0x24)
+[<c011fad0>] (warn_slowpath_null) from [<c01ced84>]
+(setup_kmem_cache_node+0x198/0x1c8)
+[<c01ced84>] (setup_kmem_cache_node) from [<c01cf02c>]
+(__do_tune_cpucache+0xf4/0x114)
+[<c01cf02c>] (__do_tune_cpucache) from [<c01cf0b0>] (enable_cpucache+0x64/0xb4)
+[<c01cf0b0>] (enable_cpucache) from [<c01cf4cc>]
+(__kmem_cache_create+0x1a0/0x1c8)
+[<c01cf4cc>] (__kmem_cache_create) from [<c01b2904>]
+(kmem_cache_create+0xbc/0x190)
+[<c01b2904>] (kmem_cache_create) from [<c070d724>] (shmem_init+0x34/0xb0)
+[<c070d724>] (shmem_init) from [<c0700cc4>] (kernel_init_freeable+0x98/0x1ec)
+[<c0700cc4>] (kernel_init_freeable) from [<c0497760>] (kernel_init+0x8/0x110)
+[<c0497760>] (kernel_init) from [<c0106c78>] (ret_from_fork+0x14/0x3c)
+---[ end trace cb88537fdc8fa201 ]---
+devtmpfs: initialized
+VFP support v0.3: implementor 41 architecture 3 part 30 variant 9 rev 1
+clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff,
+max_idle_ns: 19112604462750000 ns
+pinctrl core: initialized pinctrl subsystem
+NET: Registered protocol family 16
+DMA: preallocated 256 KiB pool for atomic coherent allocations
+sh-pfc e0140200.pfc: emev2_pfc support registered
+gpiochip_find_base: found new base at 992
+gpio gpiochip0: (e0050000.gpio): created GPIO range 0->31 ==>
+e0140200.pfc PIN 0->31
+gpio gpiochip0: (e0050000.gpio): added GPIO chardev (254:0)
+gpiochip_setup_dev: registered GPIOs 992 to 1023 on device: gpiochip0
+(e0050000.gpio)
+gpiochip_find_base: found new base at 960
+gpio gpiochip1: (e0050080.gpio): created GPIO range 0->31 ==>
+e0140200.pfc PIN 32->63
+gpio gpiochip1: (e0050080.gpio): added GPIO chardev (254:1)
+gpiochip_setup_dev: registered GPIOs 960 to 991 on device: gpiochip1
+(e0050080.gpio)
+gpiochip_find_base: found new base at 928
+gpio gpiochip2: (e0050100.gpio): created GPIO range 0->31 ==>
+e0140200.pfc PIN 64->95
+gpio gpiochip2: (e0050100.gpio): added GPIO chardev (254:2)
+gpiochip_setup_dev: registered GPIOs 928 to 959 on device: gpiochip2
+(e0050100.gpio)
+gpiochip_find_base: found new base at 896
+gpio gpiochip3: (e0050180.gpio): created GPIO range 0->31 ==>
+e0140200.pfc PIN 96->127
+gpio gpiochip3: (e0050180.gpio): added GPIO chardev (254:3)
+gpiochip_setup_dev: registered GPIOs 896 to 927 on device: gpiochip3
+(e0050180.gpio)
+gpiochip_find_base: found new base at 865
+gpio gpiochip4: (e0050200.gpio): created GPIO range 0->30 ==>
+e0140200.pfc PIN 128->158
+gpio gpiochip4: (e0050200.gpio): added GPIO chardev (254:4)
+gpiochip_setup_dev: registered GPIOs 865 to 895 on device: gpiochip4
+(e0050200.gpio)
+gio: map hw irq = 1, irq = 35
+gio: sense irq = 1, mode = 8
+No ATAGs?
+hw-breakpoint: found 5 (+1 reserved) breakpoint and 1 watchpoint registers.
+hw-breakpoint: maximum watchpoint size is 4 bytes.
+of_get_named_gpiod_flags: can't parse 'gpio' property of node '/regulator@0[0]'
+of_get_named_gpiod_flags: can't parse 'gpio' property of node '/regulator@1[0]'
+SCSI subsystem initialized
+usbcore: registered new interface driver usbfs
+usbcore: registered new interface driver hub
+usbcore: registered new device driver usb
+em_sti e0180000.timer: used for clock events
+em_sti e0180000.timer: used for oneshot clock events
+em_sti e0180000.timer: used as clock source
+clocksource: e0180000.timer: mask: 0xffffffffffff max_cycles:
+0x1ef4687b1, max_idle_ns: 3697658158765000000 ns
+Advanced Linux Sound Architecture Driver Initialized.
+NET: Registered protocol family 23
+clocksource: e0180000.timer: mask: 0xffffffffffff max_cycles:
+0x1ef4687b1, max_idle_ns: 112843571739654 ns
+clocksource: Switched to clocksource e0180000.timer
+NET: Registered protocol family 2
+TCP established hash table entries: 1024 (order: 0, 4096 bytes)
+TCP bind hash table entries: 1024 (order: 2, 20480 bytes)
+TCP: Hash tables configured (established 1024 bind 1024)
+UDP hash table entries: 256 (order: 1, 12288 bytes)
+UDP-Lite hash table entries: 256 (order: 1, 12288 bytes)
+NET: Registered protocol family 1
+RPC: Registered named UNIX socket transport module.
+RPC: Registered udp transport module.
+RPC: Registered tcp transport module.
+RPC: Registered tcp NFSv4.1 backchannel transport module.
+Clockevents: could not switch to one-shot mode:
+Clockevents: could not switch to one-shot mode: dummy_timer is not functional.
+Could not switch to high resolution mode on CPU 0
+ dummy_timer is not functional.
+Could not switch to high resolution mode on CPU 1
+hw perfevents: enabled with armv7_cortex_a9 PMU driver, 7 counters available
+futex hash table entries: 512 (order: 3, 32768 bytes)
+workingset: timestamp_bits=28 max_order=15 bucket_order=0
+NFS: Registering the id_resolver key type
+Key type id_resolver registered
+Key type id_legacy registered
+nfs4filelayout_init: NFSv4 File Layout Driver Registering...
+io scheduler noop registered (default)
+Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+e1020000.serial: ttyS0 at MMIO 0xe1020000 (irq = 19, base_baud =
+796444) is a 16550A
+e1030000.serial: ttyS1 at MMIO 0xe1030000 (irq = 20, base_baud =
+7168000) is a 16550A
+console [ttyS1] enabled
+e1040000.serial: ttyS2 at MMIO 0xe1040000 (irq = 21, base_baud =
+14336000) is a 16550A
+e1050000.serial: ttyS3 at MMIO 0xe1050000 (irq = 22, base_baud =
+2389333) is a 16550A
+gio: sense irq = 1, mode = 8
+libphy: smsc911x-mdio: probed
+Generic PHY 20000000.etherne:01: attached PHY driver [Generic PHY]
+(mii_bus:phy_addr=20000000.etherne:01, irq=-1)
+smsc911x 20000000.ethernet eth0: MAC Address: 00:01:9b:04:03:cf
+usbcore: registered new interface driver usb-storage
+i2c /dev entries driver
+em-i2c e0070000.i2c: Added i2c controller 0, irq 33
+em-i2c e10a0000.i2c: Added i2c controller 1, irq 34
+cpu cpu0: failed to get clock: -2
+cpufreq-dt: probe of cpufreq-dt failed with error -2
+ledtrig-cpu: registered to indicate activity on CPUs
+usbcore: registered new interface driver usbhid
+usbhid: USB HID core driver
+NET: Registered protocol family 17
+Key type dns_resolver registered
+Registering SWP/SWPB emulation handler
+of_get_named_gpiod_flags: parsed 'gpios' property of node
+'/gpio_keys/button@1[0]' - status (0)
+of_get_named_gpiod_flags: parsed 'gpios' property of node
+'/gpio_keys/button@2[0]' - status (0)
+of_get_named_gpiod_flags: parsed 'gpios' property of node
+'/gpio_keys/button@3[0]' - status (0)
+of_get_named_gpiod_flags: parsed 'gpios' property of node
+'/gpio_keys/button@4[0]' - status (0)
+gpio-1006 (DSW2-1): gpiod_set_debounce: missing set() or
+set_debounce() operations
+gio: map hw irq = 14, irq = 36
+gio: sense irq = 14, mode = 12
+gpio-1007 (DSW2-2): gpiod_set_debounce: missing set() or
+set_debounce() operations
+gio: map hw irq = 15, irq = 37
+gio: sense irq = 15, mode = 12
+gpio-1008 (DSW2-3): gpiod_set_debounce: missing set() or
+set_debounce() operations
+gio: map hw irq = 16, irq = 38
+gio: sense irq = 16, mode = 12
+gpio-1009 (DSW2-4): gpiod_set_debounce: missing set() or
+set_debounce() operations
+gio: map hw irq = 17, irq = 39
+gio: sense irq = 17, mode = 12
+input: gpio_keys as /devices/platform/gpio_keys/input/input0
+hctosys: unable to open rtc device (rtc0)
+smsc911x 20000000.ethernet eth0: SMSC911x/921x identified at 0xc8880000, IRQ: 35
+Sending DHCP requests .., OK
+IP-Config: Got DHCP answer from 192.168.97.254, my address is 192.168.97.215
+IP-Config: Complete:
+     device=eth0, hwaddr=00:01:9b:04:03:cf, ipaddr=192.168.97.215,
+mask=255.255.255.0, gw=192.168.97.254
+     host=192.168.97.215, domain=of.borg, nis-domain=(none)
+     bootserver=192.168.97.254, rootserver=192.168.97.254, rootpath=
+  nameserver0=192.168.97.254
+ALSA device list:
+  No soundcards found.
+Freeing unused kernel memory: 2048K (c0700000 - c0900000)
+sysctl: error: 'kernel.hotplug' is an unknown key
 
-[  340.319852] NMI watchdog: BUG: soft lockup - CPU#2 stuck for 22s! [jbd2/zram0-8:405]
-[  340.319856] Modules linked in: lzo zram zsmalloc mousedev coretemp hwmon crc32c_intel r8169 i2c_i801 mii snd_hda_codec_realtek snd_hda_codec_generic snd_hda_intel snd_hda_codec snd_hda_core acpi_cpufreq snd_pcm snd_timer snd soundcore lpc_ich mfd_core processor sch_fq_codel sd_mod hid_generic usbhid hid ahci libahci libata ehci_pci ehci_hcd scsi_mod usbcore usb_common
-[  340.319900] irq event stamp: 834296
-[  340.319902] hardirqs last  enabled at (834295): [<ffffffff81280b07>] quarantine_put+0xa1/0xe6
-[  340.319911] hardirqs last disabled at (834296): [<ffffffff81d31e68>] _raw_write_lock_irqsave+0x13/0x4c
-[  340.319917] softirqs last  enabled at (833836): [<ffffffff81d3455e>] __do_softirq+0x406/0x48f
-[  340.319922] softirqs last disabled at (833831): [<ffffffff8109914a>] irq_exit+0x6a/0x113
-[  340.319929] CPU: 2 PID: 405 Comm: jbd2/zram0-8 Tainted: G      D         4.7.0-rc3-next-20160614-dbg-00004-ga1c2cbc-dirty #488
-[  340.319935] task: ffff8800bb512900 ti: ffff8800a69c0000 task.ti: ffff8800a69c0000
-[  340.319937] RIP: 0010:[<ffffffff814ed772>]  [<ffffffff814ed772>] delay_tsc+0x0/0xa4
-[  340.319943] RSP: 0018:ffff8800a69c70f8  EFLAGS: 00000206
-[  340.319945] RAX: 0000000000000001 RBX: ffff8800aa91f300 RCX: 0000000000000000
-[  340.319947] RDX: 0000000000000003 RSI: ffffffff81ed2840 RDI: 0000000000000001
-[  340.319949] RBP: ffff8800a69c7100 R08: 0000000000000001 R09: 0000000000000000
-[  340.319951] R10: ffff8800a69c70e8 R11: 000000007e7516b9 R12: ffff8800aa91f310
-[  340.319954] R13: ffff8800aa91f308 R14: 000000001f3306fa R15: 0000000000000000
-[  340.319956] FS:  0000000000000000(0000) GS:ffff880113700000(0000) knlGS:0000000000000000
-[  340.319959] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  340.319961] CR2: 00007fc99caba080 CR3: 00000000b9796000 CR4: 00000000000006e0
-[  340.319963] Stack:
-[  340.319964]  ffffffff814ed89c ffff8800a69c7148 ffffffff8112795d ffffed0015523e60
-[  340.319970]  000000009e857390 ffff8800aa91f300 ffff8800bbe21cc0 ffff8800047d6f80
-[  340.319975]  ffff8800a69c72b0 ffff8800aa91f300 ffff8800a69c7168 ffffffff81d31bed
-[  340.319980] Call Trace:
-[  340.319983]  [<ffffffff814ed89c>] ? __delay+0xa/0xc
-[  340.319988]  [<ffffffff8112795d>] do_raw_spin_lock+0x197/0x257
-[  340.319991]  [<ffffffff81d31bed>] _raw_spin_lock+0x35/0x3c
-[  340.319998]  [<ffffffffa02c6062>] ? zs_free+0x191/0x27a [zsmalloc]
-[  340.320003]  [<ffffffffa02c6062>] zs_free+0x191/0x27a [zsmalloc]
-[  340.320008]  [<ffffffffa02c5ed1>] ? free_zspage+0xe8/0xe8 [zsmalloc]
-[  340.320012]  [<ffffffff810d58d1>] ? finish_task_switch+0x3de/0x484
-[  340.320015]  [<ffffffff810d58a6>] ? finish_task_switch+0x3b3/0x484
-[  340.320021]  [<ffffffff81d27ad5>] ? __schedule+0xa4d/0xd16
-[  340.320024]  [<ffffffff81d28086>] ? preempt_schedule+0x1f/0x21
-[  340.320028]  [<ffffffff81d27ff9>] ? preempt_schedule_common+0xb7/0xe8
-[  340.320034]  [<ffffffffa02d3f0e>] zram_free_page+0x112/0x1f6 [zram]
-[  340.320039]  [<ffffffffa02d5e6c>] zram_make_request+0x45d/0x89f [zram]
-[  340.320045]  [<ffffffffa02d5a0f>] ? zram_rw_page+0x21d/0x21d [zram]
-[  340.320048]  [<ffffffff81493657>] ? blk_exit_rl+0x39/0x39
-[  340.320053]  [<ffffffff8148fe3f>] ? handle_bad_sector+0x192/0x192
-[  340.320056]  [<ffffffff8127f83e>] ? kasan_slab_alloc+0x12/0x14
-[  340.320059]  [<ffffffff8127ca68>] ? kmem_cache_alloc+0xf3/0x101
-[  340.320062]  [<ffffffff81494e37>] generic_make_request+0x2bc/0x496
-[  340.320066]  [<ffffffff81494b7b>] ? blk_plug_queued_count+0x103/0x103
-[  340.320069]  [<ffffffff8111ec7e>] ? debug_check_no_locks_freed+0x150/0x22b
-[  340.320072]  [<ffffffff81495309>] submit_bio+0x2f8/0x324
-[  340.320075]  [<ffffffff81495011>] ? generic_make_request+0x496/0x496
-[  340.320078]  [<ffffffff811190fc>] ? lockdep_init_map+0x1ef/0x4b0
-[  340.320082]  [<ffffffff814880a4>] submit_bio_wait+0xff/0x138
-[  340.320085]  [<ffffffff81487fa5>] ? bio_add_page+0x292/0x292
-[  340.320090]  [<ffffffff814ab82c>] blkdev_issue_discard+0xee/0x148
-[  340.320093]  [<ffffffff814ab73e>] ? __blkdev_issue_discard+0x399/0x399
-[  340.320097]  [<ffffffff8111f0ac>] ? debug_show_all_locks+0x226/0x226
-[  340.320101]  [<ffffffff81404de8>] ext4_free_data_callback+0x2cc/0x8bc
-[  340.320104]  [<ffffffff81404de8>] ? ext4_free_data_callback+0x2cc/0x8bc
-[  340.320107]  [<ffffffff81404b1c>] ? ext4_mb_release_context+0x10aa/0x10aa
-[  340.320111]  [<ffffffff81122c56>] ? lock_acquire+0xec/0x147
-[  340.320115]  [<ffffffff813c8a6a>] ? ext4_journal_commit_callback+0x203/0x220
-[  340.320119]  [<ffffffff813c8a61>] ext4_journal_commit_callback+0x1fa/0x220
-[  340.320124]  [<ffffffff81438bf5>] jbd2_journal_commit_transaction+0x3753/0x3c20
-[  340.320128]  [<ffffffff814354a2>] ? journal_submit_commit_record+0x777/0x777
-[  340.320132]  [<ffffffff8111f0ac>] ? debug_show_all_locks+0x226/0x226
-[  340.320135]  [<ffffffff811205a5>] ? __lock_acquire+0x14f9/0x33b8
-[  340.320139]  [<ffffffff81d31db0>] ? _raw_spin_unlock_irqrestore+0x3b/0x5c
-[  340.320143]  [<ffffffff8111cde6>] ? trace_hardirqs_on_caller+0x3d2/0x492
-[  340.320146]  [<ffffffff81d31dbc>] ? _raw_spin_unlock_irqrestore+0x47/0x5c
-[  340.320151]  [<ffffffff81156945>] ? try_to_del_timer_sync+0xa5/0xce
-[  340.320154]  [<ffffffff8111cde6>] ? trace_hardirqs_on_caller+0x3d2/0x492
-[  340.320157]  [<ffffffff8143febd>] kjournald2+0x246/0x6e1
-[  340.320160]  [<ffffffff8143febd>] ? kjournald2+0x246/0x6e1
-[  340.320163]  [<ffffffff8143fc77>] ? commit_timeout+0xb/0xb
-[  340.320167]  [<ffffffff8111112e>] ? prepare_to_wait_event+0x3f7/0x3f7
-[  340.320171]  [<ffffffff810ccde3>] kthread+0x252/0x261
-[  340.320174]  [<ffffffff8143fc77>] ? commit_timeout+0xb/0xb
-[  340.320177]  [<ffffffff810ccb91>] ? kthread_create_on_node+0x377/0x377
-[  340.320181]  [<ffffffff81d3277f>] ret_from_fork+0x1f/0x40
-[  340.320185]  [<ffffffff810ccb91>] ? kthread_create_on_node+0x377/0x377
-[  340.320186] Code: 5c 5d c3 55 48 8d 04 bd 00 00 00 00 65 48 8b 15 8d 59 b2 7e 48 69 d2 fa 00 00 00 48 89 e5 f7 e2 48 8d 7a 01 e8 22 01 00 00 5d c3 <55> 48 89 e5 41 56 41 55 41 54 53 49 89 fd bf 01 00 00 00 e8 ed 
+Gr{oetje,eeting}s,
 
-	-ss
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
