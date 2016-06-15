@@ -1,88 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A0C666B0005
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:43:37 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id na2so15911907lbb.1
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 10:43:37 -0700 (PDT)
-Received: from mail-lf0-x22d.google.com (mail-lf0-x22d.google.com. [2a00:1450:4010:c07::22d])
-        by mx.google.com with ESMTPS id e125si8655249lfg.57.2016.06.15.10.43.35
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A72CD6B025E
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:49:21 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id g18so15690584lfg.2
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 10:49:21 -0700 (PDT)
+Received: from mail-lf0-x234.google.com (mail-lf0-x234.google.com. [2a00:1450:4010:c07::234])
+        by mx.google.com with ESMTPS id ps8si6127171lbc.72.2016.06.15.10.49.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jun 2016 10:43:35 -0700 (PDT)
-Received: by mail-lf0-x22d.google.com with SMTP id q132so23050359lfe.3
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 10:43:35 -0700 (PDT)
+        Wed, 15 Jun 2016 10:49:20 -0700 (PDT)
+Received: by mail-lf0-x234.google.com with SMTP id l188so20949673lfe.2
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 10:49:19 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jLH+UzOhPfj5VkydHg=ZxbrQHQe6C1C-dbCBzsAmW9M2Q@mail.gmail.com>
-References: <201606140353.WeDaHl1M%fengguang.wu@intel.com> <20160613141123.fcb245b6a7fd3199ae8a32d7@linux-foundation.org>
- <CAGXu5jLH+UzOhPfj5VkydHg=ZxbrQHQe6C1C-dbCBzsAmW9M2Q@mail.gmail.com>
+In-Reply-To: <CALCETrXhta1VHsq1snwo-tXbiN3oZF4w43wva3vsx8MSsYzUaA@mail.gmail.com>
+References: <CALCETrWMh0+_RKV1OwwqE6s8P=fLFUYcAxvSNwDK_qB6BOBs9w@mail.gmail.com>
+ <CAGXu5jJ64qCGuMCt+hTpwiVT+pu76b+g8QA=vtVgEv=a4ca9mQ@mail.gmail.com> <CALCETrXhta1VHsq1snwo-tXbiN3oZF4w43wva3vsx8MSsYzUaA@mail.gmail.com>
 From: Kees Cook <keescook@chromium.org>
-Date: Wed, 15 Jun 2016 10:43:34 -0700
-Message-ID: <CAGXu5jJ-ga0pXVtkCFSS6tGnsuhhNxOOguexUU14_4fwa3Uaeg@mail.gmail.com>
-Subject: Re: [mel:mm-vmscan-node-lru-v7r3 38/200] slub.c:undefined reference
- to `cache_random_seq_create'
+Date: Wed, 15 Jun 2016 10:49:18 -0700
+Message-ID: <CAGXu5jK7-D8vE_1qV+ZMayama3YwR-fs8ESjOM=VrhxUvAHxNA@mail.gmail.com>
+Subject: Re: Playing with virtually mapped stacks (with guard pages!)
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Mel Gorman <mgorman@suse.de>, Thomas Garnier <thgarnie@google.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Jun 13, 2016 at 4:51 PM, Kees Cook <keescook@chromium.org> wrote:
-> On Mon, Jun 13, 2016 at 2:11 PM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
->> On Tue, 14 Jun 2016 03:37:57 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
->>
->>> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/mel/linux mm-vmscan-node-lru-v7r3
->>> head:   276a5614a25ce20248f42bd4fb025b80ae0c9be1
->>> commit: 44c61fe5d7f13025a2a1f6efbbc0da75ad93ee19 [38/200] mm: SLUB freelist randomization
->>> config: x86_64-randconfig-x018-06140033 (attached as .config)
->>> compiler: gcc-6 (Debian 6.1.1-1) 6.1.1 20160430
->>> reproduce:
->>>         git checkout 44c61fe5d7f13025a2a1f6efbbc0da75ad93ee19
->>>         # save the attached .config to linux build tree
->>>         make ARCH=x86_64
+On Wed, Jun 15, 2016 at 10:23 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+> On Wed, Jun 15, 2016 at 10:05 AM, Kees Cook <keescook@chromium.org> wrote:
+>> On Tue, Jun 14, 2016 at 11:01 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+>>> Hi all-
 >>>
->>> All errors (new ones prefixed by >>):
+>>> If you want to play with virtually mapped stacks, I have it more or
+>>> less working on x86 in a branch here:
 >>>
->>>    mm/built-in.o: In function `init_cache_random_seq':
->>> >> slub.c:(.text+0x507dc): undefined reference to `cache_random_seq_create'
->>>    mm/built-in.o: In function `__kmem_cache_release':
->>> >> (.text+0x53979): undefined reference to `cache_random_seq_destroy'
->
-> With that config, I get these errors.
-
-The above errors were already fixed in
-mm-slub-freelist-randomization-fix (moving it out of CONFIG_SLABINFO).
-
->
->> I don't even get that far with that .config.  With gcc-4.4.4 I get
+>>> https://git.kernel.org/cgit/linux/kernel/git/luto/linux.git/log/?h=x86/vmap_stack
+>>>
+>>> The core bit (virtually map the stack and fix the accounting) is just
+>>> a config option, but it needs the arch to opt-in.  I suspect that
+>>> every arch will have its own set of silly issues to address to make it
+>>> work well.  For x86, the silly issues are getting the OOPS to work
+>>> right and handling some vmalloc_fault oddities to avoid panicing at
+>>> random.
 >>
->> init/built-in.o: In function `initcall_blacklisted':
->> main.c:(.text+0x41): undefined reference to `__stack_chk_guard'
->> main.c:(.text+0xbe): undefined reference to `__stack_chk_guard'
->> init/built-in.o: In function `do_one_initcall':
->> (.text+0xeb): undefined reference to `__stack_chk_guard'
->> init/built-in.o: In function `do_one_initcall':
->> (.text+0x22b): undefined reference to `__stack_chk_guard'
->> init/built-in.o: In function `name_to_dev_t':
->> (.text+0x320): undefined reference to `__stack_chk_guard'
->> init/built-in.o:(.text+0x52e): more undefined references to `__stack_chk_guard'
+>> Awesome! Some notes/questions:
+>>
+>> - there are a number of typos in commit messages and comments, just FYI
 >
-> This, I don't. I'm scratching my head about how that's possible. The
-> __stack_chk_guard is a compiler alias on x86...
->
->> Kees touched it last :)
->
-> I'll take a closer look tomorrow...
+> Not surprising.  I'll try to find and fix them.
 
-Stupid question: were you doing a build for x86? This error really
-shouldn't be possible since gcc defaults to tls for the guard on x86.
-I don't have gcc 4.4.4 easily available, but I don't think it even has
-the -mstack-protector-guard option to force this to change. (And I see
-no reference to this option in the kernel tree.) AFAICT this error
-should only happen when building with either
--mstack-protector-guard=global or an architecture that forces that,
-along with some new code that triggers the stack protector but lacks
-the symbol at link time, which also seems impossible. :P
+x86/cpa: In populate_pgd, don't set the pgd entry until it's
+populated: "anyther CPU propages"
+
+x86/cpa: Warn if kernel_unmap_pages_in_pgd is used inappropriately:
+"kenrnel entries"
+
+There was another repeated word, but I can't find it now. :P
+
+>>
+>> - where is the guard page added? I don't see anything leaving a hole at the end?
+>
+> Magic!  The vmap code does this for us.
+
+Heh, can you point me to where? Does it have guards at both ends?
+
+>> - where is thread_info? I understand there to be two benefits from
+>> vmalloc stack: 1) thread_info can live elsewhere, 2) guard page can
+>> exist easily
+>
+> I think that thread_info is a separate issue except insofar as it's
+> needed for full exploit protection.  Moving / eliminating it has
+> nothing to do with where the stack lives AFAIK.  I'll get to it.
+
+Okay, cool.
+
+> I suspect that the hardest part will be eliminating the (mostly
+> pointless) thread_info::task field.
+
+IIUC, grsecurity puts a thread_info pointer in the percpu area, if
+that's any help.
+
+>> - this seems like it should Oops not warn:
+>> WARN_ON_ONCE(vm->nr_pages != THREAD_SIZE / PAGE_SIZE);
+>> that being wrong seems like a very bad state to continue from
+>
+> I'll change that.
+>
+>>
+>> - bikeshed: I think the CONFIG should live in arch/Kconfig (with a
+>> description of what an arch needs to support for it) and be called
+>> HAVE_ARCH_VMAP_STACK so that archs can select it instead of having
+>> multiple definitions of CONFIG_VMAP_STACK in each arch.
+>
+> I'll change that, too.
+
+Awesome! :)
 
 -Kees
 
