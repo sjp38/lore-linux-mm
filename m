@@ -1,47 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B0CA06B007E
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 21:01:04 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fg1so8612031pad.1
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 18:01:04 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id e1si41624722pfb.36.2016.06.14.18.01.03
-        for <linux-mm@kvack.org>;
-        Tue, 14 Jun 2016 18:01:04 -0700 (PDT)
-Date: Wed, 15 Jun 2016 10:01:07 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v1 3/3] mm: per-process reclaim
-Message-ID: <20160615010107.GE17127@bbox>
-References: <1465804259-29345-1-git-send-email-minchan@kernel.org>
- <1465804259-29345-4-git-send-email-minchan@kernel.org>
- <1465837595.2756.1.camel@redhat.com>
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E865E6B007E
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 22:00:08 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id f10so6917158obr.3
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 19:00:08 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id 1si8678540itz.48.2016.06.14.19.00.06
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 14 Jun 2016 19:00:08 -0700 (PDT)
+From: <zhouxianrong@huawei.com>
+Subject: [PATCH v2] more mapcount page as kpage could reduce total replacement times than fewer mapcount one in probability.
+Date: Wed, 15 Jun 2016 09:56:58 +0800
+Message-ID: <1465955818-101898-1-git-send-email-zhouxianrong@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1465837595.2756.1.camel@redhat.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangwoo Park <sangwoo2.park@lge.com>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, zhouchengming1@huawei.com, geliangtang@163.com, zhouxianrong@huawei.com, linux-kernel@vger.kernel.org, zhouxiyu@huawei.com, wanghaijun5@huawei.com
 
-On Mon, Jun 13, 2016 at 01:06:35PM -0400, Rik van Riel wrote:
-> On Mon, 2016-06-13 at 16:50 +0900, Minchan Kim wrote:
-> > These day, there are many platforms available in the embedded market
-> > and sometime, they has more hints about workingset than kernel so
-> > they want to involve memory management more heavily like android's
-> > lowmemory killer and ashmem or user-daemon with lowmemory notifier.
-> > 
-> > This patch adds add new method for userspace to manage memory
-> > efficiently via knob "/proc/<pid>/reclaim" so platform can reclaim
-> > any process anytime.
-> > 
-> 
-> Could it make sense to invoke this automatically,
-> perhaps from the Android low memory killer code?
+From: z00281421 <z00281421@notesmail.huawei.com>
 
-It's doable. In fact, It was first internal implementation of our
-product. However, I wanted to use it on platforms which don't have
-lowmemory killer. :)
+more mapcount page as kpage could reduce total replacement times 
+than fewer mapcount one when ksmd scan and replace among 
+forked pages later.
+
+Signed-off-by: z00281421 <z00281421@notesmail.huawei.com>
+---
+ mm/ksm.c |    8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 4786b41..4d530af 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1094,6 +1094,14 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
+ {
+ 	int err;
+ 
++	/*
++	 * select more mapcount page as kpage
++	 */
++	if (page_mapcount(page) < page_mapcount(tree_page)) {
++		swap(page, tree_page);
++		swap(rmap_item, tree_rmap_item);
++	}
++
+ 	err = try_to_merge_with_ksm_page(rmap_item, page, NULL);
+ 	if (!err) {
+ 		err = try_to_merge_with_ksm_page(tree_rmap_item,
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
