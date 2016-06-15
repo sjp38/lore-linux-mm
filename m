@@ -1,44 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A3FEE6B007E
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 18:53:24 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id na2so19888653lbb.1
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 15:53:24 -0700 (PDT)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id e7si12528663wma.24.2016.06.15.15.53.23
+Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C2B5D6B007E
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 19:01:51 -0400 (EDT)
+Received: by mail-lb0-f197.google.com with SMTP id c1so1504766lbw.0
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:01:51 -0700 (PDT)
+Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
+        by mx.google.com with ESMTPS id ek2si1769467wjd.76.2016.06.15.16.01.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jun 2016 15:53:23 -0700 (PDT)
-Received: by mail-wm0-x232.google.com with SMTP id m124so44511567wme.1
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 15:53:23 -0700 (PDT)
+        Wed, 15 Jun 2016 16:01:50 -0700 (PDT)
+Received: by mail-wm0-x236.google.com with SMTP id m124so44695662wme.1
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:01:50 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160615154402.d903d57a64377df7ebc77ad9@linux-foundation.org>
-References: <201606140353.WeDaHl1M%fengguang.wu@intel.com> <20160613141123.fcb245b6a7fd3199ae8a32d7@linux-foundation.org>
- <CAGXu5jLH+UzOhPfj5VkydHg=ZxbrQHQe6C1C-dbCBzsAmW9M2Q@mail.gmail.com>
- <CAGXu5jJ-ga0pXVtkCFSS6tGnsuhhNxOOguexUU14_4fwa3Uaeg@mail.gmail.com>
- <20160615142628.75bf404e7b48e239759f6994@linux-foundation.org>
- <CAGXu5jLKS=cWJJozFOYyjzNuiBt5GTSBAfZCyFRXh3oVE5QE=g@mail.gmail.com> <20160615154402.d903d57a64377df7ebc77ad9@linux-foundation.org>
+In-Reply-To: <20160615223952.f3a4ece452b15c62babf4629@gmail.com>
+References: <20160615001754.f9e986cf961d1466f5e086dc@gmail.com>
+ <CAGXu5jK-QVhbuOnNENq9PesPTdPCnbgODzb0qn=q4ZMS0-ndBA@mail.gmail.com> <20160615223952.f3a4ece452b15c62babf4629@gmail.com>
 From: Kees Cook <keescook@chromium.org>
-Date: Wed, 15 Jun 2016 15:53:22 -0700
-Message-ID: <CAGXu5jK=XVUs7Lt=GO8fBdgUarMhZ8sdOyYWsOmD+uR0YTqJxA@mail.gmail.com>
-Subject: Re: [mel:mm-vmscan-node-lru-v7r3 38/200] slub.c:undefined reference
- to `cache_random_seq_create'
+Date: Wed, 15 Jun 2016 16:01:49 -0700
+Message-ID: <CAGXu5jJH2FNenOpAE3Rqh8q=s01sbHmf=QobT98u4h=anjRubw@mail.gmail.com>
+Subject: Re: [PATCH v3 0/4] Introduce the latent_entropy gcc plugin
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Mel Gorman <mgorman@suse.de>, Thomas Garnier <thgarnie@google.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Emese Revfy <re.emese@gmail.com>, Greg KH <gregkh@linuxfoundation.org>
+Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Michal Marek <mmarek@suse.com>, LKML <linux-kernel@vger.kernel.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, linux-kbuild <linux-kbuild@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>, Al Viro <viro@zeniv.linux.org.uk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, bart.vanassche@sandisk.com, "David S. Miller" <davem@davemloft.net>
 
-On Wed, Jun 15, 2016 at 3:44 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 15 Jun 2016 15:37:48 -0700 Kees Cook <keescook@chromium.org> wrote:
+On Wed, Jun 15, 2016 at 1:39 PM, Emese Revfy <re.emese@gmail.com> wrote:
+> On Wed, 15 Jun 2016 11:55:44 -0700
+> Kees Cook <keescook@chromium.org> wrote:
 >
->> (Did your gcc-4.4.4 ever build with CONFIG_CC_STACKPROTECTOR enabled?)
+>>  The limit on the length of lines is 80 columns and this is a strongly
+>>  preferred limit.
 >
-> I doubt it.  With this compiler I usually just do allmodconfig and
-> let it rip.
+> I think the code looks worse when it is truncated to 80 columns but
+> I'll do it and resend the patches.
 
-Heh, okay. In that case, I'll say things are working as intended. :)
+Yup, I understand your concerns, but since we're optimizing for
+readability by a larger audience that has agreed to the guidelines in
+CodingStyle, this is what we get. :)
+
+One area I'm unclear on with kernel coding style, though, is if
+splitting all the stuff prior to function name onto a separate line is
+"acceptable", since that solves most of the long lines where
+__latent_entropy has been added. For example, I don't know which is
+better:
+
+All on one line (gmail may split this, but my intention is all one line):
+
+static __latent_entropy void rcu_process_callbacks(struct
+softirq_action *unused)
+
+Types and attributes on a separate line:
+
+static __latent_entropy void
+rcu_process_callbacks(struct softirq_action *unused)
+
+All arguments on the next line:
+
+static __latent_entropy void rcu_process_callbacks(
+                                                          struct
+softirq_action *unused)
+
+
+Greg, do you have a better sense of how to split (or not split) these
+kinds of long lines?
 
 -Kees
 
