@@ -1,72 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BE3166B007E
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 20:40:23 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id b126so19853693ite.3
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 17:40:23 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id y15si32719162pfb.59.2016.06.14.17.40.22
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D835E6B007E
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 20:43:29 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id x6so11810744oif.0
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 17:43:29 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id x80si36239750ioi.78.2016.06.14.17.43.28
         for <linux-mm@kvack.org>;
-        Tue, 14 Jun 2016 17:40:23 -0700 (PDT)
-Date: Wed, 15 Jun 2016 09:40:27 +0900
+        Tue, 14 Jun 2016 17:43:29 -0700 (PDT)
+Date: Wed, 15 Jun 2016 09:43:34 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v1 3/3] mm: per-process reclaim
-Message-ID: <20160615004027.GA17127@bbox>
+Subject: Re: [PATCH v1 0/3] per-process reclaim
+Message-ID: <20160615004334.GB17127@bbox>
 References: <1465804259-29345-1-git-send-email-minchan@kernel.org>
- <1465804259-29345-4-git-send-email-minchan@kernel.org>
- <20160613150653.GA30642@cmpxchg.org>
+ <575E9DE8.4050200@hisilicon.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160613150653.GA30642@cmpxchg.org>
+In-Reply-To: <575E9DE8.4050200@hisilicon.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Sangwoo Park <sangwoo2.park@lge.com>
+To: Chen Feng <puck.chen@hisilicon.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Redmond <u93410091@gmail.com>, "ZhaoJunmin Zhao(Junmin)" <zhaojunmin@huawei.com>, Vinayak Menon <vinmenon@codeaurora.org>, Juneho Choi <juno.choi@lge.com>, Sangwoo Park <sangwoo2.park@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>
 
-Hi Johannes,
+Hi Chen,
 
-On Mon, Jun 13, 2016 at 11:06:53AM -0400, Johannes Weiner wrote:
+On Mon, Jun 13, 2016 at 07:50:00PM +0800, Chen Feng wrote:
 > Hi Minchan,
 > 
-> On Mon, Jun 13, 2016 at 04:50:58PM +0900, Minchan Kim wrote:
-> > These day, there are many platforms available in the embedded market
-> > and sometime, they has more hints about workingset than kernel so
-> > they want to involve memory management more heavily like android's
-> > lowmemory killer and ashmem or user-daemon with lowmemory notifier.
+> On 2016/6/13 15:50, Minchan Kim wrote:
+> > Hi all,
 > > 
-> > This patch adds add new method for userspace to manage memory
-> > efficiently via knob "/proc/<pid>/reclaim" so platform can reclaim
-> > any process anytime.
+> > http://thread.gmane.org/gmane.linux.kernel/1480728
+> > 
+> > I sent per-process reclaim patchset three years ago. Then, last
+> > feedback from akpm was that he want to know real usecase scenario.
+> > 
+> > Since then, I got question from several embedded people of various
+> > company "why it's not merged into mainline" and heard they have used
+> > the feature as in-house patch and recenlty, I noticed android from
+> > Qualcomm started to use it.
+> > 
+> > Of course, our product have used it and released it in real procuct.
+> > 
+> > Quote from Sangwoo Park <angwoo2.park@lge.com>
+> > Thanks for the data, Sangwoo!
+> > "
+> > - Test scenaro
+> >   - platform: android
+> >   - target: MSM8952, 2G DDR, 16G eMMC
+> >   - scenario
+> >     retry app launch and Back Home with 16 apps and 16 turns
+> >     (total app launch count is 256)
+> >   - result:
+> > 			  resume count   |  cold launching count
+> > -----------------------------------------------------------------
+> >  vanilla           |           85        |          171
+> >  perproc reclaim   |           184       |           72
+> > "
+> > 
+> > Higher resume count is better because cold launching needs loading
+> > lots of resource data which takes above 15 ~ 20 seconds for some
+> > games while successful resume just takes 1~5 second.
+> > 
+> > As perproc reclaim way with new management policy, we could reduce
+> > cold launching a lot(i.e., 171-72) so that it reduces app startup
+> > a lot.
+> > 
+> > Another useful function from this feature is to make swapout easily
+> > which is useful for testing swapout stress and workloads.
+> > 
+> Thanks Minchan.
 > 
-> Cgroups are our canonical way to control system resources on a per
-> process or group-of-processes level. I don't like the idea of adding
-> ad-hoc interfaces for single-use cases like this.
+> Yes, this is useful interface when there are memory pressure and let the userspace(Android)
+> to pick process for reclaim. We also take there series into our platform.
 > 
-> For this particular case, you can already stick each app into its own
-> cgroup and use memory.force_empty to target-reclaim them.
-> 
-> Or better yet, set the soft limits / memory.low to guide physical
-> memory pressure, once it actually occurs, toward the least-important
-> apps? We usually prefer doing work on-demand rather than proactively.
-> 
-> The one-cgroup-per-app model would give Android much more control and
-> would also remove a *lot* of overhead during task switches, see this:
-> https://lkml.org/lkml/2014/12/19/358
+> But I have a question on the reduce app startup time. Can you also share your
+> theory(management policy) on how can the app reduce it's startup time?
 
-I didn't notice that. Thanks for the pointing.
-I read the thread you pointed out and read memcg code.
+What I meant about start-up time is as follows,
 
-Firstly, I thought one-cgroup-per-app model is abuse of memcg but now
-I feel your suggestion does make sense that it's right direction for
-control memory from the userspace. Just a concern is that not sure
-how hard we can map memory management model from global memory pressure
-to per-app pressure model smoothly.
+If a app is killed, it should launch from start so if it was the game app,
+it should load lots of resource file which takes a long time.
+However, if the game was not killed, we can enjoy the game without cold
+start so it is very fast startup.
 
-A question is it seems cgroup2 doesn't have per-cgroup swappiness.
-Why?
-
-I think we need it in one-cgroup-per-app model.
+Sorry for confusing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
