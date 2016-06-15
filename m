@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 39EF76B0266
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:07:15 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id z189so70506696itg.2
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:07:15 -0700 (PDT)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A3586B0267
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:07:17 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id l5so65646173ioa.0
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:07:17 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
         by mx.google.com with ESMTP id wa12si5647479pac.138.2016.06.15.13.07.00
         for <linux-mm@kvack.org>;
         Wed, 15 Jun 2016 13:07:00 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9-rebased2 14/37] thp: handle file pages in split_huge_pmd()
-Date: Wed, 15 Jun 2016 23:06:19 +0300
-Message-Id: <1466021202-61880-15-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9-rebased2 13/37] thp: support file pages in zap_huge_pmd()
+Date: Wed, 15 Jun 2016 23:06:18 +0300
+Message-Id: <1466021202-61880-14-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
@@ -20,46 +20,43 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ebru Akagunduz <ebru.akagunduz@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Splitting THP PMD is simple: just unmap it as in DAX case. This way we
-can avoid memory overhead on page table allocation to deposit.
+split_huge_pmd() for file mappings (and DAX too) is implemented by just
+clearing pmd entry as we can re-fill this area from page cache on pte
+level later.
 
-It's probably a good idea to try to allocation page table with
-GFP_ATOMIC in __split_huge_pmd_locked() to avoid refaulting the area,
-but clearing pmd should be good enough for now.
-
-Unlike DAX, we also remove the page from rmap and drop reference.
-pmd_young() is transfered to PageReferenced().
+This means we don't need deposit page tables when file THP is mapped.
+Therefore we shouldn't try to withdraw a page table on zap_huge_pmd()
+file THP PMD.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ mm/huge_memory.c | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index d8fd49073280..f10febd4f6e1 100644
+index b24b7993c369..d8fd49073280 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -2991,10 +2991,18 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 
- 	count_vm_event(THP_SPLIT_PMD);
- 
--	if (vma_is_dax(vma)) {
--		pmd_t _pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
-+	if (!vma_is_anonymous(vma)) {
-+		_pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
- 		if (is_huge_zero_pmd(_pmd))
- 			put_huge_zero_page();
-+		if (vma_is_dax(vma))
-+			return;
-+		page = pmd_page(_pmd);
-+		if (!PageReferenced(page) && pmd_young(_pmd))
-+			SetPageReferenced(page);
-+		page_remove_rmap(page, true);
-+		put_page(page);
-+		add_mm_counter(mm, MM_FILEPAGES, -HPAGE_PMD_NR);
- 		return;
- 	} else if (is_huge_zero_pmd(*pmd)) {
- 		return __split_huge_zero_page_pmd(vma, haddr, pmd);
+@@ -1693,10 +1693,16 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		struct page *page = pmd_page(orig_pmd);
+ 		page_remove_rmap(page, true);
+ 		VM_BUG_ON_PAGE(page_mapcount(page) < 0, page);
+-		add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+ 		VM_BUG_ON_PAGE(!PageHead(page), page);
+-		pte_free(tlb->mm, pgtable_trans_huge_withdraw(tlb->mm, pmd));
+-		atomic_long_dec(&tlb->mm->nr_ptes);
++		if (PageAnon(page)) {
++			pgtable_t pgtable;
++			pgtable = pgtable_trans_huge_withdraw(tlb->mm, pmd);
++			pte_free(tlb->mm, pgtable);
++			atomic_long_dec(&tlb->mm->nr_ptes);
++			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
++		} else {
++			add_mm_counter(tlb->mm, MM_FILEPAGES, -HPAGE_PMD_NR);
++		}
+ 		spin_unlock(ptl);
+ 		tlb_remove_page_size(tlb, page, HPAGE_PMD_SIZE);
+ 	}
 -- 
 2.8.1
 
