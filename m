@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 854656B026F
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:07:38 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 143so64026056pfx.0
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:07:38 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id h192si998239pfc.70.2016.06.15.13.07.08
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2555C6B026F
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:07:41 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id y82so40427057oig.3
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:07:41 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id iu4si5511846pac.93.2016.06.15.13.07.11
         for <linux-mm@kvack.org>;
-        Wed, 15 Jun 2016 13:07:08 -0700 (PDT)
+        Wed, 15 Jun 2016 13:07:11 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9-rebased2 37/37] thp: update Documentation/{vm/transhuge,filesystems/proc}.txt
-Date: Wed, 15 Jun 2016 23:06:42 +0300
-Message-Id: <1466021202-61880-38-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9-rebased2 34/37] khugepaged: add support of collapse for tmpfs/shmem pages
+Date: Wed, 15 Jun 2016 23:06:39 +0300
+Message-Id: <1466021202-61880-35-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
@@ -20,260 +20,699 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ebru Akagunduz <ebru.akagunduz@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Add info about tmpfs/shmem with huge pages.
+This patch extends khugepaged to support collapse of tmpfs/shmem pages.
+We share fair amount of infrastructure with anon-THP collapse.
+
+Few design points:
+
+  - First we are looking for VMA which can be suitable for mapping huge
+    page;
+
+  - If the VMA maps shmem file, the rest scan/collapse operations
+    operates on page cache, not on page tables as in anon VMA case.
+
+  - khugepaged_scan_shmem() finds a range which is suitable for huge
+    page. The scan is lockless and shouldn't disturb system too much.
+
+  - once the candidate for collapse is found, collapse_shmem() attempts
+    to create a huge page:
+
+      + scan over radix tree, making the range point to new huge page;
+
+      + new huge page is not-uptodate, locked and freezed (refcount
+        is 0), so nobody can touch them until we say so.
+
+      + we swap in pages during the scan. khugepaged_scan_shmem()
+        filters out ranges with more than khugepaged_max_ptes_swap
+	swapped out pages. It's HPAGE_PMD_NR/8 by default.
+
+      + old pages are isolated, unmapped and put to local list in case
+        to be restored back if collapse failed.
+
+  - if collapse succeed, we retract pte page tables from VMAs where huge
+    pages mapping is possible. The huge page will be mapped as PMD on
+    next minor fault into the range.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- Documentation/filesystems/proc.txt |   9 +++
- Documentation/vm/transhuge.txt     | 128 ++++++++++++++++++++++++++-----------
- 2 files changed, 101 insertions(+), 36 deletions(-)
+ include/linux/shmem_fs.h           |  23 ++
+ include/trace/events/huge_memory.h |   3 +-
+ mm/khugepaged.c                    | 435 ++++++++++++++++++++++++++++++++++++-
+ mm/shmem.c                         |  56 ++++-
+ 4 files changed, 500 insertions(+), 17 deletions(-)
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index e8d00759bfa5..50fcf48f4d58 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -436,6 +436,7 @@ Private_Dirty:         0 kB
- Referenced:          892 kB
- Anonymous:             0 kB
- AnonHugePages:         0 kB
-+ShmemPmdMapped:        0 kB
- Shared_Hugetlb:        0 kB
- Private_Hugetlb:       0 kB
- Swap:                  0 kB
-@@ -464,6 +465,8 @@ accessed.
- a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
- and a page is modified, the file page is replaced by a private anonymous copy.
- "AnonHugePages" shows the ammount of memory backed by transparent hugepage.
-+"ShmemPmdMapped" shows the ammount of shared (shmem/tmpfs) memory backed by
-+huge pages.
- "Shared_Hugetlb" and "Private_Hugetlb" show the ammounts of memory backed by
- hugetlbfs page which is *not* counted in "RSS" or "PSS" field for historical
- reasons. And these are not included in {Shared,Private}_{Clean,Dirty} field.
-@@ -868,6 +871,9 @@ VmallocTotal:   112216 kB
- VmallocUsed:       428 kB
- VmallocChunk:   111088 kB
- AnonHugePages:   49152 kB
-+ShmemHugePages:      0 kB
-+ShmemPmdMapped:      0 kB
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index 94eaaa2c6ad9..0890f700a546 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -54,6 +54,7 @@ extern unsigned long shmem_get_unmapped_area(struct file *, unsigned long addr,
+ 		unsigned long len, unsigned long pgoff, unsigned long flags);
+ extern int shmem_lock(struct file *file, int lock, struct user_struct *user);
+ extern bool shmem_mapping(struct address_space *mapping);
++extern bool shmem_huge_enabled(struct vm_area_struct *vma);
+ extern void shmem_unlock_mapping(struct address_space *mapping);
+ extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
+ 					pgoff_t index, gfp_t gfp_mask);
+@@ -64,6 +65,19 @@ extern unsigned long shmem_swap_usage(struct vm_area_struct *vma);
+ extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,
+ 						pgoff_t start, pgoff_t end);
+ 
++/* Flag allocation requirements to shmem_getpage */
++enum sgp_type {
++	SGP_READ,	/* don't exceed i_size, don't allocate page */
++	SGP_CACHE,	/* don't exceed i_size, may allocate page */
++	SGP_NOHUGE,	/* like SGP_CACHE, but no huge pages */
++	SGP_HUGE,	/* like SGP_CACHE, huge pages preferred */
++	SGP_WRITE,	/* may exceed i_size, may allocate !Uptodate page */
++	SGP_FALLOC,	/* like SGP_WRITE, but make existing page Uptodate */
++};
 +
++extern int shmem_getpage(struct inode *inode, pgoff_t index,
++		struct page **pagep, enum sgp_type sgp);
++
+ static inline struct page *shmem_read_mapping_page(
+ 				struct address_space *mapping, pgoff_t index)
+ {
+@@ -71,6 +85,15 @@ static inline struct page *shmem_read_mapping_page(
+ 					mapping_gfp_mask(mapping));
+ }
  
-     MemTotal: Total usable ram (i.e. physical ram minus a few reserved
-               bits and the kernel binary code)
-@@ -912,6 +918,9 @@ MemAvailable: An estimate of how much memory is available for starting new
- AnonHugePages: Non-file backed huge pages mapped into userspace page tables
-       Mapped: files which have been mmaped, such as libraries
-        Shmem: Total memory used by shared memory (shmem) and tmpfs
-+ShmemHugePages: Memory used by shared memory (shmem) and tmpfs allocated
-+              with huge pages
-+ShmemPmdMapped: Shared memory mapped into userspace with huge pages
-         Slab: in-kernel data structures cache
- SReclaimable: Part of Slab, that might be reclaimed, such as caches
-   SUnreclaim: Part of Slab, that cannot be reclaimed on memory pressure
-diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-index 7c871d6beb63..2ec6adb5a4ce 100644
---- a/Documentation/vm/transhuge.txt
-+++ b/Documentation/vm/transhuge.txt
-@@ -9,8 +9,8 @@ using huge pages for the backing of virtual memory with huge pages
- that supports the automatic promotion and demotion of page sizes and
- without the shortcomings of hugetlbfs.
++static inline bool shmem_file(struct file *file)
++{
++	if (!IS_ENABLED(CONFIG_SHMEM))
++		return false;
++	if (!file || !file->f_mapping)
++		return false;
++	return shmem_mapping(file->f_mapping);
++}
++
+ extern bool shmem_charge(struct inode *inode, long pages);
+ extern void shmem_uncharge(struct inode *inode, long pages);
  
--Currently it only works for anonymous memory mappings but in the
--future it can expand over the pagecache layer starting with tmpfs.
-+Currently it only works for anonymous memory mappings and tmpfs/shmem.
-+But in the future it can expand to other filesystems.
+diff --git a/include/trace/events/huge_memory.h b/include/trace/events/huge_memory.h
+index bda21183eb05..830d47d5ca41 100644
+--- a/include/trace/events/huge_memory.h
++++ b/include/trace/events/huge_memory.h
+@@ -29,7 +29,8 @@
+ 	EM( SCAN_DEL_PAGE_LRU,		"could_not_delete_page_from_lru")\
+ 	EM( SCAN_ALLOC_HUGE_PAGE_FAIL,	"alloc_huge_page_failed")	\
+ 	EM( SCAN_CGROUP_CHARGE_FAIL,	"ccgroup_charge_failed")	\
+-	EMe( SCAN_EXCEED_SWAP_PTE,	"exceed_swap_pte")
++	EM( SCAN_EXCEED_SWAP_PTE,	"exceed_swap_pte")		\
++	EMe(SCAN_TRUNCATED,		"truncated")			\
  
- The reason applications are running faster is because of two
- factors. The first factor is almost completely irrelevant and it's not
-@@ -57,10 +57,6 @@ miss is going to run faster.
-   feature that applies to all dynamic high order allocations in the
-   kernel)
+ #undef EM
+ #undef EMe
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index 639047cc6ea7..573e4366d3b9 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -14,6 +14,7 @@
+ #include <linux/userfaultfd_k.h>
+ #include <linux/page_idle.h>
+ #include <linux/swapops.h>
++#include <linux/shmem_fs.h>
  
--- this initial support only offers the feature in the anonymous memory
--  regions but it'd be ideal to move it to tmpfs and the pagecache
--  later
+ #include <asm/tlb.h>
+ #include <asm/pgalloc.h>
+@@ -42,7 +43,8 @@ enum scan_result {
+ 	SCAN_DEL_PAGE_LRU,
+ 	SCAN_ALLOC_HUGE_PAGE_FAIL,
+ 	SCAN_CGROUP_CHARGE_FAIL,
+-	SCAN_EXCEED_SWAP_PTE
++	SCAN_EXCEED_SWAP_PTE,
++	SCAN_TRUNCATED,
+ };
+ 
+ #define CREATE_TRACE_POINTS
+@@ -294,7 +296,7 @@ struct attribute_group khugepaged_attr_group = {
+ 	.name = "khugepaged",
+ };
+ 
+-#define VM_NO_KHUGEPAGED (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
++#define VM_NO_KHUGEPAGED (VM_SPECIAL | VM_HUGETLB)
+ 
+ int hugepage_madvise(struct vm_area_struct *vma,
+ 		     unsigned long *vm_flags, int advice)
+@@ -816,6 +818,10 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
+ 	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
+ 	    (vma->vm_flags & VM_NOHUGEPAGE))
+ 		return false;
++	if (shmem_file(vma->vm_file)) {
++		return IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
++				HPAGE_PMD_NR);
++	}
+ 	if (!vma->anon_vma || vma->vm_ops)
+ 		return false;
+ 	if (is_vma_temporary_stack(vma))
+@@ -1216,6 +1222,412 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
+ 	}
+ }
+ 
++#ifdef CONFIG_SHMEM
++static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
++{
++	struct vm_area_struct *vma;
++	unsigned long addr;
++	pmd_t *pmd, _pmd;
++
++	i_mmap_lock_write(mapping);
++	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
++		/* probably overkill */
++		if (vma->anon_vma)
++			continue;
++		addr = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
++		if (addr & ~HPAGE_PMD_MASK)
++			continue;
++		if (vma->vm_end < addr + HPAGE_PMD_SIZE)
++			continue;
++		pmd = mm_find_pmd(vma->vm_mm, addr);
++		if (!pmd)
++			continue;
++		/*
++		 * We need exclusive mmap_sem to retract page table.
++		 * If trylock fails we would end up with pte-mapped THP after
++		 * re-fault. Not ideal, but it's more important to not disturb
++		 * the system too much.
++		 */
++		if (down_write_trylock(&vma->vm_mm->mmap_sem)) {
++			spinlock_t *ptl = pmd_lock(vma->vm_mm, pmd);
++			/* assume page table is clear */
++			_pmd = pmdp_collapse_flush(vma, addr, pmd);
++			spin_unlock(ptl);
++			up_write(&vma->vm_mm->mmap_sem);
++			atomic_long_dec(&vma->vm_mm->nr_ptes);
++			pte_free(vma->vm_mm, pmd_pgtable(_pmd));
++		}
++	}
++	i_mmap_unlock_write(mapping);
++}
++
++/**
++ * collapse_shmem - collapse small tmpfs/shmem pages into huge one.
++ *
++ * Basic scheme is simple, details are more complex:
++ *  - allocate and freeze a new huge page;
++ *  - scan over radix tree replacing old pages the new one
++ *    + swap in pages if necessary;
++ *    + fill in gaps;
++ *    + keep old pages around in case if rollback is required;
++ *  - if replacing succeed:
++ *    + copy data over;
++ *    + free old pages;
++ *    + unfreeze huge page;
++ *  - if replacing failed;
++ *    + put all pages back and unfreeze them;
++ *    + restore gaps in the radix-tree;
++ *    + free huge page;
++ */
++static void collapse_shmem(struct mm_struct *mm,
++		struct address_space *mapping, pgoff_t start,
++		struct page **hpage, int node)
++{
++	gfp_t gfp;
++	struct page *page, *new_page, *tmp;
++	struct mem_cgroup *memcg;
++	pgoff_t index, end = start + HPAGE_PMD_NR;
++	LIST_HEAD(pagelist);
++	struct radix_tree_iter iter;
++	void **slot;
++	int nr_none = 0, result = SCAN_SUCCEED;
++
++	VM_BUG_ON(start & (HPAGE_PMD_NR - 1));
++
++	/* Only allocate from the target node */
++	gfp = alloc_hugepage_khugepaged_gfpmask() |
++		__GFP_OTHER_NODE | __GFP_THISNODE;
++
++	new_page = khugepaged_alloc_page(hpage, gfp, node);
++	if (!new_page) {
++		result = SCAN_ALLOC_HUGE_PAGE_FAIL;
++		goto out;
++	}
++
++	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp, &memcg, true))) {
++		result = SCAN_CGROUP_CHARGE_FAIL;
++		goto out;
++	}
++
++	new_page->index = start;
++	new_page->mapping = mapping;
++	__SetPageSwapBacked(new_page);
++	__SetPageLocked(new_page);
++	BUG_ON(!page_ref_freeze(new_page, 1));
++
++
++	/*
++	 * At this point the new_page is 'frozen' (page_count() is zero), locked
++	 * and not up-to-date. It's safe to insert it into radix tree, because
++	 * nobody would be able to map it or use it in other way until we
++	 * unfreeze it.
++	 */
++
++	index = start;
++	spin_lock_irq(&mapping->tree_lock);
++	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
++		int n = min(iter.index, end) - index;
++
++		/*
++		 * Handle holes in the radix tree: charge it from shmem and
++		 * insert relevant subpage of new_page into the radix-tree.
++		 */
++		if (n && !shmem_charge(mapping->host, n)) {
++			result = SCAN_FAIL;
++			break;
++		}
++		nr_none += n;
++		for (; index < min(iter.index, end); index++) {
++			radix_tree_insert(&mapping->page_tree, index,
++					new_page + (index % HPAGE_PMD_NR));
++		}
++
++		/* We are done. */
++		if (index >= end)
++			break;
++
++		page = radix_tree_deref_slot_protected(slot,
++				&mapping->tree_lock);
++		if (radix_tree_exceptional_entry(page) || !PageUptodate(page)) {
++			spin_unlock_irq(&mapping->tree_lock);
++			/* swap in or instantiate fallocated page */
++			if (shmem_getpage(mapping->host, index, &page,
++						SGP_NOHUGE)) {
++				result = SCAN_FAIL;
++				goto tree_unlocked;
++			}
++			spin_lock_irq(&mapping->tree_lock);
++		} else if (trylock_page(page)) {
++			get_page(page);
++		} else {
++			result = SCAN_PAGE_LOCK;
++			break;
++		}
++
++		/*
++		 * The page must be locked, so we can drop the tree_lock
++		 * without racing with truncate.
++		 */
++		VM_BUG_ON_PAGE(!PageLocked(page), page);
++		VM_BUG_ON_PAGE(!PageUptodate(page), page);
++		VM_BUG_ON_PAGE(PageTransCompound(page), page);
++
++		if (page_mapping(page) != mapping) {
++			result = SCAN_TRUNCATED;
++			goto out_unlock;
++		}
++		spin_unlock_irq(&mapping->tree_lock);
++
++		if (isolate_lru_page(page)) {
++			result = SCAN_DEL_PAGE_LRU;
++			goto out_isolate_failed;
++		}
++
++		if (page_mapped(page))
++			unmap_mapping_range(mapping, index << PAGE_SHIFT,
++					PAGE_SIZE, 0);
++
++		spin_lock_irq(&mapping->tree_lock);
++
++		VM_BUG_ON_PAGE(page_mapped(page), page);
++
++		/*
++		 * The page is expected to have page_count() == 3:
++		 *  - we hold a pin on it;
++		 *  - one reference from radix tree;
++		 *  - one from isolate_lru_page;
++		 */
++		if (!page_ref_freeze(page, 3)) {
++			result = SCAN_PAGE_COUNT;
++			goto out_lru;
++		}
++
++		/*
++		 * Add the page to the list to be able to undo the collapse if
++		 * something go wrong.
++		 */
++		list_add_tail(&page->lru, &pagelist);
++
++		/* Finally, replace with the new page. */
++		radix_tree_replace_slot(slot,
++				new_page + (index % HPAGE_PMD_NR));
++
++		index++;
++		continue;
++out_lru:
++		spin_unlock_irq(&mapping->tree_lock);
++		putback_lru_page(page);
++out_isolate_failed:
++		unlock_page(page);
++		put_page(page);
++		goto tree_unlocked;
++out_unlock:
++		unlock_page(page);
++		put_page(page);
++		break;
++	}
++
++	/*
++	 * Handle hole in radix tree at the end of the range.
++	 * This code only triggers if there's nothing in radix tree
++	 * beyond 'end'.
++	 */
++	if (result == SCAN_SUCCEED && index < end) {
++		int n = end - index;
++
++		if (!shmem_charge(mapping->host, n)) {
++			result = SCAN_FAIL;
++			goto tree_locked;
++		}
++
++		for (; index < end; index++) {
++			radix_tree_insert(&mapping->page_tree, index,
++					new_page + (index % HPAGE_PMD_NR));
++		}
++		nr_none += n;
++	}
++
++tree_locked:
++	spin_unlock_irq(&mapping->tree_lock);
++tree_unlocked:
++
++	if (result == SCAN_SUCCEED) {
++		unsigned long flags;
++		struct zone *zone = page_zone(new_page);
++
++		/*
++		 * Replacing old pages with new one has succeed, now we need to
++		 * copy the content and free old pages.
++		 */
++		list_for_each_entry_safe(page, tmp, &pagelist, lru) {
++			copy_highpage(new_page + (page->index % HPAGE_PMD_NR),
++					page);
++			list_del(&page->lru);
++			unlock_page(page);
++			page_ref_unfreeze(page, 1);
++			page->mapping = NULL;
++			ClearPageActive(page);
++			ClearPageUnevictable(page);
++			put_page(page);
++		}
++
++		local_irq_save(flags);
++		__inc_zone_page_state(new_page, NR_SHMEM_THPS);
++		if (nr_none) {
++			__mod_zone_page_state(zone, NR_FILE_PAGES, nr_none);
++			__mod_zone_page_state(zone, NR_SHMEM, nr_none);
++		}
++		local_irq_restore(flags);
++
++		/*
++		 * Remove pte page tables, so we can re-faulti
++		 * the page as huge.
++		 */
++		retract_page_tables(mapping, start);
++
++		/* Everything is ready, let's unfreeze the new_page */
++		set_page_dirty(new_page);
++		SetPageUptodate(new_page);
++		page_ref_unfreeze(new_page, HPAGE_PMD_NR);
++		mem_cgroup_commit_charge(new_page, memcg, false, true);
++		lru_cache_add_anon(new_page);
++		unlock_page(new_page);
++
++		*hpage = NULL;
++	} else {
++		/* Something went wrong: rollback changes to the radix-tree */
++		shmem_uncharge(mapping->host, nr_none);
++		spin_lock_irq(&mapping->tree_lock);
++		radix_tree_for_each_slot(slot, &mapping->page_tree, &iter,
++				start) {
++			if (iter.index >= end)
++				break;
++			page = list_first_entry_or_null(&pagelist,
++					struct page, lru);
++			if (!page || iter.index < page->index) {
++				if (!nr_none)
++					break;
++				/* Put holes back where they were */
++				radix_tree_replace_slot(slot, NULL);
++				nr_none--;
++				continue;
++			}
++
++			VM_BUG_ON_PAGE(page->index != iter.index, page);
++
++			/* Unfreeze the page. */
++			list_del(&page->lru);
++			page_ref_unfreeze(page, 2);
++			radix_tree_replace_slot(slot, page);
++			spin_unlock_irq(&mapping->tree_lock);
++			putback_lru_page(page);
++			unlock_page(page);
++			spin_lock_irq(&mapping->tree_lock);
++		}
++		VM_BUG_ON(nr_none);
++		spin_unlock_irq(&mapping->tree_lock);
++
++		/* Unfreeze new_page, caller would take care about freeing it */
++		page_ref_unfreeze(new_page, 1);
++		mem_cgroup_cancel_charge(new_page, memcg, true);
++		unlock_page(new_page);
++		new_page->mapping = NULL;
++	}
++out:
++	VM_BUG_ON(!list_empty(&pagelist));
++	/* TODO: tracepoints */
++}
++
++static void khugepaged_scan_shmem(struct mm_struct *mm,
++		struct address_space *mapping,
++		pgoff_t start, struct page **hpage)
++{
++	struct page *page = NULL;
++	struct radix_tree_iter iter;
++	void **slot;
++	int present, swap;
++	int node = NUMA_NO_NODE;
++	int result = SCAN_SUCCEED;
++
++	present = 0;
++	swap = 0;
++	memset(khugepaged_node_load, 0, sizeof(khugepaged_node_load));
++	rcu_read_lock();
++	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
++		if (iter.index >= start + HPAGE_PMD_NR)
++			break;
++
++		page = radix_tree_deref_slot(slot);
++		if (radix_tree_deref_retry(page)) {
++			slot = radix_tree_iter_retry(&iter);
++			continue;
++		}
++
++		if (radix_tree_exception(page)) {
++			if (++swap > khugepaged_max_ptes_swap) {
++				result = SCAN_EXCEED_SWAP_PTE;
++				break;
++			}
++			continue;
++		}
++
++		if (PageTransCompound(page)) {
++			result = SCAN_PAGE_COMPOUND;
++			break;
++		}
++
++		node = page_to_nid(page);
++		if (khugepaged_scan_abort(node)) {
++			result = SCAN_SCAN_ABORT;
++			break;
++		}
++		khugepaged_node_load[node]++;
++
++		if (!PageLRU(page)) {
++			result = SCAN_PAGE_LRU;
++			break;
++		}
++
++		if (page_count(page) != 1 + page_mapcount(page)) {
++			result = SCAN_PAGE_COUNT;
++			break;
++		}
++
++		/*
++		 * We probably should check if the page is referenced here, but
++		 * nobody would transfer pte_young() to PageReferenced() for us.
++		 * And rmap walk here is just too costly...
++		 */
++
++		present++;
++
++		if (need_resched()) {
++			cond_resched_rcu();
++			slot = radix_tree_iter_next(&iter);
++		}
++	}
++	rcu_read_unlock();
++
++	if (result == SCAN_SUCCEED) {
++		if (present < HPAGE_PMD_NR - khugepaged_max_ptes_none) {
++			result = SCAN_EXCEED_NONE_PTE;
++		} else {
++			node = khugepaged_find_target_node();
++			collapse_shmem(mm, mapping, start, hpage, node);
++		}
++	}
++
++	/* TODO: tracepoints */
++}
++#else
++static void khugepaged_scan_shmem(struct mm_struct *mm,
++		struct address_space *mapping,
++		pgoff_t start, struct page **hpage)
++{
++	BUILD_BUG();
++}
++#endif
++
+ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+ 					    struct page **hpage)
+ 	__releases(&khugepaged_mm_lock)
+@@ -1269,6 +1681,8 @@ skip:
+ 		if (khugepaged_scan.address < hstart)
+ 			khugepaged_scan.address = hstart;
+ 		VM_BUG_ON(khugepaged_scan.address & ~HPAGE_PMD_MASK);
++		if (shmem_file(vma->vm_file) && !shmem_huge_enabled(vma))
++			goto skip;
+ 
+ 		while (khugepaged_scan.address < hend) {
+ 			int ret;
+@@ -1279,9 +1693,20 @@ skip:
+ 			VM_BUG_ON(khugepaged_scan.address < hstart ||
+ 				  khugepaged_scan.address + HPAGE_PMD_SIZE >
+ 				  hend);
+-			ret = khugepaged_scan_pmd(mm, vma,
+-						  khugepaged_scan.address,
+-						  hpage);
++			if (shmem_file(vma->vm_file)) {
++				struct file *file = get_file(vma->vm_file);
++				pgoff_t pgoff = linear_page_index(vma,
++						khugepaged_scan.address);
++				up_read(&mm->mmap_sem);
++				ret = 1;
++				khugepaged_scan_shmem(mm, file->f_mapping,
++						pgoff, hpage);
++				fput(file);
++			} else {
++				ret = khugepaged_scan_pmd(mm, vma,
++						khugepaged_scan.address,
++						hpage);
++			}
+ 			/* move to next address */
+ 			khugepaged_scan.address += HPAGE_PMD_SIZE;
+ 			progress += HPAGE_PMD_NR;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 746816be46bd..c659f545877c 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -32,6 +32,7 @@
+ #include <linux/export.h>
+ #include <linux/swap.h>
+ #include <linux/uio.h>
++#include <linux/khugepaged.h>
+ 
+ static struct vfsmount *shm_mnt;
+ 
+@@ -97,16 +98,6 @@ struct shmem_falloc {
+ 	pgoff_t nr_unswapped;	/* how often writepage refused to swap out */
+ };
+ 
+-/* Flag allocation requirements to shmem_getpage */
+-enum sgp_type {
+-	SGP_READ,	/* don't exceed i_size, don't allocate page */
+-	SGP_CACHE,	/* don't exceed i_size, may allocate page */
+-	SGP_NOHUGE,	/* like SGP_CACHE, but no huge pages */
+-	SGP_HUGE,	/* like SGP_CACHE, huge pages preferred */
+-	SGP_WRITE,	/* may exceed i_size, may allocate !Uptodate page */
+-	SGP_FALLOC,	/* like SGP_WRITE, but make existing page Uptodate */
+-};
 -
- Transparent Hugepage Support maximizes the usefulness of free memory
- if compared to the reservation approach of hugetlbfs by allowing all
- unused memory to be used as cache or other movable (or even unmovable
-@@ -94,21 +90,21 @@ madvise(MADV_HUGEPAGE) on their critical mmapped regions.
+ #ifdef CONFIG_TMPFS
+ static unsigned long shmem_default_max_blocks(void)
+ {
+@@ -126,7 +117,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 		struct page **pagep, enum sgp_type sgp,
+ 		gfp_t gfp, struct mm_struct *fault_mm, int *fault_type);
  
- == sysfs ==
+-static inline int shmem_getpage(struct inode *inode, pgoff_t index,
++int shmem_getpage(struct inode *inode, pgoff_t index,
+ 		struct page **pagep, enum sgp_type sgp)
+ {
+ 	return shmem_getpage_gfp(inode, index, pagep, sgp,
+@@ -1899,6 +1890,11 @@ static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
+ {
+ 	file_accessed(file);
+ 	vma->vm_ops = &shmem_vm_ops;
++	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
++			((vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK) <
++			(vma->vm_end & HPAGE_PMD_MASK)) {
++		khugepaged_enter(vma, vma->vm_flags);
++	}
+ 	return 0;
+ }
  
--Transparent Hugepage Support can be entirely disabled (mostly for
--debugging purposes) or only enabled inside MADV_HUGEPAGE regions (to
--avoid the risk of consuming more memory resources) or enabled system
--wide. This can be achieved with one of:
-+Transparent Hugepage Support for anonymous memory can be entirely disabled
-+(mostly for debugging purposes) or only enabled inside MADV_HUGEPAGE
-+regions (to avoid the risk of consuming more memory resources) or enabled
-+system wide. This can be achieved with one of:
+@@ -3801,6 +3797,37 @@ static ssize_t shmem_enabled_store(struct kobject *kobj,
  
- echo always >/sys/kernel/mm/transparent_hugepage/enabled
- echo madvise >/sys/kernel/mm/transparent_hugepage/enabled
- echo never >/sys/kernel/mm/transparent_hugepage/enabled
- 
- It's also possible to limit defrag efforts in the VM to generate
--hugepages in case they're not immediately free to madvise regions or
--to never try to defrag memory and simply fallback to regular pages
--unless hugepages are immediately available. Clearly if we spend CPU
--time to defrag memory, we would expect to gain even more by the fact
--we use hugepages later instead of regular pages. This isn't always
-+anonymous hugepages in case they're not immediately free to madvise
-+regions or to never try to defrag memory and simply fallback to regular
-+pages unless hugepages are immediately available. Clearly if we spend CPU
-+time to defrag memory, we would expect to gain even more by the fact we
-+use hugepages later instead of regular pages. This isn't always
- guaranteed, but it may be more likely in case the allocation is for a
- MADV_HUGEPAGE region.
- 
-@@ -133,9 +129,9 @@ that are have used madvise(MADV_HUGEPAGE). This is the default behaviour.
- 
- "never" should be self-explanatory.
- 
--By default kernel tries to use huge zero page on read page fault.
--It's possible to disable huge zero page by writing 0 or enable it
--back by writing 1:
-+By default kernel tries to use huge zero page on read page fault to
-+anonymous mapping. It's possible to disable huge zero page by writing 0
-+or enable it back by writing 1:
- 
- echo 0 >/sys/kernel/mm/transparent_hugepage/use_zero_page
- echo 1 >/sys/kernel/mm/transparent_hugepage/use_zero_page
-@@ -204,21 +200,67 @@ Support by passing the parameter "transparent_hugepage=always" or
- "transparent_hugepage=madvise" or "transparent_hugepage=never"
- (without "") to the kernel command line.
- 
-+== Hugepages in tmpfs/shmem ==
+ struct kobj_attribute shmem_enabled_attr =
+ 	__ATTR(shmem_enabled, 0644, shmem_enabled_show, shmem_enabled_store);
 +
-+You can control hugepage allocation policy in tmpfs with mount option
-+"huge=". It can have following values:
++bool shmem_huge_enabled(struct vm_area_struct *vma)
++{
++	struct inode *inode = file_inode(vma->vm_file);
++	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
++	loff_t i_size;
++	pgoff_t off;
 +
-+  - "always":
-+    Attempt to allocate huge pages every time we need a new page;
-+
-+  - "never":
-+    Do not allocate huge pages;
-+
-+  - "within_size":
-+    Only allocate huge page if it will be fully within i_size.
-+    Also respect fadvise()/madvise() hints;
-+
-+  - "advise:
-+    Only allocate huge pages if requested with fadvise()/madvise();
-+
-+The default policy is "never".
-+
-+"mount -o remount,huge= /mountpoint" works fine after mount: remounting
-+huge=never will not attempt to break up huge pages at all, just stop more
-+from being allocated.
-+
-+There's also sysfs knob to control hugepage allocation policy for internal
-+shmem mount: /sys/kernel/mm/transparent_hugepage/shmem_enabled. The mount
-+is used for SysV SHM, memfds, shared anonymous mmaps (of /dev/zero or
-+MAP_ANONYMOUS), GPU drivers' DRM objects, Ashmem.
-+
-+In addition to policies listed above, shmem_enabled allows two further
-+values:
-+
-+  - "deny":
-+    For use in emergencies, to force the huge option off from
-+    all mounts;
-+  - "force":
-+    Force the huge option on for all - very useful for testing;
-+
- == Need of application restart ==
++	if (shmem_huge == SHMEM_HUGE_FORCE)
++		return true;
++	if (shmem_huge == SHMEM_HUGE_DENY)
++		return false;
++	switch (sbinfo->huge) {
++		case SHMEM_HUGE_NEVER:
++			return false;
++		case SHMEM_HUGE_ALWAYS:
++			return true;
++		case SHMEM_HUGE_WITHIN_SIZE:
++			off = round_up(vma->vm_pgoff, HPAGE_PMD_NR);
++			i_size = round_up(i_size_read(inode), PAGE_SIZE);
++			if (i_size >= HPAGE_PMD_SIZE &&
++					i_size >> PAGE_SHIFT >= off)
++				return true;
++		case SHMEM_HUGE_ADVISE:
++			/* TODO: implement fadvise() hints */
++			return (vma->vm_flags & VM_HUGEPAGE);
++		default:
++			VM_BUG_ON(1);
++			return false;
++	}
++}
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE && CONFIG_SYSFS */
  
--The transparent_hugepage/enabled values only affect future
--behavior. So to make them effective you need to restart any
--application that could have been using hugepages. This also applies to
--the regions registered in khugepaged.
-+The transparent_hugepage/enabled values and tmpfs mount option only affect
-+future behavior. So to make them effective you need to restart any
-+application that could have been using hugepages. This also applies to the
-+regions registered in khugepaged.
- 
- == Monitoring usage ==
- 
--The number of transparent huge pages currently used by the system is
--available by reading the AnonHugePages field in /proc/meminfo. To
--identify what applications are using transparent huge pages, it is
--necessary to read /proc/PID/smaps and count the AnonHugePages fields
--for each mapping. Note that reading the smaps file is expensive and
--reading it frequently will incur overhead.
-+The number of anonymous transparent huge pages currently used by the
-+system is available by reading the AnonHugePages field in /proc/meminfo.
-+To identify what applications are using anonymous transparent huge pages,
-+it is necessary to read /proc/PID/smaps and count the AnonHugePages fields
-+for each mapping.
+ #else /* !CONFIG_SHMEM */
+@@ -3980,6 +4007,13 @@ int shmem_zero_setup(struct vm_area_struct *vma)
+ 		fput(vma->vm_file);
+ 	vma->vm_file = file;
+ 	vma->vm_ops = &shmem_vm_ops;
 +
-+The number of file transparent huge pages mapped to userspace is available
-+by reading ShmemPmdMapped and ShmemHugePages fields in /proc/meminfo.
-+To identify what applications are mapping file  transparent huge pages, it
-+is necessary to read /proc/PID/smaps and count the FileHugeMapped fields
-+for each mapping.
++	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
++			((vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK) <
++			(vma->vm_end & HPAGE_PMD_MASK)) {
++		khugepaged_enter(vma, vma->vm_flags);
++	}
 +
-+Note that reading the smaps file is expensive and reading it
-+frequently will incur overhead.
+ 	return 0;
+ }
  
- There are a number of counters in /proc/vmstat that may be used to
- monitor how successfully the system is providing huge pages for use.
-@@ -238,6 +280,12 @@ thp_collapse_alloc_failed is incremented if khugepaged found a range
- 	of pages that should be collapsed into one huge page but failed
- 	the allocation.
- 
-+thp_file_alloc is incremented every time a file huge page is successfully
-+i	allocated.
-+
-+thp_file_mapped is incremented every time a file huge page is mapped into
-+	user address space.
-+
- thp_split_page is incremented every time a huge page is split into base
- 	pages. This can happen for a variety of reasons but a common
- 	reason is that a huge page is old and is being reclaimed.
-@@ -403,19 +451,27 @@ pages:
-     on relevant sub-page of the compound page.
- 
-   - map/unmap of the whole compound page accounted in compound_mapcount
--    (stored in first tail page).
-+    (stored in first tail page). For file huge pages, we also increment
-+    ->_mapcount of all sub-pages in order to have race-free detection of
-+    last unmap of subpages.
- 
--PageDoubleMap() indicates that ->_mapcount in all subpages is offset up by one.
--This additional reference is required to get race-free detection of unmap of
--subpages when we have them mapped with both PMDs and PTEs.
-+PageDoubleMap() indicates that the page is *possibly* mapped with PTEs.
-+
-+For anonymous pages PageDoubleMap() also indicates ->_mapcount in all
-+subpages is offset up by one. This additional reference is required to
-+get race-free detection of unmap of subpages when we have them mapped with
-+both PMDs and PTEs.
- 
- This is optimization required to lower overhead of per-subpage mapcount
- tracking. The alternative is alter ->_mapcount in all subpages on each
- map/unmap of the whole compound page.
- 
--We set PG_double_map when a PMD of the page got split for the first time,
--but still have PMD mapping. The additional references go away with last
--compound_mapcount.
-+For anonymous pages, we set PG_double_map when a PMD of the page got split
-+for the first time, but still have PMD mapping. The additional references
-+go away with last compound_mapcount.
-+
-+File pages get PG_double_map set on first map of the page with PTE and
-+goes away when the page gets evicted from page cache.
- 
- split_huge_page internally has to distribute the refcounts in the head
- page to the tail pages before clearing all PG_head/tail bits from the page
-@@ -427,7 +483,7 @@ sum of mapcount of all sub-pages plus one (split_huge_page caller must
- have reference for head page).
- 
- split_huge_page uses migration entries to stabilize page->_refcount and
--page->_mapcount.
-+page->_mapcount of anonymous pages. File pages just got unmapped.
- 
- We safe against physical memory scanners too: the only legitimate way
- scanner can get reference to a page is get_page_unless_zero().
 -- 
 2.8.1
 
