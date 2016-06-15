@@ -1,117 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BCED6B0253
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 12:49:17 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id g13so38100131ioj.3
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 09:49:17 -0700 (PDT)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0128.outbound.protection.outlook.com. [157.55.234.128])
-        by mx.google.com with ESMTPS id t205si3844953oig.234.2016.06.15.09.49.15
+	by kanga.kvack.org (Postfix) with ESMTP id F1FFA6B025E
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 12:50:48 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id l5so54692797ioa.0
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 09:50:48 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id a5si13767764itd.72.2016.06.15.09.50.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 15 Jun 2016 09:49:16 -0700 (PDT)
-Subject: Re: [PATCH v3] mm, kasan: switch SLUB to stackdepot, enable memory
- quarantine for SLUB
-References: <1466004364-57279-1-git-send-email-glider@google.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <5761873A.2020104@virtuozzo.com>
-Date: Wed, 15 Jun 2016 19:50:02 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Jun 2016 09:50:47 -0700 (PDT)
+From: Sasha Levin <sasha.levin@oracle.com>
+Subject: kernel, mm: NULL deref in copy_process while OOMing
+Message-ID: <57618763.5010201@oracle.com>
+Date: Wed, 15 Jun 2016 12:50:43 -0400
 MIME-Version: 1.0
-In-Reply-To: <1466004364-57279-1-git-send-email-glider@google.com>
-Content-Type: text/plain; charset="windows-1252"
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>, adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, kuthonuzo.luruo@hpe.com
-Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
+
+Hi all,
+
+I'm seeing the following NULL ptr deref in copy_process right after a bunch
+of OOM killing activity on -next kernels:
+
+Out of memory (oom_kill_allocating_task): Kill process 3477 (trinity-c159) score 0 or sacrifice child
+Killed process 3477 (trinity-c159) total-vm:3226820kB, anon-rss:36832kB, file-rss:1640kB, shmem-rss:444kB
+oom_reaper: reaped process 3477 (trinity-c159), now anon-rss:0kB, file-rss:0kB, shmem-rss:444kB
+Out of memory (oom_kill_allocating_task): Kill process 3450 (trinity-c156) score 0 or sacrifice child
+Killed process 3450 (trinity-c156) total-vm:3769768kB, anon-rss:36832kB, file-rss:1652kB, shmem-rss:508kB
+oom_reaper: reaped process 3450 (trinity-c156), now anon-rss:0kB, file-rss:0kB, shmem-rss:572kB
+BUG: unable to handle kernel NULL pointer dereference at 0000000000000150
+IP: copy_process (./arch/x86/include/asm/atomic.h:103 kernel/fork.c:484 kernel/fork.c:964 kernel/fork.c:1018 kernel/fork.c:1484)
+PGD 1ff944067 PUD 1ff929067 PMD 0
+Oops: 0002 [#1] PREEMPT SMP KASAN
+Modules linked in:
+CPU: 18 PID: 8761 Comm: trinity-main Not tainted 4.7.0-rc3-sasha-02101-g1e1b9fa #3108
+task: ffff880165564000 ti: ffff880337ad0000 task.ti: ffff880337ad0000
+RIP: copy_process (./arch/x86/include/asm/atomic.h:103 kernel/fork.c:484 kernel/fork.c:964 kernel/fork.c:1018 kernel/fork.c:1484)
+RSP: 0018:ffff880337ad7bb0  EFLAGS: 00010282
+RAX: 0000000000000000 RBX: ffff880314fbbe00 RCX: dffffc0000000000
+RDX: 1ffff10013393b9f RSI: ffff88029ba79d40 RDI: ffff880099c9dcf8
+RBP: ffff880337ad7dc8 R08: ffffffffaca1a600 R09: 0000000000000000
+R10: ffffed00629f77d8 R11: 0000000000000000 R12: ffff88016c013000
+R13: ffff88029ba79d40 R14: ffff880314fbbe50 R15: ffff880099c9dc00
+FS:  00007f37feaa5700(0000) GS:ffff880203700000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000000000150 CR3: 00000001ff565000 CR4: 00000000000006a0
+Stack:
+0000000001200011 ffffed002d80260c ffff88016c013060 0000000000000000
+ffff880314fba7a0 ffff880314fba7a8 ffff88016bd32810 ffff880314fba780
+ffff88009aca7410 ffff880314fbbe10 ffff88016c013068 ffff880201efd068
+Call Trace:
+_do_fork (kernel/fork.c:1768)
+SyS_clone (kernel/fork.c:1865)
+do_syscall_64 (arch/x86/entry/common.c:350)
+entry_SYSCALL64_slow_path (arch/x86/entry/entry_64.S:251)
+Code: 00 00 00 fc ff df 4c 89 f0 48 c1 e8 03 80 3c 08 00 74 08 4c 89 f7 e8 c7 8c 41 00 f6 43 51 08 74 11 e8 bc 12 24 00 48 8b 44 24 18 <f0> ff 88 50 01 00 00 e8 ab 12 24 00 48 8b 44 24 40 48 83 c0 28
+All code
+========
+   0:   00 00                   add    %al,(%rax)
+   2:   00 fc                   add    %bh,%ah
+   4:   ff df                   lcallq *<internal disassembler error>
+   6:   4c 89 f0                mov    %r14,%rax
+   9:   48 c1 e8 03             shr    $0x3,%rax
+   d:   80 3c 08 00             cmpb   $0x0,(%rax,%rcx,1)
+  11:   74 08                   je     0x1b
+  13:   4c 89 f7                mov    %r14,%rdi
+  16:   e8 c7 8c 41 00          callq  0x418ce2
+  1b:   f6 43 51 08             testb  $0x8,0x51(%rbx)
+  1f:   74 11                   je     0x32
+  21:   e8 bc 12 24 00          callq  0x2412e2
+  26:   48 8b 44 24 18          mov    0x18(%rsp),%rax
+  2b:*  f0 ff 88 50 01 00 00    lock decl 0x150(%rax)           <-- trapping instruction
+  32:   e8 ab 12 24 00          callq  0x2412e2
+  37:   48 8b 44 24 40          mov    0x40(%rsp),%rax
+  3c:   48 83 c0 28             add    $0x28,%rax
+        ...
+
+Code starting with the faulting instruction
+===========================================
+   0:   f0 ff 88 50 01 00 00    lock decl 0x150(%rax)
+   7:   e8 ab 12 24 00          callq  0x2412b7
+   c:   48 8b 44 24 40          mov    0x40(%rsp),%rax
+  11:   48 83 c0 28             add    $0x28,%rax
+        ...
+RIP copy_process (./arch/x86/include/asm/atomic.h:103 kernel/fork.c:484 kernel/fork.c:964 kernel/fork.c:1018 kernel/fork.c:1484)
+RSP <ffff880337ad7bb0>
+CR2: 0000000000000150
 
 
-
-On 06/15/2016 06:26 PM, Alexander Potapenko wrote:
-> For KASAN builds:
->  - switch SLUB allocator to using stackdepot instead of storing the
->    allocation/deallocation stacks in the objects;
->  - define SLAB_RED_ZONE, SLAB_POISON, SLAB_STORE_USER to zero,
->    effectively disabling these debug features, as they're redundant in
->    the presence of KASAN;
-
-So, why we forbid these? If user wants to set these, why not? If you don't want it, just don't turn them on, that's it.
-
-And sometimes POISON/REDZONE might be actually useful. KASAN doesn't catch everything,
-e.g. corruption may happen in assembly code, or DMA by  some device.
-
-
->  - change the freelist hook so that parts of the freelist can be put into
->    the quarantine.
-> 
-> Signed-off-by: Alexander Potapenko <glider@google.com>
-> ---
-
-...
-
-> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-> index fb87923..8c75953 100644
-> --- a/mm/kasan/kasan.h
-> +++ b/mm/kasan/kasan.h
-> @@ -110,7 +110,7 @@ static inline bool kasan_report_enabled(void)
->  void kasan_report(unsigned long addr, size_t size,
->  		bool is_write, unsigned long ip);
->  
-> -#ifdef CONFIG_SLAB
-> +#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB)
->  void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache);
->  void quarantine_reduce(void);
->  void quarantine_remove_cache(struct kmem_cache *cache);
-> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
-> index 4973505..89259c2 100644
-> --- a/mm/kasan/quarantine.c
-> +++ b/mm/kasan/quarantine.c
-> @@ -149,7 +149,12 @@ static void qlink_free(struct qlist_node *qlink, struct kmem_cache *cache)
->  
->  	local_irq_save(flags);
->  	alloc_info->state = KASAN_STATE_FREE;
-> +#ifdef CONFIG_SLAB
->  	___cache_free(cache, object, _THIS_IP_);
-> +#elif defined(CONFIG_SLUB)
-> +	do_slab_free(cache, virt_to_head_page(object), object, NULL, 1,
-> +		_RET_IP_);
-> +#endif
-
-Please, add some simple wrapper instead of this.
-
->  	local_irq_restore(flags);
->  }
->  
-
-
-...
-
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 825ff45..f023dd4 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -191,7 +191,11 @@ static inline bool kmem_cache_has_cpu_partial(struct kmem_cache *s)
->  #define MAX_OBJS_PER_PAGE	32767 /* since page.objects is u15 */
->  
->  /* Internal SLUB flags */
-> +#ifndef CONFIG_KASAN
->  #define __OBJECT_POISON		0x80000000UL /* Poison object */
-> +#else
-> +#define __OBJECT_POISON		0x00000000UL /* Disable object poisoning */
-> +#endif
->  #define __CMPXCHG_DOUBLE	0x40000000UL /* Use cmpxchg_double */
->  
->  #ifdef CONFIG_SMP
-> @@ -454,10 +458,8 @@ static inline void *restore_red_left(struct kmem_cache *s, void *p)
->   */
->  #if defined(CONFIG_SLUB_DEBUG_ON)
->  static int slub_debug = DEBUG_DEFAULT_FLAGS;
-> -#elif defined(CONFIG_KASAN)
-> -static int slub_debug = SLAB_STORE_USER;
->  #else
-> -static int slub_debug;
-> +static int slub_debug = SLAB_STORE_USER;
-
-Huh! So now it is on!? By default, and for everyone!
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
