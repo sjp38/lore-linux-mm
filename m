@@ -1,57 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E865E6B007E
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 22:00:08 -0400 (EDT)
-Received: by mail-ob0-f198.google.com with SMTP id f10so6917158obr.3
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 19:00:08 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id 1si8678540itz.48.2016.06.14.19.00.06
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F2ECD6B007E
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 22:21:19 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id l5so24095812ioa.0
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 19:21:19 -0700 (PDT)
+Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
+        by mx.google.com with ESMTPS id s205si3701878oif.23.2016.06.14.19.21.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 14 Jun 2016 19:00:08 -0700 (PDT)
-From: <zhouxianrong@huawei.com>
-Subject: [PATCH v2] more mapcount page as kpage could reduce total replacement times than fewer mapcount one in probability.
-Date: Wed, 15 Jun 2016 09:56:58 +0800
-Message-ID: <1465955818-101898-1-git-send-email-zhouxianrong@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Jun 2016 19:21:19 -0700 (PDT)
+Received: by mail-oi0-x231.google.com with SMTP id w5so13256114oib.2
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 19:21:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <5760792D.90000@linux.intel.com>
+References: <1465919919-2093-1-git-send-email-lukasz.anaczkowski@intel.com>
+ <7FB15233-B347-4A87-9506-A9E10D331292@gmail.com> <57603C61.5000408@linux.intel.com>
+ <2471A3E8-FF69-4720-A3BF-BDC6094A6A70@gmail.com> <5760792D.90000@linux.intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 14 Jun 2016 19:20:59 -0700
+Message-ID: <CALCETrWwFQ-NHfUw56QRDWFikD-v29OSwOqVdGLst6APGc4+bw@mail.gmail.com>
+Subject: Re: [PATCH] Linux VM workaround for Knights Landing A/D leak
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, zhouchengming1@huawei.com, geliangtang@163.com, zhouxianrong@huawei.com, linux-kernel@vger.kernel.org, zhouxiyu@huawei.com, wanghaijun5@huawei.com
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Nadav Amit <nadav.amit@gmail.com>, Lukasz Anaczkowski <lukasz.anaczkowski@intel.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, harish.srinivasappa@intel.com, lukasz.odzioba@intel.com
 
-From: z00281421 <z00281421@notesmail.huawei.com>
+On Tue, Jun 14, 2016 at 2:37 PM, Dave Hansen
+<dave.hansen@linux.intel.com> wrote:
+> On 06/14/2016 01:16 PM, Nadav Amit wrote:
+>> Dave Hansen <dave.hansen@linux.intel.com> wrote:
+>>
+>>> On 06/14/2016 09:47 AM, Nadav Amit wrote:
+>>>> Lukasz Anaczkowski <lukasz.anaczkowski@intel.com> wrote:
+>>>>
+>>>>>> From: Andi Kleen <ak@linux.intel.com>
+>>>>>> +void fix_pte_leak(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+>>>>>> +{
+>>>> Here there should be a call to smp_mb__after_atomic() to synchronize with
+>>>> switch_mm. I submitted a similar patch, which is still pending (hint).
+>>>>
+>>>>>> + if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids) {
+>>>>>> +         trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
+>>>>>> +         flush_tlb_others(mm_cpumask(mm), mm, addr,
+>>>>>> +                          addr + PAGE_SIZE);
+>>>>>> +         mb();
+>>>>>> +         set_pte(ptep, __pte(0));
+>>>>>> + }
+>>>>>> +}
+>>>
+>>> Shouldn't that barrier be incorporated in the TLB flush code itself and
+>>> not every single caller (like this code is)?
+>>>
+>>> It is insane to require individual TLB flushers to be concerned with the
+>>> barriers.
+>>
+>> IMHO it is best to use existing flushing interfaces instead of creating
+>> new ones.
+>
+> Yeah, or make these things a _little_ harder to get wrong.  That little
+> snippet above isn't so crazy that we should be depending on open-coded
+> barriers to get it right.
+>
+> Should we just add a barrier to mm_cpumask() itself?  That should stop
+> the race.  Or maybe we need a new primitive like:
+>
+> /*
+>  * Call this if a full barrier has been executed since the last
+>  * pagetable modification operation.
+>  */
+> static int __other_cpus_need_tlb_flush(struct mm_struct *mm)
+> {
+>         /* cpumask_any_but() returns >= nr_cpu_ids if no cpus set. */
+>         return cpumask_any_but(mm_cpumask(mm), smp_processor_id()) <
+>                 nr_cpu_ids;
+> }
+>
+>
+> static int other_cpus_need_tlb_flush(struct mm_struct *mm)
+> {
+>         /*
+>          * Synchronizes with switch_mm.  Makes sure that we do not
+>          * observe a bit having been cleared in mm_cpumask() before
+>          * the other processor has seen our pagetable update.  See
+>          * switch_mm().
+>          */
+>         smp_mb__after_atomic();
+>
+>         return __other_cpus_need_tlb_flush(mm)
+> }
+>
+> We should be able to deploy other_cpus_need_tlb_flush() in most of the
+> cases where we are doing "cpumask_any_but(mm_cpumask(mm),
+> smp_processor_id()) < nr_cpu_ids".
 
-more mapcount page as kpage could reduce total replacement times 
-than fewer mapcount one when ksmd scan and replace among 
-forked pages later.
+IMO this is a bit nuts.  smp_mb__after_atomic() doesn't do anything on
+x86.  And, even if it did, why should the flush code assume that the
+previous store was atomic?
 
-Signed-off-by: z00281421 <z00281421@notesmail.huawei.com>
----
- mm/ksm.c |    8 ++++++++
- 1 file changed, 8 insertions(+)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 4786b41..4d530af 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1094,6 +1094,14 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
- {
- 	int err;
- 
-+	/*
-+	 * select more mapcount page as kpage
-+	 */
-+	if (page_mapcount(page) < page_mapcount(tree_page)) {
-+		swap(page, tree_page);
-+		swap(rmap_item, tree_rmap_item);
-+	}
-+
- 	err = try_to_merge_with_ksm_page(rmap_item, page, NULL);
- 	if (!err) {
- 		err = try_to_merge_with_ksm_page(tree_rmap_item,
--- 
-1.7.9.5
+What's the issue being fixed / worked around here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
