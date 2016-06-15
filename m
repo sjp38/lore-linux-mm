@@ -1,296 +1,294 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C2266B027E
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:12:53 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e189so64054822pfa.2
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:12:53 -0700 (PDT)
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C2EC66B0280
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:13:10 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id fg1so50263156pad.1
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:13:10 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id v7si11642116pae.206.2016.06.15.13.07.04
+        by mx.google.com with ESMTP id wa12si5647479pac.138.2016.06.15.13.07.04
         for <linux-mm@kvack.org>;
         Wed, 15 Jun 2016 13:07:04 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9-rebased2 28/37] shmem: get_unmapped_area align huge page
-Date: Wed, 15 Jun 2016 23:06:33 +0300
-Message-Id: <1466021202-61880-29-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9-rebased2 26/37] mm, rmap: account shmem thp pages
+Date: Wed, 15 Jun 2016 23:06:31 +0300
+Message-Id: <1466021202-61880-27-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ebru Akagunduz <ebru.akagunduz@gmail.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ebru Akagunduz <ebru.akagunduz@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Hugh Dickins <hughd@google.com>
+Let's add ShmemHugePages and ShmemPmdMapped fields into meminfo and
+smaps. It indicates how many times we allocate and map shmem THP.
 
-Provide a shmem_get_unmapped_area method in file_operations, called
-at mmap time to decide the mapping address.  It could be conditional
-on CONFIG_TRANSPARENT_HUGEPAGE, but save #ifdefs in other places by
-making it unconditional.
+NR_ANON_TRANSPARENT_HUGEPAGES is renamed to NR_ANON_THPS.
 
-shmem_get_unmapped_area() first calls the usual mm->get_unmapped_area
-(which we treat as a black box, highly dependent on architecture and
-config and executable layout).  Lots of conditions, and in most cases
-it just goes with the address that chose; but when our huge stars are
-rightly aligned, yet that did not provide a suitable address, go back
-to ask for a larger arena, within which to align the mapping suitably.
-
-There have to be some direct calls to shmem_get_unmapped_area(),
-not via the file_operations: because of the way shmem_zero_setup()
-is called to create a shmem object late in the mmap sequence, when
-MAP_SHARED is requested with MAP_ANONYMOUS or /dev/zero.  Though
-this only matters when /proc/sys/vm/shmem_huge has been set.
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- drivers/char/mem.c       | 24 ++++++++++++
- include/linux/shmem_fs.h |  2 +
- ipc/shm.c                |  6 ++-
- mm/mmap.c                | 16 +++++++-
- mm/shmem.c               | 98 ++++++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 142 insertions(+), 4 deletions(-)
+ drivers/base/node.c    | 13 +++++++++----
+ fs/proc/meminfo.c      |  7 +++++--
+ fs/proc/task_mmu.c     | 10 +++++++++-
+ include/linux/mmzone.h |  4 +++-
+ mm/huge_memory.c       |  4 +++-
+ mm/page_alloc.c        | 19 +++++++++++++++++++
+ mm/rmap.c              | 14 ++++++++------
+ mm/vmstat.c            |  2 ++
+ 8 files changed, 58 insertions(+), 15 deletions(-)
 
-diff --git a/drivers/char/mem.c b/drivers/char/mem.c
-index 71025c2f6bbb..9656f1095c19 100644
---- a/drivers/char/mem.c
-+++ b/drivers/char/mem.c
-@@ -22,6 +22,7 @@
- #include <linux/device.h>
- #include <linux/highmem.h>
- #include <linux/backing-dev.h>
-+#include <linux/shmem_fs.h>
- #include <linux/splice.h>
- #include <linux/pfn.h>
- #include <linux/export.h>
-@@ -661,6 +662,28 @@ static int mmap_zero(struct file *file, struct vm_area_struct *vma)
- 	return 0;
- }
- 
-+static unsigned long get_unmapped_area_zero(struct file *file,
-+				unsigned long addr, unsigned long len,
-+				unsigned long pgoff, unsigned long flags)
-+{
-+#ifdef CONFIG_MMU
-+	if (flags & MAP_SHARED) {
-+		/*
-+		 * mmap_zero() will call shmem_zero_setup() to create a file,
-+		 * so use shmem's get_unmapped_area in case it can be huge;
-+		 * and pass NULL for file as in mmap.c's get_unmapped_area(),
-+		 * so as not to confuse shmem with our handle on "/dev/zero".
-+		 */
-+		return shmem_get_unmapped_area(NULL, addr, len, pgoff, flags);
-+	}
-+
-+	/* Otherwise flags & MAP_PRIVATE: with no shmem object beneath it */
-+	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
-+#else
-+	return -ENOSYS;
-+#endif
-+}
-+
- static ssize_t write_full(struct file *file, const char __user *buf,
- 			  size_t count, loff_t *ppos)
- {
-@@ -768,6 +791,7 @@ static const struct file_operations zero_fops = {
- 	.read_iter	= read_iter_zero,
- 	.write_iter	= write_iter_zero,
- 	.mmap		= mmap_zero,
-+	.get_unmapped_area = get_unmapped_area_zero,
- #ifndef CONFIG_MMU
- 	.mmap_capabilities = zero_mmap_capabilities,
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 560751bad294..51c7db2c4ee2 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -113,6 +113,8 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       "Node %d SUnreclaim:     %8lu kB\n"
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		       "Node %d AnonHugePages:  %8lu kB\n"
++		       "Node %d ShmemHugePages: %8lu kB\n"
++		       "Node %d ShmemPmdMapped: %8lu kB\n"
  #endif
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 466f18c73a49..ff2de4bab61f 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -50,6 +50,8 @@ extern struct file *shmem_file_setup(const char *name,
- extern struct file *shmem_kernel_file_setup(const char *name, loff_t size,
- 					    unsigned long flags);
- extern int shmem_zero_setup(struct vm_area_struct *);
-+extern unsigned long shmem_get_unmapped_area(struct file *, unsigned long addr,
-+		unsigned long len, unsigned long pgoff, unsigned long flags);
- extern int shmem_lock(struct file *file, int lock, struct user_struct *user);
- extern bool shmem_mapping(struct address_space *mapping);
- extern void shmem_unlock_mapping(struct address_space *mapping);
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 13282510bc0d..7fa5cbebbf19 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -476,13 +476,15 @@ static const struct file_operations shm_file_operations = {
- 	.mmap		= shm_mmap,
- 	.fsync		= shm_fsync,
- 	.release	= shm_release,
--#ifndef CONFIG_MMU
- 	.get_unmapped_area	= shm_get_unmapped_area,
--#endif
- 	.llseek		= noop_llseek,
- 	.fallocate	= shm_fallocate,
- };
- 
-+/*
-+ * shm_file_operations_huge is now identical to shm_file_operations,
-+ * but we keep it distinct for the sake of is_file_shm_hugepages().
-+ */
- static const struct file_operations shm_file_operations_huge = {
- 	.mmap		= shm_mmap,
- 	.fsync		= shm_fsync,
-diff --git a/mm/mmap.c b/mm/mmap.c
-index daabef097c78..25c2b4e0fbdc 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -25,6 +25,7 @@
- #include <linux/personality.h>
- #include <linux/security.h>
- #include <linux/hugetlb.h>
-+#include <linux/shmem_fs.h>
- #include <linux/profile.h>
- #include <linux/export.h>
- #include <linux/mount.h>
-@@ -1897,8 +1898,19 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
- 		return -ENOMEM;
- 
- 	get_area = current->mm->get_unmapped_area;
--	if (file && file->f_op->get_unmapped_area)
--		get_area = file->f_op->get_unmapped_area;
-+	if (file) {
-+		if (file->f_op->get_unmapped_area)
-+			get_area = file->f_op->get_unmapped_area;
-+	} else if (flags & MAP_SHARED) {
-+		/*
-+		 * mmap_region() will call shmem_zero_setup() to create a file,
-+		 * so use shmem's get_unmapped_area in case it can be huge.
-+		 * do_mmap_pgoff() will clear pgoff, so match alignment.
-+		 */
-+		pgoff = 0;
-+		get_area = shmem_get_unmapped_area;
-+	}
-+
- 	addr = get_area(file, addr, len, pgoff, flags);
- 	if (IS_ERR_VALUE(addr))
- 		return addr;
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 2051e0685a43..f092d9aa129d 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1513,6 +1513,94 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	return ret;
+ 			,
+ 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
+@@ -131,10 +133,13 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
+ 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
+-			, nid,
+-			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
+-			HPAGE_PMD_NR));
++		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
++		       nid, K(node_page_state(nid, NR_ANON_THPS) *
++				       HPAGE_PMD_NR),
++		       nid, K(node_page_state(nid, NR_SHMEM_THPS) *
++				       HPAGE_PMD_NR),
++		       nid, K(node_page_state(nid, NR_SHMEM_PMDMAPPED) *
++				       HPAGE_PMD_NR));
+ #else
+ 		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
+ #endif
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 83720460c5bc..cf301a9ef512 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -105,6 +105,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ #endif
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		"AnonHugePages:  %8lu kB\n"
++		"ShmemHugePages: %8lu kB\n"
++		"ShmemPmdMapped: %8lu kB\n"
+ #endif
+ #ifdef CONFIG_CMA
+ 		"CmaTotal:       %8lu kB\n"
+@@ -162,8 +164,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		, atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
+ #endif
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-		, K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+-		   HPAGE_PMD_NR)
++		, K(global_page_state(NR_ANON_THPS) * HPAGE_PMD_NR)
++		, K(global_page_state(NR_SHMEM_THPS) * HPAGE_PMD_NR)
++		, K(global_page_state(NR_SHMEM_PMDMAPPED) * HPAGE_PMD_NR)
+ #endif
+ #ifdef CONFIG_CMA
+ 		, K(totalcma_pages)
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 4648c7f63ae2..187d84ef9de9 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -448,6 +448,7 @@ struct mem_size_stats {
+ 	unsigned long referenced;
+ 	unsigned long anonymous;
+ 	unsigned long anonymous_thp;
++	unsigned long shmem_thp;
+ 	unsigned long swap;
+ 	unsigned long shared_hugetlb;
+ 	unsigned long private_hugetlb;
+@@ -576,7 +577,12 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
+ 	page = follow_trans_huge_pmd(vma, addr, pmd, FOLL_DUMP);
+ 	if (IS_ERR_OR_NULL(page))
+ 		return;
+-	mss->anonymous_thp += HPAGE_PMD_SIZE;
++	if (PageAnon(page))
++		mss->anonymous_thp += HPAGE_PMD_SIZE;
++	else if (PageSwapBacked(page))
++		mss->shmem_thp += HPAGE_PMD_SIZE;
++	else
++		VM_BUG_ON_PAGE(1, page);
+ 	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd));
  }
+ #else
+@@ -770,6 +776,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ 		   "Referenced:     %8lu kB\n"
+ 		   "Anonymous:      %8lu kB\n"
+ 		   "AnonHugePages:  %8lu kB\n"
++		   "ShmemPmdMapped: %8lu kB\n"
+ 		   "Shared_Hugetlb: %8lu kB\n"
+ 		   "Private_Hugetlb: %7lu kB\n"
+ 		   "Swap:           %8lu kB\n"
+@@ -787,6 +794,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ 		   mss.referenced >> 10,
+ 		   mss.anonymous >> 10,
+ 		   mss.anonymous_thp >> 10,
++		   mss.shmem_thp >> 10,
+ 		   mss.shared_hugetlb >> 10,
+ 		   mss.private_hugetlb >> 10,
+ 		   mss.swap >> 10,
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 3d7ab30d4940..19425e988bdc 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -154,7 +154,9 @@ enum zone_stat_item {
+ 	WORKINGSET_REFAULT,
+ 	WORKINGSET_ACTIVATE,
+ 	WORKINGSET_NODERECLAIM,
+-	NR_ANON_TRANSPARENT_HUGEPAGES,
++	NR_ANON_THPS,
++	NR_SHMEM_THPS,
++	NR_SHMEM_PMDMAPPED,
+ 	NR_FREE_CMA_PAGES,
+ 	NR_VM_ZONE_STAT_ITEMS };
  
-+unsigned long shmem_get_unmapped_area(struct file *file,
-+				      unsigned long uaddr, unsigned long len,
-+				      unsigned long pgoff, unsigned long flags)
-+{
-+	unsigned long (*get_area)(struct file *,
-+		unsigned long, unsigned long, unsigned long, unsigned long);
-+	unsigned long addr;
-+	unsigned long offset;
-+	unsigned long inflated_len;
-+	unsigned long inflated_addr;
-+	unsigned long inflated_offset;
-+
-+	if (len > TASK_SIZE)
-+		return -ENOMEM;
-+
-+	get_area = current->mm->get_unmapped_area;
-+	addr = get_area(file, uaddr, len, pgoff, flags);
-+
-+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-+		return addr;
-+	if (IS_ERR_VALUE(addr))
-+		return addr;
-+	if (addr & ~PAGE_MASK)
-+		return addr;
-+	if (addr > TASK_SIZE - len)
-+		return addr;
-+
-+	if (shmem_huge == SHMEM_HUGE_DENY)
-+		return addr;
-+	if (len < HPAGE_PMD_SIZE)
-+		return addr;
-+	if (flags & MAP_FIXED)
-+		return addr;
-+	/*
-+	 * Our priority is to support MAP_SHARED mapped hugely;
-+	 * and support MAP_PRIVATE mapped hugely too, until it is COWed.
-+	 * But if caller specified an address hint, respect that as before.
-+	 */
-+	if (uaddr)
-+		return addr;
-+
-+	if (shmem_huge != SHMEM_HUGE_FORCE) {
-+		struct super_block *sb;
-+
-+		if (file) {
-+			VM_BUG_ON(file->f_op != &shmem_file_operations);
-+			sb = file_inode(file)->i_sb;
-+		} else {
-+			/*
-+			 * Called directly from mm/mmap.c, or drivers/char/mem.c
-+			 * for "/dev/zero", to create a shared anonymous object.
-+			 */
-+			if (IS_ERR(shm_mnt))
-+				return addr;
-+			sb = shm_mnt->mnt_sb;
-+		}
-+		if (SHMEM_SB(sb)->huge != SHMEM_HUGE_NEVER)
-+			return addr;
-+	}
-+
-+	offset = (pgoff << PAGE_SHIFT) & (HPAGE_PMD_SIZE-1);
-+	if (offset && offset + len < 2 * HPAGE_PMD_SIZE)
-+		return addr;
-+	if ((addr & (HPAGE_PMD_SIZE-1)) == offset)
-+		return addr;
-+
-+	inflated_len = len + HPAGE_PMD_SIZE - PAGE_SIZE;
-+	if (inflated_len > TASK_SIZE)
-+		return addr;
-+	if (inflated_len < len)
-+		return addr;
-+
-+	inflated_addr = get_area(NULL, 0, inflated_len, 0, flags);
-+	if (IS_ERR_VALUE(inflated_addr))
-+		return addr;
-+	if (inflated_addr & ~PAGE_MASK)
-+		return addr;
-+
-+	inflated_offset = inflated_addr & (HPAGE_PMD_SIZE-1);
-+	inflated_addr += offset - inflated_offset;
-+	if (inflated_offset > offset)
-+		inflated_addr += HPAGE_PMD_SIZE;
-+
-+	if (inflated_addr > TASK_SIZE - len)
-+		return addr;
-+	return inflated_addr;
-+}
-+
- #ifdef CONFIG_NUMA
- static int shmem_set_policy(struct vm_area_struct *vma, struct mempolicy *mpol)
- {
-@@ -3259,6 +3347,7 @@ static const struct address_space_operations shmem_aops = {
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 6ee521dd0353..24c08b44724b 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -3071,7 +3071,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
  
- static const struct file_operations shmem_file_operations = {
- 	.mmap		= shmem_mmap,
-+	.get_unmapped_area = shmem_get_unmapped_area,
- #ifdef CONFIG_TMPFS
- 	.llseek		= shmem_file_llseek,
- 	.read_iter	= shmem_file_read_iter,
-@@ -3494,6 +3583,15 @@ void shmem_unlock_mapping(struct address_space *mapping)
- {
- }
- 
-+#ifdef CONFIG_MMU
-+unsigned long shmem_get_unmapped_area(struct file *file,
-+				      unsigned long addr, unsigned long len,
-+				      unsigned long pgoff, unsigned long flags)
-+{
-+	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
-+}
+ 	if (atomic_add_negative(-1, compound_mapcount_ptr(page))) {
+ 		/* Last compound_mapcount is gone. */
+-		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++		__dec_zone_page_state(page, NR_ANON_THPS);
+ 		if (TestClearPageDoubleMap(page)) {
+ 			/* No need in mapcount reference anymore */
+ 			for (i = 0; i < HPAGE_PMD_NR; i++)
+@@ -3550,6 +3550,8 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 			pgdata->split_queue_len--;
+ 			list_del(page_deferred_list(head));
+ 		}
++		if (mapping)
++			__dec_zone_page_state(page, NR_SHMEM_THPS);
+ 		spin_unlock(&pgdata->split_queue_lock);
+ 		__split_huge_page(page, list, flags);
+ 		ret = 0;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d35a907d7a07..b9ea6189c037 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4309,6 +4309,9 @@ void show_free_areas(unsigned int filter)
+ 		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
+ 		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+ 		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++		" anon_thp: %lu shmem_thp: %lu shmem_pmdmapped: %lu\n"
 +#endif
-+
- void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
- {
- 	truncate_inode_pages_range(inode->i_mapping, lstart, lend);
+ 		" free:%lu free_pcp:%lu free_cma:%lu\n",
+ 		global_page_state(NR_ACTIVE_ANON),
+ 		global_page_state(NR_INACTIVE_ANON),
+@@ -4326,6 +4329,11 @@ void show_free_areas(unsigned int filter)
+ 		global_page_state(NR_SHMEM),
+ 		global_page_state(NR_PAGETABLE),
+ 		global_page_state(NR_BOUNCE),
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++		global_page_state(NR_ANON_THPS) * HPAGE_PMD_NR,
++		global_page_state(NR_SHMEM_THPS) * HPAGE_PMD_NR,
++		global_page_state(NR_SHMEM_PMDMAPPED) * HPAGE_PMD_NR,
++#endif
+ 		global_page_state(NR_FREE_PAGES),
+ 		free_pcp,
+ 		global_page_state(NR_FREE_CMA_PAGES));
+@@ -4360,6 +4368,11 @@ void show_free_areas(unsigned int filter)
+ 			" writeback:%lukB"
+ 			" mapped:%lukB"
+ 			" shmem:%lukB"
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++			" shmem_thp: %lukB"
++			" shmem_pmdmapped: %lukB"
++			" anon_thp: %lukB"
++#endif
+ 			" slab_reclaimable:%lukB"
+ 			" slab_unreclaimable:%lukB"
+ 			" kernel_stack:%lukB"
+@@ -4392,6 +4405,12 @@ void show_free_areas(unsigned int filter)
+ 			K(zone_page_state(zone, NR_WRITEBACK)),
+ 			K(zone_page_state(zone, NR_FILE_MAPPED)),
+ 			K(zone_page_state(zone, NR_SHMEM)),
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++			K(zone_page_state(zone, NR_SHMEM_THPS) * HPAGE_PMD_NR),
++			K(zone_page_state(zone, NR_SHMEM_PMDMAPPED)
++					* HPAGE_PMD_NR),
++			K(zone_page_state(zone, NR_ANON_THPS) * HPAGE_PMD_NR),
++#endif
+ 			K(zone_page_state(zone, NR_SLAB_RECLAIMABLE)),
+ 			K(zone_page_state(zone, NR_SLAB_UNRECLAIMABLE)),
+ 			zone_page_state(zone, NR_KERNEL_STACK) *
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 26e3e784ad75..256e585c67ef 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1215,10 +1215,8 @@ void do_page_add_anon_rmap(struct page *page,
+ 		 * pte lock(a spinlock) is held, which implies preemption
+ 		 * disabled.
+ 		 */
+-		if (compound) {
+-			__inc_zone_page_state(page,
+-					      NR_ANON_TRANSPARENT_HUGEPAGES);
+-		}
++		if (compound)
++			__inc_zone_page_state(page, NR_ANON_THPS);
+ 		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
+ 	}
+ 	if (unlikely(PageKsm(page)))
+@@ -1256,7 +1254,7 @@ void page_add_new_anon_rmap(struct page *page,
+ 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+ 		/* increment count (starts at -1) */
+ 		atomic_set(compound_mapcount_ptr(page), 0);
+-		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++		__inc_zone_page_state(page, NR_ANON_THPS);
+ 	} else {
+ 		/* Anon THP always mapped first with PMD */
+ 		VM_BUG_ON_PAGE(PageTransCompound(page), page);
+@@ -1286,6 +1284,8 @@ void page_add_file_rmap(struct page *page, bool compound)
+ 		}
+ 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
+ 			goto out;
++		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
++		__inc_zone_page_state(page, NR_SHMEM_PMDMAPPED);
+ 	} else {
+ 		if (PageTransCompound(page)) {
+ 			VM_BUG_ON_PAGE(!PageLocked(page), page);
+@@ -1324,6 +1324,8 @@ static void page_remove_file_rmap(struct page *page, bool compound)
+ 		}
+ 		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
+ 			goto out;
++		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
++		__dec_zone_page_state(page, NR_SHMEM_PMDMAPPED);
+ 	} else {
+ 		if (!atomic_add_negative(-1, &page->_mapcount))
+ 			goto out;
+@@ -1357,7 +1359,7 @@ static void page_remove_anon_compound_rmap(struct page *page)
+ 	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+ 		return;
+ 
+-	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++	__dec_zone_page_state(page, NR_ANON_THPS);
+ 
+ 	if (TestClearPageDoubleMap(page)) {
+ 		/*
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index cff2f4ec9cce..7997f52935c9 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -733,6 +733,8 @@ const char * const vmstat_text[] = {
+ 	"workingset_activate",
+ 	"workingset_nodereclaim",
+ 	"nr_anon_transparent_hugepages",
++	"nr_shmem_hugepages",
++	"nr_shmem_pmdmapped",
+ 	"nr_free_cma",
+ 
+ 	/* enum writeback_stat_item counters */
 -- 
 2.8.1
 
