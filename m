@@ -1,87 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0145A6B007E
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 22:23:38 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id 5so24185570ioy.2
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 19:23:37 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id 78si36796130iol.86.2016.06.14.19.23.36
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 927C46B007E
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 22:25:25 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id x6so14894699oif.0
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 19:25:25 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id f85si36856902iod.134.2016.06.14.19.25.24
         for <linux-mm@kvack.org>;
-        Tue, 14 Jun 2016 19:23:37 -0700 (PDT)
-Date: Wed, 15 Jun 2016 11:23:41 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 10/10] mm: balance LRU lists based on relative thrashing
-Message-ID: <20160615022341.GF17127@bbox>
-References: <20160606194836.3624-1-hannes@cmpxchg.org>
- <20160606194836.3624-11-hannes@cmpxchg.org>
- <20160610021935.GF29779@bbox>
- <20160613155231.GB30642@cmpxchg.org>
+        Tue, 14 Jun 2016 19:25:25 -0700 (PDT)
+Date: Wed, 15 Jun 2016 11:27:31 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 1/7] mm/compaction: split freepages without holding
+ the zone lock
+Message-ID: <20160615022731.GB19863@js1304-P5Q-DELUXE>
+References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <575F1813.4020700@oracle.com>
+ <20160614055257.GA13753@js1304-P5Q-DELUXE>
+ <5760569D.6030907@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160613155231.GB30642@cmpxchg.org>
+In-Reply-To: <5760569D.6030907@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Michal Hocko <mhocko@suse.cz>, Tim Chen <tim.c.chen@linux.intel.com>, kernel-team@fb.com
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jun 13, 2016 at 11:52:31AM -0400, Johannes Weiner wrote:
-> On Fri, Jun 10, 2016 at 11:19:35AM +0900, Minchan Kim wrote:
-> > On Mon, Jun 06, 2016 at 03:48:36PM -0400, Johannes Weiner wrote:
-> > > @@ -79,6 +79,7 @@ enum pageflags {
-> > >  	PG_dirty,
-> > >  	PG_lru,
-> > >  	PG_active,
-> > > +	PG_workingset,
+On Tue, Jun 14, 2016 at 03:10:21PM -0400, Sasha Levin wrote:
+> On 06/14/2016 01:52 AM, Joonsoo Kim wrote:
+> > On Mon, Jun 13, 2016 at 04:31:15PM -0400, Sasha Levin wrote:
+> >> > On 05/25/2016 10:37 PM, js1304@gmail.com wrote:
+> >>> > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >>> > > 
+> >>> > > We don't need to split freepages with holding the zone lock. It will cause
+> >>> > > more contention on zone lock so not desirable.
+> >>> > > 
+> >>> > > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >> > 
+> >> > Hey Joonsoo,
+> > Hello, Sasha.
+> >> > 
+> >> > I'm seeing the following corruption/crash which seems to be related to
+> >> > this patch:
+> > Could you tell me why you think that following corruption is related
+> > to this patch? list_del() in __isolate_free_page() is unchanged part.
 > > 
-> > I think PG_workingset might be a good flag in the future, core MM might
-> > utilize it to optimize something so I hope it supports for 32bit, too.
-> > 
-> > A usecase with PG_workingset in old was cleancache. A few year ago,
-> > Dan tried it to only cache activated page from page cache to cleancache,
-> > IIRC. As well, many system using zram(i.e., fast swap) are still 32 bit
-> > architecture.
-> > 
-> > Just an idea. we might be able to move less important flag(i.e., enabled
-> > in specific configuration, for example, PG_hwpoison or PG_uncached) in 32bit
-> > to page_extra to avoid allocate extra memory space and charge the bit as
-> > PG_workingset. :)
+> > Before this patch, we did it by split_free_page() ->
+> > __isolate_free_page() -> list_del(). With this patch, we do it by
+> > calling __isolate_free_page() directly.
 > 
-> Yeah, I do think it should be a core flag. We have the space for it.
+> I haven't bisected it, but it's the first time I see this issue and this
+> commit seems to have done related changes that might cause this.
 > 
-> > Other concern about PG_workingset is naming. For file-backed pages, it's
-> > good because file-backed pages started from inactive's head and promoted
-> > active LRU once two touch so it's likely to be workingset. However,
-> > for anonymous page, it starts from active list so every anonymous page
-> > has PG_workingset while mlocked pages cannot have a chance to have it.
-> > It wouldn't matter in eclaim POV but if we would use PG_workingset as
-> > indicator to identify real workingset page, it might be confused.
-> > Maybe, We could mark mlocked pages as workingset unconditionally.
-> 
-> Hm I'm not sure it matters. Technically we don't have to set it on
-> anon, but since it's otherwise unused anyway, it's nice to set it to
-> reinforce the notion that anon is currently always workingset.
+> I can go ahead with bisection if you don't think it's related.
 
-When I read your description firstly, I thought the flag for anon page
-is set on only swapin but now I feel you want to set it for all of
-anonymous page but it has several holes like mlocked pages, shmem pages
-and THP and you want to fix it in THP case only.
-Hm, What's the rule?
-It's not consistent and confusing to me. :(
+Hmm... I can't find a bug in this patch for now. There are more candidates
+on this area hat changed by me and it would be very helpful if you can
+do bisection.
 
-I think it would be better that PageWorkingset function should return
-true in case of PG_swapbacked set if we want to consider all pages of
-anonymous LRU PG_workingset which is more clear, not error-prone, IMHO.
-
-Another question:
-
-Do we want to retain [1]?
-
-This patch motivates from swap IO could be much faster than file IO
-so that it would be natural if we rely on refaulting feedback rather
-than forcing evicting file cache?
-
-[1] e9868505987a, mm,vmscan: only evict file pages when we have plenty?
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
