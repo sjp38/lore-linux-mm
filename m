@@ -1,91 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D835E6B007E
-	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 20:43:29 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id x6so11810744oif.0
-        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 17:43:29 -0700 (PDT)
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 80F846B007E
+	for <linux-mm@kvack.org>; Tue, 14 Jun 2016 20:46:33 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id fg1so8232130pad.1
+        for <linux-mm@kvack.org>; Tue, 14 Jun 2016 17:46:33 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id x80si36239750ioi.78.2016.06.14.17.43.28
+        by mx.google.com with ESMTP id tv9si7099528pac.85.2016.06.14.17.46.31
         for <linux-mm@kvack.org>;
-        Tue, 14 Jun 2016 17:43:29 -0700 (PDT)
-Date: Wed, 15 Jun 2016 09:43:34 +0900
+        Tue, 14 Jun 2016 17:46:32 -0700 (PDT)
+Date: Wed, 15 Jun 2016 09:46:33 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v1 0/3] per-process reclaim
-Message-ID: <20160615004334.GB17127@bbox>
-References: <1465804259-29345-1-git-send-email-minchan@kernel.org>
- <575E9DE8.4050200@hisilicon.com>
+Subject: Re: [PATCH v1 3/3] mm: per-process reclaim
+Message-ID: <20160615004633.GC17127@bbox>
+References: <040501d1c55a$81d51910$857f4b30$@alibaba-inc.com>
+ <040601d1c55b$5934e6b0$0b9eb410$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <040601d1c55b$5934e6b0$0b9eb410$@alibaba-inc.com>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <575E9DE8.4050200@hisilicon.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Feng <puck.chen@hisilicon.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Redmond <u93410091@gmail.com>, "ZhaoJunmin Zhao(Junmin)" <zhaojunmin@huawei.com>, Vinayak Menon <vinmenon@codeaurora.org>, Juneho Choi <juno.choi@lge.com>, Sangwoo Park <sangwoo2.park@lge.com>, Chan Gyun Jeong <chan.jeong@lge.com>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Hi Chen,
-
-On Mon, Jun 13, 2016 at 07:50:00PM +0800, Chen Feng wrote:
-> Hi Minchan,
+On Mon, Jun 13, 2016 at 06:07:09PM +0800, Hillf Danton wrote:
+> > +static ssize_t reclaim_write(struct file *file, const char __user *buf,
+> > +				size_t count, loff_t *ppos)
+> > +{
+> > +	struct task_struct *task;
+> > +	char buffer[PROC_NUMBUF];
+> > +	struct mm_struct *mm;
+> > +	struct vm_area_struct *vma;
+> > +	int itype;
+> > +	int rv;
+> > +	enum reclaim_type type;
+> > +
+> > +	memset(buffer, 0, sizeof(buffer));
+> > +	if (count > sizeof(buffer) - 1)
+> > +		count = sizeof(buffer) - 1;
+> > +	if (copy_from_user(buffer, buf, count))
+> > +		return -EFAULT;
+> > +	rv = kstrtoint(strstrip(buffer), 10, &itype);
+> > +	if (rv < 0)
+> > +		return rv;
+> > +	type = (enum reclaim_type)itype;
+> > +	if (type < RECLAIM_FILE || type > RECLAIM_ALL)
+> > +		return -EINVAL;
+> > +
+> > +	task = get_proc_task(file->f_path.dentry->d_inode);
+> > +	if (!task)
+> > +		return -ESRCH;
+> > +
+> > +	mm = get_task_mm(task);
+> > +	if (mm) {
+> > +		struct mm_walk reclaim_walk = {
+> > +			.pmd_entry = reclaim_pte_range,
+> > +			.mm = mm,
+> > +		};
+> > +
+> > +		down_read(&mm->mmap_sem);
+> > +		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> > +			reclaim_walk.private = vma;
+> > +
+> > +			if (is_vm_hugetlb_page(vma))
+> > +				continue;
+> > +
+> > +			if (!vma_is_anonymous(vma) && !(type & RECLAIM_FILE))
+> > +				continue;
+> > +
+> > +			if (vma_is_anonymous(vma) && !(type & RECLAIM_ANON))
+> > +				continue;
+> > +
+> > +			walk_page_range(vma->vm_start, vma->vm_end,
+> > +					&reclaim_walk);
 > 
-> On 2016/6/13 15:50, Minchan Kim wrote:
-> > Hi all,
-> > 
-> > http://thread.gmane.org/gmane.linux.kernel/1480728
-> > 
-> > I sent per-process reclaim patchset three years ago. Then, last
-> > feedback from akpm was that he want to know real usecase scenario.
-> > 
-> > Since then, I got question from several embedded people of various
-> > company "why it's not merged into mainline" and heard they have used
-> > the feature as in-house patch and recenlty, I noticed android from
-> > Qualcomm started to use it.
-> > 
-> > Of course, our product have used it and released it in real procuct.
-> > 
-> > Quote from Sangwoo Park <angwoo2.park@lge.com>
-> > Thanks for the data, Sangwoo!
-> > "
-> > - Test scenaro
-> >   - platform: android
-> >   - target: MSM8952, 2G DDR, 16G eMMC
-> >   - scenario
-> >     retry app launch and Back Home with 16 apps and 16 turns
-> >     (total app launch count is 256)
-> >   - result:
-> > 			  resume count   |  cold launching count
-> > -----------------------------------------------------------------
-> >  vanilla           |           85        |          171
-> >  perproc reclaim   |           184       |           72
-> > "
-> > 
-> > Higher resume count is better because cold launching needs loading
-> > lots of resource data which takes above 15 ~ 20 seconds for some
-> > games while successful resume just takes 1~5 second.
-> > 
-> > As perproc reclaim way with new management policy, we could reduce
-> > cold launching a lot(i.e., 171-72) so that it reduces app startup
-> > a lot.
-> > 
-> > Another useful function from this feature is to make swapout easily
-> > which is useful for testing swapout stress and workloads.
-> > 
-> Thanks Minchan.
-> 
-> Yes, this is useful interface when there are memory pressure and let the userspace(Android)
-> to pick process for reclaim. We also take there series into our platform.
-> 
-> But I have a question on the reduce app startup time. Can you also share your
-> theory(management policy) on how can the app reduce it's startup time?
+> Check fatal signal after reclaiming a mapping?
 
-What I meant about start-up time is as follows,
+Yeb, We might need it in page_walker.
 
-If a app is killed, it should launch from start so if it was the game app,
-it should load lots of resource file which takes a long time.
-However, if the game was not killed, we can enjoy the game without cold
-start so it is very fast startup.
-
-Sorry for confusing.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
