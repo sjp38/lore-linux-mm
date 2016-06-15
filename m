@@ -1,52 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DACDD6B007E
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:10:25 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id e5so69690633ith.0
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:10:25 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id o124si978295pfb.247.2016.06.15.13.10.25
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 483586B0253
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:12:10 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id y82so40679768oig.3
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:12:10 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id br9si4262217pab.37.2016.06.15.13.07.05
         for <linux-mm@kvack.org>;
-        Wed, 15 Jun 2016 13:10:25 -0700 (PDT)
-Subject: Re: [PATCH v2] Linux VM workaround for Knights Landing A/D leak
-References: <7FB15233-B347-4A87-9506-A9E10D331292@gmail.com>
- <1465923672-14232-1-git-send-email-lukasz.anaczkowski@intel.com>
- <76F6D5F2-6723-441B-BD63-52628731F1FF@gmail.com>
- <C1C2579D7BE026428F81F41198ADB17237A8670A@irsmsx110.ger.corp.intel.com>
- <613007E2-2A88-4934-9364-A5A66A555305@gmail.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <5761B630.7020502@linux.intel.com>
-Date: Wed, 15 Jun 2016 13:10:24 -0700
-MIME-Version: 1.0
-In-Reply-To: <613007E2-2A88-4934-9364-A5A66A555305@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Wed, 15 Jun 2016 13:07:05 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9-rebased2 30/37] shmem, thp: respect MADV_{NO,}HUGEPAGE for file mappings
+Date: Wed, 15 Jun 2016 23:06:35 +0300
+Message-Id: <1466021202-61880-31-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <nadav.amit@gmail.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "ak@linux.intel.com" <ak@linux.intel.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, "Srinivasappa, Harish" <harish.srinivasappa@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Andrejczuk, Grzegorz" <grzegorz.andrejczuk@intel.com>, "Daniluk, Lukasz" <lukasz.daniluk@intel.com>
+To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ebru Akagunduz <ebru.akagunduz@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 06/15/2016 01:04 PM, Nadav Amit wrote:
-> Be careful here. According to the SDM when invalidating a huge-page,
-> each 4KB page needs to be invalidated separately. In practice, when
-> Linux invalidates 2MB/1GB pages it performs a full TLB flush. The
-> full flush may not be required on knights landing, and specifically
-> for the workaround, but you should check.  
+Let's wire up existing madvise() hugepage hints for file mappings.
 
-Where do you get that?  The SDM says: "they (TLB invalidation operations
-invalidate all TLB entries corresponding to the translation specified by
-the paging structures."
+MADV_HUGEPAGE advise shmem to allocate huge page on page fault in the
+VMA. It only has effect if the filesystem is mounted with huge=advise or
+huge=within_size.
 
-Here's the full paragraph from the SDM
+MADV_NOHUGEPAGE prevents hugepage from being allocated on page fault in
+the VMA. It doesn't prevent a huge page from being allocated by other
+means, i.e. page fault into different mapping or write(2) into file.
 
-... some processors may choose to cache multiple smaller-page TLB
-entries for a translation specified by the paging structures to use a
-page larger than 4 KBytes. There is no way for software to be aware
-that multiple translations for smaller pages have been used for a large
-page. The INVLPG instruction and page faults provide the same assurances
-that they provide when a single TLB entry is used: they invalidate all
-TLB entries corresponding to the translation specified by the paging
-structures.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/huge_memory.c | 19 +++++--------------
+ mm/shmem.c       | 20 +++++++++++++++++---
+ 2 files changed, 22 insertions(+), 17 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 77b48364a8e0..bdc6fb6ac9cc 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1834,7 +1834,7 @@ spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma)
+ 	return NULL;
+ }
+ 
+-#define VM_NO_THP (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
++#define VM_NO_KHUGEPAGED (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
+ 
+ int hugepage_madvise(struct vm_area_struct *vma,
+ 		     unsigned long *vm_flags, int advice)
+@@ -1850,11 +1850,6 @@ int hugepage_madvise(struct vm_area_struct *vma,
+ 		if (mm_has_pgste(vma->vm_mm))
+ 			return 0;
+ #endif
+-		/*
+-		 * Be somewhat over-protective like KSM for now!
+-		 */
+-		if (*vm_flags & VM_NO_THP)
+-			return -EINVAL;
+ 		*vm_flags &= ~VM_NOHUGEPAGE;
+ 		*vm_flags |= VM_HUGEPAGE;
+ 		/*
+@@ -1862,15 +1857,11 @@ int hugepage_madvise(struct vm_area_struct *vma,
+ 		 * register it here without waiting a page fault that
+ 		 * may not happen any time soon.
+ 		 */
+-		if (unlikely(khugepaged_enter_vma_merge(vma, *vm_flags)))
++		if (!(*vm_flags & VM_NO_KHUGEPAGED) &&
++				khugepaged_enter_vma_merge(vma, *vm_flags))
+ 			return -ENOMEM;
+ 		break;
+ 	case MADV_NOHUGEPAGE:
+-		/*
+-		 * Be somewhat over-protective like KSM for now!
+-		 */
+-		if (*vm_flags & VM_NO_THP)
+-			return -EINVAL;
+ 		*vm_flags &= ~VM_HUGEPAGE;
+ 		*vm_flags |= VM_NOHUGEPAGE;
+ 		/*
+@@ -1978,7 +1969,7 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
+ 		 * page fault if needed.
+ 		 */
+ 		return 0;
+-	if (vma->vm_ops || (vm_flags & VM_NO_THP))
++	if (vma->vm_ops || (vm_flags & VM_NO_KHUGEPAGED))
+ 		/* khugepaged not yet working on file or special mappings */
+ 		return 0;
+ 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
+@@ -2370,7 +2361,7 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
+ 		return false;
+ 	if (is_vma_temporary_stack(vma))
+ 		return false;
+-	return !(vma->vm_flags & VM_NO_THP);
++	return !(vma->vm_flags & VM_NO_KHUGEPAGED);
+ }
+ 
+ /*
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 5a725d404f01..417f2837265b 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -101,6 +101,8 @@ struct shmem_falloc {
+ enum sgp_type {
+ 	SGP_READ,	/* don't exceed i_size, don't allocate page */
+ 	SGP_CACHE,	/* don't exceed i_size, may allocate page */
++	SGP_NOHUGE,	/* like SGP_CACHE, but no huge pages */
++	SGP_HUGE,	/* like SGP_CACHE, huge pages preferred */
+ 	SGP_WRITE,	/* may exceed i_size, may allocate !Uptodate page */
+ 	SGP_FALLOC,	/* like SGP_WRITE, but make existing page Uptodate */
+ };
+@@ -1409,6 +1411,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 	struct mem_cgroup *memcg;
+ 	struct page *page;
+ 	swp_entry_t swap;
++	enum sgp_type sgp_huge = sgp;
+ 	pgoff_t hindex = index;
+ 	int error;
+ 	int once = 0;
+@@ -1416,6 +1419,8 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 
+ 	if (index > (MAX_LFS_FILESIZE >> PAGE_SHIFT))
+ 		return -EFBIG;
++	if (sgp == SGP_NOHUGE || sgp == SGP_HUGE)
++		sgp = SGP_CACHE;
+ repeat:
+ 	swap.val = 0;
+ 	page = find_lock_entry(mapping, index);
+@@ -1534,7 +1539,7 @@ repeat:
+ 		/* shmem_symlink() */
+ 		if (mapping->a_ops != &shmem_aops)
+ 			goto alloc_nohuge;
+-		if (shmem_huge == SHMEM_HUGE_DENY)
++		if (shmem_huge == SHMEM_HUGE_DENY || sgp_huge == SGP_NOHUGE)
+ 			goto alloc_nohuge;
+ 		if (shmem_huge == SHMEM_HUGE_FORCE)
+ 			goto alloc_huge;
+@@ -1551,7 +1556,9 @@ repeat:
+ 				goto alloc_huge;
+ 			/* fallthrough */
+ 		case SHMEM_HUGE_ADVISE:
+-			/* TODO: wire up fadvise()/madvise() */
++			if (sgp_huge == SGP_HUGE)
++				goto alloc_huge;
++			/* TODO: implement fadvise() hints */
+ 			goto alloc_nohuge;
+ 		}
+ 
+@@ -1680,6 +1687,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+ 	struct inode *inode = file_inode(vma->vm_file);
+ 	gfp_t gfp = mapping_gfp_mask(inode->i_mapping);
++	enum sgp_type sgp;
+ 	int error;
+ 	int ret = VM_FAULT_LOCKED;
+ 
+@@ -1741,7 +1749,13 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 		spin_unlock(&inode->i_lock);
+ 	}
+ 
+-	error = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, SGP_CACHE,
++	sgp = SGP_CACHE;
++	if (vma->vm_flags & VM_HUGEPAGE)
++		sgp = SGP_HUGE;
++	else if (vma->vm_flags & VM_NOHUGEPAGE)
++		sgp = SGP_NOHUGE;
++
++	error = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, sgp,
+ 				  gfp, vma->vm_mm, &ret);
+ 	if (error)
+ 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
+-- 
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
