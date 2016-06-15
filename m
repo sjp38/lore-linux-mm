@@ -1,55 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FB406B025E
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 04:46:37 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g62so28338191pfb.3
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 01:46:37 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c138si4575402pfb.9.2016.06.15.01.46.36
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 85EF56B007E
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 05:34:45 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id b13so21948234pat.3
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 02:34:45 -0700 (PDT)
+Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
+        by mx.google.com with ESMTPS id e28si36049804pfk.242.2016.06.15.02.34.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jun 2016 01:46:36 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u5F8hWhD064216
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 04:46:36 -0400
-Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com [125.16.236.6])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 23jgpdj9v3-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 04:46:36 -0400
-Received: from localhost
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 15 Jun 2016 14:16:32 +0530
-Received: from d28relay07.in.ibm.com (d28relay07.in.ibm.com [9.184.220.158])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id BCC9B3940073
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 14:16:30 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay07.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u5F8kUS928246218
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 14:16:30 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u5F8kQw8025009
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 14:16:29 +0530
-Date: Wed, 15 Jun 2016 14:16:20 +0530
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm/compaction: remove unnecessary order check in try_to_compact_pages()
-References: <1465973568-3496-1-git-send-email-opensource.ganesh@gmail.com>
-In-Reply-To: <1465973568-3496-1-git-send-email-opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <576115DC.5030601@linux.vnet.ibm.com>
+        Wed, 15 Jun 2016 02:34:44 -0700 (PDT)
+Received: by mail-pa0-x244.google.com with SMTP id fg1so1199165pad.3
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 02:34:44 -0700 (PDT)
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Subject: [PATCH v2] mm/page_alloc: remove unnecessary order check in __alloc_pages_direct_compact
+Date: Wed, 15 Jun 2016 17:34:18 +0800
+Message-Id: <1465983258-3726-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganesh Mahendran <opensource.ganesh@gmail.com>, akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, mhocko@suse.com, mina86@mina86.com, minchan@kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, mhocko@suse.com, mina86@mina86.com, minchan@kernel.org, khandual@linux.vnet.ibm.com, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-On 06/15/2016 12:22 PM, Ganesh Mahendran wrote:
-> The caller __alloc_pages_direct_compact() already check (order == 0).
-> So no need to check again.
+In the callee try_to_compact_pages(), the (order == 0) is checked,
+so remove check in __alloc_pages_direct_compact.
 
-Yeah, the caller (__alloc_pages_direct_compact) checks if the order of
-allocation is 0. But we can remove it there and keep it in here as this
-is the actual entry point for direct page compaction.
+Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+---
+v2:
+  remove the check in __alloc_pages_direct_compact - Anshuman Khandual
+---
+ mm/page_alloc.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b9ea618..2f5a82a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3173,9 +3173,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 	struct page *page;
+ 	int contended_compaction;
+ 
+-	if (!order)
+-		return NULL;
+-
+ 	current->flags |= PF_MEMALLOC;
+ 	*compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
+ 						mode, &contended_compaction);
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
