@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DB52F6B026D
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:07:33 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id l5so65660112ioa.0
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:07:33 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id w6si5441185pac.26.2016.06.15.13.07.03
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 222AA6B026E
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 16:07:36 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id g13so48955410ioj.3
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 13:07:36 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id br9si4262217pab.37.2016.06.15.13.07.06
         for <linux-mm@kvack.org>;
-        Wed, 15 Jun 2016 13:07:04 -0700 (PDT)
+        Wed, 15 Jun 2016 13:07:06 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv9-rebased2 16/37] thp: skip file huge pmd on copy_huge_pmd()
-Date: Wed, 15 Jun 2016 23:06:21 +0300
-Message-Id: <1466021202-61880-17-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv9-rebased2 33/37] shmem: make shmem_inode_info::lock irq-safe
+Date: Wed, 15 Jun 2016 23:06:38 +0300
+Message-Id: <1466021202-61880-34-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
  <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
@@ -20,80 +20,207 @@ List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Ebru Akagunduz <ebru.akagunduz@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-copy_page_range() has a check for "Don't copy ptes where a page fault
-will fill them correctly." It works on VMA level. We still copy all page
-table entries from private mappings, even if they map page cache.
+We are going to need to call shmem_charge() under tree_lock to get
+accoutning right on collapse of small tmpfs pages into a huge one.
 
-We can simplify copy_huge_pmd() a bit by skipping file PMDs.
+The problem is that tree_lock is irq-safe and lockdep is not happy, that
+we take irq-unsafe lock under irq-safe[1].
 
-We don't map file private pages with PMDs, so they only can map page
-cache. It's safe to skip them as they can be re-faulted later.
+Let's convert the lock to irq-safe.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+[1] https://gist.github.com/kiryl/80c0149e03ed35dfaf26628b8e03cdbc
 ---
- mm/huge_memory.c | 34 ++++++++++++++++------------------
- 1 file changed, 16 insertions(+), 18 deletions(-)
+ ipc/shm.c  |  4 ++--
+ mm/shmem.c | 50 ++++++++++++++++++++++++++------------------------
+ 2 files changed, 28 insertions(+), 26 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index f10febd4f6e1..8866f87bd011 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1097,14 +1097,15 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	struct page *src_page;
- 	pmd_t pmd;
- 	pgtable_t pgtable = NULL;
--	int ret;
-+	int ret = -ENOMEM;
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 7fa5cbebbf19..dbac8860c721 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -766,10 +766,10 @@ static void shm_add_rss_swap(struct shmid_kernel *shp,
+ 	} else {
+ #ifdef CONFIG_SHMEM
+ 		struct shmem_inode_info *info = SHMEM_I(inode);
+-		spin_lock(&info->lock);
++		spin_lock_irq(&info->lock);
+ 		*rss_add += inode->i_mapping->nrpages;
+ 		*swp_add += info->swapped;
+-		spin_unlock(&info->lock);
++		spin_unlock_irq(&info->lock);
+ #else
+ 		*rss_add += inode->i_mapping->nrpages;
+ #endif
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 417f2837265b..746816be46bd 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -258,14 +258,15 @@ bool shmem_charge(struct inode *inode, long pages)
+ {
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+ 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
++	unsigned long flags;
  
--	if (!vma_is_dax(vma)) {
--		ret = -ENOMEM;
--		pgtable = pte_alloc_one(dst_mm, addr);
--		if (unlikely(!pgtable))
--			goto out;
--	}
-+	/* Skip if can be re-fill on fault */
-+	if (!vma_is_anonymous(vma))
-+		return 0;
-+
-+	pgtable = pte_alloc_one(dst_mm, addr);
-+	if (unlikely(!pgtable))
-+		goto out;
+ 	if (shmem_acct_block(info->flags, pages))
+ 		return false;
+-	spin_lock(&info->lock);
++	spin_lock_irqsave(&info->lock, flags);
+ 	info->alloced += pages;
+ 	inode->i_blocks += pages * BLOCKS_PER_PAGE;
+ 	shmem_recalc_inode(inode);
+-	spin_unlock(&info->lock);
++	spin_unlock_irqrestore(&info->lock, flags);
+ 	inode->i_mapping->nrpages += pages;
  
- 	dst_ptl = pmd_lock(dst_mm, dst_pmd);
- 	src_ptl = pmd_lockptr(src_mm, src_pmd);
-@@ -1112,7 +1113,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	if (!sbinfo->max_blocks)
+@@ -273,10 +274,10 @@ bool shmem_charge(struct inode *inode, long pages)
+ 	if (percpu_counter_compare(&sbinfo->used_blocks,
+ 				sbinfo->max_blocks - pages) > 0) {
+ 		inode->i_mapping->nrpages -= pages;
+-		spin_lock(&info->lock);
++		spin_lock_irqsave(&info->lock, flags);
+ 		info->alloced -= pages;
+ 		shmem_recalc_inode(inode);
+-		spin_unlock(&info->lock);
++		spin_unlock_irqrestore(&info->lock, flags);
  
- 	ret = -EAGAIN;
- 	pmd = *src_pmd;
--	if (unlikely(!pmd_trans_huge(pmd) && !pmd_devmap(pmd))) {
-+	if (unlikely(!pmd_trans_huge(pmd))) {
- 		pte_free(dst_mm, pgtable);
- 		goto out_unlock;
+ 		return false;
  	}
-@@ -1135,16 +1136,13 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		goto out_unlock;
+@@ -288,12 +289,13 @@ void shmem_uncharge(struct inode *inode, long pages)
+ {
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+ 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
++	unsigned long flags;
+ 
+-	spin_lock(&info->lock);
++	spin_lock_irqsave(&info->lock, flags);
+ 	info->alloced -= pages;
+ 	inode->i_blocks -= pages * BLOCKS_PER_PAGE;
+ 	shmem_recalc_inode(inode);
+-	spin_unlock(&info->lock);
++	spin_unlock_irqrestore(&info->lock, flags);
+ 
+ 	if (sbinfo->max_blocks)
+ 		percpu_counter_sub(&sbinfo->used_blocks, pages);
+@@ -818,10 +820,10 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
+ 		index++;
  	}
  
--	if (!vma_is_dax(vma)) {
--		/* thp accounting separate from pmd_devmap accounting */
--		src_page = pmd_page(pmd);
--		VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
--		get_page(src_page);
--		page_dup_rmap(src_page, true);
--		add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
--		atomic_long_inc(&dst_mm->nr_ptes);
--		pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
--	}
-+	src_page = pmd_page(pmd);
-+	VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
-+	get_page(src_page);
-+	page_dup_rmap(src_page, true);
-+	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
-+	atomic_long_inc(&dst_mm->nr_ptes);
-+	pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
+-	spin_lock(&info->lock);
++	spin_lock_irq(&info->lock);
+ 	info->swapped -= nr_swaps_freed;
+ 	shmem_recalc_inode(inode);
+-	spin_unlock(&info->lock);
++	spin_unlock_irq(&info->lock);
+ }
  
- 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
- 	pmd = pmd_mkold(pmd_wrprotect(pmd));
+ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
+@@ -838,9 +840,9 @@ static int shmem_getattr(struct vfsmount *mnt, struct dentry *dentry,
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+ 
+ 	if (info->alloced - info->swapped != inode->i_mapping->nrpages) {
+-		spin_lock(&info->lock);
++		spin_lock_irq(&info->lock);
+ 		shmem_recalc_inode(inode);
+-		spin_unlock(&info->lock);
++		spin_unlock_irq(&info->lock);
+ 	}
+ 	generic_fillattr(inode, stat);
+ 	return 0;
+@@ -984,9 +986,9 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
+ 		delete_from_swap_cache(*pagep);
+ 		set_page_dirty(*pagep);
+ 		if (!error) {
+-			spin_lock(&info->lock);
++			spin_lock_irq(&info->lock);
+ 			info->swapped--;
+-			spin_unlock(&info->lock);
++			spin_unlock_irq(&info->lock);
+ 			swap_free(swap);
+ 		}
+ 	}
+@@ -1134,10 +1136,10 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
+ 		list_add_tail(&info->swaplist, &shmem_swaplist);
+ 
+ 	if (add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
+-		spin_lock(&info->lock);
++		spin_lock_irq(&info->lock);
+ 		shmem_recalc_inode(inode);
+ 		info->swapped++;
+-		spin_unlock(&info->lock);
++		spin_unlock_irq(&info->lock);
+ 
+ 		swap_shmem_alloc(swap);
+ 		shmem_delete_from_page_cache(page, swp_to_radix_entry(swap));
+@@ -1523,10 +1525,10 @@ repeat:
+ 
+ 		mem_cgroup_commit_charge(page, memcg, true, false);
+ 
+-		spin_lock(&info->lock);
++		spin_lock_irq(&info->lock);
+ 		info->swapped--;
+ 		shmem_recalc_inode(inode);
+-		spin_unlock(&info->lock);
++		spin_unlock_irq(&info->lock);
+ 
+ 		if (sgp == SGP_WRITE)
+ 			mark_page_accessed(page);
+@@ -1603,11 +1605,11 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
+ 				PageTransHuge(page));
+ 		lru_cache_add_anon(page);
+ 
+-		spin_lock(&info->lock);
++		spin_lock_irq(&info->lock);
+ 		info->alloced += 1 << compound_order(page);
+ 		inode->i_blocks += BLOCKS_PER_PAGE << compound_order(page);
+ 		shmem_recalc_inode(inode);
+-		spin_unlock(&info->lock);
++		spin_unlock_irq(&info->lock);
+ 		alloced = true;
+ 
+ 		/*
+@@ -1639,9 +1641,9 @@ clear:
+ 		if (alloced) {
+ 			ClearPageDirty(page);
+ 			delete_from_page_cache(page);
+-			spin_lock(&info->lock);
++			spin_lock_irq(&info->lock);
+ 			shmem_recalc_inode(inode);
+-			spin_unlock(&info->lock);
++			spin_unlock_irq(&info->lock);
+ 		}
+ 		error = -EINVAL;
+ 		goto unlock;
+@@ -1673,9 +1675,9 @@ unlock:
+ 	}
+ 	if (error == -ENOSPC && !once++) {
+ 		info = SHMEM_I(inode);
+-		spin_lock(&info->lock);
++		spin_lock_irq(&info->lock);
+ 		shmem_recalc_inode(inode);
+-		spin_unlock(&info->lock);
++		spin_unlock_irq(&info->lock);
+ 		goto repeat;
+ 	}
+ 	if (error == -EEXIST)	/* from above or from radix_tree_insert */
+@@ -1874,7 +1876,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+ 	int retval = -ENOMEM;
+ 
+-	spin_lock(&info->lock);
++	spin_lock_irq(&info->lock);
+ 	if (lock && !(info->flags & VM_LOCKED)) {
+ 		if (!user_shm_lock(inode->i_size, user))
+ 			goto out_nomem;
+@@ -1889,7 +1891,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
+ 	retval = 0;
+ 
+ out_nomem:
+-	spin_unlock(&info->lock);
++	spin_unlock_irq(&info->lock);
+ 	return retval;
+ }
+ 
 -- 
 2.8.1
 
