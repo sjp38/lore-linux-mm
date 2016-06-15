@@ -1,81 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 323D96B0005
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 12:41:07 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id g18so13809183lfg.2
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 09:41:07 -0700 (PDT)
-Received: from mail-lb0-x229.google.com (mail-lb0-x229.google.com. [2a00:1450:4010:c04::229])
-        by mx.google.com with ESMTPS id 17si9779224ljf.13.2016.06.15.09.41.05
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BCED6B0253
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 12:49:17 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id g13so38100131ioj.3
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 09:49:17 -0700 (PDT)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0128.outbound.protection.outlook.com. [157.55.234.128])
+        by mx.google.com with ESMTPS id t205si3844953oig.234.2016.06.15.09.49.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jun 2016 09:41:05 -0700 (PDT)
-Received: by mail-lb0-x229.google.com with SMTP id xp5so4964224lbb.0
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 09:41:05 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH v2] mm/page_alloc: remove unnecessary order check in __alloc_pages_direct_compact
-In-Reply-To: <CAKTCnzk1GZ+=ijvOm=Tw1GNGLdefovvS5wsR9XqpLLmrSSx9=g@mail.gmail.com>
-References: <1465983258-3726-1-git-send-email-opensource.ganesh@gmail.com> <CAKTCnzk1GZ+=ijvOm=Tw1GNGLdefovvS5wsR9XqpLLmrSSx9=g@mail.gmail.com>
-Date: Wed, 15 Jun 2016 18:41:03 +0200
-Message-ID: <xa1tlh26csm8.fsf@mina86.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 15 Jun 2016 09:49:16 -0700 (PDT)
+Subject: Re: [PATCH v3] mm, kasan: switch SLUB to stackdepot, enable memory
+ quarantine for SLUB
+References: <1466004364-57279-1-git-send-email-glider@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <5761873A.2020104@virtuozzo.com>
+Date: Wed, 15 Jun 2016 19:50:02 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1466004364-57279-1-git-send-email-glider@google.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, mhocko@suse.com, Minchan Kim <minchan@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Alexander Potapenko <glider@google.com>, adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, kuthonuzo.luruo@hpe.com
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jun 15 2016, Balbir Singh wrote:
-> On Wed, Jun 15, 2016 at 7:34 PM, Ganesh Mahendran
-> <opensource.ganesh@gmail.com> wrote:
->> In the callee try_to_compact_pages(), the (order =3D=3D 0) is checked,
->> so remove check in __alloc_pages_direct_compact.
->>
->> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
->> ---
->> v2:
->>   remove the check in __alloc_pages_direct_compact - Anshuman Khandual
->> ---
->>  mm/page_alloc.c | 3 ---
->>  1 file changed, 3 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index b9ea618..2f5a82a 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3173,9 +3173,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsig=
-ned int order,
->>         struct page *page;
->>         int contended_compaction;
->>
->> -       if (!order)
->> -               return NULL;
->> -
->>         current->flags |=3D PF_MEMALLOC;
->>         *compact_result =3D try_to_compact_pages(gfp_mask, order, alloc_=
-flags, ac,
->>                                                 mode, &contended_compact=
-ion);
->
-> What is the benefit of this. Is an if check more expensive than
-> calling the function and returning from it? I don't feel strongly
-> about such changes, but its good to audit the overall code for reading
-> and performance.
 
-It=E2=80=99s a slow path so it probably doesn=E2=80=99t matter much.  But I=
- also don=E2=80=99t
-see whether this improves readability of the code.
 
-For performance, I would rather wait for gcc to compile kernel as one
-translation unit which will allow it to inline try_to_compact_pages and
-notice redundant order=3D=3D0 check.
+On 06/15/2016 06:26 PM, Alexander Potapenko wrote:
+> For KASAN builds:
+>  - switch SLUB allocator to using stackdepot instead of storing the
+>    allocation/deallocation stacks in the objects;
+>  - define SLAB_RED_ZONE, SLAB_POISON, SLAB_STORE_USER to zero,
+>    effectively disabling these debug features, as they're redundant in
+>    the presence of KASAN;
 
---=20
-Best regards
-=E3=83=9F=E3=83=8F=E3=82=A6 =E2=80=9C=F0=9D=93=B6=F0=9D=93=B2=F0=9D=93=B7=
-=F0=9D=93=AA86=E2=80=9D =E3=83=8A=E3=82=B6=E3=83=AC=E3=83=B4=E3=82=A4=E3=83=
-=84
-=C2=ABIf at first you don=E2=80=99t succeed, give up skydiving=C2=BB
+So, why we forbid these? If user wants to set these, why not? If you don't want it, just don't turn them on, that's it.
+
+And sometimes POISON/REDZONE might be actually useful. KASAN doesn't catch everything,
+e.g. corruption may happen in assembly code, or DMA by  some device.
+
+
+>  - change the freelist hook so that parts of the freelist can be put into
+>    the quarantine.
+> 
+> Signed-off-by: Alexander Potapenko <glider@google.com>
+> ---
+
+...
+
+> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+> index fb87923..8c75953 100644
+> --- a/mm/kasan/kasan.h
+> +++ b/mm/kasan/kasan.h
+> @@ -110,7 +110,7 @@ static inline bool kasan_report_enabled(void)
+>  void kasan_report(unsigned long addr, size_t size,
+>  		bool is_write, unsigned long ip);
+>  
+> -#ifdef CONFIG_SLAB
+> +#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB)
+>  void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache);
+>  void quarantine_reduce(void);
+>  void quarantine_remove_cache(struct kmem_cache *cache);
+> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
+> index 4973505..89259c2 100644
+> --- a/mm/kasan/quarantine.c
+> +++ b/mm/kasan/quarantine.c
+> @@ -149,7 +149,12 @@ static void qlink_free(struct qlist_node *qlink, struct kmem_cache *cache)
+>  
+>  	local_irq_save(flags);
+>  	alloc_info->state = KASAN_STATE_FREE;
+> +#ifdef CONFIG_SLAB
+>  	___cache_free(cache, object, _THIS_IP_);
+> +#elif defined(CONFIG_SLUB)
+> +	do_slab_free(cache, virt_to_head_page(object), object, NULL, 1,
+> +		_RET_IP_);
+> +#endif
+
+Please, add some simple wrapper instead of this.
+
+>  	local_irq_restore(flags);
+>  }
+>  
+
+
+...
+
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 825ff45..f023dd4 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -191,7 +191,11 @@ static inline bool kmem_cache_has_cpu_partial(struct kmem_cache *s)
+>  #define MAX_OBJS_PER_PAGE	32767 /* since page.objects is u15 */
+>  
+>  /* Internal SLUB flags */
+> +#ifndef CONFIG_KASAN
+>  #define __OBJECT_POISON		0x80000000UL /* Poison object */
+> +#else
+> +#define __OBJECT_POISON		0x00000000UL /* Disable object poisoning */
+> +#endif
+>  #define __CMPXCHG_DOUBLE	0x40000000UL /* Use cmpxchg_double */
+>  
+>  #ifdef CONFIG_SMP
+> @@ -454,10 +458,8 @@ static inline void *restore_red_left(struct kmem_cache *s, void *p)
+>   */
+>  #if defined(CONFIG_SLUB_DEBUG_ON)
+>  static int slub_debug = DEBUG_DEFAULT_FLAGS;
+> -#elif defined(CONFIG_KASAN)
+> -static int slub_debug = SLAB_STORE_USER;
+>  #else
+> -static int slub_debug;
+> +static int slub_debug = SLAB_STORE_USER;
+
+Huh! So now it is on!? By default, and for everyone!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
