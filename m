@@ -1,115 +1,349 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BDCD46B0005
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 09:17:34 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id y82so35679503oig.3
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 06:17:34 -0700 (PDT)
-Received: from na01-bl2-obe.outbound.protection.outlook.com (mail-bl2on0060.outbound.protection.outlook.com. [65.55.169.60])
-        by mx.google.com with ESMTPS id j50si17741796otd.247.2016.06.15.06.17.33
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 744C96B0005
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 09:37:38 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id a2so7542778lfe.0
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 06:37:38 -0700 (PDT)
+Received: from mail-lf0-x230.google.com (mail-lf0-x230.google.com. [2a00:1450:4010:c07::230])
+        by mx.google.com with ESMTPS id f16si852175lfe.214.2016.06.15.06.37.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 15 Jun 2016 06:17:33 -0700 (PDT)
-Subject: Re: [RFC PATCH v1 10/18] x86/efi: Access EFI related tables in the
- clear
-References: <20160426225553.13567.19459.stgit@tlendack-t1.amdoffice.net>
- <20160426225740.13567.85438.stgit@tlendack-t1.amdoffice.net>
- <20160608111844.GV2658@codeblueprint.co.uk> <5759B67A.4000800@amd.com>
- <20160613135110.GC2658@codeblueprint.co.uk>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <57615561.4090502@amd.com>
-Date: Wed, 15 Jun 2016 08:17:21 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Jun 2016 06:37:36 -0700 (PDT)
+Received: by mail-lf0-x230.google.com with SMTP id l188so10428881lfe.2
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 06:37:36 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160613135110.GC2658@codeblueprint.co.uk>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAG_fn=VugG67CgjOC_K0gtRNCFdAheEELurHSHMGmRXEOd3OQQ@mail.gmail.com>
+References: <1465411243-102618-1-git-send-email-glider@google.com>
+ <57599D1C.2080701@virtuozzo.com> <CAG_fn=VugG67CgjOC_K0gtRNCFdAheEELurHSHMGmRXEOd3OQQ@mail.gmail.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Wed, 15 Jun 2016 15:37:35 +0200
+Message-ID: <CAG_fn=UP=9xdFf6K4-TByLjvJPwAJJ3TdcDkfqHZ2FBUSS0ruw@mail.gmail.com>
+Subject: Re: [PATCH] mm, kasan: switch SLUB to stackdepot, enable memory
+ quarantine for SLUB
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matt Fleming <matt@codeblueprint.co.uk>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 06/13/2016 08:51 AM, Matt Fleming wrote:
-> On Thu, 09 Jun, at 01:33:30PM, Tom Lendacky wrote:
+On Thu, Jun 9, 2016 at 8:22 PM, Alexander Potapenko <glider@google.com> wro=
+te:
+> On Thu, Jun 9, 2016 at 6:45 PM, Andrey Ryabinin <aryabinin@virtuozzo.com>=
+ wrote:
 >>
->> I was trying to play it safe here, but as you say, the firmware should
->> be using our page tables so we can get rid of this call. The problem
->> will actually be if we transition to a 32-bit efi. The encryption bit
->> will be lost in cr3 and so the pgd table will have to be un-encrypted.
->> The entries in the pgd can have the encryption bit set so I would only
->> need to worry about the pgd itself. I'll have to update the
->> efi_alloc_page_tables routine.
->  
-> Interesting, I hadn't expected 32-bit EFI to be an option for
-> platforms with the SME technology. I'd assumed we could just ignore
-> that.
+>>
+>> On 06/08/2016 09:40 PM, Alexander Potapenko wrote:
+>>> For KASAN builds:
+>>>  - switch SLUB allocator to using stackdepot instead of storing the
+>>>    allocation/deallocation stacks in the objects;
+>>>  - define SLAB_RED_ZONE, SLAB_POISON, SLAB_STORE_USER to zero,
+>>>    effectively disabling these debug features, as they're redundant in
+>>>    the presence of KASAN;
+>>
+>> Instead of having duplicated functionality, I think it might be better t=
+o switch SLAB_STORE_USER to stackdepot instead.
+>> Because now, we have two piles of code which do basically the same thing=
+, but
+>> do differently.
+> Fine, I'll try that out.
+>>>  - refactor the slab freelist hook, put freed memory into the quarantin=
+e.
+>>>
+>>
+>> What you did with slab_freelist_hook() is not refactoring, it's an obfus=
+cation.
+> Whatever you call it.
+> The problem is that if a list of heterogeneous objects is passed into
+> slab_free_freelist_hook(), some of them may end up in the quarantine,
+> while others will not.
+> Therefore we need to filter that list and remove the objects that
+> don't need to be freed from it.
+>>
+>>>  }
+>>>
+>>> -#ifdef CONFIG_SLAB
+>>>  /*
+>>>   * Adaptive redzone policy taken from the userspace AddressSanitizer r=
+untime.
+>>>   * For larger allocations larger redzones are used.
+>>> @@ -372,17 +371,21 @@ static size_t optimal_redzone(size_t object_size)
+>>>  void kasan_cache_create(struct kmem_cache *cache, size_t *size,
+>>>                       unsigned long *flags)
+>>>  {
+>>> -     int redzone_adjust;
+>>> -     /* Make sure the adjusted size is still less than
+>>> -      * KMALLOC_MAX_CACHE_SIZE.
+>>> -      * TODO: this check is only useful for SLAB, but not SLUB. We'll =
+need
+>>> -      * to skip it for SLUB when it starts using kasan_cache_create().
+>>> +     int redzone_adjust, orig_size =3D *size;
+>>> +
+>>> +#ifdef CONFIG_SLAB
+>>> +     /*
+>>> +      * Make sure the adjusted size is still less than
+>>> +      * KMALLOC_MAX_CACHE_SIZE, i.e. we don't use the page allocator.
+>>>        */
+>>> +
+>>>       if (*size > KMALLOC_MAX_CACHE_SIZE -
+>>
+>> This is wrong. You probably wanted KMALLOC_MAX_SIZE here.
+> Yeah, sonds right.
+>> However, we should get rid of SLAB_KASAN altogether. It's absolutely use=
+less, and only complicates
+>> the code. And if we don't fit in KMALLOC_MAX_SIZE, just don't create cac=
+he.
+> Thanks, I'll look into this. Looks like you are right, once we remove
+> this check every existing cache will have SLAB_KASAN set.
+> It's handy for debugging, but not really needed.
+Turns out we cannot just skip cache creation if we don't fit in
+KMALLOC_MAX_SIZE, because SLAB, among others, creates kmalloc-4194304.
+So we must keep an attribute that denotes that this is a KASAN-enabled
+slab (i.e. the SLAB_KASAN flag), or set alloc_meta_offset and
+free_meta_offset to -1, which isn't so convenient.
+I suggest we stick with SLAB_KASAN.
+>>
+>>>           sizeof(struct kasan_alloc_meta) -
+>>>           sizeof(struct kasan_free_meta))
+>>>               return;
+>>> +#endif
+>>>       *flags |=3D SLAB_KASAN;
+>>> +
+>>>       /* Add alloc meta. */
+>>>       cache->kasan_info.alloc_meta_offset =3D *size;
+>>>       *size +=3D sizeof(struct kasan_alloc_meta);
+>>> @@ -392,17 +395,37 @@ void kasan_cache_create(struct kmem_cache *cache,=
+ size_t *size,
+>>>           cache->object_size < sizeof(struct kasan_free_meta)) {
+>>>               cache->kasan_info.free_meta_offset =3D *size;
+>>>               *size +=3D sizeof(struct kasan_free_meta);
+>>> +     } else {
+>>> +             cache->kasan_info.free_meta_offset =3D 0;
+>>>       }
+>>>       redzone_adjust =3D optimal_redzone(cache->object_size) -
+>>>               (*size - cache->object_size);
+>>> +
+>>>       if (redzone_adjust > 0)
+>>>               *size +=3D redzone_adjust;
+>>> +
+>>> +#ifdef CONFIG_SLAB
+>>>       *size =3D min(KMALLOC_MAX_CACHE_SIZE,
+>>>                   max(*size,
+>>>                       cache->object_size +
+>>>                       optimal_redzone(cache->object_size)));
+>>> -}
+>>> +     /*
+>>> +      * If the metadata doesn't fit, disable KASAN at all.
+>>> +      */
+>>> +     if (*size <=3D cache->kasan_info.alloc_meta_offset ||
+>>> +                     *size <=3D cache->kasan_info.free_meta_offset) {
+>>> +             *flags &=3D ~SLAB_KASAN;
+>>> +             *size =3D orig_size;
+>>> +             cache->kasan_info.alloc_meta_offset =3D -1;
+>>> +             cache->kasan_info.free_meta_offset =3D -1;
+>>> +     }
+>>> +#else
+>>> +     *size =3D max(*size,
+>>> +                     cache->object_size +
+>>> +                     optimal_redzone(cache->object_size));
+>>> +
+>>>  #endif
+>>> +}
+>>>
+>>>  void kasan_cache_shrink(struct kmem_cache *cache)
+>>>  {
+>>> @@ -431,16 +454,14 @@ void kasan_poison_object_data(struct kmem_cache *=
+cache, void *object)
+>>>       kasan_poison_shadow(object,
+>>>                       round_up(cache->object_size, KASAN_SHADOW_SCALE_S=
+IZE),
+>>>                       KASAN_KMALLOC_REDZONE);
+>>> -#ifdef CONFIG_SLAB
+>>>       if (cache->flags & SLAB_KASAN) {
+>>>               struct kasan_alloc_meta *alloc_info =3D
+>>>                       get_alloc_info(cache, object);
+>>> -             alloc_info->state =3D KASAN_STATE_INIT;
+>>> +             if (alloc_info)
+>>
+>> If I read the code right alloc_info can be NULL only if SLAB_KASAN is se=
+t.
+> This has been left over from tracking down some nasty bugs, but, yes,
+> we can assume alloc_info and free_info are always valid.
+>>
+>>> +                     alloc_info->state =3D KASAN_STATE_INIT;
+>>>       }
+>>> -#endif
+>>>  }
+>>>
+>>> -#ifdef CONFIG_SLAB
+>>>  static inline int in_irqentry_text(unsigned long ptr)
+>>>  {
+>>>       return (ptr >=3D (unsigned long)&__irqentry_text_start &&
+>>> @@ -492,6 +513,8 @@ struct kasan_alloc_meta *get_alloc_info(struct kmem=
+_cache *cache,
+>>>                                       const void *object)
+>>>  {
+>>>       BUILD_BUG_ON(sizeof(struct kasan_alloc_meta) > 32);
+>>> +     if (cache->kasan_info.alloc_meta_offset =3D=3D -1)
+>>> +             return NULL;
+>>
+>> What's the point of this ? This should be always false.
+> Agreed, will remove this (and other similar cases).
+>>>       return (void *)object + cache->kasan_info.alloc_meta_offset;
+>>>  }
+>>>
+>>> @@ -499,9 +522,10 @@ struct kasan_free_meta *get_free_info(struct kmem_=
+cache *cache,
+>>>                                     const void *object)
+>>>  {
+>>>       BUILD_BUG_ON(sizeof(struct kasan_free_meta) > 32);
+>>> +     if (cache->kasan_info.free_meta_offset =3D=3D -1)
+>>> +             return NULL;
+>>>       return (void *)object + cache->kasan_info.free_meta_offset;
+>>>  }
+>>> -#endif
+>>>
+>>>  void kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t fl=
+ags)
+>>>  {
+>>> @@ -522,7 +546,6 @@ void kasan_poison_slab_free(struct kmem_cache *cach=
+e, void *object)
+>>>
+>>>  bool kasan_slab_free(struct kmem_cache *cache, void *object)
+>>>  {
+>>> -#ifdef CONFIG_SLAB
+>>>       /* RCU slabs could be legally used after free within the RCU peri=
+od */
+>>>       if (unlikely(cache->flags & SLAB_DESTROY_BY_RCU))
+>>>               return false;
+>>> @@ -532,7 +555,10 @@ bool kasan_slab_free(struct kmem_cache *cache, voi=
+d *object)
+>>>                       get_alloc_info(cache, object);
+>>>               struct kasan_free_meta *free_info =3D
+>>>                       get_free_info(cache, object);
+>>> -
+>>> +             WARN_ON(!alloc_info);
+>>> +             WARN_ON(!free_info);
+>>> +             if (!alloc_info || !free_info)
+>>> +                     return;
+>>
+>> Again, never possible.
+>>
+>>
+>>>               switch (alloc_info->state) {
+>>>               case KASAN_STATE_ALLOC:
+>>>                       alloc_info->state =3D KASAN_STATE_QUARANTINE;
+>>> @@ -550,10 +576,6 @@ bool kasan_slab_free(struct kmem_cache *cache, voi=
+d *object)
+>>>               }
+>>>       }
+>>>       return false;
+>>> -#else
+>>> -     kasan_poison_slab_free(cache, object);
+>>> -     return false;
+>>> -#endif
+>>>  }
+>>>
+>>>  void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_=
+t size,
+>>> @@ -568,24 +590,29 @@ void kasan_kmalloc(struct kmem_cache *cache, cons=
+t void *object, size_t size,
+>>>       if (unlikely(object =3D=3D NULL))
+>>>               return;
+>>>
+>>> +     if (!(cache->flags & SLAB_KASAN))
+>>> +             return;
+>>> +
+>>>       redzone_start =3D round_up((unsigned long)(object + size),
+>>>                               KASAN_SHADOW_SCALE_SIZE);
+>>>       redzone_end =3D round_up((unsigned long)object + cache->object_si=
+ze,
+>>>                               KASAN_SHADOW_SCALE_SIZE);
+>>>
+>>>       kasan_unpoison_shadow(object, size);
+>>> +     WARN_ON(redzone_start > redzone_end);
+>>> +     if (redzone_start > redzone_end)
+>>
+>> How that's can happen?
+> This was possible because of incorrect ksize implementation, should be
+> now ok. Removed.
+>>> +             return;
+>>>       kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_=
+start,
+>>>               KASAN_KMALLOC_REDZONE);
+>>> -#ifdef CONFIG_SLAB
+>>>       if (cache->flags & SLAB_KASAN) {
+>>>               struct kasan_alloc_meta *alloc_info =3D
+>>>                       get_alloc_info(cache, object);
+>>> -
+>>> -             alloc_info->state =3D KASAN_STATE_ALLOC;
+>>> -             alloc_info->alloc_size =3D size;
+>>> -             set_track(&alloc_info->track, flags);
+>>> +             if (alloc_info) {
+>>
+>> And again...
+>>
+>>
+>>> +                     alloc_info->state =3D KASAN_STATE_ALLOC;
+>>> +                     alloc_info->alloc_size =3D size;
+>>> +                     set_track(&alloc_info->track, flags);
+>>> +             }
+>>>       }
+>>> -#endif
+>>>  }
+>>>  EXPORT_SYMBOL(kasan_kmalloc);
+>>>
+>>
+>>
+>> [..]
+>>
+>>> diff --git a/mm/slab.h b/mm/slab.h
+>>> index dedb1a9..fde1fea 100644
+>>> --- a/mm/slab.h
+>>> +++ b/mm/slab.h
+>>> @@ -366,6 +366,10 @@ static inline size_t slab_ksize(const struct kmem_=
+cache *s)
+>>>       if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
+>>>               return s->object_size;
+>>>  # endif
+>>> +# ifdef CONFIG_KASAN
+>>
+>> Gush, you love ifdefs, don't you? Hint: it's redundant here.
+>>
+>>> +     if (s->flags & SLAB_KASAN)
+>>> +             return s->object_size;
+>>> +# endif
+>>>       /*
+>>>        * If we have the need to store the freelist pointer
+>> ...
+>
+>
+>
+> --
+> Alexander Potapenko
+> Software Engineer
+>
+> Google Germany GmbH
+> Erika-Mann-Stra=C3=9Fe, 33
+> 80636 M=C3=BCnchen
+>
+> Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+> Registergericht und -nummer: Hamburg, HRB 86891
+> Sitz der Gesellschaft: Hamburg
 
-We may be able to do that.
 
-> 
-> Are you saying that the encryption bit isn't supported in 32-bit
-> compatibility mode? We don't do a "full" switch to 32-bit protected
-> mode when in mixed mode, just load a 32-bit code segment descriptor.
-> The page tables are not modified at all.
 
-The encryption bit is supported in 32-bit compatibility mode and since
-we're not doing the "full" switch the cr3 register will remain as a
-64-bit register so we can leave the pgd table encrypted.
+--=20
+Alexander Potapenko
+Software Engineer
 
-> 
->> The encryption bit in the cr3 register will indicate if the pgd table
->> is encrypted or not. Based on my comment above about the pgd having
->> to be un-encrypted in case we have to transition to 32-bit efi, this
->> can be removed.
->  
-> I'm not (yet) sure that the pgd needs to be unencrypted for 32-bit EFI
-> when running a 64-bit kernel. In the AMD Programmer's Manual, Section
-> 7.10.3 Operating Modes seems to indicate that running encrypted should
-> work fine.
-> 
->> I'll look into this a bit more. From looking at it I don't want the
->> _PAGE_ENC bit set for the memmap unless it gets re-allocated (which
->> I missed in these patches). Let me see what I can do with this.
->  
-> I don't understand your comment about re-allocating the memmap.
-> 
-> The kernel builds its own EFI memory map at runtime, initially based
-> on the memory map provided by the firmware. We always allocate a new
-> memory map.
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
 
-Sorry, I mis-interpreted the efi_map_regions function/loop and see
-that the memmap is always allocated by the kernel.
-
-> 
-> In efi_setup_page_tables() we're building our own page tables, which
-> should be encrypted, and mapping EFI regions described by the memmap
-> into those page tables.
-> 
-> So unless we're mapping an MMIO region (in which case _PAGE_PCD is set
-> in @flags for kernel_map_pages_in_pgd()) I would expect _PAGE_ENC to
-> be set.
-> 
->> I'll look further into this, but I saw that this area of virtual memory
->> was mapped un-encrypted and after freeing the boot services the
->> mappings were somehow reused as un-encrypted for DMA which assumes
->> (unless using swiotlb) encrypted. This resulted in DMA data being
->> transferred in as encrypted and then accessed un-encrypted.
-> 
-> That the mappings were re-used isn't a surprise.
-> 
-> efi_free_boot_services() lifts the reservation that was put in place
-> during efi_reserve_boot_services() and releases the pages to the
-> kernel's memory allocators.
-> 
-> What is surprising is that they were marked unencrypted at all.
-> There's nothing special about these pages as far as the __va() region
-> is concerned.
-
-Right, let me keep looking into this to see if I can pin down what
-was (or is) happening.
-
-Thanks,
-Tom
-
-> 
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
