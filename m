@@ -1,253 +1,505 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4820B6B0260
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 11:18:03 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id na2so12281761lbb.1
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 08:18:03 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ag2si18667477wjc.200.2016.06.15.08.18.01
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CB7CF6B0005
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 11:26:11 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id a2so10520694lfe.0
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 08:26:11 -0700 (PDT)
+Received: from mail-lb0-x22c.google.com (mail-lb0-x22c.google.com. [2a00:1450:4010:c04::22c])
+        by mx.google.com with ESMTPS id aw2si6560856lbc.200.2016.06.15.08.26.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 15 Jun 2016 08:18:01 -0700 (PDT)
-Subject: Re: [PATCH 08/27] mm, vmscan: Simplify the logic deciding whether
- kswapd sleeps
-References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
- <1465495483-11855-9-git-send-email-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <6b6b9f95-869a-a9f2-c5cf-f0a3e4d6bd6a@suse.cz>
-Date: Wed, 15 Jun 2016 17:18:00 +0200
-MIME-Version: 1.0
-In-Reply-To: <1465495483-11855-9-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Jun 2016 08:26:10 -0700 (PDT)
+Received: by mail-lb0-x22c.google.com with SMTP id xp5so3660519lbb.0
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 08:26:09 -0700 (PDT)
+From: Alexander Potapenko <glider@google.com>
+Subject: [PATCH v3] mm, kasan: switch SLUB to stackdepot, enable memory quarantine for SLUB
+Date: Wed, 15 Jun 2016 17:26:04 +0200
+Message-Id: <1466004364-57279-1-git-send-email-glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, aryabinin@virtuozzo.com, kuthonuzo.luruo@hpe.com
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/09/2016 08:04 PM, Mel Gorman wrote:
-> kswapd goes through some complex steps trying to figure out if it
-> should stay awake based on the classzone_idx and the requested order.
-> It is unnecessarily complex and passes in an invalid classzone_idx to
-> balance_pgdat().  What matters most of all is whether a larger order has
-> been requsted and whether kswapd successfully reclaimed at the previous
-> order. This patch irons out the logic to check just that and the end result
-> is less headache inducing.
->
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  include/linux/mmzone.h |  5 ++--
->  mm/memory_hotplug.c    |  5 ++--
->  mm/page_alloc.c        |  2 +-
->  mm/vmscan.c            | 79 +++++++++++++++++++++++++-------------------------
->  4 files changed, 46 insertions(+), 45 deletions(-)
->
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index aff621fcc6af..15ce454d0d59 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -663,8 +663,9 @@ typedef struct pglist_data {
->  	wait_queue_head_t pfmemalloc_wait;
->  	struct task_struct *kswapd;	/* Protected by
->  					   mem_hotplug_begin/end() */
-> -	int kswapd_max_order;
-> -	enum zone_type classzone_idx;
-> +	int kswapd_order;
-> +	enum zone_type kswapd_classzone_idx;
-> +
->  #ifdef CONFIG_COMPACTION
->  	int kcompactd_max_order;
->  	enum zone_type kcompactd_classzone_idx;
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index c5278360ca66..42d758bffd0a 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1209,9 +1209,10 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
->
->  		arch_refresh_nodedata(nid, pgdat);
->  	} else {
-> -		/* Reset the nr_zones and classzone_idx to 0 before reuse */
-> +		/* Reset the nr_zones, order and classzone_idx before reuse */
->  		pgdat->nr_zones = 0;
-> -		pgdat->classzone_idx = 0;
-> +		pgdat->kswapd_order = 0;
-> +		pgdat->kswapd_classzone_idx = -1;
->  	}
->
->  	/* we can use NODE_DATA(nid) from here */
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 4ce578b969da..d8cb483d5cad 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6036,7 +6036,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
->  	unsigned long end_pfn = 0;
->
->  	/* pg_data_t should be reset to zero when it's allocated */
-> -	WARN_ON(pgdat->nr_zones || pgdat->classzone_idx);
-> +	WARN_ON(pgdat->nr_zones || pgdat->kswapd_classzone_idx);
+For KASAN builds:
+ - switch SLUB allocator to using stackdepot instead of storing the
+   allocation/deallocation stacks in the objects;
+ - define SLAB_RED_ZONE, SLAB_POISON, SLAB_STORE_USER to zero,
+   effectively disabling these debug features, as they're redundant in
+   the presence of KASAN;
+ - change the freelist hook so that parts of the freelist can be put into
+   the quarantine.
 
-Above you changed the reset value of kswapd_classzone_idx from 0 to -1, 
-so won't this trigger? Also should we check kswapd_order that's newly 
-reset too?
+Signed-off-by: Alexander Potapenko <glider@google.com>
+---
+v3: - addressed comments by Andrey Ryabinin:
+      - replaced KMALLOC_MAX_CACHE_SIZE with KMALLOC_MAX_SIZE in
+        kasan_cache_create();
+      - for caches with SLAB_KASAN flag set, their alloc_meta_offset and
+        free_meta_offset are always valid.
+v2: - incorporated kbuild fixes by Andrew Morton
+---
+ include/linux/slab.h     |  9 +++++++
+ include/linux/slub_def.h |  4 ++++
+ lib/Kconfig.kasan        |  4 ++--
+ mm/kasan/Makefile        |  3 +--
+ mm/kasan/kasan.c         | 61 ++++++++++++++++++++++++++----------------------
+ mm/kasan/kasan.h         |  2 +-
+ mm/kasan/quarantine.c    |  5 ++++
+ mm/kasan/report.c        |  8 +++----
+ mm/slab.h                |  8 +++++++
+ mm/slub.c                | 58 +++++++++++++++++++++++++++++++++------------
+ 10 files changed, 109 insertions(+), 53 deletions(-)
 
->
->  	reset_deferred_meminit(pgdat);
->  	pgdat->node_id = nid;
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 96bf841f9352..14b34eebedff 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2727,7 +2727,7 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
->
->  	/* kswapd must be awake if processes are being throttled */
->  	if (!wmark_ok && waitqueue_active(&pgdat->kswapd_wait)) {
-> -		pgdat->classzone_idx = min(pgdat->classzone_idx,
-> +		pgdat->kswapd_classzone_idx = min(pgdat->kswapd_classzone_idx,
->  						(enum zone_type)ZONE_NORMAL);
->  		wake_up_interruptible(&pgdat->kswapd_wait);
->  	}
-> @@ -3211,6 +3211,12 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order,
->
->  	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
->
-> +	/* If kswapd has not been woken recently, then full sleep */
-> +	if (classzone_idx == -1) {
-> +		classzone_idx = balanced_classzone_idx = MAX_NR_ZONES - 1;
-> +		goto full_sleep;
-
-This will skip the wakeup_kcompactd() part.
-
-> +	}
-> +
->  	/* Try to sleep for a short interval */
->  	if (prepare_kswapd_sleep(pgdat, order, remaining,
->  						balanced_classzone_idx)) {
-> @@ -3233,6 +3239,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order,
->  		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
->  	}
->
-> +full_sleep:
->  	/*
->  	 * After a short sleep, check if it was a premature sleep. If not, then
->  	 * go fully to sleep until explicitly woken up.
-> @@ -3279,9 +3286,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order,
->   */
->  static int kswapd(void *p)
->  {
-> -	unsigned long order, new_order;
-> -	int classzone_idx, new_classzone_idx;
-> -	int balanced_classzone_idx;
-> +	unsigned int order, classzone_idx;
->  	pg_data_t *pgdat = (pg_data_t*)p;
->  	struct task_struct *tsk = current;
->
-> @@ -3311,38 +3316,25 @@ static int kswapd(void *p)
->  	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
->  	set_freezable();
->
-> -	order = new_order = 0;
-> -	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
-> -	balanced_classzone_idx = classzone_idx;
-> +	pgdat->kswapd_order = order = 0;
-> +	pgdat->kswapd_classzone_idx = classzone_idx = -1;
->  	for ( ; ; ) {
->  		bool ret;
->
-> +kswapd_try_sleep:
-> +		kswapd_try_to_sleep(pgdat, order, classzone_idx, classzone_idx);
-
-The last two parameters are now the same, remove one?
-
-> +
->  		/*
-> -		 * While we were reclaiming, there might have been another
-> -		 * wakeup, so check the values.
-> +		 * Read the new order and classzone_idx which may be -1 if
-> +		 * kswapd_try_to_sleep() woke up after a short timeout instead
-> +		 * of being woken by the page allocator.
->  		 */
-> -		new_order = pgdat->kswapd_max_order;
-> -		new_classzone_idx = pgdat->classzone_idx;
-> -		pgdat->kswapd_max_order =  0;
-> -		pgdat->classzone_idx = pgdat->nr_zones - 1;
-> -
-> -		if (order < new_order || classzone_idx > new_classzone_idx) {
-> -			/*
-> -			 * Don't sleep if someone wants a larger 'order'
-> -			 * allocation or has tigher zone constraints
-> -			 */
-> -			order = new_order;
-> -			classzone_idx = new_classzone_idx;
-> -		} else {
-> -			kswapd_try_to_sleep(pgdat, order, classzone_idx,
-> -						balanced_classzone_idx);
-> -			order = pgdat->kswapd_max_order;
-> -			classzone_idx = pgdat->classzone_idx;
-> -			new_order = order;
-> -			new_classzone_idx = classzone_idx;
-> -			pgdat->kswapd_max_order = 0;
-> -			pgdat->classzone_idx = pgdat->nr_zones - 1;
-> -		}
-> +		order = pgdat->kswapd_order;
-> +		classzone_idx = pgdat->kswapd_classzone_idx;
-> +		if (classzone_idx == -1)
-> +			classzone_idx = MAX_NR_ZONES - 1;
-> +		pgdat->kswapd_order = 0;
-> +		pgdat->kswapd_classzone_idx = -1;
->
->  		ret = try_to_freeze();
->  		if (kthread_should_stop())
-> @@ -3352,12 +3344,19 @@ static int kswapd(void *p)
->  		 * We can speed up thawing tasks if we don't call balance_pgdat
->  		 * after returning from the refrigerator
->  		 */
-> -		if (!ret) {
-> -			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
-> +		if (ret)
-> +			continue;
->
-> -			/* return value ignored until next patch */
-> -			balance_pgdat(pgdat, order, classzone_idx);
-> -		}
-> +		/*
-> +		 * Try reclaim the requested order but if that fails
-> +		 * then try sleeping on the basis of the order reclaimed.
-
-Is the last word really meant to be "reclaimed", or "requested"?
-
-> +		 */
-> +		trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
-> +		if (balance_pgdat(pgdat, order, classzone_idx) < order)
-> +			goto kswapd_try_sleep;
-
-AFAICS now kswapd_try_to_sleep() will use the "requested" order. That's 
-needed for proper wakeup_kcompactd(), but won't it prevent kswapd from 
-actually going to sleep, because zone_balanced() in prepare-sleep will 
-be false? So I think you need to give it both orders to do the right thing?
-
-> +
-> +		order = pgdat->kswapd_order;
-> +		classzone_idx = pgdat->kswapd_classzone_idx;
->  	}
->
->  	tsk->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD);
-> @@ -3380,10 +3379,10 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
->  	if (!cpuset_zone_allowed(zone, GFP_KERNEL | __GFP_HARDWALL))
->  		return;
->  	pgdat = zone->zone_pgdat;
-> -	if (pgdat->kswapd_max_order < order) {
-> -		pgdat->kswapd_max_order = order;
-> -		pgdat->classzone_idx = min(pgdat->classzone_idx, classzone_idx);
-> -	}
-> +	if (pgdat->kswapd_classzone_idx == -1)
-> +		pgdat->kswapd_classzone_idx = classzone_idx;
-> +	pgdat->kswapd_classzone_idx = max(pgdat->kswapd_classzone_idx, classzone_idx);
-> +	pgdat->kswapd_order = max(pgdat->kswapd_order, order);
->  	if (!waitqueue_active(&pgdat->kswapd_wait))
->  		return;
->  	if (zone_balanced(zone, order, 0))
->
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index aeb3e6d..fe91eef 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -21,11 +21,20 @@
+  * The ones marked DEBUG are only valid if CONFIG_DEBUG_SLAB is set.
+  */
+ #define SLAB_CONSISTENCY_CHECKS	0x00000100UL	/* DEBUG: Perform (expensive) checks on alloc/free */
++#ifndef CONFIG_KASAN
+ #define SLAB_RED_ZONE		0x00000400UL	/* DEBUG: Red zone objs in a cache */
+ #define SLAB_POISON		0x00000800UL	/* DEBUG: Poison objects */
++#else
++#define SLAB_RED_ZONE		0x00000000UL	/* KASAN has its own redzones */
++#define SLAB_POISON		0x00000000UL	/* No extra poisoning */
++#endif
+ #define SLAB_HWCACHE_ALIGN	0x00002000UL	/* Align objs on cache lines */
+ #define SLAB_CACHE_DMA		0x00004000UL	/* Use GFP_DMA memory */
++#ifndef CONFIG_KASAN
+ #define SLAB_STORE_USER		0x00010000UL	/* DEBUG: Store the last owner for bug hunting */
++#else
++#define SLAB_STORE_USER		0x00000000UL	/* KASAN uses stack depot */
++#endif
+ #define SLAB_PANIC		0x00040000UL	/* Panic if kmem_cache_create() fails */
+ /*
+  * SLAB_DESTROY_BY_RCU - **WARNING** READ THIS!
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index d1faa01..5585598 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -99,6 +99,10 @@ struct kmem_cache {
+ 	 */
+ 	int remote_node_defrag_ratio;
+ #endif
++#ifdef CONFIG_KASAN
++	struct kasan_cache kasan_info;
++#endif
++
+ 	struct kmem_cache_node *node[MAX_NUMNODES];
+ };
+ 
+diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+index 67d8c68..bd38aab 100644
+--- a/lib/Kconfig.kasan
++++ b/lib/Kconfig.kasan
+@@ -5,9 +5,9 @@ if HAVE_ARCH_KASAN
+ 
+ config KASAN
+ 	bool "KASan: runtime memory debugger"
+-	depends on SLUB_DEBUG || (SLAB && !DEBUG_SLAB)
++	depends on SLUB || (SLAB && !DEBUG_SLAB)
+ 	select CONSTRUCTORS
+-	select STACKDEPOT if SLAB
++	select STACKDEPOT
+ 	help
+ 	  Enables kernel address sanitizer - runtime memory debugger,
+ 	  designed to find out-of-bounds accesses and use-after-free bugs.
+diff --git a/mm/kasan/Makefile b/mm/kasan/Makefile
+index 1548749..2976a9e 100644
+--- a/mm/kasan/Makefile
++++ b/mm/kasan/Makefile
+@@ -7,5 +7,4 @@ CFLAGS_REMOVE_kasan.o = -pg
+ # see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63533
+ CFLAGS_kasan.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
+ 
+-obj-y := kasan.o report.o kasan_init.o
+-obj-$(CONFIG_SLAB) += quarantine.o
++obj-y := kasan.o report.o kasan_init.o quarantine.o
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 18b6a2b..1d385e3 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -351,7 +351,6 @@ void kasan_free_pages(struct page *page, unsigned int order)
+ 				KASAN_FREE_PAGE);
+ }
+ 
+-#ifdef CONFIG_SLAB
+ /*
+  * Adaptive redzone policy taken from the userspace AddressSanitizer runtime.
+  * For larger allocations larger redzones are used.
+@@ -373,16 +372,12 @@ void kasan_cache_create(struct kmem_cache *cache, size_t *size,
+ 			unsigned long *flags)
+ {
+ 	int redzone_adjust;
+-	/* Make sure the adjusted size is still less than
+-	 * KMALLOC_MAX_CACHE_SIZE.
+-	 * TODO: this check is only useful for SLAB, but not SLUB. We'll need
+-	 * to skip it for SLUB when it starts using kasan_cache_create().
+-	 */
+-	if (*size > KMALLOC_MAX_CACHE_SIZE -
+-	    sizeof(struct kasan_alloc_meta) -
+-	    sizeof(struct kasan_free_meta))
+-		return;
++
++#ifdef CONFIG_SLAB
++	int orig_size = *size;
++#endif
+ 	*flags |= SLAB_KASAN;
++
+ 	/* Add alloc meta. */
+ 	cache->kasan_info.alloc_meta_offset = *size;
+ 	*size += sizeof(struct kasan_alloc_meta);
+@@ -392,17 +387,35 @@ void kasan_cache_create(struct kmem_cache *cache, size_t *size,
+ 	    cache->object_size < sizeof(struct kasan_free_meta)) {
+ 		cache->kasan_info.free_meta_offset = *size;
+ 		*size += sizeof(struct kasan_free_meta);
++	} else {
++		cache->kasan_info.free_meta_offset = 0;
+ 	}
+ 	redzone_adjust = optimal_redzone(cache->object_size) -
+ 		(*size - cache->object_size);
++
+ 	if (redzone_adjust > 0)
+ 		*size += redzone_adjust;
+-	*size = min(KMALLOC_MAX_CACHE_SIZE,
++
++#ifdef CONFIG_SLAB
++	*size = min(KMALLOC_MAX_SIZE,
+ 		    max(*size,
+ 			cache->object_size +
+ 			optimal_redzone(cache->object_size)));
+-}
++	/*
++	 * If the metadata doesn't fit, disable KASAN at all.
++	 */
++	if (*size <= cache->kasan_info.alloc_meta_offset ||
++			*size <= cache->kasan_info.free_meta_offset) {
++		*flags &= ~SLAB_KASAN;
++		*size = orig_size;
++	}
++#else
++	*size = max(*size,
++			cache->object_size +
++			optimal_redzone(cache->object_size));
++
+ #endif
++}
+ 
+ void kasan_cache_shrink(struct kmem_cache *cache)
+ {
+@@ -431,16 +444,13 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
+ 	kasan_poison_shadow(object,
+ 			round_up(cache->object_size, KASAN_SHADOW_SCALE_SIZE),
+ 			KASAN_KMALLOC_REDZONE);
+-#ifdef CONFIG_SLAB
+ 	if (cache->flags & SLAB_KASAN) {
+ 		struct kasan_alloc_meta *alloc_info =
+ 			get_alloc_info(cache, object);
+ 		alloc_info->state = KASAN_STATE_INIT;
+ 	}
+-#endif
+ }
+ 
+-#ifdef CONFIG_SLAB
+ static inline int in_irqentry_text(unsigned long ptr)
+ {
+ 	return (ptr >= (unsigned long)&__irqentry_text_start &&
+@@ -501,7 +511,6 @@ struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
+ 	BUILD_BUG_ON(sizeof(struct kasan_free_meta) > 32);
+ 	return (void *)object + cache->kasan_info.free_meta_offset;
+ }
+-#endif
+ 
+ void kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t flags)
+ {
+@@ -522,16 +531,16 @@ void kasan_poison_slab_free(struct kmem_cache *cache, void *object)
+ 
+ bool kasan_slab_free(struct kmem_cache *cache, void *object)
+ {
+-#ifdef CONFIG_SLAB
+ 	/* RCU slabs could be legally used after free within the RCU period */
+ 	if (unlikely(cache->flags & SLAB_DESTROY_BY_RCU))
+ 		return false;
+ 
+ 	if (likely(cache->flags & SLAB_KASAN)) {
+-		struct kasan_alloc_meta *alloc_info =
+-			get_alloc_info(cache, object);
+-		struct kasan_free_meta *free_info =
+-			get_free_info(cache, object);
++		struct kasan_alloc_meta *alloc_info;
++		struct kasan_free_meta *free_info;
++
++		alloc_info = get_alloc_info(cache, object);
++		free_info = get_free_info(cache, object);
+ 
+ 		switch (alloc_info->state) {
+ 		case KASAN_STATE_ALLOC:
+@@ -550,10 +559,6 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object)
+ 		}
+ 	}
+ 	return false;
+-#else
+-	kasan_poison_slab_free(cache, object);
+-	return false;
+-#endif
+ }
+ 
+ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
+@@ -568,6 +573,9 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
+ 	if (unlikely(object == NULL))
+ 		return;
+ 
++	if (!(cache->flags & SLAB_KASAN))
++		return;
++
+ 	redzone_start = round_up((unsigned long)(object + size),
+ 				KASAN_SHADOW_SCALE_SIZE);
+ 	redzone_end = round_up((unsigned long)object + cache->object_size,
+@@ -576,16 +584,13 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
+ 	kasan_unpoison_shadow(object, size);
+ 	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
+ 		KASAN_KMALLOC_REDZONE);
+-#ifdef CONFIG_SLAB
+ 	if (cache->flags & SLAB_KASAN) {
+ 		struct kasan_alloc_meta *alloc_info =
+ 			get_alloc_info(cache, object);
+-
+ 		alloc_info->state = KASAN_STATE_ALLOC;
+ 		alloc_info->alloc_size = size;
+ 		set_track(&alloc_info->track, flags);
+ 	}
+-#endif
+ }
+ EXPORT_SYMBOL(kasan_kmalloc);
+ 
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index fb87923..8c75953 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -110,7 +110,7 @@ static inline bool kasan_report_enabled(void)
+ void kasan_report(unsigned long addr, size_t size,
+ 		bool is_write, unsigned long ip);
+ 
+-#ifdef CONFIG_SLAB
++#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB)
+ void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache);
+ void quarantine_reduce(void);
+ void quarantine_remove_cache(struct kmem_cache *cache);
+diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
+index 4973505..89259c2 100644
+--- a/mm/kasan/quarantine.c
++++ b/mm/kasan/quarantine.c
+@@ -149,7 +149,12 @@ static void qlink_free(struct qlist_node *qlink, struct kmem_cache *cache)
+ 
+ 	local_irq_save(flags);
+ 	alloc_info->state = KASAN_STATE_FREE;
++#ifdef CONFIG_SLAB
+ 	___cache_free(cache, object, _THIS_IP_);
++#elif defined(CONFIG_SLUB)
++	do_slab_free(cache, virt_to_head_page(object), object, NULL, 1,
++		_RET_IP_);
++#endif
+ 	local_irq_restore(flags);
+ }
+ 
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index b3c122d..861b977 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -116,7 +116,6 @@ static inline bool init_task_stack_addr(const void *addr)
+ 			sizeof(init_thread_union.stack));
+ }
+ 
+-#ifdef CONFIG_SLAB
+ static void print_track(struct kasan_track *track)
+ {
+ 	pr_err("PID = %u\n", track->pid);
+@@ -130,8 +129,8 @@ static void print_track(struct kasan_track *track)
+ 	}
+ }
+ 
+-static void object_err(struct kmem_cache *cache, struct page *page,
+-			void *object, char *unused_reason)
++static void kasan_object_err(struct kmem_cache *cache, struct page *page,
++				void *object, char *unused_reason)
+ {
+ 	struct kasan_alloc_meta *alloc_info = get_alloc_info(cache, object);
+ 	struct kasan_free_meta *free_info;
+@@ -162,7 +161,6 @@ static void object_err(struct kmem_cache *cache, struct page *page,
+ 		break;
+ 	}
+ }
+-#endif
+ 
+ static void print_address_description(struct kasan_access_info *info)
+ {
+@@ -177,7 +175,7 @@ static void print_address_description(struct kasan_access_info *info)
+ 			struct kmem_cache *cache = page->slab_cache;
+ 			object = nearest_obj(cache, page,
+ 						(void *)info->access_addr);
+-			object_err(cache, page, object,
++			kasan_object_err(cache, page, object,
+ 					"kasan: bad access detected");
+ 			return;
+ 		}
+diff --git a/mm/slab.h b/mm/slab.h
+index dedb1a9..23cac96 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -366,6 +366,8 @@ static inline size_t slab_ksize(const struct kmem_cache *s)
+ 	if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
+ 		return s->object_size;
+ # endif
++	if (s->flags & SLAB_KASAN)
++		return s->object_size;
+ 	/*
+ 	 * If we have the need to store the freelist pointer
+ 	 * back there or track user information then we can
+@@ -462,6 +464,12 @@ void *slab_next(struct seq_file *m, void *p, loff_t *pos);
+ void slab_stop(struct seq_file *m, void *p);
+ int memcg_slab_show(struct seq_file *m, void *p);
+ 
++#if defined(CONFIG_SLAB)
+ void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
++#elif defined(CONFIG_SLUB)
++void do_slab_free(struct kmem_cache *s,
++		struct page *page, void *head, void *tail,
++		int cnt, unsigned long addr);
++#endif
+ 
+ #endif /* MM_SLAB_H */
+diff --git a/mm/slub.c b/mm/slub.c
+index 825ff45..f023dd4 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -191,7 +191,11 @@ static inline bool kmem_cache_has_cpu_partial(struct kmem_cache *s)
+ #define MAX_OBJS_PER_PAGE	32767 /* since page.objects is u15 */
+ 
+ /* Internal SLUB flags */
++#ifndef CONFIG_KASAN
+ #define __OBJECT_POISON		0x80000000UL /* Poison object */
++#else
++#define __OBJECT_POISON		0x00000000UL /* Disable object poisoning */
++#endif
+ #define __CMPXCHG_DOUBLE	0x40000000UL /* Use cmpxchg_double */
+ 
+ #ifdef CONFIG_SMP
+@@ -454,10 +458,8 @@ static inline void *restore_red_left(struct kmem_cache *s, void *p)
+  */
+ #if defined(CONFIG_SLUB_DEBUG_ON)
+ static int slub_debug = DEBUG_DEFAULT_FLAGS;
+-#elif defined(CONFIG_KASAN)
+-static int slub_debug = SLAB_STORE_USER;
+ #else
+-static int slub_debug;
++static int slub_debug = SLAB_STORE_USER;
+ #endif
+ 
+ static char *slub_debug_slabs;
+@@ -1322,7 +1324,7 @@ static inline void kfree_hook(const void *x)
+ 	kasan_kfree_large(x);
+ }
+ 
+-static inline void slab_free_hook(struct kmem_cache *s, void *x)
++static inline bool slab_free_hook(struct kmem_cache *s, void *x)
+ {
+ 	kmemleak_free_recursive(x, s->flags);
+ 
+@@ -1344,11 +1346,11 @@ static inline void slab_free_hook(struct kmem_cache *s, void *x)
+ 	if (!(s->flags & SLAB_DEBUG_OBJECTS))
+ 		debug_check_no_obj_freed(x, s->object_size);
+ 
+-	kasan_slab_free(s, x);
++	return kasan_slab_free(s, x);
+ }
+ 
+ static inline void slab_free_freelist_hook(struct kmem_cache *s,
+-					   void *head, void *tail)
++					   void **head, void **tail, int *cnt)
+ {
+ /*
+  * Compiler cannot detect this function can be removed if slab_free_hook()
+@@ -1360,13 +1362,27 @@ static inline void slab_free_freelist_hook(struct kmem_cache *s,
+ 	defined(CONFIG_DEBUG_OBJECTS_FREE) ||	\
+ 	defined(CONFIG_KASAN)
+ 
+-	void *object = head;
+-	void *tail_obj = tail ? : head;
++	void *object = *head, *prev = NULL, *next = NULL;
++	void *tail_obj = *tail ? : *head;
++	bool skip = false;
+ 
+ 	do {
+-		slab_free_hook(s, object);
+-	} while ((object != tail_obj) &&
+-		 (object = get_freepointer(s, object)));
++		skip = slab_free_hook(s, object);
++		next = (object != tail_obj) ?
++			get_freepointer(s, object) : NULL;
++		if (skip) {
++			if (!prev)
++				*head = next;
++			else
++				set_freepointer(s, prev, next);
++			if (object == tail_obj)
++				*tail = prev;
++			(*cnt)--;
++		} else {
++			prev = object;
++		}
++		object = next;
++	} while (next);
+ #endif
+ }
+ 
+@@ -2772,12 +2788,22 @@ static __always_inline void slab_free(struct kmem_cache *s, struct page *page,
+ 				      void *head, void *tail, int cnt,
+ 				      unsigned long addr)
+ {
++	void *free_head = head, *free_tail = tail;
++
++	slab_free_freelist_hook(s, &free_head, &free_tail, &cnt);
++	/* slab_free_freelist_hook() could have emptied the freelist. */
++	if (cnt == 0)
++		return;
++	do_slab_free(s, page, free_head, free_tail, cnt, addr);
++}
++
++__always_inline void do_slab_free(struct kmem_cache *s,
++				struct page *page, void *head, void *tail,
++				int cnt, unsigned long addr)
++{
+ 	void *tail_obj = tail ? : head;
+ 	struct kmem_cache_cpu *c;
+ 	unsigned long tid;
+-
+-	slab_free_freelist_hook(s, head, tail);
+-
+ redo:
+ 	/*
+ 	 * Determine the currently cpus per cpu slab.
+@@ -3252,7 +3278,7 @@ static void set_min_partial(struct kmem_cache *s, unsigned long min)
+ static int calculate_sizes(struct kmem_cache *s, int forced_order)
+ {
+ 	unsigned long flags = s->flags;
+-	unsigned long size = s->object_size;
++	size_t size = s->object_size;
+ 	int order;
+ 
+ 	/*
+@@ -3328,6 +3354,8 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
+ 	}
+ #endif
+ 
++	kasan_cache_create(s, &size, &s->flags);
++
+ 	/*
+ 	 * SLUB stores one object immediately after another beginning from
+ 	 * offset 0. In order to align the objects we have to simply size
+-- 
+2.8.0.rc3.226.g39d4020
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
