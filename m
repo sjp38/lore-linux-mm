@@ -1,76 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BC20E6B0253
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 11:53:24 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id c1so10830812lbw.0
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 08:53:24 -0700 (PDT)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id gh2si6099497wjd.127.2016.06.16.08.53.22
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A01C16B025E
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 11:53:52 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id a4so24535547lfa.1
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 08:53:52 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id jf6si6147121wjb.6.2016.06.16.08.53.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Jun 2016 08:53:22 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 4CFA299241
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 15:53:22 +0000 (UTC)
-Date: Thu, 16 Jun 2016 16:53:20 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 13/27] mm, memcg: Move memcg limit enforcement from zones
- to nodes
-Message-ID: <20160616155320.GJ1868@techsingularity.net>
-References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
- <1465495483-11855-14-git-send-email-mgorman@techsingularity.net>
- <2aea9490-99aa-4e55-e7ca-22b695eee1da@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Jun 2016 08:53:50 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id k184so12472438wme.2
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 08:53:49 -0700 (PDT)
+Date: Thu, 16 Jun 2016 17:53:48 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 07/10] mm, oom: fortify task_will_free_mem
+Message-ID: <20160616155347.GO6836@dhcp22.suse.cz>
+References: <20160609142026.GF24777@dhcp22.suse.cz>
+ <201606111710.IGF51027.OJLSOQtHVOFFFM@I-love.SAKURA.ne.jp>
+ <20160613112746.GD6518@dhcp22.suse.cz>
+ <201606162154.CGE05294.HJQOSMFFVFtOOL@I-love.SAKURA.ne.jp>
+ <20160616142940.GK6836@dhcp22.suse.cz>
+ <201606170040.FGC21882.FMLHOtVSFFJOQO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2aea9490-99aa-4e55-e7ca-22b695eee1da@suse.cz>
+In-Reply-To: <201606170040.FGC21882.FMLHOtVSFFJOQO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Thu, Jun 16, 2016 at 05:06:46PM +0200, Vlastimil Babka wrote:
-> >@@ -323,13 +319,10 @@ EXPORT_SYMBOL(memcg_kmem_enabled_key);
-> >
-> > #endif /* !CONFIG_SLOB */
-> >
-> >-static struct mem_cgroup_per_zone *
-> >-mem_cgroup_zone_zoneinfo(struct mem_cgroup *memcg, struct zone *zone)
-> >+static struct mem_cgroup_per_node *
-> >+mem_cgroup_nodeinfo(struct mem_cgroup *memcg, pg_data_t *pgdat)
-> > {
-> >-	int nid = zone_to_nid(zone);
-> >-	int zid = zone_idx(zone);
-> >-
-> >-	return &memcg->nodeinfo[nid]->zoneinfo[zid];
-> >+	return memcg->nodeinfo[pgdat->node_id];
+On Fri 17-06-16 00:40:41, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Thu 16-06-16 21:54:27, Tetsuo Handa wrote:
+> > > Michal Hocko wrote:
+> > > > On Sat 11-06-16 17:10:03, Tetsuo Handa wrote:
+> > [...]
+> > > I still don't like it. current->mm == NULL in
+> > > 
+> > > -	if (current->mm &&
+> > > -	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
+> > > +	if (task_will_free_mem(current)) {
+> > > 
+> > > is not highly unlikely. You obviously break commit d7a94e7e11badf84
+> > > ("oom: don't count on mm-less current process") on CONFIG_MMU=n kernels.
+> > 
+> > I still fail to see why you care about that case so much. The heuristic
+> > was broken for other reasons before this patch. The patch fixes a class
+> > of issues for both mmu and nommu. I can restore the current->mm check
+> > for now but the more I am thinking about it the less I am sure the
+> > commit you are referring to is evem correct/necessary.
+> > 
+> > It claims that the OOM killer would be stuck because the child would be
+> > sitting in the final schedule() until the parent reaps it. That is not
+> > true, though, because victim would be unhashed down in release_task()
+> > path so it is not visible by the oom killer when it is waiting for the
+> > parent.  I have completely missed that part when reviewing the patch. Or
+> > am I missing something...
 > 
-> I've noticed most callers pass NODE_DATA(nid) as second parameter, which is
-> quite wasteful to just obtain back the node_id (I doubt the compiler can
-> know that they will be the same?). So it would be more efficient to use nid
-> instead of pg_data_t pointer in the signature.
-> 
+> That explanation started from 201411292304.CGF68419.MOLHVQtSFFOOJF@I-love.SAKURA.ne.jp
+> (Sat, 29 Nov 2014 23:04:33 +0900) in your mailbox. I confirmed that a TIF_MEMDIE
+> zombie inside the final schedule() in do_exit() is waiting for parent to reap.
+> release_task() will be called when parent noticed that there is a zombie, but
+> this OOM livelock situation prevented parent looping inside page allocator waiting
+> for that TIF_MEMDIE zombie from noticing that there is a zombie.
 
-No harm in making the conversion, done now.
+I cannot seem to find this msg-id. Anyway, let's forget it for now
+to not get side tracked. I have to study that code more deeply to better
+understand it.
 
-> > }
-> >
-> > /**
-> >@@ -383,37 +376,35 @@ ino_t page_cgroup_ino(struct page *page)
-> > 	return ino;
-> > }
-> >
-> >-static struct mem_cgroup_per_zone *
-> >+static struct mem_cgroup_per_node *
-> > mem_cgroup_page_zoneinfo(struct mem_cgroup *memcg, struct page *page)
+> > Anyway, would you be OK with the patch if I added the current->mm check
+> > and resolve its necessity in a separate patch?
 > 
-> This could be renamed to _nodeinfo()?
-> 
+> Please correct task_will_free_mem() in oom_kill_process() as well.
 
-Renamed.
+We cannot hold task_lock over all task_will_free_mem I am even not sure
+we have to develop an elaborate way to make it raceless just for the nommu
+case. The current case is simple as we cannot race here. Is that
+sufficient for you?
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
