@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E51F26B0005
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:14:57 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r5so25543704wmr.0
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:14:57 -0700 (PDT)
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A1A4D6B0253
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:15:18 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id l184so25541485lfl.3
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:15:18 -0700 (PDT)
 Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTP id h65si5959587lji.55.2016.06.16.04.14.55
-        for <linux-mm@kvack.org>;
-        Thu, 16 Jun 2016 04:14:56 -0700 (PDT)
+        by mx.google.com with ESMTPS id u123si12653132lja.31.2016.06.16.04.14.52
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Jun 2016 04:15:17 -0700 (PDT)
 From: zhongjiang <zhongjiang@huawei.com>
 Subject: [PATCH] mm: fix account pmd page to the process
-Date: Thu, 16 Jun 2016 19:16:53 +0800
-Message-ID: <1466075813-22849-1-git-send-email-zhongjiang@huawei.com>
+Date: Thu, 16 Jun 2016 19:17:41 +0800
+Message-ID: <1466075861-22943-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
