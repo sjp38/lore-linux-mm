@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 48BF16B0005
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 20:28:43 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id g62so75374051pfb.3
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 17:28:43 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 79AA16B0253
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 20:28:46 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e189so75534864pfa.2
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 17:28:46 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id r26si2264453pfa.108.2016.06.15.17.28.42
+        by mx.google.com with ESMTPS id 87si2272171pfn.73.2016.06.15.17.28.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jun 2016 17:28:42 -0700 (PDT)
+        Wed, 15 Jun 2016 17:28:44 -0700 (PDT)
 From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH 01/13] x86/mm/hotplug: Don't remove PGD entries in remove_pagetable()
-Date: Wed, 15 Jun 2016 17:28:23 -0700
-Message-Id: <f15dcba341945848b48ae74dbcf20228f2c940b0.1466036668.git.luto@kernel.org>
+Subject: [PATCH 04/13] mm: Track NR_KERNEL_STACK in pages instead of number of stacks
+Date: Wed, 15 Jun 2016 17:28:26 -0700
+Message-Id: <24279d4009c821de64109055665429fad2a7bff7.1466036668.git.luto@kernel.org>
 In-Reply-To: <cover.1466036668.git.luto@kernel.org>
 References: <cover.1466036668.git.luto@kernel.org>
 In-Reply-To: <cover.1466036668.git.luto@kernel.org>
@@ -20,90 +20,68 @@ References: <cover.1466036668.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, x86@kernel.org, Borislav Petkov <bp@alien8.de>
-Cc: Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Brian Gerst <brgerst@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Denys Vlasenko <dvlasenk@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Waiman Long <Waiman.Long@hp.com>, linux-mm@kvack.org
+Cc: Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Brian Gerst <brgerst@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Andy Lutomirski <luto@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
 
-From: Ingo Molnar <mingo@kernel.org>
+Currently, NR_KERNEL_STACK tracks the number of kernel stacks in a
+zone.  This only makes sense if each kernel stack exists entirely in
+one zone, and allowing vmapped stacks could break this assumption.
 
-So when memory hotplug removes a piece of physical memory from pagetable
-mappings, it also frees the underlying PGD entry.
+It turns out that the code for tracking kernel stack allocations in
+units of pages is slightly simpler, so just switch to counting
+pages.
 
-This complicates PGD management, so don't do this. We can keep the
-PGD mapped and the PUD table all clear - it's only a single 4K page
-per 512 GB of memory hotplugged.
-
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Waiman Long <Waiman.Long@hp.com>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
 Cc: linux-mm@kvack.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Message-Id: <1442903021-3893-4-git-send-email-mingo@kernel.org>
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/x86/mm/init_64.c | 27 ---------------------------
- 1 file changed, 27 deletions(-)
+ fs/proc/meminfo.c | 2 +-
+ kernel/fork.c     | 3 ++-
+ mm/page_alloc.c   | 3 +--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index bce2e5d9edd4..c7465453d64e 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -702,27 +702,6 @@ static void __meminit free_pmd_table(pmd_t *pmd_start, pud_t *pud)
- 	spin_unlock(&init_mm.page_table_lock);
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 83720460c5bc..8338c0569a8d 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -145,7 +145,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 				global_page_state(NR_SLAB_UNRECLAIMABLE)),
+ 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
+ 		K(global_page_state(NR_SLAB_UNRECLAIMABLE)),
+-		global_page_state(NR_KERNEL_STACK) * THREAD_SIZE / 1024,
++		K(global_page_state(NR_KERNEL_STACK)),
+ 		K(global_page_state(NR_PAGETABLE)),
+ #ifdef CONFIG_QUICKLIST
+ 		K(quicklist_total_size()),
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 5c2c355aa97f..95bebde59d79 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -225,7 +225,8 @@ static void account_kernel_stack(struct thread_info *ti, int account)
+ {
+ 	struct zone *zone = page_zone(virt_to_page(ti));
+ 
+-	mod_zone_page_state(zone, NR_KERNEL_STACK, account);
++	mod_zone_page_state(zone, NR_KERNEL_STACK,
++			    THREAD_SIZE / PAGE_SIZE * account);
  }
  
--/* Return true if pgd is changed, otherwise return false. */
--static bool __meminit free_pud_table(pud_t *pud_start, pgd_t *pgd)
--{
--	pud_t *pud;
--	int i;
--
--	for (i = 0; i < PTRS_PER_PUD; i++) {
--		pud = pud_start + i;
--		if (pud_val(*pud))
--			return false;
--	}
--
--	/* free a pud table */
--	free_pagetable(pgd_page(*pgd), 0);
--	spin_lock(&init_mm.page_table_lock);
--	pgd_clear(pgd);
--	spin_unlock(&init_mm.page_table_lock);
--
--	return true;
--}
--
- static void __meminit
- remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
- 		 bool direct)
-@@ -913,7 +892,6 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
- 	unsigned long addr;
- 	pgd_t *pgd;
- 	pud_t *pud;
--	bool pgd_changed = false;
- 
- 	for (addr = start; addr < end; addr = next) {
- 		next = pgd_addr_end(addr, end);
-@@ -924,13 +902,8 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
- 
- 		pud = (pud_t *)pgd_page_vaddr(*pgd);
- 		remove_pud_table(pud, addr, next, direct);
--		if (free_pud_table(pud, pgd))
--			pgd_changed = true;
- 	}
- 
--	if (pgd_changed)
--		sync_global_pgds(start, end - 1, 1);
--
- 	flush_tlb_all();
- }
- 
+ void free_task(struct task_struct *tsk)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6903b695ebae..2b0203b3a976 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4457,8 +4457,7 @@ void show_free_areas(unsigned int filter)
+ 			K(zone_page_state(zone, NR_SHMEM)),
+ 			K(zone_page_state(zone, NR_SLAB_RECLAIMABLE)),
+ 			K(zone_page_state(zone, NR_SLAB_UNRECLAIMABLE)),
+-			zone_page_state(zone, NR_KERNEL_STACK) *
+-				THREAD_SIZE / 1024,
++			K(zone_page_state(zone, NR_KERNEL_STACK)),
+ 			K(zone_page_state(zone, NR_PAGETABLE)),
+ 			K(zone_page_state(zone, NR_UNSTABLE_NFS)),
+ 			K(zone_page_state(zone, NR_BOUNCE)),
 -- 
 2.7.4
 
