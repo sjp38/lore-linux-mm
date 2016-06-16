@@ -1,42 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 800496B0005
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:11:05 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id t8so75636030oif.2
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:11:05 -0700 (PDT)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0132.outbound.protection.outlook.com. [157.55.234.132])
-        by mx.google.com with ESMTPS id t190si19556249oih.207.2016.06.16.04.11.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 16 Jun 2016 04:11:04 -0700 (PDT)
-Date: Thu, 16 Jun 2016 14:10:53 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH 04/13] mm: Track NR_KERNEL_STACK in pages instead of
- number of stacks
-Message-ID: <20160616111053.GA13143@esperanza>
-References: <cover.1466036668.git.luto@kernel.org>
- <24279d4009c821de64109055665429fad2a7bff7.1466036668.git.luto@kernel.org>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E51F26B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:14:57 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r5so25543704wmr.0
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:14:57 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTP id h65si5959587lji.55.2016.06.16.04.14.55
+        for <linux-mm@kvack.org>;
+        Thu, 16 Jun 2016 04:14:56 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH] mm: fix account pmd page to the process
+Date: Thu, 16 Jun 2016 19:16:53 +0800
+Message-ID: <1466075813-22849-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <24279d4009c821de64109055665429fad2a7bff7.1466036668.git.luto@kernel.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, x86@kernel.org, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Brian Gerst <brgerst@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+To: kirill.shutemov@linux.intel.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jun 15, 2016 at 05:28:26PM -0700, Andy Lutomirski wrote:
-...
-> @@ -225,7 +225,8 @@ static void account_kernel_stack(struct thread_info *ti, int account)
->  {
->  	struct zone *zone = page_zone(virt_to_page(ti));
->  
-> -	mod_zone_page_state(zone, NR_KERNEL_STACK, account);
-> +	mod_zone_page_state(zone, NR_KERNEL_STACK,
-> +			    THREAD_SIZE / PAGE_SIZE * account);
+From: zhong jiang <zhongjiang@huawei.com>
 
-It won't work if THREAD_SIZE < PAGE_SIZE. Is there an arch with such a
-thread size, anyway? If no, we should probably drop thread_info_cache.
+when a process acquire a pmd table shared by other process, we
+increase the account to current process. otherwise, a race result
+in other tasks have set the pud entry. so it no need to increase it.
+
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ mm/hugetlb.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 19d0d08..3b025c5 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4189,10 +4189,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+ 	if (pud_none(*pud)) {
+ 		pud_populate(mm, pud,
+ 				(pmd_t *)((unsigned long)spte & PAGE_MASK));
+-	} else {
++	} else 
+ 		put_page(virt_to_page(spte));
+-		mm_inc_nr_pmds(mm);
+-	}
++
+ 	spin_unlock(ptl);
+ out:
+ 	pte = (pte_t *)pmd_alloc(mm, pud, addr);
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
