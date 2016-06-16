@@ -1,54 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 115096B025E
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:44:17 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id na2so23488428lbb.1
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 00:44:17 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id e13si15369191wme.10.2016.06.16.00.44.15
+Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7237B6B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:50:02 -0400 (EDT)
+Received: by mail-lb0-f197.google.com with SMTP id js8so23571770lbc.2
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 00:50:02 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id y127si15379868wmd.53.2016.06.16.00.49.58
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Jun 2016 00:44:15 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 1CB3398668
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:44:15 +0000 (UTC)
-Date: Thu, 16 Jun 2016 08:44:13 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 05/27] mm, vmscan: Have kswapd only scan based on the
- highest requested zone
-Message-ID: <20160616074413.GE1868@techsingularity.net>
-References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
- <1465495483-11855-6-git-send-email-mgorman@techsingularity.net>
- <dea59a5e-eaf4-58d7-412b-b543ceb8709a@suse.cz>
+        Thu, 16 Jun 2016 00:49:59 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH] mm: fix account pmd page to the process
+Date: Thu, 16 Jun 2016 15:47:29 +0800
+Message-ID: <1466063249-23639-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <dea59a5e-eaf4-58d7-412b-b543ceb8709a@suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jun 15, 2016 at 03:13:13PM +0200, Vlastimil Babka wrote:
-> On 06/09/2016 08:04 PM, Mel Gorman wrote:
-> >kswapd checks all eligible zones to see if they need balancing even if it was
-> >woken for a lower zone. This made sense when we reclaimed on a per-zone basis
-> >because we wanted to shrink zones fairly so avoid age-inversion problems.
-> 
-> Now we reclaim a single lru, but still will skip over pages from the higher
-> zones than reclaim_idx, so this is not much different from per-zone basis
-> wrt age-inversion?
-> 
+From: zhong jiang <zhongjiang@huawei.com>
 
-Yes, but it only applies in the case where the allocation request is zone
-restricted. Previously, even with fair zone allocation policy, we had
-problems with a high zone with recently allocated pages being reclaimed
-simply because the low watermark was reached. Think of bugs in the past
-where the normal zone was a small percentage of memory.
+when a process acquire a pmd table shared by other process, we
+increase the account to current process. otherwise, a race result
+in other tasks have set the pud entry. so it no need to increase it.
 
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ mm/hugetlb.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 19d0d08..3b025c5 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4189,10 +4189,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+ 	if (pud_none(*pud)) {
+ 		pud_populate(mm, pud,
+ 				(pmd_t *)((unsigned long)spte & PAGE_MASK));
+-	} else {
++	} else 
+ 		put_page(virt_to_page(spte));
+-		mm_inc_nr_pmds(mm);
+-	}
++
+ 	spin_unlock(ptl);
+ out:
+ 	pte = (pte_t *)pmd_alloc(mm, pud, addr);
 -- 
-Mel Gorman
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
