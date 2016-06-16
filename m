@@ -1,91 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 415676B0005
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 09:35:22 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id a4so22982882lfa.1
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:35:22 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w137si4519637wme.18.2016.06.16.06.35.20
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 399816B007E
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 09:36:52 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id d71so88548071ith.1
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:36:52 -0700 (PDT)
+Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
+        by mx.google.com with ESMTPS id 3si6107147pft.27.2016.06.16.06.36.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Jun 2016 06:35:20 -0700 (PDT)
-Subject: Re: [PATCH 12/27] mm, vmscan: Make shrink_node decisions more
- node-centric
-References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
- <1465495483-11855-13-git-send-email-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <a411d98e-acfb-9658-22b1-4bbefb1e00d7@suse.cz>
-Date: Thu, 16 Jun 2016 15:35:15 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Jun 2016 06:36:51 -0700 (PDT)
+Received: by mail-pa0-x244.google.com with SMTP id hf6so3770055pac.2
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:36:51 -0700 (PDT)
+Date: Thu, 16 Jun 2016 22:36:38 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH] ARM: mm: Speed up page list initialization during boot
+Message-ID: <20160616133638.GA523@swordfish>
+References: <004001d14158$114be8d0$33e3ba70$@samsung.com>
+ <005101d14158$b50842c0$1f18c840$@samsung.com>
+ <CAJFHJrpgHmcXBwuV5i4nH4SOL-OwrY2-+Fe7x9W2c6GWW=F7bg@mail.gmail.com>
+ <20160102103722.GQ8644@n2100.arm.linux.org.uk>
+ <002c01d1479f$49ea2970$ddbe7c50$@samsung.com>
+ <20160616021813.GB658@swordfish>
 MIME-Version: 1.0
-In-Reply-To: <1465495483-11855-13-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160616021813.GB658@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: 'Chirantan Ekbote' <chirantan@chromium.org>, Jungseung Lee <js07.lee@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, js07.lee@gmail.com, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On 06/09/2016 08:04 PM, Mel Gorman wrote:
-> Earlier patches focused on having direct reclaim and kswapd use data that
-> is node-centric for reclaiming but shrink_node() itself still uses too much
-> zone information. This patch removes unnecessary zone-based information
-> with the most important decision being whether to continue reclaim or
-> not. Some memcg APIs are adjusted as a result even though memcg itself
-> still uses some zone information.
->
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+On (06/16/16 11:18), Sergey Senozhatsky wrote:
+> On (01/05/16 18:56), Jungseung Lee wrote:
+> [..]
+> > > > >> #ifdef CONFIG_HIGHMEM
+> > > > >> static inline void free_area_high(unsigned long pfn, unsigned long
+> > > > >>end)  {
+> > > > >>-      for (; pfn < end; pfn++)
+> > > > >>-              free_highmem_page(pfn_to_page(pfn));
+> > > > >>+      while (pfn < end) {
+> > > > >>+              struct page *page = pfn_to_page(pfn);
+> > > > >>+              unsigned long order = min(__ffs(pfn), MAX_ORDER - 1);
+> > > > >>+              unsigned long nr_pages = 1 << order;
+> > > > >>+              unsigned long rem = end - pfn;
+> > > > >>+
+> > > > >>+              if (nr_pages > rem) {
+> > > > >>+                      order = __fls(rem);
+> > > > >>+                      nr_pages = 1 << order;
+> > > > >>+              }
+> > > > >>+
+> > > > >>+              __free_pages_bootmem(page, order);
+> > > > >>+              totalram_pages += nr_pages;
+> > > > >>+              totalhigh_pages += nr_pages;
+> 
+> +			page_zone(page)->managed_pages += nr_pages;  ???
 
-[...]
+ah, no. __free_pages_boot_core() seems to do it. sorry for the noise.
 
-> @@ -2372,21 +2374,27 @@ static inline bool should_continue_reclaim(struct zone *zone,
->  	 * inactive lists are large enough, continue reclaiming
->  	 */
->  	pages_for_compaction = (2UL << sc->order);
-> -	inactive_lru_pages = node_page_state(zone->zone_pgdat, NR_INACTIVE_FILE);
-> +	inactive_lru_pages = node_page_state(pgdat, NR_INACTIVE_FILE);
->  	if (get_nr_swap_pages() > 0)
-> -		inactive_lru_pages += node_page_state(zone->zone_pgdat, NR_INACTIVE_ANON);
-> +		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);
->  	if (sc->nr_reclaimed < pages_for_compaction &&
->  			inactive_lru_pages > pages_for_compaction)
->  		return true;
->
->  	/* If compaction would go ahead or the allocation would succeed, stop */
-> -	switch (compaction_suitable(zone, sc->order, 0, 0)) {
-> -	case COMPACT_PARTIAL:
-> -	case COMPACT_CONTINUE:
-> -		return false;
-> -	default:
-> -		return true;
-> +	for (z = 0; z <= sc->reclaim_idx; z++) {
-> +		struct zone *zone = &pgdat->node_zones[z];
-> +
-> +		switch (compaction_suitable(zone, sc->order, 0, 0)) {
-
-Using 0 for classzone_idx here was sort of OK when each zone was 
-reclaimed separately, as a Normal allocation not passing appropriate 
-classzone_idx (and thus subtracting lowmem reserve from free pages) 
-means that a false COMPACT_PARTIAL (or COMPACT_CONTINUE) could be 
-returned for e.g. DMA zone. It means a premature end of reclaim for this 
-single zone, which is relatively small anyway, so no big deal (and we 
-might avoid useless over-reclaim, when even reclaiming everything 
-wouldn't get us above the lowmem_reserve).
-
-But in node-centric reclaim, such premature "return false" from a DMA 
-zone stops reclaiming the whole node. So I think we should involve the 
-real classzone_idx here.
-
-> +		case COMPACT_PARTIAL:
-> +		case COMPACT_CONTINUE:
-> +			return false;
-> +		default:
-> +			/* check next zone */
-> +			;
-> +		}
->  	}
-> +	return true;
->  }
->
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
