@@ -1,68 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 481B46B0005
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:28:17 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id a4so18321237lfa.1
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 23:28:17 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id b64si9631144wma.31.2016.06.15.23.28.16
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 65F4E6B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:31:31 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a69so87598138pfa.1
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 23:31:31 -0700 (PDT)
+Received: from mail-pf0-f196.google.com (mail-pf0-f196.google.com. [209.85.192.196])
+        by mx.google.com with ESMTPS id qo11si12662117pab.106.2016.06.15.23.31.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jun 2016 23:28:16 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id m124so8817981wme.3
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 23:28:16 -0700 (PDT)
-Date: Thu, 16 Jun 2016 08:28:14 +0200
+        Wed, 15 Jun 2016 23:31:30 -0700 (PDT)
+Received: by mail-pf0-f196.google.com with SMTP id 66so3354919pfy.1
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 23:31:30 -0700 (PDT)
+Date: Thu, 16 Jun 2016 08:31:27 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 09/10] mm, oom_reaper: do not attempt to reap a task more
- than twice
-Message-ID: <20160616062814.GB30768@dhcp22.suse.cz>
+Subject: Re: [PATCH 10/10] mm, oom: hide mm which is shared with kthread or
+ global init
+Message-ID: <20160616063126.GC30768@dhcp22.suse.cz>
 References: <1465473137-22531-1-git-send-email-mhocko@kernel.org>
- <1465473137-22531-10-git-send-email-mhocko@kernel.org>
- <20160615144835.GB7944@redhat.com>
+ <1465473137-22531-11-git-send-email-mhocko@kernel.org>
+ <20160615143701.GA7944@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160615144835.GB7944@redhat.com>
+In-Reply-To: <20160615143701.GA7944@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Oleg Nesterov <oleg@redhat.com>
 Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 15-06-16 16:48:35, Oleg Nesterov wrote:
+On Wed 15-06-16 16:37:01, Oleg Nesterov wrote:
+> Michal,
+> 
+> I am going to ack the whole series, but send some nits/questions,
+> 
 > On 06/09, Michal Hocko wrote:
 > >
-> > @@ -556,8 +556,27 @@ static void oom_reap_task(struct task_struct *tsk)
-> >  		schedule_timeout_idle(HZ/10);
+> > @@ -283,10 +283,22 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
 > >  
-> >  	if (attempts > MAX_OOM_REAP_RETRIES) {
-> > +		struct task_struct *p;
+> >  	/*
+> >  	 * This task already has access to memory reserves and is being killed.
+> > -	 * Don't allow any other task to have access to the reserves.
+> > +	 * Don't allow any other task to have access to the reserves unless
+> > +	 * the task has MMF_OOM_REAPED because chances that it would release
+> > +	 * any memory is quite low.
+> >  	 */
+> > -	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims))
+> > -		return OOM_SCAN_ABORT;
+> > +	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims)) {
+> > +		struct task_struct *p = find_lock_task_mm(task);
+> > +		enum oom_scan_t ret = OOM_SCAN_ABORT;
 > > +
-> >  		pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
-> >  				task_pid_nr(tsk), tsk->comm);
-> > +
-> > +		/*
-> > +		 * If we've already tried to reap this task in the past and
-> > +		 * failed it probably doesn't make much sense to try yet again
-> > +		 * so hide the mm from the oom killer so that it can move on
-> > +		 * to another task with a different mm struct.
-> > +		 */
-> > +		p = find_lock_task_mm(tsk);
 > > +		if (p) {
-> > +			if (test_and_set_bit(MMF_OOM_NOT_REAPABLE, &p->mm->flags)) {
-> > +				pr_info("oom_reaper: giving up pid:%d (%s)\n",
-> > +						task_pid_nr(tsk), tsk->comm);
-> > +				set_bit(MMF_OOM_REAPED, &p->mm->flags);
+> > +			if (test_bit(MMF_OOM_REAPED, &p->mm->flags))
+> > +				ret = OOM_SCAN_CONTINUE;
+> > +			task_unlock(p);
 > 
-> But why do we need MMF_OOM_NOT_REAPABLE? We set MMF_OOM_REAPED, oom_reap_task()
-> should not see this task again, at least too often.
+> OK, but perhaps it would be beter to change oom_badness() to return zero if
+> MMF_OOM_REAPED is set?
 
-We set MMF_OOM_REAPED only when actually reaping something in
-__oom_reap_task. We might have failed the mmap_sem read lock. The
-purpose of this patch is to not encounter such a task for ever and do
-not back off too easily. I guess we could set the flag unconditionally
-after the first failure and can do that eventually when running out of
-MMF flags but thiw way it looks like an easy trade off to me.
+We already do that:
+	if (adj == OOM_SCORE_ADJ_MIN ||
+			test_bit(MMF_OOM_REAPED, &p->mm->flags) ||
+			in_vfork(p)) {
+		task_unlock(p);
+		return 0;
+	}
 
+It is kind of subtle that we have to check it 2 times but we would have
+to rework this code much more because oom_badness only can tell to
+ignore the task but not to abort scanning altogether currently. If we
+should change this I would suggest a separate patch.
 -- 
 Michal Hocko
 SUSE Labs
