@@ -1,46 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 762E56B007E
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 08:27:40 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id a64so79088801oii.1
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 05:27:40 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id g80si5861379pfk.4.2016.06.16.05.27.39
-        for <linux-mm@kvack.org>;
-        Thu, 16 Jun 2016 05:27:39 -0700 (PDT)
-Date: Thu, 16 Jun 2016 15:27:35 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH 1/2] Revert "mm: make faultaround produce old ptes"
-Message-ID: <20160616122735.GB108167@black.fi.intel.com>
-References: <1465893750-44080-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1465893750-44080-2-git-send-email-kirill.shutemov@linux.intel.com>
- <20160616122001.GJ6836@dhcp22.suse.cz>
-MIME-Version: 1.0
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 120D26B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 08:54:36 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 143so102154455pfx.0
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 05:54:36 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id j9si9779924pan.36.2016.06.16.05.54.34
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Jun 2016 05:54:35 -0700 (PDT)
+Subject: Re: [PATCH 07/10] mm, oom: fortify task_will_free_mem
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1465473137-22531-8-git-send-email-mhocko@kernel.org>
+	<201606092218.FCC48987.MFQLVtSHJFOOFO@I-love.SAKURA.ne.jp>
+	<20160609142026.GF24777@dhcp22.suse.cz>
+	<201606111710.IGF51027.OJLSOQtHVOFFFM@I-love.SAKURA.ne.jp>
+	<20160613112746.GD6518@dhcp22.suse.cz>
+In-Reply-To: <20160613112746.GD6518@dhcp22.suse.cz>
+Message-Id: <201606162154.CGE05294.HJQOSMFFVFtOOL@I-love.SAKURA.ne.jp>
+Date: Thu, 16 Jun 2016 21:54:27 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160616122001.GJ6836@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, "Huang, Ying" <ying.huang@intel.com>, Minchan Kim <minchan@kernel.org>, Vinayak Menon <vinmenon@codeaurora.org>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Thu, Jun 16, 2016 at 02:20:02PM +0200, Michal Hocko wrote:
-> On Tue 14-06-16 11:42:29, Kirill A. Shutemov wrote:
-> > This reverts commit 5c0a85fad949212b3e059692deecdeed74ae7ec7.
+Michal Hocko wrote:
+> On Sat 11-06-16 17:10:03, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > > Also, I think setting TIF_MEMDIE on p when find_lock_task_mm(p) != p is
+> > > > wrong. While oom_reap_task() will anyway clear TIF_MEMDIE even if we set
+> > > > TIF_MEMDIE on p when p->mm == NULL, it is not true for CONFIG_MMU=n case.
+> > > 
+> > > Yes this would be racy for !CONFIG_MMU but does it actually matter?
 > > 
-> > The commit causes ~6% regression in unixbench.
+> > I don't know because I've never used CONFIG_MMU=n kernels. But I think it
+> > actually matters. You fixed this race by commit 83363b917a2982dd ("oom:
+> > make sure that TIF_MEMDIE is set under task_lock").
 > 
-> Is the regression fully explained? My understanding from the email
-> thread is that this is suspiciously too high. It is not like I would
-> be against the revert but having an explanation would be really
-> appreciated.
+> Yes and that commit was trying to address a highly theoretical issue
+> reported by you. Let me quote:
+> :oom_kill_process is currently prone to a race condition when the OOM
+> :victim is already exiting and TIF_MEMDIE is set after the task releases
+> :its address space.  This might theoretically lead to OOM livelock if the
+> :OOM victim blocks on an allocation later during exiting because it
+> :wouldn't kill any other process and the exiting one won't be able to exit.
+> :The situation is highly unlikely because the OOM victim is expected to
+> :release some memory which should help to sort out OOM situation.
+> 
+> Even if such a race is possible it wouldn't be with the oom
+> reaper. Regarding CONFIG_MMU=n I am even less sure it is possible and
+> I would rather focus on CONFIG_MMU=y where we know that problems exist
+> rather than speculating about something as special as nommu which even
+> might not care at all.
 
-My understanding is that it's overhead on setting accessed bit:
+I still don't like it. current->mm == NULL in
 
-http://lkml.kernel.org/r/20160613125248.GA30109@black.fi.intel.com
+-	if (current->mm &&
+-	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
++	if (task_will_free_mem(current)) {
 
--- 
- Kirill A. Shutemov
+is not highly unlikely. You obviously break commit d7a94e7e11badf84
+("oom: don't count on mm-less current process") on CONFIG_MMU=n kernels.
+
+Also, since commit f44666b04605d1c7 ("mm,oom: speed up select_bad_process() loop")
+changed to iterate using thread group leaders, it is no longer highly unlikely
+that p is a thread group leader which already released mm. What you call "a highly
+theoretical issue" (which is true as of commit 83363b917a2982dd ("oom: make sure
+that TIF_MEMDIE is set under task_lock") was proposed) may not be true any more.
+Regarding CONFIG_MMU=n kernels, making sure that TIF_MEMDIE is set on a thread
+with non-NULL mm does matter.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
