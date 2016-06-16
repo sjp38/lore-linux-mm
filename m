@@ -1,80 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C04BD6B0253
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:03:58 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id c1so5334165lbw.0
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 01:03:58 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id gh2si3933564wjd.127.2016.06.16.01.03.57
+	by kanga.kvack.org (Postfix) with ESMTP id DBDC46B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:30:37 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id c1so5627227lbw.0
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 01:30:37 -0700 (PDT)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
+        by mx.google.com with ESMTPS id q3si4049433wje.150.2016.06.16.01.30.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 01:03:57 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id m124so9350950wme.3
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 01:03:57 -0700 (PDT)
-Date: Thu, 16 Jun 2016 10:03:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] xfs: map KM_MAYFAIL to __GFP_RETRY_HARD
-Message-ID: <20160616080355.GB6836@dhcp22.suse.cz>
-References: <1465212736-14637-1-git-send-email-mhocko@kernel.org>
- <1465212736-14637-3-git-send-email-mhocko@kernel.org>
- <20160616002302.GK12670@dastard>
+        Thu, 16 Jun 2016 01:30:36 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 98ED01C2115
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 09:30:35 +0100 (IST)
+Date: Thu, 16 Jun 2016 09:30:33 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 08/27] mm, vmscan: Simplify the logic deciding whether
+ kswapd sleeps
+Message-ID: <20160616083033.GF1868@techsingularity.net>
+References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
+ <1465495483-11855-9-git-send-email-mgorman@techsingularity.net>
+ <6b6b9f95-869a-a9f2-c5cf-f0a3e4d6bd6a@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160616002302.GK12670@dastard>
+In-Reply-To: <6b6b9f95-869a-a9f2-c5cf-f0a3e4d6bd6a@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 16-06-16 10:23:02, Dave Chinner wrote:
-> On Mon, Jun 06, 2016 at 01:32:16PM +0200, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > KM_MAYFAIL didn't have any suitable GFP_FOO counterpart until recently
-> > so it relied on the default page allocator behavior for the given set
-> > of flags. This means that small allocations actually never failed.
-> > 
-> > Now that we have __GFP_RETRY_HARD flags which works independently on the
-> > allocation request size we can map KM_MAYFAIL to it. The allocator will
-> > try as hard as it can to fulfill the request but fails eventually if
-> > the progress cannot be made.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > ---
-> >  fs/xfs/kmem.h | 3 +++
-> >  1 file changed, 3 insertions(+)
-> > 
-> > diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
-> > index 689f746224e7..34e6b062ce0e 100644
-> > --- a/fs/xfs/kmem.h
-> > +++ b/fs/xfs/kmem.h
-> > @@ -54,6 +54,9 @@ kmem_flags_convert(xfs_km_flags_t flags)
-> >  			lflags &= ~__GFP_FS;
-> >  	}
-> >  
-> > +	if (flags & KM_MAYFAIL)
-> > +		lflags |= __GFP_RETRY_HARD;
-> > +
+On Wed, Jun 15, 2016 at 05:18:00PM +0200, Vlastimil Babka wrote:
+> >@@ -1209,9 +1209,10 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+> >
+> > 		arch_refresh_nodedata(nid, pgdat);
+> > 	} else {
+> >-		/* Reset the nr_zones and classzone_idx to 0 before reuse */
+> >+		/* Reset the nr_zones, order and classzone_idx before reuse */
+> > 		pgdat->nr_zones = 0;
+> >-		pgdat->classzone_idx = 0;
+> >+		pgdat->kswapd_order = 0;
+> >+		pgdat->kswapd_classzone_idx = -1;
+> > 	}
+> >
+> > 	/* we can use NODE_DATA(nid) from here */
+> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >index 4ce578b969da..d8cb483d5cad 100644
+> >--- a/mm/page_alloc.c
+> >+++ b/mm/page_alloc.c
+> >@@ -6036,7 +6036,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+> > 	unsigned long end_pfn = 0;
+> >
+> > 	/* pg_data_t should be reset to zero when it's allocated */
+> >-	WARN_ON(pgdat->nr_zones || pgdat->classzone_idx);
+> >+	WARN_ON(pgdat->nr_zones || pgdat->kswapd_classzone_idx);
 > 
-> I don't understand. KM_MAYFAIL means "caller handles
-> allocation failure, so retry on failure is not required." To then
-> map KM_MAYFAIL to a flag that implies the allocation will internally
-> retry to try exceptionally hard to prevent failure seems wrong.
+> Above you changed the reset value of kswapd_classzone_idx from 0 to -1, so
+> won't this trigger? Also should we check kswapd_order that's newly reset
+> too?
+> 
 
-The primary point, which I've tried to describe in the changelog, is
-that the default allocator behavior is to retry endlessly for small
-orders. You can override this by using __GFP_NORETRY which doesn't retry
-at all and fails quite early. My understanding of KM_MAYFAIL is that
-it can cope with allocation failures. The lack of __GFP_NORETRY made me
-think that the failure should be prevented as much as possible.
-__GFP_RETRY_HARD is semantically somwhere in the middle between
-__GFP_NORETRY and __GFP_NOFAIL semantic independently on the allocation
-size.
+Good spot. The memory initialisation paths are ok but node memory hotplug
+was broken.
 
-Does that make more sense now?
+> >
+> > 	reset_deferred_meminit(pgdat);
+> > 	pgdat->node_id = nid;
+> >diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >index 96bf841f9352..14b34eebedff 100644
+> >--- a/mm/vmscan.c
+> >+++ b/mm/vmscan.c
+> >@@ -2727,7 +2727,7 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
+> >
+> > 	/* kswapd must be awake if processes are being throttled */
+> > 	if (!wmark_ok && waitqueue_active(&pgdat->kswapd_wait)) {
+> >-		pgdat->classzone_idx = min(pgdat->classzone_idx,
+> >+		pgdat->kswapd_classzone_idx = min(pgdat->kswapd_classzone_idx,
+> > 						(enum zone_type)ZONE_NORMAL);
+> > 		wake_up_interruptible(&pgdat->kswapd_wait);
+> > 	}
+> >@@ -3211,6 +3211,12 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order,
+> >
+> > 	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+> >
+> >+	/* If kswapd has not been woken recently, then full sleep */
+> >+	if (classzone_idx == -1) {
+> >+		classzone_idx = balanced_classzone_idx = MAX_NR_ZONES - 1;
+> >+		goto full_sleep;
+> 
+> This will skip the wakeup_kcompactd() part.
+> 
+
+I wrestled with this one. I decided to leave it alone on the grounds
+that if kswapd has not been woken recently then compaction efforts also
+have not failed and kcompactd is not required.
+
+> >@@ -3311,38 +3316,25 @@ static int kswapd(void *p)
+> > 	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
+> > 	set_freezable();
+> >
+> >-	order = new_order = 0;
+> >-	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
+> >-	balanced_classzone_idx = classzone_idx;
+> >+	pgdat->kswapd_order = order = 0;
+> >+	pgdat->kswapd_classzone_idx = classzone_idx = -1;
+> > 	for ( ; ; ) {
+> > 		bool ret;
+> >
+> >+kswapd_try_sleep:
+> >+		kswapd_try_to_sleep(pgdat, order, classzone_idx, classzone_idx);
+> 
+> The last two parameters are now the same, remove one?
+> 
+
+Yes. A few more basic simplifications are then possible.
+
+> >@@ -3352,12 +3344,19 @@ static int kswapd(void *p)
+> > 		 * We can speed up thawing tasks if we don't call balance_pgdat
+> > 		 * after returning from the refrigerator
+> > 		 */
+> >-		if (!ret) {
+> >-			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
+> >+		if (ret)
+> >+			continue;
+> >
+> >-			/* return value ignored until next patch */
+> >-			balance_pgdat(pgdat, order, classzone_idx);
+> >-		}
+> >+		/*
+> >+		 * Try reclaim the requested order but if that fails
+> >+		 * then try sleeping on the basis of the order reclaimed.
+> 
+> Is the last word really meant to be "reclaimed", or "requested"?
+> 
+
+No, I really meant reclaimed.
+
+> >+		 */
+> >+		trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
+> >+		if (balance_pgdat(pgdat, order, classzone_idx) < order)
+> >+			goto kswapd_try_sleep;
+> 
+> AFAICS now kswapd_try_to_sleep() will use the "requested" order. That's
+> needed for proper wakeup_kcompactd(), but won't it prevent kswapd from
+> actually going to sleep, because zone_balanced() in prepare-sleep will be
+> false? So I think you need to give it both orders to do the right thing?
+> 
+
+You're right. There is a risk that kswapd stays awake longer in high
+fragmentation scenarios.
+
+Should be fixed now by passing in both orders.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
