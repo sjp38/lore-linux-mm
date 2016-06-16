@@ -1,73 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B4A96B0005
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 15:39:28 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id c127so155414850vkb.1
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 12:39:28 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c101si5638074qkh.26.2016.06.16.12.39.27
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 12:39:27 -0700 (PDT)
-Date: Thu, 16 Jun 2016 14:39:23 -0500
-From: Josh Poimboeuf <jpoimboe@redhat.com>
-Subject: Re: [PATCH 04/13] mm: Track NR_KERNEL_STACK in pages instead of
- number of stacks
-Message-ID: <20160616193923.hyma4vcmr7lvklcx@treble>
-References: <cover.1466036668.git.luto@kernel.org>
- <24279d4009c821de64109055665429fad2a7bff7.1466036668.git.luto@kernel.org>
- <20160616153339.xvlsnhksqmkeusn4@treble>
- <CALCETrXRONH1K1zAWAFN--Lsza+5bkgtmcMrgAY_nvT-e21C3w@mail.gmail.com>
+Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A56CC6B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 16:03:13 -0400 (EDT)
+Received: by mail-ob0-f200.google.com with SMTP id f10so922234obr.3
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 13:03:13 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id 81si7577926pfw.133.2016.06.16.13.03.12
+        for <linux-mm@kvack.org>;
+        Thu, 16 Jun 2016 13:03:12 -0700 (PDT)
+From: "Odzioba, Lukasz" <lukasz.odzioba@intel.com>
+Subject: RE: [PATCH 1/1] mm/swap.c: flush lru_add pvecs on compound page
+ arrival
+Date: Thu, 16 Jun 2016 20:03:08 +0000
+Message-ID: <D6EDEBF1F91015459DB866AC4EE162CC023FB51E@IRSMSX103.ger.corp.intel.com>
+References: <1465396537-17277-1-git-send-email-lukasz.odzioba@intel.com>
+ <57583A49.30809@intel.com> <20160608160653.GB21838@dhcp22.suse.cz>
+ <575848F9.2060501@intel.com> <20160609122140.GE24777@dhcp22.suse.cz>
+ <D6EDEBF1F91015459DB866AC4EE162CC023FB491@IRSMSX103.ger.corp.intel.com>
+ <20160616181912.GQ6836@dhcp22.suse.cz>
+In-Reply-To: <20160616181912.GQ6836@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <CALCETrXRONH1K1zAWAFN--Lsza+5bkgtmcMrgAY_nvT-e21C3w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Brian Gerst <brgerst@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Linus Torvalds <torvalds@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "vdavydov@parallels.com" <vdavydov@parallels.com>, "mingli199x@qq.com" <mingli199x@qq.com>, "minchan@kernel.org" <minchan@kernel.org>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Shutemov, Kirill" <kirill.shutemov@intel.com>
 
-On Thu, Jun 16, 2016 at 10:39:43AM -0700, Andy Lutomirski wrote:
-> On Thu, Jun 16, 2016 at 8:33 AM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
-> > On Wed, Jun 15, 2016 at 05:28:26PM -0700, Andy Lutomirski wrote:
-> >> Currently, NR_KERNEL_STACK tracks the number of kernel stacks in a
-> >> zone.  This only makes sense if each kernel stack exists entirely in
-> >> one zone, and allowing vmapped stacks could break this assumption.
-> >>
-> >> It turns out that the code for tracking kernel stack allocations in
-> >> units of pages is slightly simpler, so just switch to counting
-> >> pages.
-> >>
-> >> Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> >> Cc: Michal Hocko <mhocko@kernel.org>
-> >> Cc: linux-mm@kvack.org
-> >> Signed-off-by: Andy Lutomirski <luto@kernel.org>
-> >> ---
-> >>  fs/proc/meminfo.c | 2 +-
-> >>  kernel/fork.c     | 3 ++-
-> >>  mm/page_alloc.c   | 3 +--
-> >>  3 files changed, 4 insertions(+), 4 deletions(-)
-> >
-> > You missed another usage of NR_KERNEL_STACK in drivers/base/node.c.
-> 
-> Thanks.
-> 
-> The real reason I cc'd you was so you could look at
-> rewind_stack_do_exit and the sneaky trick I did in no_context in the
-> last patch, though.  :)  Both survive objtool, but I figured I'd check
-> with objtool's author as well.  If there was a taint bit I could set
-> saying "kernel is hosed -- don't try to apply live patches any more",
-> I'd have extra confidence.
+On Thu 16-06-16 08:19 PM, Michal Hocko wrote:
+>
+> On Thu 16-06-16 18:08:57, Odzioba, Lukasz wrote:
+> I am not able to find clear reasons why we shouldn't do it for the rest.
+> Ok so what do we do now? I'll send v2 with proposed changes.
+> Then do we still want  to have stats on those pvecs?
+> In my opinion it's not worth it now.
+>
+> I think the fix has a higher priority - we also want to backport it to
+> stable trees IMO. We can discuss the stats and how to present them
+> later.
 
-I think it all looks fine from an objtool and a live patching
-standpoint.  Other than my previous comment about setting the stack
-pointer correctly before calling do_exit(), I didn't see anything else
-which would mess up the stack of a sleeping task, which is all I really
-care about.
+Will send the patch tomorrow. In the meantime I was able get similar
+problem on lru_deactivate by using MADV_FREE:
 
--- 
-Josh
+LRU_add              588 =3D    18704kB
+LRU_rotate             0 =3D        0kB
+LRU_deactivate       165 =3D   309304kB
+LRU_deact_file         0 =3D        0kB
+LRU_activate           0 =3D        0kB
+
+Thanks,
+Lukas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
