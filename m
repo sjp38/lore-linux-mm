@@ -1,74 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D50156B025F
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:28:08 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r5so25709718wmr.0
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:28:08 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id a73si16358525wma.36.2016.06.16.04.28.07
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4257B6B0264
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:29:03 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id c127so126287992vkb.1
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:29:03 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id c127si11281973ywe.338.2016.06.16.04.29.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 04:28:07 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id k184so10699669wme.2
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:28:07 -0700 (PDT)
-Date: Thu, 16 Jun 2016 13:28:06 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] Revert "mm: rename _count, field of the struct page, to
- _refcount"
-Message-ID: <20160616112805.GI6836@dhcp22.suse.cz>
-References: <1466068966-24620-1-git-send-email-vkuznets@redhat.com>
- <20160616093235.GA14640@infradead.org>
- <87eg7xfmtj.fsf@vitty.brq.redhat.com>
- <20160616105928.GA12437@dhcp22.suse.cz>
- <87a8ilfkek.fsf@vitty.brq.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Jun 2016 04:29:02 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH] mm: fix account pmd page to the process
+Date: Thu, 16 Jun 2016 19:36:11 +0800
+Message-ID: <1466076971-24609-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87a8ilfkek.fsf@vitty.brq.redhat.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhongjiang@huawei.com
 
-On Thu 16-06-16 13:22:27, Vitaly Kuznetsov wrote:
-> Michal Hocko <mhocko@kernel.org> writes:
-> 
-> > On Thu 16-06-16 12:30:16, Vitaly Kuznetsov wrote:
-> >> Christoph Hellwig <hch@infradead.org> writes:
-> >> 
-> >> > On Thu, Jun 16, 2016 at 11:22:46AM +0200, Vitaly Kuznetsov wrote:
-> >> >> _count -> _refcount rename in commit 0139aa7b7fa12 ("mm: rename _count,
-> >> >> field of the struct page, to _refcount") broke kdump. makedumpfile(8) does
-> >> >> stuff like READ_MEMBER_OFFSET("page._count", page._count) and fails. While
-> >> >> it is definitely possible to fix this particular tool I'm not sure about
-> >> >> other tools which might be doing the same.
-> >> >> 
-> >> >> I suggest we remember the "we don't break userspace" rule and revert for
-> >> >> 4.7 while it's not too late.
-> >> >
-> >> > Err, sorry - this is not "userspace".  It's crazy crap digging into
-> >> > kernel internal structure.
-> >> >
-> >> > The rename was absolutely useful, so fix up your stinking pike in kdump.
-> >> 
-> >> Ok, sure, I'll send a patch to it. I was worried about other tools out
-> >> there which e.g. inspect /proc/vmcore. As it is something we support
-> >> some conservatism around it is justified.
-> >
-> > struct page layout as some others that such a tool might depend on has
-> > changes several times in the past so I fail to see how is it any
-> > different this time.
-> 
-> IMO this time the change doesn't give us any advantage, it was just a
-> rename.
+From: zhong jiang <zhongjiang@huawei.com>
 
-Which would catch all the pending users who are not using the
-appropriate API. This is IMHO very useful as the sole purpose of the
-change is to catch _all_ users. So the reason is pretty much technicall.
+when a process acquire a pmd table shared by other process, we
+increase the account to current process. otherwise, a race result
+in other tasks have set the pud entry. so it no need to increase it.
 
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ mm/hugetlb.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 19d0d08..3b025c5 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4189,10 +4189,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+ 	if (pud_none(*pud)) {
+ 		pud_populate(mm, pud,
+ 				(pmd_t *)((unsigned long)spte & PAGE_MASK));
+-	} else {
++	} else 
+ 		put_page(virt_to_page(spte));
+-		mm_inc_nr_pmds(mm);
+-	}
++
+ 	spin_unlock(ptl);
+ out:
+ 	pte = (pte_t *)pmd_alloc(mm, pud, addr);
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
