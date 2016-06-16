@@ -1,103 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B42706B0262
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:47:51 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id s63so73929663ioi.1
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 23:47:51 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id tv9si15581347pac.85.2016.06.15.23.47.50
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AB1F6B0262
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:53:08 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id b13so70417086pat.3
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 23:53:08 -0700 (PDT)
+Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
+        by mx.google.com with ESMTP id b79si4289142pfj.165.2016.06.15.23.53.05
         for <linux-mm@kvack.org>;
-        Wed, 15 Jun 2016 23:47:50 -0700 (PDT)
-Date: Thu, 16 Jun 2016 15:47:53 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v7 00/12] Support non-lru page migration
-Message-ID: <20160616064753.GR17127@bbox>
-References: <1464736881-24886-1-git-send-email-minchan@kernel.org>
- <20160615075909.GA425@swordfish>
- <20160615231248.GI17127@bbox>
- <20160616024827.GA497@swordfish>
- <20160616025800.GO17127@bbox>
- <20160616042343.GA516@swordfish>
- <20160616044710.GP17127@bbox>
- <20160616052209.GB516@swordfish>
+        Wed, 15 Jun 2016 23:53:07 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <04f701d1c797$1ebe6b80$5c3b4280$@alibaba-inc.com>
+In-Reply-To: <04f701d1c797$1ebe6b80$5c3b4280$@alibaba-inc.com>
+Subject: Re: [PATCHv9-rebased2 01/37] mm, thp: make swapin readahead under down_read of mmap_sem
+Date: Thu, 16 Jun 2016 14:52:52 +0800
+Message-ID: <04f801d1c79b$b46744a0$1d35cde0$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <20160616052209.GB516@swordfish>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, dri-devel@lists.freedesktop.org, Hugh Dickins <hughd@google.com>, John Einar Reitan <john.reitan@foss.arm.com>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Aquini <aquini@redhat.com>, Rik van Riel <riel@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, virtualization@lists.linux-foundation.org, Gioh Kim <gi-oh.kim@profitbricks.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Sangseok Lee <sangseok.lee@lge.com>, Kyeongdon Kim <kyeongdon.kim@lge.com>, Chulmin Kim <cmlaika.kim@samsung.com>
-
-On Thu, Jun 16, 2016 at 02:22:09PM +0900, Sergey Senozhatsky wrote:
-> On (06/16/16 13:47), Minchan Kim wrote:
-> [..]
-> > > this is what I'm getting with the [zsmalloc: keep first object offset in struct page]
-> > > applied:  "count:0 mapcount:-127". which may be not related to zsmalloc at this point.
-> > > 
-> > > kernel: BUG: Bad page state in process khugepaged  pfn:101db8
-> > > kernel: page:ffffea0004076e00 count:0 mapcount:-127 mapping:          (null) index:0x1
-> > 
-> > Hm, it seems double free.
-> > 
-> > It doen't happen if you disable zram? IOW, it seems to be related
-> > zsmalloc migration?
-> 
-> need to test more, can't confidently answer now.
-> 
-> > How easy can you reprodcue it? Could you bisect it?
-> 
-> it takes some (um.. random) time to trigger the bug.
-> I'll try to come up with more details.
-
-Could you revert [1] and retest?
-
-[1] mm/compaction: split freepages without holding the zone lock
+To: 'Ebru Akagunduz' <ebru.akagunduz@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
 > 
-> 	-ss
+> From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
 > 
-> > > kernel: flags: 0x8000000000000000()
-> > > kernel: page dumped because: nonzero mapcount
-> > > kernel: Modules linked in: lzo zram zsmalloc mousedev coretemp hwmon crc32c_intel snd_hda_codec_realtek i2c_i801 snd_hda_codec_generic r8169 mii snd_hda_intel snd_hda_codec snd_hda_core acpi_cpufreq snd_pcm snd_timer snd soundcore lpc_ich processor mfd_core sch_fq_codel sd_mod hid_generic usb
-> > > kernel: CPU: 3 PID: 38 Comm: khugepaged Not tainted 4.7.0-rc3-next-20160615-dbg-00005-gfd11984-dirty #491
-> > > kernel:  0000000000000000 ffff8801124c73f8 ffffffff814d69b0 ffffea0004076e00
-> > > kernel:  ffffffff81e658a0 ffff8801124c7420 ffffffff811e9b63 0000000000000000
-> > > kernel:  ffffea0004076e00 ffffffff81e658a0 ffff8801124c7440 ffffffff811e9ca9
-> > > kernel: Call Trace:
-> > > kernel:  [<ffffffff814d69b0>] dump_stack+0x68/0x92
-> > > kernel:  [<ffffffff811e9b63>] bad_page+0x158/0x1a2
-> > > kernel:  [<ffffffff811e9ca9>] free_pages_check_bad+0xfc/0x101
-> > > kernel:  [<ffffffff811ee516>] free_hot_cold_page+0x135/0x5de
-> > > kernel:  [<ffffffff811eea26>] __free_pages+0x67/0x72
-> > > kernel:  [<ffffffff81227c63>] release_freepages+0x13a/0x191
-> > > kernel:  [<ffffffff8122b3c2>] compact_zone+0x845/0x1155
-> > > kernel:  [<ffffffff8122ab7d>] ? compaction_suitable+0x76/0x76
-> > > kernel:  [<ffffffff8122bdb2>] compact_zone_order+0xe0/0x167
-> > > kernel:  [<ffffffff8122bcd2>] ? compact_zone+0x1155/0x1155
-> > > kernel:  [<ffffffff8122ce88>] try_to_compact_pages+0x2f1/0x648
-> > > kernel:  [<ffffffff8122ce88>] ? try_to_compact_pages+0x2f1/0x648
-> > > kernel:  [<ffffffff8122cb97>] ? compaction_zonelist_suitable+0x3a6/0x3a6
-> > > kernel:  [<ffffffff811ef1ea>] ? get_page_from_freelist+0x2c0/0x133c
-> > > kernel:  [<ffffffff811f0350>] __alloc_pages_direct_compact+0xea/0x30d
-> > > kernel:  [<ffffffff811f0266>] ? get_page_from_freelist+0x133c/0x133c
-> > > kernel:  [<ffffffff811ee3b2>] ? drain_all_pages+0x1d6/0x205
-> > > kernel:  [<ffffffff811f21a8>] __alloc_pages_nodemask+0x143d/0x16b6
-> > > kernel:  [<ffffffff8111f405>] ? debug_show_all_locks+0x226/0x226
-> > > kernel:  [<ffffffff811f0d6b>] ? warn_alloc_failed+0x24c/0x24c
-> > > kernel:  [<ffffffff81110ffc>] ? finish_wait+0x1a4/0x1b0
-> > > kernel:  [<ffffffff81122faf>] ? lock_acquire+0xec/0x147
-> > > kernel:  [<ffffffff81d32ed0>] ? _raw_spin_unlock_irqrestore+0x3b/0x5c
-> > > kernel:  [<ffffffff81d32edc>] ? _raw_spin_unlock_irqrestore+0x47/0x5c
-> > > kernel:  [<ffffffff81110ffc>] ? finish_wait+0x1a4/0x1b0
-> > > kernel:  [<ffffffff8128f73a>] khugepaged+0x1d4/0x484f
-> > > kernel:  [<ffffffff8128f566>] ? hugepage_vma_revalidate+0xef/0xef
-> > > kernel:  [<ffffffff810d5bcc>] ? finish_task_switch+0x3de/0x484
-> > > kernel:  [<ffffffff81d32f18>] ? _raw_spin_unlock_irq+0x27/0x45
-> > > kernel:  [<ffffffff8111d13f>] ? trace_hardirqs_on_caller+0x3d2/0x492
-> > > kernel:  [<ffffffff81111487>] ? prepare_to_wait_event+0x3f7/0x3f7
-> > > kernel:  [<ffffffff81d28bf5>] ? __schedule+0xa4d/0xd16
-> > > kernel:  [<ffffffff810cd0de>] kthread+0x252/0x261 > > > kernel:  [<ffffffff8128f566>] ? hugepage_vma_revalidate+0xef/0xef > > > kernel:  [<ffffffff810cce8c>] ? kthread_create_on_node+0x377/0x377 > > > kernel:  [<ffffffff81d3387f>] ret_from_fork+0x1f/0x40 > > > kernel:  [<ffffffff810cce8c>] ? kthread_create_on_node+0x377/0x377 > > > -- Reboot --
+> Currently khugepaged makes swapin readahead under down_write.  This patch
+> supplies to make swapin readahead under down_read instead of down_write.
+> 
+> The patch was tested with a test program that allocates 800MB of memory,
+> writes to it, and then sleeps.  The system was forced to swap out all.
+> Afterwards, the test program touches the area by writing, it skips a page
+> in each 20 pages of the area.
+> 
+> Link: http://lkml.kernel.org/r/1464335964-6510-4-git-send-email-ebru.akagunduz@gmail.com
+> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>  mm/huge_memory.c | 92 ++++++++++++++++++++++++++++++++++++++------------------
+>  1 file changed, 63 insertions(+), 29 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index f2bc57c45d2f..96dfe3f09bf6 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2378,6 +2378,35 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
+>  }
+> 
+>  /*
+> + * If mmap_sem temporarily dropped, revalidate vma
+> + * before taking mmap_sem.
+
+See below
+
+> + * Return 0 if succeeds, otherwise return none-zero
+> + * value (scan code).
+> + */
+> +
+> +static int hugepage_vma_revalidate(struct mm_struct *mm,
+> +				   struct vm_area_struct *vma,
+> +				   unsigned long address)
+> +{
+> +	unsigned long hstart, hend;
+> +
+> +	if (unlikely(khugepaged_test_exit(mm)))
+> +		return SCAN_ANY_PROCESS;
+> +
+> +	vma = find_vma(mm, address);
+> +	if (!vma)
+> +		return SCAN_VMA_NULL;
+> +
+> +	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
+> +	hend = vma->vm_end & HPAGE_PMD_MASK;
+> +	if (address < hstart || address + HPAGE_PMD_SIZE > hend)
+> +		return SCAN_ADDRESS_RANGE;
+> +	if (!hugepage_vma_check(vma))
+> +		return SCAN_VMA_CHECK;
+> +	return 0;
+> +}
+> +
+> +/*
+>   * Bring missing pages in from swap, to complete THP collapse.
+>   * Only done if khugepaged_scan_pmd believes it is worthwhile.
+>   *
+> @@ -2385,7 +2414,7 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
+>   * but with mmap_sem held to protect against vma changes.
+>   */
+> 
+> -static void __collapse_huge_page_swapin(struct mm_struct *mm,
+> +static bool __collapse_huge_page_swapin(struct mm_struct *mm,
+>  					struct vm_area_struct *vma,
+>  					unsigned long address, pmd_t *pmd)
+>  {
+> @@ -2401,11 +2430,18 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
+>  			continue;
+>  		swapped_in++;
+>  		ret = do_swap_page(mm, vma, _address, pte, pmd,
+> -				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
+> +				   FAULT_FLAG_ALLOW_RETRY,
+
+Add a description in change log for it please.
+
+>  				   pteval);
+> +		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
+> +		if (ret & VM_FAULT_RETRY) {
+> +			down_read(&mm->mmap_sem);
+> +			/* vma is no longer available, don't continue to swapin */
+> +			if (hugepage_vma_revalidate(mm, vma, address))
+> +				return false;
+
+Revalidate vma _after_ acquiring mmap_sem, but the above comment says _before_.
+
+> +		}
+>  		if (ret & VM_FAULT_ERROR) {
+>  			trace_mm_collapse_huge_page_swapin(mm, swapped_in, 0);
+> -			return;
+> +			return false;
+>  		}
+>  		/* pte is unmapped now, we need to map it */
+>  		pte = pte_offset_map(pmd, _address);
+> @@ -2413,6 +2449,7 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
+>  	pte--;
+>  	pte_unmap(pte);
+>  	trace_mm_collapse_huge_page_swapin(mm, swapped_in, 1);
+> +	return true;
+>  }
+> 
+>  static void collapse_huge_page(struct mm_struct *mm,
+> @@ -2427,7 +2464,6 @@ static void collapse_huge_page(struct mm_struct *mm,
+>  	struct page *new_page;
+>  	spinlock_t *pmd_ptl, *pte_ptl;
+>  	int isolated = 0, result = 0;
+> -	unsigned long hstart, hend;
+>  	struct mem_cgroup *memcg;
+>  	unsigned long mmun_start;	/* For mmu_notifiers */
+>  	unsigned long mmun_end;		/* For mmu_notifiers */
+> @@ -2450,39 +2486,37 @@ static void collapse_huge_page(struct mm_struct *mm,
+>  		goto out_nolock;
+>  	}
+> 
+> -	/*
+> -	 * Prevent all access to pagetables with the exception of
+> -	 * gup_fast later hanlded by the ptep_clear_flush and the VM
+> -	 * handled by the anon_vma lock + PG_lock.
+> -	 */
+> -	down_write(&mm->mmap_sem);
+> -	if (unlikely(khugepaged_test_exit(mm))) {
+> -		result = SCAN_ANY_PROCESS;
+> +	down_read(&mm->mmap_sem);
+> +	result = hugepage_vma_revalidate(mm, vma, address);
+> +	if (result)
+>  		goto out;
+> -	}
+> 
+> -	vma = find_vma(mm, address);
+> -	if (!vma) {
+> -		result = SCAN_VMA_NULL;
+> -		goto out;
+> -	}
+> -	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
+> -	hend = vma->vm_end & HPAGE_PMD_MASK;
+> -	if (address < hstart || address + HPAGE_PMD_SIZE > hend) {
+> -		result = SCAN_ADDRESS_RANGE;
+> -		goto out;
+> -	}
+> -	if (!hugepage_vma_check(vma)) {
+> -		result = SCAN_VMA_CHECK;
+> -		goto out;
+> -	}
+>  	pmd = mm_find_pmd(mm, address);
+>  	if (!pmd) {
+>  		result = SCAN_PMD_NULL;
+>  		goto out;
+>  	}
+> 
+> -	__collapse_huge_page_swapin(mm, vma, address, pmd);
+> +	/*
+> +	 * __collapse_huge_page_swapin always returns with mmap_sem
+> +	 * locked. If it fails, release mmap_sem and jump directly
+> +	 * label out. Continuing to collapse causes inconsistency.
+> +	 */
+> +	if (!__collapse_huge_page_swapin(mm, vma, address, pmd)) {
+> +		up_read(&mm->mmap_sem);
+> +		goto out;
+
+Jump out with mmap_sem released, 
+
+> +	}
+> +
+> +	up_read(&mm->mmap_sem);
+> +	/*
+> +	 * Prevent all access to pagetables with the exception of
+> +	 * gup_fast later handled by the ptep_clear_flush and the VM
+> +	 * handled by the anon_vma lock + PG_lock.
+> +	 */
+> +	down_write(&mm->mmap_sem);
+> +	result = hugepage_vma_revalidate(mm, vma, address);
+> +	if (result)
+> +		goto out;
+
+but jump out again with mmap_sem held.
+
+They are cleaned up in subsequent darns?
+
+> 
+>  	anon_vma_lock_write(vma->anon_vma);
+> 
+> --
+> 2.8.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
