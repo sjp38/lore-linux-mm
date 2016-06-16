@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BC1A06B0262
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:18:50 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id js8so26000900lbc.2
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:18:50 -0700 (PDT)
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EEB0D6B0263
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:18:58 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id a2so24183857lfe.0
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:18:58 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o26si8888238wmi.60.2016.06.16.04.18.49
+        by mx.google.com with ESMTPS id z10si4768622wjj.209.2016.06.16.04.18.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Jun 2016 04:18:49 -0700 (PDT)
+        Thu, 16 Jun 2016 04:18:57 -0700 (PDT)
 From: Petr Mladek <pmladek@suse.com>
-Subject: [PATCH v9 05/12] kthread: Add kthread_create_worker*()
-Date: Thu, 16 Jun 2016 13:17:24 +0200
-Message-Id: <1466075851-24013-6-git-send-email-pmladek@suse.com>
+Subject: [PATCH v9 06/12] kthread: Add kthread_drain_worker()
+Date: Thu, 16 Jun 2016 13:17:25 +0200
+Message-Id: <1466075851-24013-7-git-send-email-pmladek@suse.com>
 In-Reply-To: <1466075851-24013-1-git-send-email-pmladek@suse.com>
 References: <1466075851-24013-1-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,208 +20,77 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
 
-Kthread workers are currently created using the classic kthread API,
-namely kthread_run(). kthread_worker_fn() is passed as the @threadfn
-parameter.
+kthread_flush_worker() returns when the currently queued works are proceed.
+But some other works might have been queued in the meantime.
 
-This patch defines kthread_create_worker() and
-kthread_create_worker_on_cpu() functions that hide implementation details.
+This patch adds kthread_drain_worker() that is inspired by
+drain_workqueue(). It returns when the queue is completely
+empty and warns when it takes too long.
 
-They enforce using kthread_worker_fn() for the main thread. But I doubt
-that there are any plans to create any alternative. In fact, I think
-that we do not want any alternative main thread because it would be
-hard to support consistency with the rest of the kthread worker API.
-
-The naming and function of kthread_create_worker() is inspired by
-the workqueues API like the rest of the kthread worker API.
-
-The kthread_create_worker_on_cpu() variant is motivated by the original
-kthread_create_on_cpu(). Note that we need to bind per-CPU kthread
-workers already when they are created. It makes the life easier.
-kthread_bind() could not be used later for an already running worker.
-
-This patch does _not_ convert existing kthread workers. The kthread worker
-API need more improvements first, e.g. a function to destroy the worker.
-
-IMPORTANT:
-
-kthread_create_worker_on_cpu() allows to use any format of the
-worker name, in compare with kthread_create_on_cpu(). The good thing
-is that it is more generic. The bad thing is that most users will
-need to pass the cpu number in two parameters, e.g.
-kthread_create_worker_on_cpu(cpu, "helper/%d", cpu).
-
-To be honest, the main motivation was to avoid the need for an
-empty va_list. The only legal way was to create a helper function that
-would be called with an empty list. Other attempts caused compilation
-warnings or even errors on different architectures.
-
-There were also other alternatives, for example, using #define or
-splitting __kthread_create_worker(). The used solution looked
-like the least ugly.
+The initial implementation does not block queuing new works when
+draining. It makes things much easier. The blocking would be useful
+to debug potential problems but it is not clear if it is worth
+the complication at the moment.
 
 Signed-off-by: Petr Mladek <pmladek@suse.com>
 ---
- include/linux/kthread.h |   7 +++
- kernel/kthread.c        | 113 +++++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 110 insertions(+), 10 deletions(-)
+ include/linux/kthread.h |  1 +
+ kernel/kthread.c        | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)
 
 diff --git a/include/linux/kthread.h b/include/linux/kthread.h
-index 33d529a4c1dc..f68041837dd6 100644
+index f68041837dd6..c889b653f8cb 100644
 --- a/include/linux/kthread.h
 +++ b/include/linux/kthread.h
-@@ -124,6 +124,13 @@ extern void __kthread_init_worker(struct kthread_worker *worker,
- 
- int kthread_worker_fn(void *worker_ptr);
- 
-+__printf(1, 2)
-+struct kthread_worker *
-+kthread_create_worker(const char namefmt[], ...);
-+
-+struct kthread_worker *
-+kthread_create_worker_on_cpu(int cpu, const char namefmt[], ...);
-+
- bool kthread_queue_work(struct kthread_worker *worker,
+@@ -135,5 +135,6 @@ bool kthread_queue_work(struct kthread_worker *worker,
  			struct kthread_work *work);
  void kthread_flush_work(struct kthread_work *work);
+ void kthread_flush_worker(struct kthread_worker *worker);
++void kthread_drain_worker(struct kthread_worker *worker);
+ 
+ #endif /* _LINUX_KTHREAD_H */
 diff --git a/kernel/kthread.c b/kernel/kthread.c
-index 8ed2a4434185..590b9f699e9d 100644
+index 590b9f699e9d..4454b1267718 100644
 --- a/kernel/kthread.c
 +++ b/kernel/kthread.c
-@@ -567,23 +567,24 @@ EXPORT_SYMBOL_GPL(__kthread_init_worker);
-  * kthread_worker_fn - kthread function to process kthread_worker
-  * @worker_ptr: pointer to initialized kthread_worker
-  *
-- * This function can be used as @threadfn to kthread_create() or
-- * kthread_run() with @worker_ptr argument pointing to an initialized
-- * kthread_worker.  The started kthread will process work_list until
-- * the it is stopped with kthread_stop().  A kthread can also call
-- * this function directly after extra initialization.
-+ * This function implements the main cycle of kthread worker. It processes
-+ * work_list until it is stopped with kthread_stop(). It sleeps when the queue
-+ * is empty.
-  *
-- * Different kthreads can be used for the same kthread_worker as long
-- * as there's only one kthread attached to it at any given time.  A
-- * kthread_worker without an attached kthread simply collects queued
-- * kthread_works.
-+ * The works are not allowed to keep any locks, disable preemption or interrupts
-+ * when they finish. There is defined a safe point for freezing when one work
-+ * finishes and before a new one is started.
-  */
- int kthread_worker_fn(void *worker_ptr)
- {
- 	struct kthread_worker *worker = worker_ptr;
- 	struct kthread_work *work;
- 
--	WARN_ON(worker->task);
-+	/*
-+	 * FIXME: Update the check and remove the assignment when all kthread
-+	 * worker users are created using kthread_create_worker*() functions.
-+	 */
-+	WARN_ON(worker->task && worker->task != current);
- 	worker->task = current;
- repeat:
- 	set_current_state(TASK_INTERRUPTIBLE);	/* mb paired w/ kthread_stop */
-@@ -617,6 +618,98 @@ repeat:
+@@ -819,3 +819,37 @@ void kthread_flush_worker(struct kthread_worker *worker)
+ 	wait_for_completion(&fwork.done);
  }
- EXPORT_SYMBOL_GPL(kthread_worker_fn);
- 
-+static struct kthread_worker *
-+__kthread_create_worker(int cpu, const char namefmt[], va_list args)
+ EXPORT_SYMBOL_GPL(kthread_flush_worker);
++
++/**
++ * kthread_drain_worker - drain a kthread worker
++ * @worker: worker to be drained
++ *
++ * Wait until there is no work queued for the given kthread worker.
++ * @worker is flushed repeatedly until it becomes empty.  The number
++ * of flushing is determined by the depth of chaining and should
++ * be relatively short.  Whine if it takes too long.
++ *
++ * The caller is responsible for blocking all users of this kthread
++ * worker from queuing new works. Also it is responsible for blocking
++ * the already queued works from an infinite re-queuing!
++ */
++void kthread_drain_worker(struct kthread_worker *worker)
 +{
-+	struct kthread_worker *worker;
-+	struct task_struct *task;
++	int flush_cnt = 0;
 +
-+	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
-+	if (!worker)
-+		return ERR_PTR(-ENOMEM);
++	spin_lock_irq(&worker->lock);
 +
-+	kthread_init_worker(worker);
++	while (!list_empty(&worker->work_list)) {
++		spin_unlock_irq(&worker->lock);
 +
-+	if (cpu >= 0) {
-+		char name[TASK_COMM_LEN];
++		kthread_flush_worker(worker);
++		WARN_ONCE(flush_cnt++ > 10,
++			  "kthread worker %s: kthread_drain_worker() isn't complete after %u tries\n",
++			  worker->task->comm, flush_cnt);
 +
-+		/*
-+		 * kthread_create_worker_on_cpu() allows to pass a generic
-+		 * namefmt in compare with kthread_create_on_cpu. We need
-+		 * to format it here.
-+		 */
-+		vsnprintf(name, sizeof(name), namefmt, args);
-+		task = kthread_create_on_cpu(kthread_worker_fn, worker,
-+					     cpu, name);
-+	} else {
-+		task = __kthread_create_on_node(kthread_worker_fn, worker,
-+						-1, namefmt, args);
++		spin_lock_irq(&worker->lock);
 +	}
 +
-+	if (IS_ERR(task))
-+		goto fail_task;
-+
-+	worker->task = task;
-+	wake_up_process(task);
-+	return worker;
-+
-+fail_task:
-+	kfree(worker);
-+	return ERR_CAST(task);
++	spin_unlock_irq(&worker->lock);
 +}
-+
-+/**
-+ * kthread_create_worker - create a kthread worker
-+ * @namefmt: printf-style name for the kthread worker (task).
-+ *
-+ * Returns a pointer to the allocated worker on success, ERR_PTR(-ENOMEM)
-+ * when the needed structures could not get allocated, and ERR_PTR(-EINTR)
-+ * when the worker was SIGKILLed.
-+ */
-+struct kthread_worker *
-+kthread_create_worker(const char namefmt[], ...)
-+{
-+	struct kthread_worker *worker;
-+	va_list args;
-+
-+	va_start(args, namefmt);
-+	worker = __kthread_create_worker(-1, namefmt, args);
-+	va_end(args);
-+
-+	return worker;
-+}
-+EXPORT_SYMBOL(kthread_create_worker);
-+
-+/**
-+ * kthread_create_worker_on_cpu - create a kthread worker and bind it
-+ *	it to a given CPU and the associated NUMA node.
-+ * @cpu: CPU number
-+ * @namefmt: printf-style name for the kthread worker (task).
-+ *
-+ * Use a valid CPU number if you want to bind the kthread worker
-+ * to the given CPU and the associated NUMA node.
-+ *
-+ * A good practice is to add the cpu number also into the worker name.
-+ * For example, use kthread_create_worker_on_cpu(cpu, "helper/%d", cpu).
-+ *
-+ * Returns a pointer to the allocated worker on success, ERR_PTR(-ENOMEM)
-+ * when the needed structures could not get allocated, and ERR_PTR(-EINTR)
-+ * when the worker was SIGKILLed.
-+ */
-+struct kthread_worker *
-+kthread_create_worker_on_cpu(int cpu, const char namefmt[], ...)
-+{
-+	struct kthread_worker *worker;
-+	va_list args;
-+
-+	va_start(args, namefmt);
-+	worker = __kthread_create_worker(cpu, namefmt, args);
-+	va_end(args);
-+
-+	return worker;
-+}
-+EXPORT_SYMBOL(kthread_create_worker_on_cpu);
-+
- /* insert @work before @pos in @worker */
- static void kthread_insert_work(struct kthread_worker *worker,
- 			       struct kthread_work *work,
++EXPORT_SYMBOL(kthread_drain_worker);
 -- 
 1.8.5.6
 
