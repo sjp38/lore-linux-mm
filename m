@@ -1,99 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B4AC6B0253
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 12:05:42 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id l81so147210825qke.3
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 09:05:42 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id z194si187001qka.165.2016.06.16.09.05.41
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B1B3A6B007E
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 12:25:16 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id g62so112217531pfb.3
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 09:25:16 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id m87si6674668pfi.190.2016.06.16.09.25.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 09:05:41 -0700 (PDT)
-Subject: Re: [PATCH] mm: fix account pmd page to the process
-References: <1466076971-24609-1-git-send-email-zhongjiang@huawei.com>
- <20160616154214.GA12284@dhcp22.suse.cz>
- <20160616154324.GN6836@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <71df66ac-df29-9542-bfa9-7c94f374df5b@oracle.com>
-Date: Thu, 16 Jun 2016 09:05:23 -0700
-MIME-Version: 1.0
-In-Reply-To: <20160616154324.GN6836@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Jun 2016 09:25:15 -0700 (PDT)
+Subject: Re: [PATCH 07/10] mm, oom: fortify task_will_free_mem
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20160609142026.GF24777@dhcp22.suse.cz>
+	<201606111710.IGF51027.OJLSOQtHVOFFFM@I-love.SAKURA.ne.jp>
+	<20160613112746.GD6518@dhcp22.suse.cz>
+	<201606162154.CGE05294.HJQOSMFFVFtOOL@I-love.SAKURA.ne.jp>
+	<20160616142940.GK6836@dhcp22.suse.cz>
+In-Reply-To: <20160616142940.GK6836@dhcp22.suse.cz>
+Message-Id: <201606170040.FGC21882.FMLHOtVSFFJOQO@I-love.SAKURA.ne.jp>
+Date: Fri, 17 Jun 2016 00:40:41 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, zhongjiang <zhongjiang@huawei.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On 06/16/2016 08:43 AM, Michal Hocko wrote:
-> [It seems that this patch has been sent several times and this
-> particular copy didn't add Kirill who has added this code CC him now]
+Michal Hocko wrote:
+> On Thu 16-06-16 21:54:27, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Sat 11-06-16 17:10:03, Tetsuo Handa wrote:
+> [...]
+> > I still don't like it. current->mm == NULL in
+> > 
+> > -	if (current->mm &&
+> > -	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
+> > +	if (task_will_free_mem(current)) {
+> > 
+> > is not highly unlikely. You obviously break commit d7a94e7e11badf84
+> > ("oom: don't count on mm-less current process") on CONFIG_MMU=n kernels.
 > 
-> On Thu 16-06-16 17:42:14, Michal Hocko wrote:
->> On Thu 16-06-16 19:36:11, zhongjiang wrote:
->>> From: zhong jiang <zhongjiang@huawei.com>
->>>
->>> when a process acquire a pmd table shared by other process, we
->>> increase the account to current process. otherwise, a race result
->>> in other tasks have set the pud entry. so it no need to increase it.
->>>
->>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->>> ---
->>>  mm/hugetlb.c | 5 ++---
->>>  1 file changed, 2 insertions(+), 3 deletions(-)
->>>
->>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->>> index 19d0d08..3b025c5 100644
->>> --- a/mm/hugetlb.c
->>> +++ b/mm/hugetlb.c
->>> @@ -4189,10 +4189,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
->>>  	if (pud_none(*pud)) {
->>>  		pud_populate(mm, pud,
->>>  				(pmd_t *)((unsigned long)spte & PAGE_MASK));
->>> -	} else {
->>> +	} else 
->>>  		put_page(virt_to_page(spte));
->>> -		mm_inc_nr_pmds(mm);
->>> -	}
->>
->> The code is quite puzzling but is this correct? Shouldn't we rather do
->> mm_dec_nr_pmds(mm) in that path to undo the previous inc?
-
-I agree that the code is quite puzzling. :(
-
-However, if this were an issue I would have expected to see some reports.
-Oracle DB makes use of this feature (shared page tables) and if the pmd
-count is wrong we would catch it in check_mm() at exit time.
-
-Upon closer examination, I believe the code in question is never executed.
-Note the callers of huge_pmd_share.  The calling code looks like:
-
-                        if (want_pmd_share() && pud_none(*pud))
-                                pte = huge_pmd_share(mm, addr, pud);
-                        else
-                                pte = (pte_t *)pmd_alloc(mm, pud, addr);
-
-Therefore, we do not call huge_pmd_share unless pud_none(*pud).  The
-code in question is only executed when !pud_none(*pud).
-
-I think that entire if/else statement can be removed.  We know
-pud_none(*pud), so just do pud_populate().
-
--- 
-Mike Kravetz
-
->>
->>> +
->>>  	spin_unlock(ptl);
->>>  out:
->>>  	pte = (pte_t *)pmd_alloc(mm, pud, addr);
->>> -- 
->>> 1.8.3.1
->>
->> -- 
->> Michal Hocko
->> SUSE Labs
+> I still fail to see why you care about that case so much. The heuristic
+> was broken for other reasons before this patch. The patch fixes a class
+> of issues for both mmu and nommu. I can restore the current->mm check
+> for now but the more I am thinking about it the less I am sure the
+> commit you are referring to is evem correct/necessary.
 > 
+> It claims that the OOM killer would be stuck because the child would be
+> sitting in the final schedule() until the parent reaps it. That is not
+> true, though, because victim would be unhashed down in release_task()
+> path so it is not visible by the oom killer when it is waiting for the
+> parent.  I have completely missed that part when reviewing the patch. Or
+> am I missing something...
+
+That explanation started from 201411292304.CGF68419.MOLHVQtSFFOOJF@I-love.SAKURA.ne.jp
+(Sat, 29 Nov 2014 23:04:33 +0900) in your mailbox. I confirmed that a TIF_MEMDIE
+zombie inside the final schedule() in do_exit() is waiting for parent to reap.
+release_task() will be called when parent noticed that there is a zombie, but
+this OOM livelock situation prevented parent looping inside page allocator waiting
+for that TIF_MEMDIE zombie from noticing that there is a zombie.
+
+> 
+> Anyway, would you be OK with the patch if I added the current->mm check
+> and resolve its necessity in a separate patch?
+
+Please correct task_will_free_mem() in oom_kill_process() as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
