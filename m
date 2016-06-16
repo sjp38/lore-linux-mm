@@ -1,98 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EE9826B0005
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 05:29:03 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id c82so24030016wme.2
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:29:03 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id za4si4294873wjb.174.2016.06.16.02.29.02
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A84826B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 05:32:46 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e189so94171981pfa.2
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:32:46 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id x19si5113489pfi.191.2016.06.16.02.32.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Jun 2016 02:29:02 -0700 (PDT)
-Subject: Re: [PATCH 10/27] mm, vmscan: Clear congestion, dirty and need for
- compaction on a per-node basis
-References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
- <1465495483-11855-11-git-send-email-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <510d374a-074e-cd32-bdbe-61754052b21b@suse.cz>
-Date: Thu, 16 Jun 2016 11:29:00 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Jun 2016 02:32:36 -0700 (PDT)
+Date: Thu, 16 Jun 2016 02:32:35 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] Revert "mm: rename _count, field of the struct page, to
+ _refcount"
+Message-ID: <20160616093235.GA14640@infradead.org>
+References: <1466068966-24620-1-git-send-email-vkuznets@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1465495483-11855-11-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1466068966-24620-1-git-send-email-vkuznets@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: linux-mm@kvack.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>
 
-On 06/09/2016 08:04 PM, Mel Gorman wrote:
-> Congested and dirty tracking of a node and whether reclaim should stall
-> is still based on zone activity. This patch considers whether the kernel
-> should stall based on node-based reclaim activity.
+On Thu, Jun 16, 2016 at 11:22:46AM +0200, Vitaly Kuznetsov wrote:
+> _count -> _refcount rename in commit 0139aa7b7fa12 ("mm: rename _count,
+> field of the struct page, to _refcount") broke kdump. makedumpfile(8) does
+> stuff like READ_MEMBER_OFFSET("page._count", page._count) and fails. While
+> it is definitely possible to fix this particular tool I'm not sure about
+> other tools which might be doing the same.
+> 
+> I suggest we remember the "we don't break userspace" rule and revert for
+> 4.7 while it's not too late.
 
-I'm a bit confused about the description vs actual code.
-It appears to move some duplicated code to a related function, which is 
-fine. The rest of callsites that didn't perform the clearing before 
-(prepare_kswapd_sleep() and wakeup_kswapd()) might be a bit overkill, 
-but won't hurt. But I don't see the part "considers whether the kernel
-should stall based on node-based reclaim activity". Is something missing?
+Err, sorry - this is not "userspace".  It's crazy crap digging into
+kernel internal structure.
 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> ---
->  mm/vmscan.c | 24 ++++++++++++------------
->  1 file changed, 12 insertions(+), 12 deletions(-)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index dd68e3154732..e4f3e068b7a0 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2966,7 +2966,17 @@ static bool zone_balanced(struct zone *zone, int order, int classzone_idx)
->  {
->  	unsigned long mark = high_wmark_pages(zone);
->
-> -	return zone_watermark_ok_safe(zone, order, mark, classzone_idx);
-> +	if (!zone_watermark_ok_safe(zone, order, mark, classzone_idx))
-> +		return false;
-> +
-> +	/*
-> +	 * If any eligible zone is balanced then the node is not considered
-> +	 * to be congested or dirty
-> +	 */
-> +	clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
-> +	clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
-> +
-> +	return true;
->  }
->
->  /*
-> @@ -3112,13 +3122,6 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
->  			if (!zone_balanced(zone, order, 0)) {
->  				classzone_idx = i;
->  				break;
-> -			} else {
-> -				/*
-> -				 * If any eligible zone is balanced then the
-> -				 * node is not considered congested or dirty.
-> -				 */
-> -				clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
-> -				clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
->  			}
->  		}
->
-> @@ -3177,11 +3180,8 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
->  			if (!populated_zone(zone))
->  				continue;
->
-> -			if (zone_balanced(zone, sc.order, classzone_idx)) {
-> -				clear_bit(PGDAT_CONGESTED, &pgdat->flags);
-> -				clear_bit(PGDAT_DIRTY, &pgdat->flags);
-> +			if (zone_balanced(zone, sc.order, classzone_idx))
->  				goto out;
-> -			}
->  		}
->
->  		/*
->
+The rename was absolutely useful, so fix up your stinking pike in kdump.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
