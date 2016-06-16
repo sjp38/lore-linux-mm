@@ -1,55 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f71.google.com (mail-qg0-f71.google.com [209.85.192.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 551E86B025F
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:24:56 -0400 (EDT)
-Received: by mail-qg0-f71.google.com with SMTP id 78so33029510qgt.0
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:24:56 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id k62si17780233qtd.45.2016.06.16.04.24.54
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 612196B0264
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:26:09 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id a4so21472241lfa.1
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:26:09 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id bn1si4827239wjc.125.2016.06.16.04.26.07
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Jun 2016 04:24:55 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH] mm: fix account pmd page to the process
-Date: Thu, 16 Jun 2016 19:28:54 +0800
-Message-ID: <1466076534-23963-1-git-send-email-zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Jun 2016 04:26:08 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id m124so10666950wme.3
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:26:07 -0700 (PDT)
+Date: Thu, 16 Jun 2016 13:26:06 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 2/2] xfs: map KM_MAYFAIL to __GFP_RETRY_HARD
+Message-ID: <20160616112606.GH6836@dhcp22.suse.cz>
+References: <1465212736-14637-1-git-send-email-mhocko@kernel.org>
+ <1465212736-14637-3-git-send-email-mhocko@kernel.org>
+ <20160616002302.GK12670@dastard>
+ <20160616080355.GB6836@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160616080355.GB6836@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kirill.shutemov@linux.intel.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhongjiang@huawei.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-From: zhong jiang <zhongjiang@huawei.com>
+On Thu 16-06-16 10:03:55, Michal Hocko wrote:
+> On Thu 16-06-16 10:23:02, Dave Chinner wrote:
+> > On Mon, Jun 06, 2016 at 01:32:16PM +0200, Michal Hocko wrote:
+> > > From: Michal Hocko <mhocko@suse.com>
+> > > 
+> > > KM_MAYFAIL didn't have any suitable GFP_FOO counterpart until recently
+> > > so it relied on the default page allocator behavior for the given set
+> > > of flags. This means that small allocations actually never failed.
+> > > 
+> > > Now that we have __GFP_RETRY_HARD flags which works independently on the
+> > > allocation request size we can map KM_MAYFAIL to it. The allocator will
+> > > try as hard as it can to fulfill the request but fails eventually if
+> > > the progress cannot be made.
+> > > 
+> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > > ---
+> > >  fs/xfs/kmem.h | 3 +++
+> > >  1 file changed, 3 insertions(+)
+> > > 
+> > > diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
+> > > index 689f746224e7..34e6b062ce0e 100644
+> > > --- a/fs/xfs/kmem.h
+> > > +++ b/fs/xfs/kmem.h
+> > > @@ -54,6 +54,9 @@ kmem_flags_convert(xfs_km_flags_t flags)
+> > >  			lflags &= ~__GFP_FS;
+> > >  	}
+> > >  
+> > > +	if (flags & KM_MAYFAIL)
+> > > +		lflags |= __GFP_RETRY_HARD;
+> > > +
+> > 
+> > I don't understand. KM_MAYFAIL means "caller handles
+> > allocation failure, so retry on failure is not required." To then
+> > map KM_MAYFAIL to a flag that implies the allocation will internally
+> > retry to try exceptionally hard to prevent failure seems wrong.
+> 
+> The primary point, which I've tried to describe in the changelog, is
+> that the default allocator behavior is to retry endlessly for small
+> orders. You can override this by using __GFP_NORETRY which doesn't retry
+> at all and fails quite early. My understanding of KM_MAYFAIL is that
+> it can cope with allocation failures. The lack of __GFP_NORETRY made me
+> think that the failure should be prevented as much as possible.
+> __GFP_RETRY_HARD is semantically somwhere in the middle between
+> __GFP_NORETRY and __GFP_NOFAIL semantic independently on the allocation
+> size.
+> 
+> Does that make more sense now?
 
-when a process acquire a pmd table shared by other process, we
-increase the account to current process. otherwise, a race result
-in other tasks have set the pud entry. so it no need to increase it.
+I would add the following explanation into the code:
+diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
+index 34e6b062ce0e..10708f065191 100644
+--- a/fs/xfs/kmem.h
++++ b/fs/xfs/kmem.h
+@@ -54,6 +54,13 @@ kmem_flags_convert(xfs_km_flags_t flags)
+ 			lflags &= ~__GFP_FS;
+ 	}
+ 
++	/*
++	 * Default page/slab allocator behavior is to retry for ever
++	 * for small allocations. We can override this behavior by using
++	 * __GFP_RETRY_HARD which will tell the allocator to retry as long
++	 * as it is feasible but rather fail than retry for ever for all
++	 * request sizes.
++	 */
+ 	if (flags & KM_MAYFAIL)
+ 		lflags |= __GFP_RETRY_HARD;
+ 
 
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- mm/hugetlb.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 19d0d08..3b025c5 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4189,10 +4189,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 	if (pud_none(*pud)) {
- 		pud_populate(mm, pud,
- 				(pmd_t *)((unsigned long)spte & PAGE_MASK));
--	} else {
-+	} else 
- 		put_page(virt_to_page(spte));
--		mm_inc_nr_pmds(mm);
--	}
-+
- 	spin_unlock(ptl);
- out:
- 	pte = (pte_t *)pmd_alloc(mm, pud, addr);
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
