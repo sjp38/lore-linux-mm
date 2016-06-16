@@ -1,178 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4069E6B026D
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:19:44 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id k184so25455845wme.3
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:19:44 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v10si4826705wjz.44.2016.06.16.04.19.42
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4868A6B025F
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:22:33 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id v78so43537692ywa.0
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 04:22:33 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 5si26053263qgo.94.2016.06.16.04.22.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Jun 2016 04:19:43 -0700 (PDT)
-From: Petr Mladek <pmladek@suse.com>
-Subject: [PATCH v9 12/12] kthread: Better support freezable kthread workers
-Date: Thu, 16 Jun 2016 13:17:31 +0200
-Message-Id: <1466075851-24013-13-git-send-email-pmladek@suse.com>
-In-Reply-To: <1466075851-24013-1-git-send-email-pmladek@suse.com>
-References: <1466075851-24013-1-git-send-email-pmladek@suse.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Jun 2016 04:22:32 -0700 (PDT)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: [PATCH] Revert "mm: rename _count, field of the struct page, to _refcount"
+References: <1466068966-24620-1-git-send-email-vkuznets@redhat.com>
+	<20160616093235.GA14640@infradead.org>
+	<87eg7xfmtj.fsf@vitty.brq.redhat.com>
+	<20160616105928.GA12437@dhcp22.suse.cz>
+Date: Thu, 16 Jun 2016 13:22:27 +0200
+In-Reply-To: <20160616105928.GA12437@dhcp22.suse.cz> (Michal Hocko's message
+	of "Thu, 16 Jun 2016 12:59:28 +0200")
+Message-ID: <87a8ilfkek.fsf@vitty.brq.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Petr Mladek <pmladek@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>
 
-This patch allows to make kthread worker freezable via a new @flags
-parameter. It will allow to avoid an init work in some kthreads.
+Michal Hocko <mhocko@kernel.org> writes:
 
-It currently does not affect the function of kthread_worker_fn()
-but it might help to do some optimization or fixes eventually.
+> On Thu 16-06-16 12:30:16, Vitaly Kuznetsov wrote:
+>> Christoph Hellwig <hch@infradead.org> writes:
+>> 
+>> > On Thu, Jun 16, 2016 at 11:22:46AM +0200, Vitaly Kuznetsov wrote:
+>> >> _count -> _refcount rename in commit 0139aa7b7fa12 ("mm: rename _count,
+>> >> field of the struct page, to _refcount") broke kdump. makedumpfile(8) does
+>> >> stuff like READ_MEMBER_OFFSET("page._count", page._count) and fails. While
+>> >> it is definitely possible to fix this particular tool I'm not sure about
+>> >> other tools which might be doing the same.
+>> >> 
+>> >> I suggest we remember the "we don't break userspace" rule and revert for
+>> >> 4.7 while it's not too late.
+>> >
+>> > Err, sorry - this is not "userspace".  It's crazy crap digging into
+>> > kernel internal structure.
+>> >
+>> > The rename was absolutely useful, so fix up your stinking pike in kdump.
+>> 
+>> Ok, sure, I'll send a patch to it. I was worried about other tools out
+>> there which e.g. inspect /proc/vmcore. As it is something we support
+>> some conservatism around it is justified.
+>
+> struct page layout as some others that such a tool might depend on has
+> changes several times in the past so I fail to see how is it any
+> different this time.
 
-I currently do not know about any other use for the @flags
-parameter but I believe that we will want more flags
-in the future.
+IMO this time the change doesn't give us any advantage, it was just a
+rename.
 
-Finally, I hope that it will not cause confusion with @flags member
-in struct kthread. Well, I guess that we will want to rework the
-basic kthreads implementation once all kthreads are converted into
-kthread workers or workqueues. It is possible that we will merge
-the two structures.
+> struct page is nothing the userspace should depend on.
 
-Signed-off-by: Petr Mladek <pmladek@suse.com>
----
- include/linux/kthread.h | 12 +++++++++---
- kernel/kthread.c        | 21 +++++++++++++++------
- 2 files changed, 24 insertions(+), 9 deletions(-)
+True but at least makedumpfile(8) is special and even if it's a 'crazy
+crap digging into ...' we could avoid breaking it for no technical
+reason.
 
-diff --git a/include/linux/kthread.h b/include/linux/kthread.h
-index 4a606767ebf8..60b45b0a291a 100644
---- a/include/linux/kthread.h
-+++ b/include/linux/kthread.h
-@@ -65,7 +65,12 @@ struct kthread_work;
- typedef void (*kthread_work_func_t)(struct kthread_work *work);
- void kthread_delayed_work_timer_fn(unsigned long __data);
- 
-+enum {
-+	KTW_FREEZABLE		= 1 << 0,	/* freeze during suspend */
-+};
-+
- struct kthread_worker {
-+	unsigned int		flags;
- 	spinlock_t		lock;
- 	struct list_head	work_list;
- 	struct list_head	delayed_work_list;
-@@ -154,12 +159,13 @@ extern void __kthread_init_worker(struct kthread_worker *worker,
- 
- int kthread_worker_fn(void *worker_ptr);
- 
--__printf(1, 2)
-+__printf(2, 3)
- struct kthread_worker *
--kthread_create_worker(const char namefmt[], ...);
-+kthread_create_worker(unsigned int flags, const char namefmt[], ...);
- 
- struct kthread_worker *
--kthread_create_worker_on_cpu(int cpu, const char namefmt[], ...);
-+kthread_create_worker_on_cpu(int cpu, unsigned int flags,
-+			     const char namefmt[], ...);
- 
- bool kthread_queue_work(struct kthread_worker *worker,
- 			struct kthread_work *work);
-diff --git a/kernel/kthread.c b/kernel/kthread.c
-index 3b1d0bfe312d..881d748beccc 100644
---- a/kernel/kthread.c
-+++ b/kernel/kthread.c
-@@ -556,11 +556,11 @@ void __kthread_init_worker(struct kthread_worker *worker,
- 				const char *name,
- 				struct lock_class_key *key)
- {
-+	memset(worker, 0, sizeof(struct kthread_worker));
- 	spin_lock_init(&worker->lock);
- 	lockdep_set_class_and_name(&worker->lock, key, name);
- 	INIT_LIST_HEAD(&worker->work_list);
- 	INIT_LIST_HEAD(&worker->delayed_work_list);
--	worker->task = NULL;
- }
- EXPORT_SYMBOL_GPL(__kthread_init_worker);
- 
-@@ -590,6 +590,10 @@ int kthread_worker_fn(void *worker_ptr)
- 	 */
- 	WARN_ON(worker->task && worker->task != current);
- 	worker->task = current;
-+
-+	if (worker->flags & KTW_FREEZABLE)
-+		set_freezable();
-+
- repeat:
- 	set_current_state(TASK_INTERRUPTIBLE);	/* mb paired w/ kthread_stop */
- 
-@@ -623,7 +627,8 @@ repeat:
- EXPORT_SYMBOL_GPL(kthread_worker_fn);
- 
- static struct kthread_worker *
--__kthread_create_worker(int cpu, const char namefmt[], va_list args)
-+__kthread_create_worker(int cpu, unsigned int flags,
-+			const char namefmt[], va_list args)
- {
- 	struct kthread_worker *worker;
- 	struct task_struct *task;
-@@ -653,6 +658,7 @@ __kthread_create_worker(int cpu, const char namefmt[], va_list args)
- 	if (IS_ERR(task))
- 		goto fail_task;
- 
-+	worker->flags = flags;
- 	worker->task = task;
- 	wake_up_process(task);
- 	return worker;
-@@ -664,6 +670,7 @@ fail_task:
- 
- /**
-  * kthread_create_worker - create a kthread worker
-+ * @flags: flags modifying the default behavior of the worker
-  * @namefmt: printf-style name for the kthread worker (task).
-  *
-  * Returns a pointer to the allocated worker on success, ERR_PTR(-ENOMEM)
-@@ -671,13 +678,13 @@ fail_task:
-  * when the worker was SIGKILLed.
-  */
- struct kthread_worker *
--kthread_create_worker(const char namefmt[], ...)
-+kthread_create_worker(unsigned int flags, const char namefmt[], ...)
- {
- 	struct kthread_worker *worker;
- 	va_list args;
- 
- 	va_start(args, namefmt);
--	worker = __kthread_create_worker(-1, namefmt, args);
-+	worker = __kthread_create_worker(-1, flags, namefmt, args);
- 	va_end(args);
- 
- 	return worker;
-@@ -688,6 +695,7 @@ EXPORT_SYMBOL(kthread_create_worker);
-  * kthread_create_worker_on_cpu - create a kthread worker and bind it
-  *	it to a given CPU and the associated NUMA node.
-  * @cpu: CPU number
-+ * @flags: flags modifying the default behavior of the worker
-  * @namefmt: printf-style name for the kthread worker (task).
-  *
-  * Use a valid CPU number if you want to bind the kthread worker
-@@ -701,13 +709,14 @@ EXPORT_SYMBOL(kthread_create_worker);
-  * when the worker was SIGKILLed.
-  */
- struct kthread_worker *
--kthread_create_worker_on_cpu(int cpu, const char namefmt[], ...)
-+kthread_create_worker_on_cpu(int cpu, unsigned int flags,
-+			     const char namefmt[], ...)
- {
- 	struct kthread_worker *worker;
- 	va_list args;
- 
- 	va_start(args, namefmt);
--	worker = __kthread_create_worker(cpu, namefmt, args);
-+	worker = __kthread_create_worker(cpu, flags, namefmt, args);
- 	va_end(args);
- 
- 	return worker;
 -- 
-1.8.5.6
+  Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
