@@ -1,120 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DC8F56B025E
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:08:58 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id k184so24493807wme.3
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:08:58 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id pp4si2683021lbc.178.2016.06.16.03.08.57
+	by kanga.kvack.org (Postfix) with ESMTP id 400E26B025F
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:09:01 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 4so24301386wmz.1
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:09:01 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e188si3553437wmd.53.2016.06.16.03.08.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 03:08:57 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id l188so4854522lfe.0
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:08:57 -0700 (PDT)
-Date: Thu, 16 Jun 2016 13:08:54 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv9-rebased2 01/37] mm, thp: make swapin readahead under
- down_read of mmap_sem
-Message-ID: <20160616100854.GB18137@node.shutemov.name>
-References: <04f701d1c797$1ebe6b80$5c3b4280$@alibaba-inc.com>
- <04f801d1c79b$b46744a0$1d35cde0$@alibaba-inc.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Jun 2016 03:08:59 -0700 (PDT)
+Subject: Re: [PATCH 11/27] mm: vmscan: Do not reclaim from kswapd if there is
+ any eligible zone
+References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
+ <1465495483-11855-12-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a2be0855-c923-7338-ee37-941a6770f221@suse.cz>
+Date: Thu, 16 Jun 2016 12:08:58 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <04f801d1c79b$b46744a0$1d35cde0$@alibaba-inc.com>
+In-Reply-To: <1465495483-11855-12-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: 'Ebru Akagunduz' <ebru.akagunduz@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 16, 2016 at 02:52:52PM +0800, Hillf Danton wrote:
-> > 
-> > From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-> > 
-> > Currently khugepaged makes swapin readahead under down_write.  This patch
-> > supplies to make swapin readahead under down_read instead of down_write.
-> > 
-> > The patch was tested with a test program that allocates 800MB of memory,
-> > writes to it, and then sleeps.  The system was forced to swap out all.
-> > Afterwards, the test program touches the area by writing, it skips a page
-> > in each 20 pages of the area.
-> > 
-> > Link: http://lkml.kernel.org/r/1464335964-6510-4-git-send-email-ebru.akagunduz@gmail.com
-> > Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-> > Cc: Hugh Dickins <hughd@google.com>
-> > Cc: Rik van Riel <riel@redhat.com>
-> > Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Cc: Andrea Arcangeli <aarcange@redhat.com>
-> > Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-> > Cc: Mel Gorman <mgorman@suse.de>
-> > Cc: David Rientjes <rientjes@google.com>
-> > Cc: Vlastimil Babka <vbabka@suse.cz>
-> > Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@suse.cz>
-> > Cc: Minchan Kim <minchan.kim@gmail.com>
-> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> > ---
-> >  mm/huge_memory.c | 92 ++++++++++++++++++++++++++++++++++++++------------------
-> >  1 file changed, 63 insertions(+), 29 deletions(-)
-> > 
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index f2bc57c45d2f..96dfe3f09bf6 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -2378,6 +2378,35 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
-> >  }
-> > 
-> >  /*
-> > + * If mmap_sem temporarily dropped, revalidate vma
-> > + * before taking mmap_sem.
-> 
-> See below
+On 06/09/2016 08:04 PM, Mel Gorman wrote:
+> kswapd scans from highest to lowest for a zone that requires balancing.
+> This was necessary when reclaim was per-zone to fairly age pages on
+> lower zones. Now that we are reclaiming on a per-node basis, any eligible
+> zone can be used and pages will still be aged fairly. This patch avoids
+> reclaiming excessively unless buffer_heads are over the limit and it's
+> necessary to reclaim from a higher zone than requested by the waker of
+> kswapd to relieve low memory pressure.
 
-> > @@ -2401,11 +2430,18 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
-> >  			continue;
-> >  		swapped_in++;
-> >  		ret = do_swap_page(mm, vma, _address, pte, pmd,
-> > -				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
-> > +				   FAULT_FLAG_ALLOW_RETRY,
-> 
-> Add a description in change log for it please.
+Looks like the code was even wrong before... if classzone_idx wasn't 
+already set to the highmem zone in the first place, it wouldn't look at it.
 
-Ebru, would you address it?
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-> >  				   pteval);
-> > +		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
-> > +		if (ret & VM_FAULT_RETRY) {
-> > +			down_read(&mm->mmap_sem);
-> > +			/* vma is no longer available, don't continue to swapin */
-> > +			if (hugepage_vma_revalidate(mm, vma, address))
-> > +				return false;
-> 
-> Revalidate vma _after_ acquiring mmap_sem, but the above comment says _before_.
+After fixing the bug below,
 
-Ditto.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-> > +	if (!__collapse_huge_page_swapin(mm, vma, address, pmd)) {
-> > +		up_read(&mm->mmap_sem);
-> > +		goto out;
-> 
-> Jump out with mmap_sem released, 
-> 
-> > +	result = hugepage_vma_revalidate(mm, vma, address);
-> > +	if (result)
-> > +		goto out;
-> 
-> but jump out again with mmap_sem held.
-> 
-> They are cleaned up in subsequent darns?
+> ---
+>  mm/vmscan.c | 32 +++++++++++++++++++-------------
+>  1 file changed, 19 insertions(+), 13 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index e4f3e068b7a0..6663fc75c3bc 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3102,24 +3102,30 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+>
+>  		sc.nr_reclaimed = 0;
+>
+> -		/* Scan from the highest requested zone to dma */
+> +		/*
+> +		 * If the number of buffer_heads in the machine exceeds the
+> +		 * maximum allowed level and this node has a highmem zone,
+> +		 * force kswapd to reclaim from it to relieve lowmem pressure.
+> +		 */
+> +		if (buffer_heads_over_limit) {
+> +			for (i = MAX_NR_ZONES - 1; i >= 0; i++) {
 
-I didn't fold fixups for these
-> 
+                                                            i--
 
--- 
- Kirill A. Shutemov
+> +				zone = pgdat->node_zones + i;
+> +				if (!populated_zone(zone))
+> +					continue;
+> +
+> +				if (is_highmem_idx(i))
+> +					classzone_idx = i;
+> +				break;
+> +			}
+> +		}
+> +
+> +		/* Only reclaim if there are no eligible zones */
+>  		for (i = classzone_idx; i >= 0; i--) {
+>  			zone = pgdat->node_zones + i;
+>  			if (!populated_zone(zone))
+>  				continue;
+>
+> -			/*
+> -			 * If the number of buffer_heads in the machine
+> -			 * exceeds the maximum allowed level and this node
+> -			 * has a highmem zone, force kswapd to reclaim from
+> -			 * it to relieve lowmem pressure.
+> -			 */
+> -			if (buffer_heads_over_limit && is_highmem_idx(i)) {
+> -				classzone_idx = i;
+> -				break;
+> -			}
+> -
+> -			if (!zone_balanced(zone, order, 0)) {
+> +			if (!zone_balanced(zone, sc.order, classzone_idx)) {
+>  				classzone_idx = i;
+>  				break;
+>  			}
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
