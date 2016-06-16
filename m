@@ -1,50 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 62D4A6B0005
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 20:43:09 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id a69so75988883pfa.1
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 17:43:09 -0700 (PDT)
-Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
-        by mx.google.com with ESMTPS id y7si2766379pae.92.2016.06.15.17.43.08
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CAFF6B0005
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 22:18:15 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id fg1so63156291pad.1
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 19:18:15 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id l8si4351125pal.70.2016.06.15.19.18.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Jun 2016 17:43:08 -0700 (PDT)
-Received: by mail-pa0-x242.google.com with SMTP id hf6so2446258pac.2
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 17:43:08 -0700 (PDT)
-Date: Thu, 16 Jun 2016 09:43:07 +0900
+        Wed, 15 Jun 2016 19:18:14 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id t190so2860015pfb.2
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 19:18:14 -0700 (PDT)
+Date: Thu, 16 Jun 2016 11:18:13 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCHv9-rebased2 03/37] mm, thp: fix locking inconsistency in
- collapse_huge_page
-Message-ID: <20160616004307.GA658@swordfish>
-References: <1465222029-45942-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1466021202-61880-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1466021202-61880-4-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH] ARM: mm: Speed up page list initialization during boot
+Message-ID: <20160616021813.GB658@swordfish>
+References: <004001d14158$114be8d0$33e3ba70$@samsung.com>
+ <005101d14158$b50842c0$1f18c840$@samsung.com>
+ <CAJFHJrpgHmcXBwuV5i4nH4SOL-OwrY2-+Fe7x9W2c6GWW=F7bg@mail.gmail.com>
+ <20160102103722.GQ8644@n2100.arm.linux.org.uk>
+ <002c01d1479f$49ea2970$ddbe7c50$@samsung.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1466021202-61880-4-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <002c01d1479f$49ea2970$ddbe7c50$@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Jerome Marchand <jmarchan@redhat.com>, Yang Shi <yang.shi@linaro.org>, Sasha Levin <sasha.levin@oracle.com>, Andres Lagar-Cavilla <andreslc@google.com>, Ning Qu <quning@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Rik van Riel <riel@redhat.com>
+To: 'Chirantan Ekbote' <chirantan@chromium.org>
+Cc: Jungseung Lee <js07.lee@samsung.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, js07.lee@gmail.com, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Hello,
-
-On (06/15/16 23:06), Kirill A. Shutemov wrote:
+On (01/05/16 18:56), Jungseung Lee wrote:
 [..]
-> After creating revalidate vma function, locking inconsistency occured
-> due to directing the code path to wrong label. This patch directs
-> to correct label and fix the inconsistency.
-> 
-> Related commit that caused inconsistency:
-> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=da4360877094368f6dfe75bbe804b0f0a5d575b0
+> > > >> #ifdef CONFIG_HIGHMEM
+> > > >> static inline void free_area_high(unsigned long pfn, unsigned long
+> > > >>end)  {
+> > > >>-      for (; pfn < end; pfn++)
+> > > >>-              free_highmem_page(pfn_to_page(pfn));
+> > > >>+      while (pfn < end) {
+> > > >>+              struct page *page = pfn_to_page(pfn);
+> > > >>+              unsigned long order = min(__ffs(pfn), MAX_ORDER - 1);
+> > > >>+              unsigned long nr_pages = 1 << order;
+> > > >>+              unsigned long rem = end - pfn;
+> > > >>+
+> > > >>+              if (nr_pages > rem) {
+> > > >>+                      order = __fls(rem);
+> > > >>+                      nr_pages = 1 << order;
+> > > >>+              }
+> > > >>+
+> > > >>+              __free_pages_bootmem(page, order);
+> > > >>+              totalram_pages += nr_pages;
+> > > >>+              totalhigh_pages += nr_pages;
 
++			page_zone(page)->managed_pages += nr_pages;  ???
 
-as far as I remember, Vlastimil had "one more thing" to ask
-http://marc.info/?l=linux-mm&m=146521832732210&w=2
-
-or is it safe?
-
+> > > >>+              pfn += nr_pages;
+> > > >>+      }
+> > > >> }
 
 	-ss
 
