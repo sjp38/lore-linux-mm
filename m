@@ -1,70 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BE9606B0260
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 05:08:38 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id a4so20008975lfa.1
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:08:38 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id el5si4255427wjd.31.2016.06.16.02.08.37
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 02:08:37 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id 187so7824266wmz.1
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:08:37 -0700 (PDT)
-Date: Thu, 16 Jun 2016 12:08:20 +0300
-From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: Re: [RFC PATCH 2/3] mm, thp: convert from optimistic to conservative
-Message-ID: <20160616090819.GA18977@gezgin>
-References: <1465672561-29608-1-git-send-email-ebru.akagunduz@gmail.com>
- <1465672561-29608-3-git-send-email-ebru.akagunduz@gmail.com>
- <20160615064053.GH17127@bbox>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C2C3C6B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 05:15:27 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id b126so105358371ite.3
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:15:27 -0700 (PDT)
+Received: from out4133-146.mail.aliyun.com (out4133-146.mail.aliyun.com. [42.120.133.146])
+        by mx.google.com with ESMTP id a81si4604086ioa.39.2016.06.16.02.15.25
+        for <linux-mm@kvack.org>;
+        Thu, 16 Jun 2016 02:15:27 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <050201d1c7ae$9dbf9370$d93eba50$@alibaba-inc.com>
+In-Reply-To: <050201d1c7ae$9dbf9370$d93eba50$@alibaba-inc.com>
+Subject: Re: [PATCHv9-rebased2 11/37] mm: introduce do_set_pmd()
+Date: Thu, 16 Jun 2016 17:15:22 +0800
+Message-ID: <050301d1c7af$9cbe81b0$d63b8510$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160615064053.GH17127@bbox>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, mhocko@suse.cz, linux-mm@kvack.org
-Cc: hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, boaz@plexistor.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, Jun 15, 2016 at 03:40:53PM +0900, Minchan Kim wrote:
-> Hello,
-> 
-> On Sat, Jun 11, 2016 at 10:16:00PM +0300, Ebru Akagunduz wrote:
-> > Currently, khugepaged collapses pages saying only
-> > a referenced page enough to create a THP.
-> > 
-> > This patch changes the design from optimistic to conservative.
-> > It gives a default threshold which is half of HPAGE_PMD_NR
-> > for referenced pages, also introduces a new sysfs knob.
-> 
-> Strictly speaking, It's not what I suggested.
-> 
-> I didn't mean that let's change threshold for deciding whether we should
-> collapse or not(although just *a* reference page seems be too
-> optimistic) and export the knob to the user. In fact, I cannot judge
-> whether it's worth or not because I never have an experience with THP
-> workload in practice although I believe it does make sense.
-> 
-> What I suggested is that a swapin operation would be much heavier than
-> a THP cost to collapse populated anon page so it should be more
-> conservative than THP collasping decision, at least. Given that thought,
-> decision point for collasping a THP is *a* reference page now so *half*
-> reference of populated pages for reading swapped-out page is more
-> conservative.
->
-Then passing referenced parameter from khugepaged_scan_pmd to
-collapse_huge_page_swapin seems okay. A referenced is enough to
-create THP, if needs to swapin, we check the value that should
-be higher than 256 and so that, we don't need a new sysfs knob.
- 
-> > 
-> > Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-> > ---
+> +
+> +static int do_set_pmd(struct fault_env *fe, struct page *page)
+> +{
+> +	struct vm_area_struct *vma = fe->vma;
+> +	bool write = fe->flags & FAULT_FLAG_WRITE;
+> +	unsigned long haddr = fe->address & HPAGE_PMD_MASK;
+> +	pmd_t entry;
+> +	int i, ret;
+> +
+> +	if (!transhuge_vma_suitable(vma, haddr))
+> +		return VM_FAULT_FALLBACK;
+> +
+> +	ret = VM_FAULT_FALLBACK;
+> +	page = compound_head(page);
+> +
+> +	fe->ptl = pmd_lock(vma->vm_mm, fe->pmd);
+> +	if (unlikely(!pmd_none(*fe->pmd)))
+> +		goto out;
 
-> > +static unsigned int khugepaged_min_ptes_young __read_mostly;
+Can we reply to the caller that fault is handled correctly(by
+resetting ret to zero before jump)?
+
+> +
+> +	for (i = 0; i < HPAGE_PMD_NR; i++)
+> +		flush_icache_page(vma, page + i);
+> +
+> +	entry = mk_huge_pmd(page, vma->vm_page_prot);
+> +	if (write)
+> +		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+> +
+> +	add_mm_counter(vma->vm_mm, MM_FILEPAGES, HPAGE_PMD_NR);
+> +	page_add_file_rmap(page, true);
+> +
+> +	set_pmd_at(vma->vm_mm, haddr, fe->pmd, entry);
+> +
+> +	update_mmu_cache_pmd(vma, haddr, fe->pmd);
+> +
+> +	/* fault is handled */
+> +	ret = 0;
+> +out:
+> +	spin_unlock(fe->ptl);
+> +	return ret;
+> +}
+> +#else
+> +static int do_set_pmd(struct fault_env *fe, struct page *page)
+> +{
+> +	BUILD_BUG();
+> +	return 0;
+> +}
+> +#endif
+> +
+>  /**
+>   * alloc_set_pte - setup new PTE entry for given page and add reverse page
+>   * mapping. If needed, the fucntion allocates page table or use pre-allocated.
+> @@ -2940,9 +3000,19 @@ int alloc_set_pte(struct fault_env *fe, struct mem_cgroup *memcg,
+>  	struct vm_area_struct *vma = fe->vma;
+>  	bool write = fe->flags & FAULT_FLAG_WRITE;
+>  	pte_t entry;
+> +	int ret;
+> +
+> +	if (pmd_none(*fe->pmd) && PageTransCompound(page)) {
+> +		/* THP on COW? */
+> +		VM_BUG_ON_PAGE(memcg, page);
+> +
+> +		ret = do_set_pmd(fe, page);
+> +		if (ret != VM_FAULT_FALLBACK)
+> +			return ret;
+> +	}
 > 
-> We should set it to 1 to preserve old behavior.
+>  	if (!fe->pte) {
+> -		int ret = pte_alloc_one_map(fe);
+> +		ret = pte_alloc_one_map(fe);
+>  		if (ret)
+>  			return ret;
+>  	}
+> diff --git a/mm/migrate.c b/mm/migrate.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
