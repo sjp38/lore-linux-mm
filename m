@@ -1,231 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AB1F6B0262
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:53:08 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id b13so70417086pat.3
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 23:53:08 -0700 (PDT)
-Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
-        by mx.google.com with ESMTP id b79si4289142pfj.165.2016.06.15.23.53.05
-        for <linux-mm@kvack.org>;
-        Wed, 15 Jun 2016 23:53:07 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <04f701d1c797$1ebe6b80$5c3b4280$@alibaba-inc.com>
-In-Reply-To: <04f701d1c797$1ebe6b80$5c3b4280$@alibaba-inc.com>
-Subject: Re: [PATCHv9-rebased2 01/37] mm, thp: make swapin readahead under down_read of mmap_sem
-Date: Thu, 16 Jun 2016 14:52:52 +0800
-Message-ID: <04f801d1c79b$b46744a0$1d35cde0$@alibaba-inc.com>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 137826B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:15:46 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id k184so22036046wme.3
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 00:15:46 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o62si2801419wme.27.2016.06.16.00.15.44
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Jun 2016 00:15:44 -0700 (PDT)
+Subject: Re: [patch] mm, compaction: ignore watermarks when isolating free
+ pages
+References: <alpine.DEB.2.10.1606151530590.37360@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <4f5ba93e-8bf0-151e-57eb-cad1a4823b9e@suse.cz>
+Date: Thu, 16 Jun 2016 09:15:42 +0200
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+In-Reply-To: <alpine.DEB.2.10.1606151530590.37360@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Ebru Akagunduz' <ebru.akagunduz@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
+Cc: Hugh Dickins <hughd@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
 
-> 
-> From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-> 
-> Currently khugepaged makes swapin readahead under down_write.  This patch
-> supplies to make swapin readahead under down_read instead of down_write.
-> 
-> The patch was tested with a test program that allocates 800MB of memory,
-> writes to it, and then sleeps.  The system was forced to swap out all.
-> Afterwards, the test program touches the area by writing, it skips a page
-> in each 20 pages of the area.
-> 
-> Link: http://lkml.kernel.org/r/1464335964-6510-4-git-send-email-ebru.akagunduz@gmail.com
-> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+On 06/16/2016 12:34 AM, David Rientjes wrote:
+> The goal of memory compaction is to defragment memory by moving migratable
+> pages to free pages at the end of the zone.  No additional memory is being
+> allocated.
+>
+> Ignore per-zone low watermarks in __isolate_free_page() because memory is
+> either fully migrated or isolated free pages are returned when migration
+> fails.
+
+Michal Hocko suggested that too, but I didn't think it safe that 
+compaction should go below the min watermark, even temporarily. It means 
+the system is struggling with order-0 allocations, so making it worse 
+for the benefit of high-order allocations doesn't make sense. The 
+high-order allocation would likely fail anyway due to watermark checks, 
+even if the page of sufficient order was formed by compaction. So in my 
+series, I just changed the low watermark check to min [1].
+
+> This fixes an issue where the compaction freeing scanner can isolate
+> memory but the zone drops below its low watermark for that page order, so
+> the scanner must continue to scan all memory pointlessly.
+
+Good point, looks like failing the watermark is the only reason when 
+__isolate_free_page() can fail. isolate_freepages_block() and its 
+callers should take this as an indication that compaction should return 
+with failure immediately.
+
+[1] http://article.gmane.org/gmane.linux.kernel/2231369
+
+> Signed-off-by: David Rientjes <rientjes@google.com>
 > ---
->  mm/huge_memory.c | 92 ++++++++++++++++++++++++++++++++++++++------------------
->  1 file changed, 63 insertions(+), 29 deletions(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index f2bc57c45d2f..96dfe3f09bf6 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2378,6 +2378,35 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
->  }
-> 
->  /*
-> + * If mmap_sem temporarily dropped, revalidate vma
-> + * before taking mmap_sem.
-
-See below
-
-> + * Return 0 if succeeds, otherwise return none-zero
-> + * value (scan code).
-> + */
-> +
-> +static int hugepage_vma_revalidate(struct mm_struct *mm,
-> +				   struct vm_area_struct *vma,
-> +				   unsigned long address)
-> +{
-> +	unsigned long hstart, hend;
-> +
-> +	if (unlikely(khugepaged_test_exit(mm)))
-> +		return SCAN_ANY_PROCESS;
-> +
-> +	vma = find_vma(mm, address);
-> +	if (!vma)
-> +		return SCAN_VMA_NULL;
-> +
-> +	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
-> +	hend = vma->vm_end & HPAGE_PMD_MASK;
-> +	if (address < hstart || address + HPAGE_PMD_SIZE > hend)
-> +		return SCAN_ADDRESS_RANGE;
-> +	if (!hugepage_vma_check(vma))
-> +		return SCAN_VMA_CHECK;
-> +	return 0;
-> +}
-> +
-> +/*
->   * Bring missing pages in from swap, to complete THP collapse.
->   * Only done if khugepaged_scan_pmd believes it is worthwhile.
->   *
-> @@ -2385,7 +2414,7 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
->   * but with mmap_sem held to protect against vma changes.
->   */
-> 
-> -static void __collapse_huge_page_swapin(struct mm_struct *mm,
-> +static bool __collapse_huge_page_swapin(struct mm_struct *mm,
->  					struct vm_area_struct *vma,
->  					unsigned long address, pmd_t *pmd)
+>  mm/page_alloc.c | 14 ++------------
+>  1 file changed, 2 insertions(+), 12 deletions(-)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2484,23 +2484,14 @@ EXPORT_SYMBOL_GPL(split_page);
+>
+>  int __isolate_free_page(struct page *page, unsigned int order)
 >  {
-> @@ -2401,11 +2430,18 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
->  			continue;
->  		swapped_in++;
->  		ret = do_swap_page(mm, vma, _address, pte, pmd,
-> -				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
-> +				   FAULT_FLAG_ALLOW_RETRY,
-
-Add a description in change log for it please.
-
->  				   pteval);
-> +		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
-> +		if (ret & VM_FAULT_RETRY) {
-> +			down_read(&mm->mmap_sem);
-> +			/* vma is no longer available, don't continue to swapin */
-> +			if (hugepage_vma_revalidate(mm, vma, address))
-> +				return false;
-
-Revalidate vma _after_ acquiring mmap_sem, but the above comment says _before_.
-
-> +		}
->  		if (ret & VM_FAULT_ERROR) {
->  			trace_mm_collapse_huge_page_swapin(mm, swapped_in, 0);
-> -			return;
-> +			return false;
+> -	unsigned long watermark;
+>  	struct zone *zone;
+> -	int mt;
+> +	const int mt = get_pageblock_migratetype(page);
+>
+>  	BUG_ON(!PageBuddy(page));
+> -
+>  	zone = page_zone(page);
+> -	mt = get_pageblock_migratetype(page);
+> -
+> -	if (!is_migrate_isolate(mt)) {
+> -		/* Obey watermarks as if the page was being allocated */
+> -		watermark = low_wmark_pages(zone) + (1 << order);
+> -		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+> -			return 0;
+>
+> +	if (!is_migrate_isolate(mt))
+>  		__mod_zone_freepage_state(zone, -(1UL << order), mt);
+> -	}
+>
+>  	/* Remove page from free list */
+>  	list_del(&page->lru);
+> @@ -2520,7 +2511,6 @@ int __isolate_free_page(struct page *page, unsigned int order)
 >  		}
->  		/* pte is unmapped now, we need to map it */
->  		pte = pte_offset_map(pmd, _address);
-> @@ -2413,6 +2449,7 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
->  	pte--;
->  	pte_unmap(pte);
->  	trace_mm_collapse_huge_page_swapin(mm, swapped_in, 1);
-> +	return true;
+>  	}
+>
+> -
+>  	return 1UL << order;
 >  }
-> 
->  static void collapse_huge_page(struct mm_struct *mm,
-> @@ -2427,7 +2464,6 @@ static void collapse_huge_page(struct mm_struct *mm,
->  	struct page *new_page;
->  	spinlock_t *pmd_ptl, *pte_ptl;
->  	int isolated = 0, result = 0;
-> -	unsigned long hstart, hend;
->  	struct mem_cgroup *memcg;
->  	unsigned long mmun_start;	/* For mmu_notifiers */
->  	unsigned long mmun_end;		/* For mmu_notifiers */
-> @@ -2450,39 +2486,37 @@ static void collapse_huge_page(struct mm_struct *mm,
->  		goto out_nolock;
->  	}
-> 
-> -	/*
-> -	 * Prevent all access to pagetables with the exception of
-> -	 * gup_fast later hanlded by the ptep_clear_flush and the VM
-> -	 * handled by the anon_vma lock + PG_lock.
-> -	 */
-> -	down_write(&mm->mmap_sem);
-> -	if (unlikely(khugepaged_test_exit(mm))) {
-> -		result = SCAN_ANY_PROCESS;
-> +	down_read(&mm->mmap_sem);
-> +	result = hugepage_vma_revalidate(mm, vma, address);
-> +	if (result)
->  		goto out;
-> -	}
-> 
-> -	vma = find_vma(mm, address);
-> -	if (!vma) {
-> -		result = SCAN_VMA_NULL;
-> -		goto out;
-> -	}
-> -	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
-> -	hend = vma->vm_end & HPAGE_PMD_MASK;
-> -	if (address < hstart || address + HPAGE_PMD_SIZE > hend) {
-> -		result = SCAN_ADDRESS_RANGE;
-> -		goto out;
-> -	}
-> -	if (!hugepage_vma_check(vma)) {
-> -		result = SCAN_VMA_CHECK;
-> -		goto out;
-> -	}
->  	pmd = mm_find_pmd(mm, address);
->  	if (!pmd) {
->  		result = SCAN_PMD_NULL;
->  		goto out;
->  	}
-> 
-> -	__collapse_huge_page_swapin(mm, vma, address, pmd);
-> +	/*
-> +	 * __collapse_huge_page_swapin always returns with mmap_sem
-> +	 * locked. If it fails, release mmap_sem and jump directly
-> +	 * label out. Continuing to collapse causes inconsistency.
-> +	 */
-> +	if (!__collapse_huge_page_swapin(mm, vma, address, pmd)) {
-> +		up_read(&mm->mmap_sem);
-> +		goto out;
-
-Jump out with mmap_sem released, 
-
-> +	}
-> +
-> +	up_read(&mm->mmap_sem);
-> +	/*
-> +	 * Prevent all access to pagetables with the exception of
-> +	 * gup_fast later handled by the ptep_clear_flush and the VM
-> +	 * handled by the anon_vma lock + PG_lock.
-> +	 */
-> +	down_write(&mm->mmap_sem);
-> +	result = hugepage_vma_revalidate(mm, vma, address);
-> +	if (result)
-> +		goto out;
-
-but jump out again with mmap_sem held.
-
-They are cleaned up in subsequent darns?
-
-> 
->  	anon_vma_lock_write(vma->anon_vma);
-> 
-> --
-> 2.8.1
-
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
