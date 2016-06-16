@@ -1,104 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 400E26B025F
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:09:01 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 4so24301386wmz.1
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:09:01 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e188si3553437wmd.53.2016.06.16.03.08.59
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Jun 2016 03:08:59 -0700 (PDT)
-Subject: Re: [PATCH 11/27] mm: vmscan: Do not reclaim from kswapd if there is
- any eligible zone
-References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
- <1465495483-11855-12-git-send-email-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <a2be0855-c923-7338-ee37-941a6770f221@suse.cz>
-Date: Thu, 16 Jun 2016 12:08:58 +0200
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D2F46B0260
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:09:23 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id g13so83393770ioj.3
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:09:23 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id 198si4886872ioz.44.2016.06.16.03.09.22
+        for <linux-mm@kvack.org>;
+        Thu, 16 Jun 2016 03:09:22 -0700 (PDT)
+Date: Thu, 16 Jun 2016 19:09:32 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v7 00/12] Support non-lru page migration
+Message-ID: <20160616100932.GS17127@bbox>
+References: <1464736881-24886-1-git-send-email-minchan@kernel.org>
+ <20160615075909.GA425@swordfish>
+ <20160615231248.GI17127@bbox>
+ <20160616024827.GA497@swordfish>
+ <20160616025800.GO17127@bbox>
+ <20160616042343.GA516@swordfish>
+ <20160616044710.GP17127@bbox>
+ <20160616052209.GB516@swordfish>
+ <20160616064753.GR17127@bbox>
+ <20160616084211.GA432@swordfish>
 MIME-Version: 1.0
-In-Reply-To: <1465495483-11855-12-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160616084211.GA432@swordfish>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, dri-devel@lists.freedesktop.org, Hugh Dickins <hughd@google.com>, John Einar Reitan <john.reitan@foss.arm.com>, Jonathan Corbet <corbet@lwn.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Aquini <aquini@redhat.com>, Rik van Riel <riel@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, virtualization@lists.linux-foundation.org, Gioh Kim <gi-oh.kim@profitbricks.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Sangseok Lee <sangseok.lee@lge.com>, Kyeongdon Kim <kyeongdon.kim@lge.com>, Chulmin Kim <cmlaika.kim@samsung.com>
 
-On 06/09/2016 08:04 PM, Mel Gorman wrote:
-> kswapd scans from highest to lowest for a zone that requires balancing.
-> This was necessary when reclaim was per-zone to fairly age pages on
-> lower zones. Now that we are reclaiming on a per-node basis, any eligible
-> zone can be used and pages will still be aged fairly. This patch avoids
-> reclaiming excessively unless buffer_heads are over the limit and it's
-> necessary to reclaim from a higher zone than requested by the waker of
-> kswapd to relieve low memory pressure.
+On Thu, Jun 16, 2016 at 05:42:11PM +0900, Sergey Senozhatsky wrote:
+> On (06/16/16 15:47), Minchan Kim wrote:
+> > > [..]
+> > > > > this is what I'm getting with the [zsmalloc: keep first object offset in struct page]
+> > > > > applied:  "count:0 mapcount:-127". which may be not related to zsmalloc at this point.
+> > > > > 
+> > > > > kernel: BUG: Bad page state in process khugepaged  pfn:101db8
+> > > > > kernel: page:ffffea0004076e00 count:0 mapcount:-127 mapping:          (null) index:0x1
+> > > > 
+> > > > Hm, it seems double free.
+> > > > 
+> > > > It doen't happen if you disable zram? IOW, it seems to be related
+> > > > zsmalloc migration?
+> > > 
+> > > need to test more, can't confidently answer now.
+> > > 
+> > > > How easy can you reprodcue it? Could you bisect it?
+> > > 
+> > > it takes some (um.. random) time to trigger the bug.
+> > > I'll try to come up with more details.
+> > 
+> > Could you revert [1] and retest?
+> > 
+> > [1] mm/compaction: split freepages without holding the zone lock
+> 
+> ok, so this is not related to zsmalloc. finally manged to reproduce
+> it. will fork a separate thread.
 
-Looks like the code was even wrong before... if classzone_idx wasn't 
-already set to the highmem zone in the first place, it wouldn't look at it.
+The reason I mentioned [1] is that it seems to have a bug.
 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+isolate_freepages_block
+  __isolate_free_page
+    if(!zone_watermark_ok())
+      return 0;
+  list_add_tail(&page->lru, freelist);
 
-After fixing the bug below,
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  mm/vmscan.c | 32 +++++++++++++++++++-------------
->  1 file changed, 19 insertions(+), 13 deletions(-)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index e4f3e068b7a0..6663fc75c3bc 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -3102,24 +3102,30 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
->
->  		sc.nr_reclaimed = 0;
->
-> -		/* Scan from the highest requested zone to dma */
-> +		/*
-> +		 * If the number of buffer_heads in the machine exceeds the
-> +		 * maximum allowed level and this node has a highmem zone,
-> +		 * force kswapd to reclaim from it to relieve lowmem pressure.
-> +		 */
-> +		if (buffer_heads_over_limit) {
-> +			for (i = MAX_NR_ZONES - 1; i >= 0; i++) {
-
-                                                            i--
-
-> +				zone = pgdat->node_zones + i;
-> +				if (!populated_zone(zone))
-> +					continue;
-> +
-> +				if (is_highmem_idx(i))
-> +					classzone_idx = i;
-> +				break;
-> +			}
-> +		}
-> +
-> +		/* Only reclaim if there are no eligible zones */
->  		for (i = classzone_idx; i >= 0; i--) {
->  			zone = pgdat->node_zones + i;
->  			if (!populated_zone(zone))
->  				continue;
->
-> -			/*
-> -			 * If the number of buffer_heads in the machine
-> -			 * exceeds the maximum allowed level and this node
-> -			 * has a highmem zone, force kswapd to reclaim from
-> -			 * it to relieve lowmem pressure.
-> -			 */
-> -			if (buffer_heads_over_limit && is_highmem_idx(i)) {
-> -				classzone_idx = i;
-> -				break;
-> -			}
-> -
-> -			if (!zone_balanced(zone, order, 0)) {
-> +			if (!zone_balanced(zone, sc.order, classzone_idx)) {
->  				classzone_idx = i;
->  				break;
->  			}
->
+However, the page is not isolated.
+Joonsoo?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
