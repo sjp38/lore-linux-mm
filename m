@@ -1,72 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D96366B0253
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 20:27:09 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 143so75707343pfx.0
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 17:27:09 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id xr1si10855388pab.95.2016.06.15.17.27.08
-        for <linux-mm@kvack.org>;
-        Wed, 15 Jun 2016 17:27:09 -0700 (PDT)
-Date: Thu, 16 Jun 2016 10:23:02 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC PATCH 2/2] xfs: map KM_MAYFAIL to __GFP_RETRY_HARD
-Message-ID: <20160616002302.GK12670@dastard>
-References: <1465212736-14637-1-git-send-email-mhocko@kernel.org>
- <1465212736-14637-3-git-send-email-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1465212736-14637-3-git-send-email-mhocko@kernel.org>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 48BF16B0005
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 20:28:43 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id g62so75374051pfb.3
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 17:28:43 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id r26si2264453pfa.108.2016.06.15.17.28.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Jun 2016 17:28:42 -0700 (PDT)
+From: Andy Lutomirski <luto@kernel.org>
+Subject: [PATCH 01/13] x86/mm/hotplug: Don't remove PGD entries in remove_pagetable()
+Date: Wed, 15 Jun 2016 17:28:23 -0700
+Message-Id: <f15dcba341945848b48ae74dbcf20228f2c940b0.1466036668.git.luto@kernel.org>
+In-Reply-To: <cover.1466036668.git.luto@kernel.org>
+References: <cover.1466036668.git.luto@kernel.org>
+In-Reply-To: <cover.1466036668.git.luto@kernel.org>
+References: <cover.1466036668.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, x86@kernel.org, Borislav Petkov <bp@alien8.de>
+Cc: Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Brian Gerst <brgerst@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Denys Vlasenko <dvlasenk@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Waiman Long <Waiman.Long@hp.com>, linux-mm@kvack.org
 
-On Mon, Jun 06, 2016 at 01:32:16PM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> KM_MAYFAIL didn't have any suitable GFP_FOO counterpart until recently
-> so it relied on the default page allocator behavior for the given set
-> of flags. This means that small allocations actually never failed.
-> 
-> Now that we have __GFP_RETRY_HARD flags which works independently on the
-> allocation request size we can map KM_MAYFAIL to it. The allocator will
-> try as hard as it can to fulfill the request but fails eventually if
-> the progress cannot be made.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  fs/xfs/kmem.h | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
-> index 689f746224e7..34e6b062ce0e 100644
-> --- a/fs/xfs/kmem.h
-> +++ b/fs/xfs/kmem.h
-> @@ -54,6 +54,9 @@ kmem_flags_convert(xfs_km_flags_t flags)
->  			lflags &= ~__GFP_FS;
->  	}
->  
-> +	if (flags & KM_MAYFAIL)
-> +		lflags |= __GFP_RETRY_HARD;
-> +
+From: Ingo Molnar <mingo@kernel.org>
 
-I don't understand. KM_MAYFAIL means "caller handles
-allocation failure, so retry on failure is not required." To then
-map KM_MAYFAIL to a flag that implies the allocation will internally
-retry to try exceptionally hard to prevent failure seems wrong.
+So when memory hotplug removes a piece of physical memory from pagetable
+mappings, it also frees the underlying PGD entry.
 
-IOWs, KM_MAYFAIL means XFS is just using for normal allocator
-behaviour here, so I'm not sure what problem this change is actually
-solving and it's not clear from the description....
+This complicates PGD management, so don't do this. We can keep the
+PGD mapped and the PUD table all clear - it's only a single 4K page
+per 512 GB of memory hotplugged.
 
-Cheers,
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Waiman Long <Waiman.Long@hp.com>
+Cc: linux-mm@kvack.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Message-Id: <1442903021-3893-4-git-send-email-mingo@kernel.org>
+---
+ arch/x86/mm/init_64.c | 27 ---------------------------
+ 1 file changed, 27 deletions(-)
 
-Dave.
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index bce2e5d9edd4..c7465453d64e 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -702,27 +702,6 @@ static void __meminit free_pmd_table(pmd_t *pmd_start, pud_t *pud)
+ 	spin_unlock(&init_mm.page_table_lock);
+ }
+ 
+-/* Return true if pgd is changed, otherwise return false. */
+-static bool __meminit free_pud_table(pud_t *pud_start, pgd_t *pgd)
+-{
+-	pud_t *pud;
+-	int i;
+-
+-	for (i = 0; i < PTRS_PER_PUD; i++) {
+-		pud = pud_start + i;
+-		if (pud_val(*pud))
+-			return false;
+-	}
+-
+-	/* free a pud table */
+-	free_pagetable(pgd_page(*pgd), 0);
+-	spin_lock(&init_mm.page_table_lock);
+-	pgd_clear(pgd);
+-	spin_unlock(&init_mm.page_table_lock);
+-
+-	return true;
+-}
+-
+ static void __meminit
+ remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
+ 		 bool direct)
+@@ -913,7 +892,6 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
+ 	unsigned long addr;
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+-	bool pgd_changed = false;
+ 
+ 	for (addr = start; addr < end; addr = next) {
+ 		next = pgd_addr_end(addr, end);
+@@ -924,13 +902,8 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
+ 
+ 		pud = (pud_t *)pgd_page_vaddr(*pgd);
+ 		remove_pud_table(pud, addr, next, direct);
+-		if (free_pud_table(pud, pgd))
+-			pgd_changed = true;
+ 	}
+ 
+-	if (pgd_changed)
+-		sync_global_pgds(start, end - 1, 1);
+-
+ 	flush_tlb_all();
+ }
+ 
 -- 
-Dave Chinner
-david@fromorbit.com
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
