@@ -1,121 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CDA586B0005
-	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 20:26:10 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fg1so59625771pad.1
-        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 17:26:10 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id l7si14375717pac.212.2016.06.15.17.26.09
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D96366B0253
+	for <linux-mm@kvack.org>; Wed, 15 Jun 2016 20:27:09 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 143so75707343pfx.0
+        for <linux-mm@kvack.org>; Wed, 15 Jun 2016 17:27:09 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id xr1si10855388pab.95.2016.06.15.17.27.08
         for <linux-mm@kvack.org>;
-        Wed, 15 Jun 2016 17:26:09 -0700 (PDT)
-Date: Thu, 16 Jun 2016 09:26:17 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v6v3 02/12] mm: migrate: support non-lru movable page
- migration
-Message-ID: <20160616002617.GM17127@bbox>
-References: <1463754225-31311-1-git-send-email-minchan@kernel.org>
- <1463754225-31311-3-git-send-email-minchan@kernel.org>
- <20160530013926.GB8683@bbox>
- <20160531000117.GB18314@bbox>
- <575E7F0B.8010201@linux.vnet.ibm.com>
- <20160615023249.GG17127@bbox>
- <5760F970.7060805@linux.vnet.ibm.com>
+        Wed, 15 Jun 2016 17:27:09 -0700 (PDT)
+Date: Thu, 16 Jun 2016 10:23:02 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [RFC PATCH 2/2] xfs: map KM_MAYFAIL to __GFP_RETRY_HARD
+Message-ID: <20160616002302.GK12670@dastard>
+References: <1465212736-14637-1-git-send-email-mhocko@kernel.org>
+ <1465212736-14637-3-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <5760F970.7060805@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1465212736-14637-3-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rafael Aquini <aquini@redhat.com>, virtualization@lists.linux-foundation.org, Jonathan Corbet <corbet@lwn.net>, John Einar Reitan <john.reitan@foss.arm.com>, dri-devel@lists.freedesktop.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Gioh Kim <gi-oh.kim@profitbricks.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed, Jun 15, 2016 at 12:15:04PM +0530, Anshuman Khandual wrote:
-> On 06/15/2016 08:02 AM, Minchan Kim wrote:
-> > Hi,
-> > 
-> > On Mon, Jun 13, 2016 at 03:08:19PM +0530, Anshuman Khandual wrote:
-> >> > On 05/31/2016 05:31 AM, Minchan Kim wrote:
-> >>> > > @@ -791,6 +921,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
-> >>> > >  	int rc = -EAGAIN;
-> >>> > >  	int page_was_mapped = 0;
-> >>> > >  	struct anon_vma *anon_vma = NULL;
-> >>> > > +	bool is_lru = !__PageMovable(page);
-> >>> > >  
-> >>> > >  	if (!trylock_page(page)) {
-> >>> > >  		if (!force || mode == MIGRATE_ASYNC)
-> >>> > > @@ -871,6 +1002,11 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
-> >>> > >  		goto out_unlock_both;
-> >>> > >  	}
-> >>> > >  
-> >>> > > +	if (unlikely(!is_lru)) {
-> >>> > > +		rc = move_to_new_page(newpage, page, mode);
-> >>> > > +		goto out_unlock_both;
-> >>> > > +	}
-> >>> > > +
-> >> > 
-> >> > Hello Minchan,
-> >> > 
-> >> > I might be missing something here but does this implementation support the
-> >> > scenario where these non LRU pages owned by the driver mapped as PTE into
-> >> > process page table ? Because the "goto out_unlock_both" statement above
-> >> > skips all the PTE unmap, putting a migration PTE and removing the migration
-> >> > PTE steps.
-> > You're right. Unfortunately, it doesn't support right now but surely,
-> > it's my TODO after landing this work.
-> > 
-> > Could you share your usecase?
+On Mon, Jun 06, 2016 at 01:32:16PM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Sure.
-
-Thanks a lot!
-
+> KM_MAYFAIL didn't have any suitable GFP_FOO counterpart until recently
+> so it relied on the default page allocator behavior for the given set
+> of flags. This means that small allocations actually never failed.
 > 
-> My driver has privately managed non LRU pages which gets mapped into user space
-> process page table through f_ops->mmap() and vmops->fault() which then updates
-> the file RMAP (page->mapping->i_mmap) through page_add_file_rmap(page). One thing
-
-Hmm, page_add_file_rmap is not exported function. How does your driver can use it?
-Do you use vm_insert_pfn?
-What type your vma is? VM_PFNMMAP or VM_MIXEDMAP?
-
-I want to make dummy driver to simulate your case.
-It would be very helpful to implement/test pte-mapped non-lru page
-migration feature. That's why I ask now.
-
-> to note here is that the page->mapping eventually points to struct address_space
-> (file->f_mapping) which belongs to the character device file (created using mknod)
-> which we are using for establishing the mmap() regions in the user space.
+> Now that we have __GFP_RETRY_HARD flags which works independently on the
+> allocation request size we can map KM_MAYFAIL to it. The allocator will
+> try as hard as it can to fulfill the request but fails eventually if
+> the progress cannot be made.
 > 
-> Now as per this new framework, all the page's are to be made __SetPageMovable before
-> passing the list down to migrate_pages(). Now __SetPageMovable() takes *new* struct
-> address_space as an argument and replaces the existing page->mapping. Now thats the
-> problem, we have lost all our connection to the existing file RMAP information. This
-
-We could change __SetPageMovable doesn't need mapping argument.
-Instead, it just marks PAGE_MAPPING_MOVABLE into page->mapping.
-For that, user should take care of setting page->mapping earlier than
-marking the flag.
-
-> stands as a problem when we try to migrate these non LRU pages which are PTE mapped.
-> The rmap_walk_file() never finds them in the VMA, skips all the migrate PTE steps and
-> then the migration eventually fails.
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  fs/xfs/kmem.h | 3 +++
+>  1 file changed, 3 insertions(+)
 > 
-> Seems like assigning a new struct address_space to the page through __SetPageMovable()
-> is the source of the problem. Can it take the existing (file->f_mapping) as an argument
-We can set existing file->f_mapping under the page_lock.
+> diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
+> index 689f746224e7..34e6b062ce0e 100644
+> --- a/fs/xfs/kmem.h
+> +++ b/fs/xfs/kmem.h
+> @@ -54,6 +54,9 @@ kmem_flags_convert(xfs_km_flags_t flags)
+>  			lflags &= ~__GFP_FS;
+>  	}
+>  
+> +	if (flags & KM_MAYFAIL)
+> +		lflags |= __GFP_RETRY_HARD;
+> +
 
-> in there ? Sure, but then can we override file system generic ->isolate(), ->putback(),
+I don't understand. KM_MAYFAIL means "caller handles
+allocation failure, so retry on failure is not required." To then
+map KM_MAYFAIL to a flag that implies the allocation will internally
+retry to try exceptionally hard to prevent failure seems wrong.
 
-I don't get it. Why does it override file system generic functions?
+IOWs, KM_MAYFAIL means XFS is just using for normal allocator
+behaviour here, so I'm not sure what problem this change is actually
+solving and it's not clear from the description....
 
-> ->migratepages() functions ? I dont think so. I am sure, there must be some work around
-> to fix this problem for the driver. But we need to rethink this framework from supporting
-> these mapped non LRU pages point of view.
-> 
-> I might be missing something here, feel free to point out.
-> 
-> - Anshuman
-> 
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
