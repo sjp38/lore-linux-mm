@@ -1,55 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 90F956B0005
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 11:33:44 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id k189so139754573vkg.3
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 08:33:44 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c2si17952620qtb.120.2016.06.16.08.33.43
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C169D6B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 11:42:18 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id k184so29291214wme.3
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 08:42:18 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id y75si1035289wmc.75.2016.06.16.08.42.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 08:33:43 -0700 (PDT)
-Date: Thu, 16 Jun 2016 10:33:39 -0500
-From: Josh Poimboeuf <jpoimboe@redhat.com>
-Subject: Re: [PATCH 04/13] mm: Track NR_KERNEL_STACK in pages instead of
- number of stacks
-Message-ID: <20160616153339.xvlsnhksqmkeusn4@treble>
-References: <cover.1466036668.git.luto@kernel.org>
- <24279d4009c821de64109055665429fad2a7bff7.1466036668.git.luto@kernel.org>
+        Thu, 16 Jun 2016 08:42:17 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id r5so12450514wmr.0
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 08:42:17 -0700 (PDT)
+Date: Thu, 16 Jun 2016 17:42:15 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: fix account pmd page to the process
+Message-ID: <20160616154214.GA12284@dhcp22.suse.cz>
+References: <1466076971-24609-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <24279d4009c821de64109055665429fad2a7bff7.1466036668.git.luto@kernel.org>
+In-Reply-To: <1466076971-24609-1-git-send-email-zhongjiang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, x86@kernel.org, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Brian Gerst <brgerst@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Linus Torvalds <torvalds@linux-foundation.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+To: zhongjiang <zhongjiang@huawei.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jun 15, 2016 at 05:28:26PM -0700, Andy Lutomirski wrote:
-> Currently, NR_KERNEL_STACK tracks the number of kernel stacks in a
-> zone.  This only makes sense if each kernel stack exists entirely in
-> one zone, and allowing vmapped stacks could break this assumption.
+On Thu 16-06-16 19:36:11, zhongjiang wrote:
+> From: zhong jiang <zhongjiang@huawei.com>
 > 
-> It turns out that the code for tracking kernel stack allocations in
-> units of pages is slightly simpler, so just switch to counting
-> pages.
+> when a process acquire a pmd table shared by other process, we
+> increase the account to current process. otherwise, a race result
+> in other tasks have set the pud entry. so it no need to increase it.
 > 
-> Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
 > ---
->  fs/proc/meminfo.c | 2 +-
->  kernel/fork.c     | 3 ++-
->  mm/page_alloc.c   | 3 +--
->  3 files changed, 4 insertions(+), 4 deletions(-)
+>  mm/hugetlb.c | 5 ++---
+>  1 file changed, 2 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 19d0d08..3b025c5 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -4189,10 +4189,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+>  	if (pud_none(*pud)) {
+>  		pud_populate(mm, pud,
+>  				(pmd_t *)((unsigned long)spte & PAGE_MASK));
+> -	} else {
+> +	} else 
+>  		put_page(virt_to_page(spte));
+> -		mm_inc_nr_pmds(mm);
+> -	}
 
-You missed another usage of NR_KERNEL_STACK in drivers/base/node.c.
+The code is quite puzzling but is this correct? Shouldn't we rather do
+mm_dec_nr_pmds(mm) in that path to undo the previous inc?
 
+> +
+>  	spin_unlock(ptl);
+>  out:
+>  	pte = (pte_t *)pmd_alloc(mm, pud, addr);
+> -- 
+> 1.8.3.1
 
 -- 
-Josh
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
