@@ -1,69 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CA6E26B025E
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 05:23:46 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id g62so93696201pfb.3
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:23:46 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id xs2si8154787pab.43.2016.06.16.02.23.46
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EE9826B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 05:29:03 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id c82so24030016wme.2
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:29:03 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id za4si4294873wjb.174.2016.06.16.02.29.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 02:23:46 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id i123so696753pfg.3
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 02:23:46 -0700 (PDT)
-Date: Thu, 16 Jun 2016 18:23:45 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [next-20160615] kernel BUG at mm/rmap.c:1251!
-Message-ID: <20160616092345.GC432@swordfish>
-References: <20160616084656.GB432@swordfish>
- <20160616085836.GC6836@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Jun 2016 02:29:02 -0700 (PDT)
+Subject: Re: [PATCH 10/27] mm, vmscan: Clear congestion, dirty and need for
+ compaction on a per-node basis
+References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
+ <1465495483-11855-11-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <510d374a-074e-cd32-bdbe-61754052b21b@suse.cz>
+Date: Thu, 16 Jun 2016 11:29:00 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160616085836.GC6836@dhcp22.suse.cz>
+In-Reply-To: <1465495483-11855-11-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On (06/16/16 10:58), Michal Hocko wrote:
-> > [..]
-> > [  272.687656] vma ffff8800b855a5a0 start 00007f3576d58000 end 00007f3576f66000
-> >                next ffff8800b977d2c0 prev ffff8800bdfb1860 mm ffff8801315ff200
-> >                prot 8000000000000025 anon_vma ffff8800b7e583b0 vm_ops           (null)
-> >                pgoff 7f3576d58 file           (null) private_data           (null)
-> >                flags: 0x100073(read|write|mayread|maywrite|mayexec|account)
-> > [  272.691793] ------------[ cut here ]------------
-> > [  272.692820] kernel BUG at mm/rmap.c:1251!
-> 
-> Is this?
-> page_add_new_anon_rmap:
-> 	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma)
-> [...]
+On 06/09/2016 08:04 PM, Mel Gorman wrote:
+> Congested and dirty tracking of a node and whether reclaim should stall
+> is still based on zone activity. This patch considers whether the kernel
+> should stall based on node-based reclaim activity.
 
-I think it is
+I'm a bit confused about the description vs actual code.
+It appears to move some duplicated code to a related function, which is 
+fine. The rest of callsites that didn't perform the clearing before 
+(prepare_kswapd_sleep() and wakeup_kswapd()) might be a bit overkill, 
+but won't hurt. But I don't see the part "considers whether the kernel
+should stall based on node-based reclaim activity". Is something missing?
 
-1248 void page_add_new_anon_rmap(struct page *page,
-1249         struct vm_area_struct *vma, unsigned long address, bool compound)
-1250 {
-1251         int nr = compound ? hpage_nr_pages(page) : 1;
-1252
-1253         VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
-1254         __SetPageSwapBacked(page);
-
-> > [  272.727842] BUG: sleeping function called from invalid context at include/linux/sched.h:2960
-> 
-> If yes then I am not sure we can do much about the this part. BUG_ON in
-> an atomic context is unfortunate but the BUG_ON points out a real bug so
-> we shouldn't drop it because of the potential atomic context. The above
-> VM_BUG_ON should definitely be addressed. I thought that Vlastimil has
-> pointed out some issues with the khugepaged lock inconsistencies which
-> might lead to issues like this.
-
-collapse_huge_page() ->mmap_sem fixup patch (http://marc.info/?l=linux-mm&m=146495692807404&w=2)
-is in next-20160615. or do you mean some other patch?
-
-	-ss
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> ---
+>  mm/vmscan.c | 24 ++++++++++++------------
+>  1 file changed, 12 insertions(+), 12 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index dd68e3154732..e4f3e068b7a0 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2966,7 +2966,17 @@ static bool zone_balanced(struct zone *zone, int order, int classzone_idx)
+>  {
+>  	unsigned long mark = high_wmark_pages(zone);
+>
+> -	return zone_watermark_ok_safe(zone, order, mark, classzone_idx);
+> +	if (!zone_watermark_ok_safe(zone, order, mark, classzone_idx))
+> +		return false;
+> +
+> +	/*
+> +	 * If any eligible zone is balanced then the node is not considered
+> +	 * to be congested or dirty
+> +	 */
+> +	clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
+> +	clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
+> +
+> +	return true;
+>  }
+>
+>  /*
+> @@ -3112,13 +3122,6 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+>  			if (!zone_balanced(zone, order, 0)) {
+>  				classzone_idx = i;
+>  				break;
+> -			} else {
+> -				/*
+> -				 * If any eligible zone is balanced then the
+> -				 * node is not considered congested or dirty.
+> -				 */
+> -				clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
+> -				clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
+>  			}
+>  		}
+>
+> @@ -3177,11 +3180,8 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+>  			if (!populated_zone(zone))
+>  				continue;
+>
+> -			if (zone_balanced(zone, sc.order, classzone_idx)) {
+> -				clear_bit(PGDAT_CONGESTED, &pgdat->flags);
+> -				clear_bit(PGDAT_DIRTY, &pgdat->flags);
+> +			if (zone_balanced(zone, sc.order, classzone_idx))
+>  				goto out;
+> -			}
+>  		}
+>
+>  		/*
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
