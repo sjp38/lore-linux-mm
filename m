@@ -1,78 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B91F66B0005
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:20:13 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id b126so108456985ite.3
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:20:13 -0700 (PDT)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id n5si14279540pab.14.2016.06.16.03.20.13
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 33FDB6B025E
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:25:52 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id k184so24730727wme.3
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:25:52 -0700 (PDT)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
+        by mx.google.com with ESMTPS id b68si3495521wmi.95.2016.06.16.03.17.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 03:20:13 -0700 (PDT)
-Received: by mail-pa0-x244.google.com with SMTP id hf6so3468479pac.2
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:20:13 -0700 (PDT)
-Date: Thu, 16 Jun 2016 19:18:05 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [next-20160615] kernel BUG at mm/rmap.c:1251!
-Message-ID: <20160616101805.GE432@swordfish>
-References: <20160616084656.GB432@swordfish>
- <20160616085836.GC6836@dhcp22.suse.cz>
- <20160616092345.GC432@swordfish>
- <20160616094139.GE6836@dhcp22.suse.cz>
- <20160616095457.GD432@swordfish>
- <20160616101216.GT17127@bbox>
+        Thu, 16 Jun 2016 03:17:50 -0700 (PDT)
+Received: by mail-wm0-f52.google.com with SMTP id m124so62216915wme.1
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:17:50 -0700 (PDT)
+Date: Thu, 16 Jun 2016 12:17:48 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] mm/compaction: remove unnecessary order check in
+ direct compact path
+Message-ID: <20160616101748.GF6836@dhcp22.suse.cz>
+References: <1466044956-3690-1-git-send-email-opensource.ganesh@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160616101216.GT17127@bbox>
+In-Reply-To: <1466044956-3690-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, mina86@mina86.com, minchan@kernel.org, mgorman@techsingularity.net, rientjes@google.com, kirill.shutemov@linux.intel.com, izumi.taku@jp.fujitsu.com, hannes@cmpxchg.org, khandual@linux.vnet.ibm.com, bsingharora@gmail.com
 
-On (06/16/16 19:12), Minchan Kim wrote:
-[..]
-> > > > > Is this?
-> > > > > page_add_new_anon_rmap:
-> > > > > 	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma)
-> > > > > [...]
-> > > > 
-> > > > I think it is
-> > > > 
-> > > > 1248 void page_add_new_anon_rmap(struct page *page,
-> > > > 1249         struct vm_area_struct *vma, unsigned long address, bool compound)
-> > > > 1250 {
-> > > > 1251         int nr = compound ? hpage_nr_pages(page) : 1;
-> > > > 1252
-> > > > 1253         VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
-> > > > 1254         __SetPageSwapBacked(page);
-> > > > 
-> > > > > > [  272.727842] BUG: sleeping function called from invalid context at include/linux/sched.h:2960
-> > > > > 
-> > > > > If yes then I am not sure we can do much about the this part. BUG_ON in
-> > > > > an atomic context is unfortunate but the BUG_ON points out a real bug so
-> > > > > we shouldn't drop it because of the potential atomic context. The above
-> > > > > VM_BUG_ON should definitely be addressed. I thought that Vlastimil has
-> > > > > pointed out some issues with the khugepaged lock inconsistencies which
-> > > > > might lead to issues like this.
-> > > > 
-> > > > collapse_huge_page() ->mmap_sem fixup patch (http://marc.info/?l=linux-mm&m=146495692807404&w=2)
-> > > > is in next-20160615. or do you mean some other patch?
-> > > 
-> > > Yes that's what I meant, but I haven't reviewed the patch to see whether
-> > > it is correct/complete. It would be good to see whether the issue is
-> > > related to those changes.
-> > 
-> > I'll copy-paste one more backtrace I swa today [originally was posted to another
-> > mail thread].
+On Thu 16-06-16 10:42:36, Ganesh Mahendran wrote:
+> In direct compact path, both __alloc_pages_direct_compact and
+> try_to_compact_pages check (order == 0).
 > 
-> Please, look at http://lkml.kernel.org/r/20160616100932.GS17127@bbox
+> This patch removes the check in __alloc_pages_direct_compact() and
+> move the modifying of current->flags to the entry point of direct
+> page compaction where we really do the compaction.
 
-oh, yes, sorry. sure, scheduled for testing a bit later today.
+I do not have strong opinion on whether the order should be checked at
+try_to_compact_pages or __alloc_pages_direct_compact. The later one
+sounds more suitable because no further steps are really appropriate for
+order == 0. try_to_compact_pages is not used anywhere else to be order
+aware (maybe it will in future, who knows). But this all is a matter of
+taste.
 
-Cc Joonsoo, so we can keep the discussion in one place.
+[...]
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index fbb7b38..dcfaf57 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1686,12 +1686,16 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+>  
+>  	*contended = COMPACT_CONTENDED_NONE;
+>  
+> -	/* Check if the GFP flags allow compaction */
+> +	/*
+> +	 * Check if this is an order-0 request and
+> +	 * if the GFP flags allow compaction.
+> +	 */
 
-	-ss
+If you are touching this comment then it would be appropriate to change
+it from "what is checked" into "why it is checked" because that is far
+from obvious from this context. Especially !fs/io part.
+
+>  	if (!order || !may_enter_fs || !may_perform_io)
+>  		return COMPACT_SKIPPED;
+>  
+
+That being said, I am not really sure the patch is an improvement. If
+anything I would much rather see the above comment updated.
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
