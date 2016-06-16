@@ -1,100 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 137826B0005
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:15:46 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id k184so22036046wme.3
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 00:15:46 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o62si2801419wme.27.2016.06.16.00.15.44
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 115096B025E
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:44:17 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id na2so23488428lbb.1
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 00:44:17 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id e13si15369191wme.10.2016.06.16.00.44.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Jun 2016 00:15:44 -0700 (PDT)
-Subject: Re: [patch] mm, compaction: ignore watermarks when isolating free
- pages
-References: <alpine.DEB.2.10.1606151530590.37360@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <4f5ba93e-8bf0-151e-57eb-cad1a4823b9e@suse.cz>
-Date: Thu, 16 Jun 2016 09:15:42 +0200
+        Thu, 16 Jun 2016 00:44:15 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 1CB3398668
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 07:44:15 +0000 (UTC)
+Date: Thu, 16 Jun 2016 08:44:13 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 05/27] mm, vmscan: Have kswapd only scan based on the
+ highest requested zone
+Message-ID: <20160616074413.GE1868@techsingularity.net>
+References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
+ <1465495483-11855-6-git-send-email-mgorman@techsingularity.net>
+ <dea59a5e-eaf4-58d7-412b-b543ceb8709a@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1606151530590.37360@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <dea59a5e-eaf4-58d7-412b-b543ceb8709a@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
-Cc: Hugh Dickins <hughd@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 06/16/2016 12:34 AM, David Rientjes wrote:
-> The goal of memory compaction is to defragment memory by moving migratable
-> pages to free pages at the end of the zone.  No additional memory is being
-> allocated.
->
-> Ignore per-zone low watermarks in __isolate_free_page() because memory is
-> either fully migrated or isolated free pages are returned when migration
-> fails.
+On Wed, Jun 15, 2016 at 03:13:13PM +0200, Vlastimil Babka wrote:
+> On 06/09/2016 08:04 PM, Mel Gorman wrote:
+> >kswapd checks all eligible zones to see if they need balancing even if it was
+> >woken for a lower zone. This made sense when we reclaimed on a per-zone basis
+> >because we wanted to shrink zones fairly so avoid age-inversion problems.
+> 
+> Now we reclaim a single lru, but still will skip over pages from the higher
+> zones than reclaim_idx, so this is not much different from per-zone basis
+> wrt age-inversion?
+> 
 
-Michal Hocko suggested that too, but I didn't think it safe that 
-compaction should go below the min watermark, even temporarily. It means 
-the system is struggling with order-0 allocations, so making it worse 
-for the benefit of high-order allocations doesn't make sense. The 
-high-order allocation would likely fail anyway due to watermark checks, 
-even if the page of sufficient order was formed by compaction. So in my 
-series, I just changed the low watermark check to min [1].
+Yes, but it only applies in the case where the allocation request is zone
+restricted. Previously, even with fair zone allocation policy, we had
+problems with a high zone with recently allocated pages being reclaimed
+simply because the low watermark was reached. Think of bugs in the past
+where the normal zone was a small percentage of memory.
 
-> This fixes an issue where the compaction freeing scanner can isolate
-> memory but the zone drops below its low watermark for that page order, so
-> the scanner must continue to scan all memory pointlessly.
-
-Good point, looks like failing the watermark is the only reason when 
-__isolate_free_page() can fail. isolate_freepages_block() and its 
-callers should take this as an indication that compaction should return 
-with failure immediately.
-
-[1] http://article.gmane.org/gmane.linux.kernel/2231369
-
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/page_alloc.c | 14 ++------------
->  1 file changed, 2 insertions(+), 12 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2484,23 +2484,14 @@ EXPORT_SYMBOL_GPL(split_page);
->
->  int __isolate_free_page(struct page *page, unsigned int order)
->  {
-> -	unsigned long watermark;
->  	struct zone *zone;
-> -	int mt;
-> +	const int mt = get_pageblock_migratetype(page);
->
->  	BUG_ON(!PageBuddy(page));
-> -
->  	zone = page_zone(page);
-> -	mt = get_pageblock_migratetype(page);
-> -
-> -	if (!is_migrate_isolate(mt)) {
-> -		/* Obey watermarks as if the page was being allocated */
-> -		watermark = low_wmark_pages(zone) + (1 << order);
-> -		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
-> -			return 0;
->
-> +	if (!is_migrate_isolate(mt))
->  		__mod_zone_freepage_state(zone, -(1UL << order), mt);
-> -	}
->
->  	/* Remove page from free list */
->  	list_del(&page->lru);
-> @@ -2520,7 +2511,6 @@ int __isolate_free_page(struct page *page, unsigned int order)
->  		}
->  	}
->
-> -
->  	return 1UL << order;
->  }
->
->
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
