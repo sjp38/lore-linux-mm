@@ -1,63 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BF2EF6B0005
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 09:15:09 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 143so103185852pfx.0
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:15:09 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id hq10si17002902pac.3.2016.06.16.06.15.08
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 415676B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 09:35:22 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id a4so22982882lfa.1
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:35:22 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w137si4519637wme.18.2016.06.16.06.35.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Jun 2016 06:15:08 -0700 (PDT)
-Subject: Re: [PATCH 10/10] mm, oom: hide mm which is shared with kthread or global init
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1465473137-22531-1-git-send-email-mhocko@kernel.org>
-	<1465473137-22531-11-git-send-email-mhocko@kernel.org>
-	<201606100015.HBB65678.LSOFFJOFMQHOVt@I-love.SAKURA.ne.jp>
-	<20160609154156.GG24777@dhcp22.suse.cz>
-In-Reply-To: <20160609154156.GG24777@dhcp22.suse.cz>
-Message-Id: <201606162215.IIE64528.FFFLHOJQtSOOVM@I-love.SAKURA.ne.jp>
-Date: Thu, 16 Jun 2016 22:15:00 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Thu, 16 Jun 2016 06:35:20 -0700 (PDT)
+Subject: Re: [PATCH 12/27] mm, vmscan: Make shrink_node decisions more
+ node-centric
+References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
+ <1465495483-11855-13-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a411d98e-acfb-9658-22b1-4bbefb1e00d7@suse.cz>
+Date: Thu, 16 Jun 2016 15:35:15 +0200
+MIME-Version: 1.0
+In-Reply-To: <1465495483-11855-13-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-Michal Hocko wrote:
-> On Fri 10-06-16 00:15:18, Tetsuo Handa wrote:
-> [...]
-> > Nobody will set MMF_OOM_REAPED flag if can_oom_reap == true on
-> > CONFIG_MMU=n kernel. If a TIF_MEMDIE thread in CONFIG_MMU=n kernel
-> > is blocked before exit_oom_victim() in exit_mm() from do_exit() is
-> > called, the system will lock up. This is not handled in the patch
-> > nor explained in the changelog.
-> 
-> I have made it clear several times that !CONFIG_MMU is not a target
-> of this patch series nor other OOM changes because I am not convinced
-> issues which we are trying to solve are real on those platforms. I
-> am not really sure what you are trying to achieve now with these
-> !CONFIG_MMU remarks but if you see _real_ regressions for those
-> configurations please describe them. This generic statements when
-> CONFIG_MMU implications are put into !CONFIG_MMU context are not really
-> useful. If there are possible OOM killer deadlocks without this series
-> then adding these patches shouldn't make them worse.
-> 
-> E.g. this particular patch is basically a noop for !CONFIG_MMU because
-> use_mm() is MMU specific. It is also highly improbable that a task would
-> share mm with init...
+On 06/09/2016 08:04 PM, Mel Gorman wrote:
+> Earlier patches focused on having direct reclaim and kswapd use data that
+> is node-centric for reclaiming but shrink_node() itself still uses too much
+> zone information. This patch removes unnecessary zone-based information
+> with the most important decision being whether to continue reclaim or
+> not. Some memcg APIs are adjusted as a result even though memcg itself
+> still uses some zone information.
+>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-But this is not safe for CONFIG_MMU=y kernels as well.
-can_oom_reap == false means that oom_reap_task() will not be called.
-It is possible that the TIF_MEMDIE thread falls into
+[...]
 
-   atomic_read(&task->signal->oom_victims) > 0 && find_lock_task_mm(task) == NULL
+> @@ -2372,21 +2374,27 @@ static inline bool should_continue_reclaim(struct zone *zone,
+>  	 * inactive lists are large enough, continue reclaiming
+>  	 */
+>  	pages_for_compaction = (2UL << sc->order);
+> -	inactive_lru_pages = node_page_state(zone->zone_pgdat, NR_INACTIVE_FILE);
+> +	inactive_lru_pages = node_page_state(pgdat, NR_INACTIVE_FILE);
+>  	if (get_nr_swap_pages() > 0)
+> -		inactive_lru_pages += node_page_state(zone->zone_pgdat, NR_INACTIVE_ANON);
+> +		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);
+>  	if (sc->nr_reclaimed < pages_for_compaction &&
+>  			inactive_lru_pages > pages_for_compaction)
+>  		return true;
+>
+>  	/* If compaction would go ahead or the allocation would succeed, stop */
+> -	switch (compaction_suitable(zone, sc->order, 0, 0)) {
+> -	case COMPACT_PARTIAL:
+> -	case COMPACT_CONTINUE:
+> -		return false;
+> -	default:
+> -		return true;
+> +	for (z = 0; z <= sc->reclaim_idx; z++) {
+> +		struct zone *zone = &pgdat->node_zones[z];
+> +
+> +		switch (compaction_suitable(zone, sc->order, 0, 0)) {
 
-situation. We are still risking OOM livelock. We must somehow clear (or ignore)
-TIF_MEMDIE even if oom_reap_task() is not called.
+Using 0 for classzone_idx here was sort of OK when each zone was 
+reclaimed separately, as a Normal allocation not passing appropriate 
+classzone_idx (and thus subtracting lowmem reserve from free pages) 
+means that a false COMPACT_PARTIAL (or COMPACT_CONTINUE) could be 
+returned for e.g. DMA zone. It means a premature end of reclaim for this 
+single zone, which is relatively small anyway, so no big deal (and we 
+might avoid useless over-reclaim, when even reclaiming everything 
+wouldn't get us above the lowmem_reserve).
 
-Can't we apply http://lkml.kernel.org/r/201606102323.BCC73478.FtOJHFQMSVFLOO@I-love.SAKURA.ne.jp now?
+But in node-centric reclaim, such premature "return false" from a DMA 
+zone stops reclaiming the whole node. So I think we should involve the 
+real classzone_idx here.
+
+> +		case COMPACT_PARTIAL:
+> +		case COMPACT_CONTINUE:
+> +			return false;
+> +		default:
+> +			/* check next zone */
+> +			;
+> +		}
+>  	}
+> +	return true;
+>  }
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
