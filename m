@@ -1,61 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FD326B025E
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:17:48 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id js8so25321816lbc.2
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:17:48 -0700 (PDT)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id u73si9020840lfd.133.2016.06.16.03.17.47
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B91F66B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:20:13 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id b126so108456985ite.3
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:20:13 -0700 (PDT)
+Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
+        by mx.google.com with ESMTPS id n5si14279540pab.14.2016.06.16.03.20.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 03:17:47 -0700 (PDT)
-Received: by mail-lf0-x241.google.com with SMTP id w130so5171909lfd.2
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:17:47 -0700 (PDT)
-Date: Thu, 16 Jun 2016 13:17:44 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv9-rebased2 11/37] mm: introduce do_set_pmd()
-Message-ID: <20160616101744.GC18137@node.shutemov.name>
-References: <050201d1c7ae$9dbf9370$d93eba50$@alibaba-inc.com>
- <050301d1c7af$9cbe81b0$d63b8510$@alibaba-inc.com>
+        Thu, 16 Jun 2016 03:20:13 -0700 (PDT)
+Received: by mail-pa0-x244.google.com with SMTP id hf6so3468479pac.2
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:20:13 -0700 (PDT)
+Date: Thu, 16 Jun 2016 19:18:05 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [next-20160615] kernel BUG at mm/rmap.c:1251!
+Message-ID: <20160616101805.GE432@swordfish>
+References: <20160616084656.GB432@swordfish>
+ <20160616085836.GC6836@dhcp22.suse.cz>
+ <20160616092345.GC432@swordfish>
+ <20160616094139.GE6836@dhcp22.suse.cz>
+ <20160616095457.GD432@swordfish>
+ <20160616101216.GT17127@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <050301d1c7af$9cbe81b0$d63b8510$@alibaba-inc.com>
+In-Reply-To: <20160616101216.GT17127@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Thu, Jun 16, 2016 at 05:15:22PM +0800, Hillf Danton wrote:
-> > +
-> > +static int do_set_pmd(struct fault_env *fe, struct page *page)
-> > +{
-> > +	struct vm_area_struct *vma = fe->vma;
-> > +	bool write = fe->flags & FAULT_FLAG_WRITE;
-> > +	unsigned long haddr = fe->address & HPAGE_PMD_MASK;
-> > +	pmd_t entry;
-> > +	int i, ret;
-> > +
-> > +	if (!transhuge_vma_suitable(vma, haddr))
-> > +		return VM_FAULT_FALLBACK;
-> > +
-> > +	ret = VM_FAULT_FALLBACK;
-> > +	page = compound_head(page);
-> > +
-> > +	fe->ptl = pmd_lock(vma->vm_mm, fe->pmd);
-> > +	if (unlikely(!pmd_none(*fe->pmd)))
-> > +		goto out;
+On (06/16/16 19:12), Minchan Kim wrote:
+[..]
+> > > > > Is this?
+> > > > > page_add_new_anon_rmap:
+> > > > > 	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma)
+> > > > > [...]
+> > > > 
+> > > > I think it is
+> > > > 
+> > > > 1248 void page_add_new_anon_rmap(struct page *page,
+> > > > 1249         struct vm_area_struct *vma, unsigned long address, bool compound)
+> > > > 1250 {
+> > > > 1251         int nr = compound ? hpage_nr_pages(page) : 1;
+> > > > 1252
+> > > > 1253         VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+> > > > 1254         __SetPageSwapBacked(page);
+> > > > 
+> > > > > > [  272.727842] BUG: sleeping function called from invalid context at include/linux/sched.h:2960
+> > > > > 
+> > > > > If yes then I am not sure we can do much about the this part. BUG_ON in
+> > > > > an atomic context is unfortunate but the BUG_ON points out a real bug so
+> > > > > we shouldn't drop it because of the potential atomic context. The above
+> > > > > VM_BUG_ON should definitely be addressed. I thought that Vlastimil has
+> > > > > pointed out some issues with the khugepaged lock inconsistencies which
+> > > > > might lead to issues like this.
+> > > > 
+> > > > collapse_huge_page() ->mmap_sem fixup patch (http://marc.info/?l=linux-mm&m=146495692807404&w=2)
+> > > > is in next-20160615. or do you mean some other patch?
+> > > 
+> > > Yes that's what I meant, but I haven't reviewed the patch to see whether
+> > > it is correct/complete. It would be good to see whether the issue is
+> > > related to those changes.
+> > 
+> > I'll copy-paste one more backtrace I swa today [originally was posted to another
+> > mail thread].
 > 
-> Can we reply to the caller that fault is handled correctly(by
-> resetting ret to zero before jump)?
+> Please, look at http://lkml.kernel.org/r/20160616100932.GS17127@bbox
 
-It's non necessary handled. It's handled only if the pmd if huge. If it
-points to pte table, we need to check relevant pte entry.
+oh, yes, sorry. sure, scheduled for testing a bit later today.
 
-If pmd is huge it will caught by pte_alloc_one_map() later.
+Cc Joonsoo, so we can keep the discussion in one place.
 
--- 
- Kirill A. Shutemov
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
