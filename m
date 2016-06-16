@@ -1,60 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 999F06B025F
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:29:07 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r5so24921326wmr.0
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:29:07 -0700 (PDT)
-Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
-        by mx.google.com with ESMTPS id s70si483042wme.28.2016.06.16.03.29.06
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F351C6B025E
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 06:30:21 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id z142so127186137qkb.0
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 03:30:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 12si25858652qtw.33.2016.06.16.03.30.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Jun 2016 03:29:06 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 22125991FA
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 10:29:06 +0000 (UTC)
-Date: Thu, 16 Jun 2016 11:29:04 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 10/27] mm, vmscan: Clear congestion, dirty and need for
- compaction on a per-node basis
-Message-ID: <20160616102904.GH1868@techsingularity.net>
-References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
- <1465495483-11855-11-git-send-email-mgorman@techsingularity.net>
- <510d374a-074e-cd32-bdbe-61754052b21b@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Jun 2016 03:30:21 -0700 (PDT)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: Re: [PATCH] Revert "mm: rename _count, field of the struct page, to _refcount"
+References: <1466068966-24620-1-git-send-email-vkuznets@redhat.com>
+	<20160616093235.GA14640@infradead.org>
+Date: Thu, 16 Jun 2016 12:30:16 +0200
+In-Reply-To: <20160616093235.GA14640@infradead.org> (Christoph Hellwig's
+	message of "Thu, 16 Jun 2016 02:32:35 -0700")
+Message-ID: <87eg7xfmtj.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <510d374a-074e-cd32-bdbe-61754052b21b@suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-mm@kvack.org, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>
 
-On Thu, Jun 16, 2016 at 11:29:00AM +0200, Vlastimil Babka wrote:
-> On 06/09/2016 08:04 PM, Mel Gorman wrote:
-> >Congested and dirty tracking of a node and whether reclaim should stall
-> >is still based on zone activity. This patch considers whether the kernel
-> >should stall based on node-based reclaim activity.
-> 
-> I'm a bit confused about the description vs actual code.
-> It appears to move some duplicated code to a related function, which is
-> fine. The rest of callsites that didn't perform the clearing before
-> (prepare_kswapd_sleep() and wakeup_kswapd()) might be a bit overkill, but
-> won't hurt. But I don't see the part "considers whether the kernel
-> should stall based on node-based reclaim activity". Is something missing?
-> 
+Christoph Hellwig <hch@infradead.org> writes:
 
-Tired when writing the changelog. Does this make more sense?
+> On Thu, Jun 16, 2016 at 11:22:46AM +0200, Vitaly Kuznetsov wrote:
+>> _count -> _refcount rename in commit 0139aa7b7fa12 ("mm: rename _count,
+>> field of the struct page, to _refcount") broke kdump. makedumpfile(8) does
+>> stuff like READ_MEMBER_OFFSET("page._count", page._count) and fails. While
+>> it is definitely possible to fix this particular tool I'm not sure about
+>> other tools which might be doing the same.
+>> 
+>> I suggest we remember the "we don't break userspace" rule and revert for
+>> 4.7 while it's not too late.
+>
+> Err, sorry - this is not "userspace".  It's crazy crap digging into
+> kernel internal structure.
+>
+> The rename was absolutely useful, so fix up your stinking pike in kdump.
 
-    mm, vmscan: Remove duplicate logic clearing node congestion and dirty state
-
-    Reclaim may stall if there is too much dirty or congested data on a node.
-    This was previously based on zone flags and the logic for clearing the
-    flags is in two places. As congestion/dirty tracking is now tracked on
-    a per-node basis, we can remove some duplicate logic.
+Ok, sure, I'll send a patch to it. I was worried about other tools out
+there which e.g. inspect /proc/vmcore. As it is something we support
+some conservatism around it is justified.
 
 -- 
-Mel Gorman
-SUSE Labs
+  Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
