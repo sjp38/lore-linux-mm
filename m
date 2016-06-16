@@ -1,86 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A01C16B025E
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 11:53:52 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id a4so24535547lfa.1
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 08:53:52 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id jf6si6147121wjb.6.2016.06.16.08.53.49
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 491986B007E
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 11:56:34 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r5so29632974wmr.0
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 08:56:34 -0700 (PDT)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id d67si17614994wma.100.2016.06.16.08.56.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 08:53:50 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id k184so12472438wme.2
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 08:53:49 -0700 (PDT)
-Date: Thu, 16 Jun 2016 17:53:48 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 07/10] mm, oom: fortify task_will_free_mem
-Message-ID: <20160616155347.GO6836@dhcp22.suse.cz>
-References: <20160609142026.GF24777@dhcp22.suse.cz>
- <201606111710.IGF51027.OJLSOQtHVOFFFM@I-love.SAKURA.ne.jp>
- <20160613112746.GD6518@dhcp22.suse.cz>
- <201606162154.CGE05294.HJQOSMFFVFtOOL@I-love.SAKURA.ne.jp>
- <20160616142940.GK6836@dhcp22.suse.cz>
- <201606170040.FGC21882.FMLHOtVSFFJOQO@I-love.SAKURA.ne.jp>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Jun 2016 08:56:33 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id E69BC992BB
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 15:56:32 +0000 (UTC)
+Date: Thu, 16 Jun 2016 16:56:31 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 14/27] mm, workingset: Make working set detection
+ node-aware
+Message-ID: <20160616155631.GK1868@techsingularity.net>
+References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
+ <1465495483-11855-15-git-send-email-mgorman@techsingularity.net>
+ <71c0c1c1-0a5c-2d76-d16b-e4d29a18a6b8@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <201606170040.FGC21882.FMLHOtVSFFJOQO@I-love.SAKURA.ne.jp>
+In-Reply-To: <71c0c1c1-0a5c-2d76-d16b-e4d29a18a6b8@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 17-06-16 00:40:41, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Thu 16-06-16 21:54:27, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > On Sat 11-06-16 17:10:03, Tetsuo Handa wrote:
-> > [...]
-> > > I still don't like it. current->mm == NULL in
-> > > 
-> > > -	if (current->mm &&
-> > > -	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
-> > > +	if (task_will_free_mem(current)) {
-> > > 
-> > > is not highly unlikely. You obviously break commit d7a94e7e11badf84
-> > > ("oom: don't count on mm-less current process") on CONFIG_MMU=n kernels.
-> > 
-> > I still fail to see why you care about that case so much. The heuristic
-> > was broken for other reasons before this patch. The patch fixes a class
-> > of issues for both mmu and nommu. I can restore the current->mm check
-> > for now but the more I am thinking about it the less I am sure the
-> > commit you are referring to is evem correct/necessary.
-> > 
-> > It claims that the OOM killer would be stuck because the child would be
-> > sitting in the final schedule() until the parent reaps it. That is not
-> > true, though, because victim would be unhashed down in release_task()
-> > path so it is not visible by the oom killer when it is waiting for the
-> > parent.  I have completely missed that part when reviewing the patch. Or
-> > am I missing something...
+On Thu, Jun 16, 2016 at 05:13:51PM +0200, Vlastimil Babka wrote:
+> On 06/09/2016 08:04 PM, Mel Gorman wrote:
+> >Working set and refault detection is still zone-based, fix it.
+> >
+> >Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> >Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 > 
-> That explanation started from 201411292304.CGF68419.MOLHVQtSFFOOJF@I-love.SAKURA.ne.jp
-> (Sat, 29 Nov 2014 23:04:33 +0900) in your mailbox. I confirmed that a TIF_MEMDIE
-> zombie inside the final schedule() in do_exit() is waiting for parent to reap.
-> release_task() will be called when parent noticed that there is a zombie, but
-> this OOM livelock situation prevented parent looping inside page allocator waiting
-> for that TIF_MEMDIE zombie from noticing that there is a zombie.
-
-I cannot seem to find this msg-id. Anyway, let's forget it for now
-to not get side tracked. I have to study that code more deeply to better
-understand it.
-
-> > Anyway, would you be OK with the patch if I added the current->mm check
-> > and resolve its necessity in a separate patch?
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 > 
-> Please correct task_will_free_mem() in oom_kill_process() as well.
+> If you wanted, workingset_eviction() could obtain pgdat without going
+> through zone.
 
-We cannot hold task_lock over all task_will_free_mem I am even not sure
-we have to develop an elaborate way to make it raceless just for the nommu
-case. The current case is simple as we cannot race here. Is that
-sufficient for you?
+Yeah, saves a few lookups. Thanks.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
