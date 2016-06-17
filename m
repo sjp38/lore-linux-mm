@@ -1,49 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ABD0C6B0005
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 19:11:23 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id s63so120572352ioi.1
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 16:11:23 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 69si8437379pfr.155.2016.06.16.16.11.22
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CEDDC6B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 22:30:09 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 143so137471985pfx.0
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 19:30:09 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id s78si9431491pfd.23.2016.06.16.19.30.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 16:11:23 -0700 (PDT)
-Date: Thu, 16 Jun 2016 16:11:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/3] mm: Don't blindly assign fallback_migrate_page()
-Message-Id: <20160616161121.35ee5183b9ef9f7b7dcbc815@linux-foundation.org>
-In-Reply-To: <1466112375-1717-2-git-send-email-richard@nod.at>
-References: <1466112375-1717-1-git-send-email-richard@nod.at>
-	<1466112375-1717-2-git-send-email-richard@nod.at>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 16 Jun 2016 19:30:08 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id c74so5139440pfb.0
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 19:30:08 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v1 1/2] mm: thp: move pmd check inside ptl for freeze_page()
+Date: Fri, 17 Jun 2016 11:30:03 +0900
+Message-Id: <1466130604-20484-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Weinberger <richard@nod.at>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-mtd@lists.infradead.org, hannes@cmpxchg.org, mgorman@techsingularity.net, n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, hughd@google.com, vbabka@suse.cz, adrian.hunter@intel.com, dedekind1@gmail.com, hch@infradead.org, linux-fsdevel@vger.kernel.org, boris.brezillon@free-electrons.com, maxime.ripard@free-electrons.com, david@sigma-star.at, david@fromorbit.com, alex@nextthing.co, sasha.levin@oracle.com, iamjoonsoo.kim@lge.com, rvaswani@codeaurora.org, tony.luck@intel.com, shailendra.capricorn@gmail.com
+To: linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thu, 16 Jun 2016 23:26:13 +0200 Richard Weinberger <richard@nod.at> wrote:
+I found a race condition triggering VM_BUG_ON() in freeze_page(), when running
+a testcase with 3 processes:
+  - process 1: keep writing thp,
+  - process 2: keep clearing soft-dirty bits from virtual address of process 1
+  - process 3: call migratepages for process 1,
 
-> While block oriented filesystems use buffer_migrate_page()
-> as page migration function other filesystems which don't
-> implement ->migratepage() will automatically get fallback_migrate_page()
-> assigned. fallback_migrate_page() is not as generic as is should
-> be. Page migration is filesystem specific and a one-fits-all function
-> is hard to achieve. UBIFS leaned this lection the hard way.
-> It uses various page flags and fallback_migrate_page() does not
-> handle these flags as UBIFS expected.
-> 
-> To make sure that no further filesystem will get confused by
-> fallback_migrate_page() disable the automatic assignment and
-> allow filesystems to use this function explicitly if it is
-> really suitable.
+The kernel message is like this:
 
-hm, is there really much point in doing this?  I assume it doesn't
-actually affect any current filesystems?
+  kernel BUG at /src/linux-dev/mm/huge_memory.c:3096!
+  invalid opcode: 0000 [#1] SMP
+  Modules linked in: cfg80211 rfkill crc32c_intel ppdev serio_raw pcspkr virtio_balloon virtio_console parport_pc parport pvpanic acpi_cpufreq tpm_tis tpm i2c_piix4 virtio_blk virtio_net ata_generic pata_acpi floppy virtio_pci virtio_ring virtio
+  CPU: 0 PID: 28863 Comm: migratepages Not tainted 4.6.0-v4.6-160602-0827-+ #2
+  Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+  task: ffff880037320000 ti: ffff88007cdd0000 task.ti: ffff88007cdd0000
+  RIP: 0010:[<ffffffff811f8e06>]  [<ffffffff811f8e06>] split_huge_page_to_list+0x496/0x590
+  RSP: 0018:ffff88007cdd3b70  EFLAGS: 00010202
+  RAX: 0000000000000001 RBX: ffff88007c7b88c0 RCX: 0000000000000000
+  RDX: 0000000000000000 RSI: 0000000700000200 RDI: ffffea0003188000
+  RBP: ffff88007cdd3bb8 R08: 0000000000000001 R09: 00003ffffffff000
+  R10: ffff880000000000 R11: ffffc000001fffff R12: ffffea0003188000
+  R13: ffffea0003188000 R14: 0000000000000000 R15: 0400000000000080
+  FS:  00007f8ec241d740(0000) GS:ffff88007dc00000(0000) knlGS:0000000000000000             CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+  CR2: 00007f8ec1f3ed20 CR3: 000000003707b000 CR4: 00000000000006f0
+  Stack:
+   ffffffff8139ef6d ffffea00031c6280 ffff88011ffec000 0000000000000000
+   0000700000400000 0000700000200000 ffff88007cdd3d08 ffff8800dbbe3008
+   0400000000000080 ffff88007cdd3c20 ffffffff811dd0b1 ffff88007cdd3d68
+  Call Trace:
+   [<ffffffff8139ef6d>] ? list_del+0xd/0x30
+   [<ffffffff811dd0b1>] queue_pages_pte_range+0x4d1/0x590
+   [<ffffffff811ca1a4>] __walk_page_range+0x204/0x4e0
+   [<ffffffff811ca4f1>] walk_page_range+0x71/0xf0
+   [<ffffffff811db935>] queue_pages_range+0x75/0x90
+   [<ffffffff811dcbe0>] ? queue_pages_hugetlb+0x190/0x190
+   [<ffffffff811dca50>] ? new_node_page+0xc0/0xc0
+   [<ffffffff811ddac0>] ? change_prot_numa+0x40/0x40
+   [<ffffffff811dc001>] migrate_to_node+0x71/0xd0
+   [<ffffffff811ddd73>] do_migrate_pages+0x1c3/0x210
+   [<ffffffff811de0b1>] SyS_migrate_pages+0x261/0x290
+   [<ffffffff816f53f2>] entry_SYSCALL_64_fastpath+0x1a/0xa4
+  Code: e8 b0 87 fb ff 0f 0b 48 c7 c6 30 32 9f 81 e8 a2 87 fb ff 0f 0b 48 c7 c6 b8 46 9f 81 e8 94 87 fb ff 0f 0b 85 c0 0f 84 3e fd ff ff <0f> 0b 85 c0 0f 85 a6 00 00 00 48 8b 75 c0 4c 89 f7 41 be f0 ff
+  RIP  [<ffffffff811f8e06>] split_huge_page_to_list+0x496/0x590
+   RSP <ffff88007cdd3b70>
 
-[2/3] is of course OK - please add it to the UBIFS tree.
+I'm not sure of the full scenario of the reproduction, but my debug showed that
+split_huge_pmd_address(freeze=true) returned without running main code of pmd
+splitting because pmd_present(*pmd) was 0. If this happens, the subsequent
+try_to_unmap() fails and returns non-zero (because page_mapcount() still > 0),
+and finally VM_BUG_ON() fires.
+
+This patch fixes it by adding a separate split_huge_pmd_address()'s variant
+for freeze=true and checking pmd's state within ptl for that case.
+
+I think that this change seems to fit the comment in split_huge_pmd_address()
+that says "Caller holds the mmap_sem write mode, so a huge pmd cannot
+materialize from under us." We don't hold mmap_sem write if called from
+split_huge_page(), so maybe there were some different assumptions between
+callers (split_huge_page() and vma_adjust_trans_huge().)
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ include/linux/huge_mm.h |  8 ++++----
+ mm/huge_memory.c        | 50 +++++++++++++++++++++++++++++++++++++------------
+ mm/rmap.c               |  3 +--
+ 3 files changed, 43 insertions(+), 18 deletions(-)
+
+diff --git v4.6/include/linux/huge_mm.h v4.6_patched/include/linux/huge_mm.h
+index d7b9e53..6fa4348 100644
+--- v4.6/include/linux/huge_mm.h
++++ v4.6_patched/include/linux/huge_mm.h
+@@ -108,8 +108,8 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 	}  while (0)
+ 
+ 
+-void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
+-		bool freeze, struct page *page);
++void split_huge_pmd_address_freeze(struct vm_area_struct *vma,
++		unsigned long address, struct page *page);
+ 
+ extern int hugepage_madvise(struct vm_area_struct *vma,
+ 			    unsigned long *vm_flags, int advice);
+@@ -177,8 +177,8 @@ static inline void deferred_split_huge_page(struct page *page) {}
+ #define split_huge_pmd(__vma, __pmd, __address)	\
+ 	do { } while (0)
+ 
+-static inline void split_huge_pmd_address(struct vm_area_struct *vma,
+-		unsigned long address, bool freeze, struct page *page) {}
++static inline void split_huge_pmd_address_freeze(struct vm_area_struct *vma,
++		unsigned long address, struct page *page) {}
+ 
+ static inline int hugepage_madvise(struct vm_area_struct *vma,
+ 				   unsigned long *vm_flags, int advice)
+diff --git v4.6/mm/huge_memory.c v4.6_patched/mm/huge_memory.c
+index b49ee12..c48f22c 100644
+--- v4.6/mm/huge_memory.c
++++ v4.6_patched/mm/huge_memory.c
+@@ -2989,6 +2989,16 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 
+ 	mmu_notifier_invalidate_range_start(mm, haddr, haddr + HPAGE_PMD_SIZE);
+ 	ptl = pmd_lock(mm, pmd);
++	if (freeze) {
++		/*
++		 * If caller asks to setup a migration entries, we need a page
++		 * to check pmd against. Otherwise we can end up replacing
++		 * wrong page.
++		 */
++		VM_BUG_ON(freeze && !pmd_page(*pmd));
++		if (!pmd_present(*pmd))
++			goto out;
++	}
+ 	if (pmd_trans_huge(*pmd)) {
+ 		struct page *page = pmd_page(*pmd);
+ 		if (PageMlocked(page))
+@@ -3001,8 +3011,8 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 	mmu_notifier_invalidate_range_end(mm, haddr, haddr + HPAGE_PMD_SIZE);
+ }
+ 
+-void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
+-		bool freeze, struct page *page)
++static void split_huge_pmd_address(struct vm_area_struct *vma,
++		unsigned long address, struct page *page)
+ {
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+@@ -3019,12 +3029,6 @@ void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
+ 	pmd = pmd_offset(pud, address);
+ 	if (!pmd_present(*pmd) || (!pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)))
+ 		return;
+-
+-	/*
+-	 * If caller asks to setup a migration entries, we need a page to check
+-	 * pmd against. Otherwise we can end up replacing wrong page.
+-	 */
+-	VM_BUG_ON(freeze && !page);
+ 	if (page && page != pmd_page(*pmd))
+ 		return;
+ 
+@@ -3032,7 +3036,29 @@ void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
+ 	 * Caller holds the mmap_sem write mode, so a huge pmd cannot
+ 	 * materialize from under us.
+ 	 */
+-	__split_huge_pmd(vma, pmd, address, freeze);
++	__split_huge_pmd(vma, pmd, address, false);
++}
++
++void split_huge_pmd_address_freeze(struct vm_area_struct *vma,
++				unsigned long address, struct page *page)
++{
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++
++	pgd = pgd_offset(vma->vm_mm, address);
++	if (!pgd_present(*pgd))
++		return;
++
++	pud = pud_offset(pgd, address);
++	if (!pud_present(*pud))
++		return;
++
++	pmd = pmd_offset(pud, address);
++	if (pmd_none(*pmd))
++		return;
++
++	__split_huge_pmd(vma, pmd, address, true);
+ }
+ 
+ void vma_adjust_trans_huge(struct vm_area_struct *vma,
+@@ -3048,7 +3074,7 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
+ 	if (start & ~HPAGE_PMD_MASK &&
+ 	    (start & HPAGE_PMD_MASK) >= vma->vm_start &&
+ 	    (start & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= vma->vm_end)
+-		split_huge_pmd_address(vma, start, false, NULL);
++		split_huge_pmd_address(vma, start, NULL);
+ 
+ 	/*
+ 	 * If the new end address isn't hpage aligned and it could
+@@ -3058,7 +3084,7 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
+ 	if (end & ~HPAGE_PMD_MASK &&
+ 	    (end & HPAGE_PMD_MASK) >= vma->vm_start &&
+ 	    (end & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= vma->vm_end)
+-		split_huge_pmd_address(vma, end, false, NULL);
++		split_huge_pmd_address(vma, end, NULL);
+ 
+ 	/*
+ 	 * If we're also updating the vma->vm_next->vm_start, if the new
+@@ -3072,7 +3098,7 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
+ 		if (nstart & ~HPAGE_PMD_MASK &&
+ 		    (nstart & HPAGE_PMD_MASK) >= next->vm_start &&
+ 		    (nstart & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= next->vm_end)
+-			split_huge_pmd_address(next, nstart, false, NULL);
++			split_huge_pmd_address(next, nstart, NULL);
+ 	}
+ }
+ 
+diff --git v4.6/mm/rmap.c v4.6_patched/mm/rmap.c
+index 307b555..4282b56 100644
+--- v4.6/mm/rmap.c
++++ v4.6_patched/mm/rmap.c
+@@ -1418,8 +1418,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 		goto out;
+ 
+ 	if (flags & TTU_SPLIT_HUGE_PMD) {
+-		split_huge_pmd_address(vma, address,
+-				flags & TTU_MIGRATION, page);
++		split_huge_pmd_address_freeze(vma, address, page);
+ 		/* check if we have anything to do after split */
+ 		if (page_mapcount(page) == 0)
+ 			goto out;
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
