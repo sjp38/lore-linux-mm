@@ -1,68 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D91FC6B0005
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 07:23:43 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id b13so125635985pat.3
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 04:23:43 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id n8si16540828paw.216.2016.06.17.04.23.42
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C1D16B0005
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 07:27:13 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r190so8445396wmr.0
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 04:27:13 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p1si11513774wjj.65.2016.06.17.04.27.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 17 Jun 2016 04:23:42 -0700 (PDT)
-Message-ID: <5763DC85.8080707@huawei.com>
-Date: Fri, 17 Jun 2016 19:18:29 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        Fri, 17 Jun 2016 04:27:12 -0700 (PDT)
+Subject: Re: [PATCH 24/27] mm, page_alloc: Remove fair zone allocation policy
+References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
+ <1465495483-11855-25-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <9f30977a-ff07-d783-4c21-e13bd2478aa3@suse.cz>
+Date: Fri, 17 Jun 2016 13:27:09 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix account pmd page to the process
-References: <1466076971-24609-1-git-send-email-zhongjiang@huawei.com> <20160616154214.GA12284@dhcp22.suse.cz>
-In-Reply-To: <20160616154214.GA12284@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+In-Reply-To: <1465495483-11855-25-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>
 
-On 2016/6/16 23:42, Michal Hocko wrote:
-> On Thu 16-06-16 19:36:11, zhongjiang wrote:
->> From: zhong jiang <zhongjiang@huawei.com>
->>
->> when a process acquire a pmd table shared by other process, we
->> increase the account to current process. otherwise, a race result
->> in other tasks have set the pud entry. so it no need to increase it.
->>
->> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->> ---
->>  mm/hugetlb.c | 5 ++---
->>  1 file changed, 2 insertions(+), 3 deletions(-)
->>
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index 19d0d08..3b025c5 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -4189,10 +4189,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
->>  	if (pud_none(*pud)) {
->>  		pud_populate(mm, pud,
->>  				(pmd_t *)((unsigned long)spte & PAGE_MASK));
->> -	} else {
->> +	} else 
->>  		put_page(virt_to_page(spte));
->> -		mm_inc_nr_pmds(mm);
->> -	}
-> The code is quite puzzling but is this correct? Shouldn't we rather do
-> mm_dec_nr_pmds(mm) in that path to undo the previous inc?
-  Yes, you are right. I will modify it in V2.
- 
-  Thanks
-  zhongjiang
->
->> +
->>  	spin_unlock(ptl);
->>  out:
->>  	pte = (pte_t *)pmd_alloc(mm, pud, addr);
->> -- 
->> 1.8.3.1
+On 06/09/2016 08:04 PM, Mel Gorman wrote:
+> The fair zone allocation policy interleaves allocation requests between
+> zones to avoid an age inversion problem whereby new pages are reclaimed
+> to balance a zone. Reclaim is now node-based so this should no longer be
+> an issue and the fair zone allocation policy is not free. This patch
+> removes it.
 
+I wonder if fair zone allocation had the side effect of preventing e.g. a small 
+Normal zone to be almost fully occupied by long-lived unreclaimable allocations 
+early in the kernel lifetime. So that might be one thing to watch out for. But 
+otherwise I would agree it should be no longer needed with node-based reclaim.
+
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
