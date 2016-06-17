@@ -1,118 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C929C6B025E
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 16:01:02 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e189so178626490pfa.2
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 13:01:02 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id f64si14057687pfd.84.2016.06.17.13.00.59
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D60BD6B007E
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 16:03:49 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r190so745852wmr.0
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 13:03:49 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id i188si288496wma.123.2016.06.17.13.03.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jun 2016 13:01:00 -0700 (PDT)
-From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH v2 04/13] mm: Track NR_KERNEL_STACK in KiB instead of number of stacks
-Date: Fri, 17 Jun 2016 13:00:40 -0700
-Message-Id: <e2d828d9ee32ff50c7caa21700fb2179200307e9.1466192946.git.luto@kernel.org>
-In-Reply-To: <cover.1466192946.git.luto@kernel.org>
-References: <cover.1466192946.git.luto@kernel.org>
-In-Reply-To: <cover.1466192946.git.luto@kernel.org>
-References: <cover.1466192946.git.luto@kernel.org>
+        Fri, 17 Jun 2016 13:03:48 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id 187so385769wmz.1
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 13:03:48 -0700 (PDT)
+Date: Fri, 17 Jun 2016 22:03:46 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/3] mm: Don't blindly assign fallback_migrate_page()
+Message-ID: <20160617200345.GA4071@dhcp22.suse.cz>
+References: <1466112375-1717-1-git-send-email-richard@nod.at>
+ <1466112375-1717-2-git-send-email-richard@nod.at>
+ <20160616161121.35ee5183b9ef9f7b7dcbc815@linux-foundation.org>
+ <5763A9B2.8060303@nod.at>
+ <20160617162803.GK21670@dhcp22.suse.cz>
+ <57642B91.4020206@nod.at>
+ <20160617182751.GB692@dhcp22.suse.cz>
+ <5764513E.2070102@nod.at>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5764513E.2070102@nod.at>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org, linux-kernel@vger.kernel.org
-Cc: linux-arch@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Brian Gerst <brgerst@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Jann Horn <jann@thejh.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andy Lutomirski <luto@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+To: Richard Weinberger <richard@nod.at>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-mtd@lists.infradead.org, hannes@cmpxchg.org, mgorman@techsingularity.net, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, hughd@google.com, vbabka@suse.cz, adrian.hunter@intel.com, dedekind1@gmail.com, hch@infradead.org, linux-fsdevel@vger.kernel.org, boris.brezillon@free-electrons.com, maxime.ripard@free-electrons.com, david@sigma-star.at, david@fromorbit.com, alex@nextthing.co, sasha.levin@oracle.com, iamjoonsoo.kim@lge.com, rvaswani@codeaurora.org, tony.luck@intel.com, shailendra.capricorn@gmail.com
 
-Currently, NR_KERNEL_STACK tracks the number of kernel stacks in a
-zone.  This only makes sense if each kernel stack exists entirely in
-one zone, and allowing vmapped stacks could break this assumption.
+On Fri 17-06-16 21:36:30, Richard Weinberger wrote:
+> 
+> 
+> Am 17.06.2016 um 20:27 schrieb Michal Hocko:
+> > On Fri 17-06-16 18:55:45, Richard Weinberger wrote:
+> >> Am 17.06.2016 um 18:28 schrieb Michal Hocko:
+> >>> But doesn't this disable the page migration and so potentially reduce
+> >>> the compaction success rate for the large pile of filesystems? Without
+> >>> any hint about that?
+> >>
+> >> The WARN_ON_ONCE() is the hint. ;)
+> > 
+> > Right. My reply turned a different way than I meant... I meant to say
+> > that there might be different regressions caused by this change without much
+> > hint that a particular warning would be the smoking gun... 
+> > 
+> 
+> Okay, what about something like that?
+> That way everything works as before and we don't have regressions
+> but FS maintainers will notice the WARN_ON_ONCE() and hopefully review
+> whether generic_migrate_page() is really suitable.
+> If so, they can set their a_ops->migratepage to generic_migrate_page().
 
-Since frv has THREAD_SIZE < PAGE_SIZE, we need to track kernel stack
-allocations in a unit that divides both THREAD_SIZE and PAGE_SIZE on
-all architectures.  Keep it simple and use KiB.
+Yes this sounds better to me. I would just be more verbose about which
+a_ops is missing the migratepage callback. The WARN_ON_ONCE will not
+tell us which fs is the culprit. I am not even sure the calltrace is
+really helpful and maybe printk_once would be more appropriate.
 
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
----
- drivers/base/node.c    | 3 +--
- fs/proc/meminfo.c      | 2 +-
- include/linux/mmzone.h | 2 +-
- kernel/fork.c          | 3 ++-
- mm/page_alloc.c        | 3 +--
- 5 files changed, 6 insertions(+), 7 deletions(-)
+	printk_once(KERN_INFO "%ps is missing migratepage callback. Please report to the respective filesystem maintainers.\n",
+			mapping->a_ops);
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 560751bad294..27dc68a0ed2d 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -121,8 +121,7 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
- 		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
- 		       nid, K(i.sharedram),
--		       nid, node_page_state(nid, NR_KERNEL_STACK) *
--				THREAD_SIZE / 1024,
-+		       nid, node_page_state(nid, NR_KERNEL_STACK_KB),
- 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
- 		       nid, K(node_page_state(nid, NR_UNSTABLE_NFS)),
- 		       nid, K(node_page_state(nid, NR_BOUNCE)),
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 83720460c5bc..239b5a06cee0 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -145,7 +145,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 				global_page_state(NR_SLAB_UNRECLAIMABLE)),
- 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
- 		K(global_page_state(NR_SLAB_UNRECLAIMABLE)),
--		global_page_state(NR_KERNEL_STACK) * THREAD_SIZE / 1024,
-+		global_page_state(NR_KERNEL_STACK_KB),
- 		K(global_page_state(NR_PAGETABLE)),
- #ifdef CONFIG_QUICKLIST
- 		K(quicklist_total_size()),
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 02069c23486d..63f05a7efb54 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -127,7 +127,7 @@ enum zone_stat_item {
- 	NR_SLAB_RECLAIMABLE,
- 	NR_SLAB_UNRECLAIMABLE,
- 	NR_PAGETABLE,		/* used for pagetables */
--	NR_KERNEL_STACK,
-+	NR_KERNEL_STACK_KB,	/* measured in KiB */
- 	/* Second 128 byte cacheline */
- 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
- 	NR_BOUNCE,
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 5c2c355aa97f..be7f006af727 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -225,7 +225,8 @@ static void account_kernel_stack(struct thread_info *ti, int account)
- {
- 	struct zone *zone = page_zone(virt_to_page(ti));
+Or print once per a_ops would be even better but that sounds like an
+over engineering...
  
--	mod_zone_page_state(zone, NR_KERNEL_STACK, account);
-+	mod_zone_page_state(zone, NR_KERNEL_STACK_KB,
-+			    THREAD_SIZE / 1024 * account);
- }
- 
- void free_task(struct task_struct *tsk)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6903b695ebae..a277dea926c9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4457,8 +4457,7 @@ void show_free_areas(unsigned int filter)
- 			K(zone_page_state(zone, NR_SHMEM)),
- 			K(zone_page_state(zone, NR_SLAB_RECLAIMABLE)),
- 			K(zone_page_state(zone, NR_SLAB_UNRECLAIMABLE)),
--			zone_page_state(zone, NR_KERNEL_STACK) *
--				THREAD_SIZE / 1024,
-+			zone_page_state(zone, NR_KERNEL_STACK_KB),
- 			K(zone_page_state(zone, NR_PAGETABLE)),
- 			K(zone_page_state(zone, NR_UNSTABLE_NFS)),
- 			K(zone_page_state(zone, NR_BOUNCE)),
+> @@ -771,8 +773,15 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+>                  * is the most common path for page migration.
+>                  */
+>                 rc = mapping->a_ops->migratepage(mapping, newpage, page, mode);
+> -       else
+> -               rc = fallback_migrate_page(mapping, newpage, page, mode);
+> +       else {
+> +               /*
+> +                * Dear filesystem maintainer, please verify whether
+> +                * generic_migrate_page() is suitable for your
+> +                * filesystem, especially wrt. page flag handling.
+> +                */
+> +               WARN_ON_ONCE(1);
+> +               rc = generic_migrate_page(mapping, newpage, page, mode);
+> +       }
+> 
+>         /*
+>          * When successful, old pagecache page->mapping must be cleared before
+> 
+> Thanks,
+> //richard
+
 -- 
-2.5.5
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
