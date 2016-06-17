@@ -1,54 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A92126B0005
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 08:01:34 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id x6so133972482oif.0
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:01:34 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id f63si6070728oib.164.2016.06.17.05.01.33
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 78C136B0005
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 08:04:02 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r190so8911667wmr.0
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:04:02 -0700 (PDT)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id 137si6265805wms.63.2016.06.17.05.04.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 17 Jun 2016 05:01:34 -0700 (PDT)
-Message-ID: <5763E694.1050502@huawei.com>
-Date: Fri, 17 Jun 2016 20:01:24 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Jun 2016 05:04:01 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id CE35A1C2A6F
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 13:04:00 +0100 (IST)
+Date: Fri, 17 Jun 2016 13:03:59 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 21/27] mm, vmscan: Only wakeup kswapd once per node for
+ the requested classzone
+Message-ID: <20160617120301.GM1868@techsingularity.net>
+References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
+ <1465495483-11855-22-git-send-email-mgorman@techsingularity.net>
+ <2ce07fcf-7b7d-a70b-ed7b-60867ad4458f@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix account pmd page to the process
-References: <1466163941-12952-1-git-send-email-zhongjiang@huawei.com>
-In-Reply-To: <1466163941-12952-1-git-send-email-zhongjiang@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <2ce07fcf-7b7d-a70b-ed7b-60867ad4458f@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, kirill.shutemov@linux.intel.com
-Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 2016/6/17 19:45, zhongjiang wrote:
-> From: zhong jiang <zhongjiang@huawei.com>
->
-> hen a process acquire a pmd table shared by other process, we
-> increase the account to current process. otherwise, a race result
-> in other tasks have set the pud entry. so it no need to increase it.
->
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> ---
->  mm/hugetlb.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 19d0d08..3072857 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -4191,7 +4191,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
->  				(pmd_t *)((unsigned long)spte & PAGE_MASK));
->  	} else {
->  		put_page(virt_to_page(spte));
-> -		mm_inc_nr_pmds(mm);
-> +		mm_dec_nr_pmds(mm);
->  	}
->  	spin_unlock(ptl);
->  out:
+On Fri, Jun 17, 2016 at 12:46:05PM +0200, Vlastimil Babka wrote:
+> On 06/09/2016 08:04 PM, Mel Gorman wrote:
+> >kswapd is woken when zones are below the low watermark but the wakeup
+> >decision is not taking the classzone into account.  Now that reclaim is
+> >node-based, it is only required to wake kswapd once per node and only if
+> >all zones are unbalanced for the requested classzone.
+> >
+> >Note that one node might be checked multiple times but there is no cheap
+> >way of tracking what nodes have already been visited for zoneslists that
+> >be ordered by either zone or node.
+> 
+> Wouldn't it be possible to optimize for node order as you did in direct
+> reclaim? Do the zone_balanced checks when going through zonelist, and once
+> node changes in iteration, wake up if no eligible zones visited so far were
+> balanced.
+> 
 
+Yeah, it is. I'll chuck it in.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
