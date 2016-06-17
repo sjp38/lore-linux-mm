@@ -1,125 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 693416B0253
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 04:06:49 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id t8so125652479oif.2
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:06:49 -0700 (PDT)
-Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
-        by mx.google.com with ESMTP id h186si11759567ioa.178.2016.06.17.01.06.47
-        for <linux-mm@kvack.org>;
-        Fri, 17 Jun 2016 01:06:48 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <054e01d1c86d$c7261fd0$55725f70$@alibaba-inc.com>
-In-Reply-To: <054e01d1c86d$c7261fd0$55725f70$@alibaba-inc.com>
-Subject: Re: [PATCHv9-rebased2 28/37] shmem: get_unmapped_area align huge page
-Date: Fri, 17 Jun 2016 16:06:33 +0800
-Message-ID: <054f01d1c86f$2994d5c0$7cbe8140$@alibaba-inc.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1262B6B025F
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 04:17:45 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e189so148453932pfa.2
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:17:45 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id v129si11175911pfb.232.2016.06.17.01.17.44
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Jun 2016 01:17:44 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id c74so5785587pfb.0
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:17:44 -0700 (PDT)
+Date: Fri, 17 Jun 2016 17:17:26 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [next-20160615] kernel BUG at mm/rmap.c:1251!
+Message-ID: <20160617081726.GA30699@swordfish>
+References: <20160616084656.GB432@swordfish>
+ <20160616085836.GC6836@dhcp22.suse.cz>
+ <20160616092345.GC432@swordfish>
+ <20160616094139.GE6836@dhcp22.suse.cz>
+ <20160616095457.GD432@swordfish>
+ <20160616101216.GT17127@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160616101216.GT17127@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
+Hello,
+
+On (06/16/16 19:12), Minchan Kim wrote:
+[..]
+> > I'll copy-paste one more backtrace I swa today [originally was posted to another
+> > mail thread].
 > 
-> +unsigned long shmem_get_unmapped_area(struct file *file,
-> +				      unsigned long uaddr, unsigned long len,
-> +				      unsigned long pgoff, unsigned long flags)
-> +{
-> +	unsigned long (*get_area)(struct file *,
-> +		unsigned long, unsigned long, unsigned long, unsigned long);
-> +	unsigned long addr;
-> +	unsigned long offset;
-> +	unsigned long inflated_len;
-> +	unsigned long inflated_addr;
-> +	unsigned long inflated_offset;
-> +
-> +	if (len > TASK_SIZE)
-> +		return -ENOMEM;
-> +
-> +	get_area = current->mm->get_unmapped_area;
-> +	addr = get_area(file, uaddr, len, pgoff, flags);
-> +
-> +	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-> +		return addr;
-> +	if (IS_ERR_VALUE(addr))
-> +		return addr;
-> +	if (addr & ~PAGE_MASK)
-> +		return addr;
-> +	if (addr > TASK_SIZE - len)
-> +		return addr;
-> +
-> +	if (shmem_huge == SHMEM_HUGE_DENY)
-> +		return addr;
-> +	if (len < HPAGE_PMD_SIZE)
-> +		return addr;
-> +	if (flags & MAP_FIXED)
-> +		return addr;
-> +	/*
-> +	 * Our priority is to support MAP_SHARED mapped hugely;
-> +	 * and support MAP_PRIVATE mapped hugely too, until it is COWed.
-> +	 * But if caller specified an address hint, respect that as before.
-> +	 */
-> +	if (uaddr)
-> +		return addr;
-> +
-> +	if (shmem_huge != SHMEM_HUGE_FORCE) {
-> +		struct super_block *sb;
-> +
-> +		if (file) {
-> +			VM_BUG_ON(file->f_op != &shmem_file_operations);
-> +			sb = file_inode(file)->i_sb;
-> +		} else {
-> +			/*
-> +			 * Called directly from mm/mmap.c, or drivers/char/mem.c
-> +			 * for "/dev/zero", to create a shared anonymous object.
-> +			 */
-> +			if (IS_ERR(shm_mnt))
-> +				return addr;
-> +			sb = shm_mnt->mnt_sb;
-> +		}
-> +		if (SHMEM_SB(sb)->huge != SHMEM_HUGE_NEVER)
-> +			return addr;
+> Please, look at http://lkml.kernel.org/r/20160616100932.GS17127@bbox
 
-Try to ask for a larger arena if huge page is not disabled for 
-the mount(s/!=/==/)?
+I don't have a solid/stable reproducer for this one, but after some
+mixed workloads beating (mempressure + zsmalloc + compiler workload)
+with reverted b3ceb05f4bae844f67ce I haven't seen any problems.
 
-> +	}
-> +
-> +	offset = (pgoff << PAGE_SHIFT) & (HPAGE_PMD_SIZE-1);
-> +	if (offset && offset + len < 2 * HPAGE_PMD_SIZE)
-> +		return addr;
-> +	if ((addr & (HPAGE_PMD_SIZE-1)) == offset)
-> +		return addr;
-> +
-> +	inflated_len = len + HPAGE_PMD_SIZE - PAGE_SIZE;
-> +	if (inflated_len > TASK_SIZE)
-> +		return addr;
-> +	if (inflated_len < len)
-> +		return addr;
-> +
-> +	inflated_addr = get_area(NULL, 0, inflated_len, 0, flags);
-> +	if (IS_ERR_VALUE(inflated_addr))
-> +		return addr;
-> +	if (inflated_addr & ~PAGE_MASK)
-> +		return addr;
-> +
-> +	inflated_offset = inflated_addr & (HPAGE_PMD_SIZE-1);
-> +	inflated_addr += offset - inflated_offset;
-> +	if (inflated_offset > offset)
-> +		inflated_addr += HPAGE_PMD_SIZE;
-> +
-> +	if (inflated_addr > TASK_SIZE - len)
-> +		return addr;
-> +	return inflated_addr;
-> +}
-> +
-> 
+So I think you nailed it Minchan!
 
+
+reverted the entire patch set (for simplicity):
+
+    Revert "mm/compaction: split freepages without holding the zone lock"
+    Revert "mm/page_owner: initialize page owner without holding the zone lock"
+    Revert "mm/page_owner: copy last_migrate_reason in copy_page_owner()"
+    Revert "mm/page_owner: introduce split_page_owner and replace manual handling"
+    Revert "tools/vm/page_owner: increase temporary buffer size"
+    Revert "mm/page_owner: use stackdepot to store stacktrace"
+    Revert "mm/page_owner: avoid null pointer dereference"
+    Revert "mm/page_alloc: introduce post allocation processing on page allocator"
+
+adding "mm/compaction: split freepages without holding the zone lock"
+back seem to introduce the page->map_count bug after some time.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
