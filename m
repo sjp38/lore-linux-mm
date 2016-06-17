@@ -1,44 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ECBEA6B025F
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 04:28:53 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r190so6083007wmr.0
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:28:53 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q184si9396783wme.57.2016.06.17.01.28.52
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D3966B025F
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 04:31:00 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id c82so38848288wme.2
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:31:00 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id t124si3589102wmb.85.2016.06.17.01.30.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 17 Jun 2016 01:28:52 -0700 (PDT)
-Subject: Re: [PATCH 17/27] mm: Rename NR_ANON_PAGES to NR_ANON_MAPPED
-References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
- <1465495483-11855-18-git-send-email-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <46c75f05-7a07-9f9d-3bf5-461971e2ecc4@suse.cz>
-Date: Fri, 17 Jun 2016 10:28:50 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Jun 2016 01:30:59 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id r201so2686659wme.0
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:30:58 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1465495483-11855-18-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160615231732.GJ17127@bbox>
+References: <cover.1466000844.git.geliangtang@gmail.com> <efcf047e747d9d1e80af16ebfc51ea1964a7a621.1466000844.git.geliangtang@gmail.com>
+ <20160615231732.GJ17127@bbox>
+From: Vitaly Wool <vitalywool@gmail.com>
+Date: Fri, 17 Jun 2016 10:30:58 +0200
+Message-ID: <CAMJBoFPcaAbsQ=PA2WPsmuyd1a-SyJgE5k4Rn2CUf6rS0-ykKw@mail.gmail.com>
+Subject: Re: [PATCH] zram: update zram to use zpool
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Geliang Tang <geliangtang@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Dan Streetman <ddstreet@ieee.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 06/09/2016 08:04 PM, Mel Gorman wrote:
-> NR_FILE_PAGES  is the number of        file pages.
-> NR_FILE_MAPPED is the number of mapped file pages.
-> NR_ANON_PAGES  is the number of mapped anon pages.
->
-> This is unhelpful naming as it's easy to confuse NR_FILE_MAPPED and NR_ANON_PAGES for
-> mapped pages. This patch renames NR_ANON_PAGES so we have
->
-> NR_FILE_PAGES  is the number of        file pages.
-> NR_FILE_MAPPED is the number of mapped file pages.
-> NR_ANON_MAPPED is the number of mapped anon pages.
->
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Hi Minchan,
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+On Thu, Jun 16, 2016 at 1:17 AM, Minchan Kim <minchan@kernel.org> wrote:
+> On Wed, Jun 15, 2016 at 10:42:07PM +0800, Geliang Tang wrote:
+>> Change zram to use the zpool api instead of directly using zsmalloc.
+>> The zpool api doesn't have zs_compact() and zs_pool_stats() functions.
+>> I did the following two things to fix it.
+>> 1) I replace zs_compact() with zpool_shrink(), use zpool_shrink() to
+>>    call zs_compact() in zsmalloc.
+>> 2) The 'pages_compacted' attribute is showed in zram by calling
+>>    zs_pool_stats(). So in order not to call zs_pool_state() I move the
+>>    attribute to zsmalloc.
+>>
+>> Signed-off-by: Geliang Tang <geliangtang@gmail.com>
+>
+> NACK.
+>
+> I already explained why.
+> http://lkml.kernel.org/r/20160609013411.GA29779@bbox
+
+This is a fair statement, to a certain extent. I'll let Geliang speak
+for himself but I am personally interested in this zram extension
+because I want it to work on MMU-less systems. zsmalloc can not handle
+that, so I want to be able to use zram over z3fold.
+
+Best regards,
+   Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
