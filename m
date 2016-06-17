@@ -1,74 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 229716B0253
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 07:36:53 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id k184so41160561wme.3
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 04:36:53 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x137si23021069wme.107.2016.06.17.04.36.52
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 24C526B025E
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 07:38:17 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id g13so146992224ioj.3
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 04:38:17 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id wm10si14745230pab.25.2016.06.17.04.38.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 17 Jun 2016 04:36:52 -0700 (PDT)
-Subject: Re: [PATCH 26/27] mm: vmstat: Replace __count_zone_vm_events with a
- zone id equivalent
-References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
- <1465495483-11855-27-git-send-email-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <d5894d08-a25f-ca01-fb2d-9668dcb0f02e@suse.cz>
-Date: Fri, 17 Jun 2016 13:36:51 +0200
-MIME-Version: 1.0
-In-Reply-To: <1465495483-11855-27-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-2; format=flowed
-Content-Transfer-Encoding: 7bit
+        Fri, 17 Jun 2016 04:38:16 -0700 (PDT)
+Subject: Re: [PATCH 07/10] mm, oom: fortify task_will_free_mem
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20160613112746.GD6518@dhcp22.suse.cz>
+	<201606162154.CGE05294.HJQOSMFFVFtOOL@I-love.SAKURA.ne.jp>
+	<20160616142940.GK6836@dhcp22.suse.cz>
+	<201606170040.FGC21882.FMLHOtVSFFJOQO@I-love.SAKURA.ne.jp>
+	<20160616155347.GO6836@dhcp22.suse.cz>
+In-Reply-To: <20160616155347.GO6836@dhcp22.suse.cz>
+Message-Id: <201606172038.IIE43237.FtLMVSFOOHJFQO@I-love.SAKURA.ne.jp>
+Date: Fri, 17 Jun 2016 20:38:01 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On 06/09/2016 08:04 PM, Mel Gorman wrote:
-> This is partially a preparation patch for more vmstat work but it also
-> has the slight advantage that __count_zid_vm_events is cheaper to
-> calculate than __count_zone_vm_events().
->
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Michal Hocko wrote:
+> > > Anyway, would you be OK with the patch if I added the current->mm check
+> > > and resolve its necessity in a separate patch?
+> > 
+> > Please correct task_will_free_mem() in oom_kill_process() as well.
+> 
+> We cannot hold task_lock over all task_will_free_mem I am even not sure
+> we have to develop an elaborate way to make it raceless just for the nommu
+> case. The current case is simple as we cannot race here. Is that
+> sufficient for you?
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+We can use find_lock_task_mm() inside mark_oom_victim().
+That is, call wake_oom_reaper() from mark_oom_victim() like
 
-> ---
->  include/linux/vmstat.h | 5 ++---
->  mm/page_alloc.c        | 2 +-
->  2 files changed, 3 insertions(+), 4 deletions(-)
->
-> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> index 533948c93550..2feab717704d 100644
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -107,9 +107,8 @@ static inline void vm_events_fold_cpu(int cpu)
->  #define count_vm_vmacache_event(x) do {} while (0)
->  #endif
->
-> -#define __count_zone_vm_events(item, zone, delta) \
-> -		__count_vm_events(item##_NORMAL - ZONE_NORMAL + \
-> -		zone_idx(zone), delta)
-> +#define __count_zid_vm_events(item, zid, delta) \
-> +	__count_vm_events(item##_NORMAL - ZONE_NORMAL + zid, delta)
->
->  /*
->   * Zone and node-based page accounting with per cpu differentials.
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7c6c18a314a1..028d088633c4 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2621,7 +2621,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
->  					  get_pcppage_migratetype(page));
->  	}
->
-> -	__count_zone_vm_events(PGALLOC, zone, 1 << order);
-> +	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
->  	zone_statistics(preferred_zone, zone, gfp_flags);
->  	local_irq_restore(flags);
->
->
+void mark_oom_victim(struct task_struct *tsk, bool can_use_oom_reaper)
+{
+	WARN_ON(oom_killer_disabled);
+	/* OOM killer might race with memcg OOM */
+	tsk = find_lock_task_mm(tsk);
+	if (!tsk)
+		return;
+	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE)) {
+		task_unlock(tsk);
+		return;
+	}
+	task_unlock(tsk);
+	atomic_inc(&tsk->signal->oom_victims);
+	/*
+	 * Make sure that the task is woken up from uninterruptible sleep
+	 * if it is frozen because OOM killer wouldn't be able to free
+	 * any memory and livelock. freezing_slow_path will tell the freezer
+	 * that TIF_MEMDIE tasks should be ignored.
+	 */
+	__thaw_task(tsk);
+	atomic_inc(&oom_victims);
+	if (can_use_oom_reaper)
+		wake_oom_reaper(tsk);
+}
+
+and move mark_oom_victim() by normal path to after task_unlock(victim).
+
+ 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+-	mark_oom_victim(victim);
+
+-	if (can_oom_reap)
+-		wake_oom_reaper(victim);
++	wake_oom_reaper(victim, can_oom_reap);
+
+If you don't like possibility of showing different pid for
+
+	pr_err("Killed process %d (%s)
+
+and
+
+	pr_info("oom_reaper: reaped process %d (%s)
+
+messages, you can defer the former till mark_oom_victim() locks that task.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
