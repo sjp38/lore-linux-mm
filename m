@@ -1,74 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F30A06B0005
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 04:03:52 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id a4so31701811lfa.1
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:03:52 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id m2si2967336wme.45.2016.06.17.01.03.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jun 2016 01:03:51 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id k184so16677807wme.2
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:03:51 -0700 (PDT)
-Date: Fri, 17 Jun 2016 10:03:46 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv9 2/2] selftest/x86: add mremap vdso test
-Message-ID: <20160617080346.GB30525@gmail.com>
-References: <1463487232-4377-1-git-send-email-dsafonov@virtuozzo.com>
- <1463487232-4377-3-git-send-email-dsafonov@virtuozzo.com>
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 693416B0253
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 04:06:49 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id t8so125652479oif.2
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:06:49 -0700 (PDT)
+Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
+        by mx.google.com with ESMTP id h186si11759567ioa.178.2016.06.17.01.06.47
+        for <linux-mm@kvack.org>;
+        Fri, 17 Jun 2016 01:06:48 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <054e01d1c86d$c7261fd0$55725f70$@alibaba-inc.com>
+In-Reply-To: <054e01d1c86d$c7261fd0$55725f70$@alibaba-inc.com>
+Subject: Re: [PATCHv9-rebased2 28/37] shmem: get_unmapped_area align huge page
+Date: Fri, 17 Jun 2016 16:06:33 +0800
+Message-ID: <054f01d1c86f$2994d5c0$7cbe8140$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1463487232-4377-3-git-send-email-dsafonov@virtuozzo.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>
-Cc: linux-kernel@vger.kernel.org, mingo@redhat.com, luto@amacapital.net, tglx@linutronix.de, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com, Shuah Khan <shuahkh@osg.samsung.com>, linux-kselftest@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
+> 
+> +unsigned long shmem_get_unmapped_area(struct file *file,
+> +				      unsigned long uaddr, unsigned long len,
+> +				      unsigned long pgoff, unsigned long flags)
+> +{
+> +	unsigned long (*get_area)(struct file *,
+> +		unsigned long, unsigned long, unsigned long, unsigned long);
+> +	unsigned long addr;
+> +	unsigned long offset;
+> +	unsigned long inflated_len;
+> +	unsigned long inflated_addr;
+> +	unsigned long inflated_offset;
+> +
+> +	if (len > TASK_SIZE)
+> +		return -ENOMEM;
+> +
+> +	get_area = current->mm->get_unmapped_area;
+> +	addr = get_area(file, uaddr, len, pgoff, flags);
+> +
+> +	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+> +		return addr;
+> +	if (IS_ERR_VALUE(addr))
+> +		return addr;
+> +	if (addr & ~PAGE_MASK)
+> +		return addr;
+> +	if (addr > TASK_SIZE - len)
+> +		return addr;
+> +
+> +	if (shmem_huge == SHMEM_HUGE_DENY)
+> +		return addr;
+> +	if (len < HPAGE_PMD_SIZE)
+> +		return addr;
+> +	if (flags & MAP_FIXED)
+> +		return addr;
+> +	/*
+> +	 * Our priority is to support MAP_SHARED mapped hugely;
+> +	 * and support MAP_PRIVATE mapped hugely too, until it is COWed.
+> +	 * But if caller specified an address hint, respect that as before.
+> +	 */
+> +	if (uaddr)
+> +		return addr;
+> +
+> +	if (shmem_huge != SHMEM_HUGE_FORCE) {
+> +		struct super_block *sb;
+> +
+> +		if (file) {
+> +			VM_BUG_ON(file->f_op != &shmem_file_operations);
+> +			sb = file_inode(file)->i_sb;
+> +		} else {
+> +			/*
+> +			 * Called directly from mm/mmap.c, or drivers/char/mem.c
+> +			 * for "/dev/zero", to create a shared anonymous object.
+> +			 */
+> +			if (IS_ERR(shm_mnt))
+> +				return addr;
+> +			sb = shm_mnt->mnt_sb;
+> +		}
+> +		if (SHMEM_SB(sb)->huge != SHMEM_HUGE_NEVER)
+> +			return addr;
 
-* Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+Try to ask for a larger arena if huge page is not disabled for 
+the mount(s/!=/==/)?
 
-> Should print on success:
-> [root@localhost ~]# ./test_mremap_vdso_32
-> 	AT_SYSINFO_EHDR is 0xf773f000
-> [NOTE]	Moving vDSO: [f773f000, f7740000] -> [a000000, a001000]
-> [OK]
-> Or segfault if landing was bad (before patches):
-> [root@localhost ~]# ./test_mremap_vdso_32
-> 	AT_SYSINFO_EHDR is 0xf774f000
-> [NOTE]	Moving vDSO: [f774f000, f7750000] -> [a000000, a001000]
-> Segmentation fault (core dumped)
+> +	}
+> +
+> +	offset = (pgoff << PAGE_SHIFT) & (HPAGE_PMD_SIZE-1);
+> +	if (offset && offset + len < 2 * HPAGE_PMD_SIZE)
+> +		return addr;
+> +	if ((addr & (HPAGE_PMD_SIZE-1)) == offset)
+> +		return addr;
+> +
+> +	inflated_len = len + HPAGE_PMD_SIZE - PAGE_SIZE;
+> +	if (inflated_len > TASK_SIZE)
+> +		return addr;
+> +	if (inflated_len < len)
+> +		return addr;
+> +
+> +	inflated_addr = get_area(NULL, 0, inflated_len, 0, flags);
+> +	if (IS_ERR_VALUE(inflated_addr))
+> +		return addr;
+> +	if (inflated_addr & ~PAGE_MASK)
+> +		return addr;
+> +
+> +	inflated_offset = inflated_addr & (HPAGE_PMD_SIZE-1);
+> +	inflated_addr += offset - inflated_offset;
+> +	if (inflated_offset > offset)
+> +		inflated_addr += HPAGE_PMD_SIZE;
+> +
+> +	if (inflated_addr > TASK_SIZE - len)
+> +		return addr;
+> +	return inflated_addr;
+> +}
+> +
+> 
 
-Yeah, so I changed my mind again, I still don't like that the testcase faults on 
-old kernels:
-
- triton:~/tip/tools/testing/selftests/x86> ./test_mremap_vdso_32 
-         AT_SYSINFO_EHDR is 0xf7786000
- [NOTE]  Moving vDSO: [0xf7786000, 0xf7787000] -> [0xf7781000, 0xf7782000]
- Segmentation fault
-
-How do I know that this testcase is special and that a segmentation fault in this 
-case means that I'm running it on a too old kernel and that it's not some other 
-unexpected failure in the test?
-
-At minimum please run it behind fork() and catch the -SIGSEGV child exit:
-
-  mremap(0xf7747000, 4096, 4096, MREMAP_MAYMOVE|MREMAP_FIXED, 0xf7742000) = 0xf7742000
-  --- SIGSEGV {si_signo=SIGSEGV, si_code=SEGV_MAPERR, si_addr=0xf7747be9} ---
-  +++ killed by SIGSEGV +++
-
-and print:
-
-  [FAIL] mremap() of the vDSO does not work on this kernel!
-
-or such.
-
-Ok?
-
-Thanks,
-
-	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
