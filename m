@@ -1,71 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FF166B0253
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 03:25:39 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id z189so160462418itg.2
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 00:25:39 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id 75si13003831itu.78.2016.06.17.00.25.38
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1994C6B0005
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 03:26:34 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id l5so155004409ioa.0
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 00:26:34 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id d194si4671721ith.69.2016.06.17.00.26.32
         for <linux-mm@kvack.org>;
-        Fri, 17 Jun 2016 00:25:39 -0700 (PDT)
-Date: Fri, 17 Jun 2016 16:27:53 +0900
+        Fri, 17 Jun 2016 00:26:33 -0700 (PDT)
+Date: Fri, 17 Jun 2016 16:28:48 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 1/7] mm/compaction: split freepages without holding
- the zone lock
-Message-ID: <20160617072752.GB810@js1304-P5Q-DELUXE>
-References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
- <575F1813.4020700@oracle.com>
- <20160614055257.GA13753@js1304-P5Q-DELUXE>
- <5760569D.6030907@oracle.com>
- <20160615022731.GB19863@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH v7 00/12] Support non-lru page migration
+Message-ID: <20160617072848.GC810@js1304-P5Q-DELUXE>
+References: <20160615075909.GA425@swordfish>
+ <20160615231248.GI17127@bbox>
+ <20160616024827.GA497@swordfish>
+ <20160616025800.GO17127@bbox>
+ <20160616042343.GA516@swordfish>
+ <20160616044710.GP17127@bbox>
+ <20160616052209.GB516@swordfish>
+ <20160616064753.GR17127@bbox>
+ <20160616084211.GA432@swordfish>
+ <20160616100932.GS17127@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160615022731.GB19863@js1304-P5Q-DELUXE>
+In-Reply-To: <20160616100932.GS17127@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, dri-devel@lists.freedesktop.org, Hugh Dickins <hughd@google.com>, John Einar Reitan <john.reitan@foss.arm.com>, Jonathan Corbet <corbet@lwn.net>, Konstantin Khlebnikov <koct9i@gmail.com>, Mel Gorman <mgorman@suse.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rafael Aquini <aquini@redhat.com>, Rik van Riel <riel@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, virtualization@lists.linux-foundation.org, Gioh Kim <gi-oh.kim@profitbricks.com>, Chan Gyun Jeong <chan.jeong@lge.com>, Sangseok Lee <sangseok.lee@lge.com>, Kyeongdon Kim <kyeongdon.kim@lge.com>, Chulmin Kim <cmlaika.kim@samsung.com>
 
-On Wed, Jun 15, 2016 at 11:27:31AM +0900, Joonsoo Kim wrote:
-> On Tue, Jun 14, 2016 at 03:10:21PM -0400, Sasha Levin wrote:
-> > On 06/14/2016 01:52 AM, Joonsoo Kim wrote:
-> > > On Mon, Jun 13, 2016 at 04:31:15PM -0400, Sasha Levin wrote:
-> > >> > On 05/25/2016 10:37 PM, js1304@gmail.com wrote:
-> > >>> > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > >>> > > 
-> > >>> > > We don't need to split freepages with holding the zone lock. It will cause
-> > >>> > > more contention on zone lock so not desirable.
-> > >>> > > 
-> > >>> > > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > >> > 
-> > >> > Hey Joonsoo,
-> > > Hello, Sasha.
-> > >> > 
-> > >> > I'm seeing the following corruption/crash which seems to be related to
-> > >> > this patch:
-> > > Could you tell me why you think that following corruption is related
-> > > to this patch? list_del() in __isolate_free_page() is unchanged part.
+On Thu, Jun 16, 2016 at 07:09:32PM +0900, Minchan Kim wrote:
+> On Thu, Jun 16, 2016 at 05:42:11PM +0900, Sergey Senozhatsky wrote:
+> > On (06/16/16 15:47), Minchan Kim wrote:
+> > > > [..]
+> > > > > > this is what I'm getting with the [zsmalloc: keep first object offset in struct page]
+> > > > > > applied:  "count:0 mapcount:-127". which may be not related to zsmalloc at this point.
+> > > > > > 
+> > > > > > kernel: BUG: Bad page state in process khugepaged  pfn:101db8
+> > > > > > kernel: page:ffffea0004076e00 count:0 mapcount:-127 mapping:          (null) index:0x1
+> > > > > 
+> > > > > Hm, it seems double free.
+> > > > > 
+> > > > > It doen't happen if you disable zram? IOW, it seems to be related
+> > > > > zsmalloc migration?
+> > > > 
+> > > > need to test more, can't confidently answer now.
+> > > > 
+> > > > > How easy can you reprodcue it? Could you bisect it?
+> > > > 
+> > > > it takes some (um.. random) time to trigger the bug.
+> > > > I'll try to come up with more details.
 > > > 
-> > > Before this patch, we did it by split_free_page() ->
-> > > __isolate_free_page() -> list_del(). With this patch, we do it by
-> > > calling __isolate_free_page() directly.
+> > > Could you revert [1] and retest?
+> > > 
+> > > [1] mm/compaction: split freepages without holding the zone lock
 > > 
-> > I haven't bisected it, but it's the first time I see this issue and this
-> > commit seems to have done related changes that might cause this.
-> > 
-> > I can go ahead with bisection if you don't think it's related.
+> > ok, so this is not related to zsmalloc. finally manged to reproduce
+> > it. will fork a separate thread.
 > 
-> Hmm... I can't find a bug in this patch for now. There are more candidates
-> on this area hat changed by me and it would be very helpful if you can
-> do bisection.
+> The reason I mentioned [1] is that it seems to have a bug.
+> 
+> isolate_freepages_block
+>   __isolate_free_page
+>     if(!zone_watermark_ok())
+>       return 0;
+>   list_add_tail(&page->lru, freelist);
+> 
+> However, the page is not isolated.
+> Joonsoo?
 
-Hello, Sasha.
-
-You are right! Minchan found the bug in this patch! I will send
-updated patch soon.
-
-http://marc.info/?i=20160616100932.GS17127%40bbox
+Good job!
+I will fix it soon.
 
 Thanks.
 
