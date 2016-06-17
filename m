@@ -1,95 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C76C86B0005
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 08:26:51 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r190so9190635wmr.0
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:26:51 -0700 (PDT)
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
-        by mx.google.com with ESMTPS id w6si4845084wma.71.2016.06.17.05.26.50
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E84E6B0253
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 08:28:22 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id at7so1316137obd.3
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:28:22 -0700 (PDT)
+Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
+        by mx.google.com with ESMTPS id u74si5132898itc.107.2016.06.17.05.28.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jun 2016 05:26:50 -0700 (PDT)
-Received: by mail-wm0-f47.google.com with SMTP id m124so110512205wme.1
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:26:50 -0700 (PDT)
-Date: Fri, 17 Jun 2016 14:26:49 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 07/10] mm, oom: fortify task_will_free_mem
-Message-ID: <20160617122647.GF21670@dhcp22.suse.cz>
-References: <20160613112746.GD6518@dhcp22.suse.cz>
- <201606162154.CGE05294.HJQOSMFFVFtOOL@I-love.SAKURA.ne.jp>
- <20160616142940.GK6836@dhcp22.suse.cz>
- <201606170040.FGC21882.FMLHOtVSFFJOQO@I-love.SAKURA.ne.jp>
- <20160616155347.GO6836@dhcp22.suse.cz>
- <201606172038.IIE43237.FtLMVSFOOHJFQO@I-love.SAKURA.ne.jp>
+        Fri, 17 Jun 2016 05:28:19 -0700 (PDT)
+Received: by mail-it0-x242.google.com with SMTP id f6so1834748ith.1
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:28:19 -0700 (PDT)
+Subject: Re: [PATCH] zram: update zram to use zpool
+References: <cover.1466000844.git.geliangtang@gmail.com>
+ <efcf047e747d9d1e80af16ebfc51ea1964a7a621.1466000844.git.geliangtang@gmail.com>
+ <20160615231732.GJ17127@bbox>
+ <CAMJBoFPcaAbsQ=PA2WPsmuyd1a-SyJgE5k4Rn2CUf6rS0-ykKw@mail.gmail.com>
+From: "Austin S. Hemmelgarn" <ahferroin7@gmail.com>
+Message-ID: <8ffd0aab-1adb-17a9-3055-ad60c31f8eb6@gmail.com>
+Date: Fri, 17 Jun 2016 08:28:14 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201606172038.IIE43237.FtLMVSFOOHJFQO@I-love.SAKURA.ne.jp>
+In-Reply-To: <CAMJBoFPcaAbsQ=PA2WPsmuyd1a-SyJgE5k4Rn2CUf6rS0-ykKw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: Vitaly Wool <vitalywool@gmail.com>, Minchan Kim <minchan@kernel.org>
+Cc: Geliang Tang <geliangtang@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Dan Streetman <ddstreet@ieee.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Fri 17-06-16 20:38:01, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > > > Anyway, would you be OK with the patch if I added the current->mm check
-> > > > and resolve its necessity in a separate patch?
-> > > 
-> > > Please correct task_will_free_mem() in oom_kill_process() as well.
-> > 
-> > We cannot hold task_lock over all task_will_free_mem I am even not sure
-> > we have to develop an elaborate way to make it raceless just for the nommu
-> > case. The current case is simple as we cannot race here. Is that
-> > sufficient for you?
-> 
-> We can use find_lock_task_mm() inside mark_oom_victim().
-> That is, call wake_oom_reaper() from mark_oom_victim() like
-> 
-> void mark_oom_victim(struct task_struct *tsk, bool can_use_oom_reaper)
-> {
-> 	WARN_ON(oom_killer_disabled);
-> 	/* OOM killer might race with memcg OOM */
-> 	tsk = find_lock_task_mm(tsk);
-> 	if (!tsk)
-> 		return;
-> 	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE)) {
-> 		task_unlock(tsk);
-> 		return;
-> 	}
-> 	task_unlock(tsk);
-> 	atomic_inc(&tsk->signal->oom_victims);
-> 	/*
-> 	 * Make sure that the task is woken up from uninterruptible sleep
-> 	 * if it is frozen because OOM killer wouldn't be able to free
-> 	 * any memory and livelock. freezing_slow_path will tell the freezer
-> 	 * that TIF_MEMDIE tasks should be ignored.
-> 	 */
-> 	__thaw_task(tsk);
-> 	atomic_inc(&oom_victims);
-> 	if (can_use_oom_reaper)
-> 		wake_oom_reaper(tsk);
-> }
-> 
-> and move mark_oom_victim() by normal path to after task_unlock(victim).
-> 
->  	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
-> -	mark_oom_victim(victim);
-> 
-> -	if (can_oom_reap)
-> -		wake_oom_reaper(victim);
-> +	wake_oom_reaper(victim, can_oom_reap);
+On 2016-06-17 04:30, Vitaly Wool wrote:
+> Hi Minchan,
+>
+> On Thu, Jun 16, 2016 at 1:17 AM, Minchan Kim <minchan@kernel.org> wrote:
+>> On Wed, Jun 15, 2016 at 10:42:07PM +0800, Geliang Tang wrote:
+>>> Change zram to use the zpool api instead of directly using zsmalloc.
+>>> The zpool api doesn't have zs_compact() and zs_pool_stats() functions.
+>>> I did the following two things to fix it.
+>>> 1) I replace zs_compact() with zpool_shrink(), use zpool_shrink() to
+>>>    call zs_compact() in zsmalloc.
+>>> 2) The 'pages_compacted' attribute is showed in zram by calling
+>>>    zs_pool_stats(). So in order not to call zs_pool_state() I move the
+>>>    attribute to zsmalloc.
+>>>
+>>> Signed-off-by: Geliang Tang <geliangtang@gmail.com>
+>>
+>> NACK.
+>>
+>> I already explained why.
+>> http://lkml.kernel.org/r/20160609013411.GA29779@bbox
+>
+> This is a fair statement, to a certain extent. I'll let Geliang speak
+> for himself but I am personally interested in this zram extension
+> because I want it to work on MMU-less systems. zsmalloc can not handle
+> that, so I want to be able to use zram over z3fold.
+I concur with this.
 
-I do not like this because then we would have to check the reapability
-from inside the oom_reaper again.
-
-But let me ask again. Does this really matter so much just because of
-nommu where we can fall in different traps? Can we simply focus on mmu
-(aka vast majority of cases) make it work reliably and see what we can
-do with nommu later?
-
--- 
-Michal Hocko
-SUSE Labs
+It's also worth pointing out that people can and do use zram for things 
+other than swap, so the assumption that zswap is a viable alternative is 
+not universally correct.  In my case for example, I use it on a VM host 
+for temporary storage for transient SSI VM's.  Making it more 
+deterministic would be seriously helpful in this case, as it would mean 
+I can more precisely provision resources on this particular system, and 
+could better account for latencies in the testing these transient VM's 
+are used for.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
