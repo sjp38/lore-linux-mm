@@ -1,60 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C25C66B0253
-	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 22:30:14 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g62so137275771pfb.3
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 19:30:14 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id b72si9411346pfc.221.2016.06.16.19.30.13
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Jun 2016 19:30:14 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id t190so5115818pfb.2
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 19:30:13 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v1 2/2] mm: rmap: call page_check_address() with sync enabled to avoid racy check
-Date: Fri, 17 Jun 2016 11:30:04 +0900
-Message-Id: <1466130604-20484-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1466130604-20484-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1466130604-20484-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B2186B0005
+	for <linux-mm@kvack.org>; Thu, 16 Jun 2016 23:04:43 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id l5so146940724ioa.0
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 20:04:43 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id al10si11491839pad.148.2016.06.16.20.04.42
+        for <linux-mm@kvack.org>;
+        Thu, 16 Jun 2016 20:04:42 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH] MADVISE_FREE, THP: Fix madvise_free_huge_pmd return value after splitting
+Date: Thu, 16 Jun 2016 20:03:54 -0700
+Message-Id: <1466132640-18932-1-git-send-email-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The previous patch addresses the race between split_huge_pmd_address() and
-someone changing the pmd. The fix is only for splitting of normal thp
-(i.e. pmd-mapped thp,) and for splitting of pte-mapped thp there still is
-the similar race.
+From: Huang Ying <ying.huang@intel.com>
 
-For splitting pte-mapped thp, the pte's conversion is done by
-try_to_unmap_one(TTU_MIGRATION). This function checks page_check_address() to
-get the target pte, but it can return NULL under some race, leading to
-VM_BUG_ON() in freeze_page(). Fortunately, page_check_address() already has
-an argument to decide whether we do a quick/racy check or not, so let's flip
-it when called from freeze_page().
+madvise_free_huge_pmd should return 0 if the fallback PTE operations are
+required.  In madvise_free_huge_pmd, if part pages of THP are discarded,
+the THP will be split and fallback PTE operations should be used if
+splitting succeeds.  But the original code will make fallback PTE
+operations skipped, after splitting succeeds.  Fix that via make
+madvise_free_huge_pmd return 0 after splitting successfully, so that the
+fallback PTE operations will be done.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Know issues: if my understanding were correct, return 1 from
+madvise_free_huge_pmd means the following processing for the PMD should
+be skipped, while return 0 means the following processing is still
+needed.  So the function should return 0 only if the THP is split
+successfully or the PMD is not trans huge.  But the pmd_trans_unstable
+after madvise_free_huge_pmd guarantee the following processing will be
+skipped for huge PMD.  So current code can run properly.  But if my
+understanding were correct, we can clean up return code of
+madvise_free_huge_pmd accordingly.
+
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 ---
- mm/rmap.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/huge_memory.c | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
 
-diff --git v4.6/mm/rmap.c v4.6_patched/mm/rmap.c
-index 4282b56..c357fb36 100644
---- v4.6/mm/rmap.c
-+++ v4.6_patched/mm/rmap.c
-@@ -1424,7 +1424,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 			goto out;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 2ad52d5..64dc95d 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1655,14 +1655,9 @@ int madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 	if (next - addr != HPAGE_PMD_SIZE) {
+ 		get_page(page);
+ 		spin_unlock(ptl);
+-		if (split_huge_page(page)) {
+-			put_page(page);
+-			unlock_page(page);
+-			goto out_unlocked;
+-		}
++		split_huge_page(page);
+ 		put_page(page);
+ 		unlock_page(page);
+-		ret = 1;
+ 		goto out_unlocked;
  	}
  
--	pte = page_check_address(page, mm, address, &ptl, 0);
-+	pte = page_check_address(page, mm, address, &ptl,
-+				 PageTransCompound(page));
- 	if (!pte)
- 		goto out;
- 
 -- 
-2.7.0
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
