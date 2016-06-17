@@ -1,104 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BA5296B0005
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:31:10 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id e5so153713915ith.0
-        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 22:31:10 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id 199si2360174itx.64.2016.06.16.22.31.09
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C2CFB6B0005
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 02:43:33 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id g13so135901363ioj.3
+        for <linux-mm@kvack.org>; Thu, 16 Jun 2016 23:43:33 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id y66si3273780ita.42.2016.06.16.23.43.32
         for <linux-mm@kvack.org>;
-        Thu, 16 Jun 2016 22:31:09 -0700 (PDT)
-Date: Fri, 17 Jun 2016 14:31:02 +0900
+        Thu, 16 Jun 2016 23:43:32 -0700 (PDT)
+Date: Fri, 17 Jun 2016 15:43:30 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] MADVISE_FREE, THP: Fix madvise_free_huge_pmd return
- value after splitting
-Message-ID: <20160617053102.GA2374@bbox>
-References: <1466132640-18932-1-git-send-email-ying.huang@intel.com>
+Subject: Re: [PATCH v1 3/3] mm: per-process reclaim
+Message-ID: <20160617064330.GD2374@bbox>
+References: <1465804259-29345-1-git-send-email-minchan@kernel.org>
+ <1465804259-29345-4-git-send-email-minchan@kernel.org>
+ <20160613150653.GA30642@cmpxchg.org>
+ <20160615004027.GA17127@bbox>
+ <20160616144102.GA17692@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <1466132640-18932-1-git-send-email-ying.huang@intel.com>
+In-Reply-To: <20160616144102.GA17692@cmpxchg.org>
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Sangwoo Park <sangwoo2.park@lge.com>
 
-Hi,
+Hi Hannes,
 
-On Thu, Jun 16, 2016 at 08:03:54PM -0700, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+On Thu, Jun 16, 2016 at 10:41:02AM -0400, Johannes Weiner wrote:
+> On Wed, Jun 15, 2016 at 09:40:27AM +0900, Minchan Kim wrote:
+> > A question is it seems cgroup2 doesn't have per-cgroup swappiness.
+> > Why?
+> > 
+> > I think we need it in one-cgroup-per-app model.
 > 
-> madvise_free_huge_pmd should return 0 if the fallback PTE operations are
-> required.  In madvise_free_huge_pmd, if part pages of THP are discarded,
-> the THP will be split and fallback PTE operations should be used if
-> splitting succeeds.  But the original code will make fallback PTE
-> operations skipped, after splitting succeeds.  Fix that via make
-> madvise_free_huge_pmd return 0 after splitting successfully, so that the
-> fallback PTE operations will be done.
-
-You're right. Thanks!
-
+> Can you explain why you think that?
 > 
-> Know issues: if my understanding were correct, return 1 from
-> madvise_free_huge_pmd means the following processing for the PMD should
-> be skipped, while return 0 means the following processing is still
-> needed.  So the function should return 0 only if the THP is split
-> successfully or the PMD is not trans huge.  But the pmd_trans_unstable
-> after madvise_free_huge_pmd guarantee the following processing will be
-> skipped for huge PMD.  So current code can run properly.  But if my
-> understanding were correct, we can clean up return code of
-> madvise_free_huge_pmd accordingly.
-
-I like your clean up. Just a minor comment below.
-
+> As we have talked about this recently in the LRU balancing thread,
+> swappiness is the cost factor between file IO and swapping, so the
+> only situation I can imagine you'd need a memcg swappiness setting is
+> when you have different cgroups use different storage devices that do
+> not have comparable speeds.
 > 
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> ---
->  mm/huge_memory.c | 7 +------
->  1 file changed, 1 insertion(+), 6 deletions(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 2ad52d5..64dc95d 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
+> So I'm not sure I understand the relationship to an app-group model.
 
-First of all, let's change ret from int to bool.
-And then, add description in the function entry.
+Sorry for lacking the inforamtion. I should have written more clear.
+In fact, what we need is *per-memcg-swap-device*.
 
-/*
- * Return true if we do MADV_FREE successfully on entire pmd page.
- * Otherwise, return false.
- */
+What I want is to avoid kill background application although memory
+is overflow because cold launcing of app takes a very long time
+compared to resume(ie, just switching). I also want to keep a mount
+of free pages in the memory so that new application startup cannot
+be stuck by reclaim activities.
 
-And do not set to 1 if it is huge_zero_pmd but just goto out to
-return false.
+To get free memory, I want to reclaim less important app rather than
+killing. In this time, we can support two swap devices.
 
-Thanks!
+A one is zram, other is slow storage but much bigger than zram size.
+Then, we can use storage swap to reclaim pages for not-important app
+while we can use zram swap for for important app(e.g., forground app,
+system services, daemon and so on).
 
-> @@ -1655,14 +1655,9 @@ int madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  	if (next - addr != HPAGE_PMD_SIZE) {
->  		get_page(page);
->  		spin_unlock(ptl);
-> -		if (split_huge_page(page)) {
-> -			put_page(page);
-> -			unlock_page(page);
-> -			goto out_unlocked;
-> -		}
-> +		split_huge_page(page);
->  		put_page(page);
->  		unlock_page(page);
-> -		ret = 1;
->  		goto out_unlocked;
->  	}
->  
-> -- 
-> 2.8.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+IOW, we want to support mutiple swap device with one-cgroup-per-app
+and the storage speed is totally different.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
