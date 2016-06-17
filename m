@@ -1,57 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 25D316B0005
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:56:02 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id a4so32845372lfa.1
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 02:56:02 -0700 (PDT)
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id d7si11049526wja.108.2016.06.17.02.56.00
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 059D26B0005
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 06:46:09 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id na2so38776451lbb.1
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 03:46:08 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ec11si11305545wjb.99.2016.06.17.03.46.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jun 2016 02:56:00 -0700 (PDT)
-Received: by mail-wm0-f51.google.com with SMTP id v199so223392662wmv.0
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 02:56:00 -0700 (PDT)
-Date: Fri, 17 Jun 2016 11:55:59 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 6/7] mm/page_owner: use stackdepot to store stacktrace
-Message-ID: <20160617095559.GC21670@dhcp22.suse.cz>
-References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1464230275-25791-6-git-send-email-iamjoonsoo.kim@lge.com>
- <20160606135604.GJ11895@dhcp22.suse.cz>
- <20160617072525.GA810@js1304-P5Q-DELUXE>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 17 Jun 2016 03:46:07 -0700 (PDT)
+Subject: Re: [PATCH 21/27] mm, vmscan: Only wakeup kswapd once per node for
+ the requested classzone
+References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
+ <1465495483-11855-22-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <2ce07fcf-7b7d-a70b-ed7b-60867ad4458f@suse.cz>
+Date: Fri, 17 Jun 2016 12:46:05 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160617072525.GA810@js1304-P5Q-DELUXE>
+In-Reply-To: <1465495483-11855-22-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 17-06-16 16:25:26, Joonsoo Kim wrote:
-> On Mon, Jun 06, 2016 at 03:56:04PM +0200, Michal Hocko wrote:
-[...]
-> > I still have troubles to understand your numbers
-> > 
-> > > static allocation:
-> > > 92274688 bytes -> 25165824 bytes
-> > 
-> > I assume that the first numbers refers to the static allocation for the
-> > given amount of memory while the second one is the dynamic after the
-> > boot, right?
-> 
-> No, first number refers to the static allocation before the patch and
-> second one is for after the patch.
+On 06/09/2016 08:04 PM, Mel Gorman wrote:
+> kswapd is woken when zones are below the low watermark but the wakeup
+> decision is not taking the classzone into account.  Now that reclaim is
+> node-based, it is only required to wake kswapd once per node and only if
+> all zones are unbalanced for the requested classzone.
+>
+> Note that one node might be checked multiple times but there is no cheap
+> way of tracking what nodes have already been visited for zoneslists that
+> be ordered by either zone or node.
 
-I guess we are both talking about the same thing in different words. All
-the allocations are static before the patch while all are dynamic after
-the patch. Your boot example just shows how much dynamic memory gets
-allocated during your boot. This will depend on the particular
-configuration but it will at least give a picture what the savings might
-be.
--- 
-Michal Hocko
-SUSE Labs
+Wouldn't it be possible to optimize for node order as you did in direct reclaim? 
+Do the zone_balanced checks when going through zonelist, and once node changes 
+in iteration, wake up if no eligible zones visited so far were balanced.
+
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> ---
+>  mm/vmscan.c | 13 +++++++++++--
+>  1 file changed, 11 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 7a2d69612231..b9cff9047ac0 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3389,6 +3389,7 @@ static int kswapd(void *p)
+>  void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+>  {
+>  	pg_data_t *pgdat;
+> +	int z;
+>
+>  	if (!populated_zone(zone))
+>  		return;
+> @@ -3402,8 +3403,16 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+>  	pgdat->kswapd_order = max(pgdat->kswapd_order, order);
+>  	if (!waitqueue_active(&pgdat->kswapd_wait))
+>  		return;
+> -	if (zone_balanced(zone, order, 0))
+> -		return;
+> +
+> +	/* Only wake kswapd if all zones are unbalanced */
+> +	for (z = 0; z <= classzone_idx; z++) {
+> +		zone = pgdat->node_zones + z;
+> +		if (!populated_zone(zone))
+> +			continue;
+> +
+> +		if (zone_balanced(zone, order, classzone_idx))
+> +			return;
+> +	}
+>
+>  	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
+>  	wake_up_interruptible(&pgdat->kswapd_wait);
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
