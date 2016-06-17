@@ -1,67 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DEC26B0005
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 03:24:58 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id he1so117743464pac.0
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 00:24:58 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id xm3si252400pac.158.2016.06.17.00.24.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jun 2016 00:24:57 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id i123so2666721pfg.3
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 00:24:57 -0700 (PDT)
-Subject: Re: [PATCH v1 3/3] mm: per-process reclaim
-References: <1465804259-29345-1-git-send-email-minchan@kernel.org>
- <1465804259-29345-4-git-send-email-minchan@kernel.org>
- <20160613150653.GA30642@cmpxchg.org>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <0627865b-e261-d1ba-c9f2-56e8f4479d57@gmail.com>
-Date: Fri, 17 Jun 2016 17:24:46 +1000
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FF166B0253
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 03:25:39 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id z189so160462418itg.2
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 00:25:39 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id 75si13003831itu.78.2016.06.17.00.25.38
+        for <linux-mm@kvack.org>;
+        Fri, 17 Jun 2016 00:25:39 -0700 (PDT)
+Date: Fri, 17 Jun 2016 16:27:53 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 1/7] mm/compaction: split freepages without holding
+ the zone lock
+Message-ID: <20160617072752.GB810@js1304-P5Q-DELUXE>
+References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <575F1813.4020700@oracle.com>
+ <20160614055257.GA13753@js1304-P5Q-DELUXE>
+ <5760569D.6030907@oracle.com>
+ <20160615022731.GB19863@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-In-Reply-To: <20160613150653.GA30642@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160615022731.GB19863@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Sangwoo Park <sangwoo2.park@lge.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+On Wed, Jun 15, 2016 at 11:27:31AM +0900, Joonsoo Kim wrote:
+> On Tue, Jun 14, 2016 at 03:10:21PM -0400, Sasha Levin wrote:
+> > On 06/14/2016 01:52 AM, Joonsoo Kim wrote:
+> > > On Mon, Jun 13, 2016 at 04:31:15PM -0400, Sasha Levin wrote:
+> > >> > On 05/25/2016 10:37 PM, js1304@gmail.com wrote:
+> > >>> > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > >>> > > 
+> > >>> > > We don't need to split freepages with holding the zone lock. It will cause
+> > >>> > > more contention on zone lock so not desirable.
+> > >>> > > 
+> > >>> > > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > >> > 
+> > >> > Hey Joonsoo,
+> > > Hello, Sasha.
+> > >> > 
+> > >> > I'm seeing the following corruption/crash which seems to be related to
+> > >> > this patch:
+> > > Could you tell me why you think that following corruption is related
+> > > to this patch? list_del() in __isolate_free_page() is unchanged part.
+> > > 
+> > > Before this patch, we did it by split_free_page() ->
+> > > __isolate_free_page() -> list_del(). With this patch, we do it by
+> > > calling __isolate_free_page() directly.
+> > 
+> > I haven't bisected it, but it's the first time I see this issue and this
+> > commit seems to have done related changes that might cause this.
+> > 
+> > I can go ahead with bisection if you don't think it's related.
+> 
+> Hmm... I can't find a bug in this patch for now. There are more candidates
+> on this area hat changed by me and it would be very helpful if you can
+> do bisection.
 
+Hello, Sasha.
 
-On 14/06/16 01:06, Johannes Weiner wrote:
-> Hi Minchan,
-> 
-> On Mon, Jun 13, 2016 at 04:50:58PM +0900, Minchan Kim wrote:
->> These day, there are many platforms available in the embedded market
->> and sometime, they has more hints about workingset than kernel so
->> they want to involve memory management more heavily like android's
->> lowmemory killer and ashmem or user-daemon with lowmemory notifier.
->>
->> This patch adds add new method for userspace to manage memory
->> efficiently via knob "/proc/<pid>/reclaim" so platform can reclaim
->> any process anytime.
-> 
-> Cgroups are our canonical way to control system resources on a per
-> process or group-of-processes level. I don't like the idea of adding
-> ad-hoc interfaces for single-use cases like this.
-> 
-> For this particular case, you can already stick each app into its own
-> cgroup and use memory.force_empty to target-reclaim them.
-> 
-> Or better yet, set the soft limits / memory.low to guide physical
-> memory pressure, once it actually occurs, toward the least-important
-> apps? We usually prefer doing work on-demand rather than proactively.
-> 
-> The one-cgroup-per-app model would give Android much more control and
-> would also remove a *lot* of overhead during task switches, see this:
-> https://lkml.org/lkml/2014/12/19/358
+You are right! Minchan found the bug in this patch! I will send
+updated patch soon.
 
-Yes, I'd agree. cgroups can group many tasks, but the group size can be
-1 as well. Could you try the same test with the recommended approach and
-see if it works as desired? 
+http://marc.info/?i=20160616100932.GS17127%40bbox
 
-Balbir Singh
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
