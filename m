@@ -1,134 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F19EC6B0005
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 08:25:10 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id l184so38555920lfl.3
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:25:10 -0700 (PDT)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id i127si22026909lfd.61.2016.06.17.05.25.09
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C76C86B0005
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 08:26:51 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r190so9190635wmr.0
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:26:51 -0700 (PDT)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id w6si4845084wma.71.2016.06.17.05.26.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jun 2016 05:25:09 -0700 (PDT)
-Received: by mail-lf0-x243.google.com with SMTP id a2so8192657lfe.3
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:25:09 -0700 (PDT)
-Date: Fri, 17 Jun 2016 15:25:06 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: fix account pmd page to the process
-Message-ID: <20160617122506.GC6534@node.shutemov.name>
-References: <1466076971-24609-1-git-send-email-zhongjiang@huawei.com>
- <20160616154214.GA12284@dhcp22.suse.cz>
- <20160616154324.GN6836@dhcp22.suse.cz>
- <71df66ac-df29-9542-bfa9-7c94f374df5b@oracle.com>
- <20160616163119.GP6836@dhcp22.suse.cz>
- <bf76cc6c-a0da-98f9-4a89-0bb6161f5adf@oracle.com>
+        Fri, 17 Jun 2016 05:26:50 -0700 (PDT)
+Received: by mail-wm0-f47.google.com with SMTP id m124so110512205wme.1
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:26:50 -0700 (PDT)
+Date: Fri, 17 Jun 2016 14:26:49 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 07/10] mm, oom: fortify task_will_free_mem
+Message-ID: <20160617122647.GF21670@dhcp22.suse.cz>
+References: <20160613112746.GD6518@dhcp22.suse.cz>
+ <201606162154.CGE05294.HJQOSMFFVFtOOL@I-love.SAKURA.ne.jp>
+ <20160616142940.GK6836@dhcp22.suse.cz>
+ <201606170040.FGC21882.FMLHOtVSFFJOQO@I-love.SAKURA.ne.jp>
+ <20160616155347.GO6836@dhcp22.suse.cz>
+ <201606172038.IIE43237.FtLMVSFOOHJFQO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <bf76cc6c-a0da-98f9-4a89-0bb6161f5adf@oracle.com>
+In-Reply-To: <201606172038.IIE43237.FtLMVSFOOHJFQO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Michal Hocko <mhocko@kernel.org>, zhongjiang <zhongjiang@huawei.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Thu, Jun 16, 2016 at 09:47:46AM -0700, Mike Kravetz wrote:
-> On 06/16/2016 09:31 AM, Michal Hocko wrote:
-> > On Thu 16-06-16 09:05:23, Mike Kravetz wrote:
-> >> On 06/16/2016 08:43 AM, Michal Hocko wrote:
-> >>> [It seems that this patch has been sent several times and this
-> >>> particular copy didn't add Kirill who has added this code CC him now]
-> >>>
-> >>> On Thu 16-06-16 17:42:14, Michal Hocko wrote:
-> >>>> On Thu 16-06-16 19:36:11, zhongjiang wrote:
-> >>>>> From: zhong jiang <zhongjiang@huawei.com>
-> >>>>>
-> >>>>> when a process acquire a pmd table shared by other process, we
-> >>>>> increase the account to current process. otherwise, a race result
-> >>>>> in other tasks have set the pud entry. so it no need to increase it.
-> >>>>>
-> >>>>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> >>>>> ---
-> >>>>>  mm/hugetlb.c | 5 ++---
-> >>>>>  1 file changed, 2 insertions(+), 3 deletions(-)
-> >>>>>
-> >>>>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> >>>>> index 19d0d08..3b025c5 100644
-> >>>>> --- a/mm/hugetlb.c
-> >>>>> +++ b/mm/hugetlb.c
-> >>>>> @@ -4189,10 +4189,9 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
-> >>>>>  	if (pud_none(*pud)) {
-> >>>>>  		pud_populate(mm, pud,
-> >>>>>  				(pmd_t *)((unsigned long)spte & PAGE_MASK));
-> >>>>> -	} else {
-> >>>>> +	} else 
-> >>>>>  		put_page(virt_to_page(spte));
-> >>>>> -		mm_inc_nr_pmds(mm);
-> >>>>> -	}
-> >>>>
-> >>>> The code is quite puzzling but is this correct? Shouldn't we rather do
-> >>>> mm_dec_nr_pmds(mm) in that path to undo the previous inc?
-> >>
-> >> I agree that the code is quite puzzling. :(
-> >>
-> >> However, if this were an issue I would have expected to see some reports.
-> >> Oracle DB makes use of this feature (shared page tables) and if the pmd
-> >> count is wrong we would catch it in check_mm() at exit time.
-> >>
-> >> Upon closer examination, I believe the code in question is never executed.
-> >> Note the callers of huge_pmd_share.  The calling code looks like:
-> >>
-> >>                         if (want_pmd_share() && pud_none(*pud))
-> >>                                 pte = huge_pmd_share(mm, addr, pud);
-> >>                         else
-> >>                                 pte = (pte_t *)pmd_alloc(mm, pud, addr);
-> >>
-> >> Therefore, we do not call huge_pmd_share unless pud_none(*pud).  The
-> >> code in question is only executed when !pud_none(*pud).
+On Fri 17-06-16 20:38:01, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > > > Anyway, would you be OK with the patch if I added the current->mm check
+> > > > and resolve its necessity in a separate patch?
+> > > 
+> > > Please correct task_will_free_mem() in oom_kill_process() as well.
 > > 
-> > My understanding is that the check is needed after we retake page lock
-> > because we might have raced with other thread. But it's been quite some
-> > time since I've looked at hugetlb locking and page table sharing code.
+> > We cannot hold task_lock over all task_will_free_mem I am even not sure
+> > we have to develop an elaborate way to make it raceless just for the nommu
+> > case. The current case is simple as we cannot race here. Is that
+> > sufficient for you?
 > 
-> That is correct, we could have raced. Duh!
+> We can use find_lock_task_mm() inside mark_oom_victim().
+> That is, call wake_oom_reaper() from mark_oom_victim() like
 > 
-> In the case of a race, the other thread would have incremented the
-> PMD count already.  Your suggestion of decrementing pmd count in
-> this case seems to be the correct approach.  But, I need to think
-> about this some more.
+> void mark_oom_victim(struct task_struct *tsk, bool can_use_oom_reaper)
+> {
+> 	WARN_ON(oom_killer_disabled);
+> 	/* OOM killer might race with memcg OOM */
+> 	tsk = find_lock_task_mm(tsk);
+> 	if (!tsk)
+> 		return;
+> 	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE)) {
+> 		task_unlock(tsk);
+> 		return;
+> 	}
+> 	task_unlock(tsk);
+> 	atomic_inc(&tsk->signal->oom_victims);
+> 	/*
+> 	 * Make sure that the task is woken up from uninterruptible sleep
+> 	 * if it is frozen because OOM killer wouldn't be able to free
+> 	 * any memory and livelock. freezing_slow_path will tell the freezer
+> 	 * that TIF_MEMDIE tasks should be ignored.
+> 	 */
+> 	__thaw_task(tsk);
+> 	atomic_inc(&oom_victims);
+> 	if (can_use_oom_reaper)
+> 		wake_oom_reaper(tsk);
+> }
+> 
+> and move mark_oom_victim() by normal path to after task_unlock(victim).
+> 
+>  	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+> -	mark_oom_victim(victim);
+> 
+> -	if (can_oom_reap)
+> -		wake_oom_reaper(victim);
+> +	wake_oom_reaper(victim, can_oom_reap);
 
-Yes, I made mistake by increasing nr_pmds, not descreasing here.
+I do not like this because then we would have to check the reapability
+from inside the oom_reaper again.
 
-Testcase:
+But let me ask again. Does this really matter so much just because of
+nommu where we can fall in different traps? Can we simply focus on mmu
+(aka vast majority of cases) make it work reliably and see what we can
+do with nommu later?
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/syscall.h>
-#include <sys/time.h>
+-- 
+Michal Hocko
+SUSE Labs
 
-#define HPGSZ 2097152UL
-int main(int argc, char **argv) {
-	char *addr;
-
-	system("echo 1024 > /proc/sys/vm/nr_hugepages");
-	addr = mmap(NULL, 1024*HPGSZ, PROT_WRITE | PROT_READ,
-			MAP_SHARED | MAP_ANONYMOUS | MAP_HUGETLB | MAP_POPULATE, -1, 0);
-	if (addr == MAP_FAILED) {
-		fprintf(stderr, "Failed to alloc hugepage\n");
-		return -1;
-	}
-
-	addr[0] = 1;
-	fork();
-	printf("addr[0]: %d\n", addr[0]);
-
-	sleep(1);
-	return 0;
-}
-
-You can simulate race by replacing 'if (pud_none(*pud))' with "if (0)". It
-would produce "BUG: non-zero nr_pmds on freeing mm: 2" on the test-case.
-
-Fix:
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
