@@ -1,77 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B70E828E1
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 03:58:01 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id g13so138629510ioj.3
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 00:58:01 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id hg8si19641716pac.239.2016.06.17.00.58.00
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AAA25828E1
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 03:58:03 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id b13so119543465pat.3
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 00:58:03 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id xw5si13443925pac.189.2016.06.17.00.58.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jun 2016 00:58:00 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id 66so5735252pfy.1
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 00:58:00 -0700 (PDT)
-From: js1304@gmail.com
-Subject: [PATCH v3 5/9] tools/vm/page_owner: increase temporary buffer size
-Date: Fri, 17 Jun 2016 16:57:35 +0900
-Message-Id: <1466150259-27727-6-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1466150259-27727-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1466150259-27727-1-git-send-email-iamjoonsoo.kim@lge.com>
+        Fri, 17 Jun 2016 00:58:02 -0700 (PDT)
+Subject: Re: [PATCH v1 3/3] mm: per-process reclaim
+References: <1465804259-29345-1-git-send-email-minchan@kernel.org>
+ <1465804259-29345-4-git-send-email-minchan@kernel.org>
+ <20160613150653.GA30642@cmpxchg.org>
+ <0627865b-e261-d1ba-c9f2-56e8f4479d57@gmail.com>
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Message-ID: <a17c2e0d-00f9-011b-dd33-3acd8d4d0ce6@codeaurora.org>
+Date: Fri, 17 Jun 2016 13:27:56 +0530
+MIME-Version: 1.0
+In-Reply-To: <0627865b-e261-d1ba-c9f2-56e8f4479d57@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Sangwoo Park <sangwoo2.park@lge.com>
 
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-Page owner will be changed to store more deep stacktrace so current
-temporary buffer size isn't enough.  Increase it.
-
-Link: http://lkml.kernel.org/r/1464230275-25791-5-git-send-email-iamjoonsoo.kim@lge.com
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Alexander Potapenko <glider@google.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>
----
- tools/vm/page_owner_sort.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
-
-diff --git a/tools/vm/page_owner_sort.c b/tools/vm/page_owner_sort.c
-index 77147b4..f1c055f 100644
---- a/tools/vm/page_owner_sort.c
-+++ b/tools/vm/page_owner_sort.c
-@@ -79,12 +79,12 @@ static void add_list(char *buf, int len)
- 	}
- }
- 
--#define BUF_SIZE	1024
-+#define BUF_SIZE	(128 * 1024)
- 
- int main(int argc, char **argv)
- {
- 	FILE *fin, *fout;
--	char buf[BUF_SIZE];
-+	char *buf;
- 	int ret, i, count;
- 	struct block_list *list2;
- 	struct stat st;
-@@ -107,6 +107,11 @@ int main(int argc, char **argv)
- 	max_size = st.st_size / 100; /* hack ... */
- 
- 	list = malloc(max_size * sizeof(*list));
-+	buf = malloc(BUF_SIZE);
-+	if (!list || !buf) {
-+		printf("Out of memory\n");
-+		exit(1);
-+	}
- 
- 	for ( ; ; ) {
- 		ret = read_block(buf, BUF_SIZE, fin);
--- 
-1.9.1
+On 6/17/2016 12:54 PM, Balbir Singh wrote:
+>
+> On 14/06/16 01:06, Johannes Weiner wrote:
+>> Hi Minchan,
+>>
+>> On Mon, Jun 13, 2016 at 04:50:58PM +0900, Minchan Kim wrote:
+>>> These day, there are many platforms available in the embedded market
+>>> and sometime, they has more hints about workingset than kernel so
+>>> they want to involve memory management more heavily like android's
+>>> lowmemory killer and ashmem or user-daemon with lowmemory notifier.
+>>>
+>>> This patch adds add new method for userspace to manage memory
+>>> efficiently via knob "/proc/<pid>/reclaim" so platform can reclaim
+>>> any process anytime.
+>> Cgroups are our canonical way to control system resources on a per
+>> process or group-of-processes level. I don't like the idea of adding
+>> ad-hoc interfaces for single-use cases like this.
+>>
+>> For this particular case, you can already stick each app into its own
+>> cgroup and use memory.force_empty to target-reclaim them.
+>>
+>> Or better yet, set the soft limits / memory.low to guide physical
+>> memory pressure, once it actually occurs, toward the least-important
+>> apps? We usually prefer doing work on-demand rather than proactively.
+>>
+>> The one-cgroup-per-app model would give Android much more control and
+>> would also remove a *lot* of overhead during task switches, see this:
+>> https://lkml.org/lkml/2014/12/19/358
+> Yes, I'd agree. cgroups can group many tasks, but the group size can be
+> 1 as well. Could you try the same test with the recommended approach and
+> see if it works as desired? 
+>
+With cgroup v2, IIUC there can be only a single hierarchy where all controllers exist, and
+a process can be part of only one cgroup. If that is true, with per task cgroup, a task can
+be present only in its own cgroup. That being the case would it be feasible to have other
+parallel controllers like CPU which would not be able to work efficiently with per task cgroup ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
