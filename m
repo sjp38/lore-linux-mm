@@ -1,120 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 148FC6B007E
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 15:45:46 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id 5so188835698ioy.2
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 12:45:46 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id x5si45471450pab.167.2016.06.17.12.45.45
-        for <linux-mm@kvack.org>;
-        Fri, 17 Jun 2016 12:45:45 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH] MADVISE_FREE, THP: Fix madvise_free_huge_pmd return value after splitting
-References: <1466132640-18932-1-git-send-email-ying.huang@intel.com>
-	<20160617053102.GA2374@bbox>
-Date: Fri, 17 Jun 2016 12:45:43 -0700
-In-Reply-To: <20160617053102.GA2374@bbox> (Minchan Kim's message of "Fri, 17
-	Jun 2016 14:31:02 +0900")
-Message-ID: <87mvmjha54.fsf@yhuang-mobile.sh.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 735C46B007E
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 16:00:56 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id fg1so144993929pad.1
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 13:00:56 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id 189si14070138pfu.156.2016.06.17.13.00.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Jun 2016 13:00:55 -0700 (PDT)
+From: Andy Lutomirski <luto@kernel.org>
+Subject: [PATCH v2 01/13] x86/mm/hotplug: Don't remove PGD entries in remove_pagetable()
+Date: Fri, 17 Jun 2016 13:00:37 -0700
+Message-Id: <f15dcba341945848b48ae74dbcf20228f2c940b0.1466192946.git.luto@kernel.org>
+In-Reply-To: <cover.1466192946.git.luto@kernel.org>
+References: <cover.1466192946.git.luto@kernel.org>
+In-Reply-To: <cover.1466192946.git.luto@kernel.org>
+References: <cover.1466192946.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: x86@kernel.org, linux-kernel@vger.kernel.org
+Cc: linux-arch@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Brian Gerst <brgerst@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Jann Horn <jann@thejh.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Waiman Long <Waiman.Long@hp.com>, linux-mm@kvack.org
 
-Minchan Kim <minchan@kernel.org> writes:
+From: Ingo Molnar <mingo@kernel.org>
 
-> Hi,
->
-> On Thu, Jun 16, 2016 at 08:03:54PM -0700, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> madvise_free_huge_pmd should return 0 if the fallback PTE operations are
->> required.  In madvise_free_huge_pmd, if part pages of THP are discarded,
->> the THP will be split and fallback PTE operations should be used if
->> splitting succeeds.  But the original code will make fallback PTE
->> operations skipped, after splitting succeeds.  Fix that via make
->> madvise_free_huge_pmd return 0 after splitting successfully, so that the
->> fallback PTE operations will be done.
->
-> You're right. Thanks!
->
->> 
->> Know issues: if my understanding were correct, return 1 from
->> madvise_free_huge_pmd means the following processing for the PMD should
->> be skipped, while return 0 means the following processing is still
->> needed.  So the function should return 0 only if the THP is split
->> successfully or the PMD is not trans huge.  But the pmd_trans_unstable
->> after madvise_free_huge_pmd guarantee the following processing will be
->> skipped for huge PMD.  So current code can run properly.  But if my
->> understanding were correct, we can clean up return code of
->> madvise_free_huge_pmd accordingly.
->
-> I like your clean up. Just a minor comment below.
->
->> 
->> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> ---
->>  mm/huge_memory.c | 7 +------
->>  1 file changed, 1 insertion(+), 6 deletions(-)
->> 
->> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> index 2ad52d5..64dc95d 100644
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->
-> First of all, let's change ret from int to bool.
-> And then, add description in the function entry.
+So when memory hotplug removes a piece of physical memory from pagetable
+mappings, it also frees the underlying PGD entry.
 
-Yes.  bool looks better than int.
+This complicates PGD management, so don't do this. We can keep the
+PGD mapped and the PUD table all clear - it's only a single 4K page
+per 512 GB of memory hotplugged.
 
-> /*
->  * Return true if we do MADV_FREE successfully on entire pmd page.
->  * Otherwise, return false.
->  */
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Waiman Long <Waiman.Long@hp.com>
+Cc: linux-mm@kvack.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Message-Id: <1442903021-3893-4-git-send-email-mingo@kernel.org>
+---
+ arch/x86/mm/init_64.c | 27 ---------------------------
+ 1 file changed, 27 deletions(-)
 
-This way, we need to return false if we failed to split huge page, this
-will cause unnecessary pmd_trans_unstable check.  How about to change
-the comments to
-
-/*
- * Return true if we finished processing entire pmd page and needn't
- * fall back pte processing.  Otherwise, return false.
- */
-
-Best Regards,
-Huang, Ying
-
-> And do not set to 1 if it is huge_zero_pmd but just goto out to
-> return false.
->
-> Thanks!
->
->> @@ -1655,14 +1655,9 @@ int madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->>  	if (next - addr != HPAGE_PMD_SIZE) {
->>  		get_page(page);
->>  		spin_unlock(ptl);
->> -		if (split_huge_page(page)) {
->> -			put_page(page);
->> -			unlock_page(page);
->> -			goto out_unlocked;
->> -		}
->> +		split_huge_page(page);
->>  		put_page(page);
->>  		unlock_page(page);
->> -		ret = 1;
->>  		goto out_unlocked;
->>  	}
->>  
->> -- 
->> 2.8.1
->> 
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index bce2e5d9edd4..c7465453d64e 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -702,27 +702,6 @@ static void __meminit free_pmd_table(pmd_t *pmd_start, pud_t *pud)
+ 	spin_unlock(&init_mm.page_table_lock);
+ }
+ 
+-/* Return true if pgd is changed, otherwise return false. */
+-static bool __meminit free_pud_table(pud_t *pud_start, pgd_t *pgd)
+-{
+-	pud_t *pud;
+-	int i;
+-
+-	for (i = 0; i < PTRS_PER_PUD; i++) {
+-		pud = pud_start + i;
+-		if (pud_val(*pud))
+-			return false;
+-	}
+-
+-	/* free a pud table */
+-	free_pagetable(pgd_page(*pgd), 0);
+-	spin_lock(&init_mm.page_table_lock);
+-	pgd_clear(pgd);
+-	spin_unlock(&init_mm.page_table_lock);
+-
+-	return true;
+-}
+-
+ static void __meminit
+ remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
+ 		 bool direct)
+@@ -913,7 +892,6 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
+ 	unsigned long addr;
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+-	bool pgd_changed = false;
+ 
+ 	for (addr = start; addr < end; addr = next) {
+ 		next = pgd_addr_end(addr, end);
+@@ -924,13 +902,8 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
+ 
+ 		pud = (pud_t *)pgd_page_vaddr(*pgd);
+ 		remove_pud_table(pud, addr, next, direct);
+-		if (free_pud_table(pud, pgd))
+-			pgd_changed = true;
+ 	}
+ 
+-	if (pgd_changed)
+-		sync_global_pgds(start, end - 1, 1);
+-
+ 	flush_tlb_all();
+ }
+ 
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
