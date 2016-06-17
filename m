@@ -1,98 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E4036B007E
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 14:21:25 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id na2so2935066lbb.1
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 11:21:25 -0700 (PDT)
-Received: from mail-lf0-x22f.google.com (mail-lf0-x22f.google.com. [2a00:1450:4010:c07::22f])
-        by mx.google.com with ESMTPS id j1si16562175lbp.108.2016.06.17.11.21.23
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CBDDC6B007E
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 14:25:03 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id k184so1745891wme.3
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 11:25:03 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id nd4si13333318wjb.168.2016.06.17.11.25.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jun 2016 11:21:24 -0700 (PDT)
-Received: by mail-lf0-x22f.google.com with SMTP id h129so2709654lfh.1
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 11:21:23 -0700 (PDT)
+        Fri, 17 Jun 2016 11:25:02 -0700 (PDT)
+Date: Fri, 17 Jun 2016 14:22:35 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH 2/2] xfs: map KM_MAYFAIL to __GFP_RETRY_HARD
+Message-ID: <20160617182235.GC10485@cmpxchg.org>
+References: <1465212736-14637-1-git-send-email-mhocko@kernel.org>
+ <1465212736-14637-3-git-send-email-mhocko@kernel.org>
+ <20160616002302.GK12670@dastard>
+ <20160616080355.GB6836@dhcp22.suse.cz>
+ <20160616112606.GH6836@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <57641364.5000001@virtuozzo.com>
-References: <1466004364-57279-1-git-send-email-glider@google.com>
- <5761873A.2020104@virtuozzo.com> <CAG_fn=X8szV17tk+TBGXbKy881aNBeA=7F48_wD62LHYhjpvnw@mail.gmail.com>
- <57641364.5000001@virtuozzo.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Fri, 17 Jun 2016 20:21:22 +0200
-Message-ID: <CAG_fn=V+dpYJXjgdMJqxwOUk2+n5+m3pNxAGtGOA=EYr54tqOQ@mail.gmail.com>
-Subject: Re: [PATCH v3] mm, kasan: switch SLUB to stackdepot, enable memory
- quarantine for SLUB
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160616112606.GH6836@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 17, 2016 at 5:12 PM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
->
->
-> On 06/17/2016 05:27 PM, Alexander Potapenko wrote:
->> On Wed, Jun 15, 2016 at 6:50 PM, Andrey Ryabinin
->> <aryabinin@virtuozzo.com> wrote:
->>>
->>>
->>> On 06/15/2016 06:26 PM, Alexander Potapenko wrote:
->>>> For KASAN builds:
->>>>  - switch SLUB allocator to using stackdepot instead of storing the
->>>>    allocation/deallocation stacks in the objects;
->>>>  - define SLAB_RED_ZONE, SLAB_POISON, SLAB_STORE_USER to zero,
->>>>    effectively disabling these debug features, as they're redundant in
->>>>    the presence of KASAN;
->>>
->>> So, why we forbid these? If user wants to set these, why not? If you do=
-n't want it, just don't turn them on, that's it.
->> SLAB_RED_ZONE simply doesn't work with KASAN.
->
-> Why? This sounds like a bug.
-I'm looking now. There are some issues with the left redzone being
-added, which messes up the offsets.
-I'd say it's no surprise that different debugging tools do not work
-together, like e.g. KASAN and kmemcheck are not expected to.
->> With additional efforts it may work, but I don't think we really need
->> that. Extra red zones will just bloat the heap, and won't give any
->> interesting signal except "someone corrupted this object from
->> non-instrumented code".
->> SLAB_POISON doesn't crash on simple tests, but I am not sure there are
->> no corner cases which I haven't checked, so I thought it's safer to
->> disable it.
->> As I said before, we can make SLAB_STORE_USER use stackdepot in a
->> later CL, thus we disable it now.
->>
->
-> This doesn't explain why we need this. What's the problem you are trying =
-to solve by this? And why it is ok to silently ignore user requests?
-Agreed, there's no point in redefining the flag constants.
-> You think that these options are redundant, I get it. Well, then just don=
-'t turn them on.
-> But, when a user requests for something, he expects that such request wil=
-l be fulfilled, not just ignored.
-Yes, I'd better just document the incompatibility between the
-different operation modes (if I don't solve the problem).
->>> And sometimes POISON/REDZONE might be actually useful. KASAN doesn't ca=
-tch everything,
->>> e.g. corruption may happen in assembly code, or DMA by  some device.
->>>
->>>
+On Thu, Jun 16, 2016 at 01:26:06PM +0200, Michal Hocko wrote:
+> @@ -54,6 +54,13 @@ kmem_flags_convert(xfs_km_flags_t flags)
+>  			lflags &= ~__GFP_FS;
+>  	}
+>  
+> +	/*
+> +	 * Default page/slab allocator behavior is to retry for ever
+> +	 * for small allocations. We can override this behavior by using
+> +	 * __GFP_RETRY_HARD which will tell the allocator to retry as long
+> +	 * as it is feasible but rather fail than retry for ever for all
+> +	 * request sizes.
+> +	 */
+>  	if (flags & KM_MAYFAIL)
+>  		lflags |= __GFP_RETRY_HARD;
 
+I think this example shows that __GFP_RETRY_HARD is not a good flag
+because it conflates two seemingly unrelated semantics; the comment
+doesn't quite make up for that.
 
+When the flag is set,
 
---=20
-Alexander Potapenko
-Software Engineer
+- it allows costly orders to invoke the OOM killer and retry
+- it allows !costly orders to fail
 
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
+While 1. is obvious from the name, 2. is not. Even if we don't want
+full-on fine-grained naming for every reclaim methodology and retry
+behavior, those two things just shouldn't be tied together.
 
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+I don't see us failing !costly order per default anytime soon, and
+they are common, so adding a __GFP_MAYFAIL to explicitely override
+that behavior seems like a good idea to me. That would make the XFS
+callsite here perfectly obvious.
+
+And you can still combine it with __GFP_REPEAT.
+
+For a generic allocation site like this, __GFP_MAYFAIL | __GFP_REPEAT
+does the right thing for all orders, and it's self-explanatory: try
+hard, allow falling back.
+
+Whether we want a __GFP_REPEAT or __GFP_TRY_HARD at all is a different
+topic. In the long term, it might be better to provide best-effort per
+default and simply annotate MAYFAIL/NORETRY callsites that want to
+give up earlier. Because as I mentioned at LSFMM, it's much easier to
+identify callsites that have a convenient fallback than callsites that
+need to "try harder." Everybody thinks their allocations are oh so
+important. The former is much more specific and uses obvious criteria.
+
+Either way, __GFP_MAYFAIL should be on its own.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
