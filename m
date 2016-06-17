@@ -1,66 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1262B6B025F
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 04:17:45 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e189so148453932pfa.2
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:17:45 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id v129si11175911pfb.232.2016.06.17.01.17.44
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ECBEA6B025F
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 04:28:53 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r190so6083007wmr.0
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:28:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q184si9396783wme.57.2016.06.17.01.28.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Jun 2016 01:17:44 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id c74so5785587pfb.0
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 01:17:44 -0700 (PDT)
-Date: Fri, 17 Jun 2016 17:17:26 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [next-20160615] kernel BUG at mm/rmap.c:1251!
-Message-ID: <20160617081726.GA30699@swordfish>
-References: <20160616084656.GB432@swordfish>
- <20160616085836.GC6836@dhcp22.suse.cz>
- <20160616092345.GC432@swordfish>
- <20160616094139.GE6836@dhcp22.suse.cz>
- <20160616095457.GD432@swordfish>
- <20160616101216.GT17127@bbox>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 17 Jun 2016 01:28:52 -0700 (PDT)
+Subject: Re: [PATCH 17/27] mm: Rename NR_ANON_PAGES to NR_ANON_MAPPED
+References: <1465495483-11855-1-git-send-email-mgorman@techsingularity.net>
+ <1465495483-11855-18-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <46c75f05-7a07-9f9d-3bf5-461971e2ecc4@suse.cz>
+Date: Fri, 17 Jun 2016 10:28:50 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160616101216.GT17127@bbox>
+In-Reply-To: <1465495483-11855-18-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Stephen Rothwell <sfr@canb.auug.org.au>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello,
+On 06/09/2016 08:04 PM, Mel Gorman wrote:
+> NR_FILE_PAGES  is the number of        file pages.
+> NR_FILE_MAPPED is the number of mapped file pages.
+> NR_ANON_PAGES  is the number of mapped anon pages.
+>
+> This is unhelpful naming as it's easy to confuse NR_FILE_MAPPED and NR_ANON_PAGES for
+> mapped pages. This patch renames NR_ANON_PAGES so we have
+>
+> NR_FILE_PAGES  is the number of        file pages.
+> NR_FILE_MAPPED is the number of mapped file pages.
+> NR_ANON_MAPPED is the number of mapped anon pages.
+>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-On (06/16/16 19:12), Minchan Kim wrote:
-[..]
-> > I'll copy-paste one more backtrace I swa today [originally was posted to another
-> > mail thread].
-> 
-> Please, look at http://lkml.kernel.org/r/20160616100932.GS17127@bbox
-
-I don't have a solid/stable reproducer for this one, but after some
-mixed workloads beating (mempressure + zsmalloc + compiler workload)
-with reverted b3ceb05f4bae844f67ce I haven't seen any problems.
-
-So I think you nailed it Minchan!
-
-
-reverted the entire patch set (for simplicity):
-
-    Revert "mm/compaction: split freepages without holding the zone lock"
-    Revert "mm/page_owner: initialize page owner without holding the zone lock"
-    Revert "mm/page_owner: copy last_migrate_reason in copy_page_owner()"
-    Revert "mm/page_owner: introduce split_page_owner and replace manual handling"
-    Revert "tools/vm/page_owner: increase temporary buffer size"
-    Revert "mm/page_owner: use stackdepot to store stacktrace"
-    Revert "mm/page_owner: avoid null pointer dereference"
-    Revert "mm/page_alloc: introduce post allocation processing on page allocator"
-
-adding "mm/compaction: split freepages without holding the zone lock"
-back seem to introduce the page->map_count bug after some time.
-
-	-ss
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
