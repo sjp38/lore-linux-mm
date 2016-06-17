@@ -1,64 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AED3C6B0253
-	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:07:06 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id y82so127227629oig.3
-        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 02:07:06 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0094.outbound.protection.outlook.com. [104.47.2.94])
-        by mx.google.com with ESMTPS id g46si17128733ote.168.2016.06.17.02.07.04
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 790176B0005
+	for <linux-mm@kvack.org>; Fri, 17 Jun 2016 05:26:18 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e189so150799448pfa.2
+        for <linux-mm@kvack.org>; Fri, 17 Jun 2016 02:26:18 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0137.outbound.protection.outlook.com. [104.47.1.137])
+        by mx.google.com with ESMTPS id f5si17556664pay.145.2016.06.17.02.26.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 17 Jun 2016 02:07:05 -0700 (PDT)
-Date: Fri, 17 Jun 2016 12:06:55 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] mm: memcontrol: fix cgroup creation failure after many
- small jobs
-Message-ID: <20160617090655.GE13143@esperanza>
-References: <20160616034244.14839-1-hannes@cmpxchg.org>
+        Fri, 17 Jun 2016 02:26:17 -0700 (PDT)
+Subject: Re: [PATCHv9 2/2] selftest/x86: add mremap vdso test
+References: <1463487232-4377-1-git-send-email-dsafonov@virtuozzo.com>
+ <1463487232-4377-3-git-send-email-dsafonov@virtuozzo.com>
+ <20160617080346.GB30525@gmail.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <02e163e0-acbb-0f3a-df66-3e55b453936a@virtuozzo.com>
+Date: Fri, 17 Jun 2016 12:24:58 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20160616034244.14839-1-hannes@cmpxchg.org>
+In-Reply-To: <20160617080346.GB30525@gmail.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, mingo@redhat.com, luto@amacapital.net, tglx@linutronix.de, hpa@zytor.com, x86@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, 0x7f454c46@gmail.com, Shuah Khan <shuahkh@osg.samsung.com>, linux-kselftest@vger.kernel.org
 
-On Wed, Jun 15, 2016 at 11:42:44PM -0400, Johannes Weiner wrote:
-> The memory controller has quite a bit of state that usually outlives
-> the cgroup and pins its CSS until said state disappears. At the same
-> time it imposes a 16-bit limit on the CSS ID space to economically
-> store IDs in the wild. Consequently, when we use cgroups to contain
-> frequent but small and short-lived jobs that leave behind some page
-> cache, we quickly run into the 64k limitations of outstanding CSSs.
-> Creating a new cgroup fails with -ENOSPC while there are only a few,
-> or even no user-visible cgroups in existence.
-> 
-> Although pinning CSSs past cgroup removal is common, there are only
-> two instances that actually need a CSS ID after a cgroup is deleted:
-> cache shadow entries and swapout records.
-> 
-> Cache shadow entries reference the ID weakly and can deal with the CSS
-> having disappeared when it's looked up later. They pose no hurdle.
-> 
-> Swap-out records do need to pin the css to hierarchically attribute
-> swapins after the cgroup has been deleted; though the only pages that
-> remain swapped out after a process exits are tmpfs/shmem pages. Those
-> references are under the user's control and thus manageable.
-> 
-> This patch introduces a private 16bit memcg ID and switches swap and
-> cache shadow entries over to using that. It then decouples the CSS
-> lifetime from the CSS ID lifetime, such that a CSS ID can be recycled
-> when the CSS is only pinned by common objects that don't need an ID.
+On 06/17/2016 11:03 AM, Ingo Molnar wrote:
+>
+> * Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+>
+>> Should print on success:
+>> [root@localhost ~]# ./test_mremap_vdso_32
+>> 	AT_SYSINFO_EHDR is 0xf773f000
+>> [NOTE]	Moving vDSO: [f773f000, f7740000] -> [a000000, a001000]
+>> [OK]
+>> Or segfault if landing was bad (before patches):
+>> [root@localhost ~]# ./test_mremap_vdso_32
+>> 	AT_SYSINFO_EHDR is 0xf774f000
+>> [NOTE]	Moving vDSO: [f774f000, f7750000] -> [a000000, a001000]
+>> Segmentation fault (core dumped)
+>
+> Yeah, so I changed my mind again, I still don't like that the testcase faults on
+> old kernels:
+>
+>  triton:~/tip/tools/testing/selftests/x86> ./test_mremap_vdso_32
+>          AT_SYSINFO_EHDR is 0xf7786000
+>  [NOTE]  Moving vDSO: [0xf7786000, 0xf7787000] -> [0xf7781000, 0xf7782000]
+>  Segmentation fault
+>
+> How do I know that this testcase is special and that a segmentation fault in this
+> case means that I'm running it on a too old kernel and that it's not some other
+> unexpected failure in the test?
+>
+> At minimum please run it behind fork() and catch the -SIGSEGV child exit:
+>
+>   mremap(0xf7747000, 4096, 4096, MREMAP_MAYMOVE|MREMAP_FIXED, 0xf7742000) = 0xf7742000
+>   --- SIGSEGV {si_signo=SIGSEGV, si_code=SEGV_MAPERR, si_addr=0xf7747be9} ---
+>   +++ killed by SIGSEGV +++
+>
+> and print:
+>
+>   [FAIL] mremap() of the vDSO does not work on this kernel!
+>
+> or such.
+>
+> Ok?
 
-There's already id which is only used for online memory cgroups - it's
-kmemcg_id. May be, instead of introducing one more idr, we could name it
-generically and reuse it for shadow entries?
+Ok, will do.
 
-Regarding swap entries, would it really make much difference if we used
-4 bytes per swap page instead of 2? For a 100 GB swap it'd increase
-overhead from 50 MB up to 100 MB, which still doesn't seem too much IMO,
-so may be just use plain unrestricted css->id for swap entries?
+Thanks,
+Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
