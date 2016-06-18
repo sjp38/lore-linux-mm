@@ -1,124 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E61866B007E
-	for <linux-mm@kvack.org>; Sat, 18 Jun 2016 11:33:02 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id b126so49406991ite.3
-        for <linux-mm@kvack.org>; Sat, 18 Jun 2016 08:33:02 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id h4si5400717ite.83.2016.06.18.08.33.02
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BBBB6B007E
+	for <linux-mm@kvack.org>; Sat, 18 Jun 2016 15:09:58 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id nq2so11836844lbc.3
+        for <linux-mm@kvack.org>; Sat, 18 Jun 2016 12:09:58 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id ip4si19326386wjb.126.2016.06.18.12.09.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 18 Jun 2016 08:33:02 -0700 (PDT)
-Subject: Re: [PATCH v4] mm, kasan: switch SLUB to stackdepot, enable memory
- quarantine for SLUB
-References: <1466173664-118413-1-git-send-email-glider@google.com>
-From: Sasha Levin <sasha.levin@oracle.com>
-Message-ID: <5765699E.6000508@oracle.com>
-Date: Sat, 18 Jun 2016 11:32:46 -0400
+        Sat, 18 Jun 2016 12:09:56 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id r201so5061868wme.0
+        for <linux-mm@kvack.org>; Sat, 18 Jun 2016 12:09:56 -0700 (PDT)
+Date: Sat, 18 Jun 2016 22:09:51 +0300
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: Re: [PATCHv9-rebased2 01/37] mm, thp: make swapin readahead under
+ down_read of mmap_sem
+Message-ID: <20160618190951.GA11151@debian>
+References: <04f701d1c797$1ebe6b80$5c3b4280$@alibaba-inc.com>
+ <04f801d1c79b$b46744a0$1d35cde0$@alibaba-inc.com>
+ <20160616100854.GB18137@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <1466173664-118413-1-git-send-email-glider@google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160616100854.GB18137@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>, adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, aryabinin@virtuozzo.com, kuthonuzo.luruo@hpe.com
-Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 06/17/2016 10:27 AM, Alexander Potapenko wrote:
-> For KASAN builds:
->  - switch SLUB allocator to using stackdepot instead of storing the
->    allocation/deallocation stacks in the objects;
->  - define SLAB_RED_ZONE, SLAB_POISON, SLAB_STORE_USER to zero,
->    effectively disabling these debug features, as they're redundant in
->    the presence of KASAN;
->  - change the freelist hook so that parts of the freelist can be put into
->    the quarantine.
+On Thu, Jun 16, 2016 at 01:08:54PM +0300, Kirill A. Shutemov wrote:
+> On Thu, Jun 16, 2016 at 02:52:52PM +0800, Hillf Danton wrote:
+> > > 
+> > > From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> > > 
+> > > Currently khugepaged makes swapin readahead under down_write.  This patch
+> > > supplies to make swapin readahead under down_read instead of down_write.
+> > > 
+> > > The patch was tested with a test program that allocates 800MB of memory,
+> > > writes to it, and then sleeps.  The system was forced to swap out all.
+> > > Afterwards, the test program touches the area by writing, it skips a page
+> > > in each 20 pages of the area.
+> > > 
+> > > Link: http://lkml.kernel.org/r/1464335964-6510-4-git-send-email-ebru.akagunduz@gmail.com
+> > > Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> > > Cc: Hugh Dickins <hughd@google.com>
+> > > Cc: Rik van Riel <riel@redhat.com>
+> > > Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > > Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > > Cc: Andrea Arcangeli <aarcange@redhat.com>
+> > > Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+> > > Cc: Mel Gorman <mgorman@suse.de>
+> > > Cc: David Rientjes <rientjes@google.com>
+> > > Cc: Vlastimil Babka <vbabka@suse.cz>
+> > > Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> > > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > > Cc: Michal Hocko <mhocko@suse.cz>
+> > > Cc: Minchan Kim <minchan.kim@gmail.com>
+> > > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> > > ---
+> > >  mm/huge_memory.c | 92 ++++++++++++++++++++++++++++++++++++++------------------
+> > >  1 file changed, 63 insertions(+), 29 deletions(-)
+> > > 
+> > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > > index f2bc57c45d2f..96dfe3f09bf6 100644
+> > > --- a/mm/huge_memory.c
+> > > +++ b/mm/huge_memory.c
+> > > @@ -2378,6 +2378,35 @@ static bool hugepage_vma_check(struct vm_area_struct *vma)
+> > >  }
+> > > 
+> > >  /*
+> > > + * If mmap_sem temporarily dropped, revalidate vma
+> > > + * before taking mmap_sem.
+> > 
+> > See below
 > 
-> Signed-off-by: Alexander Potapenko <glider@google.com>
+> > > @@ -2401,11 +2430,18 @@ static void __collapse_huge_page_swapin(struct mm_struct *mm,
+> > >  			continue;
+> > >  		swapped_in++;
+> > >  		ret = do_swap_page(mm, vma, _address, pte, pmd,
+> > > -				   FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT,
+> > > +				   FAULT_FLAG_ALLOW_RETRY,
+> > 
+> > Add a description in change log for it please.
+> 
+> Ebru, would you address it?
+> 
+This changelog really seems poor.
+Is there a way to update only changelog of the commit?
+I tried to use git rebase to amend commit, however
+I could not rebase. This patch only needs better changelog.
 
-Hi Alexander,
+I would like to update it as follows, if you would like to too:
 
-I was seeing a bunch of use-after-frees detected by kasan, such as:
+"
+Currently khugepaged makes swapin readahead under down_write.  This patch
+supplies to make swapin readahead under down_read instead of down_write.
 
-BUG: KASAN: use-after-free in rb_next+0x117/0x1b0 at addr ffff8800b01d4f30
-Read of size 8 by task syz-executor/31594
-CPU: 2 PID: 31594 Comm: syz-executor Tainted: G        W       4.7.0-rc2-sasha-00205-g2d8a14b #3117
- 1ffff10015450f0f 000000007b9351fc ffff8800aa287900 ffffffffa002778b
- ffffffff00000002 fffffbfff5630d30 0000000041b58ab3 ffffffffaaad5648
- ffffffffa002761c ffffffff9e006ab6 ffffffffa8439f65 ffffffffffffffff
-Call Trace:
- [<ffffffffa002778b>] dump_stack+0x16f/0x1d4
- [<ffffffff9e79e8cf>] kasan_report_error+0x59f/0x8c0
- [<ffffffff9e79ee06>] __asan_report_load8_noabort+0x66/0x90
- [<ffffffffa003ccf7>] rb_next+0x117/0x1b0
- [<ffffffff9e71627c>] validate_mm_rb+0xac/0xd0
- [<ffffffff9e718594>] __vma_link_rb+0x2e4/0x310
- [<ffffffff9e718650>] vma_link+0x90/0x1b0
- [<ffffffff9e722870>] mmap_region+0x13a0/0x13c0
- [<ffffffff9e7232b2>] do_mmap+0xa22/0xaf0
- [<ffffffff9e6c86bf>] vm_mmap_pgoff+0x14f/0x1c0
- [<ffffffff9e71ba8b>] SyS_mmap_pgoff+0x81b/0x910
- [<ffffffff9e1bf966>] SyS_mmap+0x16/0x20
- [<ffffffff9e006ab6>] do_syscall_64+0x2a6/0x490
- [<ffffffffa8439f65>] entry_SYSCALL64_slow_path+0x25/0x25
-Object at ffff8800b01d4f00, in cache vm_area_struct
-Object allocated with size 192 bytes.
-Allocation:
-PID = 8855
-(stack is not available)
-Memory state around the buggy address:
- ffff8800b01d4e00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
- ffff8800b01d4e80: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
->ffff8800b01d4f00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-                                     ^
- ffff8800b01d4f80: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
- ffff8800b01d5000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Along swapin, we can need to drop and re-take mmap_sem. Therefore we
+have to be sure vma is consistent. This patch adds a helper function
+to validate vma and also supplies that async swapin should not be
+performed without waiting.
 
-Or:
+The patch was tested with a test program that allocates 800MB of memory,
+writes to it, and then sleeps.  The system was forced to swap out all.
+Afterwards, the test program touches the area by writing, it skips a page
+in each 20 pages of the area.
+"
 
-BUG: KASAN: use-after-free in validate_mm_rb+0x73/0xd0 at addr ffff8800b01d4f38
-Read of size 8 by task syz-executor/31594
-CPU: 2 PID: 31594 Comm: syz-executor Tainted: G    B   W       4.7.0-rc2-sasha-00205-g2d8a14b #3117
- 1ffff10015450f16 000000007b9351fc ffff8800aa287938 ffffffffa002778b
- ffffffff00000002 fffffbfff5630d30 0000000041b58ab3 ffffffffaaad5648
- ffffffffa002761c ffffffffa84399e8 0000000000000010 ffff8800b61e8000
-Call Trace:
- [<ffffffffa002778b>] dump_stack+0x16f/0x1d4
- [<ffffffff9e79e8cf>] kasan_report_error+0x59f/0x8c0
- [<ffffffff9e79ee06>] __asan_report_load8_noabort+0x66/0x90
- [<ffffffff9e716243>] validate_mm_rb+0x73/0xd0
- [<ffffffff9e718594>] __vma_link_rb+0x2e4/0x310
- [<ffffffff9e718650>] vma_link+0x90/0x1b0
- [<ffffffff9e722870>] mmap_region+0x13a0/0x13c0
- [<ffffffff9e7232b2>] do_mmap+0xa22/0xaf0
- [<ffffffff9e6c86bf>] vm_mmap_pgoff+0x14f/0x1c0
- [<ffffffff9e71ba8b>] SyS_mmap_pgoff+0x81b/0x910
- [<ffffffff9e1bf966>] SyS_mmap+0x16/0x20
- [<ffffffff9e006ab6>] do_syscall_64+0x2a6/0x490
- [<ffffffffa8439f65>] entry_SYSCALL64_slow_path+0x25/0x25
-Object at ffff8800b01d4f00, in cache vm_area_struct
-Object allocated with size 192 bytes.
-Allocation:
-PID = 8855
-(stack is not available)
-Memory state around the buggy address:
- ffff8800b01d4e00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
- ffff8800b01d4e80: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
->ffff8800b01d4f00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-                                        ^
- ffff8800b01d4f80: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
- ffff8800b01d5000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Could you please suggest me a way to replace above changelog with the old?
 
-And bisection pointed me to this commit. Now, I'm not sure how to
-tell if this is memory quarantine catching something, or is just a
-bug with the patch?
+> > >  				   pteval);
+> > > +		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
+> > > +		if (ret & VM_FAULT_RETRY) {
+> > > +			down_read(&mm->mmap_sem);
+> > > +			/* vma is no longer available, don't continue to swapin */
+> > > +			if (hugepage_vma_revalidate(mm, vma, address))
+> > > +				return false;
+> > 
+> > Revalidate vma _after_ acquiring mmap_sem, but the above comment says _before_.
+> 
+> Ditto.
+> 
+> > > +	if (!__collapse_huge_page_swapin(mm, vma, address, pmd)) {
+> > > +		up_read(&mm->mmap_sem);
+> > > +		goto out;
+> > 
+> > Jump out with mmap_sem released, 
+> > 
+> > > +	result = hugepage_vma_revalidate(mm, vma, address);
+> > > +	if (result)
+> > > +		goto out;
+> > 
+> > but jump out again with mmap_sem held.
+> > 
+> > They are cleaned up in subsequent darns?
+> 
+Yes, that is reported and fixed here:
+http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=fc7038a69cee6b817261f7cd805e9663fdc1075c
 
-
-Thanks,
-Sasha
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+However, the above comment inconsistency still there.
+I've added a fix patch:
