@@ -1,122 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f197.google.com (mail-ob0-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A11DA6B007E
-	for <linux-mm@kvack.org>; Sat, 18 Jun 2016 22:49:28 -0400 (EDT)
-Received: by mail-ob0-f197.google.com with SMTP id ru5so26001884obc.2
-        for <linux-mm@kvack.org>; Sat, 18 Jun 2016 19:49:28 -0700 (PDT)
-Received: from mail-io0-x242.google.com (mail-io0-x242.google.com. [2607:f8b0:4001:c06::242])
-        by mx.google.com with ESMTPS id y9si305510itc.49.2016.06.18.19.49.27
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 596346B007E
+	for <linux-mm@kvack.org>; Sat, 18 Jun 2016 23:07:08 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ao6so199742638pac.2
+        for <linux-mm@kvack.org>; Sat, 18 Jun 2016 20:07:08 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id c2si23243403pfb.198.2016.06.18.20.07.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 18 Jun 2016 19:49:27 -0700 (PDT)
-Received: by mail-io0-x242.google.com with SMTP id 5so14673718ioy.0
-        for <linux-mm@kvack.org>; Sat, 18 Jun 2016 19:49:27 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 18 Jun 2016 20:07:07 -0700 (PDT)
+Subject: Re: kernel, mm: NULL deref in copy_process while OOMing
+References: <57618763.5010201@oracle.com>
+ <20160616093951.GD6836@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <915586fa-13f6-e685-bf9d-9a87dc21739a@I-love.SAKURA.ne.jp>
+Date: Sun, 19 Jun 2016 12:06:53 +0900
 MIME-Version: 1.0
-In-Reply-To: <CACygaLAU-PiB8UDR0i9FYbTuH8vBKJRFxufGOVoWCmqPad-XZQ@mail.gmail.com>
-References: <1466242457-2440-1-git-send-email-wwtao0320@163.com>
- <57651F0F.2010506@suse.cz> <CACygaLAU-PiB8UDR0i9FYbTuH8vBKJRFxufGOVoWCmqPad-XZQ@mail.gmail.com>
-From: Wenwei Tao <ww.tao0320@gmail.com>
-Date: Sun, 19 Jun 2016 10:49:26 +0800
-Message-ID: <CACygaLBJTcLvQVwzqADYtXNeYJQ77vMaghfezT_2ofB2NwaESg@mail.gmail.com>
-Subject: Fwd: [RFC PATCH 1/3] mm, page_alloc: free HIGHATOMIC page directly to
- the allocator
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20160616093951.GD6836@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Sasha Levin <sasha.levin@oracle.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi,
-The original message is somehow determined to be junk mail and
-rejected by the system.
-Forward this message.
-
----------- Forwarded message ----------
-From: Wenwei Tao <ww.tao0320@gmail.com>
-Date: 2016-06-19 10:40 GMT+08:00
-Subject: Re: [RFC PATCH 1/3] mm, page_alloc: free HIGHATOMIC page
-directly to the allocator
-To: Vlastimil Babka <vbabka@suse.cz>
-=E6=8A=84=E9=80=81=EF=BC=9A Wenwei Tao <wwtao0320@163.com>, akpm@linux-foun=
-dation.org,
-mgorman@techsingularity.net, mhocko@suse.com, rientjes@google.com,
-kirill.shutemov@linux.intel.com, iamjoonsoo.kim@lge.com,
-izumi.taku@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>,
-linux-kernel@vger.kernel.org, linux-mm@kvack.org
-
-
-2016-06-18 18:14 GMT+08:00 Vlastimil Babka <vbabka@suse.cz>:
-> On 06/18/2016 11:34 AM, Wenwei Tao wrote:
->> From: Wenwei Tao <ww.tao0320@gmail.com>
+On 2016/06/16 18:39, Michal Hocko wrote:
+> On Wed 15-06-16 12:50:43, Sasha Levin wrote:
+>> Hi all,
 >>
->> Some pages might have already been allocated before reserve
->> the pageblock as HIGHATOMIC. When free these pages, put them
->> directly to the allocator instead of the pcp lists since they
->> might have the chance to be merged to high order pages.
->
-> Are there some data showing the improvement, or just theoretical?
->
-
-It's just theoretical. I read the mm code and try to understand it,
-think this might be an optimization.
-
->> Signed-off-by: Wenwei Tao <ww.tao0320@gmail.com>
->> ---
->>  mm/page_alloc.c | 3 ++-
->>  1 file changed, 2 insertions(+), 1 deletion(-)
+>> I'm seeing the following NULL ptr deref in copy_process right after a bunch
+>> of OOM killing activity on -next kernels:
 >>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 6903b69..19f9e76 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -2412,7 +2412,8 @@ void free_hot_cold_page(struct page *page, bool co=
-ld)
->
-> The full comment that's here for context:
->
-> /*
->  * We only track unmovable, reclaimable and movable on pcp lists.
->  * Free ISOLATE pages back to the allocator because they are being
->  * offlined but treat RESERVE as movable pages so we can get those
->  * areas back if necessary. Otherwise, we may have to free
->  * excessively into the page allocator
->  */
->
-> That comment looks outdated as it refers to RESERVE, which was replaced
-> by HIGHATOMIC. But there's some reasoning why these pages go to
-> pcplists. I'd expect the "free excessively" part isn't as bad as
-> highatomic reserves are quite limited. They also shouldn't be used for
-> order-0 allocations, which is what this function is about, so I would
-> expect both the impact on "free excessively" and the improvement of
-> merging to be minimal?
->
->>        * excessively into the page allocator
->>        */
->>       if (migratetype >=3D MIGRATE_PCPTYPES) {
->> -             if (unlikely(is_migrate_isolate(migratetype))) {
->> +             if (unlikely(is_migrate_isolate(migratetype) ||
->> +                             migratetype =3D=3D MIGRATE_HIGHATOMIC)) {
->>                       free_one_page(zone, page, pfn, 0, migratetype);
->>                       goto out;
->>               }
->
-> In any case your patch highlighted that this code could be imho
-> optimized like below.
->
-> if (unlikely(migratetype >=3D MIGRATE_PCPTYPES))
->    if (is_migrate_cma(migratetype)) {
->        migratetype =3D MIGRATE_MOVABLE;
->    } else {
->        free_one_page(zone, page, pfn, 0, migratetype);
->        goto out;
->    }
-> }
->
-> That's less branches than your patch, and even less than originally if
-> CMA is not enabled (or with ZONE_CMA).
+>> Out of memory (oom_kill_allocating_task): Kill process 3477 (trinity-c159) score 0 or sacrifice child
+>> Killed process 3477 (trinity-c159) total-vm:3226820kB, anon-rss:36832kB, file-rss:1640kB, shmem-rss:444kB
+>> oom_reaper: reaped process 3477 (trinity-c159), now anon-rss:0kB, file-rss:0kB, shmem-rss:444kB
+>> Out of memory (oom_kill_allocating_task): Kill process 3450 (trinity-c156) score 0 or sacrifice child
+>> Killed process 3450 (trinity-c156) total-vm:3769768kB, anon-rss:36832kB, file-rss:1652kB, shmem-rss:508kB
+>> oom_reaper: reaped process 3450 (trinity-c156), now anon-rss:0kB, file-rss:0kB, shmem-rss:572kB
+>> BUG: unable to handle kernel NULL pointer dereference at 0000000000000150
+>> IP: copy_process (./arch/x86/include/asm/atomic.h:103 kernel/fork.c:484 kernel/fork.c:964 kernel/fork.c:1018 kernel/fork.c:1484)
+>> PGD 1ff944067 PUD 1ff929067 PMD 0
+>> Oops: 0002 [#1] PREEMPT SMP KASAN
+>> Modules linked in:
+>> CPU: 18 PID: 8761 Comm: trinity-main Not tainted 4.7.0-rc3-sasha-02101-g1e1b9fa #3108
+> 
+> Is this a common parent of the oom killed children?
+> 
+>> task: ffff880165564000 ti: ffff880337ad0000 task.ti: ffff880337ad0000
+>> RIP: copy_process (./arch/x86/include/asm/atomic.h:103 kernel/fork.c:484 kernel/fork.c:964 kernel/fork.c:1018 kernel/fork.c:1484)
+> 
+> IIUC this should be:
+> _do_fork
+>   copy_process
+>     copy_mm
+>       dup_mm
+>         dup_mmap
+> 	  if (tmp->vm_flags & VM_DENYWRITE)
+> 	    atomic_dec(&inode->i_writecount);
+> 
+> I am not really sure how f->f_inode can become NULL when file should pin
+> the inode AFAIR, and VMA should pin the file. Anyway this shouldn't be
+> directly related to the OOM killer or at least the recent changes
+> in that area because the oom reaper doesn't touch VMAs file.
 
-Yeah, this looks better.
+These OOM messages say that oom_kill_allocating_task != 0 is used.
+That is, a __GFP_FS allocation by a child process which is trying to
+duplicate the parent's mm_struct was killed by the OOM killer and
+reaped by the OOM reaper. I guess that mmap related stuff are not
+fully initialized (or consistent) yet while the OOM reaper assumed
+that it is safe to access such child's mmap related stuff.
+
+So, if this bug is reproducible (I thing it is), first try to reproduce
+this bug without the OOM reaper enabled (i.e. comment out the
+
+subsys_initcall(oom_init)
+
+line in mm/oom_kill.c ).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
