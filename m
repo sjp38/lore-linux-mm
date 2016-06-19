@@ -1,109 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A0216B007E
-	for <linux-mm@kvack.org>; Sun, 19 Jun 2016 13:40:51 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 143so269407849pfx.0
-        for <linux-mm@kvack.org>; Sun, 19 Jun 2016 10:40:51 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id vy4si31601727pab.231.2016.06.19.10.40.49
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DE276B0253
+	for <linux-mm@kvack.org>; Sun, 19 Jun 2016 17:35:47 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id t7so331584280vkf.2
+        for <linux-mm@kvack.org>; Sun, 19 Jun 2016 14:35:47 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id q72si5687230wme.1.2016.06.19.14.35.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Jun 2016 10:40:50 -0700 (PDT)
-Subject: Re: [PATCH v4] mm, kasan: switch SLUB to stackdepot, enable memory
- quarantine for SLUB
-References: <1466173664-118413-1-git-send-email-glider@google.com>
- <5765699E.6000508@oracle.com>
- <CAG_fn=WP3HBLBarYz6u8UfEKwS3Cw58+2VcrzV_asiuQid_oxw@mail.gmail.com>
-From: Sasha Levin <sasha.levin@oracle.com>
-Message-ID: <5766D902.7080007@oracle.com>
-Date: Sun, 19 Jun 2016 13:40:18 -0400
+        Sun, 19 Jun 2016 14:35:45 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id c82so6919956wme.3
+        for <linux-mm@kvack.org>; Sun, 19 Jun 2016 14:35:45 -0700 (PDT)
+Date: Sun, 19 Jun 2016 23:35:44 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] vhost, mm: make sure that oom_reaper doesn't reap
+ memory read by vhost
+Message-ID: <20160619213543.GA32752@dhcp22.suse.cz>
+References: <1466154017-2222-1-git-send-email-mhocko@kernel.org>
+ <20160618025904-mutt-send-email-mst@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <CAG_fn=WP3HBLBarYz6u8UfEKwS3Cw58+2VcrzV_asiuQid_oxw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160618025904-mutt-send-email-mst@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, LKML <linux-kernel@vger.kernel.org>
 
-On 06/19/2016 03:24 AM, Alexander Potapenko wrote:
-> Hi Sasha,
+On Sat 18-06-16 03:09:02, Michael S. Tsirkin wrote:
+> On Fri, Jun 17, 2016 at 11:00:17AM +0200, Michal Hocko wrote:
+[...]
+> > It seems that vhost usage would suffer from this problem because
+> > it reads from the userspace to get (status) flags and makes some
+> > decisions based on the read value.  I do not understand the code so I
+> > couldn't evaluate whether that would lead to some real problems so I
+> > conservatively assumed it wouldn't handle that gracefully.
 > 
-> This commit delays the reuse of memory after it has been freed, so
-> it's intended to help people find more use-after-free errors.
+> Getting an error from __get_user and friends is handled gracefully.
+> Getting zero instead of a real value will cause userspace
+> memory corruption.
 
-Is there a way to tell if the use-after-free access was to a memory
-that is quarantined?
+OK, thanks for the confirmation! I will add this to the changelog. I
+assume that the memory corruption could "leak out" of the mm we just
+read from, right? I am asking because the mm and all its users will die
+by SIGKILL so they will not "see" the corruption. I am not familiar with the
+vhost transfer model but I guess it wouldn't be uncommon if the target
+memory could be a shared object (e.g. tmpfs or a regular file) so it
+would outlive the mm.
 
-> But I'm puzzled why the stacks are missing.
+[...]
 
-I looked at the logs, it looks like stackdepot ran out of room pretty
-early during boot. I've increased the max count and that solved the
-problem. Here's a trace with all the stacks:
+> > @@ -1713,7 +1713,7 @@ bool vhost_enable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
+> >  	/* They could have slipped one in as we were doing that: make
+> >  	 * sure it's written, then check again. */
+> >  	smp_mb();
+> > -	r = __get_user(avail_idx, &vq->avail->idx);
+> > +	r = __get_user_mm(dev->mm,avail_idx, &vq->avail->idx);
+> 
+> space after , pls
 
-[ 1157.040216] BUG: KASAN: use-after-free in print_bad_pte+0x5c7/0x6e0 at addr ffff8801b82286a0
-[ 1157.040222] Read of size 8 by task syz-executor/20583
-[ 1157.040236] CPU: 0 PID: 20583 Comm: syz-executor Tainted: G    B           4.7.0-rc2-next-20160609-sasha-00032-g779e0df-dirty #3123
-[ 1157.040249]  1ffff10016b26e97 000000001af4d42c ffff8800b5937540 ffffffffa103380b
-[ 1157.040262]  ffffffff00000000 fffffbfff5830bf4 0000000041b58ab3 ffffffffabaf1240
-[ 1157.040274]  ffffffffa103369c 0000000000000006 0000000000000000 ffff8800b5937550
-[ 1157.040276] Call Trace:
-[ 1157.040290]  [<ffffffffa103380b>] dump_stack+0x16f/0x1d4
-[ 1157.040319]  [<ffffffff9f7a148f>] kasan_report_error+0x59f/0x8c0
-[ 1157.040382]  [<ffffffff9f7a19c6>] __asan_report_load8_noabort+0x66/0x90
-[ 1157.040409]  [<ffffffff9f6fa5e7>] print_bad_pte+0x5c7/0x6e0
-[ 1157.040418]  [<ffffffff9f702e02>] unmap_page_range+0x12f2/0x1e20
-[ 1157.040445]  [<ffffffff9f703b69>] unmap_single_vma+0x239/0x250
-[ 1157.040452]  [<ffffffff9f7045e9>] unmap_vmas+0x119/0x1d0
-[ 1157.040461]  [<ffffffff9f720a73>] exit_mmap+0x2a3/0x410
-[ 1157.040485]  [<ffffffff9f3769e2>] mmput+0x192/0x350
-[ 1157.040524]  [<ffffffff9f38d745>] do_exit+0xea5/0x19e0
-[ 1157.040566]  [<ffffffff9f38e5d3>] do_group_exit+0x2e3/0x2f0
-[ 1157.040580]  [<ffffffff9f3b1928>] get_signal+0x1128/0x1370
-[ 1157.040593]  [<ffffffff9f1afca6>] do_signal+0x86/0x1da0
-[ 1157.040700]  [<ffffffff9f00539c>] exit_to_usermode_loop+0xac/0x200
-[ 1157.040712]  [<ffffffff9f006c20>] do_syscall_64+0x410/0x490
-[ 1157.040725]  [<ffffffffa94d0ca5>] entry_SYSCALL64_slow_path+0x25/0x25
-[ 1157.040733] Object at ffff8801b8228600, in cache vm_area_struct
-[ 1157.040737] Object allocated with size 192 bytes.
-[ 1157.040738] Allocation:
-[ 1157.040741] PID = 20521
-[ 1157.040757]  [<ffffffff9f1dfae6>] save_stack_trace+0x26/0x70
-[ 1157.040770]  [<ffffffff9f7a01e6>] save_stack+0x46/0xd0
-[ 1157.040784]  [<ffffffff9f7a0470>] kasan_kmalloc+0x110/0x130
-[ 1157.040797]  [<ffffffff9f7a09a2>] kasan_slab_alloc+0x12/0x20
-[ 1157.040811]  [<ffffffff9f79a546>] kmem_cache_alloc+0x1e6/0x230
-[ 1157.040826]  [<ffffffff9f7245ad>] mmap_region+0x56d/0x13c0
-[ 1157.040840]  [<ffffffff9f725e22>] do_mmap+0xa22/0xaf0
-[ 1157.040853]  [<ffffffff9f6cb1af>] vm_mmap_pgoff+0x14f/0x1c0
-[ 1157.040889]  [<ffffffff9f71e5fb>] SyS_mmap_pgoff+0x81b/0x910
-[ 1157.040901]  [<ffffffff9f1bf966>] SyS_mmap+0x16/0x20
-[ 1157.040910]  [<ffffffff9f006ab6>] do_syscall_64+0x2a6/0x490
-[ 1157.040919]  [<ffffffffa94d0ca5>] return_from_SYSCALL_64+0x0/0x6a
-[ 1157.040920] Memory state around the buggy address:
-[ 1157.040927]  ffff8801b8228580: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
-[ 1157.040933]  ffff8801b8228600: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-[ 1157.040938] >ffff8801b8228680: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
-[ 1157.040940]                                ^
-[ 1157.040946]  ffff8801b8228700: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-[ 1157.040951]  ffff8801b8228780: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
+sure
 
-> Can you please share the reproduction steps for this bug?
+> 
+> >  	if (r) {
+> >  		vq_err(vq, "Failed to check avail idx at %p: %d\n",
+> >  		       &vq->avail->idx, r);
+> > diff --git a/include/linux/sched.h b/include/linux/sched.h
+> > index 6d81a1eb974a..2b00ac7faa18 100644
+> > --- a/include/linux/sched.h
+> > +++ b/include/linux/sched.h
+> > @@ -513,6 +513,7 @@ static inline int get_dumpable(struct mm_struct *mm)
+> >  #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
+> >  #define MMF_OOM_REAPED		21	/* mm has been already reaped */
+> >  #define MMF_OOM_NOT_REAPABLE	22	/* mm couldn't be reaped */
+> > +#define MMF_UNSTABLE		23	/* mm is unstable for copy_from_user */
+> >  
+> >  #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
+> >  
+> > diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
+> > index 349557825428..b1f314fca3c8 100644
+> > --- a/include/linux/uaccess.h
+> > +++ b/include/linux/uaccess.h
+> > @@ -76,6 +76,28 @@ static inline unsigned long __copy_from_user_nocache(void *to,
+> >  #endif		/* ARCH_HAS_NOCACHE_UACCESS */
+> >  
+> >  /*
+> > + * A safe variant of __get_user for for use_mm() users to have a
+> > + * gurantee that the address space wasn't reaped in the background
+> > + */
+> > +#define __get_user_mm(mm, x, ptr)				\
+> > +({								\
+> > +	int ___gu_err = __get_user(x, ptr);			\
+> > +	if (!___gu_err && test_bit(MMF_UNSTABLE, &mm->flags))	\
+> 
+> test_bit is somewhat expensive. See my old mail
+> 	x86/bitops: implement __test_bit
 
-Just running syzkaller inside a kvmtool guest.
+Do you have a msg_id?
 
-> I also wonder whether it's reproducible when you:
->  - revert this commit?
+> I dropped it as virtio just switched to simple &/| for features,
+> but we might need something like this now.
 
-Not reproducible.
+Is this such a hot path that something like this would make a visible
+difference? 
 
->  - build with SLAB instead of SLUB?
+> 
+> 
+> 
+> > +		___gu_err = -EFAULT;				\
+> > +	___gu_err;						\
+> > +})
+> > +
+> > +/* similar to __get_user_mm */
+> > +static inline __must_check long __copy_from_user_mm(struct mm_struct *mm,
+> > +		void *to, const void __user * from, unsigned long n)
+> > +{
+> > +	long ret = __copy_from_user(to, from, n);
+> > +	if (!ret && test_bit(MMF_UNSTABLE, &mm->flags))
+> > +		return -EFAULT;
+> > +	return ret;
 
-Not reproducible.
+And I've just noticed that this is not correct. We need 
+	if ((ret >= 0) && test_bit(MMF_UNSTABLE, &mm->flags))
 
+[...]
 
-Thanks,
-Sasha
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 6303bc7caeda..3fa43e96a59b 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -506,6 +506,12 @@ static bool __oom_reap_task(struct task_struct *tsk)
+> >  		goto mm_drop;
+> >  	}
+> >  
+> > +	/*
+> > +	 * Tell all users of get_user_mm/copy_from_user_mm that the content
+> > +	 * is no longer stable.
+> > +	 */
+> > +	set_bit(MMF_UNSTABLE, &mm->flags);
+> > +
+> 
+> do we need some kind of barrier after this?
+
+Well I believe we don't because unmapping the memory will likely
+imply memory barriers on the way.
+
+> 
+> and if yes - does flag read need a barrier before it too?
+
+A good question. I was basically assuming the same as above. If we didn't fault
+then the oom reaper wouldn't touch that memory and so we are safe even when
+we see the outdated mm flags, if the memory was reaped then we have to page
+fault and that should imply memory barrier AFAIU.
+
+Does that make sense?
+
+> 
+> >  	tlb_gather_mmu(&tlb, mm, 0, -1);
+> >  	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+> >  		if (is_vm_hugetlb_page(vma))
+> > -- 
+> > 2.8.1
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
