@@ -1,93 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 969FF828E1
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 09:02:35 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id na2so27261215lbb.1
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 06:02:35 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id r75si15783485wmg.59.2016.06.20.06.02.33
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E99B828E1
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 09:04:32 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id nq2so27515584lbc.3
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 06:04:32 -0700 (PDT)
+Received: from mail-lf0-x22f.google.com (mail-lf0-x22f.google.com. [2a00:1450:4010:c07::22f])
+        by mx.google.com with ESMTPS id pm6si7259945lbc.48.2016.06.20.06.04.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Jun 2016 06:02:34 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id c82so10984743wme.3
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 06:02:33 -0700 (PDT)
-Date: Mon, 20 Jun 2016 15:02:32 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 05/13] mm: Move memcg stack accounting to
- account_kernel_stack
-Message-ID: <20160620130232.GC9892@dhcp22.suse.cz>
-References: <cover.1466192946.git.luto@kernel.org>
- <8a17889a9d47b7b4deb41f2fcccada8bf54d4b6f.1466192946.git.luto@kernel.org>
+        Mon, 20 Jun 2016 06:04:30 -0700 (PDT)
+Received: by mail-lf0-x22f.google.com with SMTP id q132so37183733lfe.3
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 06:04:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8a17889a9d47b7b4deb41f2fcccada8bf54d4b6f.1466192946.git.luto@kernel.org>
+In-Reply-To: <f90a01f2-9336-1322-881b-74755145fe9b@suse.cz>
+References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1464230275-25791-6-git-send-email-iamjoonsoo.kim@lge.com> <f90a01f2-9336-1322-881b-74755145fe9b@suse.cz>
+From: Alexander Potapenko <glider@google.com>
+Date: Mon, 20 Jun 2016 15:04:28 +0200
+Message-ID: <CAG_fn=WCuaC+kb44DEVnANTVb3MusNxpLWFo0b3ceBkkf9LK2A@mail.gmail.com>
+Subject: Re: [PATCH v2 6/7] mm/page_owner: use stackdepot to store stacktrace
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Brian Gerst <brgerst@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Jann Horn <jann@thejh.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri 17-06-16 13:00:41, Andy Lutomirski wrote:
-> We should account for stacks regardless of stack size.  Move it into
-> account_kernel_stack.
-> 
-> Fixes: 12580e4b54ba8 ("mm: memcontrol: report kernel stack usage in cgroup2 memory.stat")
-> Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+On Mon, Jun 6, 2016 at 4:51 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 05/26/2016 04:37 AM, js1304@gmail.com wrote:
+>>
+>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>
+>> Currently, we store each page's allocation stacktrace on corresponding
+>> page_ext structure and it requires a lot of memory. This causes the
+>> problem
+>> that memory tight system doesn't work well if page_owner is enabled.
+>> Moreover, even with this large memory consumption, we cannot get full
+>> stacktrace because we allocate memory at boot time and just maintain
+>> 8 stacktrace slots to balance memory consumption. We could increase it
+>> to more but it would make system unusable or change system behaviour.
+>>
+>> To solve the problem, this patch uses stackdepot to store stacktrace.
+>> It obviously provides memory saving but there is a drawback that
+>> stackdepot could fail.
+>>
+>> stackdepot allocates memory at runtime so it could fail if system has
+>> not enough memory. But, most of allocation stack are generated at very
+>> early time and there are much memory at this time. So, failure would not
+>> happen easily. And, one failure means that we miss just one page's
+>> allocation stacktrace so it would not be a big problem. In this patch,
+>> when memory allocation failure happens, we store special stracktrace
+>> handle to the page that is failed to save stacktrace. With it, user
+>> can guess memory usage properly even if failure happens.
+>>
+>> Memory saving looks as following. (4GB memory system with page_owner)
+>>
+>> static allocation:
+>> 92274688 bytes -> 25165824 bytes
+>>
+>> dynamic allocation after kernel build:
+>> 0 bytes -> 327680 bytes
+>>
+>> total:
+>> 92274688 bytes -> 25493504 bytes
+>>
+>> 72% reduction in total.
+>>
+>> Note that implementation looks complex than someone would imagine becaus=
+e
+>> there is recursion issue. stackdepot uses page allocator and page_owner
+>> is called at page allocation. Using stackdepot in page_owner could re-ca=
+ll
+>> page allcator and then page_owner. That is a recursion. To detect and
+>> avoid it, whenever we obtain stacktrace, recursion is checked and
+>> page_owner is set to dummy information if found. Dummy information means
+>> that this page is allocated for page_owner feature itself
+>> (such as stackdepot) and it's understandable behavior for user.
+>>
+>> v2:
+>> o calculate memory saving with including dynamic allocation
+>> after kernel build
+>> o change maximum stacktrace entry size due to possible stack overflow
+>>
+>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+>
+> I was surprised that there's no stack removal handling, and then found ou=
+t
+> that stackdepot doesn't support it (e.g. via refcount as one would expect=
+).
+> Hopefully the occupied memory doesn't grow indefinitely over time then...
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+The existing use case (allocation/deallocation stacks for KASAN
+reports) doesn't require reference counts. Introducing those would
+have added unwanted contention and increase memory usage.
+The amount of memory used by the stack depot is bounded above, and
+should be theoretically enough for everyone (as noted in another
+thread, the number of unique allocation/deallocation stacks is way
+less than 30k).
+> Other than that,
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+>
 
-> ---
->  kernel/fork.c | 15 ++++++---------
->  1 file changed, 6 insertions(+), 9 deletions(-)
-> 
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index be7f006af727..cd2abe6e4e41 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -165,20 +165,12 @@ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
->  	struct page *page = alloc_kmem_pages_node(node, THREADINFO_GFP,
->  						  THREAD_SIZE_ORDER);
->  
-> -	if (page)
-> -		memcg_kmem_update_page_stat(page, MEMCG_KERNEL_STACK,
-> -					    1 << THREAD_SIZE_ORDER);
-> -
->  	return page ? page_address(page) : NULL;
->  }
->  
->  static inline void free_thread_info(struct thread_info *ti)
->  {
-> -	struct page *page = virt_to_page(ti);
-> -
-> -	memcg_kmem_update_page_stat(page, MEMCG_KERNEL_STACK,
-> -				    -(1 << THREAD_SIZE_ORDER));
-> -	__free_kmem_pages(page, THREAD_SIZE_ORDER);
-> +	free_kmem_pages((unsigned long)ti, THREAD_SIZE_ORDER);
->  }
->  # else
->  static struct kmem_cache *thread_info_cache;
-> @@ -227,6 +219,11 @@ static void account_kernel_stack(struct thread_info *ti, int account)
->  
->  	mod_zone_page_state(zone, NR_KERNEL_STACK_KB,
->  			    THREAD_SIZE / 1024 * account);
-> +
-> +	/* All stack pages belong to the same memcg. */
-> +	memcg_kmem_update_page_stat(
-> +		virt_to_page(ti), MEMCG_KERNEL_STACK,
-> +		account * (THREAD_SIZE / PAGE_SIZE));
->  }
->  
->  void free_task(struct task_struct *tsk)
-> -- 
-> 2.5.5
 
--- 
-Michal Hocko
-SUSE Labs
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
