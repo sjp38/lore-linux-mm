@@ -1,54 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BD58828E1
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 02:45:52 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id g127so26388197ith.3
-        for <linux-mm@kvack.org>; Sun, 19 Jun 2016 23:45:52 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id r35si16251975ioi.154.2016.06.19.23.45.51
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CA2D6B0253
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 02:56:16 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id g127so26900364ith.3
+        for <linux-mm@kvack.org>; Sun, 19 Jun 2016 23:56:16 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id d81si15602013itd.44.2016.06.19.23.56.15
         for <linux-mm@kvack.org>;
-        Sun, 19 Jun 2016 23:45:51 -0700 (PDT)
-Date: Mon, 20 Jun 2016 15:48:16 +0900
+        Sun, 19 Jun 2016 23:56:16 -0700 (PDT)
+Date: Mon, 20 Jun 2016 15:58:41 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 0/6] Introduce ZONE_CMA
-Message-ID: <20160620064816.GB13747@js1304-P5Q-DELUXE>
-References: <1464243748-16367-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20160526080454.GA11823@shbuild888>
- <20160527052820.GA13661@js1304-P5Q-DELUXE>
- <20160527062527.GA32297@shbuild888>
- <20160527064218.GA14858@js1304-P5Q-DELUXE>
- <20160527072702.GA7782@shbuild888>
- <5763A909.8080907@hisilicon.com>
+Subject: Re: [PATCH v2 6/7] mm/page_owner: use stackdepot to store stacktrace
+Message-ID: <20160620065841.GC13747@js1304-P5Q-DELUXE>
+References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1464230275-25791-6-git-send-email-iamjoonsoo.kim@lge.com>
+ <20160606135604.GJ11895@dhcp22.suse.cz>
+ <20160617072525.GA810@js1304-P5Q-DELUXE>
+ <20160617095559.GC21670@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5763A909.8080907@hisilicon.com>
+In-Reply-To: <20160617095559.GC21670@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Feng <puck.chen@hisilicon.com>
-Cc: Feng Tang <feng.tang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Rui Teng <rui.teng@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Yiping Xu <xuyiping@hisilicon.com>, "fujun (F)" <oliver.fu@hisilicon.com>, Zhuangluan Su <suzhuangluan@hisilicon.com>, Dan Zhao <dan.zhao@hisilicon.com>, saberlily.xia@hisilicon.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jun 17, 2016 at 03:38:49PM +0800, Chen Feng wrote:
-> Hi Kim & feng,
+On Fri, Jun 17, 2016 at 11:55:59AM +0200, Michal Hocko wrote:
+> On Fri 17-06-16 16:25:26, Joonsoo Kim wrote:
+> > On Mon, Jun 06, 2016 at 03:56:04PM +0200, Michal Hocko wrote:
+> [...]
+> > > I still have troubles to understand your numbers
+> > > 
+> > > > static allocation:
+> > > > 92274688 bytes -> 25165824 bytes
+> > > 
+> > > I assume that the first numbers refers to the static allocation for the
+> > > given amount of memory while the second one is the dynamic after the
+> > > boot, right?
+> > 
+> > No, first number refers to the static allocation before the patch and
+> > second one is for after the patch.
 > 
-> Thanks for the share. In our platform also has the same use case.
-> 
-> We only let the alloc with GFP_HIGHUSER_MOVABLE in memory.c to use cma memory.
-> 
-> If we add zone_cma, It seems can resolve the cma migrate issue.
-> 
-> But when free_hot_cold_page, we need let the cma page goto system directly not the pcp.
-> It can be fail while cma_alloc and cma_release. If we alloc the whole cma pages which
-> declared before.
+> I guess we are both talking about the same thing in different words. All
+> the allocations are static before the patch while all are dynamic after
 
-Hmm...I'm not sure I understand your explanation. So, if I miss
-something, please let me know. We calls drain_all_pages() when
-isolating pageblock and alloc_contig_range() also has one
-drain_all_pages() calls to drain pcp pages. And, after pageblock isolation,
-freed pages belonging to MIGRATE_ISOLATE pageblock will go to the
-buddy directly so there would be no problem you mentioned. Isn't it?
+Hmm... maybe no? After the patch, there is two parts, static and dynamic.
+Page extension has following fields for page owner.
+
+Before the patch
+{
+ unsigned int order;
+ gfp_t gfp_mask;
+ unsigned int nr_entries;
+ int last_migrate_reason;
+ unsigned long trace_entries[8];
+}
+
+After the patch
+{
+ unsigned int order;
+ gfp_t gfp_mask;
+ int last_migrate_reason;
+ depot_stack_handle_t handle;
+}
+
+This structure should be allocated for each page even if the patch is
+applied so I said it as static memory usage. There is an amount
+difference since 'trace_entries[8]' field is changed to 'handle'
+field.
+
+Before the patch, stacktrace is stored to static allocated memory per
+page. So, no dynamic usage.
+
+After the patch, handle is returned by stackdepot and stackdepot
+consumes some memory for it. I said it as dynamic.
 
 Thanks.
+
+> the patch. Your boot example just shows how much dynamic memory gets
+> allocated during your boot. This will depend on the particular
+> configuration but it will at least give a picture what the savings might
+> be.
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
