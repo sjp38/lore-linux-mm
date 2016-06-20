@@ -1,155 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 001216B0253
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 04:08:59 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id c82so22985570wme.2
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 01:08:59 -0700 (PDT)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id mb8si27811101wjb.202.2016.06.20.01.08.58
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ED0416B0253
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 04:23:42 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r190so23162903wmr.0
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 01:23:42 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id bd7si27916801wjb.138.2016.06.20.01.23.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Jun 2016 01:08:58 -0700 (PDT)
-Received: by mail-wm0-f52.google.com with SMTP id r201so49597724wme.1
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 01:08:58 -0700 (PDT)
-Date: Mon, 20 Jun 2016 10:08:56 +0200
+        Mon, 20 Jun 2016 01:23:41 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id r201so12059173wme.0
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 01:23:41 -0700 (PDT)
+Date: Mon, 20 Jun 2016 10:23:40 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] xfs: map KM_MAYFAIL to __GFP_RETRY_HARD
-Message-ID: <20160620080856.GB4340@dhcp22.suse.cz>
-References: <1465212736-14637-1-git-send-email-mhocko@kernel.org>
- <1465212736-14637-3-git-send-email-mhocko@kernel.org>
- <20160616002302.GK12670@dastard>
- <20160616080355.GB6836@dhcp22.suse.cz>
- <20160616112606.GH6836@dhcp22.suse.cz>
- <20160617182235.GC10485@cmpxchg.org>
- <5c0ae2d1-28fc-7ef5-b9ae-a4c8bfa833c7@suse.cz>
- <20160617213931.GA13688@cmpxchg.org>
+Subject: Re: [PATCH] sparse: Track the boundaries of memory sections for
+ accurate checks
+Message-ID: <20160620082339.GC4340@dhcp22.suse.cz>
+References: <1466244679-23824-1-git-send-email-karahmed@amazon.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20160617213931.GA13688@cmpxchg.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1466244679-23824-1-git-send-email-karahmed@amazon.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: KarimAllah Ahmed <karahmed@amazon.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Dan Williams <dan.j.williams@intel.com>, Joe Perches <joe@perches.com>, Tejun Heo <tj@kernel.org>, Anthony Liguori <aliguori@amazon.com>, Jan H =?iso-8859-1?Q?=2E_Sch=F6nherr?= <jschoenh@amazon.de>
 
-On Fri 17-06-16 17:39:31, Johannes Weiner wrote:
-> On Fri, Jun 17, 2016 at 10:30:06PM +0200, Vlastimil Babka wrote:
-> > On 17.6.2016 20:22, Johannes Weiner wrote:
-[...]
-> > > - it allows !costly orders to fail
-> > > 
-> > > While 1. is obvious from the name, 2. is not. Even if we don't want
-> > > full-on fine-grained naming for every reclaim methodology and retry
-> > > behavior, those two things just shouldn't be tied together.
-> > 
-> > Well, if allocation is not allowed to fail, it's like trying "indefinitely hard"
-> > already. Telling it it should "try hard" then doesn't make any sense without
-> > also being able to fail.
+On Sat 18-06-16 12:11:19, KarimAllah Ahmed wrote:
+> When sparse memory model is used an array of memory sections is created to
+> track each block of contiguous physical pages. Each element of this array
+> contains PAGES_PER_SECTION pages. During the creation of this array the actual
+> boundaries of the memory block is lost, so the whole block is either considered
+> as present or not.
 > 
-> I can see that argument, but it's really anything but obvious at the
-> callsite. Dave's response to Michal's patch was a good demonstration.
-> And I don't think adding comments fixes an unintuitive interface.
+> pfn_valid() in the sparse memory configuration checks which memory sections the
+> pfn belongs to then checks whether it's present or not. This yields sub-optimal
+> results when the available memory doesn't cover the whole memory section,
+> because pfn_valid will return 'true' even for the unavailable pfns at the
+> boundaries of the memory section.
 
-Yeah, I am aware of that. And it is unfortunate but a side effect of our
-!costly vs. costly difference in the default behavior. What I wanted
-to achieve was to have overrides for the default behavior (whatever it
-is). We already have two such flags and having something semantically in
-the middle sounds like a consistent way to me.
+Please be more verbose of _why_ the patch is needed. Why those
+"sub-optimal results" matter?
 
-> > > I don't see us failing !costly order per default anytime soon, and
-> > > they are common, so adding a __GFP_MAYFAIL to explicitely override
-> > > that behavior seems like a good idea to me. That would make the XFS
-> > > callsite here perfectly obvious.
-> > > 
-> > > And you can still combine it with __GFP_REPEAT.
-> > 
-> > But that would mean the following meaningful combinations for non-costly orders
-> > (assuming e.g. GFP_KERNEL which allows reclaim/compaction in the first place).
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Yaowei Bai <baiyaowei@cmss.chinamobile.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Joe Perches <joe@perches.com>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Anthony Liguori <aliguori@amazon.com>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> Signed-off-by: KarimAllah Ahmed <karahmed@amazon.de>
+> Signed-off-by: Jan H. Schonherr <jschoenh@amazon.de>
+> ---
+>  include/linux/mmzone.h | 22 ++++++++++++++++------
+>  mm/sparse.c            | 37 ++++++++++++++++++++++++++++++++++++-
+>  2 files changed, 52 insertions(+), 7 deletions(-)
 > 
-> I would ignore order here. Part of what makes this interface
-> unintuitive is when we expect different flags to be passed for
-> different orders, especially because the orders are often
-> variable. Michal's __GFP_RETRY_HARD is an improvement in the sense
-> that it ignores the order and tries to do the right thing regardless
-> of it. The interface should really be about the intent at the
-> callsite, not about implementation details of the allocator.
->
-> But adding TRY_HARD to express "this can fail" isn't intuitive.
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 02069c2..f76a0e1 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -1067,8 +1067,12 @@ struct mem_section {
+>  	 * section. (see page_ext.h about this.)
+>  	 */
+>  	struct page_ext *page_ext;
+> -	unsigned long pad;
+> +	unsigned long pad[3];
+>  #endif
+> +
+> +	unsigned long first_pfn;
+> +	unsigned long last_pfn;
+> +
+>  	/*
+>  	 * WARNING: mem_section must be a power-of-2 in size for the
+>  	 * calculation and use of SECTION_ROOT_MASK to make sense.
+> @@ -1140,23 +1144,29 @@ static inline int valid_section_nr(unsigned long nr)
+>  
+>  static inline struct mem_section *__pfn_to_section(unsigned long pfn)
+>  {
+> +	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+> +		return NULL;
+> +
+>  	return __nr_to_section(pfn_to_section_nr(pfn));
+>  }
+>  
+>  #ifndef CONFIG_HAVE_ARCH_PFN_VALID
+>  static inline int pfn_valid(unsigned long pfn)
+>  {
+> -	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+> +	struct mem_section *ms;
+> +
+> +	ms = __pfn_to_section(pfn);
+> +
+> +	if (ms && !(ms->first_pfn <= pfn && ms->last_pfn >= pfn))
+>  		return 0;
+> -	return valid_section(__nr_to_section(pfn_to_section_nr(pfn)));
+> +
+> +	return valid_section(ms);
+>  }
+>  #endif
+>  
+>  static inline int pfn_present(unsigned long pfn)
+>  {
+> -	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+> -		return 0;
+> -	return present_section(__nr_to_section(pfn_to_section_nr(pfn)));
+> +	return present_section(__pfn_to_section(pfn));
+>  }
+>  
+>  /*
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 5d0cf45..3c91837 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -166,24 +166,59 @@ void __meminit mminit_validate_memmodel_limits(unsigned long *start_pfn,
+>  	}
+>  }
+>  
+> +static int __init
+> +overlaps(u64 start1, u64 end1, u64 start2, u64 end2)
+> +{
+> +	u64 start, end;
+> +
+> +	start = max(start1, start2);
+> +	end = min(end1, end2);
+> +	return start <= end;
+> +}
+> +
+>  /* Record a memory area against a node. */
+>  void __init memory_present(int nid, unsigned long start, unsigned long end)
+>  {
+> +	unsigned long first_pfn = start;
+>  	unsigned long pfn;
+>  
+>  	start &= PAGE_SECTION_MASK;
+>  	mminit_validate_memmodel_limits(&start, &end);
+>  	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
+>  		unsigned long section = pfn_to_section_nr(pfn);
+> +		unsigned long last_pfn = min(pfn + PAGES_PER_SECTION, end) - 1;
+>  		struct mem_section *ms;
+>  
+>  		sparse_index_init(section, nid);
+>  		set_section_nid(section, nid);
+>  
+>  		ms = __nr_to_section(section);
+> -		if (!ms->section_mem_map)
+> +		if (!ms->section_mem_map) {
+>  			ms->section_mem_map = sparse_encode_early_nid(nid) |
+>  							SECTION_MARKED_PRESENT;
+> +		} else {
+> +			/* Merge the two regions */
+> +			WARN_ON(sparse_early_nid(ms) != nid);
+> +
+> +			/*
+> +			 * If they don't overlap there will be a hole in
+> +			 * between where meta-data says it's valid even though
+> +			 * it's not.
+> +			 */
+> +			if (!overlaps(first_pfn, last_pfn + 1,
+> +				      ms->first_pfn, ms->last_pfn + 1))	{
+> +				pr_info("Merging non-contiguous pfn ranges 0x%lx-0x%lx and 0x%lx-0x%lx\n",
+> +					ms->first_pfn, ms->last_pfn,
+> +					first_pfn, last_pfn);
+> +			}
+> +			first_pfn = min(first_pfn, ms->first_pfn);
+> +			last_pfn = max(last_pfn, ms->last_pfn);
+> +		}
+> +
+> +		ms->first_pfn = first_pfn;
+> +		ms->last_pfn = last_pfn;
+> +
+> +		first_pfn = pfn + PAGES_PER_SECTION;
+>  	}
+>  }
+>  
+> -- 
+> 2.8.2
+> 
 
-I am all for a better name but everything else I could come up with was
-just more confusing. Take __GFP_MAYFAIL as an example. How it would be
-any less confusing? Aren't all the requests which do not have
-__GFP_NOFAIL automatically MAYFAIL? RETRY_HARD was an attempt to tell
-you can retry as hard as you find reasonable but fail eventually which
-should fit quite nicely between NORETRY and NOFAIL.
-
-> > __GFP_NORETRY - that one is well understood hopefully, and implicitly mayfail
-> 
-> Yeah. Never OOM, never retry etc. The callsite can fall back, and
-> prefers that over OOM kills and disruptive allocation latencies.
-> 
-> > __GFP_MAYFAIL - ???
-> 
-> May OOM for certain orders and retry a few times, but still fail. The
-> callsite can fall back, but it wouldn't come for free. E.g. it might
-> have to abort an explicitely requested user operation.
-> 
-> This is the default for costly orders, so it has an effect only on
-> non-costly orders. But that's where I would separate interface from
-> implementation: you'd use it e.g. in callsites where you have variable
-> orders but always the same fallback. XFS does that extensively.
-> 
-> > __GFP_MAYFAIL | __GFP_REPEAT - ???
-> > 
-> > Which one of the last two tries harder? How specifically? Will they differ by
-> > (not) allowing OOM? Won't that be just extra confusing?
-> 
-> Adding __GFP_REPEAT would always be additive. This combination would
-> mean: try the hardest not to fail, but don't lock up in cases when the
-> order happens to be !costly.
-> 
-> Again, I'm not too thrilled about that flag as it's so damn vague. But
-> that's more about how we communicate latency/success expectations. My
-> concern is exclusively about its implication of MAYFAIL.
-
-Our gfp flags space is quite full and additing a new flag while we keep
-one with a vague meaning doesn't sound very well to me. So I really
-think we should just ditch __GFP_REPEAT. Whether __GFP_MAYFAIL is a
-better name for the new flag I dunno. It feels confusing to me but if
-that is a general agreement I don't have a big problem with that.
-
-> > > For a generic allocation site like this, __GFP_MAYFAIL | __GFP_REPEAT
-> > > does the right thing for all orders, and it's self-explanatory: try
-> > > hard, allow falling back.
-> > > 
-> > > Whether we want a __GFP_REPEAT or __GFP_TRY_HARD at all is a different
-> > > topic. In the long term, it might be better to provide best-effort per
-> > > default and simply annotate MAYFAIL/NORETRY callsites that want to
-> > > give up earlier. Because as I mentioned at LSFMM, it's much easier to
-> > > identify callsites that have a convenient fallback than callsites that
-> > > need to "try harder." Everybody thinks their allocations are oh so
-> > > important. The former is much more specific and uses obvious criteria.
-> > 
-> > For higher-order allocations, best-effort might also mean significant system
-> > disruption, not just latency of the allocation itself. One example is hugeltbfs
-> > allocations (echo X > .../nr_hugepages) where the admin is willing to pay this
-> > cost. But to do that by default and rely on everyone else passing NORETRY
-> > wouldn't go far. So I think the TRY_HARD kind of flag makes sense.
-> 
-> I think whether the best-effort behavior should be opt-in or opt-out,
-> or how fine-grained the latency/success control over the allocator
-> should be is a different topic. I'd prefer defaulting to reliability
-> and annotating low-latency requirements, but I can see TRY_HARD work
-> too. It just shouldn't imply MAY_FAIL.
-
-It is always hard to change the default behavior without breaking
-anything. Up to now we had opt-in and as you can see there are not that
-many users who really wanted to have higher reliability. I guess this is
-because they just do not care and didn't see too many failures. The
-opt-out has also a disadvantage that we would need to provide a flag
-to tell to try less hard and all we have is NORETRY and that is way too
-easy. So to me it sounds like the opt-in fits better with the current
-usage.
 -- 
 Michal Hocko
 SUSE Labs
