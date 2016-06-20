@@ -1,34 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ED2C06B0253
-	for <linux-mm@kvack.org>; Sun, 19 Jun 2016 19:55:00 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id l5so302494715ioa.0
-        for <linux-mm@kvack.org>; Sun, 19 Jun 2016 16:55:00 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id g27si29318860pfa.159.2016.06.19.16.55.00
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D8B156B025F
+	for <linux-mm@kvack.org>; Sun, 19 Jun 2016 20:15:27 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id a1so54019765obv.1
+        for <linux-mm@kvack.org>; Sun, 19 Jun 2016 17:15:27 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id xm3si18731583pac.158.2016.06.19.17.15.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Jun 2016 16:55:00 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id i123so7204040pfg.3
-        for <linux-mm@kvack.org>; Sun, 19 Jun 2016 16:55:00 -0700 (PDT)
+        Sun, 19 Jun 2016 17:15:27 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id i123so7227589pfg.3
+        for <linux-mm@kvack.org>; Sun, 19 Jun 2016 17:15:26 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Date: Mon, 20 Jun 2016 08:54:50 +0900
+Date: Mon, 20 Jun 2016 09:15:19 +0900
 Subject: Re: [PATCH] MADVISE_FREE, THP: Fix madvise_free_huge_pmd return
  value after splitting
-Message-ID: <20160619235450.GA3194@blaptop>
+Message-ID: <20160620001519.GC3194@blaptop>
 References: <1466132640-18932-1-git-send-email-ying.huang@intel.com>
  <20160617053102.GA2374@bbox>
- <87inx7lsbg.fsf@yhuang-mobile.sh.intel.com>
+ <87mvmjha54.fsf@yhuang-mobile.sh.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87inx7lsbg.fsf@yhuang-mobile.sh.intel.com>
+In-Reply-To: <87mvmjha54.fsf@yhuang-mobile.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Huang, Ying" <ying.huang@intel.com>
 Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 17, 2016 at 08:59:31AM -0700, Huang, Ying wrote:
+On Fri, Jun 17, 2016 at 12:45:43PM -0700, Huang, Ying wrote:
 > Minchan Kim <minchan@kernel.org> writes:
 > 
 > > Hi,
@@ -72,22 +72,65 @@ On Fri, Jun 17, 2016 at 08:59:31AM -0700, Huang, Ying wrote:
 > >
 > > First of all, let's change ret from int to bool.
 > > And then, add description in the function entry.
-> >
+> 
+> Yes.  bool looks better than int.
+> 
 > > /*
 > >  * Return true if we do MADV_FREE successfully on entire pmd page.
 > >  * Otherwise, return false.
 > >  */
-> >
+> 
+> This way, we need to return false if we failed to split huge page, this
+> will cause unnecessary pmd_trans_unstable check.  How about to change
+> the comments to
+
+I focused the function name "madvise_free_huge_pmd". IOW, the function
+should free huge pmd page. If it is successful, done. Otherwise, next
+routines should handle it.
+
+If it fail to split, pmd_trans_unstable will check it and return.
+I don't think it's heavy operation to affect performance so rather
+than making function fast, I wanted to make it simple by following
+function name.
+
+> 
+> /*
+>  * Return true if we finished processing entire pmd page and needn't
+>  * fall back pte processing.  Otherwise, return false.
+>  */
+> 
+> Best Regards,
+> Huang, Ying
+> 
 > > And do not set to 1 if it is huge_zero_pmd but just goto out to
 > > return false.
-> 
-> Do you want to fold the cleanup with this patch or do that in another
-> patch?
-
-I prefer separating cleanup and bug fix so that we can send only bug
-fix patch to stable tree.
-
-Thanks.
+> >
+> > Thanks!
+> >
+> >> @@ -1655,14 +1655,9 @@ int madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> >>  	if (next - addr != HPAGE_PMD_SIZE) {
+> >>  		get_page(page);
+> >>  		spin_unlock(ptl);
+> >> -		if (split_huge_page(page)) {
+> >> -			put_page(page);
+> >> -			unlock_page(page);
+> >> -			goto out_unlocked;
+> >> -		}
+> >> +		split_huge_page(page);
+> >>  		put_page(page);
+> >>  		unlock_page(page);
+> >> -		ret = 1;
+> >>  		goto out_unlocked;
+> >>  	}
+> >>  
+> >> -- 
+> >> 2.8.1
+> >> 
+> >> --
+> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> see: http://www.linux-mm.org/ .
+> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
