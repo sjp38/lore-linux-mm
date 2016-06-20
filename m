@@ -1,95 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E8E3E6B025E
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 11:48:33 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 143so321644931pfx.0
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 08:48:33 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id m123si24809644pfm.8.2016.06.20.08.48.33
-        for <linux-mm@kvack.org>;
-        Mon, 20 Jun 2016 08:48:33 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH] MADVISE_FREE, THP: Fix madvise_free_huge_pmd return value after splitting
-References: <1466132640-18932-1-git-send-email-ying.huang@intel.com>
-	<20160617053102.GA2374@bbox>
-	<87inx7lsbg.fsf@yhuang-mobile.sh.intel.com>
-	<20160619235450.GA3194@blaptop>
-Date: Mon, 20 Jun 2016 08:48:32 -0700
-In-Reply-To: <20160619235450.GA3194@blaptop> (Minchan Kim's message of "Mon,
-	20 Jun 2016 08:54:50 +0900")
-Message-ID: <877fdjamjz.fsf@yhuang-mobile.sh.intel.com>
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EEBA6B0253
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 12:05:46 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id i1so294670746vkg.0
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 09:05:46 -0700 (PDT)
+Received: from mail-vk0-x236.google.com (mail-vk0-x236.google.com. [2607:f8b0:400c:c05::236])
+        by mx.google.com with ESMTPS id m16si6990501vka.199.2016.06.20.09.05.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Jun 2016 09:05:45 -0700 (PDT)
+Received: by mail-vk0-x236.google.com with SMTP id d185so201611213vkg.0
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 09:05:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <20160620130232.GC9892@dhcp22.suse.cz>
+References: <cover.1466192946.git.luto@kernel.org> <8a17889a9d47b7b4deb41f2fcccada8bf54d4b6f.1466192946.git.luto@kernel.org>
+ <20160620130232.GC9892@dhcp22.suse.cz>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 20 Jun 2016 09:05:24 -0700
+Message-ID: <CALCETrUhiFdNeE8BOcOYPDVLcDO6aq412iDT+Lf_9QHdmsY6Eg@mail.gmail.com>
+Subject: Re: [PATCH v2 05/13] mm: Move memcg stack accounting to account_kernel_stack
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-arch <linux-arch@vger.kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Borislav Petkov <bp@alien8.de>, Heiko Carstens <heiko.carstens@de.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Brian Gerst <brgerst@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Linus Torvalds <torvalds@linux-foundation.org>, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jann Horn <jann@thejh.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, X86 ML <x86@kernel.org>
 
-Minchan Kim <minchan@kernel.org> writes:
-
-> On Fri, Jun 17, 2016 at 08:59:31AM -0700, Huang, Ying wrote:
->> Minchan Kim <minchan@kernel.org> writes:
->> 
->> > Hi,
->> >
->> > On Thu, Jun 16, 2016 at 08:03:54PM -0700, Huang, Ying wrote:
->> >> From: Huang Ying <ying.huang@intel.com>
->> >> 
->> >> madvise_free_huge_pmd should return 0 if the fallback PTE operations are
->> >> required.  In madvise_free_huge_pmd, if part pages of THP are discarded,
->> >> the THP will be split and fallback PTE operations should be used if
->> >> splitting succeeds.  But the original code will make fallback PTE
->> >> operations skipped, after splitting succeeds.  Fix that via make
->> >> madvise_free_huge_pmd return 0 after splitting successfully, so that the
->> >> fallback PTE operations will be done.
->> >
->> > You're right. Thanks!
->> >
->> >> 
->> >> Know issues: if my understanding were correct, return 1 from
->> >> madvise_free_huge_pmd means the following processing for the PMD should
->> >> be skipped, while return 0 means the following processing is still
->> >> needed.  So the function should return 0 only if the THP is split
->> >> successfully or the PMD is not trans huge.  But the pmd_trans_unstable
->> >> after madvise_free_huge_pmd guarantee the following processing will be
->> >> skipped for huge PMD.  So current code can run properly.  But if my
->> >> understanding were correct, we can clean up return code of
->> >> madvise_free_huge_pmd accordingly.
->> >
->> > I like your clean up. Just a minor comment below.
->> >
->> >> 
->> >> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> >> ---
->> >>  mm/huge_memory.c | 7 +------
->> >>  1 file changed, 1 insertion(+), 6 deletions(-)
->> >> 
->> >> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> >> index 2ad52d5..64dc95d 100644
->> >> --- a/mm/huge_memory.c
->> >> +++ b/mm/huge_memory.c
->> >
->> > First of all, let's change ret from int to bool.
->> > And then, add description in the function entry.
->> >
->> > /*
->> >  * Return true if we do MADV_FREE successfully on entire pmd page.
->> >  * Otherwise, return false.
->> >  */
->> >
->> > And do not set to 1 if it is huge_zero_pmd but just goto out to
->> > return false.
->> 
->> Do you want to fold the cleanup with this patch or do that in another
->> patch?
+On Jun 20, 2016 6:02 AM, "Michal Hocko" <mhocko@kernel.org> wrote:
 >
-> I prefer separating cleanup and bug fix so that we can send only bug
-> fix patch to stable tree.
+> On Fri 17-06-16 13:00:41, Andy Lutomirski wrote:
+> > We should account for stacks regardless of stack size.  Move it into
+> > account_kernel_stack.
+> >
+> > Fixes: 12580e4b54ba8 ("mm: memcontrol: report kernel stack usage in cgroup2 memory.stat")
+> > Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: linux-mm@kvack.org
+> > Signed-off-by: Andy Lutomirski <luto@kernel.org>
+>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+>
 
-Sure.
+This needs the same kilobyte treatment as the other accounting patch,
+so I'm going to send v3 without your ack.
 
-Best Regards,
-Huang, Ying
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
