@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A6D06B0005
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 16:10:07 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id v77so46586981ywg.1
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 13:10:07 -0700 (PDT)
-Received: from mail-yw0-x241.google.com (mail-yw0-x241.google.com. [2607:f8b0:4002:c05::241])
-        by mx.google.com with ESMTPS id h13si12443071ywa.7.2016.06.20.13.10.06
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F8306B0005
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 16:20:57 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id y77so317440308qkb.2
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 13:20:57 -0700 (PDT)
+Received: from mail-yw0-x243.google.com (mail-yw0-x243.google.com. [2607:f8b0:4002:c05::243])
+        by mx.google.com with ESMTPS id l188si9728749ybf.31.2016.06.20.13.20.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Jun 2016 13:10:06 -0700 (PDT)
-Received: by mail-yw0-x241.google.com with SMTP id v77so4352215ywg.2
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 13:10:06 -0700 (PDT)
-Date: Mon, 20 Jun 2016 16:10:02 -0400
+        Mon, 20 Jun 2016 13:20:56 -0700 (PDT)
+Received: by mail-yw0-x243.google.com with SMTP id f75so3681971ywb.3
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 13:20:56 -0700 (PDT)
+Date: Mon, 20 Jun 2016 16:20:53 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v9 08/12] kthread: Detect when a kthread work is used by
- more workers
-Message-ID: <20160620201002.GZ3262@mtj.duckdns.org>
+Subject: Re: [PATCH v9 09/12] kthread: Initial support for delayed kthread
+ work
+Message-ID: <20160620202053.GA3262@mtj.duckdns.org>
 References: <1466075851-24013-1-git-send-email-pmladek@suse.com>
- <1466075851-24013-9-git-send-email-pmladek@suse.com>
+ <1466075851-24013-10-git-send-email-pmladek@suse.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1466075851-24013-9-git-send-email-pmladek@suse.com>
+In-Reply-To: <1466075851-24013-10-git-send-email-pmladek@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Petr Mladek <pmladek@suse.com>
@@ -29,37 +29,37 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, 
 
 Hello,
 
-On Thu, Jun 16, 2016 at 01:17:27PM +0200, Petr Mladek wrote:
-> diff --git a/kernel/kthread.c b/kernel/kthread.c
-> index 567ec49b4872..8e9548649c86 100644
-> --- a/kernel/kthread.c
-> +++ b/kernel/kthread.c
-> @@ -574,6 +574,9 @@ EXPORT_SYMBOL_GPL(__kthread_init_worker);
->   * The works are not allowed to keep any locks, disable preemption or interrupts
->   * when they finish. There is defined a safe point for freezing when one work
->   * finishes and before a new one is started.
+On Thu, Jun 16, 2016 at 01:17:28PM +0200, Petr Mladek wrote:
+> +/**
+> + * kthread_delayed_work_timer_fn - callback that queues the associated kthread
+> + *	delayed work when the timer expires.
+> + * @__data: pointer to the data associated with the timer
 > + *
-> + * Also the works must not be handled by more workers at the same time, see also
-                                                ^
-						than one
-> + * kthread_queue_work().
->   */
->  int kthread_worker_fn(void *worker_ptr)
->  {
-> @@ -710,12 +713,21 @@ kthread_create_worker_on_cpu(int cpu, const char namefmt[], ...)
->  }
->  EXPORT_SYMBOL(kthread_create_worker_on_cpu);
->  
-> +static void kthread_insert_work_sanity_check(struct kthread_worker *worker,
-> +					     struct kthread_work *work)
+> + * The format of the function is defined by struct timer_list.
+> + * It should have been called from irqsafe timer with irq already off.
+> + */
+> +void kthread_delayed_work_timer_fn(unsigned long __data)
 > +{
-> +	lockdep_assert_held(&worker->lock);
-> +	WARN_ON_ONCE(!list_empty(&work->node));
-> +	/* Do not use a work with more workers, see kthread_queue_work() */
-                                  ^
-				  ditto, maybe just say ">1 workers"?
+> +	struct kthread_delayed_work *dwork =
+> +		(struct kthread_delayed_work *)__data;
+> +	struct kthread_work *work = &dwork->work;
+> +	struct kthread_worker *worker = work->worker;
+> +
+> +	/*
+> +	 * This might happen when a pending work is reinitialized.
+> +	 * It means that it is used a wrong way.
+> +	 */
+> +	if (WARN_ON_ONCE(!worker))
+> +		return;
+> +
+> +	spin_lock(&worker->lock);
+> +	/* Work must not be used with more workers, see kthread_queue_work(). */
+                                         ^
+					 ditto, this reads weird
 
-Looks good otherwise.
+Other than that,
+
+Acked-by: Tejun Heo <tj@kernel.org>
 
 Thanks.
 
