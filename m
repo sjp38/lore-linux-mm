@@ -1,50 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EEBA6B0253
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 12:05:46 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id i1so294670746vkg.0
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 09:05:46 -0700 (PDT)
-Received: from mail-vk0-x236.google.com (mail-vk0-x236.google.com. [2607:f8b0:400c:c05::236])
-        by mx.google.com with ESMTPS id m16si6990501vka.199.2016.06.20.09.05.45
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 311D96B0005
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 14:32:37 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id g18so29309883lfg.2
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 11:32:37 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id k2si30911644wjf.190.2016.06.20.11.32.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Jun 2016 09:05:45 -0700 (PDT)
-Received: by mail-vk0-x236.google.com with SMTP id d185so201611213vkg.0
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 09:05:45 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160620130232.GC9892@dhcp22.suse.cz>
-References: <cover.1466192946.git.luto@kernel.org> <8a17889a9d47b7b4deb41f2fcccada8bf54d4b6f.1466192946.git.luto@kernel.org>
- <20160620130232.GC9892@dhcp22.suse.cz>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 20 Jun 2016 09:05:24 -0700
-Message-ID: <CALCETrUhiFdNeE8BOcOYPDVLcDO6aq412iDT+Lf_9QHdmsY6Eg@mail.gmail.com>
-Subject: Re: [PATCH v2 05/13] mm: Move memcg stack accounting to account_kernel_stack
-Content-Type: text/plain; charset=UTF-8
+        Mon, 20 Jun 2016 11:32:31 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id a66so10990693wme.2
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 11:32:31 -0700 (PDT)
+Date: Mon, 20 Jun 2016 20:39:10 +0200
+From: Emese Revfy <re.emese@gmail.com>
+Subject: [PATCH v4 0/4] Introduce the latent_entropy gcc plugin
+Message-Id: <20160620203910.a8b6b5b10d18f24661916e7b@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-arch <linux-arch@vger.kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Borislav Petkov <bp@alien8.de>, Heiko Carstens <heiko.carstens@de.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Brian Gerst <brgerst@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Linus Torvalds <torvalds@linux-foundation.org>, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jann Horn <jann@thejh.net>, Vladimir Davydov <vdavydov@virtuozzo.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, X86 ML <x86@kernel.org>
+To: kernel-hardening@lists.openwall.com
+Cc: pageexec@freemail.hu, spender@grsecurity.net, mmarek@suse.com, keescook@chromium.org, linux-kernel@vger.kernel.org, yamada.masahiro@socionext.com, linux-kbuild@vger.kernel.org, tytso@mit.edu, akpm@linux-foundation.org, linux-mm@kvack.org, axboe@kernel.dk, viro@zeniv.linux.org.uk, paulmck@linux.vnet.ibm.com, mingo@redhat.com, tglx@linutronix.de, bart.vanassche@sandisk.com, davem@davemloft.net
 
-On Jun 20, 2016 6:02 AM, "Michal Hocko" <mhocko@kernel.org> wrote:
->
-> On Fri 17-06-16 13:00:41, Andy Lutomirski wrote:
-> > We should account for stacks regardless of stack size.  Move it into
-> > account_kernel_stack.
-> >
-> > Fixes: 12580e4b54ba8 ("mm: memcontrol: report kernel stack usage in cgroup2 memory.stat")
-> > Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: linux-mm@kvack.org
-> > Signed-off-by: Andy Lutomirski <luto@kernel.org>
->
-> Acked-by: Michal Hocko <mhocko@suse.com>
->
+I would like to introduce the latent_entropy gcc plugin. This plugin
+mitigates the problem of the kernel having too little entropy during and
+after boot for generating crypto keys.
 
-This needs the same kilobyte treatment as the other accounting patch,
-so I'm going to send v3 without your ack.
+This plugin mixes random values into the latent_entropy global variable
+in functions marked by the __latent_entropy attribute.
+The value of this global variable is added to the kernel entropy pool
+to increase the entropy.
 
---Andy
+It is a CII project supported by the Linux Foundation.
+
+The latent_entropy plugin was ported from grsecurity/PaX originally written
+by the PaX Team. You can find more about the plugin here:
+https://grsecurity.net/pipermail/grsecurity/2012-July/001093.html
+
+The plugin supports all gcc version from 4.5 to 6.0.
+
+I do some changes above the PaX version. The important one is mixing
+the stack pointer into the global variable too.
+You can find more about the changes here:
+https://github.com/ephox-gcc-plugins/latent_entropy
+
+This patch set is based on the "Introduce GCC plugin infrastructure"
+patch set (git/mmarek/kbuild.git#kbuild HEAD: 543c37cb165049c3be).
+
+Emese Revfy (4):
+ Add support for passing gcc plugin arguments
+ Add the latent_entropy gcc plugin
+ Mark functions with the latent_entropy attribute
+ Add the extra_latent_entropy kernel parameter
+
+
+Changes from v3:
+  * Fix disabling latent_entropy on some powerpc files
+    (Reported-by: Kees Cook <keescook@chromium.org>)
+  * Truncate the lines into <= 80 columns to follow the kernel coding style
+    (Suggested-by: Kees Cook <keescook@chromium.org>)
+
+Changes from v2:
+  * Moved the passing of gcc plugin arguments into a separate patch
+    (Suggested-by: Kees Cook <keescook@chromium.org>)
+  * Mix the global entropy variable with the stack pointer
+    (latent_entropy_plugin.c)
+  * Handle tail calls (latent_entropy_plugin.c)
+  * Fix some indentation related warnings suggested by checkpatch.pl
+    (latent_entropy_plugin.c)
+  * Commented some latent_entropy plugin code
+    (Suggested-by: Kees Cook <keescook@chromium.org>)
+
+Changes from v1:
+  * Remove unnecessary ifdefs
+    (Suggested-by: Kees Cook <keescook@chromium.org>)
+  * Separate the two definitions of add_latent_entropy()
+    (Suggested-by: Kees Cook <keescook@chromium.org>)
+  * Removed unnecessary global variable (latent_entropy_plugin.c)
+  * About the latent_entropy gcc attribute (latent_entropy_plugin.c)
+  * Measure the boot time performance impact of the latent_entropy plugin
+    (arch/Kconfig)
+
+---
+ Documentation/kernel-parameters.txt         |   5 +
+ arch/Kconfig                                |  23 +
+ arch/powerpc/kernel/Makefile                |   4 +
+ block/blk-softirq.c                         |   2 +-
+ drivers/char/random.c                       |   6 +-
+ fs/namespace.c                              |   1 +
+ include/linux/compiler-gcc.h                |   7 +
+ include/linux/compiler.h                    |   4 +
+ include/linux/fdtable.h                     |   2 +-
+ include/linux/genhd.h                       |   2 +-
+ include/linux/init.h                        |   5 +-
+ include/linux/random.h                      |  14 +-
+ init/main.c                                 |   1 +
+ kernel/fork.c                               |   7 +-
+ kernel/rcu/tiny.c                           |   2 +-
+ kernel/rcu/tree.c                           |   2 +-
+ kernel/sched/fair.c                         |   2 +-
+ kernel/softirq.c                            |   4 +-
+ kernel/time/timer.c                         |   2 +-
+ lib/irq_poll.c                              |   2 +-
+ lib/random32.c                              |   2 +-
+ mm/page_alloc.c                             |  31 ++
+ net/core/dev.c                              |   4 +-
+ scripts/Makefile.gcc-plugins                |  10 +-
+ scripts/gcc-plugins/Makefile                |   1 +
+ scripts/gcc-plugins/latent_entropy_plugin.c | 639 ++++++++++++++++++++++++++++
+ 26 files changed, 760 insertions(+), 24 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
