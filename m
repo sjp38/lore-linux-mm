@@ -1,96 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CA2D6B0253
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 02:56:16 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id g127so26900364ith.3
-        for <linux-mm@kvack.org>; Sun, 19 Jun 2016 23:56:16 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id d81si15602013itd.44.2016.06.19.23.56.15
-        for <linux-mm@kvack.org>;
-        Sun, 19 Jun 2016 23:56:16 -0700 (PDT)
-Date: Mon, 20 Jun 2016 15:58:41 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 6/7] mm/page_owner: use stackdepot to store stacktrace
-Message-ID: <20160620065841.GC13747@js1304-P5Q-DELUXE>
-References: <1464230275-25791-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1464230275-25791-6-git-send-email-iamjoonsoo.kim@lge.com>
- <20160606135604.GJ11895@dhcp22.suse.cz>
- <20160617072525.GA810@js1304-P5Q-DELUXE>
- <20160617095559.GC21670@dhcp22.suse.cz>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CBAEB6B0253
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 03:28:16 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id f126so12653490wma.3
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 00:28:16 -0700 (PDT)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
+        by mx.google.com with ESMTPS id k4si14230324wmg.70.2016.06.20.00.28.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Jun 2016 00:28:15 -0700 (PDT)
+Received: by mail-wm0-f46.google.com with SMTP id r190so8618608wmr.0
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 00:28:15 -0700 (PDT)
+Date: Mon, 20 Jun 2016 09:28:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: kernel, mm: NULL deref in copy_process while OOMing
+Message-ID: <20160620072813.GA4340@dhcp22.suse.cz>
+References: <57618763.5010201@oracle.com>
+ <20160616093951.GD6836@dhcp22.suse.cz>
+ <915586fa-13f6-e685-bf9d-9a87dc21739a@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160617095559.GC21670@dhcp22.suse.cz>
+In-Reply-To: <915586fa-13f6-e685-bf9d-9a87dc21739a@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 17, 2016 at 11:55:59AM +0200, Michal Hocko wrote:
-> On Fri 17-06-16 16:25:26, Joonsoo Kim wrote:
-> > On Mon, Jun 06, 2016 at 03:56:04PM +0200, Michal Hocko wrote:
-> [...]
-> > > I still have troubles to understand your numbers
-> > > 
-> > > > static allocation:
-> > > > 92274688 bytes -> 25165824 bytes
-> > > 
-> > > I assume that the first numbers refers to the static allocation for the
-> > > given amount of memory while the second one is the dynamic after the
-> > > boot, right?
+On Sun 19-06-16 12:06:53, Tetsuo Handa wrote:
+> On 2016/06/16 18:39, Michal Hocko wrote:
+> > On Wed 15-06-16 12:50:43, Sasha Levin wrote:
+> >> Hi all,
+> >>
+> >> I'm seeing the following NULL ptr deref in copy_process right after a bunch
+> >> of OOM killing activity on -next kernels:
+> >>
+> >> Out of memory (oom_kill_allocating_task): Kill process 3477 (trinity-c159) score 0 or sacrifice child
+> >> Killed process 3477 (trinity-c159) total-vm:3226820kB, anon-rss:36832kB, file-rss:1640kB, shmem-rss:444kB
+> >> oom_reaper: reaped process 3477 (trinity-c159), now anon-rss:0kB, file-rss:0kB, shmem-rss:444kB
+> >> Out of memory (oom_kill_allocating_task): Kill process 3450 (trinity-c156) score 0 or sacrifice child
+> >> Killed process 3450 (trinity-c156) total-vm:3769768kB, anon-rss:36832kB, file-rss:1652kB, shmem-rss:508kB
+> >> oom_reaper: reaped process 3450 (trinity-c156), now anon-rss:0kB, file-rss:0kB, shmem-rss:572kB
+> >> BUG: unable to handle kernel NULL pointer dereference at 0000000000000150
+> >> IP: copy_process (./arch/x86/include/asm/atomic.h:103 kernel/fork.c:484 kernel/fork.c:964 kernel/fork.c:1018 kernel/fork.c:1484)
+> >> PGD 1ff944067 PUD 1ff929067 PMD 0
+> >> Oops: 0002 [#1] PREEMPT SMP KASAN
+> >> Modules linked in:
+> >> CPU: 18 PID: 8761 Comm: trinity-main Not tainted 4.7.0-rc3-sasha-02101-g1e1b9fa #3108
 > > 
-> > No, first number refers to the static allocation before the patch and
-> > second one is for after the patch.
+> > Is this a common parent of the oom killed children?
+> > 
+> >> task: ffff880165564000 ti: ffff880337ad0000 task.ti: ffff880337ad0000
+> >> RIP: copy_process (./arch/x86/include/asm/atomic.h:103 kernel/fork.c:484 kernel/fork.c:964 kernel/fork.c:1018 kernel/fork.c:1484)
+> > 
+> > IIUC this should be:
+> > _do_fork
+> >   copy_process
+> >     copy_mm
+> >       dup_mm
+> >         dup_mmap
+> > 	  if (tmp->vm_flags & VM_DENYWRITE)
+> > 	    atomic_dec(&inode->i_writecount);
+> > 
+> > I am not really sure how f->f_inode can become NULL when file should pin
+> > the inode AFAIR, and VMA should pin the file. Anyway this shouldn't be
+> > directly related to the OOM killer or at least the recent changes
+> > in that area because the oom reaper doesn't touch VMAs file.
 > 
-> I guess we are both talking about the same thing in different words. All
-> the allocations are static before the patch while all are dynamic after
+> These OOM messages say that oom_kill_allocating_task != 0 is used.
+> That is, a __GFP_FS allocation by a child process which is trying to
+> duplicate the parent's mm_struct was killed by the OOM killer and
+> reaped by the OOM reaper. I guess that mmap related stuff are not
+> fully initialized (or consistent) yet while the OOM reaper assumed
+> that it is safe to access such child's mmap related stuff.
 
-Hmm... maybe no? After the patch, there is two parts, static and dynamic.
-Page extension has following fields for page owner.
+I will double check but the oom_reaper only unmaps VMAs. We are not
+deleting or modifying the VMA layout or disassociate VMAs from their
+files. So I do not see how this could be related.
+ 
+> So, if this bug is reproducible (I thing it is), first try to reproduce
+> this bug without the OOM reaper enabled (i.e. comment out the
 
-Before the patch
-{
- unsigned int order;
- gfp_t gfp_mask;
- unsigned int nr_entries;
- int last_migrate_reason;
- unsigned long trace_entries[8];
-}
+Yes, that would be definitely good to test.
 
-After the patch
-{
- unsigned int order;
- gfp_t gfp_mask;
- int last_migrate_reason;
- depot_stack_handle_t handle;
-}
-
-This structure should be allocated for each page even if the patch is
-applied so I said it as static memory usage. There is an amount
-difference since 'trace_entries[8]' field is changed to 'handle'
-field.
-
-Before the patch, stacktrace is stored to static allocated memory per
-page. So, no dynamic usage.
-
-After the patch, handle is returned by stackdepot and stackdepot
-consumes some memory for it. I said it as dynamic.
-
-Thanks.
-
-> the patch. Your boot example just shows how much dynamic memory gets
-> allocated during your boot. This will depend on the particular
-> configuration but it will at least give a picture what the savings might
-> be.
-> -- 
-> Michal Hocko
-> SUSE Labs
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> subsys_initcall(oom_init)
+> 
+> line in mm/oom_kill.c ).
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
