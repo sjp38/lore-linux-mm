@@ -1,114 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 11E4F6B0005
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 19:33:34 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id na2so35175753lbb.1
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 16:33:34 -0700 (PDT)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id uh6si24505128lbc.47.2016.06.20.16.33.32
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CEFF6B0005
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 19:43:53 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id b13so284570782pat.3
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 16:43:53 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id u29si36095471pfi.150.2016.06.20.16.43.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Jun 2016 16:33:32 -0700 (PDT)
-Received: by mail-lf0-x241.google.com with SMTP id a2so7308606lfe.3
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 16:33:32 -0700 (PDT)
-From: Yury Norov <yury.norov@gmail.com>
-Subject: [PATCH] mm: slab.h: use ilog2() in kmalloc_index()
-Date: Tue, 21 Jun 2016 02:33:06 +0300
-Message-Id: <1466465586-22096-1-git-send-email-yury.norov@gmail.com>
+        Mon, 20 Jun 2016 16:43:52 -0700 (PDT)
+From: Andy Lutomirski <luto@kernel.org>
+Subject: [PATCH v3 01/13] x86/mm/hotplug: Don't remove PGD entries in remove_pagetable()
+Date: Mon, 20 Jun 2016 16:43:31 -0700
+Message-Id: <21d054b03ef8f7bade85f1937be719c711c6d379.1466466093.git.luto@kernel.org>
+In-Reply-To: <cover.1466466093.git.luto@kernel.org>
+References: <cover.1466466093.git.luto@kernel.org>
+In-Reply-To: <cover.1466466093.git.luto@kernel.org>
+References: <cover.1466466093.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: masmart@yandex.ru, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: cl@linux.com, enberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux@rasmusvillemoes.dk, Yury Norov <yury.norov@gmail.com>, Alexey Klimov <klimov.linux@gmail.com>
+To: x86@kernel.org, linux-kernel@vger.kernel.org
+Cc: linux-arch@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Nadav Amit <nadav.amit@gmail.com>, Kees Cook <keescook@chromium.org>, Brian Gerst <brgerst@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Jann Horn <jann@thejh.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Waiman Long <Waiman.Long@hp.com>, linux-mm@kvack.org
 
-kmalloc_index() uses simple straightforward way to calculate
-bit position of nearest or equal upper power of 2.
-This effectively results in generation of 24 episodes of
-compare-branch instructions in assembler.
+From: Ingo Molnar <mingo@kernel.org>
 
-There is shorter way to calculate this: fls(size - 1).
+So when memory hotplug removes a piece of physical memory from pagetable
+mappings, it also frees the underlying PGD entry.
 
-The patch removes hard-coded calculation of kmalloc slab and
-uses ilog2() instead that works on top of fls(). ilog2 is used
-with intention that compiler also might optimize constant case
-during compile time if it detects that.
+This complicates PGD management, so don't do this. We can keep the
+PGD mapped and the PUD table all clear - it's only a single 4K page
+per 512 GB of memory hotplugged.
 
-BUG() is moved to the beginning of function. We left it here to
-provide identical behaviour to previous version. It may be removed
-if there's no requirement in it anymore.
-
-While we're at this, fix comment that describes return value.
-
-Reported-by: Alexey Klimov <klimov.linux@gmail.com>
-Signed-off-by: Yury Norov <yury.norov@gmail.com>
-Signed-off-by: Alexey Klimov <klimov.linux@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Waiman Long <Waiman.Long@hp.com>
+Cc: linux-mm@kvack.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Message-Id: <1442903021-3893-4-git-send-email-mingo@kernel.org>
 ---
- include/linux/slab.h | 41 +++++++++--------------------------------
- 1 file changed, 9 insertions(+), 32 deletions(-)
+ arch/x86/mm/init_64.c | 27 ---------------------------
+ 1 file changed, 27 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index aeb3e6d..294ef52 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -267,13 +267,16 @@ extern struct kmem_cache *kmalloc_dma_caches[KMALLOC_SHIFT_HIGH + 1];
- /*
-  * Figure out which kmalloc slab an allocation of a certain size
-  * belongs to.
-- * 0 = zero alloc
-- * 1 =  65 .. 96 bytes
-- * 2 = 129 .. 192 bytes
-- * n = 2^(n-1)+1 .. 2^n
-+ * 0 if zero alloc, or
-+ * 1 if size is 65 .. 96 bytes, or
-+ * 2 if size is 129 .. 192 bytes, or
-+ * n if 2^(n - 1) < size <= 2^n
-  */
- static __always_inline int kmalloc_index(size_t size)
- {
-+	/* Bigger size is a bug */
-+	BUG_ON(size > (1 << 26));
-+
- 	if (!size)
- 		return 0;
- 
-@@ -284,34 +287,8 @@ static __always_inline int kmalloc_index(size_t size)
- 		return 1;
- 	if (KMALLOC_MIN_SIZE <= 64 && size > 128 && size <= 192)
- 		return 2;
--	if (size <=          8) return 3;
--	if (size <=         16) return 4;
--	if (size <=         32) return 5;
--	if (size <=         64) return 6;
--	if (size <=        128) return 7;
--	if (size <=        256) return 8;
--	if (size <=        512) return 9;
--	if (size <=       1024) return 10;
--	if (size <=   2 * 1024) return 11;
--	if (size <=   4 * 1024) return 12;
--	if (size <=   8 * 1024) return 13;
--	if (size <=  16 * 1024) return 14;
--	if (size <=  32 * 1024) return 15;
--	if (size <=  64 * 1024) return 16;
--	if (size <= 128 * 1024) return 17;
--	if (size <= 256 * 1024) return 18;
--	if (size <= 512 * 1024) return 19;
--	if (size <= 1024 * 1024) return 20;
--	if (size <=  2 * 1024 * 1024) return 21;
--	if (size <=  4 * 1024 * 1024) return 22;
--	if (size <=  8 * 1024 * 1024) return 23;
--	if (size <=  16 * 1024 * 1024) return 24;
--	if (size <=  32 * 1024 * 1024) return 25;
--	if (size <=  64 * 1024 * 1024) return 26;
--	BUG();
--
--	/* Will never be reached. Needed because the compiler may complain */
--	return -1;
-+
-+	return ilog2(size - 1) + 1;
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index bce2e5d9edd4..c7465453d64e 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -702,27 +702,6 @@ static void __meminit free_pmd_table(pmd_t *pmd_start, pud_t *pud)
+ 	spin_unlock(&init_mm.page_table_lock);
  }
- #endif /* !CONFIG_SLOB */
+ 
+-/* Return true if pgd is changed, otherwise return false. */
+-static bool __meminit free_pud_table(pud_t *pud_start, pgd_t *pgd)
+-{
+-	pud_t *pud;
+-	int i;
+-
+-	for (i = 0; i < PTRS_PER_PUD; i++) {
+-		pud = pud_start + i;
+-		if (pud_val(*pud))
+-			return false;
+-	}
+-
+-	/* free a pud table */
+-	free_pagetable(pgd_page(*pgd), 0);
+-	spin_lock(&init_mm.page_table_lock);
+-	pgd_clear(pgd);
+-	spin_unlock(&init_mm.page_table_lock);
+-
+-	return true;
+-}
+-
+ static void __meminit
+ remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
+ 		 bool direct)
+@@ -913,7 +892,6 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
+ 	unsigned long addr;
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+-	bool pgd_changed = false;
+ 
+ 	for (addr = start; addr < end; addr = next) {
+ 		next = pgd_addr_end(addr, end);
+@@ -924,13 +902,8 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
+ 
+ 		pud = (pud_t *)pgd_page_vaddr(*pgd);
+ 		remove_pud_table(pud, addr, next, direct);
+-		if (free_pud_table(pud, pgd))
+-			pgd_changed = true;
+ 	}
+ 
+-	if (pgd_changed)
+-		sync_global_pgds(start, end - 1, 1);
+-
+ 	flush_tlb_all();
+ }
  
 -- 
-2.7.4
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
