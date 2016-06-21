@@ -1,106 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 195DB828E1
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 17:47:59 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e189so65903095pfa.2
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 14:47:59 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id y15si42314305pfb.59.2016.06.21.14.47.58
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C524828E1
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 17:48:42 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ao6so54290442pac.2
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 14:48:42 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id e72si10000475pfd.241.2016.06.21.14.48.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jun 2016 14:47:58 -0700 (PDT)
-Received: by mail-pa0-x235.google.com with SMTP id hl6so9902179pac.2
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 14:47:58 -0700 (PDT)
-Date: Tue, 21 Jun 2016 14:47:56 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm 2/2] mm, compaction: abort free scanner if split fails
-In-Reply-To: <alpine.DEB.2.10.1606211447001.43430@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1606211447360.43430@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1606211447001.43430@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 21 Jun 2016 14:48:41 -0700 (PDT)
+Subject: Re: mm, oom_reaper: How to handle race with oom_killer_disable() ?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201606212003.FFB35429.QtMOJFFFOLSHVO@I-love.SAKURA.ne.jp>
+	<20160621114643.GE30848@dhcp22.suse.cz>
+	<20160621132736.GF30848@dhcp22.suse.cz>
+	<201606220032.EGD09344.VOSQOMFJOLHtFF@I-love.SAKURA.ne.jp>
+	<20160621174617.GA27527@dhcp22.suse.cz>
+In-Reply-To: <20160621174617.GA27527@dhcp22.suse.cz>
+Message-Id: <201606220647.GGD48936.LMtJVOOOFFQFHS@I-love.SAKURA.ne.jp>
+Date: Wed, 22 Jun 2016 06:47:48 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, mgorman@techsingularity.net, hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-If the memory compaction free scanner cannot successfully split a free
-page (only possible due to per-zone low watermark), terminate the free 
-scanner rather than continuing to scan memory needlessly.
+Michal Hocko wrote:
+> On Wed 22-06-16 00:32:29, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> [...]
+> > > Hmm, what about the following instead. It is rather a workaround than a
+> > > full flaged fix but it seems much more easier and shouldn't introduce
+> > > new issues.
+> > 
+> > Yes, I think that will work. But I think below patch (marking signal_struct
+> > to ignore TIF_MEMDIE instead of clearing TIF_MEMDIE from task_struct) on top of
+> > current linux.git will implement no-lockup requirement. No race is possible unlike
+> > "[PATCH 10/10] mm, oom: hide mm which is shared with kthread or global init".
+> 
+> Not really. Because without the exit_oom_victim from oom_reaper you have
+> no guarantee that the oom_killer_disable will ever return. I have
+> mentioned that in the changelog. There is simply no guarantee the oom
+> victim will ever reach exit_mm->exit_oom_victim.
 
-If the per-zone watermark is insufficient for a free page of 
-order <= cc->order, then terminate the scanner since future splits will 
-also likely fail.
+Why? Since any allocation after setting oom_killer_disabled = true will be
+forced to fail, nobody will be blocked on waiting for memory allocation. Thus,
+the TIF_MEMDIE tasks will eventually reach exit_mm->exit_oom_victim, won't it?
 
-This prevents the compaction freeing scanner from scanning all memory on 
-very large zones (very noticeable for zones > 128GB, for instance) when 
-all splits will likely fail.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- Note: I think we may want to backport this to -stable since this problem
- has existed since at least 3.11.  This patch won't cleanly apply to any
- stable tree, though.  If people think it should be backported, let me know
- and I'll handle the failures as they arise and rebase.
-
- mm/compaction.c | 17 +++++++++++------
- 1 file changed, 11 insertions(+), 6 deletions(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -496,7 +496,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
- 		order = page_order(page);
- 		isolated = __isolate_free_page(page, order);
- 		if (!isolated)
--			goto isolate_fail;
-+			break;
- 		set_page_private(page, order);
- 		total_isolated += isolated;
- 		list_add_tail(&page->lru, freelist);
-@@ -518,6 +518,9 @@ isolate_fail:
- 
- 	}
- 
-+	if (locked)
-+		spin_unlock_irqrestore(&cc->zone->lock, flags);
-+
- 	/*
- 	 * There is a tiny chance that we have read bogus compound_order(),
- 	 * so be careful to not go outside of the pageblock.
-@@ -539,9 +542,6 @@ isolate_fail:
- 	if (strict && blockpfn < end_pfn)
- 		total_isolated = 0;
- 
--	if (locked)
--		spin_unlock_irqrestore(&cc->zone->lock, flags);
--
- 	/* Update the pageblock-skip if the whole pageblock was scanned */
- 	if (blockpfn == end_pfn)
- 		update_pageblock_skip(cc, valid_page, total_isolated, false);
-@@ -1068,6 +1068,7 @@ static void isolate_freepages(struct compact_control *cc)
- 				block_end_pfn = block_start_pfn,
- 				block_start_pfn -= pageblock_nr_pages,
- 				isolate_start_pfn = block_start_pfn) {
-+		unsigned long isolated;
- 
- 		/*
- 		 * This can iterate a massively long zone without finding any
-@@ -1092,8 +1093,12 @@ static void isolate_freepages(struct compact_control *cc)
- 			continue;
- 
- 		/* Found a block suitable for isolating free pages from. */
--		isolate_freepages_block(cc, &isolate_start_pfn,
--					block_end_pfn, freelist, false);
-+		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
-+						block_end_pfn, freelist, false);
-+		/* If isolation failed, do not continue needlessly */
-+		if (!isolated && isolate_start_pfn < block_end_pfn &&
-+		    cc->nr_freepages <= cc->nr_migratepages)
-+			break;
- 
- 		/*
- 		 * If we isolated enough freepages, or aborted due to async
+The only possibility that the TIF_MEMDIE tasks won't reach exit_mm->exit_oom_victim
+is __GFP_NOFAIL allocations failing to make forward progress even after
+ALLOC_NO_WATERMARKS is used. But that is a different problem which I think
+we can call panic() when __GFP_NOFAIL allocations failed after setting
+oom_killer_disabled = true.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
