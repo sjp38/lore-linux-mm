@@ -1,72 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9704D6B025F
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 20:52:46 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ao6so1969044pac.2
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 17:52:46 -0700 (PDT)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id bc14si6423945pac.238.2016.06.20.17.52.45
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C4636B0005
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 22:06:29 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id t7so6676670vkf.2
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 19:06:29 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id g67si12540510ywc.116.2016.06.20.19.06.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Jun 2016 17:52:45 -0700 (PDT)
-Received: by mail-pf0-x22d.google.com with SMTP id h14so456716pfe.1
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 17:52:45 -0700 (PDT)
-Date: Mon, 20 Jun 2016 17:52:43 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v3] mm/compaction: remove unnecessary order check in
- direct compact path
-In-Reply-To: <1466044956-3690-1-git-send-email-opensource.ganesh@gmail.com>
-Message-ID: <alpine.DEB.2.10.1606201749110.133174@chino.kir.corp.google.com>
-References: <1466044956-3690-1-git-send-email-opensource.ganesh@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 20 Jun 2016 19:06:28 -0700 (PDT)
+Subject: Re: [PATCH v2] more mapcount page as kpage could reduce total
+ replacement times than fewer mapcount one in probability.
+References: <1465955818-101898-1-git-send-email-zhouxianrong@huawei.com>
+From: zhouxianrong <zhouxianrong@huawei.com>
+Message-ID: <2460b794-92f0-d115-c729-bcfe33663e48@huawei.com>
+Date: Tue, 21 Jun 2016 09:57:54 +0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1465955818-101898-1-git-send-email-zhouxianrong@huawei.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, mhocko@suse.com, mina86@mina86.com, minchan@kernel.org, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, izumi.taku@jp.fujitsu.com, hannes@cmpxchg.org, khandual@linux.vnet.ibm.com, bsingharora@gmail.com
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, zhouchengming1@huawei.com, geliangtang@163.com, linux-kernel@vger.kernel.org, zhouxiyu@huawei.com, wanghaijun5@huawei.com
 
-On Thu, 16 Jun 2016, Ganesh Mahendran wrote:
+hey hugh:
+     could you please give me some suggestion about this ?
 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index fbb7b38..dcfaf57 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1686,12 +1686,16 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
->  
->  	*contended = COMPACT_CONTENDED_NONE;
->  
-> -	/* Check if the GFP flags allow compaction */
+On 2016/6/15 9:56, zhouxianrong@huawei.com wrote:
+> From: z00281421 <z00281421@notesmail.huawei.com>
+>
+> more mapcount page as kpage could reduce total replacement times
+> than fewer mapcount one when ksmd scan and replace among
+> forked pages later.
+>
+> Signed-off-by: z00281421 <z00281421@notesmail.huawei.com>
+> ---
+>  mm/ksm.c |    8 ++++++++
+>  1 file changed, 8 insertions(+)
+>
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index 4786b41..4d530af 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -1094,6 +1094,14 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
+>  {
+>  	int err;
+>
 > +	/*
-> +	 * Check if this is an order-0 request and
-> +	 * if the GFP flags allow compaction.
+> +	 * select more mapcount page as kpage
 > +	 */
-
-This seems obvious.
-
->  	if (!order || !may_enter_fs || !may_perform_io)
->  		return COMPACT_SKIPPED;
->  
->  	trace_mm_compaction_try_to_compact_pages(order, gfp_mask, mode);
->  
-> +	current->flags |= PF_MEMALLOC;
->  	/* Compact each zone in the list */
->  	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
->  								ac->nodemask) {
-> @@ -1768,6 +1772,7 @@ break_loop:
->  		all_zones_contended = 0;
->  		break;
->  	}
-> +	current->flags &= ~PF_MEMALLOC;
->  
->  	/*
->  	 * If at least one zone wasn't deferred or skipped, we report if all
-
-Compaction don't touch task_struct flags and PF_MEMALLOC is flag used 
-primarily by the page allocator, moving this to try_to_compact_pages() 
-doesn't make sense.
-
-You could remove the !order check in try_to_compact_pages(), but I don't 
-think it offers anything substantial.
+> +	if (page_mapcount(page) < page_mapcount(tree_page)) {
+> +		swap(page, tree_page);
+> +		swap(rmap_item, tree_rmap_item);
+> +	}
+> +
+>  	err = try_to_merge_with_ksm_page(rmap_item, page, NULL);
+>  	if (!err) {
+>  		err = try_to_merge_with_ksm_page(tree_rmap_item,
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
