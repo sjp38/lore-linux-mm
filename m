@@ -1,77 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f197.google.com (mail-ob0-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F8E36B0005
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 02:54:02 -0400 (EDT)
-Received: by mail-ob0-f197.google.com with SMTP id at7so12927723obd.1
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 23:54:02 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id v187si1889026itb.22.2016.06.20.23.54.01
-        for <linux-mm@kvack.org>;
-        Mon, 20 Jun 2016 23:54:01 -0700 (PDT)
-Date: Tue, 21 Jun 2016 15:56:31 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 0/6] Introduce ZONE_CMA
-Message-ID: <20160621065630.GB20635@js1304-P5Q-DELUXE>
-References: <1464243748-16367-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20160526080454.GA11823@shbuild888>
- <20160527052820.GA13661@js1304-P5Q-DELUXE>
- <20160527062527.GA32297@shbuild888>
- <20160527064218.GA14858@js1304-P5Q-DELUXE>
- <20160527072702.GA7782@shbuild888>
- <5763A909.8080907@hisilicon.com>
- <20160620064816.GB13747@js1304-P5Q-DELUXE>
- <5768A198.7050607@hisilicon.com>
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 348F86B0005
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 04:18:18 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id nq2so6911986lbc.3
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 01:18:18 -0700 (PDT)
+Received: from mail-lf0-x236.google.com (mail-lf0-x236.google.com. [2a00:1450:4010:c07::236])
+        by mx.google.com with ESMTPS id d81si10100548lfb.59.2016.06.21.01.18.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Jun 2016 01:18:16 -0700 (PDT)
+Received: by mail-lf0-x236.google.com with SMTP id f6so11673809lfg.0
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 01:18:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5768A198.7050607@hisilicon.com>
+In-Reply-To: <5768490E.6050808@oracle.com>
+References: <1466173664-118413-1-git-send-email-glider@google.com>
+ <5765699E.6000508@oracle.com> <CAG_fn=WP3HBLBarYz6u8UfEKwS3Cw58+2VcrzV_asiuQid_oxw@mail.gmail.com>
+ <5766D902.7080007@oracle.com> <CAG_fn=XbNQAzRKMH71og4k1Dv=1vHMcc6sG-Dx7zwxS18LmYMg@mail.gmail.com>
+ <5768490E.6050808@oracle.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Tue, 21 Jun 2016 10:18:14 +0200
+Message-ID: <CAG_fn=UNmmoBAoau+yx-orq7u9r12aNjf-Xiiem3+Nqo8-SSQw@mail.gmail.com>
+Subject: Re: [PATCH v4] mm, kasan: switch SLUB to stackdepot, enable memory
+ quarantine for SLUB
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Feng <puck.chen@hisilicon.com>
-Cc: Feng Tang <feng.tang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Rui Teng <rui.teng@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Yiping Xu <xuyiping@hisilicon.com>, "fujun (F)" <oliver.fu@hisilicon.com>, Zhuangluan Su <suzhuangluan@hisilicon.com>, Dan Zhao <dan.zhao@hisilicon.com>, saberlily.xia@hisilicon.com
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jun 21, 2016 at 10:08:24AM +0800, Chen Feng wrote:
-> 
-> 
-> On 2016/6/20 14:48, Joonsoo Kim wrote:
-> > On Fri, Jun 17, 2016 at 03:38:49PM +0800, Chen Feng wrote:
-> >> Hi Kim & feng,
-> >>
-> >> Thanks for the share. In our platform also has the same use case.
-> >>
-> >> We only let the alloc with GFP_HIGHUSER_MOVABLE in memory.c to use cma memory.
-> >>
-> >> If we add zone_cma, It seems can resolve the cma migrate issue.
-> >>
-> >> But when free_hot_cold_page, we need let the cma page goto system directly not the pcp.
-> >> It can be fail while cma_alloc and cma_release. If we alloc the whole cma pages which
-> >> declared before.
-> > 
-> > Hmm...I'm not sure I understand your explanation. So, if I miss
-> > something, please let me know. We calls drain_all_pages() when
-> > isolating pageblock and alloc_contig_range() also has one
-> > drain_all_pages() calls to drain pcp pages. And, after pageblock isolation,
-> > freed pages belonging to MIGRATE_ISOLATE pageblock will go to the
-> > buddy directly so there would be no problem you mentioned. Isn't it?
-> > 
-> Yes, you are right.
-> 
-> I mean if the we free cma page to pcp-list, it will goto the migrate_movable list.
-> 
-> Then the alloc with movable flag can use the cma memory from the list with buffered_rmqueue.
-> 
-> But that's not what we want. It will cause the migrate fail if all movable alloc can use cma memory.
+On Mon, Jun 20, 2016 at 9:50 PM, Sasha Levin <sasha.levin@oracle.com> wrote=
+:
+> On 06/20/2016 08:53 AM, Alexander Potapenko wrote:
+>> On Sun, Jun 19, 2016 at 7:40 PM, Sasha Levin <sasha.levin@oracle.com> wr=
+ote:
+>>> > On 06/19/2016 03:24 AM, Alexander Potapenko wrote:
+>>>> >> Hi Sasha,
+>>>> >>
+>>>> >> This commit delays the reuse of memory after it has been freed, so
+>>>> >> it's intended to help people find more use-after-free errors.
+>>> >
+>>> > Is there a way to tell if the use-after-free access was to a memory
+>>> > that is quarantined?
+>>> >
+>>>> >> But I'm puzzled why the stacks are missing.
+>>> >
+>>> > I looked at the logs, it looks like stackdepot ran out of room pretty
+>>> > early during boot.
+>> This is quite strange, as there's room for ~80k stacks in the depot,
+>> and usually the number of unique stacks is lower than 30k.
+>> I wonder if this is specific to your config, can you please share it
+>> (assuming you're using ToT kernel)?
+>> Attached is the patch that you can try out to dump the new stacks
+>> after 30k - it's really interesting where do they come from (note the
+>> patch is not for submission).
+>
+> Attached a log file generated with that patch, and my kernel config.
+I haven't looked close yet, but your log contains 1455 unique
+'DRIVERNAME_driver_init' function names, for which it's quite likely
+that 80k allocation stacks are generated.
+Can you remove the dump_stack() call from my patch, fuzz for a while
+and see to which number does |alloc_cnt| converge on your machine?
+Maybe our estimate was just too optimistic, and we need to increase
+the memory limit for the stack depot.
+>
+> Thanks,
+> Sasha
+>
 
-Yes, if you modify current kernel code to allow cma pages only for
-GFP_HIGHUSER_MOVABLE in memory.c, there are some corner cases and some of cma
-pages would be allocated for !GFP_HIGHUSER_MOVABLE. One possible site is
-pcp list as you mentioned and the other site is on compaction.
 
-If we uses ZONE_CMA, there is no such problem, because freepages on
-pcp list on ZONE_CMA are allocated only when GFP_HIGHUSER_MOVABLE requset
-comes.
 
-Thanks.
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
