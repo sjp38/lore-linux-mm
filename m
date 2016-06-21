@@ -1,58 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C524828E1
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 17:48:42 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ao6so54290442pac.2
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 14:48:42 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id e72si10000475pfd.241.2016.06.21.14.48.41
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C9CFE828E1
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 17:52:39 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id g127so69233011ith.3
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 14:52:39 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id k9si7645341pag.188.2016.06.21.14.52.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 21 Jun 2016 14:48:41 -0700 (PDT)
-Subject: Re: mm, oom_reaper: How to handle race with oom_killer_disable() ?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201606212003.FFB35429.QtMOJFFFOLSHVO@I-love.SAKURA.ne.jp>
-	<20160621114643.GE30848@dhcp22.suse.cz>
-	<20160621132736.GF30848@dhcp22.suse.cz>
-	<201606220032.EGD09344.VOSQOMFJOLHtFF@I-love.SAKURA.ne.jp>
-	<20160621174617.GA27527@dhcp22.suse.cz>
-In-Reply-To: <20160621174617.GA27527@dhcp22.suse.cz>
-Message-Id: <201606220647.GGD48936.LMtJVOOOFFQFHS@I-love.SAKURA.ne.jp>
-Date: Wed, 22 Jun 2016 06:47:48 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Jun 2016 14:52:39 -0700 (PDT)
+Date: Tue, 21 Jun 2016 14:52:37 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: slab.h: use ilog2() in kmalloc_index()
+Message-Id: <20160621145237.dae264ea5fe6b3b7f2d2d4e6@linux-foundation.org>
+In-Reply-To: <1466465586-22096-1-git-send-email-yury.norov@gmail.com>
+References: <1466465586-22096-1-git-send-email-yury.norov@gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, mgorman@techsingularity.net, hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
+To: Yury Norov <yury.norov@gmail.com>
+Cc: masmart@yandex.ru, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux.com, enberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux@rasmusvillemoes.dk, Alexey Klimov <klimov.linux@gmail.com>
 
-Michal Hocko wrote:
-> On Wed 22-06-16 00:32:29, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> [...]
-> > > Hmm, what about the following instead. It is rather a workaround than a
-> > > full flaged fix but it seems much more easier and shouldn't introduce
-> > > new issues.
-> > 
-> > Yes, I think that will work. But I think below patch (marking signal_struct
-> > to ignore TIF_MEMDIE instead of clearing TIF_MEMDIE from task_struct) on top of
-> > current linux.git will implement no-lockup requirement. No race is possible unlike
-> > "[PATCH 10/10] mm, oom: hide mm which is shared with kthread or global init".
+On Tue, 21 Jun 2016 02:33:06 +0300 Yury Norov <yury.norov@gmail.com> wrote:
+
+> kmalloc_index() uses simple straightforward way to calculate
+> bit position of nearest or equal upper power of 2.
+> This effectively results in generation of 24 episodes of
+> compare-branch instructions in assembler.
 > 
-> Not really. Because without the exit_oom_victim from oom_reaper you have
-> no guarantee that the oom_killer_disable will ever return. I have
-> mentioned that in the changelog. There is simply no guarantee the oom
-> victim will ever reach exit_mm->exit_oom_victim.
+> There is shorter way to calculate this: fls(size - 1).
+> 
+> The patch removes hard-coded calculation of kmalloc slab and
+> uses ilog2() instead that works on top of fls(). ilog2 is used
+> with intention that compiler also might optimize constant case
+> during compile time if it detects that.
+> 
+> BUG() is moved to the beginning of function. We left it here to
+> provide identical behaviour to previous version. It may be removed
+> if there's no requirement in it anymore.
+> 
+> While we're at this, fix comment that describes return value.
 
-Why? Since any allocation after setting oom_killer_disabled = true will be
-forced to fail, nobody will be blocked on waiting for memory allocation. Thus,
-the TIF_MEMDIE tasks will eventually reach exit_mm->exit_oom_victim, won't it?
-
-The only possibility that the TIF_MEMDIE tasks won't reach exit_mm->exit_oom_victim
-is __GFP_NOFAIL allocations failing to make forward progress even after
-ALLOC_NO_WATERMARKS is used. But that is a different problem which I think
-we can call panic() when __GFP_NOFAIL allocations failed after setting
-oom_killer_disabled = true.
+kmalloc_index() is always called with a constant-valued `size' (see
+__builtin_constant_p() tests) so the compiler will evaluate the switch
+statement at compile-time.  This will be more efficient than calling
+fls() at runtime.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
