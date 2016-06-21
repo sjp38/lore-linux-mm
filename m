@@ -1,121 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 04535828E1
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 05:59:26 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id x68so33901716ioi.0
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 02:59:26 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0102.outbound.protection.outlook.com. [157.56.112.102])
-        by mx.google.com with ESMTPS id u92si4669658ota.48.2016.06.21.02.59.24
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1182B828E1
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 06:17:03 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id g8so16500145itb.2
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 03:17:03 -0700 (PDT)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0130.outbound.protection.outlook.com. [157.55.234.130])
+        by mx.google.com with ESMTPS id e54si4522600otd.206.2016.06.21.03.17.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 21 Jun 2016 02:59:25 -0700 (PDT)
-Date: Tue, 21 Jun 2016 12:59:15 +0300
+        Tue, 21 Jun 2016 03:17:02 -0700 (PDT)
+Date: Tue, 21 Jun 2016 13:16:51 +0300
 From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] memcg: mem_cgroup_migrate() may be called with irq
- disabled
-Message-ID: <20160621095914.GC15970@esperanza>
-References: <5767CFE5.7080904@de.ibm.com>
- <20160620184158.GO3262@mtj.duckdns.org>
+Subject: Re: [PATCH 3/3] mm: memcontrol: fix cgroup creation failure after
+ many small jobs
+Message-ID: <20160621101650.GD15970@esperanza>
+References: <20160616034244.14839-1-hannes@cmpxchg.org>
+ <20160616200617.GD3262@mtj.duckdns.org>
+ <20160617162310.GA19084@cmpxchg.org>
+ <20160617162516.GD19084@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20160620184158.GO3262@mtj.duckdns.org>
+In-Reply-To: <20160617162516.GD19084@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Linux MM <linux-mm@kvack.org>, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org >> Linux Kernel Mailing List" <linux-kernel@vger.kernel.org>, Christian Borntraeger <borntraeger@de.ibm.com>, kernel-team@fb.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon, Jun 20, 2016 at 02:41:58PM -0400, Tejun Heo wrote:
-> mem_cgroup_migrate() uses local_irq_disable/enable() but can be called
-> with irq disabled from migrate_page_copy().  This ends up enabling irq
-> while holding a irq context lock triggering the following lockdep
-> warning.  Fix it by using irq_save/restore instead.
+On Fri, Jun 17, 2016 at 12:25:16PM -0400, Johannes Weiner wrote:
+> The memory controller has quite a bit of state that usually outlives
+> the cgroup and pins its CSS until said state disappears. At the same
+> time it imposes a 16-bit limit on the CSS ID space to economically
+> store IDs in the wild. Consequently, when we use cgroups to contain
+> frequent but small and short-lived jobs that leave behind some page
+> cache, we quickly run into the 64k limitations of outstanding CSSs.
+> Creating a new cgroup fails with -ENOSPC while there are only a few,
+> or even no user-visible cgroups in existence.
 > 
->   =================================
->   [ INFO: inconsistent lock state ]
->   4.7.0-rc1+ #52 Tainted: G        W      
->   ---------------------------------
->   inconsistent {IN-SOFTIRQ-W} -> {SOFTIRQ-ON-W} usage.
->   kcompactd0/151 [HC0[0]:SC0[0]:HE1:SE1] takes:
->    (&(&ctx->completion_lock)->rlock){+.?.-.}, at: [<000000000038fd96>] aio_migratepage+0x156/0x1e8
->   {IN-SOFTIRQ-W} state was registered at:
->     [<00000000001a8366>] __lock_acquire+0x5b6/0x1930
->     [<00000000001a9b9e>] lock_acquire+0xee/0x270
->     [<0000000000951fee>] _raw_spin_lock_irqsave+0x66/0xb0
->     [<0000000000390108>] aio_complete+0x98/0x328
->     [<000000000037c7d4>] dio_complete+0xe4/0x1e0
->     [<0000000000650e64>] blk_update_request+0xd4/0x450
->     [<000000000072a1a8>] scsi_end_request+0x48/0x1c8
->     [<000000000072d7e2>] scsi_io_completion+0x272/0x698
->     [<000000000065adb2>] blk_done_softirq+0xca/0xe8
->     [<0000000000953f80>] __do_softirq+0xc8/0x518
->     [<00000000001495de>] irq_exit+0xee/0x110
->     [<000000000010ceba>] do_IRQ+0x6a/0x88
->     [<000000000095342e>] io_int_handler+0x11a/0x25c
->     [<000000000094fb5c>] __mutex_unlock_slowpath+0x144/0x1d8
->     [<000000000094fb58>] __mutex_unlock_slowpath+0x140/0x1d8
->     [<00000000003c6114>] kernfs_iop_permission+0x64/0x80
->     [<000000000033ba86>] __inode_permission+0x9e/0xf0
->     [<000000000033ea96>] link_path_walk+0x6e/0x510
->     [<000000000033f09c>] path_lookupat+0xc4/0x1a8
->     [<000000000034195c>] filename_lookup+0x9c/0x160
->     [<0000000000341b44>] user_path_at_empty+0x5c/0x70
->     [<0000000000335250>] SyS_readlinkat+0x68/0x140
->     [<0000000000952f8e>] system_call+0xd6/0x270
->   irq event stamp: 971410
->   hardirqs last  enabled at (971409): [<000000000030f982>] migrate_page_move_mapping+0x3ea/0x588
->   hardirqs last disabled at (971410): [<0000000000951fc4>] _raw_spin_lock_irqsave+0x3c/0xb0
->   softirqs last  enabled at (970526): [<0000000000954318>] __do_softirq+0x460/0x518
->   softirqs last disabled at (970519): [<00000000001495de>] irq_exit+0xee/0x110
+> Although pinning CSSs past cgroup removal is common, there are only
+> two instances that actually need an ID after a cgroup is deleted:
+> cache shadow entries and swapout records.
 > 
->   other info that might help us debug this:
->    Possible unsafe locking scenario:
+> Cache shadow entries reference the ID weakly and can deal with the CSS
+> having disappeared when it's looked up later. They pose no hurdle.
 > 
-> 	 CPU0
-> 	 ----
->     lock(&(&ctx->completion_lock)->rlock);
->     <Interrupt>
->       lock(&(&ctx->completion_lock)->rlock);
+> Swap-out records do need to pin the css to hierarchically attribute
+> swapins after the cgroup has been deleted; though the only pages that
+> remain swapped out after offlining are tmpfs/shmem pages. And those
+> references are under the user's control, so they are manageable.
 > 
->     *** DEADLOCK ***
+> This patch introduces a private 16-bit memcg ID and switches swap and
+> cache shadow entries over to using that. This ID can then be recycled
+> after offlining when the CSS remains pinned only by objects that don't
+> specifically need it.
 > 
->   3 locks held by kcompactd0/151:
->    #0:  (&(&mapping->private_lock)->rlock){+.+.-.}, at: [<000000000038fc82>] aio_migratepage+0x42/0x1e8
->    #1:  (&ctx->ring_lock){+.+.+.}, at: [<000000000038fc9a>] aio_migratepage+0x5a/0x1e8
->    #2:  (&(&ctx->completion_lock)->rlock){+.?.-.}, at: [<000000000038fd96>] aio_migratepage+0x156/0x1e8
+> This script demonstrates the problem by faulting one cache page in a
+> new cgroup and deleting it again:
 > 
->   stack backtrace:
->   CPU: 20 PID: 151 Comm: kcompactd0 Tainted: G        W       4.7.0-rc1+ #52
-> 	 00000001c6cbb730 00000001c6cbb7c0 0000000000000002 0000000000000000 
-> 	 00000001c6cbb860 00000001c6cbb7d8 00000001c6cbb7d8 0000000000114496 
-> 	 0000000000000000 0000000000b517ec 0000000000b680b6 000000000000000b 
-> 	 00000001c6cbb820 00000001c6cbb7c0 0000000000000000 0000000000000000 
-> 	 040000000184ad18 0000000000114496 00000001c6cbb7c0 00000001c6cbb820 
->   Call Trace:
->   ([<00000000001143d2>] show_trace+0xea/0xf0)
->   ([<000000000011444a>] show_stack+0x72/0xf0)
->   ([<0000000000684522>] dump_stack+0x9a/0xd8)
->   ([<000000000028679c>] print_usage_bug.part.27+0x2d4/0x2e8)
->   ([<00000000001a71ce>] mark_lock+0x17e/0x758)
->   ([<00000000001a784a>] mark_held_locks+0xa2/0xd0)
->   ([<00000000001a79b8>] trace_hardirqs_on_caller+0x140/0x1c0)
->   ([<0000000000326026>] mem_cgroup_migrate+0x266/0x370)
->   ([<000000000038fdaa>] aio_migratepage+0x16a/0x1e8)
->   ([<0000000000310568>] move_to_new_page+0xb0/0x260)
->   ([<00000000003111b4>] migrate_pages+0x8f4/0x9f0)
->   ([<00000000002c507c>] compact_zone+0x4dc/0xdc8)
->   ([<00000000002c5e22>] kcompactd_do_work+0x1aa/0x358)
->   ([<00000000002c608a>] kcompactd+0xba/0x2c8)
->   ([<000000000016b09a>] kthread+0x10a/0x110)
->   ([<000000000095315a>] kernel_thread_starter+0x6/0xc)
->   ([<0000000000953154>] kernel_thread_starter+0x0/0xc)
->   INFO: lockdep is turned off.
+> set -e
+> mkdir -p pages
+> for x in `seq 128000`; do
+>   [ $((x % 1000)) -eq 0 ] && echo $x
+>   mkdir /cgroup/foo
+>   echo $$ >/cgroup/foo/cgroup.procs
+>   echo trex >pages/$x
+>   echo $$ >/cgroup/cgroup.procs
+>   rmdir /cgroup/foo
+> done
 > 
-> Signed-off-by: Tejun Heo <tj@kernel.org>
-> Reported-by: Christian Borntraeger <borntraeger@de.ibm.com>
-> Link: http://lkml.kernel.org/g/5767CFE5.7080904@de.ibm.com
+> When run on an unpatched kernel, we eventually run out of possible IDs
+> even though there are no visible cgroups:
+> 
+> [root@ham ~]# ./cssidstress.sh
+> [...]
+> 65000
+> mkdir: cannot create directory '/cgroup/foo': No space left on device
+> 
+> After this patch, the IDs get released upon cgroup destruction and the
+> cache and css objects get released once memory reclaim kicks in.
+
+With 65K cgroups it will take the reclaimer a substantial amount of time
+to iterate over all of them, which might result in latency spikes.
+Probably, to avoid that, we could move pages from a dead cgroup's lru to
+its parent's one on offline while still leaving dead cgroups pinned,
+like we do in case of list_lru entries.
+
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
 Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+
+One nit below.
+
+...
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 75e74408cc8f..dc92b2df2585 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4057,6 +4057,60 @@ static struct cftype mem_cgroup_legacy_files[] = {
+>  	{ },	/* terminate */
+>  };
+>  
+> +/*
+> + * Private memory cgroup IDR
+> + *
+> + * Swap-out records and page cache shadow entries need to store memcg
+> + * references in constrained space, so we maintain an ID space that is
+> + * limited to 16 bit (MEM_CGROUP_ID_MAX), limiting the total number of
+> + * memory-controlled cgroups to 64k.
+> + *
+> + * However, there usually are many references to the oflline CSS after
+> + * the cgroup has been destroyed, such as page cache or reclaimable
+> + * slab objects, that don't need to hang on to the ID. We want to keep
+> + * those dead CSS from occupying IDs, or we might quickly exhaust the
+> + * relatively small ID space and prevent the creation of new cgroups
+> + * even when there are much fewer than 64k cgroups - possibly none.
+> + *
+> + * Maintain a private 16-bit ID space for memcg, and allow the ID to
+> + * be freed and recycled when it's no longer needed, which is usually
+> + * when the CSS is offlined.
+> + *
+> + * The only exception to that are records of swapped out tmpfs/shmem
+> + * pages that need to be attributed to live ancestors on swapin. But
+> + * those references are manageable from userspace.
+> + */
+> +
+> +static struct idr mem_cgroup_idr;
+
+static DEFINE_IDR(mem_cgroup_idr);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
