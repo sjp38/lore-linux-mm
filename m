@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C40276B0262
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 10:16:59 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id a4so13573552lfa.1
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 07:16:59 -0700 (PDT)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id k4si4118237wmg.70.2016.06.21.07.16.58
+	by kanga.kvack.org (Postfix) with ESMTP id A78146B0263
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 10:17:09 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id g18so13612519lfg.2
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 07:17:09 -0700 (PDT)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id x8si23911887wja.174.2016.06.21.07.17.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jun 2016 07:16:58 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 21 Jun 2016 07:17:08 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id E71B41C160D
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 15:16:57 +0100 (IST)
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 23E0E98B25
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 14:17:08 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 04/27] mm, vmscan: Begin reclaiming pages on a per-node basis
-Date: Tue, 21 Jun 2016 15:15:43 +0100
-Message-Id: <1466518566-30034-5-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 05/27] mm, vmscan: Have kswapd only scan based on the highest requested zone
+Date: Tue, 21 Jun 2016 15:15:44 +0100
+Message-Id: <1466518566-30034-6-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1466518566-30034-1-git-send-email-mgorman@techsingularity.net>
 References: <1466518566-30034-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,266 +23,38 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-This patch makes reclaim decisions on a per-node basis. A reclaimer knows
-what zone is required by the allocation request and skips pages from
-higher zones. In many cases this will be ok because it's a GFP_HIGHMEM
-request of some description. On 64-bit, ZONE_DMA32 requests will cause
-some problems but 32-bit devices on 64-bit platforms are increasingly
-rare. Historically it would have been a major problem on 32-bit with big
-Highmem:Lowmem ratios but such configurations are also now rare and even
-where they exist, they are not encouraged. If it really becomes a problem,
-it'll manifest as very low reclaim efficiencies.
+kswapd checks all eligible zones to see if they need balancing even if it was
+woken for a lower zone. This made sense when we reclaimed on a per-zone basis
+because we wanted to shrink zones fairly so avoid age-inversion problems.
+Ideally this is completely unnecessary when reclaiming on a per-node basis.
+In theory, there may still be anomalies when all requests are for lower
+zones and very old pages are preserved in higher zones but this should be
+the exceptional case.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/vmscan.c | 78 +++++++++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 53 insertions(+), 25 deletions(-)
+ mm/vmscan.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 39cd6375f54e..7d5bad437809 100644
+index 7d5bad437809..b5b355db97cb 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -84,6 +84,9 @@ struct scan_control {
- 	/* Scan (total_size >> priority) pages at once */
- 	int priority;
+@@ -3201,11 +3201,8 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
  
-+	/* The highest zone to isolate pages for reclaim from */
-+	enum zone_type reclaim_idx;
-+
- 	unsigned int may_writepage:1;
+ 		sc.nr_reclaimed = 0;
  
- 	/* Can mapped pages be reclaimed? */
-@@ -1386,6 +1389,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 	unsigned long nr_taken = 0;
- 	unsigned long nr_zone_taken[MAX_NR_ZONES] = { 0 };
- 	unsigned long scan, nr_pages;
-+	LIST_HEAD(pages_skipped);
- 
- 	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
- 					!list_empty(src); scan++) {
-@@ -1396,6 +1400,11 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 
- 		VM_BUG_ON_PAGE(!PageLRU(page), page);
- 
-+		if (page_zonenum(page) > sc->reclaim_idx) {
-+			list_move(&page->lru, &pages_skipped);
-+			continue;
-+		}
-+
- 		switch (__isolate_lru_page(page, mode)) {
- 		case 0:
- 			nr_pages = hpage_nr_pages(page);
-@@ -1414,6 +1423,15 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 		}
- 	}
- 
-+	/*
-+	 * Splice any skipped pages to the start of the LRU list. Note that
-+	 * this disrupts the LRU order when reclaiming for lower zones but
-+	 * we cannot splice to the tail. If we did then the SWAP_CLUSTER_MAX
-+	 * scanning would soon rescan the same pages to skip and put the
-+	 * system at risk of premature OOM.
-+	 */
-+	if (!list_empty(&pages_skipped))
-+		list_splice(&pages_skipped, src);
- 	*nr_scanned = scan;
- 	trace_mm_vmscan_lru_isolate(sc->order, nr_to_scan, scan,
- 				    nr_taken, mode, is_file_lru(lru));
-@@ -1583,7 +1601,7 @@ static int current_may_throttle(void)
- }
- 
- /*
-- * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
-+ * shrink_inactive_list() is a helper for shrink_node().  It returns the number
-  * of reclaimed pages
-  */
- static noinline_for_stack unsigned long
-@@ -2395,12 +2413,13 @@ static inline bool should_continue_reclaim(struct zone *zone,
- 	}
- }
- 
--static bool shrink_zone(struct zone *zone, struct scan_control *sc,
--			bool is_classzone)
-+static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,
-+			enum zone_type classzone_idx)
- {
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long nr_reclaimed, nr_scanned;
- 	bool reclaimable = false;
-+	struct zone *zone = &pgdat->node_zones[classzone_idx];
- 
- 	do {
- 		struct mem_cgroup *root = sc->target_mem_cgroup;
-@@ -2432,7 +2451,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 			shrink_zone_memcg(zone, memcg, sc, &lru_pages);
- 			zone_lru_pages += lru_pages;
- 
--			if (memcg && is_classzone)
-+			if (!global_reclaim(sc) && sc->reclaim_idx == classzone_idx)
- 				shrink_slab(sc->gfp_mask, zone_to_nid(zone),
- 					    memcg, sc->nr_scanned - scanned,
- 					    lru_pages);
-@@ -2463,7 +2482,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 		 * Shrink the slab caches in the same proportion that
- 		 * the eligible LRU pages were scanned.
- 		 */
--		if (global_reclaim(sc) && is_classzone)
-+		if (global_reclaim(sc) && sc->reclaim_idx == classzone_idx)
- 			shrink_slab(sc->gfp_mask, zone_to_nid(zone), NULL,
- 				    sc->nr_scanned - nr_scanned,
- 				    zone_lru_pages);
-@@ -2540,14 +2559,14 @@ static inline bool compaction_ready(struct zone *zone, int order, int classzone_
-  * If a zone is deemed to be full of pinned pages then just give it a light
-  * scan then give up on it.
-  */
--static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
-+static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc,
-+		enum zone_type classzone_idx)
- {
- 	struct zoneref *z;
- 	struct zone *zone;
- 	unsigned long nr_soft_reclaimed;
- 	unsigned long nr_soft_scanned;
- 	gfp_t orig_mask;
--	enum zone_type requested_highidx = gfp_zone(sc->gfp_mask);
- 
- 	/*
- 	 * If the number of buffer_heads in the machine exceeds the maximum
-@@ -2560,15 +2579,20 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
- 					gfp_zone(sc->gfp_mask), sc->nodemask) {
--		enum zone_type classzone_idx;
--
- 		if (!populated_zone(zone))
- 			continue;
- 
--		classzone_idx = requested_highidx;
-+		/*
-+		 * Note that reclaim_idx does not change as it is the highest
-+		 * zone reclaimed from which for empty zones is a no-op but
-+		 * classzone_idx is used by shrink_node to test if the slabs
-+		 * should be shrunk on a given node.
-+		 */
- 		while (!populated_zone(zone->zone_pgdat->node_zones +
--							classzone_idx))
-+							classzone_idx)) {
- 			classzone_idx--;
-+			continue;
-+		}
- 
- 		/*
- 		 * Take care memory controller reclaiming has small influence
-@@ -2594,8 +2618,8 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 			 */
- 			if (IS_ENABLED(CONFIG_COMPACTION) &&
- 			    sc->order > PAGE_ALLOC_COSTLY_ORDER &&
--			    zonelist_zone_idx(z) <= requested_highidx &&
--			    compaction_ready(zone, sc->order, requested_highidx)) {
-+			    zonelist_zone_idx(z) <= classzone_idx &&
-+			    compaction_ready(zone, sc->order, classzone_idx)) {
- 				sc->compaction_ready = true;
- 				continue;
- 			}
-@@ -2615,7 +2639,7 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 			/* need some check for avoid more shrink_zone() */
- 		}
- 
--		shrink_zone(zone, sc, zone_idx(zone) == classzone_idx);
-+		shrink_node(zone->zone_pgdat, sc, classzone_idx);
- 	}
- 
- 	/*
-@@ -2647,6 +2671,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 	int initial_priority = sc->priority;
- 	unsigned long total_scanned = 0;
- 	unsigned long writeback_threshold;
-+	enum zone_type classzone_idx = sc->reclaim_idx;
- retry:
- 	delayacct_freepages_start();
- 
-@@ -2657,7 +2682,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
- 				sc->priority);
- 		sc->nr_scanned = 0;
--		shrink_zones(zonelist, sc);
-+		shrink_zones(zonelist, sc, classzone_idx);
- 
- 		total_scanned += sc->nr_scanned;
- 		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
-@@ -2841,6 +2866,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 	struct scan_control sc = {
- 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
- 		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
-+		.reclaim_idx = gfp_zone(gfp_mask),
- 		.order = order,
- 		.nodemask = nodemask,
- 		.priority = DEF_PRIORITY,
-@@ -3112,7 +3138,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
- 						balance_gap, classzone_idx))
- 		return true;
- 
--	shrink_zone(zone, sc, zone_idx(zone) == classzone_idx);
-+	shrink_node(zone->zone_pgdat, sc, classzone_idx);
- 
- 	/* TODO: ANOMALY */
- 	clear_bit(PGDAT_WRITEBACK, &pgdat->flags);
-@@ -3161,6 +3187,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
- 	unsigned long nr_soft_scanned;
- 	struct scan_control sc = {
- 		.gfp_mask = GFP_KERNEL,
-+		.reclaim_idx = MAX_NR_ZONES - 1,
- 		.order = order,
- 		.priority = DEF_PRIORITY,
- 		.may_writepage = !laptop_mode,
-@@ -3231,15 +3258,14 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
- 			sc.may_writepage = 1;
- 
- 		/*
--		 * Now scan the zone in the dma->highmem direction, stopping
--		 * at the last zone which needs scanning.
--		 *
--		 * We do this because the page allocator works in the opposite
--		 * direction.  This prevents the page allocator from allocating
--		 * pages behind kswapd's direction of progress, which would
--		 * cause too much scanning of the lower zones.
-+		 * Continue scanning in the highmem->dma direction stopping at
-+		 * the last zone which needs scanning. This may reclaim lowmem
-+		 * pages that are not necessary for zone balancing but it
-+		 * preserves LRU ordering. It is assumed that the bulk of
-+		 * allocation requests can use arbitrary zones with the
-+		 * possible exception of big highmem:lowmem configurations.
- 		 */
--		for (i = 0; i <= end_zone; i++) {
-+		for (i = end_zone; i >= 0; i--) {
+-		/*
+-		 * Scan in the highmem->dma direction for the highest
+-		 * zone which needs scanning
+-		 */
+-		for (i = pgdat->nr_zones - 1; i >= 0; i--) {
++		/* Scan from the highest requested zone to dma */
++		for (i = classzone_idx; i >= 0; i--) {
  			struct zone *zone = pgdat->node_zones + i;
  
  			if (!populated_zone(zone))
-@@ -3250,6 +3276,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
- 				continue;
- 
- 			sc.nr_scanned = 0;
-+			sc.reclaim_idx = i;
- 
- 			nr_soft_scanned = 0;
- 			/*
-@@ -3698,6 +3725,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
- 		.may_unmap = !!(zone_reclaim_mode & RECLAIM_UNMAP),
- 		.may_swap = 1,
-+		.reclaim_idx = zone_idx(zone),
- 	};
- 
- 	cond_resched();
-@@ -3717,7 +3745,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 		 * priorities until we have enough memory freed.
- 		 */
- 		do {
--			shrink_zone(zone, &sc, true);
-+			shrink_node(zone->zone_pgdat, &sc, zone_idx(zone));
- 		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
- 	}
- 
 -- 
 2.6.4
 
