@@ -1,46 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BA1CA6B0005
-	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 20:40:58 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id b13so1469132pat.3
-        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 17:40:58 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id pj9si3491338pac.4.2016.06.20.17.40.57
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9704D6B025F
+	for <linux-mm@kvack.org>; Mon, 20 Jun 2016 20:52:46 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ao6so1969044pac.2
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 17:52:46 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id bc14si6423945pac.238.2016.06.20.17.52.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Jun 2016 17:40:57 -0700 (PDT)
-In-Reply-To: <1462958539-25552-1-git-send-email-oohall@gmail.com>
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [v2] powerpc/mm: Ensure "special" zones are empty
-Message-Id: <3rYTRT6gDSz9t0f@ozlabs.org>
-Date: Tue, 21 Jun 2016 10:40:53 +1000 (AEST)
+        Mon, 20 Jun 2016 17:52:45 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id h14so456716pfe.1
+        for <linux-mm@kvack.org>; Mon, 20 Jun 2016 17:52:45 -0700 (PDT)
+Date: Mon, 20 Jun 2016 17:52:43 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v3] mm/compaction: remove unnecessary order check in
+ direct compact path
+In-Reply-To: <1466044956-3690-1-git-send-email-opensource.ganesh@gmail.com>
+Message-ID: <alpine.DEB.2.10.1606201749110.133174@chino.kir.corp.google.com>
+References: <1466044956-3690-1-git-send-email-opensource.ganesh@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oliver O'Halloran <oohall@gmail.com>, linuxppc-dev@lists.ozlabs.org
-Cc: linux-mm@kvack.org
+To: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, iamjoonsoo.kim@lge.com, mhocko@suse.com, mina86@mina86.com, minchan@kernel.org, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, izumi.taku@jp.fujitsu.com, hannes@cmpxchg.org, khandual@linux.vnet.ibm.com, bsingharora@gmail.com
 
-On Wed, 2016-11-05 at 09:22:18 UTC, Oliver O'Halloran wrote:
-> The mm zone mechanism was traditionally used by arch specific code to
-> partition memory into allocation zones. However there are several zones
-> that are managed by the mm subsystem rather than the architecture. Most
-> architectures set the max PFN of these special zones to zero, however on
-> powerpc we set them to ~0ul. This, in conjunction with a bug in
-> free_area_init_nodes() results in all of system memory being placed in
-> ZONE_DEVICE when enabled. Device memory cannot be used for regular kernel
-> memory allocations so this will cause a kernel panic at boot. Given the
-> planned addition of more mm managed zones (ZONE_CMA) we should aim to be
-> consistent with every other architecture and set the max PFN for these
-> zones to zero.
-> 
-> Signed-off-by: Oliver O'Halloran <oohall@gmail.com>
-> Reviewed-by: Balbir Singh <bsingharora@gmail.com>
-> Cc: linux-mm@kvack.org
+On Thu, 16 Jun 2016, Ganesh Mahendran wrote:
 
-Applied to powerpc next, thanks.
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index fbb7b38..dcfaf57 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1686,12 +1686,16 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+>  
+>  	*contended = COMPACT_CONTENDED_NONE;
+>  
+> -	/* Check if the GFP flags allow compaction */
+> +	/*
+> +	 * Check if this is an order-0 request and
+> +	 * if the GFP flags allow compaction.
+> +	 */
 
-https://git.kernel.org/powerpc/c/3079abe555511031e2ba5d1e21
+This seems obvious.
 
-cheers
+>  	if (!order || !may_enter_fs || !may_perform_io)
+>  		return COMPACT_SKIPPED;
+>  
+>  	trace_mm_compaction_try_to_compact_pages(order, gfp_mask, mode);
+>  
+> +	current->flags |= PF_MEMALLOC;
+>  	/* Compact each zone in the list */
+>  	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
+>  								ac->nodemask) {
+> @@ -1768,6 +1772,7 @@ break_loop:
+>  		all_zones_contended = 0;
+>  		break;
+>  	}
+> +	current->flags &= ~PF_MEMALLOC;
+>  
+>  	/*
+>  	 * If at least one zone wasn't deferred or skipped, we report if all
+
+Compaction don't touch task_struct flags and PF_MEMALLOC is flag used 
+primarily by the page allocator, moving this to try_to_compact_pages() 
+doesn't make sense.
+
+You could remove the !order check in try_to_compact_pages(), but I don't 
+think it offers anything substantial.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
