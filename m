@@ -1,197 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F7666B0005
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 05:28:14 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id k78so12730568ioi.2
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 02:28:14 -0700 (PDT)
-Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
-        by mx.google.com with ESMTP id h80si38969383ioh.38.2016.06.21.02.28.11
-        for <linux-mm@kvack.org>;
-        Tue, 21 Jun 2016 02:28:13 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <06be01d1cb9c$8f235850$ad6a08f0$@alibaba-inc.com>
-In-Reply-To: <06be01d1cb9c$8f235850$ad6a08f0$@alibaba-inc.com>
-Subject: Re: [PATCH 03/10] proc, oom_adj: extract oom_score_adj setting into a helper
-Date: Tue, 21 Jun 2016 17:27:57 +0800
-Message-ID: <06bf01d1cb9f$32a49320$97edb960$@alibaba-inc.com>
+Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 131956B0005
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 05:29:07 -0400 (EDT)
+Received: by mail-lb0-f199.google.com with SMTP id js8so8615256lbc.2
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 02:29:07 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c10si34992570wjb.241.2016.06.21.02.29.05
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 21 Jun 2016 02:29:05 -0700 (PDT)
+Subject: Re: [RFC PATCH 2/2] xfs: map KM_MAYFAIL to __GFP_RETRY_HARD
+References: <1465212736-14637-1-git-send-email-mhocko@kernel.org>
+ <1465212736-14637-3-git-send-email-mhocko@kernel.org>
+ <20160616002302.GK12670@dastard> <20160616080355.GB6836@dhcp22.suse.cz>
+ <20160616112606.GH6836@dhcp22.suse.cz> <20160617182235.GC10485@cmpxchg.org>
+ <5c0ae2d1-28fc-7ef5-b9ae-a4c8bfa833c7@suse.cz>
+ <20160617213931.GA13688@cmpxchg.org> <20160620080856.GB4340@dhcp22.suse.cz>
+ <20160621042249.GA18870@cmpxchg.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <ac3d7a1b-969a-f9fd-0022-d87e3734ede0@suse.cz>
+Date: Tue, 21 Jun 2016 11:29:03 +0200
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+In-Reply-To: <20160621042249.GA18870@cmpxchg.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Hocko' <mhocko@suse.com>
-Cc: 'Oleg Nesterov' <oleg@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-> 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Currently we have two proc interfaces to set oom_score_adj. The legacy
-> /proc/<pid>/oom_adj and /proc/<pid>/oom_score_adj which both have their
-> specific handlers. Big part of the logic is duplicated so extract the
-> common code into __set_oom_adj helper. Legacy knob still expects some
-> details slightly different so make sure those are handled same way - e.g.
-> the legacy mode ignores oom_score_adj_min and it warns about the usage.
-> 
-> This patch shouldn't introduce any functional changes.
-> 
-> Acked-by: Oleg Nesterov <oleg@redhat.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  fs/proc/base.c | 94 +++++++++++++++++++++++++++-------------------------------
->  1 file changed, 43 insertions(+), 51 deletions(-)
-> 
-> diff --git a/fs/proc/base.c b/fs/proc/base.c
-> index 968d5ea06e62..a6a8fbdd5a1b 100644
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -1037,7 +1037,47 @@ static ssize_t oom_adj_read(struct file *file, char __user *buf, size_t count,
->  	return simple_read_from_buffer(buf, count, ppos, buffer, len);
->  }
-> 
-> -static DEFINE_MUTEX(oom_adj_mutex);
-> +static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
-> +{
-> +	static DEFINE_MUTEX(oom_adj_mutex);
+On 06/21/2016 06:22 AM, Johannes Weiner wrote:
+>>> I think whether the best-effort behavior should be opt-in or opt-out,
+>>> or how fine-grained the latency/success control over the allocator
+>>> should be is a different topic. I'd prefer defaulting to reliability
+>>> and annotating low-latency requirements, but I can see TRY_HARD work
+>>> too. It just shouldn't imply MAY_FAIL.
+>>
+>> It is always hard to change the default behavior without breaking
+>> anything. Up to now we had opt-in and as you can see there are not that
+>> many users who really wanted to have higher reliability. I guess this is
+>> because they just do not care and didn't see too many failures. The
+>> opt-out has also a disadvantage that we would need to provide a flag
+>> to tell to try less hard and all we have is NORETRY and that is way too
+>> easy. So to me it sounds like the opt-in fits better with the current
+>> usage.
+>
+> For costly allocations, the presence of __GFP_NORETRY is exactly the
+> same as the absence of __GFP_REPEAT. So if we made __GFP_REPEAT the
+> default (and deleted the flag), the opt-outs would use __GFP_NORETRY
+> to restore their original behavior.
 
-Writers are not excluded for readers!
-Is this a hot path?
+Just FYI, this argument distorts my idea how to get rid of hacky checks 
+for GFP_TRANSHUGE and PF_KTHREAD (patches 05 and 06 in [1]), where I 
+observed the mentioned no difference between __GFP_NORETRY presence and 
+__GFP_REPEAT absence, and made use of it. Without __GFP_REPEAT I'd have 
+two options for khugepaged and madvise(MADV_HUGEPAGE) allocations. 
+Either pass __GFP_NORETRY and make them fail more, or don't and then 
+they become much more disruptive (if the default becomes best-effort, 
+i.e. what __GFP_REPEAT used to do).
 
-> +	struct task_struct *task;
-> +	int err = 0;
-> +
-> +	task = get_proc_task(file_inode(file));
-> +	if (!task)
-> +		return -ESRCH;
-> +
-> +	mutex_lock(&oom_adj_mutex);
-> +	if (legacy) {
-> +		if (oom_adj < task->signal->oom_score_adj &&
-> +				!capable(CAP_SYS_RESOURCE)) {
-> +			err = -EACCES;
-> +			goto err_unlock;
-> +		}
-> +		/*
-> +		 * /proc/pid/oom_adj is provided for legacy purposes, ask users to use
-> +		 * /proc/pid/oom_score_adj instead.
-> +		 */
-> +		pr_warn_once("%s (%d): /proc/%d/oom_adj is deprecated, please use /proc/%d/oom_score_adj instead.\n",
-> +			  current->comm, task_pid_nr(current), task_pid_nr(task),
-> +			  task_pid_nr(task));
-> +	} else {
-> +		if ((short)oom_adj < task->signal->oom_score_adj_min &&
-> +				!capable(CAP_SYS_RESOURCE)) {
-> +			err = -EACCES;
-> +			goto err_unlock;
-> +		}
-> +	}
-> +
-> +	task->signal->oom_score_adj = oom_adj;
-> +	if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
-> +		task->signal->oom_score_adj_min = (short)oom_adj;
-> +	trace_oom_score_adj_update(task);
-> +err_unlock:
-> +	mutex_unlock(&oom_adj_mutex);
-> +	put_task_struct(task);
-> +	return err;
-> +}
-> 
->  /*
->   * /proc/pid/oom_adj exists solely for backwards compatibility with previous
-> @@ -1052,7 +1092,6 @@ static DEFINE_MUTEX(oom_adj_mutex);
->  static ssize_t oom_adj_write(struct file *file, const char __user *buf,
->  			     size_t count, loff_t *ppos)
->  {
-> -	struct task_struct *task;
->  	char buffer[PROC_NUMBUF];
->  	int oom_adj;
->  	int err;
-> @@ -1074,12 +1113,6 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
->  		goto out;
->  	}
-> 
-> -	task = get_proc_task(file_inode(file));
-> -	if (!task) {
-> -		err = -ESRCH;
-> -		goto out;
-> -	}
-> -
->  	/*
->  	 * Scale /proc/pid/oom_score_adj appropriately ensuring that a maximum
->  	 * value is always attainable.
-> @@ -1089,26 +1122,7 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
->  	else
->  		oom_adj = (oom_adj * OOM_SCORE_ADJ_MAX) / -OOM_DISABLE;
-> 
-> -	mutex_lock(&oom_adj_mutex);
-> -	if (oom_adj < task->signal->oom_score_adj &&
-> -	    !capable(CAP_SYS_RESOURCE)) {
-> -		err = -EACCES;
-> -		goto err_unlock;
-> -	}
-> -
-> -	/*
-> -	 * /proc/pid/oom_adj is provided for legacy purposes, ask users to use
-> -	 * /proc/pid/oom_score_adj instead.
-> -	 */
-> -	pr_warn_once("%s (%d): /proc/%d/oom_adj is deprecated, please use /proc/%d/oom_score_adj instead.\n",
-> -		  current->comm, task_pid_nr(current), task_pid_nr(task),
-> -		  task_pid_nr(task));
-> -
-> -	task->signal->oom_score_adj = oom_adj;
-> -	trace_oom_score_adj_update(task);
-> -err_unlock:
-> -	mutex_unlock(&oom_adj_mutex);
-> -	put_task_struct(task);
-> +	err = __set_oom_adj(file, oom_adj, true);
->  out:
->  	return err < 0 ? err : count;
->  }
-> @@ -1138,7 +1152,6 @@ static ssize_t oom_score_adj_read(struct file *file, char __user *buf,
->  static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
->  					size_t count, loff_t *ppos)
->  {
-> -	struct task_struct *task;
->  	char buffer[PROC_NUMBUF];
->  	int oom_score_adj;
->  	int err;
-> @@ -1160,28 +1173,7 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
->  		goto out;
->  	}
-> 
-> -	task = get_proc_task(file_inode(file));
-> -	if (!task) {
-> -		err = -ESRCH;
-> -		goto out;
-> -	}
-> -
-> -	mutex_lock(&oom_adj_mutex);
-> -	if ((short)oom_score_adj < task->signal->oom_score_adj_min &&
-> -			!capable(CAP_SYS_RESOURCE)) {
-> -		err = -EACCES;
-> -		goto err_unlock;
-> -	}
-> -
-> -	task->signal->oom_score_adj = (short)oom_score_adj;
-> -	if (has_capability_noaudit(current, CAP_SYS_RESOURCE))
-> -		task->signal->oom_score_adj_min = (short)oom_score_adj;
-> -
-> -	trace_oom_score_adj_update(task);
-> -
-> -err_unlock:
-> -	mutex_unlock(&oom_adj_mutex);
-> -	put_task_struct(task);
-> +	err = __set_oom_adj(file, oom_score_adj, false);
->  out:
->  	return err < 0 ? err : count;
->  }
-> --
-> 2.8.1
-> 
-> 
+[1] http://thread.gmane.org/gmane.linux.kernel.mm/152313
 
+> As for changing the default - remember that we currently warn about
+> allocation failures as if they were bugs, unless they are explicitely
+> allocated with the __GFP_NOWARN flag. We can assume that the current
+> __GFP_NOWARN sites are 1) commonly failing but 2) prefer to fall back
+> rather than incurring latency (otherwise they would have added the
+> __GFP_REPEAT flag). These sites would be a good list of candidates to
+> annotate with __GFP_NORETRY. If we made __GFP_REPEAT then the default,
+> the sites that would then try harder are the same sites that would now
+> emit page allocation failure warnings. These are rare, and the only
+> times I have seen them is under enough load that latency is shot to
+> hell anyway. So I'm not really convinced by the regression argument.
+>
+> But that would *actually* clean up the flags, not make them even more
+> confusing:
+>
+> Allocations that can't ever handle failure would use __GFP_NOFAIL.
+>
+> Callers like XFS would use __GFP_MAYFAIL specifically to disable the
+> implicit __GFP_NOFAIL of !costly allocations.
+>
+> Callers that would prefer falling back over killing and looping would
+> use __GFP_NORETRY.
+>
+> Wouldn't that cover all usecases and be much more intuitive, both in
+> the default behavior as well as in the names of the flags?
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
