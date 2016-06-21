@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A4E76828E4
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 11:45:25 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id nq2so17878833lbc.3
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 08:45:25 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id F05A6828E4
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 11:45:27 -0400 (EDT)
+Received: by mail-lb0-f197.google.com with SMTP id na2so17211102lbb.1
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 08:45:27 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p2si36962761wjy.64.2016.06.21.08.45.23
+        by mx.google.com with ESMTPS id yl3si36979542wjb.67.2016.06.21.08.45.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 21 Jun 2016 08:45:23 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 2/3] mm: Export follow_pte()
-Date: Tue, 21 Jun 2016 17:45:14 +0200
-Message-Id: <1466523915-14644-3-git-send-email-jack@suse.cz>
+Subject: [PATCH 1/3] dax: Make cache flushing protected by entry lock
+Date: Tue, 21 Jun 2016 17:45:13 +0200
+Message-Id: <1466523915-14644-2-git-send-email-jack@suse.cz>
 In-Reply-To: <1466523915-14644-1-git-send-email-jack@suse.cz>
 References: <1466523915-14644-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,52 +20,114 @@ List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
 Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>
 
-DAX will need to implement its own version of check_page_address(). To
-avoid duplicating page table walking code, export follow_pte() which
-does what we need.
+Currently, flushing of caches for DAX mappings was ignoring entry lock.
+So far this was ok (modulo a bug that a difference in entry lock could
+cause cache flushing to be mistakenly skipped) but in the following
+patches we will write-protect PTEs on cache flushing and clear dirty
+tags. For that we will need more exclusion. So do cache flushing under
+an entry lock. This allows us to remove one lock-unlock pair of
+mapping->tree_lock as a bonus.
 
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- include/linux/mm.h | 2 ++
- mm/memory.c        | 5 +++--
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ fs/dax.c | 62 +++++++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 39 insertions(+), 23 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5df5feb49575..989f5d949db3 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1193,6 +1193,8 @@ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
- 			struct vm_area_struct *vma);
- void unmap_mapping_range(struct address_space *mapping,
- 		loff_t const holebegin, loff_t const holelen, int even_cows);
-+int follow_pte(struct mm_struct *mm, unsigned long address, pte_t **ptepp,
-+	       spinlock_t **ptlp);
- int follow_pfn(struct vm_area_struct *vma, unsigned long address,
- 	unsigned long *pfn);
- int follow_phys(struct vm_area_struct *vma, unsigned long address,
-diff --git a/mm/memory.c b/mm/memory.c
-index 15322b73636b..f6175d63c2e9 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3647,8 +3647,8 @@ out:
- 	return -EINVAL;
- }
- 
--static inline int follow_pte(struct mm_struct *mm, unsigned long address,
--			     pte_t **ptepp, spinlock_t **ptlp)
-+int follow_pte(struct mm_struct *mm, unsigned long address, pte_t **ptepp,
-+	       spinlock_t **ptlp)
+diff --git a/fs/dax.c b/fs/dax.c
+index 761495bf5eb9..5209f8cd0bee 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -669,35 +669,54 @@ static int dax_writeback_one(struct block_device *bdev,
+ 		struct address_space *mapping, pgoff_t index, void *entry)
  {
- 	int res;
+ 	struct radix_tree_root *page_tree = &mapping->page_tree;
+-	int type = RADIX_DAX_TYPE(entry);
+-	struct radix_tree_node *node;
++	int type;
+ 	struct blk_dax_ctl dax;
+-	void **slot;
+ 	int ret = 0;
++	void *entry2, **slot;
  
-@@ -3657,6 +3657,7 @@ static inline int follow_pte(struct mm_struct *mm, unsigned long address,
- 			   !(res = __follow_pte(mm, address, ptepp, ptlp)));
- 	return res;
+-	spin_lock_irq(&mapping->tree_lock);
+ 	/*
+-	 * Regular page slots are stabilized by the page lock even
+-	 * without the tree itself locked.  These unlocked entries
+-	 * need verification under the tree lock.
++	 * A page got tagged dirty in DAX mapping? Something is seriously
++	 * wrong.
+ 	 */
+-	if (!__radix_tree_lookup(page_tree, index, &node, &slot))
+-		goto unlock;
+-	if (*slot != entry)
+-		goto unlock;
+-
+-	/* another fsync thread may have already written back this entry */
+-	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
+-		goto unlock;
++	if (WARN_ON(!radix_tree_exceptional_entry(entry)))
++		return -EIO;
+ 
++	spin_lock_irq(&mapping->tree_lock);
++	entry2 = get_unlocked_mapping_entry(mapping, index, &slot);
++	/* Entry got punched out / reallocated? */
++	if (!entry2 || !radix_tree_exceptional_entry(entry2))
++		goto put_unlock;
++	/*
++	 * Entry got reallocated elsewhere? No need to writeback. We have to
++	 * compare sectors as we must not bail out due to difference in lockbit
++	 * or entry type.
++	 */
++	if (RADIX_DAX_SECTOR(entry2) != RADIX_DAX_SECTOR(entry))
++		goto put_unlock;
++	type = RADIX_DAX_TYPE(entry2);
+ 	if (WARN_ON_ONCE(type != RADIX_DAX_PTE && type != RADIX_DAX_PMD)) {
+ 		ret = -EIO;
+-		goto unlock;
++		goto put_unlock;
+ 	}
++	entry = entry2;
++
++	/* Another fsync thread may have already written back this entry */
++	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
++		goto put_unlock;
++	/* Lock the entry to serialize with page faults */
++	entry = lock_slot(mapping, slot);
++	/*
++	 * We can clear the tag now but we have to be careful so that concurrent
++	 * dax_writeback_one() calls for the same index cannot finish before we
++	 * actually flush the caches. This is achieved as the calls will look
++	 * at the entry only under tree_lock and once they do that they will
++	 * see the entry locked and wait for it to unlock.
++	 */
++	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
++	spin_unlock_irq(&mapping->tree_lock);
+ 
+ 	dax.sector = RADIX_DAX_SECTOR(entry);
+ 	dax.size = (type == RADIX_DAX_PMD ? PMD_SIZE : PAGE_SIZE);
+-	spin_unlock_irq(&mapping->tree_lock);
+ 
+ 	/*
+ 	 * We cannot hold tree_lock while calling dax_map_atomic() because it
+@@ -713,15 +732,12 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	}
+ 
+ 	wb_cache_pmem(dax.addr, dax.size);
+-
+-	spin_lock_irq(&mapping->tree_lock);
+-	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
+-	spin_unlock_irq(&mapping->tree_lock);
+- unmap:
++unmap:
+ 	dax_unmap_atomic(bdev, &dax);
+ 	return ret;
+ 
+- unlock:
++put_unlock:
++	put_unlocked_mapping_entry(mapping, index, entry2);
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 	return ret;
  }
-+EXPORT_SYMBOL(follow_pte);
- 
- /**
-  * follow_pfn - look up PFN at a user virtual address
 -- 
 2.6.6
 
