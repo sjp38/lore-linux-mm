@@ -1,59 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 020B5828E1
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 11:48:40 -0400 (EDT)
-Received: by mail-lb0-f197.google.com with SMTP id nq2so17940992lbc.3
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 08:48:39 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id op3si14789403wjc.83.2016.06.21.08.48.38
+Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C10F828E1
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 12:13:55 -0400 (EDT)
+Received: by mail-lb0-f200.google.com with SMTP id nq2so18814453lbc.3
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 09:13:55 -0700 (PDT)
+Received: from mail-lb0-x234.google.com (mail-lb0-x234.google.com. [2a00:1450:4010:c04::234])
+        by mx.google.com with ESMTPS id h21si20434562lfi.197.2016.06.21.09.13.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jun 2016 08:48:38 -0700 (PDT)
-Date: Tue, 21 Jun 2016 11:46:01 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/3] mm: memcontrol: fix cgroup creation failure after
- many small jobs
-Message-ID: <20160621154601.GA22431@cmpxchg.org>
-References: <20160616034244.14839-1-hannes@cmpxchg.org>
- <20160616200617.GD3262@mtj.duckdns.org>
- <20160617162310.GA19084@cmpxchg.org>
- <20160617162516.GD19084@cmpxchg.org>
- <20160621101650.GD15970@esperanza>
+        Tue, 21 Jun 2016 09:13:54 -0700 (PDT)
+Received: by mail-lb0-x234.google.com with SMTP id ak10so14393273lbc.3
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 09:13:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160621101650.GD15970@esperanza>
+In-Reply-To: <20160621125807.GA19065@infradead.org>
+References: <20160620203910.a8b6b5b10d18f24661916e7b@gmail.com>
+ <20160620204119.6299c961570a7a9ad6cbdd51@gmail.com> <20160621125807.GA19065@infradead.org>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 21 Jun 2016 09:13:52 -0700
+Message-ID: <CAGXu5jJ+seDJgknrFTNVw8A3CuVkjnKH6LFfti5zyJgFTM2q+A@mail.gmail.com>
+Subject: Re: [PATCH v4 2/4] Add the latent_entropy gcc plugin
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Emese Revfy <re.emese@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Michal Marek <mmarek@suse.com>, LKML <linux-kernel@vger.kernel.org>, Masahiro Yamada <yamada.masahiro@socionext.com>, linux-kbuild <linux-kbuild@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>, Al Viro <viro@zeniv.linux.org.uk>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, bart.vanassche@sandisk.com, "David S. Miller" <davem@davemloft.net>
 
-On Tue, Jun 21, 2016 at 01:16:51PM +0300, Vladimir Davydov wrote:
-> On Fri, Jun 17, 2016 at 12:25:16PM -0400, Johannes Weiner wrote:
-> > After this patch, the IDs get released upon cgroup destruction and the
-> > cache and css objects get released once memory reclaim kicks in.
-> 
-> With 65K cgroups it will take the reclaimer a substantial amount of time
-> to iterate over all of them, which might result in latency spikes.
-> Probably, to avoid that, we could move pages from a dead cgroup's lru to
-> its parent's one on offline while still leaving dead cgroups pinned,
-> like we do in case of list_lru entries.
+On Tue, Jun 21, 2016 at 5:58 AM, Christoph Hellwig <hch@infradead.org> wrote:
+> On Mon, Jun 20, 2016 at 08:41:19PM +0200, Emese Revfy wrote:
+>> --- /dev/null
+>> +++ b/scripts/gcc-plugins/latent_entropy_plugin.c
+>> @@ -0,0 +1,639 @@
+>> +/*
+>> + * Copyright 2012-2016 by the PaX Team <pageexec@freemail.hu>
+>> + * Copyright 2016 by Emese Revfy <re.emese@gmail.com>
+>> + * Licensed under the GPL v2
+>> + *
+>> + * Note: the choice of the license means that the compilation process is
+>> + *       NOT 'eligible' as defined by gcc's library exception to the GPL v3,
+>> + *       but for the kernel it doesn't matter since it doesn't link against
+>> + *       any of the gcc libraries
+>
+> I remember we used to have architectures that actually linked against
+> libgcc.  Isn't that the case anymore?
 
-Yep, that is true. list_lru is a bit easier because the walker stays
-in the context of the original LRU list, whereas the cache/anon LRUs
-are not. We'd have to have mem_cgroup_page_lruvec() etc. do a parent
-walk to find the closest live ancestor. Maybe you have a better idea?
+There are a few, but they don't (and won't) select HAVE_GCC_PLUGINS.
 
-But it's definitely worth considering. I'll think more about it.
+-Kees
 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
-Thanks!
-
-> > +static struct idr mem_cgroup_idr;
-> 
-> static DEFINE_IDR(mem_cgroup_idr);
-
-Oops, good catch. Andrew, could you kindly fold this?
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
