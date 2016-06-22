@@ -1,67 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DC0E6B0005
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 20:56:05 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 13so88158072itl.0
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 17:56:05 -0700 (PDT)
-Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2on0080.outbound.protection.outlook.com. [207.46.100.80])
-        by mx.google.com with ESMTPS id q83si1177336oia.161.2016.06.21.17.56.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 21 Jun 2016 17:56:04 -0700 (PDT)
-Date: Wed, 22 Jun 2016 03:51:35 +0300
-From: Yury Norov <ynorov@caviumnetworks.com>
-Subject: Re: [PATCH] mm: slab.h: use ilog2() in kmalloc_index()
-Message-ID: <20160622005135.GA342@yury-N73SV>
-References: <1466465586-22096-1-git-send-email-yury.norov@gmail.com>
- <20160621145237.dae264ea5fe6b3b7f2d2d4e6@linux-foundation.org>
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EC346B0005
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 21:03:25 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id s63so78093620ioi.1
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 18:03:25 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id h129si44165779iof.164.2016.06.21.18.03.23
+        for <linux-mm@kvack.org>;
+        Tue, 21 Jun 2016 18:03:24 -0700 (PDT)
+Date: Wed, 22 Jun 2016 11:03:20 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
+Message-ID: <20160622010320.GR12670@dastard>
+References: <20160520001714.GC26977@dastard>
+ <20160601131758.GO26601@dhcp22.suse.cz>
+ <20160601181617.GV3190@twins.programming.kicks-ass.net>
+ <20160602145048.GS1995@dhcp22.suse.cz>
+ <20160602151116.GD3190@twins.programming.kicks-ass.net>
+ <20160602154619.GU1995@dhcp22.suse.cz>
+ <20160602232254.GR12670@dastard>
+ <20160606122022.GH11895@dhcp22.suse.cz>
+ <20160615072154.GF26977@dastard>
+ <20160621142628.GG30848@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160621145237.dae264ea5fe6b3b7f2d2d4e6@linux-foundation.org>
+In-Reply-To: <20160621142628.GG30848@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Yury Norov <yury.norov@gmail.com>, masmart@yandex.ru, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux.com, enberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, linux@rasmusvillemoes.dk, Alexey Klimov <klimov.linux@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On Tue, Jun 21, 2016 at 02:52:37PM -0700, Andrew Morton wrote:
-> On Tue, 21 Jun 2016 02:33:06 +0300 Yury Norov <yury.norov@gmail.com> wrote:
+On Tue, Jun 21, 2016 at 04:26:28PM +0200, Michal Hocko wrote:
+> On Wed 15-06-16 17:21:54, Dave Chinner wrote:
+> [...]
+> > Hopefully you can see the complexity of the issue - for an allocation
+> > in the bmap btree code that could occur outside both inside and
+> > outside of a transaction context, we've got to work out which of
+> > those ~60 high level entry points would need to be annotated. And
+> > then we have to ensure that in future we don't miss adding or
+> > removing an annotation as we change the code deep inside the btree
+> > implementation. It's the latter that is the long term maintainence
+> > problem the hihg-level annotation approach introduces.
 > 
-> > kmalloc_index() uses simple straightforward way to calculate
-> > bit position of nearest or equal upper power of 2.
-> > This effectively results in generation of 24 episodes of
-> > compare-branch instructions in assembler.
+> Sure I can see the complexity here. I might still see this over
+> simplified but I originally thought that the annotation would be used at
+> the highest level which never gets called from the transaction or other
+> NOFS context. So all the layers down would inherit that automatically. I
+> guess that such a place can be identified from the lockdep report by a
+> trained eye.
+
+Which, as I said before, effectively becomes "turn off lockdep
+reclaim context checking at all XFS entry points". Yes, we could do
+that, but it's a "big hammer" solution and there are more entry
+points than there are memory allocations that need annotations....
+
+> > > > I think such an annotation approach really requires per-alloc site
+> > > > annotation, the reason for it should be more obvious from the
+> > > > context. e.g. any function that does memory alloc and takes an
+> > > > optional transaction context needs annotation. Hence, from an XFS
+> > > > perspective, I think it makes more sense to add a new KM_ flag to
+> > > > indicate this call site requirement, then jump through whatever
+> > > > lockdep hoop is required within the kmem_* allocation wrappers.
+> > > > e.g, we can ignore the new KM_* flag if we are in a transaction
+> > > > context and so the flag is only activated in the situations were
+> > > > we currently enforce an external GFP_NOFS context from the call
+> > > > site.....
+> > > 
+> > > Hmm, I thought we would achive this by using the scope GFP_NOFS usage
+> > > which would mark those transaction related conctexts and no lockdep
+> > > specific workarounds would be needed...
 > > 
-> > There is shorter way to calculate this: fls(size - 1).
-> > 
-> > The patch removes hard-coded calculation of kmalloc slab and
-> > uses ilog2() instead that works on top of fls(). ilog2 is used
-> > with intention that compiler also might optimize constant case
-> > during compile time if it detects that.
-> > 
-> > BUG() is moved to the beginning of function. We left it here to
-> > provide identical behaviour to previous version. It may be removed
-> > if there's no requirement in it anymore.
-> > 
-> > While we're at this, fix comment that describes return value.
+> > There are allocations outside transaction context which need to be
+> > GFP_NOFS - this is what KM_NOFS was originally intended for.
 > 
-> kmalloc_index() is always called with a constant-valued `size' (see
-> __builtin_constant_p() tests)
+> Is it feasible to mark those by the scope NOFS api as well and drop
+> the direct KM_NOFS usage? This should help to identify those that are
+> lockdep only and use the annotation to prevent from the false positives.
 
-It might change one day. This function is public to any slab user.
-If you really want to allow call kmalloc_index() for constants only,
-you'd place __builtin_constant_p() tests inside kmalloc_index().
+I don't understand what you are suggesting here. This all started
+because we use GFP_NOFS in a handful of places to shut up lockdep
+and you didn't want us to use GFP_NOFS like that. Now it sounds to
+me like you are advocating setting unconditional GFP_NOFS allocation
+contexts for entire XFS code paths - whether it's necessary or
+not - to avoid problems with lockdep false positives.
 
-> so the compiler will evaluate the switch
-> statement at compile-time.  This will be more efficient than calling
-> fls() at runtime.
+I'm clearly not understanding something here....
 
-There will be no fls() for constant at runtime because ilog2() calculates 
-constant values at compile-time as well. From this point of view,
-this patch removes code duplication, as we already have compile-time
-log() calculation in kernel, and should re-use it whenever possible.\
+Cheers,
 
-Yury.
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
