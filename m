@@ -1,326 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C32D66B0005
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 04:42:22 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id d132so14156215oig.0
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 01:42:22 -0700 (PDT)
-Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
-        by mx.google.com with ESMTP id n5si47107903ioo.185.2016.06.22.01.42.20
-        for <linux-mm@kvack.org>;
-        Wed, 22 Jun 2016 01:42:21 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <071801d1cc5c$245087d0$6cf19770$@alibaba-inc.com>
-In-Reply-To: <071801d1cc5c$245087d0$6cf19770$@alibaba-inc.com>
-Subject: Re: [PATCH 06/27] mm, vmscan: Make kswapd reclaim in terms of nodes
-Date: Wed, 22 Jun 2016 16:42:06 +0800
-Message-ID: <072501d1cc61$f51a2380$df4e6a80$@alibaba-inc.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2893B6B0005
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 05:24:35 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 143so93525868pfx.0
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 02:24:35 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id xs2si16385141pab.43.2016.06.22.02.24.31
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 22 Jun 2016 02:24:34 -0700 (PDT)
+Subject: Re: [PATCH v3 3/6] mm/cma: populate ZONE_CMA
+References: <1464243748-16367-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1464243748-16367-4-git-send-email-iamjoonsoo.kim@lge.com>
+From: Chen Feng <puck.chen@hisilicon.com>
+Message-ID: <576A58FA.8040101@hisilicon.com>
+Date: Wed, 22 Jun 2016 17:23:06 +0800
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+In-Reply-To: <1464243748-16367-4-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh
+ Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Rui Teng <rui.teng@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "fujun (F)" <oliver.fu@hisilicon.com>, Zhuangluan Su <suzhuangluan@hisilicon.com>, Yiping Xu <xuyiping@hisilicon.com>, Dan Zhao <dan.zhao@hisilicon.com>
 
->  /*
-> - * kswapd shrinks the zone by the number of pages required to reach
-> - * the high watermark.
-> + * kswapd shrinks a node of pages that are at or below the highest usable
-> + * zone that is currently unbalanced.
->   *
->   * Returns true if kswapd scanned at least the requested number of pages to
->   * reclaim or if the lack of progress was due to pages under writeback.
->   * This is used to determine if the scanning priority needs to be raised.
->   */
-> -static bool kswapd_shrink_zone(struct zone *zone,
-> +static bool kswapd_shrink_node(pg_data_t *pgdat,
->  			       int classzone_idx,
->  			       struct scan_control *sc)
->  {
-> -	unsigned long balance_gap;
-> -	bool lowmem_pressure;
-> -	struct pglist_data *pgdat = zone->zone_pgdat;
-> +	struct zone *zone;
-> +	int z;
+Hello,
+
+On 2016/5/26 14:22, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> -	/* Reclaim above the high watermark. */
-> -	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
-> +	/* Reclaim a number of pages proportional to the number of zones */
-> +	sc->nr_to_reclaim = 0;
-> +	for (z = 0; z <= classzone_idx; z++) {
-> +		zone = pgdat->node_zones + z;
-> +		if (!populated_zone(zone))
-> +			continue;
+> Until now, reserved pages for CMA are managed in the ordinary zones
+> where page's pfn are belong to. This approach has numorous problems
+> and fixing them isn't easy. (It is mentioned on previous patch.)
+> To fix this situation, ZONE_CMA is introduced in previous patch, but,
+> not yet populated. This patch implement population of ZONE_CMA
+> by stealing reserved pages from the ordinary zones.
 > 
-> -	/*
-> -	 * We put equal pressure on every zone, unless one zone has way too
-> -	 * many pages free already. The "too many pages" is defined as the
-> -	 * high wmark plus a "gap" where the gap is either the low
-> -	 * watermark or 1% of the zone, whichever is smaller.
-> -	 */
-> -	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
-> -			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
-> +		sc->nr_to_reclaim += max(high_wmark_pages(zone), SWAP_CLUSTER_MAX);
-> +	}
+> Unlike previous implementation that kernel allocation request with
+> __GFP_MOVABLE could be serviced from CMA region, allocation request only
+> with GFP_HIGHUSER_MOVABLE can be serviced from CMA region in the new
+> approach. This is an inevitable design decision to use the zone
+> implementation because ZONE_CMA could contain highmem. Due to this
+> decision, ZONE_CMA will work like as ZONE_HIGHMEM or ZONE_MOVABLE.
 > 
->  	/*
-> -	 * If there is no low memory pressure or the zone is balanced then no
-> -	 * reclaim is necessary
-> +	 * Historically care was taken to put equal pressure on all zones but
-> +	 * now pressure is applied based on node LRU order.
->  	 */
-> -	lowmem_pressure = (buffer_heads_over_limit && is_highmem(zone));
-> -	if (!lowmem_pressure && zone_balanced(zone, sc->order, false,
-> -						balance_gap, classzone_idx))
-> -		return true;
+> I don't think it would be a problem because most of file cache pages
+> and anonymous pages are requested with GFP_HIGHUSER_MOVABLE. It could
+> be proved by the fact that there are many systems with ZONE_HIGHMEM and
+> they work fine. Notable disadvantage is that we cannot use these pages
+> for blockdev file cache page, because it usually has __GFP_MOVABLE but
+> not __GFP_HIGHMEM and __GFP_USER. But, in this case, there is pros and
+> cons. In my experience, blockdev file cache pages are one of the top
+> reason that causes cma_alloc() to fail temporarily. So, we can get more
+> guarantee of cma_alloc() success by discarding that case.
+> 
+> Implementation itself is very easy to understand. Steal when cma area is
+> initialized and recalculate various per zone stat/threshold.
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  include/linux/memory_hotplug.h |  3 ---
+>  mm/cma.c                       | 41 +++++++++++++++++++++++++++++++++++++++++
+>  mm/internal.h                  |  3 +++
+>  mm/page_alloc.c                | 26 ++++++++++++++++++++++++--
+>  4 files changed, 68 insertions(+), 5 deletions(-)
+> 
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index a864d79..6fde69b 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -198,9 +198,6 @@ void put_online_mems(void);
+>  void mem_hotplug_begin(void);
+>  void mem_hotplug_done(void);
+>  
+> -extern void set_zone_contiguous(struct zone *zone);
+> -extern void clear_zone_contiguous(struct zone *zone);
 > -
-> -	shrink_node(zone->zone_pgdat, sc, classzone_idx);
-> -
-> -	/* TODO: ANOMALY */
-> -	clear_bit(PGDAT_WRITEBACK, &pgdat->flags);
-> +	shrink_node(pgdat, sc, classzone_idx);
-> 
->  	/*
-> -	 * If a zone reaches its high watermark, consider it to be no longer
-> -	 * congested. It's possible there are dirty pages backed by congested
-> -	 * BDIs but as pressure is relieved, speculatively avoid congestion
-> -	 * waits.
-> +	 * Fragmentation may mean that the system cannot be rebalanced for
-> +	 * high-order allocations. If twice the allocation size has been
-> +	 * reclaimed then recheck watermarks only at order-0 to prevent
-> +	 * excessive reclaim. Assume that a process requested a high-order
-> +	 * can direct reclaim/compact.
->  	 */
-> -	if (pgdat_reclaimable(zone->zone_pgdat) &&
-> -	    zone_balanced(zone, sc->order, false, 0, classzone_idx)) {
-> -		clear_bit(PGDAT_CONGESTED, &pgdat->flags);
-> -		clear_bit(PGDAT_DIRTY, &pgdat->flags);
-> -	}
-> +	if (sc->order && sc->nr_reclaimed >= 2UL << sc->order)
-> +		sc->order = 0;
-> 
-
-Reclaim order is changed here.
-Btw, I find no such change in current code.
-
->  	return sc->nr_scanned >= sc->nr_to_reclaim;
->  }
-> 
+>  #else /* ! CONFIG_MEMORY_HOTPLUG */
 >  /*
-> - * For kswapd, balance_pgdat() will work across all this node's zones until
-> - * they are all at high_wmark_pages(zone).
-> - *
-> - * Returns the highest zone idx kswapd was reclaiming at
-> + * For kswapd, balance_pgdat() will reclaim pages across a node from zones
-> + * that are eligible for use by the caller until at least one zone is
-> + * balanced.
->   *
-> - * There is special handling here for zones which are full of pinned pages.
-> - * This can happen if the pages are all mlocked, or if they are all used by
-> - * device drivers (say, ZONE_DMA).  Or if they are all in use by hugetlb.
-> - * What we do is to detect the case where all pages in the zone have been
-> - * scanned twice and there has been zero successful reclaim.  Mark the zone as
-> - * dead and from now on, only perform a short scan.  Basically we're polling
-> - * the zone for when the problem goes away.
-> + * Returns the order kswapd finished reclaiming at.
->   *
->   * kswapd scans the zones in the highmem->normal->dma direction.  It skips
->   * zones which have free_pages > high_wmark_pages(zone), but once a zone is
-> - * found to have free_pages <= high_wmark_pages(zone), we scan that zone and the
-> - * lower zones regardless of the number of free pages in the lower zones. This
-> - * interoperates with the page allocator fallback scheme to ensure that aging
-> - * of pages is balanced across the zones.
-> + * found to have free_pages <= high_wmark_pages(zone), any page is that zone
-> + * or lower is eligible for reclaim until at least one usable zone is
-> + * balanced.
->   */
->  static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+>   * Stub functions for when hotplug is off
+> diff --git a/mm/cma.c b/mm/cma.c
+> index ea506eb..8684f50 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -38,6 +38,7 @@
+>  #include <trace/events/cma.h>
+>  
+>  #include "cma.h"
+> +#include "internal.h"
+>  
+>  struct cma cma_areas[MAX_CMA_AREAS];
+>  unsigned cma_area_count;
+> @@ -145,6 +146,11 @@ err:
+>  static int __init cma_init_reserved_areas(void)
 >  {
 >  	int i;
-> -	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
->  	unsigned long nr_soft_reclaimed;
->  	unsigned long nr_soft_scanned;
 > +	struct zone *zone;
->  	struct scan_control sc = {
->  		.gfp_mask = GFP_KERNEL,
-> -		.reclaim_idx = MAX_NR_ZONES - 1,
->  		.order = order,
->  		.priority = DEF_PRIORITY,
->  		.may_writepage = !laptop_mode,
->  		.may_unmap = 1,
->  		.may_swap = 1,
-> +		.reclaim_idx = classzone_idx,
->  	};
->  	count_vm_event(PAGEOUTRUN);
-> 
-> @@ -3203,21 +3125,10 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
-> 
->  		/* Scan from the highest requested zone to dma */
->  		for (i = classzone_idx; i >= 0; i--) {
-> -			struct zone *zone = pgdat->node_zones + i;
-> -
-> +			zone = pgdat->node_zones + i;
->  			if (!populated_zone(zone))
->  				continue;
-> 
-> -			if (sc.priority != DEF_PRIORITY &&
-> -			    !pgdat_reclaimable(zone->zone_pgdat))
-> -				continue;
-> -
-> -			/*
-> -			 * Do some background aging of the anon list, to give
-> -			 * pages a chance to be referenced before reclaiming.
-> -			 */
-> -			age_active_anon(zone, &sc);
-> -
->  			/*
->  			 * If the number of buffer_heads in the machine
->  			 * exceeds the maximum allowed level and this node
-> @@ -3225,19 +3136,17 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
->  			 * it to relieve lowmem pressure.
->  			 */
->  			if (buffer_heads_over_limit && is_highmem_idx(i)) {
-> -				end_zone = i;
-> +				classzone_idx = i;
->  				break;
->  			}
-> 
-> -			if (!zone_balanced(zone, order, false, 0, 0)) {
-> -				end_zone = i;
-> +			if (!zone_balanced(zone, order, 0, 0)) {
-
-We need to sync order with the above change?
-
-> +				classzone_idx = i;
->  				break;
->  			} else {
->  				/*
-> -				 * If balanced, clear the dirty and congested
-> -				 * flags
-> -				 *
-> -				 * TODO: ANOMALY
-> +				 * If any eligible zone is balanced then the
-> +				 * node is not considered congested or dirty.
->  				 */
->  				clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
->  				clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
-> @@ -3248,51 +3157,34 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
->  			goto out;
-> 
->  		/*
-> +		 * Do some background aging of the anon list, to give
-> +		 * pages a chance to be referenced before reclaiming. All
-> +		 * pages are rotated regardless of classzone as this is
-> +		 * about consistent aging.
-> +		 */
-> +		age_active_anon(pgdat, &pgdat->node_zones[MAX_NR_ZONES - 1], &sc);
+> +	unsigned long start_pfn = UINT_MAX, end_pfn = 0;
 > +
-> +		/*
->  		 * If we're getting trouble reclaiming, start doing writepage
->  		 * even in laptop mode.
->  		 */
-> -		if (sc.priority < DEF_PRIORITY - 2)
-> +		if (sc.priority < DEF_PRIORITY - 2 || !pgdat_reclaimable(pgdat))
->  			sc.may_writepage = 1;
-> 
-> +		/* Call soft limit reclaim before calling shrink_node. */
-> +		sc.nr_scanned = 0;
-> +		nr_soft_scanned = 0;
-> +		nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone, sc.order,
-> +						sc.gfp_mask, &nr_soft_scanned);
-> +		sc.nr_reclaimed += nr_soft_reclaimed;
+> +	if (!cma_area_count)
+> +		return 0;
+>  
+>  	for (i = 0; i < cma_area_count; i++) {
+>  		int ret = cma_activate_area(&cma_areas[i]);
+> @@ -153,6 +159,41 @@ static int __init cma_init_reserved_areas(void)
+>  			return ret;
+>  	}
+>  
+> +	for (i = 0; i < cma_area_count; i++) {
+> +		if (start_pfn > cma_areas[i].base_pfn)
+> +			start_pfn = cma_areas[i].base_pfn;
+> +		if (end_pfn < cma_areas[i].base_pfn + cma_areas[i].count)
+> +			end_pfn = cma_areas[i].base_pfn + cma_areas[i].count;
+> +	}
 > +
->  		/*
-> -		 * Continue scanning in the highmem->dma direction stopping at
-> -		 * the last zone which needs scanning. This may reclaim lowmem
-> -		 * pages that are not necessary for zone balancing but it
-> -		 * preserves LRU ordering. It is assumed that the bulk of
-> -		 * allocation requests can use arbitrary zones with the
-> -		 * possible exception of big highmem:lowmem configurations.
-> +		 * There should be no need to raise the scanning priority if
-> +		 * enough pages are already being scanned that that high
-> +		 * watermark would be met at 100% efficiency.
->  		 */
-> -		for (i = end_zone; i >= 0; i--) {
-> -			struct zone *zone = pgdat->node_zones + i;
-> -
-> -			if (!populated_zone(zone))
-> -				continue;
-> -
-> -			if (sc.priority != DEF_PRIORITY &&
-> -			    !pgdat_reclaimable(zone->zone_pgdat))
-> -				continue;
-> -
-> -			sc.nr_scanned = 0;
-> -			sc.reclaim_idx = i;
-> -
-> -			nr_soft_scanned = 0;
-> -			/*
-> -			 * Call soft limit reclaim before calling shrink_zone.
-> -			 */
-> -			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
-> -							order, sc.gfp_mask,
-> -							&nr_soft_scanned);
-> -			sc.nr_reclaimed += nr_soft_reclaimed;
-> -
-> -			/*
-> -			 * There should be no need to raise the scanning
-> -			 * priority if enough pages are already being scanned
-> -			 * that that high watermark would be met at 100%
-> -			 * efficiency.
-> -			 */
-> -			if (kswapd_shrink_zone(zone, end_zone, &sc))
-> -				raise_priority = false;
-> -		}
-> +		if (kswapd_shrink_node(pgdat, classzone_idx, &sc))
-> +			raise_priority = false;
-> 
->  		/*
->  		 * If the low watermark is met there is no need for processes
-> @@ -3308,20 +3200,37 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
->  			break;
-> 
->  		/*
-> +		 * Stop reclaiming if any eligible zone is balanced and clear
-> +		 * node writeback or congested.
-> +		 */
-> +		for (i = 0; i <= classzone_idx; i++) {
-> +			zone = pgdat->node_zones + i;
-> +			if (!populated_zone(zone))
-> +				continue;
+> +	for_each_populated_zone(zone) {
+> +		if (!is_zone_cma(zone))
+> +			continue;
 > +
-> +			if (zone_balanced(zone, sc.order, 0, classzone_idx)) {
-> +				clear_bit(PGDAT_CONGESTED, &pgdat->flags);
-> +				clear_bit(PGDAT_DIRTY, &pgdat->flags);
-> +				goto out;
-> +			}
-> +		}
+> +		/* ZONE_CMA doesn't need to exceed CMA region */
+> +		zone->zone_start_pfn = max(zone->zone_start_pfn, start_pfn);
+> +		zone->spanned_pages = min(zone_end_pfn(zone), end_pfn) -
+> +					zone->zone_start_pfn;
+> +	}
 > +
-> +		/*
->  		 * Raise priority if scanning rate is too low or there was no
->  		 * progress in reclaiming pages
->  		 */
->  		if (raise_priority || !sc.nr_reclaimed)
->  			sc.priority--;
-> -	} while (sc.priority >= 1 &&
-> -			!pgdat_balanced(pgdat, order, classzone_idx));
-> +	} while (sc.priority >= 1);
-> 
->  out:
->  	/*
-> -	 * Return the highest zone idx we were reclaiming at so
-> -	 * prepare_kswapd_sleep() makes the same decisions as here.
-> +	 * Return the order kswapd stopped reclaiming at as
-> +	 * prepare_kswapd_sleep() takes it into account. If another caller
-> +	 * entered the allocator slow path while kswapd was awake, order will
-> +	 * remain at the higher level.
->  	 */
-> -	return end_zone;
-> +	return sc.order;
+> +	/*
+> +	 * Reserved pages for ZONE_CMA are now activated and this would change
+> +	 * ZONE_CMA's managed page counter and other zone's present counter.
+> +	 * We need to re-calculate various zone information that depends on
+> +	 * this initialization.
+> +	 */
+> +	build_all_zonelists(NULL, NULL);
+> +	for_each_populated_zone(zone) {
+> +		zone_pcp_update(zone);
+> +		set_zone_contiguous(zone);
+> +	}
+> +
+> +	/*
+> +	 * We need to re-init per zone wmark by calling
+> +	 * init_per_zone_wmark_min() but doesn't call here because it is
+> +	 * registered on module_init and it will be called later than us.
+> +	 */
+> +
+>  	return 0;
 >  }
+>  core_initcall(cma_init_reserved_areas);
+> diff --git a/mm/internal.h b/mm/internal.h
+> index b6ead95..4c37234 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -155,6 +155,9 @@ extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
+>  extern void prep_compound_page(struct page *page, unsigned int order);
+>  extern int user_min_free_kbytes;
+>  
+> +extern void set_zone_contiguous(struct zone *zone);
+> +extern void clear_zone_contiguous(struct zone *zone);
+> +
+>  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+>  
+>  /*
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 0197d5d..796b271 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1572,16 +1572,38 @@ void __init page_alloc_init_late(void)
+>  }
+>  
+>  #ifdef CONFIG_CMA
+> +static void __init adjust_present_page_count(struct page *page, long count)
+> +{
+> +	struct zone *zone = page_zone(page);
+> +
+> +	/* We don't need to hold a lock since it is boot-up process */
+> +	zone->present_pages += count;
+> +}
+> +
+>  /* Free whole pageblock and set its migration type to MIGRATE_CMA. */
+>  void __init init_cma_reserved_pageblock(struct page *page)
+>  {
+>  	unsigned i = pageblock_nr_pages;
+> +	unsigned long pfn = page_to_pfn(page);
+>  	struct page *p = page;
+> +	int nid = page_to_nid(page);
+> +
+> +	/*
+> +	 * ZONE_CMA will steal present pages from other zones by changing
+> +	 * page links so page_zone() is changed. Before that,
+> +	 * we need to adjust previous zone's page count first.
+> +	 */
+> +	adjust_present_page_count(page, -pageblock_nr_pages);
+>  
+>  	do {
+>  		__ClearPageReserved(p);
+>  		set_page_count(p, 0);
+> -	} while (++p, --i);
+> +
+> +		/* Steal pages from other zones */
+> +		set_page_links(p, ZONE_CMA, nid, pfn);
+> +	} while (++p, ++pfn, --i);
+> +
+> +	adjust_present_page_count(page, pageblock_nr_pages);
+>  
+>  	set_pageblock_migratetype(page, MIGRATE_CMA);
+
+The ZONE_CMA should depends on sparse_mem.
+
+Because the zone size is not fixed when init the buddy core.
+The pageblock_flags will be NULL when setup_usemap.
+>  
+> @@ -7545,7 +7567,7 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
+>  }
+>  #endif
+>  
+> -#ifdef CONFIG_MEMORY_HOTPLUG
+> +#if defined CONFIG_MEMORY_HOTPLUG || defined CONFIG_CMA
+>  /*
+>   * The zone indicated has a new number of managed_pages; batch sizes and percpu
+>   * page high values need to be recalulated.
 > 
 
 --
