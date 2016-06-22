@@ -1,66 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 41BD36B0005
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 07:17:35 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id c82so487819wme.2
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 04:17:35 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id a8si43552509wjv.84.2016.06.22.04.17.34
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 34E926B0005
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 07:23:16 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id y77so122064146qkb.2
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 04:23:16 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o188si5654179qkf.158.2016.06.22.04.23.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jun 2016 04:17:34 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id c82so212463wme.3
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 04:17:34 -0700 (PDT)
-From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: [RFC PATCH v2 3/3] mm, thp: fix comment inconsistency for swapin readahead functions
-Date: Wed, 22 Jun 2016 14:17:15 +0300
-Message-Id: <1466594235-3126-1-git-send-email-ebru.akagunduz@gmail.com>
-In-Reply-To: <1466594120-2905-1-git-send-email-ebru.akagunduz@gmail.com>
-References: <1466594120-2905-1-git-send-email-ebru.akagunduz@gmail.com>
+        Wed, 22 Jun 2016 04:23:15 -0700 (PDT)
+From: Brian Foster <bfoster@redhat.com>
+Subject: [PATCH v8 0/2] improve sync efficiency with sb inode wb list
+Date: Wed, 22 Jun 2016 07:23:11 -0400
+Message-Id: <1466594593-6757-1-git-send-email-bfoster@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, iamjoonsoo.kim@lge.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, vbabka@suse.cz, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, mhocko@suse.cz, boaz@plexistor.com, hillf.zj@alibaba-inc.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <dchinner@redhat.com>, Josef Bacik <jbacik@fb.com>, Jan Kara <jack@suse.cz>, Holger Hoffstatte <holger.hoffstaette@applied-asynchrony.com>
 
-After fixing swapin issues, comment lines stayed as in old version.
-This patch updates the comments.
+This is just a rebase to linus' latest master. I haven't heard any
+feedback on this one so Jan suggested I send to a wider audience.
 
-Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Reported-by: Hillf Danton <hillf.zj@alibaba-inc.com>
----
-Changes in v2:
- - Newly created in this version.
+Brian
 
- mm/huge_memory.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+v8:
+- Rebased to latest master.
+- Added Holger's Tested-by.
+v7: http://marc.info/?l=linux-fsdevel&m=145349651407631&w=2
+- Updated patch 1/2 commit log description to reference performance
+  impact.
+v6: http://marc.info/?l=linux-fsdevel&m=145322635828644&w=2
+- Use rcu locking instead of s_inode_list_lock spinlock in
+  wait_sb_inodes().
+- Refactor wait_sb_inodes() to keep inode on wb list.
+- Drop remaining, unnecessary lazy list removal bits and relocate inode
+  list check to clear_inode().
+- Fix up some comments, etc.
+v5: http://marc.info/?l=linux-fsdevel&m=145262374402798&w=2
+- Converted from per-bdi list to per-sb list. Also marked as RFC and
+  dropped testing/review tags.
+- Updated to use new irq-safe lock for wb list.
+- Dropped lazy list removal. Inodes are removed when the mapping is
+  cleared of the writeback tag.
+- Tweaked wait_sb_inodes() to remove deferred iput(), other cleanups.
+- Added wb list tracepoint patch.
+v4: http://marc.info/?l=linux-fsdevel&m=143511628828000&w=2
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index ff96765..5cb0fd9 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2441,8 +2441,8 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
- 		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
- 		if (ret & VM_FAULT_RETRY) {
- 			down_read(&mm->mmap_sem);
--			/* vma is no longer available, don't continue to swapin */
- 			if (hugepage_vma_revalidate(mm, address)) {
-+				/* vma is no longer available, don't continue to swapin */
- 				trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
- 				return false;
- 			}
-@@ -2512,8 +2512,8 @@ static void collapse_huge_page(struct mm_struct *mm,
- 
- 	/*
- 	 * __collapse_huge_page_swapin always returns with mmap_sem
--	 * locked.  If it fails, release mmap_sem and jump directly
--	 * out.  Continuing to collapse causes inconsistency.
-+	 * locked. If it fails, we release mmap_sem and jump out_nolock.
-+	 * Continuing to collapse causes inconsistency.
- 	 */
- 	if (!__collapse_huge_page_swapin(mm, vma, address, pmd, referenced)) {
- 		mem_cgroup_cancel_charge(new_page, memcg, true);
+Brian Foster (1):
+  wb: inode writeback list tracking tracepoints
+
+Dave Chinner (1):
+  sb: add a new writeback list for sync
+
+ fs/fs-writeback.c                | 111 ++++++++++++++++++++++++++++++---------
+ fs/inode.c                       |   2 +
+ fs/super.c                       |   2 +
+ include/linux/fs.h               |   4 ++
+ include/linux/writeback.h        |   3 ++
+ include/trace/events/writeback.h |  22 ++++++--
+ mm/page-writeback.c              |  18 +++++++
+ 7 files changed, 133 insertions(+), 29 deletions(-)
+
 -- 
-1.9.1
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
