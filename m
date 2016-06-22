@@ -1,48 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BC01F6B0005
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 17:38:50 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id a66so11131301wme.1
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 14:38:50 -0700 (PDT)
-Received: from mail-lf0-x22b.google.com (mail-lf0-x22b.google.com. [2a00:1450:4010:c07::22b])
-        by mx.google.com with ESMTPS id o83si1381621lfi.114.2016.06.22.14.38.49
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 76AD76B0253
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 17:56:19 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 143so132750036pfx.0
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 14:56:19 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id em6si2174727pac.71.2016.06.22.14.56.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jun 2016 14:38:49 -0700 (PDT)
-Received: by mail-lf0-x22b.google.com with SMTP id h129so83294307lfh.1
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 14:38:49 -0700 (PDT)
-Date: Thu, 23 Jun 2016 00:38:46 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: JITs and 52-bit VA
-Message-ID: <20160622213846.GF2045@uranus.lan>
-References: <4A8E6E6D-6CF7-4964-A62E-467AE287D415@linaro.org>
- <576AA67E.50009@codeaurora.org>
- <CALCETrWQi1n4nbk1BdEnvXy1u3-4fX7kgWn6OerqOxHM6OCgXA@mail.gmail.com>
- <20160622191843.GA2045@uranus.lan>
- <CALCETrUH0uxfASkHkVVJhuFkEXvuVXhLc-Ed=Utn9E5vzx=Vzg@mail.gmail.com>
- <20160622194425.GB2045@uranus.lan>
- <CALCETrULT6Kp_sA4+3=MgFoS0WSzfCmzPvk8dj89raqLC86XKw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrULT6Kp_sA4+3=MgFoS0WSzfCmzPvk8dj89raqLC86XKw@mail.gmail.com>
+        Wed, 22 Jun 2016 14:56:18 -0700 (PDT)
+Date: Wed, 22 Jun 2016 14:56:17 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm, compaction: abort free scanner if split fails
+Message-Id: <20160622145617.79197acff1a7e617b9d9d393@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.10.1606211820350.97086@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1606211447001.43430@chino.kir.corp.google.com>
+	<alpine.DEB.2.10.1606211820350.97086@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Christopher Covington <cov@codeaurora.org>, Maxim Kuvyrkov <maxim.kuvyrkov@linaro.org>, Linaro Dev Mailman List <linaro-dev@lists.linaro.org>, Arnd Bergmann <arnd.bergmann@linaro.org>, Mark Brown <broonie@linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dmitry Safonov <dsafonov@virtuozzo.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
 
-On Wed, Jun 22, 2016 at 01:46:18PM -0700, Andy Lutomirski wrote:
-> >>
-> >> I think we'll want this per mm.  After all, a high-VA-limit-aware bash
-> >> should be able run high-VA-unaware programs without fiddling with
-> >> cgroups.
-> >
-> > Wait. You mean to have some flag in mm struct and consider
-> > its value on mmap call?
+On Tue, 21 Jun 2016 18:22:49 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+
+> If the memory compaction free scanner cannot successfully split a free
+> page (only possible due to per-zone low watermark), terminate the free 
+> scanner rather than continuing to scan memory needlessly.  If the 
+> watermark is insufficient for a free page of order <= cc->order, then 
+> terminate the scanner since all future splits will also likely fail.
 > 
-> Exactly.
+> This prevents the compaction freeing scanner from scanning all memory on 
+> very large zones (very noticeable for zones > 128GB, for instance) when 
+> all splits will likely fail while holding zone->lock.
+> 
 
-I see. Thanks for info!
+This collides pretty heavily with Joonsoo's "mm/compaction: split
+freepages without holding the zone lock".
+
+I ended up with this, in isolate_freepages_block():
+
+		/* Found a free page, will break it into order-0 pages */
+		order = page_order(page);
+		isolated = __isolate_free_page(page, page_order(page));
+		set_page_private(page, order);
+
+		total_isolated += isolated;
+		cc->nr_freepages += isolated;
+		list_add_tail(&page->lru, freelist);
+
+		if (!strict && cc->nr_migratepages <= cc->nr_freepages) {
+			blockpfn += isolated;
+			break;
+		}
+		/* Advance to the end of split page */
+		blockpfn += isolated - 1;
+		cursor += isolated - 1;
+		continue;
+
+isolate_fail:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
