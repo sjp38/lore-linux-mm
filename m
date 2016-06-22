@@ -1,64 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 970086B0253
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 18:06:32 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id g62so133206110pfb.3
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 15:06:32 -0700 (PDT)
-Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
-        by mx.google.com with ESMTPS id b82si2109116pfb.196.2016.06.22.15.06.31
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ED1D2828E1
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 18:21:21 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id l184so43470353lfl.3
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 15:21:21 -0700 (PDT)
+Received: from radon.swed.at (b.ns.miles-group.at. [95.130.255.144])
+        by mx.google.com with ESMTPS id x80si1393931wme.118.2016.06.22.15.21.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jun 2016 15:06:31 -0700 (PDT)
-Received: by mail-pf0-x230.google.com with SMTP id c2so21518068pfa.2
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 15:06:31 -0700 (PDT)
-Date: Wed, 22 Jun 2016 15:06:29 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, compaction: abort free scanner if split fails
-In-Reply-To: <20160622145617.79197acff1a7e617b9d9d393@linux-foundation.org>
-Message-ID: <alpine.DEB.2.10.1606221502140.146497@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1606211447001.43430@chino.kir.corp.google.com> <alpine.DEB.2.10.1606211820350.97086@chino.kir.corp.google.com> <20160622145617.79197acff1a7e617b9d9d393@linux-foundation.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 22 Jun 2016 15:21:20 -0700 (PDT)
+Subject: Re: [PATCH 1/3] mm: Don't blindly assign fallback_migrate_page()
+References: <1466112375-1717-1-git-send-email-richard@nod.at>
+ <1466112375-1717-2-git-send-email-richard@nod.at>
+ <20160616161121.35ee5183b9ef9f7b7dcbc815@linux-foundation.org>
+From: Richard Weinberger <richard@nod.at>
+Message-ID: <576B0F57.3030700@nod.at>
+Date: Thu, 23 Jun 2016 00:21:11 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20160616161121.35ee5183b9ef9f7b7dcbc815@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-mtd@lists.infradead.org, hannes@cmpxchg.org, mgorman@techsingularity.net, n-horiguchi@ah.jp.nec.com, mhocko@suse.com, kirill.shutemov@linux.intel.com, hughd@google.com, vbabka@suse.cz, adrian.hunter@intel.com, dedekind1@gmail.com, hch@infradead.org, linux-fsdevel@vger.kernel.org, boris.brezillon@free-electrons.com, maxime.ripard@free-electrons.com, david@sigma-star.at, david@fromorbit.com, alex@nextthing.co, sasha.levin@oracle.com, iamjoonsoo.kim@lge.com, rvaswani@codeaurora.org, tony.luck@intel.com, shailendra.capricorn@gmail.com
 
-On Wed, 22 Jun 2016, Andrew Morton wrote:
-
-> On Tue, 21 Jun 2016 18:22:49 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+Am 17.06.2016 um 01:11 schrieb Andrew Morton:
+> On Thu, 16 Jun 2016 23:26:13 +0200 Richard Weinberger <richard@nod.at> wrote:
 > 
-> > If the memory compaction free scanner cannot successfully split a free
-> > page (only possible due to per-zone low watermark), terminate the free 
-> > scanner rather than continuing to scan memory needlessly.  If the 
-> > watermark is insufficient for a free page of order <= cc->order, then 
-> > terminate the scanner since all future splits will also likely fail.
-> > 
-> > This prevents the compaction freeing scanner from scanning all memory on 
-> > very large zones (very noticeable for zones > 128GB, for instance) when 
-> > all splits will likely fail while holding zone->lock.
-> > 
+>> While block oriented filesystems use buffer_migrate_page()
+>> as page migration function other filesystems which don't
+>> implement ->migratepage() will automatically get fallback_migrate_page()
+>> assigned. fallback_migrate_page() is not as generic as is should
+>> be. Page migration is filesystem specific and a one-fits-all function
+>> is hard to achieve. UBIFS leaned this lection the hard way.
+>> It uses various page flags and fallback_migrate_page() does not
+>> handle these flags as UBIFS expected.
+>>
+>> To make sure that no further filesystem will get confused by
+>> fallback_migrate_page() disable the automatic assignment and
+>> allow filesystems to use this function explicitly if it is
+>> really suitable.
 > 
-> This collides pretty heavily with Joonsoo's "mm/compaction: split
-> freepages without holding the zone lock".
+> hm, is there really much point in doing this?  I assume it doesn't
+> actually affect any current filesystems?
 > 
+> [2/3] is of course OK - please add it to the UBIFS tree.
 
-Sorry if it wasn't clear, but I was proposing this patch for 4.7 
-inclusion and Vlastimil agreed we should ask for that.  Joonsoo said he 
-was prepared to rebase on top of that.  Is 
-mm-compaction-split-freepages-without-holding-the-zone-lock.patch and 
-friends going into 4.7 or are we deferring this fix until 4.8?
+Pushed 2/3 and 3/3 into UBIFS next tree.
 
-compaction_alloc() iterating a 128GB zone has been benchmarked to take 
-over 400ms on some systems whereas any free page isolated and ready to be 
-split ends up failing in split_free_page() because of the low watermark 
-check and thus the iteration continues.
-
-The next time compaction occurs, the freeing scanner will likely start at 
-the end of the zone again since no success was made previously and we get 
-the same lengthy iteration until the zone is brought above the low 
-watermark.  All thp page faults can take >400ms in such a state without 
-this fix.
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
