@@ -1,132 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 05C956B0005
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 21:22:52 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id f6so79363209ith.1
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 18:22:52 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id a74si43405977pfa.164.2016.06.21.18.22.51
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D1B526B0005
+	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 21:39:38 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id g62so75931772pfb.3
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 18:39:38 -0700 (PDT)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id h82si43474872pfd.43.2016.06.21.18.39.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jun 2016 18:22:51 -0700 (PDT)
-Received: by mail-pa0-x234.google.com with SMTP id b13so11425523pat.0
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 18:22:51 -0700 (PDT)
-Date: Tue, 21 Jun 2016 18:22:49 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, compaction: abort free scanner if split fails
-In-Reply-To: <alpine.DEB.2.10.1606211447001.43430@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1606211820350.97086@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1606211447001.43430@chino.kir.corp.google.com>
+        Tue, 21 Jun 2016 18:39:38 -0700 (PDT)
+Received: by mail-pa0-x22a.google.com with SMTP id bz2so11495598pad.1
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 18:39:38 -0700 (PDT)
+Date: Tue, 21 Jun 2016 18:39:29 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v2] more mapcount page as kpage could reduce total
+ replacement times than fewer mapcount one in probability.
+In-Reply-To: <2460b794-92f0-d115-c729-bcfe33663e48@huawei.com>
+Message-ID: <alpine.LSU.2.11.1606211807330.6589@eggly.anvils>
+References: <1465955818-101898-1-git-send-email-zhouxianrong@huawei.com> <2460b794-92f0-d115-c729-bcfe33663e48@huawei.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: zhouxianrong <zhouxianrong@huawei.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, zhouchengming1@huawei.com, geliangtang@163.com, linux-kernel@vger.kernel.org, zhouxiyu@huawei.com, wanghaijun5@huawei.com
 
-If the memory compaction free scanner cannot successfully split a free
-page (only possible due to per-zone low watermark), terminate the free 
-scanner rather than continuing to scan memory needlessly.  If the 
-watermark is insufficient for a free page of order <= cc->order, then 
-terminate the scanner since all future splits will also likely fail.
+On Tue, 21 Jun 2016, zhouxianrong wrote:
 
-This prevents the compaction freeing scanner from scanning all memory on 
-very large zones (very noticeable for zones > 128GB, for instance) when 
-all splits will likely fail while holding zone->lock.
+> hey hugh:
+>     could you please give me some suggestion about this ?
 
-Cc: stable@vger.kernel.org
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- Based on Linus's tree
+I must ask you to be more patient: everyone would like me to be
+quicker, but I cannot; and this does not appear to be urgent.
 
- Suggest including in 4.7 if anybody else agrees?
+Your idea makes sense to me; but if your patch seems obvious to you,
+sorry, it isn't obvious to me.  The two pages are not symmetrical,
+the caller of try_to_merge_two_pages() thinks it knows which is which,
+swapping them around underneath it like this is not obviously correct.
 
- mm/compaction.c | 39 +++++++++++++++++++++------------------
- 1 file changed, 21 insertions(+), 18 deletions(-)
+Your patch may be fine, but I've not had time to think it through:
+will do, but not immediately.
 
-diff --git a/mm/compaction.c b/mm/compaction.c
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -441,25 +441,23 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
- 
- 		/* Found a free page, break it into order-0 pages */
- 		isolated = split_free_page(page);
-+		if (!isolated)
-+			break;
-+
- 		total_isolated += isolated;
-+		cc->nr_freepages += isolated;
- 		for (i = 0; i < isolated; i++) {
- 			list_add(&page->lru, freelist);
- 			page++;
- 		}
--
--		/* If a page was split, advance to the end of it */
--		if (isolated) {
--			cc->nr_freepages += isolated;
--			if (!strict &&
--				cc->nr_migratepages <= cc->nr_freepages) {
--				blockpfn += isolated;
--				break;
--			}
--
--			blockpfn += isolated - 1;
--			cursor += isolated - 1;
--			continue;
-+		if (!strict && cc->nr_migratepages <= cc->nr_freepages) {
-+			blockpfn += isolated;
-+			break;
- 		}
-+		/* Advance to the end of split page */
-+		blockpfn += isolated - 1;
-+		cursor += isolated - 1;
-+		continue;
- 
- isolate_fail:
- 		if (strict)
-@@ -469,6 +467,9 @@ isolate_fail:
- 
- 	}
- 
-+	if (locked)
-+		spin_unlock_irqrestore(&cc->zone->lock, flags);
-+
- 	/*
- 	 * There is a tiny chance that we have read bogus compound_order(),
- 	 * so be careful to not go outside of the pageblock.
-@@ -490,9 +491,6 @@ isolate_fail:
- 	if (strict && blockpfn < end_pfn)
- 		total_isolated = 0;
- 
--	if (locked)
--		spin_unlock_irqrestore(&cc->zone->lock, flags);
--
- 	/* Update the pageblock-skip if the whole pageblock was scanned */
- 	if (blockpfn == end_pfn)
- 		update_pageblock_skip(cc, valid_page, total_isolated, false);
-@@ -1011,6 +1009,7 @@ static void isolate_freepages(struct compact_control *cc)
- 				block_end_pfn = block_start_pfn,
- 				block_start_pfn -= pageblock_nr_pages,
- 				isolate_start_pfn = block_start_pfn) {
-+		unsigned long isolated;
- 
- 		/*
- 		 * This can iterate a massively long zone without finding any
-@@ -1035,8 +1034,12 @@ static void isolate_freepages(struct compact_control *cc)
- 			continue;
- 
- 		/* Found a block suitable for isolating free pages from. */
--		isolate_freepages_block(cc, &isolate_start_pfn,
--					block_end_pfn, freelist, false);
-+		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
-+						block_end_pfn, freelist, false);
-+		/* If isolation failed early, do not continue needlessly */
-+		if (!isolated && isolate_start_pfn < block_end_pfn &&
-+		    cc->nr_migratepages > cc->nr_freepages)
-+			break;
- 
- 		/*
- 		 * If we isolated enough freepages, or aborted due to async
+Your idea may not make so much sense to Andrea: he has been troubled
+by the difficulty in unmapping a KSM page with a very high mapcount.
+
+And you would be maximizing a buggy case, if we think of that page
+being mapped also into non-VM_MERGEABLE areas; but I think we can
+ignore that aspect, it's buggy already, and I don't think anyone
+really cares deeply about madvise(,,MADV_UNMERGEABLE) correctness
+on forked areas.  KSM was not originally written with fork in mind.
+
+I have never seen such a long title for a patch: maybe
+"[PATCH] ksm: choose the more mapped for the KSM page".
+
+> 
+> On 2016/6/15 9:56, zhouxianrong@huawei.com wrote:
+> > From: z00281421 <z00281421@notesmail.huawei.com>
+> > 
+> > more mapcount page as kpage could reduce total replacement times
+> > than fewer mapcount one when ksmd scan and replace among
+> > forked pages later.
+> > 
+> > Signed-off-by: z00281421 <z00281421@notesmail.huawei.com>
+
+And I doubt that z00281421 is your real name:
+see Documentation/SubmittingPatches.
+
+Hugh
+
+> > ---
+> >  mm/ksm.c |    8 ++++++++
+> >  1 file changed, 8 insertions(+)
+> > 
+> > diff --git a/mm/ksm.c b/mm/ksm.c
+> > index 4786b41..4d530af 100644
+> > --- a/mm/ksm.c
+> > +++ b/mm/ksm.c
+> > @@ -1094,6 +1094,14 @@ static struct page *try_to_merge_two_pages(struct
+> > rmap_item *rmap_item,
+> >  {
+> >  	int err;
+> > 
+> > +	/*
+> > +	 * select more mapcount page as kpage
+> > +	 */
+> > +	if (page_mapcount(page) < page_mapcount(tree_page)) {
+> > +		swap(page, tree_page);
+> > +		swap(rmap_item, tree_rmap_item);
+> > +	}
+> > +
+> >  	err = try_to_merge_with_ksm_page(rmap_item, page, NULL);
+> >  	if (!err) {
+> >  		err = try_to_merge_with_ksm_page(tree_rmap_item,
+> > 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
