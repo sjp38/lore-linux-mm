@@ -1,183 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DAE9D6B0005
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 02:14:01 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e189so85611928pfa.2
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 23:14:01 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id 90si44938352pfr.48.2016.06.21.23.14.00
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ABDA6B0005
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 02:34:45 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id a4so29799189lfa.1
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 23:34:44 -0700 (PDT)
+Received: from mail-lb0-f194.google.com (mail-lb0-f194.google.com. [209.85.217.194])
+        by mx.google.com with ESMTPS id 20si23995121ljj.0.2016.06.21.23.34.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jun 2016 23:14:00 -0700 (PDT)
-Date: Wed, 22 Jun 2016 08:13:56 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: divide error: 0000 [#1] SMP in task_numa_migrate -
- handle_mm_fault vanilla 4.4.6
-Message-ID: <20160622061356.GW30154@twins.programming.kicks-ass.net>
-References: <56EAF98B.50605@profihost.ag>
- <20160317184514.GA6141@kroah.com>
- <56EDD206.3070202@suse.cz>
- <56EF15BB.3080509@profihost.ag>
- <20160320214130.GB23920@kroah.com>
- <56EFD267.9070609@profihost.ag>
- <20160321133815.GA14188@kroah.com>
- <573AB3BF.3030604@profihost.ag>
- <CAPerZE_OCJGp2v8dXM=dY8oP1ydX_oB29UbzaXMHKZcrsL_iJg@mail.gmail.com>
- <CAPerZE_WLYzrALa3YOzC2+NWr--1GL9na8WLssFBNbRsXcYMiA@mail.gmail.com>
+        Tue, 21 Jun 2016 23:34:43 -0700 (PDT)
+Received: by mail-lb0-f194.google.com with SMTP id td3so3236334lbb.2
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 23:34:43 -0700 (PDT)
+Date: Wed, 22 Jun 2016 08:34:41 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 03/10] proc, oom_adj: extract oom_score_adj setting into
+ a helper
+Message-ID: <20160622063441.GA7520@dhcp22.suse.cz>
+References: <06be01d1cb9c$8f235850$ad6a08f0$@alibaba-inc.com>
+ <06bf01d1cb9f$32a49320$97edb960$@alibaba-inc.com>
+ <20160621111716.GD30848@dhcp22.suse.cz>
+ <06e801d1cc34$920d5cd0$b6281670$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPerZE_WLYzrALa3YOzC2+NWr--1GL9na8WLssFBNbRsXcYMiA@mail.gmail.com>
+In-Reply-To: <06e801d1cc34$920d5cd0$b6281670$@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Campbell Steven <casteven@gmail.com>
-Cc: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, Greg KH <greg@kroah.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-mm@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: 'Oleg Nesterov' <oleg@redhat.com>, 'linux-kernel' <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, Jun 22, 2016 at 01:19:54PM +1200, Campbell Steven wrote:
-> >>>>>>> This suggests the CONFIG_FAIR_GROUP_SCHED version of task_h_load:
-> >>>>>>>
-> >>>>>>>         update_cfs_rq_h_load(cfs_rq);
-> >>>>>>>         return div64_ul(p->se.avg.load_avg * cfs_rq->h_load,
-> >>>>>>>                         cfs_rq_load_avg(cfs_rq) + 1);
-> >>>>>>>
+On Wed 22-06-16 11:17:12, Hillf Danton wrote:
+> 
+> > > > diff --git a/fs/proc/base.c b/fs/proc/base.c
+> > > > index 968d5ea06e62..a6a8fbdd5a1b 100644
+> > > > --- a/fs/proc/base.c
+> > > > +++ b/fs/proc/base.c
+> > > > @@ -1037,7 +1037,47 @@ static ssize_t oom_adj_read(struct file *file, char __user *buf, size_t count,
+> > > >  	return simple_read_from_buffer(buf, count, ppos, buffer, len);
+> > > >  }
+> > > >
+> > > > -static DEFINE_MUTEX(oom_adj_mutex);
+> > > > +static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+> > > > +{
+> > > > +	static DEFINE_MUTEX(oom_adj_mutex);
+> > >
+> > > Writers are not excluded for readers!
+> > > Is this a hot path?
+> > 
+> > I am not sure I follow you question. This is a write path... Who would
+> > be the reader?
+> > 
+> Currently oom_adj_read() and oom_adj_write() are serialized with 
+> task->sighand->siglock, and in this work oom_adj_mutex is introduced to
+> only keep writers in hose.
 
+OK, I see your point now. I didn't bother with the serialization with
+readers because I believe it doesn't matter so much. Readers would
+have to synchronize with writers to make sure they are seeing the most
+current value otherwise you could see an outdated value anyway. It's
+not like you would see a "corrupted" value without lock.
 
----
-commit 8974189222159154c55f24ddad33e3613960521a
-Author: Peter Zijlstra <peterz@infradead.org>
-Date:   Thu Jun 16 10:50:40 2016 +0200
+The primary point of the lock is to make sure that parallel updaters
+cannot allow non-priviledged user to escape the restrictions.
 
-    sched/fair: Fix cfs_rq avg tracking underflow
-    
-    As per commit:
-    
-      b7fa30c9cc48 ("sched/fair: Fix post_init_entity_util_avg() serialization")
-    
-    > the code generated from update_cfs_rq_load_avg():
-    >
-    > 	if (atomic_long_read(&cfs_rq->removed_load_avg)) {
-    > 		s64 r = atomic_long_xchg(&cfs_rq->removed_load_avg, 0);
-    > 		sa->load_avg = max_t(long, sa->load_avg - r, 0);
-    > 		sa->load_sum = max_t(s64, sa->load_sum - r * LOAD_AVG_MAX, 0);
-    > 		removed_load = 1;
-    > 	}
-    >
-    > turns into:
-    >
-    > ffffffff81087064:       49 8b 85 98 00 00 00    mov    0x98(%r13),%rax
-    > ffffffff8108706b:       48 85 c0                test   %rax,%rax
-    > ffffffff8108706e:       74 40                   je     ffffffff810870b0 <update_blocked_averages+0xc0>
-    > ffffffff81087070:       4c 89 f8                mov    %r15,%rax
-    > ffffffff81087073:       49 87 85 98 00 00 00    xchg   %rax,0x98(%r13)
-    > ffffffff8108707a:       49 29 45 70             sub    %rax,0x70(%r13)
-    > ffffffff8108707e:       4c 89 f9                mov    %r15,%rcx
-    > ffffffff81087081:       bb 01 00 00 00          mov    $0x1,%ebx
-    > ffffffff81087086:       49 83 7d 70 00          cmpq   $0x0,0x70(%r13)
-    > ffffffff8108708b:       49 0f 49 4d 70          cmovns 0x70(%r13),%rcx
-    >
-    > Which you'll note ends up with sa->load_avg -= r in memory at
-    > ffffffff8108707a.
-    
-    So I _should_ have looked at other unserialized users of ->load_avg,
-    but alas. Luckily nikbor reported a similar /0 from task_h_load() which
-    instantly triggered recollection of this here problem.
-    
-    Aside from the intermediate value hitting memory and causing problems,
-    there's another problem: the underflow detection relies on the signed
-    bit. This reduces the effective width of the variables, IOW its
-    effectively the same as having these variables be of signed type.
-    
-    This patch changes to a different means of unsigned underflow
-    detection to not rely on the signed bit. This allows the variables to
-    use the 'full' unsigned range. And it does so with explicit LOAD -
-    STORE to ensure any intermediate value will never be visible in
-    memory, allowing these unserialized loads.
-    
-    Note: GCC generates crap code for this, might warrant a look later.
-    
-    Note2: I say 'full' above, if we end up at U*_MAX we'll still explode;
-           maybe we should do clamping on add too.
-    
-    Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-    Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-    Cc: Chris Wilson <chris@chris-wilson.co.uk>
-    Cc: Linus Torvalds <torvalds@linux-foundation.org>
-    Cc: Mike Galbraith <efault@gmx.de>
-    Cc: Peter Zijlstra <peterz@infradead.org>
-    Cc: Thomas Gleixner <tglx@linutronix.de>
-    Cc: Yuyang Du <yuyang.du@intel.com>
-    Cc: bsegall@google.com
-    Cc: kernel@kyup.com
-    Cc: morten.rasmussen@arm.com
-    Cc: pjt@google.com
-    Cc: steve.muckle@linaro.org
-    Fixes: 9d89c257dfb9 ("sched/fair: Rewrite runnable load and utilization average tracking")
-    Link: http://lkml.kernel.org/r/20160617091948.GJ30927@twins.programming.kicks-ass.net
-    Signed-off-by: Ingo Molnar <mingo@kernel.org>
+If you see any specific scenario which would suffer from the lack of
+serialization I can add the lock to readers as well.
+ 
+> Plus, oom_adj_write() and oom_badness() are currently serialized 
+> with task->alloc_lock, and they may be handled in subsequent patches.
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index a2348deab7a3..2ae68f0e3bf5 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -2904,6 +2904,23 @@ static inline void cfs_rq_util_change(struct cfs_rq *cfs_rq)
- 	}
- }
- 
-+/*
-+ * Unsigned subtract and clamp on underflow.
-+ *
-+ * Explicitly do a load-store to ensure the intermediate value never hits
-+ * memory. This allows lockless observations without ever seeing the negative
-+ * values.
-+ */
-+#define sub_positive(_ptr, _val) do {				\
-+	typeof(_ptr) ptr = (_ptr);				\
-+	typeof(*ptr) val = (_val);				\
-+	typeof(*ptr) res, var = READ_ONCE(*ptr);		\
-+	res = var - val;					\
-+	if (res > var)						\
-+		res = 0;					\
-+	WRITE_ONCE(*ptr, res);					\
-+} while (0)
-+
- /* Group cfs_rq's load_avg is used for task_h_load and update_cfs_share */
- static inline int
- update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq, bool update_freq)
-@@ -2913,15 +2930,15 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq, bool update_freq)
- 
- 	if (atomic_long_read(&cfs_rq->removed_load_avg)) {
- 		s64 r = atomic_long_xchg(&cfs_rq->removed_load_avg, 0);
--		sa->load_avg = max_t(long, sa->load_avg - r, 0);
--		sa->load_sum = max_t(s64, sa->load_sum - r * LOAD_AVG_MAX, 0);
-+		sub_positive(&sa->load_avg, r);
-+		sub_positive(&sa->load_sum, r * LOAD_AVG_MAX);
- 		removed_load = 1;
- 	}
- 
- 	if (atomic_long_read(&cfs_rq->removed_util_avg)) {
- 		long r = atomic_long_xchg(&cfs_rq->removed_util_avg, 0);
--		sa->util_avg = max_t(long, sa->util_avg - r, 0);
--		sa->util_sum = max_t(s32, sa->util_sum - r * LOAD_AVG_MAX, 0);
-+		sub_positive(&sa->util_avg, r);
-+		sub_positive(&sa->util_sum, r * LOAD_AVG_MAX);
- 		removed_util = 1;
- 	}
- 
-@@ -2994,10 +3011,10 @@ static void detach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *s
- 			  &se->avg, se->on_rq * scale_load_down(se->load.weight),
- 			  cfs_rq->curr == se, NULL);
- 
--	cfs_rq->avg.load_avg = max_t(long, cfs_rq->avg.load_avg - se->avg.load_avg, 0);
--	cfs_rq->avg.load_sum = max_t(s64,  cfs_rq->avg.load_sum - se->avg.load_sum, 0);
--	cfs_rq->avg.util_avg = max_t(long, cfs_rq->avg.util_avg - se->avg.util_avg, 0);
--	cfs_rq->avg.util_sum = max_t(s32,  cfs_rq->avg.util_sum - se->avg.util_sum, 0);
-+	sub_positive(&cfs_rq->avg.load_avg, se->avg.load_avg);
-+	sub_positive(&cfs_rq->avg.load_sum, se->avg.load_sum);
-+	sub_positive(&cfs_rq->avg.util_avg, se->avg.util_avg);
-+	sub_positive(&cfs_rq->avg.util_sum, se->avg.util_sum);
- 
- 	cfs_rq_util_change(cfs_rq);
- }
+alloc_lock is there just to make sure we see the proper mm.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
