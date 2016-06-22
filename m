@@ -1,80 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 234FC6B0005
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 05:56:03 -0400 (EDT)
-Received: by mail-lb0-f198.google.com with SMTP id na2so36963558lbb.1
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 02:56:03 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTP id l2si10795518wmd.15.2016.06.22.02.55.59
-        for <linux-mm@kvack.org>;
-        Wed, 22 Jun 2016 02:56:01 -0700 (PDT)
-Message-ID: <576A5FE4.3090108@huawei.com>
-Date: Wed, 22 Jun 2016 17:52:36 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm/huge_memory: fix the memory leak due to the race
-References: <1466517956-13875-1-git-send-email-zhongjiang@huawei.com> <20160621143701.GA6139@node.shutemov.name> <57695AEB.8030509@huawei.com> <20160621152920.GA7760@node.shutemov.name>
-In-Reply-To: <20160621152920.GA7760@node.shutemov.name>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C29786B0005
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 06:57:59 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id d132so18762658oig.0
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 03:57:59 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 194si1811022oie.137.2016.06.22.03.57.58
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 22 Jun 2016 03:57:58 -0700 (PDT)
+Subject: Re: mm, oom_reaper: How to handle race with oom_killer_disable() ?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201606220032.EGD09344.VOSQOMFJOLHtFF@I-love.SAKURA.ne.jp>
+	<20160621174617.GA27527@dhcp22.suse.cz>
+	<201606220647.GGD48936.LMtJVOOOFFQFHS@I-love.SAKURA.ne.jp>
+	<20160622064015.GB7520@dhcp22.suse.cz>
+	<20160622065016.GD7520@dhcp22.suse.cz>
+In-Reply-To: <20160622065016.GD7520@dhcp22.suse.cz>
+Message-Id: <201606221957.DBC18723.LOFQSMHVJOFFOt@I-love.SAKURA.ne.jp>
+Date: Wed, 22 Jun 2016 19:57:17 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, vdavydov@parallels.com, mgorman@techsingularity.net, hughd@google.com, riel@redhat.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On 2016/6/21 23:29, Kirill A. Shutemov wrote:
-> On Tue, Jun 21, 2016 at 11:19:07PM +0800, zhong jiang wrote:
->> On 2016/6/21 22:37, Kirill A. Shutemov wrote:
->>> On Tue, Jun 21, 2016 at 10:05:56PM +0800, zhongjiang wrote:
->>>> From: zhong jiang <zhongjiang@huawei.com>
->>>>
->>>> with great pressure, I run some test cases. As a result, I found
->>>> that the THP is not freed, it is detected by check_mm().
->>>>
->>>> BUG: Bad rss-counter state mm:ffff8827edb70000 idx:1 val:512
->>>>
->>>> Consider the following race :
->>>>
->>>> 	CPU0                               CPU1
->>>>   __handle_mm_fault()
->>>>         wp_huge_pmd()
->>>>    	    do_huge_pmd_wp_page()
->>>> 		pmdp_huge_clear_flush_notify()
->>>>                 (pmd_none = true)
->>>> 					exit_mmap()
->>>> 					   unmap_vmas()
->>>> 					     zap_pmd_range()
->>>> 						pmd_none_or_trans_huge_or_clear_bad()
->>>> 						   (result in memory leak)
->>>>                 set_pmd_at()
->>>>
->>>> because of CPU0 have allocated huge page before pmdp_huge_clear_notify,
->>>> and it make the pmd entry to be null. Therefore, The memory leak can occur.
->>>>
->>>> The patch fix the scenario that the pmd entry can lead to be null.
->>> I don't think the scenario is possible.
->>>
->>> exit_mmap() called when all mm users have gone, so no parallel threads
->>> exist.
->>>
->>  Forget  this patch.  It 's my fault , it indeed don not exist.
->>  But I  hit the following problem.  we can see the memory leak when the process exit.
->>  
->>  
->>  Any suggestion will be apprecaited.
-> Could you try this:
->
-> http://lkml.kernel.org/r/20160621150433.GA7536@node.shutemov.name
- The patch I have seen ,  but I  don not think this patch  can fix so problem . if that race occur,  pmd entry points to
- the huge page will be changed ,  and freeze_page spilt pmd will fail. subsequent vm_bug_on() will fired.
+Michal Hocko wrote:
+> On Wed 22-06-16 08:40:15, Michal Hocko wrote:
+> > On Wed 22-06-16 06:47:48, Tetsuo Handa wrote:
+> > > Michal Hocko wrote:
+> > > > On Wed 22-06-16 00:32:29, Tetsuo Handa wrote:
+> > > > > Michal Hocko wrote:
+> > > > [...]
+> > > > > > Hmm, what about the following instead. It is rather a workaround than a
+> > > > > > full flaged fix but it seems much more easier and shouldn't introduce
+> > > > > > new issues.
+> > > > > 
+> > > > > Yes, I think that will work. But I think below patch (marking signal_struct
+> > > > > to ignore TIF_MEMDIE instead of clearing TIF_MEMDIE from task_struct) on top of
+> > > > > current linux.git will implement no-lockup requirement. No race is possible unlike
+> > > > > "[PATCH 10/10] mm, oom: hide mm which is shared with kthread or global init".
+> > > > 
+> > > > Not really. Because without the exit_oom_victim from oom_reaper you have
+> > > > no guarantee that the oom_killer_disable will ever return. I have
+> > > > mentioned that in the changelog. There is simply no guarantee the oom
+> > > > victim will ever reach exit_mm->exit_oom_victim.
+> > > 
+> > > Why? Since any allocation after setting oom_killer_disabled = true will be
+> > > forced to fail, nobody will be blocked on waiting for memory allocation. Thus,
+> > > the TIF_MEMDIE tasks will eventually reach exit_mm->exit_oom_victim, won't it?
+> > 
+> > What if it gets blocked waiting for an operation which cannot make any
+> > forward progress because it cannot proceed with an allocation (e.g.
+> > an open coded allocation retry loop - not that uncommon when sending
+> > a bio)? I mean if we want to guarantee a forward progress then there has
+> > to be something to clear the flag no matter in what state the oom victim
+> > is or give up on oom_killer_disable.
 
- freeze_page()
-     try_to_unmap()
-         split_huge_pmd_address() (return fail) result in page_mapcount is not zero
- vm_bug_on()
+That sounds as if CONFIG_MMU=n kernels do OOM livelock at __mmput() regardless
+of oom_killer_disabled.
 
-               
-             
+> 
+> That being said I guess the patch to try_to_freeze_tasks after
+> oom_killer_disable should be simple enough to go for now and stable
+> trees and we can come up with something less hackish later. I do not
+> like the fact that oom_killer_disable doesn't act as a full "barrier"
+> anymore.
+> 
+> What do you think?
+
+I'm OK with calling try_to_freeze_tasks(true) again for Linux 4.6 and 4.7 kernels.
+
+But if free memory is little such that oom_killer_disable() can not expect TIF_MEMDIE
+threads to clear TIF_MEMDIE by themselves (and therefore has to depend on the OOM
+reaper to clear TIF_MEMDIE on behalf of them after the OOM reaper reaped some memory),
+subsequent operations would be as well blocked waiting for an operation which cannot
+make any forward progress because it cannot proceed with an allocation. Then,
+oom_killer_disable() returns false after some timeout (i.e. "do not try to suspend
+when the system is almost OOM") will be a safer reaction.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
