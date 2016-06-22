@@ -1,210 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6167D6B0005
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 23:25:17 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id a2so26942033lfe.0
-        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 20:25:17 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j2si41101609wjg.7.2016.06.21.20.25.15
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DAE9D6B0005
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 02:14:01 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e189so85611928pfa.2
+        for <linux-mm@kvack.org>; Tue, 21 Jun 2016 23:14:01 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id 90si44938352pfr.48.2016.06.21.23.14.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Jun 2016 20:25:16 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u5M3JdbH085481
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 23:25:14 -0400
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 23q6wcnm02-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 23:25:14 -0400
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 21 Jun 2016 23:25:13 -0400
-Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id CE7C3C90045
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 23:25:02 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by b01cxnp23033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u5M3PCQL35848314
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 03:25:12 GMT
-Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u5M3PBT1020508
-	for <linux-mm@kvack.org>; Tue, 21 Jun 2016 23:25:11 -0400
-Date: Tue, 21 Jun 2016 20:15:30 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: Boot failure on emev2/kzm9d (was: Re: [PATCH v2 11/11] mm/slab:
- lockless decision to grow cache)
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <CAMuHMdWipquaVFKYLd=2KhTx6djwH7NXpzL-RjtikCE=G8KTbA@mail.gmail.com>
- <20160614081125.GA17700@js1304-P5Q-DELUXE>
- <CAMuHMdXc=XN4z96vr_FNcUzFb0203ovHgcfD95Q5LPebr1z0ZQ@mail.gmail.com>
- <20160615022325.GA19863@js1304-P5Q-DELUXE>
- <CAMuHMdVi-F0n-GjnUqEEd58UcWxw67g8ZJO838fvo31Ttr5E1g@mail.gmail.com>
- <20160620063942.GA13747@js1304-P5Q-DELUXE>
- <20160620131254.GO3923@linux.vnet.ibm.com>
- <20160621064302.GA20635@js1304-P5Q-DELUXE>
- <20160621125406.GF3923@linux.vnet.ibm.com>
- <20160622005208.GB25106@js1304-P5Q-DELUXE>
+        Tue, 21 Jun 2016 23:14:00 -0700 (PDT)
+Date: Wed, 22 Jun 2016 08:13:56 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: divide error: 0000 [#1] SMP in task_numa_migrate -
+ handle_mm_fault vanilla 4.4.6
+Message-ID: <20160622061356.GW30154@twins.programming.kicks-ass.net>
+References: <56EAF98B.50605@profihost.ag>
+ <20160317184514.GA6141@kroah.com>
+ <56EDD206.3070202@suse.cz>
+ <56EF15BB.3080509@profihost.ag>
+ <20160320214130.GB23920@kroah.com>
+ <56EFD267.9070609@profihost.ag>
+ <20160321133815.GA14188@kroah.com>
+ <573AB3BF.3030604@profihost.ag>
+ <CAPerZE_OCJGp2v8dXM=dY8oP1ydX_oB29UbzaXMHKZcrsL_iJg@mail.gmail.com>
+ <CAPerZE_WLYzrALa3YOzC2+NWr--1GL9na8WLssFBNbRsXcYMiA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160622005208.GB25106@js1304-P5Q-DELUXE>
-Message-Id: <20160622031530.GE3923@linux.vnet.ibm.com>
+In-Reply-To: <CAPerZE_WLYzrALa3YOzC2+NWr--1GL9na8WLssFBNbRsXcYMiA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-renesas-soc@vger.kernel.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Campbell Steven <casteven@gmail.com>
+Cc: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, Greg KH <greg@kroah.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-mm@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On Wed, Jun 22, 2016 at 09:52:08AM +0900, Joonsoo Kim wrote:
-> On Tue, Jun 21, 2016 at 05:54:06AM -0700, Paul E. McKenney wrote:
-> > On Tue, Jun 21, 2016 at 03:43:02PM +0900, Joonsoo Kim wrote:
-> > > On Mon, Jun 20, 2016 at 06:12:54AM -0700, Paul E. McKenney wrote:
-> > > > On Mon, Jun 20, 2016 at 03:39:43PM +0900, Joonsoo Kim wrote:
-> > > > > CCing Paul to ask some question.
-> > > > > 
-> > > > > On Wed, Jun 15, 2016 at 10:39:47AM +0200, Geert Uytterhoeven wrote:
-> > > > > > Hi Joonsoo,
-> > > > > > 
-> > > > > > On Wed, Jun 15, 2016 at 4:23 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> > > > > > > On Tue, Jun 14, 2016 at 12:45:14PM +0200, Geert Uytterhoeven wrote:
-> > > > > > >> On Tue, Jun 14, 2016 at 10:11 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> > > > > > >> > On Tue, Jun 14, 2016 at 09:31:23AM +0200, Geert Uytterhoeven wrote:
-> > > > > > >> >> On Tue, Jun 14, 2016 at 8:24 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> > > > > > >> >> > On Mon, Jun 13, 2016 at 09:43:13PM +0200, Geert Uytterhoeven wrote:
-> > > > > > >> >> >> On Tue, Apr 12, 2016 at 6:51 AM,  <js1304@gmail.com> wrote:
-> > > > > > >> >> >> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > > > > > >> >> >> > To check whther free objects exist or not precisely, we need to grab a
-> > > > > > >> >> >> > lock.  But, accuracy isn't that important because race window would be
-> > > > > > >> >> >> > even small and if there is too much free object, cache reaper would reap
-> > > > > > >> >> >> > it.  So, this patch makes the check for free object exisistence not to
-> > > > > > >> >> >> > hold a lock.  This will reduce lock contention in heavily allocation case.
-> > > > > > 
-> > > > > > >> >> >> I've bisected a boot failure (no output at all) in v4.7-rc2 on emev2/kzm9d
-> > > > > > >> >> >> (Renesas dual Cortex A9) to this patch, which is upstream commit
-> > > > > > >> >> >> 801faf0db8947e01877920e848a4d338dd7a99e7.
-> > > > > > 
-> > > > > > > It's curious that synchronize_sched() has some effect in this early
-> > > > > > > phase. In synchronize_sched(), rcu_blocking_is_gp() is called and
-> > > > > > > it checks num_online_cpus <= 1. If so, synchronize_sched() does nothing.
-> > > > > > >
-> > > > > > > It would be related to might_sleep() in rcu_blocking_is_gp() but I'm not sure now.
-> > > > > > >
-> > > > > > > First, I'd like to confirm that num_online_cpus() is correct.
-> > > > > > > Could you try following patch and give me a dmesg?
-> > > > > > >
-> > > > > > > Thanks.
-> > > > > > >
-> > > > > > > ------->8----------
-> > > > > > > diff --git a/mm/slab.c b/mm/slab.c
-> > > > > > > index 763096a..5b7300a 100644
-> > > > > > > --- a/mm/slab.c
-> > > > > > > +++ b/mm/slab.c
-> > > > > > > @@ -964,8 +964,10 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
-> > > > > > >          * guaranteed to be valid until irq is re-enabled, because it will be
-> > > > > > >          * freed after synchronize_sched().
-> > > > > > >          */
-> > > > > > > -       if (force_change)
-> > > > > > > -               synchronize_sched();
-> > > > > > > +       if (force_change) {
-> > > > > > > +               WARN_ON_ONCE(num_online_cpus() <= 1);
-> > > > > > > +               WARN_ON_ONCE(num_online_cpus() > 1);
-> > > > > > > +       }
-> > > > > > 
-> > > > > > Full dmesg output below.
-> > > > > > 
-> > > > > > I also tested whether it's the call to synchronize_sched() before or after
-> > > > > > secondary CPU bringup that hangs.
-> > > > > > 
-> > > > > >         if (force_change && num_online_cpus() <= 1)
-> > > > > >                 synchronize_sched();
-> > > > > > 
-> > > > > > boots.
-> > > > > > 
-> > > > > >         if (force_change && num_online_cpus() > 1)
-> > > > > >                 synchronize_sched();
-> > > > > > 
-> > > > > > hangs.
-> > > > > 
-> > > > > Hello, Paul.
-> > > > > 
-> > > > > I changed slab.c to use synchronize_sched() for full memory barrier. First
-> > > > > call happens on kmem_cache_init_late() and it would not be a problem
-> > > > > because, at this time, num_online_cpus() <= 1 and synchronize_sched()
-> > > > > would return immediately. Second call site would be shmem_init()
-> > > > > and it seems that system hangs on it. Since smp is already initialized
-> > > > > at that time, there would be some effect of synchronize_sched() but I
-> > > > > can't imagine what's wrong here. Is it invalid moment to call
-> > > > > synchronize_sched()?
-> > > > > 
-> > > > > Note that my x86 virtual machine works fine even if
-> > > > > synchronize_sched() is called in shmem_init() but Geert's some ARM
-> > > > > machines (not all ARM machine) don't work well with it.
-> > > > 
-> > > > Color me confused.
-> > > > 
-> > > > Is Geert's ARM system somehow adding the second CPU before
-> > > > rcu_spawn_gp_kthread() is called, that is, before or during
-> > > > early_initcall() time?
-> > > 
-> > > Hang would happen on shmem_init() which is called in do_basic_setup().
-> > > do_basic_setup() is called after early_initcall().
-> > 
-> > Thank you for the info!
-> > 
-> > That should be lat enough that the RCU kthreads are alive and well.
-> > 
-> > Can you get sysalt-t output?
-> > 
-> > > Hmm... Is it okay to call synchronize_sched() by kernel thread?
-> > 
-> > Yes, it can, in fact, rcutorture does this all the time.  As do any
-> > number of other kthreads.
-> 
-> Paul, thanks for confirmation.
-> 
-> Geert, we need to try more debugging.
-> 
-> Could you try below patch to check who causes the hang?
+On Wed, Jun 22, 2016 at 01:19:54PM +1200, Campbell Steven wrote:
+> >>>>>>> This suggests the CONFIG_FAIR_GROUP_SCHED version of task_h_load:
+> >>>>>>>
+> >>>>>>>         update_cfs_rq_h_load(cfs_rq);
+> >>>>>>>         return div64_ul(p->se.avg.load_avg * cfs_rq->h_load,
+> >>>>>>>                         cfs_rq_load_avg(cfs_rq) + 1);
+> >>>>>>>
 
-Nice!  That might be quite valuable!
 
-> And, if sysalt-t works when hang, could you get sysalt-t output? I haven't
-> used it before but Paul could find some culprit on it. :)
+---
+commit 8974189222159154c55f24ddad33e3613960521a
+Author: Peter Zijlstra <peterz@infradead.org>
+Date:   Thu Jun 16 10:50:40 2016 +0200
 
-And the other thing to do is to read the last portion of
-Documentation/RCU/stallwarn.txt, the part starting with
-"What Causes RCU CPU Stall Warnings?".  I would expect any
-of these things to also result in an RCU CPU stall warning,
-but perhaps something is preventing them from being printed.
-Short summary:  If a CPU gets stuck badly enough, RCU grace
-periods won't end and therefore synchronize_sched() won't
-ever return.
+    sched/fair: Fix cfs_rq avg tracking underflow
+    
+    As per commit:
+    
+      b7fa30c9cc48 ("sched/fair: Fix post_init_entity_util_avg() serialization")
+    
+    > the code generated from update_cfs_rq_load_avg():
+    >
+    > 	if (atomic_long_read(&cfs_rq->removed_load_avg)) {
+    > 		s64 r = atomic_long_xchg(&cfs_rq->removed_load_avg, 0);
+    > 		sa->load_avg = max_t(long, sa->load_avg - r, 0);
+    > 		sa->load_sum = max_t(s64, sa->load_sum - r * LOAD_AVG_MAX, 0);
+    > 		removed_load = 1;
+    > 	}
+    >
+    > turns into:
+    >
+    > ffffffff81087064:       49 8b 85 98 00 00 00    mov    0x98(%r13),%rax
+    > ffffffff8108706b:       48 85 c0                test   %rax,%rax
+    > ffffffff8108706e:       74 40                   je     ffffffff810870b0 <update_blocked_averages+0xc0>
+    > ffffffff81087070:       4c 89 f8                mov    %r15,%rax
+    > ffffffff81087073:       49 87 85 98 00 00 00    xchg   %rax,0x98(%r13)
+    > ffffffff8108707a:       49 29 45 70             sub    %rax,0x70(%r13)
+    > ffffffff8108707e:       4c 89 f9                mov    %r15,%rcx
+    > ffffffff81087081:       bb 01 00 00 00          mov    $0x1,%ebx
+    > ffffffff81087086:       49 83 7d 70 00          cmpq   $0x0,0x70(%r13)
+    > ffffffff8108708b:       49 0f 49 4d 70          cmovns 0x70(%r13),%rcx
+    >
+    > Which you'll note ends up with sa->load_avg -= r in memory at
+    > ffffffff8108707a.
+    
+    So I _should_ have looked at other unserialized users of ->load_avg,
+    but alas. Luckily nikbor reported a similar /0 from task_h_load() which
+    instantly triggered recollection of this here problem.
+    
+    Aside from the intermediate value hitting memory and causing problems,
+    there's another problem: the underflow detection relies on the signed
+    bit. This reduces the effective width of the variables, IOW its
+    effectively the same as having these variables be of signed type.
+    
+    This patch changes to a different means of unsigned underflow
+    detection to not rely on the signed bit. This allows the variables to
+    use the 'full' unsigned range. And it does so with explicit LOAD -
+    STORE to ensure any intermediate value will never be visible in
+    memory, allowing these unserialized loads.
+    
+    Note: GCC generates crap code for this, might warrant a look later.
+    
+    Note2: I say 'full' above, if we end up at U*_MAX we'll still explode;
+           maybe we should do clamping on add too.
+    
+    Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+    Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+    Cc: Chris Wilson <chris@chris-wilson.co.uk>
+    Cc: Linus Torvalds <torvalds@linux-foundation.org>
+    Cc: Mike Galbraith <efault@gmx.de>
+    Cc: Peter Zijlstra <peterz@infradead.org>
+    Cc: Thomas Gleixner <tglx@linutronix.de>
+    Cc: Yuyang Du <yuyang.du@intel.com>
+    Cc: bsegall@google.com
+    Cc: kernel@kyup.com
+    Cc: morten.rasmussen@arm.com
+    Cc: pjt@google.com
+    Cc: steve.muckle@linaro.org
+    Fixes: 9d89c257dfb9 ("sched/fair: Rewrite runnable load and utilization average tracking")
+    Link: http://lkml.kernel.org/r/20160617091948.GJ30927@twins.programming.kicks-ass.net
+    Signed-off-by: Ingo Molnar <mingo@kernel.org>
 
-							Thanx, Paul
-
-> Thanks.
-> 
-> 
-> ----->8-----
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 763096a..9652d38 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -964,8 +964,13 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
->          * guaranteed to be valid until irq is re-enabled, because it will be
->          * freed after synchronize_sched().
->          */
-> -       if (force_change)
-> +       if (force_change) {
-> +               if (num_online_cpus() > 1)
-> +                       dump_stack();
->                 synchronize_sched();
-> +               if (num_online_cpus() > 1)
-> +                       dump_stack();
-> +       }
-> 
->  fail:
->         kfree(old_shared);
-> 
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index a2348deab7a3..2ae68f0e3bf5 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -2904,6 +2904,23 @@ static inline void cfs_rq_util_change(struct cfs_rq *cfs_rq)
+ 	}
+ }
+ 
++/*
++ * Unsigned subtract and clamp on underflow.
++ *
++ * Explicitly do a load-store to ensure the intermediate value never hits
++ * memory. This allows lockless observations without ever seeing the negative
++ * values.
++ */
++#define sub_positive(_ptr, _val) do {				\
++	typeof(_ptr) ptr = (_ptr);				\
++	typeof(*ptr) val = (_val);				\
++	typeof(*ptr) res, var = READ_ONCE(*ptr);		\
++	res = var - val;					\
++	if (res > var)						\
++		res = 0;					\
++	WRITE_ONCE(*ptr, res);					\
++} while (0)
++
+ /* Group cfs_rq's load_avg is used for task_h_load and update_cfs_share */
+ static inline int
+ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq, bool update_freq)
+@@ -2913,15 +2930,15 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq, bool update_freq)
+ 
+ 	if (atomic_long_read(&cfs_rq->removed_load_avg)) {
+ 		s64 r = atomic_long_xchg(&cfs_rq->removed_load_avg, 0);
+-		sa->load_avg = max_t(long, sa->load_avg - r, 0);
+-		sa->load_sum = max_t(s64, sa->load_sum - r * LOAD_AVG_MAX, 0);
++		sub_positive(&sa->load_avg, r);
++		sub_positive(&sa->load_sum, r * LOAD_AVG_MAX);
+ 		removed_load = 1;
+ 	}
+ 
+ 	if (atomic_long_read(&cfs_rq->removed_util_avg)) {
+ 		long r = atomic_long_xchg(&cfs_rq->removed_util_avg, 0);
+-		sa->util_avg = max_t(long, sa->util_avg - r, 0);
+-		sa->util_sum = max_t(s32, sa->util_sum - r * LOAD_AVG_MAX, 0);
++		sub_positive(&sa->util_avg, r);
++		sub_positive(&sa->util_sum, r * LOAD_AVG_MAX);
+ 		removed_util = 1;
+ 	}
+ 
+@@ -2994,10 +3011,10 @@ static void detach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *s
+ 			  &se->avg, se->on_rq * scale_load_down(se->load.weight),
+ 			  cfs_rq->curr == se, NULL);
+ 
+-	cfs_rq->avg.load_avg = max_t(long, cfs_rq->avg.load_avg - se->avg.load_avg, 0);
+-	cfs_rq->avg.load_sum = max_t(s64,  cfs_rq->avg.load_sum - se->avg.load_sum, 0);
+-	cfs_rq->avg.util_avg = max_t(long, cfs_rq->avg.util_avg - se->avg.util_avg, 0);
+-	cfs_rq->avg.util_sum = max_t(s32,  cfs_rq->avg.util_sum - se->avg.util_sum, 0);
++	sub_positive(&cfs_rq->avg.load_avg, se->avg.load_avg);
++	sub_positive(&cfs_rq->avg.load_sum, se->avg.load_sum);
++	sub_positive(&cfs_rq->avg.util_avg, se->avg.util_avg);
++	sub_positive(&cfs_rq->avg.util_sum, se->avg.util_sum);
+ 
+ 	cfs_rq_util_change(cfs_rq);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
