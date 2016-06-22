@@ -1,222 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 201416B0005
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 14:23:01 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id f126so8671439wma.3
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 11:23:01 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id k135si62435wmg.61.2016.06.22.11.22.59
+Received: from mail-lb0-f198.google.com (mail-lb0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FD956B0005
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 15:09:08 -0400 (EDT)
+Received: by mail-lb0-f198.google.com with SMTP id c1so46935432lbw.0
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 12:09:08 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p4si1122814wjz.184.2016.06.22.12.09.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jun 2016 11:23:00 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH] mm: fix vm-scalability regression in cgroup-aware workingset code
-Date: Wed, 22 Jun 2016 14:20:19 -0400
-Message-Id: <20160622182019.24064-1-hannes@cmpxchg.org>
+        Wed, 22 Jun 2016 12:09:06 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u5MJ8TxI109287
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 15:09:05 -0400
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com [129.33.205.209])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 23q6wdkc69-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 15:09:05 -0400
+Received: from localhost
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 22 Jun 2016 15:09:04 -0400
+Received: from b01cxnp22033.gho.pok.ibm.com (b01cxnp22033.gho.pok.ibm.com [9.57.198.23])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id F06536E8045
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 15:08:37 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp22033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u5MJ8t2i48300174
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 19:08:55 GMT
+Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u5MJ8tI6021130
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 15:08:55 -0400
+Date: Wed, 22 Jun 2016 12:08:59 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: Boot failure on emev2/kzm9d (was: Re: [PATCH v2 11/11] mm/slab:
+ lockless decision to grow cache)
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20160614081125.GA17700@js1304-P5Q-DELUXE>
+ <CAMuHMdXc=XN4z96vr_FNcUzFb0203ovHgcfD95Q5LPebr1z0ZQ@mail.gmail.com>
+ <20160615022325.GA19863@js1304-P5Q-DELUXE>
+ <CAMuHMdVi-F0n-GjnUqEEd58UcWxw67g8ZJO838fvo31Ttr5E1g@mail.gmail.com>
+ <20160620063942.GA13747@js1304-P5Q-DELUXE>
+ <20160620131254.GO3923@linux.vnet.ibm.com>
+ <20160621064302.GA20635@js1304-P5Q-DELUXE>
+ <20160621125406.GF3923@linux.vnet.ibm.com>
+ <20160622005208.GB25106@js1304-P5Q-DELUXE>
+ <CAMuHMdW-wSxASozhmPh0b+9UJFFVbYHqTqH5e9P1oO7T59YE7g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAMuHMdW-wSxASozhmPh0b+9UJFFVbYHqTqH5e9P1oO7T59YE7g@mail.gmail.com>
+Message-Id: <20160622190859.GA1473@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ye Xiaolong <xiaolong.ye@intel.com>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-renesas-soc@vger.kernel.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-23047a96d7cf ("mm: workingset: per-cgroup cache thrash detection")
-added a page->mem_cgroup lookup to the cache eviction, refault, and
-activation paths, as well as locking to the activation path, and the
-vm-scalability tests showed a regression of -23%. While the test in
-question is an artificial worst-case scenario that doesn't occur in
-real workloads - reading two sparse files in parallel at full CPU
-speed just to hammer the LRU paths - there is still some optimizations
-that can be done in those paths.
+On Wed, Jun 22, 2016 at 05:01:35PM +0200, Geert Uytterhoeven wrote:
+> On Wed, Jun 22, 2016 at 2:52 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> > Could you try below patch to check who causes the hang?
+> >
+> > And, if sysalt-t works when hang, could you get sysalt-t output? I haven't
+> > used it before but Paul could find some culprit on it. :)
+> >
+> > Thanks.
+> >
+> >
+> > ----->8-----
+> > diff --git a/mm/slab.c b/mm/slab.c
+> > index 763096a..9652d38 100644
+> > --- a/mm/slab.c
+> > +++ b/mm/slab.c
+> > @@ -964,8 +964,13 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
+> >          * guaranteed to be valid until irq is re-enabled, because it will be
+> >          * freed after synchronize_sched().
+> >          */
+> > -       if (force_change)
+> > +       if (force_change) {
+> > +               if (num_online_cpus() > 1)
+> > +                       dump_stack();
+> >                 synchronize_sched();
+> > +               if (num_online_cpus() > 1)
+> > +                       dump_stack();
+> > +       }
+> 
+> I've only added the first one, as I would never see the second one. All of
+> this happens before the serial console is activated, earlycon is not supported,
+> and I only have remote access.
+> 
+> Brought up 2 CPUs
+> SMP: Total of 2 processors activated (2132.00 BogoMIPS).
+> CPU: All CPU(s) started in SVC mode.
+> CPU: 0 PID: 1 Comm: swapper/0 Not tainted
+> 4.7.0-rc4-kzm9d-00404-g4a235e6dde4404dd-dirty #89
+> Hardware name: Generic Emma Mobile EV2 (Flattened Device Tree)
+> [<c010de68>] (unwind_backtrace) from [<c010a658>] (show_stack+0x10/0x14)
+> [<c010a658>] (show_stack) from [<c02b5cf8>] (dump_stack+0x7c/0x9c)
+> [<c02b5cf8>] (dump_stack) from [<c01cfa4c>] (setup_kmem_cache_node+0x140/0x170)
+> [<c01cfa4c>] (setup_kmem_cache_node) from [<c01cfe3c>]
+> (__do_tune_cpucache+0xf4/0x114)
+> [<c01cfe3c>] (__do_tune_cpucache) from [<c01cff54>] (enable_cpucache+0xf8/0x148)
+> [<c01cff54>] (enable_cpucache) from [<c01d0190>]
+> (__kmem_cache_create+0x1a8/0x1d0)
+> [<c01d0190>] (__kmem_cache_create) from [<c01b32d0>]
+> (kmem_cache_create+0xbc/0x190)
+> [<c01b32d0>] (kmem_cache_create) from [<c070d968>] (shmem_init+0x34/0xb0)
+> [<c070d968>] (shmem_init) from [<c0700cc8>] (kernel_init_freeable+0x98/0x1ec)
+> [<c0700cc8>] (kernel_init_freeable) from [<c049fdbc>] (kernel_init+0x8/0x110)
+> [<c049fdbc>] (kernel_init) from [<c0106cb8>] (ret_from_fork+0x14/0x3c)
+> devtmpfs: initialized
 
-Inline the lookup functions to eliminate calls. Also, page->mem_cgroup
-doesn't need to be stabilized when counting an activation; we merely
-need to hold the RCU lock to prevent the memcg from being freed.
+I don't see anything here that would prevent grace periods from completing.
 
-This cuts down on overhead quite a bit:
+The CPUs are using the normal hotplug sequence to come online, correct?
 
-23047a96d7cfcfca 063f6715e77a7be5770d6081fe
----------------- --------------------------
-         %stddev     %change         %stddev
-             \          |                \
-  21621405 A+-  0%     +11.3%   24069657 A+-  2%  vm-scalability.throughput
-
-Reported-by: Ye Xiaolong <xiaolong.ye@intel.com>
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/memcontrol.h | 39 ++++++++++++++++++++++++++++++++++++++-
- include/linux/mm.h         |  8 ++++++++
- mm/memcontrol.c            | 39 ---------------------------------------
- mm/workingset.c            | 10 ++++++----
- 4 files changed, 52 insertions(+), 44 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index a221663687d5..16609ab1a032 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -310,7 +310,44 @@ void mem_cgroup_uncharge_list(struct list_head *page_list);
- 
- void mem_cgroup_migrate(struct page *oldpage, struct page *newpage);
- 
--struct lruvec *mem_cgroup_lruvec(struct pglist_data *, struct mem_cgroup *);
-+static inline struct mem_cgroup_per_node *
-+mem_cgroup_nodeinfo(struct mem_cgroup *memcg, int nid)
-+{
-+	return memcg->nodeinfo[nid];
-+}
-+
-+/**
-+ * mem_cgroup_lruvec - get the lru list vector for a memcg node
-+ * @node: node of the wanted lruvec
-+ * @memcg: memcg of the wanted lruvec
-+ *
-+ * Returns the lru list vector holding pages for a given @node and @memcg.
-+ * This can be the node lruvec, if the memory controller is disabled.
-+ */
-+static inline struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,
-+					       struct mem_cgroup *memcg)
-+{
-+	struct mem_cgroup_per_node *mz;
-+	struct lruvec *lruvec;
-+
-+	if (mem_cgroup_disabled()) {
-+		lruvec = node_lruvec(pgdat);
-+		goto out;
-+	}
-+
-+	mz = mem_cgroup_nodeinfo(memcg, pgdat->node_id);
-+	lruvec = &mz->lruvec;
-+out:
-+	/*
-+	 * Since a node can be onlined after the mem_cgroup was created,
-+	 * we have to be prepared to initialize lruvec->zone here;
-+	 * and if offlined then reonlined, we need to reinitialize it.
-+	 */
-+	if (unlikely(lruvec->pgdat != pgdat))
-+		lruvec->pgdat = pgdat;
-+	return lruvec;
-+}
-+
- struct lruvec *mem_cgroup_page_lruvec(struct page *, struct pglist_data *);
- 
- bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 14de8810d02e..0f7a4d89b52a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -978,11 +978,19 @@ static inline struct mem_cgroup *page_memcg(struct page *page)
- {
- 	return page->mem_cgroup;
- }
-+static inline struct mem_cgroup *page_memcg_rcu(struct page *page)
-+{
-+	return READ_ONCE(page->mem_cgroup);
-+}
- #else
- static inline struct mem_cgroup *page_memcg(struct page *page)
- {
- 	return NULL;
- }
-+static inline struct mem_cgroup *page_memcg_rcu(struct page *page)
-+{
-+	return NULL;
-+}
- #endif
- 
- /*
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2b6574a13d0e..603e9b030e46 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -319,12 +319,6 @@ EXPORT_SYMBOL(memcg_kmem_enabled_key);
- 
- #endif /* !CONFIG_SLOB */
- 
--static struct mem_cgroup_per_node *
--mem_cgroup_nodeinfo(struct mem_cgroup *memcg, int nid)
--{
--	return memcg->nodeinfo[nid];
--}
--
- /**
-  * mem_cgroup_css_from_page - css of the memcg associated with a page
-  * @page: page of interest
-@@ -927,39 +921,6 @@ static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
- 	     iter = mem_cgroup_iter(NULL, iter, NULL))
- 
- /**
-- * mem_cgroup_lruvec - get the lru list vector for a node or a memcg zone
-- * @node: node of the wanted lruvec
-- * @memcg: memcg of the wanted lruvec
-- *
-- * Returns the lru list vector holding pages for a given @node or a given
-- * @memcg and @zone. This can be the node lruvec, if the memory controller
-- * is disabled.
-- */
--struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,
--				 struct mem_cgroup *memcg)
--{
--	struct mem_cgroup_per_node *mz;
--	struct lruvec *lruvec;
--
--	if (mem_cgroup_disabled()) {
--		lruvec = node_lruvec(pgdat);
--		goto out;
--	}
--
--	mz = mem_cgroup_nodeinfo(memcg, pgdat->node_id);
--	lruvec = &mz->lruvec;
--out:
--	/*
--	 * Since a node can be onlined after the mem_cgroup was created,
--	 * we have to be prepared to initialize lruvec->zone here;
--	 * and if offlined then reonlined, we need to reinitialize it.
--	 */
--	if (unlikely(lruvec->pgdat != pgdat))
--		lruvec->pgdat = pgdat;
--	return lruvec;
--}
--
--/**
-  * mem_cgroup_page_lruvec - return lruvec for isolating/putting an LRU page
-  * @page: the page
-  * @zone: zone of the page
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 236493eaf480..d4c864066fde 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -302,9 +302,10 @@ bool workingset_refault(void *shadow)
-  */
- void workingset_activation(struct page *page)
- {
-+	struct mem_cgroup *memcg;
- 	struct lruvec *lruvec;
- 
--	lock_page_memcg(page);
-+	rcu_read_lock();
- 	/*
- 	 * Filter non-memcg pages here, e.g. unmap can call
- 	 * mark_page_accessed() on VDSO pages.
-@@ -312,12 +313,13 @@ void workingset_activation(struct page *page)
- 	 * XXX: See workingset_refault() - this should return
- 	 * root_mem_cgroup even for !CONFIG_MEMCG.
- 	 */
--	if (!mem_cgroup_disabled() && !page_memcg(page))
-+	memcg = page_memcg_rcu(page);
-+	if (!mem_cgroup_disabled() && !memcg)
- 		goto out;
--	lruvec = mem_cgroup_lruvec(page_pgdat(page), page_memcg(page));
-+	lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
- 	atomic_long_inc(&lruvec->inactive_age);
- out:
--	unlock_page_memcg(page);
-+	rcu_read_unlock();
- }
- 
- /*
--- 
-2.8.3
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
