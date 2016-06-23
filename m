@@ -1,114 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E4FA96B025E
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 09:37:08 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ao6so142745883pac.2
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 06:37:08 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id 21si188278pfp.63.2016.06.23.06.37.06
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B95DC828E1
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 09:51:14 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id f126so24550410wma.3
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 06:51:14 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id s67si6663586wmd.21.2016.06.23.06.51.13
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Jun 2016 06:37:08 -0700 (PDT)
-From: <zhouxianrong@huawei.com>
-Subject: [PATCH] ksm: set anon_vma of first rmap_item of ksm page to page's anon_vma other than vma's anon_vma
-Date: Thu, 23 Jun 2016 21:33:54 +0800
-Message-ID: <1466688834-127613-1-git-send-email-zhouxianrong@huawei.com>
+        Thu, 23 Jun 2016 06:51:13 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id A958A98BBD
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 13:51:12 +0000 (UTC)
+Date: Thu, 23 Jun 2016 14:51:11 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [RFC, DEBUGGING 1/2] mm: pass NR_FILE_PAGES/NR_SHMEM into
+ node_page_state
+Message-ID: <20160623135111.GX1868@techsingularity.net>
+References: <20160623100518.156662-1-arnd@arndb.de>
+ <20160623104124.GR1868@techsingularity.net>
+ <3817461.6pThRKgN9N@wuerfel>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <3817461.6pThRKgN9N@wuerfel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, zhouchengming1@huawei.com, geliangtang@163.com, zhouxianrong@huawei.com, linux-kernel@vger.kernel.org, zhouxiyu@huawei.com, wanghaijun5@huawei.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: z00281421 <z00281421@notesmail.huawei.com>
+On Thu, Jun 23, 2016 at 03:17:43PM +0200, Arnd Bergmann wrote:
+> > I have an alternative fix for this in a private tree. For now, I've asked
+> > Andrew to withdraw the series entirely as there are non-trivial collisions
+> > with OOM detection rework and huge page support for tmpfs.  It'll be easier
+> > and safer to resolve this outside of mmotm as it'll require a full round
+> > of testing which takes 3-4 days.
+> 
+> Ok. I've done a new version of my debug patch now, will follow up here
+> so you can do some testing on top of that as well if you like. We probably
+> don't want to apply my patch for the type checking, but you might find it
+> useful for your own testing.
+> 
 
-set anon_vma of first rmap_item of ksm page to page's anon_vma
-other than vma's anon_vma so that we can lookup all the forked
-vma of kpage via reserve map. thus we can try_to_unmap ksm page
-completely and reclaim or migrate the ksm page successfully and
-need not to merg other forked vma addresses of ksm page with
-building a rmap_item for it ever after.
+It is useful. After fixing up a bunch of problems manually, it
+identified two more errors. I probably won't merge it but I'll hang on
+to it during development.
 
-a forked more mapcount ksm page with partially merged vma addresses and
-a ksm page mapped into non-VM_MERGEABLE vma due to setting MADV_MERGEABLE
-on one of the forked vma can be unmapped completely by try_to_unmap.
+Thanks!
 
-Signed-off-by: z00281421 <z00281421@notesmail.huawei.com>
----
- mm/ksm.c |   19 ++++++++++++++++---
- 1 file changed, 16 insertions(+), 3 deletions(-)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 4786b41..6bacc08 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -971,11 +971,13 @@ out:
-  * @page: the PageAnon page that we want to replace with kpage
-  * @kpage: the PageKsm page that we want to map instead of page,
-  *         or NULL the first time when we want to use page as kpage.
-+ * @anon_vma: output the anon_vma of page used as kpage
-  *
-  * This function returns 0 if the pages were merged, -EFAULT otherwise.
-  */
- static int try_to_merge_one_page(struct vm_area_struct *vma,
--				 struct page *page, struct page *kpage)
-+				 struct page *page, struct page *kpage,
-+				 struct anon_vma **anon_vma)
- {
- 	pte_t orig_pte = __pte(0);
- 	int err = -EFAULT;
-@@ -1015,6 +1017,8 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
- 			 * PageAnon+anon_vma to PageKsm+NULL stable_node:
- 			 * stable_tree_insert() will update stable_node.
- 			 */
-+			if (anon_vma != NULL)
-+				*anon_vma = page_anon_vma(page);
- 			set_page_stable_node(page, NULL);
- 			mark_page_accessed(page);
- 			/*
-@@ -1055,6 +1059,7 @@ static int try_to_merge_with_ksm_page(struct rmap_item *rmap_item,
- {
- 	struct mm_struct *mm = rmap_item->mm;
- 	struct vm_area_struct *vma;
-+	struct anon_vma *anon_vma = NULL;
- 	int err = -EFAULT;
- 
- 	down_read(&mm->mmap_sem);
-@@ -1062,7 +1067,7 @@ static int try_to_merge_with_ksm_page(struct rmap_item *rmap_item,
- 	if (!vma)
- 		goto out;
- 
--	err = try_to_merge_one_page(vma, page, kpage);
-+	err = try_to_merge_one_page(vma, page, kpage, &anon_vma);
- 	if (err)
- 		goto out;
- 
-@@ -1070,7 +1075,10 @@ static int try_to_merge_with_ksm_page(struct rmap_item *rmap_item,
- 	remove_rmap_item_from_tree(rmap_item);
- 
- 	/* Must get reference to anon_vma while still holding mmap_sem */
--	rmap_item->anon_vma = vma->anon_vma;
-+	if (anon_vma != NULL)
-+		rmap_item->anon_vma = anon_vma;
-+	else
-+		rmap_item->anon_vma = vma->anon_vma;
- 	get_anon_vma(vma->anon_vma);
- out:
- 	up_read(&mm->mmap_sem);
-@@ -1435,6 +1443,11 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
- 
- 	remove_rmap_item_from_tree(rmap_item);
- 
-+	if (kpage == page) {
-+		put_page(kpage);
-+		return;
-+	}
-+
- 	if (kpage) {
- 		err = try_to_merge_with_ksm_page(rmap_item, page, kpage);
- 		if (!err) {
 -- 
-1.7.9.5
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
