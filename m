@@ -1,68 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C926828E1
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 05:34:14 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f126so20009300wma.3
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 02:34:14 -0700 (PDT)
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
-        by mx.google.com with ESMTPS id pn5si958021wjb.19.2016.06.23.02.34.13
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jun 2016 02:34:13 -0700 (PDT)
-Received: by mail-wm0-f47.google.com with SMTP id f126so118992452wma.1
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 02:34:13 -0700 (PDT)
-Date: Thu, 23 Jun 2016 11:34:11 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: A question about the patch(commit :c777e2a8b654 powerpc/mm: Fix
- Multi hit ERAT cause by recent THP update)
-Message-ID: <20160623093411.GB30077@dhcp22.suse.cz>
-References: <576AA934.4090504@huawei.com>
- <20160623092946.GA30082@dhcp22.suse.cz>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 10B66828E1
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 05:59:57 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e189so162138364pfa.2
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 02:59:57 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a8si6039024pfj.35.2016.06.23.02.59.56
+        for <linux-mm@kvack.org>;
+        Thu, 23 Jun 2016 02:59:56 -0700 (PDT)
+Date: Thu, 23 Jun 2016 10:59:51 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] mm: prevent KASAN false positives in kmemleak
+Message-ID: <20160623095951.GH6521@e104818-lin.cambridge.arm.com>
+References: <1466617631-68387-1-git-send-email-dvyukov@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160623092946.GA30082@dhcp22.suse.cz>
+In-Reply-To: <1466617631-68387-1-git-send-email-dvyukov@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: aneesh.kumar@linux.vnet.ibm.com, Linux Memory Management List <linux-mm@kvack.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, ryabinin.a.a@gmail.com, kasan-dev@googlegroups.com, glider@google.com
 
-On Thu 23-06-16 11:29:46, Michal Hocko wrote:
-> On Wed 22-06-16 23:05:24, zhong jiang wrote:
-> > Hi  Aneesh
-> > 
-> >                 CPU0                            CPU1
-> >     shrink_page_list()
-> >       add_to_swap()
-> >         split_huge_page_to_list()
-> >           __split_huge_pmd_locked()
-> >             pmdp_huge_clear_flush_notify()
-> >         // pmd_none() == true
-> >                                         exit_mmap()
-> >                                           unmap_vmas()
-> >                                             zap_pmd_range()
-> >                                               // no action on pmd since pmd_none() == true
-> >         pmd_populate()
-> > 
-> > 
-> > the mm should be the last user  when CPU1 process is exiting,  CPU0 must be a own mm .
-> > two different process  should not be influenced each other.  in a words , they should not
-> > have race.
+On Wed, Jun 22, 2016 at 07:47:11PM +0200, Dmitry Vyukov wrote:
+> When kmemleak dumps contents of leaked objects it reads whole
+> objects regardless of user-requested size. This upsets KASAN.
+> Disable KASAN checks around object dump.
 > 
-> No this is a different scenario than
-> http://lkml.kernel.org/r/1466517956-13875-1-git-send-email-zhongjiang@huawei.com
-> we were discussing recently. Note that pages are still on the LRU lists
-> while the mm which maps them is exiting. So the above race is very much
-> possible.
+> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+> ---
+>  mm/kmemleak.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+> index e642992..04320d3 100644
+> --- a/mm/kmemleak.c
+> +++ b/mm/kmemleak.c
+> @@ -307,8 +307,10 @@ static void hex_dump_object(struct seq_file *seq,
+>  	len = min_t(size_t, object->size, HEX_MAX_LINES * HEX_ROW_SIZE);
+>  
+>  	seq_printf(seq, "  hex dump (first %zu bytes):\n", len);
+> +	kasan_disable_current();
+>  	seq_hex_dump(seq, "    ", DUMP_PREFIX_NONE, HEX_ROW_SIZE,
+>  		     HEX_GROUP_SIZE, ptr, len, HEX_ASCII);
+> +	kasan_enable_current();
+>  }
 
-And just to clarify, I haven't checked the current code after c777e2a8b654
-("powerpc/mm: Fix Multi hit ERAT cause by recent THP update") which is
-ppc specific and I have no idea whether other arches need a similar
-treatment. I was merely trying to explain that the mm exclusive argument
-doesn't apply to reclaim vs. exit races.
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
