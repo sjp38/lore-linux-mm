@@ -1,49 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f199.google.com (mail-lb0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B5127828E1
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 06:26:51 -0400 (EDT)
-Received: by mail-lb0-f199.google.com with SMTP id c1so56156627lbw.0
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 03:26:51 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id j10si6401784wjz.100.2016.06.23.03.26.50
+Received: from mail-lb0-f197.google.com (mail-lb0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BAB7828E1
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 06:41:28 -0400 (EDT)
+Received: by mail-lb0-f197.google.com with SMTP id js8so55594213lbc.2
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 03:41:28 -0700 (PDT)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id l4si6504842wjt.26.2016.06.23.03.41.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jun 2016 03:26:50 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id E72D61C1963
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 11:26:49 +0100 (IST)
-Date: Thu, 23 Jun 2016 11:26:48 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 23 Jun 2016 03:41:27 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 0EE2B98BD8
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 10:41:26 +0000 (UTC)
+Date: Thu, 23 Jun 2016 11:41:24 +0100
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 00/27] Move LRU page reclaim from zones to nodes v7
-Message-ID: <20160623102648.GP1868@techsingularity.net>
-References: <1466518566-30034-1-git-send-email-mgorman@techsingularity.net>
+Subject: Re: [RFC, DEBUGGING 1/2] mm: pass NR_FILE_PAGES/NR_SHMEM into
+ node_page_state
+Message-ID: <20160623104124.GR1868@techsingularity.net>
+References: <20160623100518.156662-1-arnd@arndb.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1466518566-30034-1-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <20160623100518.156662-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
-Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jun 21, 2016 at 03:15:39PM +0100, Mel Gorman wrote:
-> The bulk of the updates are in response to review from Vlastimil Babka
-> and received a lot more testing than v6.
+On Thu, Jun 23, 2016 at 12:05:17PM +0200, Arnd Bergmann wrote:
+> I see some new warnings from a recent mm change:
+> 
+> mm/filemap.c: In function '__delete_from_page_cache':
+> include/linux/vmstat.h:116:2: error: array subscript is above array bounds [-Werror=array-bounds]
+>   atomic_long_add(x, &zone->vm_stat[item]);
+>   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> include/linux/vmstat.h:116:35: error: array subscript is above array bounds [-Werror=array-bounds]
+>   atomic_long_add(x, &zone->vm_stat[item]);
+>                       ~~~~~~~~~~~~~^~~~~~
+> include/linux/vmstat.h:116:35: error: array subscript is above array bounds [-Werror=array-bounds]
+> include/linux/vmstat.h:117:2: error: array subscript is above array bounds [-Werror=array-bounds]
+> 
+> Looking deeper into it, I find that we pass the wrong enum
+> into some functions after the type for the symbol has changed.
+> 
+> This changes the code to use the other function for those that
+> are using the incorrect type. I've done this blindly just going
+> by warnings I got from a debug patch I did for this, so it's likely
+> that some cases are more subtle and need another change, so please
+> treat this as a bug-report rather than a patch for applying.
 > 
 
-Hi Andrew,
-
-Please drop these patches again from mmotm.
-
-There has been a number of odd conflicts resulting in at least one major
-bug where a node-counter is used on a zone that will result in random
-behaviour. Some of the additional feedback is non-trivial and all of it
-will need to be resolved against the OOM detection rework and the huge
-tmpfs implementation.
-
-It'll take time to resolve this and I don't want to leave mmotm in a
-broken state in the meantime. I have a copy of mmots so I have the conflict
-resolutions you already applied.
+I have an alternative fix for this in a private tree. For now, I've asked
+Andrew to withdraw the series entirely as there are non-trivial collisions
+with OOM detection rework and huge page support for tmpfs.  It'll be easier
+and safer to resolve this outside of mmotm as it'll require a full round
+of testing which takes 3-4 days.
 
 Thanks.
 
