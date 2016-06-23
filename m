@@ -1,52 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 10B66828E1
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 05:59:57 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e189so162138364pfa.2
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 02:59:57 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id a8si6039024pfj.35.2016.06.23.02.59.56
-        for <linux-mm@kvack.org>;
-        Thu, 23 Jun 2016 02:59:56 -0700 (PDT)
-Date: Thu, 23 Jun 2016 10:59:51 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] mm: prevent KASAN false positives in kmemleak
-Message-ID: <20160623095951.GH6521@e104818-lin.cambridge.arm.com>
-References: <1466617631-68387-1-git-send-email-dvyukov@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1466617631-68387-1-git-send-email-dvyukov@google.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0070D828E1
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 06:03:20 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id c82so20441853wme.2
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 03:03:19 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
+        by mx.google.com with ESMTPS id n10si6280353wjm.77.2016.06.23.03.03.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Jun 2016 03:03:18 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [RFC, DEBUGGING 1/2] mm: pass NR_FILE_PAGES/NR_SHMEM into node_page_state
+Date: Thu, 23 Jun 2016 12:05:17 +0200
+Message-Id: <20160623100518.156662-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, ryabinin.a.a@gmail.com, kasan-dev@googlegroups.com, glider@google.com
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>
 
-On Wed, Jun 22, 2016 at 07:47:11PM +0200, Dmitry Vyukov wrote:
-> When kmemleak dumps contents of leaked objects it reads whole
-> objects regardless of user-requested size. This upsets KASAN.
-> Disable KASAN checks around object dump.
-> 
-> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-> ---
->  mm/kmemleak.c | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> index e642992..04320d3 100644
-> --- a/mm/kmemleak.c
-> +++ b/mm/kmemleak.c
-> @@ -307,8 +307,10 @@ static void hex_dump_object(struct seq_file *seq,
->  	len = min_t(size_t, object->size, HEX_MAX_LINES * HEX_ROW_SIZE);
->  
->  	seq_printf(seq, "  hex dump (first %zu bytes):\n", len);
-> +	kasan_disable_current();
->  	seq_hex_dump(seq, "    ", DUMP_PREFIX_NONE, HEX_ROW_SIZE,
->  		     HEX_GROUP_SIZE, ptr, len, HEX_ASCII);
-> +	kasan_enable_current();
->  }
+I see some new warnings from a recent mm change:
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+mm/filemap.c: In function '__delete_from_page_cache':
+include/linux/vmstat.h:116:2: error: array subscript is above array bounds [-Werror=array-bounds]
+  atomic_long_add(x, &zone->vm_stat[item]);
+  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+include/linux/vmstat.h:116:35: error: array subscript is above array bounds [-Werror=array-bounds]
+  atomic_long_add(x, &zone->vm_stat[item]);
+                      ~~~~~~~~~~~~~^~~~~~
+include/linux/vmstat.h:116:35: error: array subscript is above array bounds [-Werror=array-bounds]
+include/linux/vmstat.h:117:2: error: array subscript is above array bounds [-Werror=array-bounds]
+
+Looking deeper into it, I find that we pass the wrong enum
+into some functions after the type for the symbol has changed.
+
+This changes the code to use the other function for those that
+are using the incorrect type. I've done this blindly just going
+by warnings I got from a debug patch I did for this, so it's likely
+that some cases are more subtle and need another change, so please
+treat this as a bug-report rather than a patch for applying.
+
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Fixes: e426f7b4ade5 ("mm: move most file-based accounting to the node")
+---
+ mm/filemap.c    |  4 ++--
+ mm/page_alloc.c | 15 ++++++++-------
+ mm/rmap.c       |  4 ++--
+ mm/shmem.c      |  4 ++--
+ mm/vmscan.c     |  2 +-
+ 5 files changed, 15 insertions(+), 14 deletions(-)
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 6cb19e012887..77e902bf04f4 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -218,9 +218,9 @@ void __delete_from_page_cache(struct page *page, void *shadow)
+ 
+ 	/* hugetlb pages do not participate in page cache accounting. */
+ 	if (!PageHuge(page))
+-		__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, -nr);
++		__mod_node_page_state(page_zone(page)->zone_pgdat, NR_FILE_PAGES, -nr);
+ 	if (PageSwapBacked(page)) {
+-		__mod_zone_page_state(page_zone(page), NR_SHMEM, -nr);
++		__mod_node_page_state(page_zone(page)->zone_pgdat, NR_SHMEM, -nr);
+ 		if (PageTransHuge(page))
+ 			__dec_zone_page_state(page, NR_SHMEM_THPS);
+ 	} else {
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 23b5044f5ced..d5287011ed27 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3484,9 +3484,10 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+ 				unsigned long writeback;
+ 				unsigned long dirty;
+ 
+-				writeback = zone_page_state_snapshot(zone,
++				writeback = node_page_state_snapshot(zone->zone_pgdat,
+ 								     NR_WRITEBACK);
+-				dirty = zone_page_state_snapshot(zone, NR_FILE_DIRTY);
++				dirty = node_page_state_snapshot(zone->zone_pgdat,
++								 NR_FILE_DIRTY);
+ 
+ 				if (2*(writeback + dirty) > reclaimable) {
+ 					congestion_wait(BLK_RW_ASYNC, HZ/10);
+@@ -4396,9 +4397,9 @@ void show_free_areas(unsigned int filter)
+ 			K(zone->present_pages),
+ 			K(zone->managed_pages),
+ 			K(zone_page_state(zone, NR_MLOCK)),
+-			K(zone_page_state(zone, NR_FILE_DIRTY)),
+-			K(zone_page_state(zone, NR_WRITEBACK)),
+-			K(zone_page_state(zone, NR_SHMEM)),
++			K(node_page_state(zone->zone_pgdat, NR_FILE_DIRTY)),
++			K(node_page_state(zone, NR_WRITEBACK)),
++			K(node_page_state(zone, NR_SHMEM)),
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 			K(zone_page_state(zone, NR_SHMEM_THPS) * HPAGE_PMD_NR),
+ 			K(zone_page_state(zone, NR_SHMEM_PMDMAPPED)
+@@ -4410,12 +4411,12 @@ void show_free_areas(unsigned int filter)
+ 			zone_page_state(zone, NR_KERNEL_STACK) *
+ 				THREAD_SIZE / 1024,
+ 			K(zone_page_state(zone, NR_PAGETABLE)),
+-			K(zone_page_state(zone, NR_UNSTABLE_NFS)),
++			K(node_page_state(zone, NR_UNSTABLE_NFS)),
+ 			K(zone_page_state(zone, NR_BOUNCE)),
+ 			K(free_pcp),
+ 			K(this_cpu_read(zone->pageset->pcp.count)),
+ 			K(zone_page_state(zone, NR_FREE_CMA_PAGES)),
+-			K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
++			K(node_page_state(zone, NR_WRITEBACK_TEMP)),
+ 			K(node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED)));
+ 		printk("lowmem_reserve[]:");
+ 		for (i = 0; i < MAX_NR_ZONES; i++)
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 4deff963ea8a..898b2b7806ca 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1296,7 +1296,7 @@ void page_add_file_rmap(struct page *page, bool compound)
+ 		if (!atomic_inc_and_test(&page->_mapcount))
+ 			goto out;
+ 	}
+-	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, nr);
++	__mod_node_page_state(page_zone(page)->zone_pgdat, NR_FILE_MAPPED, nr);
+ 	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+ out:
+ 	unlock_page_memcg(page);
+@@ -1336,7 +1336,7 @@ static void page_remove_file_rmap(struct page *page, bool compound)
+ 	 * these counters are not modified in interrupt context, and
+ 	 * pte lock(a spinlock) is held, which implies preemption disabled.
+ 	 */
+-	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, -nr);
++	__mod_node_page_state(page_zone(page)->zone_pgdat, NR_FILE_MAPPED, -nr);
+ 	mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+ 
+ 	if (unlikely(PageMlocked(page)))
+diff --git a/mm/shmem.c b/mm/shmem.c
+index e5c50fb0d4a4..99dcb8e5642d 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -576,8 +576,8 @@ static int shmem_add_to_page_cache(struct page *page,
+ 		mapping->nrpages += nr;
+ 		if (PageTransHuge(page))
+ 			__inc_zone_page_state(page, NR_SHMEM_THPS);
+-		__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, nr);
+-		__mod_zone_page_state(page_zone(page), NR_SHMEM, nr);
++		__mod_node_page_state(page_zone(page)->zone_pgdat, NR_FILE_PAGES, nr);
++		__mod_node_page_state(page_zone(page)->zone_pgdat, NR_SHMEM, nr);
+ 		spin_unlock_irq(&mapping->tree_lock);
+ 	} else {
+ 		page->mapping = NULL;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 07e17dac1793..4702069cc80b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2079,7 +2079,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 		int z;
+ 		unsigned long total_high_wmark = 0;
+ 
+-		pgdatfree = sum_zone_node_page_state(pgdat->node_id, NR_FREE_PAGES);
++		pgdatfree = global_page_state(NR_FREE_PAGES);
+ 		pgdatfile = node_page_state(pgdat, NR_ACTIVE_FILE) +
+ 			   node_page_state(pgdat, NR_INACTIVE_FILE);
+ 
+-- 
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
