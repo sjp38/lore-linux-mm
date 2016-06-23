@@ -1,257 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 78CD86B0253
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 22:50:03 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id u81so57451597oia.3
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 19:50:03 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id x58si3506004otd.145.2016.06.22.19.50.01
-        for <linux-mm@kvack.org>;
-        Wed, 22 Jun 2016 19:50:02 -0700 (PDT)
-Date: Thu, 23 Jun 2016 11:52:38 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 3/6] mm/cma: populate ZONE_CMA
-Message-ID: <20160623025238.GB30438@js1304-P5Q-DELUXE>
-References: <1464243748-16367-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1464243748-16367-4-git-send-email-iamjoonsoo.kim@lge.com>
- <576A58FA.8040101@hisilicon.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F378B6B0253
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 22:53:36 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 143so145982716pfx.0
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 19:53:36 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id vx8si3723833pac.107.2016.06.22.19.53.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Jun 2016 19:53:36 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u5N2mOwj128258
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 22:53:35 -0400
+Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 23q1qpkxb9-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 22:53:35 -0400
+Received: from localhost
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 22 Jun 2016 22:53:34 -0400
+Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com [9.57.198.24])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 5F7B938C8046
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 22:53:31 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp22034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u5N2rVEc60358878
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 02:53:31 GMT
+Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u5N2rURw018051
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 22:53:31 -0400
+Date: Wed, 22 Jun 2016 19:53:29 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: Boot failure on emev2/kzm9d (was: Re: [PATCH v2 11/11] mm/slab:
+ lockless decision to grow cache)
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20160620063942.GA13747@js1304-P5Q-DELUXE>
+ <20160620131254.GO3923@linux.vnet.ibm.com>
+ <20160621064302.GA20635@js1304-P5Q-DELUXE>
+ <20160621125406.GF3923@linux.vnet.ibm.com>
+ <20160622005208.GB25106@js1304-P5Q-DELUXE>
+ <CAMuHMdW-wSxASozhmPh0b+9UJFFVbYHqTqH5e9P1oO7T59YE7g@mail.gmail.com>
+ <20160622190859.GA1473@linux.vnet.ibm.com>
+ <20160623004935.GA20752@linux.vnet.ibm.com>
+ <20160623023756.GA30438@js1304-P5Q-DELUXE>
+ <20160623024742.GD1473@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <576A58FA.8040101@hisilicon.com>
+In-Reply-To: <20160623024742.GD1473@linux.vnet.ibm.com>
+Message-Id: <20160623025329.GA13095@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Feng <puck.chen@hisilicon.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Rui Teng <rui.teng@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "fujun (F)" <oliver.fu@hisilicon.com>, Zhuangluan Su <suzhuangluan@hisilicon.com>, Yiping Xu <xuyiping@hisilicon.com>, Dan Zhao <dan.zhao@hisilicon.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-renesas-soc@vger.kernel.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Wed, Jun 22, 2016 at 05:23:06PM +0800, Chen Feng wrote:
-> Hello,
+On Wed, Jun 22, 2016 at 07:47:42PM -0700, Paul E. McKenney wrote:
+> On Thu, Jun 23, 2016 at 11:37:56AM +0900, Joonsoo Kim wrote:
+> > On Wed, Jun 22, 2016 at 05:49:35PM -0700, Paul E. McKenney wrote:
+> > > On Wed, Jun 22, 2016 at 12:08:59PM -0700, Paul E. McKenney wrote:
+> > > > On Wed, Jun 22, 2016 at 05:01:35PM +0200, Geert Uytterhoeven wrote:
+> > > > > On Wed, Jun 22, 2016 at 2:52 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> > > > > > Could you try below patch to check who causes the hang?
+> > > > > >
+> > > > > > And, if sysalt-t works when hang, could you get sysalt-t output? I haven't
+> > > > > > used it before but Paul could find some culprit on it. :)
+> > > > > >
+> > > > > > Thanks.
+> > > > > >
+> > > > > >
+> > > > > > ----->8-----
+> > > > > > diff --git a/mm/slab.c b/mm/slab.c
+> > > > > > index 763096a..9652d38 100644
+> > > > > > --- a/mm/slab.c
+> > > > > > +++ b/mm/slab.c
+> > > > > > @@ -964,8 +964,13 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
+> > > > > >          * guaranteed to be valid until irq is re-enabled, because it will be
+> > > > > >          * freed after synchronize_sched().
+> > > > > >          */
+> > > > > > -       if (force_change)
+> > > > > > +       if (force_change) {
+> > > > > > +               if (num_online_cpus() > 1)
+> > > > > > +                       dump_stack();
+> > > > > >                 synchronize_sched();
+> > > > > > +               if (num_online_cpus() > 1)
+> > > > > > +                       dump_stack();
+> > > > > > +       }
+> > > > > 
+> > > > > I've only added the first one, as I would never see the second one. All of
+> > > > > this happens before the serial console is activated, earlycon is not supported,
+> > > > > and I only have remote access.
+> > > > > 
+> > > > > Brought up 2 CPUs
+> > > > > SMP: Total of 2 processors activated (2132.00 BogoMIPS).
+> > > > > CPU: All CPU(s) started in SVC mode.
+> > > > > CPU: 0 PID: 1 Comm: swapper/0 Not tainted
+> > > > > 4.7.0-rc4-kzm9d-00404-g4a235e6dde4404dd-dirty #89
+> > > > > Hardware name: Generic Emma Mobile EV2 (Flattened Device Tree)
+> > > > > [<c010de68>] (unwind_backtrace) from [<c010a658>] (show_stack+0x10/0x14)
+> > > > > [<c010a658>] (show_stack) from [<c02b5cf8>] (dump_stack+0x7c/0x9c)
+> > > > > [<c02b5cf8>] (dump_stack) from [<c01cfa4c>] (setup_kmem_cache_node+0x140/0x170)
+> > > > > [<c01cfa4c>] (setup_kmem_cache_node) from [<c01cfe3c>]
+> > > > > (__do_tune_cpucache+0xf4/0x114)
+> > > > > [<c01cfe3c>] (__do_tune_cpucache) from [<c01cff54>] (enable_cpucache+0xf8/0x148)
+> > > > > [<c01cff54>] (enable_cpucache) from [<c01d0190>]
+> > > > > (__kmem_cache_create+0x1a8/0x1d0)
+> > > > > [<c01d0190>] (__kmem_cache_create) from [<c01b32d0>]
+> > > > > (kmem_cache_create+0xbc/0x190)
+> > > > > [<c01b32d0>] (kmem_cache_create) from [<c070d968>] (shmem_init+0x34/0xb0)
+> > > > > [<c070d968>] (shmem_init) from [<c0700cc8>] (kernel_init_freeable+0x98/0x1ec)
+> > > > > [<c0700cc8>] (kernel_init_freeable) from [<c049fdbc>] (kernel_init+0x8/0x110)
+> > > > > [<c049fdbc>] (kernel_init) from [<c0106cb8>] (ret_from_fork+0x14/0x3c)
+> > > > > devtmpfs: initialized
+> > > > 
+> > > > I don't see anything here that would prevent grace periods from completing.
+> > > > 
+> > > > The CPUs are using the normal hotplug sequence to come online, correct?
+> > > 
+> > > And either way, could you please apply the patch below and then
+> > > invoke rcu_dump_rcu_sched_tree() just before the offending call to
+> > > synchronize_sched()?  That will tell me what CPUs RCU believes exist,
+> > > and perhaps also which CPU is holding it up.
+> > 
+> > I can't find rcu_dump_rcu_sched_tree(). Do you mean
+> > rcu_dump_rcu_node_tree()? Anyway, there is no patch below so I attach
+> > one which does what Paul want, maybe.
 > 
-> On 2016/5/26 14:22, js1304@gmail.com wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> One of those days, I guess!  :-/
+> 
+> Your patch is exactly what I intended to send, thank you!
+
+Ah, but your telepathy was not sufficient to intuit the additional
+information I need.  Please see the patch at the end.  Your hunk
+in mm/slab.c is needed on top of my patch.
+
+So I am clearly having difficulties reading as well as including patches
+today...
+
+							Thanx, Paul
+
+> > Thanks.
 > > 
-> > Until now, reserved pages for CMA are managed in the ordinary zones
-> > where page's pfn are belong to. This approach has numorous problems
-> > and fixing them isn't easy. (It is mentioned on previous patch.)
-> > To fix this situation, ZONE_CMA is introduced in previous patch, but,
-> > not yet populated. This patch implement population of ZONE_CMA
-> > by stealing reserved pages from the ordinary zones.
-> > 
-> > Unlike previous implementation that kernel allocation request with
-> > __GFP_MOVABLE could be serviced from CMA region, allocation request only
-> > with GFP_HIGHUSER_MOVABLE can be serviced from CMA region in the new
-> > approach. This is an inevitable design decision to use the zone
-> > implementation because ZONE_CMA could contain highmem. Due to this
-> > decision, ZONE_CMA will work like as ZONE_HIGHMEM or ZONE_MOVABLE.
-> > 
-> > I don't think it would be a problem because most of file cache pages
-> > and anonymous pages are requested with GFP_HIGHUSER_MOVABLE. It could
-> > be proved by the fact that there are many systems with ZONE_HIGHMEM and
-> > they work fine. Notable disadvantage is that we cannot use these pages
-> > for blockdev file cache page, because it usually has __GFP_MOVABLE but
-> > not __GFP_HIGHMEM and __GFP_USER. But, in this case, there is pros and
-> > cons. In my experience, blockdev file cache pages are one of the top
-> > reason that causes cma_alloc() to fail temporarily. So, we can get more
-> > guarantee of cma_alloc() success by discarding that case.
-> > 
-> > Implementation itself is very easy to understand. Steal when cma area is
-> > initialized and recalculate various per zone stat/threshold.
-> > 
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > ---
-> >  include/linux/memory_hotplug.h |  3 ---
-> >  mm/cma.c                       | 41 +++++++++++++++++++++++++++++++++++++++++
-> >  mm/internal.h                  |  3 +++
-> >  mm/page_alloc.c                | 26 ++++++++++++++++++++++++--
-> >  4 files changed, 68 insertions(+), 5 deletions(-)
-> > 
-> > diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> > index a864d79..6fde69b 100644
-> > --- a/include/linux/memory_hotplug.h
-> > +++ b/include/linux/memory_hotplug.h
-> > @@ -198,9 +198,6 @@ void put_online_mems(void);
-> >  void mem_hotplug_begin(void);
-> >  void mem_hotplug_done(void);
-> >  
-> > -extern void set_zone_contiguous(struct zone *zone);
-> > -extern void clear_zone_contiguous(struct zone *zone);
-> > -
-> >  #else /* ! CONFIG_MEMORY_HOTPLUG */
-> >  /*
-> >   * Stub functions for when hotplug is off
-> > diff --git a/mm/cma.c b/mm/cma.c
-> > index ea506eb..8684f50 100644
-> > --- a/mm/cma.c
-> > +++ b/mm/cma.c
-> > @@ -38,6 +38,7 @@
-> >  #include <trace/events/cma.h>
-> >  
-> >  #include "cma.h"
-> > +#include "internal.h"
-> >  
-> >  struct cma cma_areas[MAX_CMA_AREAS];
-> >  unsigned cma_area_count;
-> > @@ -145,6 +146,11 @@ err:
-> >  static int __init cma_init_reserved_areas(void)
+> > ------->8---------
+> > diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+> > index 88d3f95..6b650f0 100644
+> > --- a/kernel/rcu/tree.c
+> > +++ b/kernel/rcu/tree.c
+> > @@ -4171,7 +4171,7 @@ static void __init rcu_init_geometry(void)
+> >   * Dump out the structure of the rcu_node combining tree associated
+> >   * with the rcu_state structure referenced by rsp.
+> >   */
+> > -static void __init rcu_dump_rcu_node_tree(struct rcu_state *rsp)
+> > +static void rcu_dump_rcu_node_tree(struct rcu_state *rsp)
 > >  {
-> >  	int i;
-> > +	struct zone *zone;
-> > +	unsigned long start_pfn = UINT_MAX, end_pfn = 0;
-> > +
-> > +	if (!cma_area_count)
-> > +		return 0;
-> >  
-> >  	for (i = 0; i < cma_area_count; i++) {
-> >  		int ret = cma_activate_area(&cma_areas[i]);
-> > @@ -153,6 +159,41 @@ static int __init cma_init_reserved_areas(void)
-> >  			return ret;
-> >  	}
-> >  
-> > +	for (i = 0; i < cma_area_count; i++) {
-> > +		if (start_pfn > cma_areas[i].base_pfn)
-> > +			start_pfn = cma_areas[i].base_pfn;
-> > +		if (end_pfn < cma_areas[i].base_pfn + cma_areas[i].count)
-> > +			end_pfn = cma_areas[i].base_pfn + cma_areas[i].count;
-> > +	}
-> > +
-> > +	for_each_populated_zone(zone) {
-> > +		if (!is_zone_cma(zone))
-> > +			continue;
-> > +
-> > +		/* ZONE_CMA doesn't need to exceed CMA region */
-> > +		zone->zone_start_pfn = max(zone->zone_start_pfn, start_pfn);
-> > +		zone->spanned_pages = min(zone_end_pfn(zone), end_pfn) -
-> > +					zone->zone_start_pfn;
-> > +	}
-> > +
-> > +	/*
-> > +	 * Reserved pages for ZONE_CMA are now activated and this would change
-> > +	 * ZONE_CMA's managed page counter and other zone's present counter.
-> > +	 * We need to re-calculate various zone information that depends on
-> > +	 * this initialization.
-> > +	 */
-> > +	build_all_zonelists(NULL, NULL);
-> > +	for_each_populated_zone(zone) {
-> > +		zone_pcp_update(zone);
-> > +		set_zone_contiguous(zone);
-> > +	}
-> > +
-> > +	/*
-> > +	 * We need to re-init per zone wmark by calling
-> > +	 * init_per_zone_wmark_min() but doesn't call here because it is
-> > +	 * registered on module_init and it will be called later than us.
-> > +	 */
-> > +
-> >  	return 0;
+> >         int level = 0;
+> >         struct rcu_node *rnp;
+> > @@ -4189,6 +4189,11 @@ static void __init rcu_dump_rcu_node_tree(struct rcu_state *rsp)
+> >         pr_cont("\n");
 > >  }
-> >  core_initcall(cma_init_reserved_areas);
-> > diff --git a/mm/internal.h b/mm/internal.h
-> > index b6ead95..4c37234 100644
-> > --- a/mm/internal.h
-> > +++ b/mm/internal.h
-> > @@ -155,6 +155,9 @@ extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
-> >  extern void prep_compound_page(struct page *page, unsigned int order);
-> >  extern int user_min_free_kbytes;
-> >  
-> > +extern void set_zone_contiguous(struct zone *zone);
-> > +extern void clear_zone_contiguous(struct zone *zone);
-> > +
-> >  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
-> >  
-> >  /*
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 0197d5d..796b271 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1572,16 +1572,38 @@ void __init page_alloc_init_late(void)
-> >  }
-> >  
-> >  #ifdef CONFIG_CMA
-> > +static void __init adjust_present_page_count(struct page *page, long count)
+> > 
+> > +void rcu_dump_rcu_sched_tree(void)
 > > +{
-> > +	struct zone *zone = page_zone(page);
-> > +
-> > +	/* We don't need to hold a lock since it is boot-up process */
-> > +	zone->present_pages += count;
+> > +       rcu_dump_rcu_node_tree(&rcu_sched_state);
 > > +}
 > > +
-> >  /* Free whole pageblock and set its migration type to MIGRATE_CMA. */
-> >  void __init init_cma_reserved_pageblock(struct page *page)
+> >  void __init rcu_init(void)
 > >  {
-> >  	unsigned i = pageblock_nr_pages;
-> > +	unsigned long pfn = page_to_pfn(page);
-> >  	struct page *p = page;
-> > +	int nid = page_to_nid(page);
+> >         int cpu;
+> > diff --git a/mm/slab.c b/mm/slab.c
+> > index 763096a..d88976c 100644
+> > --- a/mm/slab.c
+> > +++ b/mm/slab.c
+> > @@ -909,6 +909,8 @@ static int init_cache_node_node(int node)
+> >         return 0;
+> >  }
+> > 
+> > +extern void rcu_dump_rcu_sched_tree(void);
 > > +
-> > +	/*
-> > +	 * ZONE_CMA will steal present pages from other zones by changing
-> > +	 * page links so page_zone() is changed. Before that,
-> > +	 * we need to adjust previous zone's page count first.
-> > +	 */
-> > +	adjust_present_page_count(page, -pageblock_nr_pages);
-> >  
-> >  	do {
-> >  		__ClearPageReserved(p);
-> >  		set_page_count(p, 0);
-> > -	} while (++p, --i);
-> > +
-> > +		/* Steal pages from other zones */
-> > +		set_page_links(p, ZONE_CMA, nid, pfn);
-> > +	} while (++p, ++pfn, --i);
-> > +
-> > +	adjust_present_page_count(page, pageblock_nr_pages);
-> >  
-> >  	set_pageblock_migratetype(page, MIGRATE_CMA);
-> 
-> The ZONE_CMA should depends on sparse_mem.
-> 
-> Because the zone size is not fixed when init the buddy core.
-> The pageblock_flags will be NULL when setup_usemap.
+> >  static int setup_kmem_cache_node(struct kmem_cache *cachep,
+> >                                 int node, gfp_t gfp, bool force_change)
+> >  {
+> > @@ -964,8 +966,10 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
+> >          * guaranteed to be valid until irq is re-enabled, because it will be
+> >          * freed after synchronize_sched().
+> >          */
+> > -       if (force_change)
+> > +       if (force_change) {
+> > +               rcu_dump_rcu_sched_tree();
+> >                 synchronize_sched();
+> > +       }
+> > 
+> >  fail:
+> >         kfree(old_shared);
+> > 
 
-Before setup_usemap(), range of ZONE_CMA is set conservatively, from
-min_start_pfn of the node to max_end_pfn of the node. So,
-pageblock_flags will be allocated and assigned properly.
+------------------------------------------------------------------------
 
-Unfortunately, I found a bug for FLATMEM system. If you'd like to
-test ZONE_CMA on FLATMEM system, please apply below one.
-
-Thanks.
------------->8------------
-diff --git a/mm/cma.c b/mm/cma.c
-index 0c1a72f..6cd2973 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -168,13 +168,6 @@ static int __init cma_init_reserved_areas(void)
-                return 0;
+diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+index c7f1bc4f817c..2eda7bece401 100644
+--- a/kernel/rcu/tree.c
++++ b/kernel/rcu/tree.c
+@@ -4707,7 +4707,7 @@ static void __init rcu_init_geometry(void)
+  * Dump out the structure of the rcu_node combining tree associated
+  * with the rcu_state structure referenced by rsp.
+  */
+-static void __init rcu_dump_rcu_node_tree(struct rcu_state *rsp)
++static void rcu_dump_rcu_node_tree(struct rcu_state *rsp)
+ {
+ 	int level = 0;
+ 	struct rcu_node *rnp;
+@@ -4720,11 +4720,18 @@ static void __init rcu_dump_rcu_node_tree(struct rcu_state *rsp)
+ 			pr_info(" ");
+ 			level = rnp->level;
+ 		}
+-		pr_cont("%d:%d ^%d  ", rnp->grplo, rnp->grphi, rnp->grpnum);
++		pr_cont("%d:%d/%#lx/%#lx ^%d  ", rnp->grplo, rnp->grphi,
++			rnp->qsmask,
++			rnp->qsmaskinit | rnp->qsmaskinitnext, rnp->grpnum);
+ 	}
+ 	pr_cont("\n");
+ }
  
-        for (i = 0; i < cma_area_count; i++) {
--               int ret = cma_activate_area(&cma_areas[i]);
--
--               if (ret)
--                       return ret;
--       }
--
--       for (i = 0; i < cma_area_count; i++) {
-                if (start_pfn > cma_areas[i].base_pfn)
-                        start_pfn = cma_areas[i].base_pfn;
-                if (end_pfn < cma_areas[i].base_pfn + cma_areas[i].count)
-@@ -191,6 +184,13 @@ static int __init cma_init_reserved_areas(void)
-                                        zone->zone_start_pfn;
-        }
- 
-+       for (i = 0; i < cma_area_count; i++) {
-+               int ret = cma_activate_area(&cma_areas[i]);
++void rcu_dump_rcu_sched_tree(void)
++{
++	rcu_dump_rcu_node_tree(&rcu_sched_state);
++}
 +
-+               if (ret)
-+                       return ret;
-+       }
-+
-        /*
-         * Reserved pages for ZONE_CMA are now activated and this would change
-         * ZONE_CMA's managed page counter and other zone's present counter.
--- 
-1.9.1
-
+ void __init rcu_init(void)
+ {
+ 	int cpu;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
