@@ -1,55 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f200.google.com (mail-lb0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 03E57828E1
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 07:27:17 -0400 (EDT)
-Received: by mail-lb0-f200.google.com with SMTP id nq2so57622453lbc.3
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 04:27:16 -0700 (PDT)
-Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
-        by mx.google.com with ESMTPS id e20si5941995wma.7.2016.06.23.04.27.15
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D2E5C6B025E
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 07:31:35 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id x7so40197303vka.0
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 04:31:35 -0700 (PDT)
+Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [207.82.80.143])
+        by mx.google.com with ESMTPS id r87si3389451qki.259.2016.06.23.04.31.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jun 2016 04:27:15 -0700 (PDT)
-Received: by mail-wm0-f53.google.com with SMTP id a66so45422863wme.0
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 04:27:15 -0700 (PDT)
-Date: Thu, 23 Jun 2016 13:27:14 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 00/27] Move LRU page reclaim from zones to nodes v7
-Message-ID: <20160623112714.GF30077@dhcp22.suse.cz>
-References: <1466518566-30034-1-git-send-email-mgorman@techsingularity.net>
- <20160623102648.GP1868@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 23 Jun 2016 04:31:35 -0700 (PDT)
+From: Dennis Chen <dennis.chen@arm.com>
+Subject: [PATCH 1/2] mm: memblock Add some new functions to address the mem limit issue
+Date: Thu, 23 Jun 2016 19:30:14 +0800
+Message-ID: <1466681415-8058-1-git-send-email-dennis.chen@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160623102648.GP1868@techsingularity.net>
+Content-Type: text/plain; charset=WINDOWS-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-arm-kernel@lists.infradead.org
+Cc: nd@arm.com, Dennis Chen <dennis.chen@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Steve Capper <steve.capper@arm.com>, Ard
+ Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Matt Fleming <matt@codeblueprint.co.uk>, linux-mm@kvack.org, linux-acpi@vger.kernel.org, linux-efi@vger.kernel.org
 
-On Thu 23-06-16 11:26:48, Mel Gorman wrote:
-> On Tue, Jun 21, 2016 at 03:15:39PM +0100, Mel Gorman wrote:
-> > The bulk of the updates are in response to review from Vlastimil Babka
-> > and received a lot more testing than v6.
-> > 
-> 
-> Hi Andrew,
-> 
-> Please drop these patches again from mmotm.
-> 
-> There has been a number of odd conflicts resulting in at least one major
-> bug where a node-counter is used on a zone that will result in random
-> behaviour. Some of the additional feedback is non-trivial and all of it
-> will need to be resolved against the OOM detection rework and the huge
-> tmpfs implementation.
+Two major changes in this patch:
+[1] Add memblock_mem_limit_mark_nomap(phys_addr_t limit) function to
+mark memblock regions above the @limit as NOMAP region, which will
+be used to address the observed 'mem=3Dx' kernel parameter issue.
 
-FWIW I haven't spotted any obvious misbehaving wrt. the OOM detection
-rework. You have kept the per-zone counters which are used for the retry
-logic so I think we should be safe. I am still reading through the
-series though.
+[2] Add 'size' and 'flag' debug output in the memblock debugfs.
+The '/sys/kernel/debug/memblock/memory' output looks like before:
+   0: 0x0000008000000000..0x0000008001e7ffff
+   1: 0x0000008001e80000..0x00000083ff184fff
+   2: 0x00000083ff185000..0x00000083ff1c2fff
+   3: 0x00000083ff1c3000..0x00000083ff222fff
+   4: 0x00000083ff223000..0x00000083ffe42fff
+   5: 0x00000083ffe43000..0x00000083ffffffff
 
--- 
-Michal Hocko
-SUSE Labs
+With this patch applied:
+   0: 0x0000008000000000..0x0000008001e7ffff  0x0000000001e80000  0x4
+   1: 0x0000008001e80000..0x00000083ff184fff  0x00000003fd305000  0x0
+   2: 0x00000083ff185000..0x00000083ff1c2fff  0x000000000003e000  0x4
+   3: 0x00000083ff1c3000..0x00000083ff222fff  0x0000000000060000  0x0
+   4: 0x00000083ff223000..0x00000083ffe42fff  0x0000000000c20000  0x4
+   5: 0x00000083ffe43000..0x00000083ffffffff  0x00000000001bd000  0x0
+
+Signed-off-by: Dennis Chen <dennis.chen@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Steve Capper <steve.capper@arm.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Cc: Matt Fleming <matt@codeblueprint.co.uk>
+Cc: linux-mm@kvack.org
+Cc: linux-acpi@vger.kernel.org
+Cc: linux-efi@vger.kernel.org
+---
+ include/linux/memblock.h |  2 ++
+ mm/memblock.c            | 50 ++++++++++++++++++++++++++++++++++++++++----=
+----
+ 2 files changed, 44 insertions(+), 8 deletions(-)
+
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 6c14b61..5e069c8 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -92,6 +92,7 @@ int memblock_mark_hotplug(phys_addr_t base, phys_addr_t s=
+ize);
+ int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
+ int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
+ int memblock_mark_nomap(phys_addr_t base, phys_addr_t size);
++int memblock_clear_nomap(phys_addr_t base, phys_addr_t size);
+ ulong choose_memblock_flags(void);
+=20
+ /* Low level functions */
+@@ -332,6 +333,7 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
+ phys_addr_t memblock_start_of_DRAM(void);
+ phys_addr_t memblock_end_of_DRAM(void);
+ void memblock_enforce_memory_limit(phys_addr_t memory_limit);
++void memblock_mem_limit_mark_nomap(phys_addr_t limit);
+ bool memblock_is_memory(phys_addr_t addr);
+ int memblock_is_map_memory(phys_addr_t addr);
+ int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index ca09915..60930ac 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -814,6 +814,18 @@ int __init_memblock memblock_mark_nomap(phys_addr_t ba=
+se, phys_addr_t size)
+ }
+=20
+ /**
++ * memblock_clear_nomap - Clear flag MEMBLOCK_NOMAP for a specified region=
+.
++ * @base: the base phys addr of the region
++ * @size: the size of the region
++ *
++ * Return 0 on success, -errno on failure.
++ */
++int __init_memblock memblock_clear_nomap(phys_addr_t base, phys_addr_t siz=
+e)
++{
++=09return memblock_setclr_flag(base, size, 0, MEMBLOCK_NOMAP);
++}
++
++/**
+  * __next_reserved_mem_region - next function for for_each_reserved_region=
+()
+  * @idx: pointer to u64 loop variable
+  * @out_start: ptr to phys_addr_t for start address of the region, can be =
+%NULL
+@@ -1465,14 +1477,11 @@ phys_addr_t __init_memblock memblock_end_of_DRAM(vo=
+id)
+ =09return (memblock.memory.regions[idx].base + memblock.memory.regions[idx=
+].size);
+ }
+=20
+-void __init memblock_enforce_memory_limit(phys_addr_t limit)
++static phys_addr_t __find_max_addr(phys_addr_t limit)
+ {
+ =09phys_addr_t max_addr =3D (phys_addr_t)ULLONG_MAX;
+ =09struct memblock_region *r;
+=20
+-=09if (!limit)
+-=09=09return;
+-
+ =09/* find out max address */
+ =09for_each_memblock(memory, r) {
+ =09=09if (limit <=3D r->size) {
+@@ -1482,6 +1491,18 @@ void __init memblock_enforce_memory_limit(phys_addr_=
+t limit)
+ =09=09limit -=3D r->size;
+ =09}
+=20
++=09return max_addr;
++}
++
++void __init memblock_enforce_memory_limit(phys_addr_t limit)
++{
++=09phys_addr_t max_addr;
++
++=09if (!limit)
++=09=09return;
++
++=09max_addr =3D __find_max_addr(limit);
++
+ =09/* truncate both memory and reserved regions */
+ =09memblock_remove_range(&memblock.memory, max_addr,
+ =09=09=09      (phys_addr_t)ULLONG_MAX);
+@@ -1489,6 +1510,17 @@ void __init memblock_enforce_memory_limit(phys_addr_=
+t limit)
+ =09=09=09      (phys_addr_t)ULLONG_MAX);
+ }
+=20
++void __init memblock_mem_limit_mark_nomap(phys_addr_t limit)
++{
++=09phys_addr_t max_addr;
++
++=09if (!limit)
++=09=09return;
++
++=09max_addr =3D __find_max_addr(limit);
++=09memblock_mark_nomap(max_addr, (phys_addr_t)ULLONG_MAX);
++}
++
+ static int __init_memblock memblock_search(struct memblock_type *type, phy=
+s_addr_t addr)
+ {
+ =09unsigned int left =3D 0, right =3D type->cnt;
+@@ -1677,13 +1709,15 @@ static int memblock_debug_show(struct seq_file *m, =
+void *private)
+ =09=09reg =3D &type->regions[i];
+ =09=09seq_printf(m, "%4d: ", i);
+ =09=09if (sizeof(phys_addr_t) =3D=3D 4)
+-=09=09=09seq_printf(m, "0x%08lx..0x%08lx\n",
++=09=09=09seq_printf(m, "0x%08lx..0x%08lx  0x%08lx  0x%lx\n",
+ =09=09=09=09   (unsigned long)reg->base,
+-=09=09=09=09   (unsigned long)(reg->base + reg->size - 1));
++=09=09=09=09   (unsigned long)(reg->base + reg->size - 1),
++=09=09=09=09   (unsigned long)reg->size, reg->flags);
+ =09=09else
+-=09=09=09seq_printf(m, "0x%016llx..0x%016llx\n",
++=09=09=09seq_printf(m, "0x%016llx..0x%016llx  0x%016llx  0x%lx\n",
+ =09=09=09=09   (unsigned long long)reg->base,
+-=09=09=09=09   (unsigned long long)(reg->base + reg->size - 1));
++=09=09=09=09   (unsigned long long)(reg->base + reg->size - 1),
++=09=09=09=09   (unsigned long long)reg->size, reg->flags);
+=20
+ =09}
+ =09return 0;
+--=20
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
