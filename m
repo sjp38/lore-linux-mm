@@ -1,229 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D14056B0253
-	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 19:40:14 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e189so137911686pfa.2
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 16:40:14 -0700 (PDT)
-Received: from mail-pf0-x231.google.com (mail-pf0-x231.google.com. [2607:f8b0:400e:c00::231])
-        by mx.google.com with ESMTPS id d20si2563552pfk.240.2016.06.22.16.40.13
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0137D828E1
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 20:49:41 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e189so140807323pfa.2
+        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 17:49:40 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id u5si3023998pag.198.2016.06.22.17.49.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Jun 2016 16:40:13 -0700 (PDT)
-Received: by mail-pf0-x231.google.com with SMTP id t190so22139214pfb.3
-        for <linux-mm@kvack.org>; Wed, 22 Jun 2016 16:40:13 -0700 (PDT)
-Date: Wed, 22 Jun 2016 16:40:10 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, compaction: abort free scanner if split fails
-In-Reply-To: <20160622145902.9f07aa13048d4782c881cb6c@linux-foundation.org>
-Message-ID: <alpine.DEB.2.10.1606221636440.8004@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1606211447001.43430@chino.kir.corp.google.com> <alpine.DEB.2.10.1606211820350.97086@chino.kir.corp.google.com> <20160622145617.79197acff1a7e617b9d9d393@linux-foundation.org>
- <20160622145902.9f07aa13048d4782c881cb6c@linux-foundation.org>
+        Wed, 22 Jun 2016 17:49:40 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u5N0nAVb059285
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 20:49:39 -0400
+Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 23q1qph5ja-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 20:49:39 -0400
+Received: from localhost
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 22 Jun 2016 20:49:38 -0400
+Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 1A7E76E804A
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 20:49:18 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp23034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u5N0nbik9240932
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 00:49:37 GMT
+Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u5N0nZgp014015
+	for <linux-mm@kvack.org>; Wed, 22 Jun 2016 20:49:35 -0400
+Date: Wed, 22 Jun 2016 17:49:35 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: Boot failure on emev2/kzm9d (was: Re: [PATCH v2 11/11] mm/slab:
+ lockless decision to grow cache)
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <CAMuHMdXc=XN4z96vr_FNcUzFb0203ovHgcfD95Q5LPebr1z0ZQ@mail.gmail.com>
+ <20160615022325.GA19863@js1304-P5Q-DELUXE>
+ <CAMuHMdVi-F0n-GjnUqEEd58UcWxw67g8ZJO838fvo31Ttr5E1g@mail.gmail.com>
+ <20160620063942.GA13747@js1304-P5Q-DELUXE>
+ <20160620131254.GO3923@linux.vnet.ibm.com>
+ <20160621064302.GA20635@js1304-P5Q-DELUXE>
+ <20160621125406.GF3923@linux.vnet.ibm.com>
+ <20160622005208.GB25106@js1304-P5Q-DELUXE>
+ <CAMuHMdW-wSxASozhmPh0b+9UJFFVbYHqTqH5e9P1oO7T59YE7g@mail.gmail.com>
+ <20160622190859.GA1473@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160622190859.GA1473@linux.vnet.ibm.com>
+Message-Id: <20160623004935.GA20752@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-renesas-soc@vger.kernel.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Wed, 22 Jun 2016, Andrew Morton wrote:
-
-> And
-> mm-compaction-split-freepages-without-holding-the-zone-lock-fix.patch
-> churns things around some more.  Now this:
+On Wed, Jun 22, 2016 at 12:08:59PM -0700, Paul E. McKenney wrote:
+> On Wed, Jun 22, 2016 at 05:01:35PM +0200, Geert Uytterhoeven wrote:
+> > On Wed, Jun 22, 2016 at 2:52 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> > > Could you try below patch to check who causes the hang?
+> > >
+> > > And, if sysalt-t works when hang, could you get sysalt-t output? I haven't
+> > > used it before but Paul could find some culprit on it. :)
+> > >
+> > > Thanks.
+> > >
+> > >
+> > > ----->8-----
+> > > diff --git a/mm/slab.c b/mm/slab.c
+> > > index 763096a..9652d38 100644
+> > > --- a/mm/slab.c
+> > > +++ b/mm/slab.c
+> > > @@ -964,8 +964,13 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
+> > >          * guaranteed to be valid until irq is re-enabled, because it will be
+> > >          * freed after synchronize_sched().
+> > >          */
+> > > -       if (force_change)
+> > > +       if (force_change) {
+> > > +               if (num_online_cpus() > 1)
+> > > +                       dump_stack();
+> > >                 synchronize_sched();
+> > > +               if (num_online_cpus() > 1)
+> > > +                       dump_stack();
+> > > +       }
+> > 
+> > I've only added the first one, as I would never see the second one. All of
+> > this happens before the serial console is activated, earlycon is not supported,
+> > and I only have remote access.
+> > 
+> > Brought up 2 CPUs
+> > SMP: Total of 2 processors activated (2132.00 BogoMIPS).
+> > CPU: All CPU(s) started in SVC mode.
+> > CPU: 0 PID: 1 Comm: swapper/0 Not tainted
+> > 4.7.0-rc4-kzm9d-00404-g4a235e6dde4404dd-dirty #89
+> > Hardware name: Generic Emma Mobile EV2 (Flattened Device Tree)
+> > [<c010de68>] (unwind_backtrace) from [<c010a658>] (show_stack+0x10/0x14)
+> > [<c010a658>] (show_stack) from [<c02b5cf8>] (dump_stack+0x7c/0x9c)
+> > [<c02b5cf8>] (dump_stack) from [<c01cfa4c>] (setup_kmem_cache_node+0x140/0x170)
+> > [<c01cfa4c>] (setup_kmem_cache_node) from [<c01cfe3c>]
+> > (__do_tune_cpucache+0xf4/0x114)
+> > [<c01cfe3c>] (__do_tune_cpucache) from [<c01cff54>] (enable_cpucache+0xf8/0x148)
+> > [<c01cff54>] (enable_cpucache) from [<c01d0190>]
+> > (__kmem_cache_create+0x1a8/0x1d0)
+> > [<c01d0190>] (__kmem_cache_create) from [<c01b32d0>]
+> > (kmem_cache_create+0xbc/0x190)
+> > [<c01b32d0>] (kmem_cache_create) from [<c070d968>] (shmem_init+0x34/0xb0)
+> > [<c070d968>] (shmem_init) from [<c0700cc8>] (kernel_init_freeable+0x98/0x1ec)
+> > [<c0700cc8>] (kernel_init_freeable) from [<c049fdbc>] (kernel_init+0x8/0x110)
+> > [<c049fdbc>] (kernel_init) from [<c0106cb8>] (ret_from_fork+0x14/0x3c)
+> > devtmpfs: initialized
 > 
+> I don't see anything here that would prevent grace periods from completing.
 > 
-> 		/* Found a free page, will break it into order-0 pages */
-> 		order = page_order(page);
-> 		isolated = __isolate_free_page(page, order);
-> 		set_page_private(page, order);
-> 		total_isolated += isolated;
-> 		list_add_tail(&page->lru, freelist);
-> 		cc->nr_freepages += isolated;
-> 		if (!strict && cc->nr_migratepages <= cc->nr_freepages) {
-> 			blockpfn += isolated;
-> 			break;
-> 		}
-> 		/* Advance to the end of split page */
-> 		blockpfn += isolated - 1;
-> 		cursor += isolated - 1;
-> 		continue;
-> 
-> isolate_fail:
-> 
-> and things are looking a bit better...
-> 
+> The CPUs are using the normal hotplug sequence to come online, correct?
 
-This looks like it's missing the
+And either way, could you please apply the patch below and then
+invoke rcu_dump_rcu_sched_tree() just before the offending call to
+synchronize_sched()?  That will tell me what CPUs RCU believes exist,
+and perhaps also which CPU is holding it up.
 
-	if (!isolated)
-		break;
-
-check from mm-compaction-abort-free-scanner-if-split-fails.patch which is 
-needed to properly terminate when the low watermark fails (and adding to 
-freelist as Minchan mentioned before I saw this patch).
-
-I rebased 
-mm-compaction-split-freepages-without-holding-the-zone-lock.patch as I 
-thought it should be done and folded 
-mm-compaction-split-freepages-without-holding-the-zone-lock-fix.patch into 
-it for simplicity.  I think this should replace 
-mm-compaction-split-freepages-without-holding-the-zone-lock.patch in -mm.
-
-
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-We don't need to split freepages with holding the zone lock.  It will
-cause more contention on zone lock so not desirable.
-
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
----
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -537,7 +537,6 @@ void __put_page(struct page *page);
- void put_pages_list(struct list_head *pages);
- 
- void split_page(struct page *page, unsigned int order);
--int split_free_page(struct page *page);
- 
- /*
-  * Compound pages have a destructor function.  Provide a
-diff --git a/mm/compaction.c b/mm/compaction.c
-index ab21497..9d17b21 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -65,13 +65,31 @@ static unsigned long release_freepages(struct list_head *freelist)
- 
- static void map_pages(struct list_head *list)
- {
--	struct page *page;
-+	unsigned int i, order, nr_pages;
-+	struct page *page, *next;
-+	LIST_HEAD(tmp_list);
-+
-+	list_for_each_entry_safe(page, next, list, lru) {
-+		list_del(&page->lru);
- 
--	list_for_each_entry(page, list, lru) {
--		arch_alloc_page(page, 0);
--		kernel_map_pages(page, 1, 1);
--		kasan_alloc_pages(page, 0);
-+		order = page_private(page);
-+		nr_pages = 1 << order;
-+		set_page_private(page, 0);
-+		set_page_refcounted(page);
-+
-+		arch_alloc_page(page, order);
-+		kernel_map_pages(page, nr_pages, 1);
-+		kasan_alloc_pages(page, order);
-+		if (order)
-+			split_page(page, order);
-+
-+		for (i = 0; i < nr_pages; i++) {
-+			list_add(&page->lru, &tmp_list);
-+			page++;
-+		}
- 	}
-+
-+	list_splice(&tmp_list, list);
- }
- 
- static inline bool migrate_async_suitable(int migratetype)
-@@ -406,12 +424,13 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
- 	unsigned long flags = 0;
- 	bool locked = false;
- 	unsigned long blockpfn = *start_pfn;
-+	unsigned int order;
- 
- 	cursor = pfn_to_page(blockpfn);
- 
- 	/* Isolate free pages. */
- 	for (; blockpfn < end_pfn; blockpfn++, cursor++) {
--		int isolated, i;
-+		int isolated;
- 		struct page *page = cursor;
- 
- 		/*
-@@ -477,17 +496,17 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
- 				goto isolate_fail;
- 		}
- 
--		/* Found a free page, break it into order-0 pages */
--		isolated = split_free_page(page);
-+		/* Found a free page, will break it into order-0 pages */
-+		order = page_order(page);
-+		isolated = __isolate_free_page(page, order);
- 		if (!isolated)
- 			break;
-+		set_page_private(page, order);
- 
- 		total_isolated += isolated;
- 		cc->nr_freepages += isolated;
--		for (i = 0; i < isolated; i++) {
--			list_add(&page->lru, freelist);
--			page++;
--		}
-+		list_add_tail(&page->lru, freelist);
-+
- 		if (!strict && cc->nr_migratepages <= cc->nr_freepages) {
- 			blockpfn += isolated;
- 			break;
-@@ -606,7 +625,7 @@ isolate_freepages_range(struct compact_control *cc,
- 		 */
- 	}
- 
--	/* split_free_page does not map the pages */
-+	/* __isolate_free_page() does not map the pages */
- 	map_pages(&freelist);
- 
- 	if (pfn < end_pfn) {
-@@ -1113,7 +1132,7 @@ static void isolate_freepages(struct compact_control *cc)
- 		}
- 	}
- 
--	/* split_free_page does not map the pages */
-+	/* __isolate_free_page() does not map the pages */
- 	map_pages(freelist);
- 
- 	/*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2560,33 +2560,6 @@ int __isolate_free_page(struct page *page, unsigned int order)
- }
- 
- /*
-- * Similar to split_page except the page is already free. As this is only
-- * being used for migration, the migratetype of the block also changes.
-- * As this is called with interrupts disabled, the caller is responsible
-- * for calling arch_alloc_page() and kernel_map_page() after interrupts
-- * are enabled.
-- *
-- * Note: this is probably too low level an operation for use in drivers.
-- * Please consult with lkml before using this in your driver.
-- */
--int split_free_page(struct page *page)
--{
--	unsigned int order;
--	int nr_pages;
--
--	order = page_order(page);
--
--	nr_pages = __isolate_free_page(page, order);
--	if (!nr_pages)
--		return 0;
--
--	/* Split into individual pages */
--	set_page_refcounted(page);
--	split_page(page, order);
--	return nr_pages;
--}
--
--/*
-  * Update NUMA hit/miss statistics
-  *
-  * Must be called with interrupts disabled.
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
