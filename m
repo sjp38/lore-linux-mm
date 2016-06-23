@@ -1,67 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C473828E1
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 12:00:15 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id f6so168902735ith.1
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 09:00:15 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id y6si1677907itc.53.2016.06.23.09.00.13
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 06E25828E1
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 12:00:21 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id g18so57540079lfg.2
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 09:00:20 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
+        by mx.google.com with ESMTPS id gl9si972330wjb.144.2016.06.23.09.00.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Jun 2016 09:00:14 -0700 (PDT)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH] mm, oom: don't set TIF_MEMDIE on a mm-less thread.
-Date: Fri, 24 Jun 2016 00:58:47 +0900
-Message-Id: <1466697527-7365-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Jun 2016 09:00:18 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [RFC, DEBUGGING 1/2] mm: pass NR_FILE_PAGES/NR_SHMEM into node_page_state
+Date: Thu, 23 Jun 2016 17:56:57 +0200
+Message-ID: <4149446.1SMXVuGq6X@wuerfel>
+In-Reply-To: <20160623135111.GX1868@techsingularity.net>
+References: <20160623100518.156662-1-arnd@arndb.de> <3817461.6pThRKgN9N@wuerfel> <20160623135111.GX1868@techsingularity.net>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, David Rientjes <rientjes@google.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Patch "mm, oom: fortify task_will_free_mem" removed p->mm != NULL test for
-shortcut path in oom_kill_process(). But since commit f44666b04605d1c7
-("mm,oom: speed up select_bad_process() loop") changed to iterate using
-thread group leaders, the possibility of p->mm == NULL has increased
-compared to when commit 83363b917a2982dd ("oom: make sure that TIF_MEMDIE
-is set under task_lock") was proposed. On CONFIG_MMU=n kernels, nothing
-will clear TIF_MEMDIE and the system can OOM livelock if TIF_MEMDIE was
-by error set to a mm-less thread group leader.
+On Thursday, June 23, 2016 2:51:11 PM CEST Mel Gorman wrote:
+> On Thu, Jun 23, 2016 at 03:17:43PM +0200, Arnd Bergmann wrote:
+> > > I have an alternative fix for this in a private tree. For now, I've asked
+> > > Andrew to withdraw the series entirely as there are non-trivial collisions
+> > > with OOM detection rework and huge page support for tmpfs.  It'll be easier
+> > > and safer to resolve this outside of mmotm as it'll require a full round
+> > > of testing which takes 3-4 days.
+> > 
+> > Ok. I've done a new version of my debug patch now, will follow up here
+> > so you can do some testing on top of that as well if you like. We probably
+> > don't want to apply my patch for the type checking, but you might find it
+> > useful for your own testing.
+> > 
+> 
+> It is useful. After fixing up a bunch of problems manually, it
+> identified two more errors. I probably won't merge it but I'll hang on
+> to it during development.
 
-Let's redo find_task_lock_mm() test after task_will_free_mem() returned
-true.
+I'm glad it helps. On my randconfig build machine, I've also now run
+into yet another finding that I originally didn't catch, not sure if you
+found this one already:
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: David Rientjes <rientjes@google.com>
----
- mm/oom_kill.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+In file included from ../include/linux/mm.h:999:0,
+                 from ../include/linux/highmem.h:7,
+                 from ../drivers/staging/lustre/lustre/osc/../../include/linux/libcfs/linux/libcfs.h:46,
+                 from ../drivers/staging/lustre/lustre/osc/../../include/linux/libcfs/libcfs.h:36,
+                 from ../drivers/staging/lustre/lustre/osc/osc_cl_internal.h:45,
+                 from ../drivers/staging/lustre/lustre/osc/osc_cache.c:40:
+../drivers/staging/lustre/lustre/osc/osc_cache.c: In function 'osc_dec_unstable_pages':
+../include/linux/vmstat.h:247:42: error: comparison between 'enum node_stat_item' and 'enum zone_stat_item' [-Werror=enum-compare]
+  dec_zone_page_state_check(page, ((item) == (enum zone_stat_item )0) ? (item) : (item))
+                                          ^
+../drivers/staging/lustre/lustre/osc/osc_cache.c:1867:3: note: in expansion of macro 'dec_zone_page_state'
+   dec_zone_page_state(desc->bd_iov[i].kiov_page, NR_UNSTABLE_NFS);
+   ^~~~~~~~~~~~~~~~~~~
+../drivers/staging/lustre/lustre/osc/osc_cache.c: In function 'osc_inc_unstable_pages':
+../include/linux/vmstat.h:245:42: error: comparison between 'enum node_stat_item' and 'enum zone_stat_item' [-Werror=enum-compare]
+  inc_zone_page_state_check(page, ((item) == (enum zone_stat_item )0) ? (item) : (item))
+                                          ^
+../drivers/staging/lustre/lustre/osc/osc_cache.c:1901:3: note: in expansion of macro 'inc_zone_page_state'
+   inc_zone_page_state(desc->bd_iov[i].kiov_page, NR_UNSTABLE_NFS);
+   ^~~~~~~~~~~~~~~~~~~
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 4c21f74..846d5a7 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -839,9 +839,13 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
- 	 */
- 	if (task_will_free_mem(p)) {
--		mark_oom_victim(p);
--		wake_oom_reaper(p);
--		put_task_struct(p);
-+		p = find_lock_task_mm(p);
-+		if (p) {
-+			mark_oom_victim(p);
-+			task_unlock(p);
-+			wake_oom_reaper(p);
-+		}
-+		put_task_struct(victim);
- 		return;
- 	}
- 
--- 
-1.8.3.1
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
