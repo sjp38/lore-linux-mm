@@ -1,240 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DBDC0828E1
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 07:22:00 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id c82so21718313wme.2
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 04:22:00 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v198si338792wmf.69.2016.06.23.04.21.59
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F0BA828E1
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 07:26:43 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ao6so137022269pac.2
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 04:26:43 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id h2si4308965pax.194.2016.06.23.04.26.41
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Jun 2016 04:21:59 -0700 (PDT)
-Subject: Re: [patch] mm, compaction: abort free scanner if split fails
-References: <alpine.DEB.2.10.1606211447001.43430@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1606211820350.97086@chino.kir.corp.google.com>
- <20160622145617.79197acff1a7e617b9d9d393@linux-foundation.org>
- <20160622145902.9f07aa13048d4782c881cb6c@linux-foundation.org>
- <alpine.DEB.2.10.1606221636440.8004@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <f19ba1b6-96a3-c219-7ce7-9b671b3e3b2f@suse.cz>
-Date: Thu, 23 Jun 2016 13:21:57 +0200
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1606221636440.8004@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        Thu, 23 Jun 2016 04:26:42 -0700 (PDT)
+Subject: Re: 4.6.2 frequent crashes under memory + IO pressure
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20160616212641.GA3308@sig21.net>
+	<c9c87635-6e00-5ce7-b05a-966011c8fe3f@I-love.SAKURA.ne.jp>
+	<20160623091830.GA32535@sig21.net>
+In-Reply-To: <20160623091830.GA32535@sig21.net>
+Message-Id: <201606232026.GFJ26539.QVtFFOJOOLHFMS@I-love.SAKURA.ne.jp>
+Date: Thu, 23 Jun 2016 20:26:35 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
+To: js@sig21.net
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@kernel.org
 
-On 06/23/2016 01:40 AM, David Rientjes wrote:
-> On Wed, 22 Jun 2016, Andrew Morton wrote:
->
->> And
->> mm-compaction-split-freepages-without-holding-the-zone-lock-fix.patch
->> churns things around some more.  Now this:
->>
->>
->> 		/* Found a free page, will break it into order-0 pages */
->> 		order = page_order(page);
->> 		isolated = __isolate_free_page(page, order);
->> 		set_page_private(page, order);
->> 		total_isolated += isolated;
->> 		list_add_tail(&page->lru, freelist);
->> 		cc->nr_freepages += isolated;
->> 		if (!strict && cc->nr_migratepages <= cc->nr_freepages) {
->> 			blockpfn += isolated;
->> 			break;
->> 		}
->> 		/* Advance to the end of split page */
->> 		blockpfn += isolated - 1;
->> 		cursor += isolated - 1;
->> 		continue;
->>
->> isolate_fail:
->>
->> and things are looking a bit better...
->>
->
-> This looks like it's missing the
->
-> 	if (!isolated)
-> 		break;
->
-> check from mm-compaction-abort-free-scanner-if-split-fails.patch which is
-> needed to properly terminate when the low watermark fails (and adding to
-> freelist as Minchan mentioned before I saw this patch).
+Johannes Stezenbach wrote:
+> What is your opinion about older kernels (4.4, 4.5) working?
+> I think I've seen some OOM messages with the older kernels,
+> Jill was killed and I restarted the build to complete it.
+> A full bisect would take more than a day, I don't think
+> I have the time for it.
+> Since I use dm-crypt + lvm, should we add more Cc or do
+> you think it is an mm issue?
 
-Agreed.
+I have no idea.
 
->
-> I rebased
-> mm-compaction-split-freepages-without-holding-the-zone-lock.patch as I
-> thought it should be done and folded
-> mm-compaction-split-freepages-without-holding-the-zone-lock-fix.patch into
-> it for simplicity.  I think this should replace
-> mm-compaction-split-freepages-without-holding-the-zone-lock.patch in -mm.
+> > > Below I'm pasting some log snippets, let me know if you like
+> > > it so much you want more of it ;-/  The total log is about 1.7MB.
+> > 
+> > Yes, I'd like to browse it. Could you send it to me?
+> 
+> Did you get any additional insights from it?
 
-Yes, it should replace both the .patch and the -fix.patch.
+I found
 
-Thanks!
+[ 2245.660712] DMA free:4kB min:32kB
+[ 2245.707031] DMA32 free:0kB min:6724kB
+[ 2245.757597] Normal free:24kB min:928kB
+[ 2245.806515] DMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
+[ 2245.816359] DMA32: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
+[ 2245.826378] Normal: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
 
->
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> We don't need to split freepages with holding the zone lock.  It will
-> cause more contention on zone lock so not desirable.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -537,7 +537,6 @@ void __put_page(struct page *page);
->  void put_pages_list(struct list_head *pages);
->
->  void split_page(struct page *page, unsigned int order);
-> -int split_free_page(struct page *page);
->
->  /*
->   * Compound pages have a destructor function.  Provide a
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index ab21497..9d17b21 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -65,13 +65,31 @@ static unsigned long release_freepages(struct list_head *freelist)
->
->  static void map_pages(struct list_head *list)
->  {
-> -	struct page *page;
-> +	unsigned int i, order, nr_pages;
-> +	struct page *page, *next;
-> +	LIST_HEAD(tmp_list);
-> +
-> +	list_for_each_entry_safe(page, next, list, lru) {
-> +		list_del(&page->lru);
->
-> -	list_for_each_entry(page, list, lru) {
-> -		arch_alloc_page(page, 0);
-> -		kernel_map_pages(page, 1, 1);
-> -		kasan_alloc_pages(page, 0);
-> +		order = page_private(page);
-> +		nr_pages = 1 << order;
-> +		set_page_private(page, 0);
-> +		set_page_refcounted(page);
-> +
-> +		arch_alloc_page(page, order);
-> +		kernel_map_pages(page, nr_pages, 1);
-> +		kasan_alloc_pages(page, order);
-> +		if (order)
-> +			split_page(page, order);
-> +
-> +		for (i = 0; i < nr_pages; i++) {
-> +			list_add(&page->lru, &tmp_list);
-> +			page++;
-> +		}
->  	}
-> +
-> +	list_splice(&tmp_list, list);
->  }
->
->  static inline bool migrate_async_suitable(int migratetype)
-> @@ -406,12 +424,13 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  	unsigned long flags = 0;
->  	bool locked = false;
->  	unsigned long blockpfn = *start_pfn;
-> +	unsigned int order;
->
->  	cursor = pfn_to_page(blockpfn);
->
->  	/* Isolate free pages. */
->  	for (; blockpfn < end_pfn; blockpfn++, cursor++) {
-> -		int isolated, i;
-> +		int isolated;
->  		struct page *page = cursor;
->
->  		/*
-> @@ -477,17 +496,17 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  				goto isolate_fail;
->  		}
->
-> -		/* Found a free page, break it into order-0 pages */
-> -		isolated = split_free_page(page);
-> +		/* Found a free page, will break it into order-0 pages */
-> +		order = page_order(page);
-> +		isolated = __isolate_free_page(page, order);
->  		if (!isolated)
->  			break;
-> +		set_page_private(page, order);
->
->  		total_isolated += isolated;
->  		cc->nr_freepages += isolated;
-> -		for (i = 0; i < isolated; i++) {
-> -			list_add(&page->lru, freelist);
-> -			page++;
-> -		}
-> +		list_add_tail(&page->lru, freelist);
-> +
->  		if (!strict && cc->nr_migratepages <= cc->nr_freepages) {
->  			blockpfn += isolated;
->  			break;
-> @@ -606,7 +625,7 @@ isolate_freepages_range(struct compact_control *cc,
->  		 */
->  	}
->
-> -	/* split_free_page does not map the pages */
-> +	/* __isolate_free_page() does not map the pages */
->  	map_pages(&freelist);
->
->  	if (pfn < end_pfn) {
-> @@ -1113,7 +1132,7 @@ static void isolate_freepages(struct compact_control *cc)
->  		}
->  	}
->
-> -	/* split_free_page does not map the pages */
-> +	/* __isolate_free_page() does not map the pages */
->  	map_pages(freelist);
->
->  	/*
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2560,33 +2560,6 @@ int __isolate_free_page(struct page *page, unsigned int order)
->  }
->
->  /*
-> - * Similar to split_page except the page is already free. As this is only
-> - * being used for migration, the migratetype of the block also changes.
-> - * As this is called with interrupts disabled, the caller is responsible
-> - * for calling arch_alloc_page() and kernel_map_page() after interrupts
-> - * are enabled.
-> - *
-> - * Note: this is probably too low level an operation for use in drivers.
-> - * Please consult with lkml before using this in your driver.
-> - */
-> -int split_free_page(struct page *page)
-> -{
-> -	unsigned int order;
-> -	int nr_pages;
-> -
-> -	order = page_order(page);
-> -
-> -	nr_pages = __isolate_free_page(page, order);
-> -	if (!nr_pages)
-> -		return 0;
-> -
-> -	/* Split into individual pages */
-> -	set_page_refcounted(page);
-> -	split_page(page, order);
-> -	return nr_pages;
-> -}
-> -
-> -/*
->   * Update NUMA hit/miss statistics
->   *
->   * Must be called with interrupts disabled.
->
+[ 2317.853951] DMA free:0kB min:32kB
+[ 2317.900460] DMA32 free:0kB min:6724kB
+[ 2317.951574] Normal free:0kB min:928kB
+[ 2318.000808] DMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
+[ 2318.010713] DMA32: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
+[ 2318.020767] Normal: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 0kB
+
+which completely depleted memory reserves. So, please try commit 78ebc2f7146156f4
+("mm,writeback: don't use memory reserves for wb_start_writeback") on your 4.6.2
+kernel. As far as I know, passing mem=4G option will do equivalent thing.
+
+Since you think you saw OOM messages with the older kernels, I assume that the OOM
+killer was invoked on your 4.6.2 kernel. The OOM reaper in Linux 4.6 and Linux 4.7
+will not help if the OOM killed process was between down_write(&mm->mmap_sem) and
+up_write(&mm->mmap_sem).
+
+I was not able to confirm whether the OOM killed process (I guess it was java)
+was holding mm->mmap_sem for write, for /proc/sys/kernel/hung_task_warnings
+dropped to 0 before traces of java threads are printed or console became
+unusable due to the "delayed: kcryptd_crypt, ..." line. Anyway, I think that
+kmallocwd will report it.
+
+> > It is sad that we haven't merged kmallocwd which will report
+> > which memory allocations are stalling
+> >  ( http://lkml.kernel.org/r/1462630604-23410-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp ).
+> 
+> Would you like me to try it?  It wouldn't prevent the hang, though,
+> just print better debug ouptut to serial console, right?
+> Or would it OOM kill some process?
+
+Yes, but for bisection purpose, please try commit 78ebc2f7146156f4 without
+applying kmallocwd. If that commit helps avoiding flood of the allocation
+failure warnings, we can consider backporting it. If that commit does not
+help, I think you are reporting a new location which we should not use
+memory reserves.
+
+kmallocwd will not OOM kill some process. kmallocwd will not prevent the hang.
+kmallocwd just prints information of threads which are stalling inside memory
+allocation request.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
