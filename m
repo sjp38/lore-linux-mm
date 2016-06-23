@@ -1,165 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0070D828E1
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 06:03:20 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id c82so20441853wme.2
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 03:03:19 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.24])
-        by mx.google.com with ESMTPS id n10si6280353wjm.77.2016.06.23.03.03.18
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 345E4828E1
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 06:10:14 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r190so20330007wmr.0
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 03:10:14 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.75])
+        by mx.google.com with ESMTPS id i83si5429035wmf.117.2016.06.23.03.10.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jun 2016 03:03:18 -0700 (PDT)
+        Thu, 23 Jun 2016 03:10:13 -0700 (PDT)
 From: Arnd Bergmann <arnd@arndb.de>
-Subject: [RFC, DEBUGGING 1/2] mm: pass NR_FILE_PAGES/NR_SHMEM into node_page_state
-Date: Thu, 23 Jun 2016 12:05:17 +0200
-Message-Id: <20160623100518.156662-1-arnd@arndb.de>
+Subject: [RFC, DEBUGGING 2/2] mm: add type checking for page state functions
+Date: Thu, 23 Jun 2016 12:05:18 +0200
+Message-Id: <20160623100518.156662-2-arnd@arndb.de>
+In-Reply-To: <20160623100518.156662-1-arnd@arndb.de>
+References: <20160623100518.156662-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@techsingularity.net>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>
 
-I see some new warnings from a recent mm change:
+We had a couple of bugs where we pass the incorrect 'enum' into
+one of the statistics functions, and unfortunately gcc can only
+warn about comparing distinct enum types rather than warning
+about passing an enum of the wrong type into a function.
 
-mm/filemap.c: In function '__delete_from_page_cache':
-include/linux/vmstat.h:116:2: error: array subscript is above array bounds [-Werror=array-bounds]
-  atomic_long_add(x, &zone->vm_stat[item]);
-  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-include/linux/vmstat.h:116:35: error: array subscript is above array bounds [-Werror=array-bounds]
-  atomic_long_add(x, &zone->vm_stat[item]);
-                      ~~~~~~~~~~~~~^~~~~~
-include/linux/vmstat.h:116:35: error: array subscript is above array bounds [-Werror=array-bounds]
-include/linux/vmstat.h:117:2: error: array subscript is above array bounds [-Werror=array-bounds]
-
-Looking deeper into it, I find that we pass the wrong enum
-into some functions after the type for the symbol has changed.
-
-This changes the code to use the other function for those that
-are using the incorrect type. I've done this blindly just going
-by warnings I got from a debug patch I did for this, so it's likely
-that some cases are more subtle and need another change, so please
-treat this as a bug-report rather than a patch for applying.
+This wraps all the stats calls inside of macros that add the
+type checking using a comparison. This is a fairly crude method,
+but it helped uncover some issues for me.
 
 Signed-off-by: Arnd Bergmann <arnd@arndb.de>
-Fixes: e426f7b4ade5 ("mm: move most file-based accounting to the node")
 ---
- mm/filemap.c    |  4 ++--
- mm/page_alloc.c | 15 ++++++++-------
- mm/rmap.c       |  4 ++--
- mm/shmem.c      |  4 ++--
- mm/vmscan.c     |  2 +-
- 5 files changed, 15 insertions(+), 14 deletions(-)
+ include/linux/vmstat.h | 36 +++++++++++++++++++++++++++++++++++-
+ 1 file changed, 35 insertions(+), 1 deletion(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 6cb19e012887..77e902bf04f4 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -218,9 +218,9 @@ void __delete_from_page_cache(struct page *page, void *shadow)
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index c799073fe1c4..0328858894a5 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -116,6 +116,8 @@ static inline void zone_page_state_add(long x, struct zone *zone,
+ 	atomic_long_add(x, &zone->vm_stat[item]);
+ 	atomic_long_add(x, &vm_zone_stat[item]);
+ }
++#define zone_page_state_add(x, zone, item) \
++	zone_page_state_add(x, zone, ((item) == (enum zone_stat_item )0) ? (item) : (item))
  
- 	/* hugetlb pages do not participate in page cache accounting. */
- 	if (!PageHuge(page))
--		__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, -nr);
-+		__mod_node_page_state(page_zone(page)->zone_pgdat, NR_FILE_PAGES, -nr);
- 	if (PageSwapBacked(page)) {
--		__mod_zone_page_state(page_zone(page), NR_SHMEM, -nr);
-+		__mod_node_page_state(page_zone(page)->zone_pgdat, NR_SHMEM, -nr);
- 		if (PageTransHuge(page))
- 			__dec_zone_page_state(page, NR_SHMEM_THPS);
- 	} else {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 23b5044f5ced..d5287011ed27 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3484,9 +3484,10 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 				unsigned long writeback;
- 				unsigned long dirty;
+ static inline void node_page_state_add(long x, struct pglist_data *pgdat,
+ 				 enum node_stat_item item)
+@@ -123,6 +125,8 @@ static inline void node_page_state_add(long x, struct pglist_data *pgdat,
+ 	atomic_long_add(x, &pgdat->vm_stat[item]);
+ 	atomic_long_add(x, &vm_node_stat[item]);
+ }
++#define node_page_state_add(x, node, item) \
++	node_page_state_add(x, node, ((item) == (enum node_stat_item )0) ? (item) : (item))
  
--				writeback = zone_page_state_snapshot(zone,
-+				writeback = node_page_state_snapshot(zone->zone_pgdat,
- 								     NR_WRITEBACK);
--				dirty = zone_page_state_snapshot(zone, NR_FILE_DIRTY);
-+				dirty = node_page_state_snapshot(zone->zone_pgdat,
-+								 NR_FILE_DIRTY);
+ static inline unsigned long global_page_state(enum zone_stat_item item)
+ {
+@@ -133,6 +137,8 @@ static inline unsigned long global_page_state(enum zone_stat_item item)
+ #endif
+ 	return x;
+ }
++#define global_page_state(item) \
++	global_page_state(((item) == (enum zone_stat_item )0) ? (item) : (item))
  
- 				if (2*(writeback + dirty) > reclaimable) {
- 					congestion_wait(BLK_RW_ASYNC, HZ/10);
-@@ -4396,9 +4397,9 @@ void show_free_areas(unsigned int filter)
- 			K(zone->present_pages),
- 			K(zone->managed_pages),
- 			K(zone_page_state(zone, NR_MLOCK)),
--			K(zone_page_state(zone, NR_FILE_DIRTY)),
--			K(zone_page_state(zone, NR_WRITEBACK)),
--			K(zone_page_state(zone, NR_SHMEM)),
-+			K(node_page_state(zone->zone_pgdat, NR_FILE_DIRTY)),
-+			K(node_page_state(zone, NR_WRITEBACK)),
-+			K(node_page_state(zone, NR_SHMEM)),
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 			K(zone_page_state(zone, NR_SHMEM_THPS) * HPAGE_PMD_NR),
- 			K(zone_page_state(zone, NR_SHMEM_PMDMAPPED)
-@@ -4410,12 +4411,12 @@ void show_free_areas(unsigned int filter)
- 			zone_page_state(zone, NR_KERNEL_STACK) *
- 				THREAD_SIZE / 1024,
- 			K(zone_page_state(zone, NR_PAGETABLE)),
--			K(zone_page_state(zone, NR_UNSTABLE_NFS)),
-+			K(node_page_state(zone, NR_UNSTABLE_NFS)),
- 			K(zone_page_state(zone, NR_BOUNCE)),
- 			K(free_pcp),
- 			K(this_cpu_read(zone->pageset->pcp.count)),
- 			K(zone_page_state(zone, NR_FREE_CMA_PAGES)),
--			K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
-+			K(node_page_state(zone, NR_WRITEBACK_TEMP)),
- 			K(node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED)));
- 		printk("lowmem_reserve[]:");
- 		for (i = 0; i < MAX_NR_ZONES; i++)
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 4deff963ea8a..898b2b7806ca 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1296,7 +1296,7 @@ void page_add_file_rmap(struct page *page, bool compound)
- 		if (!atomic_inc_and_test(&page->_mapcount))
- 			goto out;
- 	}
--	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, nr);
-+	__mod_node_page_state(page_zone(page)->zone_pgdat, NR_FILE_MAPPED, nr);
- 	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
- out:
- 	unlock_page_memcg(page);
-@@ -1336,7 +1336,7 @@ static void page_remove_file_rmap(struct page *page, bool compound)
- 	 * these counters are not modified in interrupt context, and
- 	 * pte lock(a spinlock) is held, which implies preemption disabled.
- 	 */
--	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, -nr);
-+	__mod_node_page_state(page_zone(page)->zone_pgdat, NR_FILE_MAPPED, -nr);
- 	mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
+ static inline unsigned long global_node_page_state(enum node_stat_item item)
+ {
+@@ -143,6 +149,8 @@ static inline unsigned long global_node_page_state(enum node_stat_item item)
+ #endif
+ 	return x;
+ }
++#define global_node_page_state(item) \
++	global_node_page_state(((item) == (enum node_stat_item )0) ? (item) : (item))
  
- 	if (unlikely(PageMlocked(page)))
-diff --git a/mm/shmem.c b/mm/shmem.c
-index e5c50fb0d4a4..99dcb8e5642d 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -576,8 +576,8 @@ static int shmem_add_to_page_cache(struct page *page,
- 		mapping->nrpages += nr;
- 		if (PageTransHuge(page))
- 			__inc_zone_page_state(page, NR_SHMEM_THPS);
--		__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, nr);
--		__mod_zone_page_state(page_zone(page), NR_SHMEM, nr);
-+		__mod_node_page_state(page_zone(page)->zone_pgdat, NR_FILE_PAGES, nr);
-+		__mod_node_page_state(page_zone(page)->zone_pgdat, NR_SHMEM, nr);
- 		spin_unlock_irq(&mapping->tree_lock);
- 	} else {
- 		page->mapping = NULL;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 07e17dac1793..4702069cc80b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2079,7 +2079,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 		int z;
- 		unsigned long total_high_wmark = 0;
+ static inline unsigned long zone_page_state(struct zone *zone,
+ 					enum zone_stat_item item)
+@@ -154,6 +162,8 @@ static inline unsigned long zone_page_state(struct zone *zone,
+ #endif
+ 	return x;
+ }
++#define zone_page_state(zone, item) \
++	zone_page_state(zone, ((item) == (enum zone_stat_item )0) ? (item) : (item))
  
--		pgdatfree = sum_zone_node_page_state(pgdat->node_id, NR_FREE_PAGES);
-+		pgdatfree = global_page_state(NR_FREE_PAGES);
- 		pgdatfile = node_page_state(pgdat, NR_ACTIVE_FILE) +
- 			   node_page_state(pgdat, NR_INACTIVE_FILE);
+ /*
+  * More accurate version that also considers the currently pending
+@@ -176,6 +186,8 @@ static inline unsigned long zone_page_state_snapshot(struct zone *zone,
+ #endif
+ 	return x;
+ }
++#define zone_page_state_snapshot(zone, item) \
++	zone_page_state_snapshot(zone, ((item) == (enum zone_stat_item )0) ? (item) : (item))
  
+ static inline unsigned long node_page_state_snapshot(pg_data_t *pgdat,
+ 					enum zone_stat_item item)
+@@ -192,7 +204,8 @@ static inline unsigned long node_page_state_snapshot(pg_data_t *pgdat,
+ #endif
+ 	return x;
+ }
+-
++#define node_page_state_snapshot(zone, item) \
++	node_page_state_snapshot(zone, ((item) == (enum node_stat_item )0) ? (item) : (item))
+ 
+ #ifdef CONFIG_NUMA
+ extern unsigned long sum_zone_node_page_state(int node,
+@@ -341,6 +354,27 @@ static inline void drain_zonestat(struct zone *zone,
+ 			struct per_cpu_pageset *pset) { }
+ #endif		/* CONFIG_SMP */
+ 
++#define __mod_zone_page_state(zone, item, delta) \
++	__mod_zone_page_state(zone, ((item) == (enum zone_stat_item )0) ? (item) : (item), delta)
++#define __mod_node_page_state(pgdat, item, delta) \
++	__mod_node_page_state(pgdat, ((item) == (enum node_stat_item )0) ? (item) : (item), delta)
++#define __inc_zone_state(zone, item) \
++	__inc_zone_state(zone, ((item) == (enum zone_stat_item )0) ? (item) : (item))
++#define __inc_node_state(pgdat, item) \
++	__inc_node_state(pgdat, ((item) == (enum node_stat_item )0) ? (item) : (item))
++#define __dec_zone_state(zone, item) \
++	__dec_zone_state(zone, ((item) == (enum zone_stat_item )0) ? (item) : (item))
++#define __dec_node_state(pgdat, item) \
++	__dec_node_state(pgdat, ((item) == (enum node_stat_item )0) ? (item) : (item))
++#define __inc_zone_page_state(page, item) \
++	__inc_zone_page_state(page, ((item) == (enum zone_stat_item )0) ? (item) : (item))
++#define __inc_node_page_state(page, item) \
++	__inc_node_page_state(page, ((item) == (enum node_stat_item )0) ? (item) : (item))
++#define __dec_zone_page_state(page, item) \
++	__dec_zone_page_state(page, ((item) == (enum zone_stat_item )0) ? (item) : (item))
++#define __dec_node_page_state(page, item) \
++	__dec_node_page_state(page, ((item) == (enum node_stat_item )0) ? (item) : (item))
++
+ static inline void __mod_zone_freepage_state(struct zone *zone, int nr_pages,
+ 					     int migratetype)
+ {
 -- 
 2.9.0
 
