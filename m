@@ -1,76 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EBBDE828E1
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 12:03:14 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id f126so28663773wma.3
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 09:03:14 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id 202si1759125wmt.105.2016.06.23.09.03.13
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 56DDE828E1
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 12:24:58 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id l125so172210805ywb.2
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 09:24:58 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id d4si1054563ith.1.2016.06.23.09.24.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jun 2016 09:03:13 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 421811C1F5F
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 17:03:13 +0100 (IST)
-Date: Thu, 23 Jun 2016 17:03:11 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 19/27] mm: Move vmscan writes and file write accounting
- to the node
-Message-ID: <20160623160311.GA1868@techsingularity.net>
-References: <1466518566-30034-1-git-send-email-mgorman@techsingularity.net>
- <1466518566-30034-20-git-send-email-mgorman@techsingularity.net>
- <20160622144039.GG7527@dhcp22.suse.cz>
- <20160623135758.GY1868@techsingularity.net>
- <9a439cbd-6bdc-3c7b-0327-df3b60cdeff8@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <9a439cbd-6bdc-3c7b-0327-df3b60cdeff8@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 23 Jun 2016 09:24:57 -0700 (PDT)
+Subject: Re: [PATCH v2] mm, oom: don't set TIF_MEMDIE on a mm-less thread.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1466697527-7365-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <1466697527-7365-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Message-Id: <201606240124.FEI12978.OFQOSMJtOHFFLV@I-love.SAKURA.ne.jp>
+Date: Fri, 24 Jun 2016 01:24:46 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, mhocko@suse.com, oleg@redhat.com, vdavydov@virtuozzo.com, rientjes@google.com
 
-On Thu, Jun 23, 2016 at 04:06:09PM +0200, Vlastimil Babka wrote:
-> On 06/23/2016 03:57 PM, Mel Gorman wrote:
-> >On Wed, Jun 22, 2016 at 04:40:39PM +0200, Michal Hocko wrote:
-> >>On Tue 21-06-16 15:15:58, Mel Gorman wrote:
-> >>>As reclaim is now node-based, it follows that page write activity
-> >>>due to page reclaim should also be accounted for on the node. For
-> >>>consistency, also account page writes and page dirtying on a per-node
-> >>>basis.
-> >>>
-> >>>After this patch, there are a few remaining zone counters that may
-> >>>appear strange but are fine. NUMA stats are still per-zone as this is a
-> >>>user-space interface that tools consume. NR_MLOCK, NR_SLAB_*, NR_PAGETABLE,
-> >>>NR_KERNEL_STACK and NR_BOUNCE are all allocations that potentially pin
-> >>>low memory and cannot trivially be reclaimed on demand. This information
-> >>>is still useful for debugging a page allocation failure warning.
-> >>
-> >>As I've said in other patch. I think we will need to provide
-> >>/proc/nodeinfo to fill the gap.
-> >>
-> >
-> >I added a patch on top that prints the node stats in zoneinfo but only
-> >once for the first populated zone in a node. Doing this or creating a
-> >new file are both potentially surprising but extending zoneinfo means
-> >there is a greater chance that a user will spot the change.
-> 
-> BTW, there should already be /sys/devices/system/node/nodeX/vmstat providing
-> the per-node stats, right?
-> 
-> Changing zoneinfo so that some zones have some stats that others don't seems
-> to me like it can break some scripts...
-> 
+I missed that victim != p case needs to use get_task_struct(). Patch updated.
+----------------------------------------
+>From 1819ec63b27df2d544f66482439e754d084cebed Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Fri, 24 Jun 2016 01:16:02 +0900
+Subject: [PATCH v2] mm, oom: don't set TIF_MEMDIE on a mm-less thread.
 
-I suspect a lot of scripts that read zoneinfo just blindly record it.
-Similarly, there is no guarantee that a smart script knows to look in
-the per-node vmstat files either. This is a question of "wait see what
-breaks".
+Patch "mm, oom: fortify task_will_free_mem" removed p->mm != NULL test for
+shortcut path in oom_kill_process(). But since commit f44666b04605d1c7
+("mm,oom: speed up select_bad_process() loop") changed to iterate using
+thread group leaders, the possibility of p->mm == NULL has increased
+compared to when commit 83363b917a2982dd ("oom: make sure that TIF_MEMDIE
+is set under task_lock") was proposed. On CONFIG_MMU=n kernels, nothing
+will clear TIF_MEMDIE and the system can OOM livelock if TIF_MEMDIE was
+by error set to a mm-less thread group leader.
 
+Let's do steps for regular path except printing OOM killer messages and
+sending SIGKILL.
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: David Rientjes <rientjes@google.com>
+---
+ mm/oom_kill.c | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 4c21f74..0a19a24 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -839,9 +839,19 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
+ 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+ 	 */
+ 	if (task_will_free_mem(p)) {
+-		mark_oom_victim(p);
+-		wake_oom_reaper(p);
+-		put_task_struct(p);
++		p = find_lock_task_mm(victim);
++		if (!p) {
++			put_task_struct(victim);
++			return;
++		} else if (victim != p) {
++			get_task_struct(p);
++			put_task_struct(victim);
++			victim = p;
++		}
++		mark_oom_victim(victim);
++		task_unlock(victim);
++		wake_oom_reaper(victim);
++		put_task_struct(victim);
+ 		return;
+ 	}
+ 
 -- 
-Mel Gorman
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
