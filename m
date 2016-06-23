@@ -1,61 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FFDA6B0005
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 17:33:01 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id v77so204644479ywg.1
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 14:33:01 -0700 (PDT)
-Received: from mail-yw0-x242.google.com (mail-yw0-x242.google.com. [2607:f8b0:4002:c05::242])
-        by mx.google.com with ESMTPS id l3si715639ywf.101.2016.06.23.14.33.00
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5261A6B0005
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 17:45:40 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a69so199336894pfa.1
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 14:45:40 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x5si2169569pac.165.2016.06.23.14.45.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Jun 2016 14:33:00 -0700 (PDT)
-Received: by mail-yw0-x242.google.com with SMTP id l125so12546755ywb.1
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 14:33:00 -0700 (PDT)
-Date: Thu, 23 Jun 2016 17:32:58 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v9 06/12] kthread: Add kthread_drain_worker()
-Message-ID: <20160623213258.GO3262@mtj.duckdns.org>
-References: <1466075851-24013-1-git-send-email-pmladek@suse.com>
- <1466075851-24013-7-git-send-email-pmladek@suse.com>
- <20160622205445.GV30909@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160622205445.GV30909@twins.programming.kicks-ass.net>
+        Thu, 23 Jun 2016 14:45:39 -0700 (PDT)
+Date: Thu, 23 Jun 2016 14:45:38 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 00/27] Move LRU page reclaim from zones to nodes v7
+Message-Id: <20160623144538.0aa972c197de47ac31a4de3e@linux-foundation.org>
+In-Reply-To: <20160623102648.GP1868@techsingularity.net>
+References: <1466518566-30034-1-git-send-email-mgorman@techsingularity.net>
+	<20160623102648.GP1868@techsingularity.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Petr Mladek <pmladek@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello,
+On Thu, 23 Jun 2016 11:26:48 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
 
-On Wed, Jun 22, 2016 at 10:54:45PM +0200, Peter Zijlstra wrote:
-> > + * The caller is responsible for blocking all users of this kthread
-> > + * worker from queuing new works. Also it is responsible for blocking
-> > + * the already queued works from an infinite re-queuing!
+> On Tue, Jun 21, 2016 at 03:15:39PM +0100, Mel Gorman wrote:
+> > The bulk of the updates are in response to review from Vlastimil Babka
+> > and received a lot more testing than v6.
+> > 
 > 
-> This, I really dislike that. And it makes the kthread_destroy_worker()
-> from the next patch unnecessarily fragile.
+> Hi Andrew,
 > 
-> Why not add a kthread_worker::blocked flag somewhere and refuse/WARN
-> kthread_queue_work() when that is set.
+> Please drop these patches again from mmotm.
 
-It's the same logic from workqueue counterpart.  For workqueue,
-nothing can make it less fragile as the workqueue struct itself is
-freed on destruction.  If its users fail to stop issuing work items,
-it'll lead to use-after-free.
-
-IIRC, the draining of self-requeueing work items is a specific
-requirement from some edge use case which used workqueue to implement
-multi-step state machine.  Given how rare that is and the extra
-complexity of identifying self-requeueing cases, let's forget about
-draining and on destruction clear the worker pointer to block further
-queueing and then flush whatever is in flight.
-
-Thanks.
-
--- 
-tejun
+Done.  Silently, to avoid wearing out various inboxes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
