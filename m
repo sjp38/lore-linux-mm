@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 765F2828E1
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 06:01:23 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f126so13207598wma.3
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 03:01:23 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 72C47828E1
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 06:01:56 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r190so13459817wmr.0
+        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 03:01:56 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i194si3226192wme.39.2016.06.24.02.55.04
+        by mx.google.com with ESMTPS id b68si3184509wmi.95.2016.06.24.02.55.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Jun 2016 02:55:04 -0700 (PDT)
+        Fri, 24 Jun 2016 02:55:03 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 16/17] mm, compaction: require only min watermarks for non-costly orders
-Date: Fri, 24 Jun 2016 11:54:36 +0200
-Message-Id: <20160624095437.16385-17-vbabka@suse.cz>
+Subject: [PATCH v3 09/17] mm, compaction: make whole_zone flag ignore cached scanner positions
+Date: Fri, 24 Jun 2016 11:54:29 +0200
+Message-Id: <20160624095437.16385-10-vbabka@suse.cz>
 In-Reply-To: <20160624095437.16385-1-vbabka@suse.cz>
 References: <20160624095437.16385-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,62 +20,84 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-The __compaction_suitable() function checks the low watermark plus a
-compact_gap() gap to decide if there's enough free memory to perform
-compaction. Then __isolate_free_page uses low watermark check to decide if
-particular free page can be isolated. In the latter case, using low watermark
-is needlessly pessimistic, as the free page isolations are only temporary. For
-__compaction_suitable() the higher watermark makes sense for high-order
-allocations where more freepages increase the chance of success, and we can
-typically fail with some order-0 fallback when the system is struggling to
-reach that watermark. But for low-order allocation, forming the page should not
-be that hard. So using low watermark here might just prevent compaction from
-even trying, and eventually lead to OOM killer even if we are above min
-watermarks.
+A recent patch has added whole_zone flag that compaction sets when scanning
+starts from the zone boundary, in order to report that zone has been fully
+scanned in one attempt. For allocations that want to try really hard or cannot
+fail, we will want to introduce a mode where scanning whole zone is guaranteed
+regardless of the cached positions.
 
-So after this patch, we use min watermark for non-costly orders in
-__compaction_suitable(), and for all orders in __isolate_free_page().
+This patch reuses the whole_zone flag in a way that if it's already passed true
+to compaction, the cached scanner positions are ignored. Employing this flag
+during reclaim/compaction loop will be done in the next patch. This patch
+however converts compaction invoked from userspace via procfs to use this flag.
+Before this patch, the cached positions were first reset to zone boundaries and
+then read back from struct zone, so there was a window where a parallel
+compaction could replace the reset values, making the manual compaction less
+effective. Using the flag instead of performing reset is more robust.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/compaction.c | 6 +++++-
- mm/page_alloc.c | 2 +-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ mm/compaction.c | 15 +++++----------
+ mm/internal.h   |  2 +-
+ 2 files changed, 6 insertions(+), 11 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 3b774befb62a..ddff4cc48067 100644
+index f825a58bc37c..e7fe848e318e 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1403,10 +1403,14 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
- 	 * isolation. We however do use the direct compactor's classzone_idx to
- 	 * skip over zones where lowmem reserves would prevent allocation even
- 	 * if compaction succeeds.
-+	 * For costly orders, we require low watermark instead of min for
-+	 * compaction to proceed to increase its chances.
- 	 * ALLOC_CMA is used, as pages in CMA pageblocks are considered
- 	 * suitable migration targets
+@@ -1501,11 +1501,13 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
  	 */
--	watermark = low_wmark_pages(zone) + compact_gap(order);
-+	watermark = (order > PAGE_ALLOC_COSTLY_ORDER) ?
-+				low_wmark_pages(zone) : min_wmark_pages(zone);
-+	watermark += compact_gap(order);
- 	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
- 						ALLOC_CMA, wmark_target))
- 		return COMPACT_SKIPPED;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9510b91517dd..4a963659f8bb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2502,7 +2502,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
+ 	cc->migrate_pfn = zone->compact_cached_migrate_pfn[sync];
+ 	cc->free_pfn = zone->compact_cached_free_pfn;
+-	if (cc->free_pfn < start_pfn || cc->free_pfn >= end_pfn) {
++	if (cc->whole_zone || cc->free_pfn < start_pfn ||
++						cc->free_pfn >= end_pfn) {
+ 		cc->free_pfn = pageblock_start_pfn(end_pfn - 1);
+ 		zone->compact_cached_free_pfn = cc->free_pfn;
+ 	}
+-	if (cc->migrate_pfn < start_pfn || cc->migrate_pfn >= end_pfn) {
++	if (cc->whole_zone || cc->migrate_pfn < start_pfn ||
++						cc->migrate_pfn >= end_pfn) {
+ 		cc->migrate_pfn = start_pfn;
+ 		zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
+ 		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
+@@ -1751,14 +1753,6 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
+ 		INIT_LIST_HEAD(&cc->freepages);
+ 		INIT_LIST_HEAD(&cc->migratepages);
  
- 	if (!is_migrate_isolate(mt)) {
- 		/* Obey watermarks as if the page was being allocated */
--		watermark = low_wmark_pages(zone) + (1 << order);
-+		watermark = min_wmark_pages(zone) + (1UL << order);
- 		if (!zone_watermark_ok(zone, 0, watermark, 0, ALLOC_CMA))
- 			return 0;
+-		/*
+-		 * When called via /proc/sys/vm/compact_memory
+-		 * this makes sure we compact the whole zone regardless of
+-		 * cached scanner positions.
+-		 */
+-		if (is_via_compact_memory(cc->order))
+-			__reset_isolation_suitable(zone);
+-
+ 		if (is_via_compact_memory(cc->order) ||
+ 				!compaction_deferred(zone, cc->order))
+ 			compact_zone(zone, cc);
+@@ -1794,6 +1788,7 @@ static void compact_node(int nid)
+ 		.order = -1,
+ 		.mode = MIGRATE_SYNC,
+ 		.ignore_skip_hint = true,
++		.whole_zone = true,
+ 	};
  
+ 	__compact_pgdat(NODE_DATA(nid), &cc);
+diff --git a/mm/internal.h b/mm/internal.h
+index 680e5ce2ab37..153bb52335b4 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -179,7 +179,7 @@ struct compact_control {
+ 	enum migrate_mode mode;		/* Async or sync migration mode */
+ 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
+ 	bool direct_compaction;		/* False from kcompactd or /proc/... */
+-	bool whole_zone;		/* Whole zone has been scanned */
++	bool whole_zone;		/* Whole zone should/has been scanned */
+ 	int order;			/* order a direct compactor needs */
+ 	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
+ 	const unsigned int alloc_flags;	/* alloc flags of a direct compactor */
 -- 
 2.8.4
 
