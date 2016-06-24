@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D7479828E1
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 06:01:59 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f126so13241717wma.3
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 03:01:59 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EAB5A828E1
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 06:02:10 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id c82so13319242wme.2
+        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 03:02:10 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o82si3199932wmd.89.2016.06.24.02.55.04
+        by mx.google.com with ESMTPS id y13si3198616wmh.72.2016.06.24.02.55.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Jun 2016 02:55:04 -0700 (PDT)
+        Fri, 24 Jun 2016 02:55:03 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 17/17] mm, vmscan: make compaction_ready() more accurate and readable
-Date: Fri, 24 Jun 2016 11:54:37 +0200
-Message-Id: <20160624095437.16385-18-vbabka@suse.cz>
+Subject: [PATCH v3 05/17] mm, page_alloc: make THP-specific decisions more generic
+Date: Fri, 24 Jun 2016 11:54:25 +0200
+Message-Id: <20160624095437.16385-6-vbabka@suse.cz>
 In-Reply-To: <20160624095437.16385-1-vbabka@suse.cz>
 References: <20160624095437.16385-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,96 +20,100 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-The compaction_ready() is used during direct reclaim for costly order
-allocations to skip reclaim for zones where compaction should be attempted
-instead. It's combining the standard compaction_suitable() check with its own
-watermark check based on high watermark with extra gap, and the result is
-confusing at best.
+Since THP allocations during page faults can be costly, extra decisions are
+employed for them to avoid excessive reclaim and compaction, if the initial
+compaction doesn't look promising. The detection has never been perfect as
+there is no gfp flag specific to THP allocations. At this moment it checks the
+whole combination of flags that makes up GFP_TRANSHUGE, and hopes that no other
+users of such combination exist, or would mind being treated the same way.
+Extra care is also taken to separate allocations from khugepaged, where latency
+doesn't matter that much.
 
-This patch attempts to better structure and document the checks involved.
-First, compaction_suitable() can determine that the allocation should either
-succeed already, or that compaction doesn't have enough free pages to proceed.
-The third possibility is that compaction has enough free pages, but we still
-decide to reclaim first - unless we are already above the high watermark with
-gap.  This does not mean that the reclaim will actually reach this watermark
-during single attempt, this is rather an over-reclaim protection. So document
-the code as such. The check for compaction_deferred() is removed completely, as
-it in fact had no proper role here.
+It is however possible to distinguish these allocations in a simpler and more
+reliable way. The key observation is that after the initial compaction followed
+by the first iteration of "standard" reclaim/compaction, both __GFP_NORETRY
+allocations and costly allocations without __GFP_REPEAT are declared as
+failures:
 
-The result after this patch is mainly a less confusing code. We also skip some
-over-reclaim in cases where the allocation should already succed.
+        /* Do not loop if specifically requested */
+        if (gfp_mask & __GFP_NORETRY)
+                goto nopage;
+
+        /*
+         * Do not retry costly high order allocations unless they are
+         * __GFP_REPEAT
+         */
+        if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+                goto nopage;
+
+This means we can further distinguish allocations that are costly order *and*
+additionally include the __GFP_NORETRY flag. As it happens, GFP_TRANSHUGE
+allocations do already fall into this category. This will also allow other
+costly allocations with similar high-order benefit vs latency considerations to
+use this semantic. Furthermore, we can distinguish THP allocations that should
+try a bit harder (such as from khugepageed) by removing __GFP_NORETRY, as will
+be done in the next patch.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/vmscan.c | 43 ++++++++++++++++++++-----------------------
- 1 file changed, 20 insertions(+), 23 deletions(-)
+ mm/page_alloc.c | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 484ff05d5a8f..724131661f0c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2462,40 +2462,37 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0a3a7a9dbdff..246cba86b257 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3159,7 +3159,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 	return page;
  }
  
+-
  /*
-- * Returns true if compaction should go ahead for a high-order request, or
-- * the high-order allocation would succeed without compaction.
-+ * Returns true if compaction should go ahead for a costly-order request, or
-+ * the allocation would already succeed without compaction. Return false if we
-+ * should reclaim first.
-  */
- static inline bool compaction_ready(struct zone *zone, int order, int classzone_idx)
- {
- 	unsigned long balance_gap, watermark;
--	bool watermark_ok;
-+	enum compact_result suitable;
-+
-+	suitable = compaction_suitable(zone, order, 0, classzone_idx);
-+	if (suitable == COMPACT_PARTIAL)
-+		/* Allocation should succeed already. Don't reclaim. */
-+		return true;
-+	if (suitable == COMPACT_SKIPPED)
-+		/* Compaction cannot yet proceed. Do reclaim. */
-+		return false;
- 
- 	/*
--	 * Compaction takes time to run and there are potentially other
--	 * callers using the pages just freed. Continue reclaiming until
--	 * there is a buffer of free pages available to give compaction
--	 * a reasonable chance of completing and allocating the page
-+	 * Compaction is already possible, but it takes time to run and there
-+	 * are potentially other callers using the pages just freed. So proceed
-+	 * with reclaim to make a buffer of free pages available to give
-+	 * compaction a reasonable chance of completing and allocating the page.
-+	 * Note that we won't actually reclaim the whole buffer in one attempt
-+	 * as the target watermark in should_continue_reclaim() is lower. But if
-+	 * we are already above the high+gap watermark, don't reclaim at all.
- 	 */
- 	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
- 			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
- 	watermark = high_wmark_pages(zone) + balance_gap + compact_gap(order);
--	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, classzone_idx);
--
--	/*
--	 * If compaction is deferred, reclaim up to a point where
--	 * compaction will have a chance of success when re-enabled
--	 */
--	if (compaction_deferred(zone, order))
--		return watermark_ok;
--
--	/*
--	 * If compaction is not ready to start and allocation is not likely
--	 * to succeed without it, then keep reclaiming.
--	 */
--	if (compaction_suitable(zone, order, 0, classzone_idx) == COMPACT_SKIPPED)
--		return false;
- 
--	return watermark_ok;
-+	return zone_watermark_ok_safe(zone, 0, watermark, classzone_idx);
+  * Maximum number of compaction retries wit a progress before OOM
+  * killer is consider as the only way to move forward.
+@@ -3443,11 +3442,6 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	return false;
  }
  
+-static inline bool is_thp_gfp_mask(gfp_t gfp_mask)
+-{
+-	return (gfp_mask & (GFP_TRANSHUGE | __GFP_KSWAPD_RECLAIM)) == GFP_TRANSHUGE;
+-}
+-
  /*
+  * Maximum number of reclaim retries without any progress before OOM killer
+  * is consider as the only way to move forward.
+@@ -3605,8 +3599,11 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		if (page)
+ 			goto got_pg;
+ 
+-		/* Checks for THP-specific high-order allocations */
+-		if (is_thp_gfp_mask(gfp_mask)) {
++		/*
++		 * Checks for costly allocations with __GFP_NORETRY, which
++		 * includes THP page fault allocations
++		 */
++		if (gfp_mask & __GFP_NORETRY) {
+ 			/*
+ 			 * If compaction is deferred for high-order allocations,
+ 			 * it is because sync compaction recently failed. If
+@@ -3626,11 +3623,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 				goto nopage;
+ 
+ 			/*
+-			 * It can become very expensive to allocate transparent
+-			 * hugepages at fault, so use asynchronous memory
+-			 * compaction for THP unless it is khugepaged trying to
+-			 * collapse. All other requests should tolerate at
+-			 * least light sync migration.
++			 * Looks like reclaim/compaction is worth trying, but
++			 * sync compaction could be very expensive, so keep
++			 * using async compaction, unless it's khugepaged
++			 * trying to collapse.
+ 			 */
+ 			if (!(current->flags & PF_KTHREAD))
+ 				migration_mode = MIGRATE_ASYNC;
 -- 
 2.8.4
 
