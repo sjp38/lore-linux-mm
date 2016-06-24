@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C5A1C828E4
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 05:55:28 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id a66so13328283wme.1
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 02:55:28 -0700 (PDT)
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 13623828E1
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 06:00:37 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id l184so71986516lfl.3
+        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 03:00:37 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i76si3229306wmc.31.2016.06.24.02.55.04
+        by mx.google.com with ESMTPS id s67si3231897wmd.21.2016.06.24.02.55.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Fri, 24 Jun 2016 02:55:04 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 15/17] mm, compaction: use proper alloc_flags in __compaction_suitable()
-Date: Fri, 24 Jun 2016 11:54:35 +0200
-Message-Id: <20160624095437.16385-16-vbabka@suse.cz>
+Subject: [PATCH v3 14/17] mm, compaction: create compact_gap wrapper
+Date: Fri, 24 Jun 2016 11:54:34 +0200
+Message-Id: <20160624095437.16385-15-vbabka@suse.cz>
 In-Reply-To: <20160624095437.16385-1-vbabka@suse.cz>
 References: <20160624095437.16385-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,72 +20,86 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-The __compaction_suitable() function checks the low watermark plus a
-compact_gap() gap to decide if there's enough free memory to perform
-compaction. This check uses direct compactor's alloc_flags, but that's wrong,
-since these flags are not applicable for freepage isolation.
-
-For example, alloc_flags may indicate access to memory reserves, making
-compaction proceed, and then fail watermark check during the isolation.
-
-A similar problem exists for ALLOC_CMA, which may be part of alloc_flags, but
-not during freepage isolation. In this case however it makes sense to use
-ALLOC_CMA both in __compaction_suitable() and __isolate_free_page(), since
-there's actually nothing preventing the freepage scanner to isolate from CMA
-pageblocks, with the assumption that a page that could be migrated once by
-compaction can be migrated also later by CMA allocation. Thus we should count
-pages in CMA pageblocks when considering compaction suitability and when
-isolating freepages.
-
-To sum up, this patch should remove some false positives from
-__compaction_suitable(), and allow compaction to proceed when free pages
-required for compaction reside in the CMA pageblocks.
+Compaction uses a watermark gap of (2UL << order) pages at various places and
+it's not immediately obvious why. Abstract it through a compact_gap() wrapper
+to create a single place with a thorough explanation.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/compaction.c | 12 ++++++++++--
- mm/page_alloc.c |  2 +-
- 2 files changed, 11 insertions(+), 3 deletions(-)
+ include/linux/compaction.h | 16 ++++++++++++++++
+ mm/compaction.c            |  7 +++----
+ mm/vmscan.c                |  4 ++--
+ 3 files changed, 21 insertions(+), 6 deletions(-)
 
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index a6b3d5d2ae53..67a3372c4753 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -58,6 +58,22 @@ enum compact_result {
+ 
+ struct alloc_context; /* in mm/internal.h */
+ 
++/*
++ * Number of free order-0 pages that should be available above given watermark
++ * to make sure compaction has reasonable chance of not running out of free
++ * pages that it needs to isolate as migration target during its work.
++ */
++static inline unsigned long compact_gap(unsigned int order)
++{
++	/*
++	 * Although all the isolations for migration are temporary, compaction
++	 * may have up to 1 << order pages on its list and then try to split
++	 * an (order - 1) free page. At that point, a gap of 1 << order might
++	 * not be enough, so it's safer to require twice that amount.
++	 */
++	return 2UL << order;
++}
++
+ #ifdef CONFIG_COMPACTION
+ extern int sysctl_compact_memory;
+ extern int sysctl_compaction_handler(struct ctl_table *table, int write,
 diff --git a/mm/compaction.c b/mm/compaction.c
-index c1ce7c2abe05..3b774befb62a 100644
+index 371760a85085..c1ce7c2abe05 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1396,11 +1396,19 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+@@ -1395,11 +1395,10 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 		return COMPACT_PARTIAL;
  
  	/*
- 	 * Watermarks for order-0 must be met for compaction to be able to
--	 * isolate free pages for migration targets.
-+	 * isolate free pages for migration targets. This means that the
-+	 * watermark and alloc_flags have to match, or be more pessimistic than
-+	 * the check in __isolate_free_page(). We don't use the direct
-+	 * compactor's alloc_flags, as they are not relevant for freepage
-+	 * isolation. We however do use the direct compactor's classzone_idx to
-+	 * skip over zones where lowmem reserves would prevent allocation even
-+	 * if compaction succeeds.
-+	 * ALLOC_CMA is used, as pages in CMA pageblocks are considered
-+	 * suitable migration targets
+-	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
+-	 * This is because during migration, copies of pages need to be
+-	 * allocated and for a short time, the footprint is higher
++	 * Watermarks for order-0 must be met for compaction to be able to
++	 * isolate free pages for migration targets.
  	 */
- 	watermark = low_wmark_pages(zone) + compact_gap(order);
+-	watermark = low_wmark_pages(zone) + (2UL << order);
++	watermark = low_wmark_pages(zone) + compact_gap(order);
  	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
--				 alloc_flags, wmark_target))
-+						ALLOC_CMA, wmark_target))
+ 				 alloc_flags, wmark_target))
  		return COMPACT_SKIPPED;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 21d417ccff69..484ff05d5a8f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2351,7 +2351,7 @@ static inline bool should_continue_reclaim(struct zone *zone,
+ 	 * If we have not reclaimed enough pages for compaction and the
+ 	 * inactive lists are large enough, continue reclaiming
+ 	 */
+-	pages_for_compaction = (2UL << sc->order);
++	pages_for_compaction = compact_gap(sc->order);
+ 	inactive_lru_pages = zone_page_state(zone, NR_INACTIVE_FILE);
+ 	if (get_nr_swap_pages() > 0)
+ 		inactive_lru_pages += zone_page_state(zone, NR_INACTIVE_ANON);
+@@ -2478,7 +2478,7 @@ static inline bool compaction_ready(struct zone *zone, int order, int classzone_
+ 	 */
+ 	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
+ 			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
+-	watermark = high_wmark_pages(zone) + balance_gap + (2UL << order);
++	watermark = high_wmark_pages(zone) + balance_gap + compact_gap(order);
+ 	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, classzone_idx);
  
  	/*
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e1efdc8d2a52..9510b91517dd 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2503,7 +2503,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
- 	if (!is_migrate_isolate(mt)) {
- 		/* Obey watermarks as if the page was being allocated */
- 		watermark = low_wmark_pages(zone) + (1 << order);
--		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
-+		if (!zone_watermark_ok(zone, 0, watermark, 0, ALLOC_CMA))
- 			return 0;
- 
- 		__mod_zone_freepage_state(zone, -(1UL << order), mt);
 -- 
 2.8.4
 
