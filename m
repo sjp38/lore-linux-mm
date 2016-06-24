@@ -1,244 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BDBF6B0005
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 13:53:37 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id a66so25469749wme.1
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 10:53:37 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id w7si8793778wjf.146.2016.06.24.10.53.35
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Jun 2016 10:53:35 -0700 (PDT)
-Date: Fri, 24 Jun 2016 13:51:01 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH rebase] mm: fix vm-scalability regression in cgroup-aware
- workingset code
-Message-ID: <20160624175101.GA3024@cmpxchg.org>
-References: <20160622182019.24064-1-hannes@cmpxchg.org>
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 55C9C6B0005
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 15:12:12 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id d2so64407006qkg.0
+        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 12:12:12 -0700 (PDT)
+Received: from prod-mail-xrelay06.akamai.com (prod-mail-xrelay06.akamai.com. [96.6.114.98])
+        by mx.google.com with ESMTP id p6si5957813qtb.49.2016.06.24.12.12.10
+        for <linux-mm@kvack.org>;
+        Fri, 24 Jun 2016 12:12:11 -0700 (PDT)
+Subject: Re: [mel:mm-vmscan-node-lru-v8r12 185/295]
+ arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro
+ 'asm_volatile_goto'
+References: <201606250046.lpbX7Fys%fengguang.wu@intel.com>
+From: Jason Baron <jbaron@akamai.com>
+Message-ID: <576D8609.50305@akamai.com>
+Date: Fri, 24 Jun 2016 15:12:09 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160622182019.24064-1-hannes@cmpxchg.org>
+In-Reply-To: <201606250046.lpbX7Fys%fengguang.wu@intel.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ye Xiaolong <xiaolong.ye@intel.com>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild-all@01.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, rth@redhat.com
 
-This is a rebased version on top of mmots sans the nodelru stuff.
+Hi,
 
----
+On 06/24/2016 12:00 PM, kbuild test robot wrote:
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/mel/linux mm-vmscan-node-lru-v8r12
+> head:   572d76872348caf13577b82f35e4f1869fd79681
+> commit: 6a8bfa2685fa2969d95b16470c846175c0ded7a4 [185/295] dynamic_debug: add jump label support
+> config: arm-allyesconfig (attached as .config)
+> compiler: arm-linux-gnueabi-gcc (Debian 5.3.1-8) 5.3.1 20160205
+> reproduce:
+>         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         git checkout 6a8bfa2685fa2969d95b16470c846175c0ded7a4
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=arm 
+> 
+> All error/warnings (new ones prefixed by >>):
+> 
+>    In file included from include/linux/compiler.h:60:0,
+>                     from include/linux/linkage.h:4,
+>                     from include/linux/kernel.h:6,
+>                     from drivers/crypto/ux500/cryp/cryp_irq.c:11:
+>    arch/arm/include/asm/jump_label.h: In function 'cryp_enable_irq_src':
+>>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>
 
-23047a96d7cf ("mm: workingset: per-cgroup cache thrash detection")
-added a page->mem_cgroup lookup to the cache eviction, refault, and
-activation paths, as well as locking to the activation path, and the
-vm-scalability tests showed a regression of -23%. While the test in
-question is an artificial worst-case scenario that doesn't occur in
-real workloads - reading two sparse files in parallel at full CPU
-speed just to hammer the LRU paths - there is still some optimizations
-that can be done in those paths.
 
-Inline the lookup functions to eliminate calls. Also, page->mem_cgroup
-doesn't need to be stabilized when counting an activation; we merely
-need to hold the RCU lock to prevent the memcg from being freed.
+In drivers/crypto/ux500/cryp/Makefile, there is an explicit setting to
+disable gcc optimizations:
 
-This cuts down on overhead quite a bit:
+ifdef CONFIG_CRYPTO_DEV_UX500_DEBUG
+CFLAGS_cryp_core.o := -DDEBUG -O0
+CFLAGS_cryp.o := -DDEBUG -O0
+CFLAGS_cryp_irq.o := -DDEBUG -O0
+endif
 
-23047a96d7cfcfca 063f6715e77a7be5770d6081fe
----------------- --------------------------
-         %stddev     %change         %stddev
-             \          |                \
-  21621405 +- 0%     +11.3%   24069657 +- 2%  vm-scalability.throughput
+If I change those to -O1 or -O2, it seems to build fine, strange...I was
+able to reproduce this with gcc 4.9.0 as well.
 
-Reported-by: Ye Xiaolong <xiaolong.ye@intel.com>
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/memcontrol.h | 44 +++++++++++++++++++++++++++++++++++++++++++-
- include/linux/mm.h         |  8 ++++++++
- mm/memcontrol.c            | 42 ------------------------------------------
- mm/workingset.c            | 10 ++++++----
- 4 files changed, 57 insertions(+), 47 deletions(-)
+Thanks,
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 71aff733a497..104efa6874db 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -29,6 +29,7 @@
- #include <linux/mmzone.h>
- #include <linux/writeback.h>
- #include <linux/page-flags.h>
-+#include <linux/mm.h>
- 
- struct mem_cgroup;
- struct page;
-@@ -314,7 +315,48 @@ void mem_cgroup_uncharge_list(struct list_head *page_list);
- 
- void mem_cgroup_migrate(struct page *oldpage, struct page *newpage);
- 
--struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
-+static inline struct mem_cgroup_per_zone *
-+mem_cgroup_zone_zoneinfo(struct mem_cgroup *memcg, struct zone *zone)
-+{
-+	int nid = zone_to_nid(zone);
-+	int zid = zone_idx(zone);
-+
-+	return &memcg->nodeinfo[nid]->zoneinfo[zid];
-+}
-+
-+/**
-+ * mem_cgroup_zone_lruvec - get the lru list vector for a zone and memcg
-+ * @zone: zone of the wanted lruvec
-+ * @memcg: memcg of the wanted lruvec
-+ *
-+ * Returns the lru list vector holding pages for the given @zone and
-+ * @mem.  This can be the global zone lruvec, if the memory controller
-+ * is disabled.
-+ */
-+static inline struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,
-+						    struct mem_cgroup *memcg)
-+{
-+	struct mem_cgroup_per_zone *mz;
-+	struct lruvec *lruvec;
-+
-+	if (mem_cgroup_disabled()) {
-+		lruvec = &zone->lruvec;
-+		goto out;
-+	}
-+
-+	mz = mem_cgroup_zone_zoneinfo(memcg, zone);
-+	lruvec = &mz->lruvec;
-+out:
-+	/*
-+	 * Since a node can be onlined after the mem_cgroup was created,
-+	 * we have to be prepared to initialize lruvec->zone here;
-+	 * and if offlined then reonlined, we need to reinitialize it.
-+	 */
-+	if (unlikely(lruvec->zone != zone))
-+		lruvec->zone = zone;
-+	return lruvec;
-+}
-+
- struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
- 
- bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index c606fe4f9a7f..b21e5f30378e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -973,11 +973,19 @@ static inline struct mem_cgroup *page_memcg(struct page *page)
- {
- 	return page->mem_cgroup;
- }
-+static inline struct mem_cgroup *page_memcg_rcu(struct page *page)
-+{
-+	return READ_ONCE(page->mem_cgroup);
-+}
- #else
- static inline struct mem_cgroup *page_memcg(struct page *page)
- {
- 	return NULL;
- }
-+static inline struct mem_cgroup *page_memcg_rcu(struct page *page)
-+{
-+	return NULL;
-+}
- #endif
- 
- /*
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 3e8f9e5e9291..40dfca3ef4bb 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -323,15 +323,6 @@ EXPORT_SYMBOL(memcg_kmem_enabled_key);
- 
- #endif /* !CONFIG_SLOB */
- 
--static struct mem_cgroup_per_zone *
--mem_cgroup_zone_zoneinfo(struct mem_cgroup *memcg, struct zone *zone)
--{
--	int nid = zone_to_nid(zone);
--	int zid = zone_idx(zone);
--
--	return &memcg->nodeinfo[nid]->zoneinfo[zid];
--}
--
- /**
-  * mem_cgroup_css_from_page - css of the memcg associated with a page
-  * @page: page of interest
-@@ -944,39 +935,6 @@ static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
- 	     iter = mem_cgroup_iter(NULL, iter, NULL))
- 
- /**
-- * mem_cgroup_zone_lruvec - get the lru list vector for a zone and memcg
-- * @zone: zone of the wanted lruvec
-- * @memcg: memcg of the wanted lruvec
-- *
-- * Returns the lru list vector holding pages for the given @zone and
-- * @mem.  This can be the global zone lruvec, if the memory controller
-- * is disabled.
-- */
--struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,
--				      struct mem_cgroup *memcg)
--{
--	struct mem_cgroup_per_zone *mz;
--	struct lruvec *lruvec;
--
--	if (mem_cgroup_disabled()) {
--		lruvec = &zone->lruvec;
--		goto out;
--	}
--
--	mz = mem_cgroup_zone_zoneinfo(memcg, zone);
--	lruvec = &mz->lruvec;
--out:
--	/*
--	 * Since a node can be onlined after the mem_cgroup was created,
--	 * we have to be prepared to initialize lruvec->zone here;
--	 * and if offlined then reonlined, we need to reinitialize it.
--	 */
--	if (unlikely(lruvec->zone != zone))
--		lruvec->zone = zone;
--	return lruvec;
--}
--
--/**
-  * mem_cgroup_page_lruvec - return lruvec for isolating/putting an LRU page
-  * @page: the page
-  * @zone: zone of the page
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 8a75f8d2916a..8252de4566e9 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -305,9 +305,10 @@ bool workingset_refault(void *shadow)
-  */
- void workingset_activation(struct page *page)
- {
-+	struct mem_cgroup *memcg;
- 	struct lruvec *lruvec;
- 
--	lock_page_memcg(page);
-+	rcu_read_lock();
- 	/*
- 	 * Filter non-memcg pages here, e.g. unmap can call
- 	 * mark_page_accessed() on VDSO pages.
-@@ -315,12 +316,13 @@ void workingset_activation(struct page *page)
- 	 * XXX: See workingset_refault() - this should return
- 	 * root_mem_cgroup even for !CONFIG_MEMCG.
- 	 */
--	if (!mem_cgroup_disabled() && !page_memcg(page))
-+	memcg = page_memcg_rcu(page);
-+	if (!mem_cgroup_disabled() && !memcg)
- 		goto out;
--	lruvec = mem_cgroup_zone_lruvec(page_zone(page), page_memcg(page));
-+	lruvec = mem_cgroup_zone_lruvec(page_zone(page), memcg);
- 	atomic_long_inc(&lruvec->inactive_age);
- out:
--	unlock_page_memcg(page);
-+	rcu_read_unlock();
- }
- 
- /*
--- 
-2.8.3
+-Jason
+
+                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+>>> include/linux/compiler-gcc.h:243:38: error: impossible constraint in 'asm'
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+>    arch/arm/include/asm/jump_label.h: In function 'cryp_disable_irq_src':
+>>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+> --
+>    In file included from include/linux/compiler.h:60:0,
+>                     from include/linux/err.h:4,
+>                     from include/linux/clk.h:15,
+>                     from drivers/crypto/ux500/cryp/cryp_core.c:12:
+>    arch/arm/include/asm/jump_label.h: In function 'cryp_interrupt_handler':
+>>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+>>> include/linux/compiler-gcc.h:243:38: error: impossible constraint in 'asm'
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+>    arch/arm/include/asm/jump_label.h: In function 'cfg_iv':
+>>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+>    arch/arm/include/asm/jump_label.h: In function 'cfg_ivs':
+>>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+>    arch/arm/include/asm/jump_label.h: In function 'set_key':
+>>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+>    arch/arm/include/asm/jump_label.h: In function 'cfg_keys':
+>>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+>    arch/arm/include/asm/jump_label.h: In function 'cryp_get_device_data':
+>>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+>    arch/arm/include/asm/jump_label.h: In function 'cryp_dma_out_callback':
+>>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+>    arch/arm/include/asm/jump_label.h: In function 'cryp_set_dma_transfer':
+>>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+>>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
+>     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
+>                                          ^
+>>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
+>      asm_volatile_goto("1:\n\t"
+>      ^
+> 
+> vim +/asm_volatile_goto +13 arch/arm/include/asm/jump_label.h
+> 
+> 09f05d85 Rabin Vincent   2012-02-18   1  #ifndef _ASM_ARM_JUMP_LABEL_H
+> 09f05d85 Rabin Vincent   2012-02-18   2  #define _ASM_ARM_JUMP_LABEL_H
+> 09f05d85 Rabin Vincent   2012-02-18   3  
+> 55dd0df7 Anton Blanchard 2015-04-09   4  #ifndef __ASSEMBLY__
+> 09f05d85 Rabin Vincent   2012-02-18   5  
+> 09f05d85 Rabin Vincent   2012-02-18   6  #include <linux/types.h>
+> 11276d53 Peter Zijlstra  2015-07-24   7  #include <asm/unified.h>
+> 09f05d85 Rabin Vincent   2012-02-18   8  
+> 09f05d85 Rabin Vincent   2012-02-18   9  #define JUMP_LABEL_NOP_SIZE 4
+> 09f05d85 Rabin Vincent   2012-02-18  10  
+> 11276d53 Peter Zijlstra  2015-07-24  11  static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
+> 11276d53 Peter Zijlstra  2015-07-24  12  {
+> 11276d53 Peter Zijlstra  2015-07-24 @13  	asm_volatile_goto("1:\n\t"
+> 11276d53 Peter Zijlstra  2015-07-24  14  		 WASM(nop) "\n\t"
+> 11276d53 Peter Zijlstra  2015-07-24  15  		 ".pushsection __jump_table,  \"aw\"\n\t"
+> 11276d53 Peter Zijlstra  2015-07-24  16  		 ".word 1b, %l[l_yes], %c0\n\t"
+> 11276d53 Peter Zijlstra  2015-07-24  17  		 ".popsection\n\t"
+> 11276d53 Peter Zijlstra  2015-07-24  18  		 : :  "i" (&((char *)key)[branch]) :  : l_yes);
+> 11276d53 Peter Zijlstra  2015-07-24  19  
+> 11276d53 Peter Zijlstra  2015-07-24  20  	return false;
+> 11276d53 Peter Zijlstra  2015-07-24  21  l_yes:
+> 
+> :::::: The code at line 13 was first introduced by commit
+> :::::: 11276d5306b8e5b438a36bbff855fe792d7eaa61 locking/static_keys: Add a new static_key interface
+> 
+> :::::: TO: Peter Zijlstra <peterz@infradead.org>
+> :::::: CC: Ingo Molnar <mingo@kernel.org>
+> 
+> ---
+> 0-DAY kernel test infrastructure                Open Source Technology Center
+> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
