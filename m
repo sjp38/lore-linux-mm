@@ -1,114 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AFDA6B0005
-	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 22:32:04 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id c82so5263869wme.2
-        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 19:32:04 -0700 (PDT)
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F1DC6B0005
+	for <linux-mm@kvack.org>; Thu, 23 Jun 2016 23:14:36 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id j2so100516232vkg.3
+        for <linux-mm@kvack.org>; Thu, 23 Jun 2016 20:14:36 -0700 (PDT)
 Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [146.101.78.143])
-        by mx.google.com with ESMTPS id la7si3956528wjc.175.2016.06.23.19.32.02
+        by mx.google.com with ESMTPS id e35si3255465qtb.53.2016.06.23.20.14.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 23 Jun 2016 19:32:03 -0700 (PDT)
-Date: Fri, 24 Jun 2016 10:31:48 +0800
+        Thu, 23 Jun 2016 20:14:35 -0700 (PDT)
 From: Dennis Chen <dennis.chen@arm.com>
-Subject: Re: [PATCH 2/2] arm64:acpi Fix the acpi alignment exeception when
- 'mem=' specified
-Message-ID: <20160624023147.GB12969@arm.com>
-References: <1466681415-8058-1-git-send-email-dennis.chen@arm.com>
- <1466681415-8058-2-git-send-email-dennis.chen@arm.com>
- <20160623124229.GD8836@leverpostej>
+Subject: [PATCH v2 1/2] mm: memblock Add some new functions to address the mem limit issue
+Date: Fri, 24 Jun 2016 11:13:46 +0800
+Message-ID: <1466738027-15066-1-git-send-email-dennis.chen@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20160623124229.GD8836@leverpostej>
 Content-Type: text/plain; charset=WINDOWS-1252
 Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: linux-arm-kernel@lists.infradead.org, Catalin Marinas <catalin.marinas@arm.com>, Steve Capper <steve.capper@arm.com>, Ard
- Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Matt Fleming <matt@codeblueprint.co.uk>, linux-mm@kvack.org, linux-acpi@vger.kernel.org, linux-efi@vger.kernel.org
+To: linux-arm-kernel@lists.infradead.org
+Cc: nd@arm.com, Dennis Chen <dennis.chen@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Steve Capper <steve.capper@arm.com>, Ard
+ Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Matt Fleming <matt@codeblueprint.co.uk>, linux-mm@kvack.org, linux-acpi@vger.kernel.org, linux-efi@vger.kernel.org
 
-On Thu, Jun 23, 2016 at 01:42:30PM +0100, Mark Rutland wrote:
-> On Thu, Jun 23, 2016 at 07:30:15PM +0800, Dennis Chen wrote:
-> > This is a rework patch based on [1]. According to the proposal from
-> > Mark Rutland, when applying the system memory limit through 'mem=3Dx'
-> > kernel command line, don't remove the rest memory regions above the
-> > limit from the memblock, instead marking them as MEMBLOCK_NOMAP region,
-> > which will preserve the ability to identify regions as normal memory
-> > while not using them for allocation and the linear map.
-> >=20
-> > Without this patch, the ACPI core will map those acpi data regions(if
-> > they are above the limit) as device type memory, which will result in
-> > the alignment exception when ACPI core parses the AML data stream=20
-> > since the parsing will produce some non-alignment accesses.
-> >
-> > [1]:http://lists.infradead.org/pipermail/linux-arm-kernel/2016-June/438=
-443.html
->=20
-> Please rewrite the message to be standalone (i.e. so peopel can read
-> this without having to folow the link).
->=20
-> Explain why using mem=3D makes ACPI think regions should be mapped as
-> Device memory, the problems this causes for ACPICA, then cover why we
-> want to nomap the region.
->=20
-> > Signed-off-by: Dennis Chen <dennis.chen@arm.com>
-> > Cc: Catalin Marinas <catalin.marinas@arm.com>
-> > Cc: Steve Capper <steve.capper@arm.com>
-> > Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-> > Cc: Will Deacon <will.deacon@arm.com>
-> > Cc: Mark Rutland <mark.rutland@arm.com>
-> > Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> > Cc: Matt Fleming <matt@codeblueprint.co.uk>
-> > Cc: linux-mm@kvack.org
-> > Cc: linux-acpi@vger.kernel.org
-> > Cc: linux-efi@vger.kernel.org
-> > ---
-> >  arch/arm64/mm/init.c | 10 ++++++----
-> >  1 file changed, 6 insertions(+), 4 deletions(-)
-> >=20
-> > diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> > index d45f862..e509e24 100644
-> > --- a/arch/arm64/mm/init.c
-> > +++ b/arch/arm64/mm/init.c
-> > @@ -222,12 +222,14 @@ void __init arm64_memblock_init(void)
-> > =20
-> >  =09/*
-> >  =09 * Apply the memory limit if it was set. Since the kernel may be lo=
-aded
-> > -=09 * high up in memory, add back the kernel region that must be acces=
-sible
-> > -=09 * via the linear mapping.
-> > +=09 * in the memory regions above the limit, so we need to clear the
-> > +=09 * MEMBLOCK_NOMAP flag of this region to make it can be accessible =
-via
-> > +=09 * the linear mapping.
-> >  =09 */
-> >  =09if (memory_limit !=3D (phys_addr_t)ULLONG_MAX) {
-> > -=09=09memblock_enforce_memory_limit(memory_limit);
-> > -=09=09memblock_add(__pa(_text), (u64)(_end - _text));
-> > +=09=09memblock_mem_limit_mark_nomap(memory_limit);
-> > +=09=09if (!memblock_is_map_memory(__pa(_text)))
-> > +=09=09=09memblock_clear_nomap(__pa(_text), (u64)(_end - _text));
->=20
-> I think that the memblock_is_map_memory() check should go. Just because
-> a page of the kernel image is mapped doesn't mean that the rest is. That
-> will make this a 1-1 change.
->
-Good catch! Will be applied, thanks!
->=20
-> Other than that, this looks right to me.
->=20
-> Thanks,
-> Mark.
->=20
-> >  =09}
-> > =20
-> >  =09if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) && initrd_start) {
-> > --=20
-> > 1.8.3.1
-> >=20
->=20
+In some cases, memblock is queried to determine whether a physical
+address corresponds to memory present in a system even if unused by
+the OS for the linear mapping, highmem, etc. For example, the ACPI
+core needs this information to determine which attributes to use when
+mapping ACPI regions. Use of incorrect memory types can result in
+faults, data corruption, or other issues.
+
+Removing memory with memblock_enforce_memory_limit throws away this
+information, and so a kernel booted with 'mem=3D' may suffer from the
+issues described above. To avoid this, we can mark regions as nomap
+rather than removing them, which preserves the information we need
+while preventing other use of the regions.
+
+This patch adds new infrastructure to mark all memblock regions in
+an address range as nomap, to cater for this. Similarly we add
+infrastructure to clear the flag for an address range, which makes
+handling some overlap cases simpler.
+
+At last, we add 'size' and 'flag' debug output in the memblock debugfs
+for ease of the memblock debug effort.
+The '/sys/kernel/debug/memblock/memory' output looks like before:
+   0: 0x0000008000000000..0x0000008001e7ffff
+   1: 0x0000008001e80000..0x00000083ff184fff
+   2: 0x00000083ff185000..0x00000083ff1c2fff
+   3: 0x00000083ff1c3000..0x00000083ff222fff
+   4: 0x00000083ff223000..0x00000083ffe42fff
+   5: 0x00000083ffe43000..0x00000083ffffffff
+
+After applied:
+   0: 0x0000008000000000..0x0000008001e7ffff  0x0000000001e80000  0x4
+   1: 0x0000008001e80000..0x00000083ff184fff  0x00000003fd305000  0x0
+   2: 0x00000083ff185000..0x00000083ff1c2fff  0x000000000003e000  0x4
+   3: 0x00000083ff1c3000..0x00000083ff222fff  0x0000000000060000  0x0
+   4: 0x00000083ff223000..0x00000083ffe42fff  0x0000000000c20000  0x4
+   5: 0x00000083ffe43000..0x00000083ffffffff  0x00000000001bd000  0x0
+
+Signed-off-by: Dennis Chen <dennis.chen@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Steve Capper <steve.capper@arm.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Cc: Matt Fleming <matt@codeblueprint.co.uk>
+Cc: linux-mm@kvack.org
+Cc: linux-acpi@vger.kernel.org
+Cc: linux-efi@vger.kernel.org
+---
+Changes in v2:
+Update the commit message and add __init_memblock prefix to __find_max_addr=
+()
+to avoid possible build warnning.
+
+
+ include/linux/memblock.h |  2 ++
+ mm/memblock.c            | 50 ++++++++++++++++++++++++++++++++++++++++----=
+----
+ 2 files changed, 44 insertions(+), 8 deletions(-)
+
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 6c14b61..5e069c8 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -92,6 +92,7 @@ int memblock_mark_hotplug(phys_addr_t base, phys_addr_t s=
+ize);
+ int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
+ int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
+ int memblock_mark_nomap(phys_addr_t base, phys_addr_t size);
++int memblock_clear_nomap(phys_addr_t base, phys_addr_t size);
+ ulong choose_memblock_flags(void);
+=20
+ /* Low level functions */
+@@ -332,6 +333,7 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
+ phys_addr_t memblock_start_of_DRAM(void);
+ phys_addr_t memblock_end_of_DRAM(void);
+ void memblock_enforce_memory_limit(phys_addr_t memory_limit);
++void memblock_mem_limit_mark_nomap(phys_addr_t limit);
+ bool memblock_is_memory(phys_addr_t addr);
+ int memblock_is_map_memory(phys_addr_t addr);
+ int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index ca09915..795596d 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -814,6 +814,18 @@ int __init_memblock memblock_mark_nomap(phys_addr_t ba=
+se, phys_addr_t size)
+ }
+=20
+ /**
++ * memblock_clear_nomap - Clear flag MEMBLOCK_NOMAP for a specified region=
+.
++ * @base: the base phys addr of the region
++ * @size: the size of the region
++ *
++ * Return 0 on success, -errno on failure.
++ */
++int __init_memblock memblock_clear_nomap(phys_addr_t base, phys_addr_t siz=
+e)
++{
++=09return memblock_setclr_flag(base, size, 0, MEMBLOCK_NOMAP);
++}
++
++/**
+  * __next_reserved_mem_region - next function for for_each_reserved_region=
+()
+  * @idx: pointer to u64 loop variable
+  * @out_start: ptr to phys_addr_t for start address of the region, can be =
+%NULL
+@@ -1465,14 +1477,11 @@ phys_addr_t __init_memblock memblock_end_of_DRAM(vo=
+id)
+ =09return (memblock.memory.regions[idx].base + memblock.memory.regions[idx=
+].size);
+ }
+=20
+-void __init memblock_enforce_memory_limit(phys_addr_t limit)
++static phys_addr_t __init_memblock __find_max_addr(phys_addr_t limit)
+ {
+ =09phys_addr_t max_addr =3D (phys_addr_t)ULLONG_MAX;
+ =09struct memblock_region *r;
+=20
+-=09if (!limit)
+-=09=09return;
+-
+ =09/* find out max address */
+ =09for_each_memblock(memory, r) {
+ =09=09if (limit <=3D r->size) {
+@@ -1482,6 +1491,18 @@ void __init memblock_enforce_memory_limit(phys_addr_=
+t limit)
+ =09=09limit -=3D r->size;
+ =09}
+=20
++=09return max_addr;
++}
++
++void __init memblock_enforce_memory_limit(phys_addr_t limit)
++{
++=09phys_addr_t max_addr;
++
++=09if (!limit)
++=09=09return;
++
++=09max_addr =3D __find_max_addr(limit);
++
+ =09/* truncate both memory and reserved regions */
+ =09memblock_remove_range(&memblock.memory, max_addr,
+ =09=09=09      (phys_addr_t)ULLONG_MAX);
+@@ -1489,6 +1510,17 @@ void __init memblock_enforce_memory_limit(phys_addr_=
+t limit)
+ =09=09=09      (phys_addr_t)ULLONG_MAX);
+ }
+=20
++void __init memblock_mem_limit_mark_nomap(phys_addr_t limit)
++{
++=09phys_addr_t max_addr;
++
++=09if (!limit)
++=09=09return;
++
++=09max_addr =3D __find_max_addr(limit);
++=09memblock_mark_nomap(max_addr, (phys_addr_t)ULLONG_MAX);
++}
++
+ static int __init_memblock memblock_search(struct memblock_type *type, phy=
+s_addr_t addr)
+ {
+ =09unsigned int left =3D 0, right =3D type->cnt;
+@@ -1677,13 +1709,15 @@ static int memblock_debug_show(struct seq_file *m, =
+void *private)
+ =09=09reg =3D &type->regions[i];
+ =09=09seq_printf(m, "%4d: ", i);
+ =09=09if (sizeof(phys_addr_t) =3D=3D 4)
+-=09=09=09seq_printf(m, "0x%08lx..0x%08lx\n",
++=09=09=09seq_printf(m, "0x%08lx..0x%08lx  0x%08lx  0x%lx\n",
+ =09=09=09=09   (unsigned long)reg->base,
+-=09=09=09=09   (unsigned long)(reg->base + reg->size - 1));
++=09=09=09=09   (unsigned long)(reg->base + reg->size - 1),
++=09=09=09=09   (unsigned long)reg->size, reg->flags);
+ =09=09else
+-=09=09=09seq_printf(m, "0x%016llx..0x%016llx\n",
++=09=09=09seq_printf(m, "0x%016llx..0x%016llx  0x%016llx  0x%lx\n",
+ =09=09=09=09   (unsigned long long)reg->base,
+-=09=09=09=09   (unsigned long long)(reg->base + reg->size - 1));
++=09=09=09=09   (unsigned long long)(reg->base + reg->size - 1),
++=09=09=09=09   (unsigned long long)reg->size, reg->flags);
+=20
+ =09}
+ =09return 0;
+--=20
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
