@@ -1,51 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AEAE6B0005
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 05:32:29 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id c82so12649972wme.2
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 02:32:29 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id yy9si5912091wjc.217.2016.06.24.02.32.28
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DAB16B025E
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 05:54:42 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id l184so71892015lfl.3
+        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 02:54:42 -0700 (PDT)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id dk1si6032281wjd.197.2016.06.24.02.54.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Jun 2016 02:32:28 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id EF4569890B
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 09:32:27 +0000 (UTC)
-Date: Fri, 24 Jun 2016 10:32:26 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm, vmscan: Make kswapd reclaim no more than needed
-Message-ID: <20160624093226.GE1868@techsingularity.net>
-References: <082f01d1cdf6$c789a2b0$569ce810$@alibaba-inc.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Jun 2016 02:54:41 -0700 (PDT)
+Received: by mail-wm0-f47.google.com with SMTP id a66so18163643wme.0
+        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 02:54:40 -0700 (PDT)
+Date: Fri, 24 Jun 2016 11:54:39 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm, oom: don't set TIF_MEMDIE on a mm-less thread.
+Message-ID: <20160624095439.GA20203@dhcp22.suse.cz>
+References: <1466697527-7365-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <201606240124.FEI12978.OFQOSMJtOHFFLV@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <082f01d1cdf6$c789a2b0$569ce810$@alibaba-inc.com>
+In-Reply-To: <201606240124.FEI12978.OFQOSMJtOHFFLV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Vlastimil Babka' <vbabka@suse.cz>, 'linux-kernel' <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, oleg@redhat.com, vdavydov@virtuozzo.com, rientjes@google.com
 
-On Fri, Jun 24, 2016 at 04:59:55PM +0800, Hillf Danton wrote:
-> We stop reclaiming pages if any eligible zone is balanced.
+On Fri 24-06-16 01:24:46, Tetsuo Handa wrote:
+> I missed that victim != p case needs to use get_task_struct(). Patch updated.
+> ----------------------------------------
+> >From 1819ec63b27df2d544f66482439e754d084cebed Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Fri, 24 Jun 2016 01:16:02 +0900
+> Subject: [PATCH v2] mm, oom: don't set TIF_MEMDIE on a mm-less thread.
 > 
-> Signed-off-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Patch "mm, oom: fortify task_will_free_mem" removed p->mm != NULL test for
+> shortcut path in oom_kill_process(). But since commit f44666b04605d1c7
+> ("mm,oom: speed up select_bad_process() loop") changed to iterate using
+> thread group leaders, the possibility of p->mm == NULL has increased
+> compared to when commit 83363b917a2982dd ("oom: make sure that TIF_MEMDIE
+> is set under task_lock") was proposed. On CONFIG_MMU=n kernels, nothing
+> will clear TIF_MEMDIE and the system can OOM livelock if TIF_MEMDIE was
+> by error set to a mm-less thread group leader.
+> 
+> Let's do steps for regular path except printing OOM killer messages and
+> sending SIGKILL.
 
-wakeup_kswapd avoids waking kswapd in the first place if there are balanced
-zones. The current code will do at least one reclaim pass if the situation
-changes between the wakeup request and kswapd actually waking so some
-progress will be made. The risk for strict enforcement is that small low
-zones like DMA will be quickly generally balanced but only for very short
-periods of time and kswapd will fall behind. It *shouldn't* matter as
-the pages allocated from DMA will remain resident until the full node
-LRU cycles through but it's a possibility.
-
-I'll test the patch and make sure kswapd still reclaims at the correct
-rate. Did you this test yourself with any reclaim intensive workload to
-see if kswapd fell behind forcing more stalls in direct reclaim?
-
+I fully agree with Oleg. It would be much better to encapsulate this
+into mark_oom_victim and guard it by ifdef NOMMU as this is nommu
+specific with a big fat warning why we need it.
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
