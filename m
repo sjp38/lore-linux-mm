@@ -1,197 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 55C9C6B0005
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 15:12:12 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id d2so64407006qkg.0
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 12:12:12 -0700 (PDT)
-Received: from prod-mail-xrelay06.akamai.com (prod-mail-xrelay06.akamai.com. [96.6.114.98])
-        by mx.google.com with ESMTP id p6si5957813qtb.49.2016.06.24.12.12.10
-        for <linux-mm@kvack.org>;
-        Fri, 24 Jun 2016 12:12:11 -0700 (PDT)
-Subject: Re: [mel:mm-vmscan-node-lru-v8r12 185/295]
- arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro
- 'asm_volatile_goto'
-References: <201606250046.lpbX7Fys%fengguang.wu@intel.com>
-From: Jason Baron <jbaron@akamai.com>
-Message-ID: <576D8609.50305@akamai.com>
-Date: Fri, 24 Jun 2016 15:12:09 -0400
-MIME-Version: 1.0
-In-Reply-To: <201606250046.lpbX7Fys%fengguang.wu@intel.com>
-Content-Type: text/plain; charset="windows-1252"
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 633376B0005
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 16:19:46 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e189so261708008pfa.2
+        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 13:19:46 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id v16si8623509pfa.219.2016.06.24.13.19.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Jun 2016 13:19:45 -0700 (PDT)
+Date: Fri, 24 Jun 2016 13:19:44 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 7/9] mm/page_owner: avoid null pointer dereference
+Message-Id: <20160624131944.cf98a963de76938246a27e13@linux-foundation.org>
+In-Reply-To: <09cfe295-87d0-16d9-36ed-458378b3bd05@suse.cz>
+References: <1466150259-27727-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1466150259-27727-8-git-send-email-iamjoonsoo.kim@lge.com>
+	<09cfe295-87d0-16d9-36ed-458378b3bd05@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, rth@redhat.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: js1304@gmail.com, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>, Sudip Mukherjee <sudipm.mukherjee@gmail.com>, Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hi,
+On Fri, 17 Jun 2016 15:32:20 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
 
-On 06/24/2016 12:00 PM, kbuild test robot wrote:
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/mel/linux mm-vmscan-node-lru-v8r12
-> head:   572d76872348caf13577b82f35e4f1869fd79681
-> commit: 6a8bfa2685fa2969d95b16470c846175c0ded7a4 [185/295] dynamic_debug: add jump label support
-> config: arm-allyesconfig (attached as .config)
-> compiler: arm-linux-gnueabi-gcc (Debian 5.3.1-8) 5.3.1 20160205
-> reproduce:
->         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout 6a8bfa2685fa2969d95b16470c846175c0ded7a4
->         # save the attached .config to linux build tree
->         make.cross ARCH=arm 
+> On 06/17/2016 09:57 AM, js1304@gmail.com wrote:
+> > From: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+> >
+> > We have dereferenced page_ext before checking it. Lets check it first
+> > and then used it.
+> >
+> > Link: http://lkml.kernel.org/r/1465249059-7883-1-git-send-email-sudipm.mukherjee@gmail.com
+> > Signed-off-by: Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> All error/warnings (new ones prefixed by >>):
+> Hmm, this is already in mmotm as 
+> http://www.ozlabs.org/~akpm/mmotm/broken-out/mm-page_owner-use-stackdepot-to-store-stacktrace-fix.patch
 > 
->    In file included from include/linux/compiler.h:60:0,
->                     from include/linux/linkage.h:4,
->                     from include/linux/kernel.h:6,
->                     from drivers/crypto/ux500/cryp/cryp_irq.c:11:
->    arch/arm/include/asm/jump_label.h: In function 'cryp_enable_irq_src':
->>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->
+> But imho it's fixing a problem not related to your patch, but something that the 
+> commit f86e4271978b missed. So it should separately go to 4.7 ASAP.
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Fixes: f86e4271978b ("mm: check the return value of lookup_page_ext for all call 
+> sites")
+
+Thanks, I reordered Sudip's patch.
 
 
-In drivers/crypto/ux500/cryp/Makefile, there is an explicit setting to
-disable gcc optimizations:
 
-ifdef CONFIG_CRYPTO_DEV_UX500_DEBUG
-CFLAGS_cryp_core.o := -DDEBUG -O0
-CFLAGS_cryp.o := -DDEBUG -O0
-CFLAGS_cryp_irq.o := -DDEBUG -O0
-endif
+From: Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+Subject: mm/page_owner: avoid null pointer dereference
 
-If I change those to -O1 or -O2, it seems to build fine, strange...I was
-able to reproduce this with gcc 4.9.0 as well.
+We have dereferenced page_ext before checking it. Lets check it first
+and then used it.
 
-Thanks,
+Fixes: f86e4271978b ("mm: check the return value of lookup_page_ext for all call sites")
+Link: http://lkml.kernel.org/r/1465249059-7883-1-git-send-email-sudipm.mukherjee@gmail.com
+Signed-off-by: Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
 
--Jason
+ mm/page_owner.c |    6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
->>> include/linux/compiler-gcc.h:243:38: error: impossible constraint in 'asm'
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
->    arch/arm/include/asm/jump_label.h: In function 'cryp_disable_irq_src':
->>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
-> --
->    In file included from include/linux/compiler.h:60:0,
->                     from include/linux/err.h:4,
->                     from include/linux/clk.h:15,
->                     from drivers/crypto/ux500/cryp/cryp_core.c:12:
->    arch/arm/include/asm/jump_label.h: In function 'cryp_interrupt_handler':
->>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
->>> include/linux/compiler-gcc.h:243:38: error: impossible constraint in 'asm'
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
->    arch/arm/include/asm/jump_label.h: In function 'cfg_iv':
->>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
->    arch/arm/include/asm/jump_label.h: In function 'cfg_ivs':
->>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
->    arch/arm/include/asm/jump_label.h: In function 'set_key':
->>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
->    arch/arm/include/asm/jump_label.h: In function 'cfg_keys':
->>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
->    arch/arm/include/asm/jump_label.h: In function 'cryp_get_device_data':
->>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
->    arch/arm/include/asm/jump_label.h: In function 'cryp_dma_out_callback':
->>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
->    arch/arm/include/asm/jump_label.h: In function 'cryp_set_dma_transfer':
->>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
->>> include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->     #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->                                          ^
->>> arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->      asm_volatile_goto("1:\n\t"
->      ^
-> 
-> vim +/asm_volatile_goto +13 arch/arm/include/asm/jump_label.h
-> 
-> 09f05d85 Rabin Vincent   2012-02-18   1  #ifndef _ASM_ARM_JUMP_LABEL_H
-> 09f05d85 Rabin Vincent   2012-02-18   2  #define _ASM_ARM_JUMP_LABEL_H
-> 09f05d85 Rabin Vincent   2012-02-18   3  
-> 55dd0df7 Anton Blanchard 2015-04-09   4  #ifndef __ASSEMBLY__
-> 09f05d85 Rabin Vincent   2012-02-18   5  
-> 09f05d85 Rabin Vincent   2012-02-18   6  #include <linux/types.h>
-> 11276d53 Peter Zijlstra  2015-07-24   7  #include <asm/unified.h>
-> 09f05d85 Rabin Vincent   2012-02-18   8  
-> 09f05d85 Rabin Vincent   2012-02-18   9  #define JUMP_LABEL_NOP_SIZE 4
-> 09f05d85 Rabin Vincent   2012-02-18  10  
-> 11276d53 Peter Zijlstra  2015-07-24  11  static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
-> 11276d53 Peter Zijlstra  2015-07-24  12  {
-> 11276d53 Peter Zijlstra  2015-07-24 @13  	asm_volatile_goto("1:\n\t"
-> 11276d53 Peter Zijlstra  2015-07-24  14  		 WASM(nop) "\n\t"
-> 11276d53 Peter Zijlstra  2015-07-24  15  		 ".pushsection __jump_table,  \"aw\"\n\t"
-> 11276d53 Peter Zijlstra  2015-07-24  16  		 ".word 1b, %l[l_yes], %c0\n\t"
-> 11276d53 Peter Zijlstra  2015-07-24  17  		 ".popsection\n\t"
-> 11276d53 Peter Zijlstra  2015-07-24  18  		 : :  "i" (&((char *)key)[branch]) :  : l_yes);
-> 11276d53 Peter Zijlstra  2015-07-24  19  
-> 11276d53 Peter Zijlstra  2015-07-24  20  	return false;
-> 11276d53 Peter Zijlstra  2015-07-24  21  l_yes:
-> 
-> :::::: The code at line 13 was first introduced by commit
-> :::::: 11276d5306b8e5b438a36bbff855fe792d7eaa61 locking/static_keys: Add a new static_key interface
-> 
-> :::::: TO: Peter Zijlstra <peterz@infradead.org>
-> :::::: CC: Ingo Molnar <mingo@kernel.org>
-> 
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-> 
+diff -puN mm/page_owner.c~mm-page_owner-use-stackdepot-to-store-stacktrace-fix mm/page_owner.c
+--- a/mm/page_owner.c~mm-page_owner-use-stackdepot-to-store-stacktrace-fix
++++ a/mm/page_owner.c
+@@ -207,13 +207,15 @@ void __dump_page_owner(struct page *page
+ 		.nr_entries = page_ext->nr_entries,
+ 		.entries = &page_ext->trace_entries[0],
+ 	};
+-	gfp_t gfp_mask = page_ext->gfp_mask;
+-	int mt = gfpflags_to_migratetype(gfp_mask);
++	gfp_t gfp_mask;
++	int mt;
+ 
+ 	if (unlikely(!page_ext)) {
+ 		pr_alert("There is not page extension available.\n");
+ 		return;
+ 	}
++	gfp_mask = page_ext->gfp_mask;
++	mt = gfpflags_to_migratetype(gfp_mask);
+ 
+ 	if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags)) {
+ 		pr_alert("page_owner info is not active (free page?)\n");
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
