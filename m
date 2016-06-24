@@ -1,85 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A784B6B0005
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 05:08:29 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id r190so12292125wmr.0
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 02:08:29 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m1si5834072wjd.141.2016.06.24.02.08.28
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AEAE6B0005
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 05:32:29 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id c82so12649972wme.2
+        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 02:32:29 -0700 (PDT)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id yy9si5912091wjc.217.2016.06.24.02.32.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Jun 2016 02:08:28 -0700 (PDT)
-Date: Fri, 24 Jun 2016 11:08:25 +0200
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH v9 06/12] kthread: Add kthread_drain_worker()
-Message-ID: <20160624090825.GG29718@pathway.suse.cz>
-References: <1466075851-24013-1-git-send-email-pmladek@suse.com>
- <1466075851-24013-7-git-send-email-pmladek@suse.com>
- <20160622205445.GV30909@twins.programming.kicks-ass.net>
- <20160623213258.GO3262@mtj.duckdns.org>
- <20160624070515.GU30154@twins.programming.kicks-ass.net>
+        Fri, 24 Jun 2016 02:32:28 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id EF4569890B
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 09:32:27 +0000 (UTC)
+Date: Fri, 24 Jun 2016 10:32:26 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm, vmscan: Make kswapd reclaim no more than needed
+Message-ID: <20160624093226.GE1868@techsingularity.net>
+References: <082f01d1cdf6$c789a2b0$569ce810$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160624070515.GU30154@twins.programming.kicks-ass.net>
+In-Reply-To: <082f01d1cdf6$c789a2b0$569ce810$@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Vlastimil Babka' <vbabka@suse.cz>, 'linux-kernel' <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri 2016-06-24 09:05:15, Peter Zijlstra wrote:
-> On Thu, Jun 23, 2016 at 05:32:58PM -0400, Tejun Heo wrote:
-> > Hello,
-> > 
-> > On Wed, Jun 22, 2016 at 10:54:45PM +0200, Peter Zijlstra wrote:
-> > > > + * The caller is responsible for blocking all users of this kthread
-> > > > + * worker from queuing new works. Also it is responsible for blocking
-> > > > + * the already queued works from an infinite re-queuing!
-> > > 
-> > > This, I really dislike that. And it makes the kthread_destroy_worker()
-> > > from the next patch unnecessarily fragile.
-> > > 
-> > > Why not add a kthread_worker::blocked flag somewhere and refuse/WARN
-> > > kthread_queue_work() when that is set.
-> > 
-> > It's the same logic from workqueue counterpart.
+On Fri, Jun 24, 2016 at 04:59:55PM +0800, Hillf Danton wrote:
+> We stop reclaiming pages if any eligible zone is balanced.
 > 
-> So ? Clearly it (the kthread workqueue) can be improved here.
-> 
-> > For workqueue, nothing can make it less fragile as the workqueue
-> > struct itself is freed on destruction.  If its users fail to stop
-> > issuing work items, it'll lead to use-after-free.
-> 
-> Right, but this kthread thingy does not, so why not add a failsafe?
+> Signed-off-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
-The struct kthread_worker is freed in kthread_destroy_worker().
-So kthread_worker is the same situation as workqueues.
+wakeup_kswapd avoids waking kswapd in the first place if there are balanced
+zones. The current code will do at least one reclaim pass if the situation
+changes between the wakeup request and kswapd actually waking so some
+progress will be made. The risk for strict enforcement is that small low
+zones like DMA will be quickly generally balanced but only for very short
+periods of time and kswapd will fall behind. It *shouldn't* matter as
+the pages allocated from DMA will remain resident until the full node
+LRU cycles through but it's a possibility.
 
-The allocation/freeing has been added in v2. It helped
-to make it clear when the structure was initialized. Note that we
-still need the crate/destroy functions to start/stop the kthread.
-See the discussion at
-https://lkml.kernel.org/g/20150728172657.GC5322@mtj.duckdns.org
+I'll test the patch and make sure kswapd still reclaims at the correct
+rate. Did you this test yourself with any reclaim intensive workload to
+see if kswapd fell behind forcing more stalls in direct reclaim?
 
-I personally do not have strong opinion about it.
-
-On one hand, it makes the code more complex because we need strong
-synchronization between queueing/canceling/destroying. There are cases
-where it is not that important, for example the hugepage daemon or
-hung task. It does not matter if the next round will be done or not.
-Well, it is strange if someting gets queued and it is not proceed.
-
-On the other hand, there are situations where the work must be
-done, e.g. some I/O operation. They need the strong syncronization.
-We could print a warning when queueing a work for a destroyed
-(stoped) kthread_worker to catch potential problems. But then we will need
-the strong synchronization in all cases to avoid "false" alarms.
-
-After all, the blocked flag will not necessarily make the usage
-less hairy. Or did I miss something?
-
-Best Regards,
-Petr
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
