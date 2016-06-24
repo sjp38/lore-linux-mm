@@ -1,80 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D476B0005
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 17:55:14 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ao6so222857224pac.2
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 14:55:14 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id 2si9068146pfu.115.2016.06.24.14.55.13
-        for <linux-mm@kvack.org>;
-        Fri, 24 Jun 2016 14:55:13 -0700 (PDT)
-Date: Fri, 24 Jun 2016 15:55:12 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 2/3] mm: Export follow_pte()
-Message-ID: <20160624215512.GB20730@linux.intel.com>
-References: <1466523915-14644-1-git-send-email-jack@suse.cz>
- <1466523915-14644-3-git-send-email-jack@suse.cz>
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 15E076B0005
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 17:55:48 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id d2so73561161qkg.0
+        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 14:55:48 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y19si6459504qka.154.2016.06.24.14.55.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Jun 2016 14:55:47 -0700 (PDT)
+Date: Fri, 24 Jun 2016 23:56:27 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] mm,oom: use per signal_struct flag rather than clear
+	TIF_MEMDIE
+Message-ID: <20160624215627.GA1148@redhat.com>
+References: <1466766121-8164-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1466523915-14644-3-git-send-email-jack@suse.cz>
+In-Reply-To: <1466766121-8164-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, David Rientjes <rientjes@google.com>
 
-On Tue, Jun 21, 2016 at 05:45:14PM +0200, Jan Kara wrote:
-> DAX will need to implement its own version of check_page_address(). To
-						page_check_address()
+Since I mentioned TIF_MEMDIE in another thread, I simply can't resist.
+Sorry for grunting.
 
-> avoid duplicating page table walking code, export follow_pte() which
-> does what we need.
-> 
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->  include/linux/mm.h | 2 ++
->  mm/memory.c        | 5 +++--
->  2 files changed, 5 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 5df5feb49575..989f5d949db3 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1193,6 +1193,8 @@ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
->  			struct vm_area_struct *vma);
->  void unmap_mapping_range(struct address_space *mapping,
->  		loff_t const holebegin, loff_t const holelen, int even_cows);
-> +int follow_pte(struct mm_struct *mm, unsigned long address, pte_t **ptepp,
-> +	       spinlock_t **ptlp);
->  int follow_pfn(struct vm_area_struct *vma, unsigned long address,
->  	unsigned long *pfn);
->  int follow_phys(struct vm_area_struct *vma, unsigned long address,
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 15322b73636b..f6175d63c2e9 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3647,8 +3647,8 @@ out:
->  	return -EINVAL;
->  }
->  
-> -static inline int follow_pte(struct mm_struct *mm, unsigned long address,
-> -			     pte_t **ptepp, spinlock_t **ptlp)
-> +int follow_pte(struct mm_struct *mm, unsigned long address, pte_t **ptepp,
-> +	       spinlock_t **ptlp)
->  {
->  	int res;
->  
-> @@ -3657,6 +3657,7 @@ static inline int follow_pte(struct mm_struct *mm, unsigned long address,
->  			   !(res = __follow_pte(mm, address, ptepp, ptlp)));
->  	return res;
->  }
-> +EXPORT_SYMBOL(follow_pte);
->  
->  /**
->   * follow_pfn - look up PFN at a user virtual address
-> -- 
-> 2.6.6
-> 
+On 06/24, Tetsuo Handa wrote:
+>
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -801,6 +801,7 @@ struct signal_struct {
+>  	 * oom
+>  	 */
+>  	bool oom_flag_origin;
+> +	bool oom_ignore_victims;        /* Ignore oom_victims value */
+>  	short oom_score_adj;		/* OOM kill score adjustment */
+>  	short oom_score_adj_min;	/* OOM kill score adjustment min value.
+>  					 * Only settable by CAP_SYS_RESOURCE. */
+
+Yet another kludge to fix yet another problem with TIF_MEMDIE. Not
+to mention that that wh
+
+Can't we state the fact TIF_MEMDIE is just broken? The very idea imo.
+I am starting to seriously think we should kill this flag, fix the
+compilation errors, remove the dead code (including the oom_victims
+logic), and then try to add something else. Say, even MMF_MEMDIE looks
+better although I understand it is not that simple.
+
+Just one question. Why do we need this bit outside of oom-kill.c? It
+affects page_alloc.c and this probably makes sense. But who get this
+flag when we decide to kill the memory hog? A random thread foung by
+find_lock_task_mm(), iow a random thread with ->mm != NULL, likely the
+group leader. This simply can not be right no matter what.
+
+
+
+And in any case I don't understand this patch but I have to admit that
+I failed to force myself to read the changelog and the actual change ;)
+In any case I agree that we should not set MMF_MEMDIE if ->mm == NULL,
+and if we ensure this then I do not understand why we can't rely on
+MMF_OOM_REAPED. Ignoring the obvious races, if ->oom_victims != 0 then
+find_lock_task_mm() should succed.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
