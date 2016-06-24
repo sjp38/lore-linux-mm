@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 664DE828E4
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 05:55:26 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id f126so13065836wma.3
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 02:55:26 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C5A1C828E4
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 05:55:28 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id a66so13328283wme.1
+        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 02:55:28 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id je6si6077148wjb.80.2016.06.24.02.55.03
+        by mx.google.com with ESMTPS id i76si3229306wmc.31.2016.06.24.02.55.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Jun 2016 02:55:03 -0700 (PDT)
+        Fri, 24 Jun 2016 02:55:04 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 10/17] mm, compaction: cleanup unused functions
-Date: Fri, 24 Jun 2016 11:54:30 +0200
-Message-Id: <20160624095437.16385-11-vbabka@suse.cz>
+Subject: [PATCH v3 15/17] mm, compaction: use proper alloc_flags in __compaction_suitable()
+Date: Fri, 24 Jun 2016 11:54:35 +0200
+Message-Id: <20160624095437.16385-16-vbabka@suse.cz>
 In-Reply-To: <20160624095437.16385-1-vbabka@suse.cz>
 References: <20160624095437.16385-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,127 +20,72 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-Since kswapd compaction moved to kcompactd, compact_pgdat() is not called
-anymore, so we remove it. The only caller of __compact_pgdat() is
-compact_node(), so we merge them and remove code that was only reachable from
-kswapd.
+The __compaction_suitable() function checks the low watermark plus a
+compact_gap() gap to decide if there's enough free memory to perform
+compaction. This check uses direct compactor's alloc_flags, but that's wrong,
+since these flags are not applicable for freepage isolation.
+
+For example, alloc_flags may indicate access to memory reserves, making
+compaction proceed, and then fail watermark check during the isolation.
+
+A similar problem exists for ALLOC_CMA, which may be part of alloc_flags, but
+not during freepage isolation. In this case however it makes sense to use
+ALLOC_CMA both in __compaction_suitable() and __isolate_free_page(), since
+there's actually nothing preventing the freepage scanner to isolate from CMA
+pageblocks, with the assumption that a page that could be migrated once by
+compaction can be migrated also later by CMA allocation. Thus we should count
+pages in CMA pageblocks when considering compaction suitability and when
+isolating freepages.
+
+To sum up, this patch should remove some false positives from
+__compaction_suitable(), and allow compaction to proceed when free pages
+required for compaction reside in the CMA pageblocks.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/compaction.h |  5 ----
- mm/compaction.c            | 60 +++++++++++++---------------------------------
- 2 files changed, 17 insertions(+), 48 deletions(-)
+ mm/compaction.c | 12 ++++++++++--
+ mm/page_alloc.c |  2 +-
+ 2 files changed, 11 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 095aaa220952..0cc702ec80a2 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -70,7 +70,6 @@ extern int fragmentation_index(struct zone *zone, unsigned int order);
- extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
- 		unsigned int order, unsigned int alloc_flags,
- 		const struct alloc_context *ac, enum compact_priority prio);
--extern void compact_pgdat(pg_data_t *pgdat, int order);
- extern void reset_isolation_suitable(pg_data_t *pgdat);
- extern enum compact_result compaction_suitable(struct zone *zone, int order,
- 		unsigned int alloc_flags, int classzone_idx);
-@@ -167,10 +166,6 @@ static inline void __ClearPageMovable(struct page *page)
- {
- }
- 
--static inline void compact_pgdat(pg_data_t *pgdat, int order)
--{
--}
--
- static inline void reset_isolation_suitable(pg_data_t *pgdat)
- {
- }
 diff --git a/mm/compaction.c b/mm/compaction.c
-index e7fe848e318e..5c15db0001a5 100644
+index c1ce7c2abe05..3b774befb62a 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1736,10 +1736,18 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+@@ -1396,11 +1396,19 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
  
+ 	/*
+ 	 * Watermarks for order-0 must be met for compaction to be able to
+-	 * isolate free pages for migration targets.
++	 * isolate free pages for migration targets. This means that the
++	 * watermark and alloc_flags have to match, or be more pessimistic than
++	 * the check in __isolate_free_page(). We don't use the direct
++	 * compactor's alloc_flags, as they are not relevant for freepage
++	 * isolation. We however do use the direct compactor's classzone_idx to
++	 * skip over zones where lowmem reserves would prevent allocation even
++	 * if compaction succeeds.
++	 * ALLOC_CMA is used, as pages in CMA pageblocks are considered
++	 * suitable migration targets
+ 	 */
+ 	watermark = low_wmark_pages(zone) + compact_gap(order);
+ 	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
+-				 alloc_flags, wmark_target))
++						ALLOC_CMA, wmark_target))
+ 		return COMPACT_SKIPPED;
  
- /* Compact all zones within a node */
--static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
-+static void compact_node(int nid)
- {
-+	pg_data_t *pgdat = NODE_DATA(nid);
- 	int zoneid;
- 	struct zone *zone;
-+	struct compact_control cc = {
-+		.order = -1,
-+		.mode = MIGRATE_SYNC,
-+		.ignore_skip_hint = true,
-+		.whole_zone = true,
-+	};
-+
+ 	/*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e1efdc8d2a52..9510b91517dd 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2503,7 +2503,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
+ 	if (!is_migrate_isolate(mt)) {
+ 		/* Obey watermarks as if the page was being allocated */
+ 		watermark = low_wmark_pages(zone) + (1 << order);
+-		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
++		if (!zone_watermark_ok(zone, 0, watermark, 0, ALLOC_CMA))
+ 			return 0;
  
- 	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
- 
-@@ -1747,53 +1755,19 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
- 		if (!populated_zone(zone))
- 			continue;
- 
--		cc->nr_freepages = 0;
--		cc->nr_migratepages = 0;
--		cc->zone = zone;
--		INIT_LIST_HEAD(&cc->freepages);
--		INIT_LIST_HEAD(&cc->migratepages);
--
--		if (is_via_compact_memory(cc->order) ||
--				!compaction_deferred(zone, cc->order))
--			compact_zone(zone, cc);
--
--		VM_BUG_ON(!list_empty(&cc->freepages));
--		VM_BUG_ON(!list_empty(&cc->migratepages));
-+		cc.nr_freepages = 0;
-+		cc.nr_migratepages = 0;
-+		cc.zone = zone;
-+		INIT_LIST_HEAD(&cc.freepages);
-+		INIT_LIST_HEAD(&cc.migratepages);
- 
--		if (is_via_compact_memory(cc->order))
--			continue;
-+		compact_zone(zone, &cc);
- 
--		if (zone_watermark_ok(zone, cc->order,
--				low_wmark_pages(zone), 0, 0))
--			compaction_defer_reset(zone, cc->order, false);
-+		VM_BUG_ON(!list_empty(&cc.freepages));
-+		VM_BUG_ON(!list_empty(&cc.migratepages));
- 	}
- }
- 
--void compact_pgdat(pg_data_t *pgdat, int order)
--{
--	struct compact_control cc = {
--		.order = order,
--		.mode = MIGRATE_ASYNC,
--	};
--
--	if (!order)
--		return;
--
--	__compact_pgdat(pgdat, &cc);
--}
--
--static void compact_node(int nid)
--{
--	struct compact_control cc = {
--		.order = -1,
--		.mode = MIGRATE_SYNC,
--		.ignore_skip_hint = true,
--		.whole_zone = true,
--	};
--
--	__compact_pgdat(NODE_DATA(nid), &cc);
--}
--
- /* Compact all nodes in the system */
- static void compact_nodes(void)
- {
+ 		__mod_zone_freepage_state(zone, -(1UL << order), mt);
 -- 
 2.8.4
 
