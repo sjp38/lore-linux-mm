@@ -1,72 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AD496B0005
-	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 03:05:24 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id x68so206720200ioi.0
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 00:05:24 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id j135si1886412itj.27.2016.06.24.00.05.23
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 05A8F6B0005
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 03:51:03 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id c82so10296165wme.2
+        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 00:51:02 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id y188si2603545wmg.106.2016.06.24.00.51.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Jun 2016 00:05:23 -0700 (PDT)
-Date: Fri, 24 Jun 2016 09:05:15 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v9 06/12] kthread: Add kthread_drain_worker()
-Message-ID: <20160624070515.GU30154@twins.programming.kicks-ass.net>
-References: <1466075851-24013-1-git-send-email-pmladek@suse.com>
- <1466075851-24013-7-git-send-email-pmladek@suse.com>
- <20160622205445.GV30909@twins.programming.kicks-ass.net>
- <20160623213258.GO3262@mtj.duckdns.org>
+        Fri, 24 Jun 2016 00:51:01 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 46FF61C11E1
+	for <linux-mm@kvack.org>; Fri, 24 Jun 2016 08:51:01 +0100 (IST)
+Date: Fri, 24 Jun 2016 08:50:59 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 00/27] Move LRU page reclaim from zones to nodes v7
+Message-ID: <20160624075059.GC1868@techsingularity.net>
+References: <1466518566-30034-1-git-send-email-mgorman@techsingularity.net>
+ <3c062233-1ef7-bc85-5079-255f61f57c7d@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160623213258.GO3262@mtj.duckdns.org>
+In-Reply-To: <3c062233-1ef7-bc85-5079-255f61f57c7d@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Petr Mladek <pmladek@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 23, 2016 at 05:32:58PM -0400, Tejun Heo wrote:
-> Hello,
-> 
-> On Wed, Jun 22, 2016 at 10:54:45PM +0200, Peter Zijlstra wrote:
-> > > + * The caller is responsible for blocking all users of this kthread
-> > > + * worker from queuing new works. Also it is responsible for blocking
-> > > + * the already queued works from an infinite re-queuing!
+On Fri, Jun 24, 2016 at 04:35:45PM +1000, Balbir Singh wrote:
+> > 1. The residency of a page partially depends on what zone the page was
+> >    allocated from.  This is partially combatted by the fair zone allocation
+> >    policy but that is a partial solution that introduces overhead in the
+> >    page allocator paths.
 > > 
-> > This, I really dislike that. And it makes the kthread_destroy_worker()
-> > from the next patch unnecessarily fragile.
+> > 2. Currently, reclaim on node 0 behaves slightly different to node 1. For
+> >    example, direct reclaim scans in zonelist order and reclaims even if
+> >    the zone is over the high watermark regardless of the age of pages
+> >    in that LRU. Kswapd on the other hand starts reclaim on the highest
+> >    unbalanced zone. A difference in distribution of file/anon pages due
+> >    to when they were allocated results can result in a difference in 
+> >    again. While the fair zone allocation policy mitigates some of the
+> >    problems here, the page reclaim results on a multi-zone node will
+> >    always be different to a single-zone node.
+> >    it was scheduled on as a result.
 > > 
-> > Why not add a kthread_worker::blocked flag somewhere and refuse/WARN
-> > kthread_queue_work() when that is set.
+> > 3. kswapd and the page allocator scan zones in the opposite order to
+> >    avoid interfering with each other but it's sensitive to timing.  This
+> >    mitigates the page allocator using pages that were allocated very recently
+> >    in the ideal case but it's sensitive to timing. When kswapd is allocating
+> >    from lower zones then it's great but during the rebalancing of the highest
+> >    zone, the page allocator and kswapd interfere with each other. It's worse
+> >    if the highest zone is small and difficult to balance.
+> > 
+> > 4. slab shrinkers are node-based which makes it harder to identify the exact
+> >    relationship between slab reclaim and LRU reclaim.
+> > 
 > 
-> It's the same logic from workqueue counterpart.
+> Sorry, I am late in reading the thread and the patches, but I am trying to understand
+> the key benefits?
 
-So ? Clearly it (the kthread workqueue) can be improved here.
+The key benefits were outlined at the beginning of the changelog. The
+one that is missing is the large overhead from the fair zone allocation
+policy which can be removed safely by the feature. The benefit to page
+allocator micro-benchmarks is outlined in the series introduction.
 
-> For workqueue, nothing can make it less fragile as the workqueue
-> struct itself is freed on destruction.  If its users fail to stop
-> issuing work items, it'll lead to use-after-free.
+> I know that
+> zones have grown to be overloaded to mean many things now. What is the contention impact
+> of moving the LRU from zone to nodes?
 
-Right, but this kthread thingy does not, so why not add a failsafe?
+Expected to be minimal. On NUMA machines, most nodes have only one zone.
+On machines with multiple zones, the lock per zone is not that fine-grained
+given the size of the zones on large memory configurations.
 
-> IIRC, the draining of self-requeueing work items is a specific
-> requirement from some edge use case which used workqueue to implement
-> multi-step state machine. 
-
-Right, that might be an issue,
-
-> Given how rare that is 
-
-Could you then not remove/rework these few cases for workqueue as well
-and make that 'better' too?
-
-> and the extra
-> complexity of identifying self-requeueing cases, let's forget about
-> draining and on destruction clear the worker pointer to block further
-> queueing and then flush whatever is in flight.
-
-You're talking about regular workqueues here?
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
