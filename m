@@ -1,118 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DFB4A6B0005
-	for <linux-mm@kvack.org>; Sat, 25 Jun 2016 01:44:48 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e189so281979331pfa.2
-        for <linux-mm@kvack.org>; Fri, 24 Jun 2016 22:44:48 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id a63si11387366pfb.33.2016.06.24.22.44.47
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 413126B0005
+	for <linux-mm@kvack.org>; Sat, 25 Jun 2016 04:15:26 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r190so35907189wmr.0
+        for <linux-mm@kvack.org>; Sat, 25 Jun 2016 01:15:26 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id e133si6863775lfe.23.2016.06.25.01.15.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Jun 2016 22:44:48 -0700 (PDT)
-Subject: Re: [PATCH] mm,oom: use per signal_struct flag rather than clear TIF_MEMDIE
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1466766121-8164-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20160624215627.GA1148@redhat.com>
-In-Reply-To: <20160624215627.GA1148@redhat.com>
-Message-Id: <201606251444.EGJ69787.FtMOFJOLSHFQOV@I-love.SAKURA.ne.jp>
-Date: Sat, 25 Jun 2016 14:44:39 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 25 Jun 2016 01:15:24 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id w130so23930668lfd.2
+        for <linux-mm@kvack.org>; Sat, 25 Jun 2016 01:15:24 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20160620143539.GG9892@dhcp22.suse.cz>
+References: <1465754611-21398-1-git-send-email-masanori.yoshida.lkml@gmail.com>
+ <20160620143539.GG9892@dhcp22.suse.cz>
+From: Masanori YOSHIDA <masanori.yoshida.lkml@gmail.com>
+Date: Sat, 25 Jun 2016 17:15:23 +0900
+Message-ID: <CAM-Ae1Nx+4=p5ECwuRBnBDHuGVUhrM2XO-DsU3Lv=VdykGKc6Q@mail.gmail.com>
+Subject: Re: [PATCH] Delete meaningless check of current_order in __rmqueue_fallback
+Content-Type: multipart/alternative; boundary=001a1142c02e9aeb4b053615e342
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: oleg@redhat.com
-Cc: mhocko@kernel.org, linux-mm@kvack.org, mhocko@suse.com, vdavydov@virtuozzo.com, rientjes@google.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, rientjes@google.com, iamjoonsoo.kim@lge.com, izumi.taku@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, YOSHIDA Masanori <masanori.yoshida@gmail.com>
 
-Oleg Nesterov wrote:
-> Since I mentioned TIF_MEMDIE in another thread, I simply can't resist.
-> Sorry for grunting.
-> 
-> On 06/24, Tetsuo Handa wrote:
+--001a1142c02e9aeb4b053615e342
+Content-Type: text/plain; charset=UTF-8
+
+2016-06-20 23:35 GMT+09:00 Michal Hocko <mhocko@kernel.org>:
+
+> On Mon 13-06-16 03:03:31, YOSHIDA Masanori wrote:
+> > From: YOSHIDA Masanori <masanori.yoshida@gmail.com>
 > >
-> > --- a/include/linux/sched.h
-> > +++ b/include/linux/sched.h
-> > @@ -801,6 +801,7 @@ struct signal_struct {
-> >  	 * oom
-> >  	 */
-> >  	bool oom_flag_origin;
-> > +	bool oom_ignore_victims;        /* Ignore oom_victims value */
-> >  	short oom_score_adj;		/* OOM kill score adjustment */
-> >  	short oom_score_adj_min;	/* OOM kill score adjustment min value.
-> >  					 * Only settable by CAP_SYS_RESOURCE. */
-> 
-> Yet another kludge to fix yet another problem with TIF_MEMDIE. Not
-> to mention that that wh
-> 
-> Can't we state the fact TIF_MEMDIE is just broken? The very idea imo.
+> > Signed-off-by: YOSHIDA Masanori <masanori.yoshida@gmail.com>
+> > ---
+> >  mm/page_alloc.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> >
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 6903b69..db02967 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2105,7 +2105,7 @@ __rmqueue_fallback(struct zone *zone, unsigned int
+> order, int start_migratetype)
+> >
+> >       /* Find the largest possible block of pages in the other list */
+> >       for (current_order = MAX_ORDER-1;
+> > -                             current_order >= order && current_order <=
+> MAX_ORDER-1;
+> > +                             current_order >= order;
+> >                               --current_order) {
+> >               area = &(zone->free_area[current_order]);
+> >               fallback_mt = find_suitable_fallback(area, current_order,
+>
+> This is incorrect. Guess what happens if the given order is 0. Hint,
+> current_order is unsigned int.
 
-Yes. TIF_MEMDIE is a trouble maker.
 
-Setting TIF_MEMDIE is per task_struct operation.
-Sending SIGKILL is per signal_struct operation.
-OOM killer is per mm_struct operation.
+I see. Thank you for replying.
+And I should have noticed it before submission by using git-blame. Excuse
+me.
 
-> I am starting to seriously think we should kill this flag, fix the
-> compilation errors, remove the dead code (including the oom_victims
-> logic), and then try to add something else. Say, even MMF_MEMDIE looks
-> better although I understand it is not that simple.
 
-I wish that TIF_MEMDIE is per signal_struct flag. But since we allow
-mm-less TIF_MEMDIE thread to use ALLOC_NO_WATERMARKS via TIF_MEMDIE
-inside __mmput() from mmput() from exit_mm() from do_exit(), we can't
-replace
+> --
+> Michal Hocko
+> SUSE Labs
+>
 
-  test_thread_flag(TIF_MEMDIE)
+--001a1142c02e9aeb4b053615e342
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-in gfp_to_alloc_flags() with
+<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">2016=
+-06-20 23:35 GMT+09:00 Michal Hocko <span dir=3D"ltr">&lt;<a href=3D"mailto=
+:mhocko@kernel.org" target=3D"_blank">mhocko@kernel.org</a>&gt;</span>:<br>=
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex"><span class=3D"">On Mon 13-06-16 03:03:31, Y=
+OSHIDA Masanori wrote:<br>
+&gt; From: YOSHIDA Masanori &lt;<a href=3D"mailto:masanori.yoshida@gmail.co=
+m">masanori.yoshida@gmail.com</a>&gt;<br>
+&gt;<br>
+&gt; Signed-off-by: YOSHIDA Masanori &lt;<a href=3D"mailto:masanori.yoshida=
+@gmail.com">masanori.yoshida@gmail.com</a>&gt;<br>
+&gt; ---<br>
+&gt;=C2=A0 mm/page_alloc.c | 2 +-<br>
+&gt;=C2=A0 1 file changed, 1 insertion(+), 1 deletion(-)<br>
+&gt;<br>
+&gt; diff --git a/mm/page_alloc.c b/mm/page_alloc.c<br>
+&gt; index 6903b69..db02967 100644<br>
+&gt; --- a/mm/page_alloc.c<br>
+&gt; +++ b/mm/page_alloc.c<br>
+&gt; @@ -2105,7 +2105,7 @@ __rmqueue_fallback(struct zone *zone, unsigned i=
+nt order, int start_migratetype)<br>
+&gt;<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0/* Find the largest possible block of pages =
+in the other list */<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0for (current_order =3D MAX_ORDER-1;<br>
+&gt; -=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0current_order &gt;=3D order &amp;&amp; c=
+urrent_order &lt;=3D MAX_ORDER-1;<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0current_order &gt;=3D order;<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0--current_order) {<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0area =3D &amp;(z=
+one-&gt;free_area[current_order]);<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0fallback_mt =3D =
+find_suitable_fallback(area, current_order,<br>
+<br>
+</span>This is incorrect. Guess what happens if the given order is 0. Hint,=
+<br>
+current_order is unsigned int.</blockquote><div><br></div><div>I see. Thank=
+ you for replying.</div><div>And I should have noticed it before submission=
+ by using git-blame. Excuse me.=C2=A0</div><div>=C2=A0</div><blockquote cla=
+ss=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;pa=
+dding-left:1ex"><span class=3D"HOEnZb"><font color=3D"#888888">
+--<br>
+Michal Hocko<br>
+SUSE Labs<br>
+</font></span></blockquote></div></div><div class=3D"gmail_extra"><br></div=
+></div>
 
-  current->signal->oom_killed
-
-or
-
-  current->mm && (current->mm->flags & MMF_MEMDIE)
-
-. But
-
-> 
-> Just one question. Why do we need this bit outside of oom-kill.c? It
-> affects page_alloc.c and this probably makes sense. But who get this
-> flag when we decide to kill the memory hog? A random thread foung by
-> find_lock_task_mm(), iow a random thread with ->mm != NULL, likely the
-> group leader. This simply can not be right no matter what.
-
-I agree that setting TIF_MEMDIE to only first ->mm != NULL thread
-does not make sense.
-
-I've proposed setting TIF_MEMDIE to all ->mm != NULL threads which are
-killed by the OOM killer because doing so won't increase the risk of
-depleting the memory reserves, for TIF_MEMDIE helps only if that thread is
-doing memory allocation
-( http://lkml.kernel.org/r/1458529634-5951-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp ),
-but it did not happen.
-
-> 
-> And in any case I don't understand this patch but I have to admit that
-> I failed to force myself to read the changelog and the actual change ;)
-> In any case I agree that we should not set MMF_MEMDIE if ->mm == NULL,
-> and if we ensure this then I do not understand why we can't rely on
-> MMF_OOM_REAPED. Ignoring the obvious races, if ->oom_victims != 0 then
-> find_lock_task_mm() should succed.
-
-Since we are using
-
-  mm = current->mm;
-  current->mm = NULL;
-  __mmput(mm); (may block for unbounded period waiting for somebody else's memory allocation)
-  exit_oom_victim(current);
-
-sequence, we won't be able to make find_lock_task_mm(tsk) != NULL when
-tsk->signal->oom_victims != 0 unless we change this sequence.
-My patch tries to rescue it using tsk->signal->oom_ignore_victims flag.
-
-> 
-> Oleg.
-> 
-> 
+--001a1142c02e9aeb4b053615e342--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
