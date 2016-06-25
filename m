@@ -1,45 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DBC776B0005
-	for <linux-mm@kvack.org>; Sat, 25 Jun 2016 13:29:56 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id g18so96101899lfg.2
-        for <linux-mm@kvack.org>; Sat, 25 Jun 2016 10:29:56 -0700 (PDT)
-Received: from mail.sig21.net (mail.sig21.net. [80.244.240.74])
-        by mx.google.com with ESMTPS id w123si2859872wmd.120.2016.06.25.10.29.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 25 Jun 2016 10:29:55 -0700 (PDT)
-Date: Sat, 25 Jun 2016 19:29:51 +0200
-From: Johannes Stezenbach <js@sig21.net>
-Subject: Re: 4.6.2 frequent crashes under memory + IO pressure
-Message-ID: <20160625172951.GA5586@sig21.net>
-References: <20160616212641.GA3308@sig21.net>
- <c9c87635-6e00-5ce7-b05a-966011c8fe3f@I-love.SAKURA.ne.jp>
- <20160623091830.GA32535@sig21.net>
- <201606232026.GFJ26539.QVtFFOJOOLHFMS@I-love.SAKURA.ne.jp>
- <20160625155006.GA4166@sig21.net>
- <201606260204.BDB48978.FSFFJQHOMLVOtO@I-love.SAKURA.ne.jp>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2902A6B0005
+	for <linux-mm@kvack.org>; Sat, 25 Jun 2016 13:41:41 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e189so307878305pfa.2
+        for <linux-mm@kvack.org>; Sat, 25 Jun 2016 10:41:41 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id r85si14887451pfb.223.2016.06.25.10.41.40
+        for <linux-mm@kvack.org>;
+        Sat, 25 Jun 2016 10:41:40 -0700 (PDT)
+Subject: [PATCH 0/2] ZONE_DEVICE cleanups
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Sat, 25 Jun 2016 10:40:57 -0700
+Message-ID: <146687645727.39261.14620086569655191314.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201606260204.BDB48978.FSFFJQHOMLVOtO@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@kernel.org
+To: akpm@linux-foundation.org
+Cc: Eric Sandeen <sandeen@redhat.com>, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Sun, Jun 26, 2016 at 02:04:40AM +0900, Tetsuo Handa wrote:
-> It seems to me that somebody is using ALLOC_NO_WATERMARKS (with possibly
-> __GFP_NOWARN), but I don't know how to identify such callers. Maybe print
-> backtrace from __alloc_pages_slowpath() when ALLOC_NO_WATERMARKS is used?
+Minor cleanups for CONFIG_ZONE_DEVICE.
 
-Wouldn't this create too much output for slow serial console?
-Or is this case supposed to be triggered rarely?
+Andrew, killing the CONFIG_EXPERT dependency might be worth applying for
+4.7, but otherwise these can wait for 4.8. These have received a "build
+success" notification from the kbuild robot over 58 configs.  Please
+apply, or ack and I'll queue them with the rest of the libnvdimm-for-4.8
+updates.
 
-This crash testing is pretty painful but I can try it tomorrow
-if there is no better idea.
+---
 
-Johannes
+Dan Williams (2):
+      mm: CONFIG_ZONE_DEVICE stop depending on CONFIG_EXPERT
+      mm: cleanup ifdef guards for vmem_altmap
+
+
+ include/linux/memremap.h |    2 +-
+ kernel/memremap.c        |    8 --------
+ mm/Kconfig               |    2 +-
+ 3 files changed, 2 insertions(+), 10 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
