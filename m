@@ -1,143 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 954086B0005
-	for <linux-mm@kvack.org>; Sun, 26 Jun 2016 09:10:36 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id b13so291678027pat.3
-        for <linux-mm@kvack.org>; Sun, 26 Jun 2016 06:10:36 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id q7si19436871pfb.208.2016.06.26.06.10.35
-        for <linux-mm@kvack.org>;
-        Sun, 26 Jun 2016 06:10:35 -0700 (PDT)
-Date: Sun, 26 Jun 2016 21:09:46 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: core.c:undefined reference to `fpu_save'
-Message-ID: <201606262144.x4XT8TDI%fengguang.wu@intel.com>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 12A876B0253
+	for <linux-mm@kvack.org>; Sun, 26 Jun 2016 15:40:33 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id a2so106713618lfe.0
+        for <linux-mm@kvack.org>; Sun, 26 Jun 2016 12:40:33 -0700 (PDT)
+Received: from mail.sig21.net (mail.sig21.net. [80.244.240.74])
+        by mx.google.com with ESMTPS id la7si21540406wjc.175.2016.06.26.12.40.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 26 Jun 2016 12:40:31 -0700 (PDT)
+Date: Sun, 26 Jun 2016 21:40:25 +0200
+From: Johannes Stezenbach <js@sig21.net>
+Subject: Re: 4.6.2 frequent crashes under memory + IO pressure
+Message-ID: <20160626194025.GA8015@sig21.net>
+References: <20160625155006.GA4166@sig21.net>
+ <201606260204.BDB48978.FSFFJQHOMLVOtO@I-love.SAKURA.ne.jp>
+ <20160625172951.GA5586@sig21.net>
+ <201606261800.FGF57303.OFtMFSQHJFLOVO@I-love.SAKURA.ne.jp>
+ <20160626150958.GA3780@sig21.net>
+ <201606270135.CGD13081.LHFtFVQOSOMOJF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="3V7upXqbjpZ4EhLz"
-Content-Disposition: inline
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
-
-
---3V7upXqbjpZ4EhLz
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <201606270135.CGD13081.LHFtFVQOSOMOJF@I-love.SAKURA.ne.jp>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@kernel.org
 
-Hi,
+(adding back Cc:, just dropped it to send the logs)
 
-It's probably a bug fix that unveils the link errors.
+On Mon, Jun 27, 2016 at 01:35:14AM +0900, Tetsuo Handa wrote:
+> 
+> It seems to me that GFP_NOIO allocation requests are depleting memory reserves
+> because they are passing ALLOC_NO_WATERMARKS to get_page_from_freelist().
+> But I'm not familiar with block layer / swap I/O operation. So, will you post
+> to linux-mm ML for somebody else to help you?
 
-tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-head:   da2f6aba4a21f8da3331e5251a117c52764da579
-commit: c60f169202c7643991a8b4bfeea60e06843d5b5a arch/mn10300/kernel/fpu-nofpu.c: needs asm/elf.h
-date:   3 months ago
-config: mn10300-allnoconfig (attached as .config)
-compiler: am33_2.0-linux-gcc (GCC) 4.9.0
-reproduce:
-        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        git checkout c60f169202c7643991a8b4bfeea60e06843d5b5a
-        # save the attached .config to linux build tree
-        make.cross ARCH=mn10300 
+Frankly I don't care that much about 4.6.y when 4.7 is fixed.
+Or, maybe the root issue is not fixed but the new oom code
+covers it.  Below I see both dm and kcryptd so there is no
+surprise when using swap on lvm on dm-crypt triggers it.
+Maybe it's not a new issue on 4.6 but just some random variation
+that makes it trigger easier with my particular workload.
 
-All errors (new ones prefixed by >>):
+So, unless you would like to keep going at it I'd
+like to put the issue at rest.
 
-   kernel/built-in.o: In function `.L412':
->> core.c:(.sched.text+0x257): undefined reference to `fpu_save'
+> kswapd0(766) 0x2201200
+>  0xffffffff81167522 : get_page_from_freelist+0x0/0x82b [kernel]
+>  0xffffffff81168127 : __alloc_pages_nodemask+0x3da/0x978 [kernel]
+>  0xffffffff8119fb2a : new_slab+0xbc/0x3bb [kernel]
+>  0xffffffff811a1acd : ___slab_alloc.constprop.22+0x2fb/0x37b [kernel]
+>  0xffffffff81162a88 : mempool_alloc_slab+0x15/0x17 [kernel] (inexact)
+>  0xffffffff810c502d : put_lock_stats.isra.9+0xe/0x20 [kernel] (inexact)
+>  0xffffffff811a1ba4 : __slab_alloc.isra.17.constprop.21+0x57/0x8b [kernel] (inexact)
+>  0xffffffff811a1ba4 : __slab_alloc.isra.17.constprop.21+0x57/0x8b [kernel] (inexact)
+>  0xffffffff81162a88 : mempool_alloc_slab+0x15/0x17 [kernel] (inexact)
+>  0xffffffff811a1c78 : kmem_cache_alloc+0xa0/0x1d6 [kernel] (inexact)
+>  0xffffffff81162a88 : mempool_alloc_slab+0x15/0x17 [kernel] (inexact)
+>  0xffffffff81162a88 : mempool_alloc_slab+0x15/0x17 [kernel] (inexact)
+>  0xffffffff81162b7a : mempool_alloc+0x72/0x154 [kernel] (inexact)
+>  0xffffffff810c6438 : __lock_acquire.isra.16+0x55e/0xb4c [kernel] (inexact)
+>  0xffffffff8133fdc1 : bio_alloc_bioset+0xe8/0x1d7 [kernel] (inexact)
+>  0xffffffff816342ea : alloc_tio+0x2d/0x47 [kernel] (inexact)
+>  0xffffffff8163587e : __split_and_process_bio+0x310/0x3a3 [kernel] (inexact)
+>  0xffffffff81635e15 : dm_make_request+0xb5/0xe2 [kernel] (inexact)
+>  0xffffffff81347ae7 : generic_make_request+0xcc/0x180 [kernel] (inexact)
+>  0xffffffff81347c98 : submit_bio+0xfd/0x145 [kernel] (inexact)
+> 
+> kswapd0(766) 0x2201200
+>  0xffffffff81167522 : get_page_from_freelist+0x0/0x82b [kernel]
+>  0xffffffff81168127 : __alloc_pages_nodemask+0x3da/0x978 [kernel]
+>  0xffffffff8119fb2a : new_slab+0xbc/0x3bb [kernel]
+>  0xffffffff811a1acd : ___slab_alloc.constprop.22+0x2fb/0x37b [kernel]
+>  0xffffffff81162a88 : mempool_alloc_slab+0x15/0x17 [kernel] (inexact)
+>  0xffffffff81640e29 : kcryptd_queue_crypt+0x63/0x68 [kernel] (inexact)
+>  0xffffffff811a1ba4 : __slab_alloc.isra.17.constprop.21+0x57/0x8b [kernel] (inexact)
+>  0xffffffff811a1ba4 : __slab_alloc.isra.17.constprop.21+0x57/0x8b [kernel] (inexact)
+>  0xffffffff81162a88 : mempool_alloc_slab+0x15/0x17 [kernel] (inexact)
+>  0xffffffff811a1c78 : kmem_cache_alloc+0xa0/0x1d6 [kernel] (inexact)
+>  0xffffffff81162a88 : mempool_alloc_slab+0x15/0x17 [kernel] (inexact)
+>  0xffffffff81162a88 : mempool_alloc_slab+0x15/0x17 [kernel] (inexact)
+>  0xffffffff81162b7a : mempool_alloc+0x72/0x154 [kernel] (inexact)
+>  0xffffffff8101f5ba : sched_clock+0x9/0xd [kernel] (inexact)
+>  0xffffffff810ae420 : local_clock+0x20/0x22 [kernel] (inexact)
+>  0xffffffff8133fdc1 : bio_alloc_bioset+0xe8/0x1d7 [kernel] (inexact)
+>  0xffffffff811983d0 : end_swap_bio_write+0x0/0x6a [kernel] (inexact)
+>  0xffffffff8119854b : get_swap_bio+0x25/0x6c [kernel] (inexact)
+>  0xffffffff811983d0 : end_swap_bio_write+0x0/0x6a [kernel] (inexact)
+>  0xffffffff811988ef : __swap_writepage+0x1a9/0x225 [kernel] (inexact)
+> 
+> > 
+> > > # ~/systemtap.tmp/bin/stap -e 'global traces_bt[65536];
+> > > probe begin { printf("Probe start!\n"); }
+> > > function dump_if_new(mask:long) {
+> > >   bt = backtrace();
+> > >   if (traces_bt[bt]++ == 0) {
+> > >     printf("%s(%u) 0x%lx\n", execname(), pid(), mask);
+> > >     print_backtrace();
+> > >     printf("\n");
+> > >   }
+> > > }
+> > > probe kernel.function("get_page_from_freelist") { if ($alloc_flags & 0x4) dump_if_new($gfp_mask); }
+> > > probe kernel.function("gfp_pfmemalloc_allowed").return { if ($return != 0) dump_if_new($gfp_mask); }
+> > > probe end { delete traces_bt; }'
+> > ...
+> > > # addr2line -i -e /usr/src/linux-4.6.2/vmlinux 0xffffffff811b9c82
+> > > /usr/src/linux-4.6.2/mm/memory.c:1162
+> > > /usr/src/linux-4.6.2/mm/memory.c:1241
+> > > /usr/src/linux-4.6.2/mm/memory.c:1262
+> > > /usr/src/linux-4.6.2/mm/memory.c:1283
+> > 
+> > I'm attaching both the stap output and the serial console log,
+> > not sure what you're looking for with addr2line.  Let me know.
+> 
+> I just meant how to find location in source code from addresses.
 
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+I meant the log is so large I wouldn't know which
+addresses would be interesting to look up.
 
---3V7upXqbjpZ4EhLz
-Content-Type: application/octet-stream
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-
---3V7upXqbjpZ4EhLz--
+Thanks,
+Johannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
