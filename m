@@ -1,208 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CE9D96B0253
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 01:42:28 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g62so380498904pfb.3
-        for <linux-mm@kvack.org>; Sun, 26 Jun 2016 22:42:28 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id c10si24426791pan.75.2016.06.26.22.42.27
-        for <linux-mm@kvack.org>;
-        Sun, 26 Jun 2016 22:42:27 -0700 (PDT)
-Date: Mon, 27 Jun 2016 14:45:18 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 0/9] reduce memory usage by page_owner
-Message-ID: <20160627054518.GA15407@js1304-P5Q-DELUXE>
-References: <1466150259-27727-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20160624161935.81bdf2067dfff7cfb44ee68f@linux-foundation.org>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DD8D26B0253
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 01:51:14 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id he1so321371929pac.0
+        for <linux-mm@kvack.org>; Sun, 26 Jun 2016 22:51:14 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id c83si2851423pfd.8.2016.06.26.22.51.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 26 Jun 2016 22:51:13 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u5R5hmsk021251
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 01:51:13 -0400
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 23sjufu270-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 01:51:13 -0400
+Received: from localhost
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 27 Jun 2016 11:21:09 +0530
+Received: from d28relay08.in.ibm.com (d28relay08.in.ibm.com [9.184.220.159])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 91586125804F
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 11:23:45 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay08.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u5R5p5BZ34013374
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 11:21:05 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u5R5p2Vm020763
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 11:21:05 +0530
+Date: Mon, 27 Jun 2016 11:21:01 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160624161935.81bdf2067dfff7cfb44ee68f@linux-foundation.org>
+Subject: Re: [PATCH v6v3 02/12] mm: migrate: support non-lru movable page
+ migration
+References: <1463754225-31311-1-git-send-email-minchan@kernel.org> <1463754225-31311-3-git-send-email-minchan@kernel.org> <20160530013926.GB8683@bbox> <20160531000117.GB18314@bbox> <575E7F0B.8010201@linux.vnet.ibm.com> <20160615023249.GG17127@bbox> <5760F970.7060805@linux.vnet.ibm.com> <20160616002617.GM17127@bbox> <5762200F.5040908@linux.vnet.ibm.com> <20160616053754.GQ17127@bbox>
+In-Reply-To: <20160616053754.GQ17127@bbox>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <5770BEC5.3010807@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Alexander Potapenko <glider@google.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>
+To: Minchan Kim <minchan@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rafael Aquini <aquini@redhat.com>, virtualization@lists.linux-foundation.org, Jonathan Corbet <corbet@lwn.net>, John Einar Reitan <john.reitan@foss.arm.com>, dri-devel@lists.freedesktop.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Gioh Kim <gi-oh.kim@profitbricks.com>
 
-On Fri, Jun 24, 2016 at 04:19:35PM -0700, Andrew Morton wrote:
-> On Fri, 17 Jun 2016 16:57:30 +0900 js1304@gmail.com wrote:
+On 06/16/2016 11:07 AM, Minchan Kim wrote:
+> On Thu, Jun 16, 2016 at 09:12:07AM +0530, Anshuman Khandual wrote:
+>> On 06/16/2016 05:56 AM, Minchan Kim wrote:
+>>> On Wed, Jun 15, 2016 at 12:15:04PM +0530, Anshuman Khandual wrote:
+>>>> On 06/15/2016 08:02 AM, Minchan Kim wrote:
+>>>>> Hi,
+>>>>>
+>>>>> On Mon, Jun 13, 2016 at 03:08:19PM +0530, Anshuman Khandual wrote:
+>>>>>>> On 05/31/2016 05:31 AM, Minchan Kim wrote:
+>>>>>>>>> @@ -791,6 +921,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+>>>>>>>>>  	int rc = -EAGAIN;
+>>>>>>>>>  	int page_was_mapped = 0;
+>>>>>>>>>  	struct anon_vma *anon_vma = NULL;
+>>>>>>>>> +	bool is_lru = !__PageMovable(page);
+>>>>>>>>>  
+>>>>>>>>>  	if (!trylock_page(page)) {
+>>>>>>>>>  		if (!force || mode == MIGRATE_ASYNC)
+>>>>>>>>> @@ -871,6 +1002,11 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+>>>>>>>>>  		goto out_unlock_both;
+>>>>>>>>>  	}
+>>>>>>>>>  
+>>>>>>>>> +	if (unlikely(!is_lru)) {
+>>>>>>>>> +		rc = move_to_new_page(newpage, page, mode);
+>>>>>>>>> +		goto out_unlock_both;
+>>>>>>>>> +	}
+>>>>>>>>> +
+>>>>>>>
+>>>>>>> Hello Minchan,
+>>>>>>>
+>>>>>>> I might be missing something here but does this implementation support the
+>>>>>>> scenario where these non LRU pages owned by the driver mapped as PTE into
+>>>>>>> process page table ? Because the "goto out_unlock_both" statement above
+>>>>>>> skips all the PTE unmap, putting a migration PTE and removing the migration
+>>>>>>> PTE steps.
+>>>>> You're right. Unfortunately, it doesn't support right now but surely,
+>>>>> it's my TODO after landing this work.
+>>>>>
+>>>>> Could you share your usecase?
+>>>>
+>>>> Sure.
+>>>
+>>> Thanks a lot!
+>>>
+>>>>
+>>>> My driver has privately managed non LRU pages which gets mapped into user space
+>>>> process page table through f_ops->mmap() and vmops->fault() which then updates
+>>>> the file RMAP (page->mapping->i_mmap) through page_add_file_rmap(page). One thing
+>>>
+>>> Hmm, page_add_file_rmap is not exported function. How does your driver can use it?
+>>
+>> Its not using the function directly, I just re-iterated the sequence of functions
+>> above. (do_set_pte -> page_add_file_rmap) gets called after we grab the page from
+>> driver through (__do_fault->vma->vm_ops->fault()).
+>>
+>>> Do you use vm_insert_pfn?
+>>> What type your vma is? VM_PFNMMAP or VM_MIXEDMAP?
+>>
+>> I dont use vm_insert_pfn(). Here is the sequence of events how the user space
+>> VMA gets the non LRU pages from the driver.
+>>
+>> - Driver registers a character device with 'struct file_operations' binding
+>> - Then the 'fops->mmap()' just binds the incoming 'struct vma' with a 'struct
+>>   vm_operations_struct' which provides the 'vmops->fault()' routine which
+>>   basically traps all page faults on the VMA and provides one page at a time
+>>   through a driver specific allocation routine which hands over non LRU pages
+>>
+>> The VMA is not anything special as such. Its what we get when we try to do a
+>> simple mmap() on a file descriptor pointing to a character device. I can
+>> figure out all the VM_* flags it holds after creation.
+>>
+>>>
+>>> I want to make dummy driver to simulate your case.
+>>
+>> Sure. I hope the above mentioned steps will help you but in case you need more
+>> information, please do let me know.
 > 
-> > There was a bug reported by Sasha and minor fixes is needed
-> > so I send v3.
-> > 
-> > o fix a bg reported by Sasha (mm/compaction: split freepages
-> > without holding the zone lock)
-> > o add code comment for todo list (mm/page_owner: use stackdepot
-> > to store stacktrace) per Michal
-> > o add 'inline' keyword (mm/page_alloc: introduce post allocation
-> > processing on page allocator) per Vlastimil
-> > o add a patch that clean-up code per Vlastimil
-> 
-> I've gone through v3 patches 2-9 and have plucked out the deltas to
-> take what-i-had and turn that into what-you-sent.  Patch 1/9 has seen a
-> lot of competing churn in isolate_freepages_block(), so please review
-> the current version of that, below.  Between the "===" markers:
+> I got understood now. :)
+> I will test it with dummy driver and will Cc'ed when I send a patch.
 
-Hello, Andrew.
+Hello Minchan,
 
-Below looks okay to me.
+Do you have any updates on this ? The V7 of the series still has this limitation.
+Did you get a chance to test the driver out ? I am still concerned about how to
+handle the struct address_space override problem within the struct page.
 
-Thanks.
-
-> 
-> 
-> static unsigned long isolate_freepages_block(struct compact_control *cc,
-> 				unsigned long *start_pfn,
-> 				unsigned long end_pfn,
-> 				struct list_head *freelist,
-> 				bool strict)
-> {
-> 	int nr_scanned = 0, total_isolated = 0;
-> 	struct page *cursor, *valid_page = NULL;
-> 	unsigned long flags = 0;
-> 	bool locked = false;
-> 	unsigned long blockpfn = *start_pfn;
-> 	unsigned int order;
-> 
-> 	cursor = pfn_to_page(blockpfn);
-> 
-> 	/* Isolate free pages. */
-> 	for (; blockpfn < end_pfn; blockpfn++, cursor++) {
-> 		int isolated;
-> 		struct page *page = cursor;
-> 
-> 		/*
-> 		 * Periodically drop the lock (if held) regardless of its
-> 		 * contention, to give chance to IRQs. Abort if fatal signal
-> 		 * pending or async compaction detects need_resched()
-> 		 */
-> 		if (!(blockpfn % SWAP_CLUSTER_MAX)
-> 		    && compact_unlock_should_abort(&cc->zone->lock, flags,
-> 								&locked, cc))
-> 			break;
-> 
-> 		nr_scanned++;
-> 		if (!pfn_valid_within(blockpfn))
-> 			goto isolate_fail;
-> 
-> 		if (!valid_page)
-> 			valid_page = page;
-> 
-> 		/*
-> 		 * For compound pages such as THP and hugetlbfs, we can save
-> 		 * potentially a lot of iterations if we skip them at once.
-> 		 * The check is racy, but we can consider only valid values
-> 		 * and the only danger is skipping too much.
-> 		 */
-> 		if (PageCompound(page)) {
-> 			unsigned int comp_order = compound_order(page);
-> 
-> 			if (likely(comp_order < MAX_ORDER)) {
-> 				blockpfn += (1UL << comp_order) - 1;
-> 				cursor += (1UL << comp_order) - 1;
-> 			}
-> 
-> 			goto isolate_fail;
-> 		}
-> 
-> 		if (!PageBuddy(page))
-> 			goto isolate_fail;
-> 
-> ====================
-> 		/*
-> 		 * If we already hold the lock, we can skip some rechecking.
-> 		 * Note that if we hold the lock now, checked_pageblock was
-> 		 * already set in some previous iteration (or strict is true),
-> 		 * so it is correct to skip the suitable migration target
-> 		 * recheck as well.
-> 		 */
-> 		if (!locked) {
-> 			/*
-> 			 * The zone lock must be held to isolate freepages.
-> 			 * Unfortunately this is a very coarse lock and can be
-> 			 * heavily contended if there are parallel allocations
-> 			 * or parallel compactions. For async compaction do not
-> 			 * spin on the lock and we acquire the lock as late as
-> 			 * possible.
-> 			 */
-> 			locked = compact_trylock_irqsave(&cc->zone->lock,
-> 								&flags, cc);
-> 			if (!locked)
-> 				break;
-> 
-> 			/* Recheck this is a buddy page under lock */
-> 			if (!PageBuddy(page))
-> 				goto isolate_fail;
-> 		}
-> 
-> 		/* Found a free page, will break it into order-0 pages */
-> 		order = page_order(page);
-> 		isolated = __isolate_free_page(page, order);
-> 		if (!isolated)
-> 			break;
-> 		set_page_private(page, order);
-> 
-> 		total_isolated += isolated;
-> 		cc->nr_freepages += isolated;
-> 		list_add_tail(&page->lru, freelist);
-> 
-> 		if (!strict && cc->nr_migratepages <= cc->nr_freepages) {
-> 			blockpfn += isolated;
-> 			break;
-> 		}
-> 		/* Advance to the end of split page */
-> 		blockpfn += isolated - 1;
-> 		cursor += isolated - 1;
-> 		continue;
-> 
-> isolate_fail:
-> =====================
-> 		if (strict)
-> 			break;
-> 		else
-> 			continue;
-> 
-> 	}
-> 
-> 	if (locked)
-> 		spin_unlock_irqrestore(&cc->zone->lock, flags);
-> 
-> 	/*
-> 	 * There is a tiny chance that we have read bogus compound_order(),
-> 	 * so be careful to not go outside of the pageblock.
-> 	 */
-> 	if (unlikely(blockpfn > end_pfn))
-> 		blockpfn = end_pfn;
-> 
-> 	trace_mm_compaction_isolate_freepages(*start_pfn, blockpfn,
-> 					nr_scanned, total_isolated);
-> 
-> 	/* Record how far we have got within the block */
-> 	*start_pfn = blockpfn;
-> 
-> 	/*
-> 	 * If strict isolation is requested by CMA then check that all the
-> 	 * pages requested were isolated. If there were any failures, 0 is
-> 	 * returned and CMA will fail.
-> 	 */
-> 	if (strict && blockpfn < end_pfn)
-> 		total_isolated = 0;
-> 
-> 	/* Update the pageblock-skip if the whole pageblock was scanned */
-> 	if (blockpfn == end_pfn)
-> 		update_pageblock_skip(cc, valid_page, total_isolated, false);
-> 
-> 	count_compact_events(COMPACTFREE_SCANNED, nr_scanned);
-> 	if (total_isolated)
-> 		count_compact_events(COMPACTISOLATED, total_isolated);
-> 	return total_isolated;
-> }
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+- Anshuman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
