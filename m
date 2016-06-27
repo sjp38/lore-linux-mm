@@ -1,115 +1,214 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B624E6B0253
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 10:06:41 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id a66so73837997wme.1
-        for <linux-mm@kvack.org>; Mon, 27 Jun 2016 07:06:41 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id y142si616689wme.31.2016.06.27.07.06.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Jun 2016 07:06:40 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id a66so24847423wme.2
-        for <linux-mm@kvack.org>; Mon, 27 Jun 2016 07:06:39 -0700 (PDT)
-Date: Mon, 27 Jun 2016 16:06:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm, oom: don't set TIF_MEMDIE on a mm-less thread.
-Message-ID: <20160627140637.GM31799@dhcp22.suse.cz>
-References: <20160624095439.GA20203@dhcp22.suse.cz>
- <201606241956.IDD09840.FSFOOVMJOHQLtF@I-love.SAKURA.ne.jp>
- <20160624120454.GB20203@dhcp22.suse.cz>
- <201606250119.IIJ30735.FMSHQFVtOLOJOF@I-love.SAKURA.ne.jp>
- <20160627113709.GG31799@dhcp22.suse.cz>
- <201606272232.BCF78614.LHFFFOSQOMtVOJ@I-love.SAKURA.ne.jp>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 72E656B0253
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 10:28:27 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a69so403290986pfa.1
+        for <linux-mm@kvack.org>; Mon, 27 Jun 2016 07:28:27 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 81si26953175pfw.133.2016.06.27.07.28.26
+        for <linux-mm@kvack.org>;
+        Mon, 27 Jun 2016 07:28:26 -0700 (PDT)
+Date: Mon, 27 Jun 2016 15:28:19 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH v3 1/2] mm: memblock Add some new functions to address
+ the mem limit issue
+Message-ID: <20160627142818.GI1113@leverpostej>
+References: <1466994431-6214-1-git-send-email-dennis.chen@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201606272232.BCF78614.LHFFFOSQOMtVOJ@I-love.SAKURA.ne.jp>
+In-Reply-To: <1466994431-6214-1-git-send-email-dennis.chen@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, oleg@redhat.com, vdavydov@virtuozzo.com, rientjes@google.com
+To: Dennis Chen <dennis.chen@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org, nd@arm.com, Catalin Marinas <catalin.marinas@arm.com>, Steve Capper <steve.capper@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Matt Fleming <matt@codeblueprint.co.uk>, linux-mm@kvack.org, linux-acpi@vger.kernel.org, linux-efi@vger.kernel.org
 
-On Mon 27-06-16 22:32:17, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Sat 25-06-16 01:19:12, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > [...]
-> > > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > > index 4c21f744daa6..97be9324a58b 100644
-> > > > --- a/mm/oom_kill.c
-> > > > +++ b/mm/oom_kill.c
-> > > > @@ -671,6 +671,22 @@ void mark_oom_victim(struct task_struct *tsk)
-> > > >  	/* OOM killer might race with memcg OOM */
-> > > >  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
-> > > >  		return;
-> > > > +#ifndef CONFIG_MMU
-> > > > +	/*
-> > > > +	 * we shouldn't risk setting TIF_MEMDIE on a task which has passed its
-> > > > +	 * exit_mm task->mm = NULL and exit_oom_victim otherwise it could
-> > > > +	 * theoretically keep its TIF_MEMDIE for ever while waiting for a parent
-> > > > +	 * to get it out of zombie state. MMU doesn't have this problem because
-> > > > +	 * it has the oom_reaper to clear the flag asynchronously.
-> > > > +	 */
-> > > > +	task_lock(tsk);
-> > > > +	if (!tsk->mm) {
-> > > > +		clear_tsk_thread_flag(tsk, TIF_MEMDIE);
-> > > > +		task_unlock(tsk);
-> > > > +		return;
-> > > > +	}
-> > > > +	taks_unlock(tsk);
-> > > 
-> > > This makes mark_oom_victim(tsk) for tsk->mm == NULL a no-op unless tsk is
-> > > currently doing memory allocation. And it is possible that tsk is blocked
-> > > waiting for somebody else's memory allocation after returning from
-> > > exit_mm() from do_exit(), isn't it? Then, how is this better than current
-> > > code (i.e. sets TIF_MEMDIE to a mm-less thread group leader)?
-> > 
-> > Well, the whole point of the check is to not set the flag after we
-> > could have passed exit_mm->exit_oom_victim and keep it for the rest of
-> > (unbounded) victim life as there is nothing else to do so.
+On Mon, Jun 27, 2016 at 10:27:10AM +0800, Dennis Chen wrote:
+> In some cases, memblock is queried to determine whether a physical
+> address corresponds to memory present in a system even if unused by
+> the OS for the linear mapping, highmem, etc. For example, the ACPI
+> core needs this information to determine which attributes to use when
+> mapping ACPI regions. Use of incorrect memory types can result in
+> faults, data corruption, or other issues.
 > 
-> OK. Based on commit 3da88fb3bacfaa33 ("mm, oom: move GFP_NOFS check to
-> out_of_memory") and an assumption that any OOM-killed thread shall eventually
-> win the mutex_trylock(&oom_lock) competition in __alloc_pages_may_oom() no
-> matter how disturbing factors (e.g. scheduling priority) delay OOM-killed
-> threads, you prefer asking each OOM-killed thread to get TIF_MEMDIE via
+> Removing memory with memblock_enforce_memory_limit throws away this
+> information, and so a kernel booted with 'mem=' may suffers from the
+> issues described above. To avoid this, we need to keep those NOMAP
+> regions instead of removing all above limit, which preserves the
+> information we need while preventing other use of the regions.
 > 
->   if (current->mm && task_will_free_mem(current))
+> This patch adds new insfrastructure to retain all NOMAP memblock regions
+> while removing others, to cater for this.
 > 
-> shortcut in out_of_memory() by keeping
+> At last, we add 'size' and 'flag' debug output in the memblock debugfs
+> for ease of the memblock debug.
+> The '/sys/kernel/debug/memblock/memory' output looks like before:
+>    0: 0x0000008000000000..0x0000008001e7ffff
+>    1: 0x0000008001e80000..0x00000083ff184fff
+>    2: 0x00000083ff185000..0x00000083ff1c2fff
+>    3: 0x00000083ff1c3000..0x00000083ff222fff
+>    4: 0x00000083ff223000..0x00000083ffe42fff
+>    5: 0x00000083ffe43000..0x00000083ffffffff
 > 
->   if (task_will_free_mem(p))
-> 
-> shortcut in oom_kill_process() a no-op. Yes, it should be harmless.
+> After applied:
+>    0: 0x0000008000000000..0x0000008001e7ffff  0x0000000001e80000  0x4
+>    1: 0x0000008001e80000..0x00000083ff184fff  0x00000003fd305000  0x0
+>    2: 0x00000083ff185000..0x00000083ff1c2fff  0x000000000003e000  0x4
+>    3: 0x00000083ff1c3000..0x00000083ff222fff  0x0000000000060000  0x0
+>    4: 0x00000083ff223000..0x00000083ffe42fff  0x0000000000c20000  0x4
+>    5: 0x00000083ffe43000..0x00000083ffffffff  0x00000000001bd000  0x0
 
-OK, I understand your point finally. Thanks for the clarification! And
-you are right, I really do not care all that much about the latency
-here. All I am looking for is the most simplistic solution for the
-potential, albeit highly unlikely, race for a configuration for which
-nobody actually complained/reported a bug.
- 
-> But I prefer not to wait for each OOM-killed thread to win the
-> mutex_trylock(&oom_lock) competition in __alloc_pages_may_oom().
-> Setting TIF_MEMDIE at
-> 
->   if (task_will_free_mem(p))
-> 
-> shortcut in oom_kill_process() can save somebody which got TIF_MEMDIE from
-> participating in the mutex_trylock(&oom_lock) competition which is needed for
-> calling
-> 
->   if (current->mm && task_will_free_mem(current))
-> 
-> shortcut in out_of_memory().
+The debugfs changes should be a separate patch. Even if they're useful
+for debugging this patch, they're logically independent.
 
-The code is complex enough that keeping it simpler makes a lot of sense
-to me. Your dances with the find_lock_task_mm really didn't make it
-easier to follow IMHO. The explicit check at a single place seems more
-obious and easier to maintain to me.
--- 
-Michal Hocko
-SUSE Labs
+> Signed-off-by: Dennis Chen <dennis.chen@arm.com>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Steve Capper <steve.capper@arm.com>
+> Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Mark Rutland <mark.rutland@arm.com>
+> Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> Cc: Matt Fleming <matt@codeblueprint.co.uk>
+> Cc: linux-mm@kvack.org
+> Cc: linux-acpi@vger.kernel.org
+> Cc: linux-efi@vger.kernel.org
+> ---
+>  include/linux/memblock.h |  1 +
+>  mm/memblock.c            | 55 +++++++++++++++++++++++++++++++++++++++++-------
+>  2 files changed, 48 insertions(+), 8 deletions(-)
+> 
+> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> index 6c14b61..2925da2 100644
+> --- a/include/linux/memblock.h
+> +++ b/include/linux/memblock.h
+> @@ -332,6 +332,7 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
+>  phys_addr_t memblock_start_of_DRAM(void);
+>  phys_addr_t memblock_end_of_DRAM(void);
+>  void memblock_enforce_memory_limit(phys_addr_t memory_limit);
+> +void memblock_mem_limit_remove_map(phys_addr_t limit);
+>  bool memblock_is_memory(phys_addr_t addr);
+>  int memblock_is_map_memory(phys_addr_t addr);
+>  int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index ca09915..8099f1a 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -1465,14 +1465,11 @@ phys_addr_t __init_memblock memblock_end_of_DRAM(void)
+>  	return (memblock.memory.regions[idx].base + memblock.memory.regions[idx].size);
+>  }
+>  
+> -void __init memblock_enforce_memory_limit(phys_addr_t limit)
+> +static phys_addr_t __init_memblock __find_max_addr(phys_addr_t limit)
+>  {
+>  	phys_addr_t max_addr = (phys_addr_t)ULLONG_MAX;
+>  	struct memblock_region *r;
+>  
+> -	if (!limit)
+> -		return;
+> -
+>  	/* find out max address */
+>  	for_each_memblock(memory, r) {
+>  		if (limit <= r->size) {
+> @@ -1482,6 +1479,20 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
+>  		limit -= r->size;
+>  	}
+>  
+> +	return max_addr;
+> +}
+> +
+> +void __init memblock_enforce_memory_limit(phys_addr_t limit)
+> +{
+> +	phys_addr_t max_addr;
+> +
+> +	if (!limit)
+> +		return;
+> +
+> +	max_addr = __find_max_addr(limit);
+> +	if (max_addr == (phys_addr_t)ULLONG_MAX)
+> +		return;
+
+We didn't previously return early, so do we actually need this check?
+
+> +
+>  	/* truncate both memory and reserved regions */
+>  	memblock_remove_range(&memblock.memory, max_addr,
+>  			      (phys_addr_t)ULLONG_MAX);
+> @@ -1489,6 +1500,32 @@ void __init memblock_enforce_memory_limit(phys_addr_t limit)
+>  			      (phys_addr_t)ULLONG_MAX);
+>  }
+>  
+> +void __init memblock_mem_limit_remove_map(phys_addr_t limit)
+> +{
+> +	struct memblock_type *type = &memblock.memory;
+> +	phys_addr_t max_addr;
+> +	int i, ret, start_rgn, end_rgn;
+> +
+> +	if (!limit)
+> +		return;
+> +
+> +	max_addr = __find_max_addr(limit);
+> +	if (max_addr == (phys_addr_t)ULLONG_MAX)
+> +		return;
+
+Likewise?
+
+> +
+> +	ret = memblock_isolate_range(type, max_addr, (phys_addr_t)ULLONG_MAX,
+> +					&start_rgn, &end_rgn);
+> +	if (ret) {
+> +		WARN_ONCE(1, "Mem limit failed, will not be applied!\n");
+> +		return;
+> +	}
+
+We don't have a similar warning in memblock_enforce_memory_limit, where
+memblock_remove_range() might return an error code from an internal call
+to memblock_isolate_range.
+
+The two should be consistent, either both with a message or both
+without.
+
+> +
+> +	for (i = end_rgn - 1; i >= start_rgn; i--) {
+> +		if (!memblock_is_nomap(&type->regions[i]))
+> +			memblock_remove_region(type, i);
+> +	}
+> +}
+
+This will preserve nomap regions, but it does mean that we may preserve
+less memory that the user asked for, since __find_max_addr counted nomap
+(and reserved) regions. Given we've always counted the latter, maybe
+that's ok.
+
+We should clarify what __find_max_addr is intended to determine, with a
+comment, so as to avoid future ambiguity there.
+
+> +
+>  static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
+>  {
+>  	unsigned int left = 0, right = type->cnt;
+> @@ -1677,13 +1714,15 @@ static int memblock_debug_show(struct seq_file *m, void *private)
+>  		reg = &type->regions[i];
+>  		seq_printf(m, "%4d: ", i);
+>  		if (sizeof(phys_addr_t) == 4)
+> -			seq_printf(m, "0x%08lx..0x%08lx\n",
+> +			seq_printf(m, "0x%08lx..0x%08lx  0x%08lx  0x%lx\n",
+>  				   (unsigned long)reg->base,
+> -				   (unsigned long)(reg->base + reg->size - 1));
+> +				   (unsigned long)(reg->base + reg->size - 1),
+> +				   (unsigned long)reg->size, reg->flags);
+>  		else
+> -			seq_printf(m, "0x%016llx..0x%016llx\n",
+> +			seq_printf(m, "0x%016llx..0x%016llx  0x%016llx  0x%lx\n",
+>  				   (unsigned long long)reg->base,
+> -				   (unsigned long long)(reg->base + reg->size - 1));
+> +				   (unsigned long long)(reg->base + reg->size - 1),
+> +				   (unsigned long long)reg->size, reg->flags);
+
+As mentioned above, this should be a separate patch. I have no strong
+feelings either way about the logic itself.
+
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
