@@ -1,75 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B3FFE6B0253
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 11:50:43 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id d2so217302693qkg.0
-        for <linux-mm@kvack.org>; Mon, 27 Jun 2016 08:50:43 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k83si13547838qkh.95.2016.06.27.08.50.42
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AACE6B0253
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 12:06:19 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r190so76768780wmr.0
+        for <linux-mm@kvack.org>; Mon, 27 Jun 2016 09:06:19 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id x194si14961456wmf.38.2016.06.27.09.06.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Jun 2016 08:50:42 -0700 (PDT)
-Date: Mon, 27 Jun 2016 17:51:20 +0200
-From: Oleg Nesterov <oleg@redhat.com>
+        Mon, 27 Jun 2016 09:06:18 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id 187so25872963wmz.1
+        for <linux-mm@kvack.org>; Mon, 27 Jun 2016 09:06:17 -0700 (PDT)
+Date: Mon, 27 Jun 2016 18:06:16 +0200
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm,oom: use per signal_struct flag rather than clear
-	TIF_MEMDIE
-Message-ID: <20160627155119.GA17686@redhat.com>
-References: <1466766121-8164-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp> <20160624215627.GA1148@redhat.com> <201606251444.EGJ69787.FtMOFJOLSHFQOV@I-love.SAKURA.ne.jp> <20160627092326.GD31799@dhcp22.suse.cz> <20160627103609.GE31799@dhcp22.suse.cz>
+ TIF_MEMDIE
+Message-ID: <20160627160616.GN31799@dhcp22.suse.cz>
+References: <1466766121-8164-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20160624215627.GA1148@redhat.com>
+ <201606251444.EGJ69787.FtMOFJOLSHFQOV@I-love.SAKURA.ne.jp>
+ <20160627092326.GD31799@dhcp22.suse.cz>
+ <20160627103609.GE31799@dhcp22.suse.cz>
+ <20160627155119.GA17686@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160627103609.GE31799@dhcp22.suse.cz>
+In-Reply-To: <20160627155119.GA17686@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
+To: Oleg Nesterov <oleg@redhat.com>
 Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, vdavydov@virtuozzo.com, rientjes@google.com
 
-On 06/27, Michal Hocko wrote:
->
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -237,6 +237,8 @@ void free_task(struct task_struct *tsk)
->  	ftrace_graph_exit_task(tsk);
->  	put_seccomp_filter(tsk);
->  	arch_release_task_struct(tsk);
-> +	if (tsk->active_mm)
-> +		mmdrop(tsk->active_mm);
->  	free_task_struct(tsk);
->  }
->  EXPORT_SYMBOL(free_task);
-> @@ -1022,6 +1024,8 @@ static int copy_mm(unsigned long clone_flags, struct task_struct *tsk)
->  good_mm:
->  	tsk->mm = mm;
->  	tsk->active_mm = mm;
-> +	/* to be release in the final task_put */
-> +	atomic_inc(&mm->mm_count);
->  	return 0;
+On Mon 27-06-16 17:51:20, Oleg Nesterov wrote:
+> On 06/27, Michal Hocko wrote:
+> >
+> > --- a/kernel/fork.c
+> > +++ b/kernel/fork.c
+> > @@ -237,6 +237,8 @@ void free_task(struct task_struct *tsk)
+> >  	ftrace_graph_exit_task(tsk);
+> >  	put_seccomp_filter(tsk);
+> >  	arch_release_task_struct(tsk);
+> > +	if (tsk->active_mm)
+> > +		mmdrop(tsk->active_mm);
+> >  	free_task_struct(tsk);
+> >  }
+> >  EXPORT_SYMBOL(free_task);
+> > @@ -1022,6 +1024,8 @@ static int copy_mm(unsigned long clone_flags, struct task_struct *tsk)
+> >  good_mm:
+> >  	tsk->mm = mm;
+> >  	tsk->active_mm = mm;
+> > +	/* to be release in the final task_put */
+> > +	atomic_inc(&mm->mm_count);
+> >  	return 0;
+> 
+> No, I don't think this can work.
+> 
+> Note that tsk->active_mm in free_task() points to the random mm "borrowed"
+> from the previous/random task in context_switch() if task->mm == NULL. This
+> is true for kthreads and for the task which has already called exit_mm().
 
-No, I don't think this can work.
+OK, I misread the code. I though we wouldn't passed that route
+again. Anyway, back to the drawing board.
 
-Note that tsk->active_mm in free_task() points to the random mm "borrowed"
-from the previous/random task in context_switch() if task->mm == NULL. This
-is true for kthreads and for the task which has already called exit_mm().
+> 
+> > -	p = find_lock_task_mm(tsk);
+> > -	if (!p)
+> > -		goto unlock_oom;
+> > -	mm = p->mm;
+> > +	task_lock(tsk);
+> > +	mm = tsk->active_mm;
+> 
+> The same. We can't know where this ->active_mm points to.
+> 
+> Just suppose that this tsk schedules after exit_mm(). When it gets CPU
+> again tsk->active_mm will point to ->mm of another task which in turns
+> called schedule() to make this tsk active.
+> 
+> Yes I agree, it would be nice to remove find_lock_task_mm(). And in
+> fact it would be nice to kill task_struct->mm (but this needs a lot
+> of cleanups). We probably want signal_struct->mm, but this is a bit
+> complicated (locking).
 
-> -	p = find_lock_task_mm(tsk);
-> -	if (!p)
-> -		goto unlock_oom;
-> -	mm = p->mm;
-> +	task_lock(tsk);
-> +	mm = tsk->active_mm;
+Is there any hard requirement to reset task_struct::mm in the first
+place?
 
-The same. We can't know where this ->active_mm points to.
-
-Just suppose that this tsk schedules after exit_mm(). When it gets CPU
-again tsk->active_mm will point to ->mm of another task which in turns
-called schedule() to make this tsk active.
-
-Yes I agree, it would be nice to remove find_lock_task_mm(). And in
-fact it would be nice to kill task_struct->mm (but this needs a lot
-of cleanups). We probably want signal_struct->mm, but this is a bit
-complicated (locking).
-
-Oleg.
+I mean I could have added oom_mm pointer into the task_struct and that
+would guarantee that we always have a valid pointer when it is needed
+but having yet another mm pointer there.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
