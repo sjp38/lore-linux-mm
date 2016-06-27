@@ -1,45 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B88916B0253
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 04:28:04 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id k78so328864962ioi.2
-        for <linux-mm@kvack.org>; Mon, 27 Jun 2016 01:28:04 -0700 (PDT)
-Received: from mail-io0-x244.google.com (mail-io0-x244.google.com. [2607:f8b0:4001:c06::244])
-        by mx.google.com with ESMTPS id v197si400946ita.98.2016.06.27.01.28.04
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A6E36B0253
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 04:39:28 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id a4so114973563lfa.1
+        for <linux-mm@kvack.org>; Mon, 27 Jun 2016 01:39:27 -0700 (PDT)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
+        by mx.google.com with ESMTPS id r2si24924152wjd.215.2016.06.27.01.39.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Jun 2016 01:28:04 -0700 (PDT)
-Received: by mail-io0-x244.google.com with SMTP id 100so23566703ioh.1
-        for <linux-mm@kvack.org>; Mon, 27 Jun 2016 01:28:04 -0700 (PDT)
+        Mon, 27 Jun 2016 01:39:26 -0700 (PDT)
+Received: by mail-wm0-f46.google.com with SMTP id a66so104134130wme.0
+        for <linux-mm@kvack.org>; Mon, 27 Jun 2016 01:39:26 -0700 (PDT)
+Date: Mon, 27 Jun 2016 10:39:25 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: some question about vma_interval_tree_insert
+Message-ID: <20160627083924.GA31803@dhcp22.suse.cz>
+References: <CADUS3omw4c3Q8W76RK254Kd=yqokBCPysJ0Y7rRJGpRj4zEv4A@mail.gmail.com>
 MIME-Version: 1.0
-From: yoma sophian <sophian.yoma@gmail.com>
-Date: Mon, 27 Jun 2016 16:28:03 +0800
-Message-ID: <CADUS3omw4c3Q8W76RK254Kd=yqokBCPysJ0Y7rRJGpRj4zEv4A@mail.gmail.com>
-Subject: some question about vma_interval_tree_insert
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CADUS3omw4c3Q8W76RK254Kd=yqokBCPysJ0Y7rRJGpRj4zEv4A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: yoma sophian <sophian.yoma@gmail.com>
+Cc: linux-mm@kvack.org
 
-hi all:
-I try to find out where the function, vma_interval_tree_insert,
-implemented but in vain.
-http://lxr.free-electrons.com/ident?i=vma_interval_tree_insert
+On Mon 27-06-16 16:28:03, yoma sophian wrote:
+> hi all:
+> I try to find out where the function, vma_interval_tree_insert,
+> implemented but in vain.
 
-from linux cross-reference, it only show prototype defined and
-referenced like below:
-Defined as a function prototype in:
-include/linux/mm.h, line 1919
-Referenced (in 3 files total) in:
-mm/mmap.c:
-line 548
-line 738
-line 739
-mm/nommu.c, line 709
-include/linux/mm.h, line 1919
-
-Would anyone help to let me know where it is implemented?
-appreciate your kind help,
+See
+INTERVAL_TREE_DEFINE(struct vm_area_struct, shared.rb,
+		     unsigned long, shared.rb_subtree_last,
+		     vma_start_pgoff, vma_last_pgoff,, vma_interval_tree)
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
