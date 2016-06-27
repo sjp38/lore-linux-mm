@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DA106B0253
-	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 05:30:57 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id a2so114896803lfe.0
-        for <linux-mm@kvack.org>; Mon, 27 Jun 2016 02:30:57 -0700 (PDT)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1297A6B0253
+	for <linux-mm@kvack.org>; Mon, 27 Jun 2016 05:46:44 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id g18so116404524lfg.2
+        for <linux-mm@kvack.org>; Mon, 27 Jun 2016 02:46:44 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id uk8si25235105wjb.66.2016.06.27.02.30.55
+        by mx.google.com with ESMTPS id r138si701575wmg.36.2016.06.27.02.46.42
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Jun 2016 02:30:55 -0700 (PDT)
-Subject: Re: [PATCH v3 4/6] mm/cma: remove ALLOC_CMA
+        Mon, 27 Jun 2016 02:46:42 -0700 (PDT)
+Subject: Re: [PATCH v3 5/6] mm/cma: remove MIGRATE_CMA
 References: <1464243748-16367-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1464243748-16367-5-git-send-email-iamjoonsoo.kim@lge.com>
+ <1464243748-16367-6-git-send-email-iamjoonsoo.kim@lge.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5848e9f2-fd49-059e-fe57-aee6cd70c371@suse.cz>
-Date: Mon, 27 Jun 2016 11:30:52 +0200
+Message-ID: <087368b2-19d3-30e0-e420-456c291f16c9@suse.cz>
+Date: Mon, 27 Jun 2016 11:46:39 +0200
 MIME-Version: 1.0
-In-Reply-To: <1464243748-16367-5-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1464243748-16367-6-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,31 +28,52 @@ On 05/26/2016 08:22 AM, js1304@gmail.com wrote:
 > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 >
 > Now, all reserved pages for CMA region are belong to the ZONE_CMA
-> and it only serves for GFP_HIGHUSER_MOVABLE. Therefore, we don't need to
-> consider ALLOC_CMA at all.
+> and there is no other type of pages. Therefore, we don't need to
+> use MIGRATE_CMA to distinguish and handle differently for CMA pages
+> and ordinary pages. Remove MIGRATE_CMA.
 >
+> Unfortunately, this patch make free CMA counter incorrect because
+> we count it when pages are on the MIGRATE_CMA. It will be fixed
+> by next patch. I can squash next patch here but it makes changes
+> complicated and hard to review so I separate that.
+
+Doesn't sound like a big deal.
+
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  mm/internal.h   |  3 +--
->  mm/page_alloc.c | 27 +++------------------------
->  2 files changed, 4 insertions(+), 26 deletions(-)
->
 
 [...]
 
-> @@ -2833,10 +2827,8 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
->  		}
+> @@ -7442,14 +7401,14 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+>  	 * allocator removing them from the buddy system.  This way
+>  	 * page allocator will never consider using them.
+>  	 *
+> -	 * This lets us mark the pageblocks back as
+> -	 * MIGRATE_CMA/MIGRATE_MOVABLE so that free pages in the
+> -	 * aligned range but not in the unaligned, original range are
+> -	 * put back to page allocator so that buddy can use them.
+> +	 * This lets us mark the pageblocks back as MIGRATE_MOVABLE
+> +	 * so that free pages in the aligned range but not in the
+> +	 * unaligned, original range are put back to page allocator
+> +	 * so that buddy can use them.
+>  	 */
 >
->  #ifdef CONFIG_CMA
-> -		if ((alloc_flags & ALLOC_CMA) &&
-> -		    !list_empty(&area->free_list[MIGRATE_CMA])) {
-> +		if (!list_empty(&area->free_list[MIGRATE_CMA]))
->  			return true;
-> -		}
->  #endif
+>  	ret = start_isolate_page_range(pfn_max_align_down(start),
+> -				       pfn_max_align_up(end), migratetype,
+> +				       pfn_max_align_up(end), MIGRATE_MOVABLE,
+>  				       false);
+>  	if (ret)
+>  		return ret;
+> @@ -7528,7 +7487,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+>
+>  done:
+>  	undo_isolate_page_range(pfn_max_align_down(start),
+> -				pfn_max_align_up(end), migratetype);
+> +				pfn_max_align_up(end), MIGRATE_MOVABLE);
+>  	return ret;
+>  }
 
-Nitpick: it would be more logical to remove the whole block in this 
-patch, as removing ALLOC_CMA means it's effectively false? Also less churn.
+Looks like all callers of {start,undo}_isolate_page_range() now use 
+MIGRATE_MOVABLE, so it could be removed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
