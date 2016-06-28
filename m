@@ -1,96 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DE36B6B025F
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 06:38:29 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id k78so28213276ioi.2
-        for <linux-mm@kvack.org>; Tue, 28 Jun 2016 03:38:29 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id l129si9432747oif.118.2016.06.28.03.38.27
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 54E016B025F
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 06:48:07 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 143so26816033pfx.0
+        for <linux-mm@kvack.org>; Tue, 28 Jun 2016 03:48:07 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id l3si13573976paz.169.2016.06.28.03.48.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 28 Jun 2016 03:38:29 -0700 (PDT)
-Subject: Re: [PATCH] mm, vmscan: set shrinker to the left page count
-References: <1467025335-6748-1-git-send-email-puck.chen@hisilicon.com>
- <20160627165723.GW21652@esperanza>
-From: Chen Feng <puck.chen@hisilicon.com>
-Message-ID: <57725364.60307@hisilicon.com>
-Date: Tue, 28 Jun 2016 18:37:24 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Jun 2016 03:48:06 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u5SAiMpX127422
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 06:48:05 -0400
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 23spf9jdcm-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 06:48:04 -0400
+Received: from localhost
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 28 Jun 2016 04:48:03 -0600
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [linux-next:master 6012/6704] include/asm-generic/tlb.h:133:3: error: implicit declaration of function '__tlb_adjust_range'
+In-Reply-To: <201606272339.TRfrgkTK%fengguang.wu@intel.com>
+References: <201606272339.TRfrgkTK%fengguang.wu@intel.com>
+Date: Tue, 28 Jun 2016 16:17:55 +0530
 MIME-Version: 1.0
-In-Reply-To: <20160627165723.GW21652@esperanza>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
+Message-Id: <87d1n16144.fsf@skywalker.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, labbott@redhat.com, suzhuangluan@hisilicon.com, oliver.fu@hisilicon.com, puck.chen@foxmail.com, dan.zhao@hisilicon.com, saberlily.xia@hisilicon.com, xuyiping@hisilicon.com
+To: kbuild test robot <fengguang.wu@intel.com>, akpm@linux-foundation.org
+Cc: kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
 
-Thanks for you reply.
+kbuild test robot <fengguang.wu@intel.com> writes:
 
-On 2016/6/28 0:57, Vladimir Davydov wrote:
-> On Mon, Jun 27, 2016 at 07:02:15PM +0800, Chen Feng wrote:
->> In my platform, there can be cache a lot of memory in
->> ion page pool. When shrink memory the nr_to_scan to ion
->> is always to little.
->> to_scan: 395  ion_pool_cached: 27305
-> 
-> That's OK. We want to shrink slabs gradually, not all at once.
-> 
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   aa20c9aa490a2b73f97bceae9828ccfaa9cb1b4f
+> commit: dbea3efdd0c92695c1697b6a20e5b4cff09a3312 [6012/6704] mm: change the interface for __tlb_remove_page()
+> config: i386-tinyconfig (attached as .config)
+> compiler: gcc-6 (Debian 6.1.1-1) 6.1.1 20160430
+> reproduce:
+>         git checkout dbea3efdd0c92695c1697b6a20e5b4cff09a3312
+>         # save the attached .config to linux build tree
+>         make ARCH=i386 
+>
+> Note: the linux-next/master HEAD aa20c9aa490a2b73f97bceae9828ccfaa9cb1b4f builds fine.
+>       It may have been fixed somewhere.
+>
+> All errors (new ones prefixed by >>):
+>
+>    In file included from arch/x86/include/asm/tlb.h:16:0,
+>                     from arch/x86/include/asm/efi.h:7,
+>                     from arch/x86/kernel/setup.c:81:
+>    include/asm-generic/tlb.h: In function 'tlb_remove_page':
+>>> include/asm-generic/tlb.h:133:3: error: implicit declaration of function '__tlb_adjust_range' [-Werror=implicit-function-declaration]
+>       __tlb_adjust_range(tlb, tlb->addr);
+>       ^~~~~~~~~~~~~~~~~~
+>    include/asm-generic/tlb.h: At top level:
+>    include/asm-generic/tlb.h:138:20: warning: conflicting types for '__tlb_adjust_range'
+>     static inline void __tlb_adjust_range(struct mmu_gather *tlb,
+>                        ^~~~~~~~~~~~~~~~~~
+>>> include/asm-generic/tlb.h:138:20: error: static declaration of '__tlb_adjust_range' follows non-static declaration
+>    include/asm-generic/tlb.h:133:3: note: previous implicit declaration of '__tlb_adjust_range' was here
+>       __tlb_adjust_range(tlb, tlb->addr);
+>       ^~~~~~~~~~~~~~~~~~
+>    cc1: some warnings being treated as errors
+>
+> vim +/__tlb_adjust_range +133 include/asm-generic/tlb.h
+>
+>    127	 *	required.
+>    128	 */
+>    129	static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+>    130	{
+>    131		if (__tlb_remove_page(tlb, page)) {
+>    132			tlb_flush_mmu(tlb);
+>  > 133			__tlb_adjust_range(tlb, tlb->addr);
+>    134			__tlb_remove_page(tlb, page);
+>    135		}
+>    136	}
+>    137	
+>  > 138	static inline void __tlb_adjust_range(struct mmu_gather *tlb,
+>    139					      unsigned long address)
+>    140	{
+>    141		tlb->start = min(tlb->start, address);
+>
+> ---
+> 0-DAY kernel test infrastructure                Open Source Technology Center
+> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
-OKi 1/4 ? But my question there are a lot of memory waiting for free.
-But the to_scan is too little.
+IIUC this will get fixed, when we fold
 
-So, the lowmemorykill may kill the wrong process.
->>
->> Currently, the shrinker nr_deferred is set to total_scan.
->> But it's not the real left of the shrinker.
-> 
-> And it shouldn't. The idea behind nr_deferred is following. A shrinker
-> may return SHRINK_STOP if the current allocation context doesn't allow
-> to reclaim its objects (e.g. reclaiming inodes under GFP_NOFS is
-> deadlock prone). In this case we can't call the shrinker right now, but
-> if we just forget about the batch we are supposed to reclaim at the
-> current iteration, we can wind up having too many of these objects so
-> that they start to exert unfairly high pressure on user memory. So we
-> add the amount that we wanted to scan but couldn't to nr_deferred, so
-> that we can catch up when we get to shrink_slab() with a proper context.
-> 
-I am confused with your comments. If the shrinker return STOP this time.
-It also can return STOP next time.
-Is there any other effects about this changei 1/4 ?
+http://ozlabs.org/~akpm/mmots/broken-out/mm-change-the-interface-for-__tlb_remove_page-v3.patch
 
-Any feedback is appreciated.
-Thanks.
->> Change it to
->> the freeable - freed.
->>
->> Signed-off-by: Chen Feng <puck.chen@hisilicon.com>
->> ---
->>  mm/vmscan.c | 4 ++--
->>  1 file changed, 2 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index c4a2f45..1ce3fc4 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -357,8 +357,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->>  	 * manner that handles concurrent updates. If we exhausted the
->>  	 * scan, there is no need to do an update.
->>  	 */
->> -	if (total_scan > 0)
->> -		new_nr = atomic_long_add_return(total_scan,
->> +	if (freeable - freed > 0)
->> +		new_nr = atomic_long_add_return(freeable - freed,
->>  						&shrinker->nr_deferred[nid]);
->>  	else
->>  		new_nr = atomic_long_read(&shrinker->nr_deferred[nid]);
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
+to
+
+http://ozlabs.org/~akpm/mmots/broken-out/mm-change-the-interface-for-__tlb_remove_page.patch
+
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
