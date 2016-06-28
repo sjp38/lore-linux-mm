@@ -1,71 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EB6656B025F
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 06:30:01 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f126so13915960wma.3
-        for <linux-mm@kvack.org>; Tue, 28 Jun 2016 03:30:01 -0700 (PDT)
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
-        by mx.google.com with ESMTPS id s133si3555454wms.104.2016.06.28.03.30.00
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DE36B6B025F
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 06:38:29 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id k78so28213276ioi.2
+        for <linux-mm@kvack.org>; Tue, 28 Jun 2016 03:38:29 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id l129si9432747oif.118.2016.06.28.03.38.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Jun 2016 03:30:00 -0700 (PDT)
-Received: by mail-wm0-f42.google.com with SMTP id a66so20801997wme.0
-        for <linux-mm@kvack.org>; Tue, 28 Jun 2016 03:30:00 -0700 (PDT)
-Date: Tue, 28 Jun 2016 12:29:59 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: use per signal_struct flag rather than clear
- TIF_MEMDIE
-Message-ID: <20160628102959.GC510@dhcp22.suse.cz>
-References: <1466766121-8164-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160624215627.GA1148@redhat.com>
- <201606251444.EGJ69787.FtMOFJOLSHFQOV@I-love.SAKURA.ne.jp>
- <20160627204016.GA31239@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Jun 2016 03:38:29 -0700 (PDT)
+Subject: Re: [PATCH] mm, vmscan: set shrinker to the left page count
+References: <1467025335-6748-1-git-send-email-puck.chen@hisilicon.com>
+ <20160627165723.GW21652@esperanza>
+From: Chen Feng <puck.chen@hisilicon.com>
+Message-ID: <57725364.60307@hisilicon.com>
+Date: Tue, 28 Jun 2016 18:37:24 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160627204016.GA31239@redhat.com>
+In-Reply-To: <20160627165723.GW21652@esperanza>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, vdavydov@virtuozzo.com, rientjes@google.com
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, labbott@redhat.com, suzhuangluan@hisilicon.com, oliver.fu@hisilicon.com, puck.chen@foxmail.com, dan.zhao@hisilicon.com, saberlily.xia@hisilicon.com, xuyiping@hisilicon.com
 
-On Mon 27-06-16 22:40:17, Oleg Nesterov wrote:
-> On 06/25, Tetsuo Handa wrote:
-> >
-> > Oleg Nesterov wrote:
-> > > And in any case I don't understand this patch but I have to admit that
-> > > I failed to force myself to read the changelog and the actual change ;)
-> > > In any case I agree that we should not set MMF_MEMDIE if ->mm == NULL,
-> > > and if we ensure this then I do not understand why we can't rely on
-> > > MMF_OOM_REAPED. Ignoring the obvious races, if ->oom_victims != 0 then
-> > > find_lock_task_mm() should succed.
-> >
-> > Since we are using
-> >
-> >   mm = current->mm;
-> >   current->mm = NULL;
-> >   __mmput(mm); (may block for unbounded period waiting for somebody else's memory allocation)
-> >   exit_oom_victim(current);
-> >
-> > sequence, we won't be able to make find_lock_task_mm(tsk) != NULL when
-> > tsk->signal->oom_victims != 0 unless we change this sequence.
+Thanks for you reply.
+
+On 2016/6/28 0:57, Vladimir Davydov wrote:
+> On Mon, Jun 27, 2016 at 07:02:15PM +0800, Chen Feng wrote:
+>> In my platform, there can be cache a lot of memory in
+>> ion page pool. When shrink memory the nr_to_scan to ion
+>> is always to little.
+>> to_scan: 395  ion_pool_cached: 27305
 > 
-> Ah, but this is clear, note the "Ignoring the obvious races" above.
-> Can't we fix this race? I am a bit lost, but iirc we want this anyway
-> to ensure that we do not set TIF_MEMDIE if ->mm == NULL ?
+> That's OK. We want to shrink slabs gradually, not all at once.
+> 
 
-This is not about a race it is about not reaching exit_oom_victim and
-unblock the oom killer from selecting another victim.
+OKi 1/4 ? But my question there are a lot of memory waiting for free.
+But the to_scan is too little.
 
-> Hmm. Although I am not sure I really understand the "may block for
-> unbounded period ..." above. Do you mean khugepaged_exit?
+So, the lowmemorykill may kill the wrong process.
+>>
+>> Currently, the shrinker nr_deferred is set to total_scan.
+>> But it's not the real left of the shrinker.
+> 
+> And it shouldn't. The idea behind nr_deferred is following. A shrinker
+> may return SHRINK_STOP if the current allocation context doesn't allow
+> to reclaim its objects (e.g. reclaiming inodes under GFP_NOFS is
+> deadlock prone). In this case we can't call the shrinker right now, but
+> if we just forget about the batch we are supposed to reclaim at the
+> current iteration, we can wind up having too many of these objects so
+> that they start to exert unfairly high pressure on user memory. So we
+> add the amount that we wanted to scan but couldn't to nr_deferred, so
+> that we can catch up when we get to shrink_slab() with a proper context.
+> 
+I am confused with your comments. If the shrinker return STOP this time.
+It also can return STOP next time.
+Is there any other effects about this changei 1/4 ?
 
-__mmput->exit_aio can wait for IO to complete and who knows what that
-might depend on. Who knows how many others are lurking there.
-
--- 
-Michal Hocko
-SUSE Labs
+Any feedback is appreciated.
+Thanks.
+>> Change it to
+>> the freeable - freed.
+>>
+>> Signed-off-by: Chen Feng <puck.chen@hisilicon.com>
+>> ---
+>>  mm/vmscan.c | 4 ++--
+>>  1 file changed, 2 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index c4a2f45..1ce3fc4 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -357,8 +357,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>>  	 * manner that handles concurrent updates. If we exhausted the
+>>  	 * scan, there is no need to do an update.
+>>  	 */
+>> -	if (total_scan > 0)
+>> -		new_nr = atomic_long_add_return(total_scan,
+>> +	if (freeable - freed > 0)
+>> +		new_nr = atomic_long_add_return(freeable - freed,
+>>  						&shrinker->nr_deferred[nid]);
+>>  	else
+>>  		new_nr = atomic_long_read(&shrinker->nr_deferred[nid]);
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
