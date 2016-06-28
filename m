@@ -1,104 +1,268 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 54E016B025F
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 06:48:07 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 143so26816033pfx.0
-        for <linux-mm@kvack.org>; Tue, 28 Jun 2016 03:48:07 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id l3si13573976paz.169.2016.06.28.03.48.05
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A4D66B0253
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 07:24:21 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id g13so28686632ioj.3
+        for <linux-mm@kvack.org>; Tue, 28 Jun 2016 04:24:21 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id z126si34342ioe.242.2016.06.28.04.24.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Jun 2016 03:48:06 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u5SAiMpX127422
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 06:48:05 -0400
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 23spf9jdcm-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 06:48:04 -0400
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 28 Jun 2016 04:48:03 -0600
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [linux-next:master 6012/6704] include/asm-generic/tlb.h:133:3: error: implicit declaration of function '__tlb_adjust_range'
-In-Reply-To: <201606272339.TRfrgkTK%fengguang.wu@intel.com>
-References: <201606272339.TRfrgkTK%fengguang.wu@intel.com>
-Date: Tue, 28 Jun 2016 16:17:55 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Jun 2016 04:24:20 -0700 (PDT)
+Subject: Re: [PATCH v3 3/6] mm/cma: populate ZONE_CMA
+References: <1464243748-16367-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1464243748-16367-4-git-send-email-iamjoonsoo.kim@lge.com>
+ <576A58FA.8040101@hisilicon.com> <20160623025238.GB30438@js1304-P5Q-DELUXE>
+From: Chen Feng <puck.chen@hisilicon.com>
+Message-ID: <57725E2B.3000201@hisilicon.com>
+Date: Tue, 28 Jun 2016 19:23:23 +0800
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87d1n16144.fsf@skywalker.in.ibm.com>
+In-Reply-To: <20160623025238.GB30438@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>, akpm@linux-foundation.org
-Cc: kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura
+ Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek
+ Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Rui Teng <rui.teng@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "fujun (F)" <oliver.fu@hisilicon.com>, Zhuangluan Su <suzhuangluan@hisilicon.com>, Yiping Xu <xuyiping@hisilicon.com>, Dan Zhao <dan.zhao@hisilicon.com>
 
-kbuild test robot <fengguang.wu@intel.com> writes:
+Hello,
 
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   aa20c9aa490a2b73f97bceae9828ccfaa9cb1b4f
-> commit: dbea3efdd0c92695c1697b6a20e5b4cff09a3312 [6012/6704] mm: change the interface for __tlb_remove_page()
-> config: i386-tinyconfig (attached as .config)
-> compiler: gcc-6 (Debian 6.1.1-1) 6.1.1 20160430
-> reproduce:
->         git checkout dbea3efdd0c92695c1697b6a20e5b4cff09a3312
->         # save the attached .config to linux build tree
->         make ARCH=i386 
->
-> Note: the linux-next/master HEAD aa20c9aa490a2b73f97bceae9828ccfaa9cb1b4f builds fine.
->       It may have been fixed somewhere.
->
-> All errors (new ones prefixed by >>):
->
->    In file included from arch/x86/include/asm/tlb.h:16:0,
->                     from arch/x86/include/asm/efi.h:7,
->                     from arch/x86/kernel/setup.c:81:
->    include/asm-generic/tlb.h: In function 'tlb_remove_page':
->>> include/asm-generic/tlb.h:133:3: error: implicit declaration of function '__tlb_adjust_range' [-Werror=implicit-function-declaration]
->       __tlb_adjust_range(tlb, tlb->addr);
->       ^~~~~~~~~~~~~~~~~~
->    include/asm-generic/tlb.h: At top level:
->    include/asm-generic/tlb.h:138:20: warning: conflicting types for '__tlb_adjust_range'
->     static inline void __tlb_adjust_range(struct mmu_gather *tlb,
->                        ^~~~~~~~~~~~~~~~~~
->>> include/asm-generic/tlb.h:138:20: error: static declaration of '__tlb_adjust_range' follows non-static declaration
->    include/asm-generic/tlb.h:133:3: note: previous implicit declaration of '__tlb_adjust_range' was here
->       __tlb_adjust_range(tlb, tlb->addr);
->       ^~~~~~~~~~~~~~~~~~
->    cc1: some warnings being treated as errors
->
-> vim +/__tlb_adjust_range +133 include/asm-generic/tlb.h
->
->    127	 *	required.
->    128	 */
->    129	static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
->    130	{
->    131		if (__tlb_remove_page(tlb, page)) {
->    132			tlb_flush_mmu(tlb);
->  > 133			__tlb_adjust_range(tlb, tlb->addr);
->    134			__tlb_remove_page(tlb, page);
->    135		}
->    136	}
->    137	
->  > 138	static inline void __tlb_adjust_range(struct mmu_gather *tlb,
->    139					      unsigned long address)
->    140	{
->    141		tlb->start = min(tlb->start, address);
->
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+On 2016/6/23 10:52, Joonsoo Kim wrote:
+> On Wed, Jun 22, 2016 at 05:23:06PM +0800, Chen Feng wrote:
+>> Hello,
+>>
+>> On 2016/5/26 14:22, js1304@gmail.com wrote:
+>>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>>
+>>> Until now, reserved pages for CMA are managed in the ordinary zones
+>>> where page's pfn are belong to. This approach has numorous problems
+>>> and fixing them isn't easy. (It is mentioned on previous patch.)
+>>> To fix this situation, ZONE_CMA is introduced in previous patch, but,
+>>> not yet populated. This patch implement population of ZONE_CMA
+>>> by stealing reserved pages from the ordinary zones.
+>>>
+>>> Unlike previous implementation that kernel allocation request with
+>>> __GFP_MOVABLE could be serviced from CMA region, allocation request only
+>>> with GFP_HIGHUSER_MOVABLE can be serviced from CMA region in the new
+>>> approach. This is an inevitable design decision to use the zone
+>>> implementation because ZONE_CMA could contain highmem. Due to this
+>>> decision, ZONE_CMA will work like as ZONE_HIGHMEM or ZONE_MOVABLE.
+>>>
+>>> I don't think it would be a problem because most of file cache pages
+>>> and anonymous pages are requested with GFP_HIGHUSER_MOVABLE. It could
+>>> be proved by the fact that there are many systems with ZONE_HIGHMEM and
+>>> they work fine. Notable disadvantage is that we cannot use these pages
+>>> for blockdev file cache page, because it usually has __GFP_MOVABLE but
+>>> not __GFP_HIGHMEM and __GFP_USER. But, in this case, there is pros and
+>>> cons. In my experience, blockdev file cache pages are one of the top
+>>> reason that causes cma_alloc() to fail temporarily. So, we can get more
+>>> guarantee of cma_alloc() success by discarding that case.
+>>>
+>>> Implementation itself is very easy to understand. Steal when cma area is
+>>> initialized and recalculate various per zone stat/threshold.
+>>>
+>>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>> ---
+>>>  include/linux/memory_hotplug.h |  3 ---
+>>>  mm/cma.c                       | 41 +++++++++++++++++++++++++++++++++++++++++
+>>>  mm/internal.h                  |  3 +++
+>>>  mm/page_alloc.c                | 26 ++++++++++++++++++++++++--
+>>>  4 files changed, 68 insertions(+), 5 deletions(-)
+>>>
+>>> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+>>> index a864d79..6fde69b 100644
+>>> --- a/include/linux/memory_hotplug.h
+>>> +++ b/include/linux/memory_hotplug.h
+>>> @@ -198,9 +198,6 @@ void put_online_mems(void);
+>>>  void mem_hotplug_begin(void);
+>>>  void mem_hotplug_done(void);
+>>>  
+>>> -extern void set_zone_contiguous(struct zone *zone);
+>>> -extern void clear_zone_contiguous(struct zone *zone);
+>>> -
+>>>  #else /* ! CONFIG_MEMORY_HOTPLUG */
+>>>  /*
+>>>   * Stub functions for when hotplug is off
+>>> diff --git a/mm/cma.c b/mm/cma.c
+>>> index ea506eb..8684f50 100644
+>>> --- a/mm/cma.c
+>>> +++ b/mm/cma.c
+>>> @@ -38,6 +38,7 @@
+>>>  #include <trace/events/cma.h>
+>>>  
+>>>  #include "cma.h"
+>>> +#include "internal.h"
+>>>  
+>>>  struct cma cma_areas[MAX_CMA_AREAS];
+>>>  unsigned cma_area_count;
+>>> @@ -145,6 +146,11 @@ err:
+>>>  static int __init cma_init_reserved_areas(void)
+>>>  {
+>>>  	int i;
+>>> +	struct zone *zone;
+>>> +	unsigned long start_pfn = UINT_MAX, end_pfn = 0;
+>>> +
+>>> +	if (!cma_area_count)
+>>> +		return 0;
+>>>  
+>>>  	for (i = 0; i < cma_area_count; i++) {
+>>>  		int ret = cma_activate_area(&cma_areas[i]);
+>>> @@ -153,6 +159,41 @@ static int __init cma_init_reserved_areas(void)
+>>>  			return ret;
+>>>  	}
+>>>  
+>>> +	for (i = 0; i < cma_area_count; i++) {
+>>> +		if (start_pfn > cma_areas[i].base_pfn)
+>>> +			start_pfn = cma_areas[i].base_pfn;
+>>> +		if (end_pfn < cma_areas[i].base_pfn + cma_areas[i].count)
+>>> +			end_pfn = cma_areas[i].base_pfn + cma_areas[i].count;
+>>> +	}
+>>> +
+>>> +	for_each_populated_zone(zone) {
+>>> +		if (!is_zone_cma(zone))
+>>> +			continue;
+>>> +
+>>> +		/* ZONE_CMA doesn't need to exceed CMA region */
+>>> +		zone->zone_start_pfn = max(zone->zone_start_pfn, start_pfn);
+>>> +		zone->spanned_pages = min(zone_end_pfn(zone), end_pfn) -
+>>> +					zone->zone_start_pfn;
+>>> +	}
+>>> +
+>>> +	/*
+>>> +	 * Reserved pages for ZONE_CMA are now activated and this would change
+>>> +	 * ZONE_CMA's managed page counter and other zone's present counter.
+>>> +	 * We need to re-calculate various zone information that depends on
+>>> +	 * this initialization.
+>>> +	 */
+>>> +	build_all_zonelists(NULL, NULL);
+>>> +	for_each_populated_zone(zone) {
+>>> +		zone_pcp_update(zone);
+>>> +		set_zone_contiguous(zone);
+>>> +	}
+>>> +
+>>> +	/*
+>>> +	 * We need to re-init per zone wmark by calling
+>>> +	 * init_per_zone_wmark_min() but doesn't call here because it is
+>>> +	 * registered on module_init and it will be called later than us.
+>>> +	 */
+>>> +
+>>>  	return 0;
+>>>  }
+>>>  core_initcall(cma_init_reserved_areas);
+>>> diff --git a/mm/internal.h b/mm/internal.h
+>>> index b6ead95..4c37234 100644
+>>> --- a/mm/internal.h
+>>> +++ b/mm/internal.h
+>>> @@ -155,6 +155,9 @@ extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
+>>>  extern void prep_compound_page(struct page *page, unsigned int order);
+>>>  extern int user_min_free_kbytes;
+>>>  
+>>> +extern void set_zone_contiguous(struct zone *zone);
+>>> +extern void clear_zone_contiguous(struct zone *zone);
+>>> +
+>>>  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+>>>  
+>>>  /*
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index 0197d5d..796b271 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -1572,16 +1572,38 @@ void __init page_alloc_init_late(void)
+>>>  }
+>>>  
+>>>  #ifdef CONFIG_CMA
+>>> +static void __init adjust_present_page_count(struct page *page, long count)
+>>> +{
+>>> +	struct zone *zone = page_zone(page);
+>>> +
+>>> +	/* We don't need to hold a lock since it is boot-up process */
+>>> +	zone->present_pages += count;
+>>> +}
+>>> +
+>>>  /* Free whole pageblock and set its migration type to MIGRATE_CMA. */
+>>>  void __init init_cma_reserved_pageblock(struct page *page)
+>>>  {
+>>>  	unsigned i = pageblock_nr_pages;
+>>> +	unsigned long pfn = page_to_pfn(page);
+>>>  	struct page *p = page;
+>>> +	int nid = page_to_nid(page);
+>>> +
+>>> +	/*
+>>> +	 * ZONE_CMA will steal present pages from other zones by changing
+>>> +	 * page links so page_zone() is changed. Before that,
+>>> +	 * we need to adjust previous zone's page count first.
+>>> +	 */
+>>> +	adjust_present_page_count(page, -pageblock_nr_pages);
+>>>  
+>>>  	do {
+>>>  		__ClearPageReserved(p);
+>>>  		set_page_count(p, 0);
+>>> -	} while (++p, --i);
+>>> +
+>>> +		/* Steal pages from other zones */
+>>> +		set_page_links(p, ZONE_CMA, nid, pfn);
+>>> +	} while (++p, ++pfn, --i);
+>>> +
+>>> +	adjust_present_page_count(page, pageblock_nr_pages);
+>>>  
+>>>  	set_pageblock_migratetype(page, MIGRATE_CMA);
+>>
+>> The ZONE_CMA should depends on sparse_mem.
+>>
+>> Because the zone size is not fixed when init the buddy core.
+>> The pageblock_flags will be NULL when setup_usemap.
+> 
+> Before setup_usemap(), range of ZONE_CMA is set conservatively, from
+> min_start_pfn of the node to max_end_pfn of the node. So,
+> pageblock_flags will be allocated and assigned properly.
+> 
+> Unfortunately, I found a bug for FLATMEM system. If you'd like to
+> test ZONE_CMA on FLATMEM system, please apply below one.
+> 
 
-IIUC this will get fixed, when we fold
+The filesystem, inode map is also GFP_HIGHUSER_MOVABLE.
 
-http://ozlabs.org/~akpm/mmots/broken-out/mm-change-the-interface-for-__tlb_remove_page-v3.patch
+SyS_write filemap_fault will also use cma memory.
 
-to
+This may also make cma migrate failed. What's your idea on this type?
 
-http://ozlabs.org/~akpm/mmots/broken-out/mm-change-the-interface-for-__tlb_remove_page.patch
-
-
--aneesh
+> Thanks.
+> ------------>8------------
+> diff --git a/mm/cma.c b/mm/cma.c
+> index 0c1a72f..6cd2973 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -168,13 +168,6 @@ static int __init cma_init_reserved_areas(void)
+>                 return 0;
+>  
+>         for (i = 0; i < cma_area_count; i++) {
+> -               int ret = cma_activate_area(&cma_areas[i]);
+> -
+> -               if (ret)
+> -                       return ret;
+> -       }
+> -
+> -       for (i = 0; i < cma_area_count; i++) {
+>                 if (start_pfn > cma_areas[i].base_pfn)
+>                         start_pfn = cma_areas[i].base_pfn;
+>                 if (end_pfn < cma_areas[i].base_pfn + cma_areas[i].count)
+> @@ -191,6 +184,13 @@ static int __init cma_init_reserved_areas(void)
+>                                         zone->zone_start_pfn;
+>         }
+>  
+> +       for (i = 0; i < cma_area_count; i++) {
+> +               int ret = cma_activate_area(&cma_areas[i]);
+> +
+> +               if (ret)
+> +                       return ret;
+> +       }
+> +
+>         /*
+>          * Reserved pages for ZONE_CMA are now activated and this would change
+>          * ZONE_CMA's managed page counter and other zone's present counter.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
