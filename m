@@ -1,167 +1,239 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B03556B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 03:54:46 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ao6so74224756pac.2
-        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 00:54:46 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id ud9si3149035pab.247.2016.06.29.00.54.44
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B6EE6B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 03:57:42 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id g8so92829672itb.2
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 00:57:42 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id n64si258916itb.52.2016.06.29.00.57.40
         for <linux-mm@kvack.org>;
-        Wed, 29 Jun 2016 00:54:45 -0700 (PDT)
-Date: Wed, 29 Jun 2016 16:57:43 +0900
+        Wed, 29 Jun 2016 00:57:41 -0700 (PDT)
+Date: Wed, 29 Jun 2016 17:00:38 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 0/6] Introduce ZONE_CMA
-Message-ID: <20160629075743.GA25102@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH v3 3/6] mm/cma: populate ZONE_CMA
+Message-ID: <20160629080038.GB25102@js1304-P5Q-DELUXE>
 References: <1464243748-16367-1-git-send-email-iamjoonsoo.kim@lge.com>
- <57710D39.4060109@gmail.com>
+ <1464243748-16367-4-git-send-email-iamjoonsoo.kim@lge.com>
+ <576A58FA.8040101@hisilicon.com>
+ <20160623025238.GB30438@js1304-P5Q-DELUXE>
+ <57725E2B.3000201@hisilicon.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <57710D39.4060109@gmail.com>
+In-Reply-To: <57725E2B.3000201@hisilicon.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Rui Teng <rui.teng@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chen Feng <puck.chen@hisilicon.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Rui Teng <rui.teng@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "fujun (F)" <oliver.fu@hisilicon.com>, Zhuangluan Su <suzhuangluan@hisilicon.com>, Yiping Xu <xuyiping@hisilicon.com>, Dan Zhao <dan.zhao@hisilicon.com>
 
-On Mon, Jun 27, 2016 at 09:25:45PM +1000, Balbir Singh wrote:
+On Tue, Jun 28, 2016 at 07:23:23PM +0800, Chen Feng wrote:
+> Hello,
 > 
+> On 2016/6/23 10:52, Joonsoo Kim wrote:
+> > On Wed, Jun 22, 2016 at 05:23:06PM +0800, Chen Feng wrote:
+> >> Hello,
+> >>
+> >> On 2016/5/26 14:22, js1304@gmail.com wrote:
+> >>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >>>
+> >>> Until now, reserved pages for CMA are managed in the ordinary zones
+> >>> where page's pfn are belong to. This approach has numorous problems
+> >>> and fixing them isn't easy. (It is mentioned on previous patch.)
+> >>> To fix this situation, ZONE_CMA is introduced in previous patch, but,
+> >>> not yet populated. This patch implement population of ZONE_CMA
+> >>> by stealing reserved pages from the ordinary zones.
+> >>>
+> >>> Unlike previous implementation that kernel allocation request with
+> >>> __GFP_MOVABLE could be serviced from CMA region, allocation request only
+> >>> with GFP_HIGHUSER_MOVABLE can be serviced from CMA region in the new
+> >>> approach. This is an inevitable design decision to use the zone
+> >>> implementation because ZONE_CMA could contain highmem. Due to this
+> >>> decision, ZONE_CMA will work like as ZONE_HIGHMEM or ZONE_MOVABLE.
+> >>>
+> >>> I don't think it would be a problem because most of file cache pages
+> >>> and anonymous pages are requested with GFP_HIGHUSER_MOVABLE. It could
+> >>> be proved by the fact that there are many systems with ZONE_HIGHMEM and
+> >>> they work fine. Notable disadvantage is that we cannot use these pages
+> >>> for blockdev file cache page, because it usually has __GFP_MOVABLE but
+> >>> not __GFP_HIGHMEM and __GFP_USER. But, in this case, there is pros and
+> >>> cons. In my experience, blockdev file cache pages are one of the top
+> >>> reason that causes cma_alloc() to fail temporarily. So, we can get more
+> >>> guarantee of cma_alloc() success by discarding that case.
+> >>>
+> >>> Implementation itself is very easy to understand. Steal when cma area is
+> >>> initialized and recalculate various per zone stat/threshold.
+> >>>
+> >>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >>> ---
+> >>>  include/linux/memory_hotplug.h |  3 ---
+> >>>  mm/cma.c                       | 41 +++++++++++++++++++++++++++++++++++++++++
+> >>>  mm/internal.h                  |  3 +++
+> >>>  mm/page_alloc.c                | 26 ++++++++++++++++++++++++--
+> >>>  4 files changed, 68 insertions(+), 5 deletions(-)
+> >>>
+> >>> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> >>> index a864d79..6fde69b 100644
+> >>> --- a/include/linux/memory_hotplug.h
+> >>> +++ b/include/linux/memory_hotplug.h
+> >>> @@ -198,9 +198,6 @@ void put_online_mems(void);
+> >>>  void mem_hotplug_begin(void);
+> >>>  void mem_hotplug_done(void);
+> >>>  
+> >>> -extern void set_zone_contiguous(struct zone *zone);
+> >>> -extern void clear_zone_contiguous(struct zone *zone);
+> >>> -
+> >>>  #else /* ! CONFIG_MEMORY_HOTPLUG */
+> >>>  /*
+> >>>   * Stub functions for when hotplug is off
+> >>> diff --git a/mm/cma.c b/mm/cma.c
+> >>> index ea506eb..8684f50 100644
+> >>> --- a/mm/cma.c
+> >>> +++ b/mm/cma.c
+> >>> @@ -38,6 +38,7 @@
+> >>>  #include <trace/events/cma.h>
+> >>>  
+> >>>  #include "cma.h"
+> >>> +#include "internal.h"
+> >>>  
+> >>>  struct cma cma_areas[MAX_CMA_AREAS];
+> >>>  unsigned cma_area_count;
+> >>> @@ -145,6 +146,11 @@ err:
+> >>>  static int __init cma_init_reserved_areas(void)
+> >>>  {
+> >>>  	int i;
+> >>> +	struct zone *zone;
+> >>> +	unsigned long start_pfn = UINT_MAX, end_pfn = 0;
+> >>> +
+> >>> +	if (!cma_area_count)
+> >>> +		return 0;
+> >>>  
+> >>>  	for (i = 0; i < cma_area_count; i++) {
+> >>>  		int ret = cma_activate_area(&cma_areas[i]);
+> >>> @@ -153,6 +159,41 @@ static int __init cma_init_reserved_areas(void)
+> >>>  			return ret;
+> >>>  	}
+> >>>  
+> >>> +	for (i = 0; i < cma_area_count; i++) {
+> >>> +		if (start_pfn > cma_areas[i].base_pfn)
+> >>> +			start_pfn = cma_areas[i].base_pfn;
+> >>> +		if (end_pfn < cma_areas[i].base_pfn + cma_areas[i].count)
+> >>> +			end_pfn = cma_areas[i].base_pfn + cma_areas[i].count;
+> >>> +	}
+> >>> +
+> >>> +	for_each_populated_zone(zone) {
+> >>> +		if (!is_zone_cma(zone))
+> >>> +			continue;
+> >>> +
+> >>> +		/* ZONE_CMA doesn't need to exceed CMA region */
+> >>> +		zone->zone_start_pfn = max(zone->zone_start_pfn, start_pfn);
+> >>> +		zone->spanned_pages = min(zone_end_pfn(zone), end_pfn) -
+> >>> +					zone->zone_start_pfn;
+> >>> +	}
+> >>> +
+> >>> +	/*
+> >>> +	 * Reserved pages for ZONE_CMA are now activated and this would change
+> >>> +	 * ZONE_CMA's managed page counter and other zone's present counter.
+> >>> +	 * We need to re-calculate various zone information that depends on
+> >>> +	 * this initialization.
+> >>> +	 */
+> >>> +	build_all_zonelists(NULL, NULL);
+> >>> +	for_each_populated_zone(zone) {
+> >>> +		zone_pcp_update(zone);
+> >>> +		set_zone_contiguous(zone);
+> >>> +	}
+> >>> +
+> >>> +	/*
+> >>> +	 * We need to re-init per zone wmark by calling
+> >>> +	 * init_per_zone_wmark_min() but doesn't call here because it is
+> >>> +	 * registered on module_init and it will be called later than us.
+> >>> +	 */
+> >>> +
+> >>>  	return 0;
+> >>>  }
+> >>>  core_initcall(cma_init_reserved_areas);
+> >>> diff --git a/mm/internal.h b/mm/internal.h
+> >>> index b6ead95..4c37234 100644
+> >>> --- a/mm/internal.h
+> >>> +++ b/mm/internal.h
+> >>> @@ -155,6 +155,9 @@ extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
+> >>>  extern void prep_compound_page(struct page *page, unsigned int order);
+> >>>  extern int user_min_free_kbytes;
+> >>>  
+> >>> +extern void set_zone_contiguous(struct zone *zone);
+> >>> +extern void clear_zone_contiguous(struct zone *zone);
+> >>> +
+> >>>  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+> >>>  
+> >>>  /*
+> >>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >>> index 0197d5d..796b271 100644
+> >>> --- a/mm/page_alloc.c
+> >>> +++ b/mm/page_alloc.c
+> >>> @@ -1572,16 +1572,38 @@ void __init page_alloc_init_late(void)
+> >>>  }
+> >>>  
+> >>>  #ifdef CONFIG_CMA
+> >>> +static void __init adjust_present_page_count(struct page *page, long count)
+> >>> +{
+> >>> +	struct zone *zone = page_zone(page);
+> >>> +
+> >>> +	/* We don't need to hold a lock since it is boot-up process */
+> >>> +	zone->present_pages += count;
+> >>> +}
+> >>> +
+> >>>  /* Free whole pageblock and set its migration type to MIGRATE_CMA. */
+> >>>  void __init init_cma_reserved_pageblock(struct page *page)
+> >>>  {
+> >>>  	unsigned i = pageblock_nr_pages;
+> >>> +	unsigned long pfn = page_to_pfn(page);
+> >>>  	struct page *p = page;
+> >>> +	int nid = page_to_nid(page);
+> >>> +
+> >>> +	/*
+> >>> +	 * ZONE_CMA will steal present pages from other zones by changing
+> >>> +	 * page links so page_zone() is changed. Before that,
+> >>> +	 * we need to adjust previous zone's page count first.
+> >>> +	 */
+> >>> +	adjust_present_page_count(page, -pageblock_nr_pages);
+> >>>  
+> >>>  	do {
+> >>>  		__ClearPageReserved(p);
+> >>>  		set_page_count(p, 0);
+> >>> -	} while (++p, --i);
+> >>> +
+> >>> +		/* Steal pages from other zones */
+> >>> +		set_page_links(p, ZONE_CMA, nid, pfn);
+> >>> +	} while (++p, ++pfn, --i);
+> >>> +
+> >>> +	adjust_present_page_count(page, pageblock_nr_pages);
+> >>>  
+> >>>  	set_pageblock_migratetype(page, MIGRATE_CMA);
+> >>
+> >> The ZONE_CMA should depends on sparse_mem.
+> >>
+> >> Because the zone size is not fixed when init the buddy core.
+> >> The pageblock_flags will be NULL when setup_usemap.
+> > 
+> > Before setup_usemap(), range of ZONE_CMA is set conservatively, from
+> > min_start_pfn of the node to max_end_pfn of the node. So,
+> > pageblock_flags will be allocated and assigned properly.
+> > 
+> > Unfortunately, I found a bug for FLATMEM system. If you'd like to
+> > test ZONE_CMA on FLATMEM system, please apply below one.
+> > 
 > 
-> On 26/05/16 16:22, js1304@gmail.com wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > Hello,
-> > 
-> > Changes from v2
-> > o Rebase on next-20160525
-> > o No other changes except following description
-> > 
-> > There was a discussion with Mel [1] after LSF/MM 2016. I could summarise
-> > it to help merge decision but it's better to read by yourself since
-> > if I summarise it, it would be biased for me. But, if anyone hope
-> > the summary, I will do it. :)
-> > 
-> > Anyway, Mel's position on this patchset seems to be neutral. He said:
-> > "I'm not going to outright NAK your series but I won't ACK it either"
-> > 
-> > We can fix the problems with any approach but I hope to go a new zone
-> > approach because it is less error-prone. It reduces some corner case
-> > handling for now and remove need for potential corner case handling to fix
-> > problems.
-> > 
-> > Note that our company is already using ZONE_CMA for a years and
-> > there is no problem.
-> > 
-> > If anyone has a different opinion, please let me know and let's discuss
-> > together.
-> > 
-> > Andrew, if there is something to do for merge, please let me know.
-> > 
-> > [1] https://lkml.kernel.org/r/20160425053653.GA25662@js1304-P5Q-DELUXE
-> > 
-> > Changes from v1
-> > o Separate some patches which deserve to submit independently
-> > o Modify description to reflect current kernel state
-> > (e.g. high-order watermark problem disappeared by Mel's work)
-> > o Don't increase SECTION_SIZE_BITS to make a room in page flags
-> > (detailed reason is on the patch that adds ZONE_CMA)
-> > o Adjust ZONE_CMA population code
-> > 
-> > This series try to solve problems of current CMA implementation.
-> > 
-> > CMA is introduced to provide physically contiguous pages at runtime
-> > without exclusive reserved memory area. But, current implementation
-> > works like as previous reserved memory approach, because freepages
-> > on CMA region are used only if there is no movable freepage. In other
-> > words, freepages on CMA region are only used as fallback. In that
-> > situation where freepages on CMA region are used as fallback, kswapd
-> > would be woken up easily since there is no unmovable and reclaimable
-> > freepage, too. If kswapd starts to reclaim memory, fallback allocation
-> > to MIGRATE_CMA doesn't occur any more since movable freepages are
-> > already refilled by kswapd and then most of freepage on CMA are left
-> > to be in free. This situation looks like exclusive reserved memory case.
+> The filesystem, inode map is also GFP_HIGHUSER_MOVABLE.
 > 
-> I am afraid I don't understand the problem statement completely understand.
-> Is this the ALLOC_CMA case or the !ALLOC_CMA one? I also think one other
+> SyS_write filemap_fault will also use cma memory.
+> 
+> This may also make cma migrate failed. What's your idea on this type?
 
-It's caused by the mixed usage of these flags, not caused by one
-specific flags.
-
-> problem is that in my experience and observation all CMA allocations seem
-> to come from one node-- the highest node on the system
-> 
-> > 
-> > In my experiment, I found that if system memory has 1024 MB memory and
-> > 512 MB is reserved for CMA, kswapd is mostly woken up when roughly 512 MB
-> > free memory is left. Detailed reason is that for keeping enough free
-> > memory for unmovable and reclaimable allocation, kswapd uses below
-> > equation when calculating free memory and it easily go under the watermark.
-> > 
-> > Free memory for unmovable and reclaimable = Free total - Free CMA pages
-> > 
-> > This is derivated from the property of CMA freepage that CMA freepage
-> > can't be used for unmovable and reclaimable allocation.
-> > 
-> > Anyway, in this case, kswapd are woken up when (FreeTotal - FreeCMA)
-> > is lower than low watermark and tries to make free memory until
-> > (FreeTotal - FreeCMA) is higher than high watermark. That results
-> > in that FreeTotal is moving around 512MB boundary consistently. It
-> > then means that we can't utilize full memory capacity.
-> > 
-> 
-> OK.. so you are suggesting that we are under-utilizing the memory in the
-> CMA region?
-
-That's right.
-
-> > To fix this problem, I submitted some patches [1] about 10 months ago,
-> > but, found some more problems to be fixed before solving this problem.
-> > It requires many hooks in allocator hotpath so some developers doesn't
-> > like it. Instead, some of them suggest different approach [2] to fix
-> > all the problems related to CMA, that is, introducing a new zone to deal
-> > with free CMA pages. I agree that it is the best way to go so implement
-> > here. Although properties of ZONE_MOVABLE and ZONE_CMA is similar, I
-> > decide to add a new zone rather than piggyback on ZONE_MOVABLE since
-> > they have some differences. First, reserved CMA pages should not be
-> > offlined.
-> 
-> Why? Why are they special? Even if they are offlined by user action,
-> one would expect the following to occur
-> 
-> 1. User would mark/release the cma region associated with them
-> 2. User would then hotplug the memory
-
-CMA region is reserved at booting time and used until system
-shutdown. Hotplug CMA region isn't possible, yet. Later, we would
-handle it, but, at least, it's not a required feature for now.
-
-> > If freepage for CMA is managed by ZONE_MOVABLE, we need to keep
-> > MIGRATE_CMA migratetype and insert many hooks on memory hotplug code
-> > to distiguish hotpluggable memory and reserved memory for CMA in the same
-> > zone. It would make memory hotplug code which is already complicated
-> > more complicated.
-> 
-> Again why treat it special, one could potentially deny the hotplug based
-> on the knowledge of where the CMA region is allocated from
-
-Yes. But, I don't want to use ZONE_MOVABLE for CMA region because there are
-some special handling codes for ZONE_MOVABLE and I'd like to minimize
-side-effect of this change. If adding a new zone is really problem, I
-will use ZONE_MOVABLE.
+Purpose of this patchset is not improving success rate. It can be
+solved separately if it is a real problem. Could you share how above
+usage makes CMA migration failed and how long does it continue to
+fail?
 
 Thanks.
-
-> > Second, cma_alloc() can be called more frequently
-> > than memory hotplug operation and possibly we need to control
-> > allocation rate of ZONE_CMA to optimize latency in the future.
-> > In this case, separate zone approach is easy to modify. Third, I'd
-> > like to see statistics for CMA, separately. Sometimes, we need to debug
-> > why cma_alloc() is failed and separate statistics would be more helpful
-> > in this situtaion.
-> > 
-> > Anyway, this patchset solves four problems related to CMA implementation.
-> >
-> 
-> Balbir 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
