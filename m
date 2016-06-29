@@ -1,112 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5665D6B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 04:33:18 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id a4so30376081lfa.1
-        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 01:33:18 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id h4si3578288wjg.171.2016.06.29.01.33.16
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C41B56B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 06:58:59 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 13so101691925itl.0
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 03:58:59 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0119.outbound.protection.outlook.com. [104.47.0.119])
+        by mx.google.com with ESMTPS id g16si2525122otd.237.2016.06.29.03.58.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Jun 2016 01:33:16 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id a66so12413974wme.2
-        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 01:33:16 -0700 (PDT)
-Date: Wed, 29 Jun 2016 10:33:14 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: use per signal_struct flag rather than clear
- TIF_MEMDIE
-Message-ID: <20160629083314.GA27153@dhcp22.suse.cz>
-References: <1466766121-8164-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160624215627.GA1148@redhat.com>
- <201606251444.EGJ69787.FtMOFJOLSHFQOV@I-love.SAKURA.ne.jp>
- <20160627092326.GD31799@dhcp22.suse.cz>
- <20160627103609.GE31799@dhcp22.suse.cz>
- <20160627155119.GA17686@redhat.com>
- <20160627160616.GN31799@dhcp22.suse.cz>
- <20160627175555.GA24370@redhat.com>
- <20160628101956.GA510@dhcp22.suse.cz>
- <20160629001353.GA9377@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 29 Jun 2016 03:58:58 -0700 (PDT)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCHv2 0/6] x86: 32-bit compatible C/R on x86_64
+Date: Wed, 29 Jun 2016 13:57:30 +0300
+Message-ID: <20160629105736.15017-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160629001353.GA9377@redhat.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, vdavydov@virtuozzo.com, rientjes@google.com
+To: linux-kernel@vger.kernel.org
+Cc: 0x7f454c46@gmail.com, linux-mm@kvack.org, mingo@redhat.com, luto@amacapital.net, gorcunov@openvz.org, xemul@virtuozzo.com, oleg@redhat.com, Dmitry Safonov <dsafonov@virtuozzo.com>
 
-On Wed 29-06-16 02:13:53, Oleg Nesterov wrote:
-> Michal,
-> 
-> I am already sleeping, I'll try to reply to other parts of your email
-> (and other emails) tomorrow, just some notes about the patch you propose.
+The following changes are available since v1:
+- killed PR_REG_SIZE macro as Oleg suggested
+- cleared SA_IA32_ABI|SA_X32_ABI from oact->sa.sa_flags in do_sigaction()
+  as noticed by Oleg
+- moved SA_IA32_ABI|SA_X32_ABI from uapi header as those flags shouldn't
+  be exposed to user-space
 
-Thanks!
+I also reworked CRIU's patches to work with this patches set, rather than
+on first RFC that swapped TIF_IA32 with arch_prctl. By now it yet fails
+~10% of 32-bit tests of CRIU's test suite called ZDTM.
+The CRIU branch for this can be viewed on [6] and v3 patches to add
+this functionality have been sent to maillist [7].
 
-> And cough sorry for noise... I personally hate-hate-hate every new "oom"
-> member you and Tetsuo add into task/signal_struct ;)
+The patches set is based on [3] and while it's not yet applied -- it
+may make kbuild test robot unhappy.
 
-I am not really happy about that either. I wish I could find a better
-way...
+Description from v1 [5]:
 
-> But not in this case, because I _think_ we need signal_struct->mm
-> anyway in the long term.
-> 
-> So at first glance this patch makes sense, but unless I missed something
-> (the patch doesn't apply I can be easily wrong),
+This patches set is an attempt to add checkpoint/restore
+for 32-bit tasks in compatibility mode on x86_64 hosts.
 
-This is on top of the current mmotm tree which contains other oom
-changes.
+Restore in CRIU starts from one root restoring process, which
+reads info for all threads being restored from images files.
+This information is used further to find out which processes
+share some resources. Later shared resources are restored only
+by one process and all other inherit them.
+After that it calls clone() and new threads restore their
+properties in parallel. Those threads inherit all parent's
+mappings and fetch properties from those mappings
+(and do clone themself, if they have children/subthreads). [1]
+Then starts restorer blob's play, it's PIE binary, which
+unmaps all unneeded for restoring VMAs, maps new VMAs and
+finalize restoring with sigreturn syscall. [2]
 
-[...]
-> > +void mark_oom_victim(struct task_struct *tsk, struct mm_struct *mm)
-> >  {
-> >  	WARN_ON(oom_killer_disabled);
-> >  	/* OOM killer might race with memcg OOM */
-> >  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
-> >  		return;
-> > +
-> >  	atomic_inc(&tsk->signal->oom_victims);
-> > +
-> > +	/* oom_mm is bound to the signal struct life time */
-> > +	if (!tsk->signal->oom_mm) {
-> > +		atomic_inc(&mm->mm_count);
-> > +		tsk->signal->oom_mm = mm;
-> 
-> Looks racy, but it is not because we rely on oom_lock? Perhaps a comment
-> makes sense.
+To restore of 32-bit task we need three things to do in running
+x86_64 restorer blob:
+a) set code selector to __USER32_CS (to run 32-bit code);
+b) remap vdso blob from 64-bit to 32-bit
+   This is primary needed because restore may happen on a different
+   kernel, which has different vDSO image than we had on dump.
+c) if 32-bit vDSO differ to dumped image, move it on free place
+   and add jump trampolines to that place.
+d) switch TIF_IA32 flag, so kernel would know that it deals with
+   compatible 32-bit application.
 
-mark_oom_victim will be called only for the current or under the
-task_lock so it should be stable. Except for...
+>From all this:
+a) setting CS may be done from userspace, no patches needed;
+b) patches 1-3 add ability to map different vDSO blobs on x86 kernel;
+c) for remapping/moving 32-bit vDSO blob patches have been send earlier
+   and seems to be accepted [3]
+d) and for swapping TIF_IA32 flag discussion with Andy ended in conclusion
+   that it's better to remove this flag completely.
+   Patches 4-6 deletes usage of TIF_IA32 from ptrace, signal and coredump
+   code. This is rework/resend of RFC [4]
 
-> > @@ -838,8 +826,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
-> >  	 * If the task is already exiting, don't alarm the sysadmin or kill
-> >  	 * its children or threads, just set TIF_MEMDIE so it can die quickly
-> >  	 */
-> > -	if (task_will_free_mem(p)) {
-> > -		mark_oom_victim(p);
-> > +	if (mm && task_will_free_mem(p)) {
-> > +		mark_oom_victim(p, mm);
+[1] https://criu.org/Checkpoint/Restore#Restore
+[2] https://criu.org/Restorer_context
+[3] https://lkml.org/lkml/2016/6/28/489
+[4] https://lkml.org/lkml/2016/4/25/650
+[5] https://lkml.org/lkml/2016/6/1/425
+[6] https://github.com/0x7f454c46/criu/tree/compat-4
+[7] https://lists.openvz.org/pipermail/criu/2016-June/029788.html
 
-This one. I didn't bother to cover it for the example patch but I have a
-plan to address that. There are two possible ways. One is to pin
-mm_count in oom_badness() so that we have a guarantee that it will not
-get released from under us and the other one is to make
-task_will_free_mem task_lock friendly and call this under the lock as we
-used to.
- 
-> And this looks really racy at first glance. Suppose that this memory hog execs
-> (this changes its ->mm) and then exits so that task_will_free_mem() == T, in
-> this case "mm" has nothing to do with tsk->mm and it can be already freed.
+Dmitry Safonov (6):
+  x86/vdso: unmap vdso blob on vvar mapping failure
+  x86/vdso: introduce do_map_vdso() and vdso_type enum
+  x86/arch_prctl/vdso: add ARCH_MAP_VDSO_*
+  x86/coredump: use pr_reg size, rather that TIF_IA32 flag
+  x86/ptrace: down with test_thread_flag(TIF_IA32)
+  x86/signal: add SA_{X32,IA32}_ABI sa_flags
 
-Hmm, I didn't think about exec case. And I guess we have never cared
-about that race. We just select a task and then kill it. The fact that
-it is not sitting on the same memory anymore is silently ignored... But
-I have to think about it more. I would be more worried about the use
-after free.
+ arch/x86/entry/vdso/vma.c         | 72 ++++++++++++++++++++++-----------------
+ arch/x86/ia32/ia32_signal.c       |  2 +-
+ arch/x86/include/asm/compat.h     |  8 ++---
+ arch/x86/include/asm/fpu/signal.h |  6 ++++
+ arch/x86/include/asm/signal.h     |  4 +++
+ arch/x86/include/asm/vdso.h       |  4 +++
+ arch/x86/include/uapi/asm/prctl.h |  6 ++++
+ arch/x86/kernel/process_64.c      | 10 ++++++
+ arch/x86/kernel/ptrace.c          |  2 +-
+ arch/x86/kernel/signal.c          | 20 ++++++-----
+ arch/x86/kernel/signal_compat.c   | 34 ++++++++++++++++--
+ fs/binfmt_elf.c                   | 23 +++++--------
+ kernel/signal.c                   |  7 ++++
+ 13 files changed, 133 insertions(+), 65 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
