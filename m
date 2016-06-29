@@ -1,102 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A6F306B0253
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 20:13:58 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id y77so81461112qkb.1
-        for <linux-mm@kvack.org>; Tue, 28 Jun 2016 17:13:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t40si790417qtc.2.2016.06.28.17.13.57
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 72E1D6B0253
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 20:57:55 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r190so32396778wmr.0
+        for <linux-mm@kvack.org>; Tue, 28 Jun 2016 17:57:55 -0700 (PDT)
+Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [146.101.78.143])
+        by mx.google.com with ESMTPS id gr8si1501016wjc.58.2016.06.28.17.57.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Jun 2016 17:13:57 -0700 (PDT)
-Date: Wed, 29 Jun 2016 02:13:53 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] mm,oom: use per signal_struct flag rather than clear
- TIF_MEMDIE
-Message-ID: <20160629001353.GA9377@redhat.com>
-References: <1466766121-8164-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160624215627.GA1148@redhat.com>
- <201606251444.EGJ69787.FtMOFJOLSHFQOV@I-love.SAKURA.ne.jp>
- <20160627092326.GD31799@dhcp22.suse.cz>
- <20160627103609.GE31799@dhcp22.suse.cz>
- <20160627155119.GA17686@redhat.com>
- <20160627160616.GN31799@dhcp22.suse.cz>
- <20160627175555.GA24370@redhat.com>
- <20160628101956.GA510@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 28 Jun 2016 17:57:54 -0700 (PDT)
+From: Dennis Chen <dennis.chen@arm.com>
+Subject: [PATCH v5 1/3] mm: memblock enhence the memblock debugfs output
+Date: Wed, 29 Jun 2016 08:57:33 +0800
+Message-ID: <1467161855-10010-1-git-send-email-dennis.chen@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160628101956.GA510@dhcp22.suse.cz>
+Content-Type: text/plain; charset=WINDOWS-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, vdavydov@virtuozzo.com, rientjes@google.com
+To: linux-arm-kernel@lists.infradead.org
+Cc: nd@arm.com, Dennis Chen <dennis.chen@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Steve Capper <steve.capper@arm.com>, Ard
+ Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Matt Fleming <matt@codeblueprint.co.uk>, linux-mm@kvack.org, linux-acpi@vger.kernel.org, linux-efi@vger.kernel.org
 
-Michal,
+Current memblock debugfs output doesn't make the debug convenient
+enough, for example, lack of the 'flag' of the corresponding memblock
+region result in it's difficult to known whether the region has been
+mapped to the kernel linear map zone or not. This patch is trying to
+ease the dubug effort by adding 'size' and 'flag' output.
 
-I am already sleeping, I'll try to reply to other parts of your email
-(and other emails) tomorrow, just some notes about the patch you propose.
+The '/sys/kernel/debug/memblock/memory' output looks like before:
+   0: 0x0000008000000000..0x0000008001e7ffff
+   1: 0x0000008001e80000..0x00000083ff184fff
+   2: 0x00000083ff185000..0x00000083ff1c2fff
+   3: 0x00000083ff1c3000..0x00000083ff222fff
+   4: 0x00000083ff223000..0x00000083ffe42fff
+   5: 0x00000083ffe43000..0x00000083ffffffff
 
-And cough sorry for noise... I personally hate-hate-hate every new "oom"
-member you and Tetsuo add into task/signal_struct ;) But not in this case,
-because I _think_ we need signal_struct->mm anyway in the long term.
+After applied:
+   0: 0x0000008000000000..0x0000008001e7ffff  0x0000000001e80000  0x4=20
+   1: 0x0000008001e80000..0x00000083ff184fff  0x00000003fd305000  0x0=20
+   2: 0x00000083ff185000..0x00000083ff1c2fff  0x000000000003e000  0x4=20
+   3: 0x00000083ff1c3000..0x00000083ff222fff  0x0000000000060000  0x0=20
+   4: 0x00000083ff223000..0x00000083ffe42fff  0x0000000000c20000  0x4=20
+   5: 0x00000083ffe43000..0x00000083ffffffff  0x00000000001bd000  0x0=20
 
-So at first glance this patch makes sense, but unless I missed something
-(the patch doesn't apply I can be easily wrong),
+Signed-off-by: Dennis Chen <dennis.chen@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Steve Capper <steve.capper@arm.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Cc: Matt Fleming <matt@codeblueprint.co.uk>
+Cc: linux-mm@kvack.org
+Cc: linux-acpi@vger.kernel.org
+Cc: linux-efi@vger.kernel.org
+---
+ mm/memblock.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
-On 06/28, Michal Hocko wrote:
->
-> @@ -245,6 +245,8 @@ static inline void free_signal_struct(struct signal_struct *sig)
->  {
->  	taskstats_tgid_free(sig);
->  	sched_autogroup_exit(sig);
-> +	if (sig->oom_mm)
-> +		mmdrop(sig->oom_mm);
->  	kmem_cache_free(signal_cachep, sig);
->  }
-
-OK, iiuc this is not that bad because only oom-killer can set it,
-
-> +void mark_oom_victim(struct task_struct *tsk, struct mm_struct *mm)
->  {
->  	WARN_ON(oom_killer_disabled);
->  	/* OOM killer might race with memcg OOM */
->  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
->  		return;
-> +
->  	atomic_inc(&tsk->signal->oom_victims);
-> +
-> +	/* oom_mm is bound to the signal struct life time */
-> +	if (!tsk->signal->oom_mm) {
-> +		atomic_inc(&mm->mm_count);
-> +		tsk->signal->oom_mm = mm;
-
-Looks racy, but it is not because we rely on oom_lock? Perhaps a comment
-makes sense.
-
-> @@ -828,7 +816,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  	struct task_struct *victim = p;
->  	struct task_struct *child;
->  	struct task_struct *t;
-> -	struct mm_struct *mm;
-> +	struct mm_struct *mm = READ_ONCE(p->mm);
->  	unsigned int victim_points = 0;
->  	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
->  					      DEFAULT_RATELIMIT_BURST);
-> @@ -838,8 +826,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  	 * If the task is already exiting, don't alarm the sysadmin or kill
->  	 * its children or threads, just set TIF_MEMDIE so it can die quickly
->  	 */
-> -	if (task_will_free_mem(p)) {
-> -		mark_oom_victim(p);
-> +	if (mm && task_will_free_mem(p)) {
-> +		mark_oom_victim(p, mm);
-
-And this looks really racy at first glance. Suppose that this memory hog execs
-(this changes its ->mm) and then exits so that task_will_free_mem() == T, in
-this case "mm" has nothing to do with tsk->mm and it can be already freed.
-
-Oleg.
+diff --git a/mm/memblock.c b/mm/memblock.c
+index ca09915..0fc0fa1 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1677,13 +1677,15 @@ static int memblock_debug_show(struct seq_file *m, =
+void *private)
+ =09=09reg =3D &type->regions[i];
+ =09=09seq_printf(m, "%4d: ", i);
+ =09=09if (sizeof(phys_addr_t) =3D=3D 4)
+-=09=09=09seq_printf(m, "0x%08lx..0x%08lx\n",
++=09=09=09seq_printf(m, "0x%08lx..0x%08lx  0x%08lx  0x%lx\n",
+ =09=09=09=09   (unsigned long)reg->base,
+-=09=09=09=09   (unsigned long)(reg->base + reg->size - 1));
++=09=09=09=09   (unsigned long)(reg->base + reg->size - 1),
++=09=09=09=09   (unsigned long)reg->size, reg->flags);
+ =09=09else
+-=09=09=09seq_printf(m, "0x%016llx..0x%016llx\n",
++=09=09=09seq_printf(m, "0x%016llx..0x%016llx  0x%016llx  0x%lx\n",
+ =09=09=09=09   (unsigned long long)reg->base,
+-=09=09=09=09   (unsigned long long)(reg->base + reg->size - 1));
++=09=09=09=09   (unsigned long long)(reg->base + reg->size - 1),
++=09=09=09=09   (unsigned long long)reg->size, reg->flags);
+=20
+ =09}
+ =09return 0;
+--=20
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
