@@ -1,149 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C7078828E1
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 07:59:32 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r190so44853008wmr.0
-        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 04:59:32 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id wa3si4481645wjc.104.2016.06.29.04.59.31
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EC5E36B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 09:16:02 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id x68so102678066ioi.0
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 06:16:02 -0700 (PDT)
+Received: from mail-io0-x243.google.com (mail-io0-x243.google.com. [2607:f8b0:4001:c06::243])
+        by mx.google.com with ESMTPS id m134si4717608ith.114.2016.06.29.06.16.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Jun 2016 04:59:31 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id a66so13727108wme.2
-        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 04:59:31 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mmotm: mm-oom-fortify-task_will_free_mem-fix
-Date: Wed, 29 Jun 2016 13:59:22 +0200
-Message-Id: <1467201562-6709-1-git-send-email-mhocko@kernel.org>
+        Wed, 29 Jun 2016 06:16:02 -0700 (PDT)
+Received: by mail-io0-x243.google.com with SMTP id 100so5236597ioh.1
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 06:16:02 -0700 (PDT)
+Date: Wed, 29 Jun 2016 09:15:52 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v9 06/12] kthread: Add kthread_drain_worker()
+Message-ID: <20160629131552.GA24054@htj.duckdns.org>
+References: <1466075851-24013-1-git-send-email-pmladek@suse.com>
+ <1466075851-24013-7-git-send-email-pmladek@suse.com>
+ <20160622205445.GV30909@twins.programming.kicks-ass.net>
+ <20160623213258.GO3262@mtj.duckdns.org>
+ <20160624070515.GU30154@twins.programming.kicks-ass.net>
+ <20160624155447.GY3262@mtj.duckdns.org>
+ <20160627143350.GA3313@pathway.suse.cz>
+ <20160628170447.GE5185@htj.duckdns.org>
+ <20160629081748.GA3238@pathway.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160629081748.GA3238@pathway.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Petr Mladek <pmladek@suse.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+Hello,
 
-"mm, oom: fortify task_will_free_mem" has dropped task_lock around
-task_will_free_mem in oom_kill_process bacause it assumed that a
-potential race when the selected task exits will not be a problem
-as the oom_reaper will call exit_oom_victim.
+On Wed, Jun 29, 2016 at 10:17:48AM +0200, Petr Mladek wrote:
+> > Ah, okay, I don't think we need to change this.  I was suggesting to
+> > simplify it by dropping the draining and just do flush from destroy.
+> 
+> I see. But then it does not address the original concern from Peter
+> Zijlstra. He did not like that the caller was responsible for blocking
+> further queueing. It still will be needed. Or did I miss something,
+> please?
 
-Tetsuo was objecting that nommu doesn't have oom_reaper so the race
-would be still possible.  The code would be racy and lockup prone
-theoretically in other aspects without the oom reaper anyway so I didn't
-considered this a big deal. But it seems that further changes I am
-planning in this area will benefit from stable task->mm in this path as
-well. So let's drop find_lock_task_mm from task_will_free_mem and call
-it from under task_lock as we did previously. Just pull the task->mm !=
-NULL check inside the function.
+You can only protect against so much.  Let's say we make the worker
+struct to be allocated by the user, what then prevents it prematurely
+from user side?  Use-after-free is use-after-free.  If we can trivally
+add some protection against it, great, but no need to contort the
+design to add marginal protection.
 
-Andrew, could you please fold this into
-mm-oom-fortify-task_will_free_mem-fix.patch?
+Thanks.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/oom_kill.c | 41 +++++++++++++++--------------------------
- 1 file changed, 15 insertions(+), 26 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 4c21f744daa6..7d0a275df822 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -757,45 +757,35 @@ static inline bool __task_will_free_mem(struct task_struct *task)
-  * Checks whether the given task is dying or exiting and likely to
-  * release its address space. This means that all threads and processes
-  * sharing the same mm have to be killed or exiting.
-+ * Caller has to make sure that task->mm is stable (hold task_lock or
-+ * it operates on the current).
-  */
- bool task_will_free_mem(struct task_struct *task)
- {
--	struct mm_struct *mm;
-+	struct mm_struct *mm = task->mm;
- 	struct task_struct *p;
- 	bool ret;
- 
--	if (!__task_will_free_mem(task))
--		return false;
--
- 	/*
--	 * If the process has passed exit_mm we have to skip it because
--	 * we have lost a link to other tasks sharing this mm, we do not
--	 * have anything to reap and the task might then get stuck waiting
--	 * for parent as zombie and we do not want it to hold TIF_MEMDIE
-+	 * Skip tasks without mm because it might have passed its exit_mm and
-+	 * exit_oom_victim. oom_reaper could have rescued that but do not rely
-+	 * on that for now. We can consider find_lock_task_mm in future.
- 	 */
--	p = find_lock_task_mm(task);
--	if (!p)
-+	if (!mm)
- 		return false;
- 
--	mm = p->mm;
-+	if (!__task_will_free_mem(task))
-+		return false;
- 
- 	/*
- 	 * This task has already been drained by the oom reaper so there are
- 	 * only small chances it will free some more
- 	 */
--	if (test_bit(MMF_OOM_REAPED, &mm->flags)) {
--		task_unlock(p);
-+	if (test_bit(MMF_OOM_REAPED, &mm->flags))
- 		return false;
--	}
- 
--	if (atomic_read(&mm->mm_users) <= 1) {
--		task_unlock(p);
-+	if (atomic_read(&mm->mm_users) <= 1)
- 		return true;
--	}
--
--	/* pin the mm to not get freed and reused */
--	atomic_inc(&mm->mm_count);
--	task_unlock(p);
- 
- 	/*
- 	 * This is really pessimistic but we do not have any reliable way
-@@ -812,7 +802,6 @@ bool task_will_free_mem(struct task_struct *task)
- 			break;
- 	}
- 	rcu_read_unlock();
--	mmdrop(mm);
- 
- 	return ret;
- }
-@@ -838,12 +827,15 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	 * If the task is already exiting, don't alarm the sysadmin or kill
- 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
- 	 */
-+	task_lock(p);
- 	if (task_will_free_mem(p)) {
- 		mark_oom_victim(p);
- 		wake_oom_reaper(p);
-+		task_unlock(p);
- 		put_task_struct(p);
- 		return;
- 	}
-+	task_unlock(p);
- 
- 	if (__ratelimit(&oom_rs))
- 		dump_header(oc, p);
-@@ -1014,11 +1006,8 @@ bool out_of_memory(struct oom_control *oc)
- 	 * If current has a pending SIGKILL or is exiting, then automatically
- 	 * select it.  The goal is to allow it to allocate so that it may
- 	 * quickly exit and free its memory.
--	 *
--	 * But don't select if current has already released its mm and cleared
--	 * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
- 	 */
--	if (current->mm && task_will_free_mem(current)) {
-+	if (task_will_free_mem(current)) {
- 		mark_oom_victim(current);
- 		wake_oom_reaper(current);
- 		return true;
 -- 
-2.8.1
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
