@@ -1,53 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 715E16B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 03:24:59 -0400 (EDT)
-Received: by mail-ob0-f200.google.com with SMTP id fq2so83945732obb.2
-        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 00:24:59 -0700 (PDT)
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E4AAF6B025F
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 03:25:58 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id o10so1717241obp.3
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 00:25:58 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id n67si3323484ion.248.2016.06.29.00.24.57
+        by mx.google.com with ESMTP id z201si3422867itb.5.2016.06.29.00.25.57
         for <linux-mm@kvack.org>;
-        Wed, 29 Jun 2016 00:24:58 -0700 (PDT)
-Date: Wed, 29 Jun 2016 16:25:24 +0900
+        Wed, 29 Jun 2016 00:25:58 -0700 (PDT)
+Date: Wed, 29 Jun 2016 16:26:24 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm, vmscan: set shrinker to the left page count
-Message-ID: <20160629072524.GA18523@bbox>
-References: <1467025335-6748-1-git-send-email-puck.chen@hisilicon.com>
- <20160627165723.GW21652@esperanza>
- <57725364.60307@hisilicon.com>
+Subject: Re: [PATCH 1/2] MADVISE_FREE, THP: Fix madvise_free_huge_pmd return
+ value after splitting
+Message-ID: <20160629072624.GB18523@bbox>
+References: <1467135452-16688-1-git-send-email-ying.huang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <57725364.60307@hisilicon.com>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <1467135452-16688-1-git-send-email-ying.huang@intel.com>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Feng <puck.chen@hisilicon.com>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, labbott@redhat.com, suzhuangluan@hisilicon.com, oliver.fu@hisilicon.com, puck.chen@foxmail.com, dan.zhao@hisilicon.com, saberlily.xia@hisilicon.com, xuyiping@hisilicon.com
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jun 28, 2016 at 06:37:24PM +0800, Chen Feng wrote:
-> Thanks for you reply.
->=20
-> On 2016/6/28 0:57, Vladimir Davydov wrote:
-> > On Mon, Jun 27, 2016 at 07:02:15PM +0800, Chen Feng wrote:
-> >> In my platform, there can be cache a lot of memory in
-> >> ion page pool. When shrink memory the nr=5Fto=5Fscan to ion
-> >> is always to little.
-> >> to=5Fscan: 395  ion=5Fpool=5Fcached: 27305
-> >=20
-> > That's OK. We want to shrink slabs gradually, not all at once.
-> >=20
->=20
-> OK=EF=BC=8C But my question there are a lot of memory waiting for free.
-> But the to=5Fscan is too little.
->=20
-> So, the lowmemorykill may kill the wrong process.
+On Tue, Jun 28, 2016 at 10:36:29AM -0700, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
+> 
+> madvise_free_huge_pmd should return 0 if the fallback PTE operations are
+> required.  In madvise_free_huge_pmd, if part pages of THP are discarded,
+> the THP will be split and fallback PTE operations should be used if
+> splitting succeeds.  But the original code will make fallback PTE
+> operations skipped, after splitting succeeds.  Fix that via make
+> madvise_free_huge_pmd return 0 after splitting successfully, so that the
+> fallback PTE operations will be done.
+> 
+> Cc: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-So, the problem is LMK is too agressive. If it's really problem,
-you could fix LMK to consider reclaimable slab as well as file
-pages.
-
-Thanks.
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
