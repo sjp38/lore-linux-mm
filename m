@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B89BE6B025E
-	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 20:58:06 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id f89so77948240qtd.1
-        for <linux-mm@kvack.org>; Tue, 28 Jun 2016 17:58:06 -0700 (PDT)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E8C476B0260
+	for <linux-mm@kvack.org>; Tue, 28 Jun 2016 20:58:29 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id l184so24293114lfl.3
+        for <linux-mm@kvack.org>; Tue, 28 Jun 2016 17:58:29 -0700 (PDT)
 Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [146.101.78.143])
-        by mx.google.com with ESMTPS id n74si881213qka.255.2016.06.28.17.58.05
+        by mx.google.com with ESMTPS id 189si2139180wmk.90.2016.06.28.17.58.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 28 Jun 2016 17:58:05 -0700 (PDT)
+        Tue, 28 Jun 2016 17:58:28 -0700 (PDT)
 From: Dennis Chen <dennis.chen@arm.com>
-Subject: [PATCH v5 2/3] mm: memblock Add some new functions to address the mem limit issue
-Date: Wed, 29 Jun 2016 08:57:34 +0800
-Message-ID: <1467161855-10010-2-git-send-email-dennis.chen@arm.com>
+Subject: [PATCH v5 3/3] arm64:acpi Fix the acpi alignment exeception when 'mem=' specified
+Date: Wed, 29 Jun 2016 08:57:35 +0800
+Message-ID: <1467161855-10010-3-git-send-email-dennis.chen@arm.com>
 In-Reply-To: <1467161855-10010-1-git-send-email-dennis.chen@arm.com>
 References: <1467161855-10010-1-git-send-email-dennis.chen@arm.com>
 MIME-Version: 1.0
@@ -24,21 +24,85 @@ To: linux-arm-kernel@lists.infradead.org
 Cc: nd@arm.com, Dennis Chen <dennis.chen@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Steve Capper <steve.capper@arm.com>, Ard
  Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Matt Fleming <matt@codeblueprint.co.uk>, linux-mm@kvack.org, linux-acpi@vger.kernel.org, linux-efi@vger.kernel.org
 
-In some cases, memblock is queried to determine whether a physical
-address corresponds to memory present in a system even if unused by
-the OS for the linear mapping, highmem, etc. For example, the ACPI
-core needs this information to determine which attributes to use when
-mapping ACPI regions. Use of incorrect memory types can result in
-faults, data corruption, or other issues.
+When booting an ACPI enabled kernel with 'mem=3Dx', probably the ACPI data
+regions loaded by firmware will beyond the limit of the memory, in this
+case we need to keep those NOMAP regions above the limit while not removing
+them from memblock, because once a region removed from memblock, the ACPI
+will think that region is not normal memory and map it as device type
+memory accordingly. Since the ACPI core will produce non-alignment access
+when paring AML data stream, hence result in alignment fault upon the IO
+mapped memory space.
 
-Removing memory with memblock_enforce_memory_limit throws away this
-information, and so a kernel booted with 'mem=3D' may suffers from the
-issues described above. To avoid this, we need to kept those nomap
-regions instead of removing all above limit, which preserves the
-information we need while preventing other use of the regions.
+For example, below is an alignment exception observed on ARM platform when
+booting the kernel with 'acpi=3Don mem=3D8G':
 
-This patch adds new insfrastructure to keep all nomap memblock regions
-while removing others, to cater for this.
+...
+[    0.542475] Unable to handle kernel paging request at virtual address ff=
+ff0000080521e7
+[    0.550457] pgd =3D ffff000008aa0000
+[    0.553880] [ffff0000080521e7] *pgd=3D000000801fffe003, *pud=3D000000801=
+fffd003, *pmd=3D000000801fffc003, *pte=3D00e80083ff1c1707
+[    0.564939] Internal error: Oops: 96000021 [#1] PREEMPT SMP
+[    0.570553] Modules linked in:
+[    0.573626] CPU: 1 PID: 1 Comm: swapper/0 Not tainted 4.7.0-rc3-next-201=
+60616+ #172
+[    0.581344] Hardware name: AMD Overdrive/Supercharger/Default string, BI=
+OS ROD1001A 02/09/2016
+[    0.590025] task: ffff800001ef0000 ti: ffff800001ef8000 task.ti: ffff800=
+001ef8000
+[    0.597571] PC is at acpi_ns_lookup+0x520/0x734
+[    0.602134] LR is at acpi_ns_lookup+0x4a4/0x734
+[    0.606693] pc : [<ffff0000083b8b10>] lr : [<ffff0000083b8a94>] pstate: =
+60000045
+[    0.614145] sp : ffff800001efb8b0
+[    0.617478] x29: ffff800001efb8c0 x28: 000000000000001b
+[    0.622829] x27: 0000000000000001 x26: 0000000000000000
+[    0.628181] x25: ffff800001efb9e8 x24: ffff000008a10000
+[    0.633531] x23: 0000000000000001 x22: 0000000000000001
+[    0.638881] x21: ffff000008724000 x20: 000000000000001b
+[    0.644230] x19: ffff0000080521e7 x18: 000000000000000d
+[    0.649580] x17: 00000000000038ff x16: 0000000000000002
+[    0.654929] x15: 0000000000000007 x14: 0000000000007fff
+[    0.660278] x13: ffffff0000000000 x12: 0000000000000018
+[    0.665627] x11: 000000001fffd200 x10: 00000000ffffff76
+[    0.670978] x9 : 000000000000005f x8 : ffff000008725fa8
+[    0.676328] x7 : ffff000008a8df70 x6 : ffff000008a8df70
+[    0.681679] x5 : ffff000008a8d000 x4 : 0000000000000010
+[    0.687027] x3 : 0000000000000010 x2 : 000000000000000c
+[    0.692378] x1 : 0000000000000006 x0 : 0000000000000000
+...
+[    1.262235] [<ffff0000083b8b10>] acpi_ns_lookup+0x520/0x734
+[    1.267845] [<ffff0000083a7160>] acpi_ds_load1_begin_op+0x174/0x4fc
+[    1.274156] [<ffff0000083c1f4c>] acpi_ps_build_named_op+0xf8/0x220
+[    1.280380] [<ffff0000083c227c>] acpi_ps_create_op+0x208/0x33c
+[    1.286254] [<ffff0000083c1820>] acpi_ps_parse_loop+0x204/0x838
+[    1.292215] [<ffff0000083c2fd4>] acpi_ps_parse_aml+0x1bc/0x42c
+[    1.298090] [<ffff0000083bc6e8>] acpi_ns_one_complete_parse+0x1e8/0x22c
+[    1.304753] [<ffff0000083bc7b8>] acpi_ns_parse_table+0x8c/0x128
+[    1.310716] [<ffff0000083bb8fc>] acpi_ns_load_table+0xc0/0x1e8
+[    1.316591] [<ffff0000083c9068>] acpi_tb_load_namespace+0xf8/0x2e8
+[    1.322818] [<ffff000008984128>] acpi_load_tables+0x7c/0x110
+[    1.328516] [<ffff000008982ea4>] acpi_init+0x90/0x2c0
+[    1.333603] [<ffff0000080819fc>] do_one_initcall+0x38/0x12c
+[    1.339215] [<ffff000008960cd4>] kernel_init_freeable+0x148/0x1ec
+[    1.345353] [<ffff0000086b7d30>] kernel_init+0x10/0xec
+[    1.350529] [<ffff000008084e10>] ret_from_fork+0x10/0x40
+[    1.355878] Code: b9009fbc 2a00037b 36380057 3219037b (b9400260)
+[    1.362035] ---[ end trace 03381e5eb0a24de4 ]---
+[    1.366691] Kernel panic - not syncing: Attempted to kill init! exitcode=
+=3D0x0000000b
+
+With 'efi=3Ddebug', we can see those ACPI regions loaded by firmware on
+that board as:
+[    0.000000] efi:   0x0083ff185000-0x0083ff1b4fff [Reserved           |  =
+ |  |  |  |  |  |  |   |WB|WT|WC|UC]*
+[    0.000000] efi:   0x0083ff1b5000-0x0083ff1c2fff [ACPI Reclaim Memory|  =
+ |  |  |  |  |  |  |   |WB|WT|WC|UC]*
+[    0.000000] efi:   0x0083ff223000-0x0083ff224fff [ACPI Memory NVS    |  =
+ |  |  |  |  |  |  |   |WB|WT|WC|UC]*
+
+This patch is trying to address the above issue by only keep those
+NOMAP regions instead of removing all above limit from memory memblock.
 
 Signed-off-by: Dennis Chen <dennis.chen@arm.com>
 Cc: Catalin Marinas <catalin.marinas@arm.com>
@@ -52,117 +116,22 @@ Cc: linux-mm@kvack.org
 Cc: linux-acpi@vger.kernel.org
 Cc: linux-efi@vger.kernel.org
 ---
-Change history
-v4->v5: Fix a build warning
-v3->v4: Incorporate some review comments from Mark Rutland.
-v2->v3: Only keep the NOMAP regions above limit while removing all
-others according to the proposal from Ard's
-v1->v2: Flag all regions above the limit as NOMAP per Mark's suggestion
+ arch/arm64/mm/init.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
- include/linux/memblock.h |  1 +
- mm/memblock.c            | 53 +++++++++++++++++++++++++++++++++++++++++++-=
-----
- 2 files changed, 49 insertions(+), 5 deletions(-)
-
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 6c14b61..2925da2 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -332,6 +332,7 @@ phys_addr_t memblock_mem_size(unsigned long limit_pfn);
- phys_addr_t memblock_start_of_DRAM(void);
- phys_addr_t memblock_end_of_DRAM(void);
- void memblock_enforce_memory_limit(phys_addr_t memory_limit);
-+void memblock_mem_limit_remove_map(phys_addr_t limit);
- bool memblock_is_memory(phys_addr_t addr);
- int memblock_is_map_memory(phys_addr_t addr);
- int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 0fc0fa1..050ad0c 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1465,15 +1465,16 @@ phys_addr_t __init_memblock memblock_end_of_DRAM(vo=
-id)
- =09return (memblock.memory.regions[idx].base + memblock.memory.regions[idx=
-].size);
- }
-=20
--void __init memblock_enforce_memory_limit(phys_addr_t limit)
-+static phys_addr_t __init_memblock __find_max_addr(phys_addr_t limit)
- {
- =09phys_addr_t max_addr =3D (phys_addr_t)ULLONG_MAX;
- =09struct memblock_region *r;
-=20
--=09if (!limit)
--=09=09return;
--
--=09/* find out max address */
-+=09/*
-+=09 * translate the memory @limit size into the max address within one of
-+=09 * the memory memblock regions, if the @limit exceeds the total size
-+=09 * of those regions, max_addr will keep original value ULLONG_MAX
-+=09 */
- =09for_each_memblock(memory, r) {
- =09=09if (limit <=3D r->size) {
- =09=09=09max_addr =3D r->base + limit;
-@@ -1482,6 +1483,22 @@ void __init memblock_enforce_memory_limit(phys_addr_=
-t limit)
- =09=09limit -=3D r->size;
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index 7d25b4d..9482b45 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -226,7 +226,7 @@ void __init arm64_memblock_init(void)
+ =09 * via the linear mapping.
+ =09 */
+ =09if (memory_limit !=3D (phys_addr_t)ULLONG_MAX) {
+-=09=09memblock_enforce_memory_limit(memory_limit);
++=09=09memblock_mem_limit_remove_map(memory_limit);
+ =09=09memblock_add(__pa(_text), (u64)(_end - _text));
  =09}
 =20
-+=09return max_addr;
-+}
-+
-+void __init memblock_enforce_memory_limit(phys_addr_t limit)
-+{
-+=09phys_addr_t max_addr =3D (phys_addr_t)ULLONG_MAX;
-+
-+=09if (!limit)
-+=09=09return;
-+
-+=09max_addr =3D __find_max_addr(limit);
-+
-+=09/* @limit exceeds the total size of the memory, do nothing */
-+=09if (max_addr =3D=3D (phys_addr_t)ULLONG_MAX)
-+=09=09return;
-+
- =09/* truncate both memory and reserved regions */
- =09memblock_remove_range(&memblock.memory, max_addr,
- =09=09=09      (phys_addr_t)ULLONG_MAX);
-@@ -1489,6 +1506,32 @@ void __init memblock_enforce_memory_limit(phys_addr_=
-t limit)
- =09=09=09      (phys_addr_t)ULLONG_MAX);
- }
-=20
-+void __init memblock_mem_limit_remove_map(phys_addr_t limit)
-+{
-+=09struct memblock_type *type =3D &memblock.memory;
-+=09phys_addr_t max_addr;
-+=09int i, ret, start_rgn, end_rgn;
-+
-+=09if (!limit)
-+=09=09return;
-+
-+=09max_addr =3D __find_max_addr(limit);
-+
-+=09/* @limit exceeds the total size of the memory, do nothing */
-+=09if (max_addr =3D=3D (phys_addr_t)ULLONG_MAX)
-+=09=09return;
-+
-+=09ret =3D memblock_isolate_range(type, max_addr, (phys_addr_t)ULLONG_MAX,
-+=09=09=09=09&start_rgn, &end_rgn);
-+=09if (ret)
-+=09=09return;
-+
-+=09for (i =3D end_rgn - 1; i >=3D start_rgn; i--) {
-+=09=09if (!memblock_is_nomap(&type->regions[i]))
-+=09=09=09memblock_remove_region(type, i);
-+=09}
-+}
-+
- static int __init_memblock memblock_search(struct memblock_type *type, phy=
-s_addr_t addr)
- {
- =09unsigned int left =3D 0, right =3D type->cnt;
 --=20
 2.7.4
 
