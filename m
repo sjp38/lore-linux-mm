@@ -1,110 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3023B6B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 02:53:27 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id a66so38135668wme.1
-        for <linux-mm@kvack.org>; Tue, 28 Jun 2016 23:53:27 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x194si3872475wmf.38.2016.06.28.23.53.25
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 28 Jun 2016 23:53:25 -0700 (PDT)
-Subject: Re: [patch] mm, compaction: make sure freeing scanner isn't
- persistently expensive
-References: <alpine.DEB.2.10.1606281839050.101842@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <6685fe19-753d-7d76-aced-3bb071d7c81d@suse.cz>
-Date: Wed, 29 Jun 2016 08:53:22 +0200
+Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 715E16B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 03:24:59 -0400 (EDT)
+Received: by mail-ob0-f200.google.com with SMTP id fq2so83945732obb.2
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 00:24:59 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id n67si3323484ion.248.2016.06.29.00.24.57
+        for <linux-mm@kvack.org>;
+        Wed, 29 Jun 2016 00:24:58 -0700 (PDT)
+Date: Wed, 29 Jun 2016 16:25:24 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm, vmscan: set shrinker to the left page count
+Message-ID: <20160629072524.GA18523@bbox>
+References: <1467025335-6748-1-git-send-email-puck.chen@hisilicon.com>
+ <20160627165723.GW21652@esperanza>
+ <57725364.60307@hisilicon.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1606281839050.101842@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <57725364.60307@hisilicon.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chen Feng <puck.chen@hisilicon.com>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, labbott@redhat.com, suzhuangluan@hisilicon.com, oliver.fu@hisilicon.com, puck.chen@foxmail.com, dan.zhao@hisilicon.com, saberlily.xia@hisilicon.com, xuyiping@hisilicon.com
 
-On 06/29/2016 03:39 AM, David Rientjes wrote:
-> It's possible that the freeing scanner can be consistently expensive if
-> memory is well compacted toward the end of the zone with few free pages
-> available in that area.
->
-> If all zone memory is synchronously compacted, say with
-> /proc/sys/vm/compact_memory, and thp is faulted, it is possible to
-> iterate a massive amount of memory even with the per-zone cached free
-> position.
->
-> For example, after compacting all memory and faulting thp for heap, it
-> was observed that compact_free_scanned increased as much as 892518911 4KB
-> pages while compact_stall only increased by 171.  The freeing scanner
-> iterated ~20GB of memory for each compaction stall.
->
-> To address this, if too much memory is spanned on the freeing scanner's
-> freelist when releasing back to the system, return the low pfn rather than
-> the high pfn.  It's declared that the freeing scanner will become too
-> expensive if the high pfn is used, so use the low pfn instead.
->
-> The amount of memory declared as too expensive to iterate is subjectively
-> chosen at COMPACT_CLUSTER_MAX << PAGE_SHIFT, which is 512MB with 4KB
-> pages.
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
+On Tue, Jun 28, 2016 at 06:37:24PM +0800, Chen Feng wrote:
+> Thanks for you reply.
+>=20
+> On 2016/6/28 0:57, Vladimir Davydov wrote:
+> > On Mon, Jun 27, 2016 at 07:02:15PM +0800, Chen Feng wrote:
+> >> In my platform, there can be cache a lot of memory in
+> >> ion page pool. When shrink memory the nr=5Fto=5Fscan to ion
+> >> is always to little.
+> >> to=5Fscan: 395  ion=5Fpool=5Fcached: 27305
+> >=20
+> > That's OK. We want to shrink slabs gradually, not all at once.
+> >=20
+>=20
+> OK=EF=BC=8C But my question there are a lot of memory waiting for free.
+> But the to=5Fscan is too little.
+>=20
+> So, the lowmemorykill may kill the wrong process.
 
-Hmm, I don't know. Seems it only works around one corner case of a 
-larger issue. The cost for the scanning was already paid, the patch 
-prevents it from being paid again, but only until the scanners are reset.
+So, the problem is LMK is too agressive. If it's really problem,
+you could fix LMK to consider reclaimable slab as well as file
+pages.
 
-Note also that THP's no longer do direct compaction by default in recent 
-kernels.
-
-To fully solve the freepage scanning issue, we should probably pick and 
-finish one of the proposed reworks from Joonsoo or myself, or the 
-approach that replaces free scanner with direct freelist allocations.
-
-> ---
->  mm/compaction.c | 16 ++++++++++++++++
->  1 file changed, 16 insertions(+)
->
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -47,10 +47,16 @@ static inline void count_compact_events(enum vm_event_item item, long delta)
->  #define pageblock_start_pfn(pfn)	block_start_pfn(pfn, pageblock_order)
->  #define pageblock_end_pfn(pfn)		block_end_pfn(pfn, pageblock_order)
->
-> +/*
-> + * Releases isolated free pages back to the buddy allocator.  Returns the pfn
-> + * that should be cached for the next compaction of this zone, depending on how
-> + * much memory the free pages span.
-> + */
->  static unsigned long release_freepages(struct list_head *freelist)
->  {
->  	struct page *page, *next;
->  	unsigned long high_pfn = 0;
-> +	unsigned long low_pfn = -1UL;
->
->  	list_for_each_entry_safe(page, next, freelist, lru) {
->  		unsigned long pfn = page_to_pfn(page);
-> @@ -58,8 +64,18 @@ static unsigned long release_freepages(struct list_head *freelist)
->  		__free_page(page);
->  		if (pfn > high_pfn)
->  			high_pfn = pfn;
-> +		if (pfn < low_pfn)
-> +			low_pfn = pfn;
->  	}
->
-> +	/*
-> +	 * If the list of freepages spans too much memory, the cached position
-> +	 * should be updated to the lowest pfn to prevent the freeing scanner
-> +	 * from becoming too expensive.
-> +	 */
-> +	if ((high_pfn - low_pfn) > (COMPACT_CLUSTER_MAX << PAGE_SHIFT))
-> +		return low_pfn;
-> +
->  	return high_pfn;
->  }
->
->
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
