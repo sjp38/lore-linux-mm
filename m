@@ -1,62 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EC5E36B0253
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 09:16:02 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id x68so102678066ioi.0
-        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 06:16:02 -0700 (PDT)
-Received: from mail-io0-x243.google.com (mail-io0-x243.google.com. [2607:f8b0:4001:c06::243])
-        by mx.google.com with ESMTPS id m134si4717608ith.114.2016.06.29.06.16.02
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D3AAB6B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 10:19:56 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id a2so37312962lfe.0
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 07:19:56 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id k2si5141448wjs.220.2016.06.29.07.19.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Jun 2016 06:16:02 -0700 (PDT)
-Received: by mail-io0-x243.google.com with SMTP id 100so5236597ioh.1
-        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 06:16:02 -0700 (PDT)
-Date: Wed, 29 Jun 2016 09:15:52 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v9 06/12] kthread: Add kthread_drain_worker()
-Message-ID: <20160629131552.GA24054@htj.duckdns.org>
-References: <1466075851-24013-1-git-send-email-pmladek@suse.com>
- <1466075851-24013-7-git-send-email-pmladek@suse.com>
- <20160622205445.GV30909@twins.programming.kicks-ass.net>
- <20160623213258.GO3262@mtj.duckdns.org>
- <20160624070515.GU30154@twins.programming.kicks-ass.net>
- <20160624155447.GY3262@mtj.duckdns.org>
- <20160627143350.GA3313@pathway.suse.cz>
- <20160628170447.GE5185@htj.duckdns.org>
- <20160629081748.GA3238@pathway.suse.cz>
+        Wed, 29 Jun 2016 07:19:54 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id 187so14737718wmz.1
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 07:19:54 -0700 (PDT)
+Date: Wed, 29 Jun 2016 16:19:53 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,oom: use per signal_struct flag rather than clear
+ TIF_MEMDIE
+Message-ID: <20160629141953.GC27153@dhcp22.suse.cz>
+References: <20160624215627.GA1148@redhat.com>
+ <201606251444.EGJ69787.FtMOFJOLSHFQOV@I-love.SAKURA.ne.jp>
+ <20160627092326.GD31799@dhcp22.suse.cz>
+ <20160627103609.GE31799@dhcp22.suse.cz>
+ <20160627155119.GA17686@redhat.com>
+ <20160627160616.GN31799@dhcp22.suse.cz>
+ <20160627175555.GA24370@redhat.com>
+ <20160628101956.GA510@dhcp22.suse.cz>
+ <20160629001353.GA9377@redhat.com>
+ <20160629083314.GA27153@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160629081748.GA3238@pathway.suse.cz>
+In-Reply-To: <20160629083314.GA27153@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, vdavydov@virtuozzo.com, rientjes@google.com
 
-Hello,
+OK, so this is what I have on top of [1]. I still haven't tested it but
+at least added a changelog to have some reasoning for the change. If
+this looks OK and passes my testing - which would be tricky anyway
+because hitting those rare corner cases is quite hard - then the next
+step would be to fix the race between suspend and oom_killer_disable
+currently worked around by 74070542099c in a more robust way. We can
+also start thinking to use TIF_MEMDIE only for the access to memory
+reserves to oom victims which actually need to allocate and decouple the
+current double meaning.
 
-On Wed, Jun 29, 2016 at 10:17:48AM +0200, Petr Mladek wrote:
-> > Ah, okay, I don't think we need to change this.  I was suggesting to
-> > simplify it by dropping the draining and just do flush from destroy.
-> 
-> I see. But then it does not address the original concern from Peter
-> Zijlstra. He did not like that the caller was responsible for blocking
-> further queueing. It still will be needed. Or did I miss something,
-> please?
+I completely understand a resistance to adding new stuff to the
+signal_struct but this seems like worth it. I would like to have a
+stable and existing mm for that purpose but that sounds like a more long
+term plan than something we can do right away.
 
-You can only protect against so much.  Let's say we make the worker
-struct to be allocated by the user, what then prevents it prematurely
-from user side?  Use-after-free is use-after-free.  If we can trivally
-add some protection against it, great, but no need to contort the
-design to add marginal protection.
+Thoughts?
 
-Thanks.
-
--- 
-tejun
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+[1] http://lkml.kernel.org/r/1467201562-6709-1-git-send-email-mhocko@kernel.org
+---
