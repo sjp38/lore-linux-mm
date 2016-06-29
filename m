@@ -1,250 +1,294 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 65B4E6B0265
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 06:59:08 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id g13so88767286ioj.3
-        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 03:59:08 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0132.outbound.protection.outlook.com. [104.47.0.132])
-        by mx.google.com with ESMTPS id c32si2543635otd.3.2016.06.29.03.59.07
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 75D326B0253
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 07:44:09 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id a4so33931209lfa.1
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 04:44:09 -0700 (PDT)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id w63si1109216wmw.47.2016.06.29.04.44.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 29 Jun 2016 03:59:07 -0700 (PDT)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv2 6/6] x86/signal: add SA_{X32,IA32}_ABI sa_flags
-Date: Wed, 29 Jun 2016 13:57:36 +0300
-Message-ID: <20160629105736.15017-7-dsafonov@virtuozzo.com>
-In-Reply-To: <20160629105736.15017-1-dsafonov@virtuozzo.com>
-References: <20160629105736.15017-1-dsafonov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Jun 2016 04:44:08 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id a66so13625306wme.2
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 04:44:07 -0700 (PDT)
+Date: Wed, 29 Jun 2016 14:44:05 +0300
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: Re: [linux-next:master 11901/11991] mm/huge_memory.c:604:16: error:
+ invalid storage class for function 'khugepaged_max_ptes_swap_show'
+Message-ID: <20160629114405.GA7218@gmail.com>
+References: <201605241951.WLO3Ag8c%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201605241951.WLO3Ag8c%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: 0x7f454c46@gmail.com, linux-mm@kvack.org, mingo@redhat.com, luto@amacapital.net, gorcunov@openvz.org, xemul@virtuozzo.com, oleg@redhat.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, x86@kernel.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Introduce new flags that defines which ABI to use on creating sigframe.
-Those flags kernel will set according to sigaction syscall ABI,
-which set handler for the signal being delivered.
+On Tue, May 24, 2016 at 07:39:53PM +0800, kbuild test robot wrote:
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   66c198deda3725c57939c6cdaf2c9f5375cd79ad
+> commit: ca9c8b6c0b78b9d5b1e6569f02b25f852a99d444 [11901/11991] mm: make optimistic check for swapin readahead
+> config: i386-randconfig-h1-05241552 (attached as .config)
+> compiler: gcc-6 (Debian 6.1.1-1) 6.1.1 20160430
+> reproduce:
+>         git checkout ca9c8b6c0b78b9d5b1e6569f02b25f852a99d444
+>         # save the attached .config to linux build tree
+>         make ARCH=i386 
+>
+I've checked out ca9c8b6c0b78b9d5b1e6 and using the same config
+I couldn't reproduce this bug.
 
-So that will drop the dependency on TIF_IA32/TIF_X32 flags on signal deliver.
-Those flags will be used only under CONFIG_COMPAT.
+I checked mm-make-optimistic-check-for-swapin-readahead.patch
+however could not see my mistake.
 
-Similar way ARM uses sa_flags to differ in which mode deliver signal
-for 26-bit applications (look at SA_THIRYTWO).
+Here is what get when compiled: http://pastebin.com/S36r7Fwh
+I am getting "invalid storage class" error for other functions.
 
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-Cc: Pavel Emelyanov <xemul@virtuozzo.com>
-Cc: x86@kernel.org
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
----
- arch/x86/ia32/ia32_signal.c       |  2 +-
- arch/x86/include/asm/fpu/signal.h |  6 ++++++
- arch/x86/include/asm/signal.h     |  4 ++++
- arch/x86/kernel/signal.c          | 20 +++++++++++---------
- arch/x86/kernel/signal_compat.c   | 34 +++++++++++++++++++++++++++++++---
- kernel/signal.c                   |  7 +++++++
- 6 files changed, 60 insertions(+), 13 deletions(-)
 
-diff --git a/arch/x86/ia32/ia32_signal.c b/arch/x86/ia32/ia32_signal.c
-index 2f29f4e407c3..cb13c0564ea7 100644
---- a/arch/x86/ia32/ia32_signal.c
-+++ b/arch/x86/ia32/ia32_signal.c
-@@ -378,7 +378,7 @@ int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
- 		put_user_ex(*((u64 *)&code), (u64 __user *)frame->retcode);
- 	} put_user_catch(err);
+According the following result, I saw that the same bug occured
+for some sysfs knobs as well.
+
+I read the bug can be due to missing paranthesis however I can't
+see the missed. I guess that I have to use static functions for
+the syfs knob.
+
+Can you correct me if I am wrong?
  
--	err |= copy_siginfo_to_user32(&frame->info, &ksig->info);
-+	err |= __copy_siginfo_to_user32(&frame->info, &ksig->info, false);
- 	err |= ia32_setup_sigcontext(&frame->uc.uc_mcontext, fpstate,
- 				     regs, set->sig[0]);
- 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
-diff --git a/arch/x86/include/asm/fpu/signal.h b/arch/x86/include/asm/fpu/signal.h
-index 0e970d00dfcd..20a1fbf7fe4e 100644
---- a/arch/x86/include/asm/fpu/signal.h
-+++ b/arch/x86/include/asm/fpu/signal.h
-@@ -19,6 +19,12 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
- # define ia32_setup_rt_frame	__setup_rt_frame
- #endif
- 
-+#ifdef CONFIG_COMPAT
-+int __copy_siginfo_to_user32(compat_siginfo_t __user *to,
-+		const siginfo_t *from, bool x32_ABI);
-+#endif
-+
-+
- extern void convert_from_fxsr(struct user_i387_ia32_struct *env,
- 			      struct task_struct *tsk);
- extern void convert_to_fxsr(struct task_struct *tsk,
-diff --git a/arch/x86/include/asm/signal.h b/arch/x86/include/asm/signal.h
-index 2138c9ae19ee..72c346f201b2 100644
---- a/arch/x86/include/asm/signal.h
-+++ b/arch/x86/include/asm/signal.h
-@@ -23,6 +23,10 @@ typedef struct {
- 	unsigned long sig[_NSIG_WORDS];
- } sigset_t;
- 
-+/* non-uapi in-kernel SA_FLAGS for those indicates ABI for a signal frame */
-+#define SA_IA32_ABI	0x02000000u
-+#define SA_X32_ABI	0x01000000u
-+
- #ifndef CONFIG_COMPAT
- typedef sigset_t compat_sigset_t;
- #endif
-diff --git a/arch/x86/kernel/signal.c b/arch/x86/kernel/signal.c
-index 22cc2f9f8aec..fdd819b5599e 100644
---- a/arch/x86/kernel/signal.c
-+++ b/arch/x86/kernel/signal.c
-@@ -42,6 +42,7 @@
- #include <asm/syscalls.h>
- 
- #include <asm/sigframe.h>
-+#include <asm/signal.h>
- 
- #define COPY(x)			do {			\
- 	get_user_ex(regs->x, &sc->x);			\
-@@ -547,7 +548,7 @@ static int x32_setup_rt_frame(struct ksignal *ksig,
- 		return -EFAULT;
- 
- 	if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
--		if (copy_siginfo_to_user32(&frame->info, &ksig->info))
-+		if (__copy_siginfo_to_user32(&frame->info, &ksig->info, true))
- 			return -EFAULT;
- 	}
- 
-@@ -660,20 +661,21 @@ badframe:
- 	return 0;
- }
- 
--static inline int is_ia32_compat_frame(void)
-+static inline int is_ia32_compat_frame(struct ksignal *ksig)
- {
- 	return config_enabled(CONFIG_IA32_EMULATION) &&
--	       test_thread_flag(TIF_IA32);
-+		ksig->ka.sa.sa_flags & SA_IA32_ABI;
- }
- 
--static inline int is_ia32_frame(void)
-+static inline int is_ia32_frame(struct ksignal *ksig)
- {
--	return config_enabled(CONFIG_X86_32) || is_ia32_compat_frame();
-+	return config_enabled(CONFIG_X86_32) || is_ia32_compat_frame(ksig);
- }
- 
--static inline int is_x32_frame(void)
-+static inline int is_x32_frame(struct ksignal *ksig)
- {
--	return config_enabled(CONFIG_X86_X32_ABI) && test_thread_flag(TIF_X32);
-+	return config_enabled(CONFIG_X86_X32_ABI) &&
-+		ksig->ka.sa.sa_flags & SA_X32_ABI;
- }
- 
- static int
-@@ -684,12 +686,12 @@ setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
- 	compat_sigset_t *cset = (compat_sigset_t *) set;
- 
- 	/* Set up the stack frame */
--	if (is_ia32_frame()) {
-+	if (is_ia32_frame(ksig)) {
- 		if (ksig->ka.sa.sa_flags & SA_SIGINFO)
- 			return ia32_setup_rt_frame(usig, ksig, cset, regs);
- 		else
- 			return ia32_setup_frame(usig, ksig, cset, regs);
--	} else if (is_x32_frame()) {
-+	} else if (is_x32_frame(ksig)) {
- 		return x32_setup_rt_frame(ksig, cset, regs);
- 	} else {
- 		return __setup_rt_frame(ksig->sig, ksig, set, regs);
-diff --git a/arch/x86/kernel/signal_compat.c b/arch/x86/kernel/signal_compat.c
-index dc3c0b1c816f..94561fda4d89 100644
---- a/arch/x86/kernel/signal_compat.c
-+++ b/arch/x86/kernel/signal_compat.c
-@@ -1,10 +1,32 @@
- #include <linux/compat.h>
- #include <linux/uaccess.h>
-+#include <linux/ptrace.h>
- 
--int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
-+void sigaction_compat_abi(struct k_sigaction *act, struct k_sigaction *oact)
-+{
-+	/* Don't leak in-kernel non-uapi flags to user-space */
-+	if (oact)
-+		oact->sa.sa_flags &= ~(SA_IA32_ABI | SA_X32_ABI);
-+
-+	if (!act)
-+		return;
-+
-+	/* Don't let flags to be set from userspace */
-+	act->sa.sa_flags &= ~(SA_IA32_ABI | SA_X32_ABI);
-+
-+	if (user_64bit_mode(current_pt_regs()))
-+		return;
-+
-+	if (in_ia32_syscall())
-+		act->sa.sa_flags |= SA_IA32_ABI;
-+	if (in_x32_syscall())
-+		act->sa.sa_flags |= SA_X32_ABI;
-+}
-+
-+int __copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from,
-+		bool x32_ABI)
- {
- 	int err = 0;
--	bool ia32 = test_thread_flag(TIF_IA32);
- 
- 	if (!access_ok(VERIFY_WRITE, to, sizeof(compat_siginfo_t)))
- 		return -EFAULT;
-@@ -38,7 +60,7 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
- 				put_user_ex(from->si_arch, &to->si_arch);
- 				break;
- 			case __SI_CHLD >> 16:
--				if (ia32) {
-+				if (!x32_ABI) {
- 					put_user_ex(from->si_utime, &to->si_utime);
- 					put_user_ex(from->si_stime, &to->si_stime);
- 				} else {
-@@ -72,6 +94,12 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
- 	return err;
- }
- 
-+/* from syscall's path, where we know the ABI */
-+int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
-+{
-+	return __copy_siginfo_to_user32(to, from, in_x32_syscall());
-+}
-+
- int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
- {
- 	int err = 0;
-diff --git a/kernel/signal.c b/kernel/signal.c
-index 96e9bc40667f..c47632a9f148 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -3048,6 +3048,11 @@ void kernel_sigaction(int sig, __sighandler_t action)
- }
- EXPORT_SYMBOL(kernel_sigaction);
- 
-+void __weak sigaction_compat_abi(struct k_sigaction *act,
-+		struct k_sigaction *oact)
-+{
-+}
-+
- int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
- {
- 	struct task_struct *p = current, *t;
-@@ -3063,6 +3068,8 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
- 	if (oact)
- 		*oact = *k;
- 
-+	sigaction_compat_abi(act, oact);
-+
- 	if (act) {
- 		sigdelsetmask(&act->sa.sa_mask,
- 			      sigmask(SIGKILL) | sigmask(SIGSTOP));
--- 
-2.9.0
+> All errors (new ones prefixed by >>):
+> 
+>                ^
+>    include/linux/sysfs.h:116:10: note: in definition of macro '__ATTR_RO'
+>      .show = _name##_show,      \
+>              ^~~~~
+>    mm/huge_memory.c:543:12: note: (near initialization for 'pages_collapsed_attr.show')
+>      __ATTR_RO(pages_collapsed);
+>                ^
+>    include/linux/sysfs.h:116:10: note: in definition of macro '__ATTR_RO'
+>      .show = _name##_show,      \
+>              ^~~~~
+>    mm/huge_memory.c:545:16: error: invalid storage class for function 'full_scans_show'
+>     static ssize_t full_scans_show(struct kobject *kobj,
+>                    ^~~~~~~~~~~~~~~
+>    In file included from include/linux/kobject.h:21:0,
+>                     from include/linux/device.h:17,
+>                     from include/linux/node.h:17,
+>                     from include/linux/swap.h:10,
+>                     from mm/huge_memory.c:16:
+>    mm/huge_memory.c:552:12: error: initializer element is not constant
+>      __ATTR_RO(full_scans);
+>                ^
+>    include/linux/sysfs.h:116:10: note: in definition of macro '__ATTR_RO'
+>      .show = _name##_show,      \
+>              ^~~~~
+>    mm/huge_memory.c:552:12: note: (near initialization for 'full_scans_attr.show')
+>      __ATTR_RO(full_scans);
+>                ^
+>    include/linux/sysfs.h:116:10: note: in definition of macro '__ATTR_RO'
+>      .show = _name##_show,      \
+>              ^~~~~
+>    mm/huge_memory.c:554:16: error: invalid storage class for function 'khugepaged_defrag_show'
+>     static ssize_t khugepaged_defrag_show(struct kobject *kobj,
+>                    ^~~~~~~~~~~~~~~~~~~~~~
+>    mm/huge_memory.c:560:16: error: invalid storage class for function 'khugepaged_defrag_store'
+>     static ssize_t khugepaged_defrag_store(struct kobject *kobj,
+>                    ^~~~~~~~~~~~~~~~~~~~~~~
+>    In file included from include/linux/kobject.h:21:0,
+>                     from include/linux/device.h:17,
+>                     from include/linux/node.h:17,
+>                     from include/linux/swap.h:10,
+>                     from mm/huge_memory.c:16:
+>    mm/huge_memory.c:568:23: error: initializer element is not constant
+>      __ATTR(defrag, 0644, khugepaged_defrag_show,
+>                           ^
+>    include/linux/sysfs.h:103:10: note: in definition of macro '__ATTR'
+>      .show = _show,      \
+>              ^~~~~
+>    mm/huge_memory.c:568:23: note: (near initialization for 'khugepaged_defrag_attr.show')
+>      __ATTR(defrag, 0644, khugepaged_defrag_show,
+>                           ^
+>    include/linux/sysfs.h:103:10: note: in definition of macro '__ATTR'
+>      .show = _show,      \
+>              ^~~~~
+>    mm/huge_memory.c:569:9: error: initializer element is not constant
+>             khugepaged_defrag_store);
+>             ^
+>    include/linux/sysfs.h:104:11: note: in definition of macro '__ATTR'
+>      .store = _store,      \
+>               ^~~~~~
+>    mm/huge_memory.c:569:9: note: (near initialization for 'khugepaged_defrag_attr.store')
+>             khugepaged_defrag_store);
+>             ^
+>    include/linux/sysfs.h:104:11: note: in definition of macro '__ATTR'
+>      .store = _store,      \
+>               ^~~~~~
+>    mm/huge_memory.c:579:16: error: invalid storage class for function 'khugepaged_max_ptes_none_show'
+>     static ssize_t khugepaged_max_ptes_none_show(struct kobject *kobj,
+>                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+>    mm/huge_memory.c:585:16: error: invalid storage class for function 'khugepaged_max_ptes_none_store'
+>     static ssize_t khugepaged_max_ptes_none_store(struct kobject *kobj,
+>                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+>    In file included from include/linux/kobject.h:21:0,
+>                     from include/linux/device.h:17,
+>                     from include/linux/node.h:17,
+>                     from include/linux/swap.h:10,
+>                     from mm/huge_memory.c:16:
+>    mm/huge_memory.c:601:30: error: initializer element is not constant
+>      __ATTR(max_ptes_none, 0644, khugepaged_max_ptes_none_show,
+>                                  ^
+>    include/linux/sysfs.h:103:10: note: in definition of macro '__ATTR'
+>      .show = _show,      \
+>              ^~~~~
+>    mm/huge_memory.c:601:30: note: (near initialization for 'khugepaged_max_ptes_none_attr.show')
+>      __ATTR(max_ptes_none, 0644, khugepaged_max_ptes_none_show,
+>                                  ^
+>    include/linux/sysfs.h:103:10: note: in definition of macro '__ATTR'
+>      .show = _show,      \
+>              ^~~~~
+>    mm/huge_memory.c:602:9: error: initializer element is not constant
+>             khugepaged_max_ptes_none_store);
+>             ^
+>    include/linux/sysfs.h:104:11: note: in definition of macro '__ATTR'
+>      .store = _store,      \
+>               ^~~~~~
+>    mm/huge_memory.c:602:9: note: (near initialization for 'khugepaged_max_ptes_none_attr.store')
+>             khugepaged_max_ptes_none_store);
+>             ^
+>    include/linux/sysfs.h:104:11: note: in definition of macro '__ATTR'
+>      .store = _store,      \
+>               ^~~~~~
+> >> mm/huge_memory.c:604:16: error: invalid storage class for function 'khugepaged_max_ptes_swap_show'
+>     static ssize_t khugepaged_max_ptes_swap_show(struct kobject *kobj,
+>                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> >> mm/huge_memory.c:611:16: error: invalid storage class for function 'khugepaged_max_ptes_swap_store'
+>     static ssize_t khugepaged_max_ptes_swap_store(struct kobject *kobj,
+>                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+>    In file included from include/linux/kobject.h:21:0,
+>                     from include/linux/device.h:17,
+>                     from include/linux/node.h:17,
+>                     from include/linux/swap.h:10,
+>                     from mm/huge_memory.c:16:
+>    mm/huge_memory.c:628:30: error: initializer element is not constant
+>      __ATTR(max_ptes_swap, 0644, khugepaged_max_ptes_swap_show,
+>                                  ^
+>    include/linux/sysfs.h:103:10: note: in definition of macro '__ATTR'
+>      .show = _show,      \
+>              ^~~~~
+>    mm/huge_memory.c:628:30: note: (near initialization for 'khugepaged_max_ptes_swap_attr.show')
+>      __ATTR(max_ptes_swap, 0644, khugepaged_max_ptes_swap_show,
+>                                  ^
+>    include/linux/sysfs.h:103:10: note: in definition of macro '__ATTR'
+>      .show = _show,      \
+>              ^~~~~
+>    mm/huge_memory.c:629:9: error: initializer element is not constant
+>             khugepaged_max_ptes_swap_store);
+>             ^
+>    include/linux/sysfs.h:104:11: note: in definition of macro '__ATTR'
+>      .store = _store,      \
+>               ^~~~~~
+>    mm/huge_memory.c:629:9: note: (near initialization for 'khugepaged_max_ptes_swap_attr.store')
+>             khugepaged_max_ptes_swap_store);
+>             ^
+>    include/linux/sysfs.h:104:11: note: in definition of macro '__ATTR'
+>      .store = _store,      \
+>               ^~~~~~
+>    mm/huge_memory.c:643:15: error: variable 'khugepaged_attr_group' has initializer but incomplete type
+>     static struct attribute_group khugepaged_attr_group = {
+>                   ^~~~~~~~~~~~~~~
+>    mm/huge_memory.c:644:2: error: unknown field 'attrs' specified in initializer
+>      .attrs = khugepaged_attr,
+>      ^
+>    mm/huge_memory.c:644:11: warning: excess elements in struct initializer
+>      .attrs = khugepaged_attr,
+>               ^~~~~~~~~~~~~~~
+>    mm/huge_memory.c:644:11: note: (near initialization for 'khugepaged_attr_group')
+>    mm/huge_memory.c:645:2: error: unknown field 'name' specified in initializer
+>      .name = "khugepaged",
+>      ^
+>    mm/huge_memory.c:645:10: warning: excess elements in struct initializer
+>      .name = "khugepaged",
+>              ^~~~~~~~~~~~
+>    mm/huge_memory.c:645:10: note: (near initialization for 'khugepaged_attr_group')
+>    mm/huge_memory.c:643:31: error: storage size of 'khugepaged_attr_group' isn't known
+>     static struct attribute_group khugepaged_attr_group = {
+>                                   ^~~~~~~~~~~~~~~~~~~~~
+>    mm/huge_memory.c:648:19: error: invalid storage class for function 'hugepage_init_sysfs'
+>     static int __init hugepage_init_sysfs(struct kobject **hugepage_kobj)
+>                       ^~~~~~~~~~~~~~~~~~~
+>    mm/huge_memory.c:679:20: error: invalid storage class for function 'hugepage_exit_sysfs'
+>     static void __init hugepage_exit_sysfs(struct kobject *hugepage_kobj)
+>                        ^~~~~~~~~~~~~~~~~~~
+>    mm/huge_memory.c:696:19: error: invalid storage class for function 'hugepage_init'
+>     static int __init hugepage_init(void)
+>                       ^~~~~~~~~~~~~
+>    mm/huge_memory.c: In function 'hugepage_init':
+>    mm/huge_memory.c:722:8: error: implicit declaration of function 'khugepaged_slab_init' [-Werror=implicit-function-declaration]
+>      err = khugepaged_slab_init();
+>            ^~~~~~~~~~~~~~~~~~~~
+>    mm/huge_memory.c:753:2: error: implicit declaration of function 'khugepaged_slab_exit' [-Werror=implicit-function-declaration]
+>      khugepaged_slab_exit();
+>      ^~~~~~~~~~~~~~~~~~~~
+>    In file included from include/linux/printk.h:5:0,
+>                     from include/linux/kernel.h:13,
+>                     from include/asm-generic/bug.h:13,
+>                     from arch/x86/include/asm/bug.h:35,
+>                     from include/linux/bug.h:4,
+>                     from include/linux/mmdebug.h:4,
+>                     from include/linux/mm.h:8,
+>                     from mm/huge_memory.c:10:
+>    mm/huge_memory.c: In function 'page_is_young':
+>    mm/huge_memory.c:759:17: error: initializer element is not constant
+>     subsys_initcall(hugepage_init);
+>                     ^
+>    include/linux/init.h:188:58: note: in definition of macro '__define_initcall'
+>      __attribute__((__section__(".initcall" #id ".init"))) = fn; \
+>                                                              ^~
+>    mm/huge_memory.c:759:1: note: in expansion of macro 'subsys_initcall'
+>     subsys_initcall(hugepage_init);
+>     ^~~~~~~~~~~~~~~
+>    mm/huge_memory.c:761:19: error: invalid storage class for function 'setup_transparent_hugepage'
+>     static int __init setup_transparent_hugepage(char *str)
+>                       ^~~~~~~~~~~~~~~~~~~~~~~~~~
+>    mm/huge_memory.c:761:1: warning: ISO C90 forbids mixed declarations and code [-Wdeclaration-after-statement]
+>     static int __init setup_transparent_hugepage(char *str)
+>     ^~~~~~
+>    In file included from include/linux/printk.h:5:0,
+>                     from include/linux/kernel.h:13,
+>                     from include/asm-generic/bug.h:13,
+>                     from arch/x86/include/asm/bug.h:35,
+>                     from include/linux/bug.h:4,
+>                     from include/linux/mmdebug.h:4,
+>                     from include/linux/mm.h:8,
+>                     from mm/huge_memory.c:10:
+>    mm/huge_memory.c:790:34: error: initializer element is not constant
+> 
+> vim +/khugepaged_max_ptes_swap_show +604 mm/huge_memory.c
+> 
+>    596		khugepaged_max_ptes_none = max_ptes_none;
+>    597	
+>    598		return count;
+>    599	}
+>    600	static struct kobj_attribute khugepaged_max_ptes_none_attr =
+>    601		__ATTR(max_ptes_none, 0644, khugepaged_max_ptes_none_show,
+>  > 602		       khugepaged_max_ptes_none_store);
+>    603	
+>  > 604	static ssize_t khugepaged_max_ptes_swap_show(struct kobject *kobj,
+>    605						     struct kobj_attribute *attr,
+>    606						     char *buf)
+>    607	{
+>    608		return sprintf(buf, "%u\n", khugepaged_max_ptes_swap);
+>    609	}
+>    610	
+>  > 611	static ssize_t khugepaged_max_ptes_swap_store(struct kobject *kobj,
+>    612						      struct kobj_attribute *attr,
+>    613						      const char *buf, size_t count)
+>    614	{
+> 
+> ---
+> 0-DAY kernel test infrastructure                Open Source Technology Center
+> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
