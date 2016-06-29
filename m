@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C736A828E1
-	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 16:01:11 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id f89so133195373qtd.1
-        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 13:01:11 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EB091828E1
+	for <linux-mm@kvack.org>; Wed, 29 Jun 2016 16:14:12 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id e3so26332518qkd.2
+        for <linux-mm@kvack.org>; Wed, 29 Jun 2016 13:14:12 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s86si4150549qks.197.2016.06.29.13.01.10
+        by mx.google.com with ESMTPS id j1si1226qkf.317.2016.06.29.13.14.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Jun 2016 13:01:11 -0700 (PDT)
-Date: Wed, 29 Jun 2016 22:01:08 +0200
+        Wed, 29 Jun 2016 13:14:12 -0700 (PDT)
+Date: Wed, 29 Jun 2016 22:14:09 +0200
 From: Oleg Nesterov <oleg@redhat.com>
 Subject: Re: [PATCH] mm,oom: use per signal_struct flag rather than clear
  TIF_MEMDIE
-Message-ID: <20160629200108.GA19253@redhat.com>
-References: <20160624215627.GA1148@redhat.com>
+Message-ID: <20160629201409.GB19253@redhat.com>
+References: <1466766121-8164-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20160624215627.GA1148@redhat.com>
  <201606251444.EGJ69787.FtMOFJOLSHFQOV@I-love.SAKURA.ne.jp>
  <20160627092326.GD31799@dhcp22.suse.cz>
  <20160627103609.GE31799@dhcp22.suse.cz>
@@ -22,81 +23,49 @@ References: <20160624215627.GA1148@redhat.com>
  <20160627160616.GN31799@dhcp22.suse.cz>
  <20160627175555.GA24370@redhat.com>
  <20160628101956.GA510@dhcp22.suse.cz>
- <20160629001353.GA9377@redhat.com>
- <20160629083314.GA27153@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160629083314.GA27153@dhcp22.suse.cz>
+In-Reply-To: <20160628101956.GA510@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, vdavydov@virtuozzo.com, rientjes@google.com
 
-On 06/29, Michal Hocko wrote:
+On 06/28, Michal Hocko wrote:
 >
-> > > +void mark_oom_victim(struct task_struct *tsk, struct mm_struct *mm)
-> > >  {
-> > >  	WARN_ON(oom_killer_disabled);
-> > >  	/* OOM killer might race with memcg OOM */
-> > >  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
-> > >  		return;
-> > > +
-> > >  	atomic_inc(&tsk->signal->oom_victims);
-> > > +
-> > > +	/* oom_mm is bound to the signal struct life time */
-> > > +	if (!tsk->signal->oom_mm) {
-> > > +		atomic_inc(&mm->mm_count);
-> > > +		tsk->signal->oom_mm = mm;
+> On Mon 27-06-16 19:55:55, Oleg Nesterov wrote:
+> > On 06/27, Michal Hocko wrote:
+> > >
+> > > On Mon 27-06-16 17:51:20, Oleg Nesterov wrote:
+> > > >
+> > > > Yes I agree, it would be nice to remove find_lock_task_mm(). And in
+> > > > fact it would be nice to kill task_struct->mm (but this needs a lot
+> > > > of cleanups). We probably want signal_struct->mm, but this is a bit
+> > > > complicated (locking).
+> > >
+> > > Is there any hard requirement to reset task_struct::mm in the first
+> > > place?
 > >
-> > Looks racy, but it is not because we rely on oom_lock? Perhaps a comment
-> > makes sense.
+> > Well, at least the scheduler needs this.
 >
-> mark_oom_victim will be called only for the current or under the
-> task_lock so it should be stable. Except for...
+> Could you point me to where it depends on that? I mean if we are past
+> exit_mm then we have unmapped the address space most probably but why
+> should we care about that in the scheduler? There shouldn't be any
+> further access to the address space by that point. I can see that
+> context_switch() checks task->mm but it should just work when it sees it
+> non NULL, right?
 
-I meant that the code looks racy because 2 threads can see ->oom_mm == NULL
-at the same time and in this case we have the extra atomic_inc(mm_count).
-But I guess oom_lock saves us, so the code is correct but not clear.
+But who will do the final mmdrop() then? I am not saying this is impossible
+to change, say we do this in finish_task_switch(TASK_DEAD) or even in
+free_task(), but we do not want this?
 
-> > > @@ -838,8 +826,8 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
-> > >  	 * If the task is already exiting, don't alarm the sysadmin or kill
-> > >  	 * its children or threads, just set TIF_MEMDIE so it can die quickly
-> > >  	 */
-> > > -	if (task_will_free_mem(p)) {
-> > > -		mark_oom_victim(p);
-> > > +	if (mm && task_will_free_mem(p)) {
-> > > +		mark_oom_victim(p, mm);
->
-> This one. I didn't bother to cover it for the example patch but I have a
-> plan to address that. There are two possible ways. One is to pin
-> mm_count in oom_badness() so that we have a guarantee that it will not
+> Do you think this would be a way to go, though? We would have to special
+> case this because the mm_struct is quite large (~900B with my config) so
+> we would keep and pin it only for oom victims.
 
-I thought about this too. And I think that select_bad_process() should even
-return mm_struct or at least a task_lock'ed task for the start.
-
-> > And this looks really racy at first glance. Suppose that this memory hog execs
-> > (this changes its ->mm) and then exits so that task_will_free_mem() == T, in
-> > this case "mm" has nothing to do with tsk->mm and it can be already freed.
->
-> Hmm, I didn't think about exec case. And I guess we have never cared
-> about that race. We just select a task and then kill it.
-
-And I guess we want to fix this too, although this is not that important,
-but this looks like a minor security problem.
-
-And this is another indication that almost everything oom-kill.c does with
-task_struct is wrong ;) Ideally It should only use task_struct to send the
-SIGKILL, and now that we kill all users of victim->mm we can hopefully do
-this later.
-
-Btw, do we still need this list_for_each_entry(child, &t->children, sibling)
-loop in oom_kill_process() ?
-
-> I would be more worried about the use
-> after free.
-
-Yes, yes, this is what I meant.
+Plus page tables, so it is more than 900B. But as I said, personally I agree
+with signal->oom_mm which can only be set by oom-killer.
 
 Oleg.
 
