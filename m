@@ -1,76 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 10D50828E1
-	for <linux-mm@kvack.org>; Thu, 30 Jun 2016 04:07:40 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id g18so54729166lfg.2
-        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 01:07:40 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id bi9si2942766wjc.90.2016.06.30.01.07.38
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Jun 2016 01:07:38 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id c82so20622079wme.3
-        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 01:07:38 -0700 (PDT)
-Date: Thu, 30 Jun 2016 10:07:37 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: use per signal_struct flag rather than clear
- TIF_MEMDIE
-Message-ID: <20160630080736.GD18783@dhcp22.suse.cz>
-References: <1466766121-8164-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160624215627.GA1148@redhat.com>
- <201606251444.EGJ69787.FtMOFJOLSHFQOV@I-love.SAKURA.ne.jp>
- <20160627092326.GD31799@dhcp22.suse.cz>
- <20160627103609.GE31799@dhcp22.suse.cz>
- <20160627155119.GA17686@redhat.com>
- <20160627160616.GN31799@dhcp22.suse.cz>
- <20160627175555.GA24370@redhat.com>
- <20160628101956.GA510@dhcp22.suse.cz>
- <20160629201409.GB19253@redhat.com>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CB7186B0005
+	for <linux-mm@kvack.org>; Thu, 30 Jun 2016 04:13:17 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id he1so133735084pac.0
+        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 01:13:17 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id 76si3272959pfl.272.2016.06.30.01.13.16
+        for <linux-mm@kvack.org>;
+        Thu, 30 Jun 2016 01:13:16 -0700 (PDT)
+Date: Thu, 30 Jun 2016 17:16:18 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [patch] mm, compaction: make sure freeing scanner isn't
+ persistently expensive
+Message-ID: <20160630081618.GD30114@js1304-P5Q-DELUXE>
+References: <alpine.DEB.2.10.1606281839050.101842@chino.kir.corp.google.com>
+ <6685fe19-753d-7d76-aced-3bb071d7c81d@suse.cz>
+ <alpine.DEB.2.10.1606291349320.145590@chino.kir.corp.google.com>
+ <20160630073158.GA30114@js1304-P5Q-DELUXE>
+ <843e8168-024e-267b-0c6f-45dd596923ad@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160629201409.GB19253@redhat.com>
+In-Reply-To: <843e8168-024e-267b-0c6f-45dd596923ad@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, vdavydov@virtuozzo.com, rientjes@google.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 29-06-16 22:14:09, Oleg Nesterov wrote:
-> On 06/28, Michal Hocko wrote:
+On Thu, Jun 30, 2016 at 09:42:36AM +0200, Vlastimil Babka wrote:
+> On 06/30/2016 09:31 AM, Joonsoo Kim wrote:
+> >On Wed, Jun 29, 2016 at 01:55:55PM -0700, David Rientjes wrote:
+> >>On Wed, 29 Jun 2016, Vlastimil Babka wrote:
+> >>
+> >>>On 06/29/2016 03:39 AM, David Rientjes wrote:
+> >>>>It's possible that the freeing scanner can be consistently expensive if
+> >>>>memory is well compacted toward the end of the zone with few free pages
+> >>>>available in that area.
+> >>>>
+> >>>>If all zone memory is synchronously compacted, say with
+> >>>>/proc/sys/vm/compact_memory, and thp is faulted, it is possible to
+> >>>>iterate a massive amount of memory even with the per-zone cached free
+> >>>>position.
+> >>>>
+> >>>>For example, after compacting all memory and faulting thp for heap, it
+> >>>>was observed that compact_free_scanned increased as much as 892518911 4KB
+> >>>>pages while compact_stall only increased by 171.  The freeing scanner
+> >>>>iterated ~20GB of memory for each compaction stall.
+> >>>>
+> >>>>To address this, if too much memory is spanned on the freeing scanner's
+> >>>>freelist when releasing back to the system, return the low pfn rather than
+> >>>>the high pfn.  It's declared that the freeing scanner will become too
+> >>>>expensive if the high pfn is used, so use the low pfn instead.
+> >>>>
+> >>>>The amount of memory declared as too expensive to iterate is subjectively
+> >>>>chosen at COMPACT_CLUSTER_MAX << PAGE_SHIFT, which is 512MB with 4KB
+> >>>>pages.
+> >>>>
+> >>>>Signed-off-by: David Rientjes <rientjes@google.com>
+> >>>
+> >>>Hmm, I don't know. Seems it only works around one corner case of a larger
+> >>>issue. The cost for the scanning was already paid, the patch prevents it from
+> >>>being paid again, but only until the scanners are reset.
+> >>>
+> >>
+> >>The only point of the per-zone cached pfn positions is to avoid doing the
+> >>same work again unnecessarily.  Having the last 16GB of memory at the end
+> >>of a zone being completely unfree is the same as a single page in the last
+> >>pageblock free.  The number of PageBuddy pages in that amount of memory
+> >>can be irrelevant up to COMPACT_CLUSTER_MAX.  We simply can't afford to
+> >>scan 16GB of memory looking for free pages.
 > >
-> > On Mon 27-06-16 19:55:55, Oleg Nesterov wrote:
-> > > On 06/27, Michal Hocko wrote:
-> > > >
-> > > > On Mon 27-06-16 17:51:20, Oleg Nesterov wrote:
-> > > > >
-> > > > > Yes I agree, it would be nice to remove find_lock_task_mm(). And in
-> > > > > fact it would be nice to kill task_struct->mm (but this needs a lot
-> > > > > of cleanups). We probably want signal_struct->mm, but this is a bit
-> > > > > complicated (locking).
-> > > >
-> > > > Is there any hard requirement to reset task_struct::mm in the first
-> > > > place?
-> > >
-> > > Well, at least the scheduler needs this.
+> >We need to find a root cause of this problem, first.
 > >
-> > Could you point me to where it depends on that? I mean if we are past
-> > exit_mm then we have unmapped the address space most probably but why
-> > should we care about that in the scheduler? There shouldn't be any
-> > further access to the address space by that point. I can see that
-> > context_switch() checks task->mm but it should just work when it sees it
-> > non NULL, right?
+> >I guess that this problem would happen when isolate_freepages_block()
+> >early stop due to watermark check (if your patch is applied to your
+> >kernel). If scanner meets, cached pfn will be reset and your patch
+> >doesn't have any effect. So, I guess that scanner doesn't meet.
+> >
+> >We enter the compaction with enough free memory so stop in
+> >isolate_freepages_block() should be unlikely event but your number
+> >shows that it happens frequently?
 > 
-> But who will do the final mmdrop() then? I am not saying this is impossible
-> to change, say we do this in finish_task_switch(TASK_DEAD) or even in
-> free_task(), but we do not want this?
+> If it's THP faults, it could be also due to need_resched() or lock
+> contention?
 
-I thought it could be done somewhere in release_task after we unhash
-the process but then we would need something for the exlusion (possibly
-task_lock) to handle races when the oom killer sees a task while it is
-being unhashed. I guess it should be doable...
--- 
-Michal Hocko
-SUSE Labs
+Okay. I missed that.
+
+> 
+> >Maybe, if we change all watermark check on compaction.c to use
+> >min_wmark, problem would be disappeared.
+> 
+> Basically patches 13 and 16 in https://lkml.org/lkml/2016/6/24/222
+
+Okay. I don't look at it but I like to change to use min_wmark.
+
+> >Anyway, could you check how often isolate_freepages_block() is stopped
+> >and why?
+> >
+> >In addition, I worry that your previous patch that makes
+> >isolate_freepages_block() stop when watermark doesn't meet would cause
+> >compaction non-progress. Amount of free memory can be flutuated so
+> >watermark fail would be temporaral. We need to break compaction in
+> >this case? It would decrease compaction success rate if there is a
+> >memory hogger in parallel. Any idea?
+> 
+> I think it's better to stop and possibly switch to reclaim (or give
+> up for THP's) than to continue hoping that somebody would free the
+> memory for us. As I explained in the other thread, even if we
+> removed watermark check completely and migration succeeded and
+> formed high-order page, compact_finished() would see failed
+> high-order watermark and return COMPACT_CONTINUE, even if the
+> problem is actually order-0 watermarks. So maybe success rate would
+> be bigger, but at enormous cost. IIRC you even proposed once to add
+
+I understand your point. I'm not insisting to remove watermark check
+in split_free_page(). However, my worry still remains. If we use
+min_wmark, there would be no problem since memory hogger cannot
+easily consume memory below the min_wmark. But, if we use low_wmark,
+memory hogger consumes all free memory up to min_wmark repeatedly and
+compaction will fail repeatedly. This is the problem about robustness
+and correctness of the system so, even if we pay more, we prohibits
+such a case. If we once make high order page, it would not be broken
+easily so we can get it when next reclaim makes order 0 free memory up
+to watermark. But, if we stop to make high order page when watermark
+check is failed, we need to run compaction one more time after next
+reclaim and there is a chance that memory hogger could consume all
+reclaimed free memory.
+
+> order-0 check (maybe even with some gap like compaction_suitable()?)
+> to compact_finished() that would terminate compaction. Which
+> shouldn't be necessary if we terminate due to split_free_page()
+> failing.
+
+I can't remember if I did it or not. :)
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
